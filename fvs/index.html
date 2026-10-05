@@ -574,7 +574,7 @@
     <button class="org-floatbar__btn" id="btn-symbol-fit-all-contain" data-fit-name="Contain" aria-pressed="false" aria-label="Contain · all cells">
       <svg class="ico" data-icon="fvs-contain" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><circle cx="8" cy="8" r="2.6"/></svg>
     </button>
-    <button class="org-floatbar__btn" id="btn-symbol-fit-all-fill" data-fit-name="Fill" aria-pressed="false" aria-label="Fill · all cells">
+    <button class="org-floatbar__btn" id="btn-symbol-fit-all-fill" data-fit-name="Stretch" aria-pressed="false" aria-label="Stretch · all cells">
       <svg class="ico" data-icon="fvs-fill" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><ellipse cx="8" cy="8" rx="4.4" ry="2.6"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-symbol-fit-all-cover" data-fit-name="Cover" aria-pressed="false" aria-label="Cover · all cells">
@@ -1952,7 +1952,7 @@
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Fit</div>
-          <select class="panel-select" id="sel-sym-arrange-fit" aria-label="Fit in cell"><option value="fill">Fill the cell</option><option value="contain">Contain</option><option value="cover">Cover (no gaps)</option></select>
+          <select class="panel-select" id="sel-sym-arrange-fit" aria-label="Fit in cell"><option value="fill">Stretch</option><option value="contain">Contain</option><option value="cover">Cover (no gaps)</option></select>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Seed</div>
@@ -1994,7 +1994,7 @@
           <div class="ctrl-row"><div class="ctrl-label">Fit</div>
             <select class="panel-select" id="sel-cellprop-fit">
               <option value="contain">Contain</option>
-              <option value="fill">Fill</option>
+              <option value="fill">Stretch</option>
               <option value="cover">Cover (no gaps)</option>
               <option value="fixed">Fixed size</option>
             </select>
@@ -2142,7 +2142,7 @@
     </div>
     <div class="ctrl-row"><div class="ctrl-label">New content fit</div>
       <div class="seg-ctrl" id="seg-content-fit" role="group" aria-label="Fit for newly chosen content">
-        <button type="button" class="seg-btn active" data-fit="fill" aria-pressed="true">Fill</button>
+        <button type="button" class="seg-btn active" data-fit="fill" aria-pressed="true">Stretch</button>
         <button type="button" class="seg-btn" data-fit="cover" aria-pressed="false">Cover</button>
       </div>
     </div>
@@ -9799,7 +9799,7 @@ function bindSymbolCanvasSelection() {
 // every currently-selected cell, then re-renders the canvas only — the
 // panel's own controls don't need to rebuild themselves on every edit,
 // only the rendered result changes.
-// Writes a patch into a cell and says whether anything actually changed (a click on "Fill" when every cell
+// Writes a patch into a cell and says whether anything actually changed (a click on "Stretch" when every cell
 // already is Fill is not an edit — it must not arm the leave-site prompt).
 function patchCell(cell, patch) {
   const p = typeof patch === 'function' ? patch(cell) : patch;

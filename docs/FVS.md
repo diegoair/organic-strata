@@ -319,7 +319,7 @@ its cells.
   once anything is placed, *Generate grid in canvas* does that. Outline contrast on the default
   Paper: 3.65:1 light, 4.73:1 dark.
 - **The Symbol floatbar** (Oct 5, 2026) — three named groups (`.org-floatbar__group`) between
-  separators: **Symbol** (Fill the grid · Variations · Clear) | **Fit in cell** (Contain · Fill ·
+  separators: **Symbol** (Fill the grid · Variations · Clear) | **Fit in cell** (Contain · Stretch ·
   Cover · Fixed size · Anchor) | **View** (loaded grid · clip · cover crop · guides), then Export.
   A pressed Fit or View button keeps its own wash while you hover others; the moving highlight
   follows the pointer only.
@@ -359,7 +359,7 @@ its cells.
   - **Arrange (palette)** — places the palette by a rule: Random (by weight),
     Checkerboard (first two), Rows, Columns, Diagonal bands, 2×2 blocks, Rings,
     Sectors, Wave bands, Up/down (triangles). The n-th class takes the n-th
-    Component. Fit: Fill the cell or Contain. Locked cells stay.
+    Component. Fit: Stretch or Contain. Locked cells stay.
   - **Rule** — transforms only (Oscillator, Checkerboard, Rows, Columns, Radial,
     Wave, Orientation, Random), lock-aware, with Reset & apply to all.
   - **Manual** — click a cell to select it; drag to select several; ⌘-click (Ctrl-click on
@@ -380,7 +380,7 @@ its cells.
 - **Fit and Anchor** — in the floatbar of the Symbol step, one control for both scopes: with
   cells selected on the canvas they act on the **selection**; with none selected, on **every
   cell**. The tooltip names the target ("Cover · 2 selected cells" / "Cover · all cells").
-  - **Fit**: four line icons — Contain / Fill / Cover / Fixed size (a wide cell and what a round
+  - **Fit**: four line icons — Contain / Stretch (was *Fill* until Oct 5, 2026) / Cover / Fixed size (a wide cell and what a round
     content does in it; Fixed has a dashed cell). An icon is pressed only when every target
     cell holds that value (mixed = none). Cover resets Cover axis to Auto; Fixed starts from
     the median cell size.
@@ -394,7 +394,7 @@ its cells.
   (the same rule with or without a selection):
   - no content at all (Empty cells, no grid yet) → Fit and Anchor off; in a mixed group they
     read the cells that hold something;
-  - Contain / Fill / Cover that would place every target exactly as it is now → that icon off,
+  - Contain / Stretch / Cover that would place every target exactly as it is now → that icon off,
     its tooltip says "same result as now" (a round content in a square cell: the three are the
     same picture). Fixed size stays available — it changes what the cell does next (its own Size);
   - Anchor when no target has room to move in (the content is exactly its cell) → off. Both write the same per-cell fields as Cell
@@ -403,7 +403,7 @@ its cells.
 - **No seams.** Cells never show a light line where they meet: nested Components'
   papers are painted first under all ink, and each cell's content and clip reach
   0.1% of the page past its border (the Component's own cells too), so neighbours
-  overlap instead of touching. With *Fill*, a polygon cell's content is centred on
+  overlap instead of touching. With *Stretch*, a polygon cell's content is centred on
   the cell's box, not its centroid (a hexagon cut by the margin stays covered).
 
 ### 6a. Suggest — how the variations are made

@@ -50,7 +50,7 @@ Status: **Decided** (in the ledger, enforce it) · **Pending** (a question for D
 | Generated alternatives to pick from (FVS Suggest, Figure) | **Variation** — *12 variations*, "Use variation 3: …" | Decided | proposal, option, combination, arrangement (Arrange = a fill mode) | Ledger §2, 2026-10-05 (O-25, delegated) |
 | Put content into the empty Symbol grid (FVS) | **Fill the grid** (button); **Fill** = the panel section that says how (Suggest / Arrange / Manual / Rule) | Decided | Generate (a new grid, a Component set — elsewhere), Fill the Symbol | Ledger §2, 2026-10-05 |
 | Helper lines on the FVS Symbol sheet — column/row guides + empty-cell outlines, one toggle | **Guides** — toggle *Show guides* (`aria-pressed`, name does not change with state) | Decided | column/row guides, outlines, helper lines, grid (= *Show loaded grid*, the cells' own lines — a different thing) | Ledger §2, 2026-10-05 (delegated) |
-| Content scaled to its cell, both axes (FVS Fit) | **Fill** (*Fill · all cells*, *Fill the cell*) — kept | Decided | Stretch (proposed, declined) | Ledger §2, 2026-10-05 (O-26) |
+| Content scaled to its cell, both axes (FVS Fit) | **Stretch** (*Stretch · all cells*) | Decided | Fill, Fill the cell | Ledger §2, 2026-10-05 (O-26) |
 | FVS Element sections | **Shape**, **Look & place** | Decided | Seed, Appearance | Ledger §2, 2026-10-04 |
 | FVS shape details | **Rounding**, **Rounding style**, **Dashes / Dash gap**, **Thickness**, **Bands**, **Hole** (Ring: **Opening**) | Decided | Corner radius, Corner rounding, End rounding, Arm width, Arc ratio | Ledger §2, 2026-10-04 |
 | Paper (+ texture) | **Paper** = ground colour + its pattern (FVS) | Decided (FVS) | — | Ledger §2, 2026-10-03 |
@@ -79,7 +79,7 @@ the decision in `docs/DESIGN-DECISIONS.md` §2, and lists the tools whose string
 ## 3. Words that mean more than one thing today
 
 Format · Seed · Render · Scale · Reset · Palette · Invert · Shuffle · Duotone · Zoom ·
-Style · Resolution · Fill (FVS: put content in the cells — Decided; stretch content to the cell — Fill kept (O-26, Diego); Element paint Fill / Stroke — the vector term, a different object, kept) · Variation (FVS Figure's blob seed slider is labelled "Variation" — a number, not a generated alternative; to rename with N4) · Variant (Export *Variants* = size rows; a different word, keep them apart) — inventory with tools and lines on `/design-system/_colour-audit.html`
+Style · Resolution · Fill (FVS: put content in the cells — Decided; stretch content to the cell = **Stretch** since O-26, not Fill; Element paint Fill / Stroke — the vector term, a different object, kept) · Variation (FVS Figure's blob seed slider is labelled "Variation" — a number, not a generated alternative; to rename with N4) · Variant (Export *Variants* = size rows; a different word, keep them apart) — inventory with tools and lines on `/design-system/_colour-audit.html`
 §8. A new control must not add a meaning to any of them.
 
 ## 4. How it is checked
