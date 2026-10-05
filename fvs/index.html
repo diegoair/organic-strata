@@ -7946,7 +7946,7 @@ function syncFitAnchorUI() {
   const cells = targets.map(t => t.cell);
   const nothing = cells.length === 0;
   const why = nothing ? (state.symbolGrid ? ' — nothing to fit (empty)' : ' — no grid yet') : '';
-  const placeOf = (t, patch) => resolveCellPlacement(t.box.cellW, t.box.cellH, t.nat, { ...t.cell, ...(patch || {}) });
+  const placeOf = (t, patch) => placeInBox(t.box, t.nat, { ...t.cell, ...(patch || {}) });
   const shared = fn => (cells.length && cells.every(c => fn(c) === fn(cells[0])) ? fn(cells[0]) : null);
   const fit = shared(c => c.fitMode || 'contain'), ax = shared(c => c.anchorX || 0), ay = shared(c => c.anchorY || 0);
   // the Fit buttons live in the floatbar: their tooltip (aria-label) names the target
@@ -8120,11 +8120,19 @@ function symbolSpanLayout(grid, cells) {
     const x0 = a.cx - a.cellW / 2, y0 = a.cy - a.cellH / 2, x1 = b.cx + b.cellW / 2, y1 = b.cy + b.cellH / 2;
     const ra = grid.cells[block[0]], rb = grid.cells[block[block.length - 1]];
     out.region[i] = {
-      c: { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, cellW: x1 - x0, cellH: y1 - y0, cellSize: Math.min(x1 - x0, y1 - y0) },
+      // fixedK: the block's length in cells along its long side — Fixed size is a size PER CELL, so a 1×2
+      // block holds its Component at the same scale per module as a square Component in one cell.
+      c: { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, cellW: x1 - x0, cellH: y1 - y0, cellSize: Math.min(x1 - x0, y1 - y0), fixedK: Math.max(sp[0], sp[1]) },
       raw: { x: ra.x, y: ra.y, width: rb.x + rb.width - ra.x, height: rb.y + rb.height - ra.y },
     };
   });
   return out;
+}
+// resolveCellPlacement in a box that may be a spanning block: Fixed size scales by the block's length
+// in cells (fixedK), everything else is unchanged. Every placement on the Symbol goes through here.
+function placeInBox(c, natural, cell) {
+  const k = c && c.fixedK > 1 && cell.fitMode === 'fixed' ? c.fixedK : 1;
+  return resolveCellPlacement(c.cellW, c.cellH, natural, k === 1 ? cell : { ...cell, fixedSize: (cell.fixedSize || 100) * k });
 }
 // The box each Symbol cell's content is placed in: its own cell, or — for a
 // spanning Component — its whole block; null for a cell inside a block.
@@ -8180,7 +8188,7 @@ function buildSymbolItems() {
       const savedColorAt = entryInkAt(own);
       const nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid)
         .map((it, j) => ({ ...it, color: savedColorAt(j) }));
-      const place = resolveCellPlacement(c.cellW, c.cellH, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell);
+      const place = placeInBox(c, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell);
       return {
         type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
         scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
@@ -8189,7 +8197,7 @@ function buildSymbolItems() {
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
     const geo = SEED_TYPES[cell.seedType].geometry(cell.seedParams || SYMBOL_SEED_DEFAULTS);
-    const place = resolveCellPlacement(c.cellW, c.cellH, 100, cell);
+    const place = placeInBox(c, 100, cell);
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
       scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
@@ -8233,7 +8241,7 @@ function cellOverflowInfo(index, resolvedCells) {
     natural = nd.w === nd.h ? frameSize(entry.grid) : { w: nd.w, h: nd.h };
   }
   if (cell.source === 'empty') return false;
-  const place = resolveCellPlacement(c.cellW, c.cellH, natural, cell);
+  const place = placeInBox(c, natural, cell);
   const itemW = (natural.w || natural) * place.scaleX, itemH = (natural.h || natural) * place.scaleY;
   return itemW > c.cellW + 0.01 || itemH > c.cellH + 0.01;
 }

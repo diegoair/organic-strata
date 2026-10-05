@@ -644,7 +644,10 @@ the Element, Component and Symbol steps (not on ★ Figure).
   or Choose content does the same where it fits. Where a block does not fit — the grid's edge, a
   cell already covered, a locked cell — the Component sits in its own cell, reduced, as before.
   Stored as `span: true` on the anchor cell; the block is resolved at draw time
-  (`symbolSpanLayout`), so preview, SVG, PNG, selection and hits agree. Suggest and polygon / Loom
+  (`symbolSpanLayout`), so preview, SVG, PNG, selection and hits agree. Fit acts on the whole block;
+  **Fixed size** is a size *per cell*, so a block multiplies it by its length in cells along its
+  long side (`fixedK`, `placeInBox`) — a 1×2 Component in Fixed keeps the same scale per module as
+  a square one in a single cell (until Oct 5, 2026 it shrank to half its block). Suggest and polygon / Loom
   grids stay one cell per Component for now. Symbols saved before this are unchanged.
 - **A Symbol from Elements only** (Oct 4, 2026). With no saved Component, Fill the grid builds the
   grid anyway and fills it from the **saved Elements** (the latest 8, weight ×1, `elementPool()`),
