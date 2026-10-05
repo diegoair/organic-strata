@@ -1139,12 +1139,6 @@ async function battery() {
       put('bridge:form', [ctrl('fg-lattice').value, JSON.stringify(figureRecipeFromForm().levels[0]) === JSON.stringify(level)].join(','));
       let bad = ''; try { runFigureRecipe({ ...def, levels: [{ ...level, cells: level.cells.slice(1) }] }, { keepTier: true }); } catch (e) { bad = e.message; }
       put('bridge:invalid', bad);
-      // the floatbar action: Symbol step → Figure step, the live Symbol as level 1
-      state.figureRecipe = null; state.figureStep = null;
-      runFigureRecipe(def, { keepTier: true }); setTier('symbol');
-      const liveSVG = buildSymbolSVG();   // (the nooverwrite check above changed the Component's paper)
-      ctrl('btn-symbol-to-figure').click();
-      put('bridge:button', [state.activeTier, state.figureRecipe.levels.length, state.figureRecipe.levels[0].lattice.type, norm(state.figureShown.steps[0]) === norm(liveSVG)].join(','));
     } finally {
       const l = LIBRARY.read(); delete l[BR]; LIBRARY.write(l);
       state.figureRecipe = null; state.figureStep = null;

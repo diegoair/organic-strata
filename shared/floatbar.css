@@ -259,6 +259,12 @@
 .org-floatbar__btn:disabled > svg, .org-floatbar__btn:disabled > span { opacity: 0.6; }
 .org-floatbar__btn:disabled::after { display: none; }
 .org-floatbar__btn:disabled { opacity: 0.35; cursor: not-allowed; }
+/* aria-disabled: looks like :disabled, but stays focusable and keeps its tooltip readable — so the
+   reason in its aria-label is shown and read. The dim is on the glyph, not the button: opacity on the
+   button would fade the ::after tooltip with it. */
+.org-floatbar__btn[aria-disabled="true"] { cursor: not-allowed; }
+.org-floatbar__btn[aria-disabled="true"] > :is(svg, span),
+.org-floatbar__btn[aria-disabled="true"]:is(:hover, :focus-visible) > :is(svg, span) { opacity: 0.21; }
 
 /* Wider hit area for a two-glyph button (icon + dropdown chevron) */
 .org-floatbar__btn--wide { width: auto; padding: 0 var(--space-3); }

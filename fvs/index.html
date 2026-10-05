@@ -220,20 +220,22 @@
   #canvas-wrap .tier-view[data-tier="element"].active { flex-direction: column; gap: var(--space-5); }
   #canvas-wrap .tier-view[data-tier="component"].active { flex-direction: column; gap: var(--space-3); }
   #canvas-wrap .tier-view[data-tier="symbol"].active { flex-direction: column; }
-  /* Variations dock (Symbol, Suggest) — the Library rail's pattern turned horizontal: a toggle pill + a sibling
-     glass panel, both .org-floatbar (glass, rim, dark values from shared/floatbar.css), docked top-centre over
-     the Symbol view and out of the layout flow, so the sheet is never pushed down. Starts collapsed. */
-  #canvas-wrap .tier-view[data-tier="symbol"] { position: relative; }
-  .fvs-sug-dock { position: absolute; top: var(--space-4); left: 50%; transform: translateX(-50%); z-index: 5; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); pointer-events: none; max-width: calc(100% - 2 * var(--space-5)); }
-  .fvs-sug-dock[hidden] { display: none; }
-  #fvs-sug-bar, #fvs-sug-panel { position: relative; left: auto; top: auto; bottom: auto; transform: none; height: auto; pointer-events: auto; }
-  #fvs-sug-bar { padding: var(--space-1); }
-  #btn-sug-dock { gap: var(--space-2); font-size: var(--fs-small); }
-  #fvs-sug-bar .org-floatbar__btn[aria-label]::after { content: none; }   /* the pill's text is its label — no tooltip echo */
-  #fvs-sug-panel { flex-direction: row; max-width: 100%; overflow-x: auto; scrollbar-width: thin; padding: var(--space-2); gap: var(--space-1); border-radius: var(--radius-lg);
-    opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(calc(-1 * var(--space-2)));
+  /* Variations (Symbol, Suggest): a floatbar button (the `variations` icon + a count badge) opens a glass
+     strip anchored above the floatbar — a sibling of it (never nested: a backdrop-filter child blurs only
+     its parent), centred by .org-floatbar's own formula, its bottom measured from the bar on open
+     (--fvs-sug-bottom). Not Organica.popover: it stays open while you compare variations with the sheet. */
+  #fvs-sug-panel { left: calc(50% - var(--floatbar-offset, var(--panel-w)) / 2); bottom: var(--fvs-sug-bottom, var(--space-8)); height: auto;
+    max-width: calc(100vw - var(--panel-w) - 2 * var(--space-5)); flex-direction: row; overflow-x: auto; scrollbar-width: thin;
+    padding: var(--space-2); gap: var(--space-1); border-radius: var(--radius-lg);
+    opacity: 0; visibility: hidden; pointer-events: none; transform: translate(-50%, var(--space-2));
     transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base); }
-  #fvs-sug-panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
+  #fvs-sug-panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%); transition-delay: 0s; }
+  /* the count on the variations button — ink on paper (inverts in both themes, like the floatbar tooltip);
+     a <b>, not a span, so the floatbar's resting 0.6 on `> span` doesn't dim it */
+  .fvs-count-badge { position: absolute; top: 0; right: 0; min-width: var(--icon-md); height: var(--icon-md); padding-inline: calc(var(--space-1) / 2);
+    box-sizing: border-box; border-radius: 999px;   /* stadium: half its height */
+    background: var(--ink); color: var(--paper); font: var(--w-medium) var(--fs-micro)/1 var(--font-display); font-variant-numeric: tabular-nums;
+    display: grid; place-items: center; pointer-events: none; }
   .fvs-suggest__item { flex: none; display: flex; background: none; border: 1px solid transparent; border-radius: var(--radius-sm); padding: var(--space-1); cursor: pointer; }
   .fvs-suggest__item svg { height: 3rem; width: auto; display: block; box-shadow: 0 0 0 1px var(--border); }
   .fvs-suggest__item.is-current { border-color: var(--tool); }
@@ -338,19 +340,8 @@
     .fvs-flyout__tool::before, .fvs-flyout__tool > span { transition: none; }
   }
 
-  /* ── The empty Symbol = its grid, empty, with one Generate over it ──
-     The grid is there from the start (built from the panel); the user fills cells by hand
-     (Library rail, Choose content) or presses Generate. A glass pane (.org-floatbar, its
-     geometry reset like the rail's) centred over the sheet, a sibling of #symbol-frame so it
-     neither zooms nor is rewritten; it takes no pointer itself, so a drag reaches the cells
-     under it. Shown while every cell is empty. The arrival is runSymbolArrival(). */
-  .fvs-sym-start { position: absolute; left: 50%; top: 50%; bottom: auto; height: auto; transform: translate(-50%, -50%); z-index: 4;
-    flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-lg); pointer-events: none;
-    transition: opacity var(--dur-base) var(--ease-out); }
-  .fvs-sym-start[hidden] { display: none; }
-  .fvs-sym-start[data-loading="true"] { opacity: 0; }
-  .fvs-sym-start .org-btn { pointer-events: auto; }
-  .fvs-sym-start__hint { margin: 0; font-size: var(--fs-small); color: var(--mid); max-width: 30ch; text-align: center; }
+  /* ── The empty Symbol = its grid, empty (built from the panel); the user fills cells by hand (Library
+     rail, Choose content) or presses Generate in the floatbar. The arrival is runSymbolArrival(). */
   #symbol-frame g.is-empty > :first-child { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 5; }
   @media (hover: hover) { #symbol-frame g.is-empty:hover > :first-child { stroke: var(--ink); stroke-dasharray: none; fill: color-mix(in srgb, var(--ink) 8%, transparent); } }
 
@@ -526,6 +517,8 @@
   <p class="fvs-stepnav__hint" id="stepnav-hint"></p>
 </div>
 
+<!-- Symbol variations: a glass strip above the floatbar, opened by #btn-sug-dock (a sibling, never nested). -->
+<div class="org-floatbar fvs-suggest" id="fvs-sug-panel" role="region" aria-label="Symbol variations" inert></div>
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <!-- Element-tier actions — hidden on the other tiers by setTier(). display:contents keeps the buttons direct flex items of the floatbar. -->
   <div id="fb-element-actions" class="fvs-fb-group">
@@ -554,8 +547,18 @@
     </button>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
-  <!-- Symbol-tier action — hand the live Symbol to the ★ Figure tier as its first level. Shown only on that tier by setTier(). -->
+  <!-- Symbol-tier actions. Shown only on that tier by setTier(). -->
   <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
+    <!-- Generate: fills the empty grid (Suggest / Arrange). aria-disabled + the reason in its label (the tooltip)
+         when nothing is saved or the grid already has content. Variations: shown once Suggest has some. -->
+    <button class="org-floatbar__btn" id="btn-symbol-generate" aria-label="Generate">
+      <svg class="ico" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-sug-dock" aria-label="Variations" aria-expanded="false" aria-controls="fvs-sug-panel" style="display:none">
+      <svg class="ico" data-icon="variations" viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="3.5" width="7" height="9" rx="1"/><path d="M2 5v6M14 5v6"/></svg>
+      <b class="fvs-count-badge" id="sug-dock-count" aria-hidden="true"></b>
+    </button>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
     <!-- Clear: every cell empty, the grid kept. Hold to confirm (data-hold, core.js); a bare click falls back to two clicks. Shown with the grid, disabled while every cell is empty. -->
     <button class="org-floatbar__btn" id="btn-symbol-clear" aria-label="Clear Symbol — hold to confirm" data-hold="Clear Symbol — click again to confirm" style="display:none">
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
@@ -598,10 +601,6 @@
     </button>
     <button class="org-floatbar__btn" id="btn-symbol-view-guides" data-view="guides" aria-pressed="true" aria-label="Show column/row guides">
       <svg class="ico" data-icon="fvs-guides" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/></svg>
-    </button>
-    <span class="org-floatbar__sep" aria-hidden="true"></span>
-    <button class="org-floatbar__btn" id="btn-symbol-to-figure" aria-label="Build a Figure from this Symbol">
-      <svg class="ico" data-icon="fvs-to-figure" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.8" y="4.5" width="6" height="6"/><path d="M8.5 7.5h2.2M9.6 6.2l1.3 1.3-1.3 1.3"/><path d="M13 4.2l.7 1.5 1.6.2-1.2 1.1.3 1.6-1.4-.8-1.4.8.3-1.6-1.2-1.1 1.6-.2z"/></svg>
     </button>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
@@ -720,17 +719,7 @@
       </div>
     </div>
     <div class="tier-view" data-tier="symbol">
-      <div id="fvs-sug-dock" class="fvs-sug-dock" role="group" aria-label="Variations" hidden>
-        <div class="org-floatbar" id="fvs-sug-bar">
-          <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-sug-dock" aria-expanded="false" aria-controls="fvs-sug-panel"><svg class="ico" data-icon="variations" viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="3.5" width="7" height="9" rx="1"/><path d="M2 5v6M14 5v6"/></svg><span id="sug-dock-count"></span><span id="sug-dock-chev" data-icon-slot></span></button>
-        </div>
-        <div class="org-floatbar fvs-suggest" id="fvs-sug-panel" role="region" aria-label="Symbol variations" inert></div>
-      </div>
       <div id="symbol-frame"></div>
-      <div class="org-floatbar fvs-sym-start" id="fvs-sym-start" hidden>
-        <button type="button" class="org-btn org-btn--primary org-btn--lg" id="btn-symbol-first-generate" aria-describedby="sym-start-hint">Generate</button>
-        <p class="fvs-sym-start__hint" id="sym-start-hint"></p>
-      </div>
     </div>
     <div class="tier-view" data-tier="figure">
       <div id="fg-strip">
@@ -7738,17 +7727,18 @@ let emptyRebuildTimer = 0;
   clearTimeout(emptyRebuildTimer);
   emptyRebuildTimer = setTimeout(buildEmptySymbolGrid, 120);
 })));
-// The start pane: Generate over the empty grid, with what it does (or why it can't).
+// The floatbar Generate: fills the empty grid. Disabled (aria-disabled, so it stays focusable and its
+// tooltip says why) when nothing is saved, or when the grid already has content (no Symbol undo — Clear first).
+function symbolGenerateBlock() {
+  if (!state.symbolGrid) return '';   // the grid is being built; the click handler's own guard covers it
+  if (symbolHasContent()) return 'Generate — clear the Symbol first';
+  if (!symbolSource().length) return 'Generate — save an Element or a Component first';
+  return '';
+}
 function syncSymbolStart() {
-  const pane = ctrl('fvs-sym-start'), btn = ctrl('btn-symbol-first-generate');
-  const show = !!state.symbolGrid && !symbolHasContent();
-  pane.hidden = !show;
-  if (!show) { pane.dataset.loading = 'false'; return; }
-  const can = symbolSource().length > 0;
-  btn.setAttribute('aria-disabled', String(!can));
-  ctrl('sym-start-hint').textContent = can
-    ? 'Generate fills the grid for you, or drag from the Library into a cell.'
-    : 'Save an Element or a Component first: the grid is filled from them.';
+  const btn = ctrl('btn-symbol-generate'), why = symbolGenerateBlock();
+  btn.setAttribute('aria-disabled', String(!!why));
+  btn.setAttribute('aria-label', why || 'Generate');
 }
 // The canvas of the loaded Symbol, if it has one (a grid generated in a Canvas).
 function symbolCanvasOf(model) { return model && model.canvas && model.canvas.fvsFrame ? model.canvas.fvsFrame : null; }
@@ -7775,7 +7765,7 @@ ctrl('btn-symbol-clear').addEventListener('click', () => {
   state.symbolMarqueeRect = null;
   ctrl('symgrid-gen-error').style.display = 'none';
   renderSymbol();
-  ctrl('btn-symbol-first-generate').focus({ preventScroll: true });   // Clear is disabled now: focus goes to Generate, over the empty grid
+  ctrl('btn-symbol-generate').focus({ preventScroll: true });   // Clear is disabled now: focus goes to Generate
 });
 // ── The arrival, after Bencho's Generate (MIT — THIRD-PARTY-NOTICES.md) ──
 // The Symbol is built whole and sharp, underneath. Over it, in the live
@@ -7890,16 +7880,14 @@ function runSymbolArrival() {
 // button (canvas, generator and its parameters are read from the panel), with
 // the button's leave before it and the arrival after it. Delegated —
 // the frame's innerHTML is rewritten on every render.
-ctrl('btn-symbol-first-generate').addEventListener('click', async e => {
-  const pane = ctrl('fvs-sym-start');
-  if (e.currentTarget.getAttribute('aria-disabled') === 'true' || pane.dataset.loading === 'true' || !state.symbolGrid) return;
-  const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  pane.dataset.loading = 'true';
-  if (!still) await new Promise(r => setTimeout(r, 200));   // let it leave before the cells arrive
+ctrl('btn-symbol-generate').addEventListener('click', () => {
+  const why = symbolGenerateBlock();
+  if (why) { Organica.notice(why.replace(/^Generate — /, '').replace(/^./, c => c.toUpperCase()), { kind: 'info' }); return; }
+  if (!state.symbolGrid) return;
   fillSymbolCells();
-  pane.dataset.loading = 'false';
-  if (symbolHasContent()) runSymbolArrival(); else syncSymbolStart();
-  (state.symbolSuggestions.length ? ctrl('btn-sug-dock') : ctrl('btn-symgrid-generate')).focus({ preventScroll: true });   // the pane is gone: keep keyboard focus somewhere that stays
+  if (symbolHasContent()) runSymbolArrival();
+  syncSymbolStart();
+  if (state.symbolSuggestions.length) ctrl('btn-sug-dock').focus({ preventScroll: true });   // Generate is disabled now
 });
 // Mirrors Trellis's refCellSize() (trellis/index.html) — a sensible starting
 // size for newly-"Fixed" content, so switching TO fixed doesn't leave every
@@ -9111,9 +9099,10 @@ function suggestSymbols(opts = {}) {
 
 function renderSuggestGallery(currentIdx) {
   const wrap = ctrl('fvs-sug-panel'), n = state.symbolSuggestions.length;
-  ctrl('fvs-sug-dock').hidden = !n;
+  ctrl('btn-sug-dock').style.display = n ? '' : 'none';
   if (!n) { wrap.innerHTML = ''; setSugDockOpen(false); return; }
-  ctrl('sug-dock-count').textContent = n + (n === 1 ? ' variation' : ' variations');
+  ctrl('sug-dock-count').textContent = n > 99 ? '99+' : String(n);
+  ctrl('btn-sug-dock').setAttribute('aria-label', n + (n === 1 ? ' variation' : ' variations'));
   syncSugDock();
   const prev = state.symbolCells;
   wrap.innerHTML = '';
@@ -9157,11 +9146,14 @@ function sugDockIsOpen() { return ctrl('fvs-sug-panel').dataset.open === 'true';
 function syncSugDock() {
   const open = sugDockIsOpen(), btn = ctrl('btn-sug-dock');
   btn.setAttribute('aria-expanded', String(open));
-  btn.setAttribute('aria-label', ctrl('sug-dock-count').textContent);
-  ctrl('sug-dock-chev').innerHTML = Organica.icons.get(open ? 'chevron-up' : 'chevron-down', { cls: 'chev' });
 }
 function setSugDockOpen(open, opts) {
   const panel = ctrl('fvs-sug-panel');
+  if (open) {   // sit just above the floatbar, whatever its height; one dropdown at a time
+    const bar = ctrl('btn-sug-dock').closest('.org-floatbar');
+    panel.style.setProperty('--fvs-sug-bottom', Math.round(innerHeight - bar.getBoundingClientRect().top + parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-3'))) + 'px');
+    document.dispatchEvent(new CustomEvent('organica:dropdown-open', { detail: panel }));
+  }
   panel.dataset.open = open ? 'true' : 'false';
   panel.toggleAttribute('inert', !open);
   syncSugDock();
@@ -9172,10 +9164,12 @@ function setSugDockOpen(open, opts) {
 }
 ctrl('btn-sug-dock').addEventListener('click', e => setSugDockOpen(!sugDockIsOpen(), { focus: e.detail === 0 }));   // keyboard opens with focus on the current variation
 ctrl('fvs-sug-panel').addEventListener('wheel', e => e.stopPropagation(), { passive: true });   // scrolling the strip never zooms the sheet
+document.addEventListener('organica:dropdown-open', e => { if (e.detail !== ctrl('fvs-sug-panel') && sugDockIsOpen()) setSugDockOpen(false); });   // Export / Anchor opened: make room
+
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || e.defaultPrevented || !sugDockIsOpen()) return;
   const a = document.activeElement;
-  if ((a && a.closest('#fvs-sug-dock')) || !a || a === document.body) setSugDockOpen(false, { focus: true });   // as the rail: an Escape meant for a field or popover stays theirs
+  if ((a && (a.closest('#fvs-sug-panel') || a.id === 'btn-sug-dock')) || !a || a === document.body) setSugDockOpen(false, { focus: true });   // as the rail: an Escape meant for a field or popover stays theirs
 });
 ['cont', 'bal', 'sur', 'col'].forEach(k => ctrl('rg-sug-' + k).addEventListener('input', e => { ctrl('v-sug-' + k).textContent = e.target.value; }));
 ctrl('btn-sug-run').addEventListener('click', () => runSuggest(false));
@@ -10271,6 +10265,7 @@ function setTier(tier) {
   // #component-edit-view and the disabled Grid/Rule controls would stay
   // stuck in their edit-mode state the next time Component tier is shown.
   if (state.componentEditMode && tier !== 'component') exitComponentEditMode();
+  if (tier !== 'symbol' && sugDockIsOpen()) setSugDockOpen(false);   // the variations strip floats above the bar: Symbol only
   const prevTier = state.activeTier;
   // See snapshotComponentElementState()/restoreComponentElementState() —
   // Figure is a sandbox; entering it captures how Element/Component looked,
@@ -11231,16 +11226,6 @@ function symbolLevelFromLiveState() {
   if (Object.keys(componentEntries).length) level.componentEntries = componentEntries;
   return level;
 }
-function buildFigureFromSymbol() {
-  const level = symbolLevelFromLiveState(); if (!level) return;
-  const el = { type: ctrl('sel-seed-type').value, style: ctrl('sel-element-fillmode').value || 'fill', colors: state.colors.slice(), colorRule: { ...state.colorRule }, paper: state.paperColor };
-  if (el.style === 'stroke') el.strokeW = +ctrl('rg-element-strokew').value;
-  const def = { tool: 'fvs-recipe', version: 2, element: el, levels: [level] };
-  try { validateFigureRecipe(def); } catch (e) { return; }
-  state.figureRecipe = def; state.figureStep = 'level0';
-  setTier('figure');   // renderFigureTier() applies state.figureRecipe
-}
-ctrl('btn-symbol-to-figure').addEventListener('click', buildFigureFromSymbol);
 function runFigureRecipe(def, opts) {
   const lv = validateFigureRecipe(def);
   const el = def.element;
@@ -11775,7 +11760,7 @@ function renderFigureToolbar() {
     else if (state.figureStep === 'final') hint = def.levels.length > 1 ? 'Hover the edges of the figure: click the right or bottom edge to Mirror, the corner to Rotate (M / R).' : 'Add a Grid to Mirror or Rotate the figure.';
     else if (lv && lv.kind === 'grid') hint = 'Hover the edges of the figure: click the right or bottom edge to Mirror this Grid, the corner to Rotate it.';
     else if (lv && lv.kind === 'component') hint = 'Component rules are in the panel on the right.';
-    else if (lv && isSealedSymbol(lv)) hint = 'Adopted from the Symbol step — edit it there and build the Figure again.';
+    else if (lv && isSealedSymbol(lv)) hint = 'Adopted from the Symbol step.';
     if (hint) add('fg-label', hint);
   }
   renderFigurePlay(tb);

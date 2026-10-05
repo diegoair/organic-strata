@@ -99,7 +99,6 @@
     'fvs-clip':      '<rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6.5 13A6.5 6.5 0 0 1 13 6.5"/>',
     'fvs-crop':      '<rect x="4" y="5" width="8" height="6" rx="1"/><circle cx="8" cy="8" r="6.2" stroke-dasharray="2 2.05"/>',
     'fvs-guides':    '<path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/>',
-    'fvs-to-figure': '<rect x="1.8" y="4.5" width="6" height="6"/><path d="M8.5 7.5h2.2M9.6 6.2l1.3 1.3-1.3 1.3"/><path d="M13 4.2l.7 1.5 1.6.2-1.2 1.1.3 1.6-1.4-.8-1.4.8.3-1.6-1.2-1.1 1.6-.2z"/>',
     'fvs-transparent': '<path d="M2 2h4v4H2zM10 2h4v4h-4zM6 6h4v4H6zM2 10h4v4H2zM10 10h4v4h-4z"/><rect x="2" y="2" width="12" height="12"/>'
   };
   var SIZES = { xs: 1, sm: 1, md: 1, lg: 1, xl: 1 };

@@ -315,17 +315,17 @@ its cells.
   grid's source: a change to the canvas or the generator rebuilds it live (nothing to lose);
   once anything is placed, *Generate grid in canvas* does that. Outline contrast on the default
   Paper: 3.65:1 light, 4.73:1 dark.
-- **Generate over the empty grid** — a small glass pane (`#fvs-sym-start`, an `.org-floatbar`)
-  centred over the sheet, shown while every cell is empty: **Generate** + one line, *Generate
-  fills the grid for you, or drag from the Library into a cell.* Generate fills the **current**
-  grid (borders dragged by hand are kept) with Suggest or Arrange, as the Fill section says,
-  then the arrival plays: one pane per cell shows a filtered copy of the Symbol that goes from
-  blank paper to a few blurred, high-contrast, rippling masses and then to sharp, one cell
-  after another in a scattered order (1 s per cell, the whole sweep about 2 s; nothing with
-  *reduce motion*; preview only, the panes take no clicks). The pane takes no pointer itself,
-  so a drag reaches the cells under it. With nothing saved, Generate stays visible but
-  disabled (`aria-disabled`) and the line reads *Save an Element or a Component first: the
-  grid is filled from them.*
+- **Generate (floatbar)** (Oct 5, 2026) — the first icon of the Symbol step's floatbar (`refresh`,
+  `#btn-symbol-generate`). On an empty grid it fills the **current** grid (borders dragged by hand
+  are kept) with Suggest or Arrange, as the Fill section says, then the arrival plays: one pane per
+  cell shows a filtered copy of the Symbol that goes from blank paper to a few blurred,
+  high-contrast, rippling masses and then to sharp, one cell after another in a scattered order
+  (1 s per cell, the whole sweep about 2 s; nothing with *reduce motion*; preview only, the panes
+  take no clicks). Otherwise it stays visible but disabled (`aria-disabled`, still focusable), the
+  reason in its tooltip: *Generate — clear the Symbol first* (a filled grid — the Symbol has no
+  undo, so Generate never overwrites a composition) or *Generate — save an Element or a Component
+  first*; a click shows the reason as a notice. (Until Oct 5 it sat in a glass pane over the
+  empty grid.)
 - **Clear Symbol (floatbar)** (Oct 5, 2026) — an `eraser` icon, first in the Symbol
   step's floatbar and followed by a separator, shown with the grid and **disabled while every
   cell is empty** (nothing to clear). **Hold to
@@ -420,17 +420,20 @@ its cells.
   beam search (width 4) over Component × turn, cell by cell; a weighted mix with
   the same turn search. Ranked, exact duplicates dropped, up to 12, deterministic per
   seed. The first is put on the sheet at once.
-- **The variations dock** (Oct 5, 2026) — the variations live in a small dock top-centre
-  over the sheet, out of the layout flow (it used to be a ~167px strip that pushed the
-  sheet down). It starts **collapsed**: one pill, *12 variations* + a chevron. Open, it is a
-  glass strip of 48px thumbnails (scrolls sideways; the wheel over it never zooms the
-  sheet); the current one has the tool-colour border. The score is in each thumbnail's
-  tooltip and accessible name ("Use variation 3: Continuity search · continuity 97% · colour
-  97%"). Click one to take it; **More like this** re-draws 8–20% of the cells of the
-  current Symbol and re-turns them, and opens the dock (it applies nothing by itself).
-  Esc closes it. Not remembered between visits; hidden when there are no variations.
-  Same pattern as the Library rail (a floatbar toggle + a sibling glass panel), turned
-  horizontal. Locked cells are always kept.
+- **Variations (floatbar)** (Oct 5, 2026) — the icon next to Generate (`variations`,
+  `#btn-sug-dock`), with the count in a small ink-on-paper circle at its top right (99+ cap;
+  accessible name *12 variations*). Shown once Suggest has variations, hidden otherwise. It opens
+  a glass strip of 48px thumbnails anchored just above the floatbar and centred with it
+  (`#fvs-sug-panel`, a sibling of the bar; its bottom measured from the bar on open; scrolls
+  sideways, the wheel over it never zooms the sheet); the current one has the tool-colour border.
+  The score is in each thumbnail's tooltip and accessible name ("Use variation 3: Continuity
+  search · continuity 97% · colour 97%"). Click one to take it; **More like this** re-draws
+  8–20% of the cells of the current Symbol and re-turns them, and opens the strip (it applies
+  nothing by itself). Esc, another floatbar flyout, or leaving the step closes it; not remembered
+  between visits. Locked cells are always kept. (Until Oct 5 it was a pill top-centre over the
+  sheet.)
+- **Build a Figure from this Symbol — removed** (Oct 5, 2026, Diego). The floatbar button and
+  its function are gone; a Figure whose first level is a Symbol adopted earlier still opens.
 - On a grid whose cells don't share borders (Circular) continuity doesn't apply
   and the tooltip omits it. On hexagons/triangles a square Component is deformed
   into the cell, so continuity is an approximation.
