@@ -407,12 +407,21 @@ its cells.
   - **Surprise** — fewer identical neighbours.
 - Generators: every Arrange rule with each cell's turn chosen for continuity; a
   beam search (width 4) over Component × turn, cell by cell; a weighted mix with
-  the same turn search. Ranked, exact duplicates dropped, up to 12 shown above the
-  canvas with a caption ("Continuity search · continuity 97%"). Deterministic per
-  seed. Click one to take it; **More like this** re-draws 8–20% of the cells of
-  the current Symbol and re-turns them. Locked cells are always kept.
+  the same turn search. Ranked, exact duplicates dropped, up to 12, deterministic per
+  seed. The first is put on the sheet at once.
+- **The proposals dock** (Oct 5, 2026) — the proposals live in a small dock top-centre
+  over the sheet, out of the layout flow (it used to be a ~167px strip that pushed the
+  sheet down). It starts **collapsed**: one pill, *12 proposals* + a chevron. Open, it is a
+  glass strip of 48px thumbnails (scrolls sideways; the wheel over it never zooms the
+  sheet); the current one has the tool-colour border. The score is in each thumbnail's
+  tooltip and accessible name ("Use proposal 3: Continuity search · continuity 97% · colour
+  97%"). Click one to take it; **More like this** re-draws 8–20% of the cells of the
+  current Symbol and re-turns them, and opens the dock (it applies nothing by itself).
+  Esc closes it. Not remembered between visits; hidden when there are no proposals.
+  Same pattern as the Library rail (a floatbar toggle + a sibling glass panel), turned
+  horizontal. Locked cells are always kept.
 - On a grid whose cells don't share borders (Circular) continuity doesn't apply
-  and the caption omits it. On hexagons/triangles a square Component is deformed
+  and the tooltip omits it. On hexagons/triangles a square Component is deformed
   into the cell, so continuity is an approximation.
 
 ### 6b. Colour — measured and generated (Oct 2, 2026)
@@ -426,8 +435,8 @@ The order of the palette is the role (Base, Secondary, Accent…), as in TuneSut
   edge the same colour on both sides counts fully, two distinct inks count half, and two
   inks too close to tell apart (ΔE under 6) count nothing. A fourth slider, **Colour**,
   scores the ink areas: a clear hierarchy (largest first, against the role shares
-  51 / 31 / 18…), each ink spread over the page, neighbouring inks distinct. The caption
-  shows `continuity N% · colour N%`. With one ink in the pool nothing changes.
+  51 / 31 / 18…), each ink spread over the page, neighbouring inks distinct. A proposal's
+  tooltip shows `continuity N% · colour N%`. With one ink in the pool nothing changes.
 - **Colourways** (Component → Rule → *Colourways of the selection*). Colour variants of the
   selected Component from the palette's main colours and their shade scales, by named
   schemes: **Roles** (and its turns), **Tonal** (steps of one colour on its step 100),

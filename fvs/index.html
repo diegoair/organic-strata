@@ -220,12 +220,24 @@
   #canvas-wrap .tier-view[data-tier="element"].active { flex-direction: column; gap: var(--space-5); }
   #canvas-wrap .tier-view[data-tier="component"].active { flex-direction: column; gap: var(--space-3); }
   #canvas-wrap .tier-view[data-tier="symbol"].active { flex-direction: column; }
-  .fvs-suggest { display: flex; gap: var(--space-2); overflow-x: auto; width: 100%; box-sizing: border-box; padding: var(--space-3) var(--space-5) 0; flex: none; }
-  .fvs-suggest:empty { display: none; }
-  .fvs-suggest__item { flex: none; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); background: none; border: 1px solid transparent; border-radius: var(--radius-sm); padding: var(--space-1); cursor: pointer; font: inherit; color: var(--mid); }
-  .fvs-suggest__item svg { height: 96px; width: auto; display: block; box-shadow: 0 0 0 1px var(--border); }
-  .fvs-suggest__item.is-current { border-color: var(--tool); color: var(--ink); }
-  .fvs-suggest__cap { font-size: var(--fs-micro); max-width: 120px; text-align: center; line-height: 1.25; }
+  /* Proposals dock (Symbol, Suggest) — the Library rail's pattern turned horizontal: a toggle pill + a sibling
+     glass panel, both .org-floatbar (glass, rim, dark values from shared/floatbar.css), docked top-centre over
+     the Symbol view and out of the layout flow, so the sheet is never pushed down. Starts collapsed. */
+  #canvas-wrap .tier-view[data-tier="symbol"] { position: relative; }
+  .fvs-sug-dock { position: absolute; top: var(--space-4); left: 50%; transform: translateX(-50%); z-index: 5; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); pointer-events: none; max-width: calc(100% - 2 * var(--space-5)); }
+  .fvs-sug-dock[hidden] { display: none; }
+  #fvs-sug-bar, #fvs-sug-panel { position: relative; left: auto; top: auto; bottom: auto; transform: none; height: auto; pointer-events: auto; }
+  #fvs-sug-bar { padding: var(--space-1); }
+  #btn-sug-dock { gap: var(--space-2); font-size: var(--fs-small); }
+  #fvs-sug-bar .org-floatbar__btn[aria-label]::after { content: none; }   /* the pill's text is its label — no tooltip echo */
+  #fvs-sug-panel { flex-direction: row; max-width: 100%; overflow-x: auto; scrollbar-width: thin; padding: var(--space-2); gap: var(--space-1); border-radius: var(--radius-lg);
+    opacity: 0; visibility: hidden; pointer-events: none; transform: translateY(calc(-1 * var(--space-2)));
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base); }
+  #fvs-sug-panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
+  .fvs-suggest__item { flex: none; display: flex; background: none; border: 1px solid transparent; border-radius: var(--radius-sm); padding: var(--space-1); cursor: pointer; }
+  .fvs-suggest__item svg { height: 3rem; width: auto; display: block; box-shadow: 0 0 0 1px var(--border); }
+  .fvs-suggest__item.is-current { border-color: var(--tool); }
+  .fvs-suggest__item:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 
   /* Numbered step scaffold within a tier's own panel — groups existing
      panel-sections under an explicit "01 / 02 / ..." flow without
@@ -701,7 +713,12 @@
       </div>
     </div>
     <div class="tier-view" data-tier="symbol">
-      <div id="symbol-suggest-gallery" class="fvs-suggest" aria-label="Suggested Symbols"></div>
+      <div id="fvs-sug-dock" class="fvs-sug-dock" role="group" aria-label="Proposals" hidden>
+        <div class="org-floatbar" id="fvs-sug-bar">
+          <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-sug-dock" aria-expanded="false" aria-controls="fvs-sug-panel"><span id="sug-dock-count"></span><span id="sug-dock-chev" data-icon-slot></span></button>
+        </div>
+        <div class="org-floatbar fvs-suggest" id="fvs-sug-panel" role="region" aria-label="Suggested Symbols" inert></div>
+      </div>
       <div id="symbol-frame"></div>
     </div>
     <div class="tier-view" data-tier="figure">
@@ -7513,7 +7530,7 @@ function polyOrient(points) {
 
 function loadSymbolGrid(model) {
   state.symbolGrid = Organica.loadLoomGrid(model);
-  state.symbolSuggestions = []; ctrl('symbol-suggest-gallery').innerHTML = '';   // proposals belong to the previous grid
+  state.symbolSuggestions = []; renderSuggestGallery();   // proposals belong to the previous grid
   state.symbolCells = defaultSymbolCells(getSymbolGrid());
   state.symbolSelection.clear();
   state.symbolClipEnabled = false;   // a new grid starts on the default
@@ -7718,7 +7735,7 @@ ctrl('btn-symbol-clear').addEventListener('click', () => {
   if (genArrivalStop) genArrivalStop();
   state.symbolGrid = null;
   state.symbolCells = [];
-  state.symbolSuggestions = []; ctrl('symbol-suggest-gallery').innerHTML = '';
+  state.symbolSuggestions = []; renderSuggestGallery();
   state.symbolSelection.clear();
   state.symbolMarqueeRect = null;
   ctrl('symgrid-gen-error').style.display = 'none';
@@ -9056,8 +9073,11 @@ function suggestSymbols(opts = {}) {
 }
 
 function renderSuggestGallery(currentIdx) {
-  const wrap = ctrl('symbol-suggest-gallery');
-  if (!state.symbolSuggestions.length) { wrap.innerHTML = ''; return; }
+  const wrap = ctrl('fvs-sug-panel'), n = state.symbolSuggestions.length;
+  ctrl('fvs-sug-dock').hidden = !n;
+  if (!n) { wrap.innerHTML = ''; setSugDockOpen(false); return; }
+  ctrl('sug-dock-count').textContent = n + (n === 1 ? ' proposal' : ' proposals');
+  syncSugDock();
   const prev = state.symbolCells;
   wrap.innerHTML = '';
   state.symbolSuggestions.forEach((sg, i) => {
@@ -9065,8 +9085,10 @@ function renderSuggestGallery(currentIdx) {
     const svg = buildSymbolSVG();
     const btn = document.createElement('button');
     btn.className = 'fvs-suggest__item' + (i === currentIdx ? ' is-current' : '');
-    btn.innerHTML = svg + `<span class="fvs-suggest__cap">${sg.label}${sg.score.edges ? ` · continuity ${Math.round(sg.score.match * 100)}%` : ''}${sg.score.col != null ? ` · colour ${Math.round(sg.score.col * 100)}%` : ''}</span>`;
-    btn.setAttribute('aria-label', `Use proposal ${i + 1}: ${sg.label}`);
+    btn.type = 'button';
+    btn.innerHTML = svg;
+    const cap = `Use proposal ${i + 1}: ${sg.label}${sg.score.edges ? ` · continuity ${Math.round(sg.score.match * 100)}%` : ''}${sg.score.col != null ? ` · colour ${Math.round(sg.score.col * 100)}%` : ''}`;
+    btn.setAttribute('aria-label', cap); btn.title = cap;
     btn.addEventListener('click', () => {
       state.symbolCells = sg.cells.map(c => ({ ...c }));
       state.symbolSelection.clear();
@@ -9091,7 +9113,33 @@ function runSuggest(more) {
   if (!more && state.symbolSuggestions.length) state.symbolCells = state.symbolSuggestions[0].cells.map(c => ({ ...c }));
   renderSymbol();
   renderSuggestGallery(more ? -1 : 0);
+  if (more && state.symbolSuggestions.length) setSugDockOpen(true);   // More like this applies nothing — show what it found
 }
+// The proposals dock: collapsed by default (proposal 1 is already on the sheet); not remembered across visits.
+function sugDockIsOpen() { return ctrl('fvs-sug-panel').dataset.open === 'true'; }
+function syncSugDock() {
+  const open = sugDockIsOpen(), btn = ctrl('btn-sug-dock');
+  btn.setAttribute('aria-expanded', String(open));
+  btn.setAttribute('aria-label', ctrl('sug-dock-count').textContent);
+  ctrl('sug-dock-chev').innerHTML = Organica.icons.get(open ? 'chevron-up' : 'chevron-down', { cls: 'chev' });
+}
+function setSugDockOpen(open, opts) {
+  const panel = ctrl('fvs-sug-panel');
+  panel.dataset.open = open ? 'true' : 'false';
+  panel.toggleAttribute('inert', !open);
+  syncSugDock();
+  if (open) {
+    const cur = panel.querySelector('.is-current') || panel.querySelector('.fvs-suggest__item');
+    if (cur) { cur.scrollIntoView({ inline: 'nearest', block: 'nearest' }); if (opts && opts.focus) cur.focus({ preventScroll: true }); }
+  } else if (opts && opts.focus) ctrl('btn-sug-dock').focus();
+}
+ctrl('btn-sug-dock').addEventListener('click', e => setSugDockOpen(!sugDockIsOpen(), { focus: e.detail === 0 }));   // keyboard opens with focus on the current proposal
+ctrl('fvs-sug-panel').addEventListener('wheel', e => e.stopPropagation(), { passive: true });   // scrolling the strip never zooms the sheet
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || e.defaultPrevented || !sugDockIsOpen()) return;
+  const a = document.activeElement;
+  if ((a && a.closest('#fvs-sug-dock')) || !a || a === document.body) setSugDockOpen(false, { focus: true });   // as the rail: an Escape meant for a field or popover stays theirs
+});
 ['cont', 'bal', 'sur', 'col'].forEach(k => ctrl('rg-sug-' + k).addEventListener('input', e => { ctrl('v-sug-' + k).textContent = e.target.value; }));
 ctrl('btn-sug-run').addEventListener('click', () => runSuggest(false));
 ctrl('btn-sug-more').addEventListener('click', () => runSuggest(true));
@@ -9616,7 +9664,7 @@ function bindSymbolTrackDrag() {
     if (!trackDrag) return;
     frame.classList.remove('is-resizing-' + trackDrag.axis);
     trackDrag = null;
-    state.symbolSuggestions = []; ctrl('symbol-suggest-gallery').innerHTML = '';   // proposals were drawn for the old proportions
+    state.symbolSuggestions = []; renderSuggestGallery();   // proposals were drawn for the old proportions
     renderSymbol();
   }, true);
 }
