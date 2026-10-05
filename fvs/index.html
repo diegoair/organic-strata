@@ -524,7 +524,8 @@
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <!-- Element-tier actions — hidden on the other tiers by setTier(). display:contents keeps the buttons direct flex items of the floatbar. -->
   <div id="fb-element-actions" class="fvs-fb-group">
-    <button class="org-floatbar__btn" id="btn-reset-seed" aria-label="Reset seed shape">
+    <!-- Reset: the whole Element back to how FVS opens (shape, look, layers, palette, Paper). Hold to confirm (data-hold). -->
+    <button class="org-floatbar__btn" id="btn-reset-seed" aria-label="Reset Element — hold to confirm" data-hold="Reset Element — click again to confirm">
       <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-upload-seed" aria-label="Upload SVG">
@@ -1360,7 +1361,7 @@
           <span class="ctrl-val" id="v-blob-radius">60</span>
         </div>
       </div>
-      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size, rotation, outline or irregularity saved before these controls moved to Look &amp; place (Scale, Rotate, Cut out, Irregularity). Reset seed shape clears it.</p>
+      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size, rotation, outline or irregularity saved before these controls moved to Look &amp; place (Scale, Rotate, Cut out, Irregularity). Reset Element clears it.</p>
       <div id="seed-upload-error" class="org-panel__hint fvs-error" style="display:none"></div>
     </div>
 
@@ -10784,7 +10785,7 @@ CIRCLE_PARAMS.forEach(([k, id]) => {
 ['sel-circle-interior', 'sel-circle-trim'].forEach(id => {
   ctrl(id).addEventListener('change', () => { syncCircleRows(); renderGallery(); renderSeedPreview(); });
 });
-// Reset seed shape (floatbar): restores every control of the CURRENT shape's own
+// resetSeedShape (used by the floatbar Reset Element): restores every control of the CURRENT shape's own
 // block to its markup default, plus Copies and the shape's Appearance (see below). Type, Palette and Paper are untouched;
 // Freehand clears the drawing; an uploaded / Creator seed has no parameters.
 // Each control gets its real input/change event, so its own listener refreshes
@@ -10828,7 +10829,29 @@ function resetSeedShape() {
   });
   syncDependentRows(); renderGallery(); renderSeedPreview();
 }
-ctrl('btn-reset-seed').addEventListener('click', resetSeedShape);
+// The floatbar Reset (Diego, Oct 5, 2026: "a total reset of everything"): the Element as FVS opens it — one
+// shape (the picker's first-load default), its parameters and Look & place at their defaults, no layers, the
+// default palette (one black ink, colour rule default) and a white Paper without texture. Saved Elements,
+// Components and Symbols are untouched. Hold to confirm (data-hold, core.js): it throws the current Element away.
+function resetElement() {
+  if (state.layers) { state.layers = null; renderLayersUI(); }
+  const sel = ctrl('sel-seed-type'), first = Math.max(0, Array.from(sel.options).findIndex(o => o.defaultSelected));
+  if (sel.selectedIndex !== first) { sel.selectedIndex = first; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+  shapeLooks = {};   // every shape forgets its remembered Look & place (a shape switch would bring it back)
+  // every shape's own parameters, not only the open one's (a Star left at 8 points stays 8 otherwise)
+  document.querySelectorAll('[id^="seed-"][id$="-block"]').forEach(block => block.querySelectorAll('input, select').forEach(el => {
+    if (el.type === 'checkbox') { if (el.checked !== el.defaultChecked) { el.checked = el.defaultChecked; el.dispatchEvent(new Event('change', { bubbles: true })); } return; }
+    if (el.tagName === 'SELECT') { const i = Math.max(0, Array.from(el.options).findIndex(o => o.defaultSelected)); if (el.selectedIndex !== i) { el.selectedIndex = i; el.dispatchEvent(new Event('change', { bubbles: true })); } return; }
+    if (el.value !== el.defaultValue) { el.value = el.defaultValue; el.dispatchEvent(new Event('input', { bubbles: true })); }
+  }));
+  resetSeedShape();   // the open shape's parameters + Look & place
+  state.colors = ['#000000']; state.colorRule = { ...DEFAULT_COLOR_RULE };
+  syncColorRuleUI(); buildPalette();
+  paperSwatch.setPattern(false); paperPatternOn = false;
+  setPaperUI('#ffffff');
+  onAppearanceChange(); renderGallery(); renderSeedPreview();
+}
+ctrl('btn-reset-seed').addEventListener('click', resetElement);
 
 // ⤢ Fit to canvas (one-shot, same maths as Genesis's Fit to grid): measure the
 // Seed as drawn at Scale 1 / Move 0 (Width/Length kept), then write the Scale +

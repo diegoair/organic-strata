@@ -113,8 +113,8 @@ Grid step without saving it first.
   sliders (Triangle, Polygon, Star, Square, Lens, Blob), which scaled the shape toward its
   centre — even only on a triangle or a regular polygon (×1.53 at a lens tip, ×0.73 in a star's
   valley). Those stay hidden for old snapshots and are never converted (the picture would change
-  by up to 9 %); the Shape panel's note says so and Reset seed shape clears them. Such an old
-  Element cut out again gets both (its own Outline first, then the even rim) — Reset seed shape
+  by up to 9 %); the Shape panel's note says so and Reset Element clears them. Such an old
+  Element cut out again gets both (its own Outline first, then the even rim) — Reset Element
   first to keep only Cut out. Implementation: `hollowGeometry` (Paper.js, memoised; the inscribed
   circle in plain JS, `inscribedCircle`); prototype measurements in
   `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md` §5–7 (the dev page was removed after it shipped by mistake).
@@ -174,11 +174,13 @@ Grid step without saving it first.
   layers, each layer picks its own Style, but the pattern's settings (Pattern / Spacing /
   Weight / Angle) are **one set for the whole Element**, always here in Look & place — never in
   the layer's card. They show whenever any layer uses Pattern (Style or role).
-- **Reset seed shape** (floatbar) brings the current shape back to how it opens the first time
-  (Diego, Oct 4, 2026): its own controls, Copies, and its Look & place — Style, Stroke, Width, Length,
-  Cut out, Scale, Move, Rotate, the pattern settings (the same defaults a shape switch starts from).
-  With layers it resets only the active layer's own look (Style, Stroke, Width, Length, Cut out), not
-  its place nor the whole-Element Scale / Move / Rotate. Palette and Paper are never touched.
+- **Reset Element** (floatbar, `reset` icon; was *Reset seed shape*) — since Oct 5, 2026 a **total
+  reset** (Diego): the Element as FVS opens it — the picker's first shape, every shape's own parameters
+  (not only the open one's) and their remembered Look & place, no layers, the default palette (one black
+  ink, default colour rule) and a white Paper without texture. Saved Elements, Components and Symbols are
+  untouched. **Hold to confirm** (`data-hold`, 1 s, a red ring; tooltip *Reset Element — hold to
+  confirm*; a plain click falls back to two clicks). Until Oct 5 it reset only the open shape and its
+  look, never the palette or Paper.
 - The strip above the frame shows the Element at 0/90/180/270° and each flip. **Click a view**
   to show it on the big canvas (a viewing choice — the Element and later steps are unchanged;
   the Element export exports the view shown; Freehand drawing and Split's cut grid show 0°).
