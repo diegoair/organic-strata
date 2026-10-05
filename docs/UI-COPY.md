@@ -51,6 +51,7 @@ Status: **Decided** (in the ledger, enforce it) · **Pending** (a question for D
 | Put content into the empty Symbol grid (FVS) | **Fill the grid** (button); **Fill** = the panel section that says how (Suggest / Arrange / Manual / Rule) | Decided | Generate (a new grid, a Component set — elsewhere), Fill the Symbol | Ledger §2, 2026-10-05 |
 | Helper lines on the FVS Symbol sheet — column/row guides + empty-cell outlines, one toggle | **Guides** — toggle *Show guides* (`aria-pressed`, name does not change with state) | Decided | column/row guides, outlines, helper lines, grid (= *Show loaded grid*, the cells' own lines — a different thing) | Ledger §2, 2026-10-05 (delegated) |
 | Content scaled to its cell, both axes (FVS Fit) | **Stretch** (*Stretch · all cells*) | Decided | Fill, Fill the cell | Ledger §2, 2026-10-05 (O-26) |
+| The FVS / Genesis square primitive (also makes rectangles and pills by its rows) | **Square**; its preset select **Square type** | Decided | Rounded rect, Rectangle, Rect | Ledger §2, 2026-10-05 |
 | FVS Element sections | **Shape**, **Look & place** | Decided | Seed, Appearance | Ledger §2, 2026-10-04 |
 | FVS shape details | **Rounding**, **Rounding style**, **Dashes / Dash gap**, **Thickness**, **Bands**, **Hole** (Ring: **Opening**) | Decided | Corner radius, Corner rounding, End rounding, Arm width, Arc ratio | Ledger §2, 2026-10-04 |
 | Paper (+ texture) | **Paper** = ground colour + its pattern (FVS) | Decided (FVS) | — | Ledger §2, 2026-10-03 |

@@ -46,7 +46,7 @@ Grid step without saving it first.
 ## 3. Element
 
 - **Seed type** — Arc, Arc truchet, Blob, Chevron, Circle, Cross, Drop, Lens,
-  Polygon, Rounded rect, Segment, Star, Triangle, Wedge (alphabetical), plus
+  Polygon, Segment, Square (value `roundedrect`, was *Rounded rect* until Oct 5, 2026), Star, Triangle, Wedge (alphabetical), plus
   **Freehand** (draw with bezier anchors), **Custom** (an uploaded SVG) and
   Seeds picked from the **Creator library** (Genesis). Each type has its own
   *extras* — corner styles, curvature, outline, twist and so on — listed from
@@ -110,7 +110,7 @@ Grid step without saving it first.
   of the shape and leaves a rim of **even thickness** along its whole outline: 0 is solid, higher
   cuts more away (95 = a thin rim; the rim is 100 − Cut out % of the shape's inradius). Every
   Seed, Freehand and an uploaded SVG alike. It replaces the six shape-own *Outline (hollow)*
-  sliders (Triangle, Polygon, Star, Rounded rect, Lens, Blob), which scaled the shape toward its
+  sliders (Triangle, Polygon, Star, Square, Lens, Blob), which scaled the shape toward its
   centre — even only on a triangle or a regular polygon (×1.53 at a lens tip, ×0.73 in a star's
   valley). Those stay hidden for old snapshots and are never converted (the picture would change
   by up to 9 %); the Shape panel's note says so and Reset seed shape clears them. Such an old
@@ -148,7 +148,7 @@ Grid step without saving it first.
 - **One control per job** (Oct 4, 2026 — `docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md`).
   The shape sliders that did what Look & place already does are gone: Circle / Polygon / Star
   **Radius** (= Scale), Wedge / Chevron **Squash** (= Length), the per-shape **Rotate** of
-  Wedge, Polygon, Star, Rounded rect, Chevron, Cross, Lens, Drop and Circle (= Rotate), and
+  Wedge, Polygon, Star, Square, Chevron, Cross, Lens, Drop and Circle (= Rotate), and
   Blob **Radius** (it never changed the shape — the blob is fitted to the cell). Arc *Start
   angle* and Segment *Angle* stay (they are part of the shape: the arc's start relative to its
   pivot, the bar's direction inside its tiles). Also gone: the Arc and Wedge **Ring** types
@@ -156,7 +156,7 @@ Grid step without saving it first.
   **Triangle / Square** types (Seeds of their own) and Cross's **X** (a Plus with Rotate 45).
   A control that changes nothing until another one moves is hidden until then (one table,
   `SEED_DEPENDS`: Seed without Irregularity, a gap with one segment, a corner style with no
-  corner…). Rounded rect's Type now sets Rounding on every preset.
+  corner…). Square's Type now sets Rounding on every preset.
   **Old snapshots**: their inputs still exist, hidden (`#seed-legacy`), so a saved Element
   renders exactly as saved. When one is opened for editing, `foldLegacySeed` moves each value
   into Look & place (single shape) or the layer's own Size / Rot / Length (stack) and resets the
