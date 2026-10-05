@@ -638,6 +638,10 @@ the Element, Component and Symbol steps (not on ★ Figure).
     **dragged** onto a cell (a drop on a selected cell fills the whole selection);
   - on the other steps, a Component tile loads it on the Component step, and an Element tile
     becomes the Paper tile (*Paper Pattern = Element*).
+- **Newest first** (Oct 5, 2026) — each group (Elements, Components, Symbols) lists the most recently
+  saved at the top, so a save is in view at once (at the end it sat below the panel's fold). A
+  one-click save (the quick-save circle, *Save all*) shows a notice: *Saved as checkerboard 21:16:27* /
+  *Saved 4 Components*.
 - **Double-click to edit** (Oct 5, 2026) — double-click an Element tile and the Element step opens
   with it loaded (its shape, layers, look, palette and Paper); double-click a Component tile and the
   Component step opens with it. A mouse single click waits a moment (≈0.2 s) for a possible second
