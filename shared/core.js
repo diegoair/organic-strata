@@ -1917,7 +1917,7 @@
       c.setAttribute('fill', 'none'); c.setAttribute('cx', '17'); c.setAttribute('cy', '17'); c.setAttribute('r', '16'); c.setAttribute('pathLength', '1');
       svg.appendChild(c); b.appendChild(svg);
       b.style.setProperty('--hold-ms', Organica.HOLD_MS + 'ms');   // for a hold visual drawn in CSS (the eraser's trace)
-      b.classList.add('is-armed', 'is-holding');
+      b.classList.add('is-holding');   // only the ring is --danger; the icon keeps its colour
       // linear: a progress fill, so no --ease-*. The action runs on the timer, never on the animation's end.
       var anim = c.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: Organica.HOLD_MS, easing: 'linear', fill: 'forwards' });
       hold = { b: b, key: key, ring: svg, anim: anim, timer: setTimeout(holdDone, Organica.HOLD_MS) };
