@@ -6,9 +6,15 @@
 
    STYLE (Sep 29, 2026 — the glass "Icon bar", after Bencho's IconBar, MIT):
    a full-pill glass pane with the icons resting quiet (opacity) and ONE
-   indicator pill that travels between them — no per-button tile. The pill
-   follows the hovered / focused button, and rests on a pressed / open
-   toggle (aria-pressed / aria-expanded) when nothing is hovered. It moves
+   indicator pill that travels between them — no per-button hover tile. The pill
+   follows the hovered / focused button, and rests on an open toggle
+   (aria-expanded) when nothing is hovered. A PRESSED toggle (aria-pressed) carries
+   its own static wash, the same --pane-thumb (Oct 5, 2026): so an "on" state never
+   vanishes when you hover another button, and independent toggles can all show.
+   Per section, from the ARIA already on the buttons: actions (no aria-pressed) =
+   hover only · a choice (one pressed) and toggles (any pressed) = their own wash +
+   the pill on hover · an open panel (aria-expanded) = the pill rests there.
+   Sections are .org-floatbar__group (role="group" + aria-label) between separators. It moves
    in two phases, as in Bencho: the leading edge runs ahead and the pill
    stretches across both slots (--ind-stretch), then the trailing edge
    catches up and overshoots on landing (--ind-settle, --ind-move/-size).
@@ -182,7 +188,7 @@
   color: var(--ink);
   cursor: pointer;
   flex-shrink: 0;
-  transition: color var(--dur-fast);
+  transition: color var(--dur-fast), background-color var(--dur-fast);
 }
 .org-floatbar__btn svg { display: block; flex-shrink: 0; }
 /* Resting glyphs are quiet; hover / focus / an on-toggle bring them to
@@ -193,6 +199,12 @@
   opacity: 0.6;
   transition: opacity var(--dur-slow) var(--ease-glide);
 }
+/* On state: a pressed toggle keeps its own wash (the travelling pill is hover / open only). Hovering a
+   pressed button stacks the two — a darker pressed-hover, never the state flickering off. */
+.org-floatbar__btn[aria-pressed="true"] { background: var(--pane-thumb); }
+/* A named section of the bar (role="group" + aria-label): a real box, not display:contents — Safari drops
+   the role of a display:contents element. Separators sit between groups. */
+.org-floatbar__group { display: flex; align-items: center; gap: var(--space-2); }   /* the bar's own gap */
 .org-floatbar__btn:hover > svg,
 .org-floatbar__btn:hover > span,
 .org-floatbar__btn:focus-visible > svg,
@@ -233,7 +245,7 @@
   z-index: 200;
 }
 
-/* No hover tile — the travelling indicator is the hover/active state.
+/* No hover tile — the travelling indicator is the hover / open state (a pressed toggle has its own wash, above).
    Armed (two-click destructive, .is-armed) = --danger ink. */
 .org-floatbar__btn.is-armed { color: var(--danger); }
 /* Hold to confirm ([data-hold], Organica in core.js): a --danger ring fills round the button while it is

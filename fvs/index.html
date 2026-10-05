@@ -550,6 +550,7 @@
   </div>
   <!-- Symbol-tier actions. Shown only on that tier by setTier(). -->
   <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
+    <span class="org-floatbar__group" role="group" aria-label="Symbol">
     <!-- Generate: fills the empty grid (Suggest / Arrange). aria-disabled + the reason in its label (the tooltip)
          when nothing is saved or the grid already has content. Variations: always there, aria-disabled until Suggest has some (the badge shows how many). -->
     <button class="org-floatbar__btn" id="btn-symbol-generate" aria-label="Generate">
@@ -559,12 +560,13 @@
       <svg class="ico" data-icon="variations" viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="3.5" width="7" height="9" rx="1"/><path d="M2 5v6M14 5v6"/></svg>
       <b class="fvs-count-badge" id="sug-dock-count" aria-hidden="true" hidden></b>
     </button>
-    <span class="org-floatbar__sep" aria-hidden="true"></span>
     <!-- Clear: every cell empty, the grid kept. Hold to confirm (data-hold, core.js); a bare click falls back to two clicks. Shown with the grid, disabled while every cell is empty. -->
     <button class="org-floatbar__btn" id="btn-symbol-clear" aria-label="Clear Symbol — hold to confirm" data-hold="Clear Symbol — click again to confirm" style="display:none">
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
     </button>
-    <span class="org-floatbar__sep" id="sep-symbol-clear" aria-hidden="true" style="display:none"></span>
+    </span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+    <span class="org-floatbar__group" role="group" aria-label="Fit in cell">
     <!-- Fit in cell: acts on the selected cells, or on every cell when none is selected (the tooltip says which).
          Each icon is a wide cell and what a round content does in it: whole inside it, stretched to it,
          larger than it (cropped), or its own size whatever the cell (dashed cell). Line icons, like the rest of the bar. -->
@@ -587,10 +589,12 @@
       <!-- the flyout: nine positions, nothing else; picking one closes it (the button's face shows it) -->
       <div class="fvs-flyout" id="symbol-anchor-popover" aria-label="Anchor position"><span id="symbol-fitall-anchor-grid" style="display:contents"></span></div>
     </div>
+    </span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
     <!-- View: four independent toggles (they were switches in the panel's Symbol grid section). Each icon is a
          cell and the thing it turns on: the grid's own lines, content cut at the cell's edge, the part a Cover
          crops away (dashed, past the cell), the column/row guides (dashed lines). Only the guides start on. -->
+    <span class="org-floatbar__group" role="group" aria-label="View">
     <button class="org-floatbar__btn" id="btn-symbol-view-outline" data-view="outline" aria-pressed="false" aria-label="Show loaded grid">
       <svg class="ico" data-icon="fvs-grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11"/></svg>
     </button>
@@ -603,6 +607,7 @@
     <button class="org-floatbar__btn" id="btn-symbol-view-guides" data-view="guides" aria-pressed="true" aria-label="Show column/row guides">
       <svg class="ico" data-icon="fvs-guides" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/></svg>
     </button>
+    </span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
   <div class="org-popover-wrap">
@@ -9451,7 +9456,7 @@ function buildCoverCropPreviewSVG() {
 function renderSymbolCanvasOnly() {
   const frame = ctrl('symbol-frame');
   const grid = getSymbolGrid();
-  ctrl('btn-symbol-clear').style.display = ctrl('sep-symbol-clear').style.display = grid ? '' : 'none';
+  ctrl('btn-symbol-clear').style.display = grid ? '' : 'none';
   ctrl('btn-symbol-clear').disabled = !symbolHasContent();   // an empty grid: the icon stays, disabled (nothing to clear)
   syncSymbolStart();
   if (!grid) {

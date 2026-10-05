@@ -315,6 +315,11 @@ its cells.
   grid's source: a change to the canvas or the generator rebuilds it live (nothing to lose);
   once anything is placed, *Generate grid in canvas* does that. Outline contrast on the default
   Paper: 3.65:1 light, 4.73:1 dark.
+- **The Symbol floatbar** (Oct 5, 2026) — three named groups (`.org-floatbar__group`) between
+  separators: **Symbol** (Generate · Variations · Clear) | **Fit in cell** (Contain · Fill ·
+  Cover · Fixed size · Anchor) | **View** (loaded grid · clip · cover crop · guides), then Export.
+  A pressed Fit or View button keeps its own wash while you hover others; the moving highlight
+  follows the pointer only.
 - **Generate (floatbar)** (Oct 5, 2026) — the first icon of the Symbol step's floatbar (`generate`: a grid with two cells filled,
   `#btn-symbol-generate`). On an empty grid it fills the **current** grid (borders dragged by hand
   are kept) with Suggest or Arrange, as the Fill section says, then the arrival plays: one pane per
@@ -326,8 +331,8 @@ its cells.
   undo, so Generate never overwrites a composition) or *Generate — save an Element or a Component
   first*; a click shows the reason as a notice. (Until Oct 5 it sat in a glass pane over the
   empty grid.)
-- **Clear Symbol (floatbar)** (Oct 5, 2026) — an `eraser` icon, first in the Symbol
-  step's floatbar and followed by a separator, shown with the grid and **disabled while every
+- **Clear Symbol (floatbar)** (Oct 5, 2026) — an `eraser` icon, third in the Symbol
+  step's floatbar (after Generate and Variations, in the same group), shown with the grid and **disabled while every
   cell is empty** (nothing to clear). **Hold to
   confirm** (`data-hold`, Oct 5, 2026): press and hold 1 s (or Space / Enter) — a red ring
   fills round the button and the eraser's tip rubs out the line under it; let go early and nothing happens. Its tooltip reads *Clear Symbol —

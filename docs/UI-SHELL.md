@@ -120,8 +120,17 @@ here, not the header" notes. Linked by every tool except the Genesis
 catalog pages, which use the `--catalog` header variant instead.
 Since Sep 29, 2026 the bar is a **glass icon bar** (after Bencho's IconBar) —
 a translucent pill, no tile behind buttons, one elastic indicator that
-follows hover and rests on a pressed/open toggle (`Organica.floatbarPill` in
-`core.js`). Tooltips are unchanged. Never add a per-tool `aria-pressed` /
+follows hover and rests on an open toggle (`Organica.floatbarPill` in
+`core.js`). Since Oct 5, 2026 a **pressed** toggle carries its own static wash
+(`--pane-thumb`), so an "on" state never vanishes when you hover another button
+and independent toggles all show. Behaviour per section comes from the ARIA the
+buttons already have: actions (no `aria-pressed`) = hover only; a choice (one
+pressed) and toggles (any pressed) = their own wash + the pill on hover; an open
+panel (`aria-expanded`) = the pill rests there. A bar with several sections wraps
+each in `<span class="org-floatbar__group" role="group" aria-label="…">` (a real
+flex box — never `display: contents`, Safari drops its role) with
+`.org-floatbar__sep` between groups; the order inside a group is the tool's own
+(see its manual). Tooltips are unchanged. Never add a per-tool `aria-pressed` /
 `.is-armed` / hover background override: it lives in `floatbar.css`.
 
 Before the tool's own `<script>`:

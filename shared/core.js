@@ -1507,11 +1507,11 @@
   // ── Floatbar indicator pill ──────────────────────────────────
   // Drives shared/floatbar.css's .org-floatbar__ind: one wash that travels
   // between the bar's buttons. Target = the hovered / focused button, else
-  // the open toggle, else the first pressed one, else hidden. Two phases (Bencho's
+  // the open toggle, else hidden (a pressed toggle shows its own static wash). Two phases (Bencho's
   // IconBar): the pill first stretches across the union of the old and new
   // slot, then settles onto the new one and overshoots on landing.
   // Delegated + self-mounting so every bar in every tool works with zero
-  // per-tool wiring. Touch has no hover, so it only ever rests on toggles.
+  // per-tool wiring. Touch has no hover, so it only ever rests on an open toggle.
   Organica.floatbarPill = (function () {
     const bars = new WeakMap();
     const BTN = '.org-floatbar__btn';
@@ -1519,8 +1519,10 @@
     // An OPEN toggle (its popover / flyout is showing) outranks a pressed one: the pill has to
     // stay on the button whose panel you are in, not jump back to an earlier pressed button
     // the moment the pointer leaves it for the panel.
+    // A pressed toggle carries its own static wash (floatbar.css) — the pill never rests on it, so an
+    // "on" state can't vanish when you hover another button, and any number of them can show at once.
     function restTarget(bar) {
-      return bar.querySelector(BTN + '[aria-expanded="true"]') || bar.querySelector(BTN + '[aria-pressed="true"]');
+      return bar.querySelector(BTN + '[aria-expanded="true"]');
     }
     function measure(bar, btn) {
       const b = bar.getBoundingClientRect(), r = btn.getBoundingClientRect();
