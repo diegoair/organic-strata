@@ -330,7 +330,7 @@ its cells.
   step's floatbar and followed by a separator, shown with the grid and **disabled while every
   cell is empty** (nothing to clear). **Hold to
   confirm** (`data-hold`, Oct 5, 2026): press and hold 1 s (or Space / Enter) — a red ring
-  fills round the button; let go early and nothing happens. Its tooltip reads *Clear Symbol —
+  fills round the button and the eraser rubs side to side; let go early and nothing happens. Its tooltip reads *Clear Symbol —
   hold to confirm*. A plain click (voice control, switch access) falls back to two clicks
   (*Clear Symbol — click again to confirm*). After clearing, focus goes to Generate. It empties every cell and keeps the
   grid (borders dragged by hand too), clears the selection and the variations, so the
