@@ -343,8 +343,9 @@
 
   /* ── The empty Symbol = its grid, empty (built from the panel); the user fills cells by hand (Library
      rail, Choose content) or presses Generate in the floatbar. The arrival is runSymbolArrival(). */
-  #symbol-frame g.is-empty > :first-child { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 5; }
-  @media (hover: hover) { #symbol-frame g.is-empty:hover > :first-child { stroke: var(--ink); stroke-dasharray: none; fill: color-mix(in srgb, var(--ink) 8%, transparent); } }
+  #symbol-frame g.is-empty.is-outlined > :first-child, #symbol-frame .sym-empty-frame { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 5; }
+  #symbol-frame .sym-empty-frame { fill: none; pointer-events: none; }
+  @media (hover: hover) { #symbol-frame g.is-empty:hover > :first-child { stroke: var(--ink); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: none; fill: color-mix(in srgb, var(--ink) 8%, transparent); } }   /* also with the guides off: a cell still answers the pointer */
 
   /* Choose-content overlay — no existing modal component in this codebase
      (Organica.popover is anchored-to-a-button, not a fit for a click
@@ -593,7 +594,7 @@
     <span class="org-floatbar__sep" aria-hidden="true"></span>
     <!-- View: four independent toggles (they were switches in the panel's Symbol grid section). Each icon is a
          cell and the thing it turns on: the grid's own lines, content cut at the cell's edge, the part a Cover
-         crops away (dashed, past the cell), the column/row guides (dashed lines). Only the guides start on. -->
+         crops away (dashed, past the cell), the guides (column/row guides + empty-cell outlines). Only the guides start on. -->
     <span class="org-floatbar__group" role="group" aria-label="View">
     <button class="org-floatbar__btn" id="btn-symbol-view-outline" data-view="outline" aria-pressed="false" aria-label="Show loaded grid">
       <svg class="ico" data-icon="fvs-grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11"/></svg>
@@ -604,7 +605,7 @@
     <button class="org-floatbar__btn" id="btn-symbol-view-cover" data-view="cover" aria-pressed="false" aria-label="Show cover crop">
       <svg class="ico" data-icon="fvs-crop" viewBox="0 0 16 16" aria-hidden="true"><rect x="4" y="5" width="8" height="6" rx="1"/><circle cx="8" cy="8" r="6.2" stroke-dasharray="2 2.05"/></svg>
     </button>
-    <button class="org-floatbar__btn" id="btn-symbol-view-guides" data-view="guides" aria-pressed="true" aria-label="Show column/row guides">
+    <button class="org-floatbar__btn" id="btn-symbol-view-guides" data-view="guides" aria-pressed="true" aria-label="Show guides">
       <svg class="ico" data-icon="fvs-guides" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/></svg>
     </button>
     </span>
@@ -9387,10 +9388,15 @@ function buildEmptyCellHitsSVG() {
   const F = symbolFrame(grid);
   let s = '';
   const L = symbolSpanLayout(grid, state.symbolCells);
+  // The guides toggle governs every helper line: off = a clean sheet (the cells still answer hover / a drag).
+  // On a track grid the guides already draw the inner borders, so the empty cells add only the outer frame;
+  // on any other grid (hex, triangle, Voronoi…) each empty cell is outlined.
+  const tracks = !!symbolTrackGrid(), outlined = state.symbolView.guides && !tracks, cls = outlined ? 'is-empty is-outlined' : 'is-empty';
+  if (state.symbolView.guides && tracks) { const g = symbolTrackGrid(); s += `<rect class="sym-empty-frame" x="${F.X(g.inner.x).toFixed(2)}" y="${F.Y(g.inner.y).toFixed(2)}" width="${g.inner.width.toFixed(2)}" height="${g.inner.height.toFixed(2)}"/>`; }
   grid.cells.forEach((c, i) => {
     const cell = state.symbolCells[i]; if (!cell || cell.source !== 'empty' || L.covered[i] != null) return;   // a covered cell belongs to its block
-    if (grid.cellShape === 'polygon') s += `<g class="is-empty" data-cell-index="${i}"><polygon points="${c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ')}" fill="transparent"/></g>`;
-    else s += `<g class="is-empty" data-cell-index="${i}"><rect x="${F.X(c.x).toFixed(2)}" y="${F.Y(c.y).toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}" fill="transparent"/></g>`;
+    if (grid.cellShape === 'polygon') s += `<g class="${cls}" data-cell-index="${i}"><polygon points="${c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ')}" fill="transparent"/></g>`;
+    else s += `<g class="${cls}" data-cell-index="${i}"><rect x="${F.X(c.x).toFixed(2)}" y="${F.Y(c.y).toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}" fill="transparent"/></g>`;
   });
   return s;
 }

@@ -49,6 +49,7 @@ Status: **Decided** (in the ledger, enforce it) · **Pending** (a question for D
 |---|---|---|---|---|
 | Generated alternatives to pick from (FVS Suggest, Figure) | **Variation** — *12 variations*, "Use variation 3: …" | Decided | proposal, option, combination, arrangement (Arrange = a fill mode) | Ledger §2, 2026-10-05 (O-25, delegated) |
 | Put content into the empty Symbol grid (FVS) | **Fill the grid** (button); **Fill** = the panel section that says how (Suggest / Arrange / Manual / Rule) | Decided | Generate (a new grid, a Component set — elsewhere), Fill the Symbol | Ledger §2, 2026-10-05 |
+| Helper lines on the FVS Symbol sheet — column/row guides + empty-cell outlines, one toggle | **Guides** — toggle *Show guides* (`aria-pressed`, name does not change with state) | Decided | column/row guides, outlines, helper lines, grid (= *Show loaded grid*, the cells' own lines — a different thing) | Ledger §2, 2026-10-05 (delegated) |
 | Content scaled to its cell, both axes (FVS Fit) | **Stretch** | Pending | Fill, Fill the cell | O-26 |
 | FVS Element sections | **Shape**, **Look & place** | Decided | Seed, Appearance | Ledger §2, 2026-10-04 |
 | FVS shape details | **Rounding**, **Rounding style**, **Dashes / Dash gap**, **Thickness**, **Bands**, **Hole** (Ring: **Opening**) | Decided | Corner radius, Corner rounding, End rounding, Arm width, Arc ratio | Ledger §2, 2026-10-04 |

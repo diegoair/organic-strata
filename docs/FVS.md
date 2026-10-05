@@ -305,11 +305,14 @@ its cells.
   the icon at full strength, as everywhere in the bar): **Show loaded grid** (the grid's own lines), **Clip to
   cell** (content cut at the cell's edge — the one that is in the export and saved
   with the Symbol), **Show cover crop** (what a Cover fit crops away) and **Show
-  column/row guides**. Only the guides start on; a new grid starts unclipped (it
+  guides** (Oct 5, 2026 — was *Show column/row guides*): every helper line on the sheet, the
+  column/row guides (rectangular grids) and the dashed outlines of empty cells (every grid shape;
+  on a rectangular grid only the outer frame, the guides already draw the inner borders). Off = a
+  clean sheet; cells still highlight on hover and drag. Only the guides start on; a new grid starts unclipped (it
   started clipped until Oct 2, 2026 — saved Symbols keep what they were saved with).
 - **The empty Symbol is its grid** (Oct 5, 2026 — grid first, content second). Entering the
   Symbol step with no grid builds the panel's grid (canvas, generator, parameters) with every
-  cell **empty**: each one drawn with a dashed outline (`--border-strong`, the file's 6 5 dash;
+  cell **empty**: each one drawn with a dashed outline while *Show guides* is on (`--border-strong`, the file's 6 5 dash;
   hover = ink + a light wash), a drop target for the Library rail and a click target for
   Choose content. Building by hand needs no button. While every cell is empty the panel is the
   grid's source: a change to the canvas or the generator rebuilds it live (nothing to lose);
