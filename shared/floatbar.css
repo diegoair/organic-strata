@@ -242,12 +242,20 @@
 .org-hold-ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transform: rotate(-90deg); overflow: visible; }
 .org-floatbar__btn > .org-hold-ring { opacity: 1; }   /* not the glyph's resting 0.6, also during the run-back */
 .org-hold-ring circle { fill: none; stroke: var(--danger); stroke-width: 2px; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
-/* …and an eraser rubs while it is held: a small side-to-side scrub with a tilt (transform only),
-   pivoting near its edge. Off under reduced motion (the ring alone says how long to hold). */
+/* …and an eraser erases with its tip while it is held: the tip travels along the line under it
+   (the trace), scrubbing as it goes, and the trace is rubbed out left to right over the hold — gone
+   when the hold completes. --hold-ms is set on the button by core.js (Organica.HOLD_MS). Transform
+   only; off under reduced motion (the ring alone says how long to hold). */
 @media (prefers-reduced-motion: no-preference) {
-  .org-floatbar__btn.is-holding > .ico[data-icon="eraser"] { transform-origin: 50% 85%; animation: org-erase var(--dur-instant) var(--ease-in-out) infinite alternate; }
+  .org-floatbar__btn.is-holding > .ico[data-icon="eraser"] { overflow: visible; }
+  .org-floatbar__btn.is-holding > .ico[data-icon="eraser"] > path:first-child { transform-box: view-box; transform-origin: 6px 13.5px;
+    animation: org-erase-travel var(--hold-ms) linear forwards, org-erase-scrub var(--dur-instant) var(--ease-in-out) infinite alternate; }
+  .org-floatbar__btn.is-holding > .ico[data-icon="eraser"] > path:last-child { transform-box: fill-box; transform-origin: 100% 50%;
+    animation: org-erase-trace var(--hold-ms) linear forwards; }
 }
-@keyframes org-erase { from { transform: translateX(-1.5px) rotate(-8deg); } to { transform: translateX(1.5px) rotate(4deg); } }
+@keyframes org-erase-travel { to { translate: 6px 0; } }
+@keyframes org-erase-scrub { from { rotate: -6deg; } to { rotate: 3deg; } }
+@keyframes org-erase-trace { to { transform: scaleX(0); } }
 /* a disabled button neither lifts its glyph nor shows its tooltip on hover / focus */
 .org-floatbar__btn:disabled > svg, .org-floatbar__btn:disabled > span { opacity: 0.6; }
 .org-floatbar__btn:disabled::after { display: none; }
