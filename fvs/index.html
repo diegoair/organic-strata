@@ -12775,7 +12775,7 @@ function railApply(kind, name, idx) {
     renderSymbolCanvasOnly();
   } else if (state.symbolSelection.size) {
     applyToSelection(patch);
-  } else { railNotice('Select a cell first, or drag onto one'); return; }
+  } else return;   // no cell selected: a click does nothing (Diego, Oct 5, 2026 — no notice; dragging onto a cell still works)
   renderCellPropertiesPanel();
 }
 
