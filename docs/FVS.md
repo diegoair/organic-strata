@@ -315,7 +315,7 @@ its cells.
   grid's source: a change to the canvas or the generator rebuilds it live (nothing to lose);
   once anything is placed, *Generate grid in canvas* does that. Outline contrast on the default
   Paper: 3.65:1 light, 4.73:1 dark.
-- **Generate (floatbar)** (Oct 5, 2026) — the first icon of the Symbol step's floatbar (`refresh`,
+- **Generate (floatbar)** (Oct 5, 2026) — the first icon of the Symbol step's floatbar (`generate`: a grid with two cells filled,
   `#btn-symbol-generate`). On an empty grid it fills the **current** grid (borders dragged by hand
   are kept) with Suggest or Arrange, as the Fill section says, then the arrival plays: one pane per
   cell shows a filtered copy of the Symbol that goes from blank paper to a few blurred,

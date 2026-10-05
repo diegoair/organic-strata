@@ -66,6 +66,7 @@
     'grid':          '<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/>',
     'fullscreen':    '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>',
     'full-family':   '<rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M8 2.5v11M2.5 8h11"/>',
+    'generate':      '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M8 2.5v11M2.5 8h11"/><rect x="4" y="4" width="2.5" height="2.5" rx=".4"' + F + '/><rect x="9.5" y="9.5" width="2.5" height="2.5" rx=".4"' + F + '/>',   // fill a grid's cells for you (FVS Symbol Generate) — not refresh (= run again)
     'variations':    '<rect x="4.5" y="3.5" width="7" height="9" rx="1"/><path d="M2 5v6M14 5v6"/>',   // generated alternatives to pick from: one between its neighbours (FVS Symbol)
     'sun':           '<circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3"/>',
     'moon':          '<path d="M13 9.5A5.5 5.5 0 1 1 6.5 3a4.5 4.5 0 0 0 6.5 6.5z"/>',
