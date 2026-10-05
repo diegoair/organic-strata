@@ -307,23 +307,31 @@ its cells.
   with the Symbol), **Show cover crop** (what a Cover fit crops away) and **Show
   column/row guides**. Only the guides start on; a new grid starts unclipped (it
   started clipped until Oct 2, 2026 — saved Symbols keep what they were saved with).
-- **The first grid** — while the Symbol is empty and there is something to build from (a saved Component, or else a saved Element), the
-  middle of the page shows one **Generate** button (the design system's primary
-  button). It runs the same thing as *Generate grid in canvas* (canvas, generator and
-  parameters are read from the panel). The Symbol is built underneath at once; over
-  it, one pane per cell of the grid shows a filtered copy of the Symbol that goes
-  from blank paper to a few blurred, high-contrast, rippling masses and then to
-  sharp, one cell after another in a scattered order, drawn anew each run (1 s per cell, the whole sweep
-  about 2 s; nothing with *reduce motion*). Preview only — nothing of it reaches the
-  export, and the panes take no clicks. Once a
-  grid exists the button goes away until the Symbol is cleared (below).
+- **The empty Symbol is its grid** (Oct 5, 2026 — grid first, content second). Entering the
+  Symbol step with no grid builds the panel's grid (canvas, generator, parameters) with every
+  cell **empty**: each one drawn with a dashed outline (`--border-strong`, the file's 6 5 dash;
+  hover = ink + a light wash), a drop target for the Library rail and a click target for
+  Choose content. Building by hand needs no button. While every cell is empty the panel is the
+  grid's source: a change to the canvas or the generator rebuilds it live (nothing to lose);
+  once anything is placed, *Generate grid in canvas* does that. Outline contrast on the default
+  Paper: 3.65:1 light, 4.73:1 dark.
+- **Generate over the empty grid** — a small glass pane (`#fvs-sym-start`, an `.org-floatbar`)
+  centred over the sheet, shown while every cell is empty: **Generate** + one line, *Generate
+  fills the grid for you, or drag from the Library into a cell.* Generate fills the **current**
+  grid (borders dragged by hand are kept) with Suggest or Arrange, as the Fill section says,
+  then the arrival plays: one pane per cell shows a filtered copy of the Symbol that goes from
+  blank paper to a few blurred, high-contrast, rippling masses and then to sharp, one cell
+  after another in a scattered order (1 s per cell, the whole sweep about 2 s; nothing with
+  *reduce motion*; preview only, the panes take no clicks). The pane takes no pointer itself,
+  so a drag reaches the cells under it. With nothing saved, Generate stays visible but
+  disabled (`aria-disabled`) and the line reads *Save an Element or a Component first: the
+  grid is filled from them.*
 - **Clear Symbol (floatbar)** (Oct 5, 2026) — an `eraser` icon, first in the Symbol
-  step's floatbar and followed by a separator, shown only while a grid exists. Two clicks
+  step's floatbar and followed by a separator, shown only while a cell has content. Two clicks
   (`Organica.armed`: the first click turns it red and its tooltip reads *Clear Symbol —
-  click again to confirm*; blur, Esc or 3 s disarm it). It removes the generated grid,
-  its cells, the selection and the suggestion gallery, so the Symbol is empty again and
-  shows the **Generate** button. The panel's canvas and generator settings are kept,
-  so Generate runs the same set-up again. Saved Symbols are not touched.
+  click again to confirm*; blur, Esc or 3 s disarm it). It empties every cell and keeps the
+  grid (borders dragged by hand too), clears the selection and the variations, so the
+  Symbol is back to its empty grid with Generate over it. Saved Symbols are not touched.
 - **Resize columns and rows by dragging** — on any rect grid that has tracks
   (Rectangular, Bento, Wave, a plain square…) each inner border shows a dashed
   handle on the preview (never exported). Drag it: the two tracks either side trade

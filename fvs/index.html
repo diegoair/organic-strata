@@ -338,14 +338,21 @@
     .fvs-flyout__tool::before, .fvs-flyout__tool > span { transition: none; }
   }
 
-  /* ── The first grid: Generate, in the middle of the empty Symbol ──
-     The button is the design system's own (.org-btn--primary --lg); this
-     class only lets it leave when the run starts. The arrival itself is
-     runSymbolArrival() — an SVG filter per cell, written in the script.
-     Once a grid exists the button never comes back. */
-  .fvs-gen-go { transition: opacity 220ms ease, border-color var(--dur-fast), background var(--dur-fast); }
-  .fvs-gen-go[data-loading="true"] { opacity: 0; pointer-events: none; }
-  @media (prefers-reduced-motion: reduce) { .fvs-gen-go { transition-duration: 1ms; } }
+  /* ── The empty Symbol = its grid, empty, with one Generate over it ──
+     The grid is there from the start (built from the panel); the user fills cells by hand
+     (Library rail, Choose content) or presses Generate. A glass pane (.org-floatbar, its
+     geometry reset like the rail's) centred over the sheet, a sibling of #symbol-frame so it
+     neither zooms nor is rewritten; it takes no pointer itself, so a drag reaches the cells
+     under it. Shown while every cell is empty. The arrival is runSymbolArrival(). */
+  .fvs-sym-start { position: absolute; left: 50%; top: 50%; bottom: auto; height: auto; transform: translate(-50%, -50%); z-index: 4;
+    flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-lg); pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease-out); }
+  .fvs-sym-start[hidden] { display: none; }
+  .fvs-sym-start[data-loading="true"] { opacity: 0; }
+  .fvs-sym-start .org-btn { pointer-events: auto; }
+  .fvs-sym-start__hint { margin: 0; font-size: var(--fs-small); color: var(--mid); max-width: 30ch; text-align: center; }
+  #symbol-frame g.is-empty > :first-child { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 5; }
+  @media (hover: hover) { #symbol-frame g.is-empty:hover > :first-child { stroke: var(--ink); stroke-dasharray: none; fill: color-mix(in srgb, var(--ink) 8%, transparent); } }
 
   /* Choose-content overlay — no existing modal component in this codebase
      (Organica.popover is anchored-to-a-button, not a fit for a click
@@ -720,6 +727,10 @@
         <div class="org-floatbar fvs-suggest" id="fvs-sug-panel" role="region" aria-label="Symbol variations" inert></div>
       </div>
       <div id="symbol-frame"></div>
+      <div class="org-floatbar fvs-sym-start" id="fvs-sym-start" hidden>
+        <button type="button" class="org-btn org-btn--primary org-btn--lg" id="btn-symbol-first-generate" aria-describedby="sym-start-hint">Generate</button>
+        <p class="fvs-sym-start__hint" id="sym-start-hint"></p>
+      </div>
     </div>
     <div class="tier-view" data-tier="figure">
       <div id="fg-strip">
@@ -1493,7 +1504,7 @@
     </div>
 
     <div class="tier-block" data-tier="symbol">
-    <div class="panel-section">
+    <div class="panel-section" id="sym-canvas-section">
       <h3>Canvas <span class="hint" id="symbol-canvas-hint"></span></h3>
       <div class="ctrl-row">
         <div id="symcanvas-picker"></div>
@@ -1531,7 +1542,7 @@
       </div>
     </div>
 
-    <div class="panel-section">
+    <div class="panel-section" id="sym-grid-section">
       <h3>Symbol grid <span class="hint" id="symbol-cellcount-hint">0 cells</span></h3>
       <div class="ctrl-row">
         <select class="panel-select" id="sel-symgrid-gen" aria-label="Grid generator" style="flex:1"></select>
@@ -7677,41 +7688,67 @@ async function symbolGridModel(genId, params, cv) {
 }
 async function generateSymbolGridInCanvas() {
   const id = ctrl('sel-symgrid-gen').value;
-  // A Symbol is built from saved Components only (Arrange picks from
-  // state.symbolPool, which only ever holds names that resolve in LIBRARY) —
-  // with nothing saved yet there is nothing to fill the grid with, so don't
-  // build one at all. Centred canvas message, same "Pick a grid to begin."
-  // pattern renderSymbolCanvasOnly() already uses for the no-grid state.
-  if (!libraryNames(LIBRARY.read()).length && !elementPool().length) {
-    ctrl('symgrid-gen-error').style.display = 'none';
-    ctrl('symbol-frame').innerHTML = '<p style="color:var(--mid);font-size:var(--fs-small)">Nothing saved yet.<br>Save an Element or a Component first.</p>';
-    ctrl('symbol-cellcount-hint').textContent = '0 cells';
-    setStatus('error', 'No saved Components or Elements');
-    return;
-  }
+  // With nothing saved the grid is built empty (the start pane says why it can't be filled).
+  if (!libraryNames(LIBRARY.read()).length && !elementPool().length) { await buildEmptySymbolGrid(); return; }
   try {
     const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
     if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
     ctrl('symgrid-gen-error').style.display = 'none';
     loadSymbolGrid(model);
-    // A pool entry can go stale between visits (its Component renamed/deleted
-    // in the Component tier since) — renderSymbolPool() already self-heals
-    // state.symbolPool (poolEntries()) and its own "N in the pool" hint on
-    // every tier entry, but not here, so a stale-but-still-nonzero-looking
-    // pool used to silently skip arrangement and leave every cell on its
-    // plain Triangle placeholder (defaultSymbolCells(), loadSymbolGrid()
-    // above) with no visible explanation at all.
-    renderSymbolPool();
-    if (poolEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') runSuggest(false); else generateSymbolCells(); }
-    else if (elementPool().length) generateSymbolCells();   // Elements only: Arrange (Suggest reads Components)
-    else {
-      ctrl('symgrid-gen-error').textContent = 'The grid built, but the Components pool is empty (a saved Component may have been renamed or deleted) — cells were left on a plain placeholder shape. Add Components to the pool below, then Arrange.';
-      ctrl('symgrid-gen-error').style.display = '';
-    }
+    fillSymbolCells();
   } catch (e) {
     ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
     ctrl('symgrid-gen-error').style.display = '';
   }
+}
+// Fill the current grid's cells: Suggest or Arrange from the pool (or the saved Elements).
+function fillSymbolCells() {
+  renderSymbolPool();   // self-heals a stale pool (a Component renamed or deleted since) before filling
+  if (poolEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') runSuggest(false); else generateSymbolCells(); }
+  else if (elementPool().length) generateSymbolCells();   // Elements only: Arrange (Suggest reads Components)
+  else {
+    ctrl('symgrid-gen-error').textContent = 'Nothing saved to fill the grid with: save an Element or a Component, then Generate.';
+    ctrl('symgrid-gen-error').style.display = '';
+  }
+}
+// ── The empty Symbol: the panel's grid with every cell empty ──
+const emptySymbolCell = () => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, scale: 1, color: null, fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false });
+const symbolHasContent = () => (state.symbolCells || []).some(c => c && c.source !== 'empty');
+let emptyBuildSeq = 0;
+async function buildEmptySymbolGrid() {
+  const seq = ++emptyBuildSeq, id = ctrl('sel-symgrid-gen').value;
+  try {
+    const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
+    if (seq !== emptyBuildSeq || symbolHasContent()) return;   // a newer build, or the user placed something meanwhile
+    if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
+    ctrl('symgrid-gen-error').style.display = 'none';
+    loadSymbolGrid(model);
+    state.symbolCells = state.symbolCells.map(emptySymbolCell);
+    renderSymbol();
+  } catch (e) {
+    ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
+    ctrl('symgrid-gen-error').style.display = '';
+  }
+}
+// While every cell is empty, the panel is the grid's source: a change to the canvas or the
+// generator rebuilds it (nothing to lose). Once something is placed, "Generate grid in canvas" does.
+let emptyRebuildTimer = 0;
+['sym-canvas-section', 'sym-grid-section'].forEach(id => ['input', 'change'].forEach(ev => ctrl(id).addEventListener(ev, e => {
+  if (e.target.closest('button') || !state.symbolGrid || symbolHasContent()) return;
+  clearTimeout(emptyRebuildTimer);
+  emptyRebuildTimer = setTimeout(buildEmptySymbolGrid, 120);
+})));
+// The start pane: Generate over the empty grid, with what it does (or why it can't).
+function syncSymbolStart() {
+  const pane = ctrl('fvs-sym-start'), btn = ctrl('btn-symbol-first-generate');
+  const show = !!state.symbolGrid && !symbolHasContent();
+  pane.hidden = !show;
+  if (!show) { pane.dataset.loading = 'false'; return; }
+  const can = symbolSource().length > 0;
+  btn.setAttribute('aria-disabled', String(!can));
+  ctrl('sym-start-hint').textContent = can
+    ? 'Generate fills the grid for you, or drag from the Library into a cell.'
+    : 'Save an Element or a Component first: the grid is filled from them.';
 }
 // The canvas of the loaded Symbol, if it has one (a grid generated in a Canvas).
 function symbolCanvasOf(model) { return model && model.canvas && model.canvas.fvsFrame ? model.canvas.fvsFrame : null; }
@@ -7729,12 +7766,10 @@ ctrl('sel-symgrid-gen').value = 'rectangular';
 renderSymgridParams();
 ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').style.display = 'none'; renderSymgridParams(); });
 ctrl('btn-symgrid-generate').addEventListener('click', generateSymbolGridInCanvas);
-// Clear: drop the generated grid and its cells — the Symbol is empty again and shows its Generate button.
-// The panel's canvas / generator settings stay, so Generate runs the same set-up again.
+// Clear: every cell empty again, the grid kept — the Symbol is back to its empty grid with Generate over it.
 ctrl('btn-symbol-clear').addEventListener('click', () => {
   if (genArrivalStop) genArrivalStop();
-  state.symbolGrid = null;
-  state.symbolCells = [];
+  state.symbolCells = (state.symbolCells || []).map(emptySymbolCell);   // the grid stays (borders dragged by hand too); every cell is empty again
   state.symbolSuggestions = []; renderSuggestGallery();
   state.symbolSelection.clear();
   state.symbolMarqueeRect = null;
@@ -7854,15 +7889,16 @@ function runSymbolArrival() {
 // button (canvas, generator and its parameters are read from the panel), with
 // the button's leave before it and the arrival after it. Delegated —
 // the frame's innerHTML is rewritten on every render.
-ctrl('symbol-frame').addEventListener('click', async e => {
-  const btn = e.target.closest('.fvs-gen-go');
-  if (!btn || btn.dataset.loading === 'true') return;
+ctrl('btn-symbol-first-generate').addEventListener('click', async e => {
+  const pane = ctrl('fvs-sym-start');
+  if (e.currentTarget.getAttribute('aria-disabled') === 'true' || pane.dataset.loading === 'true' || !state.symbolGrid) return;
   const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  btn.dataset.loading = 'true';
-  if (!still) await new Promise(r => setTimeout(r, 200));   // let it leave before the frame is rewritten
-  await generateSymbolGridInCanvas();
-  if (!state.symbolGrid) { if (btn.isConnected) btn.dataset.loading = 'false'; return; }   // refused: the reason is under the panel's button
-  runSymbolArrival();
+  pane.dataset.loading = 'true';
+  if (!still) await new Promise(r => setTimeout(r, 200));   // let it leave before the cells arrive
+  fillSymbolCells();
+  pane.dataset.loading = 'false';
+  if (symbolHasContent()) runSymbolArrival(); else syncSymbolStart();
+  (state.symbolSuggestions.length ? ctrl('btn-sug-dock') : ctrl('btn-symgrid-generate')).focus({ preventScroll: true });   // the pane is gone: keep keyboard focus somewhere that stays
 });
 // Mirrors Trellis's refCellSize() (trellis/index.html) — a sensible starting
 // size for newly-"Fixed" content, so switching TO fixed doesn't leave every
@@ -9349,8 +9385,8 @@ function buildEmptyCellHitsSVG() {
   const L = symbolSpanLayout(grid, state.symbolCells);
   grid.cells.forEach((c, i) => {
     const cell = state.symbolCells[i]; if (!cell || cell.source !== 'empty' || L.covered[i] != null) return;   // a covered cell belongs to its block
-    if (grid.cellShape === 'polygon') s += `<g data-cell-index="${i}"><polygon points="${c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ')}" fill="transparent"/></g>`;
-    else s += `<g data-cell-index="${i}"><rect x="${F.X(c.x).toFixed(2)}" y="${F.Y(c.y).toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}" fill="transparent"/></g>`;
+    if (grid.cellShape === 'polygon') s += `<g class="is-empty" data-cell-index="${i}"><polygon points="${c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ')}" fill="transparent"/></g>`;
+    else s += `<g class="is-empty" data-cell-index="${i}"><rect x="${F.X(c.x).toFixed(2)}" y="${F.Y(c.y).toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}" fill="transparent"/></g>`;
   });
   return s;
 }
@@ -9417,13 +9453,11 @@ function buildCoverCropPreviewSVG() {
 function renderSymbolCanvasOnly() {
   const frame = ctrl('symbol-frame');
   const grid = getSymbolGrid();
-  ctrl('btn-symbol-clear').style.display = ctrl('sep-symbol-clear').style.display = grid ? '' : 'none';
+  ctrl('btn-symbol-clear').style.display = ctrl('sep-symbol-clear').style.display = grid && symbolHasContent() ? '' : 'none';
+  syncSymbolStart();
   if (!grid) {
-    // With Components in the pool the empty Symbol is one button: Generate
-    // (see .fvs-gen-go in the stylesheet). Without any there is nothing to build from yet.
-    frame.innerHTML = symbolSource().length
-      ? '<button type="button" class="org-btn org-btn--primary org-btn--lg fvs-gen-go" id="btn-symbol-first-generate">Generate</button>'
-      : '<p style="color:var(--mid);font-size:var(--fs-small)">Pick a grid to begin.</p>';
+    // No grid yet: the empty grid is being built from the panel (buildEmptySymbolGrid, on entering the step).
+    frame.innerHTML = '';
     ctrl('symbol-cellcount-hint').textContent = '0 cells';
     setStatus('', 'No symbol grid loaded');
     return;
@@ -10270,6 +10304,7 @@ function setTier(tier) {
       state.symbolPool = libraryNames(lib).sort((a, b) => String(lib[b].savedAt || '').localeCompare(String(lib[a].savedAt || ''))).slice(0, 8).map(name => ({ name, weight: 1 }));
     }
     renderSymbolPool(); renderSymbol(); renderSymbolLibrary();
+    if (!state.symbolGrid) buildEmptySymbolGrid();
   }
   else if (tier === 'element') { renderSeedPreview(); }
   else if (tier === 'figure') { renderFigureTier(); }
