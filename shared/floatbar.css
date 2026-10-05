@@ -236,6 +236,12 @@
 /* No hover tile — the travelling indicator is the hover/active state.
    Armed (two-click destructive, .is-armed) = --danger ink. */
 .org-floatbar__btn.is-armed { color: var(--danger); }
+/* Hold to confirm ([data-hold], Organica in core.js): a --danger ring fills round the button while it is
+   held; the ring is injected only for the hold and drawn by stroke-dashoffset (pathLength 1). */
+[data-hold] { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.org-hold-ring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; transform: rotate(-90deg); overflow: visible; }
+.org-floatbar__btn > .org-hold-ring { opacity: 1; }   /* not the glyph's resting 0.6, also during the run-back */
+.org-hold-ring circle { fill: none; stroke: var(--danger); stroke-width: 2px; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
 /* a disabled button neither lifts its glyph nor shows its tooltip on hover / focus */
 .org-floatbar__btn:disabled > svg, .org-floatbar__btn:disabled > span { opacity: 0.6; }
 .org-floatbar__btn:disabled::after { display: none; }

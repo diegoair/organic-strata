@@ -1867,8 +1867,17 @@
      Mark the button data-armed (optionally data-armed="Sure?"): the first click arms it
      (label swaps, .is-armed = --danger ink), a second click within ARM_MS runs the
      button's own handler; blur, Escape or the timeout disarm. One behaviour, one
-     timeout, one class — replaces the five per-tool versions. */
+     timeout, one class — replaces the five per-tool versions.
+     Organica hold (Oct 5, 2026) — press and hold to confirm, for a button marked data-hold:
+     pointer (or Space / Enter) held HOLD_MS fills a --danger ring round the button; let go
+     early and it runs back and nothing happens; at HOLD_MS the button's own click handler
+     runs. HOLD_MS is an interaction threshold, not a motion duration, so it is a constant and
+     never collapses under reduced motion. A bare click (voice control, switch access, a screen
+     reader's virtual cursor send no press) falls back to the two-click confirm, with the
+     data-hold value as its armed text. The ring is styled for .org-floatbar__btn only
+     (floatbar.css); a panel consumer needs its rule in panel.css first. */
   Organica.ARM_MS = 3000;
+  Organica.HOLD_MS = 1000;
   (function () {
     var timers = new WeakMap();
     function disarm(b) {
@@ -1878,10 +1887,11 @@
       if (b.dataset.armLabel != null) { b.textContent = b.dataset.armLabel; delete b.dataset.armLabel; }
       if (b.dataset.armAria != null) { b.setAttribute('aria-label', b.dataset.armAria); delete b.dataset.armAria; }
     }
-    function arm(b) {
+    function arm(b, text) {
+      var t = text || b.getAttribute('data-armed') || 'Confirm?';
       // An icon button keeps its icon: the confirm text goes to its aria-label (the floatbar tooltip reads it).
-      if (b.querySelector('svg')) { b.dataset.armAria = b.getAttribute('aria-label') || ''; b.setAttribute('aria-label', b.getAttribute('data-armed') || 'Confirm?'); }
-      else { b.dataset.armLabel = b.textContent; b.textContent = b.getAttribute('data-armed') || 'Confirm?'; }
+      if (b.querySelector('svg')) { b.dataset.armAria = b.getAttribute('aria-label') || ''; b.setAttribute('aria-label', t); }
+      else { b.dataset.armLabel = b.textContent; b.textContent = t; }
       b.classList.add('is-armed');
       timers.set(b, setTimeout(function () { disarm(b); }, Organica.ARM_MS));
     }
@@ -1891,8 +1901,81 @@
       if (b.classList.contains('is-armed')) { disarm(b); return; }     // second click: let the real handler run
       e.preventDefault(); e.stopImmediatePropagation(); arm(b);
     }, true);
-    document.addEventListener('focusout', function (e) { var b = e.target.closest && e.target.closest('[data-armed].is-armed'); if (b) disarm(b); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.querySelectorAll('[data-armed].is-armed').forEach(disarm); });
+    var ARMED = '[data-armed].is-armed, [data-hold].is-armed:not(.is-holding)';
+    document.addEventListener('focusout', function (e) { var b = e.target.closest && e.target.closest(ARMED); if (b) disarm(b); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.querySelectorAll(ARMED).forEach(disarm); });
+
+    // ── hold to confirm ──
+    var hold = null;   // { b, key, ring, anim, timer } — one hold at a time
+    var NS = 'http://www.w3.org/2000/svg';
+    function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+    function holdStart(b, key) {
+      if (hold) holdCancel();
+      disarm(b);
+      var svg = document.createElementNS(NS, 'svg'), c = document.createElementNS(NS, 'circle');
+      svg.setAttribute('class', 'org-hold-ring'); svg.setAttribute('viewBox', '0 0 34 34'); svg.setAttribute('aria-hidden', 'true');
+      c.setAttribute('fill', 'none'); c.setAttribute('cx', '17'); c.setAttribute('cy', '17'); c.setAttribute('r', '16'); c.setAttribute('pathLength', '1');
+      svg.appendChild(c); b.appendChild(svg);
+      b.classList.add('is-armed', 'is-holding');
+      // linear: a progress fill, so no --ease-*. The action runs on the timer, never on the animation's end.
+      var anim = c.animate([{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: Organica.HOLD_MS, easing: 'linear', fill: 'forwards' });
+      hold = { b: b, key: key, ring: svg, anim: anim, timer: setTimeout(holdDone, Organica.HOLD_MS) };
+    }
+    function holdCancel() {
+      if (!hold) return;
+      var h = hold, c = h.ring.firstChild; hold = null;
+      clearTimeout(h.timer);
+      var cur = parseFloat(getComputedStyle(c).strokeDashoffset); if (isNaN(cur)) cur = 1;
+      h.anim.cancel();
+      var back = c.animate([{ strokeDashoffset: cur }, { strokeDashoffset: 1 }], { duration: parseFloat(cssVar('--dur-fast')) || 1, easing: cssVar('--ease-out') || 'ease-out', fill: 'forwards' });
+      back.onfinish = function () { h.ring.remove(); };
+      h.b.classList.remove('is-holding', 'is-armed');
+    }
+    function holdDone() {
+      var h = hold; hold = null;
+      h.anim.cancel(); h.ring.remove();
+      h.b.classList.remove('is-holding', 'is-armed');
+      h.b.__holdPass = true; h.b.click();   // the button's own handler runs
+    }
+    var holdKey = function (e) { return e.key === ' ' || e.key === 'Enter'; };
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-hold]');
+      if (!b || b.disabled) return;
+      if (b.__holdPass) { b.__holdPass = false; return; }                          // the completed hold
+      if (b.__holdPressed) { b.__holdPressed = false; e.preventDefault(); e.stopImmediatePropagation(); return; }   // the click after a press
+      if (b.classList.contains('is-armed') && !b.classList.contains('is-holding')) { disarm(b); return; }   // fallback: second click
+      e.preventDefault(); e.stopImmediatePropagation(); arm(b, b.getAttribute('data-hold') || 'Click again to confirm');
+    }, true);
+    document.addEventListener('pointerdown', function (e) {
+      var b = e.target.closest && e.target.closest('[data-hold]');
+      if (!b || b.disabled || e.button !== 0) return;
+      b.__holdPressed = true;
+      try { b.setPointerCapture(e.pointerId); } catch (err) { /* synthetic pointer */ }
+      holdStart(b, 'pointer');
+    });
+    document.addEventListener('pointermove', function (e) {
+      if (!hold || hold.key !== 'pointer') return;
+      var r = hold.b.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) holdCancel();   // slid off the button
+    });
+    ['pointerup', 'pointercancel'].forEach(function (t) { document.addEventListener(t, function (e) {
+      var b = (e.target.closest && e.target.closest('[data-hold]')) || (hold && hold.b);
+      if (b) setTimeout(function () { b.__holdPressed = false; }, 0);   // a release that brings no click (button hidden, or off it) must not swallow the next one
+      if (hold && hold.key === 'pointer') holdCancel();
+    }); });
+    document.addEventListener('contextmenu', function (e) { if (e.target.closest && e.target.closest('[data-hold]')) e.preventDefault(); });   // a long press on touch
+    document.addEventListener('keydown', function (e) {
+      var b = holdKey(e) && e.target.closest && e.target.closest('[data-hold]');
+      if (!b || b.disabled) { if (e.key === 'Escape') holdCancel(); return; }
+      e.preventDefault();   // no native activation: the hold decides
+      if (!e.repeat && !hold) holdStart(b, e.key);
+    });
+    document.addEventListener('keyup', function (e) {
+      if (!holdKey(e) || !(e.target.closest && e.target.closest('[data-hold]'))) return;
+      e.preventDefault();
+      if (hold && hold.key === e.key) holdCancel();
+    });
+    document.addEventListener('focusout', function (e) { if (hold && hold.b === e.target) holdCancel(); });
   })();
 
   global.Organica = Organica;

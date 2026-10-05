@@ -327,9 +327,11 @@ its cells.
   disabled (`aria-disabled`) and the line reads *Save an Element or a Component first: the
   grid is filled from them.*
 - **Clear Symbol (floatbar)** (Oct 5, 2026) — an `eraser` icon, first in the Symbol
-  step's floatbar and followed by a separator, shown only while a cell has content. Two clicks
-  (`Organica.armed`: the first click turns it red and its tooltip reads *Clear Symbol —
-  click again to confirm*; blur, Esc or 3 s disarm it). It empties every cell and keeps the
+  step's floatbar and followed by a separator, shown only while a cell has content. **Hold to
+  confirm** (`data-hold`, Oct 5, 2026): press and hold 1 s (or Space / Enter) — a red ring
+  fills round the button; let go early and nothing happens. Its tooltip reads *Clear Symbol —
+  hold to confirm*. A plain click (voice control, switch access) falls back to two clicks
+  (*Clear Symbol — click again to confirm*). After clearing, focus goes to Generate. It empties every cell and keeps the
   grid (borders dragged by hand too), clears the selection and the variations, so the
   Symbol is back to its empty grid with Generate over it. Saved Symbols are not touched.
 - **Resize columns and rows by dragging** — on any rect grid that has tracks

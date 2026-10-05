@@ -32,7 +32,7 @@ a raw hex does — it just shows up in a user's head instead of in the CSS.
 7. **Verbs for actions, nouns for settings.** A button says what happens ("Render",
    "Restart", "Export"); a row says what it sets ("Spacing", "Opacity").
 8. **Same action, same verb**: Reset = back to defaults · Restart = run again from the
-   start · Clear = empty it · Delete = remove for good (armed) · Open = the main source
+   start · Clear = empty it · Delete = remove for good (armed or held; a held button is named *‹Action› — hold to confirm*) · Open = the main source
    file · Add = one more item. (Matches the icon meanings in `CLAUDE.md`: refresh / reset /
    close / trash / eraser.)
 9. **Units and ranges are consistent**: a percentage is 0–100 and says %; a seed is a number.
