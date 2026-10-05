@@ -553,7 +553,7 @@
     <span class="org-floatbar__group" role="group" aria-label="Symbol">
     <!-- Generate: fills the empty grid (Suggest / Arrange). aria-disabled + the reason in its label (the tooltip)
          when nothing is saved or the grid already has content. Variations: always there, aria-disabled until Suggest has some (the badge shows how many). -->
-    <button class="org-floatbar__btn" id="btn-symbol-generate" aria-label="Generate">
+    <button class="org-floatbar__btn" id="btn-symbol-generate" aria-label="Fill the grid">
       <svg class="ico" data-icon="generate" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M8 2.5v11M2.5 8h11"/><rect x="4" y="4" width="2.5" height="2.5" rx=".4" fill="currentColor" stroke="none"/><rect x="9.5" y="9.5" width="2.5" height="2.5" rx=".4" fill="currentColor" stroke="none"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-sug-dock" aria-label="Variations — none yet" aria-disabled="true" aria-expanded="false" aria-controls="fvs-sug-panel">
@@ -7702,7 +7702,7 @@ function fillSymbolCells() {
   if (poolEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') runSuggest(false); else generateSymbolCells(); }
   else if (elementPool().length) generateSymbolCells();   // Elements only: Arrange (Suggest reads Components)
   else {
-    ctrl('symgrid-gen-error').textContent = 'Nothing saved to fill the grid with: save an Element or a Component, then Generate.';
+    ctrl('symgrid-gen-error').textContent = 'Nothing to fill the grid with — save an Element or a Component first.';
     ctrl('symgrid-gen-error').style.display = '';
   }
 }
@@ -7737,14 +7737,14 @@ let emptyRebuildTimer = 0;
 // tooltip says why) when nothing is saved, or when the grid already has content (no Symbol undo — Clear first).
 function symbolGenerateBlock() {
   if (!state.symbolGrid) return '';   // the grid is being built; the click handler's own guard covers it
-  if (symbolHasContent()) return 'Generate — clear the Symbol first';
-  if (!symbolSource().length) return 'Generate — save an Element or a Component first';
+  if (symbolHasContent()) return 'Fill the grid — clear the Symbol first';
+  if (!symbolSource().length) return 'Fill the grid — save an Element or a Component first';
   return '';
 }
 function syncSymbolStart() {
   const btn = ctrl('btn-symbol-generate'), why = symbolGenerateBlock();
   btn.setAttribute('aria-disabled', String(!!why));
-  btn.setAttribute('aria-label', why || 'Generate');
+  btn.setAttribute('aria-label', why || 'Fill the grid');
 }
 // The canvas of the loaded Symbol, if it has one (a grid generated in a Canvas).
 function symbolCanvasOf(model) { return model && model.canvas && model.canvas.fvsFrame ? model.canvas.fvsFrame : null; }
@@ -7888,7 +7888,7 @@ function runSymbolArrival() {
 // the frame's innerHTML is rewritten on every render.
 ctrl('btn-symbol-generate').addEventListener('click', () => {
   const why = symbolGenerateBlock();
-  if (why) { Organica.notice(why.replace(/^Generate — /, '').replace(/^./, c => c.toUpperCase()), { kind: 'info' }); return; }
+  if (why) { Organica.notice(why.replace(/^[^—]+ — /, '').replace(/^./, c => c.toUpperCase()), { kind: 'info' }); return; }
   if (!state.symbolGrid) return;
   fillSymbolCells();
   if (symbolHasContent()) runSymbolArrival();

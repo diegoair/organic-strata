@@ -316,30 +316,30 @@ its cells.
   once anything is placed, *Generate grid in canvas* does that. Outline contrast on the default
   Paper: 3.65:1 light, 4.73:1 dark.
 - **The Symbol floatbar** (Oct 5, 2026) — three named groups (`.org-floatbar__group`) between
-  separators: **Symbol** (Generate · Variations · Clear) | **Fit in cell** (Contain · Fill ·
+  separators: **Symbol** (Fill the grid · Variations · Clear) | **Fit in cell** (Contain · Fill ·
   Cover · Fixed size · Anchor) | **View** (loaded grid · clip · cover crop · guides), then Export.
   A pressed Fit or View button keeps its own wash while you hover others; the moving highlight
   follows the pointer only.
-- **Generate (floatbar)** (Oct 5, 2026) — the first icon of the Symbol step's floatbar (`generate`: a grid with two cells filled,
+- **Fill the grid (floatbar)** (Oct 5, 2026; labelled *Generate* until the same day) — the first icon of the Symbol step's floatbar (`generate`: a grid with two cells filled,
   `#btn-symbol-generate`). On an empty grid it fills the **current** grid (borders dragged by hand
   are kept) with Suggest or Arrange, as the Fill section says, then the arrival plays: one pane per
   cell shows a filtered copy of the Symbol that goes from blank paper to a few blurred,
   high-contrast, rippling masses and then to sharp, one cell after another in a scattered order
   (1 s per cell, the whole sweep about 2 s; nothing with *reduce motion*; preview only, the panes
   take no clicks). Otherwise it stays visible but disabled (`aria-disabled`, still focusable), the
-  reason in its tooltip: *Generate — clear the Symbol first* (a filled grid — the Symbol has no
-  undo, so Generate never overwrites a composition) or *Generate — save an Element or a Component
+  reason in its tooltip: *Fill the grid — clear the Symbol first* (a filled grid — the Symbol has no
+  undo, so Fill the grid never overwrites a composition) or *Fill the grid — save an Element or a Component
   first*; a click shows the reason as a notice. (Until Oct 5 it sat in a glass pane over the
   empty grid.)
 - **Clear Symbol (floatbar)** (Oct 5, 2026) — an `eraser` icon, third in the Symbol
-  step's floatbar (after Generate and Variations, in the same group), shown with the grid and **disabled while every
+  step's floatbar (after Fill the grid and Variations, in the same group), shown with the grid and **disabled while every
   cell is empty** (nothing to clear). **Hold to
   confirm** (`data-hold`, Oct 5, 2026): press and hold 1 s (or Space / Enter) — a red ring
   fills round the button and the eraser's tip rubs out the line under it; let go early and nothing happens. Its tooltip reads *Clear Symbol —
   hold to confirm*. A plain click (voice control, switch access) falls back to two clicks
-  (*Clear Symbol — click again to confirm*). After clearing, focus goes to Generate. It empties every cell and keeps the
+  (*Clear Symbol — click again to confirm*). After clearing, focus goes to Fill the grid. It empties every cell and keeps the
   grid (borders dragged by hand too), clears the selection and the variations, so the
-  Symbol is back to its empty grid with Generate over it. Saved Symbols are not touched.
+  Symbol is back to its empty grid. Saved Symbols are not touched.
 - **Resize columns and rows by dragging** — on any rect grid that has tracks
   (Rectangular, Bento, Wave, a plain square…) each inner border shows a dashed
   handle on the preview (never exported). Drag it: the two tracks either side trade
@@ -425,7 +425,7 @@ its cells.
   beam search (width 4) over Component × turn, cell by cell; a weighted mix with
   the same turn search. Ranked, exact duplicates dropped, up to 12, deterministic per
   seed. The first is put on the sheet at once.
-- **Variations (floatbar)** (Oct 5, 2026) — the icon next to Generate (`variations`,
+- **Variations (floatbar)** (Oct 5, 2026) — the icon next to Fill the grid (`variations`,
   `#btn-sug-dock`), with the count in a small ink-on-paper circle at its top right (99+ cap;
   accessible name *12 variations*). Always in the bar: with no variations it is disabled
   (`aria-disabled`, tooltip *Variations — none yet*, no badge). It opens
@@ -643,7 +643,7 @@ the Element, Component and Symbol steps (not on ★ Figure).
   Stored as `span: true` on the anchor cell; the block is resolved at draw time
   (`symbolSpanLayout`), so preview, SVG, PNG, selection and hits agree. Suggest and polygon / Loom
   grids stay one cell per Component for now. Symbols saved before this are unchanged.
-- **A Symbol from Elements only** (Oct 4, 2026). With no saved Component, Generate builds the
+- **A Symbol from Elements only** (Oct 4, 2026). With no saved Component, Fill the grid builds the
   grid anyway and fills it from the **saved Elements** (the latest 8, weight ×1, `elementPool()`),
   each placed as from the library rail. Arrange rules work as with Components; Suggest reads
   Components only, so with Elements alone the cells are arranged (the hint says so). As soon as a
