@@ -20,15 +20,6 @@ import {
   getSymbolGrid
 } from './engine/08-symbol-grid.js';
 import {
-  isSealedSymbol, slotClassContext
-} from './engine/13-figure-engine.js';
-import {
-  FG_GRID_TYPES, FG_ICONS, FG_LATTICE_OF, FG_LOCK_GROUPS, FG_SEEDS, FG_SEED_MAIN, FG_STR_OF,
-  FIGURE_MUTATIONS, FIGURE_TOOLS, applyHandle, capMap, describeRule, fgPick, fgSymbol, figureCardHTML,
-  figureCatalog, figureClassWhen, figureFirstLevelOf, figureGalleryCache, figureHandleTarget,
-  figureHistory, figurePaintable, figureStepCache, isFormRule, maskIoU, normMask, paintCell, svgURI
-} from './engine/14-figure-ui.js';
-import {
   ctrl
 } from './00-core.js';
 import {
@@ -52,6 +43,15 @@ import {
 import {
   setTier
 } from './12-shell.js';
+import {
+  isSealedSymbol, slotClassContext
+} from './engine/13-figure-engine.js';
+import {
+  FG_GRID_TYPES, FG_ICONS, FG_LATTICE_OF, FG_LOCK_GROUPS, FG_SEEDS, FG_SEED_MAIN, FG_STR_OF,
+  FIGURE_MUTATIONS, FIGURE_TOOLS, applyHandle, capMap, describeRule, fgPick, fgSymbol, figureCardHTML,
+  figureCatalog, figureClassWhen, figureFirstLevelOf, figureGalleryCache, figureHandleTarget,
+  figureHistory, figurePaintable, figureStepCache, isFormRule, maskIoU, normMask, paintCell, svgURI
+} from './engine/14-figure-ui.js';
 import {
   figureSVGOf, runFigureRecipe, validateFigureRecipe
 } from './13-figure-engine.js';

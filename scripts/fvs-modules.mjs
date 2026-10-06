@@ -34,8 +34,29 @@ const JS = path.join(ROOT, 'fvs', 'js');
 const classicFiles = fs.readdirSync(JS).filter(f => /^\d\d-.*\.js$/.test(f)).sort();
 const classicTexts = classicFiles.map(f => fs.readFileSync(path.join(JS, f), 'utf8'));
 if (classicTexts.some(t => /^export |^import /m.test(t))) { console.error('already modules'); process.exit(1); }
+// stage C: Figure loads on demand. Two generic DOM helpers that live in its section but are used by Split
+// (fireInput / fireChange) move to 12-shell first — a function declaration moves without changing what runs.
+{
+  const from = classicFiles.indexOf('13-figure-engine.js'), to = classicFiles.indexOf('12-shell.js');
+  const t = classicTexts[from], fa = acorn.parse(t, { ecmaVersion: 'latest', sourceType: 'module', locations: true });
+  const L = t.split('\n'), take = new Set();
+  for (const st of fa.body) if (st.type === 'FunctionDeclaration' && /^fire(Input|Change)$/.test(st.id.name))
+    for (let k = st.loc.start.line; k <= st.loc.end.line; k++) take.add(k);
+  if (take.size === 0) throw new Error('fireInput / fireChange not found in 13-figure-engine.js');
+  const moved = L.filter((l, k) => take.has(k + 1));
+  classicTexts[from] = L.filter((l, k) => !take.has(k + 1)).join('\n');
+  classicTexts[to] = classicTexts[to].replace(/\n*$/, '\n') + '// Set a control and fire its event, as a user edit would (Split, Figure recipes).\n' + moved.join('\n') + '\n';
+}
 // engine first (fvs/js/engine/NN-*.js — model + logic, no DOM UI; scripts/fvs-engine.mjs), then the UI files
 const ENG = extractEngine(classicFiles, classicTexts, { acorn, eslintScope });
+// …and the Figure files (UI + engine) last: they load on demand (fvs/js/figure.js), so every reference into them
+// from the rest is an upward one (hooks.*), and the rest never imports them.
+const LAZY = new Set(['13-figure-engine.js', '14-figure-ui.js']);
+const isLazy = f => LAZY.has(path.posix.basename(f));
+{
+  const order = ENG.files.map((f, i) => i).sort((a, b) => (isLazy(ENG.files[a]) - isLazy(ENG.files[b])) || (a - b));
+  ENG.files = order.map(i => ENG.files[i]); ENG.texts = order.map(i => ENG.texts[i]);
+}
 const files = ENG.files;
 const texts = ENG.texts.map((t, i) => !files[i].startsWith('engine/') ? t : [
   `// Flexible Visual System · ${files[i].replace(/\.js$/, '')} — the engine part of ${files[i].slice(7)}: model + logic, no DOM UI.`,
@@ -178,11 +199,18 @@ const TS_JS = `// Flexible Visual System · test surface — window.__fvs: every
 // variables on rt (get + set) and the test flags. For fvs/_test-regression.html (it runs its battery inside
 // \`with (window.__fvs)\`, so the battery's bare names still resolve) and scripts/test-fvs-*.mjs.
 import { rt } from './rt.js';
-${files.map(f => `import * as ${nsName(f)} from './${f}';`).join('\n')}
+import { loadFigureTier } from './lazy.js';
+${files.filter(f => !isLazy(f)).map(f => `import * as ${nsName(f)} from './${f}';`).join('\n')}
 
 const api = {};
-for (const ns of [${files.map(nsName).join(', ')}])
-  for (const name of Object.keys(ns)) Object.defineProperty(api, name, { get: () => ns[name], enumerable: true });
+const expose = list => { for (const ns of list) for (const name of Object.keys(ns)) Object.defineProperty(api, name, { get: () => ns[name], enumerable: true, configurable: true }); };
+expose([${files.filter(f => !isLazy(f)).map(nsName).join(', ')}]);
+// Figure loads on demand: until then its names say so (await __fvs.loadFigureTier()) instead of being missing.
+for (const name of ${JSON.stringify([...decl].filter(([, d]) => isLazy(files[d.file])).map(([n]) => n).sort())})
+  Object.defineProperty(api, name, { get: () => { throw new Error(name + ': the Figure tier is not loaded — await __fvs.loadFigureTier()'); }, enumerable: true, configurable: true });
+api.expose = expose;
+api.loadFigureTier = loadFigureTier;
+api.figureLazy = true;
 for (const name of Object.keys(rt)) Object.defineProperty(api, name, { get: () => rt[name], set: v => { rt[name] = v; }, enumerable: true });
 let ready;
 api.ready = new Promise(r => { ready = r; });
@@ -191,15 +219,40 @@ api.markReady = () => { api.isReady = true; ready(); };
 window.__fvs = api;
 `;
 const MAIN_JS = `// Flexible Visual System — entry module. The files evaluate in this order (each imports only earlier ones),
-// which is the order the single inline script used to run in. Architecture: docs/FVS.md §Architecture.
-${files.map(f => `import './${f}';`).join('\n')}
+// which is the order the single inline script used to run in. Figure (${files.filter(isLazy).length} files) is not here: it loads on
+// demand through ./lazy.js → ./figure.js. Architecture: docs/FVS.md §Architecture.
+${files.filter(f => !isLazy(f)).map(f => `import './${f}';`).join('\n')}
 import './test-surface.js';
 window.__fvs.markReady();
+`;
+const FIGURE_JS = `// Flexible Visual System — the Figure tier, loaded on demand (lazy.js loadFigureTier(), first used by setTier('figure')).
+// Imports the Figure files in order; each provides its hooks as it evaluates. Then exposes them on window.__fvs.
+${files.filter(isLazy).map(f => `import * as ${nsName(f)} from './${f}';`).join('\n')}
+window.__fvs.expose([${files.filter(isLazy).map(nsName).join(', ')}]);
+`;
+const LAZY_JS = `// Flexible Visual System — the on-demand part: Figure (./figure.js, ~${Math.round(files.filter(isLazy).reduce((a, f) => a + Buffer.byteLength(texts[files.indexOf(f)]), 0) / 1024)} KB) loads the first time it is needed.
+let pending = null, loaded = false;
+export function loadFigureTier() {
+  if (!pending) pending = import('./figure.js').then(() => { loaded = true; });
+  return pending;
+}
+export function isFigureLoaded() { return loaded; }
 `;
 
 // check
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fvs-mod-'));
-const all = { ...Object.fromEntries(files.map((f, i) => [f, out[i]])), 'rt.js': RT_JS, 'hooks.js': HOOKS_JS, 'test-surface.js': TS_JS, 'main.js': MAIN_JS };
+// setTier: a first visit to Figure loads it, then renders it (later visits render at once, as before)
+{
+  const fi = files.indexOf('12-shell.js');
+  const a = `else if (tier === 'figure') { hooks.renderFigureTier(); }`;
+  if (!out[fi].includes(a)) throw new Error('setTier figure branch not found');
+  out[fi] = out[fi].replace(a, `else if (tier === 'figure') {   // Figure loads on demand (lazy.js): the first visit renders once it has arrived
+    if (isFigureLoaded()) hooks.renderFigureTier();
+    else loadFigureTier().then(() => { if (state.activeTier === 'figure') hooks.renderFigureTier(); });
+  }`).replace(/^(import \{ hooks[^\n]*\n)/m, m => m + `import { isFigureLoaded, loadFigureTier } from './lazy.js';\n`);
+  if (!out[fi].includes(`from './lazy.js'`)) throw new Error('lazy import not added to 12-shell');
+}
+const all = { ...Object.fromEntries(files.map((f, i) => [f, out[i]])), 'rt.js': RT_JS, 'hooks.js': HOOKS_JS, 'test-surface.js': TS_JS, 'main.js': MAIN_JS, 'figure.js': FIGURE_JS, 'lazy.js': LAZY_JS };
 const errs = [];
 for (const [f, t] of Object.entries(all)) {
   const p = path.join(tmp, f.replace(/\//g, '__').replace(/\.js$/, '.mjs')); fs.writeFileSync(p, t);

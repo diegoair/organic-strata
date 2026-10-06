@@ -21,10 +21,7 @@ import {
   withPlacementDefaults
 } from './engine/08-symbol-grid.js';
 import {
-  FIGURE_MAX_SHAPES, applyClassRules, componentCellsFromRule, gridTypeFromLattice, isSealedSymbol
-} from './engine/13-figure-engine.js';
-import {
-  buildPalette, ctrl, refreshColourViews, syncColorRuleUI
+  buildPalette, refreshColourViews, syncColorRuleUI
 } from './00-core.js';
 import {
   SEED_TYPES
@@ -51,15 +48,19 @@ import {
   renderSymbol
 } from './11-symbol-ui.js';
 import {
-  setPaperUI, setTier, syncSymbolViewUI
+  fireChange, fireInput, setPaperUI, setTier, syncSymbolViewUI
 } from './12-shell.js';
-import { hooks, provide } from './hooks.js';
+import {
+  tierSVG
+} from './15-export-library-view.js';
+import {
+  FIGURE_MAX_SHAPES, applyClassRules, componentCellsFromRule, gridTypeFromLattice, isSealedSymbol
+} from './engine/13-figure-engine.js';
+import { provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  fireChange: () => fireChange
+  figureSVGOf: () => figureSVGOf
 });
-export function fireInput(id, v) { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }
-export function fireChange(id, v) { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('change', { bubbles: true })); }
 export function runBuiltinRecipe(def) {
   fireChange('sel-seed-type', def.element.type);
   Object.entries(def.element.params || {}).forEach(([id, v]) => fireInput(id, v));
@@ -181,7 +182,7 @@ export function runFigureRecipe(def, opts) {
   // Every real caller passes keepTier — this path is a defensive fallback only.
   // 'grid' has no page of its own anymore, so land on Symbol instead of a blank UI.
   setTier(tier === 'grid' ? 'symbol' : tier);
-  return hooks.tierSVG();
+  return tierSVG();
 }
 // A finished Grid figure as the tile of the next level: its markup without the paper rect,
 // its frame, and the box it really draws in (set by the last buildFvsGridSVG()).

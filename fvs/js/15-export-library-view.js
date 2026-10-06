@@ -77,15 +77,12 @@ import {
 import {
   exportByTier, onAppearanceChange, setPaperUI, setTier
 } from './12-shell.js';
-import {
-  figureSVGOf
-} from './13-figure-engine.js';
-import { provide } from './hooks.js';
+import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   closeLibview: () => closeLibview, deleteSaved: () => deleteSaved, libviewIsOpen: () => libviewIsOpen,
   railPatch: () => railPatch, renderLibraryRail: () => renderLibraryRail,
-  renderLibview: () => renderLibview, syncRailTier: () => syncRailTier, tierSVG: () => tierSVG
+  renderLibview: () => renderLibview, syncRailTier: () => syncRailTier
 });
 // ── Variants / Plates / Recipe ─────────────────────────────────────
 // One geometry, many outputs. tierSVG() is the single SVG builder for
@@ -105,7 +102,7 @@ export function tierSVG() {
   if (t === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
   if (t === 'grid') return buildFvsGridSVG();
   if (t === 'element') return buildSeedPreviewSVG(getSeed(), 0, false, false, 400);
-  if (t === 'figure') return figureSVGOf(state.figureTier || 'symbol');
+  if (t === 'figure') return hooks.figureSVGOf(state.figureTier || 'symbol');
   const comp = getSelectedComponent();
   if (!comp) return '';
   state.selectedRuleSource = comp.ruleSource;

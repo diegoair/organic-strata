@@ -112,6 +112,19 @@ const bootErrs = newErrors(0);
 check(!bootErrs.length, 'boot errors: ' + bootErrs.join(' | '));
 const splitPage = await ev(`return !!document.querySelector('script[src^="/fvs/js/"]');`);
 const figureEarly = await ev(`return performance.getEntriesByType('resource').some(e => /\\/fvs\\/js\\/.*figure/.test(e.name));`);
+const bootKB = await ev(`return Math.round(performance.getEntriesByType('resource').concat(performance.getEntriesByType('navigation')).filter(e => e.name.includes('/fvs/')).reduce((a, e) => a + (e.decodedBodySize || 0), 0) / 1024);`);
+
+// 1b — the real way into Figure, before anything preloads it: click its tab, let it arrive, check it drew
+phase = 'figure-tab-click';
+{ const e0 = errors.length;
+  const ok = await ev(`document.querySelector('#tier-tabs [data-tier="figure"]').click();
+    for (let i = 0; i < 40; i++) { await idle(100); const v = document.querySelector('.tier-view[data-tier="figure"]');
+      if (v && v.classList.contains('active') && document.getElementById('figure-frame') && document.getElementById('figure-frame').innerHTML.length > 200) return true; }
+    return false;`);
+  check(ok, 'Figure tab click: the Figure view did not draw');
+  const ne = newErrors(e0); check(!ne.length, 'Figure tab click: ' + ne.join(' | '));
+  await ev(`document.querySelector('#tier-tabs [data-tier="element"]').click(); await idle(200); return 1;`);
+}
 
 // 2 — every view
 async function visitViews(tag) {
@@ -163,11 +176,12 @@ const hashes = await ev(`
 // 4 — resources
 const fvsScripts = responses.filter(r => r.url.startsWith(ORIGIN + '/fvs/') && /\.js(\?|$)/.test(r.url));
 fvsScripts.forEach(r => check(r.status === 200 && /javascript/.test(r.type), `resource ${r.url.slice(ORIGIN.length)}: ${r.status} ${r.type}`));
+let lazyNote = '';
 const lazyFigure = splitPage && fvsScripts.some(r => /figure/.test(r.url));
 if (lazyFigure && responses.some(r => /\/fvs\/js\/.*figure.*\.js/.test(r.url))) {
   // only meaningful once Figure is lazy: the module build declares it with __fvs.figureLazy
   const lazy = await ev(`return !!(window.__fvs && __fvs.figureLazy);`);
-  if (lazy) { check(!figureEarly, 'Figure code was fetched before the Figure tab opened'); check(figureAfter, 'Figure code never loaded'); }
+  if (lazy) { check(!figureEarly, 'Figure code was fetched before the Figure tab opened'); check(figureAfter, 'Figure code never loaded'); lazyNote = ` · Figure lazy: ${figureEarly ? 'LOADED AT BOOT' : 'not at boot'}, ${figureAfter ? 'loaded on the tab' : 'NEVER LOADED'} · ${bootKB} KB of /fvs/ at boot`; }
 }
 
 // 5 — dark mode
@@ -189,6 +203,6 @@ if (RECORD) {
   check(Object.keys(hashes).length === keys.length, `export parity: ${Object.keys(hashes).length} hashes vs ${keys.length} in the baseline`);
 }
 
-console.log(`FVS QA: ${fails.length ? 'FAIL' : 'PASS'} — ${Object.keys(hashes).length} export hashes, views light ${Object.values(views).filter(Boolean).length}/${Object.keys(views).length}, dark ${Object.values(dark).filter(Boolean).length}/${Object.keys(dark).length}, ${errors.length} errors, ${fvsScripts.length} /fvs/ scripts, ${Math.round(bytes / 1024)} KB of /fvs/ decoded${splitPage ? ' (split page)' : ''}`);
+console.log(`FVS QA: ${fails.length ? 'FAIL' : 'PASS'} — ${Object.keys(hashes).length} export hashes, views light ${Object.values(views).filter(Boolean).length}/${Object.keys(views).length}, dark ${Object.values(dark).filter(Boolean).length}/${Object.keys(dark).length}, ${errors.length} errors, ${fvsScripts.length} /fvs/ scripts, ${Math.round(bytes / 1024)} KB of /fvs/ decoded${splitPage ? ' (split page)' : ''}${lazyNote}`);
 fails.forEach(f => console.log('  ✗ ' + f));
 done(fails.length ? 1 : 0);
