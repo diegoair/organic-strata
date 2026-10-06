@@ -498,14 +498,15 @@
   #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { box-shadow: none; filter: drop-shadow(var(--stage-shadow)); overflow: visible; }   /* overflow: the Show-grid wrapper reaches past the cells */
   .fvs-thumb:has(> svg.is-cell) { background: transparent; }
   /* A cell-shape Component's canvas is its grid's outline: no square frame at all — the sheet casts the stage
-     shadow, and selected / saved draw their ring along that outline (chained 1px drop-shadows grow the
-     shape's own alpha by 1px each: two for the 2px selection, three in --tool for "saved"). */
-  .fvs-thumb:has(> svg.is-cell) { border-color: transparent; box-shadow: none;
-    --cell-ring-ink: drop-shadow(1px 0 0 var(--ink)) drop-shadow(-1px 0 0 var(--ink)) drop-shadow(0 1px 0 var(--ink)) drop-shadow(0 -1px 0 var(--ink));
-    --cell-ring-tool: drop-shadow(1px 0 0 var(--tool)) drop-shadow(-1px 0 0 var(--tool)) drop-shadow(0 1px 0 var(--tool)) drop-shadow(0 -1px 0 var(--tool)); }
+     shadow, and selected / saved draw their ring along that outline: .cell-ring (withCellRing in
+     05-render-component.js), the cells stroked under the Paper, so only the outward half shows — 3px for the
+     selection, 4.5px in --tool for "saved" (the widths the old filter ring drew). Chained 1px drop-shadows did
+     this before: 13 filter passes per saved thumbnail, ~2 s per save with a dozen saved. */
+  .fvs-thumb:has(> svg.is-cell) { border-color: transparent; box-shadow: none; }
   .fvs-thumb > svg.is-cell { overflow: visible; filter: drop-shadow(var(--stage-shadow)); }
-  .fvs-thumb.selected > svg.is-cell { filter: var(--cell-ring-ink) var(--cell-ring-ink) drop-shadow(var(--stage-shadow)); }
-  .fvs-thumb.saved-in-library > svg.is-cell { filter: var(--cell-ring-tool) var(--cell-ring-tool) var(--cell-ring-tool) drop-shadow(var(--stage-shadow)); }
+  .fvs-thumb > svg.is-cell > .cell-ring { display: none; }
+  .fvs-thumb.selected > svg.is-cell > .cell-ring { display: inline; stroke: var(--ink); stroke-width: 6; }
+  .fvs-thumb.saved-in-library > svg.is-cell > .cell-ring { display: inline; stroke: var(--tool); stroke-width: 9; }
   .fvs-seed-tile__box > svg.is-cell { border-color: transparent; overflow: visible; filter: drop-shadow(var(--stage-shadow)); }   /* a sheet like the big canvas: its own outline casts the stage shadow */
   /* hover / selected follow the cell's outline, not a square box */
   .fvs-seed-tile.is-selected .fvs-seed-tile__box > svg.is-cell { border-color: transparent; box-shadow: none; }

@@ -192,6 +192,38 @@ export function exportElement(format) {
 }
 
 // ── Gallery ──
+// A cell-shape thumbnail's selected / saved ring, drawn along the cells' outline: the lattice's outer edges
+// (an edge two cells share cancels out), chained into closed loops and stroked mitre-joined UNDER the Paper,
+// so only the outward half shows (= the outline grown by half the width, sharp corners kept).
+// Hidden until .selected / .saved-in-library (fvs.css). It replaced a chain of 1px CSS drop-shadows — 13
+// filter passes per saved thumbnail, re-run on every gallery redraw (a dozen saved circle Components took
+// ~2 s per save). Gallery DOM only: exports never carry it.
+export function cellOutlineLoops(items) {
+  const key = p => p[0].toFixed(1) + ',' + p[1].toFixed(1);
+  const edges = new Map();   // undirected edge → { a, b, n }
+  items.forEach(it => it.poly.forEach((p, i) => {
+    const q = it.poly[(i + 1) % it.poly.length], ka = key(p), kb = key(q), k = ka < kb ? ka + '|' + kb : kb + '|' + ka;
+    const e = edges.get(k);
+    if (e) e.n++; else edges.set(k, { a: p, b: q, ka, kb, n: 1 });
+  }));
+  const next = new Map();    // outer edges only, kept in each cell's own winding
+  edges.forEach(e => { if (e.n === 1) next.set(e.ka, e); });
+  const loops = [];
+  while (next.size) {
+    const [start, first] = next.entries().next().value;
+    const loop = [first.a];
+    let e = first; next.delete(start);
+    while (e && e.kb !== start) { loop.push(e.b); e = next.get(e.kb); if (e) next.delete(e.ka); }
+    loops.push(loop);
+  }
+  return loops;
+}
+export function withCellRing(svgStr, items) {
+  if (!items.length || !items[0].poly || !/^<svg[^>]*class="is-cell"/.test(svgStr)) return svgStr;
+  const d = cellOutlineLoops(items).map(l => 'M' + l.map(p => p[0].toFixed(2) + ',' + p[1].toFixed(2)).join('L') + 'Z').join('');
+  const ring = `<path class="cell-ring" d="${d}" fill="none" stroke-linejoin="miter" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
+  return svgStr.replace(/^(<svg[^>]*>)/, '$1' + ring);
+}
 export function renderGallery() {
   // Component Edit mode owns the view while active (renderComponentEditCanvas
   // is its own render path) — a reactive renderGallery() call from elsewhere
@@ -256,7 +288,7 @@ export function renderGallery() {
   for (const comp of state.components) {
     let svgStr;
     live.layerInkOverride = comp.layerInks || null;
-    try { const its = buildComponentItems(comp, grid); svgStr = withGridWrapper(withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline); } finally { live.layerInkOverride = null; }
+    try { const its = buildComponentItems(comp, grid); svgStr = withCellRing(withGridWrapper(withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline), its); } finally { live.layerInkOverride = null; }
     const btn = document.createElement('button');
     const isSelected = comp.id === state.selectedId && state.selectionExplicit;
     btn.className = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
