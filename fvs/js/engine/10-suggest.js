@@ -387,14 +387,14 @@ export function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
   });
 }
 export function componentThumbSVG(name) {
-  const entry = LIBRARY.read()[name];
+  const entry = LIBRARY.peek()[name];   // peek: one call per thumbnail — read() re-parses the whole library each time
   if (!entry) return '';
   const savedColorAt = entryInkAt(entry);
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
   return withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName, entry.blend));
 }
 export function analyseComponent(name) {
-  const entry = LIBRARY.read()[name];
+  const entry = LIBRARY.peek()[name];
   if (!entry) return null;
   const key = name + '|' + (entry.savedAt || '') + '|' + (entry.colors || []).join(',') + '|' + (entry.paperColor || '');
   if (compAnalysisCache.has(key)) return compAnalysisCache.get(key);
@@ -414,7 +414,7 @@ export function analyseComponent(name) {
   const paperRGB = Organica.hexToRGB255(clearPaper ? '#ffffff' : (entry.paperColor || '#ffffff'));
   const paper = { r: paperRGB[0], g: paperRGB[1], b: paperRGB[2] };
   // Which ink is each ink pixel: the nearest (OKLab) of the colours this Component can paint with.
-  const under = entry.underlyingComponentName && LIBRARY.read()[entry.underlyingComponentName];
+  const under = entry.underlyingComponentName && LIBRARY.peek()[entry.underlyingComponentName];
   const cands = [...new Set([...(entry.colors || []), ...((under && under.colors) || [])].map(hexKey).filter(c => /^#[0-9a-f]{6}$/.test(c)))];
   if (!cands.length) cands.push('#000000');
   const candLab = cands.map(c => Organica.color.hexToOklab(c));

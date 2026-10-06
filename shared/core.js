@@ -202,6 +202,7 @@
           return JSON.parse(old || '{}');
         } catch (e) { return {}; }
       },
+      peek() { return this.read(); },          // store.js reuses the parse; here it is read() (same read-only contract)
       write(obj) {
         try { localStorage.setItem(key, JSON.stringify(obj)); return true; }
         catch (e) { return false; }            // quota / private mode — caller decides what to say

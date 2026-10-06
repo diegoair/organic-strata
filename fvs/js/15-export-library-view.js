@@ -329,6 +329,30 @@ export function railTile(kind, name, svg, w, h) {
   tile.append(b, ren, x);
   return tile;
 }
+// A group's tiles in this order, reusing every tile whose thumbnail is the same SVG text (kind, name, size
+// and drawing unchanged) — a save then adds one tile instead of re-drawing the whole library (110 saved
+// Components cost ~90 ms of style + paint per save when every tile was rebuilt). Clicks are delegated to the
+// panel, so a kept tile carries no stale listener. A drawing carries a time stamp (<metadata> exportedAt) and
+// per-drawing ids (nextDrawId: clip paths, patterns…): the key leaves the metadata out and reads the ids as
+// their order. A kept tile keeps its own ids, still unique on the page (the counter only goes up).
+const railTileKey = new WeakMap();
+const drawIdFree = svg => {
+  let out = String(svg).replace(/<metadata>[\s\S]*?<\/metadata>/g, '');
+  const ids = [...new Set([...out.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]))];
+  ids.forEach((id, i) => { out = out.split('"' + id + '"').join('"#' + i + '"').split('#' + id + ')').join('#' + i + ')').split('"#' + id + '"').join('"##' + i + '"'); });
+  return out;
+};
+export function syncRailGroup(group, specs) {
+  const old = new Map();
+  [...group.children].forEach(t => { const k = railTileKey.get(t); if (k != null && !old.has(k)) old.set(k, t); });
+  specs.forEach((spec, i) => {
+    const k = [spec[0], spec[1], drawIdFree(spec[2]), spec[3], spec[4]].join('\u0000');
+    let t = old.get(k);
+    if (t) old.delete(k); else { t = railTile(...spec); railTileKey.set(t, k); }
+    if (group.children[i] !== t) group.insertBefore(t, group.children[i] || null);
+  });
+  while (group.children.length > specs.length) group.lastElementChild.remove();
+}
 export function syncRailButton() {
   if (document.getElementById('btn-libview')) syncLibviewButton();
   const why = railBlock(), railBtn = ctrl('btn-rail');   // ctrl(): it can run during init, before the const
@@ -341,15 +365,14 @@ export function renderLibraryRail() {
   syncRailButton();
   if (!railIsOpen()) return;   // drawn when it opens
   const els = ctrl('rail-elements'), comps = ctrl('rail-components'), syms = ctrl('rail-symbols');
-  [els, comps, syms].forEach(g => { g.innerHTML = ''; });
   // newest first (Diego, Oct 5, 2026): a save lands at the top, in view — at the end it sat below the fold
   const newestFirst = all => (a, b) => String((all[b] || {}).savedAt || '').localeCompare(String((all[a] || {}).savedAt || ''));
   const elAll = ELEMENT_LIB.read(), elNames = shownElementNames(elAll).sort(newestFirst(elAll));
-  elNames.forEach(n => { const e = elAll[n]; els.appendChild(railTile('element', n, savedElementThumb(e))); });
+  syncRailGroup(els, elNames.map(n => ['element', n, savedElementThumb(elAll[n])]));
   const cAll = LIBRARY.read(), cNames = libraryNames(cAll).sort(newestFirst(cAll));
-  cNames.forEach(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 48); comps.appendChild(railTile('component', n, componentThumbSVG(n), box.w, box.h)); });
+  syncRailGroup(comps, cNames.map(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 48); return ['component', n, componentThumbSVG(n), box.w, box.h]; }));
   const sAll = SYMBOL_LIBRARY.read(), sNames = Object.keys(sAll || {}).sort(newestFirst(sAll));
-  sNames.forEach(n => syms.appendChild(railTile('symbol', n, symbolEntryThumbSVG(sAll[n]))));
+  syncRailGroup(syms, sNames.map(n => ['symbol', n, symbolEntryThumbSVG(sAll[n])]));
   // An empty group is not shown (no "None saved yet"); Components stays on its own tab for Save all.
   const onComp = state.activeTier === 'component', visible = [['elements', elNames.length], ['components', cNames.length || onComp], ['symbols', sNames.length]];
   visible.forEach(([k, on]) => { ctrl('rail-g-' + k).style.display = on ? '' : 'none'; });

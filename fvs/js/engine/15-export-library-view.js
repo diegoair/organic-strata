@@ -152,7 +152,7 @@ export function renderVariant(v, transparent) {
 // What a tile puts in a cell — the same patches as the Choose-content overlay.
 export function railPatch(kind, name) {
   if (kind === 'component') {
-    if (!LIBRARY.read()[name]) return null;
+    if (!LIBRARY.peek()[name]) return null;
     return { source: 'component', componentName: name, span: true, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null, rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
   }
   const entry = ELEMENT_LIB.read()[name];

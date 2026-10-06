@@ -12,6 +12,9 @@
  * store.js keeps read()/write() SYNCHRONOUS against a localStorage cache (byte
  * identical to today), so nothing breaks if a tool never migrates. On top:
  *
+ *   peek()        → obj (read-only) — read() without the parse while the cache
+ *                   text is unchanged; for code that draws many entries. Shared
+ *                   object: never mutate it, use read() to edit + write().
  *   pull()        → Promise<obj>  — refresh the cache from Postgres. No-op that
  *                   just resolves read() when signed out. Call once on init and
  *                   render the preset list from the result.
@@ -87,6 +90,23 @@
       } catch (e) { return {}; }
     }
 
+    // peek(): read() for code that only looks — a list that draws one thumbnail per entry calls it once per
+    // entry, and read() parses the whole cache every time (110 saved FVS Components = 110 full parses per redraw).
+    // The parse is reused while the cached text is unchanged. The object is SHARED: never mutate it — a caller
+    // that edits and writes back uses read().
+    var peekRaw = null, peekObj = null;
+    function peekCache() {
+      if (foreignCache(cacheKey)) return {};
+      var cur;
+      try { cur = localStorage.getItem(cacheKey); } catch (e) { return readCache(); }
+      if (cur === null) return readCache();   // nothing cached yet / the legacy-key migration path
+      if (cur !== peekRaw) {
+        try { peekObj = JSON.parse(cur || '{}'); } catch (e) { peekObj = {}; }
+        peekRaw = cur;
+      }
+      return peekObj;
+    }
+
     function writeCache(obj) {
       try { localStorage.setItem(cacheKey, JSON.stringify(obj)); tagCache(cacheKey); return true; }
       catch (e) { return false; }
@@ -153,6 +173,7 @@
 
       // ── unchanged sync contract ──
       read: readCache,
+      peek: peekCache,
       write: function (obj) {
         var ok = writeCache(obj);
         if (remote) queueFlush();

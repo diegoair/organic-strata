@@ -36,7 +36,7 @@ provide({
 export const _gcd = (a, b) => b ? _gcd(b, a % b) : a;
 // The block a Component asks for, in Symbol cells, at this turn (90°/270° swap it).
 export function componentSpanOf(name, rotation) {
-  const entry = name && LIBRARY.read()[name];
+  const entry = name && LIBRARY.peek()[name];
   const g = entry && entry.grid;
   if (!g || g.kind === 'loom' || !g.cols) return [1, 1];
   const c = g.cols, r = g.rows || g.cols, k = _gcd(c, r);
@@ -429,7 +429,7 @@ export function cellOverflowInfo(index, resolvedCells) {
   if (!c) return false;
   let natural = 100;
   if (cell.source === 'component') {
-    const entry = LIBRARY.read()[cell.componentName];
+    const entry = LIBRARY.peek()[cell.componentName];   // per cell: peek, not a full parse each
     if (!entry) return false; // missing-reference placeholder — no fit math to check
     const nd = frameDims(entry.grid);
     natural = nd.w === nd.h ? frameSize(entry.grid) : { w: nd.w, h: nd.h };
