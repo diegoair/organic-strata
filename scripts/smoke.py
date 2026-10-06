@@ -18,6 +18,8 @@ cfg = json.load(open("vercel.json"))
 pages = sorted({re.sub(r"\(\.\*\)$", "", r["source"]) for r in cfg["rewrites"]})
 paths = ["/"] + [p for p in pages if p not in ("/", "/shared/")] + [
     "/shared/tokens.css", "/shared/core.js", "/shared/panel.css", "/shared/vendor/manrope-variable.ttf"]
+# FVS's own sheet + scripts (split out of fvs/index.html, Oct 2026): the page is 200 even if one is missing
+paths += sorted(set(re.findall(r'(?:src|href)="(/fvs/[^"]+\.(?:js|css))"', open("fvs/index.html", encoding="utf-8").read())))
 
 
 class NoCrossHost(urllib.request.HTTPRedirectHandler):

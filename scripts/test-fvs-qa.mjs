@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE = path.join(ROOT, 'fvs', '_qa-baseline.json');
 const RECORD = process.argv.includes('--record');
+const SHOTS = (i => i > 0 ? process.argv[i + 1] : '')(process.argv.indexOf('--shots'));   // --shots DIR: a PNG per tier
+if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 const which = n => { try { return execFileSync('which', [n], { encoding: 'utf8' }).trim(); } catch { return ''; } };
 const CHROME = [process.env.CHROME, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   which('google-chrome'), which('chromium'), which('chromium-browser')].find(c => c && fs.existsSync(c));
@@ -121,6 +123,7 @@ async function visitViews(tag) {
       const v = document.querySelector('.tier-view[data-tier="${t}"]');
       return !!v && v.classList.contains('active') && v.getBoundingClientRect().height > 0 && v.querySelector('*') !== null;`);
     check(out[t], `${tag}: tier ${t} view empty or not active`);
+    if (SHOTS) { const r = await cdp('Page.captureScreenshot', { format: 'png' }); fs.writeFileSync(path.join(SHOTS, `${tag}-${t}.png`), Buffer.from(r.result.data, 'base64')); }
     const ne = newErrors(e0); check(!ne.length, `${tag}: tier ${t}: ` + ne.join(' | '));
   }
   const steps = [

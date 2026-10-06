@@ -1,0 +1,513 @@
+  :root {
+    /* color-scheme:light + the surface palette are shared defaults in
+       tokens.css now. FVS keeps its own scrollable-gallery shell. */
+    --tool: #3fa876;   /* identity colour — emerald, unclaimed hue gap between Komorebi's olive and Camo Turing's teal */
+    /* The same blue FVS's own "Show loaded grid" outline already uses
+       (buildGridOutlineSVG, below) — checked: #3399ff is NOT a shared
+       tokens.css value, it's a hardcoded hex repeated as-is across FVS/
+       Loom/motion.js's own grid-overlay markup, so this reuses that exact
+       existing convention rather than introducing a new, different blue. */
+    --track-accent: #3399ff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-base); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* Step nav — sits between header and #app, same "minimal header, nav
+     below" move Genesis made for Library/Create. */
+  .fvs-stepnav { flex-shrink: 0; padding: var(--space-3) var(--space-5) 0; background: var(--paper); border-bottom: 1px solid var(--border); }
+  .fvs-stepnav .org-tabs { margin-bottom: var(--space-2); }
+  .fvs-stepnav__num { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: color-mix(in srgb, currentColor 16%, transparent); font-size: var(--fs-micro); margin-right: var(--space-1); }
+  .fvs-stepnav__hint { font-size: var(--fs-small); color: var(--mid); padding-bottom: var(--space-2); min-height: 1.4em; }
+
+  #app { display: flex; flex: 1; overflow: hidden; }
+
+  /* No zoom/pan — the gallery is a static, scrollable grid of thumbnails,
+     not a single pannable canvas (there is no one canvas to zoom). */
+  #canvas-wrap { flex: 1; overflow-y: auto; background: var(--canvas-grid), var(--canvas-bg); padding: var(--space-7); padding-left: max(var(--space-7), var(--fvs-rail-reserve, 0px)); }   /* the open Library rail never covers the work: its width is reserved (syncRailSpace) */
+  /* Zoom (wheel / ⌘+ ⌘− ⌘0) — the suite-wide Organica.createZoomPan. FVS doesn't
+     load shell.css (own canvas surface), so the stage + HUD rules it needs live here,
+     mirroring shell.css's .org-stage / #zoom-hud. Pan = Space / ⌥ / middle-button drag. */
+  .fvs-zoomable { transform-origin: 0 0; }
+  body.fvs-pan-key .fvs-zoomable.zoomed { cursor: grab; }
+  .fvs-zoomable.panning, body.fvs-pan-key .fvs-zoomable.panning { cursor: grabbing; }
+  #zoom-hud { position: fixed; left: var(--space-5); bottom: var(--space-5); z-index: 30; background: var(--ink); color: var(--paper); font-family: var(--font); font-size: var(--fs-micro); letter-spacing: 0.1em; padding: var(--space-2) var(--space-4); display: none; align-items: center; gap: var(--space-3); user-select: none; }
+  #zoom-hud.visible { display: flex; }
+  #zoom-hud .zoom-reset { all: unset; cursor: pointer; opacity: 0.6; font: inherit; letter-spacing: inherit; }
+  @media (hover: hover) { #zoom-hud .zoom-reset:hover { opacity: 1; } }
+  #gallery-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: var(--space-3); color: var(--mid); font-size: var(--fs-small); text-align: center; }
+  #gallery { display: none; flex-wrap: wrap; justify-content: center; gap: var(--space-5); align-content: flex-start; max-width: 100%; }
+  #gallery.visible { display: flex; }
+  /* Warning-only now (e.g. "the Element is empty") — the plain "N components" count lives in the
+     header status pill alone; :empty collapses this to zero footprint so it doesn't push the
+     (now-centered) grid down when there's nothing to say. */
+  #gallery-status { width: 100%; font-size: var(--fs-micro); color: var(--mid); text-align: center; }
+  #gallery-status:empty { display: none; }
+
+  .fvs-thumb {
+    /* --thumb-w/--thumb-h are set once per #gallery render (renderGallery),
+       from the grid's own real proportions — see fitThumbBox(). Default
+       96×96 covers callers that never set them (there are none left, kept
+       as a safety fallback). */
+    width: var(--thumb-w, 96px); height: var(--thumb-h, 96px); flex-shrink: 0;
+    border: 1px solid var(--border);
+    cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
+    transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+  }
+  /* Selection (thin 1px + ring) and "saved to Library" (thick 3px, below)
+     are two distinct, unrelated states and must stay visually distinct —
+     a selected-but-unsaved candidate must never look like a saved one. */
+  /* --ink ring (the system's pressed colour, like the Element views): --tool's green measured 2.97:1 on the light canvas, under 3:1 */
+  .fvs-thumb.selected { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  /* Persistent marker for "this candidate is saved to the Library" — independent
+     of state.selectedId (a saved thumbnail keeps this even once selection moves
+     to a different one), a thicker 3px ring so it reads at a glance next to the
+     thinner 1px selection border above. box-sizing:border-box (set globally,
+     line 25) means the extra 2px doesn't shift the thumbnail's own footprint. */
+  .fvs-thumb.saved-in-library { border-width: 3px; border-color: var(--tool); box-shadow: none; }
+  /* On hover, drop the border entirely so nothing frames/competes with
+     the shape while you're looking at it up close — just the quick-save
+     ✓/delete button over a bare figure. (Plain, non-saved thumbnails never
+     had a hover border colour of their own to begin with — that rule was
+     removed because it left a stray grey line on every hover, inconsistently
+     overridden only for .selected by CSS source order.) */
+  .fvs-thumb.saved-in-library:hover { border-color: transparent; }
+  .fvs-thumb svg { width: 100%; height: 100%; display: block; }
+  .fvs-thumb-wrap { position: relative; display: flex; flex-direction: column; gap: var(--space-1); width: var(--thumb-w, 96px); flex-shrink: 0; }
+  /* "Quick save to library" — a rounded + over the thumbnail's own
+     top-right corner. Hidden until hover/focus so it doesn't compete with
+     the shape underneath the rest of the time — EXCEPT once saved
+     (.saved, driven by comp.savedName), where it stays a permanent check-icon
+     indicator, visible with no hover needed, that persists across
+     re-renders. */
+  .fvs-thumb-quicksave {
+    position: absolute; top: var(--space-1); right: var(--space-1); width: 20px; height: 20px;
+    border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; cursor: pointer;
+    opacity: 0; transition: opacity var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
+  }
+  .fvs-thumb-wrap:hover .fvs-thumb-quicksave, .fvs-thumb-quicksave:focus-visible { opacity: 1; }
+  @media (hover: hover) { .fvs-thumb-quicksave:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); } }
+  .fvs-thumb-quicksave.saved { opacity: 1; border-color: var(--tool); background: var(--tool); color: var(--paper); }
+  /* Hovering an already-saved ✓ previews the delete it's about to do. */
+  .fvs-thumb-quicksave.saved.delete-hover { border-color: var(--danger); background: var(--danger); color: var(--paper); }
+  /* Hit area: the 20px circle keeps its size, the target grows to --hit-min (#hit-areas). */
+  .fvs-thumb-quicksave::before, .fvs-thumb-edit::before, .fvs-thumb-tile::before { content: ''; position: absolute; inset: calc((20px - var(--hit-min)) / 2); }
+  /* Edit-structure — same hover-reveal circle as quick-save, one slot to
+     its left (4px + 20px + 3px gap), neutral --ink on hover rather than
+     --tool's green so it reads as a distinct action from Save. */
+  .fvs-thumb-edit, .fvs-thumb-tile {
+    position: absolute; top: var(--space-1); right: calc(var(--space-1) + 20px + 3px); width: 20px; height: 20px;
+    border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; cursor: pointer;
+    opacity: 0; transition: opacity var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
+  }
+  .fvs-thumb-wrap:hover .fvs-thumb-edit, .fvs-thumb-edit:focus-visible, .fvs-thumb-tile:focus-visible { opacity: 1; }
+  .fvs-thumb-tile[aria-pressed="true"] { opacity: 1; border-color: var(--tool); background: var(--tool); color: var(--paper); }
+  .fvs-thumb-edit:hover, .fvs-thumb-tile:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
+
+  /* .icon-btn + .rmx-* chip CSS now in shared/palette.css.
+     .fvs-library-item .rmx-x below reuses the shared .rmx-x for the
+     thumbnail delete button — kept local. */
+
+  /* Manual per-cell mini-editor — 4 compact groups, one per grid cell. */
+  .fvs-cell-group { border: 1px solid var(--border); padding: var(--space-3); margin-bottom: var(--space-3); }
+  .fvs-cell-group .sub-label { margin: 0 0 var(--space-2); }
+  .fvs-cell-group .ctrl-row:last-child { margin-bottom: 0; }
+
+  #rule-total-hint { font-size: var(--fs-micro); color: var(--mid); margin-top: var(--space-2); line-height: 1.5; }
+  #rule-total-hint.over-cap { color: var(--danger); }
+
+  .fvs-fb-group { display: contents; }
+  #seedtype-picker, #ground-tile-picker { width: 100%; }
+  .fvs-error { color: var(--danger); }
+  .fvs-seed-preview-wrap { width: min(60vh, 70vw); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+  .fvs-seed-preview { display: flex; justify-content: center; align-items: flex-start; gap: var(--space-2); width: 100%; }
+  .fvs-seed-tile { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); flex: 1 1 0; min-width: 0; }
+  .fvs-seed-tile__box > svg { width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--border); display: block; }   /* height:auto: the SVG's own height="…" attribute would otherwise pin it, and aspect-ratio only fills in a dimension left auto */
+  /* Element quick-save: the Component gallery's corner circle, on each strip tile and the big frame */
+  .fvs-seed-tile__box { position: relative; width: 100%; }
+  .fvs-seed-tile__box:hover :is(.fvs-thumb-quicksave, .fvs-thumb-tile), .fvs-element-frame:hover > :is(.fvs-thumb-quicksave, .fvs-thumb-tile) { opacity: 1; }
+  .fvs-element-frame > :is(.fvs-thumb-quicksave, .fvs-thumb-tile) { z-index: 1; }
+  .fvs-seed-tile[data-view] { cursor: pointer; }
+  @media (hover: hover) { .fvs-seed-tile[data-view]:hover .fvs-seed-tile__box > svg { border-color: var(--ink); } }
+  /* the shown view: an --ink ring (the system's "pressed" colour) — --tool's green read 2.97:1 on the light canvas, under the 3:1 boundary rule */
+  .fvs-seed-tile.is-selected .fvs-seed-tile__box > svg { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  .fvs-seed-tile.is-selected .fvs-seed-tile__label { color: var(--ink); }
+  .fvs-seed-tile__label { font-size: var(--fs-small); color: var(--mid); text-align: center; }
+
+  .fvs-library { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .fvs-variant-row { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+  .fvs-variant-row .panel-select { flex: 1; min-width: 0; }
+  .fvs-variant-row input[type="number"] { flex: 0 0 44px; width: 44px; }
+  #in-cellprop-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  .fvs-variant-row input[type="color"] { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  .fvs-variant-row .mini-btn { flex: 0 0 var(--row-h); width: var(--row-h); padding: 0; }
+  /* width/height default to a square (64px) but are normally overridden inline
+     per item — each saved entry can have its own grid shape (see fitThumbBox()
+     at each of the 4 render sites: renderLibrary, the two underlying-component
+     pickers, the Choose-content overlay's Components tab). */
+  .fvs-library-item { position: relative; width: 64px; height: 64px; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; }
+  @media (hover: hover) { .fvs-library-item:hover { border-color: var(--ink); } }
+  .fvs-library-item svg { width: 100%; height: 100%; display: block; }
+  .fvs-library-item .rmx-x { position: absolute; top: 0; right: 0; }
+  .fvs-library-item.selected { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+  /* Library rail (test): a floating left rail — one toggle pane + a sibling glass panel (never nested: a
+     backdrop-filter child would blur only its parent). Both are .org-floatbar so the glass, rim, dark values
+     and fallback come from shared/floatbar.css; only the geometry is overridden here. */
+  #fvs-rail-dock { position: fixed; left: var(--space-5); top: 50%; transform: translateY(-50%); z-index: 150; display: flex; align-items: center; gap: var(--space-3); pointer-events: none; }
+  #fvs-rail, #fvs-rail-panel { position: relative; left: auto; top: auto; bottom: auto; transform: none; height: auto; flex-direction: column; align-items: stretch; pointer-events: auto; }
+  #fvs-rail { width: 3rem; padding: var(--space-2) 0; align-items: center; justify-content: center; gap: var(--space-1); }
+  #fvs-rail-panel { max-height: 60vh; padding: var(--space-3); border-radius: var(--radius-lg);
+    opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(calc(-1 * var(--space-4)));
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base); }
+  #fvs-rail-panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
+  #fvs-rail-panel.is-dragging-away { opacity: 0.5; }
+  #fvs-rail .org-floatbar__btn[aria-label]:not([aria-expanded="true"]):is(:hover,:focus-visible)::after { bottom: auto; left: calc(100% + var(--space-3)); top: 50%; transform: translateY(-50%); }
+  .fvs-rail__scroll { overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); scrollbar-width: thin; }
+  .fvs-rail__grid { display: grid; grid-template-columns: repeat(2, auto); gap: var(--space-2); justify-content: start; }
+  #fvs-rail-panel.is-empty { display: none; }
+  .fvs-rail__scroll { min-height: 0; overflow-x: hidden; }
+  .fvs-rail__foot { padding-top: var(--space-3); display: flex; }
+  #fvs-rail-panel[data-rail-tier="symbol"] .fvs-library-item:not([data-rail-kind="symbol"]) { cursor: grab; }
+  .fvs-rail__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+  .fvs-rail__tile { position: relative; }
+  .fvs-rail__rename { left: 0; right: auto; }
+  .fvs-rail__tile .rmx-x { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+  .fvs-rail__tile .rmx-x::before { content: ''; position: absolute; inset: calc(-1 * var(--space-2)); }   /* reach --hit-min without growing the 13px chip */
+  @media (hover: hover) { .fvs-rail__tile:hover .rmx-x, .fvs-rail__tile:focus-within .rmx-x { opacity: 1; } }
+  @media (hover: none) { .fvs-rail__tile .rmx-x { opacity: 1; } }
+  .fvs-rail__grid .fvs-library-item { width: 3rem; height: 3rem; background: var(--paper); touch-action: none; }
+  .fvs-rail__grid .fvs-library-item.is-dragging { opacity: 0.35; }
+  .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 3rem; height: 3rem; background: var(--paper); border: 1px solid var(--border-strong); box-shadow: var(--stage-shadow); }
+  .fvs-rail-ghost svg { width: 100%; height: 100%; display: block; }
+  body.is-rail-dragging { cursor: grabbing; user-select: none; }
+  #symbol-frame g[data-cell-index].is-drop > :first-child { stroke: var(--ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
+  /* Library view (Oct 6, 2026): replaces the tier views in #canvas-wrap while open; the rail and the variations dock step aside */
+  #canvas-wrap.is-libview > .tier-view { display: none !important; }
+  .fvs-libview { width: min(100%, 1040px); margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-5); }
+  .fvs-libview[hidden] { display: none; }
+  .fvs-libview__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .fvs-libview__title { margin: 0; font-family: var(--font-display); font-size: var(--t-h4-size); font-weight: var(--w-medium); margin-right: auto; }
+  .fvs-libview__search { width: 14rem; }
+  .fvs-libview__filter { flex: 0 0 auto; }
+  .fvs-libview__filter .seg-btn { flex: 0 0 auto; padding: 0 var(--space-3); }
+  #libview-body { display: flex; flex-direction: column; gap: var(--space-7); padding-bottom: calc(var(--space-8) * 2); }   /* clears the floatbar */
+  .fvs-libview__section { display: flex; flex-direction: column; gap: var(--space-3); }
+  .fvs-libview__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--space-4); }
+  .fvs-libview__tile { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+  .fvs-libview__thumb { aspect-ratio: 1; width: 100%; padding: var(--space-2); background: var(--paper); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  @media (hover: hover) { .fvs-libview__thumb:hover { border-color: var(--ink); } }
+  .fvs-libview__thumb svg { max-width: 100%; max-height: 100%; width: 100%; height: 100%; display: block; }
+  .fvs-libview__name { width: 100%; margin: 0; }
+  .fvs-libview__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .fvs-libview__actions .mini-btn { flex: 0 0 auto; }
+  .fvs-libview__status { margin: 0; min-height: 1lh; font-size: var(--fs-small); color: var(--mid); }   /* its line is kept even when empty: a message never moves the tiles under the pointer */
+  body.fvs-libview-open #fvs-rail-dock, body.fvs-libview-open #fvs-sug-panel { visibility: hidden; }
+  .fvs-rail__note { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--danger); }
+  .fvs-rail__note:empty { margin: 0; }   /* always rendered (a live region), no space when empty */
+  #panel .org-empty { margin-bottom: var(--space-2); }
+
+  /* Element ↔ Component ↔ Symbol ↔ Grid tier switch — same
+     show/hide-by-data-attribute convention Genesis Creator's own
+     Draw/Import/Generate mode-blocks use. */
+  .tier-block { display: none; }
+  .tier-block.active { display: block; }
+  #canvas-wrap .tier-view { display: none; height: 100%; }
+  #canvas-wrap .tier-view.active { display: flex; align-items: center; justify-content: center; }
+  #canvas-wrap .tier-view[data-tier="element"].active { flex-direction: column; gap: var(--space-5); }
+  #canvas-wrap .tier-view[data-tier="component"].active { flex-direction: column; gap: var(--space-3); }
+  #canvas-wrap .tier-view[data-tier="symbol"].active { flex-direction: column; }
+  /* Variations (Symbol, Suggest): a floatbar button (the `variations` icon + a count badge) opens a glass
+     strip anchored above the floatbar — a sibling of it (never nested: a backdrop-filter child blurs only
+     its parent), centred by .org-floatbar's own formula, its bottom measured from the bar on open
+     (--fvs-sug-bottom). Not Organica.popover: it stays open while you compare variations with the sheet. */
+  #fvs-sug-panel { left: calc(50% - var(--floatbar-offset, var(--panel-w)) / 2); bottom: var(--fvs-sug-bottom, var(--space-8)); height: auto;
+    max-width: calc(100vw - var(--panel-w) - 2 * var(--space-5)); flex-direction: row; overflow-x: auto; scrollbar-width: thin;
+    padding: var(--space-2); gap: var(--space-1); border-radius: var(--radius-lg);
+    opacity: 0; visibility: hidden; pointer-events: none; transform: translate(-50%, var(--space-2));
+    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base); }
+  #fvs-sug-panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%); transition-delay: 0s; }
+  /* the count on the variations button — ink on paper (inverts in both themes, like the floatbar tooltip);
+     a <b>, not a span, so the floatbar's resting 0.6 on `> span` doesn't dim it */
+  .fvs-count-badge { position: absolute; top: 0; right: 0; min-width: var(--icon-md); height: var(--icon-md); padding-inline: calc(var(--space-1) / 2);
+    box-sizing: border-box; border-radius: 999px;   /* stadium: half its height */
+    background: var(--ink); color: var(--paper); font: var(--w-medium) var(--fs-micro)/1 var(--font-display); font-variant-numeric: tabular-nums;
+    display: grid; place-items: center; pointer-events: none; }
+  .fvs-count-badge[hidden] { display: none; }
+  .fvs-suggest__item { flex: none; display: flex; background: none; border: 1px solid transparent; border-radius: var(--radius-sm); padding: var(--space-1); cursor: pointer; }
+  .fvs-suggest__item svg { height: 3rem; width: auto; display: block; box-shadow: 0 0 0 1px var(--border); }
+  .fvs-suggest__item.is-current { border-color: var(--tool); }
+  .fvs-suggest__item:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  /* Numbered step scaffold within a tier's own panel — groups existing
+     panel-sections under an explicit "01 / 02 / ..." flow without
+     changing any of their own markup or IDs. */
+  .panel-step-head { padding: var(--space-3) 0 var(--space-2); border-top: 1px solid var(--border); }
+  .panel-step-head:first-child { border-top: none; padding-top: 0; }
+  .panel-step-head__title { font-family: var(--font-display); font-weight: var(--w-bold); }
+  .panel-step-head__num { color: var(--tool); }
+  .panel-step-head__desc { color: var(--mid); font-size: var(--fs-small); margin-top: var(--space-1); }
+
+  /* The Symbol can be any proportion (its Canvas): the frame fills the stage and
+     the SVG fits inside it (viewBox, preserveAspectRatio meet), never overflowing.
+     position:relative anchors the track-% label overlay (a real HTML sibling,
+     not SVG text — see renderTrackLabelsOverlay). */
+  #symbol-frame { position: relative; align-self: stretch; flex: 1; min-width: 0; min-height: 0; box-sizing: border-box; padding: var(--space-5); display: flex; align-items: center; justify-content: center; container-type: size; }
+  /* The sheet's box IS the canvas: the largest box of the canvas's own
+     proportions (--sym-ar = width / height, set by renderSymbolCanvasOnly)
+     that fits the frame. It used to be stretched to the whole frame with the
+     canvas letterboxed inside, which went unseen on the old flat grey area;
+     on the dotted canvas area, with the stage shadow on the svg, the empty
+     bands read as the page grid running through the sheet. */
+  #symbol-frame svg { width: min(100cqw, 100cqh * var(--sym-ar, 1)); height: min(100cqh, 100cqw / var(--sym-ar, 1)); display: block; }
+  #symbol-frame svg [data-cell-index] { cursor: pointer; }
+  /* Column / row borders of a rectangular grid — drag to resize (preview only, never exported). */
+  #symbol-frame svg .sym-track__hit { fill: transparent; }
+  #symbol-frame svg .sym-track__line { stroke: var(--track-accent); stroke-opacity: 0.35; stroke-dasharray: 6 5; pointer-events: none; }
+  #symbol-frame svg .sym-track:hover .sym-track__line, #symbol-frame svg .sym-track.is-dragging .sym-track__line { stroke-opacity: 1; stroke-dasharray: none; }
+  #symbol-frame svg .sym-track[data-axis="cols"] { cursor: col-resize; }
+  #symbol-frame svg .sym-track[data-axis="rows"] { cursor: row-resize; }
+  #symbol-frame.is-resizing-cols, #symbol-frame.is-resizing-cols * { cursor: col-resize !important; }
+  #symbol-frame.is-resizing-rows, #symbol-frame.is-resizing-rows * { cursor: row-resize !important; }
+  /* Live % share of each column/row track, positioned in real screen px
+     (see renderTrackLabelsOverlay) so it lands outside the canvas regardless
+     of the frame's own proportions — same numeric-readout type the panel's
+     own .ctrl-val uses, at its real token size/weight (no canvas-size
+     scaling needed now that this is a real HTML element, not SVG text). */
+  .sym-track-labels { position: absolute; inset: 0; pointer-events: none; }
+  .sym-track-label { position: absolute; font-family: var(--font-display); font-size: var(--fs-micro); font-weight: var(--w-regular); font-variant-numeric: tabular-nums; color: var(--track-accent); white-space: nowrap; }
+  .sym-track-label--col { transform: translate(-50%, -100%); }
+  .sym-track-label--row { transform: translate(-100%, -50%); }
+  #split-status:empty { display: none; }
+
+  /* ── Floatbar flyout (Anchor) ── after Bencho's canvas toolbar (MIT, bencho.dev/licence), in plain CSS.
+     The interaction is the point: the button's face IS the last choice (the dot's position), a click
+     opens the rest as a small pane above the bar, and picking one closes it — no title, no text.
+     Bencho's tokens, mapped to ours: --pane / --pane-thumb / --g-* are the floatbar's own (this sits
+     inside .org-floatbar and inherits them) · --ink → --ink · --pick (the "tool in your hand" pad) →
+     --tool · --inlay (hover) → --pane-thumb · --bar-slot → --space-7 · --bar-pad → --space-1.
+     FVS-local until a second floatbar needs a flyout; then it moves to shared/floatbar.css. */
+  .fvs-flyout {
+    position: absolute; left: 50%; bottom: calc(100% + var(--space-4)); z-index: 4;
+    display: none; grid-template-columns: repeat(3, var(--space-7));
+    padding: var(--space-1);
+    border-radius: var(--radius-lg);
+    /* A backdrop-filter inside the bar only sees the bar, not the page: the pane cannot frost what is
+       behind it, so it is nearly opaque instead of the bar's 75%. */
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--g-spec)), 0 8px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+  /* A rise you can follow: longer and gentler than a pop, the fade on its own slower ramp so the
+     fade is what you notice and the movement is what carries it. */
+  .fvs-flyout[data-open="true"] { display: grid; animation: fvs-flyout-rise 300ms cubic-bezier(0.22, 1.14, 0.36, 1) both; }
+  @keyframes fvs-flyout-rise {
+    from { opacity: 0; transform: translateX(-50%) translateY(9px) scale(0.965); }
+    55%  { opacity: 1; }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
+  .fvs-flyout__tool {
+    position: relative; width: var(--space-7); height: var(--space-7);
+    display: grid; place-items: center; padding: 0; border: 0;
+    border-radius: var(--radius-md);   /* the pane's corner less the padding between them: concentric */
+    background: transparent; color: var(--ink); cursor: pointer;
+    transition: background 200ms ease;
+  }
+  .fvs-flyout__tool:hover { background: var(--pane-thumb); }
+  /* The selected pad ARRIVES: its own layer (scaling the button would take the mark with it),
+     opening from 0.72 on a curve that goes just past 1. */
+  .fvs-flyout__tool::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit;
+    background: var(--tool); opacity: 0; scale: 0.72;
+    transition: opacity 140ms ease, scale 300ms var(--ease-overshoot);
+    pointer-events: none;
+  }
+  /* the mark rides over its own pad, and lifts a hair with it */
+  .fvs-flyout__tool > span {
+    position: relative; z-index: 1; width: var(--space-1); height: var(--space-1); border-radius: 50%;
+    background: currentColor;
+    transition: scale 300ms var(--ease-overshoot);
+  }
+  .fvs-flyout__tool[data-on="true"] { color: var(--paper); }
+  .fvs-flyout__tool[data-on="true"]:hover { background: transparent; }
+  .fvs-flyout__tool[data-on="true"]::before { opacity: 1; scale: 1; }
+  .fvs-flyout__tool[data-on="true"] > span { scale: 1.05; }
+  .fvs-flyout__tool:active > span { scale: 0.92; transition-duration: 90ms; }   /* pressed, it yields before it lights */
+  .fvs-flyout__tool:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  @media (prefers-reduced-motion: reduce) {
+    .fvs-flyout[data-open="true"] { animation-duration: 1ms; }
+    .fvs-flyout__tool::before, .fvs-flyout__tool > span { transition: none; }
+  }
+
+  /* ── The empty Symbol = its grid, empty (built from the panel); the user fills cells by hand (Library
+     rail, Choose content) or presses Generate in the floatbar. The arrival is runSymbolArrival(). */
+  #symbol-frame g.is-empty.is-outlined > :first-child, #symbol-frame .sym-empty-frame { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 5; }
+  #symbol-frame .sym-empty-frame { fill: none; pointer-events: none; }
+  @media (hover: hover) { #symbol-frame g.is-empty:hover > :first-child { stroke: var(--ink); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: none; fill: color-mix(in srgb, var(--ink) 8%, transparent); } }   /* also with the guides off: a cell still answers the pointer */
+
+  /* Choose-content overlay — no existing modal component in this codebase
+     (Organica.popover is anchored-to-a-button, not a fit for a click
+     anywhere on the canvas), so this is a plain fixed-position dialog. */
+  /* Backdrop + panel skeleton come from .org-modal / .org-modal__* in
+     panel.css. Local: the tile size inside these two dialogs. */
+  #symbol-content-overlay__seeds .fvs-library-item, #symbol-content-overlay__element .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
+  #underlying-component-overlay-tiles .fvs-library-item { width: 76px; height: 76px; }
+
+  #symbol-frame svg .symbol-marquee { fill: rgba(51,153,255,0.12); stroke: #3399ff; stroke-width: 1; stroke-dasharray: 4 3; }
+
+  /* Element tier — a single big live preview of the current Seed, on
+     its own canvas (not the scrollable-gallery/live-grid surfaces the
+     other 3 tiers use). */
+  .fvs-element-frame { width: min(60vh, 70vw); height: min(60vh, 70vw); display: flex; align-items: center; justify-content: center; }
+  .fvs-element-frame { position: relative; }
+  #element-svg { width: 100%; height: 100%; }
+  #element-svg svg { width: 100%; height: 100%; display: block; }
+  #fh-grid { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--border); pointer-events: none; display: none; }
+  #fvs-draw-canvas { position: absolute; top: 0; left: 0; display: none; }
+  .fvs-element-frame.drawing #fh-grid { display: block; }
+  .fvs-element-frame.drawing #fvs-draw-canvas { display: block; }
+
+  /* Component Edit mode — a big single-component view + a toolbar row above
+     it. Reuses .fvs-element-frame for the same square-canvas footprint as
+     the Element tier's own big preview. */
+  #component-edit-view { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: 100%; }
+  #component-edit-toolbar { display: flex; align-items: center; gap: var(--space-3); width: min(60vh, 70vw); }
+  #component-edit-toolbar .hint { flex: 1; text-align: center; }
+  #component-edit-toolbar #btn-component-edit-save { width: auto; padding: 0 var(--space-4); }
+  /* Same rule as the Symbol sheet (see #symbol-frame svg): the sheet's box is
+     the component's own proportions (--comp-ar, set by renderComponentEditCanvas),
+     fitted in the square frame — a 4×2 component is a 2:1 sheet, not a square
+     one with the dotted page showing above and below its paper. */
+  #component-edit-frame { container-type: size; }
+  #component-edit-frame svg { width: min(100cqw, 100cqh * var(--comp-ar, 1)); height: min(100cqh, 100cqw / var(--comp-ar, 1)); display: block; }
+  #component-edit-frame [data-cell-index] { cursor: pointer; }
+  #component-edit-frame [data-cell-index]:hover { fill: color-mix(in srgb, var(--tool) 8%, transparent); }
+
+  #canvas-wrap .tier-view[data-tier="figure"].active { flex-direction: column; gap: var(--space-5); }
+  #figure-stage { position: relative; display: block; line-height: 0; width: min(58vh, 100%); }
+  #fg-strip { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); max-width: 100%; }
+  .fg-strip__bar { display: flex; gap: var(--space-2); }
+  .fg-pipeline { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
+  .fg-card { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; font: inherit; font-size: var(--fs-small); color: var(--ink); position: relative; }
+  @media (hover: hover) { .fg-card:hover { border-color: var(--ink); } }
+  .fg-card[aria-selected="true"] { border-color: var(--tool); outline: 2px solid var(--tool); }
+  .fg-card img { width: 64px; height: 64px; object-fit: contain; display: block; background: var(--paper); }
+  .fg-card.dragover { border-style: dashed; border-color: var(--tool); }
+  .fg-card__x { position: absolute; top: 0; right: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; display: inline-flex; align-items: center; }
+  .fg-card__x:hover { color: var(--danger); }
+  .fg-card__sw { position: absolute; top: 0; left: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; display: inline-flex; align-items: center; }
+  .fg-card__sw:hover { color: var(--tool); }
+  .fg-arrow { color: var(--mid); }
+  .fg-gallery { width: min(100%, 720px); max-height: 60vh; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+  .fg-gallery[hidden] { display: none; }
+  #fg-strip, .fg-gallery { flex-shrink: 0; }
+  #fg-gallery:not([hidden]) ~ #figure-stage, #fg-variations:not([hidden]) ~ #figure-stage { display: none; }
+  #fg-toolbar { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; justify-content: center; }
+  #fg-toolbar .fg-group { display: inline-flex; gap: var(--space-1); align-items: center; }
+  #fg-toolbar .fg-label { font-size: var(--fs-micro); color: var(--mid); }
+  #fg-chips { display: flex; flex-direction: column; gap: var(--space-2); }
+  #fg-chips .fg-chip { justify-content: space-between; }
+  .fg-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--panel); font-size: var(--fs-micro); }
+  .fg-chip[data-off="true"] > .fg-chip__text { opacity: 0.45; text-decoration: line-through; }
+  .fg-chip button { border: 0; background: none; cursor: pointer; color: var(--mid); display: inline-flex; align-items: center; padding: 0 var(--space-1); }
+  @media (hover: hover) { .fg-chip button:hover:not(:disabled) { color: var(--ink); } }
+  .fg-chip button:disabled { opacity: 0.3; cursor: default; }
+  .fg-advanced > summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: var(--fs-small); color: var(--mid); }
+  .fg-adopted { margin-bottom: var(--space-3); border: 1px solid var(--border); background: var(--paper); }
+  .fg-adopted img { display: block; width: 100%; height: auto; }
+  .fg-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-3); }
+  .fg-thumb { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-1); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: var(--ink); }
+  @media (hover: hover) { .fg-thumb:hover { border-color: var(--ink); } }
+  .fg-thumb[aria-pressed="true"] { border-color: var(--tool); }
+  .fg-thumb svg { width: 100%; aspect-ratio: 1; display: block; }
+  .fg-thumb span { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
+  input.fg-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  #fg-handles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+  #fg-handles [data-handle] { pointer-events: all; cursor: pointer; fill: var(--tool); fill-opacity: 0.1; }
+  #fg-handles [data-handle]:hover { fill-opacity: 0.4; }
+  #fg-handles .fg-box { fill: none; stroke: var(--tool); stroke-opacity: 0.22; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; pointer-events: none; }
+  #figure-stage:hover #fg-handles .fg-box { stroke-opacity: 0.55; }
+  #fg-handles .fg-handle-icon { pointer-events: none; fill: var(--tool); opacity: 0.6; font-family: var(--font); text-anchor: middle; dominant-baseline: central; }
+  #figure-stage:hover #fg-handles .fg-handle-icon { opacity: 0.95; }
+  #figure-frame svg [data-cell-index] { cursor: pointer; }
+  #figure-frame svg [data-cell-index]:hover > polygon:first-child, #figure-frame svg [data-cell-index]:hover > rect:first-child { fill: var(--tool); fill-opacity: 0.18; }
+  .fg-gallery__head { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-small); }
+  .fg-gallery__actions { display: flex; gap: var(--space-2); }
+  .fg-gallery__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-3); }
+  .fg-gallery__grid .fg-card { text-align: center; }
+  .fg-gallery__grid .fg-card img { width: 80px; height: 80px; }
+  #figure-frame svg { display: block; width: 100%; height: auto; }
+  #fg-ink, #fg-paper { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
+  #figure-ref-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+  .fg-report { display: grid; gap: var(--space-1); font-size: var(--fs-micro); margin-bottom: var(--space-3); }
+  .fg-report .fg-row { display: flex; gap: var(--space-2); }
+  .fg-report .fg-dot { flex: 0 0 auto; width: 1.2em; }
+  .fg-report .fg-ok { color: var(--tool); }
+  .fg-report .fg-bad { color: var(--danger); }
+  .fg-json { width: 100%; min-height: 120px; }   /* look from THE FIELD (org-field--code, header.css) */
+
+  /* ── Layers panel (Element): one .org-layer-card--flush per layer (panel.css) ──
+     Local: the stack, the title button reset, the colour swatch, hover-reveal delete,
+     and the per-layer placement block that lives in the active card's content. */
+  .fvs-layers-head { display: inline-flex; align-items: center; gap: var(--space-2); }
+  .fvs-layers { display: flex; flex-direction: column; }
+  .fvs-layers:empty { display: none; }
+  .fvs-layers .org-layer-card { margin-bottom: var(--space-1); }
+  .fvs-layers .org-layer-card__head { gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); }
+  .fvs-layers .org-layer-card:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  .fvs-layer__main { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-1) 0; }
+  .fvs-layer__main:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--ink); }
+  .fvs-layer__icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; }
+  .fvs-layer__icon svg { width: 100%; height: 100%; }
+  .fvs-layer__main .org-layer-card__title { font-size: var(--fs-small); font-weight: var(--w-regular); letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fvs-layer__swatch { all: unset; width: 14px; height: 14px; margin: 0 var(--space-1); border-radius: 50%; background: var(--sw); cursor: pointer; flex-shrink: 0; }
+  .fvs-layer__swatch.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
+  .fvs-layer__swatch:disabled { opacity: 0.25; cursor: default; }
+  .fvs-layer__del { opacity: 0; }
+  @media (hover: none) { .fvs-thumb-quicksave, .fvs-thumb-edit, .fvs-thumb-tile, .fvs-layer__del { opacity: 1; } }   /* touch has no hover to reveal them */
+  .org-layer-card:hover .fvs-layer__del, .org-layer-card.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
+  .fvs-layer__place { display: flex; flex-direction: column; padding-top: 0; }
+  .fvs-layer__place .ctrl-row { margin-bottom: 0; min-height: var(--space-7); gap: var(--space-2); }
+  /* the block already sits on --control-bg: its sliders' wells take the next step down, or they would vanish into it */
+  .fvs-layer__place input[type=range] { --control-bg: var(--track-bg); }
+  .fvs-layer__place .ctrl-label { min-width: 0; width: auto; flex: 0 0 calc(var(--space-7) * 2); }   /* wide enough for "Stroke W", so every slider of the card lines up */
+  .fvs-layer__place .check-row { margin: 0 0 var(--space-1); }
+  .fvs-layer__place .ctrl-val { flex: 0 0 22px; }
+  .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
+  .fvs-ink-pop[hidden] { display: none; }
+  .fvs-ink-pop button { all: unset; width: 20px; height: 20px; border-radius: 50%; background: var(--sw); cursor: pointer; }
+  .fvs-ink-pop button.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
+  .fvs-ink-pop button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .fvs-ink-pop button:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  /* Transparent paper: the toggle next to Paper, and a checkerboard behind every preview so "no paper" reads as such. */
+  #btn-paper-clear.is-on { color: var(--paper); background: var(--ink); border-color: var(--ink); }
+  body.paper-clear #element-svg svg, body.paper-clear .fvs-seed-tile__box > svg, body.paper-clear .fvs-thumb svg,
+  body.paper-clear #component-edit-frame svg, body.paper-clear #symbol-frame svg, body.paper-clear #figure-frame svg {
+    background: repeating-conic-gradient(var(--panel) 0 25%, var(--paper) 0 50%) 0 0 / var(--space-6) var(--space-6);
+  }
+
+  /* The stage: each step's big sheet gets the shared stage shadow (tokens.css --stage-shadow). */
+  #element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, #figure-frame > svg { box-shadow: var(--stage-shadow); }
+  /* A non-square cell shape is the canvas itself: no square sheet around it — the same stage shadow, cast by
+     its own outline (drop-shadow follows the drawn alpha; --stage-shadow has no spread, so it reads here too). */
+  #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { box-shadow: none; filter: drop-shadow(var(--stage-shadow)); overflow: visible; }   /* overflow: the Show-grid wrapper reaches past the cells */
+  .fvs-thumb:has(> svg.is-cell) { background: transparent; }
+  /* A cell-shape Component's canvas is its grid's outline: no square frame at all — the sheet casts the stage
+     shadow, and selected / saved draw their ring along that outline (chained 1px drop-shadows grow the
+     shape's own alpha by 1px each: two for the 2px selection, three in --tool for "saved"). */
+  .fvs-thumb:has(> svg.is-cell) { border-color: transparent; box-shadow: none;
+    --cell-ring-ink: drop-shadow(1px 0 0 var(--ink)) drop-shadow(-1px 0 0 var(--ink)) drop-shadow(0 1px 0 var(--ink)) drop-shadow(0 -1px 0 var(--ink));
+    --cell-ring-tool: drop-shadow(1px 0 0 var(--tool)) drop-shadow(-1px 0 0 var(--tool)) drop-shadow(0 1px 0 var(--tool)) drop-shadow(0 -1px 0 var(--tool)); }
+  .fvs-thumb > svg.is-cell { overflow: visible; filter: drop-shadow(var(--stage-shadow)); }
+  .fvs-thumb.selected > svg.is-cell { filter: var(--cell-ring-ink) var(--cell-ring-ink) drop-shadow(var(--stage-shadow)); }
+  .fvs-thumb.saved-in-library > svg.is-cell { filter: var(--cell-ring-tool) var(--cell-ring-tool) var(--cell-ring-tool) drop-shadow(var(--stage-shadow)); }
+  .fvs-seed-tile__box > svg.is-cell { border-color: transparent; overflow: visible; filter: drop-shadow(var(--stage-shadow)); }   /* a sheet like the big canvas: its own outline casts the stage shadow */
+  /* hover / selected follow the cell's outline, not a square box */
+  .fvs-seed-tile.is-selected .fvs-seed-tile__box > svg.is-cell { border-color: transparent; box-shadow: none; }
+  .fvs-seed-tile.is-selected svg.is-cell > .cell-edge { stroke: var(--ink); stroke-width: 2; }
+  @media (hover: hover) { .fvs-seed-tile[data-view]:hover .fvs-seed-tile__box > svg.is-cell { border-color: transparent; } .fvs-seed-tile[data-view]:hover svg.is-cell > .cell-edge { stroke: var(--ink); } }

@@ -142,9 +142,24 @@ def scan(path):
     return found
 
 
+def is_own_sheet(f):
+    """A tool's own sheet, named after it: <tool>/<tool>.css (fvs/fvs.css, split out of fvs/index.html,
+    Oct 2026). It is that page's <style>, moved — audited like it, and its --tool counts as declared."""
+    d = f.split('/')[0]
+    return f == f'{d}/{d}.css' and d != 'shared'
+
+
+def page_style(f):
+    """A page's text plus its own sheet, if it has one."""
+    d = f.split('/')[0]
+    own = f'{d}/{d}.css'
+    return read(f) + ('\n' + read(own) if f.endswith('/index.html') and os.path.exists(own) else '')
+
+
 def targets():
     pages = [f for f in tracked('.html') if f == 'index.html' or f.endswith('/index.html')]
     sheets = [f for f in tracked('.css') if f.startswith('shared/') and f != 'shared/tokens.css']
+    sheets += [f for f in tracked('.css') if is_own_sheet(f)]
     scripts = [f for f in tracked('.js') if not f.startswith('shared/vendor/')]
     return sorted(pages) + sorted(sheets) + sorted(scripts)
 
@@ -247,7 +262,7 @@ def registry():
                 if not k.startswith('$'): walk(v, path + [k])
     walk(json.load(open('shared/tokens.json')), [])
     pages = {f.split('/')[0]: m.group(1).lower() for f in tracked('.html') if f.endswith('/index.html')
-             for m in [re.search(r'--tool:\s*(#[0-9a-fA-F]{6})', read(f))] if m}
+             for m in [re.search(r'--tool:\s*(#[0-9a-fA-F]{6})', page_style(f))] if m}
     gone, differ, in_json = [], [], set()
     for path, val in leaves.items():
         if path.startswith('color.accent.'):
@@ -270,7 +285,7 @@ def registry():
     acc = []
     for f in tracked('.html'):
         if not f.endswith('/index.html') or f.startswith('design-system/'): continue
-        m = re.search(r'--tool:\s*(#[0-9a-fA-F]{6})', read(f))
+        m = re.search(r'--tool:\s*(#[0-9a-fA-F]{6})', page_style(f))
         if m and m.group(1).lower() not in doc.lower():
             acc.append(f"{f.split('/')[0]} {m.group(1)}")
     r['accent_undocumented'] = acc

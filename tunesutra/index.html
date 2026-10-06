@@ -1014,8 +1014,15 @@ function loadToolAccents() {
   const list = [];
   (Organica.tools || []).forEach(g => g.items.forEach(it => list.push(it)));
   if (Organica.toolsPipeline) list.push(Organica.toolsPipeline);
-  Promise.all(list.map(it => fetch(it[1]).then(r => r.ok ? r.text() : '').catch(() => '').then(html => {
-    const m = html.match(/--tool:\s*(#[0-9a-fA-F]{6})/);
+  const get = url => fetch(url).then(r => r.ok ? r.text() : '').catch(() => '');
+  const ACC = /--tool:\s*(#[0-9a-fA-F]{6})/;
+  Promise.all(list.map(it => get(it[1]).then(html => {
+    if (ACC.test(html)) return html;
+    // a tool whose <style> moved to its own sheet (/fvs/fvs.css): read the accent there
+    const own = html.match(/<link[^>]+href="(\/([^/"]+)\/\2\.css)"/);
+    return own ? get(own[1]) : html;
+  }).then(text => {
+    const m = text.match(ACC);
     return m ? { name: it[0], href: it[1], hex: m[1].toLowerCase() } : null;
   }))).then(found => {
     toolAccents = found.filter(Boolean);
