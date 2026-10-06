@@ -214,6 +214,15 @@ the content-design checks above (`git diff -U0 | grep '^+'` and read the text, t
 word that collides with an existing meaning, or a rename of an id / preset key, is a BLOCK. When the change is visible, open it in the browser in
 both themes and measure against Loom.
 
+**Every variant of a surface, not only the default** (Diego, Oct 6, 2026 — the FVS Cell-shape release
+shipped circle / triangle / hexagon canvases with no stage shadow, and this review passed it). When a
+change adds a variant of a canvas, sheet, preview or tile (a new shape, aspect, mode, step), open
+**each variant** in the browser, in **both themes**, beside the default one, and check it keeps what the
+default has: the stage shadow (`--stage-shadow` — a non-rectangular surface casts it with
+`filter: drop-shadow()`, a box shadow would be square), Paper, border / outline, selection and hover
+states, the light work surface in dark mode. A variant that loses one of them is a FIX; list every
+variant you opened in the report, so a variant not opened is visible as not checked.
+
 Output — verdict first: **PASS**, **PASS WITH NOTES**, or **BLOCK** (block only for something
 that will have to be refactored later or that breaks a Critical Rule).
 Then findings, most severe first, each: `file:line` · the rule (with where it is written) ·

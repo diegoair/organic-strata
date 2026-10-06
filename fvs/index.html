@@ -512,8 +512,9 @@
 
   /* The stage: each step's big sheet gets the shared stage shadow (tokens.css --stage-shadow). */
   #element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, #figure-frame > svg { box-shadow: var(--stage-shadow); }
-  /* A non-square cell shape is the canvas itself: no square sheet around it (its outline is drawn in the SVG). */
-  #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { box-shadow: none; }
+  /* A non-square cell shape is the canvas itself: no square sheet around it — the same stage shadow, cast by
+     its own outline (drop-shadow follows the drawn alpha; --stage-shadow has no spread, so it reads here too). */
+  #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { box-shadow: none; filter: drop-shadow(var(--stage-shadow)); }
   .fvs-thumb:has(> svg.is-cell) { background: transparent; }
   .fvs-thumb:has(> svg.is-cell):not(.selected):not(.saved-in-library):not(:hover) { border-color: transparent; }
   .fvs-seed-tile__box > svg.is-cell { border-color: transparent; }
@@ -2578,24 +2579,45 @@ const CELL_OUTLINES = { circle: ['hexagon', 'triangle', 'diamond', 'square'], he
 const OUTLINE_GATE = { triangle: { square: 'Square needs circle or hexagon cells' } };
 const cellShapeOf = seed => (seed && seed.cellShape && CELL_SHAPES[seed.cellShape]) ? seed.cellShape : 'square';
 const withCellShape = seed => (state.cellShape === 'square' || !seed) ? seed : { ...seed, cellShape: state.cellShape };
-const _cellClipCache = new Map();
-function clipGeoToCell(geo, shape) {
+// A shape on a non-square cell is fitted WHOLE inside it (Diego, Oct 6, 2026 — it used to be cut to the
+// outline, so a Circle on a triangle became a solid triangle and a seed lost its ends). Its box centre goes on
+// the cell's centre (50,50), and it takes the largest scale at which every outline point is inside: the cells
+// are convex, so per edge (outward normal n, offset e) and point q (from the box centre) s ≤ (e − n·c) / (n·q).
+const _cellFitCache = new Map();
+function fitGeoToCell(geo, shape) {
   if (!geo || !geo.d) return geo;
   const key = shape + '|' + (geo.fillRule || '') + '|' + geo.normTx + ',' + geo.normTy + ',' + geo.normScale + '|' + geo.d;
-  if (_cellClipCache.has(key)) return _cellClipCache.get(key);
+  if (_cellFitCache.has(key)) return _cellFitCache.get(key);
   let out = geo;
   try {
     const scope = splitPaperScope();
     const shapeP = importAsPaperShape(scope, geo.d, geo.fillRule);
     shapeP.scale(geo.normScale, new scope.Point(0, 0));
     shapeP.translate(new scope.Point(geo.normTx * geo.normScale, geo.normTy * geo.normScale));
-    const cell = new scope.Path({ segments: CELL_SHAPES[shape].poly, closed: true, insert: false });
-    const piece = shapeP.intersect(cell, { insert: false });
-    out = { d: piece && Math.abs(piece.area) > 0.01 ? piece.pathData : '', normTx: 0, normTy: 0, normScale: 1, fillRule: 'evenodd' };
-    shapeP.remove(); cell.remove(); if (piece) piece.remove();
+    const flat = shapeP.clone({ insert: false });
+    flat.flatten(0.25);
+    const pts = (flat.children && flat.children.length ? flat.children : [flat]).flatMap(ch => (ch.segments || []).map(sg => [sg.point.x, sg.point.y]));
+    flat.remove();
+    const bb = shapeP.bounds, cb = [bb.center.x, bb.center.y], c = [50, 50], poly = CELL_SHAPES[shape].poly;
+    let sc = Infinity;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      let n = [b[1] - a[1], a[0] - b[0]];
+      const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if (n[0] * (mid[0] - c[0]) + n[1] * (mid[1] - c[1]) < 0) n = [-n[0], -n[1]];   // outward
+      const e = n[0] * a[0] + n[1] * a[1], room = e - (n[0] * c[0] + n[1] * c[1]);
+      for (const p of pts) { const dq = n[0] * (p[0] - cb[0]) + n[1] * (p[1] - cb[1]); if (dq > 1e-9) sc = Math.min(sc, room / dq); }
+    }
+    if (isFinite(sc) && sc > 0) {
+      shapeP.translate(new scope.Point(-cb[0], -cb[1]));
+      shapeP.scale(sc, new scope.Point(0, 0));
+      shapeP.translate(new scope.Point(c[0], c[1]));
+      out = { d: shapeP.pathData, normTx: 0, normTy: 0, normScale: 1, fillRule: geo.fillRule || null };
+    }
+    shapeP.remove();
   } catch (e) { out = geo; }
-  if (_cellClipCache.size > 400) _cellClipCache.clear();
-  _cellClipCache.set(key, out);
+  if (_cellFitCache.size > 400) _cellFitCache.clear();
+  _cellFitCache.set(key, out);
   return out;
 }
 Object.entries(SEED_TYPES).forEach(([type, t]) => {
@@ -2606,7 +2628,7 @@ Object.entries(SEED_TYPES).forEach(([type, t]) => {
     if (type === 'arc' && cs === 'triangle') return Organica.shapes.triangleArcGeometry(p.thickness);
     if (type === 'arctruchet' && cs === 'hexagon') return Organica.shapes.hexTruchetGeometry(p.arcCount, p.arcRatio);
     if (type === 'stack' || type === 'freehandraw') return base(p);
-    return clipGeoToCell(base(p), cs);
+    return fitGeoToCell(base(p), cs);
   };
 });
 // The turns that map a cell shape onto itself, as the Element strip shows them: [rotation, flipH, flipV, label].
