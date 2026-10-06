@@ -516,8 +516,20 @@
      its own outline (drop-shadow follows the drawn alpha; --stage-shadow has no spread, so it reads here too). */
   #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { box-shadow: none; filter: drop-shadow(var(--stage-shadow)); }
   .fvs-thumb:has(> svg.is-cell) { background: transparent; }
-  .fvs-thumb:has(> svg.is-cell):not(.selected):not(.saved-in-library):not(:hover) { border-color: transparent; }
-  .fvs-seed-tile__box > svg.is-cell { border-color: transparent; }
+  /* A cell-shape Component's canvas is its grid's outline: no square frame at all — the sheet casts the stage
+     shadow, and selected / saved draw their ring along that outline (chained 1px drop-shadows grow the
+     shape's own alpha by 1px each: two for the 2px selection, three in --tool for "saved"). */
+  .fvs-thumb:has(> svg.is-cell) { border-color: transparent; box-shadow: none;
+    --cell-ring-ink: drop-shadow(1px 0 0 var(--ink)) drop-shadow(-1px 0 0 var(--ink)) drop-shadow(0 1px 0 var(--ink)) drop-shadow(0 -1px 0 var(--ink));
+    --cell-ring-tool: drop-shadow(1px 0 0 var(--tool)) drop-shadow(-1px 0 0 var(--tool)) drop-shadow(0 1px 0 var(--tool)) drop-shadow(0 -1px 0 var(--tool)); }
+  .fvs-thumb > svg.is-cell { overflow: visible; filter: drop-shadow(var(--stage-shadow)); }
+  .fvs-thumb.selected > svg.is-cell { filter: var(--cell-ring-ink) var(--cell-ring-ink) drop-shadow(var(--stage-shadow)); }
+  .fvs-thumb.saved-in-library > svg.is-cell { filter: var(--cell-ring-tool) var(--cell-ring-tool) var(--cell-ring-tool) drop-shadow(var(--stage-shadow)); }
+  .fvs-seed-tile__box > svg.is-cell { border-color: transparent; overflow: visible; filter: drop-shadow(var(--stage-shadow)); }   /* a sheet like the big canvas: its own outline casts the stage shadow */
+  /* hover / selected follow the cell's outline, not a square box */
+  .fvs-seed-tile.is-selected .fvs-seed-tile__box > svg.is-cell { border-color: transparent; box-shadow: none; }
+  .fvs-seed-tile.is-selected svg.is-cell > .cell-edge { stroke: var(--ink); stroke-width: 2; }
+  @media (hover: hover) { .fvs-seed-tile[data-view]:hover .fvs-seed-tile__box > svg.is-cell { border-color: transparent; } .fvs-seed-tile[data-view]:hover svg.is-cell > .cell-edge { stroke: var(--ink); } }
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -5834,7 +5846,7 @@ function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {}) {
   }
   const pts = CELL_SHAPES[cs].poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ');
   const id = 'cellclip-' + nextDrawId();
-  const edge = opts.outline ? `<polygon transform="${T}" points="${pts}" fill="none" stroke="var(--border-strong)" stroke-width="1" vector-effect="non-scaling-stroke"/>` : '';
+  const edge = opts.outline ? `<polygon class="cell-edge" transform="${T}" points="${pts}" fill="none" stroke="var(--border-strong)" stroke-width="1" vector-effect="non-scaling-stroke"/>` : '';
   return `<svg xmlns="http://www.w3.org/2000/svg" class="is-cell" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
     + `<clipPath id="${id}"><polygon transform="${T}" points="${pts}"/></clipPath>`
     + `<g clip-path="url(#${id})"><rect width="${size}" height="${size}" fill="${state.paperColor}"/>${paperPatternSVG(size, size)}${body}</g>${edge}</svg>`;
