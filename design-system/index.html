@@ -1435,7 +1435,7 @@ picker.invalidate('oak');   <span class="attr">/* after the preset is re-saved *
     <section class="ds-entry" id="seg-ctrl">
       <h2>Segmented control</h2>
       <p class="ds-desc">A tab row inside the panel or header — mode switches, algorithm choices. Reads <code>aria-pressed</code> where a tool has converted to it; <code>.active</code> is kept for tools not yet migrated.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Used in</strong><span>Halide (F–S/Atkinson/Bayer/Flat)</span><span>Living Path (Vector/Raster)</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Used in</strong><span>Halide (F–S/Atkinson/Bayer/Flat)</span><span>Living Path (Vector/Raster)</span><span>Flexible Visual System (Grid shape — icon-only, a gated option)</span></div>
       <div class="ds-example" style="max-width:280px">
         <div class="seg-ctrl">
           <button class="seg-btn active">A</button>
@@ -1447,6 +1447,20 @@ picker.invalidate('oak');   <span class="attr">/* after the preset is re-saved *
   &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"seg-btn active"</span>&gt;A&lt;/<span class="tag">button</span>&gt;
   &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"seg-btn"</span>&gt;B&lt;/<span class="tag">button</span>&gt;
 &lt;/<span class="tag">div</span>&gt;</pre>
+      <h3 class="ds-sub">A gated option — <code>aria-disabled</code> with a reason</h3>
+      <p class="ds-desc">When an option is impossible <em>for a reason the user can fix</em>, mark it <code>aria-disabled="true"</code>, not <code>disabled</code>: it looks the same (opacity .42, <code>not-allowed</code>, no hover wash), but it stays focusable and its <code>title</code> + <code>aria-description</code> say why. The handler ignores the click. Plain <code>disabled</code> is for an option with nothing to explain. First consumer: FVS Grid shape (Oct 6, 2026) — icon-only, the name on <code>aria-label</code>.</p>
+      <div class="ds-example" style="max-width:280px">
+        <div class="seg-ctrl" id="ds-seg-gated" role="group" aria-label="Grid shape">
+          <button type="button" class="seg-btn" aria-pressed="true" aria-label="Hexagon"><i data-icon="fvs-cell-hexagon"></i></button>
+          <button type="button" class="seg-btn" aria-pressed="false" aria-label="Triangle"><i data-icon="fvs-cell-triangle"></i></button>
+          <button type="button" class="seg-btn" aria-pressed="false" aria-label="Diamond"><i data-icon="fvs-diamond"></i></button>
+          <button type="button" class="seg-btn" id="ds-seg-gated-off" aria-pressed="false" aria-label="Square" aria-disabled="true" title="Square needs circle or hexagon cells" aria-description="Square needs circle or hexagon cells"><i data-icon="fvs-cell-square"></i></button>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">button</span> <span class="attr">type</span>=<span class="str">"button"</span> <span class="attr">class</span>=<span class="str">"seg-btn"</span> <span class="attr">aria-label</span>=<span class="str">"Square"</span>
+        <span class="attr">aria-disabled</span>=<span class="str">"true"</span> <span class="attr">title</span>=<span class="str">"Square needs circle or hexagon cells"</span>
+        <span class="attr">aria-description</span>=<span class="str">"Square needs circle or hexagon cells"</span>&gt;…&lt;/<span class="tag">button</span>&gt;
+<span class="attr">/* panel.css */</span> .seg-btn:disabled, .seg-btn[aria-disabled="true"] { opacity: .42; cursor: not-allowed; }  <span class="attr">/* and excluded from both hover rules */</span></pre>
     </section>
 
     <section class="ds-entry" id="seeds-panel">
@@ -2520,6 +2534,8 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   assert('#ds-field-matrix .org-field--code', { fontFamily: '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace' });
   assert('.ctrl-label', { fontSize: '9px', fontWeight: '400' });      // --t-label-* (--w-light is an alias of regular)
   assert('.seg-btn',    { fontSize: '10px' });
+  assert('#ds-seg-gated-off', { opacity: '0.42', cursor: 'not-allowed' });   // aria-disabled looks like :disabled (panel.css, Oct 6, 2026)
+  (() => { const b = document.getElementById('ds-seg-gated-off'); if (b && (b.disabled || b.tabIndex < 0)) bad('a gated .seg-btn must stay focusable (aria-disabled, not disabled)'); })();
   assert('.mini-btn',   { minHeight: '26px' });
   // THE BUTTON — sizes, face, case, radius (header.css)
   assert('#ds-btn-matrix .org-btn--sm', { minHeight: '20px', fontSize: '10px', textTransform: 'none', borderTopLeftRadius: '2px' });

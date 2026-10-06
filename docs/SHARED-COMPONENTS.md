@@ -230,6 +230,39 @@ var n = Organica.fvsField.visit('organica.<page>.visit');   // per-browser visit
 
 ---
 
+## 2c. Shapes — `shared/shapes.js` (`Organica.shapes`): cell shapes (Oct 6, 2026)
+
+Pure geometry, no DOM, every path in the Element's 0–100 box. Consumers: FVS
+(first), Trellis, `fvs-field.js` (baked). Added for FVS **Cell shape**
+(`docs/FVS.md` §3a):
+
+```js
+Organica.shapes.CELL_SHAPES = {
+  square:   { step: 90,  flips: ['h','v'], R: 50·√2,  poly: [[0,0],[100,0],[100,100],[0,100]] },   // today's box
+  circle:   { step: 90,  flips: ['h','v'], R: 50,     poly: /* 64-gon */ },
+  triangle: { step: 120, flips: ['h'],     R: 100/√3, poly: /* equilateral, side 100, apex up */ },
+  hexagon:  { step: 60,  flips: ['h','v'], R: 50,     poly: /* flat-top, circumradius 50 */ },
+};
+Organica.shapes.triangleArcGeometry(thicknessPct)   // → {d, normTx:0, normTy:0, normScale:1}
+Organica.shapes.hexTruchetGeometry(count, ratio)    // → same shape of result
+```
+
+- **Every outline is centred on (50,50)** so a turn about the box centre maps
+  it onto itself — the triangle by its *centroid*, so it pokes above y 0.
+  `step` = the turn that maps it onto itself; `flips` = the mirrors that do;
+  `R` = circumradius, what a matching cell is scaled by (Symbol *Match cell*).
+- **`triangleArcGeometry`** — the Arc on a triangle cell: a 60° annular slice
+  pivoted on the bottom-left corner, radius half a side, ending on two edge
+  midpoints, so six cells turned onto one corner close a circle. 100 = solid.
+- **`hexTruchetGeometry`** — the Arc truchet on a hexagon cell: `count`
+  concentric bands around three alternate corners, centred on the edge
+  midpoints (radius 25), spread over `ratio` of the room; they cross every
+  edge symmetrically, so they run on into any neighbour.
+- Square output is byte-identical to before (FVS regression 396/396). Saved
+  data names a cell shape only when it is not square.
+
+---
+
 ## 3. Backlog — concerns queued for the same treatment
 
 | Concern | State today | Canonical target |

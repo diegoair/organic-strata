@@ -47,6 +47,10 @@ Status: **Decided** (in the ledger, enforce it) · **Pending** (a question for D
 
 | Concept | Word | Status | Not | Where decided / asked |
 |---|---|---|---|---|
+| The outline of one cell an FVS Element is drawn for (Square · Circle · Triangle · Hexagon) | **Cell shape** — floatbar group `aria-label` "Cell shape", buttons "Cell shape: Square" … (`aria-pressed`) | Decided | Box, Frame (both already mean the Element's 0–100 drawing area / a Symbol frame) | Ledger §2, 2026-10-06 (delegated) |
+| The outline the Component's cells are grouped into (Hexagon · Triangle · Diamond · Square) | **Grid shape** — row label + `.seg-ctrl` group name; an option the cell shape cannot fill reads "‹Option› needs ‹cells› cells" (e.g. "Square needs circle or hexagon cells") | Decided | Outline (an id only: `seg-grid-outline`, `lattice.outline` — kept, rule 11), Silhouette, Arrangement (Arrange = a fill mode), Layout, Form | Ledger §2, 2026-10-06 (delegated) |
+| How many cells the Component grid has, counted along each side — every Grid shape, Hexagon included | **Grid size** (1–4); hint "Cells along each side." | Decided | Size (bare — Scale's Small / Medium / Large and export sizes already use it), Rings (id only: `rg-grid-rings`) | Ledger §2, 2026-10-06 (delegated; Diego approved Hexagon on the same meaning) |
+| Symbol fit: an Element drawn for a cell shape laid exactly onto a cell of that shape | **Match cell** (floatbar *Match cell · all cells*, Cell properties Fit option) | Decided | Shape (the Element section's name), Snap, Fit to cell (Fit = the select itself) | Ledger §2, 2026-10-06 (delegated) |
 | Generated alternatives to pick from (FVS Suggest, Figure) | **Variation** — *12 variations*, "Use variation 3: …" | Decided | proposal, option, combination, arrangement (Arrange = a fill mode) | Ledger §2, 2026-10-05 (O-25, delegated) |
 | Put content into the empty Symbol grid (FVS) | **Fill the grid** (button); **Fill** = the panel section that says how (Suggest / Arrange / Manual / Rule) | Decided | Generate (a new grid, a Component set — elsewhere), Fill the Symbol | Ledger §2, 2026-10-05 |
 | Helper lines on the FVS Symbol sheet — column/row guides + empty-cell outlines, one toggle | **Guides** — toggle *Show guides* (`aria-pressed`, name does not change with state) | Decided | column/row guides, outlines, helper lines, grid (= *Show loaded grid*, the cells' own lines — a different thing) | Ledger §2, 2026-10-05 (delegated) |
@@ -80,7 +84,7 @@ the decision in `docs/DESIGN-DECISIONS.md` §2, and lists the tools whose string
 ## 3. Words that mean more than one thing today
 
 Format · Seed · Render · Scale · Reset · Palette · Invert · Shuffle · Duotone · Zoom ·
-Style · Resolution · Fill (FVS: put content in the cells — Decided; stretch content to the cell = **Stretch** since O-26, not Fill; Element paint Fill / Stroke — the vector term, a different object, kept) · Variation (FVS Figure's blob seed slider is labelled "Variation" — a number, not a generated alternative; to rename with N4) · Variant (Export *Variants* = size rows; a different word, keep them apart) — inventory with tools and lines on `/design-system/_colour-audit.html`
+Style · Resolution · Fill (FVS: put content in the cells — Decided; stretch content to the cell = **Stretch** since O-26, not Fill; Element paint Fill / Stroke — the vector term, a different object, kept) · Variation (FVS Figure's blob seed slider is labelled "Variation" — a number, not a generated alternative; to rename with N4) · Variant (Export *Variants* = size rows; a different word, keep them apart) · Grid (FVS: *Show grid* on the Component and *Show loaded grid* on the Symbol both mean the cells' own lines; helper lines are **Guides**; *Grid shape* / *Grid size* qualify it, never a bare "Shape" or "Size") — inventory with tools and lines on `/design-system/_colour-audit.html`
 §8. A new control must not add a meaning to any of them.
 
 ## 4. How it is checked
