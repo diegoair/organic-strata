@@ -193,6 +193,16 @@ Grid step without saving it first.
 
 ---
 
+### 3a. Cell shape — Square · Circle · Triangle · Hexagon (Oct 6, 2026)
+
+The cell the Element is drawn for. Four icon buttons in the floatbar, on the Element and Component steps (one setting, shown on both). **Square** is the original 0–100 box and changes nothing. The others:
+
+- **Element.** The canvas *is* the cell: Paper only inside its outline, transparent outside (big frame, turns strip, SVG/PNG export). The turns strip shows the shape's own turns — Triangle 0/120/240 + Mirror, Hexagon 60° steps + Flip H/V, Circle as Square. **Arc** on a triangle = a 60° slice pivoted on a corner, radius half a side (six close a circle); **Arc truchet** on a hexagon = bands around three alternate corners, centred on the edge midpoints (they run on into any neighbour). Every other shape is cut to the outline (Paper.js intersect, cached). Outlines + turns: `Organica.shapes.CELL_SHAPES` (each centred on 50,50 — the triangle's centroid, so it pokes above y 0).
+- **Component.** Columns/Rows give way to **Grid shape** (Hexagon · Triangle · Diamond · Square — only what the cell shape can fill; triangles can't make a square) and **Grid size** (1–4, cells along each side). Cell counts at sizes 1–4: triangle cells → Hexagon 6/24/54/96, Triangle 1/4/9/16, Diamond 2/8/18/32; hexagon and circle cells → Hexagon 1/7/19/37, Triangle 1/3/6/10, Diamond and Square 1/4/9/16 (hexagons: stepped edges, offset columns; circles: packed, Square = square packing, Paper in the gaps). The Component canvas is the grid's own outline. Rules: Identity, Radial (each cell turned towards the centre; on triangles the Arc's pivot corner goes to the nearest corner), Checkerboard (up/down on triangles), Random, Exhaustive — every turn a step of the shape's own; the others grey out ("… needs a square cell"). **Show grid** (floatbar, Component) draws each cell's outline — screen only, never exported.
+- **Symbol.** Fit **Match cell** (floatbar + Cell properties): an Element drawn for a cell shape is laid exactly onto a cell of that shape (centroid, corner to corner, turned to the cell's pose — down triangles, pointy-top hexagons); the cell's own turn snaps to the shape's step. Any other cell falls back to Contain.
+- **Saved data.** A seed carries `cellShape` only when it isn't square; a Component grid carries `lattice: {shape, rings, outline}` (rings = Grid size). Missing = square — every existing file and the regression baseline are unchanged.
+- **Not yet:** layered Elements aren't cut to the cell; Arc truchet's square-only rows still show on a hexagon; Symbol rules still make 90° turns (Match cell rounds them); Element as Paper tile is square-only; the Transform axes label still reads 0/90/180/270°.
+
 ## 4. Palette and colour rules
 
 - **Ink** — 1 to 8 colours (RMX chips); **Paper** is the ground for every

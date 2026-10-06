@@ -1470,7 +1470,54 @@
     ],
   };
 
+  // ── CELL SHAPES ─────────────────────────────────────────────────────────
+  // The outline an Element is drawn for, in the same 0..100 box, each centred
+  // on (50,50) so a turn about the box centre maps the outline onto itself:
+  // square (today's box) · circle (r 50) · triangle (equilateral, side 100,
+  // apex up, its CENTROID on 50,50 — so it pokes out above y 0) · hexagon
+  // (flat-top, circumradius 50). `step` = the turn that maps it onto itself;
+  // `flips` = which mirrors do. `R` = circumradius, what a matching cell is
+  // scaled by.
+  const TRI_H = 50 * Math.sqrt(3);   // 86.6 — height of the side-100 triangle
+  const CELL_SHAPES = {
+    square:   { step: 90,  flips: ['h', 'v'], R: 50 * Math.SQRT2, poly: [[0, 0], [100, 0], [100, 100], [0, 100]] },
+    circle:   { step: 90,  flips: ['h', 'v'], R: 50, poly: Array.from({ length: 64 }, (_, k) => [50 + 50 * Math.cos(k * Math.PI / 32), 50 + 50 * Math.sin(k * Math.PI / 32)]) },
+    triangle: { step: 120, flips: ['h'],      R: 100 / Math.sqrt(3), poly: [[0, 50 + TRI_H / 3], [100, 50 + TRI_H / 3], [50, 50 - 2 * TRI_H / 3]] },
+    hexagon:  { step: 60,  flips: ['h', 'v'], R: 50, poly: [0, 1, 2, 3, 4, 5].map(k => [50 + 50 * Math.cos(k * Math.PI / 3), 50 + 50 * Math.sin(k * Math.PI / 3)]) },
+  };
+  const r3 = v => Math.round(v * 1000) / 1000;
+  // Filled annular sector about (cx,cy), radii r0 < r1 (r0 0 = a pie slice), angles in degrees, a0 < a1, y down.
+  function annularSector(cx, cy, r0, r1, a0, a1) {
+    const p = (r, a) => `${r3(cx + r * Math.cos(a * Math.PI / 180))},${r3(cy + r * Math.sin(a * Math.PI / 180))}`;
+    const big = a1 - a0 > 180 ? 1 : 0;
+    if (r0 <= 0.01) return `M${r3(cx)},${r3(cy)} L${p(r1, a0)} A${r3(r1)},${r3(r1)} 0 ${big} 1 ${p(r1, a1)} Z`;
+    return `M${p(r1, a0)} A${r3(r1)},${r3(r1)} 0 ${big} 1 ${p(r1, a1)} L${p(r0, a1)} A${r3(r0)},${r3(r0)} 0 ${big} 0 ${p(r0, a0)} Z`;
+  }
+  // Arc, on a triangle cell: a 60° slice pivoted on the bottom-left corner, radius half a side — it ends on
+  // two edge midpoints, so six cells turned onto one shared corner close a full circle and neighbours run on.
+  // thicknessPct 100 = solid slice, less = a band of that share of the radius.
+  function triangleArcGeometry(thicknessPct) {
+    const t = Math.min(100, Math.max(1, thicknessPct == null ? 100 : thicknessPct)) / 100;
+    const [vx, vy] = CELL_SHAPES.triangle.poly[0];
+    return { d: annularSector(vx, vy, 50 * (1 - t), 50, -60, 0), normTx: 0, normTy: 0, normScale: 1 };
+  }
+  // Arc truchet, on a hexagon cell: around three alternate corners (0, 2, 4), `count` concentric bands centred
+  // on the edge midpoints (radius 25), spread over `ratio` of the room before they would meet — the bands
+  // cross each edge symmetrically about its midpoint, so they run on into any neighbour, whichever way it turns.
+  function hexTruchetGeometry(count, ratio) {
+    const n = Math.max(1, Math.round(count == null ? 1 : count));
+    const span = 2 * 18 * Math.min(1, Math.max(0.05, ratio == null ? 0.7 : ratio));   // 25 ± 18 stays clear of the far arcs (they meet at 43.3)
+    const w = span / (2 * n - 1);
+    const V = CELL_SHAPES.hexagon.poly;
+    let d = '';
+    [[0, 120, 240], [2, 240, 360], [4, 0, 120]].forEach(([k, a0, a1]) => {
+      for (let i = 0; i < n; i++) { const r0 = 25 - span / 2 + 2 * i * w; d += annularSector(V[k][0], V[k][1], r0, r0 + w, a0, a1) + ' '; }
+    });
+    return { d: d.trim(), normTx: 0, normTy: 0, normScale: 1 };
+  }
+
   Organica.shapes = {
+    CELL_SHAPES, triangleArcGeometry, hexTruchetGeometry,
     scalePathAbout, triangleGeometry, arcGeometry, arcBuild, arcExtrasActive, arcPathD, circleGeometry, segmentGeometry, dropGeometry, blobGeometry, fitToBox,
     arcTruchetGeometry, arcTruchetPathD, truchetExtrasActive,
     wedgeGeometry, wedgePathD, wedgeExtrasActive, polygonGeometry, polygonPathD, polygonExtrasActive, starGeometry, starPathD,

@@ -557,10 +557,10 @@ input[type=range]:focus-visible::-moz-range-track {
 }
 .seg-btn:first-child { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .seg-btn:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.seg-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.seg-btn:disabled, .seg-btn[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
 @media (hover: hover) {
-  .seg-btn:hover:not(:disabled):not(.active):not([aria-pressed="true"]) { background: var(--track-bg); color: var(--ink); }
-  .seg-btn:is(.active, [aria-pressed="true"]):hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .seg-btn:hover:not(:disabled):not([aria-disabled="true"]):not(.active):not([aria-pressed="true"]) { background: var(--track-bg); color: var(--ink); }
+  .seg-btn:is(.active, [aria-pressed="true"]):hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-hover); border-color: var(--accent-hover); }
 }
 .seg-btn:active:not(:disabled):not(.active):not([aria-pressed="true"]) { background: var(--gray-200); }
 .seg-btn.active,

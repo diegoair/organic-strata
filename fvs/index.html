@@ -491,6 +491,11 @@
 
   /* The stage: each step's big sheet gets the shared stage shadow (tokens.css --stage-shadow). */
   #element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, #figure-frame > svg { box-shadow: var(--stage-shadow); }
+  /* A non-square cell shape is the canvas itself: no square sheet around it (its outline is drawn in the SVG). */
+  #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { box-shadow: none; }
+  .fvs-thumb:has(> svg.is-cell) { background: transparent; }
+  .fvs-thumb:has(> svg.is-cell):not(.selected):not(.saved-in-library):not(:hover) { border-color: transparent; }
+  .fvs-seed-tile__box > svg.is-cell { border-color: transparent; }
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -522,6 +527,18 @@
 <!-- Symbol variations: a glass strip above the floatbar, opened by #btn-sug-dock (a sibling, never nested). -->
 <div class="org-floatbar fvs-suggest" id="fvs-sug-panel" role="region" aria-label="Symbol variations" inert></div>
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <!-- Cell shape (test, Oct 6, 2026): the cell the Element is drawn for — Square is today's box; the others clip the
+       shape to their outline, set its turns, and give the Component its own grid. One setting, shown on the Element
+       and Component steps (setTier). Icons filled at boot. -->
+  <div id="fb-cell-shape" class="fvs-fb-group">
+    <span class="org-floatbar__group" role="group" aria-label="Cell shape">
+      <button class="org-floatbar__btn" data-cell="square" aria-pressed="true" aria-label="Cell shape: Square" data-icon-slot></button>
+      <button class="org-floatbar__btn" data-cell="circle" aria-pressed="false" aria-label="Cell shape: Circle" data-icon-slot></button>
+      <button class="org-floatbar__btn" data-cell="triangle" aria-pressed="false" aria-label="Cell shape: Triangle" data-icon-slot></button>
+      <button class="org-floatbar__btn" data-cell="hexagon" aria-pressed="false" aria-label="Cell shape: Hexagon" data-icon-slot></button>
+    </span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+  </div>
   <!-- Element-tier actions — hidden on the other tiers by setTier(). display:contents keeps the buttons direct flex items of the floatbar. -->
   <div id="fb-element-actions" class="fvs-fb-group">
     <!-- Reset: the whole Element back to how FVS opens (shape, look, layers, palette, Paper). Hold to confirm (data-hold). -->
@@ -545,6 +562,10 @@
   </div>
   <!-- Component-tier action — undo the last Generate / Clear / Add / Tile. Shown only on that tier by setTier(). -->
   <div id="fb-component-actions" class="fvs-fb-group" style="display:none">
+    <!-- Show grid: the cells' outlines over every Component — a preview aid, never exported. -->
+    <button class="org-floatbar__btn" id="btn-component-view-outline" aria-pressed="false" aria-label="Show grid">
+      <svg class="ico" data-icon="fvs-grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11"/></svg>
+    </button>
     <button class="org-floatbar__btn" id="btn-undo-components" aria-label="Undo (⌘Z)" disabled>
       <svg class="ico" data-icon="undo" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6"/></svg>
     </button>
@@ -583,6 +604,9 @@
     </button>
     <button class="org-floatbar__btn" id="btn-symbol-fit-all-fixed" data-fit-name="Fixed size" aria-pressed="false" aria-label="Fixed size · all cells">
       <svg class="ico" data-icon="fvs-fixed" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke-dasharray="2 2.1"/><circle cx="8" cy="8" r="2"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-symbol-fit-all-match" data-fit-name="Match cell" aria-pressed="false" aria-label="Match cell · all cells">
+      <svg class="ico" data-icon="fvs-match" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8 4.75 2.4h6.5L14.5 8l-3.25 5.6h-6.5z"/><path d="M5 8l1.5-2.6h3L11 8l-1.5 2.6h-3z"/></svg>
     </button>
     <div class="org-popover-wrap">
       <button class="org-floatbar__btn" id="btn-symbol-anchor" aria-label="Anchor · all cells">
@@ -1558,12 +1582,24 @@
     <div class="tier-block" data-tier="component">
     <div class="panel-section">
       <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="grid-outline-row" style="display:none"><div class="ctrl-label" id="grid-outline-label" title="The shape the cells are grouped into">Grid shape</div>
+        <div class="seg-ctrl" id="seg-grid-outline" role="group" aria-label="Grid shape">
+          <button type="button" class="seg-btn" data-outline="hexagon" aria-pressed="false" aria-label="Hexagon" data-icon-slot></button>
+          <button type="button" class="seg-btn" data-outline="triangle" aria-pressed="false" aria-label="Triangle" data-icon-slot></button>
+          <button type="button" class="seg-btn" data-outline="diamond" aria-pressed="false" aria-label="Diamond" data-icon-slot></button>
+          <button type="button" class="seg-btn" data-outline="square" aria-pressed="false" aria-label="Square" data-icon-slot></button>
+        </div>
+      </div>
+      <div class="ctrl-row" id="grid-lattice-row" style="display:none"><div class="ctrl-label" title="Cells along each side.">Grid size</div>
+        <input type="range" id="rg-grid-rings" min="1" max="4" step="1" value="2" aria-label="Grid size">
+        <span class="ctrl-val" id="v-grid-rings">2</span>
+      </div>
+      <div class="ctrl-row" id="grid-cols-row">
         <div class="ctrl-label">Columns</div>
         <input type="range" id="rg-grid-cols" min="1" max="4" step="1" value="2" aria-label="Component grid columns">
         <span class="ctrl-val" id="v-grid-cols">2</span>
       </div>
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="grid-rows-row">
         <div class="ctrl-label">Rows</div>
         <input type="range" id="rg-grid-rows" min="1" max="4" step="1" value="2" aria-label="Component grid rows">
         <span class="ctrl-val" id="v-grid-rows">2</span>
@@ -1575,7 +1611,7 @@
           <input type="range" id="rg-cellsize" min="60" max="260" step="1" value="160">
           <span class="ctrl-val" id="v-cellsize">160</span>
         </div>
-        <div class="ctrl-row">
+        <div class="ctrl-row" id="gap-row">
           <div class="ctrl-label">Gap</div>
           <input type="range" id="rg-gap" min="0" max="40" step="1" value="0">
           <span class="ctrl-val" id="v-gap">0</span>
@@ -1998,6 +2034,7 @@
               <option value="fill">Stretch</option>
               <option value="cover">Cover (no gaps)</option>
               <option value="fixed">Fixed size</option>
+              <option value="match">Match cell</option>
             </select>
           </div>
           <div class="ctrl-row" id="row-cellprop-coveraxis" style="display:none">
@@ -2474,6 +2511,129 @@ const SEED_TYPES = {
     geometry: (p) => (p && p.customSeed) || state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
   },
 };
+
+// ── Cell shape (test, Oct 6, 2026) — the cell the Element is drawn for. Square is today's box and changes
+// nothing (no `cellShape` key on the seed → every geometry below is the untouched original). Circle / Triangle /
+// Hexagon: Arc (triangle) and Arc truchet (hexagon) take their own geometry; every other shape is cut to the
+// cell's outline. The outlines + turns live in Organica.shapes.CELL_SHAPES, centred on the box centre (50,50).
+const CELL_SHAPES = Organica.shapes.CELL_SHAPES;
+state.cellShape = 'square';
+state.cellLattice = { circle: 2, triangle: 1, hexagon: 2 };   // the Component grid's size (rings / cells along a side)
+state.cellOutline = { circle: 'hexagon', triangle: 'hexagon', hexagon: 'hexagon' };   // the shape the cells are grouped into
+// Which outlines each cell shape can fill; a reason for the ones it can't.
+const CELL_OUTLINES = { circle: ['hexagon', 'triangle', 'diamond', 'square'], hexagon: ['hexagon', 'triangle', 'diamond', 'square'], triangle: ['hexagon', 'triangle', 'diamond'] };
+const OUTLINE_GATE = { triangle: { square: 'Square needs circle or hexagon cells' } };
+const cellShapeOf = seed => (seed && seed.cellShape && CELL_SHAPES[seed.cellShape]) ? seed.cellShape : 'square';
+const withCellShape = seed => (state.cellShape === 'square' || !seed) ? seed : { ...seed, cellShape: state.cellShape };
+const _cellClipCache = new Map();
+function clipGeoToCell(geo, shape) {
+  if (!geo || !geo.d) return geo;
+  const key = shape + '|' + (geo.fillRule || '') + '|' + geo.normTx + ',' + geo.normTy + ',' + geo.normScale + '|' + geo.d;
+  if (_cellClipCache.has(key)) return _cellClipCache.get(key);
+  let out = geo;
+  try {
+    const scope = splitPaperScope();
+    const shapeP = importAsPaperShape(scope, geo.d, geo.fillRule);
+    shapeP.scale(geo.normScale, new scope.Point(0, 0));
+    shapeP.translate(new scope.Point(geo.normTx * geo.normScale, geo.normTy * geo.normScale));
+    const cell = new scope.Path({ segments: CELL_SHAPES[shape].poly, closed: true, insert: false });
+    const piece = shapeP.intersect(cell, { insert: false });
+    out = { d: piece && Math.abs(piece.area) > 0.01 ? piece.pathData : '', normTx: 0, normTy: 0, normScale: 1, fillRule: 'evenodd' };
+    shapeP.remove(); cell.remove(); if (piece) piece.remove();
+  } catch (e) { out = geo; }
+  if (_cellClipCache.size > 400) _cellClipCache.clear();
+  _cellClipCache.set(key, out);
+  return out;
+}
+Object.entries(SEED_TYPES).forEach(([type, t]) => {
+  const base = t.geometry;
+  t.geometry = p => {
+    const cs = cellShapeOf(p);
+    if (cs === 'square') return base(p);
+    if (type === 'arc' && cs === 'triangle') return Organica.shapes.triangleArcGeometry(p.thickness);
+    if (type === 'arctruchet' && cs === 'hexagon') return Organica.shapes.hexTruchetGeometry(p.arcCount, p.arcRatio);
+    if (type === 'stack' || type === 'freehandraw') return base(p);
+    return clipGeoToCell(base(p), cs);
+  };
+});
+// The turns that map a cell shape onto itself, as the Element strip shows them: [rotation, flipH, flipV, label].
+function cellShapeStates(shape) {
+  if (shape === 'triangle') return [[0, false, false, '0°'], [120, false, false, '120°'], [240, false, false, '240°'], [0, true, false, 'Mirror']];
+  if (shape === 'hexagon') return [0, 60, 120, 180, 240, 300].map(r => [r, false, false, r + '°']).concat([[0, true, false, 'Flip H'], [0, false, true, 'Flip V']]);
+  return SEED_PREVIEW_STATES_SQUARE;
+}
+// The rotation a polygon cell sits at, relative to the cell shape drawn upright: the turn (in [0, step)) that
+// brings the local outline's first corner onto one of the cell's corners. Circles: 0.
+function polygonCellTurn(shape, pts, cx, cy) {
+  if (shape === 'circle' || shape === 'square') return 0;
+  const cs = CELL_SHAPES[shape], [lx, ly] = cs.poly[cs.poly.length === 3 ? 2 : 0];
+  const ref = Math.atan2(ly - 50, lx - 50) * 180 / Math.PI;
+  const a = Math.atan2(pts[0][1] - cy, pts[0][0] - cx) * 180 / Math.PI;
+  const k = 360 / pts.length;   // the cell's own corner spacing (120 / 60)
+  return Math.round((((a - ref) % k) + k) % k * 1000) / 1000;
+}
+// Component lattices on a non-square cell shape: [{points, centroid, baseRot, ring}], polygon cells, each sized
+// so the cell shape's outline fills it. `w` = a cell's width (the Cell size slider), `n` = rings (1–4):
+// circle / hexagon = a centre cell plus n−1 rings (1, 7, 19, 37); triangle = n rings of triangles around one
+// shared corner — a hexagon of triangles (6, 24, 54, 96), so Radial always has a real centre.
+const latticeRings = l => Math.max(1, Math.min(4, l.rings != null ? +l.rings : ({ '1': 1, '3': 1, '4': 1, '6': 1, '7': 2 })[l.key] || 1));   // early test saves kept a cell count
+function cellLatticeCells(shape, n, w, outline = 'hexagon') {
+  const out = [], u = a => [Math.cos(a * Math.PI / 180), Math.sin(a * Math.PI / 180)];
+  const add = (points, ring) => {
+    const cx = points.reduce((s, p) => s + p[0], 0) / points.length, cy = points.reduce((s, p) => s + p[1], 0) / points.length;
+    out.push({ id: 'c' + out.length, number: out.length + 1, points, centroid: [cx, cy], baseRot: polygonCellTurn(shape, points, cx, cy), ring });
+  };
+  if (shape === 'circle' || shape === 'hexagon') {
+    const R = w / 2, sides = shape === 'circle' ? 48 : 6, m = n - 1;
+    const cell = ([x, y], ring) => add(Array.from({ length: sides }, (_, k) => { const [c, s] = u(360 * k / sides); return [x + R * c, y + R * s]; }), ring);
+    // hexagons: flat-top axial layout; circles: touching discs (centres 2R apart) on the same lattice
+    const pos = (q, r) => shape === 'hexagon' ? [1.5 * R * q, Math.sqrt(3) * R * (r + q / 2)] : [2 * R * (q + r / 2), Math.sqrt(3) * R * r];
+    if (outline === 'triangle') { for (let q = 0; q < n; q++) for (let r = 0; r < n - q; r++) cell(shape === 'hexagon' ? pos(q, r) : pos(q, n - 1 - q - r), 0); }
+    else if (outline === 'diamond') { for (let q = 0; q < n; q++) for (let r = 0; r < n; r++) cell(pos(q, r), 0); }
+    else if (outline === 'square') {   // hexagons in offset columns; circles in square packing
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) cell(shape === 'hexagon' ? [1.5 * R * i, Math.sqrt(3) * R * (j + (i % 2) / 2)] : [2 * R * i, 2 * R * j], 0);
+    } else for (let q = -m; q <= m; q++) for (let r = Math.max(-m, -q - m); r <= Math.min(m, -q + m); r++) cell(pos(q, r), (Math.abs(q) + Math.abs(r) + Math.abs(q + r)) / 2);
+  } else if (shape === 'triangle') {
+    const S = w, h = S * Math.sqrt(3) / 2;
+    // one row of alternating up / down triangles: `cells` of them, from x = left, the first one up
+    const row = (j, left, cells) => { for (let i = 0; i < cells; i++) {
+      const x0 = left + i * S / 2, y0 = j * h, y1 = y0 + h;
+      add(i % 2 === 0 ? [[x0, y1], [x0 + S, y1], [x0 + S / 2, y0]] : [[x0, y0], [x0 + S, y0], [x0 + S / 2, y1]], 0);
+    } };
+    if (outline === 'triangle') { for (let j = 0; j < n; j++) row(j, (n - 1 - j) * S / 2, 2 * j + 1); }   // side n, apex up: n² cells
+    else if (outline === 'diamond') { for (let j = 0; j < n; j++) row(j, (n - 1 - j) * S / 2, 2 * n); }   // side n: 2n² cells
+    else {   // n rings of triangles around one shared corner — a hexagon of triangles (6, 24, 54, 96)
+      const V = (a, b) => [a * S + b * S / 2, b * h], Rh = n * S;
+      const inside = ([x, y]) => Math.abs(y) <= Rh * Math.sqrt(3) / 2 + 1e-6 && Math.sqrt(3) * Math.abs(x) + Math.abs(y) <= Math.sqrt(3) * Rh + 1e-6;
+      for (let b = -n; b < n; b++) for (let a = -2 * n; a <= 2 * n; a++) [[V(a, b), V(a + 1, b), V(a, b + 1)], [V(a + 1, b), V(a + 1, b + 1), V(a, b + 1)]].forEach(pts => {
+        const c = [(pts[0][0] + pts[1][0] + pts[2][0]) / 3, (pts[0][1] + pts[1][1] + pts[2][1]) / 3];
+        if (inside(c)) add(pts, 0);
+      });
+    }
+    out.sort((p, q) => p.centroid[1] - q.centroid[1] || p.centroid[0] - q.centroid[0]).forEach((c, i) => { c.id = 'c' + i; c.number = i + 1; });
+  }
+  return out;
+}
+function setCellShape(shape, opts = {}) {
+  if (!CELL_SHAPES[shape]) shape = 'square';
+  const changed = shape !== state.cellShape;
+  state.cellShape = shape;
+  ctrl('fb-cell-shape').querySelectorAll('[data-cell]').forEach(b => { const on = b.dataset.cell === shape; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
+  if (changed) elementView = { r: 0, fh: false, fv: false };
+  syncComponentGridUI();
+  if (opts.silent) return;
+  syncRuleAvailability();
+  renderSeedPreview(); renderGallery(); renderSymbol();
+}
+function cellLatticeGrid() {
+  const shape = state.cellShape, rings = state.cellLattice[shape];
+  const outline = CELL_OUTLINES[shape].includes(state.cellOutline[shape]) ? state.cellOutline[shape] : 'hexagon';
+  const cells = cellLatticeCells(shape, rings, val('rg-cellsize'), outline);
+  const xs = cells.flatMap(c => c.points.map(p => p[0])), ys = cells.flatMap(c => c.points.map(p => p[1]));
+  const x0 = Math.min(...xs), y0 = Math.min(...ys);
+  cells.forEach(c => { c.points = c.points.map(([x, y]) => [x - x0, y - y0]); c.centroid = [c.centroid[0] - x0, c.centroid[1] - y0]; });
+  return { kind: 'loom', cellShape: 'polygon', cells, width: Math.max(...xs) - x0, height: Math.max(...ys) - y0, lattice: { shape, rings, outline } };
+}
 // ── Inner seed: N nested copies of ANY Seed inside itself (Arc truchet's
 // Count + Ratio, generalised). The copies are baked into the shape's own `d`
 // so every renderer keeps consuming one path per cell; alternating ring / gap
@@ -3362,9 +3522,9 @@ function panelSeedSnapshot() {
   return seed;
 }
 function seedForSnapshot() {
-  if (!state.layers) return panelSeedSnapshot();
+  if (!state.layers) return withCellShape(panelSeedSnapshot());
   syncActiveLayer();
-  return { type: 'stack', active: state.layers.active, layers: state.layers.items.map(l => JSON.parse(JSON.stringify(l))) };
+  return withCellShape({ type: 'stack', active: state.layers.active, layers: state.layers.items.map(l => JSON.parse(JSON.stringify(l))) });
 }
 
 // ── Freehand Seed — Genesis Create's Paper.js draw editor, hosted on the
@@ -3415,7 +3575,7 @@ function syncFreehandEditor() {
 }
 
 function getSeed() {
-  return state.layers ? seedForSnapshot() : getPanelSeed();
+  return state.layers ? seedForSnapshot() : withCellShape(getPanelSeed());
 }
 function getPanelSeed() {
   return { ...getSeedExtras(),
@@ -3688,6 +3848,7 @@ function renderCreatorLibraryPicker() {
 // (state.loomGrid, "legacy") and renders exactly as saved; picking columns ×
 // rows replaces it.
 function getGrid() {
+  if (state.cellShape !== 'square') return cellLatticeGrid();
   if (state.loomGrid) {
     return { kind: 'loom', cellShape: state.loomGrid.cellShape, cells: state.loomGrid.cells, width: state.loomGrid.inner.width, height: state.loomGrid.inner.height };
   }
@@ -3696,6 +3857,14 @@ function getGrid() {
 // spec: 'square3x3' (the recipes' string form), {cols, rows}, or a saved entry.grid.
 function setComponentGrid(spec, opts = {}) {
   let cols = 2, rows = 2;
+  if (spec && spec.lattice) {   // a cell-shape lattice: the cell shape itself comes with the Element (seed.cellShape)
+    state.cellLattice[spec.lattice.shape] = latticeRings(spec.lattice);
+    if (spec.lattice.outline && CELL_OUTLINES[spec.lattice.shape].includes(spec.lattice.outline)) state.cellOutline[spec.lattice.shape] = spec.lattice.outline;
+    state.loomGrid = null;
+    syncComponentGridUI();
+    if (!opts.silent) { syncRuleAvailability(); renderGallery(); }
+    return;
+  }
   if (typeof spec === 'string') { const m = spec.match(/^square(\d)x(\d)$/); if (m) { cols = +m[1]; rows = +m[2]; } }
   else if (spec && spec.kind === 'loom') {
     state.loomGrid = { cellShape: spec.cellShape, cells: spec.cells, inner: { width: spec.width, height: spec.height } };
@@ -3710,9 +3879,25 @@ function setComponentGrid(spec, opts = {}) {
   if (!opts.silent) { syncRuleAvailability(); renderGallery(); }
 }
 function syncComponentGridUI() {
-  const legacy = !!state.loomGrid;
+  const lattice = state.cellShape !== 'square';
+  const legacy = !lattice && !!state.loomGrid;
   ctrl('grid-legacy-hint').style.display = legacy ? '' : 'none';
   ctrl('grid-square-block').style.display = legacy ? 'none' : '';
+  ctrl('gap-row').style.display = lattice ? 'none' : '';
+  ctrl('grid-cols-row').style.display = ctrl('grid-rows-row').style.display = lattice ? 'none' : '';
+  ctrl('grid-lattice-row').style.display = lattice ? '' : 'none';
+  ctrl('grid-outline-row').style.display = lattice ? '' : 'none';
+  if (lattice) {
+    const n = state.cellLattice[state.cellShape], ol = state.cellOutline[state.cellShape];
+    ctrl('rg-grid-rings').value = n; ctrl('v-grid-rings').textContent = n;
+    ctrl('seg-grid-outline').querySelectorAll('.seg-btn').forEach(b => {
+      const ok = CELL_OUTLINES[state.cellShape].includes(b.dataset.outline), on = b.dataset.outline === ol;
+      const why = ok ? '' : ((OUTLINE_GATE[state.cellShape] || {})[b.dataset.outline] || '');
+      b.setAttribute('aria-disabled', String(!ok)); b.title = ok ? b.getAttribute('aria-label') : why;
+      if (why) b.setAttribute('aria-description', why); else b.removeAttribute('aria-description');
+      b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+    });
+  }
 }
 
 // resolveGridCells(grid) / frameSize(grid) — moved to shared/shapes.js,
@@ -4258,7 +4443,71 @@ function ruleExhaustive() {
 }
 // The honest count — after the duplicate pairs (e.g. H+V vs a 180° turn, a
 // Diagonal that is also a Checkerboard) are folded away.
-function exhaustiveTotal() { return ruleExhaustive().length; }
+function exhaustiveTotal() { return state.cellShape !== 'square' ? latticeRule('exhaustive').length : ruleExhaustive().length; }
+
+// ── Rules on a cell-shape lattice (test) — every turn is a step of the cell shape's own (90° circle, 120°
+// triangle, 60° hexagon), added to the cell's own pose (a down triangle sits at 60°). Square cells never reach here.
+const LATTICE_RULES = new Set(['identity', 'radial', 'checkerboard', 'random', 'exhaustive']);
+function latticeSteps() {
+  const st = CELL_SHAPES[state.cellShape].step, out = [];
+  for (let r = 0; r < 360; r += st) out.push(r);
+  return out;
+}
+function latticeStates() {
+  const ax = activeAxes(), out = [];
+  const flips = ax.flip ? [{ h: false, v: false }, ...CELL_SHAPES[state.cellShape].flips.map(f => ({ h: f === 'h', v: f === 'v' }))] : [{ h: false, v: false }];
+  for (const r of ax.rotation ? latticeSteps() : [0]) for (const f of flips) for (const s of axisValues().scales) out.push(stateFrom(r, f.h, f.v, s));
+  return out;
+}
+// Radial: each cell turned towards the lattice centre. On triangles the Arc's pivot corner (the outline's
+// first corner) goes to the corner nearest the centre — six of them close a full circle; elsewhere the cell's
+// top faces the centre. `extra` turns every cell by one more step (the gallery's variants).
+function latticeRadialCells(extra, scale) {
+  const grid = getGrid(), centers = resolveGridCells(grid), shape = state.cellShape, cs = CELL_SHAPES[shape], st = cs.step;
+  const snap = r => mod360(Math.round(r / st) * st);
+  return grid.cells.map((c, i) => {
+    const { cx, cy } = centers[i], base = c.baseRot || 0;
+    if (Math.hypot(cx, cy) < 1e-6) return stateFrom(snap(extra), false, false, scale);
+    let best = 0;
+    if (shape === 'triangle') {
+      const cellR = Math.max(...c.points.map(p => Math.hypot(p[0] - c.centroid[0], p[1] - c.centroid[1]))), k = cellR / cs.R;
+      let bd = Infinity;
+      for (const t of latticeSteps()) {
+        const a = (base + t) * Math.PI / 180, lx = (cs.poly[0][0] - 50) * k, ly = (cs.poly[0][1] - 50) * k;
+        const d = Math.hypot(cx + lx * Math.cos(a) - ly * Math.sin(a), cy + lx * Math.sin(a) + ly * Math.cos(a));
+        if (d < bd) { bd = d; best = t; }
+      }
+    } else best = Math.atan2(cy, cx) * 180 / Math.PI + 270 - base;
+    return stateFrom(snap(best + extra), false, false, scale);
+  });
+}
+function latticeParity() {
+  const grid = getGrid();
+  return grid.cells.map((c, i) => state.cellShape === 'triangle' ? (c.baseRot > 1 ? 1 : 0) : i % 2);
+}
+function latticeRule(mode) {
+  const n = getGrid().cells.length, scales = axisValues().scales;
+  const pack = (key, list) => dedupeComponents(list.map((cells, i) => ({ id: `${key}-${i}`, ruleSource: key, cells })));
+  if (mode === 'identity') return pack('identity', latticeStates().map(s => Array.from({ length: n }, () => ({ ...s }))));
+  if (mode === 'radial') return pack('radial', latticeSteps().flatMap(e => scales.map(s => latticeRadialCells(e, s))));
+  if (mode === 'checkerboard') {
+    const par = latticeParity(), sts = latticeStates(), out = [];
+    for (const a of sts) for (const b of sts) if (a !== b) out.push(par.map(p => ({ ...(p ? b : a) })));
+    return pack('checkerboard', out);
+  }
+  if (mode === 'random') {
+    const count = Math.round(val('rg-random-count')), seed = Math.round(val('num-seed')), rng = mulberry32(seed), sts = latticeStates();
+    const out = [], seen = new Set();
+    for (let tries = 0; out.length < count && tries < count * 40; tries++) {
+      const cells = Array.from({ length: n }, () => ({ ...sts[Math.floor(rng() * sts.length)] }));
+      const key = componentKey(cells); if (seen.has(key)) continue;
+      seen.add(key); out.push({ id: `random-${seed}-${out.length}`, ruleSource: 'random', cells });
+    }
+    return out;
+  }
+  if (mode === 'exhaustive') return dedupeComponents(['identity', 'radial', 'checkerboard'].flatMap(m => latticeRule(m)).map((c, i) => ({ ...c, id: `exhaustive-${i}`, ruleSource: 'exhaustive' })));
+  return [];
+}
 const EXHAUSTIVE_CAP = 512;
 
 function readManualCells() {
@@ -4278,6 +4527,14 @@ function readManualCells() {
 function buildComponentItems(component, grid) {
   const centers = resolveGridCells(grid);
   const cr = colorRuleCR(grid, state.colorRule);
+  if (grid.lattice) {   // a cell-shape lattice: the outline fills each cell, turned to the cell's own pose
+    const localR = CELL_SHAPES[grid.lattice.shape].R;
+    return component.cells.map((t, i) => {
+      const c = grid.cells[i], cellR = Math.max(...c.points.map(p => Math.hypot(p[0] - c.centroid[0], p[1] - c.centroid[1])));
+      return { cx: centers[i].cx, cy: centers[i].cy, rotation: mod360((c.baseRot || 0) + t.rotation), flipH: t.flipH, flipV: t.flipV, scale: t.scale,
+        cellSize: 100 * cellR / localR, color: ruleInk(i, cr), content: t.content || null, poly: c.points };   // poly: the cell in frame coords — the canvas is the lattice's outline
+    });
+  }
   return component.cells.map((t, i) => ({
     cx: centers[i].cx, cy: centers[i].cy,
     rotation: t.rotation, flipH: t.flipH, flipV: t.flipV, scale: t.scale,
@@ -4750,10 +5007,10 @@ function quickSaveButton({ savedName, labelSave, labelSaved, labelRemove, onSave
 function mountElementQuickSaves() {
   if (elementIsEmpty()) { ctrl('element-frame').querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove()); return; }
   const boxes = ctrl('seed-preview').querySelectorAll('.fvs-seed-tile__box');
-  SEED_PREVIEW_STATES.forEach(([r, fh, fv, label], i) => { const box = boxes[i]; if (box) { box.querySelectorAll('.fvs-thumb-quicksave, .fvs-thumb-tile').forEach(x => x.remove()); box.append(elementTileButton(r, fh, fv, label), elementQuickSaveButton(r, fh, fv, label)); } });
+  seedPreviewStates().forEach(([r, fh, fv, label], i) => { const box = boxes[i]; if (box) { box.querySelectorAll('.fvs-thumb-quicksave, .fvs-thumb-tile').forEach(x => x.remove()); box.append(elementTileButton(r, fh, fv, label), elementQuickSaveButton(r, fh, fv, label)); } });
   const frame = ctrl('element-frame');
   frame.querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove());
-  const v = currentElementView(), vi = elementViewIndex(), lbl = vi >= 0 ? SEED_PREVIEW_STATES[vi][3] : '0°';
+  const v = currentElementView(), vi = elementViewIndex(), lbl = vi >= 0 ? seedPreviewStates()[vi][3] : '0°';
   frame.append(elementTileButton(v.r, v.fh, v.fv, lbl), elementQuickSaveButton(v.r, v.fh, v.fv, lbl));
   if (tilePicker) tilePicker.invalidate('element');   // the "Current Element" thumbnail follows the Element
 }
@@ -5174,6 +5431,23 @@ function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH) {
   }
 }
 
+// The union of a cell-shape lattice's cells (items carry `poly`), as one Path2D to clip a canvas to; null otherwise.
+// Show grid (Component): each cell's outline over the drawing — polygons for a cell-shape lattice, squares
+// otherwise. Screen only: appended by renderGallery / the edit view, never by buildComponentSVG (exports).
+state.componentGridOutline = false;
+function componentGridOutlineSVG(items, size) {
+  if (!state.componentGridOutline || !items.length) return '';
+  const d = resolvedComponentDims(size), hx = d.w / 2, hy = d.h / 2;
+  return `<g fill="none" stroke="var(--tool)" stroke-width="1" vector-effect="non-scaling-stroke" pointer-events="none">` + items.map(it => it.poly
+    ? `<polygon vector-effect="non-scaling-stroke" points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`
+    : `<rect vector-effect="non-scaling-stroke" x="${(hx + it.cx - it.cellSize / 2).toFixed(2)}" y="${(hy + it.cy - it.cellSize / 2).toFixed(2)}" width="${it.cellSize.toFixed(2)}" height="${it.cellSize.toFixed(2)}"/>`).join('') + `</g>`;
+}
+function latticeShapePath(items) {
+  if (!items.length || !items[0].poly) return null;
+  const p = new Path2D();
+  items.forEach(it => { it.poly.forEach(([x, y], k) => (k ? p.lineTo(x, y) : p.moveTo(x, y))); p.closePath(); });
+  return p;
+}
 function drawComponentCanvas(ctx, items, seed, size) {
   const dims = resolvedComponentDims(size);
   ctx.clearRect(0, 0, dims.w, dims.h);
@@ -5182,9 +5456,12 @@ function drawComponentCanvas(ctx, items, seed, size) {
   const under = (state.componentRole === 'container' || state.componentRole === 'mask') ? resolveUnderlyingComponent(state.underlyingComponentName) : null;
 
   if (!under) {
+    const shape = latticeShapePath(items);
+    if (shape) { ctx.save(); ctx.clip(shape); }
     fillPaper(ctx, state.paperColor, 0, 0, dims.w, dims.h);
     paintPaperPatternCanvas(ctx, dims.w, dims.h);
     drawItemsPlain(ctx, items, geo, path, dims.w, dims.h);
+    if (shape) ctx.restore();
     return;
   }
 
@@ -5257,6 +5534,7 @@ function buildComponentSVGBody(items, seed, size) {
   // otherwise the "hole" would only remove the underlying layer and still
   // show opaque paper underneath, not a genuine hole.
   let body = (under && state.componentRole === 'mask') ? '' : `<rect width="${dims.w}" height="${dims.h}" fill="${state.paperColor}"/>` + paperPatternSVG(dims.w, dims.h);
+  const latticeClip = !under && items.length && items[0].poly ? 'cellsclip-' + nextDrawId() : null;
 
   if (under) {
     // Role active — resolvedComponentDims already forced dims.w === dims.h,
@@ -5305,13 +5583,16 @@ function buildComponentSVGBody(items, seed, size) {
         + markup + `</g>`;
     }
   }
+  // A cell-shape lattice: the canvas is the cells' own outline — Paper and cells clipped to it.
+  if (latticeClip) body = `<clipPath id="${latticeClip}">${items.map(it => `<polygon points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`).join('')}</clipPath><g clip-path="url(#${latticeClip})">${body}</g>`;
   return body;
 }
 function buildComponentSVG(items, seed, size) {
   const dims = resolvedComponentDims(size);
   const meta = { tool: 'FVS', ruleSource: state.selectedRuleSource || '', cells: items.length, exportedAt: new Date().toISOString() };
   const body = buildComponentSVGBody(items, seed, size);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${dims.w}" height="${dims.h}" viewBox="0 0 ${dims.w} ${dims.h}">`
+  const cellCls = items.length && items[0].poly && !componentRoleActive() ? ' class="is-cell"' : '';   // a cell-shape lattice: the canvas is its outline
+  return `<svg xmlns="http://www.w3.org/2000/svg"${cellCls} width="${dims.w}" height="${dims.h}" viewBox="0 0 ${dims.w} ${dims.h}">`
     + `<metadata>${JSON.stringify(meta)}</metadata>` + body + `</svg>`;
 }
 function r2(n) { return Math.round(n * 100) / 100; }
@@ -5360,26 +5641,38 @@ function buildPrintComponentSVG(items, seed, baseSize, baseH) {
 // under a transform is visible before committing to a full grid
 // generation. Shares the same geometry/transform discipline as
 // buildComponentSVG, for exactly one item instead of a 4-cell grid. ──
-function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size) {
+function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {}) {
   const geo = SEED_TYPES[seed.type].geometry(seed);
   const half = size / 2;
-  const sx = (flipH ? -1 : 1) * (size / 100), sy = (flipV ? -1 : 1) * (size / 100);
-  const body = `<g transform="translate(${half},${half}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
-    + elementPathMarkup(geo, colorAt(0)) + `</g>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
-    + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${paperPatternSVG(size, size)}${body}</svg>`;
+  // A non-square cell shape IS the canvas: Paper only inside its outline, transparent outside, framed by
+  // its circumradius so every turn stays in view.
+  const cs = cellShapeOf(seed), k = cs === 'triangle' ? 50 / CELL_SHAPES.triangle.R : 1;
+  const sx = (flipH ? -1 : 1) * (size / 100) * k, sy = (flipV ? -1 : 1) * (size / 100) * k;
+  const T = `translate(${half},${half}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)`;
+  const body = `<g transform="${T}">` + elementPathMarkup(geo, colorAt(0)) + `</g>`;
+  if (cs === 'square') {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
+      + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${paperPatternSVG(size, size)}${body}</svg>`;
+  }
+  const pts = CELL_SHAPES[cs].poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ');
+  const id = 'cellclip-' + nextDrawId();
+  const edge = opts.outline ? `<polygon transform="${T}" points="${pts}" fill="none" stroke="var(--border-strong)" stroke-width="1" vector-effect="non-scaling-stroke"/>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="is-cell" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
+    + `<clipPath id="${id}"><polygon transform="${T}" points="${pts}"/></clipPath>`
+    + `<g clip-path="url(#${id})"><rect width="${size}" height="${size}" fill="${state.paperColor}"/>${paperPatternSVG(size, size)}${body}</g>${edge}</svg>`;
 }
 
 // The 0°/no-flip state is dropped on purpose: it's pixel-identical to the big
 // canvas below (same seed, same transform, just smaller) — showing it twice added no information.
-const SEED_PREVIEW_STATES = [
+const SEED_PREVIEW_STATES_SQUARE = [
   [0, false, false, '0°'], [90, false, false, '90°'], [180, false, false, '180°'], [270, false, false, '270°'],
   [0, true, false, 'Flip H'], [0, false, true, 'Flip V'], [0, true, true, 'Flip H+V'],
 ];
+const seedPreviewStates = () => cellShapeStates(state.cellShape);
 function renderSeedPreview() {
   const seed = getSeed();
-  ctrl('seed-preview').innerHTML = SEED_PREVIEW_STATES
-    .map(([r, fh, fv, label], i) => `<div class="fvs-seed-tile${i === elementViewIndex() ? ' is-selected' : ''}" role="button" tabindex="0" data-view="${i}" aria-pressed="${i === elementViewIndex()}" aria-label="Show the Element at ${label}"><div class="fvs-seed-tile__box">${buildSeedPreviewSVG(seed, r, fh, fv, 48)}</div><span class="fvs-seed-tile__label">${label}</span></div>`).join('');
+  ctrl('seed-preview').innerHTML = seedPreviewStates()
+    .map(([r, fh, fv, label], i) => `<div class="fvs-seed-tile${i === elementViewIndex() ? ' is-selected' : ''}" role="button" tabindex="0" data-view="${i}" aria-pressed="${i === elementViewIndex()}" aria-label="Show the Element at ${label}"><div class="fvs-seed-tile__box">${buildSeedPreviewSVG(seed, r, fh, fv, 48, { outline: true })}</div><span class="fvs-seed-tile__label">${label}</span></div>`).join('');
   renderElementFrame(seed);
   mountElementQuickSaves();
 }
@@ -5435,10 +5728,10 @@ function elementViewLocked() { return ctrl('sel-seed-type').value === 'freehand'
 function currentElementView() { return elementViewLocked() ? { r: 0, fh: false, fv: false } : elementView; }
 function elementViewIndex() {
   const v = currentElementView();
-  return SEED_PREVIEW_STATES.findIndex(([r, fh, fv]) => r === v.r && fh === v.fh && fv === v.fv);
+  return seedPreviewStates().findIndex(([r, fh, fv]) => r === v.r && fh === v.fh && fv === v.fv);
 }
 function setElementView(i) {
-  const st = SEED_PREVIEW_STATES[i];
+  const st = seedPreviewStates()[i];
   if (!st) return;
   elementView = { r: st[0], fh: st[1], fv: st[2] };
   renderSeedPreview();
@@ -5447,7 +5740,7 @@ function renderElementFrame(seed) {
   const frame = ctrl('element-frame');
   if (!frame) return;
   const sd = seed || getSeed(), v = currentElementView();
-  let svg = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, v.r, v.fh, v.fv, 400);
+  let svg = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, v.r, v.fh, v.fv, 400, { outline: true });
   const overlay = buildSplitGridOverlaySVG(400);
   if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
   ctrl('element-svg').innerHTML = svg;
@@ -5534,7 +5827,7 @@ function renderGallery() {
   for (const comp of state.components) {
     let svgStr;
     layerInkOverride = comp.layerInks || null;
-    try { svgStr = withComponentColours(comp, () => buildComponentSVG(buildComponentItems(comp, grid), seed, size)); } finally { layerInkOverride = null; }
+    try { const its = buildComponentItems(comp, grid); svgStr = withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'); } finally { layerInkOverride = null; }
     const btn = document.createElement('button');
     const isSelected = comp.id === state.selectedId && state.selectionExplicit;
     btn.className = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
@@ -5696,7 +5989,7 @@ function renderComponentEditCanvas() {
   const dims = resolvedComponentDims(size);
   ctrl('component-edit-frame').style.setProperty('--comp-ar', (dims.w / dims.h).toFixed(5));   // the sheet's box takes the component's proportions
   ctrl('component-edit-frame').innerHTML =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dims.w} ${dims.h}">${body}${hit}</svg>`;
+    `<svg xmlns="http://www.w3.org/2000/svg"${items.length && items[0].poly ? ' class="is-cell"' : ''} viewBox="0 0 ${dims.w} ${dims.h}">${body}${componentGridOutlineSVG(items, size)}${hit}</svg>`;
   const cell = state.componentEditSelectedCell;
   ctrl('component-edit-hint').textContent = cell == null
     ? 'Click a cell to give it its own shape'
@@ -5783,6 +6076,13 @@ function syncRuleAvailability() {
   // A single cell has no pattern to arrange — Identity / Random / Exhaustive /
   // Manual cover its rotations and flips.
   if (count === 1) ['pinwheel', 'mirror', 'diagonal', 'checkerboard', 'hlines', 'vlines', 'oscillator'].forEach(v => { gates[v] = [false, 'A 1×1 Component has no pattern — use Exhaustive for its rotations/flips']; });
+  // A non-square cell shape: only the rules that turn in its own step apply.
+  if (state.cellShape !== 'square') {
+    gates.radial = [count > 1, 'A single cell has no centre to turn towards'];
+    [...sel.options].forEach(o => { if (!LATTICE_RULES.has(o.value) && o.value !== 'manual') gates[o.value] = [false, `${o.textContent.replace(/ \(.*\)$/, '')} needs a square cell`]; });
+    gates.manual = [false, 'Manual needs a square cell'];
+    if (count === 1) gates.checkerboard = [false, 'A single cell has no pattern'];
+  } else if (!('manual' in gates)) gates.manual = [true, ''];
   Object.entries(gates).forEach(([v, [eligible, why]]) => {
     const opt = sel.querySelector(`option[value="${v}"]`);
     opt.disabled = !eligible;
@@ -5932,7 +6232,10 @@ function populateComponentStarterGallery() {
   // starter rule's first STARTER_VARIANTS_PER_RULE candidates, nothing
   // filtered for looking alike (Generate doesn't filter either).
   const picks = [];
-  for (const r of COMPONENT_STARTER_RULES) {
+  const starters = state.cellShape !== 'square'
+    ? ['radial', 'checkerboard', 'identity'].map(m => ({ name: m, fn: () => latticeRule(m) }))
+    : COMPONENT_STARTER_RULES;
+  for (const r of starters) {
     if (r.eligible && !r.eligible()) continue;
     const out = r.fn();
     if (!out || !out.length) continue;
@@ -6161,8 +6464,9 @@ function generateColourways() {
 
 function generate() {
   const mode = ctrl('sel-rule').value;
-  let produced;
-  switch (mode) {
+  let produced = state.cellShape !== 'square' && LATTICE_RULES.has(mode) ? latticeRule(mode) : null;
+  if (produced && mode === 'exhaustive' && produced.length > EXHAUSTIVE_CAP) return;
+  if (!produced) switch (mode) {
     case 'identity': produced = ruleIdentity(); break;
     case 'pinwheel': produced = rulePinwheel(); break;
     case 'mirror': produced = ruleMirror(); break;
@@ -6577,6 +6881,7 @@ function applyElementSnapshot(seed, app) {
   applyAppearanceToUI(f.app);
 }
 function applySeedToPanel(seed) {
+  setCellShape(cellShapeOf(seed), { silent: true });
   if (seed && seed.type === 'stack' && Array.isArray(seed.layers) && seed.layers.length) {
     const items = seed.layers.map(l => JSON.parse(JSON.stringify(l)));
     const active = Math.max(0, Math.min(items.length - 1, seed.active | 0));
@@ -7963,7 +8268,7 @@ function syncFitAnchorUI() {
   const shared = fn => (cells.length && cells.every(c => fn(c) === fn(cells[0])) ? fn(cells[0]) : null);
   const fit = shared(c => c.fitMode || 'contain'), ax = shared(c => c.anchorX || 0), ay = shared(c => c.anchorY || 0);
   // the Fit buttons live in the floatbar: their tooltip (aria-label) names the target
-  ['contain', 'fill', 'cover', 'fixed'].forEach(f => {
+  ['contain', 'fill', 'cover', 'fixed', 'match'].forEach(f => {
     const b = ctrl('btn-symbol-fit-all-' + f), patch = nothing ? null : fitPatch(f);
     // Fixed is never "the same": even when it starts at the size the content already has, it changes
     // what the cell does next (its own Size, whatever the cell becomes).
@@ -7999,7 +8304,7 @@ function applyFitToAllCells(fitMode) {
   // own #sel-cellprop-fit readout, and these buttons their pressed state: re-sync both.
   renderCellPropertiesPanel();
 }
-['contain', 'fill', 'cover', 'fixed'].forEach(fit =>
+['contain', 'fill', 'cover', 'fixed', 'match'].forEach(fit =>
   ctrl('btn-symbol-fit-all-' + fit).addEventListener('click', () => applyFitToAllCells(fit)));
 // Anchor: which part of a cropped / overflowing cell's content shows — meaningful for Cover
 // (which part is kept), Fixed (which part overflows) and Contain (where it sits), not for Fill.
@@ -8173,7 +8478,25 @@ function modulesToBlockCells(items, W, H, reg, cell) {
 }
 // resolveCellPlacement in a box that may be a spanning block: Fixed size scales by the block's length
 // in cells (fixedK), everything else is unchanged. Every placement on the Symbol goes through here.
+// Match cell (test): an Element drawn for a cell shape, laid exactly onto a cell of that shape — centred on
+// the cell's centroid, scaled corner to corner, turned to the cell's pose (a down triangle, a pointy-top
+// hexagon); the cell's own turn snaps to the shape's step. `poly` is relative to the cell's centre.
+// null = the cell is not that shape (the caller falls back to Contain).
+function matchCellPlacement(shape, poly, cell) {
+  if (!poly || shape === 'square') return null;
+  const n = poly.length, want = shape === 'triangle' ? 3 : shape === 'hexagon' ? 6 : 0;
+  if (want ? n !== want : n < 12) return null;
+  const mx = poly.reduce((a, p) => a + p[0], 0) / n, my = poly.reduce((a, p) => a + p[1], 0) / n;
+  const rs = poly.map(p => Math.hypot(p[0] - mx, p[1] - my)), R = rs.reduce((a, r) => a + r, 0) / n;
+  if (!(R > 0) || (Math.max(...rs) - Math.min(...rs)) / R > 0.06) return null;
+  const st = CELL_SHAPES[shape].step, k = (R / CELL_SHAPES[shape].R) * (cell.scale == null ? 1 : cell.scale);
+  return { scaleX: k, scaleY: k, offsetX: mx, offsetY: my, rotate: mod360(polygonCellTurn(shape, poly, mx, my) + Math.round((cell.rotation || 0) / st) * st) };
+}
 function placeInBox(c, natural, cell, poly, outline) {
+  if (cell.fitMode === 'match' && natural === 100 && cell.source !== 'component') {
+    const m = matchCellPlacement(cellShapeOf(cell.seedParams), poly, cell);
+    if (m) return m;
+  }
   const k = c && c.fixedK > 1 && cell.fitMode === 'fixed' ? c.fixedK : 1;
   const place = resolveCellPlacement(c.cellW, c.cellH, natural, k === 1 ? cell : { ...cell, fixedSize: (cell.fixedSize || 100) * k });
   return poly && cell.fitMode === 'contain' ? containInPolygon(c, natural, cell, poly, place, outline) : place;
@@ -8306,7 +8629,7 @@ function buildSymbolItems() {
     const geo = SEED_TYPES[cell.seedType].geometry(cell.seedParams || SYMBOL_SEED_DEFAULTS);
     const place = placeInBox(c, 100, cell, cellPolygon(grid, i), cellPolygon(grid, i) && cell.fitMode === 'contain' ? seedOutline(geo) : null);
     return {
-      type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
+      type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: place.rotate != null ? place.rotate : cell.rotation,
       scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
       color: cellInk(cell, i), geo, inks: cellOwnInks(cell),   // inks: a saved Element's own palette (Colour by → Element's own colours)
       // …and its own Paper (colour + texture), drawn under it in the Element's 0..100 frame, like a Component's paper
@@ -10160,7 +10483,7 @@ function renderCellContentOverlayTiles() {
   elSec.style.display = elementIsEmpty() ? 'none' : '';
   if (!elementIsEmpty()) {
     const live = getSeed();
-    [[0, false, false, 'As it is'], ...SEED_PREVIEW_STATES.slice(1)].forEach(([r, fh, fv, label]) => {   // the strip's own 0° is "As it is" here
+    [[0, false, false, 'As it is'], ...seedPreviewStates().slice(1)].forEach(([r, fh, fv, label]) => {   // the strip's own 0° is "As it is" here
       const btn = document.createElement('button');
       btn.className = 'fvs-library-item';
       btn.title = 'Element · ' + label;
@@ -10417,6 +10740,7 @@ function setTier(tier) {
   document.querySelectorAll('#canvas-wrap .tier-view').forEach(v => v.classList.toggle('active', v.dataset.tier === tier));
   ctrl('export-hint').textContent = STEP_EXPORT_HINTS[tier] || STEP_EXPORT_HINTS.component;
   // Reset / Upload / Creator library only act on the Element's Seed.
+  ctrl('fb-cell-shape').style.display = tier === 'element' || tier === 'component' ? '' : 'none';
   ctrl('fb-element-actions').style.display = tier === 'element' ? '' : 'none';
   ctrl('fb-component-actions').style.display = tier === 'component' ? '' : 'none';
   ctrl('fb-symbol-actions').style.display = tier === 'symbol' ? '' : 'none';
@@ -10744,6 +11068,23 @@ ctrl('file-seed').addEventListener('change', e => {
 const creatorPopover = Organica.popover(ctrl('btn-browse-creator'), ctrl('creator-library-popover'));
 ctrl('btn-browse-creator').addEventListener('click', () => { if (creatorPopover.isOpen) renderCreatorLibraryPicker(); });
 
+// Cell shape: picks the cell the Element is drawn for; the lattice row picks the Component's cell count.
+ctrl('fb-cell-shape').querySelectorAll('[data-cell]').forEach(b => { b.innerHTML = Organica.icons.get('fvs-cell-' + b.dataset.cell); });
+ctrl('fb-cell-shape').addEventListener('click', e => {
+  const b = e.target.closest('[data-cell]'); if (!b || b.dataset.cell === state.cellShape) return;
+  setCellShape(b.dataset.cell);
+});
+const OUTLINE_ICONS = { hexagon: 'fvs-cell-hexagon', triangle: 'fvs-cell-triangle', diamond: 'fvs-diamond', square: 'fvs-cell-square' };
+ctrl('seg-grid-outline').querySelectorAll('.seg-btn').forEach(b => { b.innerHTML = Organica.icons.get(OUTLINE_ICONS[b.dataset.outline]); });
+ctrl('seg-grid-outline').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn'); if (!b || b.getAttribute('aria-disabled') === 'true') return;
+  state.cellOutline[state.cellShape] = b.dataset.outline;
+  syncComponentGridUI(); syncRuleAvailability(); renderGallery();
+});
+ctrl('rg-grid-rings').addEventListener('input', e => {
+  state.cellLattice[state.cellShape] = +e.target.value;
+  syncComponentGridUI(); syncRuleAvailability(); renderGallery();
+});
 [['rg-grid-cols', 'v-grid-cols'], ['rg-grid-rows', 'v-grid-rows']].forEach(([id, valId]) => ctrl(id).addEventListener('input', e => {
   ctrl(valId).textContent = e.target.value;
   state.loomGrid = null;   // picking columns × rows replaces a legacy Loom grid
@@ -11010,6 +11351,11 @@ function syncSymbolViewUI() {
     b.setAttribute('aria-pressed', String(k === 'clip' ? state.symbolClipEnabled : state.symbolView[k]));
   });
 }
+ctrl('btn-component-view-outline').addEventListener('click', e => {
+  state.componentGridOutline = !state.componentGridOutline;
+  e.currentTarget.setAttribute('aria-pressed', String(state.componentGridOutline));
+  renderGallery(); renderComponentEditCanvas();
+});
 document.querySelectorAll('#fb-symbol-actions [data-view]').forEach(b => b.addEventListener('click', () => {
   const k = b.dataset.view;
   if (k === 'clip') state.symbolClipEnabled = !state.symbolClipEnabled;
