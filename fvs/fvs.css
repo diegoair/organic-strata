@@ -508,6 +508,10 @@
   .fvs-thumb.selected > svg.is-cell > .cell-ring { display: inline; stroke: var(--ink); stroke-width: 6; }
   .fvs-thumb.saved-in-library > svg.is-cell > .cell-ring { display: inline; stroke: var(--tool); stroke-width: 9; }
   .fvs-seed-tile__box > svg.is-cell { border-color: transparent; overflow: visible; filter: drop-shadow(var(--stage-shadow)); }   /* a sheet like the big canvas: its own outline casts the stage shadow */
+  /* The same shadow, drawn once: 16-cell-shadow.js puts it behind the sheet as an image and sets data-shadow — the
+     filter (a 40px blur re-run on every repaint, 5–10× a square sheet's GPU work) then stays off. */
+  #element-svg > svg.is-cell[data-shadow], #component-edit-frame > svg.is-cell[data-shadow],
+  .fvs-thumb > svg.is-cell[data-shadow], .fvs-seed-tile__box > svg.is-cell[data-shadow] { filter: none; }
   /* hover / selected follow the cell's outline, not a square box */
   .fvs-seed-tile.is-selected .fvs-seed-tile__box > svg.is-cell { border-color: transparent; box-shadow: none; }
   .fvs-seed-tile.is-selected svg.is-cell > .cell-edge { stroke: var(--ink); stroke-width: 2; }
