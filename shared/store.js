@@ -25,7 +25,8 @@
  *               legacyKey forward-migration).
  * SIGNED IN   → first pull() with an empty server + non-empty local cache pushes
  *               the local copy up once (the "first-login migration"), then the
- *               server is source of truth. Writes are debounced + diffed +
+ *               server is source of truth. The cache is tagged with its user's id
+ *               (<key>.owner): another user's copy is ignored, never uploaded. Writes are debounced + diffed +
  *               retried; a failed flush stays queued.
  *
  * TABLE: presets (user_id uuid default auth.uid(), tool text, name text,
@@ -37,6 +38,24 @@
   var Organica = global.Organica = global.Organica || {};
   var sb = Organica.sb;
   var auth = Organica.auth;
+
+  // ── Whose copy is this? (Oct 6, 2026) ──
+  // The localStorage cache is per browser, not per user. Each cache key carries an owner
+  // marker (<key>.owner = the signed-in user's id, set on every write while signed in).
+  // A copy tagged with ANOTHER user's id is never shown and never uploaded: on a shared
+  // browser, user B's first pull must not push user A's saved work into B's account.
+  // An untagged copy (signed-out local dev, or saved before this marker existed) keeps the
+  // old behaviour: it is the first-login migration's source. On sign-out a tagged copy with
+  // nothing waiting to go up is dropped — it is all on the server.
+  var OWNER = '.owner';
+  function uidNow() { return (auth && auth.userIdSync && auth.userIdSync()) || null; }
+  function cacheOwner(key) { try { return localStorage.getItem(key + OWNER); } catch (e) { return null; } }
+  function tagCache(key) { var uid = uidNow(); if (!uid) return; try { localStorage.setItem(key + OWNER, uid); } catch (e) {} }
+  function foreignCache(key) { var uid = uidNow(), o = cacheOwner(key); return !!(uid && o && o !== uid); }
+  function dropTaggedCache(key) {
+    if (!cacheOwner(key)) return;   // untagged = local-only work, never dropped here
+    try { localStorage.removeItem(key); localStorage.removeItem(key + OWNER); } catch (e) {}
+  }
 
   var FLUSH_MS = 700;
   var instances = {};   // tool → store (one per tool per page)
@@ -53,6 +72,7 @@
     var syncSubs = [];
 
     function readCache() {
+      if (foreignCache(cacheKey)) return {};   // another user's copy on this browser
       try {
         var cur = localStorage.getItem(cacheKey);
         if (cur !== null) return JSON.parse(cur || '{}');
@@ -68,7 +88,7 @@
     }
 
     function writeCache(obj) {
-      try { localStorage.setItem(cacheKey, JSON.stringify(obj)); return true; }
+      try { localStorage.setItem(cacheKey, JSON.stringify(obj)); tagCache(cacheKey); return true; }
       catch (e) { return false; }
     }
 
@@ -194,7 +214,7 @@
     if (auth && auth.onChange) {
       auth.onChange(function (session) {
         if (session) { store.pull(); }
-        else { remote = false; lastSynced = null; }
+        else { remote = false; lastSynced = null; if (!pending) dropTaggedCache(cacheKey); }
       });
     }
 
@@ -282,6 +302,7 @@
     }
 
     function read() {
+      if (foreignCache(CACHE)) return { sets: [], forms: [] };   // another user's copy on this browser
       try {
         var cur = localStorage.getItem(CACHE);
         if (cur === null) {
@@ -297,7 +318,7 @@
       } catch (e) { return { sets: [], forms: [] }; }
     }
     function writeCache(lib) {
-      try { localStorage.setItem(CACHE, JSON.stringify(lib)); return true; }
+      try { localStorage.setItem(CACHE, JSON.stringify(lib)); tagCache(CACHE); return true; }
       catch (e) { return false; }
     }
     function fire(lib) { subs.forEach(function (cb) { try { cb(lib); } catch (e) {} }); }
@@ -472,7 +493,7 @@
     if (auth && auth.onChange) {
       auth.onChange(function (session) {
         if (session) api.pull();
-        else { remote = false; lastSeeds = null; lastMeta = null; }
+        else { remote = false; lastSeeds = null; lastMeta = null; if (!pending) dropTaggedCache(CACHE); }
       });
     }
     return api;
