@@ -5166,7 +5166,7 @@ function elementQuickSaveButton(rot, flipH, flipV, label) {
     labelSave: 'Save the Element' + (label && label !== '0°' ? ' at ' + label : '') + ' to Saved Elements',
     labelSaved: 'Saved as ' + savedName,
     labelRemove: 'Remove from Saved Elements',
-    onSave: () => { const n = saveElementVariant(rot, flipH, flipV, label); if (n) Organica.notice('Saved as ' + n, { kind: 'info' }); return n; },
+    onSave: () => saveElementVariant(rot, flipH, flipV, label),   // no "Saved as …" notice (Diego, Oct 6, 2026): the ✓ on the button says it
     onRemove: () => removeSavedElement(savedName),
   });
   b.disabled = !t;
@@ -7062,7 +7062,6 @@ function quickSaveComponentToLibrary(compId, chosen) {
   comp.savedName = name;
   renderLibrary();
   renderGallery();
-  if (!chosen) Organica.notice('Saved as ' + name, { kind: 'info' });   // a one-click save shouldn't pass unnoticed
 }
 
 // Every candidate in the gallery at once — the same entry and "<rule> <time>"
