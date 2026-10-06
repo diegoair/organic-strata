@@ -1,6 +1,6 @@
 // Flexible Visual System · engine/00-core — the engine part of 00-core.js: model + logic, no DOM UI.
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
-// and the offscreen measuring helpers. Chosen mechanically by scripts/fvs-engine.mjs. Map: docs/FVS.md §Architecture.
+// and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 // Paper tile dropdown (Organica.selectPicker) — declared up here: renderSeedPreview, which
 // refreshes its "Current Element" thumbnail, runs during boot before the tile code below.
 export const TILE_PICK_REG = {};

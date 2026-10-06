@@ -1,6 +1,6 @@
 // Flexible Visual System · engine/14-figure-ui — the engine part of 14-figure-ui.js: model + logic, no DOM UI.
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
-// and the offscreen measuring helpers. Chosen mechanically by scripts/fvs-engine.mjs. Map: docs/FVS.md §Architecture.
+// and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
   COLOR_RULES, DEFAULT_COLOR_RULE, state
 } from './00-core.js';

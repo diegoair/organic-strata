@@ -1,6 +1,6 @@
 // Flexible Visual System · engine/02-seed-ui — the engine part of 02-seed-ui.js: model + logic, no DOM UI.
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
-// and the offscreen measuring helpers. Chosen mechanically by scripts/fvs-engine.mjs. Map: docs/FVS.md §Architecture.
+// and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
   SYMBOL_ARC, SYMBOL_ARC_TRUCHET, SYMBOL_CHEVRON, SYMBOL_CROSS, SYMBOL_INNER, SYMBOL_LENS, SYMBOL_POLYGON,
   SYMBOL_ROUNDEDRECT, SYMBOL_STAR, SYMBOL_TRIANGLE, SYMBOL_WEDGE

@@ -1,6 +1,6 @@
 // Flexible Visual System · engine/07-library — the engine part of 07-library.js: model + logic, no DOM UI.
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
-// and the offscreen measuring helpers. Chosen mechanically by scripts/fvs-engine.mjs. Map: docs/FVS.md §Architecture.
+// and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import { provide } from '../hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({

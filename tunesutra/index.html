@@ -1018,7 +1018,7 @@ function loadToolAccents() {
   const ACC = /--tool:\s*(#[0-9a-fA-F]{6})/;
   Promise.all(list.map(it => get(it[1]).then(html => {
     if (ACC.test(html)) return html;
-    // a tool whose <style> moved to its own sheet (/fvs/fvs.css): read the accent there
+    // a tool whose own CSS moved to its own sheet (/fvs/fvs.css, O-27): read the accent there
     const own = html.match(/<link[^>]+href="(\/([^/"]+)\/\2\.css)"/);
     return own ? get(own[1]) : html;
   }).then(text => {

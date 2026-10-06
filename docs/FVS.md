@@ -827,12 +827,17 @@ cell* with it). Figure names throw "await __fvs.loadFigureTier()" until Figure h
 the panel's controls (`getPanelSeed`, `getGrid`, `getElementAppearance`), so everything that reaches them
 — the `SEED_TYPES` geometry chain, `buildComponentSVG`, `buildSymbolItems`/`buildSymbolSVG`, Suggest's
 weights — stays UI. Moving the panel's values into `state` is the next step towards a fully separate
-engine (and is what a React port would do); `scripts/fvs-engine.mjs` on the `fvs-split` branch reports the
-root causes.
+engine (and is what a React port would do); the split's `scripts/fvs-engine.mjs` (in git history, commit
+`ebd64fe`) reports the root causes.
 
 **How it was made.** Mechanically, on branch `fvs-split`: `scripts/fvs-split.mjs` (anchor-based cut into
 classic files, every line placed once, no parse-time reach into a later file) → `scripts/fvs-modules.mjs`
 + `scripts/fvs-engine.mjs` (exports/imports, hooks, rt, engine extraction, lazy Figure). Each stage
-passed the regression (unchanged baseline) and `test-fvs-qa`. The generators are deleted when the branch
-merges; from then on the files are the source.
+passed the regression (unchanged baseline) and `test-fvs-qa`. The generators were deleted at the merge
+(Oct 6, 2026; in git history) — **the files in `fvs/` are the source: all FVS development continues here.**
+
+**The old single file** is archived, frozen, at `archive/fvs-single-file/index.html` (main `2fcbd69`, the last
+version before the split): never edited, never linked, `noindex`. It still runs at `/archive/fvs-single-file/`
+and shares the live library (same storage keys) — useful to compare against or to recover old code, nothing
+more. A fix goes in `fvs/js/`, never there.
 
