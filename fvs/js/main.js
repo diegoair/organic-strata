@@ -1,6 +1,6 @@
 // Flexible Visual System — entry module. The files evaluate in this order (each imports only earlier ones),
 // which is the order the single inline script used to run in. Figure (4 files) is not here: it loads on
-// demand through ./lazy.js → ./figure.js. Architecture: docs/FVS.md §Architecture.
+// demand through ./lazy.js → ./figure.js. Architecture: docs/FVS.md §11.
 import './engine/00-core.js';
 import './engine/01-geometry.js';
 import './engine/02-seed-ui.js';

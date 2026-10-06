@@ -1,6 +1,6 @@
 // Flexible Visual System · 13-figure-engine — Figure engine — recipes v1 fixtures, recipe v2 validate / run, catalogs.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
-// Architecture + file map: docs/FVS.md §Architecture.
+// Architecture + file map: docs/FVS.md §11.
 import {
   DEFAULT_COLOR_RULE, state
 } from './engine/00-core.js';

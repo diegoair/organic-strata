@@ -1,6 +1,6 @@
 // Flexible Visual System · 01-geometry — Seed geometry — Seed types, cell shapes and lattices, Cut out, Irregularity, Split.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
-// Architecture + file map: docs/FVS.md §Architecture.
+// Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
 import { hooks } from './hooks.js';
 import {

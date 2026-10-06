@@ -1,6 +1,6 @@
 // Flexible Visual System · 05-render-component — Component render — stack layers, canvas + SVG, seed preview strip, gallery.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
-// Architecture + file map: docs/FVS.md §Architecture.
+// Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
 import {
   colorAt, state

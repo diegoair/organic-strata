@@ -226,7 +226,7 @@ else:
     ok("clean")
 
 # 5b. FVS engine stays engine — fvs/js/engine/*.js is model + logic with no DOM UI (docs/FVS.md
-# §Architecture). It may import only other engine files and ../hooks.js / ../rt.js, never a UI file, and use
+# §11). It may import only other engine files and ../hooks.js / ../rt.js, never a UI file, and use
 # the DOM only to measure / composite offscreen (createElement / createElementNS / body append + remove); the
 # model's stores (presetStore 'fvs' / 'fvs-element' / 'fvs-symbols', the Genesis library, ORGANIC_SEEDS) are allowed.
 print("fvs engine")

@@ -1,6 +1,6 @@
 // Flexible Visual System · 06-component-ui — Component UI — Edit mode, rule UI, undo, Colourways, Generate, Split.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
-// Architecture + file map: docs/FVS.md §Architecture.
+// Architecture + file map: docs/FVS.md §11.
 import {
   state
 } from './engine/00-core.js';
