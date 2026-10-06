@@ -1186,7 +1186,7 @@ async function run() {
     : `${keys.length} cases run — no baseline yet (fvs/_regression-baseline.json).`;
 }
 $('run').addEventListener('click', run);
-// Headless mode (scripts/regression.py): /fvs/_test-regression.html?auto=1 runs on load and
+// Headless mode (scripts/regression.sh): /fvs/_test-regression.html?auto=1 runs on load and
 // exposes the verdict as <body data-result="pass|fail|error" data-detail="...">.
 if (new URLSearchParams(location.search).has('auto')) {
   const go = async () => {

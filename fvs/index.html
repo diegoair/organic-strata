@@ -2307,6 +2307,7 @@
 <script src="/shared/paper.js"></script>
 <script src="/shared/circle-advanced.js"></script>
 <script>
+'use strict';
 /* ─────────────────────────────────────────────────────────────
    FVS — Flexible Visual System. First pass: Seeds → Components only
    (the Symbols/Pattern/Applications tiers from the reference brief are
@@ -6105,7 +6106,7 @@ function renderGallery() {
     editBtn.className = 'fvs-thumb-edit';
     editBtn.setAttribute('aria-label', 'Edit component structure');
     editBtn.title = 'Edit component structure';
-    editBtn.innerHTML = '<svg class="ico ico--sm" data-icon="pencil" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2.5 13.5 5.5 6 13H3v-3l7.5-7.5Z"/></svg>';
+    editBtn.innerHTML = Organica.icons.get('pencil', { size: 'sm' });
     editBtn.addEventListener('click', e => { e.stopPropagation(); enterComponentEditMode(comp.id); });
     const cap = document.createElement('span');
     cap.className = 'fvs-thumb-caption';
@@ -13248,7 +13249,7 @@ function renderVariantRows() {
       + `<input type="color" aria-label="Variant ${i + 1} ink">`
       + `<input type="color" aria-label="Variant ${i + 1} paper">`
       + `<input type="number" class="panel-input" min="1" max="20" aria-label="Variant ${i + 1} stroke width">`
-      + `<button class="mini-btn" aria-label="Remove variant ${i + 1}"><svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`;
+      + `<button class="mini-btn" aria-label="Remove variant ${i + 1}">${Organica.icons.get('close', { size: 'sm' })}</button>`;
     const [sel, col, pap, num, del] = row.children;
     sel.value = v.style; col.value = v.ink; num.value = v.strokeW; pap.value = v.paper || (isPaperNone(state.paperColor) ? '#ffffff' : state.paperColor);
     pap.title = 'Paper for this variant';
@@ -13664,13 +13665,6 @@ let railNoteTimer = 0;
 function railNotice(text) {
   const n = ctrl('rail-note'); n.textContent = text;
   clearTimeout(railNoteTimer); if (text) railNoteTimer = setTimeout(() => { n.textContent = ''; }, 8000);
-}
-// Where a saved Component is in use: live cells, saved Symbols, Container/Mask references.
-function componentUsage(name) {
-  const cells = (state.symbolCells || []).filter(c => c && c.source === 'component' && c.componentName === name).length;
-  const syms = Object.values(SYMBOL_LIBRARY.read()).filter(e => (e.cells || []).some(c => c.componentName === name)).length;
-  const under = Object.values(LIBRARY.read()).filter(e => e.underlyingComponentName === name).length + (state.underlyingComponentName === name ? 1 : 0);
-  return { cells, syms, under, total: cells + syms + under };
 }
 function railRemove(kind, name) { deleteSaved(kind, name); }
 function railUse(kind, name) {
