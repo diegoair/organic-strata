@@ -3,85 +3,70 @@
 // Architecture + file map: docs/FVS.md §Architecture.
 import { rt } from './rt.js';
 import {
-  DEFAULT_COLOR_RULE, PALETTE_MAX, buildPalette, colorAt, ctrl, entryInkAt, state, syncColorRuleUI, val
+  DEFAULT_COLOR_RULE, PALETTE_MAX, colorAt, entryInkAt, state
+} from './engine/00-core.js';
+import {
+  SEG_WEIGHT_DEF, cellShapeOf, frameDims
+} from './engine/01-geometry.js';
+import {
+  CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, xrId
+} from './engine/02-seed-ui.js';
+import {
+  fitThumbBox
+} from './engine/03-rules.js';
+import {
+  buildComponentItems
+} from './engine/04-appearance.js';
+import {
+  LAYER_ROLES, layerPlace
+} from './engine/05-render-component.js';
+import {
+  getSelectedComponent, seedWithLayerInks, withComponentColours
+} from './engine/06-component-ui.js';
+import {
+  LAYER_NEW_INKS, LAYER_ROLE_ORDER, LIBRARY, hexKey, libraryNames, newLayerId, uniqueLibraryName
+} from './engine/07-library.js';
+import {
+  addSavedToPool
+} from './engine/10-suggest.js';
+import {
+  SYMBOL_LIBRARY
+} from './engine/11-symbol-ui.js';
+import {
+  NEW_LAYER_SCALE
+} from './engine/12-shell.js';
+import {
+  buildPalette, ctrl, syncColorRuleUI, val
 } from './00-core.js';
 import {
-  SEED_TYPES, SEG_WEIGHT_DEF, cellShapeOf, frameDims, setCellShape
+  SEED_TYPES, setCellShape
 } from './01-geometry.js';
 import {
-  CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, fhEditor, foldLegacySeed, panelSeedSnapshot,
-  seedForSnapshot, syncDependentRows, xrId
+  fhEditor, foldLegacySeed, panelSeedSnapshot, seedForSnapshot, syncDependentRows
 } from './02-seed-ui.js';
 import {
-  fitThumbBox, getGrid, setComponentGrid, syncComponentGridUI
+  getGrid, setComponentGrid, syncComponentGridUI
 } from './03-rules.js';
 import {
-  appearanceSnapshot, applyAppearanceToUI, buildComponentItems, syncLookBlocks
+  appearanceSnapshot, applyAppearanceToUI, syncLookBlocks
 } from './04-appearance.js';
 import {
-  LAYER_ROLES, buildComponentSVG, layerInkColor, layerPlace, renderGallery, renderSeedPreview,
-  withEntryInks
+  buildComponentSVG, layerInkColor, renderGallery, renderSeedPreview, withEntryInks
 } from './05-render-component.js';
 import {
-  getSelectedComponent, seedWithLayerInks, syncExhaustiveHint, syncRuleAvailability, syncSeedUI,
-  withComponentColours
+  syncExhaustiveHint, syncRuleAvailability, syncSeedUI
 } from './06-component-ui.js';
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  LIBRARY: () => LIBRARY, applyElementSnapshot: () => applyElementSnapshot,
-  applySeedToPanel: () => applySeedToPanel, deleteQuickSavedComponent: () => deleteQuickSavedComponent,
-  fillPaper: () => fillPaper, hexKey: () => hexKey, isPaperNone: () => isPaperNone,
+  applyElementSnapshot: () => applyElementSnapshot, applySeedToPanel: () => applySeedToPanel,
+  deleteQuickSavedComponent: () => deleteQuickSavedComponent,
   quickSaveComponentToLibrary: () => quickSaveComponentToLibrary, readLookControls: () => readLookControls,
   renderLayersUI: () => renderLayersUI, showLayerStyle: () => showLayerStyle,
   syncActiveLayer: () => syncActiveLayer, syncComponentRoleUI: () => syncComponentRoleUI
 });
-// ── Component Library — save/reload full snapshots (Seed incl. an
-// upload's own geometry, Grid, Palette, and the exact generated
-// arrangement), not just current control state. Organica.presetStore is
-// a generic JSON-blob store (confirmed against Loom's own "Save grid",
-// which persists its whole Universal JSON Model the same way) — one
-// entry here is a complete, self-contained snapshot so loading it later
-// is unambiguous regardless of whatever else is on screen at the time. ──
-export const LIBRARY = Organica.presetStore('fvs');
 
-// Colours are compared and post-processed as STRINGS on the finished SVG
-// (recolourSVG / plateSVG / the paper-rect strip) — a deliberate choice: one
-// pass works for every tier alike, with no per-tier colour plumbing. That is
-// only sound if one colour has one spelling, so hexKey() folds case and the
-// short #abc form, and every entry point (palette, paper, saved entries,
-// recipes) normalises through it.
-// Paper can be transparent: state.paperColor === 'none' (Palette → the checkerboard
-// button next to Paper). In SVG that's just fill="none"; on Canvas nothing is painted.
-export const PAPER_NONE = 'none';
-export const isPaperNone = c => String(c == null ? '' : c).trim().toLowerCase() === PAPER_NONE;
-export function fillPaper(ctx, color, x, y, w, h) {
-  if (!color || isPaperNone(color)) return;
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w, h);
-}
-export const hexKey = c => {
-  c = String(c == null ? '' : c).trim().toLowerCase();
-  return /^#[0-9a-f]{3}$/.test(c) ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c;
-};
 
-// Auto-generated entries ("Tile · <id>", written by tileSelectedInGrid and the
-// recipes so the Grid can tile a Component) are working copies, not the user's
-// own saved work: they carry `auto: true` (older ones are recognised by their
-// name), stay out of every picker/list, and are pruned at boot — the Grid
-// rebuilds one from the live Component and a recipe carries its own entry.
-export const isAutoEntry = (name, e) => !!(e && e.auto) || name.startsWith('Tile · ');
-export const libraryNames = all => Object.keys(all).filter(n => !isAutoEntry(n, all[n]) && !all[n].hidden);
-// A deleted Component / Element that another creation still uses is kept, hidden (deleteSavedComponent):
-// out of every list, still drawn where it is used.
-export const shownElementNames = all => Object.keys(all || {}).filter(n => all[n] && all[n].tile && !all[n].hidden);
-export function pruneAutoLibraryEntries() {
-  const all = LIBRARY.read();
-  const gone = Object.keys(all).filter(n => isAutoEntry(n, all[n]));
-  if (!gone.length) return;
-  gone.forEach(n => delete all[n]);
-  LIBRARY.write(all);
-}
 
 export function buildLibraryEntryFor(comp) {
   if (!comp) return null;
@@ -104,19 +89,6 @@ export function libraryEntryFromLive(comp) {
 }
 export function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedComponent()); }
 
-// The same "<rule> <time>" convention the rail's Save pre-fills the name
-// row with — quick-save just commits it immediately instead of asking.
-// Two quick-saves in the same second (or off two candidates that share a
-// rule) would otherwise collide and silently overwrite one another, so a
-// taken name gets " (2)", " (3)"… appended, same idea as a filesystem's
-// own "file (1).txt" convention.
-export function uniqueLibraryName(base) {
-  const all = LIBRARY.read();
-  if (!all[base]) return base;
-  let i = 2;
-  while (all[`${base} (${i})`]) i++;
-  return `${base} (${i})`;
-}
 
 // One-click save straight from a gallery thumbnail's own hover button —
 // no name prompt, unlike "Save selected to library" below (which stays
@@ -139,7 +111,7 @@ export function quickSaveComponentToLibrary(compId, chosen) {
   const all = LIBRARY.read();
   all[name] = entry;
   LIBRARY.write(all);
-  hooks.addSavedToPool(name);
+  addSavedToPool(name);
   state.selectedId = comp.id;
   state.selectionExplicit = true;
   comp.savedName = name;
@@ -164,7 +136,7 @@ export function saveAllComponentsToLibrary() {
     while (all[name]) name = `${base} (${i++})`;
     all[name] = entry;
     comp.savedName = name;
-    hooks.addSavedToPool(name);
+    addSavedToPool(name);
     added++;
   });
   if (!added) return;
@@ -305,10 +277,6 @@ export function applyPanelSeedRaw(seed) {
 }
 
 
-// ── Layers UI (state.layers) ───────────────────────────────────────────
-// The Seed panel below always edits ONE shape: the active layer. Switching
-// layer saves the panel into the layer being left and loads the new one.
-export const LAYER_NEW_INKS = ['#e8321e', '#0a9a3e', '#1f5fd6', '#f2b300', '#7a3fd1', '#0e9aa7', '#d6336c'];
 export function syncActiveLayer() {
   if (!state.layers) return;
   const l = state.layers.items[state.layers.active];
@@ -329,7 +297,6 @@ export function showLayerStyle(l) {
   ctrl('rg-element-l').value = lk.l; ctrl('v-element-l').textContent = lk.l;
   syncLookBlocks();
 }
-export const newLayerId = () => 'l' + Math.random().toString(36).slice(2, 7);
 export function layersChanged() { renderLayersUI(); renderGallery(); renderSeedPreview(); }
 export function selectLayer(i) {
   if (!state.layers || i === state.layers.active || !state.layers.items[i]) return;
@@ -349,7 +316,7 @@ export function addLayer() {
   // A new layer takes the current layer's look — except after a Segment, whose square caps are forced, not chosen.
   const look = { ...baseLook };
   if (base.type === 'segment' && L.items[L.active].roundedBeforeSegment != null) look.rounded = L.items[L.active].roundedBeforeSegment;
-  L.items.push({ id: newLayerId(), role: 'fill', ink: slot, place: { mx: 0, my: 0, scale: hooks.NEW_LAYER_SCALE, rotate: 0 }, seed, look });
+  L.items.push({ id: newLayerId(), role: 'fill', ink: slot, place: { mx: 0, my: 0, scale: NEW_LAYER_SCALE, rotate: 0 }, seed, look });
   // Above/below is only visible with different colours: make sure the Palette has one for this layer.
   if (state.colors.length <= slot && state.colors.length < PALETTE_MAX) {
     state.colors = state.colors.concat(hexKey(LAYER_NEW_INKS[(slot - 1) % LAYER_NEW_INKS.length]));
@@ -397,7 +364,6 @@ export const LAYER_ICONS = {
   mask: Organica.icons.get('role-mask', { size: 'sm' }),
   pattern: Organica.icons.get('role-pattern', { size: 'sm' }),
 };
-export const LAYER_ROLE_ORDER = ['fill', 'container', 'mask', 'pattern'];
 export const layerName = l => (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
 export function renderLayersUI() {
   const list = ctrl('layers-list'), L = state.layers, place = ctrl('layer-place-block');
@@ -729,9 +695,9 @@ export function renameLibraryEntry(oldName, newName) {
   all[newName] = all[oldName]; delete all[oldName];
   Object.values(all).forEach(e => { if (e.underlyingComponentName === oldName) e.underlyingComponentName = newName; });
   LIBRARY.write(all);
-  const sym = hooks.SYMBOL_LIBRARY.read();
+  const sym = SYMBOL_LIBRARY.read();
   Object.values(sym).forEach(e => (e.cells || []).forEach(c => { if (c.componentName === oldName) c.componentName = newName; }));
-  hooks.SYMBOL_LIBRARY.write(sym);
+  SYMBOL_LIBRARY.write(sym);
   (state.symbolCells || []).forEach(c => { if (c.componentName === oldName) c.componentName = newName; });
   state.symbolPool.forEach(p => { if (p.name === oldName) p.name = newName; });   // the Symbol pool names it too
   if (state.underlyingComponentName === oldName) state.underlyingComponentName = newName;

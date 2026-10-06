@@ -19,6 +19,7 @@ import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { extractEngine } from './fvs-engine.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
@@ -30,9 +31,18 @@ const eslintScope = require(path.join(dir, 'eslint-scope'));
 const DRY = process.argv.includes('--dry');
 
 const JS = path.join(ROOT, 'fvs', 'js');
-const files = fs.readdirSync(JS).filter(f => /^\d\d-.*\.js$/.test(f)).sort();
-const texts = files.map(f => fs.readFileSync(path.join(JS, f), 'utf8'));
-if (texts.some(t => /^export |^import /m.test(t))) { console.error('already modules'); process.exit(1); }
+const classicFiles = fs.readdirSync(JS).filter(f => /^\d\d-.*\.js$/.test(f)).sort();
+const classicTexts = classicFiles.map(f => fs.readFileSync(path.join(JS, f), 'utf8'));
+if (classicTexts.some(t => /^export |^import /m.test(t))) { console.error('already modules'); process.exit(1); }
+// engine first (fvs/js/engine/NN-*.js — model + logic, no DOM UI; scripts/fvs-engine.mjs), then the UI files
+const ENG = extractEngine(classicFiles, classicTexts, { acorn, eslintScope });
+const files = ENG.files;
+const texts = ENG.texts.map((t, i) => !files[i].startsWith('engine/') ? t : [
+  `// Flexible Visual System · ${files[i].replace(/\.js$/, '')} — the engine part of ${files[i].slice(7)}: model + logic, no DOM UI.`,
+  '// Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths',
+  '// and the offscreen measuring helpers. Chosen mechanically by scripts/fvs-engine.mjs. Map: docs/FVS.md §Architecture.',
+  "'use strict';", t].join('\n'));
+const rel = (from, to) => { const r = path.posix.relative(path.posix.dirname(from), to); return r.startsWith('.') ? r : './' + r; };
 let src = ''; const ranges = [];
 texts.forEach((t, i) => { ranges.push({ start: src.length, end: src.length + t.length }); src += t + '\n'; });
 const fileAt = pos => ranges.findIndex(r => pos >= r.start && pos < r.end);
@@ -117,18 +127,18 @@ const out = files.map((f, fi) => {
   const head = lines.slice(0, hi).map(l => l.replace('One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.',
     'An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.'));
   const imp = [];
-  if (usesRt.has(fi)) imp.push(`import { rt } from './rt.js';`);
-  if (usesHooks.has(fi)) imp.push(`import { hooks } from './hooks.js';`);
+  if (usesRt.has(fi)) imp.push(`import { rt } from '${rel(f, 'rt.js')}';`);
+  if (usesHooks.has(fi)) imp.push(`import { hooks } from '${rel(f, 'hooks.js')}';`);
   [...imports[fi].keys()].sort((a, b) => a - b).forEach(from => {
     const names = [...imports[fi].get(from)].sort();
-    imp.push(`import {\n${wrapList(names, '  ')}\n} from './${files[from]}';`);
+    imp.push(`import {\n${wrapList(names, '  ')}\n} from '${rel(f, files[from])}';`);
   });
   const prov = [...provides[fi]].sort();
   // provide() runs first: a file's own load-time code may call an earlier file that reads one of these hooks
   // (the classic scripts had them hoisted). Getters — a const is read only when asked for, as before.
   const prov_ = prov.length ? [`// Names earlier files reach at run time (hooks.*) — live getters.`,
     `provide({\n${wrapList(prov.map(n => `${n}: () => ${n}`), '  ')}\n});`] : [];
-  if (prov.length) imp.push(`import { provide } from './hooks.js';`);
+  if (prov.length) imp.push(`import { provide } from '${rel(f, 'hooks.js')}';`);
   return [...head, ...imp, ...prov_, ...lines.slice(hi + 1)].join('\n').replace(/\n*$/, '\n');
 });
 // the one test hook in the tool's code: a function wrapping loadSymbolGrid from outside can no longer reach the
@@ -143,8 +153,9 @@ const out = files.map((f, fi) => {
   if (!out[fi].includes(`import { rt } from './rt.js';`)) out[fi] = out[fi].replace(/^(\/\/.*\n)+/, m => m + `import { rt } from './rt.js';\n`);
 }
 // merge a duplicate hooks import line (provide + hooks)
-for (let fi = 0; fi < out.length; fi++) out[fi] = out[fi].replace(`import { hooks } from './hooks.js';\n`, m => out[fi].includes(`import { provide } from './hooks.js';`) ? '' : m)
-  .replace(`import { provide } from './hooks.js';`, m => usesHooks.has(fi) ? `import { hooks, provide } from './hooks.js';` : m);
+for (let fi = 0; fi < out.length; fi++) { const h = rel(files[fi], 'hooks.js');
+  out[fi] = out[fi].replace(`import { hooks } from '${h}';\n`, m => out[fi].includes(`import { provide } from '${h}';`) ? '' : m)
+    .replace(`import { provide } from '${h}';`, m => usesHooks.has(fi) ? `import { hooks, provide } from '${h}';` : m); }
 
 const RT_JS = `// Flexible Visual System · rt — the top-level variables more than one file assigns (an imported binding is
 // read-only, so they live here as properties). Each file still sets its own initial value where it always did.
@@ -162,7 +173,7 @@ export function provide(getters) {
   for (const [name, get] of Object.entries(getters)) Object.defineProperty(hooks, name, { get, enumerable: true, configurable: true });
 }
 `;
-const nsName = f => 'm' + f.slice(0, 2);
+const nsName = f => (f.startsWith('engine/') ? 'e' : 'm') + path.posix.basename(f).slice(0, 2);
 const TS_JS = `// Flexible Visual System · test surface — window.__fvs: every name the files export, as live getters, plus the
 // variables on rt (get + set) and the test flags. For fvs/_test-regression.html (it runs its battery inside
 // \`with (window.__fvs)\`, so the battery's bare names still resolve) and scripts/test-fvs-*.mjs.
@@ -191,17 +202,19 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fvs-mod-'));
 const all = { ...Object.fromEntries(files.map((f, i) => [f, out[i]])), 'rt.js': RT_JS, 'hooks.js': HOOKS_JS, 'test-surface.js': TS_JS, 'main.js': MAIN_JS };
 const errs = [];
 for (const [f, t] of Object.entries(all)) {
-  const p = path.join(tmp, f.replace(/\.js$/, '.mjs')); fs.writeFileSync(p, t);
+  const p = path.join(tmp, f.replace(/\//g, '__').replace(/\.js$/, '.mjs')); fs.writeFileSync(p, t);
   try { execFileSync(process.execPath, ['--check', p], { stdio: 'pipe' }); } catch (e) { errs.push(`${f}: ${String(e.stderr).split('\n').slice(0, 5).join(' ')}`); }
 }
 fs.rmSync(tmp, { recursive: true, force: true });
+console.log(`fvs-modules: engine ${ENG.report.statements} statements / ${ENG.report.kb} KB in ${files.filter(f => f.startsWith('engine/')).length} files`);
 console.log(`fvs-modules: ${files.length} files · ${up} upward refs via hooks (${provides.reduce((a, s) => a + s.size, 0)} names) · rt: ${[...RT].join(', ')}`);
 if (errs.length) { console.log('FAIL\n  ' + errs.join('\n  ')); process.exit(1); }
 if (!DRY) {
+  fs.mkdirSync(path.join(JS, 'engine'), { recursive: true });
   for (const [f, t] of Object.entries(all)) fs.writeFileSync(path.join(JS, f), t);
   const page = path.join(ROOT, 'fvs', 'index.html');
   let html = fs.readFileSync(page, 'utf8');
-  const tags = files.map(f => `<script src="/fvs/js/${f}"></script>\n`).join('');
+  const tags = classicFiles.map(f => `<script src="/fvs/js/${f}"></script>\n`).join('');
   if (!html.includes(tags)) throw new Error('script tags not found in fvs/index.html');
   html = html.replace(tags, `<script type="module" src="/fvs/js/main.js"></script>\n`)
     .replace(`<!-- Flexible Visual System — the tool's own scripts, classic, in order (one shared global scope). Map: docs/FVS.md §Architecture -->`,

@@ -3,18 +3,27 @@
 // Architecture + file map: docs/FVS.md §Architecture.
 import {
   state
-} from './00-core.js';
+} from './engine/00-core.js';
 import {
-  ELEMENT_LIB, elementLibraryChanged
+  ELEMENT_LIB
+} from './engine/04-appearance.js';
+import {
+  LIBRARY, pruneAutoLibraryEntries
+} from './engine/07-library.js';
+import {
+  SYMBOL_LIBRARY
+} from './engine/11-symbol-ui.js';
+import {
+  elementLibraryChanged
 } from './04-appearance.js';
 import {
   renderGallery, renderSeedPreview
 } from './05-render-component.js';
 import {
-  LIBRARY, pruneAutoLibraryEntries, renderLibrary
+  renderLibrary
 } from './07-library.js';
 import {
-  SYMBOL_LIBRARY, renderSymbolLibrary
+  renderSymbolLibrary
 } from './11-symbol-ui.js';
 import {
   setTier

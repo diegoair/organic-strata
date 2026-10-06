@@ -211,6 +211,30 @@ if r.returncode:
 else:
     ok("clean")
 
+# 5b. FVS engine stays engine — fvs/js/engine/*.js is model + logic with no DOM UI (docs/FVS.md
+# §Architecture). It may import only other engine files and ../hooks.js / ../rt.js, never a UI file, and use
+# the DOM only to measure / composite offscreen (createElement / createElementNS / body append + remove); the
+# model's stores (presetStore 'fvs' / 'fvs-element' / 'fvs-symbols', the Genesis library, ORGANIC_SEEDS) are allowed.
+print("fvs engine")
+eng = sorted(f for f in subprocess.run(["git", "ls-files", "fvs/js/engine"], capture_output=True, text=True).stdout.split() if f.endswith(".js"))
+ENGINE_BAD = re.compile(r"\b(ctrl|val|setStatus)\(|\bwindow\.|localStorage|addEventListener|querySelector|getElementById|innerHTML|\bOrganica\.(download|icons|popover|prompt|confirm|notice|store\b|presetStore|dirty|selectPicker)")
+MODEL_OK = re.compile(r"Organica\.presetStore\('fvs(-element|-symbols)?'\)|Organica\.store\.library\.read\(\)|window\.ORGANIC_SEEDS")
+DOM_OK = re.compile(r"document\.(createElement|createElementNS)\(|document\.body\.(appendChild|removeChild)\(")
+bad_e = []
+for f in eng:
+    for n, line in enumerate(open(f, encoding="utf-8"), 1):
+        code = line.split("//")[0]
+        m = re.search(r"from '([^']+)'", line)
+        if m and not (m.group(1).startswith("./") or m.group(1) in ("../hooks.js", "../rt.js")):
+            bad_e.append(f"{f}:{n} imports {m.group(1)} (engine imports engine only)")
+        code = MODEL_OK.sub("", code)   # the model's own stores + data sources are engine by design
+        if ENGINE_BAD.search(code) or ("document." in code and not DOM_OK.search(code)):
+            bad_e.append(f"{f}:{n} {code.strip()[:90]}")
+for b in bad_e[:12]:
+    fail("fvs engine: " + b)
+if eng and not bad_e:
+    ok(f"{len(eng)} engine files — no panel, page or UI import")
+
 # 6. fvs-field: the data it bakes to run alone = what shapes / palette / color produce
 print("fvs-field baked data")
 r = subprocess.run(["node", "scripts/test-fvs-field.mjs"], capture_output=True, text=True)

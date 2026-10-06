@@ -3,24 +3,56 @@
 // Architecture + file map: docs/FVS.md §Architecture.
 import { rt } from './rt.js';
 import {
-  DEFAULT_COLOR_RULE, buildPalette, ctrl, state, syncColorRuleUI, syncQuadrantHint, val
+  DEFAULT_COLOR_RULE, state
+} from './engine/00-core.js';
+import {
+  frameDims, shapeHasCorners
+} from './engine/01-geometry.js';
+import {
+  CIRCLE_PARAMS, SEED_EXTRAS, xrId
+} from './engine/02-seed-ui.js';
+import {
+  GALLERY_ZOOM_MAX
+} from './engine/03-rules.js';
+import {
+  DEFAULT_APPEARANCE, PATTERN_DEFAULTS
+} from './engine/04-appearance.js';
+import {
+  layerPlace
+} from './engine/05-render-component.js';
+import {
+  LIBRARY, PAPER_NONE, hexKey, isPaperNone, libraryNames
+} from './engine/07-library.js';
+import {
+  snapPose
+} from './engine/08-symbol-grid.js';
+import {
+  elementPool
+} from './engine/10-suggest.js';
+import {
+  ARC_PRESETS, FVS_EXTRAS_LABELS, FVS_RETIRED_EXTRAS, FVS_SEED_ORDER, NEW_LAYER_SCALE, OUTLINE_ICONS,
+  POLY_PRESETS, STEP_EXPORT_HINTS, TRI_PRESETS, TRU_IDS, TRU_NEUTRAL, TRU_PRESETS, WEDGE_PRESETS,
+  fvsGalleryLive, fvsSurfaceLive
+} from './engine/12-shell.js';
+import {
+  buildPalette, ctrl, syncColorRuleUI, syncQuadrantHint, val
 } from './00-core.js';
 import {
-  BASE_GEOMETRY, SEED_TYPES, frameDims, setCellShape, shapeHasCorners
+  BASE_GEOMETRY, SEED_TYPES, setCellShape
 } from './01-geometry.js';
 import {
-  CIRCLE_PARAMS, SEED_EXTRAS, fhEditor, getPanelSeed, getSeed, handleSeedUpload, seedForSnapshot,
-  syncCircleRows, syncCopiesRows, syncDependentRows, syncFreehandEditor, xrId
+  fhEditor, getPanelSeed, getSeed, handleSeedUpload, seedForSnapshot, syncCircleRows, syncCopiesRows,
+  syncDependentRows, syncFreehandEditor
 } from './02-seed-ui.js';
 import {
-  GALLERY_ZOOM_MAX, getGrid, setGalleryThumbVars, syncComponentGridUI
+  getGrid, setGalleryThumbVars, syncComponentGridUI
 } from './03-rules.js';
 import {
-  DEFAULT_APPEARANCE, PATTERN_DEFAULTS, getElementAppearance, readPatternControls, showPatternControls,
-  syncGroundBlock, syncGroundInkOptions, syncGroundTileNote, syncLookBlocks, withAppearance
+  getElementAppearance, readPatternControls, showPatternControls, syncGroundBlock, syncGroundInkOptions,
+  syncGroundTileNote, syncLookBlocks, withAppearance
 } from './04-appearance.js';
 import {
-  elementPathMarkup, exportElement, layerPlace, renderGallery, renderSeedPreview, setElementView
+  elementPathMarkup, exportElement, renderGallery, renderSeedPreview, setElementView
 } from './05-render-component.js';
 import {
   clearGallery, exitComponentEditMode, exportSelected, generate, generateColourways,
@@ -28,15 +60,14 @@ import {
   syncExhaustiveHint, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant
 } from './06-component-ui.js';
 import {
-  LIBRARY, PAPER_NONE, hexKey, isPaperNone, libraryNames, readLookControls, renderLayersUI, renderLibrary,
-  restoreComponentElementState, snapshotComponentElementState
+  readLookControls, renderLayersUI, renderLibrary, restoreComponentElementState,
+  snapshotComponentElementState
 } from './07-library.js';
 import {
-  buildEmptySymbolGrid, buildFitAllAnchorGrid, exportFvsGrid, handleSymbolGridUpload, snapPose,
-  syncFitAnchorUI
+  buildEmptySymbolGrid, buildFitAllAnchorGrid, exportFvsGrid, handleSymbolGridUpload, syncFitAnchorUI
 } from './08-symbol-grid.js';
 import {
-  elementPool, generateSymbolCells, renderSymbolPool, setSugDockOpen, sugDockIsOpen
+  generateSymbolCells, renderSymbolPool, setSugDockOpen, sugDockIsOpen
 } from './10-suggest.js';
 import {
   applySymbolRule, applyToSelection, bindSymbolCanvasSelection, bindSymbolTrackDrag,
@@ -47,20 +78,13 @@ import {
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  NEW_LAYER_SCALE: () => NEW_LAYER_SCALE, onAppearanceChange: () => onAppearanceChange,
-  paperSwatch: () => paperSwatch, setPaperUI: () => setPaperUI, syncArcType: () => syncArcType,
-  syncExtrasTypes: () => syncExtrasTypes, syncFvsZoomHud: () => syncFvsZoomHud,
-  syncIrregularRows: () => syncIrregularRows, syncPolyStepMax: () => syncPolyStepMax,
-  syncPolyType: () => syncPolyType, syncSymbolViewUI: () => syncSymbolViewUI,
-  syncTriType: () => syncTriType, syncTruType: () => syncTruType, syncWedgeType: () => syncWedgeType
+  onAppearanceChange: () => onAppearanceChange, paperSwatch: () => paperSwatch,
+  setPaperUI: () => setPaperUI, syncArcType: () => syncArcType, syncExtrasTypes: () => syncExtrasTypes,
+  syncFvsZoomHud: () => syncFvsZoomHud, syncIrregularRows: () => syncIrregularRows,
+  syncPolyStepMax: () => syncPolyStepMax, syncPolyType: () => syncPolyType,
+  syncSymbolViewUI: () => syncSymbolViewUI, syncTriType: () => syncTriType, syncTruType: () => syncTruType,
+  syncWedgeType: () => syncWedgeType
 });
-// ── Components ↔ Symbols tab switch ──
-export const STEP_EXPORT_HINTS = {
-  element: 'Exports the current Element on its own, at 0°.',
-  component: 'Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).',
-  symbol: 'Exports the current Symbol. Paper background (Palette section), real nested vector geometry.',
-  figure: 'Exports the figure as drawn (SVG: real vector geometry, one path per shape; PNG: the same drawing rasterised).',
-};
 
 export function updateStepHint(tier) {
   let msg = '';
@@ -170,9 +194,7 @@ export var FVS_ZOOM_SURFACES = [
   { tier: 'symbol', canvas: 'symbol-frame' },
 ];
 export var fvsZoom = {};
-export function fvsSurfaceLive(sf) { return state.activeTier === sf.tier && (!sf.ready || sf.ready()); }
 export function fvsZoomActive() { if (!FVS_ZOOM_SURFACES) return null; const sf = FVS_ZOOM_SURFACES.find(fvsSurfaceLive); return sf ? fvsZoom[sf.tier] : null; }
-export function fvsGalleryLive() { return state.activeTier === 'component' && !state.componentEditMode; }
 export function galleryZoomTo(z) {
   rt.galleryZoom = Math.min(GALLERY_ZOOM_MAX, Math.max(1, z));
   setGalleryThumbVars(frameDims(getGrid()));
@@ -209,10 +231,6 @@ window.addEventListener('keydown', e => {
   else if (e.key === '0') { e.preventDefault(); galleryZoomTo(1); }
 });
 
-// ── Wiring ──
-// Triangle Type is a derived shortcut, not stored state: picking one writes
-// Base/Height/Apex X; any hand edit of those three flips it back to Custom.
-export const TRI_PRESETS = { isosceles: [100, 100, 50], right: [100, 100, 0], equilateral: [100, 87, 50] };
 export function syncTriType() {
   const cur = [val('rg-base'), val('rg-height'), val('rg-tri-apex')];
   const hit = Object.keys(TRI_PRESETS).find(k => TRI_PRESETS[k].every((v, i) => v === cur[i]));
@@ -227,16 +245,6 @@ ctrl('sel-tri-type').addEventListener('change', e => {
 ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-tri-apex').addEventListener('input', e => { ctrl('v-tri-apex').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
-// Arc truchet Type is a derived shortcut over several controls (no stored
-// state): picking one writes them, any hand edit flips it back to Custom.
-export const TRU_PRESETS = {
-  butterfly: { fans: 2, count: 5, ratio: 70, core: 0, round: 0 },
-  rainbow:   { fans: 1, count: 5, ratio: 60, core: 0, round: 0 },
-  horseshoe: { fans: 1, count: 4, ratio: 60, core: 35, round: 100 },
-  halo:      { fans: 2, count: 4, ratio: 55, core: 40, round: 100 },
-};
-export const TRU_NEUTRAL = { spread: 180, reach: 100, ramp: 0, curve: 0, segs: 1 };   // a preset always resets these
-export const TRU_IDS = { count: 'rg-arc-count', ratio: 'rg-arc-ratio', core: 'rg-tru-core', round: 'rg-tru-round', spread: 'rg-tru-spread', reach: 'rg-tru-reach', ramp: 'rg-tru-ramp', curve: 'rg-tru-curve', segs: 'rg-tru-segs' };
 export function truState() { const o = { fans: +ctrl('sel-tru-fans').value }; Object.keys(TRU_IDS).forEach(k => { o[k] = val(TRU_IDS[k]); }); return o; }
 export function syncTruType() {
   const cur = truState();
@@ -253,8 +261,6 @@ ctrl('sel-tru-type').addEventListener('change', e => {
 });
 ctrl('sel-tru-fans').addEventListener('change', () => { syncTruType(); renderGallery(); renderSeedPreview(); });
 Object.values(TRU_IDS).concat(['rg-tru-gap']).forEach(id => ctrl(id).addEventListener('input', syncTruType));
-// Arc Type is a derived shortcut for Sweep, same idea as Triangle Type.
-export const ARC_PRESETS = { quarter: 90, half: 180, threequarter: 270 };   // no 'ring' (Oct 4, 2026): Sweep stops at 350, so it was never closed — a full ring is Circle → Interior Ring
 export function syncArcType() {
   const cur = val('rg-arc-sweep');
   ctrl('sel-arc-type').value = Object.keys(ARC_PRESETS).find(k => ARC_PRESETS[k] === cur) || 'custom';
@@ -269,8 +275,6 @@ ctrl('rg-arc-sweep').addEventListener('input', syncArcType);
 ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
-// Wedge Type is a derived shortcut for Angle + Inner radius (same idea as Arc Type).
-export const WEDGE_PRESETS = { quarter: [90, 0], half: [180, 0], threequarter: [270, 0] };   // 'ring' dropped Oct 4, 2026 — the same annulus as Circle → Interior Ring; Angle 360 still makes it
 export function syncWedgeType() {
   const cur = [val('rg-wedge-angle'), val('rg-wedge-inner')];
   ctrl('sel-wedge-type').value = Object.keys(WEDGE_PRESETS).find(k => WEDGE_PRESETS[k].every((v, i) => v === cur[i])) || 'custom';
@@ -287,25 +291,6 @@ ctrl('sel-wedge-type').addEventListener('change', e => {
 ctrl('rg-wedge-angle').addEventListener('input', e => { ctrl('v-wedge-angle').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').textContent = e.target.value; syncWedgeType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-wedge-squash').addEventListener('input', e => { ctrl('v-wedge-squash').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
-// A shape's own Rotate (shared/shapes.js EXTRAS, also read by Genesis) is retired in FVS — Appearance → Rotate
-// does it for every shape. The row is still built, into the hidden #seed-legacy, so old snapshots round-trip.
-export const FVS_RETIRED_EXTRAS = new Set(['starRotate', 'rrRotate', 'chevRotate', 'crossRotate', 'lensRotate', 'dropRotate',
-  'starOutline', 'rrOutline', 'lensOutline', 'blobOutline',   // + the shape-own Outlines → Appearance → Cut out
-  'starSkew']);   // + Star's Angle jitter → Appearance → Irregularity
-// One name per idea across every shape (Oct 4, 2026): FVS's own labels for a few shared rows — the shared table
-// keeps its own, Genesis reads it. key → [label, title?].
-export const FVS_EXTRAS_LABELS = {
-  starStyle: ['Rounding style'], rrStyle: ['Rounding style'],
-  chevRound: ['Rounding'], chevStyle: ['Rounding style', 'How corners are cut when Rounding is above 0.'],
-  crossStyle: ['Rounding style', 'How corners are cut when Rounding is above 0.'],
-};
-// The same row order in every Seed: Type · proportions · rounding (then its style, then curvature) · the shape's
-// own details · repeats inside the shape. Blocks whose rows come partly from the shared table are re-ordered here.
-export const FVS_SEED_ORDER = {
-  roundedrect: ['sel-rr-type', 'rg-rr-width', 'rg-rr-height', 'rg-rr-skew', 'rg-rr-corner', 'sel-rr-style', 'sel-rr-mask', 'rg-rr-curve'],
-  cross: ['sel-cross-type', 'rg-cross-arms', 'rg-cross-armwidth', 'rg-cross-armlength', 'rg-cross-corner', 'sel-cross-style', 'rg-cross-taper', 'sel-cross-tip'],
-  blob: ['rg-blob-amount', 'rg-blob-freq', 'rg-blob-smooth', 'rg-blob-seed'],
-};
 // Build the extras rows into each shape's block, then wire them (label readout,
 // derived Type shortcut, re-render). Called once at boot, before the first render.
 export function buildSeedExtras() {
@@ -364,10 +349,6 @@ buildSeedExtras();
 ['input', 'change'].forEach(ev => ctrl('sel-seed-type').closest('.panel-section').addEventListener(ev, syncDependentRows));
 ['rg-inner-count', 'rg-inner-ratio', 'sel-inner-anchor'].forEach(id => ['input', 'change'].forEach(ev => ctrl(id).addEventListener(ev, syncCopiesRows)));   // on the inputs: they travel into a layer's card with the look block
 
-// Polygon Type is a derived shortcut for Sides. Triangle and Square were dropped (Oct 4, 2026) — they are
-// shapes of their own (Triangle, Square); a snapshot with 3 or 4 sides reads Custom.
-// Step is capped by Sides (a star polygon {n/k} needs k < n/2).
-export const POLY_PRESETS = { pentagon: [5], hexagon: [6], octagon: [8] };
 export function syncPolyType() {
   const cur = [val('rg-poly-sides')];
   ctrl('sel-poly-type').value = Object.keys(POLY_PRESETS).find(k => POLY_PRESETS[k].every((v, i) => v === cur[i])) || 'custom';
@@ -428,7 +409,6 @@ ctrl('fb-cell-shape').addEventListener('click', e => {
   const b = e.target.closest('[data-cell]'); if (!b || b.dataset.cell === state.cellShape) return;
   setCellShape(b.dataset.cell);
 });
-export const OUTLINE_ICONS = { hexagon: 'fvs-cell-hexagon', triangle: 'fvs-cell-triangle', diamond: 'fvs-diamond', square: 'fvs-cell-square' };
 ctrl('seg-grid-outline').querySelectorAll('.seg-btn').forEach(b => { b.innerHTML = Organica.icons.get(OUTLINE_ICONS[b.dataset.outline]); });
 ctrl('seg-grid-outline').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b || b.getAttribute('aria-disabled') === 'true') return;
@@ -589,7 +569,6 @@ ctrl('sel-inner-anchor').addEventListener('change', () => { renderGallery(); ren
 // back what you had. In a multi-layer Element this is the ACTIVE layer's own
 // setting only (remembered on the layer itself), never the other layers'.
 export let roundedBeforeSegment = null;
-export const NEW_LAYER_SCALE = 0.6;   // a new layer starts smaller so it shows on top of the one below (addLayer)
 export function readShapeLook() {
   return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l'),
     scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), rotate: val('rg-element-rotate'), cutOut: val('rg-element-cutout'),
