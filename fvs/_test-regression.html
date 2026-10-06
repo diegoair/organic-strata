@@ -33,7 +33,8 @@
 <iframe id="frame" src="/fvs/" title="Flexible Visual System under test"></iframe>
 
 <script>
-// Executed INSIDE the Flexible Visual System page (via eval in the frame), so it sees its globals.
+// Executed INSIDE the Flexible Visual System page (via eval in the frame, inside `with (window.__fvs)`), so its
+// bare names resolve to the tool's module exports — fvs/js/test-surface.js puts every one on window.__fvs.
 async function battery() {
   const H = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };
   // <metadata> carries a timestamp and the last-selected rule name (module state) — neither is geometry.
@@ -54,8 +55,7 @@ async function battery() {
   // floatbar (a new grid now starts unclipped). They still test the clipped drawing — the harder path — so the
   // battery pins it: every grid it loads, directly or through the page's own code, comes back clipped. The
   // default itself is the last case (symbol:clip:default), on the page's real loadSymbolGrid.
-  const loadSymbolGrid0 = loadSymbolGrid;
-  window.loadSymbolGrid = m => { loadSymbolGrid0(m); state.symbolClipEnabled = true; syncSymbolViewUI(); };
+  afterLoadSymbolGrid = m => { state.symbolClipEnabled = true; syncSymbolViewUI(); };   // rt hook, called by loadSymbolGrid itself
 
   // 1 — every Seed type at its defaults
   reset();
@@ -1150,7 +1150,7 @@ async function battery() {
   const lib = LIBRARY.read(); Object.keys(lib).filter(k => k.startsWith('Tile · recipe-')).forEach(k => delete lib[k]); LIBRARY.write(lib);
   reset();
   // the default of a new grid: unclipped, and the drawing carries no clip path
-  window.loadSymbolGrid = loadSymbolGrid0;
+  afterLoadSymbolGrid = null;
   setTier('symbol'); loadSymbolGrid(squareLoomModel(2, 2));
   put('symbol:clip:default', [state.symbolClipEnabled, /<clipPath/.test(buildSymbolSVG()), JSON.stringify(state.symbolView)].join(','));
   setTier('component');
@@ -1168,8 +1168,8 @@ async function loadBaseline() {
 async function run() {
   $('summary').textContent = 'Running…';
   const w = frame.contentWindow;
-  if (!w || !w.eval || !w.document || w.document.readyState !== 'complete') { $('summary').textContent = 'Flexible Visual System is still loading — try again in a second.'; return; }
-  try { last = await w.eval('(' + battery.toString() + ')()'); }
+  if (!w || !w.eval || !w.document || w.document.readyState !== 'complete' || !(w.__fvs && w.__fvs.isReady)) { $('summary').textContent = 'Flexible Visual System is still loading — try again in a second.'; return; }
+  try { last = await w.eval('with (window.__fvs) { (' + battery.toString() + ')() }'); }
   catch (e) { $('summary').innerHTML = '<span class="bad">Battery threw: ' + e.message + '</span>'; return; }
   baseline = await loadBaseline();
   const keys = Object.keys(last);
@@ -1190,7 +1190,8 @@ $('run').addEventListener('click', run);
 // exposes the verdict as <body data-result="pass|fail|error" data-detail="...">.
 if (new URLSearchParams(location.search).has('auto')) {
   const go = async () => {
-    for (let i = 0; i < 100 && !(frame.contentWindow && frame.contentWindow.document && frame.contentWindow.document.readyState === 'complete'); i++) await new Promise(r => setTimeout(r, 200));
+    const up = () => { const w = frame.contentWindow; return w && w.document && w.document.readyState === 'complete' && w.__fvs && w.__fvs.isReady; };
+    for (let i = 0; i < 100 && !up(); i++) await new Promise(r => setTimeout(r, 200));
     await new Promise(r => setTimeout(r, 1500)); // let Flexible Visual System boot (library pull, first render)
     await run();
     const t = $('summary').textContent;

@@ -1,7 +1,41 @@
 // Flexible Visual System · 09-symbol-render — Symbol render — spans, outlines, buildSymbolItems / buildSymbolSVG / drawSymbolCanvas.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import {
+  cellInk, cellOwnInks, entryInkAt, state
+} from './00-core.js';
+import {
+  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameDims, frameSize, polygonCellTurn, resolveCellPlacement,
+  resolveGridCells
+} from './01-geometry.js';
+import {
+  SYMBOL_SEED_DEFAULTS
+} from './02-seed-ui.js';
+import {
+  mod360
+} from './03-rules.js';
+import {
+  DEFAULT_APPEARANCE, buildComponentItems, paintPaperPatternCanvas, paperPatternSVG, resolveItemGeo,
+  withAppearance
+} from './04-appearance.js';
+import {
+  applyElementStretchCanvas, clipToCellShapes, elementPathMarkup, latticeShapePath, nextDrawId,
+  paintGeoCanvas, withEntryInks
+} from './05-render-component.js';
+import {
+  LIBRARY, fillPaper, isPaperNone
+} from './07-library.js';
+import {
+  alignedPlacements, getSymbolGrid, overlapGrowth, symbolFrame, symbolLook, withPlacementDefaults
+} from './08-symbol-grid.js';
+import { provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  buildSymbolSVG: () => buildSymbolSVG, cellPolygon: () => cellPolygon,
+  cellSeedOutline: () => cellSeedOutline, placeInBox: () => placeInBox,
+  symbolCellBoxes: () => symbolCellBoxes, symbolSpanLayout: () => symbolSpanLayout
+});
 // resolveCellPlacement(cellW, cellH, natural, cell) — moved to
 // shared/shapes.js, aliased at the top of this script. Shared by both
 // source types and both render paths (SVG string, Canvas2D) — turns fit
@@ -23,8 +57,8 @@
 // A cell opts in with `span: true` (Arrange and manual placement set it); where
 // the block does not fit — the grid's edge, a cell already covered, a locked
 // cell — the Component sits in its own cell, reduced, as before.
-let _symLattice = { key: null, lat: null };
-function symbolLattice(grid) {
+export let _symLattice = { key: null, lat: null };
+export function symbolLattice(grid) {
   if (!grid || grid.cellShape === 'polygon' || !grid.cells || !grid.cells.length) return null;
   if (_symLattice.key === grid.cells) return _symLattice.lat;
   const r3 = v => Math.round(v * 1000) / 1000;
@@ -41,9 +75,9 @@ function symbolLattice(grid) {
   _symLattice = { key: grid.cells, lat };
   return lat;
 }
-const _gcd = (a, b) => b ? _gcd(b, a % b) : a;
+export const _gcd = (a, b) => b ? _gcd(b, a % b) : a;
 // The block a Component asks for, in Symbol cells, at this turn (90°/270° swap it).
-function componentSpanOf(name, rotation) {
+export function componentSpanOf(name, rotation) {
   const entry = name && LIBRARY.read()[name];
   const g = entry && entry.grid;
   if (!g || g.kind === 'loom' || !g.cols) return [1, 1];
@@ -52,7 +86,7 @@ function componentSpanOf(name, rotation) {
   return (q === 90 || q === 270) ? [r / k, c / k] : [c / k, r / k];
 }
 // The cells of a block anchored at cell i, or null when it does not fit.
-function spanBlock(lat, i, span, taken, cells) {
+export function spanBlock(lat, i, span, taken, cells) {
   const c0 = lat.col[i], r0 = lat.row[i], out = [];
   for (let r = r0; r < r0 + span[1]; r++) for (let c = c0; c < c0 + span[0]; c++) {
     const k = lat.at(c, r);
@@ -63,7 +97,7 @@ function spanBlock(lat, i, span, taken, cells) {
 }
 // Who covers whom in the current Symbol: covered[k] = the anchor's index;
 // region[i] = the anchor's block as a resolved centre + a raw rect.
-function symbolSpanLayout(grid, cells) {
+export function symbolSpanLayout(grid, cells) {
   const out = { covered: {}, region: {} };
   const lat = symbolLattice(grid);
   if (!lat) return out;
@@ -98,7 +132,7 @@ function symbolSpanLayout(grid, cells) {
 // block, and the modules in it move / stretch with it (kx, ky = the module's extra scale, read by the SVG
 // and canvas drawers). Follows the cell's turn and flips (which frame axis lies along which block axis,
 // and in which direction). Equal cells → the items come back untouched (same drawing as before).
-function modulesToBlockCells(items, W, H, reg, cell) {
+export function modulesToBlockCells(items, W, H, reg, cell) {
   const rot = ((cell.rotation || 0) % 360 + 360) % 360, swap = rot === 90 || rot === 270;
   // world direction of the frame's x / y axes after flip + turn: +1 / −1 along the block axis they lie on
   const dirX = (cell.flipH ? -1 : 1) * (rot === 0 || rot === 90 ? 1 : -1), dirY = (cell.flipV ? -1 : 1) * (rot === 0 || rot === 270 ? 1 : -1);
@@ -123,7 +157,7 @@ function modulesToBlockCells(items, W, H, reg, cell) {
 // the cell's centroid, scaled corner to corner, turned to the cell's pose (a down triangle, a pointy-top
 // hexagon); the cell's own turn snaps to the shape's step. `poly` is relative to the cell's centre.
 // null = the cell is not that shape (the caller falls back to Contain).
-function matchCellPlacement(shape, poly, cell) {
+export function matchCellPlacement(shape, poly, cell) {
   if (!poly || shape === 'square') return null;
   const n = poly.length, want = shape === 'triangle' ? 3 : shape === 'hexagon' ? 6 : 0;
   if (want ? n !== want : n < 12) return null;
@@ -133,7 +167,7 @@ function matchCellPlacement(shape, poly, cell) {
   const st = CELL_SHAPES[shape].step, k = (R / CELL_SHAPES[shape].R) * (cell.scale == null ? 1 : cell.scale);
   return { scaleX: k, scaleY: k, offsetX: mx, offsetY: my, rotate: mod360(polygonCellTurn(shape, poly, mx, my) + Math.round((cell.rotation || 0) / st) * st) };
 }
-function placeInBox(c, natural, cell, poly, outline) {
+export function placeInBox(c, natural, cell, poly, outline) {
   if (cell.fitMode === 'match' && natural === 100 && cell.source !== 'component') {
     const m = matchCellPlacement(cellShapeOf(cell.seedParams), poly, cell);
     if (m) return m;
@@ -145,9 +179,9 @@ function placeInBox(c, natural, cell, poly, outline) {
 // The real outline of a Seed's shape, as points about its 0..100 box centre (as drawn: the geometry's own
 // normalisation), sampled along the path — so Contain in a polygon fits the SHAPE (a turned triangle, a star),
 // not its square box. Cached per path. null → the box is used (a stack of layers, no DOM).
-const outlineCache = new Map();
-let outlineProbe = null;
-function seedOutline(geo) {
+export const outlineCache = new Map();
+export let outlineProbe = null;
+export function seedOutline(geo) {
   if (!geo || geo.layers || !geo.d || typeof document === 'undefined') return null;
   const key = geo.d + '|' + geo.normTx + '|' + geo.normTy + '|' + geo.normScale;
   if (outlineCache.has(key)) return outlineCache.get(key);
@@ -168,12 +202,12 @@ function seedOutline(geo) {
   outlineCache.set(key, pts);
   return pts;
 }
-function cellSeedOutline(cell) {
+export function cellSeedOutline(cell) {
   if (!cell || cell.source !== 'seed' || !SEED_TYPES[cell.seedType]) return null;
   return seedOutline(SEED_TYPES[cell.seedType].geometry(cell.seedParams || SYMBOL_SEED_DEFAULTS));
 }
 // A polygon cell's points relative to its centre (the point content is placed about); null on a rect grid.
-function cellPolygon(grid, i) {
+export function cellPolygon(grid, i) {
   const raw = grid && grid.cellShape === 'polygon' && grid.cells[i];
   return raw && raw.points && raw.centroid ? raw.points.map(p => [p[0] - raw.centroid[0], p[1] - raw.centroid[1]]) : null;
 }
@@ -181,7 +215,7 @@ function cellPolygon(grid, i) {
 // lie inside the SHAPE, not only inside its bounding box (a square contained in a hexagon's box sticks out
 // of its slanted sides). The largest scale that fits, found by bisection at the cell's centre, then the
 // Anchor slides it towards its side as far as it stays inside. It only shrinks what would stick out.
-function containInPolygon(c, natural, cell, poly, place, outline) {
+export function containInPolygon(c, natural, cell, poly, place, outline) {
   const inside = (x, y) => { let r = false; for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) { const [xa, ya] = poly[a], [xb, yb] = poly[b]; if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) r = !r; } return r; };
   const base = resolveCellPlacement(c.cellW, c.cellH, natural, { ...cell, scale: 1, anchorX: 0, anchorY: 0 });
   const W = natural.w || natural, H = natural.h || natural, rad = (cell.rotation || 0) * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
@@ -206,13 +240,13 @@ function containInPolygon(c, natural, cell, poly, place, outline) {
 }
 // The box each Symbol cell's content is placed in: its own cell, or — for a
 // spanning Component — its whole block; null for a cell inside a block.
-function symbolCellBoxes(grid) {
+export function symbolCellBoxes(grid) {
   const res = resolveGridCells(grid), L = symbolSpanLayout(grid, state.symbolCells);
   return res.map((c, i) => L.covered[i] != null ? null : (L.region[i] ? L.region[i].c : c));
 }
-function currentSpanLayout() { const g = getSymbolGrid(); return g ? symbolSpanLayout(g, state.symbolCells) : { covered: {}, region: {} }; }
+export function currentSpanLayout() { const g = getSymbolGrid(); return g ? symbolSpanLayout(g, state.symbolCells) : { covered: {}, region: {} }; }
 
-function buildSymbolItems() {
+export function buildSymbolItems() {
   const grid = getSymbolGrid();
   if (!grid) return [];
   const centers = resolveGridCells(grid);
@@ -266,7 +300,7 @@ function buildSymbolItems() {
       return {
         type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: place.rotate != null ? place.rotate : cell.rotation,
         scaleX: place.scaleX * (!al && cell.flipH ? -1 : 1), scaleY: place.scaleY * (!al && cell.flipV ? -1 : 1), aligned: !!al,
-        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedBlend: entry.blend === 'multiply', nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
+        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedBlend: entry.blend === 'multiply', nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(rt.variantAppearance || {}) },
       };
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
@@ -286,7 +320,7 @@ function buildSymbolItems() {
 }
 // Draw ink with `draw(g)`; with `multiply`, on its own layer first, then multiplied onto the page as one ink
 // (the canvas twin of an SVG mix-blend-mode group).
-function inkLayer(ctx, multiply, draw) {
+export function inkLayer(ctx, multiply, draw) {
   if (!multiply) { draw(ctx); return; }
   const layer = Object.assign(document.createElement('canvas'), { width: ctx.canvas.width, height: ctx.canvas.height }), g = layer.getContext('2d');
   g.setTransform(ctx.getTransform());
@@ -295,7 +329,7 @@ function inkLayer(ctx, multiply, draw) {
 }
 // Blend → Shared cells: a small cell covered by more than one aligned Component is drawn once, by the one
 // Drawn by picks (nearest centre · alternate · first · last); the others drop it (and their Paper there).
-function shareComponentGridCells(grid, items) {
+export function shareComponentGridCells(grid, items) {
   const look = symbolLook(grid), p = { drawnBy: state.symbolOverlap.drawnBy };
   if (!look || !look.shared) return items;
   // Small cells are matched by position: buckets a quarter of a small cell wide, looked up with their neighbours,
@@ -339,7 +373,7 @@ function shareComponentGridCells(grid, items) {
 // computed for real placement — an axis-aligned-footprint check, same
 // disclosed approximation symbolCellBounds() already uses for hex/polygon
 // cells elsewhere in this feature (rotation isn't accounted for precisely).
-function cellOverflowInfo(index, resolvedCells) {
+export function cellOverflowInfo(index, resolvedCells) {
   const grid = getSymbolGrid();
   const cell = state.symbolCells[index];
   if (!grid || !cell) return false;
@@ -373,15 +407,15 @@ function cellOverflowInfo(index, resolvedCells) {
   return itemW > c.cellW + 0.01 || itemH > c.cellH + 0.01;
 }
 
-function seedMarkupSVG(cx, cy, rotation, sx, sy, geo, color) {
+export function seedMarkupSVG(cx, cy, rotation, sx, sy, geo, color) {
   return `<g transform="translate(${cx.toFixed(2)},${cy.toFixed(2)}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
     + elementPathMarkup(geo, color) + `</g>`;
 }
 
 // Matches the --danger token (tokens.css); a literal because it's
 // baked into standalone SVG export strings + canvas strokeStyle.
-const MISSING_COMPONENT_COLOR = '#a03828';
-function missingComponentMarkupSVG(cx, cy, cellW, cellH) {
+export const MISSING_COMPONENT_COLOR = '#a03828';
+export function missingComponentMarkupSVG(cx, cy, cellW, cellH) {
   const x = cx - cellW / 2, y = cy - cellH / 2;
   return `<g fill="none" stroke="${MISSING_COMPONENT_COLOR}" stroke-width="2">`
     + `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${cellW.toFixed(2)}" height="${cellH.toFixed(2)}" stroke-dasharray="6 4"/>`
@@ -395,7 +429,7 @@ function missingComponentMarkupSVG(cx, cy, cellW, cellH) {
 // exported file (an unknown data attribute, no click handlers attached
 // to a downloaded SVG), never stripped, since export calls this exact
 // function directly with nothing else layered on top.
-function buildSymbolSVG() {
+export function buildSymbolSVG() {
   const grid = getSymbolGrid();
   if (!grid) return '';
   return symbolSVGFromItems(buildSymbolItems());
@@ -417,19 +451,19 @@ function buildSymbolSVG() {
 // clip) reaches SYMBOL_BLEED beyond the border — ~0.1% of the page — so
 // neighbours overlap instead of touching. Too small to see as a change of shape.
 // bounding-box centre − centroid of polygon cell i (0 for rect cells)
-function polygonBoxOffset(grid, i) {
+export function polygonBoxOffset(grid, i) {
   const raw = grid.cellShape === 'polygon' && grid.cells[i];
   if (!raw || !raw.points) return { x: 0, y: 0 };
   const xs = raw.points.map(p => p[0]), ys = raw.points.map(p => p[1]);
   return { x: (Math.min(...xs) + Math.max(...xs)) / 2 - raw.centroid[0], y: (Math.min(...ys) + Math.max(...ys)) / 2 - raw.centroid[1] };
 }
-function symbolBleed(F) { return Math.max(0.5, 0.001 * Math.max(F.w, F.h)); }
+export function symbolBleed(F) { return Math.max(0.5, 0.001 * Math.max(F.w, F.h)); }
 // the same reach inside a nested Component, in its own units (its cells meet on seams too)
-function nestedBleed(it, d) { return d / Math.max(1e-6, Math.min(Math.abs(it.scaleX), Math.abs(it.scaleY))); }
+export function nestedBleed(it, d) { return d / Math.max(1e-6, Math.min(Math.abs(it.scaleX), Math.abs(it.scaleY))); }
 // scale about the cell centre so the content reaches `d` past each side
-function cellBleed(c, d) { return { kx: 1 + 2 * d / Math.max(1e-6, c.cellW), ky: 1 + 2 * d / Math.max(1e-6, c.cellH) }; }
+export function cellBleed(c, d) { return { kx: 1 + 2 * d / Math.max(1e-6, c.cellW), ky: 1 + 2 * d / Math.max(1e-6, c.cellH) }; }
 // the cell's clip outline, pushed out by `d`
-function bleedCellOutline(grid, rawCell, F, d) {
+export function bleedCellOutline(grid, rawCell, F, d) {
   if (grid.cellShape === 'polygon') {
     const cx = rawCell.points.reduce((t, p) => t + p[0], 0) / rawCell.points.length, cy = rawCell.points.reduce((t, p) => t + p[1], 0) / rawCell.points.length;
     return { poly: rawCell.points.map(p => { const dx = p[0] - cx, dy = p[1] - cy, l = Math.hypot(dx, dy) || 1, k = 1.5 * d / l; return [F.X(p[0] + dx * k), F.Y(p[1] + dy * k)]; }) };
@@ -437,7 +471,7 @@ function bleedCellOutline(grid, rawCell, F, d) {
   return { x: F.X(rawCell.x) - d, y: F.Y(rawCell.y) - d, w: rawCell.width + 2 * d, h: rawCell.height + 2 * d };
 }
 
-function symbolSVGFromItems(items) {
+export function symbolSVGFromItems(items) {
   const drawId = nextDrawId();
   const grid = getSymbolGrid();
   if (!grid) return '';
@@ -533,7 +567,7 @@ function symbolSVGFromItems(items) {
     + `<rect width="${F.w}" height="${F.h}" fill="${state.paperColor}"/>` + paperPatternSVG(F.w, F.h) + papers + body + `</svg>`;
 }
 
-function drawSymbolCanvas(ctx) {
+export function drawSymbolCanvas(ctx) {
   const grid = getSymbolGrid();
   const F = grid ? symbolFrame(grid) : { w: 0, h: 0, X: v => v, Y: v => v };
   ctx.clearRect(0, 0, F.w, F.h);
@@ -644,9 +678,9 @@ function drawSymbolCanvas(ctx) {
       const g = layer ? layer.getContext('2d') : ctx;
       if (layer) g.setTransform(ctx.getTransform());
       const nBleed = nestedBleed(it, bleed);
-      const prevOverride = appearanceOverride, prevInks = inkPaletteOverride;
-      appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
-      if (it.nestedColors && it.nestedColors.length) inkPaletteOverride = it.nestedColors;
+      const prevOverride = rt.appearanceOverride, prevInks = rt.inkPaletteOverride;
+      rt.appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
+      if (it.nestedColors && it.nestedColors.length) rt.inkPaletteOverride = it.nestedColors;
       for (const ni of it.nestedItems) {
         g.save();
         if (it.nestedBlend) g.globalCompositeOperation = 'multiply';   // the Component's own Blend → Multiply
@@ -655,17 +689,17 @@ function drawSymbolCanvas(ctx) {
         const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);
         g.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1));
         g.translate(-50, -50);
-        const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niPath = ni.content ? new Path2D(niGeo.d) : path, keepApp = appearanceOverride;
-        if (ni.content && ni.content.appearance) appearanceOverride = { ...DEFAULT_APPEARANCE, ...ni.content.appearance };
+        const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niPath = ni.content ? new Path2D(niGeo.d) : path, keepApp = rt.appearanceOverride;
+        if (ni.content && ni.content.appearance) rt.appearanceOverride = { ...DEFAULT_APPEARANCE, ...ni.content.appearance };
         applyElementStretchCanvas(g);
         g.translate(niGeo.normTx * niGeo.normScale, niGeo.normTy * niGeo.normScale);
         g.scale(niGeo.normScale, niGeo.normScale);
         paintGeoCanvas(g, niGeo, niPath, ni.color);
-        appearanceOverride = keepApp;
+        rt.appearanceOverride = keepApp;
         g.restore();
       }
       if (layer) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(layer, 0, 0); ctx.restore(); }
-      appearanceOverride = prevOverride; inkPaletteOverride = prevInks;
+      rt.appearanceOverride = prevOverride; rt.inkPaletteOverride = prevInks;
       ctx.restore();
     }
     ctx.restore();

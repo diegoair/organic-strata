@@ -1,7 +1,51 @@
 // Flexible Visual System · 11-symbol-ui — Symbol UI — rule layer, overlays, renderSymbol, track drag, cell properties, Symbol library + export.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import {
+  DEFAULT_COLOR_RULE, buildPalette, ctrl, entryInkAt, ruleInk, setStatus, state, symbolCR, syncColorRuleUI
+} from './00-core.js';
+import {
+  SEED_TYPES, frameDims, frameSize, resolveGridCells
+} from './01-geometry.js';
+import {
+  SYMBOL_SEED_DEFAULTS, getSeed, seedForSnapshot
+} from './02-seed-ui.js';
+import {
+  fitThumbBox, mulberry32
+} from './03-rules.js';
+import {
+  appearanceSnapshot, applyAppearanceToUI, buildComponentItems, withAppearance
+} from './04-appearance.js';
+import {
+  buildSeedPreviewSVG, r2, seedPreviewStates, withEntryInks
+} from './05-render-component.js';
+import {
+  elementIsEmpty
+} from './06-component-ui.js';
+import {
+  LIBRARY, buildComponentSVGWithPaper, fillPaper, hexKey, libraryNames
+} from './07-library.js';
+import {
+  applySymbolCanvasToUI, getSymbolGrid, polyOrient, symbolCanvasOf, symbolFrame, symbolHasContent,
+  syncFitAnchorUI, syncOverlapSection, syncSymbolStart, withPlacementDefaults
+} from './08-symbol-grid.js';
+import {
+  buildSymbolItems, buildSymbolSVG, cellOverflowInfo, drawSymbolCanvas, symbolCellBoxes, symbolSpanLayout
+} from './09-symbol-render.js';
+import {
+  renderSuggestGallery, renderSymbolPool
+} from './10-suggest.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  ANCHOR_POSITIONS: () => ANCHOR_POSITIONS, SYMBOL_LIBRARY: () => SYMBOL_LIBRARY,
+  applyToAllCells: () => applyToAllCells, applyToSelection: () => applyToSelection,
+  buildSymbolLibraryEntry: () => buildSymbolLibraryEntry, cellColRow: () => cellColRow,
+  renderCellPropertiesPanel: () => renderCellPropertiesPanel, renderSymbol: () => renderSymbol,
+  renderSymbolCanvasOnly: () => renderSymbolCanvasOnly, renderSymbolLibrary: () => renderSymbolLibrary,
+  snap90: () => snap90
+});
 // ─────────────────────────────────────────────────────────────
 // GENERATIVE RULE LAYER — fill every cell's transform from a rule + a
 // few params, N×M-general (Components' own FAMILIES are 2×2-only). The
@@ -18,18 +62,18 @@
 // wrapper over shared/shapes.js's version (moved there for Trellis) — feeds
 // it the FVS-specific state (symbolGrid's own raw cells + grid meta) its
 // generic signature takes as explicit args instead of reaching for directly.
-function cellColRow(grid) {
+export function cellColRow(grid) {
   return Organica.shapes.cellColRow(grid, state.symbolGrid && state.symbolGrid.cells, state.symbolGrid && state.symbolGrid.grid);
 }
 
-function ruleScaleChoices() {
+export function ruleScaleChoices() {
   const lo = parseInt(ctrl('rg-rule-scale-min').value, 10) / 100;
   const hi = parseInt(ctrl('rg-rule-scale-max').value, 10) / 100;
   return [lo, 1, hi];
 }
-const snap90 = deg => ((Math.round(deg / 90) * 90) % 360 + 360) % 360;
+export const snap90 = deg => ((Math.round(deg / 90) * 90) % 360 + 360) % 360;
 
-const SYMBOL_RULES = {
+export const SYMBOL_RULES = {
   oscillator: {
     read: () => ({
       angle: parseInt(ctrl('sel-rule-osc-angle').value, 10),
@@ -96,7 +140,7 @@ const SYMBOL_RULES = {
   },
 };
 
-function applySymbolRule(opts) {
+export function applySymbolRule(opts) {
   opts = opts || {};
   const grid = getSymbolGrid();
   if (!grid || !state.symbolCells.length) return;
@@ -138,7 +182,7 @@ function applySymbolRule(opts) {
   renderSymbol();
 }
 
-function syncSymbolRuleUI() {
+export function syncSymbolRuleUI() {
   const name = ctrl('sel-symbol-rule').value;
   document.querySelectorAll('#symbol-rule-block .rule-params').forEach(el => {
     el.style.display = el.id === 'rp-' + name ? '' : 'none';
@@ -152,7 +196,7 @@ function syncSymbolRuleUI() {
 // follows). Reuses the EXACT same origin/half offset resolveGridCells()
 // and buildSymbolItems() already use, so the outline lines up exactly
 // with whatever is actually rendered in each cell, rect or polygon.
-function buildGridOutlineSVG() {
+export function buildGridOutlineSVG() {
   const grid = getSymbolGrid();
   if (!grid) return '';
   const F = symbolFrame(grid);
@@ -175,7 +219,7 @@ function buildGridOutlineSVG() {
 // buildSymbolSVG), a second colour, only the currently-selected cells —
 // Manual mode's own visual feedback for what a Cell properties edit is
 // about to apply to.
-function buildSelectionOutlineSVG() {
+export function buildSelectionOutlineSVG() {
   const grid = getSymbolGrid();
   if (!grid || state.symbolSelection.size === 0) return '';
   const F = symbolFrame(grid);
@@ -198,7 +242,7 @@ function buildSelectionOutlineSVG() {
 // An EMPTY cell draws nothing, so buildSymbolSVG gives it no <g data-cell-index> and a click or a drop
 // found nothing to land on (after Delete / Choose → Empty / removing a Component, those cells were dead).
 // Preview-only invisible hit shape per empty cell — never in the export.
-function buildEmptyCellHitsSVG() {
+export function buildEmptyCellHitsSVG() {
   const grid = getSymbolGrid();
   if (!grid || !state.symbolCells.some(c => c && c.source === 'empty')) return '';
   const F = symbolFrame(grid);
@@ -221,7 +265,7 @@ function buildEmptyCellHitsSVG() {
 // `if (trackDrag)` gate at its one call site in renderSymbolCanvasOnly().
 // Skipped while Clip to cell is on, same guard cellOverflowInfo()'s own
 // docs already state (clipping already makes the question moot).
-function buildOverflowOutlineSVG() {
+export function buildOverflowOutlineSVG() {
   const grid = getSymbolGrid();
   if (!grid || state.symbolClipEnabled) return '';
   const F = symbolFrame(grid);
@@ -252,7 +296,7 @@ function buildOverflowOutlineSVG() {
 // (axis-aligned box), same disclosed approximation cellOverflowInfo()/
 // symbolCellBounds() already use elsewhere. Most useful while Clip to cell
 // is on — that's exactly when the crop is otherwise invisible.
-function buildCoverCropPreviewSVG() {
+export function buildCoverCropPreviewSVG() {
   const grid = getSymbolGrid();
   if (!grid || !state.symbolClipEnabled) return '';
   const library = LIBRARY.read();
@@ -276,7 +320,7 @@ function buildCoverCropPreviewSVG() {
   return s + '</g>';
 }
 
-function renderSymbolCanvasOnly() {
+export function renderSymbolCanvasOnly() {
   const frame = ctrl('symbol-frame');
   const grid = getSymbolGrid();
   ctrl('btn-symbol-clear').style.display = grid ? '' : 'none';
@@ -317,9 +361,9 @@ function renderSymbolCanvasOnly() {
   trackLabelsRaf = requestAnimationFrame(renderTrackLabelsOverlay);
   setStatus('active', `Symbol · ${count} cells`);
 }
-let trackLabelsRaf = 0;
+export let trackLabelsRaf = 0;
 
-function renderSymbol() {
+export function renderSymbol() {
   syncOverlapSection();   // Shared cells follows whether aligned Components are in the Symbol
   renderSymbolCanvasOnly();
   if (ctrl('sel-symbol-fill').value === 'manual' || state.symbolSelection.size) renderCellPropertiesPanel();
@@ -337,7 +381,7 @@ function renderSymbol() {
 // plain click (was it inside a cell?) and for the marquee rectangle,
 // which is defined in that same space so it lines up with the cells it's
 // meant to be selecting.
-function svgPointFromEvent(e) {
+export function svgPointFromEvent(e) {
   const svg = ctrl('symbol-frame').querySelector('svg');
   if (!svg) return null;
   const pt = svg.createSVGPoint();
@@ -351,7 +395,7 @@ function svgPointFromEvent(e) {
 // rather than any new grid math. An approximation for hexagon/polygon
 // cells (their bounding box, not their exact outline), same notion of
 // "cell size" this feature already uses elsewhere.
-function symbolCellBounds() {
+export function symbolCellBounds() {
   const grid = getSymbolGrid();
   if (!grid) return [];
   const F = symbolFrame(grid);
@@ -360,7 +404,7 @@ function symbolCellBounds() {
   }));
 }
 
-function rectsIntersect(a, b) {
+export function rectsIntersect(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
@@ -377,13 +421,13 @@ function rectsIntersect(a, b) {
 // keep their content (only the tracks change; the grid is re-resolved from
 // them). On the Rectangular generator the Column / Row weights fields follow
 // live, so the grid regenerates to the same proportions.
-const TRACK_MIN_FRAC = 0.04;   // a track never shrinks below 4% of the grid's side
-function symbolTrackGrid() {
+export const TRACK_MIN_FRAC = 0.04;   // a track never shrinks below 4% of the grid's side
+export function symbolTrackGrid() {
   const g = state.symbolGrid;
   if (!g || g.cellShape !== 'rect' || !g.grid || !g.grid.tracks || !g.grid.tracks.cols || !g.grid.tracks.rows) return null;
   return g;
 }
-function trackBorders(axis) {
+export function trackBorders(axis) {
   const g = symbolTrackGrid();
   const sizes = g.grid.tracks[axis], gap = g.grid.gap || 0, start = axis === 'cols' ? g.inner.x : g.inner.y;
   const out = [];
@@ -394,7 +438,7 @@ function trackBorders(axis) {
 // Every track's own band (start/end in raw coords) + its % share of the axis
 // total — the live readout drawn above each column / beside each row so a
 // drag has real feedback instead of a blind border.
-function trackBands(axis) {
+export function trackBands(axis) {
   const g = symbolTrackGrid();
   if (!g) return [];
   const sizes = g.grid.tracks[axis], gap = g.grid.gap || 0, start = axis === 'cols' ? g.inner.x : g.inner.y;
@@ -407,7 +451,7 @@ function trackBands(axis) {
   }
   return out;
 }
-function buildTrackHandlesSVG() {
+export function buildTrackHandlesSVG() {
   const g = symbolTrackGrid();
   if (!g) return '';
   const grid = getSymbolGrid(), F = symbolFrame(grid);
@@ -437,7 +481,7 @@ function buildTrackHandlesSVG() {
 // gives the correct answer regardless of the frame's own proportions, and
 // lets the labels use real design-system tokens directly (--fs-micro,
 // --w-light) instead of a canvas-size-scaled approximation.
-function renderTrackLabelsOverlay() {
+export function renderTrackLabelsOverlay() {
   const old = document.getElementById('sym-track-labels');
   if (old) old.remove();
   if (!state.symbolView.guides) return;
@@ -475,12 +519,12 @@ function renderTrackLabelsOverlay() {
   frame.appendChild(wrap);
 }
 // sizes → the weights text the Rectangular generator reads ("1.25,0.75,1"), mean 1
-function tracksToWeights(sizes) {
+export function tracksToWeights(sizes) {
   const mean = sizes.reduce((a, b) => a + b, 0) / sizes.length;
   return sizes.map(v => String(Math.round(v / mean * 100) / 100)).join(',');
 }
 // Move border i of `axis` to raw coordinate `pos`; the grid is re-resolved, cells untouched.
-function moveTrackBorder(axis, i, pos) {
+export function moveTrackBorder(axis, i, pos) {
   const g = symbolTrackGrid();
   if (!g) return;
   const sizes = g.grid.tracks[axis].slice(), gap = g.grid.gap || 0;
@@ -500,8 +544,8 @@ function moveTrackBorder(axis, i, pos) {
   }
   state.symbolGrid = Organica.loadLoomGrid({ ...g, grid });
 }
-let trackDrag = null;   // {axis, i} while a border is being dragged
-function bindSymbolTrackDrag() {
+export let trackDrag = null;   // {axis, i} while a border is being dragged
+export function bindSymbolTrackDrag() {
   const frame = ctrl('symbol-frame');
   // capture phase: a border drag must not also start a marquee selection
   frame.addEventListener('mousedown', e => {
@@ -531,7 +575,7 @@ function bindSymbolTrackDrag() {
   }, true);
 }
 
-function bindSymbolCanvasSelection() {
+export function bindSymbolCanvasSelection() {
   const frame = ctrl('symbol-frame');
   const THRESHOLD = 5;
   let dragStart = null, dragMoved = false, dragBase = [];
@@ -618,14 +662,14 @@ function bindSymbolCanvasSelection() {
 // only the rendered result changes.
 // Writes a patch into a cell and says whether anything actually changed (a click on "Stretch" when every cell
 // already is Fill is not an edit — it must not arm the leave-site prompt).
-function patchCell(cell, patch) {
+export function patchCell(cell, patch) {
   const p = typeof patch === 'function' ? patch(cell) : patch;
   let changed = false;
   for (const k of Object.keys(p)) if (JSON.stringify(cell[k]) !== JSON.stringify(p[k])) { changed = true; break; }
   Object.assign(cell, p);
   return changed;
 }
-function applyToSelection(patch) {
+export function applyToSelection(patch) {
   let changed = false;
   state.symbolSelection.forEach(i => {
     const cell = state.symbolCells[i];
@@ -636,7 +680,7 @@ function applyToSelection(patch) {
   renderSymbolCanvasOnly();
 }
 
-const ANCHOR_POSITIONS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+export const ANCHOR_POSITIONS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
 // Replaces the old one-row-per-cell list entirely: ONE shared panel that
 // reflects/edits whatever is currently selected (state.symbolSelection).
 // The panel markup itself is static HTML (see index.html) — no rebuild
@@ -650,7 +694,7 @@ const ANCHOR_POSITIONS = [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [
 // Colour: "Follow palette" (color null) or an explicit override — a palette
 // colour or a free one. Only Seed cells carry a colour (a nested Component
 // keeps its own inks).
-function syncCellColourUI(cell, isComponent) {
+export function syncCellColourUI(cell, isComponent) {
   ctrl('row-cellprop-color').style.display = isComponent ? 'none' : '';
   if (isComponent) { ctrl('row-cellprop-color-override').style.display = 'none'; return; }
   const sel = ctrl('sel-cellprop-color');
@@ -668,10 +712,10 @@ function syncCellColourUI(cell, isComponent) {
 }
 // Cell properties belong to the selection, not to the Fill mode: the block
 // shows in Manual, and in any other mode as soon as cells are selected.
-function syncManualBlock() {
+export function syncManualBlock() {
   ctrl('symbol-manual-block').style.display = (ctrl('sel-symbol-fill').value === 'manual' || state.symbolSelection.size > 0) ? '' : 'none';
 }
-function renderCellPropertiesPanel() {
+export function renderCellPropertiesPanel() {
   syncManualBlock();
   syncFitAnchorUI();
   const hasSelection = state.symbolSelection.size > 0 && state.symbolGrid;
@@ -730,21 +774,21 @@ function renderCellPropertiesPanel() {
 // of source type (scale 100%, Fill, no padding, centred anchor) — a
 // predictable clean slate every time content is assigned, not whatever
 // the previously-selected cell happened to have. ──
-function openCellContentOverlay() {
+export function openCellContentOverlay() {
   if (state.symbolSelection.size === 0 && !ctrl('chk-content-overlay-all').checked) return;
   renderCellContentOverlayTiles();
   ctrl('symbol-content-overlay').style.display = 'flex';
   const first = ctrl('symbol-content-overlay').querySelector('button.fvs-library-item, button#btn-content-overlay-close');
   if (first) first.focus();
 }
-function openCellContentOverlayForAll() {
+export function openCellContentOverlayForAll() {
   if (!state.symbolGrid) return;
   ctrl('chk-content-overlay-all').checked = true;
   openCellContentOverlay();
 }
 // Write a content patch to every cell (used when "Apply to all cells" is
 // armed) — the sibling of applyToSelection().
-function applyToAllCells(patch) {
+export function applyToAllCells(patch) {
   let changed = false;
   state.symbolCells.forEach(cell => {
     if (!cell) return;
@@ -753,19 +797,19 @@ function applyToAllCells(patch) {
   if (changed) Organica.dirty.set('fvs-symbol', true);
   renderSymbolCanvasOnly();
 }
-function contentTarget() { return ctrl('chk-content-overlay-all').checked ? applyToAllCells : applyToSelection; }
+export function contentTarget() { return ctrl('chk-content-overlay-all').checked ? applyToAllCells : applyToSelection; }
 
 // Choose-content filter — which of the two lists to show (memory only).
-let contentFilter = 'all';
-function syncContentFilter() {
-  ctrl('content-sec-seeds').style.display = contentFilter === 'components' ? 'none' : '';
-  ctrl('content-sec-components').style.display = contentFilter === 'seeds' ? 'none' : '';
+rt.contentFilter = 'all';
+export function syncContentFilter() {
+  ctrl('content-sec-seeds').style.display = rt.contentFilter === 'components' ? 'none' : '';
+  ctrl('content-sec-components').style.display = rt.contentFilter === 'seeds' ? 'none' : '';
   ctrl('seg-content-filter').querySelectorAll('.seg-btn').forEach(b => {
-    const on = b.dataset.filter === contentFilter;
+    const on = b.dataset.filter === rt.contentFilter;
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
 }
-function closeCellContentOverlay() {
+export function closeCellContentOverlay() {
   ctrl('symbol-content-overlay').style.display = 'none';
   ctrl('chk-content-overlay-all').checked = false;   // disarm so a later single-cell edit isn't hijacked
 }
@@ -777,8 +821,8 @@ function closeCellContentOverlay() {
 // deliberate visible choice, unlike "Apply to all cells" which IS reset
 // (that one guards against an accidental bulk edit; this one doesn't carry
 // that risk — a wrong fit is obvious immediately and easy to redo).
-let contentOverlayFit = 'fill';
-function renderCellContentOverlayTiles() {
+rt.contentOverlayFit = 'fill';
+export function renderCellContentOverlayTiles() {
   const toAll = ctrl('chk-content-overlay-all').checked;
   const count = state.symbolSelection.size;
   ctrl('symbol-content-overlay__title').textContent = toAll ? 'Choose content for all cells' : count > 1 ? `Choose content for ${count} cells` : 'Choose content';
@@ -791,7 +835,7 @@ function renderCellContentOverlayTiles() {
   emptyBtn.setAttribute('aria-label', 'Use Empty (blank cell)');
   emptyBtn.innerHTML = '<svg viewBox="0 0 72 72" aria-hidden="true"><rect x="10" y="10" width="52" height="52" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/></svg>';
   emptyBtn.addEventListener('click', () => {
-    contentTarget()(() => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
+    contentTarget()(() => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: rt.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
     closeCellContentOverlay();
     renderCellPropertiesPanel();
   });
@@ -807,7 +851,7 @@ function renderCellContentOverlayTiles() {
       contentTarget()(cell => ({
         source: 'seed', seedType: type, color: cell.color || null,
         rotation: 0, flipH: false, flipV: false,
-        fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+        fitMode: rt.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       }));
       closeCellContentOverlay();
       renderCellPropertiesPanel();
@@ -841,7 +885,7 @@ function renderCellContentOverlayTiles() {
       contentTarget()({
         source: 'component', componentName: name, span: true, colourway: null,   // a rectangular Component takes its block where it fits
         rotation: 0, flipH: false, flipV: false,
-        fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+        fitMode: rt.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       });
       closeCellContentOverlay();
       renderCellPropertiesPanel();
@@ -876,7 +920,7 @@ function renderCellContentOverlayTiles() {
         contentTarget()(cell => ({
           source: 'seed', seedType: sp.type, seedParams: JSON.parse(JSON.stringify(sp)), color: cell.color || null, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null,
           rotation: r, flipH: fh, flipV: fv,
-          fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+          fitMode: rt.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
         }));
         closeCellContentOverlay();
         renderCellPropertiesPanel();
@@ -900,24 +944,24 @@ function renderCellContentOverlayTiles() {
 // fill, not one Seed repeated, so it doesn't belong in the same
 // list. state.symbolGrid is stored verbatim as gridModel (see
 // getSymbolGrid()'s own comment — it's already re-import-able as-is). ──
-const SYMBOL_LIBRARY = Organica.presetStore('fvs-symbols');
+export const SYMBOL_LIBRARY = Organica.presetStore('fvs-symbols');
 
 // The whole rule block's control values, so a saved Symbol re-opens with
 // its generator intact and re-tunable (cells are also stored resolved, so
 // this is purely additive — an old entry without `rule` still loads).
-const RULE_CONTROL_IDS = ['sel-symbol-fill', 'sel-symbol-rule', 'sel-rule-ori-up', 'sel-rule-ori-down',
+export const RULE_CONTROL_IDS = ['sel-symbol-fill', 'sel-symbol-rule', 'sel-rule-ori-up', 'sel-rule-ori-down',
   'sel-rule-osc-angle', 'rg-rule-osc-shift', 'rg-rule-osc-period', 'rg-rule-osc-phase',
   'sel-rule-chk-rota', 'chk-rule-chk-swap', 'sel-rule-chk-rot', 'chk-rule-chk-flip', 'rg-rule-rows-step', 'sel-rule-rows-mode',
   'rg-rule-cols-step', 'sel-rule-cols-mode', 'chk-rule-radial-snap', 'sel-rule-radial-chir',
   'rg-rule-wave-amp', 'rg-rule-wave-freq', 'rg-rule-wave-phase', 'chk-rule-wave-snap',
   'chk-rule-rotation', 'chk-rule-flip', 'chk-rule-scale', 'rg-rule-scale-min', 'rg-rule-scale-max',
   'num-rule-seed'];
-function readRuleState() {
+export function readRuleState() {
   const s = {};
   RULE_CONTROL_IDS.forEach(id => { const el = ctrl(id); s[id] = el.type === 'checkbox' ? el.checked : el.value; });
   return s;
 }
-function applyRuleState(s) {
+export function applyRuleState(s) {
   if (!s) return;
   RULE_CONTROL_IDS.forEach(id => {
     if (s[id] == null) return;
@@ -932,7 +976,7 @@ function applyRuleState(s) {
   syncSymbolRuleUI();
 }
 
-function buildSymbolLibraryEntry() {
+export function buildSymbolLibraryEntry() {
   if (!state.symbolGrid) return null;
   return {
     gridModel: state.symbolGrid,
@@ -950,7 +994,7 @@ function buildSymbolLibraryEntry() {
   };
 }
 
-function saveSymbolAs(chosen) {
+export function saveSymbolAs(chosen) {
   const entry = buildSymbolLibraryEntry();
   if (!entry) return;
   const all = SYMBOL_LIBRARY.read();
@@ -961,14 +1005,14 @@ function saveSymbolAs(chosen) {
   Organica.dirty.set('fvs-symbol', false);
   renderSymbolLibrary();
 }
-function removeSymbolLibraryEntry(name) {
+export function removeSymbolLibraryEntry(name) {
   const all = SYMBOL_LIBRARY.read();
   delete all[name];
   SYMBOL_LIBRARY.write(all);
   renderSymbolLibrary();
 }
 
-function applySymbolLibraryEntryToUI(entry) {
+export function applySymbolLibraryEntryToUI(entry) {
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
   if (symbolCanvasOf(state.symbolGrid)) applySymbolCanvasToUI(symbolCanvasOf(state.symbolGrid));
   if (entry.pool || entry.palette) { state.symbolPool = (entry.pool || entry.palette).map(p => ({ ...p })); renderSymbolPool(); }
@@ -984,12 +1028,12 @@ function applySymbolLibraryEntryToUI(entry) {
   state.symbolCells.forEach((c, i) => { if (c.color && String(c.color).toLowerCase() === String(ruleInk(i, symbolCR())).toLowerCase()) c.color = null; });
   buildPalette();
   state.paperColor = hexKey(entry.paperColor);
-  setPaperUI(entry.paperColor);
+  hooks.setPaperUI(entry.paperColor);
   // Old saved Symbols (pre-Clip-to-cell) have no clipEnabled field — back-
   // filled to true, matching withPlacementDefaults' own convention of
   // restoring exactly the pre-feature behaviour for anything not saved.
   state.symbolClipEnabled = entry.clipEnabled !== false;
-  syncSymbolViewUI();
+  hooks.syncSymbolViewUI();
   state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(entry.overlap || {}) };
   syncOverlapSection();
   applyAppearanceToUI(entry.appearance);
@@ -997,10 +1041,10 @@ function applySymbolLibraryEntryToUI(entry) {
   renderSymbol();
 }
 
-function renderSymbolLibrary() { renderLibraryRail(); }
+export function renderSymbolLibrary() { hooks.renderLibraryRail(); }
 // A saved Symbol's thumbnail, drawn against the ENTRY's own saved state, not the live one —
 // same rule as the Components' own library thumbnails.
-function symbolEntryThumbSVG(entry) {
+export function symbolEntryThumbSVG(entry) {
   const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled, overlap: state.symbolOverlap };
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
   state.symbolCells = entry.cells;
@@ -1014,7 +1058,7 @@ function symbolEntryThumbSVG(entry) {
   return svgStr;
 }
 
-function exportSymbol(format) {
+export function exportSymbol(format) {
   const grid = getSymbolGrid();
   if (!grid) return;
   const F = symbolFrame(grid);
@@ -1039,22 +1083,22 @@ function exportSymbol(format) {
 // (paper extended into it) and crop marks; PNG at the canvas DPI with the DPI
 // written into the file. Same v1 discipline as the rest of the suite
 // (shared/print-size.js) — the bleed is a flat paper extension.
-function symbolPrintDims(F, cv) {
+export function symbolPrintDims(F, cv) {
   const mm = v => v * (cv.unit === 'in' ? 25.4 : 1);
   const trimWmm = mm(cv.pw), trimHmm = mm(cv.ph), bleedMm = cv.bleed || 0;
   const px = v => Math.round(Organica.printSize.mmToPx(v, cv.dpi));
   return { trimWmm, trimHmm, bleedMm, dpi: cv.dpi, trimWpx: px(trimWmm), trimHpx: px(trimHmm), bleedPx: px(bleedMm), k: trimWmm / F.w };
 }
-function buildSymbolPrintSVG(F, cv) {
+export function buildSymbolPrintSVG(F, cv) {
   const d = symbolPrintDims(F, cv);
   const bw = d.trimWmm + 2 * d.bleedMm, bh = d.trimHmm + 2 * d.bleedMm;
   let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`
     + `<rect width="${r2(bw)}" height="${r2(bh)}" fill="${state.paperColor}"/>`
-    + `<g transform="translate(${r2(d.bleedMm)},${r2(d.bleedMm)})"><g transform="scale(${d.k})">${svgInnerOf(buildSymbolSVG())}</g>`;
+    + `<g transform="translate(${r2(d.bleedMm)},${r2(d.bleedMm)})"><g transform="scale(${d.k})">${hooks.svgInnerOf(buildSymbolSVG())}</g>`;
   if (d.bleedMm > 0) out += Organica.printSize.cropMarksSVG(d.trimWmm, d.trimHmm, {}, '#000');
   return out + '</g></svg>';
 }
-function exportSymbolPrint(format, F, cv) {
+export function exportSymbolPrint(format, F, cv) {
   if (format === 'svg') {
     Organica.download(new Blob([buildSymbolPrintSVG(F, cv)], { type: 'image/svg+xml' }), Organica.stamp('fvs-symbol', 'svg'));
     return;

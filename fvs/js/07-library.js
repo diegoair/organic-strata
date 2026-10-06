@@ -1,7 +1,41 @@
 // Flexible Visual System · 07-library — Component library + layers UI + Underlying picker.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import {
+  DEFAULT_COLOR_RULE, PALETTE_MAX, buildPalette, colorAt, ctrl, entryInkAt, state, syncColorRuleUI, val
+} from './00-core.js';
+import {
+  SEED_TYPES, SEG_WEIGHT_DEF, cellShapeOf, frameDims, setCellShape
+} from './01-geometry.js';
+import {
+  CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, fhEditor, foldLegacySeed, panelSeedSnapshot,
+  seedForSnapshot, syncDependentRows, xrId
+} from './02-seed-ui.js';
+import {
+  fitThumbBox, getGrid, setComponentGrid, syncComponentGridUI
+} from './03-rules.js';
+import {
+  appearanceSnapshot, applyAppearanceToUI, buildComponentItems, syncLookBlocks
+} from './04-appearance.js';
+import {
+  LAYER_ROLES, buildComponentSVG, layerInkColor, layerPlace, renderGallery, renderSeedPreview,
+  withEntryInks
+} from './05-render-component.js';
+import {
+  getSelectedComponent, seedWithLayerInks, syncExhaustiveHint, syncRuleAvailability, syncSeedUI,
+  withComponentColours
+} from './06-component-ui.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  LIBRARY: () => LIBRARY, applyElementSnapshot: () => applyElementSnapshot,
+  applySeedToPanel: () => applySeedToPanel, deleteQuickSavedComponent: () => deleteQuickSavedComponent,
+  fillPaper: () => fillPaper, hexKey: () => hexKey, isPaperNone: () => isPaperNone,
+  quickSaveComponentToLibrary: () => quickSaveComponentToLibrary, readLookControls: () => readLookControls,
+  renderLayersUI: () => renderLayersUI, showLayerStyle: () => showLayerStyle,
+  syncActiveLayer: () => syncActiveLayer, syncComponentRoleUI: () => syncComponentRoleUI
+});
 // ── Component Library — save/reload full snapshots (Seed incl. an
 // upload's own geometry, Grid, Palette, and the exact generated
 // arrangement), not just current control state. Organica.presetStore is
@@ -9,7 +43,7 @@
 // which persists its whole Universal JSON Model the same way) — one
 // entry here is a complete, self-contained snapshot so loading it later
 // is unambiguous regardless of whatever else is on screen at the time. ──
-const LIBRARY = Organica.presetStore('fvs');
+export const LIBRARY = Organica.presetStore('fvs');
 
 // Colours are compared and post-processed as STRINGS on the finished SVG
 // (recolourSVG / plateSVG / the paper-rect strip) — a deliberate choice: one
@@ -19,14 +53,14 @@ const LIBRARY = Organica.presetStore('fvs');
 // recipes) normalises through it.
 // Paper can be transparent: state.paperColor === 'none' (Palette → the checkerboard
 // button next to Paper). In SVG that's just fill="none"; on Canvas nothing is painted.
-const PAPER_NONE = 'none';
-const isPaperNone = c => String(c == null ? '' : c).trim().toLowerCase() === PAPER_NONE;
-function fillPaper(ctx, color, x, y, w, h) {
+export const PAPER_NONE = 'none';
+export const isPaperNone = c => String(c == null ? '' : c).trim().toLowerCase() === PAPER_NONE;
+export function fillPaper(ctx, color, x, y, w, h) {
   if (!color || isPaperNone(color)) return;
   ctx.fillStyle = color;
   ctx.fillRect(x, y, w, h);
 }
-const hexKey = c => {
+export const hexKey = c => {
   c = String(c == null ? '' : c).trim().toLowerCase();
   return /^#[0-9a-f]{3}$/.test(c) ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c;
 };
@@ -36,12 +70,12 @@ const hexKey = c => {
 // own saved work: they carry `auto: true` (older ones are recognised by their
 // name), stay out of every picker/list, and are pruned at boot — the Grid
 // rebuilds one from the live Component and a recipe carries its own entry.
-const isAutoEntry = (name, e) => !!(e && e.auto) || name.startsWith('Tile · ');
-const libraryNames = all => Object.keys(all).filter(n => !isAutoEntry(n, all[n]) && !all[n].hidden);
+export const isAutoEntry = (name, e) => !!(e && e.auto) || name.startsWith('Tile · ');
+export const libraryNames = all => Object.keys(all).filter(n => !isAutoEntry(n, all[n]) && !all[n].hidden);
 // A deleted Component / Element that another creation still uses is kept, hidden (deleteSavedComponent):
 // out of every list, still drawn where it is used.
-const shownElementNames = all => Object.keys(all || {}).filter(n => all[n] && all[n].tile && !all[n].hidden);
-function pruneAutoLibraryEntries() {
+export const shownElementNames = all => Object.keys(all || {}).filter(n => all[n] && all[n].tile && !all[n].hidden);
+export function pruneAutoLibraryEntries() {
   const all = LIBRARY.read();
   const gone = Object.keys(all).filter(n => isAutoEntry(n, all[n]));
   if (!gone.length) return;
@@ -49,11 +83,11 @@ function pruneAutoLibraryEntries() {
   LIBRARY.write(all);
 }
 
-function buildLibraryEntryFor(comp) {
+export function buildLibraryEntryFor(comp) {
   if (!comp) return null;
   return withComponentColours(comp, () => libraryEntryFromLive(comp));   // a colourway is saved with its own colours
 }
-function libraryEntryFromLive(comp) {
+export function libraryEntryFromLive(comp) {
   return {
     seed: seedWithLayerInks(seedForSnapshot(), comp.layerInks),
     appearance: appearanceSnapshot(),
@@ -68,7 +102,7 @@ function libraryEntryFromLive(comp) {
     savedAt: new Date().toISOString(),
   };
 }
-function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedComponent()); }
+export function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedComponent()); }
 
 // The same "<rule> <time>" convention the rail's Save pre-fills the name
 // row with — quick-save just commits it immediately instead of asking.
@@ -76,7 +110,7 @@ function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedComponent(
 // rule) would otherwise collide and silently overwrite one another, so a
 // taken name gets " (2)", " (3)"… appended, same idea as a filesystem's
 // own "file (1).txt" convention.
-function uniqueLibraryName(base) {
+export function uniqueLibraryName(base) {
   const all = LIBRARY.read();
   if (!all[base]) return base;
   let i = 2;
@@ -97,7 +131,7 @@ function uniqueLibraryName(base) {
 // becomes a delete toggle (deleteQuickSavedComponent below) — a fresh save
 // always mints a new entry (or dedupes), it never silently overwrites an
 // existing one.
-function quickSaveComponentToLibrary(compId, chosen) {
+export function quickSaveComponentToLibrary(compId, chosen) {
   const comp = state.components.find(c => c.id === compId);
   const entry = buildLibraryEntryFor(comp);
   if (!entry) return;
@@ -105,7 +139,7 @@ function quickSaveComponentToLibrary(compId, chosen) {
   const all = LIBRARY.read();
   all[name] = entry;
   LIBRARY.write(all);
-  addSavedToPool(name);
+  hooks.addSavedToPool(name);
   state.selectedId = comp.id;
   state.selectionExplicit = true;
   comp.savedName = name;
@@ -117,7 +151,7 @@ function quickSaveComponentToLibrary(compId, chosen) {
 // name as the quick-save above, one LIBRARY.write for the whole batch. A
 // candidate whose saved entry still exists is skipped, so a second click
 // adds nothing; the selection is left as it is.
-function saveAllComponentsToLibrary() {
+export function saveAllComponentsToLibrary() {
   const all = LIBRARY.read();
   const time = new Date().toLocaleTimeString();
   let added = 0;
@@ -130,7 +164,7 @@ function saveAllComponentsToLibrary() {
     while (all[name]) name = `${base} (${i++})`;
     all[name] = entry;
     comp.savedName = name;
-    addSavedToPool(name);
+    hooks.addSavedToPool(name);
     added++;
   });
   if (!added) return;
@@ -144,15 +178,15 @@ function saveAllComponentsToLibrary() {
 // this candidate was saved as (reuses removeLibraryEntry, the same one
 // the Library section's own "×" tile calls), then clears the marker so
 // the thumbnail's button reverts to a plain hover-only "+".
-function deleteQuickSavedComponent(compId) {
+export function deleteQuickSavedComponent(compId) {
   const comp = state.components.find(c => c.id === compId);
   if (!comp || !comp.savedName) return;
-  deleteSaved('component', comp.savedName);   // kept hidden while a Symbol / Container still uses it
+  hooks.deleteSaved('component', comp.savedName);   // kept hidden while a Symbol / Container still uses it
   comp.savedName = null;
   renderGallery();
 }
 
-function removeLibraryEntry(name) {
+export function removeLibraryEntry(name) {
   const all = LIBRARY.read();
   delete all[name];
   LIBRARY.write(all);
@@ -167,12 +201,12 @@ function removeLibraryEntry(name) {
 // applyLibraryEntryToUI does right after this. Pure refactor: byte-identical
 // behaviour, verified against the regression suite.
 // Seed + Appearance of a saved Element into the panel, retired controls converted first (foldLegacySeed).
-function applyElementSnapshot(seed, app) {
+export function applyElementSnapshot(seed, app) {
   const f = foldLegacySeed(seed, app);
   applySeedToPanel(f.seed);
   applyAppearanceToUI(f.app);
 }
-function applySeedToPanel(seed) {
+export function applySeedToPanel(seed) {
   setCellShape(cellShapeOf(seed), { silent: true });
   if (seed && seed.type === 'stack' && Array.isArray(seed.layers) && seed.layers.length) {
     const items = seed.layers.map(l => JSON.parse(JSON.stringify(l)));
@@ -185,13 +219,13 @@ function applySeedToPanel(seed) {
   }
   renderLayersUI();
 }
-function applyPanelSeedRaw(seed) {
-  ctrl('sel-seed-type').value = seed.type; lastShapeType = seed.type;
+export function applyPanelSeedRaw(seed) {
+  ctrl('sel-seed-type').value = seed.type; rt.lastShapeType = seed.type;
   if (seed.type === 'custom' && !ctrl('sel-seed-type').querySelector('option[value="custom"]')) {
     const opt = document.createElement('option');
     opt.value = 'custom'; opt.textContent = 'Custom (uploaded)';
     ctrl('sel-seed-type').appendChild(opt);
-    ctrl('sel-seed-type').value = 'custom'; lastShapeType = 'custom';
+    ctrl('sel-seed-type').value = 'custom'; rt.lastShapeType = 'custom';
   }
   state.customSeed = seed.customSeed || null;
   ctrl('rg-base').value = seed.base; ctrl('v-base').textContent = seed.base;
@@ -257,7 +291,7 @@ function applyPanelSeedRaw(seed) {
     const el = ctrl(xrId(sh, r)), v = seed[r.key] != null ? seed[r.key] : r.def;
     el.value = v; const vv = ctrl('v-' + sh.prefix + '-' + r.id); if (vv) vv.textContent = v;
   }));
-  syncPolyStepMax(); syncTriType(); syncArcType(); syncTruType(); syncWedgeType(); syncPolyType(); syncExtrasTypes();
+  hooks.syncPolyStepMax(); hooks.syncTriType(); hooks.syncArcType(); hooks.syncTruType(); hooks.syncWedgeType(); hooks.syncPolyType(); hooks.syncExtrasTypes();
   CIRCLE_PARAMS.forEach(([k, id, def]) => {
     const v = seed[cap(k)] != null ? seed[cap(k)] : def;
     ctrl('rg-circle-' + id).value = v; ctrl('v-circle-' + id).textContent = v;
@@ -274,18 +308,18 @@ function applyPanelSeedRaw(seed) {
 // ── Layers UI (state.layers) ───────────────────────────────────────────
 // The Seed panel below always edits ONE shape: the active layer. Switching
 // layer saves the panel into the layer being left and loads the new one.
-const LAYER_NEW_INKS = ['#e8321e', '#0a9a3e', '#1f5fd6', '#f2b300', '#7a3fd1', '#0e9aa7', '#d6336c'];
-function syncActiveLayer() {
+export const LAYER_NEW_INKS = ['#e8321e', '#0a9a3e', '#1f5fd6', '#f2b300', '#7a3fd1', '#0e9aa7', '#d6336c'];
+export function syncActiveLayer() {
   if (!state.layers) return;
   const l = state.layers.items[state.layers.active];
   l.seed = panelSeedSnapshot();
   l.look = readLookControls();
 }
-function readLookControls() {
+export function readLookControls() {
   return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l') };
 }
 // Style / Stroke W / Rounded / Width / Length show the active layer's own look.
-function showLayerStyle(l) {
+export function showLayerStyle(l) {
   if (!l.look) l.look = readLookControls();
   const lk = l.look;
   ctrl('sel-element-fillmode').value = lk.fillMode;
@@ -295,9 +329,9 @@ function showLayerStyle(l) {
   ctrl('rg-element-l').value = lk.l; ctrl('v-element-l').textContent = lk.l;
   syncLookBlocks();
 }
-const newLayerId = () => 'l' + Math.random().toString(36).slice(2, 7);
-function layersChanged() { renderLayersUI(); renderGallery(); renderSeedPreview(); }
-function selectLayer(i) {
+export const newLayerId = () => 'l' + Math.random().toString(36).slice(2, 7);
+export function layersChanged() { renderLayersUI(); renderGallery(); renderSeedPreview(); }
+export function selectLayer(i) {
   if (!state.layers || i === state.layers.active || !state.layers.items[i]) return;
   syncActiveLayer();
   state.layers.active = i;
@@ -305,7 +339,7 @@ function selectLayer(i) {
   showLayerStyle(state.layers.items[i]);
   layersChanged();
 }
-function addLayer() {
+export function addLayer() {
   if (!state.layers) state.layers = { items: [{ id: newLayerId(), role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed: panelSeedSnapshot(), look: readLookControls() }], active: 0 };
   syncActiveLayer();
   const L = state.layers, base = L.items[L.active].seed, baseLook = L.items[L.active].look;
@@ -315,7 +349,7 @@ function addLayer() {
   // A new layer takes the current layer's look — except after a Segment, whose square caps are forced, not chosen.
   const look = { ...baseLook };
   if (base.type === 'segment' && L.items[L.active].roundedBeforeSegment != null) look.rounded = L.items[L.active].roundedBeforeSegment;
-  L.items.push({ id: newLayerId(), role: 'fill', ink: slot, place: { mx: 0, my: 0, scale: NEW_LAYER_SCALE, rotate: 0 }, seed, look });
+  L.items.push({ id: newLayerId(), role: 'fill', ink: slot, place: { mx: 0, my: 0, scale: hooks.NEW_LAYER_SCALE, rotate: 0 }, seed, look });
   // Above/below is only visible with different colours: make sure the Palette has one for this layer.
   if (state.colors.length <= slot && state.colors.length < PALETTE_MAX) {
     state.colors = state.colors.concat(hexKey(LAYER_NEW_INKS[(slot - 1) % LAYER_NEW_INKS.length]));
@@ -326,7 +360,7 @@ function addLayer() {
   showLayerStyle(L.items[L.active]);
   layersChanged();
 }
-function removeLayer(i) {
+export function removeLayer(i) {
   const L = state.layers;
   if (!L || !L.items[i]) return;
   syncActiveLayer();
@@ -343,7 +377,7 @@ function removeLayer(i) {
   }
   layersChanged();
 }
-function moveLayer(i, dir) {
+export function moveLayer(i, dir) {
   const L = state.layers, j = i + dir;
   if (!L || j < 0 || j >= L.items.length) return;
   syncActiveLayer();
@@ -352,7 +386,7 @@ function moveLayer(i, dir) {
   layersChanged();
 }
 // Layer-row pictograms — from the shared registry (Organica.icons).
-const LAYER_ICONS = {
+export const LAYER_ICONS = {
   grip: Organica.icons.get('grip', { size: 'sm' }),
   eye: Organica.icons.get('eye', { size: 'sm' }),
   eyeOff: Organica.icons.get('eye-off', { size: 'sm' }),
@@ -363,9 +397,9 @@ const LAYER_ICONS = {
   mask: Organica.icons.get('role-mask', { size: 'sm' }),
   pattern: Organica.icons.get('role-pattern', { size: 'sm' }),
 };
-const LAYER_ROLE_ORDER = ['fill', 'container', 'mask', 'pattern'];
-const layerName = l => (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
-function renderLayersUI() {
+export const LAYER_ROLE_ORDER = ['fill', 'container', 'mask', 'pattern'];
+export const layerName = l => (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
+export function renderLayersUI() {
   const list = ctrl('layers-list'), L = state.layers, place = ctrl('layer-place-block');
   closeLayerInkPop();
   place.style.display = L ? '' : 'none';
@@ -403,15 +437,15 @@ function renderLayersUI() {
   const pl = layerPlace(L.items[L.active]);
   [['mx', pl.mx], ['my', pl.my], ['scale', pl.scale], ['rotate', pl.rotate]].forEach(([k, v]) => { ctrl('rg-layer-' + k).value = v; ctrl('v-layer-' + k).textContent = v; });
 }
-function toggleLayerHidden(i) { const l = state.layers.items[i]; if (l.hidden) delete l.hidden; else l.hidden = true; layersChanged(); }
-function cycleLayerRole(i) {
+export function toggleLayerHidden(i) { const l = state.layers.items[i]; if (l.hidden) delete l.hidden; else l.hidden = true; layersChanged(); }
+export function cycleLayerRole(i) {
   const l = state.layers.items[i];
   l.role = LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(l.role || 'fill') + 1) % LAYER_ROLE_ORDER.length];
   syncLookBlocks();
   layersChanged();
 }
 // Move a layer from stack index `from` to `to` (0 = bottom); the active layer stays the same object.
-function moveLayerTo(from, to) {
+export function moveLayerTo(from, to) {
   const L = state.layers;
   if (!L || from === to || !L.items[from] || to < 0 || to >= L.items.length) return;
   syncActiveLayer();
@@ -422,9 +456,9 @@ function moveLayerTo(from, to) {
   layersChanged();
 }
 // One shared colour panel (built on open, positioned under the clicked swatch).
-let layerInkPopFor = null;
-function closeLayerInkPop() { const pop = ctrl('layer-ink-pop'); if (pop) pop.hidden = true; layerInkPopFor = null; }
-function openLayerInkPop(i, anchor) {
+export let layerInkPopFor = null;
+export function closeLayerInkPop() { const pop = ctrl('layer-ink-pop'); if (pop) pop.hidden = true; layerInkPopFor = null; }
+export function openLayerInkPop(i, anchor) {
   const pop = ctrl('layer-ink-pop'), l = state.layers.items[i];
   if (layerInkPopFor === i && !pop.hidden) { closeLayerInkPop(); return; }
   const cur = l.ink == null ? 'cell' : l.ink;
@@ -479,12 +513,12 @@ ctrl('layers-list').addEventListener('keydown', e => {
 // would not start from the layer's name (a <button>) in Safari/Firefox, and
 // behaved differently per browser. Press on a row's head, move 4px, drop on another
 // row: its upper half = above it, lower half = below it.
-let layerDragFrom = null;
-const clearLayerDropMarks = () => ctrl('layers-list').querySelectorAll('.drop-before, .drop-after, .is-dragging').forEach(r => r.classList.remove('drop-before', 'drop-after', 'is-dragging'));
+export let layerDragFrom = null;
+export const clearLayerDropMarks = () => ctrl('layers-list').querySelectorAll('.drop-before, .drop-after, .is-dragging').forEach(r => r.classList.remove('drop-before', 'drop-after', 'is-dragging'));
 // Where a drop on `row` sends the dragged layer: the half of the row's head picks
 // above/below; a drop that would leave it where it is (the lower half of the row
 // just above it — with two layers, half of every row) takes the row's place instead.
-function layerDropTarget(e, row) {
+export function layerDropTarget(e, row) {
   const t = +row.dataset.layer, from = layerDragFrom;
   const r = (row.querySelector('.org-layer-card__head') || row).getBoundingClientRect(), above = e.clientY < r.top + r.height / 2;
   // rows are listed top first: "above" a row = a higher stack index
@@ -494,8 +528,8 @@ function layerDropTarget(e, row) {
   to = Math.max(0, Math.min(state.layers.items.length - 1, to));
   return { to, before: to > from || (to === from && above) };
 }
-let layerPress = null;   // {from, x, y, id, moved}
-const layerRowAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest('#layers-list .org-layer-card'); };
+export let layerPress = null;   // {from, x, y, id, moved}
+export const layerRowAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest('#layers-list .org-layer-card'); };
 ctrl('layers-list').addEventListener('pointerdown', e => {
   const head = e.button === 0 && e.target.closest('.org-layer-card__head');
   // the eye / role / ink / delete buttons keep their own click
@@ -551,7 +585,7 @@ renderLayersUI();
 // entering Figure, restore right after leaving it back to Component/Element
 // (see setTier()). Nothing saved to LIBRARY is ever touched by this — it's
 // purely the in-session Element/Component working state.
-function snapshotComponentElementState() {
+export function snapshotComponentElementState() {
   return {
     seed: seedForSnapshot(), appearance: appearanceSnapshot(),
     loomGrid: state.loomGrid ? JSON.parse(JSON.stringify(state.loomGrid)) : null,
@@ -564,7 +598,7 @@ function snapshotComponentElementState() {
     componentRole: state.componentRole, underlyingComponentName: state.underlyingComponentName,
   };
 }
-function restoreComponentElementState(snap) {
+export function restoreComponentElementState(snap) {
   applyElementSnapshot(snap.seed, snap.appearance);
   state.loomGrid = snap.loomGrid;
   ctrl('rg-grid-cols').value = snap.gridCols; ctrl('v-grid-cols').textContent = snap.gridCols;
@@ -585,7 +619,7 @@ function restoreComponentElementState(snap) {
   syncColorRuleUI();
   buildPalette();
   state.paperColor = hexKey(snap.paperColor);
-  setPaperUI(snap.paperColor);
+  hooks.setPaperUI(snap.paperColor);
 
   state.componentRole = snap.componentRole;
   state.underlyingComponentName = snap.underlyingComponentName;
@@ -596,7 +630,7 @@ function restoreComponentElementState(snap) {
   renderSeedPreview();
 }
 
-function applyLibraryEntryToUI(entry) {
+export function applyLibraryEntryToUI(entry) {
   applyElementSnapshot(entry.seed, entry.appearance);
 
   setComponentGrid(entry.grid, { silent: true });
@@ -611,7 +645,7 @@ function applyLibraryEntryToUI(entry) {
   syncColorRuleUI();
   buildPalette();
   state.paperColor = hexKey(entry.paperColor);
-  setPaperUI(entry.paperColor);
+  hooks.setPaperUI(entry.paperColor);
 
   const comp = { id: `library-${Date.now()}`, ruleSource: entry.component.ruleSource, cells: entry.component.cells };
   state.components = [comp];
@@ -635,7 +669,7 @@ function applyLibraryEntryToUI(entry) {
 // Underlying-component picker only matters once a role actually reads it
 // (Normal never does) — dead-control rule already applied elsewhere in
 // this project (Symbols' Fit/Padding hidden for polygon grids, etc.).
-function syncComponentRoleUI() {
+export function syncComponentRoleUI() {
   const relevant = state.componentRole === 'container' || state.componentRole === 'mask';
   ctrl('underlying-component-block').style.display = relevant ? '' : 'none';
   ctrl('underlying-component-empty').style.display = state.underlyingComponentName ? 'none' : '';
@@ -643,13 +677,13 @@ function syncComponentRoleUI() {
   if (state.underlyingComponentName) ctrl('underlying-component-name').textContent = state.underlyingComponentName;
 }
 
-function removeUnderlyingComponent() {
+export function removeUnderlyingComponent() {
   state.underlyingComponentName = null;
   syncComponentRoleUI();
   renderGallery();
 }
 
-function openUnderlyingComponentPicker() {
+export function openUnderlyingComponentPicker() {
   const all = LIBRARY.read();
   const names = libraryNames(all);
   ctrl('underlying-component-overlay-empty').style.display = names.length ? 'none' : '';
@@ -680,30 +714,30 @@ function openUnderlyingComponentPicker() {
   Organica.autoLabelPanel(ctrl('underlying-component-overlay'));
 }
 
-function closeUnderlyingComponentPicker() {
+export function closeUnderlyingComponentPicker() {
   ctrl('underlying-component-overlay').style.display = 'none';
 }
 
-function renderLibrary() { renderLibraryRail(); }
+export function renderLibrary() { hooks.renderLibraryRail(); }
 
 // Renames a saved Component and repoints everything that names it: saved
 // Symbols' cells, the live Symbol, Container/Mask references, the Grid pick.
-function renameLibraryEntry(oldName, newName) {
+export function renameLibraryEntry(oldName, newName) {
   const all = LIBRARY.read();
   if (!all[oldName]) return;
   if (all[newName]) return;   // the rail's rename dialog asks again on a clash
   all[newName] = all[oldName]; delete all[oldName];
   Object.values(all).forEach(e => { if (e.underlyingComponentName === oldName) e.underlyingComponentName = newName; });
   LIBRARY.write(all);
-  const sym = SYMBOL_LIBRARY.read();
+  const sym = hooks.SYMBOL_LIBRARY.read();
   Object.values(sym).forEach(e => (e.cells || []).forEach(c => { if (c.componentName === oldName) c.componentName = newName; }));
-  SYMBOL_LIBRARY.write(sym);
+  hooks.SYMBOL_LIBRARY.write(sym);
   (state.symbolCells || []).forEach(c => { if (c.componentName === oldName) c.componentName = newName; });
   state.symbolPool.forEach(p => { if (p.name === oldName) p.name = newName; });   // the Symbol pool names it too
   if (state.underlyingComponentName === oldName) state.underlyingComponentName = newName;
   if (state.fvsGridComponentName === oldName) state.fvsGridComponentName = newName;
-  renderLibrary(); renderSymbolLibrary();
-  if (state.symbolGrid) renderSymbol();
+  renderLibrary(); hooks.renderSymbolLibrary();
+  if (state.symbolGrid) hooks.renderSymbol();
 }
 
 // buildComponentSVG always reads state.paperColor/componentRole/
@@ -711,7 +745,7 @@ function renameLibraryEntry(oldName, newName) {
 // values instead, so this wraps it with a temporary swap rather than
 // duplicating the whole render function. role/underlyingComponentName
 // default to 'normal'/null for entries saved before this feature existed.
-function buildComponentSVGWithPaper(items, seed, size, paperColor, role, underlyingComponentName, blend) {
+export function buildComponentSVGWithPaper(items, seed, size, paperColor, role, underlyingComponentName, blend) {
   const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName, blend: state.componentBlend };
   state.paperColor = paperColor;
   state.componentRole = role || 'normal';

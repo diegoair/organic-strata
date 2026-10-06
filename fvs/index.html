@@ -1792,24 +1792,8 @@
 <script src="/shared/vendor/kiwi.min.js"></script>
 <script src="/shared/paper.js"></script>
 <script src="/shared/circle-advanced.js"></script>
-<!-- Flexible Visual System — the tool's own scripts, classic, in order (one shared global scope). Map: docs/FVS.md §Architecture -->
-<script src="/fvs/js/00-core.js"></script>
-<script src="/fvs/js/01-geometry.js"></script>
-<script src="/fvs/js/02-seed-ui.js"></script>
-<script src="/fvs/js/03-rules.js"></script>
-<script src="/fvs/js/04-appearance.js"></script>
-<script src="/fvs/js/05-render-component.js"></script>
-<script src="/fvs/js/06-component-ui.js"></script>
-<script src="/fvs/js/07-library.js"></script>
-<script src="/fvs/js/08-symbol-grid.js"></script>
-<script src="/fvs/js/09-symbol-render.js"></script>
-<script src="/fvs/js/10-suggest.js"></script>
-<script src="/fvs/js/11-symbol-ui.js"></script>
-<script src="/fvs/js/12-shell.js"></script>
-<script src="/fvs/js/13-figure-engine.js"></script>
-<script src="/fvs/js/14-figure-ui.js"></script>
-<script src="/fvs/js/15-export-library-view.js"></script>
-<script src="/fvs/js/99-boot.js"></script>
+<!-- Flexible Visual System — the tool's own code: ES modules from fvs/js/main.js (deferred; runs before DOMContentLoaded). Map: docs/FVS.md §Architecture -->
+<script type="module" src="/fvs/js/main.js"></script>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>
 <script src="/shared/header.js"></script>

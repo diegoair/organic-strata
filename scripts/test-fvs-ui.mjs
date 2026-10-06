@@ -66,9 +66,11 @@ ws.addEventListener('message', e => {
 const cdp = (method, params = {}) => new Promise(r => { const i = ++nid; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Evaluate a function in the page (it can reach FVS globals: state, ctrl, LIBRARY …).
+// Evaluate a function in the page (it can reach FVS names: state, ctrl, LIBRARY … — the tool is ES modules, so
+// the expression runs inside `with (window.__fvs)`, which fvs/js/test-surface.js fills with every export).
+const FVS_SCOPE = 'with (window.__fvs || {})';
 async function ev(fn, ...args) {
-  const expr = `(${fn.toString()})(...${JSON.stringify(args)})`;
+  const expr = `${FVS_SCOPE} { (${fn.toString()})(...${JSON.stringify(args)}) }`;
   const r = await cdp('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
   if (r.result?.exceptionDetails) throw new Error('page: ' + (r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text).split('\n')[0]);
   return r.result?.result?.value;
@@ -132,10 +134,10 @@ async function load(theme = THEME) {
   await cdp('Page.enable'); await cdp('Runtime.enable'); await cdp('Log.enable');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await cdp('Page.navigate', { url: `http://localhost:${port}/fvs/` });
-  for (let i = 0; i < 60; i++) { await sleep(250); const ok = await ev(() => typeof setTier === 'function' && typeof LIBRARY !== 'undefined' && document.readyState === 'complete').catch(() => false); if (ok) break; }
+  for (let i = 0; i < 60; i++) { await sleep(250); const ok = await ev(() => !!(window.__fvs && window.__fvs.isReady) && typeof setTier === 'function' && typeof LIBRARY !== 'undefined' && document.readyState === 'complete').catch(() => false); if (ok) break; }
   await ev(() => { try { localStorage.clear(); } catch {} });
   await cdp('Page.reload'); await sleep(1800);
-  await cdp('Runtime.evaluate', { expression: HELPERS });
+  await cdp('Runtime.evaluate', { expression: `${FVS_SCOPE} ${HELPERS}` });
   await ev(t => { document.documentElement.dataset.theme = t; }, theme);
   await sleep(150);
 }

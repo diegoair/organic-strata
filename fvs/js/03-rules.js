@@ -1,7 +1,18 @@
 // Flexible Visual System · 03-rules — Component grid + transform rules — FAMILIES, lattice rules, rule builders.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import {
+  ctrl, state, val
+} from './00-core.js';
+import {
+  CELL_OUTLINES, CELL_SHAPES, OUTLINE_GATE, cellLatticeGrid, latticeRings, resolveGridCells
+} from './01-geometry.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  getGrid: () => getGrid, syncComponentGridUI: () => syncComponentGridUI
+});
 // ── Grid — either a plain square NxN (cellSize/gap-driven) or an
 // imported Loom grid (rect or polygon cellShape, arbitrary cell count
 // and layout, read via Organica.loadLoomGrid). Cell centres are always
@@ -12,7 +23,7 @@
 // Component saved on an imported Loom grid before that split still loads
 // (state.loomGrid, "legacy") and renders exactly as saved; picking columns ×
 // rows replaces it.
-function getGrid() {
+export function getGrid() {
   if (state.cellShape !== 'square') return cellLatticeGrid();
   if (state.loomGrid) {
     return { kind: 'loom', cellShape: state.loomGrid.cellShape, cells: state.loomGrid.cells, width: state.loomGrid.inner.width, height: state.loomGrid.inner.height };
@@ -20,14 +31,14 @@ function getGrid() {
   return { kind: 'square', cols: +ctrl('rg-grid-cols').value, rows: +ctrl('rg-grid-rows').value, cellSize: val('rg-cellsize'), gap: val('rg-gap') };
 }
 // spec: 'square3x3' (the recipes' string form), {cols, rows}, or a saved entry.grid.
-function setComponentGrid(spec, opts = {}) {
+export function setComponentGrid(spec, opts = {}) {
   let cols = 2, rows = 2;
   if (spec && spec.lattice) {   // a cell-shape lattice: the cell shape itself comes with the Element (seed.cellShape)
     state.cellLattice[spec.lattice.shape] = latticeRings(spec.lattice);
     if (spec.lattice.outline && CELL_OUTLINES[spec.lattice.shape].includes(spec.lattice.outline)) state.cellOutline[spec.lattice.shape] = spec.lattice.outline;
     state.loomGrid = null;
     syncComponentGridUI();
-    if (!opts.silent) { syncRuleAvailability(); renderGallery(); }
+    if (!opts.silent) { hooks.syncRuleAvailability(); hooks.renderGallery(); }
     return;
   }
   if (typeof spec === 'string') { const m = spec.match(/^square(\d)x(\d)$/); if (m) { cols = +m[1]; rows = +m[2]; } }
@@ -41,9 +52,9 @@ function setComponentGrid(spec, opts = {}) {
     ctrl('rg-grid-rows').value = rows; ctrl('v-grid-rows').textContent = rows;
   }
   syncComponentGridUI();
-  if (!opts.silent) { syncRuleAvailability(); renderGallery(); }
+  if (!opts.silent) { hooks.syncRuleAvailability(); hooks.renderGallery(); }
 }
-function syncComponentGridUI() {
+export function syncComponentGridUI() {
   const lattice = state.cellShape !== 'square';
   const legacy = !lattice && !!state.loomGrid;
   ctrl('grid-legacy-hint').style.display = legacy ? '' : 'none';
@@ -59,7 +70,7 @@ function syncComponentGridUI() {
   });
   if (lattice && state.componentRole !== 'normal') {
     state.componentRole = 'normal'; ctrl('sel-component-role').value = 'normal';
-    if (typeof syncComponentRoleUI === 'function') syncComponentRoleUI();
+    if (typeof hooks.syncComponentRoleUI === 'function') hooks.syncComponentRoleUI();
   }
   if (lattice) {
     const n = state.cellLattice[state.cellShape], ol = state.cellOutline[state.cellShape];
@@ -83,13 +94,13 @@ function syncComponentGridUI() {
 // Component fit maths (resolveUnderlyingComponent's own `.size`) is still a
 // single square scalar. Left false the frame is the grid's REAL width×height
 // (a 1×4 grid draws as 4 cells wide, 1 tall — no square letterbox padding).
-function componentRoleActive() { return state.componentRole === 'container' || state.componentRole === 'mask'; }
+export function componentRoleActive() { return state.componentRole === 'container' || state.componentRole === 'mask'; }
 // `size` may be a plain number (legacy square, e.g. frameSize()) or a {w,h}
 // pair (frameDims()) — either way this is the one place that decides the
 // Component canvas's actual drawn shape, used by drawComponentCanvas/
 // buildComponentSVGBody/buildComponentSVG/componentEditHitLayer so
 // they all agree.
-function resolvedComponentDims(size) {
+export function resolvedComponentDims(size) {
   const d = typeof size === 'object' ? size : { w: size, h: size };
   if (componentRoleActive()) { const s = Math.max(d.w, d.h); return { w: s, h: s }; }
   return d;
@@ -101,28 +112,28 @@ function resolvedComponentDims(size) {
 // gallery can comfortably lay out).
 // Component gallery zoom = thumbnail size (wheel / ⌘+ ⌘− ⌘0 on the gallery):
 // only the two CSS vars change, the grid reflows and still scrolls.
-const GALLERY_THUMB = 96, GALLERY_ZOOM_MAX = 5;
-var galleryZoom = 1;
-function setGalleryThumbVars(size) {
-  const box = fitThumbBox(size.w, size.h, Math.round(GALLERY_THUMB * galleryZoom));
+export const GALLERY_THUMB = 96, GALLERY_ZOOM_MAX = 5;
+rt.galleryZoom = 1;
+export function setGalleryThumbVars(size) {
+  const box = fitThumbBox(size.w, size.h, Math.round(GALLERY_THUMB * rt.galleryZoom));
   const g = document.getElementById('gallery');
   g.style.setProperty('--thumb-w', box.w + 'px');
   g.style.setProperty('--thumb-h', box.h + 'px');
 }
-function fitThumbBox(w, h, maxSide) {
+export function fitThumbBox(w, h, maxSide) {
   const scale = maxSide / Math.max(w, h);
   return { w: Math.max(1, Math.round(w * scale)), h: Math.max(1, Math.round(h * scale)) };
 }
 
 // ── Transform axes — the full vocabulary. ──
-const ROTATIONS = [0, 90, 180, 270];
-const FLIPS = [{ h: false, v: false }, { h: true, v: false }, { h: false, v: true }, { h: true, v: true }];
+export const ROTATIONS = [0, 90, 180, 270];
+export const FLIPS = [{ h: false, v: false }, { h: true, v: false }, { h: false, v: true }, { h: true, v: true }];
 
-function scaleValues() {
+export function scaleValues() {
   return [val('rg-scale-small') / 100, val('rg-scale-medium') / 100, val('rg-scale-large') / 100];
 }
 
-function activeAxes() {
+export function activeAxes() {
   return {
     rotation: ctrl('chk-axis-rotation').checked,
     flip: ctrl('chk-axis-flip').checked,
@@ -130,7 +141,7 @@ function activeAxes() {
   };
 }
 
-function axisValues() {
+export function axisValues() {
   const axes = activeAxes();
   return {
     rotations: axes.rotation ? ROTATIONS : [0],
@@ -139,7 +150,7 @@ function axisValues() {
   };
 }
 
-function mulberry32(a) { return Organica.mulberry32(a);
+export function mulberry32(a) { return Organica.mulberry32(a);
 }
 
 // Drops components whose cell transforms are identical to one already in the
@@ -148,12 +159,12 @@ function mulberry32(a) { return Organica.mulberry32(a);
 // {r+180, no flip} are the same cell — without this, Exhaustive with Rotation +
 // Flip listed every such pair twice and Checkerboard's (0°, H+V) pair was a
 // silent copy of its own (0°, 180°) pair.
-function canonicalState(c) {
+export function canonicalState(c) {
   const both = c.flipH && c.flipV;
   return (both ? (c.rotation + 180) % 360 : c.rotation) + (both ? '' : (c.flipH ? 'h' : '') + (c.flipV ? 'v' : '')) + '@' + c.scale;
 }
-function componentKey(cells) { return cells.map(canonicalState).join(','); }
-function dedupeComponents(list) {
+export function componentKey(cells) { return cells.map(canonicalState).join(','); }
+export function dedupeComponents(list) {
   const seen = new Set();
   const out = [];
   for (const comp of list) {
@@ -185,16 +196,16 @@ function dedupeComponents(list) {
 //      allowing 4 fully independent cells the way the old design did.
 // Each returns an array of {id, ruleSource, cells:[4]}.
 
-function stateFrom(rotation, flipH, flipV, scale) { return { rotation, flipH, flipV, scale }; }
+export function stateFrom(rotation, flipH, flipV, scale) { return { rotation, flipH, flipV, scale }; }
 
-function buildIdentityCells(rotation, flipH, flipV, scale, count) {
+export function buildIdentityCells(rotation, flipH, flipV, scale, count) {
   const c = stateFrom(rotation, flipH, flipV, scale);
   return new Array(count).fill(c);
 }
 
-function activeCellCount() { return resolveGridCells(getGrid()).length; }
+export function activeCellCount() { return resolveGridCells(getGrid()).length; }
 
-function buildPinwheelCells(base, chirality, scale) {
+export function buildPinwheelCells(base, chirality, scale) {
   return [0, 1, 2, 3].map(i => {
     const rot = (((base + chirality * i * 90) % 360) + 360) % 360;
     return stateFrom(rot, false, false, scale);
@@ -209,13 +220,13 @@ function buildPinwheelCells(base, chirality, scale) {
 // output, not by eyeballing — the isosceles triangle's own left-right
 // symmetry hides a wrong flipH visually) previously mismatched which
 // cell got the diagonal "both" flip.
-const MIRROR_RELATIONS = [
+export const MIRROR_RELATIONS = [
   { hNeighbor: 1, vNeighbor: 2, diagonal: 3 },   // seed = TL
   { hNeighbor: 0, vNeighbor: 3, diagonal: 2 },   // seed = TR
   { hNeighbor: 3, vNeighbor: 0, diagonal: 1 },   // seed = BL
   { hNeighbor: 2, vNeighbor: 1, diagonal: 0 },   // seed = BR
 ];
-function buildMirrorCells(seed, scale) {
+export function buildMirrorCells(seed, scale) {
   const rel = MIRROR_RELATIONS[seed];
   const cells = new Array(4);
   cells[seed] = stateFrom(0, false, false, scale);
@@ -231,14 +242,14 @@ function buildMirrorCells(seed, scale) {
 // equivalent of mirroring across a 45° line (an "up"-pointing shape's
 // diagonal reflection is a "right"-pointing one, which (90−0)=90 gives
 // correctly under this file's own 0°=up convention).
-function buildDiagonalCells(rotation, scale) {
+export function buildDiagonalCells(rotation, scale) {
   const onDiag = stateFrom(rotation, false, false, scale);
   const offRot = (((90 - rotation) % 360) + 360) % 360;
   const offDiag = stateFrom(offRot, false, false, scale);
   return [onDiag, offDiag, offDiag, onDiag];   // TL,BR = onDiag; TR,BL = offDiag
 }
 
-function buildCheckerboardCells(stateA, stateB) {
+export function buildCheckerboardCells(stateA, stateB) {
   return [stateA, stateB, stateB, stateA];   // TL,BR = A; TR,BL = B — exactly 2 distinct states
 }
 
@@ -248,12 +259,12 @@ function buildCheckerboardCells(stateA, stateB) {
 // different groupings from Checkerboard's own diagonal pairing
 // (TL,BR)/(TR,BL) — derived directly from how Diego described
 // Components 4 ("S" curve) and 5 ("bowtie") in the reference brief.
-function buildRowMirrorCells(rotation, scale) {
+export function buildRowMirrorCells(rotation, scale) {
   const a = stateFrom(rotation, false, false, scale);
   const b = stateFrom(rotation, false, true, scale);
   return [a, a, b, b];   // TL,TR,BL,BR
 }
-function buildColumnMirrorCells(rotation, scale) {
+export function buildColumnMirrorCells(rotation, scale) {
   // Left column (TL,BL) = flipH; right column (TR,BR) = original — per
   // Diego's own description of Component 5 ("cella 1 riflesso sulla y,
   // cella 2 come l'originale").
@@ -269,8 +280,8 @@ function buildColumnMirrorCells(rotation, scale) {
 // — but that ISN'T the grid's actual rotational adjacency. Walking the
 // square's corners in true clockwise order (TL,TR,BR,BL) is what makes
 // 4 quarter-shapes actually meet seamlessly at the centre.
-const RADIAL_ORDER = [0, 1, 3, 2];   // TL, TR, BR, BL — true clockwise walk
-function buildRadialCells(base, chirality, scale) {
+export const RADIAL_ORDER = [0, 1, 3, 2];   // TL, TR, BR, BL — true clockwise walk
+export function buildRadialCells(base, chirality, scale) {
   const cells = new Array(4);
   RADIAL_ORDER.forEach((cellIdx, k) => {
     const rot = (((base + chirality * k * 90) % 360) + 360) % 360;
@@ -279,7 +290,7 @@ function buildRadialCells(base, chirality, scale) {
   return cells;
 }
 
-function ruleIdentity() {
+export function ruleIdentity() {
   return [{ id: 'identity-0', ruleSource: 'identity', cells: buildIdentityCells(0, false, false, 1.0, activeCellCount()) }];
 }
 
@@ -288,7 +299,7 @@ function ruleIdentity() {
 // Shared by activeFamilies() (Random/Exhaustive's pool filter) and the
 // standalone named rules below, so the two can't drift on what "eligible"
 // means for a given family.
-function axisSatisfied(req, axes) {
+export function axisSatisfied(req, axes) {
   if (req == null) return true;
   if (req === 'any') return axes.rotation || axes.flip || axes.scale;
   return !!axes[req];
@@ -301,20 +312,20 @@ function axisSatisfied(req, axes) {
 // result is untouched (the regression suite hashes them). A 4-cell Loom grid
 // that is a 4×1 row / 1×4 column is NOT a 2×2 — it used to be fed to the
 // TL/TR/BL/BR tables anyway (and Radial was offered on it).
-function isCanonical2x2() {
+export function isCanonical2x2() {
   const grid = getGrid();
   if (resolveGridCells(grid).length !== 4) return false;
   if (grid.kind === 'square') return grid.cols === 2 && grid.rows === 2;
-  return componentCellColRow(grid).every((c, i) => c.col === i % 2 && c.row === (i >> 1));
+  return hooks.componentCellColRow(grid).every((c, i) => c.col === i % 2 && c.row === (i >> 1));
 }
-function ruleCR() { return isCanonical2x2() ? null : componentCellColRow(getGrid()); }
-const mod360 = r => ((r % 360) + 360) % 360;
-const crDims = cr => ({ cols: Math.max(...cr.map(c => c.col)) + 1, rows: Math.max(...cr.map(c => c.row)) + 1 });
+export function ruleCR() { return isCanonical2x2() ? null : hooks.componentCellColRow(getGrid()); }
+export const mod360 = r => ((r % 360) + 360) % 360;
+export const crDims = cr => ({ cols: Math.max(...cr.map(c => c.col)) + 1, rows: Math.max(...cr.map(c => c.row)) + 1 });
 
 // ── Any-grid cell builders — one per family, shared by the named rules and
 // the FAMILIES registry (Random/Exhaustive), so the two can't drift. `cr` is
 // componentCellColRow(grid). On 2×2 each is identical to its literal builder.
-const GRID_BUILD = {
+export const GRID_BUILD = {
   // step by (col + 2·row) mod 4 — on 2×2 that is exactly the row-major index
   pinwheel: (cr, base, ch, sc) => cr.map(c => stateFrom(mod360(base + ch * ((c.col + 2 * c.row) % 4) * 90), false, false, sc)),
   // the seed cell sits at (seed % 2, seed >> 1); flips follow column/row parity from it
@@ -340,7 +351,7 @@ const GRID_BUILD = {
   },
 };
 // A grid bigger than one 2×2 block — where the global and the tiled readings differ.
-const crIsLarge = cr => { if (!cr) return false; const d = crDims(cr); return d.cols > 2 || d.rows > 2; };
+export const crIsLarge = cr => { if (!cr) return false; const d = crDims(cr); return d.cols > 2 || d.rows > 2; };
 
 // Every named rule below (bar Mirror, handled separately just after) draws
 // its candidate gallery straight from its own FAMILIES entry — the same
@@ -359,7 +370,7 @@ const crIsLarge = cr => { if (!cr) return false; const d = crDims(cr); return d.
 // those only add the OTHER axes' values. Only Checkerboard, whose states come
 // entirely from the axes, can still come out empty (every axis off) and then
 // shows Identity.
-function familyRuleGallery(key) {
+export function familyRuleGallery(key) {
   const fam = FAMILIES[key];
   if (fam.eligible && !fam.eligible()) return ruleIdentity();
   const av = axisValues();
@@ -369,9 +380,9 @@ function familyRuleGallery(key) {
   return kept.length ? kept : ruleIdentity();
 }
 
-function rulePinwheel() { return familyRuleGallery('pinwheel'); }
+export function rulePinwheel() { return familyRuleGallery('pinwheel'); }
 
-function ruleMirror() {
+export function ruleMirror() {
   const gallery = familyRuleGallery('mirror');
   // Beyond 2×2 the per-tile mirror above is not the only reading: add the
   // whole-grid (book-matched) mirrors — left|right, top|bottom, and both —
@@ -385,24 +396,24 @@ function ruleMirror() {
   return dedupeComponents(gallery);
 }
 
-function ruleDiagonal() { return familyRuleGallery('diagonal'); }
+export function ruleDiagonal() { return familyRuleGallery('diagonal'); }
 
-function ruleCheckerboard() { return familyRuleGallery('checkerboard'); }
+export function ruleCheckerboard() { return familyRuleGallery('checkerboard'); }
 
-function ruleRowMirror() { return familyRuleGallery('rowmirror'); }
+export function ruleRowMirror() { return familyRuleGallery('rowmirror'); }
 
-function ruleColumnMirror() { return familyRuleGallery('columnmirror'); }
+export function ruleColumnMirror() { return familyRuleGallery('columnmirror'); }
 
 // Radial needs a centre that falls between cells: an even × even grid (the
 // four quadrants each take one step of the clockwise walk TL,TR,BR,BL).
-function radialEligible() {
+export function radialEligible() {
   if (isCanonical2x2()) return true;
-  const cr = componentCellColRow(getGrid());
+  const cr = hooks.componentCellColRow(getGrid());
   if (!cr.length) return false;
   const d = crDims(cr);
   return d.cols % 2 === 0 && d.rows % 2 === 0 && d.cols * d.rows === cr.length;
 }
-function ruleRadial() { return familyRuleGallery('radial'); }
+export function ruleRadial() { return familyRuleGallery('radial'); }
 
 // Horizontal/vertical lines — unlike the 8 named rules above (all
 // hand-derived for exactly 4 cells, TL/TR/BL/BR), this reads N×M-general
@@ -417,16 +428,16 @@ function ruleRadial() { return familyRuleGallery('radial'); }
 // every cell stays at the untouched scale 1.0 (byte-identical to before this
 // axis existed). Rotation/Flip have no hook here (the angle is already
 // governed by Mode/Step, not by the axis checkboxes).
-function ruleLines(axis) {
+export function ruleLines(axis) {
   const grid = getGrid();
-  const ctxs = componentCellColRow(grid);
+  const ctxs = hooks.componentCellColRow(grid);
   const mode = ctrl('sel-lines-mode').value;
   const step = parseInt(ctrl('rg-lines-step').value, 10) || 0;
   const scaleOn = ctrl('chk-axis-scale').checked;
   const sv = scaleValues();
   const cells = ctxs.map(ctx => {
     const key = axis === 'row' ? ctx.row : ctx.col;
-    const rot = mode === 'ramp' ? snap90(step * key) : (key % 2 ? step : 0);
+    const rot = mode === 'ramp' ? hooks.snap90(step * key) : (key % 2 ? step : 0);
     const scale = !scaleOn ? 1.0 : (mode === 'ramp' ? sv[key % sv.length] : sv[key % 2 ? 2 : 0]);
     return stateFrom(((rot % 360) + 360) % 360, false, false, scale);
   });
@@ -443,9 +454,9 @@ function ruleLines(axis) {
 // (step 01) for the reference look. Scale axis, same idea as ruleLines: the
 // phase-position key already driving rotation on/off also indexes into
 // Small/Medium/Large — off, scale stays 1.0 everywhere (byte-identical).
-function ruleOscillator() {
+export function ruleOscillator() {
   const grid = getGrid();
-  const ctxs = componentCellColRow(grid);
+  const ctxs = hooks.componentCellColRow(grid);
   const angle = parseInt(ctrl('sel-osc-angle').value, 10);
   const shift = parseFloat(ctrl('rg-osc-shift').value);
   const period = parseInt(ctrl('rg-osc-period').value, 10) || 1;
@@ -471,7 +482,7 @@ function ruleOscillator() {
 // itself has no such requirement, so activeFamilies() is never empty.
 // `eligible` is an extra grid gate (Radial: even × even; Book-match: only
 // where it differs from the per-tile Mirror, i.e. not a canonical 2×2). ──
-const FAMILIES = {
+export const FAMILIES = {
   identity: {
     requiresAxis: null,
     paramSpace(av) {
@@ -531,7 +542,7 @@ const FAMILIES = {
   },
   rowmirror: {
     requiresAxis: 'flip',
-    eligible: () => crDims(componentCellColRow(getGrid())).rows > 1,
+    eligible: () => crDims(hooks.componentCellColRow(getGrid())).rows > 1,
     paramSpace(av) {
       const out = [];
       for (const r of av.rotations) for (const s of av.scales) out.push({ rotation: r, scale: s });
@@ -541,7 +552,7 @@ const FAMILIES = {
   },
   columnmirror: {
     requiresAxis: 'flip',
-    eligible: () => crDims(componentCellColRow(getGrid())).cols > 1,
+    eligible: () => crDims(hooks.componentCellColRow(getGrid())).cols > 1,
     paramSpace(av) {
       const out = [];
       for (const r of av.rotations) for (const s of av.scales) out.push({ rotation: r, scale: s });
@@ -562,7 +573,7 @@ const FAMILIES = {
   },
 };
 
-function activeFamilies() {
+export function activeFamilies() {
   const axes = activeAxes();
   return Object.keys(FAMILIES).filter(key => {
     const fam = FAMILIES[key];
@@ -581,7 +592,7 @@ function activeFamilies() {
 // Structural repeats (canonical cells) are skipped — plus anything `accept`
 // rejects, if given — and the draw continues until `count` distinct
 // candidates exist or the space is visibly exhausted.
-function ruleRandom(accept) {
+export function ruleRandom(accept) {
   const count = Math.round(val('rg-random-count'));
   const seed = Math.round(val('num-seed'));
   const rng = mulberry32(seed);
@@ -604,7 +615,7 @@ function ruleRandom(accept) {
   return out;
 }
 
-function ruleExhaustive() {
+export function ruleExhaustive() {
   const av = axisValues();
   const cr = ruleCR();
   const out = [];
@@ -617,17 +628,17 @@ function ruleExhaustive() {
 }
 // The honest count — after the duplicate pairs (e.g. H+V vs a 180° turn, a
 // Diagonal that is also a Checkerboard) are folded away.
-function exhaustiveTotal() { return state.cellShape !== 'square' ? latticeRule('exhaustive').length : ruleExhaustive().length; }
+export function exhaustiveTotal() { return state.cellShape !== 'square' ? latticeRule('exhaustive').length : ruleExhaustive().length; }
 
 // ── Rules on a cell-shape lattice (test) — every turn is a step of the cell shape's own (90° circle, 120°
 // triangle, 60° hexagon), added to the cell's own pose (a down triangle sits at 60°). Square cells never reach here.
-const LATTICE_RULES = new Set(['identity', 'radial', 'checkerboard', 'random', 'exhaustive']);
-function latticeSteps() {
+export const LATTICE_RULES = new Set(['identity', 'radial', 'checkerboard', 'random', 'exhaustive']);
+export function latticeSteps() {
   const st = CELL_SHAPES[state.cellShape].step, out = [];
   for (let r = 0; r < 360; r += st) out.push(r);
   return out;
 }
-function latticeStates() {
+export function latticeStates() {
   const ax = activeAxes(), out = [];
   const flips = ax.flip ? [{ h: false, v: false }, ...CELL_SHAPES[state.cellShape].flips.map(f => ({ h: f === 'h', v: f === 'v' }))] : [{ h: false, v: false }];
   for (const r of ax.rotation ? latticeSteps() : [0]) for (const f of flips) for (const s of axisValues().scales) out.push(stateFrom(r, f.h, f.v, s));
@@ -636,7 +647,7 @@ function latticeStates() {
 // Radial: each cell turned towards the lattice centre. On triangles the Arc's pivot corner (the outline's
 // first corner) goes to the corner nearest the centre — six of them close a full circle; elsewhere the cell's
 // top faces the centre. `extra` turns every cell by one more step (the gallery's variants).
-function latticeRadialCells(extra, scale) {
+export function latticeRadialCells(extra, scale) {
   const grid = getGrid(), centers = resolveGridCells(grid), shape = state.cellShape, cs = CELL_SHAPES[shape], st = cs.step;
   const snap = r => mod360(Math.round(r / st) * st);
   return grid.cells.map((c, i) => {
@@ -655,11 +666,11 @@ function latticeRadialCells(extra, scale) {
     return stateFrom(snap(best + extra), false, false, scale);
   });
 }
-function latticeParity() {
+export function latticeParity() {
   const grid = getGrid();
   return grid.cells.map((c, i) => state.cellShape === 'triangle' ? (c.baseRot > 1 ? 1 : 0) : i % 2);
 }
-function latticeRule(mode) {
+export function latticeRule(mode) {
   const n = getGrid().cells.length, scales = axisValues().scales;
   const pack = (key, list) => dedupeComponents(list.map((cells, i) => ({ id: `${key}-${i}`, ruleSource: key, cells })));
   if (mode === 'identity') return pack('identity', latticeStates().map(s => Array.from({ length: n }, () => ({ ...s }))));
@@ -682,9 +693,9 @@ function latticeRule(mode) {
   if (mode === 'exhaustive') return dedupeComponents(['identity', 'radial', 'checkerboard'].flatMap(m => latticeRule(m)).map((c, i) => ({ ...c, id: `exhaustive-${i}`, ruleSource: 'exhaustive' })));
   return [];
 }
-const EXHAUSTIVE_CAP = 512;
+export const EXHAUSTIVE_CAP = 512;
 
-function readManualCells() {
+export function readManualCells() {
   const cells = [];
   for (let i = 0; i < activeCellCount(); i++) {
     cells.push({

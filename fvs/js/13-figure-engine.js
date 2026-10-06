@@ -1,15 +1,57 @@
 // Flexible Visual System · 13-figure-engine — Figure engine — recipes v1 fixtures, recipe v2 validate / run, catalogs.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import {
+  DEFAULT_COLOR_RULE, buildPalette, ctrl, refreshColourViews, state, syncColorRuleUI
+} from './00-core.js';
+import {
+  SEED_TYPES, frameDims, resolveGridCells
+} from './01-geometry.js';
+import {
+  getSeed, seedForSnapshot
+} from './02-seed-ui.js';
+import {
+  buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, getGrid,
+  setComponentGrid, stateFrom
+} from './03-rules.js';
+import {
+  buildComponentItems
+} from './04-appearance.js';
+import {
+  buildComponentSVG, renderGallery
+} from './05-render-component.js';
+import {
+  getSelectedComponent, pushUndo
+} from './06-component-ui.js';
+import {
+  LIBRARY, hexKey
+} from './07-library.js';
+import {
+  LIVE_SYMBOL, buildFvsGridSVG, getFvsGrid, getSymbolGrid, hexLoomModel, lastFigureMeta, loadSymbolGrid,
+  polyOrient, snapPose, squareLoomModel, tileSelectedInGrid, triangleLoomModel, withPlacementDefaults
+} from './08-symbol-grid.js';
+import {
+  buildSymbolSVG
+} from './09-symbol-render.js';
+import {
+  cellColRow, renderSymbol
+} from './11-symbol-ui.js';
+import {
+  setPaperUI, setTier, syncSymbolViewUI
+} from './12-shell.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  fireChange: () => fireChange
+});
 // ── Built-in recipes, v1 — no longer in the UI (the Element panel's "Start from a
 // recipe" was removed Oct 4, 2026: its tiled results showed on no page; the same 7
 // live in Figure as "Classic · …", FIGURE_RECIPES_V1_AS_V2). Kept as fixtures for
 // fvs/_test-regression.html, which builds Element → Component → colours → Grid
 // from them and checks each v1 result equals its v2 twin. Each `cells()` reuses the same builders the rule dropdown uses, so a
 // recipe is exactly what the matching rule would generate.
-const LEAF_CELLS = () => buildCheckerboardCells(stateFrom(180, false, false, 1), stateFrom(0, false, false, 1));
-const BUILTIN_RECIPES = [
+export const LEAF_CELLS = () => buildCheckerboardCells(stateFrom(180, false, false, 1), stateFrom(0, false, false, 1));
+export const BUILTIN_RECIPES = [
   { id: 'circle', label: 'Circle from four arcs', hint: 'Arc, Radial 180° — four quarter-discs meeting at the centre.',
     element: { type: 'arc', params: { 'rg-thickness': 100 } }, colors: ['#0a9a3e'],
     component: { grid: 'square2x2', cells: () => buildRadialCells(180, 1, 1) } },
@@ -32,9 +74,9 @@ const BUILTIN_RECIPES = [
     element: { type: 'arc', params: { 'rg-thickness': 60 } }, colors: ['#1e5be8'],
     component: { grid: 'square2x2', cells: () => buildMirrorCells(0, 1) }, tile: { type: 'square2x2', cellSize: 110, altFlip: true } },
 ];
-function fireInput(id, v) { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }
-function fireChange(id, v) { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('change', { bubbles: true })); }
-function runBuiltinRecipe(def) {
+export function fireInput(id, v) { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); }
+export function fireChange(id, v) { const e = ctrl(id); e.value = v; e.dispatchEvent(new Event('change', { bubbles: true })); }
+export function runBuiltinRecipe(def) {
   fireChange('sel-seed-type', def.element.type);
   Object.entries(def.element.params || {}).forEach(([id, v]) => fireInput(id, v));
   fireChange('sel-element-fillmode', def.style || 'fill');
@@ -72,7 +114,7 @@ function runBuiltinRecipe(def) {
 //   transform — rotate the whole figure, mirror it over its right/bottom edge
 // runFigureRecipe() drives the same state and functions the UI does, so what it draws IS what
 // the tiers export (one code path, checked by the regression suite).
-function slotClassContext(grid) {
+export function slotClassContext(grid) {
   const cr = cellColRow(grid);
   const raw = (state.symbolGrid && state.symbolGrid.cells) || [];
   return cr.map((c, i) => ({
@@ -81,14 +123,14 @@ function slotClassContext(grid) {
     ring: raw[i] && raw[i].ring != null ? raw[i].ring : null, sector: raw[i] && raw[i].sector != null ? raw[i].sector : null,
   }));
 }
-function ruleMatches(when, ctx) {
+export function ruleMatches(when, ctx) {
   const has = (v, x) => Array.isArray(v) ? v.includes(x) : v === x;
   return (when.class == null || has(when.class, ctx.orient)) && (when.row == null || has(when.row, ctx.row))
     && (when.col == null || has(when.col, ctx.col)) && (when.index == null || has(when.index, ctx.index))
     && (when.parity == null || when.parity === ctx.parity) && (when.ring == null || has(when.ring, ctx.ring)) && (when.sector == null || has(when.sector, ctx.sector));
 }
 // Rules apply in order; a later rule overrides an earlier one on the slots it matches.
-function applyClassRules(rules, seedType) {
+export function applyClassRules(rules, seedType) {
   const grid = getSymbolGrid();
   if (!grid) return;
   const ctxs = slotClassContext(grid);
@@ -105,7 +147,7 @@ function applyClassRules(rules, seedType) {
     });
   });
 }
-function componentCellsFromRule(rule, p) {
+export function componentCellsFromRule(rule, p) {
   p = p || {};
   if (rule === 'radial') return buildRadialCells(p.base || 0, p.chirality || 1, 1);
   if (rule === 'pinwheel') return buildPinwheelCells(p.base || 0, p.chirality || 1, 1);
@@ -113,13 +155,13 @@ function componentCellsFromRule(rule, p) {
   if (rule === 'checkerboard') return buildCheckerboardCells(stateFrom(p.a || 0, false, false, 1), stateFrom(p.b || 0, false, false, 1));
   throw new Error('Unknown component rule: ' + rule);
 }
-function gridTypeFromLattice(l) {
+export function gridTypeFromLattice(l) {
   if (l.type === 'tier') return 'tier' + (l.stack || 1);
   if (l.type === 'triangle') return 'tri' + l.rows;
   if (l.type === 'square') return `square${l.n}x${l.n}`;
   throw new Error('Unknown grid lattice: ' + l.type);
 }
-function validateFigureRecipe(def) {
+export function validateFigureRecipe(def) {
   if (!def || def.tool !== 'fvs-recipe' || def.version !== 2) throw new Error('Not a v2 figure recipe');
   if (!def.element || !SEED_TYPES[def.element.type]) throw new Error('Unknown Seed type: ' + (def.element && def.element.type));
   const lv = def.levels || [];
@@ -140,8 +182,8 @@ function validateFigureRecipe(def) {
 // Loom grid (lattice.type 'loomModel', its Canvas frame included), every cell as it is, the
 // saved Components those cells use (inline, so the recipe travels), and the Symbol's palette.
 // Such a level is sealed: its cells are drawn as they are, Rules are not applied on top.
-const isSealedSymbol = l => !!l && l.kind === 'symbol' && Array.isArray(l.cells);
-function runSealedSymbolLevel(first) {
+export const isSealedSymbol = l => !!l && l.kind === 'symbol' && Array.isArray(l.cells);
+export function runSealedSymbolLevel(first) {
   const l = first.lattice;
   if (!l || l.type !== 'loomModel' || !l.model) throw new Error('An adopted Symbol needs its Loom grid (lattice.type "loomModel")');
   if (first.componentEntries) {   // make the recipe self-contained, never overwriting the user's own entry of the same name
@@ -163,7 +205,7 @@ function runSealedSymbolLevel(first) {
   renderSymbol();
 }
 // The Symbol step as a sealed symbol level (null when there is no Symbol grid yet).
-function symbolLevelFromLiveState() {
+export function symbolLevelFromLiveState() {
   if (!state.symbolGrid) return null;
   const lib = LIBRARY.read(), componentEntries = {};
   const queue = state.symbolCells.filter(c => c.source === 'component' && c.componentName).map(c => c.componentName);
@@ -183,7 +225,7 @@ function symbolLevelFromLiveState() {
   if (Object.keys(componentEntries).length) level.componentEntries = componentEntries;
   return level;
 }
-function runFigureRecipe(def, opts) {
+export function runFigureRecipe(def, opts) {
   const lv = validateFigureRecipe(def);
   const el = def.element;
   fireChange('sel-seed-type', el.type);
@@ -240,22 +282,22 @@ function runFigureRecipe(def, opts) {
   // Every real caller passes keepTier — this path is a defensive fallback only.
   // 'grid' has no page of its own anymore, so land on Symbol instead of a blank UI.
   setTier(tier === 'grid' ? 'symbol' : tier);
-  return tierSVG();
+  return hooks.tierSVG();
 }
 // Raised from 20000 alongside the Symbol/Figure size ladder (Symbol now up to ~64
 // cells, Figure's Grid up to square12x12=144 tiles): a single properly-sized
 // Symbol × one Grid level × a mirror stays comfortably under this (64×144×4=36,864);
 // the most extreme chained combinations (two maxed grids stacked) still hit it, by
 // design — see CLAUDE.md session note.
-const FIGURE_MAX_SHAPES = 40000;
+export const FIGURE_MAX_SHAPES = 40000;
 // A finished Grid figure as the tile of the next level: its markup without the paper rect,
 // its frame, and the box it really draws in (set by the last buildFvsGridSVG()).
-function promoteFigureToTile(svg) {
+export function promoteFigureToTile(svg) {
   const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
   return { size: lastFigureMeta.size, inner, box: lastFigureMeta.box };
 }
 // The finished SVG of one underlying step, whichever step is on screen.
-function figureSVGOf(tier) {
+export function figureSVGOf(tier) {
   if (tier === 'grid') return buildFvsGridSVG();
   if (tier === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
   const comp = getSelectedComponent();
@@ -267,7 +309,7 @@ function figureSVGOf(tier) {
 
 // The built-in recipes, written as v2 data. Each one reproduces its v1 twin above exactly
 // (the regression suite compares them) — the proof that the model is not triangle-specific.
-const FIGURE_RECIPES_V1_AS_V2 = {
+export const FIGURE_RECIPES_V1_AS_V2 = {
   'circle': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'radial', params: { base: 180, chirality: 1 } }] },
   'leaf-block': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }] },
   'leaf-wave': { element: { type: 'arc', params: { 'rg-thickness': 100 }, colors: ['#0a9a3e'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110 }] },
@@ -277,7 +319,7 @@ const FIGURE_RECIPES_V1_AS_V2 = {
   'kaleidoscope': { element: { type: 'arc', params: { 'rg-thickness': 60 }, colors: ['#1e5be8'] }, levels: [{ kind: 'component', grid: 'square2x2', rule: 'mirror', params: { seed: 0 } }, { kind: 'grid', lattice: { type: 'square', n: 2 }, cellSize: 110, altFlip: true }] },
 };
 // Levels of levels: each grid's finished figure becomes the tile of the next one.
-function recursiveFigureRecipes() {
+export function recursiveFigureRecipes() {
   const sym = { kind: 'symbol', lattice: { type: 'triangle', rows: 2 }, fit: 'fill', rules: [{ when: { class: 'down' }, do: { content: 'empty' } }] };
   const el = { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' };
   const g = (lattice, extra) => ({ kind: 'grid', lattice, cellSize: 110, ...(extra || {}) });
@@ -288,7 +330,7 @@ function recursiveFigureRecipes() {
   };
 }
 // Hexagonal lattices: poses in 60° steps (each cell turned by its sector).
-function hexFigureRecipes() {
+export function hexFigureRecipes() {
   const mk = (id, el, rings, rules) => ({ tool: 'fvs-recipe', version: 2, id, element: el, levels: [{ kind: 'symbol', lattice: { type: 'hexagon', rings }, fit: 'contain', rules }] });
   return {
     'Hexagon · rosette (triangles turned by sector)': mk('hex-rosette', { type: 'triangle', colors: ['#f0301f'] }, 3, [{ when: {}, do: { rotate: 'sector', scale: 0.62 } }]),
@@ -297,7 +339,7 @@ function hexFigureRecipes() {
   };
 }
 // The twelve "Triangle Symbol" figures: 3 assets × 4 compositions.
-function triangleFigureRecipes() {
+export function triangleFigureRecipes() {
   const assets = {
     sierpinski: { rows: 2, rules: [{ when: { class: 'down' }, do: { content: 'empty' } }] },
     trapezoid: { rows: 2, rules: [{ when: { class: 'down' }, do: { content: 'filled', rotate: 180 } }, { when: { row: 0 }, do: { content: 'empty' } }] },

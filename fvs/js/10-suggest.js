@@ -1,7 +1,41 @@
 // Flexible Visual System · 10-suggest — Arrange + Suggest — pool, scoring, variations dock.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import {
+  DEFAULT_COLOR_RULE, ctrl, entryInkAt, setStatus, state
+} from './00-core.js';
+import {
+  frameDims, frameSize, resolveCellPlacement, resolveGridCells
+} from './01-geometry.js';
+import {
+  canonicalState, mulberry32
+} from './03-rules.js';
+import {
+  ELEMENT_LIB, buildComponentItems, withAppearance
+} from './04-appearance.js';
+import {
+  drawComponentCanvas, withEntryInks
+} from './05-render-component.js';
+import {
+  buildColourways
+} from './06-component-ui.js';
+import {
+  LIBRARY, buildComponentSVGWithPaper, hexKey, isPaperNone
+} from './07-library.js';
+import {
+  getSymbolGrid, polyOrient
+} from './08-symbol-grid.js';
+import {
+  buildSymbolSVG, componentSpanOf, polygonBoxOffset, spanBlock, symbolLattice
+} from './09-symbol-render.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  addSavedToPool: () => addSavedToPool, elementPool: () => elementPool,
+  generateSymbolCells: () => generateSymbolCells, poolEntries: () => poolEntries,
+  renderSuggestGallery: () => renderSuggestGallery, renderSymbolPool: () => renderSymbolPool,
+  runSuggest: () => runSuggest, symbolSource: () => symbolSource
+});
 // ── Component pool + Arrange ─────────────────────────────────
 // A Symbol is composed from saved Components only. The pool is the set
 // it draws from (each with a weight); Arrange decides WHICH Component goes in
@@ -9,7 +43,7 @@
 // sector, band…), the n-th class takes the n-th pool entry. Random picks
 // by weight. Transforms are reset (a down-pointing triangle cell is turned
 // 180° to face its slot); refine them with the Rule mode. Locked cells stay.
-const SYMBOL_ARRANGE = {
+export const SYMBOL_ARRANGE = {
   random: { label: 'Random (by weight)' },
   checker: { label: 'Checkerboard', cls: c => c.col + c.row },
   rows: { label: 'Rows', cls: c => c.row },
@@ -23,34 +57,34 @@ const SYMBOL_ARRANGE = {
 };
 // Checkerboard alternates the first two pool entries; every other patterned
 // rule cycles through all of them.
-function poolEntries() {
+export function poolEntries() {
   const lib = LIBRARY.read();
   return state.symbolPool.filter(p => lib[p.name]);
 }
 // With no saved Component, a Symbol is built from the saved Elements instead: the
 // latest 8, weight ×1, each placed as it would be from the library rail (its own
 // palette, used under Colour by → Element's own colours). Components win when any exist.
-function elementPool() {
+export function elementPool() {
   const all = ELEMENT_LIB.read();
   return Object.keys(all || {}).filter(n => all[n] && all[n].seed && !all[n].hidden)
     .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')))
     .slice(0, 8).map(name => ({ name, weight: 1, kind: 'element' }));
 }
-const symbolSource = () => { const c = poolEntries(); return c.length ? c : elementPool(); };
-function weightedPick(pal, rng) {
+export const symbolSource = () => { const c = poolEntries(); return c.length ? c : elementPool(); };
+export function weightedPick(pal, rng) {
   const total = pal.reduce((t, p) => t + (p.weight || 1), 0);
   let r = rng() * total;
   for (const p of pal) { r -= (p.weight || 1); if (r < 0) return p; }
   return pal[pal.length - 1];
 }
-function symbolCellContext(grid) {
-  const ctxs = cellColRow(grid);
+export function symbolCellContext(grid) {
+  const ctxs = hooks.cellColRow(grid);
   const raw = (state.symbolGrid && state.symbolGrid.cells) || [];
   return ctxs.map((c, i) => ({ ...c, orient: raw[i] && raw[i].points ? polyOrient(raw[i].points) : null }));
 }
 // Pure: the cells an arrangement produces for (grid, palette, rule, seed, fit),
 // leaving locked cells as they are.
-function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
+export function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
   const rule = SYMBOL_ARRANGE[ruleId] || SYMBOL_ARRANGE.random;
   const rng = mulberry32(seed);
   const ctxs = symbolCellContext(grid);
@@ -63,7 +97,7 @@ function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
     const ctx = ctxs[i];
     const pick = rule.cls ? pal[((rule.cls(ctx, k) % k) + k) % k] : weightedPick(pal, rng);
     if (pick.kind === 'element') {
-      const el = railPatch('element', pick.name);
+      const el = hooks.railPatch('element', pick.name);
       if (el) return { ...el, rotation: (el.rotation || 0) + (ctx.orient === 'down' ? 180 : 0), fitMode: fit, fixedSize: 100, scale: 1, padding: 0, anchorX: 0, anchorY: 0, locked: false };
     }
     const rotation = ctx.orient === 'down' ? 180 : 0;
@@ -80,7 +114,7 @@ function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
     };
   });
 }
-function generateSymbolCells() {
+export function generateSymbolCells() {
   const grid = getSymbolGrid();
   if (!grid) return;
   const pal = symbolSource();
@@ -88,19 +122,19 @@ function generateSymbolCells() {
   state.symbolSelection.clear();
   state.symbolCells = arrangeCells(grid, state.symbolCells, pal, ctrl('sel-sym-arrange').value,
     parseInt(ctrl('num-symbol-seed').value, 10) || 0, ctrl('sel-sym-arrange-fit').value);
-  renderSymbol();
+  hooks.renderSymbol();
 }
 
 // A Component saved in the Component tier joins the Symbol pool straight away —
 // the pool otherwise only auto-fills on the very first Symbol visit, so anything
 // saved later (after changing the Element/Component) was silently left out and
 // Arrange kept building from the old set. Full pool (8): the oldest entry makes room.
-function addSavedToPool(name) {
+export function addSavedToPool(name) {
   if (!name || state.symbolPool.some(p => p.name === name)) return;
   if (state.symbolPool.length >= 8) state.symbolPool.shift();
   state.symbolPool.push({ name, weight: 1 });
 }
-function componentThumbSVG(name) {
+export function componentThumbSVG(name) {
   const entry = LIBRARY.read()[name];
   if (!entry) return '';
   const savedColorAt = entryInkAt(entry);
@@ -110,9 +144,9 @@ function componentThumbSVG(name) {
 // The Symbol's pool (what Arrange / Suggest draw from) is automatic since the right-bar section was removed:
 // the latest 8 saved Components (addSavedToPool), each at weight ×1. This keeps it honest — a deleted or
 // renamed Component drops out — and redraws the empty state, whose Generate needs a pool.
-function renderSymbolPool() {
+export function renderSymbolPool() {
   state.symbolPool = poolEntries();
-  if (!state.symbolGrid && state.activeTier === 'symbol') renderSymbolCanvasOnly();
+  if (!state.symbolGrid && state.activeTier === 'symbol') hooks.renderSymbolCanvasOnly();
 }
 ctrl('sel-sym-arrange').innerHTML = Object.entries(SYMBOL_ARRANGE).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 
@@ -138,12 +172,12 @@ ctrl('sel-sym-arrange').innerHTML = Object.entries(SYMBOL_ARRANGE).map(([k, v]) 
 // Generators: every Arrange rule with its turns chosen for continuity; a beam
 // search over Component × turn for continuity; weighted random + the same turn
 // search. Ranked, look-alikes dropped, shown as a gallery. Deterministic (seed).
-const SUG_N = 10;   // samples per shared edge
-const SUG_STATES_SQ = [[0, false], [90, false], [180, false], [270, false], [0, true], [90, true], [180, true], [270, true]];   // D4 (flip H + a turn covers flip V)
-const SUG_STATES_RECT = [[0, false], [180, false], [0, true], [180, true]];   // a non-square Component or cell only turns half-way
-const compAnalysisCache = new Map();
-const SUG_SAME = 2;   // deltaE under this = the same colour (about one just-noticeable step)
-function analyseComponent(name) {
+export const SUG_N = 10;   // samples per shared edge
+export const SUG_STATES_SQ = [[0, false], [90, false], [180, false], [270, false], [0, true], [90, true], [180, true], [270, true]];   // D4 (flip H + a turn covers flip V)
+export const SUG_STATES_RECT = [[0, false], [180, false], [0, true], [180, true]];   // a non-square Component or cell only turns half-way
+export const compAnalysisCache = new Map();
+export const SUG_SAME = 2;   // deltaE under this = the same colour (about one just-noticeable step)
+export function analyseComponent(name) {
   const entry = LIBRARY.read()[name];
   if (!entry) return null;
   const key = name + '|' + (entry.savedAt || '') + '|' + (entry.colors || []).join(',') + '|' + (entry.paperColor || '');
@@ -195,7 +229,7 @@ function analyseComponent(name) {
   return out;
 }
 // What a point of the frame shows: 0 = the ground, k = ink k of an.pal.
-function inkAt(an, u, v) {
+export function inkAt(an, u, v) {
   if (u <= -1 || u >= 1 || v <= -1 || v >= 1) return 0;
   const gx = Math.min(an.GW - 1, Math.floor((u + 1) / 2 * an.GW)), gy = Math.min(an.GH - 1, Math.floor((v + 1) / 2 * an.GH));
   const at = gy * an.GW + gx;
@@ -205,7 +239,7 @@ function inkAt(an, u, v) {
 // (colours under SUG_SAME apart share one), and REL says how two classes relate:
 // 0 same · 1 too close to tell apart · 2 distinct. Each analysis gets gid[k] =
 // the class of its pal[k]. A transparent ground is the Symbol's own paper.
-function suggestColourTable(anByName) {
+export function suggestColourTable(anByName) {
   const C = Organica.color, hexes = [];
   const ground = isPaperNone(state.paperColor) ? '#ffffff' : hexKey(state.paperColor);
   const classOf = hex => {
@@ -225,7 +259,7 @@ function suggestColourTable(anByName) {
 }
 
 // The grid, in raw (canvas) coordinates: per-cell centre + size, and the shared edges.
-function suggestGridContext() {
+export function suggestGridContext() {
   const grid = getSymbolGrid();
   if (!grid) return null;
   const raw = state.symbolGrid.cells;
@@ -321,11 +355,11 @@ function suggestGridContext() {
 // The ink bits a choice {name, r, fh} shows at a list of cell-relative points.
 // The analysis a choice is scored with: its Component's own, or — Recolour — the
 // same mask with one of its colourways' colours (anByName['<name>#<k>']).
-const anOf = (anByName, ch) => anByName[ch.cw ? ch.name + '#' + ch.cw : ch.name];
-const sameChoice = (a, b) => a.name === b.name && a.r === b.r && a.fh === b.fh && (a.cw || 0) === (b.cw || 0);
+export const anOf = (anByName, ch) => anByName[ch.cw ? ch.name + '#' + ch.cw : ch.name];
+export const sameChoice = (a, b) => a.name === b.name && a.r === b.r && a.fh === b.fh && (a.cw || 0) === (b.cw || 0);
 // Memo per run (G.memo): the same cell side is asked for the same choice many times
 // (the mask is the same whatever the colourway, so the key leaves it out).
-function choiceBits(G, i, ch, pts, fit, anByName) {
+export function choiceBits(G, i, ch, pts, fit, anByName) {
   if (!G.memo) G.memo = new WeakMap();
   let byPts = G.memo.get(pts);
   if (!byPts) { byPts = new Map(); G.memo.set(pts, byPts); }
@@ -334,7 +368,7 @@ function choiceBits(G, i, ch, pts, fit, anByName) {
   if (!got) { got = choiceBitsRaw(G, i, ch, pts, fit, anByName); byPts.set(mk, got); }
   return got;
 }
-function choiceBitsRaw(G, i, ch, pts, fit, anByName) {
+export function choiceBitsRaw(G, i, ch, pts, fit, anByName) {
   const an = anByName[ch.name];
   const c = G.cells[i];
   const place = resolveCellPlacement(c.w, c.h, an.natural, { fitMode: fit, scale: 1, padding: 0, anchorX: 0, anchorY: 0, fixedSize: 100 });
@@ -347,7 +381,7 @@ function choiceBitsRaw(G, i, ch, pts, fit, anByName) {
 }
 // The two sides of one shared edge. ai/aj = the analyses (colour classes), T = the
 // pool's colour table. Without them (or with one ink) it is the plain ink/paper score.
-function pairScore(bi, bj, ai, aj, T) {
+export function pairScore(bi, bj, ai, aj, T) {
   let inkInk = 0, paper = 0, miss = 0, distinct = 0, close = 0, seam = 0;
   for (let k = 0; k < bi.length; k++) {
     const a = bi[k], b = bj[k];
@@ -360,12 +394,12 @@ function pairScore(bi, bj, ai, aj, T) {
   const n = bi.length;
   return { s: (2 * inkInk + distinct + 0.5 * paper - miss) / (2 * n), match: (inkInk + paper) / n, active: inkInk + distinct + close + miss > 0, distinct, close };
 }
-function statesFor(G, i, an) {
+export function statesFor(G, i, an) {
   const c = G.cells[i];
   return an.square && Math.abs(c.w - c.h) / Math.max(c.w, c.h) < 0.08 ? SUG_STATES_SQ : SUG_STATES_RECT;
 }
 // Whole-candidate score: {total, cont, bal, sur, match}
-function scoreSymbolCandidate(G, cand, pal, W, fit, anByName, T) {
+export function scoreSymbolCandidate(G, cand, pal, W, fit, anByName, T) {
   let sc = 0, match = 0, act = 0, same = 0, distinct = 0, close = 0;
   const bitsCache = new Map();
   const bits = (i, side, p) => { const k = i + ':' + p + side; if (!bitsCache.has(k)) bitsCache.set(k, choiceBits(G, i, cand[i], side === 'i' ? G.pairs[p].pi : G.pairs[p].pj, fit, anByName)); return bitsCache.get(k); };
@@ -429,7 +463,7 @@ function scoreSymbolCandidate(G, cand, pal, W, fit, anByName, T) {
 // For fixed Components, pick each cell's turn for continuity with the already-placed
 // neighbours (cells visited top-to-bottom, left-to-right). Locked cells keep theirs.
 // CW (Recolour): name → its colourways; each free cell then also picks one of them.
-function refineTurns(G, cand, fit, anByName, rng, fixed, T, CW) {
+export function refineTurns(G, cand, fit, anByName, rng, fixed, T, CW) {
   const placed = new Array(cand.length).fill(false);
   fixed.forEach((f, i) => { if (f) placed[i] = true; });
   for (const i of G.order) {
@@ -454,7 +488,7 @@ function refineTurns(G, cand, fit, anByName, rng, fixed, T, CW) {
   return cand;
 }
 // Beam search over Component × turn, cell by cell.
-function beamCandidate(G, pal, W, fit, anByName, rng, locked, width, T, CW) {
+export function beamCandidate(G, pal, W, fit, anByName, rng, locked, width, T, CW) {
   const n = G.cells.length;
   const totW = pal.reduce((t, p) => t + (p.weight || 1), 0);
   let beam = [{ cand: locked.map(l => l || null), s: 0, uses: {} }];
@@ -491,7 +525,7 @@ function beamCandidate(G, pal, W, fit, anByName, rng, locked, width, T, CW) {
 }
 // A cell's turn in the engine's own form {r, fh}: flip V = a half turn + flip H,
 // flip H + V = a half turn (see canonicalState).
-function choiceOfCell(c) {
+export function choiceOfCell(c) {
   if (!c || c.source !== 'component') return null;
   let r = ((Math.round(c.rotation / 90) * 90) % 360 + 360) % 360, fh = !!c.flipH;
   if (c.flipV) { r = (r + 180) % 360; fh = !fh; }
@@ -499,8 +533,8 @@ function choiceOfCell(c) {
   if (c.colourway) ch.cwRaw = c.colourway;   // resolved to an index (cw) by suggestSymbols
   return ch;
 }
-function candFromCells(cells) { return cells.map(choiceOfCell); }
-function cellsFromCand(cand, fit, prevCells, CW) {
+export function candFromCells(cells) { return cells.map(choiceOfCell); }
+export function cellsFromCand(cand, fit, prevCells, CW) {
   return cand.map((ch, i) => {
     const prev = prevCells[i];
     if (prev && prev.locked) return prev;
@@ -513,7 +547,7 @@ function cellsFromCand(cand, fit, prevCells, CW) {
 // Recolour (test): the colourways a pool Component may take in a cell — the ones that
 // keep its number of inks and its colour rule, so the analysed mask stays valid and
 // only the colours change. Up to three, after the Component's own.
-function suggestColourways(name) {
+export function suggestColourways(name) {
   const entry = LIBRARY.read()[name];
   if (!entry || !(entry.colors || []).length) return [];
   const rule = { ...DEFAULT_COLOR_RULE, ...(entry.colorRule || {}) };
@@ -523,15 +557,15 @@ function suggestColourways(name) {
     .slice(0, 3).map(cw => ({ colors: cw.colors, paper: cw.paper }));
 }
 // The same mask, shown in a colourway's colours.
-function recolouredAnalysis(an, entry, cw) {
+export function recolouredAnalysis(an, entry, cw) {
   const map = new Map();
   (entry.colors || []).map(hexKey).forEach((h, k) => { if (!map.has(h) && cw.colors[k]) map.set(h, hexKey(cw.colors[k])); });
   return { ...an, gid: null, pal: [isPaperNone(cw.paper) ? null : hexKey(cw.paper), ...an.pal.slice(1).map(h => map.get(h) || h)] };
 }
-function suggestWeights() { return { cont: +ctrl('rg-sug-cont').value / 100, bal: +ctrl('rg-sug-bal').value / 100, sur: +ctrl('rg-sug-sur').value / 100, col: +ctrl('rg-sug-col').value / 100 }; }
+export function suggestWeights() { return { cont: +ctrl('rg-sug-cont').value / 100, bal: +ctrl('rg-sug-bal').value / 100, sur: +ctrl('rg-sug-sur').value / 100, col: +ctrl('rg-sug-col').value / 100 }; }
 
 // The candidate list (pure apart from reading the grid/palette state).
-function suggestSymbols(opts = {}) {
+export function suggestSymbols(opts = {}) {
   const G = suggestGridContext();
   const pal = poolEntries();
   if (!G || !pal.length) return [];
@@ -604,7 +638,7 @@ function suggestSymbols(opts = {}) {
   return scored.slice(0, opts.limit || 12).map(o => ({ ...o, cells: cellsFromCand(o.cand, fit, cur, CW) }));
 }
 
-function renderSuggestGallery(currentIdx) {
+export function renderSuggestGallery(currentIdx) {
   const wrap = ctrl('fvs-sug-panel'), n = state.symbolSuggestions.length;
   const vb = ctrl('btn-sug-dock');
   vb.setAttribute('aria-disabled', String(!n));
@@ -627,7 +661,7 @@ function renderSuggestGallery(currentIdx) {
     btn.addEventListener('click', e => {
       state.symbolCells = sg.cells.map(c => ({ ...c }));
       state.symbolSelection.clear();
-      renderSymbol();
+      hooks.renderSymbol();
       wrap.querySelectorAll('.fvs-suggest__item').forEach((b, k) => b.classList.toggle('is-current', k === i));
       setSugDockOpen(false, { focus: e.detail === 0 });   // picked: the strip closes (focus back on the Variations button from the keyboard)
     });
@@ -635,7 +669,7 @@ function renderSuggestGallery(currentIdx) {
   });
   state.symbolCells = prev;
 }
-function runSuggest(more) {
+export function runSuggest(more) {
   if (!state.symbolGrid) return;
   if (!poolEntries().length) {
     if (elementPool().length) { generateSymbolCells(); ctrl('sug-hint').textContent = 'Suggest reads saved Components — with Elements only the cells were arranged.'; return; }
@@ -647,17 +681,17 @@ function runSuggest(more) {
   state.symbolSuggestions = suggestSymbols(more ? { base } : {});
   ctrl('sug-hint').textContent = suggestSymbols.lastNote || '';
   if (!more && state.symbolSuggestions.length) state.symbolCells = state.symbolSuggestions[0].cells.map(c => ({ ...c }));
-  renderSymbol();
+  hooks.renderSymbol();
   renderSuggestGallery(more ? -1 : 0);
   if (more && state.symbolSuggestions.length) setSugDockOpen(true);   // More like this applies nothing — show what it found
 }
 // The variations dock: collapsed by default (variation 1 is already on the sheet); not remembered across visits.
-function sugDockIsOpen() { return ctrl('fvs-sug-panel').dataset.open === 'true'; }
-function syncSugDock() {
+export function sugDockIsOpen() { return ctrl('fvs-sug-panel').dataset.open === 'true'; }
+export function syncSugDock() {
   const open = sugDockIsOpen(), btn = ctrl('btn-sug-dock');
   btn.setAttribute('aria-expanded', String(open));
 }
-function setSugDockOpen(open, opts) {
+export function setSugDockOpen(open, opts) {
   const panel = ctrl('fvs-sug-panel');
   if (open) {   // sit just above the floatbar, whatever its height; one dropdown at a time
     const bar = ctrl('btn-sug-dock').closest('.org-floatbar');

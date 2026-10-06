@@ -1,7 +1,27 @@
 // Flexible Visual System · 99-boot — Boot — first render, tier, cloud sync of the libraries.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import {
+  state
+} from './00-core.js';
+import {
+  ELEMENT_LIB, elementLibraryChanged
+} from './04-appearance.js';
+import {
+  renderGallery, renderSeedPreview
+} from './05-render-component.js';
+import {
+  LIBRARY, pruneAutoLibraryEntries, renderLibrary
+} from './07-library.js';
+import {
+  SYMBOL_LIBRARY, renderSymbolLibrary
+} from './11-symbol-ui.js';
+import {
+  setTier
+} from './12-shell.js';
+import {
+  setRailOpen
+} from './15-export-library-view.js';
 setRailOpen(false);   // always starts closed — the saved library stays out of the way until asked for (was restored from organica.fvs.rail)
 
 renderGallery();

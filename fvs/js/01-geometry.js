@@ -1,7 +1,11 @@
 // Flexible Visual System · 01-geometry — Seed geometry — Seed types, cell shapes and lattices, Cut out, Irregularity, Split.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import { hooks } from './hooks.js';
+import {
+  ctrl, state, val
+} from './00-core.js';
 // ── Seed ──
 // Each type exposes geometry(params) → { d, normTx, normTy, normScale }.
 // d is an SVG path in a normalized 0..100 box; normTx/normTy/normScale
@@ -21,13 +25,13 @@
 // keeps a thin local wrapper instead of a bare alias, since its shared
 // version takes an explicit rawCells arg where the old inline copy reached
 // into state.symbolGrid directly.
-const { triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetPathD,
+export const { triangleGeometry, arcGeometry, arcPathD, arcTruchetGeometry, arcTruchetPathD,
   wedgeGeometry, polygonGeometry, starGeometry,
   roundedRectGeometry, chevronGeometry, crossGeometry, lensGeometry,
   circleGeometry, segmentGeometry, dropGeometry, blobGeometry,
   resolveGridCells, resolveCellPlacement, frameSize, frameDims, median } = Organica.shapes;
 
-const SEED_TYPES = {
+export const SEED_TYPES = {
   triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex, { corner: p.triCorner, curve: p.triCurve, irregular: p.triIrregular, seed: p.triSeed, outline: p.triOutline }) },
   arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness, p.arcPivot, p.arcSweep, { start: p.arcStart, round: p.arcRound, segs: p.arcSegs, gap: p.arcGap, taper: p.arcTaper, irregular: p.arcIrregular, seed: p.arcSeed }) },
   arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio, { fans: p.truFans, core: p.truCore, spread: p.truSpread, reach: p.truReach, ramp: p.truRamp, curve: p.truCurve, round: p.truRound, segs: p.truSegs, gap: p.truGap }) },
@@ -38,7 +42,7 @@ const SEED_TYPES = {
   chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm, p.chevSquash, { round: p.chevRound, style: p.chevStyle, curve: p.chevCurve, lean: p.chevLean, flat: p.chevFlat, stack: p.chevStack, gap: p.chevGap, rotate: p.chevRotate }) },
   cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength, p.crossCorner, { arms: p.crossArms, taper: p.crossTaper, tip: p.crossTip, style: p.crossStyle, rotate: p.crossRotate }) },
   lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth, { crescent: p.lensCrescent, petals: p.lensPetals, outline: p.lensOutline, rotate: p.lensRotate }) },
-  circle: { label: 'Circle', geometry: (p) => circleGeometry(p.circleRadius, circleOptsFrom(p)) },
+  circle: { label: 'Circle', geometry: (p) => circleGeometry(p.circleRadius, hooks.circleOptsFrom(p)) },
   segment: { label: 'Segment', geometry: (p) => segmentBar(segmentGeometry(p.segLen, { angle: p.segAngle, bend: p.segBend, wave: p.segWave, cycles: p.segCycles, dashes: p.segDashes, gap: p.segGap, lines: p.segLines, spacing: p.segSpacing, repeatX: p.segRepeatX, spaceX: p.segSpaceX, repeatY: p.segRepeatY, spaceY: p.segSpaceY, rays: p.segRays, tile: true }), p.segWeight == null ? SEG_WEIGHT_DEF : p.segWeight, !!p.segRound) },
   drop: { label: 'Drop', geometry: (p) => dropGeometry(p.dropRadius, p.dropTail, { bend: p.dropBend, neck: p.dropNeck, petals: p.dropPetals, rotate: p.dropRotate }) },
   blob: { label: 'Blob', geometry: (p) => blobGeometry(p.blobRadius, p.blobAmount, p.blobSeed, { freq: p.blobFreq, smooth: p.blobSmooth, outline: p.blobOutline }) },
@@ -47,7 +51,7 @@ const SEED_TYPES = {
   // paintGeoCanvas know how to paint them (fills in order, containers clip
   // and masks knock out everything BELOW them). `d` is the placed union of the
   // fill layers, only used for measuring / clip boundaries.
-  stack: { label: 'Layers', geometry: (p) => stackGeometry(p) },
+  stack: { label: 'Layers', geometry: (p) => hooks.stackGeometry(p) },
   // Freehand: every step after Element sees the drawing fitted to the cell;
   // only the Element stage shows it raw ('freehandraw', not in the picker).
   freehand: { label: 'Freehand', geometry: (p) => (p && p.customSeed) || (state.freehand && state.freehand.seed) || { d: '', normTx: 0, normTy: 0, normScale: 1 } },
@@ -69,21 +73,21 @@ const SEED_TYPES = {
 // nothing (no `cellShape` key on the seed → every geometry below is the untouched original). Circle / Triangle /
 // Hexagon: Arc (triangle) and Arc truchet (hexagon) take their own geometry; every other shape is cut to the
 // cell's outline. The outlines + turns live in Organica.shapes.CELL_SHAPES, centred on the box centre (50,50).
-const CELL_SHAPES = Organica.shapes.CELL_SHAPES;
+export const CELL_SHAPES = Organica.shapes.CELL_SHAPES;
 state.cellShape = 'square';
 state.cellLattice = { circle: 2, triangle: 1, hexagon: 2 };   // the Component grid's size (rings / cells along a side)
 state.cellOutline = { circle: 'hexagon', triangle: 'hexagon', hexagon: 'hexagon' };   // the shape the cells are grouped into
 // Which outlines each cell shape can fill; a reason for the ones it can't.
-const CELL_OUTLINES = { circle: ['hexagon', 'triangle', 'diamond', 'square'], hexagon: ['hexagon', 'triangle', 'diamond', 'square'], triangle: ['hexagon', 'triangle', 'diamond'] };
-const OUTLINE_GATE = { triangle: { square: 'Square needs circle or hexagon cells' } };
-const cellShapeOf = seed => (seed && seed.cellShape && CELL_SHAPES[seed.cellShape]) ? seed.cellShape : 'square';
-const withCellShape = seed => (state.cellShape === 'square' || !seed) ? seed : { ...seed, cellShape: state.cellShape };
+export const CELL_OUTLINES = { circle: ['hexagon', 'triangle', 'diamond', 'square'], hexagon: ['hexagon', 'triangle', 'diamond', 'square'], triangle: ['hexagon', 'triangle', 'diamond'] };
+export const OUTLINE_GATE = { triangle: { square: 'Square needs circle or hexagon cells' } };
+export const cellShapeOf = seed => (seed && seed.cellShape && CELL_SHAPES[seed.cellShape]) ? seed.cellShape : 'square';
+export const withCellShape = seed => (state.cellShape === 'square' || !seed) ? seed : { ...seed, cellShape: state.cellShape };
 // A shape on a non-square cell is fitted WHOLE inside it (Diego, Oct 6, 2026 — it used to be cut to the
 // outline, so a Circle on a triangle became a solid triangle and a seed lost its ends). Its box centre goes on
 // the cell's centre (50,50), and it takes the largest scale at which every outline point is inside: the cells
 // are convex, so per edge (outward normal n, offset e) and point q (from the box centre) s ≤ (e − n·c) / (n·q).
-const _cellFitCache = new Map();
-function fitGeoToCell(geo, shape) {
+export const _cellFitCache = new Map();
+export function fitGeoToCell(geo, shape) {
   if (!geo || !geo.d) return geo;
   const key = shape + '|' + (geo.fillRule || '') + '|' + geo.normTx + ',' + geo.normTy + ',' + geo.normScale + '|' + geo.d;
   if (_cellFitCache.has(key)) return _cellFitCache.get(key);
@@ -131,14 +135,14 @@ Object.entries(SEED_TYPES).forEach(([type, t]) => {
   };
 });
 // The turns that map a cell shape onto itself, as the Element strip shows them: [rotation, flipH, flipV, label].
-function cellShapeStates(shape) {
+export function cellShapeStates(shape) {
   if (shape === 'triangle') return [[0, false, false, '0°'], [120, false, false, '120°'], [240, false, false, '240°'], [0, true, false, 'Mirror']];
   if (shape === 'hexagon') return [0, 60, 120, 180, 240, 300].map(r => [r, false, false, r + '°']).concat([[0, true, false, 'Flip H'], [0, false, true, 'Flip V']]);
-  return SEED_PREVIEW_STATES_SQUARE;
+  return hooks.SEED_PREVIEW_STATES_SQUARE;
 }
 // The rotation a polygon cell sits at, relative to the cell shape drawn upright: the turn (in [0, step)) that
 // brings the local outline's first corner onto one of the cell's corners. Circles: 0.
-function polygonCellTurn(shape, pts, cx, cy) {
+export function polygonCellTurn(shape, pts, cx, cy) {
   if (shape === 'circle' || shape === 'square') return 0;
   const cs = CELL_SHAPES[shape], [lx, ly] = cs.poly[cs.poly.length === 3 ? 2 : 0];
   const ref = Math.atan2(ly - 50, lx - 50) * 180 / Math.PI;
@@ -150,8 +154,8 @@ function polygonCellTurn(shape, pts, cx, cy) {
 // so the cell shape's outline fills it. `w` = a cell's width (the Cell size slider), `n` = rings (1–4):
 // circle / hexagon = a centre cell plus n−1 rings (1, 7, 19, 37); triangle = n rings of triangles around one
 // shared corner — a hexagon of triangles (6, 24, 54, 96), so Radial always has a real centre.
-const latticeRings = l => Math.max(1, Math.min(4, l.rings != null ? +l.rings : ({ '1': 1, '3': 1, '4': 1, '6': 1, '7': 2 })[l.key] || 1));   // early test saves kept a cell count
-function cellLatticeCells(shape, n, w, outline = 'hexagon') {
+export const latticeRings = l => Math.max(1, Math.min(4, l.rings != null ? +l.rings : ({ '1': 1, '3': 1, '4': 1, '6': 1, '7': 2 })[l.key] || 1));   // early test saves kept a cell count
+export function cellLatticeCells(shape, n, w, outline = 'hexagon') {
   const out = [], u = a => [Math.cos(a * Math.PI / 180), Math.sin(a * Math.PI / 180)];
   const add = (points, ring) => {
     const cx = points.reduce((s, p) => s + p[0], 0) / points.length, cy = points.reduce((s, p) => s + p[1], 0) / points.length;
@@ -188,22 +192,22 @@ function cellLatticeCells(shape, n, w, outline = 'hexagon') {
   }
   return out;
 }
-function setCellShape(shape, opts = {}) {
+export function setCellShape(shape, opts = {}) {
   if (!CELL_SHAPES[shape]) shape = 'square';
   const changed = shape !== state.cellShape;
   state.cellShape = shape;
   ctrl('fb-cell-shape').querySelectorAll('[data-cell]').forEach(b => { const on = b.dataset.cell === shape; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
-  if (changed) elementView = { r: 0, fh: false, fv: false };
-  syncComponentGridUI();
+  if (changed) rt.elementView = { r: 0, fh: false, fv: false };
+  hooks.syncComponentGridUI();
   // A loaded Element (silent): its caller fills the gallery, but the Rule menu must follow the new shape now.
-  if (opts.silent) { if (changed) syncRuleAvailability(); return; }
+  if (opts.silent) { if (changed) hooks.syncRuleAvailability(); return; }
   // Components built for the old cell shape turn in the wrong step (90° on hexagons…) even when the cell
   // count happens to match — start the gallery again from the starter set.
   if (changed) { state.components = []; state.selectedId = null; state.selectionExplicit = false; state.componentAutoGenerated = true; state.componentAutoGenSignature = null; }
-  syncRuleAvailability();
-  renderSeedPreview(); renderGallery(); renderSymbol();
+  hooks.syncRuleAvailability();
+  hooks.renderSeedPreview(); hooks.renderGallery(); hooks.renderSymbol();
 }
-function cellLatticeGrid() {
+export function cellLatticeGrid() {
   const shape = state.cellShape, rings = state.cellLattice[shape];
   const outline = CELL_OUTLINES[shape].includes(state.cellOutline[shape]) ? state.cellOutline[shape] : 'hexagon';
   const cells = cellLatticeCells(shape, rings, val('rg-cellsize'), outline);
@@ -219,8 +223,8 @@ function cellLatticeGrid() {
 // (so every shape at Count 0 stays byte-identical). Container / Mask
 // silhouettes ignore the rule on purpose — the union of the copies is the
 // solid outline, which is the boundary you want.
-const _pathBBoxCache = new Map();
-function pathBBox(d) {
+export const _pathBBoxCache = new Map();
+export function pathBBox(d) {
   if (_pathBBoxCache.has(d)) return _pathBBoxCache.get(d);
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('style', 'position:absolute;width:0;height:0;visibility:hidden');
@@ -237,8 +241,8 @@ function pathBBox(d) {
 }
 // Area centroid of a path's filled region: a 24×24 isPointInFill sweep over its
 // bbox (respects holes, works for any command set). Falls back to the bbox centre.
-const _pathCentroidCache = new Map();
-function pathCentroid(d, bb) {
+export const _pathCentroidCache = new Map();
+export function pathCentroid(d, bb) {
   if (_pathCentroidCache.has(d)) return _pathCentroidCache.get(d);
   let c = { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -261,7 +265,7 @@ function pathCentroid(d, bb) {
   _pathCentroidCache.set(d, c);
   return c;
 }
-const INNER_APEX = {   // where the shape's pivot sits in its own d-space (before the norm fit)
+export const INNER_APEX = {   // where the shape's pivot sits in its own d-space (before the norm fit)
   wedge: () => [50, 50],
   arc: p => p.arcPivot === 'center' ? [50, 50] : [0, 0],
 };
@@ -271,9 +275,9 @@ const INNER_APEX = {   // where the shape's pivot sits in its own d-space (befor
 // never squash the thickness), butt ends unless `round`. Each ribbon is wound
 // the same way (positive area), so overlaps (Rays, Lines) stay filled under
 // nonzero instead of cancelling out. No Paper.js — pure maths, memoised.
-const SEG_WEIGHT_DEF = 8;
-const _segBarCache = new Map();
-function segmentBar(g, weight, round) {
+export const SEG_WEIGHT_DEF = 8;
+export const _segBarCache = new Map();
+export function segmentBar(g, weight, round) {
   const key = g.d + '|' + g.normTx + '|' + g.normTy + '|' + g.normScale + '|' + weight + '|' + round;
   if (_segBarCache.has(key)) return _segBarCache.get(key);
   const hw = Math.max(0.05, weight / 2), R = v => Math.round(v * 1000) / 1000;
@@ -320,8 +324,8 @@ function segmentBar(g, weight, round) {
   _segBarCache.set(key, out);
   return out;
 }
-const INNER_UNSUPPORTED = new Set(['segment', 'arctruchet']);   // open / already multi-ring — copies would cross, not nest
-function withInnerCopies(geo, p, apex) {
+export const INNER_UNSUPPORTED = new Set(['segment', 'arctruchet']);   // open / already multi-ring — copies would cross, not nest
+export function withInnerCopies(geo, p, apex) {
   const n = Math.round((p && p.innerCount) || 0);
   if (!(n > 0) || !geo || !geo.d) return geo;
   const ratio = Math.min(0.95, Math.max(0.1, (p.innerRatio == null ? 70 : p.innerRatio) / 100));
@@ -346,12 +350,12 @@ function withInnerCopies(geo, p, apex) {
 // flipped the ring on convex shapes with long edges), then shape ∩ band. Flattening error ≤ 3% of t.
 // Prototype (since removed) + measurements: docs/audit-2026-10/FVS-ELEMENT-DUPLICATES.md §5.
 // Memoised by d + fill-rule + %, the inradius by d alone, so a Hollow drag only rebuilds the band.
-const _hollowCache = new Map(), _inradiusCache = new Map();
-const paperLeaves = item => item.children && item.children.length ? item.children.flatMap(paperLeaves) : [item];
+export const _hollowCache = new Map(), _inradiusCache = new Map();
+export const paperLeaves = item => item.children && item.children.length ? item.children.flatMap(paperLeaves) : [item];
 // Largest inscribed circle (the unit of Hollow's %): a 48×48 grid, then two finer passes around the best
 // point. Distances and inside-tests run in plain JS on the silhouette flattened to ≤0.05 — Paper's own
 // getNearestPoint on curves cost ~0.35 ms a call (≈500 ms for a lobed Circle); this is a few ms.
-function inradiusOf(shape, scope) {   // → { r, x, y }: the largest inscribed circle
+export function inradiusOf(shape, scope) {   // → { r, x, y }: the largest inscribed circle
   const polys = paperLeaves(shape).map(l => { const c = l.clone({ insert: false }); try { c.flatten(0.05); } catch (e) { /* straight */ } const pts = c.segments.map(sg => [sg.point.x, sg.point.y]); c.remove(); return pts; }).filter(p => p.length > 2);
   const inside = (x, y) => {   // nonzero winding — Paper's boolean output is wound so holes cancel
     let w = 0;
@@ -393,7 +397,7 @@ function inradiusOf(shape, scope) {   // → { r, x, y }: the largest inscribed 
   return { r: best, x: bx, y: by };
 }
 // The largest inscribed circle of a geometry's visible silhouette (its own d-space), memoised by d.
-function inscribedCircle(geo) {
+export function inscribedCircle(geo) {
   const rKey = geo.d + '|' + (geo.fillRule || '');
   let c = _inradiusCache.get(rKey);
   if (c) return c;
@@ -407,7 +411,7 @@ function inscribedCircle(geo) {
   _inradiusCache.set(rKey, c);
   return c;
 }
-function hollowGeometry(geo, pct) {
+export function hollowGeometry(geo, pct) {
   if (!geo || !geo.d || !(pct > 0)) return geo;
   const key = geo.d + '|' + (geo.fillRule || '') + '|' + pct;
   if (_hollowCache.has(key)) return { ...geo, ..._hollowCache.get(key) };
@@ -479,7 +483,7 @@ function hollowGeometry(geo, pct) {
 //  B — the copies shrink toward the centre of the largest inscribed circle, so the gaps stay even on a
 //      triangle, a drop, a star… (the bbox / centroid of those shapes is not equidistant from the outline).
 //      Apex (Arc / Wedge) still pivots on the shape's own tip.
-function withInnerHollowCopies(h, base, p, apex, cut) {
+export function withInnerHollowCopies(h, base, p, apex, cut) {
   const n = Math.round((p && p.innerCount) || 0);
   if (!(n > 0) || !h || !h.d || !base || !base.d) return h;
   const ratio = Math.min(0.95, Math.max(0.1, (p.innerRatio == null ? 70 : p.innerRatio) / 100));
@@ -539,15 +543,15 @@ function withInnerHollowCopies(h, base, p, apex, cut) {
 //            outline (organic, wobbly). A shape with no corners (circle, blob…) always uses Outline.
 // Applied before Cut out and Copies, so the rim and the copies follow the irregular outline. The shape may
 // poke out of its cell, like Scale above 1 — it is never refitted. Memoised by d + parameters.
-const _irrCache = new Map();
-function outlinePolys(geo, tol) {
+export const _irrCache = new Map();
+export function outlinePolys(geo, tol) {
   const scope = splitPaperScope(), shape = importAsPaperShape(scope, geo.d, geo.fillRule);
   const polys = paperLeaves(shape).map(l => { const c = l.clone({ insert: false }); try { c.flatten(tol); } catch (e) { /* straight */ } const pts = c.segments.map(sg => [sg.point.x, sg.point.y]); c.remove(); return pts; }).filter(q => q.length > 2);
   shape.remove();
   return polys;
 }
 // Corner indices of one closed polyline (see above). `arc` = cumulative length at each point.
-function polyCorners(pts) {
+export function polyCorners(pts) {
   const n = pts.length, arc = [0];
   for (let i = 1; i <= n; i++) arc.push(arc[i - 1] + Math.hypot(pts[i % n][0] - pts[i - 1][0], pts[i % n][1] - pts[i - 1][1]));
   const P = arc[n], w = Math.max(0.03 * P, 1e-6);
@@ -574,8 +578,8 @@ function polyCorners(pts) {
   }
   return { corners: out, arc, P };
 }
-const _cornersCache = new Map();   // the panel asks on every Irregularity / Seed-panel input — memoised by d
-function shapeHasCorners(geo) {
+export const _cornersCache = new Map();   // the panel asks on every Irregularity / Seed-panel input — memoised by d
+export function shapeHasCorners(geo) {
   if (!geo || !geo.d) return false;
   const key = geo.d + '|' + (geo.fillRule || '');
   if (_cornersCache.has(key)) return _cornersCache.get(key);
@@ -585,7 +589,7 @@ function shapeHasCorners(geo) {
   _cornersCache.set(key, has);
   return has;
 }
-function irregularGeometry(geo, p) {
+export function irregularGeometry(geo, p) {
   const amt = Math.min(100, Math.max(0, p.irregular || 0));
   if (!geo || !geo.d || !(amt > 0)) return geo;
   const mode = p.irrMode === 'outline' ? 'outline' : 'corners', waves = Math.max(1, Math.round(p.irrWaves || 6)), seed = Math.round(p.irrSeed || 1);
@@ -636,7 +640,7 @@ function irregularGeometry(geo, p) {
   _irrCache.set(key, res);
   return { ...geo, ...res };
 }
-const BASE_GEOMETRY = {};   // each type's geometry before Irregularity / Cut out / Copies (for the panel's Mode check)
+export const BASE_GEOMETRY = {};   // each type's geometry before Irregularity / Cut out / Copies (for the panel's Mode check)
 for (const k of Object.keys(SEED_TYPES)) {
   if (k === 'freehandraw') continue;   // the raw drawing stage view stays untouched
   const g0 = SEED_TYPES[k].geometry, inner = !INNER_UNSUPPORTED.has(k);
@@ -667,8 +671,8 @@ for (const k of Object.keys(SEED_TYPES)) {
 // scope's OWN bound classes (scope.Path, scope.CompoundPath, scope.Path.
 // Rectangle…), never the bare global Path/CompoundPath, so this never
 // touches the shared scope at all.
-let _splitScope = null;
-function splitPaperScope() {
+export let _splitScope = null;
+export function splitPaperScope() {
   if (_splitScope) return _splitScope;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 8;   // never mounted — Paper only needs a context to attach to
@@ -676,7 +680,7 @@ function splitPaperScope() {
   _splitScope.setup(canvas);
   return _splitScope;
 }
-const SPLIT_QUADRANTS = [
+export const SPLIT_QUADRANTS = [
   { id: 'tl', dx: -1, dy: -1 }, { id: 'tr', dx: 1, dy: -1 },
   { id: 'bl', dx: -1, dy: 1 }, { id: 'br', dx: 1, dy: 1 },
 ];   // TL,TR,BL,BR — the same row-major order resolveGridCells gives a square 2×2
@@ -689,7 +693,7 @@ const SPLIT_QUADRANTS = [
 // winding direction, and is commutative/associative, so subpath order
 // doesn't matter. A plain (non-evenodd) `d` — every other geometry, incl.
 // the reverse-winding "outline" hollow shapes — imports correctly as-is.
-function importAsPaperShape(scope, d, fillRule) {
+export function importAsPaperShape(scope, d, fillRule) {
   const cp = new scope.CompoundPath(d);
   if (fillRule !== 'evenodd' || cp.children.length < 2) return cp;
   const kids = cp.children.map(c => c.clone({ insert: false }));
@@ -701,7 +705,7 @@ function importAsPaperShape(scope, d, fillRule) {
 // Fits a raw `d` into a fresh 0..100 box — the exact formula
 // extractSeedFromSVG (below) uses for an uploaded file, generalised to work
 // on any `d` string via pathBBox instead of a DOM getBBox() call.
-function fitPathToSeed(d, frameBB) {
+export function fitPathToSeed(d, frameBB) {
   // frameBB: fit against THIS box instead of the path's own — a split piece
   // then keeps its place and size inside the original shape's frame, so the
   // four pieces reassemble into the original.
@@ -718,22 +722,22 @@ function fitPathToSeed(d, frameBB) {
 // normal area-cut pipeline can run unchanged. FVS-local only: shared/shapes.js
 // segmentGeometry() must keep returning a plain stroke (Genesis draws it that
 // way), so the conversion happens here, at split time, not in the shared geometry.
-function unitVec(v) { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; }
-function segNormal(a, b) { const dx = b[0] - a[0], dy = b[1] - a[1]; const len = Math.hypot(dx, dy) || 1; return [-dy / len, dx / len]; }
-function ptsToD(pts, closed) { let d = 'M ' + pts.map(p => p[0] + ',' + p[1]).join(' L '); if (closed) d += ' Z'; return d; }
+export function unitVec(v) { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; }
+export function segNormal(a, b) { const dx = b[0] - a[0], dy = b[1] - a[1]; const len = Math.hypot(dx, dy) || 1; return [-dy / len, dx / len]; }
+export function ptsToD(pts, closed) { let d = 'M ' + pts.map(p => p[0] + ',' + p[1]).join(' L '); if (closed) d += ' Z'; return d; }
 // A true semicircular cap from `from` to `to`, both at radius r from `center`
 // (the path's own endpoint) — picks the sweep flag by directly computing
 // which of the two candidate arc directions points toward `outwardDir`,
 // rather than reasoning about SVG's own sweep-flag convention (exact for a
 // diameter chord: sweep=1's arc midpoint is center + rotate90CCW(from-center)).
-function capArc(center, from, to, outwardDir) {
+export function capArc(center, from, to, outwardDir) {
   const r = Math.hypot(from[0] - center[0], from[1] - center[1]);
   const v = [from[0] - center[0], from[1] - center[1]];
   const mid = [-v[1], v[0]];   // candidate midpoint direction for sweep=1
   const sweep = (mid[0] * outwardDir[0] + mid[1] * outwardDir[1]) > 0 ? 1 : 0;
   return `A ${r} ${r} 0 0 ${sweep} ${to[0]} ${to[1]}`;
 }
-function strokeToShapeD(d, widthUnits, opts) {
+export function strokeToShapeD(d, widthUnits, opts) {
   // caps: the caller's (an imported SVG's own stroke-linecap), else the Element's Rounded toggle
   const rounded = opts && opts.rounded != null ? opts.rounded : (ctrl('ck-element-rounded') ? ctrl('ck-element-rounded').checked : true);
   const halfW = Math.max(0.05, (widthUnits || 4) / 2);
@@ -801,7 +805,7 @@ function strokeToShapeD(d, widthUnits, opts) {
 // (Segment and its variants) and was converted to a filled ribbon first —
 // the caller uses it to force the Element into Fill style, since a stroke
 // re-applied on top of an already-filled ribbon piece would double-outline it.
-function splitElementGeometry(d, fillRule) {
+export function splitElementGeometry(d, fillRule) {
   const scope = splitPaperScope();
   const bb0 = pathBBox(d);
   if (!bb0) return [];
@@ -814,7 +818,7 @@ function splitElementGeometry(d, fillRule) {
   } catch (e) { /* fall through, treat as a normal filled shape */ }
   let dd = d, fr = fillRule, strokeConv = false;
   if (bb0.width < 0.01 || bb0.height < 0.01 || allOpen) {
-    const conv = strokeToShapeD(d, (getElementAppearance().strokeW) || 4);
+    const conv = strokeToShapeD(d, (hooks.getElementAppearance().strokeW) || 4);
     if (conv) { dd = conv; fr = undefined; strokeConv = true; }
   }
   const bb = strokeConv ? pathBBox(dd) : bb0;
@@ -845,14 +849,14 @@ function splitElementGeometry(d, fillRule) {
   return out;
 }
 
-const SYMBOL_ARC_TRUCHET ={ arcCount: 5, arcRatio: 0.7, truFans: 2, truCore: 0, truSpread: 180, truReach: 100, truRamp: 0, truCurve: 0, truRound: 0, truSegs: 1, truGap: 20 };   // fixed defaults for the Symbols tier
-const SYMBOL_ARC = { arcPivot: 'corner', arcSweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, arcIrregular: 0, arcSeed: 1 };   // Symbols stay a plain quarter arc
-const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0, wedgeSquash: 100, wedgeRound: 0, wedgeRotate: 0, wedgeCurve: 0, wedgeIrregular: 0, wedgeSeed: 1 };
-const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0, polyRotate: 0, polyStep: 1, polyStyle: 'round', polyCurve: 0, polyOutline: 0, polySkew: 0 };
-const SYMBOL_STAR = { starPoints: 5, starInner: 45 };
-const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
-const SYMBOL_CHEVRON = { chevNotch: 40, chevArm: 55 };
-const SYMBOL_CROSS = { crossArmWidth: 35, crossArmLength: 100 };
-const SYMBOL_LENS = { lensWidth: 50 };
-const SYMBOL_INNER = { innerCount: 0, innerRatio: 70, innerAnchor: 'bbox', cutOut: 0, irregular: 0 };   // Symbols stay plain shapes
-const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0, triSeed: 1, triOutline: 0 };   // Symbols stay a plain triangle
+export const SYMBOL_ARC_TRUCHET ={ arcCount: 5, arcRatio: 0.7, truFans: 2, truCore: 0, truSpread: 180, truReach: 100, truRamp: 0, truCurve: 0, truRound: 0, truSegs: 1, truGap: 20 };   // fixed defaults for the Symbols tier
+export const SYMBOL_ARC = { arcPivot: 'corner', arcSweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, arcIrregular: 0, arcSeed: 1 };   // Symbols stay a plain quarter arc
+export const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0, wedgeSquash: 100, wedgeRound: 0, wedgeRotate: 0, wedgeCurve: 0, wedgeIrregular: 0, wedgeSeed: 1 };
+export const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0, polyRotate: 0, polyStep: 1, polyStyle: 'round', polyCurve: 0, polyOutline: 0, polySkew: 0 };
+export const SYMBOL_STAR = { starPoints: 5, starInner: 45 };
+export const SYMBOL_ROUNDEDRECT = { rrWidth: 100, rrHeight: 100, rrCorner: 0 };
+export const SYMBOL_CHEVRON = { chevNotch: 40, chevArm: 55 };
+export const SYMBOL_CROSS = { crossArmWidth: 35, crossArmLength: 100 };
+export const SYMBOL_LENS = { lensWidth: 50 };
+export const SYMBOL_INNER = { innerCount: 0, innerRatio: 70, innerAnchor: 'bbox', cutOut: 0, irregular: 0 };   // Symbols stay plain shapes
+export const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0, triSeed: 1, triOutline: 0 };   // Symbols stay a plain triangle

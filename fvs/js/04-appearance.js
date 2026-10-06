@@ -1,9 +1,29 @@
 // Flexible Visual System · 04-appearance — Items, appearance, Pattern / Ground, Element as tile, Saved Elements.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import {
+  TILE_PICK_REG, colorAt, colorRuleCR, ctrl, entryInkAt, ruleInk, state, val
+} from './00-core.js';
+import {
+  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameSize, importAsPaperShape, median, ptsToD, resolveGridCells,
+  splitPaperScope
+} from './01-geometry.js';
+import {
+  SEED_ICONS, ensureSvgNamespace, getCreatorLibraryForms, getSeed, seedForSnapshot
+} from './02-seed-ui.js';
+import {
+  mod360
+} from './03-rules.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  DEFAULT_APPEARANCE: () => DEFAULT_APPEARANCE, appearanceMatrix: () => appearanceMatrix,
+  componentCellColRow: () => componentCellColRow, getElementAppearance: () => getElementAppearance,
+  svgToTileGeo: () => svgToTileGeo, syncGroundInkOptions: () => syncGroundInkOptions
+});
 // ── Item resolution + draw/export (shared by canvas + SVG) ──
-function buildComponentItems(component, grid) {
+export function buildComponentItems(component, grid) {
   const centers = resolveGridCells(grid);
   const cr = colorRuleCR(grid, state.colorRule);
   if (grid.lattice) {   // a cell-shape lattice: the outline fills each cell, turned to the cell's own pose
@@ -26,7 +46,7 @@ function buildComponentItems(component, grid) {
 // Element's geometry for that one item; every other item keeps using the
 // ONE `defaultGeo` computed once per render — a component with no edited
 // cells renders byte-identical to before this existed.
-function resolveItemGeo(item, defaultGeo) {
+export function resolveItemGeo(item, defaultGeo) {
   if (!item.content) return defaultGeo;
   return SEED_TYPES[item.content.seedType].geometry(item.content.seedParams);
 }
@@ -37,7 +57,7 @@ function resolveItemGeo(item, defaultGeo) {
 // cellColRow(grid) wrapper below, just reading Components' own Loom state
 // (state.loomGrid) instead of state.symbolGrid — the two tiers keep
 // independent Loom imports, so this can't be the same function.
-function componentCellColRow(grid) {
+export function componentCellColRow(grid) {
   const cr = Organica.shapes.cellColRow(grid, state.loomGrid && state.loomGrid.cells, state.loomGrid && state.loomGrid.grid);
   return grid.kind === 'loom' && grid.cellShape === 'polygon' ? polygonLatticeColRow(grid, cr) : cr;
 }
@@ -48,7 +68,7 @@ function componentCellColRow(grid) {
 // Checkerboard, Mirror, Diagonal and the parity colour rules all collapsed to
 // Identity there. Re-bin from the full-size cells only (slivers join their
 // nearest band) and fold doubled row indices back to a count per column.
-function polygonLatticeColRow(grid, cr) {
+export function polygonLatticeColRow(grid, cr) {
   const cells = resolveGridCells(grid);
   const area = c => c.cellW * c.cellH;
   const maxA = Math.max(...cells.map(area));
@@ -85,9 +105,9 @@ function polygonLatticeColRow(grid, cr) {
 // role/underlyingComponentName (even a literal self-reference just renders
 // that entry's plain cells once) — a disclosed simplification that also
 // makes runaway recursion structurally impossible, not just guarded.
-function resolveUnderlyingComponent(name) {
+export function resolveUnderlyingComponent(name) {
   if (!name) return null;
-  const entry = LIBRARY.read()[name];
+  const entry = hooks.LIBRARY.read()[name];
   if (!entry) return null;
   const savedColorAt = entryInkAt(entry);
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
@@ -104,11 +124,11 @@ function resolveUnderlyingComponent(name) {
 // <clipPath> can hold as one of several direct children (their combined
 // areas union automatically, per spec).
 // Scale + Move ride on the same Element-level transform as Width/Length.
-const stretchOpts = a => ({ scale: a.scale, mx: a.mx, my: a.my, rotate: a.rotate });
-const appearanceIsIdentity = a => a.w === 1 && a.l === 1 && (a.scale == null || a.scale === 1) && !a.mx && !a.my && !a.rotate;
+export const stretchOpts = a => ({ scale: a.scale, mx: a.mx, my: a.my, rotate: a.rotate });
+export const appearanceIsIdentity = a => a.w === 1 && a.l === 1 && (a.scale == null || a.scale === 1) && !a.mx && !a.my && !a.rotate;
 // The Element-level transform (Width/Length · Scale · Rotate · Move about the box centre) as a matrix —
 // the canvas twin of shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a)).
-function appearanceMatrix(a) {
+export function appearanceMatrix(a) {
   const s = a.scale == null ? 1 : a.scale;
   return new DOMMatrix().translate(50 + (a.mx || 0), 50 + (a.my || 0)).rotate(a.rotate || 0).scale(a.w * s, a.l * s).translate(-50, -50);
 }
@@ -117,7 +137,7 @@ function appearanceMatrix(a) {
 // the Container/Mask boundary silhouette, which stays the shared Element's
 // outline for every cell regardless. Mixing per-cell shapes into the clip
 // itself is a real, separate idea, out of scope for this pass.
-function componentBoundaryClipContent(items, geo, half) {
+export function componentBoundaryClipContent(items, geo, half) {
   const a = getElementAppearance();
   const stretch = Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a));
   return items.map(it => {
@@ -132,27 +152,27 @@ function componentBoundaryClipContent(items, geo, half) {
 // Read live from the Element tier's own controls, same way getSeed() reads
 // the shape params — shared/shape-appearance.js owns the actual attribute /
 // transform strings so Genesis Create and this tool can't drift apart.
-const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1, scale: 1, mx: 0, my: 0, rotate: 0 };
+export const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1, scale: 1, mx: 0, my: 0, rotate: 0 };
 // Each shape remembers its own Appearance (single shape only): switching Square → Arc must not make Arc
 // inherit the Square's Style / Stroke / Width / Length / Scale / Move / Pattern. A shape opened for the first
 // time starts from defaults; going back restores what it had. `var`: loaders reach these before the handler is defined.
-var shapeLooks = {}, lastShapeType = null;
+rt.shapeLooks = {}; rt.lastShapeType = null;
 // Pattern fill (Style = Pattern, or a Pattern layer): its own keys, so entries
 // saved before it existed read the defaults.
-const PATTERN_DEFAULTS = { patType: 'lines', patSpacing: 8, patWeight: 2, patAngle: 45 };
-const PATTERN_KEYS = Object.keys(PATTERN_DEFAULTS);
-const patternOf = lk => { const o = {}; PATTERN_KEYS.forEach(k => { o[k] = lk && lk[k] != null ? lk[k] : PATTERN_DEFAULTS[k]; }); return o; };
-function readPatternControls() {
+export const PATTERN_DEFAULTS = { patType: 'lines', patSpacing: 8, patWeight: 2, patAngle: 45 };
+export const PATTERN_KEYS = Object.keys(PATTERN_DEFAULTS);
+export const patternOf = lk => { const o = {}; PATTERN_KEYS.forEach(k => { o[k] = lk && lk[k] != null ? lk[k] : PATTERN_DEFAULTS[k]; }); return o; };
+export function readPatternControls() {
   return { patType: ctrl('sel-element-pattern').value, patSpacing: val('rg-element-patspacing'), patWeight: val('rg-element-patweight'), patAngle: val('rg-element-patangle') };
 }
-function showPatternControls(lk) {
+export function showPatternControls(lk) {
   const p = patternOf(lk);
   ctrl('sel-element-pattern').value = p.patType;
   [['patspacing', p.patSpacing], ['patweight', p.patWeight], ['patangle', p.patAngle]].forEach(([k, v]) => { ctrl('rg-element-' + k).value = v; ctrl('v-element-' + k).textContent = v; });
 }
 // Which look blocks show: Stroke W for Stroke; the pattern block for Style = Pattern
 // or a Pattern layer (whose Style means nothing — it has no shape of its own).
-function syncLookBlocks() {
+export function syncLookBlocks() {
   const L = state.layers, patRole = !!(L && (L.items[L.active].role || 'fill') === 'pattern');
   const fm = ctrl('sel-element-fillmode').value;
   ctrl('element-style-row').style.display = patRole ? 'none' : '';
@@ -167,20 +187,20 @@ function syncLookBlocks() {
 // Palette's Paper row. `null` = plain Paper. Saved in the appearance object, so a
 // saved Component / Symbol keeps its own. Units: 1/100 of the canvas's short side,
 // so the same settings look alike on the Element preview, a Component and a Symbol.
-let paperPatternOn = false;
-function readGroundControls() {
-  if (!paperPatternOn) return null;
+rt.paperPatternOn = false;
+export function readGroundControls() {
+  if (!rt.paperPatternOn) return null;
   const g = { patType: ctrl('sel-ground-pattern').value, patSpacing: val('rg-ground-patspacing'), patWeight: val('rg-ground-patweight'), patAngle: val('rg-ground-patangle'), ink: +ctrl('sel-ground-ink').value || 0 };
   if (g.patType === 'element') Object.assign(g, { src: ctrl('sel-ground-tile').value || 'element', layout: ctrl('sel-ground-layout').value, turn: ctrl('sel-ground-turn').value, patSize: val('rg-ground-patsize') });
   return g;
 }
-function syncGroundInkOptions(selected) {
+export function syncGroundInkOptions(selected) {
   const sel = ctrl('sel-ground-ink'), cur = selected != null ? String(selected) : sel.value;
   sel.innerHTML = state.colors.map((c, i) => `<option value="${i}">Ink ${i + 1}</option>`).join('');
   sel.value = [...sel.options].some(o => o.value === cur) ? cur : String(Math.max(0, state.colors.length - 1));
 }
-function showGroundControls(g) {
-  paperPatternOn = !!g;
+export function showGroundControls(g) {
+  rt.paperPatternOn = !!g;
   if (g) {
     ctrl('sel-ground-pattern').value = g.patType;
     [['patspacing', g.patSpacing], ['patweight', g.patWeight], ['patangle', g.patAngle], ['patsize', g.patSize == null ? 70 : g.patSize]].forEach(([k, v]) => { ctrl('rg-ground-' + k).value = v; ctrl('v-ground-' + k).textContent = v; });
@@ -189,10 +209,10 @@ function showGroundControls(g) {
     syncGroundTileOptions(g.src);
   }
   syncGroundInkOptions(g && g.ink !== 'cell' ? g.ink : null);
-  if (typeof paperSwatch !== 'undefined') paperSwatch.setPattern(paperPatternOn);
+  if (typeof hooks.paperSwatch !== 'undefined') hooks.paperSwatch.setPattern(rt.paperPatternOn);
   syncGroundBlock();
 }
-function syncGroundBlock() {
+export function syncGroundBlock() {
   const type = ctrl('sel-ground-pattern').value, tile = type === 'element';
   ctrl('ground-patangle-row').style.display = type === 'concentric' ? 'none' : '';
   ctrl('ground-tile-block').hidden = !tile;
@@ -206,10 +226,10 @@ function syncGroundBlock() {
 // seed. A saved Component / Symbol keeps a SNAPSHOT of the tile (appearanceSnapshot,
 // at save time), so editing the Element later never changes saved work; the live
 // Paper follows the Element as you edit it.
-const ELEMENT_LIB = Organica.presetStore('fvs-element');
-const TILE_CAP = 2500;   // tiles per canvas — past it the spacing is raised (and said so)
-const _genesisTileCache = new Map();
-function liveElementTile() {
+export const ELEMENT_LIB = Organica.presetStore('fvs-element');
+export const TILE_CAP = 2500;   // tiles per canvas — past it the spacing is raised (and said so)
+export const _genesisTileCache = new Map();
+export function liveElementTile() {
   const seed = getSeed();
   if (!seed || !SEED_TYPES[seed.type]) return null;
   const geo = SEED_TYPES[seed.type].geometry(seed);
@@ -219,7 +239,7 @@ function liveElementTile() {
   return { geo: { d: geo.d, fillRule: geo.fillRule || null, normTx: geo.normTx, normTy: geo.normTy, normScale: geo.normScale },
     style: stroke ? { fillMode: 'stroke', strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked } : { fillMode: 'fill' } };
 }
-function resolveTile(g) {
+export function resolveTile(g) {
   if (!g) return null;
   if (g.tile) return g.tile;
   const src = g.src || 'element';
@@ -238,7 +258,7 @@ function resolveTile(g) {
 }
 // Genesis seeds offered as tiles: the 13 Base Seeds (genesis/forms.js) + the user's
 // own Genesis library in this browser (getCreatorLibraryForms), by id, no duplicates.
-function genesisTileForms() {
+export function genesisTileForms() {
   const out = [], seen = new Set();
   for (const [id, e] of Object.entries(window.ORGANIC_SEEDS || {})) { out.push({ id, name: e.label || id, svg: e.svg }); seen.add(id); }
   for (const f of getCreatorLibraryForms()) if (f && f.svg && !seen.has(f.id)) { out.push(f); seen.add(f.id); }
@@ -254,7 +274,7 @@ function genesisTileForms() {
 // every sharp corner gets the join the SVG asked for (round = a disc, miter = the miter wedge up to the
 // SVG limit of 4, else a bevel). Returns several path strings; the caller unites them. The Element's own
 // strokes keep strokeToShapeD.
-function strokeOutlineParts(d, width, cap, join) {
+export function strokeOutlineParts(d, width, cap, join) {
   const hw = Math.max(0.05, width / 2), scope = splitPaperScope(), out = [];
   let src; try { src = new scope.CompoundPath(d); } catch (e) { return out; }
   const disc = (c, r) => `M ${c[0] - r},${c[1]} a ${r},${r} 0 1,0 ${2 * r},0 a ${r},${r} 0 1,0 ${-2 * r},0 Z`;
@@ -312,7 +332,7 @@ function strokeOutlineParts(d, width, cap, join) {
   src.remove();
   return out;
 }
-function svgToTileGeo(svg) {
+export function svgToTileGeo(svg) {
   if (!/<svg[\s>]/i.test(String(svg))) return null;   // Paper.js would fetch any other string as a URL
   const scope = splitPaperScope();
   const root = scope.project.importSVG(ensureSvgNamespace(String(svg).replace(/var\(--ink\)/g, '#000')), { expandShapes: true, insert: false });
@@ -380,13 +400,13 @@ function svgToTileGeo(svg) {
   return { d, fillRule: null, normScale: ns, normTx: -b.x + (100 - b.width * ns) / 2 / ns, normTy: -b.y + (100 - b.height * ns) / 2 / ns };
 }
 // What a save stores: the appearance with the tile frozen into it.
-function appearanceSnapshot() {
+export function appearanceSnapshot() {
   const a = getElementAppearance();
   if (!a.ground || a.ground.patType !== 'element' || a.ground.tile) return a;
   const t = resolveTile(a.ground);
   return t ? { ...a, ground: { ...a.ground, tile: t } } : a;
 }
-function syncGroundTileOptions(selected) {
+export function syncGroundTileOptions(selected) {
   const sel = ctrl('sel-ground-tile'), cur = selected != null ? selected : sel.value;
   const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const elAll = ELEMENT_LIB.read(), saved = libraryNamesAll(elAll).filter(n => !elAll[n].hidden || cur === 'saved:' + n), gen = genesisTileForms();
@@ -399,18 +419,18 @@ function syncGroundTileOptions(selected) {
     + (saved.length ? `<optgroup label="Saved Elements">${saved.map(n => `<option value="saved:${esc(n)}">${esc(n)}</option>`).join('')}</optgroup>` : '')
     + (gen.length ? `<optgroup label="Genesis seeds">${gen.map(f => `<option value="genesis:${esc(f.id)}">${esc(f.name || f.id)}</option>`).join('')}</optgroup>` : '');
   sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'element';
-  if (!tilePicker) tilePicker = Organica.selectPicker(sel, ctrl('ground-tile-picker'), { registry: TILE_PICK_REG, ariaLabel: 'Tile shape' });
-  tilePicker.invalidate();
+  if (!rt.tilePicker) rt.tilePicker = Organica.selectPicker(sel, ctrl('ground-tile-picker'), { registry: TILE_PICK_REG, ariaLabel: 'Tile shape' });
+  rt.tilePicker.invalidate();
 }
-function tileIconSVG(t) {
+export function tileIconSVG(t) {
   if (!t || !t.geo || !t.geo.d) return '';
   const g = t.geo, attrs = Organica.shapeAppearance.styleAttrs({ fillMode: t.style.fillMode, color: 'currentColor', strokeW: t.style.strokeW, rounded: t.style.rounded });
   return `<svg viewBox="-6 -6 112 112" aria-hidden="true"><g transform="${tileNormAttr(g)}"><path d="${g.d}" ${attrs}${g.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${g.fillRule}"` : ''}/></g></svg>`;
 }
-const libraryNamesAll = all => Object.keys(all || {});
+export const libraryNamesAll = all => Object.keys(all || {});
 // The tiles across a w×h canvas, in the canvas's 1/100-of-short-side units (k):
 // a lattice rotated by Angle about the centre, Brick / Half-drop offsets, Turn.
-function elementTileLayout(g, w, h) {
+export function elementTileLayout(g, w, h) {
   const k = Math.min(w, h) / 100, cx = w / 2 / k, cy = h / 2 / k, r = Math.hypot(w, h) / 2 / k;
   let s = Math.max(1, +g.patSpacing || 8), capped = false;
   const est = Math.pow(2 * r / s + 2, 2);
@@ -429,8 +449,8 @@ function elementTileLayout(g, w, h) {
   }
   return { k, size: s * Math.max(0.05, (g.patSize == null ? 70 : +g.patSize) / 100), tiles, capped, spacing: s };
 }
-const tileNormAttr = geo => `translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
-function elementTileSVG(g, w, h, clipId) {
+export const tileNormAttr = geo => `translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
+export function elementTileSVG(g, w, h, clipId) {
   const t = resolveTile(g);
   if (!t || !t.geo || !t.geo.d) return '';
   const L = elementTileLayout(g, w, h), ink = groundInk(g), id = clipId + 't', sc = L.size / 100;
@@ -440,7 +460,7 @@ function elementTileSVG(g, w, h, clipId) {
   return `<defs><path id="${id}" d="${t.geo.d}" transform="${tileNormAttr(t.geo)}" ${attrs}/></defs>`
     + `<clipPath id="${clipId}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${clipId})"><g transform="scale(${L.k.toFixed(4)})">${uses}</g></g>`;
 }
-function paintElementTileCanvas(ctx, g, w, h) {
+export function paintElementTileCanvas(ctx, g, w, h) {
   const t = resolveTile(g);
   if (!t || !t.geo || !t.geo.d) return;
   const L = elementTileLayout(g, w, h), sc = L.size / 100, path = new Path2D(t.geo.d), geo = t.geo;
@@ -452,13 +472,13 @@ function paintElementTileCanvas(ctx, g, w, h) {
     ctx.save();
     ctx.translate(p.x, p.y); ctx.rotate(p.rot * Math.PI / 180); ctx.scale(sc, sc); ctx.translate(-50, -50);
     ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale); ctx.scale(geo.normScale, geo.normScale);
-    paintPath(ctx, op, path, geo);
+    hooks.paintPath(ctx, op, path, geo);
     ctx.restore();
   }
   ctx.restore();
 }
 // Says so when the tile count hit the cap (the live Paper only).
-function syncGroundTileNote() {
+export function syncGroundTileNote() {
   const g = readGroundControls(), note = ctrl('ground-tile-note');
   if (!g || g.patType !== 'element') { note.hidden = true; return; }
   const L = elementTileLayout(g, 100, 100);
@@ -471,7 +491,7 @@ function syncGroundTileNote() {
 // key; a saved Element is not edited — only used, or removed.
 // One orientation of the live Element as a tile: rotation / flip baked into the path
 // (about the box centre, after the norm fit) — a saved variant is its own shape.
-function orientedElementTile(rot, flipH, flipV) {
+export function orientedElementTile(rot, flipH, flipV) {
   const t = liveElementTile();
   if (!t || (!rot && !flipH && !flipV)) return t;
   const g = t.geo, scope = splitPaperScope();
@@ -484,21 +504,21 @@ function orientedElementTile(rot, flipH, flipV) {
   return { geo: { d, fillRule: g.fillRule || null, normTx: 0, normTy: 0, normScale: 1 }, style };
 }
 // Same shape + style = same variant (drives the ✓).
-function tileSig(t) {
+export function tileSig(t) {
   const str = JSON.stringify([t.geo.d, t.geo.fillRule, t.geo.normTx, t.geo.normTy, t.geo.normScale, t.style]);
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
   return 'el' + (h >>> 0).toString(36);
 }
-function savedElementBySig(sig) {
+export function savedElementBySig(sig) {
   const all = ELEMENT_LIB.read();
   return Object.keys(all).find(n => all[n] && all[n].tile && !all[n].hidden && (all[n].sig || tileSig(all[n].tile)) === sig) || null;   // an entry saved before `sig` existed is matched by its shape
 }
-function defaultElementName(label) {
+export function defaultElementName(label) {
   const type = getSeed().type;
   return (state.layers ? 'Stack' : ((SEED_ICONS[type] || {}).name || type)) + (label && label !== '0°' ? ' · ' + label : '') + ' ' + new Date().toLocaleTimeString();
 }
-function saveElementVariant(rot, flipH, flipV, label, chosen) {
+export function saveElementVariant(rot, flipH, flipV, label, chosen) {
   const tile = orientedElementTile(rot, flipH, flipV);
   if (!tile) return;
   const all = ELEMENT_LIB.read();
@@ -512,31 +532,31 @@ function saveElementVariant(rot, flipH, flipV, label, chosen) {
 // The Element as drawn — its own inks (Palette, layer inks), this orientation, on its
 // Paper (colour + texture, as the Element frame shows it) — kept with a saved Element as
 // its thumbnail. data-paper="2" marks a thumbnail that already carries the texture.
-function elementVariantSVG(rot, flipH, flipV) {
+export function elementVariantSVG(rot, flipH, flipV) {
   const seed = getSeed(), geo = SEED_TYPES[seed.type].geometry(seed);
-  const paper = (isPaperNone(state.paperColor) ? '' : `<rect width="100" height="100" fill="${state.paperColor}"/>`) + paperPatternSVG(100, 100);
+  const paper = (hooks.isPaperNone(state.paperColor) ? '' : `<rect width="100" height="100" fill="${state.paperColor}"/>`) + paperPatternSVG(100, 100);
   const cs = cellShapeOf(seed);
   if (cs !== 'square') {   // the Element's canvas is its cell: Paper + shape inside the outline, framed like the Element step
     const k = cs === 'triangle' ? 50 / CELL_SHAPES.triangle.R : 1;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" data-paper="2"><g transform="translate(50,50) rotate(${rot}) scale(${(flipH ? -1 : 1) * k},${(flipV ? -1 : 1) * k}) translate(-50,-50)">`
-      + clipToCellShapes([CELL_SHAPES[cs].poly], paper + elementPathMarkup(geo, colorAt(0))) + `</g></svg>`;
+      + hooks.clipToCellShapes([CELL_SHAPES[cs].poly], paper + hooks.elementPathMarkup(geo, colorAt(0))) + `</g></svg>`;
   }
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" data-paper="2">${paper}<g transform="translate(50,50) rotate(${rot}) scale(${flipH ? -1 : 1},${flipV ? -1 : 1}) translate(-50,-50)">${elementPathMarkup(geo, colorAt(0))}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" data-paper="2">${paper}<g transform="translate(50,50) rotate(${rot}) scale(${flipH ? -1 : 1},${flipV ? -1 : 1}) translate(-50,-50)">${hooks.elementPathMarkup(geo, colorAt(0))}</g></svg>`;
 }
 // A saved Element's thumbnail for the library. Thumbnails saved before Oct 4, 2026 drew
 // the Paper colour only: their texture is added back here from the entry's own saved
 // appearance and palette (nothing is rewritten in the store).
-function savedElementThumb(e) {
+export function savedElementThumb(e) {
   if (!e.thumb) return tileThumbSVG(e.tile);
   if (/data-paper="2"/.test(e.thumb) || !e.appearance || !e.appearance.ground) return e.thumb;
-  const pat = withEntryInks(e.colors, () => withAppearance(e.appearance, () => paperPatternSVG(100, 100)));
+  const pat = hooks.withEntryInks(e.colors, () => withAppearance(e.appearance, () => paperPatternSVG(100, 100)));
   if (!pat) return e.thumb;
   const at = e.thumb.indexOf('<g transform=');
   return at < 0 ? e.thumb : e.thumb.slice(0, at) + pat + e.thumb.slice(at);
 }
 // The second circle on the Element frame / views: save this view (if it isn't yet)
 // and make it the Paper's tile — Paper pattern on, Pattern = Element.
-function elementTileButton(rot, flipH, flipV, label) {
+export function elementTileButton(rot, flipH, flipV, label) {
   const t = orientedElementTile(rot, flipH, flipV);
   const savedName = t ? savedElementBySig(tileSig(t)) : null;
   const g = readGroundControls(), on = !!(savedName && g && g.patType === 'element' && g.src === 'saved:' + savedName);
@@ -555,17 +575,17 @@ function elementTileButton(rot, flipH, flipV, label) {
   });
   return b;
 }
-function removeSavedElement(name) {
+export function removeSavedElement(name) {
   const all = ELEMENT_LIB.read();
   delete all[name];
   ELEMENT_LIB.write(all);
   elementLibraryChanged();
-  onAppearanceChange();   // a Paper tile that pointed at it falls back to nothing / the live Element
+  hooks.onAppearanceChange();   // a Paper tile that pointed at it falls back to nothing / the live Element
 }
-function elementLibraryChanged() { syncGroundTileOptions(); mountElementQuickSaves(); renderLibraryRail(); renderSymbolPool(); }   // an empty Symbol can now build from Elements
+export function elementLibraryChanged() { syncGroundTileOptions(); mountElementQuickSaves(); hooks.renderLibraryRail(); hooks.renderSymbolPool(); }   // an empty Symbol can now build from Elements
 // The corner circle (the Component gallery's quick-save): + saves this view,
 // ✓ = already saved, hovering ✓ offers remove.
-function elementQuickSaveButton(rot, flipH, flipV, label) {
+export function elementQuickSaveButton(rot, flipH, flipV, label) {
   const t = orientedElementTile(rot, flipH, flipV);
   const savedName = t ? savedElementBySig(tileSig(t)) : null;
   const b = quickSaveButton({
@@ -581,7 +601,7 @@ function elementQuickSaveButton(rot, flipH, flipV, label) {
 }
 // THE quick-save circle (Component gallery + Element views): + saves, a persistent
 // ✓ once saved, hovering the ✓ offers remove (×). One builder so the two never drift.
-function quickSaveButton({ savedName, labelSave, labelSaved, labelRemove, onSave, onRemove }) {
+export function quickSaveButton({ savedName, labelSave, labelSaved, labelRemove, onSave, onRemove }) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'fvs-thumb-quicksave' + (savedName ? ' saved' : '');
@@ -594,42 +614,42 @@ function quickSaveButton({ savedName, labelSave, labelSaved, labelRemove, onSave
   b.addEventListener('click', e => { e.stopPropagation(); if (savedName) onRemove(); else onSave(); });
   return b;
 }
-function mountElementQuickSaves() {
-  if (elementIsEmpty()) { ctrl('element-frame').querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove()); return; }
+export function mountElementQuickSaves() {
+  if (hooks.elementIsEmpty()) { ctrl('element-frame').querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove()); return; }
   const boxes = ctrl('seed-preview').querySelectorAll('.fvs-seed-tile__box');
-  seedPreviewStates().forEach(([r, fh, fv, label], i) => { const box = boxes[i]; if (box) { box.querySelectorAll('.fvs-thumb-quicksave, .fvs-thumb-tile').forEach(x => x.remove()); box.append(elementTileButton(r, fh, fv, label), elementQuickSaveButton(r, fh, fv, label)); } });
+  hooks.seedPreviewStates().forEach(([r, fh, fv, label], i) => { const box = boxes[i]; if (box) { box.querySelectorAll('.fvs-thumb-quicksave, .fvs-thumb-tile').forEach(x => x.remove()); box.append(elementTileButton(r, fh, fv, label), elementQuickSaveButton(r, fh, fv, label)); } });
   const frame = ctrl('element-frame');
   frame.querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove());
-  const v = currentElementView(), vi = elementViewIndex(), lbl = vi >= 0 ? seedPreviewStates()[vi][3] : '0°';
+  const v = hooks.currentElementView(), vi = hooks.elementViewIndex(), lbl = vi >= 0 ? hooks.seedPreviewStates()[vi][3] : '0°';
   frame.append(elementTileButton(v.r, v.fh, v.fv, lbl), elementQuickSaveButton(v.r, v.fh, v.fv, lbl));
-  if (tilePicker) tilePicker.invalidate('element');   // the "Current Element" thumbnail follows the Element
+  if (rt.tilePicker) rt.tilePicker.invalidate('element');   // the "Current Element" thumbnail follows the Element
 }
-function tileThumbSVG(t) {
+export function tileThumbSVG(t) {
   const g = t.geo, attrs = Organica.shapeAppearance.styleAttrs({ fillMode: t.style.fillMode, color: 'var(--ink)', strokeW: t.style.strokeW, rounded: t.style.rounded });
   return `<svg viewBox="-6 -6 112 112" aria-hidden="true"><g transform="${tileNormAttr(g)}"><path d="${g.d}" ${attrs}${g.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${g.fillRule}"` : ''}/></g></svg>`;
 }
 // Click on a saved Element: Paper pattern on, Pattern = Element, this tile.
-function useAsPaperTile(src) {
-  paperPatternOn = true;
-  paperSwatch.setPattern(true);
+export function useAsPaperTile(src) {
+  rt.paperPatternOn = true;
+  hooks.paperSwatch.setPattern(true);
   ctrl('sel-ground-pattern').value = 'element';
   syncGroundBlock();
   syncGroundTileOptions(src);
-  onAppearanceChange();
+  hooks.onAppearanceChange();
 }
-const groundInk = g => {
-  const pal = inkPaletteOverride || state.colors, i = g.ink === 'cell' || g.ink == null ? 0 : +g.ink;
+export const groundInk = g => {
+  const pal = rt.inkPaletteOverride || state.colors, i = g.ink === 'cell' || g.ink == null ? 0 : +g.ink;
   return pal[((i % pal.length) + pal.length) % pal.length];
 };
-const paperPatternGeo = (g, w, h) => { const k = Math.min(w, h) / 100; return { k, pg: patternGeometry(g, { cx: w / 2 / k, cy: h / 2 / k, r: Math.hypot(w, h) / 2 / k }) }; };
-function paperPatternSVG(w, h) {
+export const paperPatternGeo = (g, w, h) => { const k = Math.min(w, h) / 100; return { k, pg: hooks.patternGeometry(g, { cx: w / 2 / k, cy: h / 2 / k, r: Math.hypot(w, h) / 2 / k }) }; };
+export function paperPatternSVG(w, h) {
   const g = getElementAppearance().ground;
   if (!g || !(w > 0) || !(h > 0)) return '';
-  if (g.patType === 'element') return elementTileSVG(g, w, h, 'gnd' + nextDrawId());
-  const id = 'gnd' + nextDrawId(), { k, pg } = paperPatternGeo(g, w, h);
-  return `<clipPath id="${id}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})"><g transform="scale(${k.toFixed(4)})"><path d="${pg.d}" ${patternAttrs(pg, groundInk(g))}/></g></g>`;
+  if (g.patType === 'element') return elementTileSVG(g, w, h, 'gnd' + hooks.nextDrawId());
+  const id = 'gnd' + hooks.nextDrawId(), { k, pg } = paperPatternGeo(g, w, h);
+  return `<clipPath id="${id}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})"><g transform="scale(${k.toFixed(4)})"><path d="${pg.d}" ${hooks.patternAttrs(pg, groundInk(g))}/></g></g>`;
 }
-function paintPaperPatternCanvas(ctx, w, h) {
+export function paintPaperPatternCanvas(ctx, w, h) {
   const g = getElementAppearance().ground;
   if (!g || !(w > 0) || !(h > 0)) return;
   if (g.patType === 'element') { paintElementTileCanvas(ctx, g, w, h); return; }
@@ -637,24 +657,24 @@ function paintPaperPatternCanvas(ctx, w, h) {
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
   ctx.scale(k, k);
-  paintPatternCanvas(ctx, pg, groundInk(g));
+  hooks.paintPatternCanvas(ctx, pg, groundInk(g));
   ctx.restore();
 }
 // While set, getElementAppearance() returns it instead of the live controls —
 // how a saved Component/Symbol (and the nested Components inside a Symbol)
 // renders with the appearance it was SAVED with, not whatever the Element
 // panel says now. Entries saved before this field existed fall back to plain.
-let appearanceOverride = null;
+rt.appearanceOverride = null;
 // Export "Variants" override — merged over a saved Symbol's own appearance
 // in renderedSymbolEntrySVG so the Grid tier can change Style too.
-let variantAppearance = null;
-function withAppearance(app, fn) {
-  const prev = appearanceOverride;
-  appearanceOverride = { ...DEFAULT_APPEARANCE, ...(app || {}) };
-  try { return fn(); } finally { appearanceOverride = prev; }
+rt.variantAppearance = null;
+export function withAppearance(app, fn) {
+  const prev = rt.appearanceOverride;
+  rt.appearanceOverride = { ...DEFAULT_APPEARANCE, ...(app || {}) };
+  try { return fn(); } finally { rt.appearanceOverride = prev; }
 }
-function applyAppearanceToUI(app) {
-  shapeLooks = {};   // a loaded look replaces whatever the shapes remembered
+export function applyAppearanceToUI(app) {
+  rt.shapeLooks = {};   // a loaded look replaces whatever the shapes remembered
   const a = { ...DEFAULT_APPEARANCE, ...(app || {}) };
   ctrl('sel-element-fillmode').value = a.fillMode;
   ctrl('rg-element-strokew').value = a.strokeW; ctrl('v-element-strokew').textContent = a.strokeW;
@@ -668,12 +688,12 @@ function applyAppearanceToUI(app) {
   // A loaded stack whose layers predate per-layer looks: they take this appearance
   // as their own, so the live Element keeps the Width/Length it was saved with.
   if (state.layers) {
-    state.layers.items.forEach(l => { if (!l.look) l.look = readLookControls(); });
-    showLayerStyle(state.layers.items[state.layers.active]);
+    state.layers.items.forEach(l => { if (!l.look) l.look = hooks.readLookControls(); });
+    hooks.showLayerStyle(state.layers.items[state.layers.active]);
   }
 }
-function getElementAppearance() {
-  if (appearanceOverride) return appearanceOverride;
+export function getElementAppearance() {
+  if (rt.appearanceOverride) return rt.appearanceOverride;
   return {
     fillMode: ctrl('sel-element-fillmode').value,
     strokeW: val('rg-element-strokew'),

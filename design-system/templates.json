@@ -151,7 +151,7 @@
       "palette",
       "mobile-gate"
      ],
-     "modules": false,
+     "modules": true,
      "dark": true,
      "public": false,
      "surface": null,

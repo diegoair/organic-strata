@@ -1,16 +1,68 @@
 // Flexible Visual System · 12-shell — Shell — tier switch, zoom / pan, shortcuts, panel wiring, export by tier.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import {
+  DEFAULT_COLOR_RULE, buildPalette, ctrl, state, syncColorRuleUI, syncQuadrantHint, val
+} from './00-core.js';
+import {
+  BASE_GEOMETRY, SEED_TYPES, frameDims, setCellShape, shapeHasCorners
+} from './01-geometry.js';
+import {
+  CIRCLE_PARAMS, SEED_EXTRAS, fhEditor, getPanelSeed, getSeed, handleSeedUpload, seedForSnapshot,
+  syncCircleRows, syncCopiesRows, syncDependentRows, syncFreehandEditor, xrId
+} from './02-seed-ui.js';
+import {
+  GALLERY_ZOOM_MAX, getGrid, setGalleryThumbVars, syncComponentGridUI
+} from './03-rules.js';
+import {
+  DEFAULT_APPEARANCE, PATTERN_DEFAULTS, getElementAppearance, readPatternControls, showPatternControls,
+  syncGroundBlock, syncGroundInkOptions, syncGroundTileNote, syncLookBlocks, withAppearance
+} from './04-appearance.js';
+import {
+  elementPathMarkup, exportElement, layerPlace, renderGallery, renderSeedPreview, setElementView
+} from './05-render-component.js';
+import {
+  clearGallery, exitComponentEditMode, exportSelected, generate, generateColourways,
+  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, splitElementReset,
+  syncExhaustiveHint, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant
+} from './06-component-ui.js';
+import {
+  LIBRARY, PAPER_NONE, hexKey, isPaperNone, libraryNames, readLookControls, renderLayersUI, renderLibrary,
+  restoreComponentElementState, snapshotComponentElementState
+} from './07-library.js';
+import {
+  buildEmptySymbolGrid, buildFitAllAnchorGrid, exportFvsGrid, handleSymbolGridUpload, snapPose,
+  syncFitAnchorUI
+} from './08-symbol-grid.js';
+import {
+  elementPool, generateSymbolCells, renderSymbolPool, setSugDockOpen, sugDockIsOpen
+} from './10-suggest.js';
+import {
+  applySymbolRule, applyToSelection, bindSymbolCanvasSelection, bindSymbolTrackDrag,
+  closeCellContentOverlay, exportSymbol, openCellContentOverlay, openCellContentOverlayForAll,
+  renderCellPropertiesPanel, renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary,
+  renderTrackLabelsOverlay, syncContentFilter, syncManualBlock, syncSymbolRuleUI
+} from './11-symbol-ui.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  NEW_LAYER_SCALE: () => NEW_LAYER_SCALE, onAppearanceChange: () => onAppearanceChange,
+  paperSwatch: () => paperSwatch, setPaperUI: () => setPaperUI, syncArcType: () => syncArcType,
+  syncExtrasTypes: () => syncExtrasTypes, syncFvsZoomHud: () => syncFvsZoomHud,
+  syncIrregularRows: () => syncIrregularRows, syncPolyStepMax: () => syncPolyStepMax,
+  syncPolyType: () => syncPolyType, syncSymbolViewUI: () => syncSymbolViewUI,
+  syncTriType: () => syncTriType, syncTruType: () => syncTruType, syncWedgeType: () => syncWedgeType
+});
 // ── Components ↔ Symbols tab switch ──
-const STEP_EXPORT_HINTS = {
+export const STEP_EXPORT_HINTS = {
   element: 'Exports the current Element on its own, at 0°.',
   component: 'Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).',
   symbol: 'Exports the current Symbol. Paper background (Palette section), real nested vector geometry.',
   figure: 'Exports the figure as drawn (SVG: real vector geometry, one path per shape; PNG: the same drawing rasterised).',
 };
 
-function updateStepHint(tier) {
+export function updateStepHint(tier) {
   let msg = '';
   if (tier === 'symbol' && libraryNames(LIBRARY.read()).length === 0 && !elementPool().length) {
     msg = 'Nothing saved yet — a Symbol is built from saved Components or Elements: save some first.';
@@ -18,7 +70,7 @@ function updateStepHint(tier) {
   ctrl('stepnav-hint').textContent = msg;
 }
 
-function setTier(tier) {
+export function setTier(tier) {
   // Navigating away mid-edit abandons it (no auto-save) — otherwise
   // #component-edit-view and the disabled Grid/Rule controls would stay
   // stuck in their edit-mode state the next time Component tier is shown.
@@ -48,9 +100,9 @@ function setTier(tier) {
   ctrl('fb-element-actions').style.display = tier === 'element' ? '' : 'none';
   ctrl('fb-component-actions').style.display = tier === 'component' ? '' : 'none';
   ctrl('fb-symbol-actions').style.display = tier === 'symbol' ? '' : 'none';
-  syncRailTier(tier);
+  hooks.syncRailTier(tier);
   syncQuadrantHint();
-  closeLibview();
+  hooks.closeLibview();
   ctrl('fg-rules-panel').style.display = tier === 'figure' ? '' : 'none';
   if (tier === 'symbol') {
     // A first visit starts the pool with every saved Component (up to the 8-slot cap),
@@ -63,7 +115,7 @@ function setTier(tier) {
     if (!state.symbolGrid) buildEmptySymbolGrid();
   }
   else if (tier === 'element') { renderSeedPreview(); }
-  else if (tier === 'figure') { renderFigureTier(); }
+  else if (tier === 'figure') { hooks.renderFigureTier(); }
   else if (tier === 'component') {
     if (state.components.length === 0 && state.componentAutoGenerated !== false) populateComponentStarterGallery();
     else renderGallery();
@@ -90,17 +142,17 @@ function setTier(tier) {
  ['Delete / ⌫', 'Symbol: empty the selected cells', 'Edit'],
  ['Esc', 'Close gallery / overlay', 'General']
 ].forEach(([keys, label, group]) => Organica.shortcuts.add({ keys, label, group }));
-var fvsPanKey = false;
+export var fvsPanKey = false;
 // Delete / Backspace on selected Symbol cells = the Choose-content → Empty tile (the cell goes blank).
 document.addEventListener('keydown', e => {
   if ((e.key !== 'Delete' && e.key !== 'Backspace') || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
   if (state.activeTier !== 'symbol' || !state.symbolSelection.size) return;
   if (fvsIsTypingTarget(e.target) || (e.target.closest && e.target.closest('.org-modal, #symbol-content-overlay'))) return;
   e.preventDefault();   // Backspace must not navigate back
-  applyToSelection(cell => (cell.locked ? {} : { source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
+  applyToSelection(cell => (cell.locked ? {} : { source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: rt.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
   renderCellPropertiesPanel();
 });
-var fvsIsTypingTarget = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+export var fvsIsTypingTarget = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' && fvsZoomActive() && !fvsIsTypingTarget(e.target)) {
     if (!fvsPanKey) { fvsPanKey = true; document.body.classList.add('fvs-pan-key'); }
@@ -113,23 +165,23 @@ document.addEventListener('keyup', e => {
   if (!fvsPanKey && !e.altKey) document.body.classList.remove('fvs-pan-key');
 });
 window.addEventListener('blur', () => { fvsPanKey = false; document.body.classList.remove('fvs-pan-key'); });
-var FVS_ZOOM_SURFACES = [
+export var FVS_ZOOM_SURFACES = [
   { tier: 'component', canvas: 'component-edit-frame', wrap: 'component-edit-view', ready: () => !!state.componentEditMode },
   { tier: 'symbol', canvas: 'symbol-frame' },
 ];
-var fvsZoom = {};
-function fvsSurfaceLive(sf) { return state.activeTier === sf.tier && (!sf.ready || sf.ready()); }
-function fvsZoomActive() { if (!FVS_ZOOM_SURFACES) return null; const sf = FVS_ZOOM_SURFACES.find(fvsSurfaceLive); return sf ? fvsZoom[sf.tier] : null; }
-function fvsGalleryLive() { return state.activeTier === 'component' && !state.componentEditMode; }
-function galleryZoomTo(z) {
-  galleryZoom = Math.min(GALLERY_ZOOM_MAX, Math.max(1, z));
+export var fvsZoom = {};
+export function fvsSurfaceLive(sf) { return state.activeTier === sf.tier && (!sf.ready || sf.ready()); }
+export function fvsZoomActive() { if (!FVS_ZOOM_SURFACES) return null; const sf = FVS_ZOOM_SURFACES.find(fvsSurfaceLive); return sf ? fvsZoom[sf.tier] : null; }
+export function fvsGalleryLive() { return state.activeTier === 'component' && !state.componentEditMode; }
+export function galleryZoomTo(z) {
+  rt.galleryZoom = Math.min(GALLERY_ZOOM_MAX, Math.max(1, z));
   setGalleryThumbVars(frameDims(getGrid()));
   syncFvsZoomHud();
 }
-function syncFvsZoomHud() {
+export function syncFvsZoomHud() {
   if (!FVS_ZOOM_SURFACES) return;   // startup: setTier can run before this block
   const zp = fvsZoomActive();
-  const z = zp ? zp.zoom : fvsGalleryLive() ? galleryZoom : 1;
+  const z = zp ? zp.zoom : fvsGalleryLive() ? rt.galleryZoom : 1;
   ctrl('zoom-level').textContent = Math.round(z * 100) + '%';
   ctrl('zoom-hud').classList.toggle('visible', z > 1.001);
 }
@@ -148,20 +200,20 @@ ctrl('zoom-reset').addEventListener('click', () => { const zp = fvsZoomActive();
 document.querySelector('#canvas-wrap .tier-view[data-tier="component"]').addEventListener('wheel', e => {
   if (!fvsGalleryLive() || e.target.closest('#component-edit-view')) return;
   e.preventDefault();
-  galleryZoomTo(galleryZoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
+  galleryZoomTo(rt.galleryZoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
 }, { passive: false });
 window.addEventListener('keydown', e => {
   if (!(e.metaKey || e.ctrlKey) || !fvsGalleryLive()) return;
-  if (e.key === '+' || e.key === '=') { e.preventDefault(); galleryZoomTo(galleryZoom * 1.2); }
-  else if (e.key === '-' || e.key === '_') { e.preventDefault(); galleryZoomTo(galleryZoom / 1.2); }
+  if (e.key === '+' || e.key === '=') { e.preventDefault(); galleryZoomTo(rt.galleryZoom * 1.2); }
+  else if (e.key === '-' || e.key === '_') { e.preventDefault(); galleryZoomTo(rt.galleryZoom / 1.2); }
   else if (e.key === '0') { e.preventDefault(); galleryZoomTo(1); }
 });
 
 // ── Wiring ──
 // Triangle Type is a derived shortcut, not stored state: picking one writes
 // Base/Height/Apex X; any hand edit of those three flips it back to Custom.
-const TRI_PRESETS = { isosceles: [100, 100, 50], right: [100, 100, 0], equilateral: [100, 87, 50] };
-function syncTriType() {
+export const TRI_PRESETS = { isosceles: [100, 100, 50], right: [100, 100, 0], equilateral: [100, 87, 50] };
+export function syncTriType() {
   const cur = [val('rg-base'), val('rg-height'), val('rg-tri-apex')];
   const hit = Object.keys(TRI_PRESETS).find(k => TRI_PRESETS[k].every((v, i) => v === cur[i]));
   ctrl('sel-tri-type').value = hit || 'custom';
@@ -177,16 +229,16 @@ ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent 
 ctrl('rg-tri-apex').addEventListener('input', e => { ctrl('v-tri-apex').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
 // Arc truchet Type is a derived shortcut over several controls (no stored
 // state): picking one writes them, any hand edit flips it back to Custom.
-const TRU_PRESETS = {
+export const TRU_PRESETS = {
   butterfly: { fans: 2, count: 5, ratio: 70, core: 0, round: 0 },
   rainbow:   { fans: 1, count: 5, ratio: 60, core: 0, round: 0 },
   horseshoe: { fans: 1, count: 4, ratio: 60, core: 35, round: 100 },
   halo:      { fans: 2, count: 4, ratio: 55, core: 40, round: 100 },
 };
-const TRU_NEUTRAL = { spread: 180, reach: 100, ramp: 0, curve: 0, segs: 1 };   // a preset always resets these
-const TRU_IDS = { count: 'rg-arc-count', ratio: 'rg-arc-ratio', core: 'rg-tru-core', round: 'rg-tru-round', spread: 'rg-tru-spread', reach: 'rg-tru-reach', ramp: 'rg-tru-ramp', curve: 'rg-tru-curve', segs: 'rg-tru-segs' };
-function truState() { const o = { fans: +ctrl('sel-tru-fans').value }; Object.keys(TRU_IDS).forEach(k => { o[k] = val(TRU_IDS[k]); }); return o; }
-function syncTruType() {
+export const TRU_NEUTRAL = { spread: 180, reach: 100, ramp: 0, curve: 0, segs: 1 };   // a preset always resets these
+export const TRU_IDS = { count: 'rg-arc-count', ratio: 'rg-arc-ratio', core: 'rg-tru-core', round: 'rg-tru-round', spread: 'rg-tru-spread', reach: 'rg-tru-reach', ramp: 'rg-tru-ramp', curve: 'rg-tru-curve', segs: 'rg-tru-segs' };
+export function truState() { const o = { fans: +ctrl('sel-tru-fans').value }; Object.keys(TRU_IDS).forEach(k => { o[k] = val(TRU_IDS[k]); }); return o; }
+export function syncTruType() {
   const cur = truState();
   const hit = Object.keys(TRU_PRESETS).find(k => { const t = { ...TRU_NEUTRAL, ...TRU_PRESETS[k] }; return Object.keys(t).every(f => t[f] === cur[f]); });
   ctrl('sel-tru-type').value = hit || 'custom';
@@ -202,8 +254,8 @@ ctrl('sel-tru-type').addEventListener('change', e => {
 ctrl('sel-tru-fans').addEventListener('change', () => { syncTruType(); renderGallery(); renderSeedPreview(); });
 Object.values(TRU_IDS).concat(['rg-tru-gap']).forEach(id => ctrl(id).addEventListener('input', syncTruType));
 // Arc Type is a derived shortcut for Sweep, same idea as Triangle Type.
-const ARC_PRESETS = { quarter: 90, half: 180, threequarter: 270 };   // no 'ring' (Oct 4, 2026): Sweep stops at 350, so it was never closed — a full ring is Circle → Interior Ring
-function syncArcType() {
+export const ARC_PRESETS = { quarter: 90, half: 180, threequarter: 270 };   // no 'ring' (Oct 4, 2026): Sweep stops at 350, so it was never closed — a full ring is Circle → Interior Ring
+export function syncArcType() {
   const cur = val('rg-arc-sweep');
   ctrl('sel-arc-type').value = Object.keys(ARC_PRESETS).find(k => ARC_PRESETS[k] === cur) || 'custom';
 }
@@ -218,8 +270,8 @@ ctrl('rg-thickness').addEventListener('input', e => { ctrl('v-thickness').textCo
 ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 // Wedge Type is a derived shortcut for Angle + Inner radius (same idea as Arc Type).
-const WEDGE_PRESETS = { quarter: [90, 0], half: [180, 0], threequarter: [270, 0] };   // 'ring' dropped Oct 4, 2026 — the same annulus as Circle → Interior Ring; Angle 360 still makes it
-function syncWedgeType() {
+export const WEDGE_PRESETS = { quarter: [90, 0], half: [180, 0], threequarter: [270, 0] };   // 'ring' dropped Oct 4, 2026 — the same annulus as Circle → Interior Ring; Angle 360 still makes it
+export function syncWedgeType() {
   const cur = [val('rg-wedge-angle'), val('rg-wedge-inner')];
   ctrl('sel-wedge-type').value = Object.keys(WEDGE_PRESETS).find(k => WEDGE_PRESETS[k].every((v, i) => v === cur[i])) || 'custom';
 }
@@ -237,26 +289,26 @@ ctrl('rg-wedge-inner').addEventListener('input', e => { ctrl('v-wedge-inner').te
 ctrl('rg-wedge-squash').addEventListener('input', e => { ctrl('v-wedge-squash').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 // A shape's own Rotate (shared/shapes.js EXTRAS, also read by Genesis) is retired in FVS — Appearance → Rotate
 // does it for every shape. The row is still built, into the hidden #seed-legacy, so old snapshots round-trip.
-const FVS_RETIRED_EXTRAS = new Set(['starRotate', 'rrRotate', 'chevRotate', 'crossRotate', 'lensRotate', 'dropRotate',
+export const FVS_RETIRED_EXTRAS = new Set(['starRotate', 'rrRotate', 'chevRotate', 'crossRotate', 'lensRotate', 'dropRotate',
   'starOutline', 'rrOutline', 'lensOutline', 'blobOutline',   // + the shape-own Outlines → Appearance → Cut out
   'starSkew']);   // + Star's Angle jitter → Appearance → Irregularity
 // One name per idea across every shape (Oct 4, 2026): FVS's own labels for a few shared rows — the shared table
 // keeps its own, Genesis reads it. key → [label, title?].
-const FVS_EXTRAS_LABELS = {
+export const FVS_EXTRAS_LABELS = {
   starStyle: ['Rounding style'], rrStyle: ['Rounding style'],
   chevRound: ['Rounding'], chevStyle: ['Rounding style', 'How corners are cut when Rounding is above 0.'],
   crossStyle: ['Rounding style', 'How corners are cut when Rounding is above 0.'],
 };
 // The same row order in every Seed: Type · proportions · rounding (then its style, then curvature) · the shape's
 // own details · repeats inside the shape. Blocks whose rows come partly from the shared table are re-ordered here.
-const FVS_SEED_ORDER = {
+export const FVS_SEED_ORDER = {
   roundedrect: ['sel-rr-type', 'rg-rr-width', 'rg-rr-height', 'rg-rr-skew', 'rg-rr-corner', 'sel-rr-style', 'sel-rr-mask', 'rg-rr-curve'],
   cross: ['sel-cross-type', 'rg-cross-arms', 'rg-cross-armwidth', 'rg-cross-armlength', 'rg-cross-corner', 'sel-cross-style', 'rg-cross-taper', 'sel-cross-tip'],
   blob: ['rg-blob-amount', 'rg-blob-freq', 'rg-blob-smooth', 'rg-blob-seed'],
 };
 // Build the extras rows into each shape's block, then wire them (label readout,
 // derived Type shortcut, re-render). Called once at boot, before the first render.
-function buildSeedExtras() {
+export function buildSeedExtras() {
   Object.entries(SEED_EXTRAS).forEach(([shape, sh]) => {
     const block = ctrl('seed-' + shape + '-block');
     sh.rows.forEach(r => {
@@ -301,12 +353,12 @@ function buildSeedExtras() {
     ids.forEach(id => block.appendChild(ctrl(id).closest('.ctrl-row')));
   });
 }
-function syncExtrasType(sh) {
+export function syncExtrasType(sh) {
   const sel = ctrl('sel-' + sh.prefix + '-type'); if (!sel) return;
   const hit = Object.keys(sh.type.presets).find(k => Object.entries(sh.type.presets[k][1]).every(([id, v]) => val(id) === v));
   sel.value = hit || 'custom';
 }
-function syncExtrasTypes() { Object.values(SEED_EXTRAS).forEach(sh => { if (sh.type) syncExtrasType(sh); }); }
+export function syncExtrasTypes() { Object.values(SEED_EXTRAS).forEach(sh => { if (sh.type) syncExtrasType(sh); }); }
 buildSeedExtras();
 // Any edit in the Seed panel may reveal / hide a dependent row (SEED_DEPENDS).
 ['input', 'change'].forEach(ev => ctrl('sel-seed-type').closest('.panel-section').addEventListener(ev, syncDependentRows));
@@ -315,12 +367,12 @@ buildSeedExtras();
 // Polygon Type is a derived shortcut for Sides. Triangle and Square were dropped (Oct 4, 2026) — they are
 // shapes of their own (Triangle, Square); a snapshot with 3 or 4 sides reads Custom.
 // Step is capped by Sides (a star polygon {n/k} needs k < n/2).
-const POLY_PRESETS = { pentagon: [5], hexagon: [6], octagon: [8] };
-function syncPolyType() {
+export const POLY_PRESETS = { pentagon: [5], hexagon: [6], octagon: [8] };
+export function syncPolyType() {
   const cur = [val('rg-poly-sides')];
   ctrl('sel-poly-type').value = Object.keys(POLY_PRESETS).find(k => POLY_PRESETS[k].every((v, i) => v === cur[i])) || 'custom';
 }
-function syncPolyStepMax() {
+export function syncPolyStepMax() {
   const max = Math.max(1, Math.floor((val('rg-poly-sides') - 1) / 2)), el = ctrl('rg-poly-step');
   el.max = max;
   if (+el.value > max) { el.value = max; ctrl('v-poly-step').textContent = max; }
@@ -376,7 +428,7 @@ ctrl('fb-cell-shape').addEventListener('click', e => {
   const b = e.target.closest('[data-cell]'); if (!b || b.dataset.cell === state.cellShape) return;
   setCellShape(b.dataset.cell);
 });
-const OUTLINE_ICONS = { hexagon: 'fvs-cell-hexagon', triangle: 'fvs-cell-triangle', diamond: 'fvs-diamond', square: 'fvs-cell-square' };
+export const OUTLINE_ICONS = { hexagon: 'fvs-cell-hexagon', triangle: 'fvs-cell-triangle', diamond: 'fvs-diamond', square: 'fvs-cell-square' };
 ctrl('seg-grid-outline').querySelectorAll('.seg-btn').forEach(b => { b.innerHTML = Organica.icons.get(OUTLINE_ICONS[b.dataset.outline]); });
 ctrl('seg-grid-outline').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b || b.getAttribute('aria-disabled') === 'true') return;
@@ -397,7 +449,7 @@ ctrl('rg-grid-rings').addEventListener('input', e => {
 
 // Element appearance feeds every tier that draws the Element, so a change
 // re-renders all of them (the inactive tiers' DOM is just hidden, not gone).
-function onAppearanceChange() {
+export function onAppearanceChange() {
   if (state.layers) state.layers.items[state.layers.active].look = readLookControls();
   syncLookBlocks();
   renderSeedPreview();
@@ -435,7 +487,7 @@ CIRCLE_PARAMS.forEach(([k, id]) => {
 // Freehand clears the drawing; an uploaded / Creator seed has no parameters.
 // Each control gets its real input/change event, so its own listener refreshes
 // the readout + gallery + preview and the slider fill (core.js delegate) follows.
-function resetSeedShape() {
+export function resetSeedShape() {
   const type = ctrl('sel-seed-type').value;
   ['rg-inner-count', 'rg-inner-ratio', 'rg-element-cutout'].forEach(id => {   // Copies + Cut out belong to the Seed, whatever its shape
     const el = ctrl(id);
@@ -478,11 +530,11 @@ function resetSeedShape() {
 // shape (the picker's first-load default), its parameters and Look & place at their defaults, no layers, the
 // default palette (one black ink, colour rule default) and a white Paper without texture. Saved Elements,
 // Components and Symbols are untouched. Hold to confirm (data-hold, core.js): it throws the current Element away.
-function resetElement() {
+export function resetElement() {
   if (state.layers) { state.layers = null; renderLayersUI(); }
   const sel = ctrl('sel-seed-type'), first = Math.max(0, Array.from(sel.options).findIndex(o => o.defaultSelected));
   if (sel.selectedIndex !== first) { sel.selectedIndex = first; sel.dispatchEvent(new Event('change', { bubbles: true })); }
-  shapeLooks = {};   // every shape forgets its remembered Look & place (a shape switch would bring it back)
+  rt.shapeLooks = {};   // every shape forgets its remembered Look & place (a shape switch would bring it back)
   // every shape's own parameters, not only the open one's (a Star left at 8 points stays 8 otherwise)
   document.querySelectorAll('[id^="seed-"][id$="-block"]').forEach(block => block.querySelectorAll('input, select').forEach(el => {
     if (el.type === 'checkbox') { if (el.checked !== el.defaultChecked) { el.checked = el.defaultChecked; el.dispatchEvent(new Event('change', { bubbles: true })); } return; }
@@ -492,7 +544,7 @@ function resetElement() {
   resetSeedShape();   // the open shape's parameters + Look & place
   state.colors = ['#000000']; state.colorRule = { ...DEFAULT_COLOR_RULE };
   syncColorRuleUI(); buildPalette();
-  paperSwatch.setPattern(false); paperPatternOn = false;
+  paperSwatch.setPattern(false); rt.paperPatternOn = false;
   setPaperUI('#ffffff');
   onAppearanceChange(); renderGallery(); renderSeedPreview();
 }
@@ -502,7 +554,7 @@ ctrl('btn-reset-seed').addEventListener('click', resetElement);
 // Seed as drawn at Scale 1 / Move 0 (Width/Length kept), then write the Scale +
 // Move sliders so its bbox fills the cell, centred. Goes stale if the shape's
 // own parameters change afterwards — press it again.
-function fitSeedToCanvas() {
+export function fitSeedToCanvas() {
   const seed = getSeed();
   const geo = SEED_TYPES[seed.type].geometry(seed);
   if (!geo || !geo.d) return;
@@ -536,14 +588,14 @@ ctrl('sel-inner-anchor').addEventListener('change', () => { renderGallery(); ren
 // matters in Stroke style, where the bar is outlined); leaving Segment gives
 // back what you had. In a multi-layer Element this is the ACTIVE layer's own
 // setting only (remembered on the layer itself), never the other layers'.
-let roundedBeforeSegment = null;
-const NEW_LAYER_SCALE = 0.6;   // a new layer starts smaller so it shows on top of the one below (addLayer)
-function readShapeLook() {
+export let roundedBeforeSegment = null;
+export const NEW_LAYER_SCALE = 0.6;   // a new layer starts smaller so it shows on top of the one below (addLayer)
+export function readShapeLook() {
   return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l'),
     scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), rotate: val('rg-element-rotate'), cutOut: val('rg-element-cutout'),
     irregular: val('rg-element-irregular'), irrMode: ctrl('sel-element-irrmode').value, irrWaves: val('rg-element-irrwaves'), irrSeed: val('rg-element-irrseed'), ...readPatternControls() };
 }
-function applyShapeLook(look) {   // the Element's own look — not the Paper (ground), which belongs to the whole Element
+export function applyShapeLook(look) {   // the Element's own look — not the Paper (ground), which belongs to the whole Element
   const a = { ...DEFAULT_APPEARANCE, ...PATTERN_DEFAULTS, ...(look || {}) };
   ctrl('sel-element-fillmode').value = a.fillMode;
   ctrl('rg-element-strokew').value = a.strokeW; ctrl('v-element-strokew').textContent = a.strokeW;
@@ -563,12 +615,12 @@ function applyShapeLook(look) {   // the Element's own look — not the Paper (g
 }
 ctrl('sel-seed-type').addEventListener('change', () => {
   const type = ctrl('sel-seed-type').value, ck = ctrl('ck-element-rounded');
-  if (!state.layers && lastShapeType && lastShapeType !== type) {
-    shapeLooks[lastShapeType] = readShapeLook();
-    applyShapeLook(shapeLooks[type]);   // undefined → defaults
+  if (!state.layers && rt.lastShapeType && rt.lastShapeType !== type) {
+    rt.shapeLooks[rt.lastShapeType] = readShapeLook();
+    applyShapeLook(rt.shapeLooks[type]);   // undefined → defaults
     onAppearanceChange();
   }
-  lastShapeType = type;
+  rt.lastShapeType = type;
   const layer = state.layers ? state.layers.items[state.layers.active] : null;
   // A Segment layer is a canvas pattern (Repeat X/Y tile the whole cell): if the
   // layer still has its untouched new-layer placement, give it the full canvas —
@@ -594,7 +646,7 @@ ctrl('sel-seed-type').addEventListener('change', () => {
     ck.checked = saved; onAppearanceChange();
   }
 });
-lastShapeType = ctrl('sel-seed-type').value;   // the shape the panel starts on
+rt.lastShapeType = ctrl('sel-seed-type').value;   // the shape the panel starts on
 
 ctrl('ck-fh-close').addEventListener('change', e => { if (fhEditor) fhEditor.setClosed(e.target.checked); });
 ctrl('ck-fh-smooth').addEventListener('change', e => { if (fhEditor) fhEditor.setSmooth(e.target.checked); });
@@ -605,7 +657,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault(); fhEditor.undo();
   }
 });
-let fhResizeT = 0;
+export let fhResizeT = 0;
 window.addEventListener('resize', () => { clearTimeout(fhResizeT); fhResizeT = setTimeout(syncFreehandEditor, 120); });
 ctrl('ck-element-rounded').addEventListener('change', onAppearanceChange);
 ctrl('sel-element-pattern').addEventListener('change', onAppearanceChange);
@@ -618,7 +670,7 @@ syncGroundInkOptions();
 // Cut out is a Seed parameter (getPanelSeed → every renderer, each layer its own), shown here beside Width / Length.
 // Irregularity rows: Mode / Waves / Seed hide at 0; Mode hides when the shape has no corners (Outline is then the
 // only way); Waves shows only when the outline ripples.
-function syncIrregularRows() {
+export function syncIrregularRows() {
   const on = val('rg-element-irregular') > 0, type = ctrl('sel-seed-type').value;
   let corners = false;
   if (on && BASE_GEOMETRY[type]) { try { corners = shapeHasCorners(BASE_GEOMETRY[type](getPanelSeed())); } catch (e) { corners = false; } }
@@ -647,7 +699,7 @@ ctrl('file-loom-grid').addEventListener('change', e => {
 // The floatbar's View toggles. Three are preview overlays (state.symbolView); Clip to cell is the Symbol's own
 // setting (state.symbolClipEnabled — it is in the export and saved with the Symbol), kept in the same row
 // because it is switched the same way.
-function syncSymbolViewUI() {
+export function syncSymbolViewUI() {
   document.querySelectorAll('#fb-symbol-actions [data-view]').forEach(b => {
     const k = b.dataset.view;
     b.setAttribute('aria-pressed', String(k === 'clip' ? state.symbolClipEnabled : state.symbolView[k]));
@@ -686,8 +738,8 @@ ctrl('chk-rule-scale').addEventListener('change', syncSymbolRuleUI);
 ctrl('btn-symbol-apply-rule').addEventListener('click', () => applySymbolRule());
 ctrl('btn-symbol-clear-rule').addEventListener('click', () => applySymbolRule({ resetAll: true }));
 ctrl('btn-rule-seed-random').addEventListener('click', () => { ctrl('num-rule-seed').value = Math.floor(Math.random() * 1e6); applySymbolRule(); });
-let ruleApplyQueued = false;
-function scheduleRuleApply() {
+export let ruleApplyQueued = false;
+export function scheduleRuleApply() {
   if (ruleApplyQueued) return;
   ruleApplyQueued = true;
   requestAnimationFrame(() => { ruleApplyQueued = false; applySymbolRule(); });
@@ -712,18 +764,18 @@ bindSymbolTrackDrag();
 // frame of it.
 new ResizeObserver(() => { if (state.symbolGrid) renderTrackLabelsOverlay(); }).observe(ctrl('symbol-frame'));
 buildFitAllAnchorGrid();
-symbolAnchorPopover = Organica.popover(ctrl('btn-symbol-anchor'), ctrl('symbol-anchor-popover'));
+rt.symbolAnchorPopover = Organica.popover(ctrl('btn-symbol-anchor'), ctrl('symbol-anchor-popover'));
 syncFitAnchorUI();
 ctrl('btn-cellprop-choose').addEventListener('click', openCellContentOverlay);
 ctrl('btn-rule-choose-content').addEventListener('click', openCellContentOverlayForAll);
 ctrl('btn-content-overlay-close').addEventListener('click', closeCellContentOverlay);
 ctrl('seg-content-filter').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b) return;
-  contentFilter = b.dataset.filter; syncContentFilter();
+  rt.contentFilter = b.dataset.filter; syncContentFilter();
 });
 ctrl('seg-content-fit').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b) return;
-  contentOverlayFit = b.dataset.fit;
+  rt.contentOverlayFit = b.dataset.fit;
   ctrl('seg-content-fit').querySelectorAll('.seg-btn').forEach(x => {
     x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b));
   });
@@ -778,24 +830,24 @@ ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
   btn.addEventListener('click', () => setTier(btn.dataset.tier));
 });
 
-const repaintPaper = () => { renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); };
-const paperSwatch = Organica.palette.swatch('paper', {
+export const repaintPaper = () => { renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); };
+export const paperSwatch = Organica.palette.swatch('paper', {
   initial: '#ffffff',
   // Paper = colour + an optional pattern (the texture over it): the Pattern icon on the row
-  pattern: { panel: ctrl('paper-pattern-block'), onToggle: on => { paperPatternOn = on; onAppearanceChange(); } },
+  pattern: { panel: ctrl('paper-pattern-block'), onToggle: on => { rt.paperPatternOn = on; onAppearanceChange(); } },
   // picking a colour always means an opaque paper again
   onChange: (hex) => { state.paperColor = hexKey(hex); syncPaperClearUI(); repaintPaper(); },
 });
 // Transparent paper (state.paperColor === 'none'): the checkerboard button next to
 // Paper. The swatch keeps the last colour, so switching it off gives that colour back.
-function syncPaperClearUI() {
+export function syncPaperClearUI() {
   const on = isPaperNone(state.paperColor);
   ctrl('btn-paper-clear').setAttribute('aria-pressed', String(on));
   ctrl('btn-paper-clear').classList.toggle('is-on', on);
   document.body.classList.toggle('paper-clear', on);
 }
 // Every place that restores a saved paper goes through here (a colour or 'none').
-function setPaperUI(c) {
+export function setPaperUI(c) {
   if (isPaperNone(c)) { state.paperColor = PAPER_NONE; syncPaperClearUI(); repaintPaper(); }
   else paperSwatch.set(c);
 }
@@ -836,11 +888,11 @@ ctrl('btn-split-save').addEventListener('click', savePieceAsSeed);
 ctrl('btn-seed-random').addEventListener('click', () => { ctrl('num-seed').value = Math.floor(Math.random() * 1e6); });
 
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
-function exportByTier(format) {
+export function exportByTier(format) {
   if (state.activeTier === 'figure') return exportByTierName(state.figureTier || 'symbol', format);
   return exportByTierName(state.activeTier, format);
 }
-function exportByTierName(tier, format) {
+export function exportByTierName(tier, format) {
   if (tier === 'symbol') return exportSymbol(format);
   if (tier === 'grid') return exportFvsGrid(format);
   if (tier === 'element') return exportElement(format);

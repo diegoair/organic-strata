@@ -1,7 +1,8 @@
 // Flexible Visual System · 00-core — State, palette and colour rules — the shared state object every other file reads.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import { hooks } from './hooks.js';
 /* ─────────────────────────────────────────────────────────────
    FVS — Flexible Visual System. First pass: Seeds → Components only
    (the Symbols/Pattern/Applications tiers from the reference brief are
@@ -14,17 +15,17 @@
    between preview/PNG/SVG.
    ───────────────────────────────────────────────────────────── */
 
-function ctrl(id) { return document.getElementById(id); }
-function val(id) { return parseFloat(ctrl(id).value); }
+export function ctrl(id) { return document.getElementById(id); }
+export function val(id) { return parseFloat(ctrl(id).value); }
 
-const setStatus = Organica.status();
+export const setStatus = Organica.status();
 
 // Screen/Print output mode — shared/print-size-panel.js. Screen (default)
 // is today's Scale-multiplier export, untouched; Print reveals a real
 // physical size + DPI + bleed. Title says "(selection)" — FVS's "trim" is
 // the selected component's own square frame, not a whole canvas, so the
 // export is always scoped to whatever's picked in the gallery.
-const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
+export const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
   idPrefix: 'ps',
   title: 'Print (selection)',
   onChange: () => {
@@ -34,9 +35,9 @@ const printSizePanel = Organica.printSizePanel(document.getElementById('print-si
 
 // Paper tile dropdown (Organica.selectPicker) — declared up here: renderSeedPreview, which
 // refreshes its "Current Element" thumbnail, runs during boot before the tile code below.
-const TILE_PICK_REG = {};
-let tilePicker = null;
-const state = {
+export const TILE_PICK_REG = {};
+rt.tilePicker = null;
+export const state = {
   components: [],   // [{id, ruleSource, cells:[{rotation,flipH,flipV,scale,content} x4]}]
                      // cell.content: null (default, follow the shared Element) or
                      // {source:'seed', seedType, seedParams} — set live in Component Edit mode
@@ -97,8 +98,8 @@ const state = {
 // min-2, since a one-Seed single-cell-colour grid is a legitimate
 // baseline here, not a degenerate case. Max 8, matching Vortex's own
 // ceiling (no shader array-size bound applies).
-const PALETTE_MAX = 8;
-function colorAt(i) { return state.colors[i % state.colors.length]; }
+export const PALETTE_MAX = 8;
+export function colorAt(i) { return state.colors[i % state.colors.length]; }
 
 // ── Colour rule — WHICH palette colour a cell gets. `index` is the original
 // behaviour (cell i → colour i, wrapping); the others read the cell's grid
@@ -107,7 +108,7 @@ function colorAt(i) { return state.colors[i % state.colors.length]; }
 // `own` (the default, Oct 4, 2026): a saved Element placed in a Symbol cell keeps the
 // palette it was saved with (cell.ownColors); every other cell — and every Component
 // cell — is coloured by cell order.
-const COLOR_RULES = {
+export const COLOR_RULES = {
   own:      { label: "Element's own colours", fn: (i) => i },
   index:    { label: 'By cell order',  fn: (i) => i },
   checker:  { label: 'Checkerboard',   fn: (i, c) => c.col + c.row },
@@ -116,10 +117,10 @@ const COLOR_RULES = {
   diagonal: { label: 'Diagonal bands', fn: (i, c) => c.col + c.row },
   quadrant: { label: 'By quadrant',    fn: (i, c) => (c.col * 2 >= c.cols ? 1 : 0) + (c.row * 2 >= c.rows ? 2 : 0) },
 };
-const DEFAULT_COLOR_RULE = { mode: 'own', offset: 0 };
+export const DEFAULT_COLOR_RULE = { mode: 'own', offset: 0 };
 state.colorRule = { ...DEFAULT_COLOR_RULE };
 // `checker` alternates between two neighbours only, whatever the palette size.
-function paletteInk(colors, rule, i, cr) {
+export function paletteInk(colors, rule, i, cr) {
   const r = rule || DEFAULT_COLOR_RULE;
   const def = COLOR_RULES[r.mode] || COLOR_RULES.index;
   let k = def.fn(i, cr ? cr[i] : { col: i, row: 0, cols: 1, rows: 1 }) + (r.offset || 0);
@@ -129,14 +130,14 @@ function paletteInk(colors, rule, i, cr) {
 }
 // col/row of every cell of a Component/Symbol grid (binning fallback, so it
 // works for square and Loom grids alike). Null when the rule needs no position.
-function colorRuleCR(grid, rule) {
+export function colorRuleCR(grid, rule) {
   if (!grid || !rule || rule.mode === 'index' || rule.mode === 'own') return null;
   try { return Organica.shapes.cellColRow(grid, null, null); } catch (e) { return null; }
 }
 // Ink of cell i under the LIVE palette + rule.
-function ruleInk(i, cr) { return paletteInk(state.colors, state.colorRule, i, cr); }
+export function ruleInk(i, cr) { return paletteInk(state.colors, state.colorRule, i, cr); }
 // Same for a saved Component entry (its own palette + rule), as a j → colour fn.
-function entryInkAt(entry) {
+export function entryInkAt(entry) {
   const cr = colorRuleCR(entry.grid, entry.colorRule);
   return j => paletteInk(entry.colors, entry.colorRule, j, cr);
 }
@@ -144,15 +145,15 @@ function entryInkAt(entry) {
 // store). A stored colour equal to the palette entry for that index — how
 // older saves wrote it — is treated the same, so recolouring the palette
 // recolours those cells too; any other stored colour is a real override.
-let _symCR = { key: null, rule: null, cr: null };
-function symbolCR() {
+export let _symCR = { key: null, rule: null, cr: null };
+export function symbolCR() {
   const g = state.symbolGrid, r = state.colorRule.mode;
-  if (_symCR.key !== g || _symCR.rule !== r) _symCR = { key: g, rule: r, cr: (r === 'index' || r === 'own') ? null : colorRuleCR(getSymbolGrid(), state.colorRule) };
+  if (_symCR.key !== g || _symCR.rule !== r) _symCR = { key: g, rule: r, cr: (r === 'index' || r === 'own') ? null : colorRuleCR(hooks.getSymbolGrid(), state.colorRule) };
   return _symCR.cr;
 }
 // "Element's own colours": the cell's saved Element palette, when it has one.
-const cellOwnInks = cell => (state.colorRule.mode === 'own' && cell.ownColors && cell.ownColors.length) ? cell.ownColors : null;
-function cellInk(cell, i) {
+export const cellOwnInks = cell => (state.colorRule.mode === 'own' && cell.ownColors && cell.ownColors.length) ? cell.ownColors : null;
+export function cellInk(cell, i) {
   const own = cellOwnInks(cell);
   const p = own ? own[0] : ruleInk(i, symbolCR());
   // null = follow the palette; anything else is an explicit override set in Cell properties
@@ -160,22 +161,22 @@ function cellInk(cell, i) {
   return cell.color ? cell.color : p;
 }
 
-function buildPalette() {
+export function buildPalette() {
   Organica.palette.swatch(ctrl('fvs-palette'), {
     colors: state.colors,
     min: 1,
     max: PALETTE_MAX,
     onChange: (colors) => {
-      state.colors = colors.map(hexKey);
+      state.colors = colors.map(hooks.hexKey);
       syncColorRuleUI();
-      syncGroundInkOptions();
+      hooks.syncGroundInkOptions();
       refreshColourViews();
     },
   });
-  syncGroundInkOptions();
+  hooks.syncGroundInkOptions();
 }
 
-function syncColorRuleUI() {
+export function syncColorRuleUI() {
   const sel = ctrl('sel-color-rule'), off = ctrl('sel-color-offset');
   if (!sel.options.length) Object.entries(COLOR_RULES).forEach(([k, v]) => sel.add(new Option(v.label, k)));
   const n = Math.max(1, state.colors.length);
@@ -189,22 +190,22 @@ function syncColorRuleUI() {
 // "By quadrant" splits the grid at its middle; with an odd number of columns
 // or rows the middle line runs through a cell, which is documented behaviour
 // (that cell joins the second half) — so it is only flagged, never changed.
-function syncQuadrantHint() {
+export function syncQuadrantHint() {
   let odd = false;
   if (state.colorRule.mode === 'quadrant') {
     try {
-      const cr = state.activeTier === 'symbol' ? (state.symbolGrid ? cellColRow(getSymbolGrid()) : []) : componentCellColRow(getGrid());
+      const cr = state.activeTier === 'symbol' ? (state.symbolGrid ? hooks.cellColRow(hooks.getSymbolGrid()) : []) : hooks.componentCellColRow(hooks.getGrid());
       if (cr.length) odd = (Math.max(...cr.map(c => c.col)) + 1) % 2 === 1 || (Math.max(...cr.map(c => c.row)) + 1) % 2 === 1;
     } catch (e) { odd = false; }
   }
   ctrl('color-quadrant-hint').style.display = odd ? '' : 'none';
 }
-function refreshColourViews() {
-  renderGallery();
-  renderSeedPreview();
-  if (state.symbolGrid) renderSymbolCanvasOnly();
+export function refreshColourViews() {
+  hooks.renderGallery();
+  hooks.renderSeedPreview();
+  if (state.symbolGrid) hooks.renderSymbolCanvasOnly();
 }
-function onColorRuleChange() {
+export function onColorRuleChange() {
   state.colorRule = { mode: ctrl('sel-color-rule').value, offset: parseInt(ctrl('sel-color-offset').value, 10) || 0 };
   syncColorRuleUI();
   refreshColourViews();

@@ -1,10 +1,48 @@
 // Flexible Visual System · 14-figure-ui — Figure UI — form ↔ recipe, pipeline, history, paint tools, Play, checks.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import {
+  COLOR_RULES, DEFAULT_COLOR_RULE, ctrl, state
+} from './00-core.js';
+import {
+  SEED_TYPES
+} from './01-geometry.js';
+import {
+  SYMBOL_SEED_DEFAULTS, getSeed
+} from './02-seed-ui.js';
+import {
+  mulberry32
+} from './03-rules.js';
+import {
+  buildSeedPreviewSVG
+} from './05-render-component.js';
+import {
+  CW_MIN_CONTRAST, buildColourways, cwMetrics, cwSolve, getSelectedComponent, syncUndoUI, undoStack
+} from './06-component-ui.js';
+import {
+  hexKey, isPaperNone
+} from './07-library.js';
+import {
+  getSymbolGrid, lastFigureMeta
+} from './08-symbol-grid.js';
+import {
+  buildSymbolSVG
+} from './09-symbol-render.js';
+import {
+  setTier
+} from './12-shell.js';
+import {
+  FIGURE_RECIPES_V1_AS_V2, figureSVGOf, hexFigureRecipes, isSealedSymbol, recursiveFigureRecipes,
+  runFigureRecipe, slotClassContext, triangleFigureRecipes, validateFigureRecipe
+} from './13-figure-engine.js';
+import { provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  renderFigureTier: () => renderFigureTier
+});
 // ── Figure tier: the form, the recipe JSON, the checks, the reference overlay ──
-const FIGURE_CLASSIC_LABELS = { circle: 'Circle from four arcs', 'leaf-block': 'Leaf block 2×2', 'leaf-wave': 'Leaf wave (tiled 2×2)', 'leaf-wave-outline': 'Leaf wave, outline', 'leaf-two-ink': 'Leaf wave, two inks (4×4)', pinwheel: 'Triangle pinwheels (3×3)', kaleidoscope: 'Arc kaleidoscope' };
-const figureCatalog = () => {
+export const FIGURE_CLASSIC_LABELS = { circle: 'Circle from four arcs', 'leaf-block': 'Leaf block 2×2', 'leaf-wave': 'Leaf wave (tiled 2×2)', 'leaf-wave-outline': 'Leaf wave, outline', 'leaf-two-ink': 'Leaf wave, two inks (4×4)', pinwheel: 'Triangle pinwheels (3×3)', kaleidoscope: 'Arc kaleidoscope' };
+export const figureCatalog = () => {
   const cat = {};
   Object.entries(triangleFigureRecipes()).forEach(([k, r]) => {
     const [a, c] = k.split(':');
@@ -15,11 +53,11 @@ const figureCatalog = () => {
   Object.entries(recursiveFigureRecipes()).forEach(([k, r]) => { cat[k] = r; });
   return cat;
 };
-const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d+)/)[1] };
-const FG_STR_OF = l => l.type === 'tier' ? 'tier' + l.stack : l.type === 'triangle' ? 'tri' + l.rows : `square${l.n}x${l.n}`;
+export const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d+)/)[1] };
+export const FG_STR_OF = l => l.type === 'tier' ? 'tier' + l.stack : l.type === 'triangle' ? 'tri' + l.rows : `square${l.n}x${l.n}`;
 
 // The rules the Advanced form can express (and re-create itself); everything else is kept as it is.
-function isFormRule(r) {
+export function isFormRule(r) {
   const w = r.when || {}, d = r.do || {}, keys = Object.keys(w);
   if (r.off) return false;
   if (w.parity === 'odd' && keys.length === 1 && d.rotate != null && Object.keys(d).length === 1) return true;
@@ -30,7 +68,7 @@ function isFormRule(r) {
   if (w.ring === 0 && keys.length === 1 && d.content === 'empty' && Object.keys(d).length === 1) return true;
   return false;
 }
-function figureRecipeFromForm() {
+export function figureRecipeFromForm() {
   const v = id => ctrl(id).value, lat = v('fg-lattice');
   // the form shows one ink: the recipe's other inks and its colour rule are kept
   const curEl = (state.figureRecipe && state.figureRecipe.element) || {};
@@ -72,7 +110,7 @@ function figureRecipeFromForm() {
   }
   return { tool: 'fvs-recipe', version: 2, element: el, levels, transform: { rotate: +v('fg-rot'), mirror: v('fg-mirror') } };
 }
-function figureFormFromRecipe(def) {
+export function figureFormFromRecipe(def) {
   const set = (id, val) => { const e = ctrl(id); e.value = String(val); };
   // fg-n/fg-cols are populated with a recommended 5-8 (or 3-4 hex) range for fresh
   // authoring (syncFgNOptions), but a loaded recipe — including the built-in catalog's
@@ -111,7 +149,7 @@ function figureFormFromRecipe(def) {
 // comment originally carried (off by one ring) — so it needs its own tighter band;
 // square rows and triangle rows share the flat 5-8 "Symbol" band every other picker
 // uses. See CLAUDE.md session note.
-function syncFgNOptions() {
+export function syncFgNOptions() {
   const lat = ctrl('fg-lattice').value;
   const [lo, hi] = lat === 'hexagon' ? [4, 5] : [5, 8];
   const sel = ctrl('fg-n');
@@ -125,7 +163,7 @@ function syncFgNOptions() {
   // must be idempotent either way.
   if (prev && !(prev >= lo && prev <= hi)) sel.add(new Option(prev, prev, false, true));
 }
-function syncFigureFormUI() {
+export function syncFigureFormUI() {
   syncFgNOptions();
   const lat = ctrl('fg-lattice').value;
   ctrl('fg-row-n').style.display = lat === 'component' || lat === 'adopted' ? 'none' : '';
@@ -138,8 +176,8 @@ function syncFigureFormUI() {
   ctrl('fg-row-n').querySelector('.ctrl-label').textContent = lat === 'hexagon' ? 'Rings' : 'Rows';
 }
 
-let figureRun = 0;
-function applyFigureRecipe(def, opts) {
+export let figureRun = 0;
+export function applyFigureRecipe(def, opts) {
   opts = opts || {};
   ctrl('fg-json-error').style.display = 'none';
   try {
@@ -162,7 +200,7 @@ function applyFigureRecipe(def, opts) {
     ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = '';
   }
 }
-function renderFigureTier() {
+export function renderFigureTier() {
   if (!state.figureRecipe) state.figureRecipe = figureCatalog()['Triangle · Sierpinski · asset'];
   applyFigureRecipe(state.figureRecipe);
 }
@@ -170,11 +208,11 @@ function renderFigureTier() {
 // ── Pipeline strip, starting gallery, recipe history ──
 // The strip shows each step's own output (Element → Symbol/Component → Grid… → Mirror/Rotate)
 // as a thumbnail; a thumbnail is a truncated run of the same recipe, cached by its JSON.
-const figureStepCache = new Map();
-const figureGalleryCache = new Map();
-function capMap(m, n) { while (m.size > n) m.delete(m.keys().next().value); }
-const svgURI = svg => 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
-function figureStepSVGs(def) {
+export const figureStepCache = new Map();
+export const figureGalleryCache = new Map();
+export function capMap(m, n) { while (m.size > n) m.delete(m.keys().next().value); }
+export const svgURI = svg => 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+export function figureStepSVGs(def) {
   const out = [], undoLen = undoStack.length;
   try {
     def.levels.forEach((_, k) => {
@@ -186,10 +224,10 @@ function figureStepSVGs(def) {
   finally { undoStack.length = undoLen; syncUndoUI(); }   // the truncated runs must not touch the Component undo stack
   return out;
 }
-function figureCardHTML(label, svg, extra) {
+export function figureCardHTML(label, svg, extra) {
   return `<img alt="" src="${svgURI(svg)}"><span>${label}</span>${extra || ''}`;
 }
-function renderFigurePipeline(def, steps, finalSVG) {
+export function renderFigurePipeline(def, steps, finalSVG) {
   const box = ctrl('fg-pipeline'); box.innerHTML = '';
   const cards = [{ label: 'Element', svg: buildSeedPreviewSVG(getSeed(), 0, false, false, 96), view: null }];
   def.levels.forEach((l, i) => cards.push({ label: l.kind === 'grid' ? 'Grid' : l.kind === 'symbol' ? 'Symbol' : 'Component', svg: steps ? steps[i] : finalSVG, view: steps ? steps[i] : finalSVG, level: i }));
@@ -234,8 +272,8 @@ function renderFigurePipeline(def, steps, finalSVG) {
   box.appendChild(add);
 }
 // History of recipes (JSON snapshots, max 50)
-const figureHistory = { stack: [], idx: -1 };
-function pushFigureHistory(def) {
+export const figureHistory = { stack: [], idx: -1 };
+export function pushFigureHistory(def) {
   const k = JSON.stringify(def);
   if (figureHistory.stack[figureHistory.idx] === k) return;
   figureHistory.stack.length = figureHistory.idx + 1;
@@ -244,19 +282,19 @@ function pushFigureHistory(def) {
   figureHistory.idx = figureHistory.stack.length - 1;
   syncFigureHistoryUI();
 }
-function syncFigureHistoryUI() {
+export function syncFigureHistoryUI() {
   ctrl('fg-undo').disabled = figureHistory.idx <= 0;
   ctrl('fg-redo').disabled = figureHistory.idx >= figureHistory.stack.length - 1;
 }
-function figureHistoryStep(d) {
+export function figureHistoryStep(d) {
   const i = figureHistory.idx + d; if (i < 0 || i >= figureHistory.stack.length) return;
   figureHistory.idx = i; syncFigureHistoryUI();
   applyFigureRecipe(JSON.parse(figureHistory.stack[i]), { noHistory: true });
 }
 // Starting gallery: one thumbnail per catalog figure, computed in chunks the first time it opens.
-let galleryToken = 0;
-function closeFigureGallery() { galleryToken++; ctrl('fg-gallery').hidden = true; ctrl('fg-new').setAttribute('aria-expanded', 'false'); }
-async function openFigureGallery() {
+export let galleryToken = 0;
+export function closeFigureGallery() { galleryToken++; ctrl('fg-gallery').hidden = true; ctrl('fg-new').setAttribute('aria-expanded', 'false'); }
+export async function openFigureGallery() {
   const g = ctrl('fg-gallery'), grid = ctrl('fg-gallery-grid'), token = ++galleryToken, cat = figureCatalog();
   g.hidden = false; ctrl('fg-new').setAttribute('aria-expanded', 'true'); grid.innerHTML = '';
   const cur = state.figureRecipe, cards = [];
@@ -298,18 +336,18 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Figure workspace: the active step, cell tools, rule chips, the step panel ──
-const FIGURE_TOOLS = [
+export const FIGURE_TOOLS = [
   ['toggle', 'Toggle', 'Click a cell to switch it between Seed and Empty'], ['seed', 'Seed', 'Fill the cell with the Seed'], ['empty', 'Empty', 'Leave the cell blank'],
   ['rotate', 'Rotate', 'Turn the cell by 90° (60° on a hexagonal lattice, 180° on a triangular one)'], ['flipH', 'Flip H', 'Mirror the cell left–right'], ['flipV', 'Flip V', 'Mirror the cell top–bottom'],
 ];
-const figureStepIds = def => ['element'].concat(def.levels.map((_, i) => 'level' + i), ['final']);
-function setFigureStep(id) {
+export const figureStepIds = def => ['element'].concat(def.levels.map((_, i) => 'level' + i), ['final']);
+export function setFigureStep(id) {
   state.figureStep = id;
   document.querySelectorAll('#fg-pipeline .fg-card').forEach(c => c.setAttribute('aria-selected', String(c.dataset.step === id)));
   showFigureStep();
 }
-const figurePaintable = () => !!state.figureShown && state.figureStep === 'level0' && state.figureShown.def.levels[0].kind === 'symbol' && !isSealedSymbol(state.figureShown.def.levels[0]);
-function showFigureStep() {
+export const figurePaintable = () => !!state.figureShown && state.figureStep === 'level0' && state.figureShown.def.levels[0].kind === 'symbol' && !isSealedSymbol(state.figureShown.def.levels[0]);
+export function showFigureStep() {
   const sh = state.figureShown; if (!sh) return;
   const id = state.figureStep;
   const view = id === 'element' ? buildSeedPreviewSVG(getSeed(), 0, false, false, 400) : id === 'final' ? sh.svg : ((sh.steps && sh.steps[+id.slice(5)]) || sh.svg);
@@ -318,7 +356,7 @@ function showFigureStep() {
   renderFigureToolbar(); renderFigureChips(); renderFigureHandles(); renderFigureStepPanel();
 }
 // One edit of the recipe: copy, change, validate, redraw (the active step is kept).
-function figureMutate(fn, opts) {
+export function figureMutate(fn, opts) {
   const d = JSON.parse(JSON.stringify(state.figureRecipe));
   fn(d);
   try { validateFigureRecipe(d); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; ctrl('fg-advanced').open = true; return false; }
@@ -328,12 +366,12 @@ function figureMutate(fn, opts) {
 }
 
 // Painting a cell writes a Rule: a single cell → `when {index}`, Shift → the whole class of that cell.
-function figureClassWhen(ctx, lat) {
+export function figureClassWhen(ctx, lat) {
   if (lat.type === 'triangle' && ctx.orient) return { class: ctx.orient };
   if (lat.type === 'hexagon' && ctx.ring != null) return { ring: ctx.ring };
   return { parity: ctx.parity };
 }
-function paintCell(def, ctx, cellState, tool, byClass) {
+export function paintCell(def, ctx, cellState, tool, byClass) {
   const d = JSON.parse(JSON.stringify(def)), first = d.levels[0];
   if (first.kind !== 'symbol' || isSealedSymbol(first)) return d;
   const when = byClass ? figureClassWhen(ctx, first.lattice) : { index: ctx.index };
@@ -349,8 +387,8 @@ function paintCell(def, ctx, cellState, tool, byClass) {
   if (same) { same.do = { ...same.do, ...dd }; delete same.off; } else first.rules.push({ when, do: dd });
   return d;
 }
-let figureStroke = null;
-function figurePaintAt(cellEl) {
+export let figureStroke = null;
+export function figurePaintAt(cellEl) {
   const i = +cellEl.dataset.cellIndex, grid = getSymbolGrid(); if (!grid || isNaN(i)) return;
   const ctx = slotClassContext(grid)[i], st = state.symbolCells[i]; if (!ctx || !st) return;
   const key = figureStroke.byClass ? JSON.stringify(figureClassWhen(ctx, state.figureRecipe.levels[0].lattice)) : 'i' + i;
@@ -360,7 +398,7 @@ function figurePaintAt(cellEl) {
   state.figureRecipe = d;
   try { runFigureRecipe(d, { keepTier: true }); ctrl('figure-frame').innerHTML = buildSymbolSVG(); } catch (e) { /* the full redraw at the end reports it */ }
 }
-function figureEndStroke() {
+export function figureEndStroke() {
   if (!figureStroke) return;
   figureStroke = null;
   applyFigureRecipe(state.figureRecipe, {});   // one full redraw and ONE history entry for the whole gesture
@@ -383,7 +421,7 @@ function figureEndStroke() {
   window.addEventListener('pointercancel', figureEndStroke);
 })();
 
-function renderFigureToolbar() {
+export function renderFigureToolbar() {
   const tb = ctrl('fg-toolbar'); tb.innerHTML = '';
   if (!state.figureShown) return;
   const add = (cls, html) => { const g = document.createElement('span'); g.className = cls; g.innerHTML = html; tb.appendChild(g); return g; };
@@ -412,21 +450,21 @@ function renderFigureToolbar() {
 // ── Play: variations, shuffle with locks ──
 // A mutation changes one thing in one of five groups; shuffle and variations are built from them, always
 // through validateFigureRecipe, so every result is a valid recipe.
-const FG_LOCK_GROUPS = [['element', 'Element'], ['symbol', 'Symbol'], ['rules', 'Rules'], ['grid', 'Grid'], ['transform', 'Mirror / Rotate']];
-const FG_SEED_POOL = ['triangle', 'arc', 'star', 'polygon', 'blob', 'chevron', 'cross', 'lens', 'roundedrect', 'drop', 'circle', 'wedge'];
+export const FG_LOCK_GROUPS = [['element', 'Element'], ['symbol', 'Symbol'], ['rules', 'Rules'], ['grid', 'Grid'], ['transform', 'Mirror / Rotate']];
+export const FG_SEED_POOL = ['triangle', 'arc', 'star', 'polygon', 'blob', 'chevron', 'cross', 'lens', 'roundedrect', 'drop', 'circle', 'wedge'];
 // Colour moves come from colour theory, not a fixed list: a hue turned by a harmony
 // angle (OKLCH, lightness and chroma kept), a colourway of the recipe's own palette
 // (COLOUR_SCHEMES — its shade scales), another colour rule. Each result is solved
 // against the paper (cwSolve), so an ink never ends up unreadable.
-const FG_HUE_TURNS = [30, -30, 60, -60, 120, -120, 180];   // analogous · split · triadic · complementary
-const fgBaseColours = d => ({ colors: (d.element.colors && d.element.colors.length ? d.element.colors : ['#000000']).map(hexKey), paper: d.element.paper ? hexKey(d.element.paper) : '#ffffff', colorRule: { ...DEFAULT_COLOR_RULE, ...(d.element.colorRule || {}) } });
-const fgPick = (a, rng) => a[Math.floor(rng() * a.length)];
-function fgLastGridTransform(d) {
+export const FG_HUE_TURNS = [30, -30, 60, -60, 120, -120, 180];   // analogous · split · triadic · complementary
+export const fgBaseColours = d => ({ colors: (d.element.colors && d.element.colors.length ? d.element.colors : ['#000000']).map(hexKey), paper: d.element.paper ? hexKey(d.element.paper) : '#ffffff', colorRule: { ...DEFAULT_COLOR_RULE, ...(d.element.colorRule || {}) } });
+export const fgPick = (a, rng) => a[Math.floor(rng() * a.length)];
+export function fgLastGridTransform(d) {
   const g = d.levels.length - 1; if (g < 1) return null;
   return d.levels[g].transform ? d.levels[g].transform : (d.transform = d.transform || {});
 }
-function fgSymbol(d) { return d.levels[0].kind === 'symbol' && !isSealedSymbol(d.levels[0]) ? d.levels[0] : null; }
-const FIGURE_MUTATIONS = [
+export function fgSymbol(d) { return d.levels[0].kind === 'symbol' && !isSealedSymbol(d.levels[0]) ? d.levels[0] : null; }
+export const FIGURE_MUTATIONS = [
   { group: 'element', name: 'Other Seed', fn: (d, rng) => { const cur = d.element.type, t = fgPick(FG_SEED_POOL.filter(x => x !== cur), rng); d.element.type = t; if (t === 'arc') d.element.params = { 'rg-thickness': 100 }; else delete d.element.params; delete d.element.strokeW; if (d.element.style === 'stroke') d.element.strokeW = 4; return true; } },
   { group: 'element', name: 'Other hue', fn: (d, rng) => {
       const C = Organica.color, b = fgBaseColours(d), turn = fgPick(FG_HUE_TURNS, rng), grey = Math.round(rng() * 12) * 30;
@@ -464,13 +502,13 @@ const FIGURE_MUTATIONS = [
   { group: 'transform', name: 'Rotate', fn: d => { const t = fgLastGridTransform(d); if (!t) return false; applyHandle(t, 'rotate'); return true; } },
   { group: 'transform', name: 'Mirror', fn: (d, rng) => { const t = fgLastGridTransform(d); if (!t) return false; const cur = t.mirror || 'none'; t.mirror = fgPick(['none', 'v', 'h', 'vh'].filter(x => x !== cur), rng); return true; } },
 ];
-function figureMutateOnce(def, mut, rng) {
+export function figureMutateOnce(def, mut, rng) {
   const d = JSON.parse(JSON.stringify(def));
   try { if (!mut.fn(d, rng)) return null; validateFigureRecipe(d); } catch (e) { return null; }
   return JSON.stringify(d) === JSON.stringify(def) ? null : d;
 }
 // Up to `count` different recipes, each one mutation away from `def`. Deterministic for a given seed.
-function figureNeighbours(def, seed, count) {
+export function figureNeighbours(def, seed, count) {
   count = count || 9;
   const rng = mulberry32(seed >>> 0), order = FIGURE_MUTATIONS.map((m, i) => [rng(), i]).sort((a, b) => a[0] - b[0]).map(x => FIGURE_MUTATIONS[x[1]]);
   const out = [], seen = new Set([JSON.stringify(def)]);
@@ -482,7 +520,7 @@ function figureNeighbours(def, seed, count) {
   return out;
 }
 // One to three mutations of groups that are not locked; null when everything is locked.
-function figureShuffle(def, locks, seed) {
+export function figureShuffle(def, locks, seed) {
   const rng = mulberry32(seed >>> 0), pool = FIGURE_MUTATIONS.filter(m => !(locks && locks[m.group]));
   if (!pool.length) return null;
   // A later mutation can undo an earlier one (Fill ↔ Stroke twice, Add then Remove a Grid) — a step
@@ -492,7 +530,7 @@ function figureShuffle(def, locks, seed) {
   for (let tries = 0; tries < 30 && changed < want; tries++) { const n = figureMutateOnce(d, fgPick(pool, rng), rng); if (n && JSON.stringify(n) !== start) { d = n; changed++; } }
   return changed ? d : null;
 }
-function figureShuffleNow() {
+export function figureShuffleNow() {
   if (!state.figureRecipe) return;
   const locks = state.figureLocks || {};
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -501,7 +539,7 @@ function figureShuffleNow() {
     applyFigureRecipe(d, {}); return;
   }
 }
-function renderFigurePlay(tb) {
+export function renderFigurePlay(tb) {
   const locks = state.figureLocks = state.figureLocks || {};
   const g = document.createElement('span'); g.className = 'fg-group';
   const btn = (label, title, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mini-btn'; b.textContent = label; b.title = title; b.addEventListener('click', fn); g.appendChild(b); return b; };
@@ -513,9 +551,9 @@ function renderFigurePlay(tb) {
     b.setAttribute('aria-pressed', String(!!locks[k])); b.addEventListener('click', () => { locks[k] = !locks[k]; renderFigureToolbar(); }); l.appendChild(b); });
   tb.appendChild(l);
 }
-let figureVarToken = 0, figureVarSeed = 1;
-function closeFigureVariations() { figureVarToken++; ctrl('fg-variations').hidden = true; }
-async function openFigureVariations(more) {
+export let figureVarToken = 0, figureVarSeed = 1;
+export function closeFigureVariations() { figureVarToken++; ctrl('fg-variations').hidden = true; }
+export async function openFigureVariations(more) {
   const cur = state.figureRecipe; if (!cur) return;
   if (more) figureVarSeed++; else figureVarSeed = Math.floor(Math.random() * 1e6);
   const grid = ctrl('fg-var-grid'), token = ++figureVarToken;
@@ -538,7 +576,7 @@ async function openFigureVariations(more) {
 }
 ctrl('fg-var-close').addEventListener('click', closeFigureVariations);
 ctrl('fg-var-more').addEventListener('click', () => openFigureVariations(true));
-function figureNudgeSize(dir) {
+export function figureNudgeSize(dir) {
   figureMutate(d => { const s2 = fgSymbol(d); if (!s2) return; const l = s2.lattice, key = l.type === 'triangle' ? 'rows' : l.type === 'hexagon' ? 'rings' : 'cols', lo = l.type === 'hexagon' ? 1 : 2, hi = l.type === 'hexagon' ? 4 : 6; l[key] = Math.max(lo, Math.min(hi, l[key] + dir)); if (l.type === 'square') l.rows = l[key]; });
 }
 document.addEventListener('keydown', e => {
@@ -553,7 +591,7 @@ document.addEventListener('keydown', e => {
 });
 
 // Rule chips
-function describeRule(r) {
+export function describeRule(r) {
   const w = r.when || {}, d = r.do || {}, parts = [];
   if (w.class != null) parts.push([].concat(w.class).join('/') + ' cells');
   if (w.ring != null) parts.push('ring ' + [].concat(w.ring).join('/'));
@@ -569,7 +607,7 @@ function describeRule(r) {
   if (d.scale != null) what.push('Scale ' + Math.round(d.scale * 100) + '%');
   return (parts.length ? parts.join(' + ') : 'all cells') + ' → ' + (what.join(', ') || '—');
 }
-function renderFigureChips() {
+export function renderFigureChips() {
   const box = ctrl('fg-chips'); box.innerHTML = '';
   if (!figurePaintable()) return;
   const rules = state.figureShown.def.levels[0].rules || [];
@@ -587,13 +625,13 @@ function renderFigureChips() {
   });
 }
 // Edge handles: the right edge mirrors over it, the bottom edge mirrors over it, the corner rotates.
-function figureHandleTarget() {
+export function figureHandleTarget() {
   const sh = state.figureShown; if (!sh || sh.def.levels.length < 2) return -1;
   if (state.figureStep === 'final') return sh.def.levels.length - 1;
   if (state.figureStep.startsWith('level')) { const k = +state.figureStep.slice(5); return sh.def.levels[k] && sh.def.levels[k].kind === 'grid' ? k : -1; }
   return -1;
 }
-function renderFigureHandles() {
+export function renderFigureHandles() {
   const h = ctrl('fg-handles'); h.style.display = 'none'; h.innerHTML = '';
   const L = figureHandleTarget(); if (L < 1) return;
   const m = state.figureShown.metas[L - 1]; if (!m || !m.box || !m.size) return;
@@ -611,14 +649,14 @@ function renderFigureHandles() {
   h.style.display = 'block';
 }
 // Pure: how a handle changes a transform {rotate, mirror}
-function applyHandle(t, kind) {
+export function applyHandle(t, kind) {
   const cur = t.mirror || 'none', hasV = cur === 'v' || cur === 'vh', hasH = cur === 'h' || cur === 'vh';
   if (kind === 'mirror-v') t.mirror = hasV ? (hasH ? 'h' : 'none') : (hasH ? 'vh' : 'v');
   else if (kind === 'mirror-h') t.mirror = hasH ? (hasV ? 'v' : 'none') : (hasV ? 'vh' : 'h');
   else if (kind === 'rotate') t.rotate = (((t.rotate || 0) + 90) % 360);
   return t;
 }
-function figureHandleAction(kind) {
+export function figureHandleAction(kind) {
   const L = figureHandleTarget(); if (L < 1) return;
   state.figureStep = 'final';   // show what the handle just changed, not the level's own pre-transform view
   figureMutate(d => {
@@ -630,8 +668,8 @@ function figureHandleAction(kind) {
 ctrl('fg-handles').addEventListener('click', e => { const el = e.target.closest && e.target.closest('[data-handle]'); if (el) figureHandleAction(el.dataset.handle); });
 
 // The step panel: the few parameters of whichever step is active
-const FG_SEEDS = ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens', 'circle', 'drop', 'blob'];
-const FG_ICONS = {
+export const FG_SEEDS = ['triangle', 'arc', 'arctruchet', 'wedge', 'polygon', 'star', 'roundedrect', 'chevron', 'cross', 'lens', 'circle', 'drop', 'blob'];
+export const FG_ICONS = {
   triangle: '<path d="M20 5 L5 33 H35 Z M12.5 19 H27.5 M20 33 L12.5 19 M20 33 L27.5 19"/>',
   square: '<rect x="6" y="6" width="28" height="28"/><path d="M20 6V34M6 20H34"/>',
   hexagon: '<path d="M20 4 L34 12 V28 L20 36 L6 28 V12 Z M20 4V36 M6 12L34 28 M34 12L6 28"/>',
@@ -643,9 +681,9 @@ const FG_ICONS = {
   square2x2: '<rect x="6" y="6" width="28" height="28"/><path d="M20 6V34M6 20H34"/>',
   square3x3: '<rect x="6" y="6" width="28" height="28"/><path d="M15.3 6V34M24.7 6V34M6 15.3H34M6 24.7H34"/>',
 };
-const FG_GRID_TYPES = [['tier1', 'Tier'], ['tier2', 'Tier ×2'], ['tri2', 'Triangle 2'], ['tri3', 'Triangle 3'], ['square2x2', 'Square 2×2'], ['square3x3', 'Square 3×3']];
+export const FG_GRID_TYPES = [['tier1', 'Tier'], ['tier2', 'Tier ×2'], ['tri2', 'Triangle 2'], ['tri3', 'Triangle 3'], ['square2x2', 'Square 2×2'], ['square3x3', 'Square 3×3']];
 // The two or three settings of each Seed that change it most (control id → label); ranges come from the controls themselves.
-const FG_SEED_MAIN = {
+export const FG_SEED_MAIN = {
   triangle: [['rg-tri-apex', 'Apex'], ['rg-tri-corner', 'Rounding']], arc: [['rg-thickness', 'Thickness'], ['rg-arc-sweep', 'Sweep']],
   arctruchet: [['rg-arc-count', 'Bands'], ['rg-arc-ratio', 'Thickness']], wedge: [['rg-wedge-angle', 'Angle'], ['rg-wedge-inner', 'Hole']],
   polygon: [['rg-poly-sides', 'Sides'], ['rg-poly-corner', 'Rounding']], star: [['rg-star-points', 'Points'], ['rg-star-inner', 'Inner radius']],
@@ -658,16 +696,16 @@ const FG_SEED_MAIN = {
 // Row/ring/col defaults match the Symbol size ladder's own lower bound (5 for
 // triangle/square, 4 rings for hexagon — hexLoomModel(4) = 37 cells, confirmed live;
 // Component stays its own 1-4 tier, untouched). See CLAUDE.md session note.
-function figureFirstLevelOf(v) {
+export function figureFirstLevelOf(v) {
   return v === 'component' ? { kind: 'component', grid: 'square2x2', rule: 'checkerboard', params: { a: 180, b: 0 } }
     : { kind: 'symbol', lattice: v === 'triangle' ? { type: 'triangle', rows: 5 } : v === 'hexagon' ? { type: 'hexagon', rings: 4 } : { type: 'square', cols: 5, rows: 5 }, fit: v === 'triangle' ? 'fill' : 'contain', rules: [] };
 }
-function figureThumb(label, svgInner, pressed, onClick, raw) {
+export function figureThumb(label, svgInner, pressed, onClick, raw) {
   const b = document.createElement('button'); b.type = 'button'; b.className = 'fg-thumb'; b.title = label; b.setAttribute('aria-pressed', String(!!pressed));
   b.innerHTML = (raw ? raw : `<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">${svgInner}</svg>`) + `<span>${label}</span>`;
   b.addEventListener('click', onClick); return b;
 }
-function renderFigureStepPanel() {
+export function renderFigureStepPanel() {
   const box = ctrl('fg-step-panel'), sh = state.figureShown; if (!sh) return;
   const def = sh.def, id = state.figureStep; box.innerHTML = '';
   const h = t => { const e = document.createElement('h3'); e.textContent = t; box.appendChild(e); };
@@ -741,7 +779,7 @@ function renderFigureStepPanel() {
   }
 }
 // Mirror / Rotate belong to the last Grid (its own transform, or the recipe's when it has none)
-function figureSetTransform(fn) {
+export function figureSetTransform(fn) {
   figureMutate(d => {
     const g = d.levels.length - 1; if (g < 1) return;
     const target = d.levels[g].transform ? d.levels[g].transform : (d.transform = d.transform || {});
@@ -760,7 +798,7 @@ document.addEventListener('keydown', e => {
 });
 
 // Checks — every one reads the drawn result, none reads the recipe's own intent back.
-function figureChecks(def, svg) {
+export function figureChecks(def, svg) {
   const out = [];
   const add = (ok, label, detail) => out.push({ ok, label, detail });
   const noDefs = svg.replace(/<defs>[\s\S]*?<\/defs>/g, '');
@@ -790,14 +828,14 @@ function figureChecks(def, svg) {
   if (cm.minDeltaE != null) add(cm.minDeltaE >= Organica.color.DISTINCT_MIN, 'Inks are distinct', 'ΔE ' + Math.round(cm.minDeltaE));
   return out;
 }
-function renderFigureReport(rows, extra) {
+export function renderFigureReport(rows, extra) {
   const all = rows.concat(extra || []);
   const bad = all.filter(r => !r.ok).length;
   ctrl('fg-report-hint').textContent = bad ? bad + ' to look at' : 'all good';
   ctrl('fg-report').innerHTML = all.map(r => `<div class="fg-row"><span class="fg-dot ${r.ok ? 'fg-ok' : 'fg-bad'}">${r.ok ? '●' : '○'}</span><span>${r.label}${r.detail ? ' — ' + r.detail : ''}</span></div>`).join('');
 }
 // Raster mask of an SVG string or an <img>: 1 where a pixel differs from the ground.
-async function rasterMask(src, n, ground) {
+export async function rasterMask(src, n, ground) {
   const c = document.createElement('canvas'); c.width = c.height = n; const g = c.getContext('2d');
   const im = src instanceof HTMLImageElement ? src : await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(src); });
   const w = im.naturalWidth || n, h = im.naturalHeight || n, k = Math.min(n / w, n / h);
@@ -821,15 +859,15 @@ async function rasterMask(src, n, ground) {
   return { mask, n, box: x1 < 0 ? null : { x0, y0, x1: x1 + 1, y1: y1 + 1 } };
 }
 // The mask's own box resampled to m×m (so two silhouettes of different size compare shape, not scale).
-function normMask(M, m) {
+export function normMask(M, m) {
   const out = new Uint8Array(m * m); if (!M.box) return out;
   const bw = M.box.x1 - M.box.x0, bh = M.box.y1 - M.box.y0;
   for (let y = 0; y < m; y++) for (let x = 0; x < m; x++) out[y * m + x] = M.mask[Math.min(M.n - 1, Math.floor(M.box.y0 + (y + .5) * bh / m)) * M.n + Math.min(M.n - 1, Math.floor(M.box.x0 + (x + .5) * bw / m))];
   return out;
 }
-const maskIoU = (a, b) => { let i = 0, u = 0; for (let k = 0; k < a.length; k++) { i += a[k] & b[k]; u += a[k] | b[k]; } return u ? i / u : 0; };
-let figureRef = null;
-async function refreshFigureChecks(def, svg, run) {
+export const maskIoU = (a, b) => { let i = 0, u = 0; for (let k = 0; k < a.length; k++) { i += a[k] & b[k]; u += a[k] | b[k]; } return u ? i / u : 0; };
+export let figureRef = null;
+export async function refreshFigureChecks(def, svg, run) {
   const rows = figureChecks(def, svg);
   renderFigureReport(rows);
   try {
@@ -855,7 +893,7 @@ async function refreshFigureChecks(def, svg, run) {
     renderFigureReport(rows, extra);
   } catch (e) { /* raster checks are best-effort */ }
 }
-function drawFigureRef(fm, rm) {
+export function drawFigureRef(fm, rm) {
   const cv = ctrl('figure-ref-canvas'), N = 400; cv.width = cv.height = N;
   const g = cv.getContext('2d'), k = N / fm.n;
   g.clearRect(0, 0, N, N);

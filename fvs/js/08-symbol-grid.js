@@ -1,7 +1,33 @@
 // Flexible Visual System · 08-symbol-grid — Symbol grid — presets, Loom models, Symbol Canvas, generators, arrival, Fit / Anchor.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import {
+  DEFAULT_COLOR_RULE, ctrl, state
+} from './00-core.js';
+import {
+  frameDims, frameSize, median, resolveGridCells
+} from './01-geometry.js';
+import {
+  mod360
+} from './03-rules.js';
+import {
+  withAppearance
+} from './04-appearance.js';
+import {
+  nextDrawId, r2
+} from './05-render-component.js';
+import {
+  getSelectedComponent, pushUndo
+} from './06-component-ui.js';
+import {
+  LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames
+} from './07-library.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  getSymbolGrid: () => getSymbolGrid
+});
 // ═══════════════════════════════════════════════════════════════
 // SYMBOLS — a second tier: a Loom grid whose cells each hold either a
 // raw Seed (the same transform vocabulary Components already use)
@@ -18,7 +44,7 @@
 // a small Bento (7 merged rect cells) and a Hexagonal (17 polygon
 // cells, the "more complex" case), both well under Loom's own
 // defaults so the evaluation stays small per Diego's own instruction.
-const SYMBOL_GRID_PRESETS = {
+export const SYMBOL_GRID_PRESETS = {
   bento: {
     "version": "1.0", "canvas": { "width": 1080, "height": 1080, "displayWidth": 1080, "displayHeight": 1080, "unit": "px", "orientation": "landscape", "marginTop": 0, "marginRight": 0, "marginBottom": 0, "marginLeft": 0, "margin": 0, "safeArea": 0, "bleed": 0 },
     "grid": { "type": "bento", "solver": "kiwi", "params": { "cols": 3, "rows": 3, "variety": 0.35, "seed": 7 }, "gap": 0, "tracks": { "cols": [360, 360, 360], "rows": [360, 360, 360] }, "padding": 0 },
@@ -57,7 +83,7 @@ const SYMBOL_GRID_PRESETS = {
   },
 };
 
-function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+export function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 // state.symbolGrid is the RAW Organica.loadLoomGrid() return value
 // ({canvas, grid, inner, cellShape, cells}) — kept raw (not pre-wrapped
@@ -66,7 +92,7 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 // saved Symbol, with zero reconstruction. getSymbolGrid() does the same
 // {kind:'loom', cellShape, cells, width, height} wrapping getGrid()
 // does for Components, on demand, for resolveGridCells()/frameSize().
-function getSymbolGrid() {
+export function getSymbolGrid() {
   if (!state.symbolGrid) return null;
   return { kind: 'loom', cellShape: state.symbolGrid.cellShape, cells: state.symbolGrid.cells, width: state.symbolGrid.inner.width, height: state.symbolGrid.inner.height,
     canvasFrame: state.symbolGrid.canvas && state.symbolGrid.canvas.fvsFrame ? state.symbolGrid.canvas : null };
@@ -78,7 +104,7 @@ function getSymbolGrid() {
 // their own absolute canvas coordinates (the grid was generated inside the
 // canvas margin). bx/by: where a resolveGridCells() centre (c.cx = 0) lands;
 // X/Y: map a RAW cell coordinate (outline, hit shape, clip) into the frame.
-function symbolFrame(grid) {
+export function symbolFrame(grid) {
   if (grid && grid.canvasFrame) {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     grid.cells.forEach(c => {
@@ -98,7 +124,7 @@ function symbolFrame(grid) {
 // recipe fixtures (BUILTIN_RECIPES). Reads state.fvsGridConfig instead of DOM
 // controls, since there's no longer a panel for those controls to live in. ──
 
-function getFvsGrid() {
+export function getFvsGrid() {
   const cfg = state.fvsGridConfig;
   const type = cfg.type;
   if (/^tier\d$/.test(type)) {
@@ -116,7 +142,7 @@ function getFvsGrid() {
 
 // A saved Component tiled directly: a throw-away 1×1 Symbol whose only cell
 // holds the Component, built on the fly so nothing pollutes SYMBOL_LIBRARY.
-function componentTileEntry(name) {
+export function componentTileEntry(name) {
   const c = LIBRARY.read()[name];
   if (!c) return null;
   return {
@@ -130,7 +156,7 @@ function componentTileEntry(name) {
 // Auto-saves the selected Component to the library (once, by id) and points
 // the (page-less) Grid helper at it — used internally by Figure recipes and
 // the v1 recipe fixtures (BUILTIN_RECIPES), never by a visible page anymore.
-function tileSelectedInGrid() {
+export function tileSelectedInGrid() {
   const comp = getSelectedComponent();
   if (!comp) return;
   pushUndo();
@@ -143,19 +169,19 @@ function tileSelectedInGrid() {
 
 // The Symbol being edited, offered to the Grid as it is right now — no save step
 // in between (a saved copy went stale the moment the Symbol was edited).
-const LIVE_SYMBOL = '● Current symbol';
-function fvsGridSelectedEntry() {
+export const LIVE_SYMBOL = '● Current symbol';
+export function fvsGridSelectedEntry() {
   if (state.fvsGridRaw) return { raw: state.fvsGridRaw };   // the figure below, promoted to a tile
   if (state.fvsGridComponentName) return componentTileEntry(state.fvsGridComponentName);
   if (!state.fvsGridSymbolName) return null;
-  if (state.fvsGridSymbolName === LIVE_SYMBOL) return state.symbolGrid ? buildSymbolLibraryEntry() : null;
-  return SYMBOL_LIBRARY.read()[state.fvsGridSymbolName] || null;
+  if (state.fvsGridSymbolName === LIVE_SYMBOL) return state.symbolGrid ? hooks.buildSymbolLibraryEntry() : null;
+  return hooks.SYMBOL_LIBRARY.read()[state.fvsGridSymbolName] || null;
 }
 
 // Renders one saved Symbol entry's SVG string against its OWN saved
 // state (not the live one), same swap-state-then-restore trick
 // renderSymbolLibrary() already uses for its own thumbnails.
-function renderedSymbolEntrySVG(entry) {
+export function renderedSymbolEntrySVG(entry) {
   if (entry.raw) return { size: entry.raw.size, inner: entry.raw.inner };   // a finished figure used as a tile
   const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled, overlap: state.symbolOverlap };
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
@@ -169,14 +195,14 @@ function renderedSymbolEntrySVG(entry) {
   // square of its long side (centred), so the Grid tier's placement is unchanged.
   const F = symbolFrame(getSymbolGrid());
   const size = Math.max(F.w, F.h);
-  const svgStr = withAppearance({ ...entry.appearance, ...(variantAppearance || {}) }, buildSymbolSVG);
+  const svgStr = withAppearance({ ...entry.appearance, ...(rt.variantAppearance || {}) }, hooks.buildSymbolSVG);
   state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip; state.symbolOverlap = prev.overlap;
   let inner = svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
   if (F.w !== F.h) inner = `<g transform="translate(${r2((size - F.w) / 2)},${r2((size - F.h) / 2)})">${inner}</g>`;
   return { size, inner };
 }
 
-function buildFvsGridSVG() {
+export function buildFvsGridSVG() {
   const grid = getFvsGrid();
   const entry = fvsGridSelectedEntry();
   if (!grid || !entry) return '';
@@ -235,10 +261,10 @@ function buildFvsGridSVG() {
   return figureWithMirror(sharedDefs, body, cbox ? { x0: bx0, y0: by0, x1: bx1, y1: by1 } : { x0: 0, y0: 0, x1: size, y1: size }, size, rot, mir);
 }
 
-let lastFigureMeta = { size: 0, box: null };   // the frame and drawn box of the last Grid figure built
+export let lastFigureMeta = { size: 0, box: null };   // the frame and drawn box of the last Grid figure built
 // The box a saved Symbol really draws in (its non-empty cells), in the Symbol's own frame — so a
 // mirror lands on the visible edge even when a tile's outer rows are empty.
-function symbolContentBox(entry, nat) {
+export function symbolContentBox(entry, nat) {
   if (entry.raw) return entry.raw.box;
   try {
     const g = Organica.loadLoomGrid(entry.gridModel);
@@ -260,7 +286,7 @@ function symbolContentBox(entry, nat) {
 // bottom edge (the copy shares that edge), then fit the result in a square frame.
 // The figure's box is the drawn content of the tiles (empty cells excluded), so the
 // reflection meets the visible edge for any lattice and any Seed.
-function figureWithMirror(defs, body, box, size, rot, mir) {
+export function figureWithMirror(defs, body, box, size, rot, mir) {
   const { x0, x1, y0, y1 } = box;   // the figure's drawn box, in frame coordinates
   const fw = x1 - x0, fh = y1 - y0, quarter = rot % 180 === 90;
   const bw = quarter ? fh : fw, bh = quarter ? fw : fh;             // box after rotation
@@ -281,7 +307,7 @@ function figureWithMirror(defs, body, box, size, rot, mir) {
     + `<rect width="${r2(S)}" height="${r2(S)}" fill="${state.paperColor}"/>${defs}<g transform="translate(${r2(ox)},${r2(oy)})">${out}</g></svg>`;
 }
 
-function exportFvsGrid(format) {
+export function exportFvsGrid(format) {
   const svgStr = buildFvsGridSVG();
   if (!svgStr) return;
   if (format === 'svg') {
@@ -304,7 +330,7 @@ function exportFvsGrid(format) {
   img.src = url;
 }
 
-function defaultSymbolCells(grid) {
+export function defaultSymbolCells(grid) {
   return resolveGridCells(grid).map((c, i) => ({
     source: 'seed', seedType: 'triangle', rotation: 0, flipH: false, flipV: false, scale: 1, color: null,
     fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
@@ -314,7 +340,7 @@ function defaultSymbolCells(grid) {
 // Old saved Symbols (fvs-symbols store) predate fitMode/fixedSize/anchor/
 // padding — backfilled here so they render exactly as they did before
 // this feature shipped (contain/center/0 is the old, only behaviour).
-function withPlacementDefaults(cell) {
+export function withPlacementDefaults(cell) {
   return {
     fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false,
     rotation: 0, flipH: false, flipV: false, scale: 1,
@@ -325,7 +351,7 @@ function withPlacementDefaults(cell) {
 // A plain cols×rows grid of equal square rect cells, in the same Loom-model
 // shape as SYMBOL_GRID_PRESETS.bento so it goes through Organica.loadLoomGrid
 // and every Symbol code path (rules, cellColRow, export) unchanged.
-function squareLoomModel(cols, rows, cell = 270) {
+export function squareLoomModel(cols, rows, cell = 270) {
   const cells = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     cells.push({ id: 'c' + (r * cols + c), col: c, row: r, colSpan: 1, rowSpan: 1, number: r * cols + c + 1 });
@@ -343,7 +369,7 @@ function squareLoomModel(cols, rows, cell = 270) {
 // 2r+1 cells alternating up/down, so the silhouette is a real triangle (Loom's
 // rectangular Triangular grid clips its boundary cells instead). Polygon
 // cells, same model shape as Loom's own Triangular generator.
-function triangleLoomModel(n, side = 200) {
+export function triangleLoomModel(n, side = 200) {
   const h = side * Math.sqrt(3) / 2, W = side * n, H = h * n;
   const cells = [];
   for (let r = 0; r < n; r++) {
@@ -366,7 +392,7 @@ function triangleLoomModel(n, side = 200) {
 // A "tier": one row of three triangles (up, down, up) forming a trapezoid, stacked
 // `stack` times without lattice offset — the stepped silhouette of a tree. Same
 // polygon-cell model as triangleLoomModel (bbox-centre placement anchor).
-function tierLoomModel(stack, side = 200) {
+export function tierLoomModel(stack, side = 200) {
   const h = side * Math.sqrt(3) / 2, W = 2 * side, H = h * stack;
   const cells = [];
   for (let k = 0; k < stack; k++) {
@@ -387,7 +413,7 @@ function tierLoomModel(stack, side = 200) {
 // A hexagonal lattice of `rings` rings (1, 7, 19, 37… pointy-top hexagons). Each cell knows its
 // ring (distance from the centre) and its sector (0–5, clockwise from the +x axis: one corner
 // cell plus the edge cells that follow it), the classes 60° poses are keyed on.
-function hexLoomModel(rings, side = 100) {
+export function hexLoomModel(rings, side = 100) {
   const R = rings - 1, w = Math.sqrt(3) * side, pos = [];
   for (let q = -R; q <= R; q++) for (let r = Math.max(-R, -q - R); r <= Math.min(R, -q + R); r++) pos.push([q, r]);
   pos.sort((a, b) => a[1] - b[1] || (a[0] + a[1] / 2) - (b[0] + b[1] / 2));
@@ -410,25 +436,25 @@ function hexLoomModel(rings, side = 100) {
   };
 }
 // Poses are multiples of 30° (0/90/180/270 for square lattices, 60° steps for hexagonal ones).
-const snapPose = n => ((Math.round(n / 30) * 30) % 360 + 360) % 360;
+export const snapPose = n => ((Math.round(n / 30) * 30) % 360 + 360) % 360;
 // 'up' when the triangle's base is its lower edge (two vertices share the max y), 'down' otherwise; null for non-triangles.
-function polyOrient(points) {
+export function polyOrient(points) {
   if (!points || points.length !== 3) return null;
   const ys = points.map(p => p[1]), mx = Math.max(...ys), mn = Math.min(...ys);
   const low = ys.filter(y => Math.abs(y - mx) < 1e-6).length, high = ys.filter(y => Math.abs(y - mn) < 1e-6).length;
   return low === 2 ? 'up' : high === 2 ? 'down' : null;
 }
 
-function loadSymbolGrid(model) {
+function loadSymbolGridNow(model) {
   state.symbolGrid = Organica.loadLoomGrid(model);
-  state.symbolSuggestions = []; renderSuggestGallery();   // variations belong to the previous grid
+  state.symbolSuggestions = []; hooks.renderSuggestGallery();   // variations belong to the previous grid
   state.symbolCells = defaultSymbolCells(getSymbolGrid());
   state.symbolSelection.clear();
   state.symbolClipEnabled = false;   // a new grid starts on the default
-  syncSymbolViewUI();
+  hooks.syncSymbolViewUI();
   ctrl('symbol-grid-error').style.display = 'none';
   syncOverlapSection();
-  renderSymbol();
+  hooks.renderSymbol();
 }
 
 // ── Symbol Canvas + grid generators ─────────────────────────────
@@ -440,8 +466,8 @@ function loadSymbolGrid(model) {
 // (canvas.fvsFrame), so saving/loading a Symbol and the Grid tier need no new
 // field. Drawing units: px for Screen, px at 96 dpi of the physical size for
 // Print (A4 = 794 × 1123) — the Export converts to the real size.
-let symCanvasPicker = null;   // the canvas-format thumbnail picker — built once the <select> is filled (below)
-const SYMCANVAS_PRESETS = {   // Loom's CANVAS_PRESETS (loom/js/canvas-manager.js) + 9:16 and A3
+export let symCanvasPicker = null;   // the canvas-format thumbnail picker — built once the <select> is filled (below)
+export const SYMCANVAS_PRESETS = {   // Loom's CANVAS_PRESETS (loom/js/canvas-manager.js) + 9:16 and A3
   'Square 1:1': { w: 1080, h: 1080, unit: 'px' },
   'Portrait 4:5': { w: 1080, h: 1350, unit: 'px' },
   'Landscape 16:9': { w: 1920, h: 1080, unit: 'px' },
@@ -452,7 +478,7 @@ const SYMCANVAS_PRESETS = {   // Loom's CANVAS_PRESETS (loom/js/canvas-manager.j
   'A3 portrait': { w: 297, h: 420, unit: 'mm' },
   'Letter portrait': { w: 215.9, h: 279.4, unit: 'mm' },
 };
-const PX_PER_MM = 96 / 25.4;
+export const PX_PER_MM = 96 / 25.4;
 // [key, label, min, max, step, default] — or [key, label, 'text', default]. Everything
 // else comes from the generator's own registry defaults; gap is 0 so cells touch
 // (edge continuity needs neighbours that meet).
@@ -462,7 +488,7 @@ const PX_PER_MM = 96 / 25.4;
 // (Fractal's exact 2^depth, and Figure's own hex-ring picker elsewhere) don't map
 // onto a literal 5-8 slider and get their own deliberately different-looking range
 // that still lands in the same cell-count band — see CLAUDE.md session note.
-const SYMGRID_GENS = {
+export const SYMGRID_GENS = {
   // Columns/Rows just pick the track COUNT (equal-width to start, same slider
   // shape as every other generator) — uneven weights are set afterward by
   // dragging the borders directly on the canvas, where a live % label above
@@ -485,16 +511,16 @@ const SYMGRID_GENS = {
 // Rectangular has no cols/rows slider — column/row count is literally the number of
 // comma-separated weights typed in. Clamp the track COUNT (not the weight values) to
 // the same 5-8 band every other generator uses, padding/truncating as needed.
-function clampWeightTrackCount(str, min = 5, max = 8) {
+export function clampWeightTrackCount(str, min = 5, max = 8) {
   let parts = String(str).split(',').map(s => s.trim()).filter(s => s !== '');
   if (parts.length > max) parts = parts.slice(0, max);
   while (parts.length < min) parts.push('1');
   return parts.join(',');
 }
-let loomRegistryP = null;
-function loomRegistry() { return (loomRegistryP = loomRegistryP || import('/loom/js/generators/registry.js').then(m => m.GENERATORS)); }
+export let loomRegistryP = null;
+export function loomRegistry() { return (loomRegistryP = loomRegistryP || import('/loom/js/generators/registry.js').then(m => m.GENERATORS)); }
 
-function readSymbolCanvas() {
+export function readSymbolCanvas() {
   const mode = ctrl('seg-symcanvas-mode').querySelector('.seg-btn.active').dataset.mode;
   const unit = mode === 'print' ? ctrl('sel-symcanvas-unit').value : 'px';
   const pw = Math.max(1, parseFloat(ctrl('num-symcanvas-w').value) || 1), ph = Math.max(1, parseFloat(ctrl('num-symcanvas-h').value) || 1);
@@ -506,7 +532,7 @@ function readSymbolCanvas() {
     W: Math.round(toPx(pw) * 100) / 100, H: Math.round(toPx(ph) * 100) / 100,
   };
 }
-function applySymbolCanvasToUI(cv) {
+export function applySymbolCanvasToUI(cv) {
   ctrl('sel-symcanvas-preset').value = cv.preset in SYMCANVAS_PRESETS ? cv.preset : 'Custom';
   if (symCanvasPicker) symCanvasPicker.refresh();
   setSymbolCanvasMode(cv.mode || 'screen');
@@ -517,29 +543,29 @@ function applySymbolCanvasToUI(cv) {
   ctrl('rg-symcanvas-margin').value = cv.margin || 0; ctrl('v-symcanvas-margin').textContent = cv.margin || 0;
   syncSymbolCanvasHint();
 }
-function setSymbolCanvasMode(mode) {
+export function setSymbolCanvasMode(mode) {
   ctrl('seg-symcanvas-mode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
   ctrl('symcanvas-print-block').style.display = mode === 'print' ? '' : 'none';
   ctrl('symcanvas-unit-label').textContent = mode === 'print' ? ctrl('sel-symcanvas-unit').value : 'px';
 }
-function syncSymbolCanvasHint() {
+export function syncSymbolCanvasHint() {
   const cv = readSymbolCanvas();
   ctrl('symbol-canvas-hint').textContent = cv.mode === 'print' ? `${cv.pw} × ${cv.ph} ${cv.unit} · ${cv.dpi} dpi` : `${cv.pw} × ${cv.ph} px`;
 }
-function renderSymgridParams() {
+export function renderSymgridParams() {
   const genId = ctrl('sel-symgrid-gen').value, spec = SYMGRID_GENS[genId];
   ctrl('symgrid-gen-params').innerHTML = spec.params.map(([k, label, a, b, step, def]) => a === 'text'
     ? `<div class="ctrl-row"><div class="ctrl-label">${label} <span class="hint">5–8 weights</span></div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
     : `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`).join('');
   spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
 }
-function readSymgridParams(id) {
+export function readSymgridParams(id) {
   const out = {};
   SYMGRID_GENS[id].params.forEach(([k, , a]) => { const v = ctrl('symgen-' + k).value; out[k] = a === 'text' ? v : parseFloat(v); });
   return out;
 }
 // The Loom model for a generated grid — pure, so the regression suite can call it too.
-async function symbolGridModel(genId, params, cv) {
+export async function symbolGridModel(genId, params, cv) {
   const G = (await loomRegistry())[genId];
   if (!G) throw new Error(`Unknown grid generator "${genId}".`);
   const m = Math.min(cv.W, cv.H) * (cv.margin / 100);
@@ -570,19 +596,19 @@ async function symbolGridModel(genId, params, cv) {
 // ── Cell-shape Components in a Symbol (Oct 6, 2026): every Component with a Grid shape set to Match cell shares ONE
 // small-cell lattice per cell shape — its small cells snap to it, wherever the Symbol grid puts it — so neighbours
 // line up exactly (lines run on, Shared cells can tell which small cell is whose). The lattice helpers:
-const SQ3 = Math.sqrt(3);
+export const SQ3 = Math.sqrt(3);
 // Every aligned Component's placement, per cell index: one small-cell size per cell shape (the median of their
 // Contain fits, grown by Overlap), the turn snapped to the lattice's symmetry (60°, square packing 90°; no flips),
 // and the position snapped so the Component's lattice origin lands on the shared lattice — whose origin is the
 // frame centre, in the Components' own (unturned) orientation.
-function alignedPlacements(grid, centers, F, lib, L) {
+export function alignedPlacements(grid, centers, F, lib, L) {
   const out = new Map(), groups = {};
   state.symbolCells.forEach((cell, i) => {
     if (!cell || cell.source !== 'component' || cell.fitMode !== 'match' || L.covered[i] != null || L.region[i]) return;
     const e = lib[cell.componentName], c = centers[i];
     if (!e || !e.grid || !e.grid.lattice || !c) return;
     const B = latticeBasisOf(e), d = frameDims(e.grid), nat = d.w === d.h ? frameSize(e.grid) : { w: d.w, h: d.h };
-    const fit = placeInBox(c, nat, { ...withPlacementDefaults(cell), fitMode: 'contain', scale: 1, anchorX: 0, anchorY: 0, padding: 0, rotation: 0 }, cellPolygon(grid, i));
+    const fit = hooks.placeInBox(c, nat, { ...withPlacementDefaults(cell), fitMode: 'contain', scale: 1, anchorX: 0, anchorY: 0, padding: 0, rotation: 0 }, hooks.cellPolygon(grid, i));
     const key = e.grid.lattice.shape + (B.square ? ':square' : '');
     (groups[key] = groups[key] || []).push({ i, e, B, c, cell, r: Math.abs(fit.scaleX) * B.R });
   });
@@ -606,7 +632,7 @@ function alignedPlacements(grid, centers, F, lib, L) {
 }
 // The small-cell lattice of a saved cell-shape Component: basis e1/e2, an origin O (a cell centre, or a triangle
 // corner), and how a cell is keyed (its centre, or the triangle it is).
-function latticeBasisOf(entry) {
+export function latticeBasisOf(entry) {
   const L = entry.grid.lattice, c0 = entry.grid.cells[0];
   const cR = Math.max(...c0.points.map(q => Math.hypot(q[0] - c0.centroid[0], q[1] - c0.centroid[1])));
   if (L.shape === 'hexagon') return { e1: [1.5 * cR, SQ3 / 2 * cR], e2: [0, SQ3 * cR], O: c0.centroid, kind: 'centre', R: cR };
@@ -615,23 +641,23 @@ function latticeBasisOf(entry) {
   const S = cR * SQ3;
   return { e1: [S, 0], e2: [S / 2, S * SQ3 / 2], O: c0.points[0], kind: 'vertex', R: cR };
 }
-function latticeKeyer(B) {
+export function latticeKeyer(B) {
   const det = B.e1[0] * B.e2[1] - B.e1[1] * B.e2[0];
   const toLat = ([x, y]) => { const dx = x - B.O[0], dy = y - B.O[1]; return [(dx * B.e2[1] - dy * B.e2[0]) / det, (B.e1[0] * dy - B.e1[1] * dx) / det]; };
   return B.kind === 'centre'
     ? c => { const [a, b] = toLat(c); return Math.round(a) + ',' + Math.round(b); }
     : c => { const [a, b] = toLat(c), fa = Math.floor(a + 1e-6), fb = Math.floor(b + 1e-6); return fa + ',' + fb + ',' + ((a - fa) + (b - fb) < 1 ? 0 : 1); };
 }
-const latCart = (B, [a, b]) => [a * B.e1[0] + b * B.e2[0], a * B.e1[1] + b * B.e2[1]];
+export const latCart = (B, [a, b]) => [a * B.e1[0] + b * B.e2[0], a * B.e1[1] + b * B.e2[1]];
 // ── Overlap & blend — every Symbol grid. Saved with the Symbol (entry.overlap); older Symbols open as Paper under, 0.
 state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest' };
 // The section: Overlap in % (each content grows past its cell; Components on the shared small-cell lattice grow
 // that lattice instead, so they stay aligned). Shared cells needs aligned Components (Match cell + a Grid shape).
-function symbolHasAlignedComponents() {
+export function symbolHasAlignedComponents() {
   const lib = LIBRARY.read();
   return (state.symbolCells || []).some(c => c && c.source === 'component' && c.fitMode === 'match' && lib[c.componentName] && lib[c.componentName].grid && lib[c.componentName].grid.lattice);
 }
-function syncOverlapSection() {
+export function syncOverlapSection() {
   const o = state.symbolOverlap, rg = ctrl('rg-symbol-overlap');
   rg.value = o.amount; ctrl('v-symbol-overlap').textContent = o.amount + '%';
   const blend = ctrl('sel-symbol-blend'), sharedOk = symbolHasAlignedComponents();
@@ -642,23 +668,23 @@ function syncOverlapSection() {
   ctrl('symbol-drawnby-row').style.display = o.blend === 'shared' ? '' : 'none';
 }
 // How overlaps draw on the loaded grid: null = Paper under (the drawing as before).
-function symbolLook(grid) {
+export function symbolLook(grid) {
   const o = state.symbolOverlap;
   if (!grid || o.blend === 'under') return null;
   if (o.blend === 'shared') return { shared: true };
   return { interleave: o.blend === 'normal', multiply: o.blend === 'multiply' };
 }
 // Overlap: each cell's content grows past its cell, about its own centre (aligned Components: see alignedPlacements).
-function overlapGrowth() { return 1 + Math.max(0, state.symbolOverlap.amount) / 100; }
-function onSymbolOverlapInput() {
+export function overlapGrowth() { return 1 + Math.max(0, state.symbolOverlap.amount) / 100; }
+export function onSymbolOverlapInput() {
   const o = state.symbolOverlap; o.amount = +ctrl('rg-symbol-overlap').value;
-  if (o.amount > 0 && state.symbolClipEnabled) { state.symbolClipEnabled = false; syncSymbolViewUI(); }   // a clip would cut the overlap away
-  syncOverlapSection(); renderSymbol();
+  if (o.amount > 0 && state.symbolClipEnabled) { state.symbolClipEnabled = false; hooks.syncSymbolViewUI(); }   // a clip would cut the overlap away
+  syncOverlapSection(); hooks.renderSymbol();
 }
-async function generateSymbolGridInCanvas() {
+export async function generateSymbolGridInCanvas() {
   const id = ctrl('sel-symgrid-gen').value;
   // With nothing saved the grid is built empty (the start pane says why it can't be filled).
-  if (!libraryNames(LIBRARY.read()).length && !elementPool().length) { await buildEmptySymbolGrid(); return; }
+  if (!libraryNames(LIBRARY.read()).length && !hooks.elementPool().length) { await buildEmptySymbolGrid(); return; }
   try {
     const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
     if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
@@ -672,10 +698,10 @@ async function generateSymbolGridInCanvas() {
   }
 }
 // Fill the current grid's cells: Suggest or Arrange from the pool (or the saved Elements).
-function fillSymbolCells() {
-  renderSymbolPool();   // self-heals a stale pool (a Component renamed or deleted since) before filling
-  if (poolEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') runSuggest(false); else generateSymbolCells(); }
-  else if (elementPool().length) generateSymbolCells();   // Elements only: Arrange (Suggest reads Components)
+export function fillSymbolCells() {
+  hooks.renderSymbolPool();   // self-heals a stale pool (a Component renamed or deleted since) before filling
+  if (hooks.poolEntries().length) { if (ctrl('sel-symbol-fill').value === 'suggest') hooks.runSuggest(false); else hooks.generateSymbolCells(); }
+  else if (hooks.elementPool().length) hooks.generateSymbolCells();   // Elements only: Arrange (Suggest reads Components)
   else {
     ctrl('symgrid-gen-error').textContent = 'Nothing to fill the grid with — save an Element or a Component first.';
     ctrl('symgrid-gen-error').style.display = '';
@@ -684,15 +710,15 @@ function fillSymbolCells() {
 // A new grid of polygon cells (hexagons, triangles, Voronoi…) starts with Clip to cell ON: there, Cover and
 // Stretch size the content to the cell's bounding box and would spill into the neighbours. Rect grids keep
 // the default (off). Only for grids built from the panel — a saved Symbol keeps what it was saved with.
-function clipByDefaultForShape() {
+export function clipByDefaultForShape() {
   state.symbolClipEnabled = !!state.symbolGrid && state.symbolGrid.cellShape === 'polygon';
-  syncSymbolViewUI();
+  hooks.syncSymbolViewUI();
 }
 // ── The empty Symbol: the panel's grid with every cell empty ──
-const emptySymbolCell = () => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, scale: 1, color: null, fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false });
-const symbolHasContent = () => (state.symbolCells || []).some(c => c && c.source !== 'empty');
-let emptyBuildSeq = 0;
-async function buildEmptySymbolGrid() {
+export const emptySymbolCell = () => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, scale: 1, color: null, fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false });
+export const symbolHasContent = () => (state.symbolCells || []).some(c => c && c.source !== 'empty');
+export let emptyBuildSeq = 0;
+export async function buildEmptySymbolGrid() {
   const seq = ++emptyBuildSeq, id = ctrl('sel-symgrid-gen').value;
   try {
     const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
@@ -702,7 +728,7 @@ async function buildEmptySymbolGrid() {
     loadSymbolGrid(model);
     clipByDefaultForShape();
     state.symbolCells = state.symbolCells.map(emptySymbolCell);
-    renderSymbol();
+    hooks.renderSymbol();
   } catch (e) {
     ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
     ctrl('symgrid-gen-error').style.display = '';
@@ -710,7 +736,7 @@ async function buildEmptySymbolGrid() {
 }
 // While every cell is empty, the panel is the grid's source: a change to the canvas or the
 // generator rebuilds it (nothing to lose). Once something is placed, "Generate grid in canvas" does.
-let emptyRebuildTimer = 0;
+export let emptyRebuildTimer = 0;
 ['sym-canvas-section', 'sym-grid-section'].forEach(id => ['input', 'change'].forEach(ev => ctrl(id).addEventListener(ev, e => {
   if (e.target.closest('button') || !state.symbolGrid || symbolHasContent()) return;
   clearTimeout(emptyRebuildTimer);
@@ -718,19 +744,19 @@ let emptyRebuildTimer = 0;
 })));
 // The floatbar Generate: fills the empty grid. Disabled (aria-disabled, so it stays focusable and its
 // tooltip says why) when nothing is saved, or when the grid already has content (no Symbol undo — Clear first).
-function symbolGenerateBlock() {
+export function symbolGenerateBlock() {
   if (!state.symbolGrid) return '';   // the grid is being built; the click handler's own guard covers it
   if (symbolHasContent()) return 'Fill the grid — clear the Symbol first';
-  if (!symbolSource().length) return 'Fill the grid — save an Element or a Component first';
+  if (!hooks.symbolSource().length) return 'Fill the grid — save an Element or a Component first';
   return '';
 }
-function syncSymbolStart() {
+export function syncSymbolStart() {
   const btn = ctrl('btn-symbol-generate'), why = symbolGenerateBlock();
   btn.setAttribute('aria-disabled', String(!!why));
   btn.setAttribute('aria-label', why || 'Fill the grid');
 }
 // The canvas of the loaded Symbol, if it has one (a grid generated in a Canvas).
-function symbolCanvasOf(model) { return model && model.canvas && model.canvas.fvsFrame ? model.canvas.fvsFrame : null; }
+export function symbolCanvasOf(model) { return model && model.canvas && model.canvas.fvsFrame ? model.canvas.fvsFrame : null; }
 
 ctrl('sel-symcanvas-preset').innerHTML = Object.keys(SYMCANVAS_PRESETS).map(n => `<option>${n}</option>`).join('') + '<option>Custom</option>';
 // Thumbnail picker (Organica.selectPicker, 26px icons): each format as a
@@ -745,18 +771,18 @@ ctrl('sel-symgrid-gen').value = 'rectangular';
 renderSymgridParams();
 ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').style.display = 'none'; renderSymgridParams(); syncOverlapSection(); });
 ctrl('rg-symbol-overlap').addEventListener('input', onSymbolOverlapInput);
-ctrl('sel-symbol-blend').addEventListener('change', e => { state.symbolOverlap.blend = e.target.value; syncOverlapSection(); renderSymbol(); });
-ctrl('sel-symbol-drawnby').addEventListener('change', e => { state.symbolOverlap.drawnBy = e.target.value; renderSymbol(); });
+ctrl('sel-symbol-blend').addEventListener('change', e => { state.symbolOverlap.blend = e.target.value; syncOverlapSection(); hooks.renderSymbol(); });
+ctrl('sel-symbol-drawnby').addEventListener('change', e => { state.symbolOverlap.drawnBy = e.target.value; hooks.renderSymbol(); });
 ctrl('btn-symgrid-generate').addEventListener('click', generateSymbolGridInCanvas);
 // Clear: every cell empty again, the grid kept — the Symbol is back to its empty grid with Generate over it.
 ctrl('btn-symbol-clear').addEventListener('click', () => {
   if (genArrivalStop) genArrivalStop();
   state.symbolCells = (state.symbolCells || []).map(emptySymbolCell);   // the grid stays (borders dragged by hand too); every cell is empty again
-  state.symbolSuggestions = []; renderSuggestGallery();
+  state.symbolSuggestions = []; hooks.renderSuggestGallery();
   state.symbolSelection.clear();
   state.symbolMarqueeRect = null;
   ctrl('symgrid-gen-error').style.display = 'none';
-  renderSymbol();
+  hooks.renderSymbol();
   ctrl('btn-symbol-generate').focus({ preventScroll: true });   // Clear is disabled now: focus goes to Generate
 });
 // ── The arrival, after Bencho's Generate (MIT — THIRD-PARTY-NOTICES.md) ──
@@ -785,9 +811,9 @@ ctrl('btn-symbol-clear').addEventListener('click', () => {
 // 200-cell one does not take ten seconds. One rAF loop for all of them, and
 // it parks itself when the last cell has landed. Lengths are Bencho's, in
 // screen pixels, converted to the svg's user units at the start.
-const GEN_ARRIVE = { cell: 1000, sweep: 1200, stepMin: 4, stepMax: 60, blur: 20, contrast: 2.4, ripple: 50 };
-let genArrivalStop = null;
-function runSymbolArrival() {
+export const GEN_ARRIVE = { cell: 1000, sweep: 1200, stepMin: 4, stepMax: 60, blur: 20, contrast: 2.4, ripple: 50 };
+export let genArrivalStop = null;
+export function runSymbolArrival() {
   if (genArrivalStop) genArrivalStop();
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const svg = ctrl('symbol-frame').querySelector('svg');
@@ -886,7 +912,7 @@ ctrl('btn-symbol-generate').addEventListener('click', () => {
 // cell's content looking randomly sized. getSymbolGrid(), not state.symbolGrid
 // directly — resolveGridCells() expects the resolved {cells,cellShape,...}
 // shape getSymbolGrid() returns, same as cellOverflowInfo() already does.
-function symbolMedianCellSize() {
+export function symbolMedianCellSize() {
   const grid = getSymbolGrid();
   if (!grid) return 100;
   const cells = resolveGridCells(grid);
@@ -895,12 +921,12 @@ function symbolMedianCellSize() {
 // Fit (floatbar, Symbol step) and Anchor (Symbol grid section) act on the SELECTION when there is one,
 // on every cell when there is none — one control for both, the label says which.
 // (Cell properties → Fit / Anchor write the same fields, on the selection.)
-let symbolAnchorPopover = null;   // the floatbar Anchor popover (set at boot)
-const fitTargetIndices = () => (state.symbolSelection.size ? [...state.symbolSelection] : state.symbolCells.map((_, i) => i)).filter(i => state.symbolCells[i]);
-const fitTargetWrite = patch => (state.symbolSelection.size ? applyToSelection : applyToAllCells)(patch);
+rt.symbolAnchorPopover = null;   // the floatbar Anchor popover (set at boot)
+export const fitTargetIndices = () => (state.symbolSelection.size ? [...state.symbolSelection] : state.symbolCells.map((_, i) => i)).filter(i => state.symbolCells[i]);
+export const fitTargetWrite = patch => (state.symbolSelection.size ? hooks.applyToSelection : hooks.applyToAllCells)(patch);
 // The label names the target; a button is pressed only when EVERY target cell holds that value (mixed = none).
 // What a Fit button would write into a cell — the one definition the buttons and their enabled state share.
-function fitPatch(fitMode) {
+export function fitPatch(fitMode) {
   const patch = { fitMode };
   if (fitMode === 'fixed') patch.fixedSize = symbolMedianCellSize();
   if (fitMode === 'cover') patch.coverAxis = 'auto';   // a fresh Cover always starts from the safe, guaranteed-no-gaps baseline
@@ -908,7 +934,7 @@ function fitPatch(fitMode) {
 }
 // The natural size a cell's content is placed with (as buildSymbolItems does): 100 for a Seed,
 // the Component's own frame otherwise. null = nothing to place (Empty, or a missing Component).
-function cellNaturalSize(cell, lib) {
+export function cellNaturalSize(cell, lib) {
   if (!cell || cell.source === 'empty') return null;
   if (cell.source !== 'component') return 100;
   const entry = lib[cell.componentName];
@@ -916,8 +942,8 @@ function cellNaturalSize(cell, lib) {
   const nd = frameDims(entry.grid);
   return nd.w === nd.h ? frameSize(entry.grid) : { w: nd.w, h: nd.h };
 }
-const samePlacement = (a, b) => ['scaleX', 'scaleY', 'offsetX', 'offsetY'].every(k => Math.abs(a[k] - b[k]) < 1e-6);
-function syncFitAnchorUI() {
+export const samePlacement = (a, b) => ['scaleX', 'scaleY', 'offsetX', 'offsetY'].every(k => Math.abs(a[k] - b[k]) < 1e-6);
+export function syncFitAnchorUI() {
   const n = state.symbolSelection.size, who = n ? `${n} selected cell${n === 1 ? '' : 's'}` : 'all cells';
   // Fit and Anchor are about a CONTENT in its cell. They read (pressed state, anchor position) and
   // are enabled from the target cells that hold something, and each control is on only when using
@@ -926,13 +952,13 @@ function syncFitAnchorUI() {
   //  · Contain / Fill / Cover that would place every target exactly as it is placed now → that
   //    icon off (a round content in a square cell: the three are the same picture);
   //  · Anchor when no target has room to move in (the content is exactly its cell) → off.
-  const grid = getSymbolGrid(), lib = LIBRARY.read(), res = grid ? symbolCellBoxes(grid) : [];   // a spanning Component is fitted in its block
-  const L0 = grid ? symbolSpanLayout(grid, state.symbolCells) : { region: {} };
-  const targets = fitTargetIndices().map(i => ({ cell: state.symbolCells[i], box: res[i], nat: cellNaturalSize(state.symbolCells[i], lib), poly: L0.region[i] ? null : cellPolygon(grid, i) })).filter(t => t.box && t.nat);
+  const grid = getSymbolGrid(), lib = LIBRARY.read(), res = grid ? hooks.symbolCellBoxes(grid) : [];   // a spanning Component is fitted in its block
+  const L0 = grid ? hooks.symbolSpanLayout(grid, state.symbolCells) : { region: {} };
+  const targets = fitTargetIndices().map(i => ({ cell: state.symbolCells[i], box: res[i], nat: cellNaturalSize(state.symbolCells[i], lib), poly: L0.region[i] ? null : hooks.cellPolygon(grid, i) })).filter(t => t.box && t.nat);
   const cells = targets.map(t => t.cell);
   const nothing = cells.length === 0;
   const why = nothing ? (state.symbolGrid ? ' — nothing to fit (empty)' : ' — no grid yet') : '';
-  const placeOf = (t, patch) => placeInBox(t.box, t.nat, { ...t.cell, ...(patch || {}) }, t.poly, t.poly ? cellSeedOutline(t.cell) : null);
+  const placeOf = (t, patch) => hooks.placeInBox(t.box, t.nat, { ...t.cell, ...(patch || {}) }, t.poly, t.poly ? hooks.cellSeedOutline(t.cell) : null);
   const shared = fn => (cells.length && cells.every(c => fn(c) === fn(cells[0])) ? fn(cells[0]) : null);
   const fit = shared(c => c.fitMode || 'contain'), ax = shared(c => c.anchorX || 0), ay = shared(c => c.anchorY || 0);
   // the Fit buttons live in the floatbar: their tooltip (aria-label) names the target
@@ -955,7 +981,7 @@ function syncFitAnchorUI() {
   const aLabel = 'Anchor · ' + who + (nothing ? why : still ? ' — no effect: the content is exactly its cell' : '');
   if (ctrl('btn-symbol-anchor').getAttribute('aria-label') !== aLabel) ctrl('btn-symbol-anchor').setAttribute('aria-label', aLabel);
   if (ctrl('btn-symbol-anchor').disabled !== anchorOff) ctrl('btn-symbol-anchor').disabled = anchorOff;
-  if (anchorOff && symbolAnchorPopover) symbolAnchorPopover.close();
+  if (anchorOff && rt.symbolAnchorPopover) rt.symbolAnchorPopover.close();
   ctrl('symbol-fitall-anchor-grid').querySelectorAll('.fvs-flyout__tool').forEach(b => {
     const on = String(ax != null && ay != null && +b.dataset.ax === ax && +b.dataset.ay === ay);
     if (b.dataset.on !== on) b.dataset.on = on;
@@ -966,33 +992,33 @@ function syncFitAnchorUI() {
   const ico = '<rect x="2.5" y="2.5" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.3"/>' + mark;
   if (ctrl('ico-symbol-anchor').innerHTML !== ico) ctrl('ico-symbol-anchor').innerHTML = ico;
 }
-function applyFitToAllCells(fitMode) {
+export function applyFitToAllCells(fitMode) {
   if (!state.symbolGrid) return;
   const patch = fitPatch(fitMode);
   fitTargetWrite(() => ({ ...patch }));
   // the write only re-renders the canvas — the docked Cell properties panel has its
   // own #sel-cellprop-fit readout, and these buttons their pressed state: re-sync both.
-  renderCellPropertiesPanel();
+  hooks.renderCellPropertiesPanel();
 }
 ['contain', 'fill', 'cover', 'fixed', 'match'].forEach(fit =>
   ctrl('btn-symbol-fit-all-' + fit).addEventListener('click', () => applyFitToAllCells(fit)));
 // Anchor: which part of a cropped / overflowing cell's content shows — meaningful for Cover
 // (which part is kept), Fixed (which part overflows) and Contain (where it sits), not for Fill.
 // One control: the floatbar button and its flyout (.fvs-flyout), on the selection or on every cell.
-function applyAnchorToAllCells(ax, ay) {
+export function applyAnchorToAllCells(ax, ay) {
   if (!state.symbolGrid) return;
   fitTargetWrite({ anchorX: ax, anchorY: ay });
-  renderCellPropertiesPanel();
+  hooks.renderCellPropertiesPanel();
 }
-function buildFitAllAnchorGrid() {
+export function buildFitAllAnchorGrid() {
   const wrap = ctrl('symbol-fitall-anchor-grid');
-  wrap.innerHTML = ANCHOR_POSITIONS.map(([ax, ay]) =>
+  wrap.innerHTML = hooks.ANCHOR_POSITIONS.map(([ax, ay]) =>
     `<button type="button" class="fvs-flyout__tool" data-on="false" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'center'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`
   ).join('');
   wrap.querySelectorAll('.fvs-flyout__tool').forEach(btn => btn.addEventListener('click', () => {
     applyAnchorToAllCells(parseInt(btn.dataset.ax, 10), parseInt(btn.dataset.ay, 10));
     // the pad arrives, then the flyout closes — the button's face now shows the choice
-    setTimeout(() => { if (symbolAnchorPopover) symbolAnchorPopover.close(); ctrl('btn-symbol-anchor').focus(); }, 220);
+    setTimeout(() => { if (rt.symbolAnchorPopover) rt.symbolAnchorPopover.close(); ctrl('btn-symbol-anchor').focus(); }, 220);
   }));
 }
 ctrl('sel-symcanvas-preset').addEventListener('change', () => {
@@ -1021,7 +1047,7 @@ ctrl('seg-symcanvas-mode').addEventListener('click', e => {
 ctrl('rg-symcanvas-margin').addEventListener('input', e => { ctrl('v-symcanvas-margin').textContent = e.target.value; });
 syncSymbolCanvasHint();
 
-function handleSymbolGridUpload(file) {
+export function handleSymbolGridUpload(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try { loadSymbolGrid(reader.result); }
@@ -1029,4 +1055,10 @@ function handleSymbolGridUpload(file) {
   };
   reader.onerror = () => { ctrl('symbol-grid-error').textContent = 'Could not read that file.'; ctrl('symbol-grid-error').style.display = ''; };
   reader.readAsText(file);
+}
+
+// Every caller goes through here; rt.afterLoadSymbolGrid is a test hook (fvs/_test-regression.html), null in use.
+export function loadSymbolGrid(model) {
+  loadSymbolGridNow(model);
+  if (rt.afterLoadSymbolGrid) rt.afterLoadSymbolGrid(model);
 }

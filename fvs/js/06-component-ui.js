@@ -1,7 +1,40 @@
 // Flexible Visual System · 06-component-ui — Component UI — Edit mode, rule UI, undo, Colourways, Generate, Split.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import {
+  COLOR_RULES, DEFAULT_COLOR_RULE, buildPalette, colorRuleCR, ctrl, paletteInk, printSizePanel, setStatus,
+  state, syncColorRuleUI, syncQuadrantHint, val
+} from './00-core.js';
+import {
+  INNER_APEX, INNER_UNSUPPORTED, SEED_TYPES, fitPathToSeed, frameDims, resolveGridCells,
+  splitElementGeometry, splitPaperScope
+} from './01-geometry.js';
+import {
+  getSeed, seedForSnapshot, seedPicker, syncDependentRows, syncFreehandEditor, useSvgAsSeed
+} from './02-seed-ui.js';
+import {
+  EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
+  exhaustiveTotal, getGrid, isCanonical2x2, latticeRule, radialEligible, readManualCells,
+  resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
+  ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
+} from './03-rules.js';
+import {
+  applyAppearanceToUI, buildComponentItems, componentCellColRow, getElementAppearance, withAppearance
+} from './04-appearance.js';
+import {
+  buildComponentSVG, buildComponentSVGBody, buildPrintComponentSVG, componentGridOutlineSVG,
+  drawComponentCanvas, gridWrapper, printComponentDims, renderGallery, renderSeedPreview
+} from './05-render-component.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks,
+  componentCaption: () => componentCaption, componentElementSignature: () => componentElementSignature,
+  elementIsEmpty: () => elementIsEmpty, enterComponentEditMode: () => enterComponentEditMode,
+  generate: () => generate, populateComponentStarterGallery: () => populateComponentStarterGallery,
+  syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI,
+  syncSelectedColourway: () => syncSelectedColourway, withComponentColours: () => withComponentColours
+});
 // ── Component Edit mode ──────────────────────────────────────────────────
 // A big single-component view (state.componentEditMode) where every cell is
 // clickable; the selected cell's own shape can then be edited LIVE from the
@@ -9,7 +42,7 @@
 // Component tier's own Grid/Rule panel). Never mutates the source component
 // — componentEditCells is a working copy, and "Save as new component" pushes
 // a fresh gallery candidate, leaving the original untouched.
-function enterComponentEditMode(compId) {
+export function enterComponentEditMode(compId) {
   const comp = state.components.find(c => c.id === compId);
   if (!comp) return;
   state.selectedId = comp.id;
@@ -44,15 +77,15 @@ function enterComponentEditMode(compId) {
   ctrl('gallery-status').textContent = '';
   ctrl('component-edit-view').style.display = 'flex';
   renderComponentEditCanvas();
-  syncFvsZoomHud();   // gallery ⇄ Edit: the zoom chip follows
+  hooks.syncFvsZoomHud();   // gallery ⇄ Edit: the zoom chip follows
 }
 
-function exitComponentEditMode() {
+export function exitComponentEditMode() {
   // The panel was repurposed as the selected cell's own scratch pad —
   // restore it to the real shared Element before leaving, so normal
   // Element-tier editing (and the next cell you select) doesn't inherit
   // whatever the last-edited cell happened to be showing.
-  if (state.componentEditDefaultSeed) applySeedToPanel(state.componentEditDefaultSeed);
+  if (state.componentEditDefaultSeed) hooks.applySeedToPanel(state.componentEditDefaultSeed);
   if (state.componentEditDefaultAppearance) applyAppearanceToUI(state.componentEditDefaultAppearance);
   state.componentEditMode = false;
   state.componentEditId = null;
@@ -70,12 +103,12 @@ function exitComponentEditMode() {
   if (elBlock) elBlock.classList.remove('active');
   renderGallery();
   renderSeedPreview();
-  syncFvsZoomHud();   // gallery ⇄ Edit: the zoom chip follows
+  hooks.syncFvsZoomHud();   // gallery ⇄ Edit: the zoom chip follows
 }
 
 // Pushes a brand-new gallery candidate carrying the edited cells, then
 // leaves edit mode — the component being edited FROM is never touched.
-function saveComponentEditAsNew() {
+export function saveComponentEditAsNew() {
   if (!state.componentEditMode) return;
   const newComp = { id: `edit-${Date.now()}`, ruleSource: 'edited', cells: structuredClone(state.componentEditCells) };
   pushUndo();
@@ -90,7 +123,7 @@ function saveComponentEditAsNew() {
 // invisible (or, for the selected cell, outlined) hit-rect per cell —
 // exactly Symbol's own data-cell-index pattern, just built as an overlay
 // layer instead of threading the attribute through every <g> in the body.
-function componentEditHitLayer(items, size) {
+export function componentEditHitLayer(items, size) {
   const dims = resolvedComponentDims(size);
   const halfX = dims.w / 2, halfY = dims.h / 2;
   return items.map((it, i) => {
@@ -102,7 +135,7 @@ function componentEditHitLayer(items, size) {
   }).join('');
 }
 
-function renderComponentEditCanvas() {
+export function renderComponentEditCanvas() {
   if (!state.componentEditMode) return;
   const grid = state.componentEditGrid;
   const seed = state.componentEditDefaultSeed;   // frozen — see enterComponentEditMode's comment
@@ -126,12 +159,12 @@ function renderComponentEditCanvas() {
 // Selecting a cell swaps the sidebar to the Element panel and loads that
 // cell's own content (or, if it has none yet, leaves the panel exactly as
 // it already reads — a reasonable starting point for a first edit).
-function selectComponentEditCell(i) {
+export function selectComponentEditCell(i) {
   if (!state.componentEditMode) return;
   state.componentEditSelectedCell = i;
   const cell = state.componentEditCells[i];
   if (cell.content) {
-    applyElementSnapshot(cell.content.seedParams, cell.content.appearance || state.componentEditDefaultAppearance);
+    hooks.applyElementSnapshot(cell.content.seedParams, cell.content.appearance || state.componentEditDefaultAppearance);
   }
   const compBlock = document.querySelector('.tier-block[data-tier="component"]');
   const elBlock = document.querySelector('.tier-block[data-tier="element"]');
@@ -155,7 +188,7 @@ ctrl('btn-component-edit-save').addEventListener('click', saveComponentEditAsNew
 // its usual job), so no individual Seed slider needs touching.
 ctrl('panel').addEventListener('input', componentEditLiveBind);
 ctrl('panel').addEventListener('change', componentEditLiveBind);
-function componentEditLiveBind(e) {
+export function componentEditLiveBind(e) {
   if (!state.componentEditMode || state.componentEditSelectedCell == null) return;
   if (!e.target.closest('.tier-block[data-tier="element"]')) return;
   const cell = state.componentEditCells[state.componentEditSelectedCell];
@@ -167,7 +200,7 @@ function componentEditLiveBind(e) {
   renderComponentEditCanvas();
 }
 
-function componentCaption(comp) {
+export function componentCaption(comp) {
   const cells = comp.cells.slice(0, 6).map(c => c.rotation + ((c.flipH || c.flipV) ? 'f' : '')).join(' ');
   const inks = comp.layerInks ? ' · inks ' + Object.values(comp.layerInks).map(v => v === 'cell' ? 'c' : v + 1).join('/') : '';
   const cw = comp.colourway;
@@ -176,11 +209,11 @@ function componentCaption(comp) {
 }
 
 // The Element is Freehand with nothing drawn: every candidate would be blank.
-function elementIsEmpty() {
+export function elementIsEmpty() {
   return ctrl('sel-seed-type').value === 'freehand' && !state.freehand.seed;
 }
 
-function getSelectedComponent() {
+export function getSelectedComponent() {
   return state.components.find(c => c.id === state.selectedId) || null;
 }
 
@@ -188,7 +221,7 @@ function getSelectedComponent() {
 // centre falls between cells); Random/Exhaustive draw from the same families on any grid
 // (see the comment above ruleRandom). Grey out what does not apply and bounce
 // off a now-invalid selection rather than leaving it silently unusable. ──
-function syncRuleAvailability() {
+export function syncRuleAvailability() {
   const count = activeCellCount();
   const sel = ctrl('sel-rule');
   let currentInvalid = false;
@@ -231,8 +264,8 @@ function syncRuleAvailability() {
 // Identity/Random/Exhaustive/Manual have no entry here (Lines/Oscillator only
 // take Scale, handled inline in ruleLines/ruleOscillator; the rest need no
 // note at all).
-const RULE_TO_FAMILY = { pinwheel: 'pinwheel', mirror: 'mirror', diagonal: 'diagonal', checkerboard: 'checkerboard', rowmirror: 'rowmirror', columnmirror: 'columnmirror', radial: 'radial' };
-function syncRuleAxisNote() {
+export const RULE_TO_FAMILY = { pinwheel: 'pinwheel', mirror: 'mirror', diagonal: 'diagonal', checkerboard: 'checkerboard', rowmirror: 'rowmirror', columnmirror: 'columnmirror', radial: 'radial' };
+export function syncRuleAxisNote() {
   const note = ctrl('rule-axis-note');
   const famKey = RULE_TO_FAMILY[ctrl('sel-rule').value];
   const fam = famKey && FAMILIES[famKey];
@@ -244,7 +277,7 @@ function syncRuleAxisNote() {
 }
 
 // ── Rule UI wiring ──
-function syncRuleUI() {
+export function syncRuleUI() {
   const mode = ctrl('sel-rule').value;
   ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
   ctrl('rule-lines-block').style.display = (mode === 'hlines' || mode === 'vlines') ? '' : 'none';
@@ -261,7 +294,7 @@ function syncRuleUI() {
   else ctrl('btn-generate').disabled = false;
 }
 
-function syncExhaustiveHint() {
+export function syncExhaustiveHint() {
   const total = exhaustiveTotal();
   const hint = ctrl('rule-total-hint');
   if (total > EXHAUSTIVE_CAP) {
@@ -278,7 +311,7 @@ function syncExhaustiveHint() {
   }
 }
 
-function buildManualEditor() {
+export function buildManualEditor() {
   const wrap = ctrl('rule-manual-block');
   const count = activeCellCount();
   const square4Labels = ['Cell 1 (top-left)', 'Cell 2 (top-right)', 'Cell 3 (bottom-left)', 'Cell 4 (bottom-right)'];
@@ -314,14 +347,14 @@ function buildManualEditor() {
 // Components, which one is selected, and the Component the Grid tiles), taken
 // before Generate / Add to gallery / Clear / Tile / a recipe. The Seed and every
 // other control are left alone.
-const UNDO_MAX = 20;
-const undoStack = [];
-function pushUndo() {
+export const UNDO_MAX = 20;
+export const undoStack = [];
+export function pushUndo() {
   undoStack.push(structuredClone({ components: state.components, selectedId: state.selectedId, explicit: state.selectionExplicit, tile: state.fvsGridComponentName, auto: state.componentAutoGenerated, sig: state.componentAutoGenSignature }));
   if (undoStack.length > UNDO_MAX) undoStack.shift();
   syncUndoUI();
 }
-function undoComponents() {
+export function undoComponents() {
   const snap = undoStack.pop();
   if (!snap) return;
   state.components = snap.components; state.selectedId = snap.selectedId; state.selectionExplicit = !!snap.explicit; state.fvsGridComponentName = snap.tile;
@@ -329,7 +362,7 @@ function undoComponents() {
   adoptColourway(getSelectedComponent());
   renderGallery(); syncUndoUI();
 }
-function syncUndoUI() { ctrl('btn-undo-components').disabled = undoStack.length === 0; }
+export function syncUndoUI() { ctrl('btn-undo-components').disabled = undoStack.length === 0; }
 ctrl('btn-undo-components').addEventListener('click', undoComponents);
 document.addEventListener('keydown', e => {
   if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || state.activeTier !== 'component') return;
@@ -344,17 +377,17 @@ document.addEventListener('keydown', e => {
 // enumeration any one rule can itself produce (that's what Generate + the
 // dropdown is for). Radial only when the grid is eligible (radialEligible(),
 // the same gate the Rules dropdown already applies).
-const STARTER_VARIANTS_PER_RULE = 4;
-const COMPONENT_STARTER_RULES = [
+export const STARTER_VARIANTS_PER_RULE = 4;
+export const COMPONENT_STARTER_RULES = [
   { name: 'checkerboard', fn: ruleCheckerboard },
   { name: 'pinwheel', fn: rulePinwheel },
   { name: 'mirror', fn: ruleMirror },
   { name: 'radial', fn: ruleRadial, eligible: radialEligible },
 ];
-function componentElementSignature() {
+export function componentElementSignature() {
   return JSON.stringify({ seed: getSeed(), appearance: getElementAppearance(), cells: resolveGridCells(getGrid()).length });
 }
-function populateComponentStarterGallery() {
+export function populateComponentStarterGallery() {
   // Runs automatically the moment you land on the Component step: each
   // starter rule's first STARTER_VARIANTS_PER_RULE candidates, nothing
   // filtered for looking alike (Generate doesn't filter either).
@@ -388,14 +421,14 @@ function populateComponentStarterGallery() {
 // candidate carries its pick as comp.layerInks {layerId: 'cell'|slot}.
 // The Element's CURRENT inks come first, so the default-selected first
 // candidate paints exactly like the live Element.
-const fillLayers = () => (state.layers ? state.layers.items.filter(l => (l.role || 'fill') === 'fill' && !l.hidden) : []);
-function currentLayerInks() {
+export const fillLayers = () => (state.layers ? state.layers.items.filter(l => (l.role || 'fill') === 'fill' && !l.hidden) : []);
+export function currentLayerInks() {
   const out = {};
   for (const l of fillLayers()) out[l.id] = l.ink == null ? 'cell' : l.ink;
   return out;
 }
-const layerInksOn = () => ctrl('chk-layer-inks').checked;
-function layerInkCombos() {
+export const layerInksOn = () => ctrl('chk-layer-inks').checked;
+export function layerInkCombos() {
   if (!layerInksOn()) return [];
   const layers = fillLayers();
   if (!layers.length) return [];
@@ -407,12 +440,12 @@ function layerInkCombos() {
   if (cur > 0) combos.unshift(combos.splice(cur, 1)[0]);
   return combos;
 }
-function layerInkComboCount() {
+export function layerInkComboCount() {
   const n = layerInksOn() ? fillLayers().length : 0;
   return n ? Math.pow(state.colors.length + 1, n) : 1;
 }
 // geometry × combos, geometry-major, capped at EXHAUSTIVE_CAP (the total is reported).
-function expandLayerInks(list) {
+export function expandLayerInks(list) {
   const combos = layerInkCombos();
   if (!combos.length) return { list, total: list.length };
   const out = [];
@@ -423,17 +456,17 @@ function expandLayerInks(list) {
 }
 // Picking a colour variant makes its inks the Element's own, so Export, Tile
 // in Grid, Component Edit and the Symbol step all see what the thumbnail shows.
-function adoptLayerInks(comp) {
+export function adoptLayerInks(comp) {
   if (!comp || !comp.layerInks || !state.layers) return;
   let changed = false;
   for (const l of state.layers.items) {
     if (!(l.id in comp.layerInks) || l.ink === comp.layerInks[l.id]) continue;
     l.ink = comp.layerInks[l.id]; changed = true;
   }
-  if (changed) { renderLayersUI(); renderSeedPreview(); }
+  if (changed) { hooks.renderLayersUI(); renderSeedPreview(); }
 }
 // A clone of the Element snapshot with a candidate's own layer inks baked in.
-function seedWithLayerInks(seed, layerInks) {
+export function seedWithLayerInks(seed, layerInks) {
   if (!layerInks || !seed || seed.type !== 'stack') return seed;
   const out = JSON.parse(JSON.stringify(seed));
   out.layers.forEach(l => { if (l.id in layerInks) l.ink = layerInks[l.id]; });
@@ -450,9 +483,9 @@ function seedWithLayerInks(seed, layerInks) {
 // scheme that cannot be solved is dropped. Colours stay plain hex — a palette
 // is a source here, never a link. The order of the palette is the role (Base,
 // Secondary, Accent…), as in TuneSutra.
-const CW_MIN_CONTRAST = 3;   // WCAG 1.4.11 — graphic objects
-const cwGround = p => (isPaperNone(p) ? '#ffffff' : hexKey(p));
-function cwSolve(inks, paper) {
+export const CW_MIN_CONTRAST = 3;   // WCAG 1.4.11 — graphic objects
+export const cwGround = p => (hooks.isPaperNone(p) ? '#ffffff' : hooks.hexKey(p));
+export function cwSolve(inks, paper) {
   const C = Organica.color, ground = cwGround(paper), out = [];
   for (const ink of inks) {
     const twin = out.find(o => o.src === ink);   // the same main twice (a proportion) stays one colour
@@ -469,7 +502,7 @@ function cwSolve(inks, paper) {
   }
   return out.map(o => o.hex);
 }
-function cwMetrics(cw) {
+export function cwMetrics(cw) {
   const C = Organica.color, ground = cwGround(cw.paper), inks = [...new Set(cw.colors)];
   let minC = Infinity, minD = Infinity, lo = 1, hi = 0;
   inks.forEach((a, i) => {
@@ -479,9 +512,9 @@ function cwMetrics(cw) {
   });
   return { minContrast: minC, minDeltaE: inks.length > 1 ? minD : null, spread: hi - lo };
 }
-const cwScore = m => 0.5 * Math.min(1, (m.minContrast - 1) / 6) + 0.3 * (m.minDeltaE == null ? 1 : Math.min(1, m.minDeltaE / 40)) + 0.2 * Math.min(1, m.spread / 0.5);
+export const cwScore = m => 0.5 * Math.min(1, (m.minContrast - 1) / 6) + 0.3 * (m.minDeltaE == null ? 1 : Math.min(1, m.minDeltaE / 40)) + 0.2 * Math.min(1, m.spread / 0.5);
 // build(mains, paper, ctx) → [{ paper, colors, colorRule?, note? }], unsolved. ctx = { grid, count, rule }.
-const COLOUR_SCHEMES = {
+export const COLOUR_SCHEMES = {
   roles: { label: 'Roles', build: (m, paper) => m.map((_, k) => ({ paper, colors: m.slice(k).concat(m.slice(0, k)), note: k ? 'turn ' + k : '' })) },
   tonal: { label: 'Tonal', build: (m) => [...new Set(m)].slice(0, 4).map((c, k) => {
     const C = Organica.color, sc = C.scale(c), paper = sc[1].hex;
@@ -521,8 +554,8 @@ const COLOUR_SCHEMES = {
 };
 // base = { colors, paper, colorRule }. The first entry is the base itself, as it is; then up to
 // `limit - 1` solved colourways, best first (contrast on the paper, distance between inks, lightness range).
-function buildColourways(base, grid, count, limit) {
-  const mains = base.colors.map(hexKey);
+export function buildColourways(base, grid, count, limit) {
+  const mains = base.colors.map(hooks.hexKey);
   const keyOf = cw => [cw.paper, cw.colors.join(','), cw.colorRule.mode, cw.colorRule.offset || 0].join('|');
   const cur = { scheme: 'current', label: 'Current', colors: mains, paper: base.paper, colorRule: { ...DEFAULT_COLOR_RULE, ...base.colorRule } };
   Object.assign(cur, cwMetrics(cur));
@@ -542,35 +575,35 @@ function buildColourways(base, grid, count, limit) {
   return [cur, ...out.slice(0, (limit || 12) - 1)];
 }
 // A candidate's own colours (comp.colourway) in place of the live palette, for the length of fn.
-function withComponentColours(comp, fn) {
+export function withComponentColours(comp, fn) {
   const cw = comp && comp.colourway;
   if (!cw) return fn();
   const prev = { colors: state.colors, rule: state.colorRule, paper: state.paperColor };
   state.colors = cw.colors; state.colorRule = cw.colorRule; state.paperColor = cw.paper;
   try { return fn(); } finally { state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; }
 }
-const liveColourKey = () => JSON.stringify([state.colors, state.colorRule.mode, state.colorRule.offset || 0, state.paperColor]);
-const cwColourKey = cw => JSON.stringify([cw.colors, cw.colorRule.mode, cw.colorRule.offset || 0, cw.paper]);
+export const liveColourKey = () => JSON.stringify([state.colors, state.colorRule.mode, state.colorRule.offset || 0, state.paperColor]);
+export const cwColourKey = cw => JSON.stringify([cw.colors, cw.colorRule.mode, cw.colorRule.offset || 0, cw.paper]);
 // Picking a colourway makes it the live palette (like adoptLayerInks), so Export,
 // Tile, Component Edit and the Symbol step all show what the thumbnail shows.
-function adoptColourway(comp) {
+export function adoptColourway(comp) {
   const cw = comp && comp.colourway;
   if (!cw || cwColourKey(cw) === liveColourKey()) return;
   state.colors = cw.colors.slice(); state.colorRule = { ...cw.colorRule };
-  syncColorRuleUI(); buildPalette(); setPaperUI(cw.paper);
+  syncColorRuleUI(); buildPalette(); hooks.setPaperUI(cw.paper);
   renderSeedPreview();
 }
 // The selected colourway follows the palette: editing an ink, the paper or the
 // colour rule by hand turns it into a "Custom" one instead of leaving a
 // thumbnail that no longer matches what Export would give.
-function syncSelectedColourway() {
+export function syncSelectedColourway() {
   const comp = getSelectedComponent();
   if (!comp || !comp.colourway || !state.selectionExplicit || cwColourKey(comp.colourway) === liveColourKey()) return;
   const cw = { scheme: 'custom', label: 'Custom', colors: state.colors.slice(), paper: state.paperColor, colorRule: { ...state.colorRule } };
   comp.colourway = Object.assign(cw, cwMetrics(cw));
   comp.savedName = null;
 }
-function generateColourways() {
+export function generateColourways() {
   const comp = getSelectedComponent();
   if (!comp) { setStatus('error', 'Select a component first'); return; }
   // Asked again from a colourway: the mains are still the palette the first set was made from
@@ -589,7 +622,7 @@ function generateColourways() {
   renderGallery();
 }
 
-function generate() {
+export function generate() {
   const mode = ctrl('sel-rule').value;
   let produced = state.cellShape !== 'square' && LATTICE_RULES.has(mode) ? latticeRule(mode) : null;
   if (produced && mode === 'exhaustive' && produced.length > EXHAUSTIVE_CAP) return;
@@ -638,7 +671,7 @@ function generate() {
   renderGallery();
 }
 
-function clearGallery() {
+export function clearGallery() {
   pushUndo();
   state.components = [];
   state.selectedId = null;
@@ -657,7 +690,7 @@ function clearGallery() {
 // shape never restores stale data. state.splitKeep is the live multi-select
 // set (empty = whole shape); state.splitCache memoises splitElementGeometry's
 // Paper.js work per pre-split seed so toggling chips is cheap.
-function syncSplitUI() {
+export function syncSplitUI() {
   ctrl('seg-split-quadrant').querySelectorAll('.seg-btn').forEach(b => {
     const q = b.dataset.q;
     const on = q === 'whole' ? state.splitKeep.size === 0 : state.splitKeep.has(q);
@@ -667,15 +700,15 @@ function syncSplitUI() {
 }
 // Whichever pre-split seed is live right now (freshly snapshotted the first
 // time a chip is toggled on, reused across further toggles while it's ours).
-function splitCurrentOriginal() {
+export function splitCurrentOriginal() {
   const stillOurs = state.splitOriginal && state.customSeed && state.customSeed === state.splitApplied;
   return { stillOurs, original: stillOurs ? state.splitOriginal : seedForSnapshot() };
 }
-function splitElementReset() {
+export function splitElementReset() {
   const status = ctrl('split-status');
   if (state.splitOriginal && state.customSeed === state.splitApplied) {
-    applySeedToPanel(state.splitOriginal);
-    if (state.splitOriginalStyle) fireChange('sel-element-fillmode', state.splitOriginalStyle);
+    hooks.applySeedToPanel(state.splitOriginal);
+    if (state.splitOriginalStyle) hooks.fireChange('sel-element-fillmode', state.splitOriginalStyle);
   }
   state.splitOriginal = null; state.splitApplied = null; state.splitOriginalStyle = null;
   state.splitCache = null; state.splitCombinedRaw = null; state.splitKeep.clear();
@@ -683,12 +716,12 @@ function splitElementReset() {
   syncSplitUI();
   status.textContent = '';   // the All chip says it
 }
-function toggleSplitQuadrant(q) {
+export function toggleSplitQuadrant(q) {
   if (state.splitKeep.has(q)) state.splitKeep.delete(q); else state.splitKeep.add(q);
   if (state.splitKeep.size === 0 || state.splitKeep.size === 4) { splitElementReset(); return; }
   splitElementApply();
 }
-function splitElementApply() {
+export function splitElementApply() {
   const status = ctrl('split-status');
   const { stillOurs, original } = splitCurrentOriginal();
   if (!stillOurs && elementIsEmpty()) { status.textContent = 'Draw or pick a Seed first — nothing to split.'; state.splitKeep.clear(); syncSplitUI(); return; }
@@ -713,15 +746,15 @@ function splitElementApply() {
   state.splitCombinedRaw = combinedRaw;
   // innerCount forced to 0: Inner Seed rings are already baked into the clipped
   // `d`; 'custom' runs back through withInnerCopies, which would nest a second set.
-  applySeedToPanel({ ...original, type: 'custom', customSeed: fitted, innerCount: 0 });
+  hooks.applySeedToPanel({ ...original, type: 'custom', customSeed: fitted, innerCount: 0 });
   const strokeConv = kept.some(p => p.strokeConv);
-  if (strokeConv && ctrl('sel-element-fillmode').value !== 'fill') fireChange('sel-element-fillmode', 'fill');
+  if (strokeConv && ctrl('sel-element-fillmode').value !== 'fill') hooks.fireChange('sel-element-fillmode', 'fill');
   state.splitApplied = state.customSeed;
   renderGallery(); renderSeedPreview();
   syncSplitUI();
   status.textContent = '';   // the pressed chips say what is kept; the line is for problems only
 }
-function savePieceAsSeed() {
+export function savePieceAsSeed() {
   const status = ctrl('split-status');
   const raw = state.splitCombinedRaw;
   if (!raw) return;
@@ -748,7 +781,7 @@ function savePieceAsSeed() {
   if (!mySet.forms) mySet.forms = [];
   mySet.forms.push(id);
   Organica.store.library.write(lib);
-  if (libviewIsOpen()) renderLibview();
+  if (hooks.libviewIsOpen()) hooks.renderLibview();
   useSvgAsSeed(svg);
   state.splitOriginal = null; state.splitApplied = null; state.splitOriginalStyle = null;
   state.splitCache = null; state.splitCombinedRaw = null; state.splitKeep.clear();
@@ -757,7 +790,7 @@ function savePieceAsSeed() {
 }
 
 // ── Export ──
-function exportSelected(format) {
+export function exportSelected(format) {
   const comp = getSelectedComponent();
   if (!comp) return;
   state.selectedRuleSource = comp.ruleSource;
@@ -778,7 +811,7 @@ function exportSelected(format) {
     const off = document.createElement('canvas');
     off.width = p.outW; off.height = p.outH;
     const ctx = off.getContext('2d');
-    fillPaper(ctx, state.paperColor, 0, 0, p.outW, p.outH);
+    hooks.fillPaper(ctx, state.paperColor, 0, 0, p.outW, p.outH);
     ctx.save();
     ctx.translate(p.bleedPx, p.bleedPx);
     ctx.scale(p.scale, p.scale);
@@ -812,7 +845,7 @@ function exportSelected(format) {
 
 // ── Seed UI — Base/Height only mean anything for the triangle,
 // Thickness only for the arc; an upload has no adjustable params. ──
-function syncSeedUI() {
+export function syncSeedUI() {
   const type = ctrl('sel-seed-type').value;
   ctrl('seed-triangle-block').style.display = type === 'triangle' ? '' : 'none';
   ctrl('seed-arc-block').style.display = type === 'arc' ? '' : 'none';

@@ -1,52 +1,82 @@
 // Flexible Visual System · 05-render-component — Component render — stack layers, canvas + SVG, seed preview strip, gallery.
-// One of the classic scripts fvs/index.html loads in order (fvs/js/00 … 99); they share one global scope.
+// An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §Architecture.
-'use strict';
+import { rt } from './rt.js';
+import {
+  colorAt, ctrl, printSizePanel, setStatus, state
+} from './00-core.js';
+import {
+  CELL_SHAPES, SEED_TYPES, cellShapeOf, cellShapeStates, frameDims, importAsPaperShape, pathBBox,
+  resolveGridCells, splitPaperScope
+} from './01-geometry.js';
+import {
+  getSeed, seedForSnapshot
+} from './02-seed-ui.js';
+import {
+  componentRoleActive, getGrid, resolvedComponentDims, setGalleryThumbVars
+} from './03-rules.js';
+import {
+  appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentBoundaryClipContent,
+  getElementAppearance, mountElementQuickSaves, paintPaperPatternCanvas, paperPatternSVG, patternOf,
+  quickSaveButton, resolveItemGeo, resolveUnderlyingComponent, stretchOpts, withAppearance
+} from './04-appearance.js';
+import { hooks, provide } from './hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  SEED_PREVIEW_STATES_SQUARE: () => SEED_PREVIEW_STATES_SQUARE, clipToCellShapes: () => clipToCellShapes,
+  currentElementView: () => currentElementView, elementPathMarkup: () => elementPathMarkup,
+  elementViewIndex: () => elementViewIndex, layerPlace: () => layerPlace, nextDrawId: () => nextDrawId,
+  paintPath: () => paintPath, paintPatternCanvas: () => paintPatternCanvas,
+  patternAttrs: () => patternAttrs, patternGeometry: () => patternGeometry,
+  renderGallery: () => renderGallery, renderSeedPreview: () => renderSeedPreview,
+  seedPreviewStates: () => seedPreviewStates, stackGeometry: () => stackGeometry,
+  withEntryInks: () => withEntryInks
+});
 // ── Stack (multi-layer Element) ───────────────────────────────────────
 // Each layer is a normal Element shape + a placement (Move/Scale/Rotate about
 // the cell centre) + an ink + a role. Painted bottom→top: 'fill' paints,
 // 'container' clips everything below it to its outline, 'mask' knocks its
 // outline out of everything below it. Layers above are never affected.
-const LAYER_ROLES = { fill: 'Filled', mask: 'Mask', container: 'Subtraction mask', pattern: 'Pattern' };   // same words as the Element's Content select
-const layerPlace = l => ({ mx: 0, my: 0, scale: 1, rotate: 0, ...(l.place || {}) });
+export const LAYER_ROLES = { fill: 'Filled', mask: 'Mask', container: 'Subtraction mask', pattern: 'Pattern' };   // same words as the Element's Content select
+export const layerPlace = l => ({ mx: 0, my: 0, scale: 1, rotate: 0, ...(l.place || {}) });
 // Style, Stroke W, Rounded caps, Width and Length are per layer (`l.look`) —
 // a Segment layer strokes and a stretched layer stretches without touching the
 // others. Appearance Scale / Move stay Element-wide (each layer already has its
 // own place). A layer saved before this has no `look`: it follows the Element's
 // Style, and its Width/Length ride on the Element-wide stretch as they did then.
 // An Export "Variants" row (variantAppearance) still overrides Style/Stroke W.
-const LOOK_KEYS = ['fillMode', 'strokeW', 'rounded', 'w', 'l'];
+export const LOOK_KEYS = ['fillMode', 'strokeW', 'rounded', 'w', 'l'];
 // The pattern's settings are Element-wide (Appearance), never a layer's own: a look
 // saved with pattern keys (Oct 3 test build) is overridden by the Element's.
-function layerLook(l, a) {
-  return { fillMode: a.fillMode, strokeW: a.strokeW, rounded: a.rounded, w: 1, l: 1, ...(l.look || {}), ...patternOf(a), ...(variantAppearance || {}) };
+export function layerLook(l, a) {
+  return { fillMode: a.fillMode, strokeW: a.strokeW, rounded: a.rounded, w: 1, l: 1, ...(l.look || {}), ...patternOf(a), ...(rt.variantAppearance || {}) };
 }
-const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${lk.l})` : '');
+export const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${lk.l})` : '');
 // place → norm-fit, as ONE transform string (a <clipPath>/<mask> child must be a bare <path>, no <g>).
-function layerTransformAttr(l, g) {
+export function layerTransformAttr(l, g) {
   const pl = layerPlace(l);
   return `translate(${(50 + pl.mx).toFixed(3)},${(50 + pl.my).toFixed(3)}) rotate(${pl.rotate}) scale(${pl.scale})${lookStretch(layerLook(l, {}))} translate(-50,-50)`
     + ` translate(${(g.normTx * g.normScale).toFixed(4)},${(g.normTy * g.normScale).toFixed(4)}) scale(${g.normScale.toFixed(4)})`;
 }
-let inkPaletteOverride = null;   // set while rendering a saved entry with ITS palette (withEntryInks)
+rt.inkPaletteOverride = null;   // set while rendering a saved entry with ITS palette (withEntryInks)
 // A saved Component draws its layers' fixed inks ("Ink 2") from ITS OWN saved palette,
 // like its cell colours (entryInkAt) — never the live one.
-function withEntryInks(colors, fn) {
-  const prev = inkPaletteOverride;
-  if (colors && colors.length) inkPaletteOverride = colors;
-  try { return fn(); } finally { inkPaletteOverride = prev; }
+export function withEntryInks(colors, fn) {
+  const prev = rt.inkPaletteOverride;
+  if (colors && colors.length) rt.inkPaletteOverride = colors;
+  try { return fn(); } finally { rt.inkPaletteOverride = prev; }
 }
-let layerInkOverride = null;     // {layerId: 'cell'|slot} — set while rendering a colour-variant thumbnail
-function layerInkColor(l, cellColor) {
+export let layerInkOverride = null;     // {layerId: 'cell'|slot} — set while rendering a colour-variant thumbnail
+export function layerInkColor(l, cellColor) {
   const ink = layerInkOverride && l.id in layerInkOverride ? layerInkOverride[l.id] : l.ink;
   if (ink == null || ink === 'cell') return cellColor;
-  const pal = inkPaletteOverride || state.colors;
+  const pal = rt.inkPaletteOverride || state.colors;
   return pal[((ink % pal.length) + pal.length) % pal.length];
 }
-const _stackFlatCache = new Map();
+export const _stackFlatCache = new Map();
 // The placed union of the FILL layers as one path (in the 0..100 space) via
 // Paper.js — only feeds bbox measuring and Container/Mask boundaries.
-function stackFlatD(layers) {
+export function stackFlatD(layers) {
   const key = JSON.stringify(layers.map(l => [l.role, layerPlace(l), ...(lookStretch(layerLook(l, {})) ? [lookStretch(layerLook(l, {}))] : []), l.geo.d, l.geo.fillRule, l.geo.normTx, l.geo.normTy, l.geo.normScale]));
   if (_stackFlatCache.has(key)) return _stackFlatCache.get(key);
   let d = '';
@@ -70,13 +100,13 @@ function stackFlatD(layers) {
   _stackFlatCache.set(key, d);
   return d;
 }
-function stackGeometry(p) {
+export function stackGeometry(p) {
   // A hidden layer (the eye on its row) is skipped here once — every renderer,
   // export and nested Component/Symbol reads geo.layers.
   const layers = ((p && p.layers) || []).filter(l => !l.hidden).map(l => ({ ...l, geo: SEED_TYPES[l.seed.type].geometry(l.seed) }));
   return { d: stackFlatD(layers), normTx: 0, normTy: 0, normScale: 1, layers };
 }
-function stackUid(geo) {
+export function stackUid(geo) {
   let h = 2166136261;
   const str = JSON.stringify(geo.layers.map(l => [l.role, layerPlace(l), ...(lookStretch(layerLook(l, {})) ? [lookStretch(layerLook(l, {}))] : []), l.geo.d, l.geo.normTx, l.geo.normTy, l.geo.normScale]));
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -89,8 +119,8 @@ function stackUid(geo) {
 // export stays one ink per path for print. Anchored at the box centre so the
 // patterns of stacked layers line up; `ext` = the circle {cx,cy,r} to cover.
 // Returns {d, mode: 'stroke'|'fill', w}.
-const _patCache = new Map();
-function patternGeometry(pat, ext) {
+export const _patCache = new Map();
+export function patternGeometry(pat, ext) {
   const p = patternOf(pat), s = Math.max(1, +p.patSpacing), w = Math.max(0.1, +p.patWeight);
   const r = ext.r + s, cx = ext.cx, cy = ext.cy, f = v => v.toFixed(2);
   const key = [p.patType, s, w, p.patAngle, f(cx), f(cy), f(r)].join('|');
@@ -125,23 +155,23 @@ function patternGeometry(pat, ext) {
   _patCache.set(key, out);
   return out;
 }
-const patternAttrs = (pg, color) => pg.mode === 'fill' ? `fill="${color}"` : `fill="none" stroke="${color}" stroke-width="${pg.w}" stroke-linecap="butt"`;
-function paintPatternCanvas(ctx, pg, color) {
+export const patternAttrs = (pg, color) => pg.mode === 'fill' ? `fill="${color}"` : `fill="none" stroke="${color}" stroke-width="${pg.w}" stroke-linecap="butt"`;
+export function paintPatternCanvas(ctx, pg, color) {
   const path = new Path2D(pg.d);
   if (pg.mode === 'fill') { ctx.fillStyle = color; ctx.fill(path); }
   else { ctx.strokeStyle = color; ctx.lineWidth = pg.w; ctx.lineCap = 'butt'; ctx.stroke(path); }
 }
 // The circle a placed shape can reach: its 0..100 box, moved/scaled/stretched, any rotation.
-const placedExt = (mx, my, scale, w, l) => ({ cx: 50 + (mx || 0), cy: 50 + (my || 0), r: 50 * Math.SQRT2 * (scale == null ? 1 : scale) * Math.max(w || 1, l || 1) });
+export const placedExt = (mx, my, scale, w, l) => ({ cx: 50 + (mx || 0), cy: 50 + (my || 0), r: 50 * Math.SQRT2 * (scale == null ? 1 : scale) * Math.max(w || 1, l || 1) });
 // A Pattern layer covers the whole Element box (in its own placed frame).
-const patternLayerFrame = pl => `translate(${(50 + pl.mx).toFixed(3)},${(50 + pl.my).toFixed(3)}) rotate(${pl.rotate}) scale(${pl.scale}) translate(-50,-50)`;
-const patternLayerExt = pl => ({ cx: 50, cy: 50, r: 100 / Math.max(0.1, pl.scale) });
+export const patternLayerFrame = pl => `translate(${(50 + pl.mx).toFixed(3)},${(50 + pl.my).toFixed(3)}) rotate(${pl.rotate}) scale(${pl.scale}) translate(-50,-50)`;
+export const patternLayerExt = pl => ({ cx: 50, cy: 50, r: 100 / Math.max(0.1, pl.scale) });
 
-let _stackDrawSeq = 0;
+export let _stackDrawSeq = 0;
 // The same per-drawing suffix for the Component Role and Symbol "Clip to cell" ids —
 // both are drawn many times in one page (gallery, library, suggestions, hidden steps).
-const nextDrawId = () => 'd' + (++_stackDrawSeq).toString(36);
-function stackPathMarkup(geo, color, forceFill) {
+export const nextDrawId = () => 'd' + (++_stackDrawSeq).toString(36);
+export function stackPathMarkup(geo, color, forceFill) {
   const a = getElementAppearance();
   // Unique per drawing, not just per shape: url(#id) resolves to the FIRST
   // element with that id in the whole document, and the same stack is drawn
@@ -182,10 +212,10 @@ function stackPathMarkup(geo, color, forceFill) {
   if (appearanceIsIdentity(a)) return out;
   return `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))}">${out}</g>`;
 }
-let _stackAcc = null;
+export let _stackAcc = null;
 // Canvas twin of stackPathMarkup. Pure-fill stacks paint straight onto ctx;
 // a container/mask needs an offscreen layer (destination-in / destination-out).
-function paintStackCanvas(ctx, geo, color) {
+export function paintStackCanvas(ctx, geo, color) {
   const a = getElementAppearance();
   const fx = geo.layers.some(l => (l.role || 'fill') !== 'fill');
   let tc = ctx;
@@ -234,7 +264,7 @@ function paintStackCanvas(ctx, geo, color) {
 }
 // Style + paint one geometry on a canvas whose transform already places it —
 // the single Canvas2D paint step drawItemsPlain / Symbol seed cells share.
-function paintGeoCanvas(ctx, geo, path, color) {
+export function paintGeoCanvas(ctx, geo, path, color) {
   if (geo.layers) { paintStackCanvas(ctx, geo, color); return; }
   const a = getElementAppearance();
   if (a.fillMode === 'pattern') {
@@ -256,7 +286,7 @@ function paintGeoCanvas(ctx, geo, path, color) {
 // omitted, at w=l=1) → norm-fit layer → the styled path. `forceFill` is for
 // Container/Mask boundaries, whose silhouette must stay solid regardless of
 // an outline-only Style.
-function elementPathMarkup(geo, color, forceFill) {
+export function elementPathMarkup(geo, color, forceFill) {
   if (geo.layers) return stackPathMarkup(geo, color, forceFill);
   const a = getElementAppearance();
   if (a.fillMode === 'pattern' && !forceFill) {
@@ -274,11 +304,11 @@ function elementPathMarkup(geo, color, forceFill) {
 }
 
 // Fill with the geometry's own fill-rule (evenodd when Inner seed copies are on) — the canvas twin of the fill-rule attr above.
-function paintPath(ctx, op, path, geo) { if (op === 'fill') ctx.fill(path, (geo && geo.fillRule) || 'nonzero'); else ctx.stroke(path); }
+export function paintPath(ctx, op, path, geo) { if (op === 'fill') ctx.fill(path, (geo && geo.fillRule) || 'nonzero'); else ctx.stroke(path); }
 
 // Canvas2D twin of elementPathMarkup: apply the stretch layer to the
 // current transform (call after translate(-50,-50), before the norm layer).
-function applyElementStretchCanvas(ctx) {
+export function applyElementStretchCanvas(ctx) {
   const a = getElementAppearance();
   if (appearanceIsIdentity(a)) return;
   ctx.transform(...(m => [m.a, m.b, m.c, m.d, m.e, m.f])(appearanceMatrix(a)));
@@ -290,7 +320,7 @@ function applyElementStretchCanvas(ctx) {
 // the boundary" is backwards from what we want here — see below, the
 // KNOCKOUT reads black-on-white as the erased region, so the boundary
 // shapes ARE painted black on a white base, exactly the hole we want).
-function componentBoundaryMaskContent(items, geo, half) {
+export function componentBoundaryMaskContent(items, geo, half) {
   return items.map(it => {
     const fit = it.cellSize / 100;
     const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
@@ -299,7 +329,7 @@ function componentBoundaryMaskContent(items, geo, half) {
   }).join('');
 }
 
-function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply) {
+export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply) {
   const halfX = boxW / 2, halfY = (boxH == null ? boxW : boxH) / 2;
   const overrideCache = new Map();   // seedType|params → {geo,path}, so several cells sharing one override don't re-tessellate
   for (const it of itemsToDraw) {
@@ -337,7 +367,7 @@ function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply) {
 // Show grid (Component): each cell's outline over the drawing — polygons for a cell-shape lattice, squares
 // otherwise. Screen only: appended by renderGallery / the edit view, never by buildComponentSVG (exports).
 state.componentGridOutline = false;
-function componentGridOutlineSVG(items, size) {
+export function componentGridOutlineSVG(items, size) {
   if (!state.componentGridOutline || !items.length) return '';
   const d = resolvedComponentDims(size), hx = d.w / 2, hy = d.h / 2;
   return `<g fill="none" stroke="var(--tool)" stroke-width="1" vector-effect="non-scaling-stroke" pointer-events="none">` + items.map(it => it.poly
@@ -349,13 +379,13 @@ function componentGridOutlineSVG(items, size) {
 // Symbol grid reads at a glance. The tightest polygon of that shape: per edge direction, the support of every
 // cell point (max p·n), consecutive edge lines intersected; of the shape's possible orientations the one with
 // the least area is the lattice's own. Screen only, never exported. → { svg, box: [x0,y0,x1,y1] } or null.
-const WRAP_NORMALS = {
+export const WRAP_NORMALS = {
   triangle: [0, 30, 60, 90].map(t => [90, 210, 330].map(a => a + t)),
   hexagon: [0, 30].map(t => [0, 60, 120, 180, 240, 300].map(a => a + t)),
   diamond: [0, 30, 60, 90, 120, 150].flatMap(a => [[a, a + 60, a + 180, a + 240], [a, a + 120, a + 180, a + 300]]),
   square: [[0, 90, 180, 270]],
 };
-function gridWrapper(items, outline) {
+export function gridWrapper(items, outline) {
   if (!state.componentGridOutline || !items.length || !items[0].poly || !WRAP_NORMALS[outline]) return null;
   const pts = items.flatMap(it => it.poly);
   let best = null;
@@ -375,7 +405,7 @@ function gridWrapper(items, outline) {
     box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] };
 }
 // The gallery thumbnail grows its viewBox to take the wrapper in, so it never runs into its neighbours.
-function withGridWrapper(svgStr, items, outline) {
+export function withGridWrapper(svgStr, items, outline) {
   const w = gridWrapper(items, outline);
   if (!w) return svgStr;
   const vb = (svgStr.match(/viewBox="([^"]+)"/) || [])[1];
@@ -388,18 +418,18 @@ function withGridWrapper(svgStr, items, outline) {
   return out;
 }
 // SVG: `content` clipped to the union of `polys` (each a point list, in the content's own coords); as-is when polys is null.
-function clipToCellShapes(polys, content) {
+export function clipToCellShapes(polys, content) {
   if (!polys) return content;
   const id = 'cellsclip-' + nextDrawId();
   return `<clipPath id="${id}">${polys.map(p => `<polygon points="${p.map(q => q.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`).join('')}</clipPath><g clip-path="url(#${id})">${content}</g>`;
 }
-function latticeShapePath(items) {
+export function latticeShapePath(items) {
   if (!items.length || !items[0].poly) return null;
   const p = new Path2D();
   items.forEach(it => { it.poly.forEach(([x, y], k) => (k ? p.lineTo(x, y) : p.moveTo(x, y))); p.closePath(); });
   return p;
 }
-function drawComponentCanvas(ctx, items, seed, size) {
+export function drawComponentCanvas(ctx, items, seed, size) {
   const dims = resolvedComponentDims(size);
   ctx.clearRect(0, 0, dims.w, dims.h);
   const geo = SEED_TYPES[seed.type].geometry(seed);
@@ -409,7 +439,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
   if (!under) {
     const shape = latticeShapePath(items);
     if (shape) { ctx.save(); ctx.clip(shape); }
-    fillPaper(ctx, state.paperColor, 0, 0, dims.w, dims.h);
+    hooks.fillPaper(ctx, state.paperColor, 0, 0, dims.w, dims.h);
     paintPaperPatternCanvas(ctx, dims.w, dims.h);
     drawItemsPlain(ctx, items, geo, path, dims.w, dims.h, state.componentBlend === 'multiply');
     if (shape) ctx.restore();
@@ -440,7 +470,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
   if (state.componentRole === 'container') {
     ctx.save();
     ctx.clip(boundaryPath);
-    fillPaper(ctx, under.paperColor, 0, 0, size, size);
+    hooks.fillPaper(ctx, under.paperColor, 0, 0, size, size);
     withAppearance(under.appearance, () => paintPaperPatternCanvas(ctx, size, size));
     ctx.save();
     ctx.scale(fitScale, fitScale);
@@ -453,11 +483,11 @@ function drawComponentCanvas(ctx, items, seed, size) {
     // transparency (destination-out) — the same unifying mechanism
     // confirmed for Creator: "empty" wherever nothing else is beneath,
     // a genuine hole wherever there is.
-    fillPaper(ctx, state.paperColor, 0, 0, size, size);
+    hooks.fillPaper(ctx, state.paperColor, 0, 0, size, size);
     paintPaperPatternCanvas(ctx, size, size);
     ctx.save();
     ctx.scale(fitScale, fitScale);
-    fillPaper(ctx, under.paperColor, 0, 0, under.size, under.size);
+    hooks.fillPaper(ctx, under.paperColor, 0, 0, under.size, under.size);
     withEntryInks(under.colors, () => withAppearance(under.appearance, () => paintPaperPatternCanvas(ctx, under.size, under.size)));
     withEntryInks(under.colors, () => withAppearance(under.appearance, () => drawItemsPlain(ctx, under.items, underGeo, underPath, under.size)));
     ctx.restore();
@@ -472,7 +502,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
 // Just the body markup (paper rect + clip/mask + items), no outer <svg> or
 // <metadata> — the piece both buildComponentSVG() (Screen mode + Figma)
 // and buildPrintComponentSVG() (Print mode) wrap.
-function buildComponentSVGBody(items, seed, size) {
+export function buildComponentSVGBody(items, seed, size) {
   const dims = resolvedComponentDims(size);
   const halfX = dims.w / 2, halfY = dims.h / 2;
   const geo = SEED_TYPES[seed.type].geometry(seed);
@@ -538,7 +568,7 @@ function buildComponentSVGBody(items, seed, size) {
   if (latticeClip) body = `<clipPath id="${latticeClip}">${items.map(it => `<polygon points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`).join('')}</clipPath><g clip-path="url(#${latticeClip})">${body}</g>`;
   return body;
 }
-function buildComponentSVG(items, seed, size) {
+export function buildComponentSVG(items, seed, size) {
   const dims = resolvedComponentDims(size);
   const meta = { tool: 'FVS', ruleSource: state.selectedRuleSource || '', cells: items.length, exportedAt: new Date().toISOString() };
   const body = buildComponentSVGBody(items, seed, size);
@@ -546,14 +576,14 @@ function buildComponentSVG(items, seed, size) {
   return `<svg xmlns="http://www.w3.org/2000/svg"${cellCls} width="${dims.w}" height="${dims.h}" viewBox="0 0 ${dims.w} ${dims.h}">`
     + `<metadata>${JSON.stringify(meta)}</metadata>` + body + `</svg>`;
 }
-function r2(n) { return Math.round(n * 100) / 100; }
+export function r2(n) { return Math.round(n * 100) / 100; }
 
 // Print mode's SVG: the panel's physical size/DPI/bleed dims (title says
 // "(selection)" — the trim here is the selected component's own square
 // frame, not a canvas). Same v1 discipline as the other four tools: a
 // bleed box + a uniform scale(trimWmm/size) group wrapping the SAME body
 // buildComponentSVG() uses, plus crop marks when bleed > 0.
-function printComponentDims(baseSize, baseH) {
+export function printComponentDims(baseSize, baseH) {
   const unit = printSizePanel.getUnit();
   const sz = printSizePanel.getSize();
   const dpi = printSizePanel.getDpi() || 300;
@@ -573,7 +603,7 @@ function printComponentDims(baseSize, baseH) {
     scale: baseSize ? trimWpx / baseSize : 1,
   };
 }
-function buildPrintComponentSVG(items, seed, baseSize, baseH) {
+export function buildPrintComponentSVG(items, seed, baseSize, baseH) {
   const p = printComponentDims(baseSize, baseH);
   const bw = p.trimWmm + 2 * p.bleedMm, bh = p.trimHmm + 2 * p.bleedMm;
   const body = buildComponentSVGBody(items, seed, baseH ? { w: baseSize, h: baseH } : baseSize);
@@ -592,7 +622,7 @@ function buildPrintComponentSVG(items, seed, baseSize, baseH) {
 // under a transform is visible before committing to a full grid
 // generation. Shares the same geometry/transform discipline as
 // buildComponentSVG, for exactly one item instead of a 4-cell grid. ──
-function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {}) {
+export function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {}) {
   const geo = SEED_TYPES[seed.type].geometry(seed);
   const half = size / 2;
   // A non-square cell shape IS the canvas: Paper only inside its outline, transparent outside, framed by
@@ -615,12 +645,12 @@ function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {}) {
 
 // The 0°/no-flip state is dropped on purpose: it's pixel-identical to the big
 // canvas below (same seed, same transform, just smaller) — showing it twice added no information.
-const SEED_PREVIEW_STATES_SQUARE = [
+export const SEED_PREVIEW_STATES_SQUARE = [
   [0, false, false, '0°'], [90, false, false, '90°'], [180, false, false, '180°'], [270, false, false, '270°'],
   [0, true, false, 'Flip H'], [0, false, true, 'Flip V'], [0, true, true, 'Flip H+V'],
 ];
-const seedPreviewStates = () => cellShapeStates(state.cellShape);
-function renderSeedPreview() {
+export const seedPreviewStates = () => cellShapeStates(state.cellShape);
+export function renderSeedPreview() {
   const seed = getSeed();
   ctrl('seed-preview').innerHTML = seedPreviewStates()
     .map(([r, fh, fv, label], i) => `<div class="fvs-seed-tile${i === elementViewIndex() ? ' is-selected' : ''}" role="button" tabindex="0" data-view="${i}" aria-pressed="${i === elementViewIndex()}" aria-label="Show the Element at ${label}"><div class="fvs-seed-tile__box">${buildSeedPreviewSVG(seed, r, fh, fv, 48, { outline: true })}</div><span class="fvs-seed-tile__label">${label}</span></div>`).join('');
@@ -635,11 +665,11 @@ function renderSeedPreview() {
 // transform: transformed_x = (raw_x + normTx) * normScale, the same formula
 // elementPathMarkup's <g transform> applies — works for any Seed, centred or
 // not, without assuming fitToBox's usual centring.
-function buildSplitGridOverlaySVG(size) {
+export function buildSplitGridOverlaySVG(size) {
   const chk = ctrl('chk-split-grid');
   if (!chk || !chk.checked) return '';
   const split = state.splitOriginal && state.customSeed === state.splitApplied;
-  const srcSeed = split ? state.splitOriginal : (elementIsEmpty() ? null : seedForSnapshot());
+  const srcSeed = split ? state.splitOriginal : (hooks.elementIsEmpty() ? null : seedForSnapshot());
   if (!srcSeed || !SEED_TYPES[srcSeed.type]) return '';
   const geo = SEED_TYPES[srcSeed.type].geometry(srcSeed);
   if (!geo || !geo.d) return '';
@@ -674,20 +704,20 @@ function buildSplitGridOverlaySVG(size) {
 // The view shown on the big Element canvas: one of the strip's orientations (a
 // viewing choice — the Element itself, and every later step, stay as they are).
 // Drawing (Freehand) and Split's cut grid work upright only, so they show 0°.
-let elementView = { r: 0, fh: false, fv: false };
-function elementViewLocked() { return ctrl('sel-seed-type').value === 'freehand' || (ctrl('chk-split-grid') && ctrl('chk-split-grid').checked); }
-function currentElementView() { return elementViewLocked() ? { r: 0, fh: false, fv: false } : elementView; }
-function elementViewIndex() {
+rt.elementView = { r: 0, fh: false, fv: false };
+export function elementViewLocked() { return ctrl('sel-seed-type').value === 'freehand' || (ctrl('chk-split-grid') && ctrl('chk-split-grid').checked); }
+export function currentElementView() { return elementViewLocked() ? { r: 0, fh: false, fv: false } : rt.elementView; }
+export function elementViewIndex() {
   const v = currentElementView();
   return seedPreviewStates().findIndex(([r, fh, fv]) => r === v.r && fh === v.fh && fv === v.fv);
 }
-function setElementView(i) {
+export function setElementView(i) {
   const st = seedPreviewStates()[i];
   if (!st) return;
-  elementView = { r: st[0], fh: st[1], fv: st[2] };
+  rt.elementView = { r: st[0], fh: st[1], fv: st[2] };
   renderSeedPreview();
 }
-function renderElementFrame(seed) {
+export function renderElementFrame(seed) {
   const frame = ctrl('element-frame');
   if (!frame) return;
   const sd = seed || getSeed(), v = currentElementView();
@@ -697,7 +727,7 @@ function renderElementFrame(seed) {
   ctrl('element-svg').innerHTML = svg;
 }
 
-function exportElement(format) {
+export function exportElement(format) {
   const seed = getSeed(), v = currentElementView();   // the view on the canvas, as shown
   if (format === 'svg') {
     Organica.download(new Blob([buildSeedPreviewSVG(seed, v.r, v.fh, v.fv, 400)], { type: 'image/svg+xml' }), Organica.stamp('fvs-element', 'svg'));
@@ -720,7 +750,7 @@ function exportElement(format) {
 }
 
 // ── Gallery ──
-function renderGallery() {
+export function renderGallery() {
   // Component Edit mode owns the view while active (renderComponentEditCanvas
   // is its own render path) — a reactive renderGallery() call from elsewhere
   // (e.g. a Palette edit) must not repaint the hidden #gallery underneath it.
@@ -748,7 +778,7 @@ function renderGallery() {
     // Every candidate was built for the old grid: run the current rule again on the new one rather than
     // leaving an empty gallery (Manual has nothing to re-run — the starter set comes back instead).
     if (!state.components.length && state.activeTier === 'component' && !state.componentAutoGenerated) {
-      if (ctrl('sel-rule').value !== 'manual' && !ctrl('sel-rule').selectedOptions[0].disabled) { generate(); if (state.components.length) return; }
+      if (ctrl('sel-rule').value !== 'manual' && !ctrl('sel-rule').selectedOptions[0].disabled) { hooks.generate(); if (state.components.length) return; }
       state.componentAutoGenerated = true; state.componentAutoGenSignature = null;
     }
   }
@@ -760,15 +790,15 @@ function renderGallery() {
   // for. Runs AFTER the cell-count invalidation above, so a grid resize and an
   // Element change are both handled by the same repopulate call.
   if (state.activeTier === 'component' && state.componentAutoGenerated) {
-    const sig = componentElementSignature();
-    if (sig !== state.componentAutoGenSignature) { populateComponentStarterGallery(); return; }
+    const sig = hooks.componentElementSignature();
+    if (sig !== state.componentAutoGenSignature) { hooks.populateComponentStarterGallery(); return; }
   }
 
   gallery.innerHTML = '';
   if (state.components.length === 0) {
     gallery.classList.remove('visible');
     empty.style.display = 'flex';
-    ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty — draw a shape or pick one in step 1 first.' : '';
+    ctrl('gallery-status').textContent = hooks.elementIsEmpty() ? 'The Element is empty — draw a shape or pick one in step 1 first.' : '';
     setStatus('', 'No components yet');
     return;
   }
@@ -777,23 +807,23 @@ function renderGallery() {
   // The plain "N components" count lives in the header status pill alone now — this line is
   // warning-only, so it stays empty (zero footprint, see the :empty CSS rule) most of the time.
   const capNote = state.galleryCapNote && state.galleryCapNote.list === state.components ? state.galleryCapNote.text : '';   // tied to THIS gallery array
-  ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty (draw a shape or pick one in step 1) — these render blank.' : capNote;
+  ctrl('gallery-status').textContent = hooks.elementIsEmpty() ? 'The Element is empty (draw a shape or pick one in step 1) — these render blank.' : capNote;
   setStatus('active', `${state.components.length} component${state.components.length === 1 ? '' : 's'}`);
 
-  syncSelectedColourway();
+  hooks.syncSelectedColourway();
   for (const comp of state.components) {
     let svgStr;
     layerInkOverride = comp.layerInks || null;
-    try { const its = buildComponentItems(comp, grid); svgStr = withGridWrapper(withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline); } finally { layerInkOverride = null; }
+    try { const its = buildComponentItems(comp, grid); svgStr = withGridWrapper(hooks.withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline); } finally { layerInkOverride = null; }
     const btn = document.createElement('button');
     const isSelected = comp.id === state.selectedId && state.selectionExplicit;
     btn.className = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
     btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
     btn.innerHTML = svgStr;
-    btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; adoptLayerInks(comp); adoptColourway(comp); renderGallery(); });
+    btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; hooks.adoptLayerInks(comp); hooks.adoptColourway(comp); renderGallery(); });
     // Caption = the rule that made it + each cell's rotation (f = flipped),
     // so two look-alike candidates can be told apart without opening them.
-    const caption = componentCaption(comp);
+    const caption = hooks.componentCaption(comp);
     btn.title = caption;
     const wrap = document.createElement('div');
     wrap.className = 'fvs-thumb-wrap';
@@ -811,8 +841,8 @@ function renderGallery() {
       labelSave: 'Save to library',
       labelSaved: `Saved to library as "${comp.savedName}"`,
       labelRemove: 'Remove from library',
-      onSave: () => quickSaveComponentToLibrary(comp.id),
-      onRemove: () => deleteQuickSavedComponent(comp.id),
+      onSave: () => hooks.quickSaveComponentToLibrary(comp.id),
+      onRemove: () => hooks.deleteQuickSavedComponent(comp.id),
     });
     // Hover-only edit — sits directly left of the save circle, same reveal
     // behaviour. Jumps into Manual mode pre-loaded with THIS candidate's
@@ -824,7 +854,7 @@ function renderGallery() {
     editBtn.setAttribute('aria-label', 'Edit component structure');
     editBtn.title = 'Edit component structure';
     editBtn.innerHTML = Organica.icons.get('pencil', { size: 'sm' });
-    editBtn.addEventListener('click', e => { e.stopPropagation(); enterComponentEditMode(comp.id); });
+    editBtn.addEventListener('click', e => { e.stopPropagation(); hooks.enterComponentEditMode(comp.id); });
     const cap = document.createElement('span');
     cap.className = 'fvs-thumb-caption';
     cap.textContent = caption;
