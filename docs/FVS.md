@@ -665,6 +665,9 @@ closes it. While it is open the rail and the variations dock are hidden. The rai
 onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeLibview`,
 `libviewDownload`, `deleteSaved`.
 
+- **Nothing to show** — on the Element step with nothing saved the toggle is disabled (`aria-disabled`,
+  still focusable) and says why: *Library rail — save an Element, a Component or a Symbol first* (`railBlock`,
+  Oct 6, 2026). On the Component and Symbol steps it always opens (Save all · Save Symbol live there).
 - **Open / close** — the rail's toggle (**Library rail**, `grid` icon) opens it; the toggle or Esc closes it. It always starts
   **closed** when the page loads (Oct 5, 2026): its open state is no longer remembered,
   `localStorage['organica.fvs.rail']` is not read or written any more, and the old key is left in

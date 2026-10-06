@@ -104,7 +104,8 @@ const HELPERS = `(() => {
   const w = window; if (w.__t) return;
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const chg = (id, v) => { const el = document.getElementById(id); if (!el) return false; if (el.type === 'checkbox') el.checked = !!v; else el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true; };
-  const dlg = () => [...document.querySelectorAll('.org-modal[role="dialog"]')].pop();
+  // an OPEN dialog only: FVS's markup always carries two hidden overlays (.org-modal, display:none)
+  const dlg = () => [...document.querySelectorAll('.org-modal[role="dialog"]')].filter(m => m.isConnected && getComputedStyle(m).display !== 'none').pop();
   const answer = async (name) => { for (let i = 0; i < 20 && !dlg(); i++) await wait(50); const m = dlg(); if (!m) return false; const inp = m.querySelector('input'); if (inp && name != null) inp.value = name; m.querySelector(name === null ? '[data-modal-close]' : '[data-ok]').click(); await wait(150); return true; };
   const center = el => { const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height }; };
   const tile = (kind, name) => [...document.querySelectorAll('#fvs-rail-panel .fvs-library-item')].find(b => b.dataset.railKind === kind && (name == null || b.dataset.railName === name));
@@ -117,7 +118,7 @@ const HELPERS = `(() => {
     const cn = libraryNames(lib);
     if (railIsOpen()) {
       const rc = tiles('component').sort().join('|'), sc = cn.slice().sort().join('|'); if (rc !== sc) v.push('rail Components != store');
-      const re = tiles('element').sort().join('|'), se = Object.keys(el).filter(n => el[n] && el[n].tile).sort().join('|'); if (re !== se) v.push('rail Elements != store');
+      const re = tiles('element').sort().join('|'), se = Object.keys(el).filter(n => el[n] && el[n].tile && !el[n].hidden).sort().join('|'); if (re !== se) v.push('rail Elements != store');   // a hidden (deleted, still used) Element is not listed
       const rs = tiles('symbol').sort().join('|'), ss = Object.keys(sy).sort().join('|'); if (rs !== ss) v.push('rail Symbols != store');
     }
     (state.components || []).forEach(c => { if (c.savedName && !lib[c.savedName]) v.push('gallery savedName "' + c.savedName + '" not in library'); });
@@ -175,27 +176,40 @@ console.log(`FVS UI test · theme=${THEME} · out=${OUT}`);
 
 // ════════════ J1 — Element ════════════
 if (want('J1')) {
-  await test('J1.1', 'empty rail: no "None saved yet", no empty panel; opens and closes (aria/inert)', async c => {
+  // Rail behaviour as of Oct 6, 2026 (docs/FVS.md §7): on the Element step with nothing saved the rail toggle is
+  // disabled with its reason; an empty group is hidden (Components stays on the Component step, for Save all).
+  await test('J1.1', 'empty library: the rail toggle says why it is off; empty groups hidden; opens / closes (aria/inert)', async c => {
     const s = await ev(async () => {
-      await __t.openRail(); const txt = document.getElementById('fvs-rail-panel').textContent; const p = document.getElementById('fvs-rail-panel');
-      const groups = ['elements', 'components', 'symbols'].map(k => getComputedStyle(document.getElementById('rail-g-' + k)).display);
-      const out = { none: /None saved yet/.test(txt), groups, panelDisplay: getComputedStyle(p).display, open: railIsOpen() };
-      document.getElementById('btn-rail').click(); await __t.wait(350); out.closed = !railIsOpen(); out.inert = p.hasAttribute('inert'); return out;
+      setTier('element'); await __t.wait(200);
+      const rb = document.getElementById('btn-rail'), p = document.getElementById('fvs-rail-panel');
+      const out = { disabled: rb.getAttribute('aria-disabled') === 'true', reason: rb.getAttribute('aria-label') || '' };
+      rb.click(); await __t.wait(300); out.stayedShut = !railIsOpen();
+      setTier('component'); await __t.wait(250); await __t.openRail();
+      out.open = railIsOpen(); out.none = /None saved yet/.test(p.textContent);
+      out.groups = ['elements', 'components', 'symbols'].map(k => getComputedStyle(document.getElementById('rail-g-' + k)).display);
+      rb.click(); await __t.wait(350); out.closed = !railIsOpen(); out.inert = p.hasAttribute('inert');
+      return out;
     });
-    expect(c, !s.none, 'still prints "None saved yet"'); expect(c, s.groups.every(d => d === 'none'), 'empty groups are shown: ' + s.groups.join('/'));
-    expect(c, s.panelDisplay === 'none', 'an empty glass panel is shown beside the toggle'); expect(c, s.open && s.closed && s.inert, 'open/close/inert wrong');
+    expect(c, s.disabled && /save an Element/i.test(s.reason), 'Element step, nothing saved: the toggle is not disabled with its reason (' + s.reason + ')');
+    expect(c, s.stayedShut, 'a click on the disabled toggle opened the rail');
+    expect(c, !s.none, 'still prints "None saved yet"');
+    expect(c, s.groups[0] === 'none' && s.groups[1] !== 'none' && s.groups[2] === 'none', 'Component step, empty: groups should be hidden / Components / hidden, got ' + s.groups.join('/'));
+    expect(c, s.open && s.closed && s.inert, 'open/close/inert wrong');
     await invariants(c, 'J1.1');
   });
   await test('J1.2', 'Save Element with the real + circle → rail tile; click = Paper tile', async c => {
-    const p = await ev(async () => { await __t.openRail(); const b = document.querySelector('#element-frame .fvs-thumb-quicksave'); if (!b) return null; b.scrollIntoView({ block: 'center' }); return __t.center(b); });
+    await ev(async () => { setTier('element'); await __t.wait(250); });
+    const p = await ev(async () => { const b = document.querySelector('#element-frame .fvs-thumb-quicksave'); if (!b) return null; b.scrollIntoView({ block: 'center' }); return __t.center(b); });
     expect(c, !!p, 'no quick-save circle on the Element frame');
     if (p) { await click(p.x, p.y); await sleep(250); }
-    const r = await ev(async () => { const n = Object.keys(ELEMENT_LIB.read()); await __t.wait(150); const t = __t.tile('element'); if (t) t.click(); await __t.wait(200); return { n, tile: __t.tiles('element'), live: document.getElementById('sel-ground-tile').value, on: paperPatternOn }; });
-    expect(c, r.n.length >= 1, 'Element not saved by the + circle'); expect(c, r.tile.length === r.n.length, 'rail tiles != saved Elements');
+    // the rail opens once something is saved; a single click waits ≈0.2 s for a possible double-click
+    const r = await ev(async () => { const n = shownElementNames(ELEMENT_LIB.read()); await __t.openRail(); await __t.wait(150); const t = __t.tile('element'); if (t) t.click(); await __t.wait(450); return { n, open: railIsOpen(), tile: __t.tiles('element'), live: document.getElementById('sel-ground-tile').value, on: live.paperPatternOn }; });
+    expect(c, r.n.length >= 1, 'Element not saved by the + circle'); expect(c, r.open, 'the rail did not open once an Element was saved');
+    expect(c, r.tile.length === r.n.length, `rail tiles (${r.tile.length}) != saved Elements (${r.n.length})`);
     expect(c, r.on && /^saved:/.test(r.live), 'click did not set the Paper tile: ' + r.live);
     await shot('J1.2'); await invariants(c, 'J1.2');
   });
-  await test('J1.3', 'rename a Saved Element used as Paper tile → tile repoints; clash re-asks; remove → no throw', async c => {
+  await test('J1.3', 'rename a Saved Element used as Paper tile → tile repoints; clash re-asks; delete keeps the Paper drawing', async c => {
     const r = await ev(async () => {
       await __t.openRail(); const old = __t.tiles('element')[0]; const out = { old };
       __t.tile('element', old).parentElement.querySelector('[data-rail-rename]').click(); await __t.answer('Renamed E'); await __t.wait(300);
@@ -204,15 +218,18 @@ if (want('J1')) {
       __t.tile('element', 'Second E').parentElement.querySelector('[data-rail-rename]').click(); for (let i = 0; i < 20 && !__t.dlg(); i++) await __t.wait(50);
       __t.dlg().querySelector('input').value = 'Renamed E'; __t.dlg().querySelector('[data-ok]').click(); await __t.wait(250);
       out.reasked = !!__t.dlg() && /already exists/.test(__t.dlg().textContent); if (__t.dlg()) await __t.answer(null);
+      // Delete is one click, no confirm; the Element is the open Paper tile, so it is kept hidden (docs/FVS.md §7)
       __t.tile('element', 'Renamed E').parentElement.querySelector('[data-rail-remove]').click(); await __t.wait(250);
-      out.removed = !ELEMENT_LIB.read()['Renamed E']; out.liveAfter = document.getElementById('sel-ground-tile').value;
+      const all = ELEMENT_LIB.read();
+      out.asked = !!__t.dlg(); out.gone = !shownElementNames(all).includes('Renamed E') && !__t.tile('element', 'Renamed E');
+      out.keptHidden = !!(all['Renamed E'] && all['Renamed E'].hidden); out.liveAfter = document.getElementById('sel-ground-tile').value;
       try { paperPatternSVG(100, 100); out.render = 'ok'; } catch (e) { out.render = 'threw ' + e.message; }
       return out;
     });
     expect(c, r.renamed, 'Element not renamed'); expect(c, r.live === 'saved:Renamed E', 'Paper tile not repointed on rename: ' + r.live);
-    expect(c, r.reasked, 'rename clash did not re-ask'); expect(c, r.removed, 'Element not removed');
-    expect(c, r.render === 'ok', 'Paper render after removing the live tile: ' + r.render);
-    expect(c, !/^saved:Renamed E$/.test(r.liveAfter), 'Paper tile still names the removed Element: ' + r.liveAfter);
+    expect(c, r.reasked, 'rename clash did not re-ask'); expect(c, !r.asked, 'Delete asked for confirmation (it is one click)');
+    expect(c, r.gone, 'the deleted Element is still listed'); expect(c, r.keptHidden, 'the Element used as Paper tile was not kept (hidden)');
+    expect(c, r.liveAfter === 'saved:Renamed E' && r.render === 'ok', 'the open Paper changed or broke after the delete: ' + r.liveAfter + ' / ' + r.render);
     await invariants(c, 'J1.3');
   });
 }
@@ -400,25 +417,41 @@ if (want('J2')) {
 
 // ════════════ J4 — cross-step stress ════════════
 if (want('J4')) {
-  await test('J4.1', 'remove a Component that is placed in cells / pool / a saved Symbol (H2, H3)', async c => {
+  // Delete is one click, no confirm; a Component still used is kept hidden under a new key and every user is
+  // repointed, so its cells and saved Symbols draw exactly as before (Diego, Oct 6, 2026 — docs/FVS.md §7).
+  await test('J4.1', 'delete a Component placed in cells / a saved Symbol: no confirm, kept hidden, cells still draw', async c => {
     const r = await ev(async () => {
       if (libraryNames(LIBRARY.read()).length < 2) return { skip: true };
       setTier('symbol'); await __t.wait(400); await __t.openRail();
-      const used = state.symbolCells.find(x => x.source === 'component').componentName;
+      const cell = state.symbolCells.find(x => x && x.source === 'component' && libraryNames(LIBRARY.read()).includes(x.componentName));
+      if (!cell) return { skip: true, why: 'no Symbol cell holds a listed Component' };
+      const used = cell.componentName, before = state.symbolCells.filter(x => x && x.source === 'component' && x.componentName === used).length;
       saveSymbolAs('Uses ' + used); await __t.wait(200);
-      __t.tile('component', used).parentElement.querySelector('[data-rail-remove]').click(); await __t.wait(300);
-      const asked = !!__t.dlg() && /Used in/.test(__t.dlg().textContent); await __t.answer('ok'); await __t.wait(400);
-      const cellsMissing = state.symbolCells.filter(x => x.source === 'component' && x.componentName === used).length;
-      const poolStale = state.symbolPool.some(p => p.name === used);
-      const poolUi = false;   // the pool has no UI any more (right-bar section removed) — only state.symbolPool
-      const savedSym = Object.values(SYMBOL_LIBRARY.read()).some(e => (e.cells || []).some(x => x.componentName === used));
-      return { used, asked, cellsMissing, poolStale, poolUi, savedSym, v: __t.inv() };
+      const tile = __t.tile('component', used);
+      if (!tile) return { used, noTile: true, tiles: __t.tiles('component'), open: railIsOpen() };
+      // not the drawing: the export time, and the generated <defs> ids (hashed from the entry's name, which the
+      // delete changes to its hidden key) — ids are renumbered in order of appearance, references follow
+      const noStamp = svg => { const ids = new Map(); return svg.replace(/"exportedAt":"[^"]*"/, '"exportedAt":""')
+        .replace(/\bid="([^"]+)"/g, (m, id) => { if (!ids.has(id)) ids.set(id, 'id' + ids.size); return `id="${ids.get(id)}"`; })
+        .replace(/(href="#|url\(#)([^")]+)/g, (m, pre, id) => pre + (ids.get(id) || id)); };
+      const svgBefore = noStamp(buildSymbolSVG());
+      tile.parentElement.querySelector('[data-rail-remove]').click(); await __t.wait(400);
+      const lib = LIBRARY.read(), hiddenKey = Object.keys(lib).find(k => k.startsWith(used + ' (deleted ') && lib[k].hidden);
+      return { used, before, asked: !!__t.dlg(), listed: libraryNames(lib).includes(used), tileGone: !__t.tile('component', used), hiddenKey,
+        cellsRepointed: state.symbolCells.filter(x => x && x.source === 'component' && x.componentName === hiddenKey).length,
+        savedRepointed: Object.values(SYMBOL_LIBRARY.read()).some(e => (e.cells || []).some(x => x.componentName === hiddenKey)),
+        ...(() => { const after = noStamp(buildSymbolSVG()).split(hiddenKey).join(used); let k = 0; while (k < after.length && after[k] === svgBefore[k]) k++;
+          return { sameDrawing: after === svgBefore, diffAt: k, diffBefore: svgBefore.slice(Math.max(0, k - 60), k + 80), diffAfter: after.slice(Math.max(0, k - 60), k + 80) }; })(), v: __t.inv() };
     });
-    if (r.skip) { c.notes.push('not enough Components'); return; }
-    expect(c, r.asked, 'removing a used Component did not ask for confirmation (decision 1 = B)');
-    expect(c, r.cellsMissing === 0, `${r.cellsMissing} live cell(s) still reference the removed "${r.used}"`);
-    if (r.savedSym) c.notes.push('by decision: saved Symbols keep a missing marker for the removed Component');
-    expect(c, !r.poolStale && !r.poolUi, 'pool still lists / renders the removed Component (H3)');
+    if (r.skip) { c.notes.push(r.why || 'not enough Components'); return; }
+    expect(c, !r.noTile, `the rail has no tile for the placed Component "${r.used}" (rail open: ${r.open}; tiles: ${(r.tiles || []).join(', ')})`);
+    if (r.noTile) return;
+    expect(c, !r.asked, 'Delete asked for confirmation (it is one click)');
+    expect(c, !r.listed && r.tileGone, 'the deleted Component is still listed in the library / rail');
+    expect(c, !!r.hiddenKey, 'the used Component was not kept hidden under a new key');
+    expect(c, r.cellsRepointed === r.before, `cells not repointed to the hidden key (${r.cellsRepointed}/${r.before})`);
+    expect(c, r.savedRepointed, 'the saved Symbol was not repointed to the hidden key');
+    expect(c, r.sameDrawing, `the Symbol draws differently after the delete — at ${r.diffAt}: before …${r.diffBefore}… after …${r.diffAfter}…`);
     await shot('J4.1');
   });
   await test('J4.2', 'rapid successive drops and tab hops leave no stuck state', async c => {
