@@ -48,7 +48,15 @@ Grid step without saving it first.
 - **Seed type** — Arc, Arc truchet, Blob, Chevron, Circle, Cross, Drop, Lens,
   Polygon, Segment, Square (value `roundedrect`, was *Rounded rect* until Oct 5, 2026), Star, Triangle, Wedge (alphabetical), plus
   **Freehand** (draw with bezier anchors), **Custom** (an uploaded SVG) and
-  Seeds picked from the **Creator library** (Genesis). Each type has its own
+  Seeds picked from the **Genesis library** (its 13 Base Seeds + your own Genesis seeds — the
+  **Genesis seeds** group of the Library view, §7). An uploaded SVG and a Genesis seed come in
+  **whole** through one import (`useSvgAsSeed` → `svgToTileGeo`, Oct 6, 2026; it was the first shape
+  only): every visible shape united, strokes outlined with their own width / caps / joins, evenodd
+  holes kept, transforms and clip paths applied (the viewBox too), hidden layers and zero-opacity
+  groups skipped, white / near-white paint treated as Paper (a background rect) unless it is all there
+  is. A file it can't read falls back to the old first-shape reader and its error. Measured: 19
+  upload-style cases + the 13 Base Seeds at IoU ≥ 0.95 against their source (geometry ≥ 0.997 at
+  high resolution). Each type has its own
   *extras* — corner styles, curvature, outline, twist and so on — listed from
   one shared table (`Organica.shapes.EXTRAS`), the same one Genesis Create uses.
 - **Shape** (the section, was *Seed*, renamed Oct 4, 2026). Every Seed lists its controls in the
@@ -200,6 +208,9 @@ The cell the Element is drawn for. Four icon buttons in the floatbar, on the Ele
 - **Element.** The canvas *is* the cell: Paper only inside its outline, transparent outside (big frame, turns strip, SVG/PNG export). The turns strip shows the shape's own turns — Triangle 0/120/240 + Mirror, Hexagon 60° steps + Flip H/V, Circle as Square. **Arc** on a triangle = a 60° slice pivoted on a corner, radius half a side (six close a circle); **Arc truchet** on a hexagon = bands around three alternate corners, centred on the edge midpoints (they run on into any neighbour). Every other shape is cut to the outline (Paper.js intersect, cached). Outlines + turns: `Organica.shapes.CELL_SHAPES` (each centred on 50,50 — the triangle's centroid, so it pokes above y 0).
 - **Component.** Columns/Rows give way to **Grid shape** (Hexagon · Triangle · Diamond · Square — only what the cell shape can fill; triangles can't make a square) and **Grid size** (1–4, cells along each side). Cell counts at sizes 1–4: triangle cells → Hexagon 6/24/54/96, Triangle 1/4/9/16, Diamond 2/8/18/32; hexagon and circle cells → Hexagon 1/7/19/37, Triangle 1/3/6/10, Diamond and Square 1/4/9/16 (hexagons: stepped edges, offset columns; circles: packed, Square = square packing, Paper in the gaps). The Component canvas is the grid's own outline. Rules: Identity, Radial (each cell turned towards the centre; on triangles the Arc's pivot corner goes to the nearest corner), Checkerboard (up/down on triangles), Random, Exhaustive — every turn a step of the shape's own; the others grey out ("… needs a square cell"). **Show grid** (floatbar, Component) draws each cell's outline — screen only, never exported. Changing Grid shape, Grid size, Columns or Rows after a Generate runs the current rule again on the new grid (Manual brings back the starter set). **Cell size** was removed from the panel (Oct 6, 2026): every view fits the Component to its box, so it changed nothing visible — the output size is set at export (×1/×2/×4, or Print).
 - **Symbol.** Fit **Match cell** (floatbar + Cell properties): an Element drawn for a cell shape is laid exactly onto a cell of that shape (centroid, corner to corner, turned to the cell's pose — down triangles, pointy-top hexagons); the cell's own turn snaps to the shape's step. Any other cell falls back to Contain.
+- **Cell-shape Components in any Symbol grid** (Oct 6, 2026; replaced the short-lived "Component" grid generator). A Component with a Grid shape set to **Match cell** sits on ONE small-cell lattice shared by every such Component of that cell shape in the Symbol — one small-cell size (the median of their Contain fits, grown by Overlap), its turn snapped to the lattice's symmetry (60°, square packing 90°; no flips), its position snapped so its small cells land on the lattice (origin = the frame centre). So neighbours line up exactly on any grid (Rectangular, Bento, Hexagonal, Voronoi…), lines run on, and Shared cells can tell whose cell is whose. Code: `alignedPlacements` (+ `latticeBasisOf`). Measured: 5 grids × 11 Grid-shape kinds × Overlap 0/40 % × turns — every small cell on the lattice. Arrange → Fit offers Match cell. Gallery tiles 16–23.
+- **Component → Blend** (Role section, Oct 6, 2026): **Normal** (default) · **Multiply** — where the cells' inks overlap (raise Scale in Look & place, or the Scale axis), they mix instead of the later covering the earlier; it multiplies with the Paper too. Saved as `entry.blend` only when Multiply (older Components = Normal), and carried into Symbols, Library thumbnails and exports (SVG `mix-blend-mode`, canvas `globalCompositeOperation`; measured PNG = SVG). Container / Mask draw as before.
+- **Symbol → Overlap & blend** (its own section, every Symbol grid, Oct 6, 2026; saved with the Symbol as `entry.overlap`, older Symbols open as Paper under / 0). **Overlap** (0–100 %): each cell's content grows past its cell; aligned Components grow their shared lattice instead (they stay aligned). Clip to cell turns off when Overlap goes above 0. **Blend**: **Paper under** (default — every Paper first, all inks on top, as before), **Normal** (each content's Paper right under its own ink; the later one covers), **Multiply** (no Paper; each content multiplies onto the page as one ink — the canvas draws it on its own layer, `inkLayer`, to match the SVG's `mix-blend-mode`), **Shared cells** (needs aligned Components — Match cell + a Grid shape: a small cell two cover is drawn once, by **Drawn by** — Nearest centre · Alternate · First · Last; `shareComponentGridCells`). Code: `symbolLook`, `overlapGrowth`, `syncOverlapSection`. Measured: PNG vs SVG ≤0.1 % of pixels in every Blend.
 - **Saved data.** A seed carries `cellShape` only when it isn't square; a Component grid carries `lattice: {shape, rings, outline}` (rings = Grid size). Missing = square — every existing file and the regression baseline are unchanged.
 - **Not yet:** layered Elements aren't cut to the cell; Arc truchet's square-only rows still show on a hexagon; Symbol rules still make 90° turns (Match cell rounds them); Element as Paper tile is square-only; the Transform axes label still reads 0/90/180/270°.
 
@@ -631,7 +642,29 @@ floating rail on the left (`#fvs-rail` + `#fvs-rail-panel`). The right-sidebar C
 Symbol libraries were removed when the rail arrived (Oct 3, 2026, `edafc4d`). The rail is shown on
 the Element, Component and Symbol steps (not on ★ Figure).
 
-- **Open / close** — the Library icon opens it; the icon or Esc closes it. It always starts
+**Library view** (Oct 6, 2026) — everything in one place, larger: the **Library** button in the
+floatbar (`library` icon, on every step, Figure included) covers the step's view with a page of
+every saved **Element**, **Component** and **Symbol** plus the **Genesis seeds** (the 13 Base Seeds
+and your own Genesis seeds, read fresh from `Organica.store.library` on open). The button is
+always on — the Genesis seeds are always there, and this is where the Element picks one (Diego). A
+Genesis seed lands **whole** on the Element canvas: every shape united, strokes outlined with their
+own width, caps and joins (`svgToTileGeo` + `strokeOutlineParts`, the Paper tile's path too), evenodd
+holes kept; when Paper.js's union drops part of a shape (Petal turn's four petals touching at one point)
+the parts are kept side by side, wound clockwise. Measured Oct 6, 2026: all 13 Base Seeds and 12
+synthetic cases (rings, transforms, open / closed / zigzag strokes, round / miter / butt) match their
+source at IoU ≥ 0.95 (Sun 0.997 at high resolution). It opens on **All**;
+a segmented filter (*All · Elements · Components · Symbols · Genesis seeds*) and *Search by name*
+narrow it; empty groups are not shown. A tile's click opens it — an Element in the Element step, a
+Component in the Component step, a Symbol in the Symbol step, a Genesis seed as the Element's Shape.
+Under each tile: **Rename**, **Duplicate** (*‹name› copy*, *‹name› copy 2* …), **SVG** / **PNG**
+(the thumbnail's own drawing, Paper included; PNG 2000 px on the long side — screen only, no
+Print), **Delete** (the rail's rules, below). Genesis seeds are read-only: SVG / PNG only. Thumbnails
+stay light in dark mode (a work surface). Esc or the close button returns to the step; changing step
+closes it. While it is open the rail and the variations dock are hidden. The rail stays for dragging
+onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeLibview`,
+`libviewDownload`, `deleteSaved`.
+
+- **Open / close** — the rail's toggle (**Library rail**, `grid` icon) opens it; the toggle or Esc closes it. It always starts
   **closed** when the page loads (Oct 5, 2026): its open state is no longer remembered,
   `localStorage['organica.fvs.rail']` is not read or written any more, and the old key is left in
   place, as the localStorage rule asks.
@@ -660,14 +693,19 @@ the Element, Component and Symbol steps (not on ★ Figure).
   (the rail says so).
 - **Saving** — Elements and Components save from their own thumbnails (the quick-save circle);
   *Save all* (Components group) saves every Component in the gallery, skipping those already
-  saved. The Symbol saves from the rail's footer, **Save library**, which asks for a name
+  saved. The Symbol saves from the rail's footer, **Save Symbol** (was *Save library* until Oct 6, 2026), which asks for a name
   (Symbol step only, enabled once a grid exists).
-- **Rename / remove** on each tile (pencil and ×, shown on hover or focus). Rename opens a dialog
+- **Rename / delete** on each tile (pencil and trash, shown on hover or focus). Rename opens a dialog
   and asks again if the name is taken. Renaming a Component repoints saved Symbols, the Symbol
   pool, Container/Mask references and the Grid pick; renaming an Element repoints every Paper
-  tile that names it. Removing a Component that is in use asks first and says where it is used
-  (cells, saved Symbols, Container/Mask): its cells in the open Symbol become empty, saved
-  Symbols keep a missing marker.
+  tile that names it. **Delete** is one click, no confirm (Diego, Oct 6, 2026: "delete is delete") —
+  in the rail and the Library view. **Deleting never changes another creation** (Diego, Oct 6,
+  2026): a Component still used (Symbol cells, saved Symbols, Container/Mask) leaves the library but
+  is kept, hidden, under a new key (`‹name› (deleted ‹id›)`, every user repointed to it), so those
+  creations draw exactly as before; an Element that is the open Paper tile is kept hidden the same
+  way. Hidden entries nothing uses any more are swept on the next delete (`sweepHiddenSaved`).
+  Elements placed in Symbol cells are copies already, so deleting one changes nothing. (Until Oct 6,
+  2026 removing a used Component asked first and left its cells empty / a missing marker.)
 - **Rectangular Components take their block** (Oct 4, 2026). On a regular rectangular Symbol
   grid (every column × row once — Rectangular and its kin; not polygons, not merged bento cells)
   a Component occupies the Symbol cells its proportion asks for: columns × rows reduced by their

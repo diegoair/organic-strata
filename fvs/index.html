@@ -206,6 +206,27 @@
   .fvs-rail-ghost svg { width: 100%; height: 100%; display: block; }
   body.is-rail-dragging { cursor: grabbing; user-select: none; }
   #symbol-frame g[data-cell-index].is-drop > :first-child { stroke: var(--ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
+  /* Library view (Oct 6, 2026): replaces the tier views in #canvas-wrap while open; the rail and the variations dock step aside */
+  #canvas-wrap.is-libview > .tier-view { display: none !important; }
+  .fvs-libview { width: min(100%, 1040px); margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-5); }
+  .fvs-libview[hidden] { display: none; }
+  .fvs-libview__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .fvs-libview__title { margin: 0; font-family: var(--font-display); font-size: var(--t-h4-size); font-weight: var(--w-medium); margin-right: auto; }
+  .fvs-libview__search { width: 14rem; }
+  .fvs-libview__filter { flex: 0 0 auto; }
+  .fvs-libview__filter .seg-btn { flex: 0 0 auto; padding: 0 var(--space-3); }
+  #libview-body { display: flex; flex-direction: column; gap: var(--space-7); padding-bottom: calc(var(--space-8) * 2); }   /* clears the floatbar */
+  .fvs-libview__section { display: flex; flex-direction: column; gap: var(--space-3); }
+  .fvs-libview__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--space-4); }
+  .fvs-libview__tile { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+  .fvs-libview__thumb { aspect-ratio: 1; width: 100%; padding: var(--space-2); background: var(--paper); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  @media (hover: hover) { .fvs-libview__thumb:hover { border-color: var(--ink); } }
+  .fvs-libview__thumb svg { max-width: 100%; max-height: 100%; width: 100%; height: 100%; display: block; }
+  .fvs-libview__name { width: 100%; margin: 0; }
+  .fvs-libview__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .fvs-libview__actions .mini-btn { flex: 0 0 auto; }
+  .fvs-libview__status { margin: 0; min-height: 1lh; font-size: var(--fs-small); color: var(--mid); }   /* its line is kept even when empty: a message never moves the tiles under the pointer */
+  body.fvs-libview-open #fvs-rail-dock, body.fvs-libview-open #fvs-sug-panel { visibility: hidden; }
   .fvs-rail__note { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--danger); }
   .fvs-rail__note:empty { margin: 0; }   /* always rendered (a live region), no space when empty */
   #panel .org-empty { margin-bottom: var(--space-2); }
@@ -548,16 +569,6 @@
     <button class="org-floatbar__btn" id="btn-upload-seed" aria-label="Upload SVG">
       <svg class="ico" data-icon="upload" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 9.2V2M5.3 4.7 8 2l2.7 2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
     </button>
-    <div class="org-popover-wrap">
-      <button class="org-floatbar__btn" id="btn-browse-creator" aria-label="Creator library">
-        <svg class="ico" data-icon="grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg>
-      </button>
-      <div class="org-popover" id="creator-library-popover" aria-label="Creator library">
-        <div class="org-popover__title">Creator library</div>
-        <div id="creator-library-empty" class="org-empty">No saved Seeds found — save one in Creator first.</div>
-        <div id="creator-library-tiles" class="fvs-library"></div>
-      </div>
-    </div>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
   <!-- Component-tier action — undo the last Generate / Clear / Add / Tile. Shown only on that tier by setTier(). -->
@@ -636,6 +647,10 @@
     </span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
+  <!-- Library: every saved Element, Component, Symbol + the Genesis seeds, in one view over the canvas (every tier).
+       aria-disabled + the reason in its label when nothing is saved (syncLibviewButton). Icon filled at boot. -->
+  <button class="org-floatbar__btn" id="btn-libview" aria-label="Library" aria-expanded="false" aria-controls="fvs-libview" data-icon-slot></button>
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
       <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
@@ -703,8 +718,8 @@
 </div>
 
 <div id="fvs-rail-dock" role="group" aria-label="Library rail">
-  <div class="org-floatbar" id="fvs-rail" role="toolbar" aria-label="Library" aria-orientation="vertical">
-    <button class="org-floatbar__btn" id="btn-rail" aria-label="Library" aria-expanded="false" aria-controls="fvs-rail-panel" data-icon-slot></button>
+  <div class="org-floatbar" id="fvs-rail" role="toolbar" aria-label="Library rail" aria-orientation="vertical">
+    <button class="org-floatbar__btn" id="btn-rail" aria-label="Library rail" aria-expanded="false" aria-controls="fvs-rail-panel" data-icon-slot></button>
   </div>
   <div class="org-floatbar" id="fvs-rail-panel" role="region" aria-label="Saved Elements, Components and Symbols" inert>
     <div class="fvs-rail__scroll">
@@ -713,7 +728,7 @@
       <div id="rail-g-symbols"><div class="sub-label">Symbols</div><div class="fvs-rail__grid" id="rail-symbols"></div></div>
     </div>
     <p class="fvs-rail__note" id="rail-note" role="status" aria-live="polite"></p>
-    <div class="fvs-rail__foot"><button type="button" class="mini-btn" id="btn-rail-save-lib">Save library</button></div>
+    <div class="fvs-rail__foot"><button type="button" class="mini-btn" id="btn-rail-save-lib">Save Symbol</button></div>
   </div>
 </div>
 
@@ -773,6 +788,23 @@
       </div>
       <div id="figure-stage"><div id="figure-frame"></div><svg id="fg-handles" aria-hidden="true"></svg><canvas id="figure-ref-canvas" aria-hidden="true"></canvas></div>
     </div>
+    <!-- Library view (Oct 6, 2026): covers the tier views while open (#canvas-wrap.is-libview); built by renderLibview(). -->
+    <section id="fvs-libview" class="fvs-libview" aria-labelledby="libview-title" hidden>
+      <div class="fvs-libview__head">
+        <h2 class="fvs-libview__title" id="libview-title">Library</h2>
+        <input type="search" class="org-field fvs-libview__search" id="libview-q" placeholder="Search by name" aria-label="Search the library" autocomplete="off">
+        <div class="seg-ctrl fvs-libview__filter" id="libview-filter" role="group" aria-label="Show">
+          <button type="button" class="seg-btn" data-kind="all" aria-pressed="true">All</button>
+          <button type="button" class="seg-btn" data-kind="element" aria-pressed="false">Elements</button>
+          <button type="button" class="seg-btn" data-kind="component" aria-pressed="false">Components</button>
+          <button type="button" class="seg-btn" data-kind="symbol" aria-pressed="false">Symbols</button>
+          <button type="button" class="seg-btn" data-kind="genesis" aria-pressed="false">Genesis seeds</button>
+        </div>
+        <button type="button" class="icon-btn" id="libview-close" aria-label="Close" data-icon-slot></button>
+      </div>
+      <p class="fvs-libview__status" id="libview-status" role="status" aria-live="polite"></p>
+      <div id="libview-body"></div>
+    </section>
   </div>
 
   <div id="panel">
@@ -1574,6 +1606,22 @@
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Load JSON grid</button>
       <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
     </div>
+    <!-- Overlap & blend (Oct 6, 2026): how cell contents reach into their neighbours and how overlaps draw — every
+         Symbol grid. On a Component grid Overlap moves the Components closer in whole small cells (and rebuilds the
+         grid); on any other grid each cell's content grows past its cell (%). Paper under = the drawing as before. -->
+    <div class="panel-section" id="symbol-overlap-section">
+      <h3>Overlap &amp; blend</h3>
+      <div class="ctrl-row"><div class="ctrl-label" id="symbol-overlap-label" title="How far each cell's content reaches into its neighbours">Overlap</div>
+        <input type="range" id="rg-symbol-overlap" min="0" max="100" step="1" value="0" aria-label="Overlap"><span class="ctrl-val" id="v-symbol-overlap">0</span></div>
+      <div class="ctrl-row"><div class="ctrl-label" title="How overlapping contents are drawn">Blend</div>
+        <select class="panel-select" id="sel-symbol-blend" aria-label="Blend">
+          <option value="under">Paper under</option><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="shared">Shared cells</option>
+        </select></div>
+      <div class="ctrl-row" id="symbol-drawnby-row" style="display:none"><div class="ctrl-label" title="Which content draws a small cell they both cover">Drawn by</div>
+        <select class="panel-select" id="sel-symbol-drawnby" aria-label="Drawn by">
+          <option value="nearest">Nearest centre</option><option value="alternate">Alternate</option><option value="first">First</option><option value="last">Last</option>
+        </select></div>
+    </div>
     </div>
 
     <input type="file" id="file-seed" accept=".svg,image/svg+xml" aria-label="Upload SVG seed" class="org-file-input">
@@ -1733,6 +1781,8 @@
 
     <div class="panel-section">
       <h3>Role</h3>
+      <div class="ctrl-row"><div class="ctrl-label" title="How the cells' inks draw where they overlap (raise Scale to make them overlap)">Blend</div>
+        <select class="panel-select" id="sel-component-blend" aria-label="Blend"><option value="normal">Normal</option><option value="multiply">Multiply</option></select></div>
       <div class="ctrl-row"><div class="ctrl-label">Role</div>
         <select class="panel-select" id="sel-component-role" aria-label="Component role">
           <option value="normal">Normal</option>
@@ -1992,7 +2042,7 @@
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Fit</div>
-          <select class="panel-select" id="sel-sym-arrange-fit" aria-label="Fit in cell"><option value="fill">Stretch</option><option value="contain">Contain</option><option value="cover">Cover (no gaps)</option></select>
+          <select class="panel-select" id="sel-sym-arrange-fit" aria-label="Fit in cell"><option value="fill">Stretch</option><option value="contain">Contain</option><option value="cover">Cover (no gaps)</option><option value="match">Match cell</option></select>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Seed</div>
@@ -3162,8 +3212,9 @@ function capArc(center, from, to, outwardDir) {
   const sweep = (mid[0] * outwardDir[0] + mid[1] * outwardDir[1]) > 0 ? 1 : 0;
   return `A ${r} ${r} 0 0 ${sweep} ${to[0]} ${to[1]}`;
 }
-function strokeToShapeD(d, widthUnits) {
-  const rounded = ctrl('ck-element-rounded') ? ctrl('ck-element-rounded').checked : true;
+function strokeToShapeD(d, widthUnits, opts) {
+  // caps: the caller's (an imported SVG's own stroke-linecap), else the Element's Rounded toggle
+  const rounded = opts && opts.rounded != null ? opts.rounded : (ctrl('ck-element-rounded') ? ctrl('ck-element-rounded').checked : true);
   const halfW = Math.max(0.05, (widthUnits || 4) / 2);
   const scope = splitPaperScope();
   let src;
@@ -3755,8 +3806,13 @@ function extractSeedFromSVG(svgString) {
   return { d, normScale, normTx: -bbox.x + offX / normScale, normTy: -bbox.y + offY / normScale };
 }
 
+// Any SVG → the Element's custom Shape, whole: every shape united, strokes outlined, holes kept
+// (svgToTileGeo — the Library's Genesis seeds, Upload SVG, the Split save). An SVG it can't read falls
+// back to the first-shape reader, whose errors say what is wrong with the file.
 function useSvgAsSeed(svgString) {
-  state.customSeed = extractSeedFromSVG(svgString);
+  let geo = null;
+  try { geo = svgToTileGeo(svgString); } catch (e) { geo = null; }
+  state.customSeed = geo ? { d: geo.d, normScale: geo.normScale, normTx: geo.normTx, normTy: geo.normTy } : extractSeedFromSVG(svgString);
   let opt = ctrl('sel-seed-type').querySelector('option[value="custom"]');
   if (!opt) {
     opt = document.createElement('option');
@@ -3798,50 +3854,16 @@ function handleSeedUpload(file) {
 // different source; builtIn sets (the "Organic Forms"/"Basic Shapes"
 // catalogues) are included too, not just user-drawn ones.
 function getCreatorLibraryForms() {
-  let lib;
-  try { lib = JSON.parse(localStorage.getItem('organica.library.forms') || '{}'); } catch (e) { return []; }
-  // Verified directly against genesis/creator.html's own saveForm(): the
-  // real shape is a TOP-LEVEL lib.forms array of full {id,name,svg,...}
-  // objects; each set.forms is only an array of ID strings referencing
-  // into it — NOT full form objects nested under the set (an earlier,
-  // wrong assumption here would have silently produced undefined
-  // id/name/svg for every real Creator-saved shape while happening to
-  // "work" against hand-built test data that got the shape wrong the
-  // same way).
-  const byId = {};
+  // The user's own Genesis seeds (Organica.store.library: a top-level forms array; each set.forms only
+  // lists ids). Every seed once, even when it sits in several sets; the Base Seeds come from forms.js
+  // (genesisTileForms), not from here.
+  const lib = Organica.store.library.read(), byId = {}, forms = [], seen = new Set();
   for (const f of lib.forms || []) byId[f.id] = f;
-  const forms = [];
-  for (const set of lib.sets || []) {
-    for (const fid of set.forms || []) {
-      const f = byId[fid];
-      if (f) forms.push({ id: f.id, name: f.name, svg: f.svg });
-    }
+  for (const set of lib.sets || []) for (const fid of set.forms || []) {
+    const f = byId[fid];
+    if (f && f.svg && !seen.has(f.id)) { seen.add(f.id); forms.push({ id: f.id, name: f.name, svg: f.svg }); }
   }
   return forms;
-}
-
-function renderCreatorLibraryPicker() {
-  const forms = getCreatorLibraryForms();
-  ctrl('creator-library-empty').style.display = forms.length ? 'none' : '';
-  const wrap = ctrl('creator-library-tiles');
-  wrap.innerHTML = '';
-  for (const form of forms) {
-    const btn = document.createElement('button');
-    btn.className = 'fvs-library-item';
-    btn.title = form.name;
-    btn.setAttribute('aria-label', 'Use Seed ' + form.name);
-    btn.innerHTML = form.svg;
-    btn.addEventListener('click', () => {
-      try {
-        useSvgAsSeed(form.svg);
-        creatorPopover.close();
-      } catch (e) {
-        ctrl('seed-upload-error').textContent = e.message;
-        ctrl('seed-upload-error').style.display = '';
-      }
-    });
-    wrap.appendChild(btn);
-  }
 }
 
 // ── Grid — either a plain square NxN (cellSize/gap-driven) or an
@@ -4785,28 +4807,133 @@ function genesisTileForms() {
 // transform (Paper.js importSVG, shapes expanded), strokes turned into outlines
 // (strokeToShapeD), all united — so multi-shape seeds (flower bloom: 9 ellipses)
 // and stroked ones (sun's rays, line) tile as they look, as a real path.
+// An SVG stroke as filled outlines, honouring its own width, caps and joins — for imported seeds
+// (svgToTileGeo). Each subpath is flattened and split at its sharp corners (> 40° turn): every run is a
+// ribbon whose offsets are widened by 1/cos(half-turn) so it keeps its width through gentle bends, and
+// every sharp corner gets the join the SVG asked for (round = a disc, miter = the miter wedge up to the
+// SVG limit of 4, else a bevel). Returns several path strings; the caller unites them. The Element's own
+// strokes keep strokeToShapeD.
+function strokeOutlineParts(d, width, cap, join) {
+  const hw = Math.max(0.05, width / 2), scope = splitPaperScope(), out = [];
+  let src; try { src = new scope.CompoundPath(d); } catch (e) { return out; }
+  const disc = (c, r) => `M ${c[0] - r},${c[1]} a ${r},${r} 0 1,0 ${2 * r},0 a ${r},${r} 0 1,0 ${-2 * r},0 Z`;
+  const sub2 = (a, b) => [a[0] - b[0], a[1] - b[1]], nrm = v => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; };
+  const perp = v => [-v[1], v[0]];
+  const joinAt = (v, a, b) => {   // a = incoming, b = outgoing unit directions
+    if (join === 'round') { out.push(disc(v, hw)); return; }
+    const na = perp(a), nb = perp(b), side = (a[0] * b[1] - a[1] * b[0]) > 0 ? -1 : 1;
+    const p1 = [v[0] + side * hw * na[0], v[1] + side * hw * na[1]], p2 = [v[0] + side * hw * nb[0], v[1] + side * hw * nb[1]];
+    const m = nrm([na[0] + nb[0], na[1] + nb[1]]), cosH = Math.abs(m[0] * na[0] + m[1] * na[1]);
+    const ml = cosH > 1e-6 ? hw / cosH : Infinity;
+    if (join !== 'bevel' && ml / hw <= 4) out.push(ptsToD([v, p1, [v[0] + side * m[0] * ml, v[1] + side * m[1] * ml], p2], true));
+    else out.push(ptsToD([v, p1, p2], true));
+  };
+  const ribbon = (pts, startCap, endCap) => {
+    const n = pts.length; if (n < 2) return;
+    const left = [], right = [];
+    pts.forEach((p, i) => {
+      const dIn = i > 0 ? nrm(sub2(p, pts[i - 1])) : null, dOut = i < n - 1 ? nrm(sub2(pts[i + 1], p)) : null;
+      const nIn = dIn && perp(dIn), nOut = dOut && perp(dOut);
+      let nv = nIn && nOut ? nrm([nIn[0] + nOut[0], nIn[1] + nOut[1]]) : (nIn || nOut), k = hw;
+      if (nIn && nOut) k = hw / Math.max(0.25, nv[0] * nIn[0] + nv[1] * nIn[1]);   // keep the width through a bend
+      let q = p;
+      if (cap === 'square' && ((i === 0 && startCap) || (i === n - 1 && endCap))) { const t = i === 0 ? dOut : dIn, sg = i === 0 ? -1 : 1; q = [p[0] + sg * t[0] * hw, p[1] + sg * t[1] * hw]; }
+      left.push([q[0] + nv[0] * k, q[1] + nv[1] * k]); right.push([q[0] - nv[0] * k, q[1] - nv[1] * k]);
+    });
+    out.push(ptsToD(left.concat(right.reverse()), true));
+    if (cap === 'round') { if (startCap) out.push(disc(pts[0], hw)); if (endCap) out.push(disc(pts[n - 1], hw)); }
+  };
+  (src.children && src.children.length ? src.children.slice() : [src]).forEach(sub => {
+    const c = sub.clone({ insert: false });
+    try { c.flatten(0.25); } catch (e) {}
+    let pts = (c.segments || []).map(sg => [sg.point.x, sg.point.y]);
+    c.remove();
+    pts = pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 1e-6);
+    const closed = !!sub.closed;
+    if (closed && pts.length > 2 && Math.hypot(pts[0][0] - pts[pts.length - 1][0], pts[0][1] - pts[pts.length - 1][1]) < 1e-6) pts.pop();
+    const n = pts.length; if (n < 2) return;
+    const dirAt = i => nrm(sub2(pts[(i + 1) % n], pts[i]));
+    const sharp = i => { const a = dirAt((i - 1 + n) % n), b = dirAt(i); return a[0] * b[0] + a[1] * b[1] < Math.cos(40 * Math.PI / 180); };
+    const breaks = []; for (let i = closed ? 0 : 1; i < (closed ? n : n - 1); i++) if (sharp(i)) breaks.push(i);
+    if (closed && !breaks.length) {   // one smooth loop: an outer and an inner ring
+      const left = [], right = [];
+      for (let i = 0; i < n; i++) { const a = perp(dirAt((i - 1 + n) % n)), b = perp(dirAt(i)), nv = nrm([a[0] + b[0], a[1] + b[1]]), k = hw / Math.max(0.25, nv[0] * a[0] + nv[1] * a[1]); left.push([pts[i][0] + nv[0] * k, pts[i][1] + nv[1] * k]); right.push([pts[i][0] - nv[0] * k, pts[i][1] - nv[1] * k]); }
+      const cp = new scope.CompoundPath({ pathData: ptsToD(left, true) + ' ' + ptsToD(right.reverse(), true), insert: false });
+      cp.reorient(false, true); out.push(cp.pathData); cp.remove();
+      return;
+    }
+    if (closed) { const r = breaks[0]; pts = pts.slice(r).concat(pts.slice(0, r + 1)); }   // start at a corner, end on it
+    const runs = [], cut = closed ? breaks.map(b => (b - breaks[0] + n) % n).concat([n]) : [0].concat(breaks, [n - 1]);
+    for (let k = 0; k < cut.length - 1; k++) runs.push(pts.slice(cut[k], cut[k + 1] + 1));
+    runs.forEach((r, k) => ribbon(r, !closed && k === 0, !closed && k === runs.length - 1));
+    (closed ? cut.slice(0, -1) : breaks).forEach(i => { const v = pts[i], a = nrm(sub2(v, pts[i > 0 ? i - 1 : pts.length - 2])), b = nrm(sub2(pts[i + 1], v)); joinAt(v, a, b); });   // closed: pts ends on its start corner
+  });
+  src.remove();
+  return out;
+}
 function svgToTileGeo(svg) {
+  if (!/<svg[\s>]/i.test(String(svg))) return null;   // Paper.js would fetch any other string as a URL
   const scope = splitPaperScope();
   const root = scope.project.importSVG(ensureSvgNamespace(String(svg).replace(/var\(--ink\)/g, '#000')), { expandShapes: true, insert: false });
-  const parts = [];
-  root.getItems({ match: it => (it instanceof scope.Path || it instanceof scope.CompoundPath) && !(it.parent instanceof scope.CompoundPath) }).forEach(it => {
+  const parts = [], partsInk = [], whiteParts = [];
+  // What is ink: visible, not a clip mask, not fully transparent (own or a parent's opacity). A white /
+  // near-white paint is Paper (an uploaded file's background rect), used only if nothing else is drawn.
+  const shown = it => { for (let p = it; p; p = p.parent) { if (!p.visible || p.opacity === 0) return false; } return !it.clipMask; };
+  const isWhite = col => col && col.type !== 'gradient' && col.lightness > 0.97;
+  // clip-path: Paper imports it as a group whose first child is the mask — every shape inside is cut to it
+  const clipsOf = it => { const out = []; for (let g = it.parent; g; g = g.parent) if (g.clipped && g.firstChild && g.firstChild.clipMask && g.firstChild !== it) { let m = g.firstChild.clone({ insert: false }); if (m instanceof scope.Shape) { const q = m.toPath(false); m.remove(); m = q; } if (g.firstChild.parent) m.transform(g.firstChild.parent.globalMatrix); out.push(m); } return out; };   // the root's viewBox clip is a Shape (rect): booleans need a Path
+  // a rectangular mask that already holds the shape (the viewBox, almost always) cuts nothing — skip the boolean
+  const holds = (m, p) => Math.abs(Math.abs(m.area) - m.bounds.width * m.bounds.height) < 1e-3 * m.bounds.width * m.bounds.height && m.bounds.contains(p.bounds);
+  const clipD = (d, masks) => {
+    if (!masks.length || !d) return d;
+    let p = new scope.CompoundPath({ pathData: d, insert: false });
+    masks.forEach(m => { if (holds(m, p)) return; const q = p.intersect(m, { insert: false }); p.remove(); p = q; });
+    const r = p.pathData; p.remove(); return r;
+  };
+  root.getItems({ match: it => (it instanceof scope.Path || it instanceof scope.CompoundPath || it instanceof scope.Shape) && !(it.parent instanceof scope.CompoundPath) }).forEach(src => {
+    if (!shown(src)) return;
+    const it = src instanceof scope.Shape ? src.toPath(false) : src;   // a clipped circle / rect stays a Shape on import
+    if (it !== src) src.replaceWith(it);   // in its place, so its group's transform and clip still apply
+    const masks = clipsOf(it);
+    const push = (to, d) => { const r = clipD(d, masks); if (r) to.push(r); };
     const c = it.clone({ insert: false });
     if (it.parent) c.transform(it.parent.globalMatrix);
     // SVG's default fill is black even on a <line>: only a shape with area is filled; any stroke is outlined
     const filled = it.fillColor && it.fillColor.alpha !== 0 && Math.abs(it.area) > 1e-6, stroked = it.strokeColor && it.strokeColor.alpha !== 0 && it.strokeWidth > 0;
-    if (filled) parts.push(c.pathData);
-    if (stroked) { const r = strokeToShapeD(c.pathData, it.strokeWidth * Math.abs(it.parent ? it.parent.globalMatrix.scaling.x : 1)); if (r) parts.push(r); }
-    c.remove();
+    const fillTo = isWhite(it.fillColor) ? whiteParts : partsInk, strokeTo = isWhite(it.strokeColor) ? whiteParts : partsInk;   // each paint on its own
+    if (filled) {   // an evenodd fill keeps its holes: sub-paths re-wound so nonzero reads them the same way (a ring)
+      if (it.fillRule === 'evenodd') { const cp = new scope.CompoundPath({ pathData: c.pathData, insert: false }); cp.reorient(false, true); push(fillTo, cp.pathData); cp.remove(); }
+      else push(fillTo, c.pathData);
+    }
+    if (stroked) strokeOutlineParts(c.pathData, it.strokeWidth * Math.abs(it.parent ? it.parent.globalMatrix.scaling.x : 1), it.strokeCap, it.strokeJoin).forEach(d => push(strokeTo, d));   // the seed's own width, caps and joins
+    c.remove(); masks.forEach(m => m.remove());
   });
   root.remove();
+  parts.push(...(partsInk.length ? partsInk : whiteParts));
   if (!parts.length) return null;
+  const ps = parts.map(d => new scope.CompoundPath({ pathData: d, insert: false }));
   let acc = null;
-  for (const d of parts) {
-    const p = new scope.CompoundPath({ pathData: d, insert: false });
-    acc = acc ? acc.unite(p, { insert: false }) : p;
-  }
-  const b = acc.bounds, d = acc.pathData;
-  acc.remove();
+  for (const p of ps) acc = acc ? acc.unite(p, { insert: false }) : p.clone({ insert: false });
+  // Paper's boolean can drop part of a shape that only touches the others at a point (Petal turn: four
+  // petals meeting at the centre came out as two and two halves). Every part must survive the union:
+  // a 9×9 grid of points inside each part must all be inside the result. If not, the parts are kept side
+  // by side, each turned clockwise, so nonzero fill draws their union without a boolean.
+  const survives = p => {
+    const bb = p.bounds;
+    for (let i = 1; i < 10; i++) for (let j = 1; j < 10; j++) {
+      const pt = new scope.Point(bb.x + bb.width * i / 10, bb.y + bb.height * j / 10);
+      if (p.contains(pt) && !acc.contains(pt)) return false;
+    }
+    return true;
+  };
+  const lost = !ps.every(survives);
+  let d, b;
+  if (lost) {
+    ps.forEach(p => p.reorient(true, true));   // outer contours clockwise, holes counter-clockwise
+    d = ps.map(p => p.pathData).join(' ');
+    b = ps.reduce((u, p) => (u ? u.unite(p.bounds) : p.bounds), null);
+  } else { d = acc.pathData; b = acc.bounds; }
+  acc.remove(); ps.forEach(p => p.remove());
   if (!d || !(b.width > 0 || b.height > 0)) return null;
   const ns = 100 / Math.max(b.width, b.height);
   return { d, fillRule: null, normScale: ns, normTx: -b.x + (100 - b.width * ns) / 2 / ns, normTy: -b.y + (100 - b.height * ns) / 2 / ns };
@@ -4821,7 +4948,7 @@ function appearanceSnapshot() {
 function syncGroundTileOptions(selected) {
   const sel = ctrl('sel-ground-tile'), cur = selected != null ? selected : sel.value;
   const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-  const saved = libraryNamesAll(ELEMENT_LIB.read()), gen = genesisTileForms();
+  const elAll = ELEMENT_LIB.read(), saved = libraryNamesAll(elAll).filter(n => !elAll[n].hidden || cur === 'saved:' + n), gen = genesisTileForms();
   // tiny silhouette of each tile in the dropdown (icon thumbnails, currentColor)
   Object.keys(TILE_PICK_REG).forEach(k => delete TILE_PICK_REG[k]);
   TILE_PICK_REG.element = { name: 'Current Element', thumb: () => tileIconSVG(liveElementTile()) };
@@ -4924,7 +5051,7 @@ function tileSig(t) {
 }
 function savedElementBySig(sig) {
   const all = ELEMENT_LIB.read();
-  return Object.keys(all).find(n => all[n] && all[n].tile && (all[n].sig || tileSig(all[n].tile)) === sig) || null;   // an entry saved before `sig` existed is matched by its shape
+  return Object.keys(all).find(n => all[n] && all[n].tile && !all[n].hidden && (all[n].sig || tileSig(all[n].tile)) === sig) || null;   // an entry saved before `sig` existed is matched by its shape
 }
 function defaultElementName(label) {
   const type = getSeed().type;
@@ -5420,7 +5547,7 @@ function componentBoundaryMaskContent(items, geo, half) {
   }).join('');
 }
 
-function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH) {
+function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply) {
   const halfX = boxW / 2, halfY = (boxH == null ? boxW : boxH) / 2;
   const overrideCache = new Map();   // seedType|params → {geo,path}, so several cells sharing one override don't re-tessellate
   for (const it of itemsToDraw) {
@@ -5433,6 +5560,7 @@ function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH) {
     }
     const drawOne = () => {
       ctx.save();
+      if (multiply) ctx.globalCompositeOperation = 'multiply';   // Blend → Multiply: each cell's ink mixes with what is under it
       ctx.translate(halfX + it.cx, halfY + it.cy);
       ctx.rotate(it.rotation * Math.PI / 180);
       const fit = it.cellSize / 100;
@@ -5488,7 +5616,7 @@ function drawComponentCanvas(ctx, items, seed, size) {
     if (shape) { ctx.save(); ctx.clip(shape); }
     fillPaper(ctx, state.paperColor, 0, 0, dims.w, dims.h);
     paintPaperPatternCanvas(ctx, dims.w, dims.h);
-    drawItemsPlain(ctx, items, geo, path, dims.w, dims.h);
+    drawItemsPlain(ctx, items, geo, path, dims.w, dims.h, state.componentBlend === 'multiply');
     if (shape) ctx.restore();
     return;
   }
@@ -5607,7 +5735,7 @@ function buildComponentSVGBody(items, seed, size) {
       const markup = (it.content && it.content.appearance)
         ? withAppearance(it.content.appearance, () => elementPathMarkup(resolveItemGeo(it, geo), it.color))
         : elementPathMarkup(resolveItemGeo(it, geo), it.color);
-      body += `<g transform="translate(${(halfX + it.cx).toFixed(2)},${(halfY + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+      body += `<g transform="translate(${(halfX + it.cx).toFixed(2)},${(halfY + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
         + markup + `</g>`;
     }
   }
@@ -6656,7 +6784,7 @@ function savePieceAsSeed() {
   if (!mySet.forms) mySet.forms = [];
   mySet.forms.push(id);
   Organica.store.library.write(lib);
-  if (typeof renderCreatorLibraryPicker === 'function') renderCreatorLibraryPicker();
+  if (libviewIsOpen()) renderLibview();
   useSvgAsSeed(svg);
   state.splitOriginal = null; state.splitApplied = null; state.splitOriginalStyle = null;
   state.splitCache = null; state.splitCombinedRaw = null; state.splitKeep.clear();
@@ -6783,7 +6911,10 @@ const hexKey = c => {
 // name), stay out of every picker/list, and are pruned at boot — the Grid
 // rebuilds one from the live Component and a recipe carries its own entry.
 const isAutoEntry = (name, e) => !!(e && e.auto) || name.startsWith('Tile · ');
-const libraryNames = all => Object.keys(all).filter(n => !isAutoEntry(n, all[n]));
+const libraryNames = all => Object.keys(all).filter(n => !isAutoEntry(n, all[n]) && !all[n].hidden);
+// A deleted Component / Element that another creation still uses is kept, hidden (deleteSavedComponent):
+// out of every list, still drawn where it is used.
+const shownElementNames = all => Object.keys(all || {}).filter(n => all[n] && all[n].tile && !all[n].hidden);
 function pruneAutoLibraryEntries() {
   const all = LIBRARY.read();
   const gone = Object.keys(all).filter(n => isAutoEntry(n, all[n]));
@@ -6807,6 +6938,7 @@ function libraryEntryFromLive(comp) {
     component: { ruleSource: comp.ruleSource, cells: comp.cells },
     role: state.componentRole,
     underlyingComponentName: state.underlyingComponentName,
+    ...(state.componentBlend === 'multiply' ? { blend: 'multiply' } : {}),   // absent = Normal (every older Component)
     savedAt: new Date().toISOString(),
   };
 }
@@ -6890,7 +7022,7 @@ function saveAllComponentsToLibrary() {
 function deleteQuickSavedComponent(compId) {
   const comp = state.components.find(c => c.id === compId);
   if (!comp || !comp.savedName) return;
-  removeLibraryEntry(comp.savedName);
+  deleteSaved('component', comp.savedName);   // kept hidden while a Symbol / Container still uses it
   comp.savedName = null;
   renderGallery();
 }
@@ -7366,6 +7498,8 @@ function applyLibraryEntryToUI(entry) {
   // the pre-feature-equivalent no-op (Normal, no underlying component).
   state.componentRole = entry.role || 'normal';
   state.underlyingComponentName = entry.underlyingComponentName || null;
+  state.componentBlend = entry.blend === 'multiply' ? 'multiply' : 'normal';
+  ctrl('sel-component-blend').value = state.componentBlend;
   ctrl('sel-component-role').value = state.componentRole;
   syncComponentRoleUI();
 
@@ -7401,7 +7535,7 @@ function openUnderlyingComponentPicker() {
     const size = frameDims(entry.grid);
     const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
-    const svgStr = withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName));
+    const svgStr = withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName, entry.blend));
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     const box = fitThumbBox(size.w, size.h, 76);
@@ -7452,13 +7586,14 @@ function renameLibraryEntry(oldName, newName) {
 // values instead, so this wraps it with a temporary swap rather than
 // duplicating the whole render function. role/underlyingComponentName
 // default to 'normal'/null for entries saved before this feature existed.
-function buildComponentSVGWithPaper(items, seed, size, paperColor, role, underlyingComponentName) {
-  const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName };
+function buildComponentSVGWithPaper(items, seed, size, paperColor, role, underlyingComponentName, blend) {
+  const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName, blend: state.componentBlend };
   state.paperColor = paperColor;
   state.componentRole = role || 'normal';
   state.underlyingComponentName = underlyingComponentName || null;
+  state.componentBlend = blend === 'multiply' ? 'multiply' : 'normal';
   const svg = buildComponentSVG(items, seed, size);
-  state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under;
+  state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under; state.componentBlend = prev.blend;
   return svg;
 }
 
@@ -7617,19 +7752,20 @@ function fvsGridSelectedEntry() {
 // renderSymbolLibrary() already uses for its own thumbnails.
 function renderedSymbolEntrySVG(entry) {
   if (entry.raw) return { size: entry.raw.size, inner: entry.raw.inner };   // a finished figure used as a tile
-  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled };
+  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled, overlap: state.symbolOverlap };
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
   state.symbolCells = entry.cells;
   state.colors = entry.colors;
   state.colorRule = entry.colorRule || DEFAULT_COLOR_RULE;
   state.paperColor = entry.paperColor;
   state.symbolClipEnabled = entry.clipEnabled !== false;
+  state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(entry.overlap || {}) };
   // A Symbol with a Canvas may not be square: it is tiled letterboxed in a
   // square of its long side (centred), so the Grid tier's placement is unchanged.
   const F = symbolFrame(getSymbolGrid());
   const size = Math.max(F.w, F.h);
   const svgStr = withAppearance({ ...entry.appearance, ...(variantAppearance || {}) }, buildSymbolSVG);
-  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
+  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip; state.symbolOverlap = prev.overlap;
   let inner = svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
   if (F.w !== F.h) inner = `<g transform="translate(${r2((size - F.w) / 2)},${r2((size - F.h) / 2)})">${inner}</g>`;
   return { size, inner };
@@ -7886,6 +8022,7 @@ function loadSymbolGrid(model) {
   state.symbolClipEnabled = false;   // a new grid starts on the default
   syncSymbolViewUI();
   ctrl('symbol-grid-error').style.display = 'none';
+  syncOverlapSection();
   renderSymbol();
 }
 
@@ -7985,7 +8122,7 @@ function syncSymbolCanvasHint() {
   ctrl('symbol-canvas-hint').textContent = cv.mode === 'print' ? `${cv.pw} × ${cv.ph} ${cv.unit} · ${cv.dpi} dpi` : `${cv.pw} × ${cv.ph} px`;
 }
 function renderSymgridParams() {
-  const spec = SYMGRID_GENS[ctrl('sel-symgrid-gen').value];
+  const genId = ctrl('sel-symgrid-gen').value, spec = SYMGRID_GENS[genId];
   ctrl('symgrid-gen-params').innerHTML = spec.params.map(([k, label, a, b, step, def]) => a === 'text'
     ? `<div class="ctrl-row"><div class="ctrl-label">${label} <span class="hint">5–8 weights</span></div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
     : `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`).join('');
@@ -8024,6 +8161,94 @@ async function symbolGridModel(genId, params, cv) {
       fvsFrame: { ...frame, generator: genId, params } },
     grid, cells,
   };
+}
+// ── Cell-shape Components in a Symbol (Oct 6, 2026): every Component with a Grid shape set to Match cell shares ONE
+// small-cell lattice per cell shape — its small cells snap to it, wherever the Symbol grid puts it — so neighbours
+// line up exactly (lines run on, Shared cells can tell which small cell is whose). The lattice helpers:
+const SQ3 = Math.sqrt(3);
+// Every aligned Component's placement, per cell index: one small-cell size per cell shape (the median of their
+// Contain fits, grown by Overlap), the turn snapped to the lattice's symmetry (60°, square packing 90°; no flips),
+// and the position snapped so the Component's lattice origin lands on the shared lattice — whose origin is the
+// frame centre, in the Components' own (unturned) orientation.
+function alignedPlacements(grid, centers, F, lib, L) {
+  const out = new Map(), groups = {};
+  state.symbolCells.forEach((cell, i) => {
+    if (!cell || cell.source !== 'component' || cell.fitMode !== 'match' || L.covered[i] != null || L.region[i]) return;
+    const e = lib[cell.componentName], c = centers[i];
+    if (!e || !e.grid || !e.grid.lattice || !c) return;
+    const B = latticeBasisOf(e), d = frameDims(e.grid), nat = d.w === d.h ? frameSize(e.grid) : { w: d.w, h: d.h };
+    const fit = placeInBox(c, nat, { ...withPlacementDefaults(cell), fitMode: 'contain', scale: 1, anchorX: 0, anchorY: 0, padding: 0, rotation: 0 }, cellPolygon(grid, i));
+    const key = e.grid.lattice.shape + (B.square ? ':square' : '');
+    (groups[key] = groups[key] || []).push({ i, e, B, c, cell, r: Math.abs(fit.scaleX) * B.R });
+  });
+  const grow = overlapGrowth();
+  Object.values(groups).forEach(list => {
+    const r = median(list.map(x => x.r)) * grow;
+    list.forEach(({ i, e, B, c, cell }) => {
+      const k = r / B.R, step = B.square ? 90 : 60, rot = mod360(Math.round((cell.rotation || 0) / step) * step);
+      const a = rot * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a);
+      const T = v => [k * (v[0] * cos - v[1] * sin), k * (v[0] * sin + v[1] * cos)];
+      const cs = e.grid.cells, Cs = [cs.reduce((t, q) => t + q.centroid[0], 0) / cs.length, cs.reduce((t, q) => t + q.centroid[1], 0) / cs.length];
+      const bx = F.bx + c.cx, by = F.by + c.cy, o = T([B.O[0] - Cs[0], B.O[1] - Cs[1]]), ox = bx + o[0], oy = by + o[1];
+      const g1 = [B.e1[0] * k, B.e1[1] * k], g2 = [B.e2[0] * k, B.e2[1] * k], det = g1[0] * g2[1] - g1[1] * g2[0];
+      const dx = ox - F.bx, dy = oy - F.by, la = Math.round((dx * g2[1] - dy * g2[0]) / det), lb = Math.round((g1[0] * dy - g1[1] * dx) / det);
+      const sx = F.bx + la * g1[0] + lb * g2[0] - ox, sy = F.by + la * g1[1] + lb * g2[1] - oy;
+      const fc = T([e.grid.width / 2 - Cs[0], e.grid.height / 2 - Cs[1]]);
+      out.set(i, { scaleX: k, scaleY: k, offsetX: fc[0] + sx, offsetY: fc[1] + sy, rotate: rot });
+    });
+  });
+  return out;
+}
+// The small-cell lattice of a saved cell-shape Component: basis e1/e2, an origin O (a cell centre, or a triangle
+// corner), and how a cell is keyed (its centre, or the triangle it is).
+function latticeBasisOf(entry) {
+  const L = entry.grid.lattice, c0 = entry.grid.cells[0];
+  const cR = Math.max(...c0.points.map(q => Math.hypot(q[0] - c0.centroid[0], q[1] - c0.centroid[1])));
+  if (L.shape === 'hexagon') return { e1: [1.5 * cR, SQ3 / 2 * cR], e2: [0, SQ3 * cR], O: c0.centroid, kind: 'centre', R: cR };
+  if (L.shape === 'circle') return L.outline === 'square' ? { e1: [2 * cR, 0], e2: [0, 2 * cR], O: c0.centroid, kind: 'centre', R: cR, square: true }
+    : { e1: [2 * cR, 0], e2: [cR, SQ3 * cR], O: c0.centroid, kind: 'centre', R: cR };
+  const S = cR * SQ3;
+  return { e1: [S, 0], e2: [S / 2, S * SQ3 / 2], O: c0.points[0], kind: 'vertex', R: cR };
+}
+function latticeKeyer(B) {
+  const det = B.e1[0] * B.e2[1] - B.e1[1] * B.e2[0];
+  const toLat = ([x, y]) => { const dx = x - B.O[0], dy = y - B.O[1]; return [(dx * B.e2[1] - dy * B.e2[0]) / det, (B.e1[0] * dy - B.e1[1] * dx) / det]; };
+  return B.kind === 'centre'
+    ? c => { const [a, b] = toLat(c); return Math.round(a) + ',' + Math.round(b); }
+    : c => { const [a, b] = toLat(c), fa = Math.floor(a + 1e-6), fb = Math.floor(b + 1e-6); return fa + ',' + fb + ',' + ((a - fa) + (b - fb) < 1 ? 0 : 1); };
+}
+const latCart = (B, [a, b]) => [a * B.e1[0] + b * B.e2[0], a * B.e1[1] + b * B.e2[1]];
+// ── Overlap & blend — every Symbol grid. Saved with the Symbol (entry.overlap); older Symbols open as Paper under, 0.
+state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest' };
+// The section: Overlap in % (each content grows past its cell; Components on the shared small-cell lattice grow
+// that lattice instead, so they stay aligned). Shared cells needs aligned Components (Match cell + a Grid shape).
+function symbolHasAlignedComponents() {
+  const lib = LIBRARY.read();
+  return (state.symbolCells || []).some(c => c && c.source === 'component' && c.fitMode === 'match' && lib[c.componentName] && lib[c.componentName].grid && lib[c.componentName].grid.lattice);
+}
+function syncOverlapSection() {
+  const o = state.symbolOverlap, rg = ctrl('rg-symbol-overlap');
+  rg.value = o.amount; ctrl('v-symbol-overlap').textContent = o.amount + '%';
+  const blend = ctrl('sel-symbol-blend'), sharedOk = symbolHasAlignedComponents();
+  const so = blend.querySelector('option[value="shared"]');
+  so.disabled = !sharedOk; so.title = sharedOk ? '' : 'Only with Components that have a Grid shape, set to Match cell';
+  if (!sharedOk && o.blend === 'shared') o.blend = 'under';
+  blend.value = o.blend; ctrl('sel-symbol-drawnby').value = o.drawnBy;
+  ctrl('symbol-drawnby-row').style.display = o.blend === 'shared' ? '' : 'none';
+}
+// How overlaps draw on the loaded grid: null = Paper under (the drawing as before).
+function symbolLook(grid) {
+  const o = state.symbolOverlap;
+  if (!grid || o.blend === 'under') return null;
+  if (o.blend === 'shared') return { shared: true };
+  return { interleave: o.blend === 'normal', multiply: o.blend === 'multiply' };
+}
+// Overlap: each cell's content grows past its cell, about its own centre (aligned Components: see alignedPlacements).
+function overlapGrowth() { return 1 + Math.max(0, state.symbolOverlap.amount) / 100; }
+function onSymbolOverlapInput() {
+  const o = state.symbolOverlap; o.amount = +ctrl('rg-symbol-overlap').value;
+  if (o.amount > 0 && state.symbolClipEnabled) { state.symbolClipEnabled = false; syncSymbolViewUI(); }   // a clip would cut the overlap away
+  syncOverlapSection(); renderSymbol();
 }
 async function generateSymbolGridInCanvas() {
   const id = ctrl('sel-symgrid-gen').value;
@@ -8113,7 +8338,10 @@ symCanvasPicker = Organica.selectPicker(ctrl('sel-symcanvas-preset'), ctrl('symc
 ctrl('sel-symgrid-gen').innerHTML = Object.entries(SYMGRID_GENS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 ctrl('sel-symgrid-gen').value = 'rectangular';
 renderSymgridParams();
-ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').style.display = 'none'; renderSymgridParams(); });
+ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').style.display = 'none'; renderSymgridParams(); syncOverlapSection(); });
+ctrl('rg-symbol-overlap').addEventListener('input', onSymbolOverlapInput);
+ctrl('sel-symbol-blend').addEventListener('change', e => { state.symbolOverlap.blend = e.target.value; syncOverlapSection(); renderSymbol(); });
+ctrl('sel-symbol-drawnby').addEventListener('change', e => { state.symbolOverlap.drawnBy = e.target.value; renderSymbol(); });
 ctrl('btn-symgrid-generate').addEventListener('click', generateSymbolGridInCanvas);
 // Clear: every cell empty again, the grid kept — the Symbol is back to its empty grid with Generate over it.
 ctrl('btn-symbol-clear').addEventListener('click', () => {
@@ -8307,7 +8535,9 @@ function syncFitAnchorUI() {
     const b = ctrl('btn-symbol-fit-all-' + f), patch = nothing ? null : fitPatch(f);
     // Fixed is never "the same": even when it starts at the size the content already has, it changes
     // what the cell does next (its own Size, whatever the cell becomes).
-    const same = !nothing && f !== 'fixed' && fit !== f && targets.every(t => samePlacement(placeOf(t), placeOf(t, patch)));
+    // Match cell on a Component with a Grid shape is never "the same": it puts it on the shared small-cell lattice
+    const aligns = f === 'match' && targets.some(t => t.cell.source === 'component' && lib[t.cell.componentName] && lib[t.cell.componentName].grid && lib[t.cell.componentName].grid.lattice);
+    const same = !nothing && f !== 'fixed' && fit !== f && !aligns && targets.every(t => samePlacement(placeOf(t), placeOf(t, patch)));
     if (b.getAttribute('aria-pressed') !== String(fit === f)) b.setAttribute('aria-pressed', String(fit === f));
     const label = b.dataset.fitName + ' · ' + who + (nothing ? why : same ? ' — same result as now' : '');
     if (b.getAttribute('aria-label') !== label) b.setAttribute('aria-label', label);
@@ -8613,7 +8843,8 @@ function buildSymbolItems() {
   const F = symbolFrame(grid);
   const library = LIBRARY.read();
   const L = symbolSpanLayout(grid, state.symbolCells);
-  return state.symbolCells.map((rawCell, i) => {
+  const AL = alignedPlacements(grid, centers, F, library, L);
+  const items = state.symbolCells.map((rawCell, i) => {
     if (L.covered[i] != null) return null;   // inside another cell's Component block
     const reg = L.region[i];
     const c = reg ? reg.c : centers[i];
@@ -8653,11 +8884,13 @@ function buildSymbolItems() {
       let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid)
         .map((it, j) => ({ ...it, color: savedColorAt(j) }));
       if (reg) nestedItems = modulesToBlockCells(nestedItems, nestedW, nestedH, reg, cell);
-      const place = placeInBox(c, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell, reg ? null : cellPolygon(grid, i));
+      // A cell-shape Component set to Match cell sits on the Symbol's shared small-cell lattice (alignedPlacements).
+      const al = AL.get(i);
+      const place = al || placeInBox(c, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell, reg ? null : cellPolygon(grid, i));
       return {
-        type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: cell.rotation,
-        scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
+        type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: place.rotate != null ? place.rotate : cell.rotation,
+        scaleX: place.scaleX * (!al && cell.flipH ? -1 : 1), scaleY: place.scaleY * (!al && cell.flipV ? -1 : 1), aligned: !!al,
+        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedBlend: entry.blend === 'multiply', nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(variantAppearance || {}) },
       };
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
@@ -8671,6 +8904,58 @@ function buildSymbolItems() {
       ownPaper: cellOwnInks(cell) && cell.ownPaper ? cell.ownPaper : null, ownAppearance: cellOwnInks(cell) ? cell.ownAppearance : null,
     };
   }).filter(Boolean);
+  const grow = overlapGrowth();   // Overlap: each content grows past its cell (aligned Components grow their lattice instead)
+  const grown = grow === 1 ? items : items.map(it => ((it.type === 'seed' || it.type === 'component') && !it.aligned ? { ...it, scaleX: it.scaleX * grow, scaleY: it.scaleY * grow } : it));
+  return shareComponentGridCells(grid, grown);
+}
+// Draw ink with `draw(g)`; with `multiply`, on its own layer first, then multiplied onto the page as one ink
+// (the canvas twin of an SVG mix-blend-mode group).
+function inkLayer(ctx, multiply, draw) {
+  if (!multiply) { draw(ctx); return; }
+  const layer = Object.assign(document.createElement('canvas'), { width: ctx.canvas.width, height: ctx.canvas.height }), g = layer.getContext('2d');
+  g.setTransform(ctx.getTransform());
+  draw(g);
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(layer, 0, 0); ctx.restore();
+}
+// Blend → Shared cells: a small cell covered by more than one aligned Component is drawn once, by the one
+// Drawn by picks (nearest centre · alternate · first · last); the others drop it (and their Paper there).
+function shareComponentGridCells(grid, items) {
+  const look = symbolLook(grid), p = { drawnBy: state.symbolOverlap.drawnBy };
+  if (!look || !look.shared) return items;
+  // Small cells are matched by position: buckets a quarter of a small cell wide, looked up with their neighbours,
+  // so two centres a hair apart (float noise) are one cell and a bucket edge never splits it.
+  const claims = [], buckets = new Map();
+  let q = Infinity;
+  items.forEach(it => { if (it.aligned && it.nestedItems && it.nestedItems.length) q = Math.min(q, Math.abs(it.scaleX) * it.nestedItems[0].cellSize / 400); });
+  if (!isFinite(q)) return items;
+  const claimAt = (x, y) => {
+    const bx = Math.round(x / q), by = Math.round(y / q);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const list = buckets.get((bx + dx) + ',' + (by + dy));
+      if (list) for (const c of list) if (Math.hypot(c.x - x, c.y - y) < q) return c;
+    }
+    const c = { x, y, list: [] }; claims.push(c);
+    const key = bx + ',' + by; if (!buckets.has(key)) buckets.set(key, []); buckets.get(key).push(c);
+    return c;
+  };
+  items.forEach((it, ii) => {
+    if (it.type !== 'component' || !it.aligned || !it.nestedItems) return;   // only Components on the shared lattice share cells
+    const a = it.rotation * Math.PI / 180, cos = Math.cos(a), sin = Math.sin(a), k = Math.abs(it.scaleX);
+    it.nestedItems.forEach((ni, j) => {
+      const x = it.cx + k * (ni.cx * cos - ni.cy * sin), y = it.cy + k * (ni.cx * sin + ni.cy * cos);
+      claimAt(x, y).list.push({ ii, j, d: Math.hypot(x - it.cx, y - it.cy) });
+    });
+  });
+  const keep = items.map(it => (it.nestedItems ? new Set(it.nestedItems.map((_, j) => j)) : null));
+  claims.forEach(c => {
+    if (c.list.length < 2) return;
+    const L = c.list.slice().sort((u, v) => u.ii - v.ii);
+    const w = p.drawnBy === 'first' ? L[0] : p.drawnBy === 'last' ? L[L.length - 1]
+      : p.drawnBy === 'alternate' ? L[Math.abs(Math.round(c.x / (4 * q)) + Math.round(c.y / (4 * q))) % L.length]
+      : L.reduce((b, u) => (u.d < b.d - 1e-6 ? u : b));
+    L.forEach(u => { if (u !== w) keep[u.ii].delete(u.j); });
+  });
+  return items.map((it, ii) => (keep[ii] && keep[ii].size !== it.nestedItems.length ? { ...it, nestedItems: it.nestedItems.filter((_, j) => keep[ii].has(j)) } : it));
 }
 
 // Only meaningful while "Clip to cell" is off (clipping already makes the
@@ -8786,6 +9071,7 @@ function symbolSVGFromItems(items) {
   // nothing to stop it — the Symbol's reach and the nested Component's add up, and every cell is drawn about 0.2%
   // of the page too large, over its neighbours and past the grid. So unclipped content is drawn at its true size.
   const bleed = state.symbolClipEnabled ? symbolBleed(F) : 0, centers = resolveGridCells(grid);
+  const look = symbolLook(grid);   // Component grid with Overlap: Normal = each Component's Paper right under its own ink; Multiply = no Paper, inks multiply
   let defs = '';
   let papers = '';   // every nested Component's own paper, painted before any ink
   let body = '';
@@ -8811,7 +9097,8 @@ function symbolSVGFromItems(items) {
         const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1);   // kx/ky: a module stretched to its own block cell
         // a cell the Component was edited in (Component Edit mode) carries its own Element + Appearance: draw that, not the Component's one shared Element
         const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niApp = ni.content && ni.content.appearance ? ni.content.appearance : it.nestedAppearance;
-        inner += withEntryInks(it.nestedColors, () => withAppearance(niApp, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, niGeo, ni.color)));
+        const one = withEntryInks(it.nestedColors, () => withAppearance(niApp, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, niGeo, ni.color)));
+        inner += it.nestedBlend ? `<g style="mix-blend-mode:multiply">${one}</g>` : one;   // the Component's own Blend → Multiply
       }
       const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
       cellMarkup = `<g transform="${tf}">${inner}</g>`;
@@ -8858,7 +9145,10 @@ function symbolSVGFromItems(items) {
       cellMarkup = wrap(cellMarkup);
       if (paperMarkup) paperMarkup = wrap(paperMarkup);
     }
-    if (paperMarkup) papers += `<g${clipAttr}>${paperMarkup}</g>`;
+    const own = (it.type === 'component' || it.type === 'seed') && look;
+    if (own && look.multiply) { paperMarkup = ''; cellMarkup = `<g style="mix-blend-mode:multiply">${cellMarkup}</g>`; }
+    if (paperMarkup && own && look.interleave) body += `<g${clipAttr}>${paperMarkup}</g>`;
+    else if (paperMarkup) papers += `<g${clipAttr}>${paperMarkup}</g>`;
     body += `<g data-cell-index="${it.index}"${clipAttr}>${hit}${cellMarkup}</g>`;
   }
   const meta = { tool: 'FVS-Symbol', cells: items.length, exportedAt: new Date().toISOString() };
@@ -8876,6 +9166,7 @@ function drawSymbolCanvas(ctx) {
   if (!grid) return;
   const items = buildSymbolItems().filter(Boolean);
   const bleed = state.symbolClipEnabled ? symbolBleed(F) : 0, centers = resolveGridCells(grid);   // see symbolSVGFromItems
+  const look = symbolLook(grid);
   // "Clip to cell" mirror of buildSymbolSVG()'s <clipPath> (the same bled outline)
   // and the same bled content, so preview/PNG and SVG export can't disagree.
   const enter = it => {
@@ -8904,6 +9195,7 @@ function drawSymbolCanvas(ctx) {
   // pass 1 — every nested Component's paper (and a saved Element's own Paper), under all ink
   for (const it of items) {
     if (it.type === 'seed' && it.ownPaper) {
+      if (look && !look.shared) continue;   // Normal: painted under its own ink in pass 2; Multiply: no Paper
       enter(it);
       ctx.translate(it.cx, it.cy); ctx.rotate(it.rotation * Math.PI / 180); ctx.scale(it.scaleX, it.scaleY); ctx.translate(-50, -50);
       if (it.cellShape && it.cellShape !== 'square') ctx.clip(latticeShapePath([{ poly: CELL_SHAPES[it.cellShape].poly }]));   // the Element's canvas is its cell
@@ -8912,7 +9204,7 @@ function drawSymbolCanvas(ctx) {
       ctx.restore();
       continue;
     }
-    if (it.type !== 'component') continue;
+    if (it.type !== 'component' || (look && !look.shared)) continue;   // Normal / Multiply overlap: the Paper is painted (or skipped) in pass 2
     enter(it);
     nestedFrame(it);
     if (!it.region && it.nestedItems.length && it.nestedItems[0].poly) ctx.clip(latticeShapePath(it.nestedItems));   // a cell-shape Component: its canvas is the grid's outline
@@ -8937,42 +9229,66 @@ function drawSymbolCanvas(ctx) {
       ctx.stroke();
       ctx.restore();
     } else if (it.type === 'seed') {
-      ctx.save();
-      ctx.translate(it.cx, it.cy);
-      ctx.rotate(it.rotation * Math.PI / 180);
-      ctx.scale(it.scaleX, it.scaleY);
-      ctx.translate(-50, -50);
-      applyElementStretchCanvas(ctx);
-      ctx.translate(it.geo.normTx * it.geo.normScale, it.geo.normTy * it.geo.normScale);
-      ctx.scale(it.geo.normScale, it.geo.normScale);
-      withEntryInks(it.inks, () => paintGeoCanvas(ctx, it.geo, new Path2D(it.geo.d), it.color));
-      ctx.restore();
+      if (look && look.interleave && it.ownPaper) {   // Normal: this Element's own Paper right under its ink
+        ctx.save();
+        ctx.translate(it.cx, it.cy); ctx.rotate(it.rotation * Math.PI / 180); ctx.scale(it.scaleX, it.scaleY); ctx.translate(-50, -50);
+        if (it.cellShape && it.cellShape !== 'square') ctx.clip(latticeShapePath([{ poly: CELL_SHAPES[it.cellShape].poly }]));
+        fillPaper(ctx, it.ownPaper, 0, 0, 100, 100);
+        withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paintPaperPatternCanvas(ctx, 100, 100)));
+        ctx.restore();
+      }
+      inkLayer(ctx, look && look.multiply, g => {
+        g.save();
+        g.translate(it.cx, it.cy);
+        g.rotate(it.rotation * Math.PI / 180);
+        g.scale(it.scaleX, it.scaleY);
+        g.translate(-50, -50);
+        applyElementStretchCanvas(g);
+        g.translate(it.geo.normTx * it.geo.normScale, it.geo.normTy * it.geo.normScale);
+        g.scale(it.geo.normScale, it.geo.normScale);
+        withEntryInks(it.inks, () => paintGeoCanvas(g, it.geo, new Path2D(it.geo.d), it.color));
+        g.restore();
+      });
     } else {
       const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
       const path = new Path2D(geo.d);
       const nhx = it.nestedW / 2, nhy = it.nestedH / 2;
       ctx.save();
       nestedFrame(it);
+      if (look && look.interleave) {   // this Component's Paper, right under its own ink: a later one covers it
+        ctx.save();
+        if (it.nestedItems.length && it.nestedItems[0].poly) ctx.clip(latticeShapePath(it.nestedItems));
+        fillPaper(ctx, it.nestedPaper, 0, 0, it.nestedW, it.nestedH);
+        withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintPaperPatternCanvas(ctx, it.nestedW, it.nestedH)));
+        ctx.restore();
+      }
+      // Multiply: the Component's ink goes on its own layer first, then the layer multiplies onto the page — the
+      // whole Component is one ink, as the SVG's mix-blend-mode group (its own pieces don't darken each other).
+      const layer = look && look.multiply ? Object.assign(document.createElement('canvas'), { width: ctx.canvas.width, height: ctx.canvas.height }) : null;
+      const g = layer ? layer.getContext('2d') : ctx;
+      if (layer) g.setTransform(ctx.getTransform());
       const nBleed = nestedBleed(it, bleed);
       const prevOverride = appearanceOverride, prevInks = inkPaletteOverride;
       appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
       if (it.nestedColors && it.nestedColors.length) inkPaletteOverride = it.nestedColors;
       for (const ni of it.nestedItems) {
-        ctx.save();
-        ctx.translate(nhx + ni.cx, nhy + ni.cy);
-        ctx.rotate(ni.rotation * Math.PI / 180);
+        g.save();
+        if (it.nestedBlend) g.globalCompositeOperation = 'multiply';   // the Component's own Blend → Multiply
+        g.translate(nhx + ni.cx, nhy + ni.cy);
+        g.rotate(ni.rotation * Math.PI / 180);
         const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);
-        ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1));
-        ctx.translate(-50, -50);
+        g.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1));
+        g.translate(-50, -50);
         const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niPath = ni.content ? new Path2D(niGeo.d) : path, keepApp = appearanceOverride;
         if (ni.content && ni.content.appearance) appearanceOverride = { ...DEFAULT_APPEARANCE, ...ni.content.appearance };
-        applyElementStretchCanvas(ctx);
-        ctx.translate(niGeo.normTx * niGeo.normScale, niGeo.normTy * niGeo.normScale);
-        ctx.scale(niGeo.normScale, niGeo.normScale);
-        paintGeoCanvas(ctx, niGeo, niPath, ni.color);
+        applyElementStretchCanvas(g);
+        g.translate(niGeo.normTx * niGeo.normScale, niGeo.normTy * niGeo.normScale);
+        g.scale(niGeo.normScale, niGeo.normScale);
+        paintGeoCanvas(g, niGeo, niPath, ni.color);
         appearanceOverride = keepApp;
-        ctx.restore();
+        g.restore();
       }
+      if (layer) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(layer, 0, 0); ctx.restore(); }
       appearanceOverride = prevOverride; inkPaletteOverride = prevInks;
       ctx.restore();
     }
@@ -9010,7 +9326,7 @@ function poolEntries() {
 // palette, used under Colour by → Element's own colours). Components win when any exist.
 function elementPool() {
   const all = ELEMENT_LIB.read();
-  return Object.keys(all || {}).filter(n => all[n] && all[n].seed)
+  return Object.keys(all || {}).filter(n => all[n] && all[n].seed && !all[n].hidden)
     .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')))
     .slice(0, 8).map(name => ({ name, weight: 1, kind: 'element' }));
 }
@@ -9083,7 +9399,7 @@ function componentThumbSVG(name) {
   if (!entry) return '';
   const savedColorAt = entryInkAt(entry);
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
-  return withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName));
+  return withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName, entry.blend));
 }
 // The Symbol's pool (what Arrange / Suggest draw from) is automatic since the right-bar section was removed:
 // the latest 8 saved Components (addSavedToPool), each at weight ×1. This keeps it honest — a deleted or
@@ -9129,14 +9445,14 @@ function analyseComponent(name) {
   const S = frameSize(entry.grid), d = frameDims(entry.grid), RES = 64;
   const cv = document.createElement('canvas'); cv.width = RES; cv.height = RES;
   const ctx = cv.getContext('2d');
-  const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName };
-  state.paperColor = entry.paperColor || '#ffffff'; state.componentRole = entry.role || 'normal'; state.underlyingComponentName = entry.underlyingComponentName || null;
+  const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName, blend: state.componentBlend };
+  state.paperColor = entry.paperColor || '#ffffff'; state.componentRole = entry.role || 'normal'; state.underlyingComponentName = entry.underlyingComponentName || null; state.componentBlend = entry.blend === 'multiply' ? 'multiply' : 'normal';
   try {
     const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
     ctx.setTransform(RES / S, 0, 0, RES / S, 0, 0);
     withEntryInks(entry.colors, () => withAppearance(entry.appearance, () => drawComponentCanvas(ctx, items, entry.seed, S)));
-  } finally { state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under; ctx.setTransform(1, 0, 0, 1, 0, 0); }
+  } finally { state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under; state.componentBlend = prev.blend; ctx.setTransform(1, 0, 0, 1, 0, 0); }
   const px = ctx.getImageData(0, 0, RES, RES).data;
   const clearPaper = isPaperNone(entry.paperColor);   // transparent Paper: ink = an opaque pixel
   const paperRGB = Organica.hexToRGB255(clearPaper ? '#ffffff' : (entry.paperColor || '#ffffff'));
@@ -9982,6 +10298,7 @@ function renderSymbolCanvasOnly() {
 let trackLabelsRaf = 0;
 
 function renderSymbol() {
+  syncOverlapSection();   // Shared cells follows whether aligned Components are in the Symbol
   renderSymbolCanvasOnly();
   if (ctrl('sel-symbol-fill').value === 'manual' || state.symbolSelection.size) renderCellPropertiesPanel();
   else { syncManualBlock(); syncFitAnchorUI(); }
@@ -10490,7 +10807,7 @@ function renderCellContentOverlayTiles() {
     const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid)
       .map((it, j) => ({ ...it, color: savedColorAt(j) }));
-    const svgStr = withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName));
+    const svgStr = withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName, entry.blend));
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     const box = fitThumbBox(size.w, size.h, 76);
@@ -10602,6 +10919,7 @@ function buildSymbolLibraryEntry() {
     colorRule: { ...state.colorRule },
     paperColor: state.paperColor,
     clipEnabled: state.symbolClipEnabled,
+    overlap: { ...state.symbolOverlap },
     appearance: appearanceSnapshot(),
     rule: readRuleState(),
     pool: state.symbolPool.map(p => ({ ...p })),   // was "palette" — renamed to avoid clashing with the colour Palette; `applySymbolLibraryEntryToUI` still reads the old key too
@@ -10650,6 +10968,8 @@ function applySymbolLibraryEntryToUI(entry) {
   // restoring exactly the pre-feature behaviour for anything not saved.
   state.symbolClipEnabled = entry.clipEnabled !== false;
   syncSymbolViewUI();
+  state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(entry.overlap || {}) };
+  syncOverlapSection();
   applyAppearanceToUI(entry.appearance);
   applyRuleState(entry.rule);
   renderSymbol();
@@ -10659,15 +10979,16 @@ function renderSymbolLibrary() { renderLibraryRail(); }
 // A saved Symbol's thumbnail, drawn against the ENTRY's own saved state, not the live one —
 // same rule as the Components' own library thumbnails.
 function symbolEntryThumbSVG(entry) {
-  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled };
+  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled, overlap: state.symbolOverlap };
   state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
   state.symbolCells = entry.cells;
   state.colors = entry.colors;
   state.colorRule = entry.colorRule || DEFAULT_COLOR_RULE;
   state.paperColor = entry.paperColor;
   state.symbolClipEnabled = entry.clipEnabled !== false;
+  state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(entry.overlap || {}) };
   const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
-  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip;
+  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip; state.symbolOverlap = prev.overlap;
   return svgStr;
 }
 
@@ -10778,14 +11099,14 @@ function setTier(tier) {
   document.querySelectorAll('.tier-block').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));
   document.querySelectorAll('#canvas-wrap .tier-view').forEach(v => v.classList.toggle('active', v.dataset.tier === tier));
   ctrl('export-hint').textContent = STEP_EXPORT_HINTS[tier] || STEP_EXPORT_HINTS.component;
-  // Reset / Upload / Creator library only act on the Element's Seed.
+  // Reset / Upload only act on the Element's Shape.
   ctrl('fb-cell-shape').style.display = tier === 'element' || tier === 'component' ? '' : 'none';
   ctrl('fb-element-actions').style.display = tier === 'element' ? '' : 'none';
   ctrl('fb-component-actions').style.display = tier === 'component' ? '' : 'none';
   ctrl('fb-symbol-actions').style.display = tier === 'symbol' ? '' : 'none';
   syncRailTier(tier);
   syncQuadrantHint();
-  creatorPopover.close();
+  closeLibview();
   ctrl('fg-rules-panel').style.display = tier === 'figure' ? '' : 'none';
   if (tier === 'symbol') {
     // A first visit starts the pool with every saved Component (up to the 8-slot cap),
@@ -11104,8 +11425,6 @@ ctrl('file-seed').addEventListener('change', e => {
   e.target.value = '';
 });
 // Creator library lives in a floatbar popover; opening it (re)reads the shared library.
-const creatorPopover = Organica.popover(ctrl('btn-browse-creator'), ctrl('creator-library-popover'));
-ctrl('btn-browse-creator').addEventListener('click', () => { if (creatorPopover.isOpen) renderCreatorLibraryPicker(); });
 
 // Cell shape: picks the cell the Element is drawn for; the lattice row picks the Component's cell count.
 ctrl('fb-cell-shape').querySelectorAll('[data-cell]').forEach(b => { b.innerHTML = Organica.icons.get('fvs-cell-' + b.dataset.cell); });
@@ -13022,6 +13341,11 @@ ctrl('btn-export-figma').addEventListener('click', () => {
   btn.textContent = 'Sent ↗'; setTimeout(() => { btn.textContent = 'Figma'; }, 1600);
 });
 
+state.componentBlend = 'normal';   // Component Blend: Normal | Multiply (saved as entry.blend only when Multiply)
+ctrl('sel-component-blend').addEventListener('change', e => {
+  state.componentBlend = e.target.value;
+  renderGallery(); renderComponentEditCanvas();
+});
 ctrl('sel-component-role').addEventListener('change', e => {
   state.componentRole = e.target.value;
   syncComponentRoleUI();
@@ -13090,8 +13414,8 @@ function railTile(kind, name, svg, w, h) {
   ren.setAttribute('aria-label', 'Rename ' + name);
   const x = document.createElement('button');
   x.type = 'button'; x.className = 'rmx-x'; x.dataset.railRemove = '1';
-  x.innerHTML = Organica.icons.get('close', { size: 'xs' });
-  x.setAttribute('aria-label', 'Remove ' + name);
+  x.innerHTML = Organica.icons.get('trash', { size: 'xs' });
+  x.setAttribute('aria-label', 'Delete ' + name);   // one click, no confirm (Diego, Oct 6, 2026)
   tile.append(b, ren, x);
   return tile;
 }
@@ -13102,14 +13426,32 @@ function railTileVerb(kind) {
   if (t === 'symbol') return 'Place ' + (kind === 'element' ? 'Element' : 'Component') + ' in the selected cells —';
   return kind === 'element' ? 'Use Element as Paper tile —' : 'Load Component';
 }
+// Anything saved at all? Elements (with a tile), Components, Symbols.
+function railSavedCount() {
+  const elAll = ELEMENT_LIB.read() || {};
+  return shownElementNames(elAll).length + libraryNames(LIBRARY.read()).length + Object.keys(SYMBOL_LIBRARY.read() || {}).length;
+}
+// The rail toggle is aria-disabled (focusable, the reason in its label = the tooltip) when opening it
+// would show nothing: nothing saved, on the Element tab (Component / Symbol keep their Save buttons there).
+function railBlock() {
+  return state.activeTier === 'element' && !railSavedCount() ? 'Library rail — save an Element, a Component or a Symbol first' : '';
+}
+function syncRailButton() {
+  if (document.getElementById('btn-libview')) syncLibviewButton();
+  const why = railBlock(), railBtn = ctrl('btn-rail');   // ctrl(): it can run during init, before the const
+  railBtn.setAttribute('aria-disabled', String(!!why));
+  railBtn.setAttribute('aria-label', why || 'Library rail');
+  if (why && railIsOpen()) setRailOpen(false);
+}
 function renderLibraryRail() {
   ctrl('fvs-rail-panel').dataset.railTier = state.activeTier;   // the Symbol tab's tiles drag (grab cursor)
+  syncRailButton();
   if (!railIsOpen()) return;   // drawn when it opens
   const els = ctrl('rail-elements'), comps = ctrl('rail-components'), syms = ctrl('rail-symbols');
   [els, comps, syms].forEach(g => { g.innerHTML = ''; });
   // newest first (Diego, Oct 5, 2026): a save lands at the top, in view — at the end it sat below the fold
   const newestFirst = all => (a, b) => String((all[b] || {}).savedAt || '').localeCompare(String((all[a] || {}).savedAt || ''));
-  const elAll = ELEMENT_LIB.read(), elNames = Object.keys(elAll || {}).filter(n => elAll[n] && elAll[n].tile).sort(newestFirst(elAll));
+  const elAll = ELEMENT_LIB.read(), elNames = shownElementNames(elAll).sort(newestFirst(elAll));
   elNames.forEach(n => { const e = elAll[n]; els.appendChild(railTile('element', n, savedElementThumb(e))); });
   const cAll = LIBRARY.read(), cNames = libraryNames(cAll).sort(newestFirst(cAll));
   cNames.forEach(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 48); comps.appendChild(railTile('component', n, componentThumbSVG(n), box.w, box.h)); });
@@ -13123,7 +13465,7 @@ function renderLibraryRail() {
   ctrl('fvs-rail-panel').classList.toggle('is-empty', !visible.some(([, on]) => on) && state.activeTier !== 'symbol');
   syncRailSpace();   // its contents (and so its width) changed
 }
-railBtn.addEventListener('click', () => setRailOpen(!railIsOpen()));
+railBtn.addEventListener('click', () => { if (railBtn.getAttribute('aria-disabled') === 'true') return; setRailOpen(!railIsOpen()); });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || e.defaultPrevented) return;
   if (railDrag) { cancelRailDrag(); return; }
@@ -13254,19 +13596,7 @@ function componentUsage(name) {
   const under = Object.values(LIBRARY.read()).filter(e => e.underlyingComponentName === name).length + (state.underlyingComponentName === name ? 1 : 0);
   return { cells, syms, under, total: cells + syms + under };
 }
-async function railRemoveComponent(name) {
-  const u = componentUsage(name), where = `${u.cells} cell(s), ${u.syms} saved Symbol(s), ${u.under} Container/Mask`;
-  if (u.total && !(await Organica.confirm({ title: 'Remove this Component?', message: `Used in ${where}. Its cells in the open Symbol become empty; saved Symbols keep a missing marker.`, ok: 'Remove', danger: true }))) return;
-  removeLibraryEntry(name);
-  (state.symbolCells || []).forEach(c => { if (c && c.source === 'component' && c.componentName === name) Object.assign(c, { source: 'empty', componentName: null }); });
-  if (state.underlyingComponentName === name) state.underlyingComponentName = null;
-  renderSymbolPool(); if (state.symbolGrid) renderSymbolCanvasOnly(); renderGallery();
-}
-function railRemove(kind, name) {
-  if (kind === 'element') removeSavedElement(name);
-  else if (kind === 'symbol') removeSymbolLibraryEntry(name);
-  else railRemoveComponent(name);
-}
+function railRemove(kind, name) { deleteSaved(kind, name); }
 function railUse(kind, name) {
   const t = state.activeTier;
   if (kind === 'symbol') {
@@ -13342,6 +13672,241 @@ function syncRailTier(tier) {
   if (!show && railIsOpen()) setRailOpen(false);
   renderLibraryRail();
 }
+// ── Delete — one path for the rail and the Library view (Diego, Oct 6, 2026: deleting an item never changes
+// another creation). Symbols and Elements are copied into what uses them (cells copy the Element's seed,
+// saved appearances freeze the Paper tile), so they go. A Component is named by saved Symbols' cells,
+// Container / Mask references and the open Symbol: while any of those use it, it is kept, hidden, under a
+// key of its own (so a new save can never take its name), and dropped once nothing uses it (sweepHiddenSaved).
+function componentUsage(name) {
+  const cells = (state.symbolCells || []).filter(c => c && c.source === 'component' && c.componentName === name).length;
+  const syms = Object.values(SYMBOL_LIBRARY.read()).filter(e => (e.cells || []).some(c => c.componentName === name)).length;
+  const under = Object.entries(LIBRARY.read()).filter(([n, e]) => n !== name && e.underlyingComponentName === name).length + (state.underlyingComponentName === name ? 1 : 0);
+  return { cells, syms, under, total: cells + syms + under };
+}
+function elementInLivePaper(name) { return !!(paperPatternOn && ctrl('sel-ground-tile').value === 'saved:' + name); }
+function deleteSavedComponent(name) {
+  const all = LIBRARY.read();
+  if (!all[name]) return;
+  state.symbolPool = state.symbolPool.filter(p => p.name !== name);
+  state.components.forEach(c => { if (c.savedName === name) delete c.savedName; });
+  if (componentUsage(name).total) {
+    const key = name + ' (deleted ' + Date.now().toString(36) + ')';
+    renameLibraryEntry(name, key);   // repoints every user to the hidden key
+    const lib = LIBRARY.read(); if (lib[key]) { lib[key].hidden = true; LIBRARY.write(lib); }
+  } else removeLibraryEntry(name);
+  renderSymbolPool(); renderGallery(); renderLibrary();
+}
+function deleteSavedElement(name) {
+  const all = ELEMENT_LIB.read();
+  if (!all[name]) return;
+  if (elementInLivePaper(name)) { all[name].hidden = true; ELEMENT_LIB.write(all); elementLibraryChanged(); }   // the open Paper keeps its tile
+  else removeSavedElement(name);
+}
+function deleteSaved(kind, name) {
+  if (kind === 'element') deleteSavedElement(name);
+  else if (kind === 'symbol') removeSymbolLibraryEntry(name);
+  else deleteSavedComponent(name);
+  sweepHiddenSaved();
+}
+// Hidden entries nothing uses any more go for good.
+function sweepHiddenSaved() {
+  const lib = LIBRARY.read();
+  let gone = false;
+  for (let pass = 0; pass < 4; pass++) {   // a hidden Container may be the only user of another hidden one
+    const drop = Object.keys(lib).filter(n => lib[n].hidden && !componentUsage(n).total);
+    if (!drop.length) break;
+    drop.forEach(n => delete lib[n]); LIBRARY.write(lib); gone = true;
+  }
+  if (gone) renderLibrary();
+  const els = ELEMENT_LIB.read(), dropEl = Object.keys(els).filter(n => els[n] && els[n].hidden && !elementInLivePaper(n));
+  if (dropEl.length) { dropEl.forEach(n => delete els[n]); ELEMENT_LIB.write(els); elementLibraryChanged(); }
+}
+function dupName(all, base) {
+  let n = base + ' copy';
+  for (let i = 2; all[n]; i++) n = base + ' copy ' + i;
+  return n;
+}
+function duplicateSaved(kind, name) {
+  const store = kind === 'element' ? ELEMENT_LIB : kind === 'symbol' ? SYMBOL_LIBRARY : LIBRARY;
+  const all = store.read();
+  if (!all[name]) return null;
+  const next = dupName(all, name);
+  all[next] = { ...JSON.parse(JSON.stringify(all[name])), savedAt: new Date().toISOString() };
+  store.write(all);
+  if (kind === 'element') elementLibraryChanged(); else if (kind === 'symbol') renderSymbolLibrary(); else renderLibrary();
+  return next;
+}
+
+// ── Library view (Oct 6, 2026) — every saved Element, Component, Symbol and the Genesis seeds (the 13
+// Base Seeds + the user's own) in one view over the canvas, opened from the floatbar on every tier.
+// A tile's click opens / loads it (a Genesis seed becomes the Element's Shape); Rename · Duplicate ·
+// SVG · PNG · Delete under it. The rail stays for dragging onto Symbol cells.
+const LIBVIEW_KINDS = [['element', 'Elements'], ['component', 'Components'], ['symbol', 'Symbols'], ['genesis', 'Genesis seeds']];
+let libviewKind = 'all';
+function libviewIsOpen() { const v = document.getElementById('fvs-libview'); return !!(v && !v.hidden); }
+function libviewItems(kind) {
+  const newest = all => (a, b) => String((all[b] || {}).savedAt || '').localeCompare(String((all[a] || {}).savedAt || ''));
+  if (kind === 'element') { const all = ELEMENT_LIB.read(); return shownElementNames(all).sort(newest(all)).map(n => ({ name: n, svg: () => savedElementThumb(all[n]) })); }
+  if (kind === 'component') { const all = LIBRARY.read(); return libraryNames(all).sort(newest(all)).map(n => ({ name: n, svg: () => componentThumbSVG(n) })); }
+  if (kind === 'symbol') { const all = SYMBOL_LIBRARY.read(); return Object.keys(all || {}).sort(newest(all)).map(n => ({ name: n, svg: () => symbolEntryThumbSVG(all[n]) })); }
+  return genesisTileForms().map(f => ({ name: f.name || f.id, id: f.id, svg: () => String(f.svg) }));
+}
+function libviewVerb(kind, name) {
+  return kind === 'element' ? 'Edit Element ' + name : kind === 'component' ? 'Load Component ' + name
+    : kind === 'symbol' ? 'Load Symbol ' + name : 'Use as Element shape: ' + name;
+}
+function libviewTile(kind, item) {
+  const tile = document.createElement('div');
+  tile.className = 'fvs-libview__tile';
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'fvs-libview__thumb';
+  b.dataset.theme = 'light';   // the work stays light in dark mode (a work surface, like the sheet)
+  b.dataset.lvKind = kind; b.dataset.lvName = item.id || item.name;
+  b.setAttribute('aria-label', libviewVerb(kind, item.name));
+  try { b.innerHTML = item.svg(); } catch (e) { b.innerHTML = ''; }
+  const cap = document.createElement('span');
+  cap.className = 'fvs-library-caption fvs-libview__name'; cap.textContent = item.name; cap.title = item.name;
+  const acts = document.createElement('div');
+  acts.className = 'fvs-libview__actions';
+  const act = (icon, verb, label, extra) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'icon-btn'; x.dataset.lvAct = verb; x.setAttribute('aria-label', label); x.innerHTML = Organica.icons.get(icon, { size: 'sm' }); if (extra) extra(x); return x; };
+  const fmt = f => { const x = document.createElement('button'); x.type = 'button'; x.className = 'mini-btn'; x.dataset.lvAct = f; x.textContent = f.toUpperCase(); x.setAttribute('aria-label', 'Download ' + item.name + ' as ' + f.toUpperCase()); return x; };
+  if (kind !== 'genesis') {
+    acts.append(act('pencil', 'rename', 'Rename ' + item.name), act('copy', 'duplicate', 'Duplicate ' + item.name));
+  }
+  acts.append(fmt('svg'), fmt('png'));
+  if (kind !== 'genesis') acts.append(act('trash', 'delete', 'Delete ' + item.name));   // one click (Diego: "delete is delete")
+  tile.append(b, cap, acts);
+  return tile;
+}
+function renderLibview() {
+  if (!libviewIsOpen()) return;
+  const body = ctrl('libview-body'), q = ctrl('libview-q').value.trim().toLowerCase();
+  body.innerHTML = '';
+  let shown = 0, any = 0;
+  LIBVIEW_KINDS.forEach(([kind, title]) => {
+    if (libviewKind !== 'all' && libviewKind !== kind) return;
+    const all = libviewItems(kind); any += all.length;
+    const items = q ? all.filter(it => String(it.name).toLowerCase().includes(q)) : all;
+    if (!items.length) return;   // an empty section is not shown
+    shown += items.length;
+    const sec = document.createElement('section');
+    sec.className = 'fvs-libview__section';
+    const h = document.createElement('h3'); h.className = 'sub-label'; h.textContent = title + ' · ' + items.length;
+    const grid = document.createElement('div'); grid.className = 'fvs-libview__grid';
+    items.forEach(it => grid.appendChild(libviewTile(kind, it)));
+    sec.append(h, grid); body.appendChild(sec);
+  });
+  if (!shown) {
+    const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    body.innerHTML = q ? `<div class="org-empty"><p class="org-empty__title">No matches</p><p class="org-empty__hint">Nothing saved is named “${esc(ctrl('libview-q').value.trim())}”.</p></div>`
+      : `<div class="org-empty"><p class="org-empty__title">Nothing here yet</p><p class="org-empty__hint">${libviewKind === 'all' ? 'Save an Element, a Component or a Symbol.' : 'No ' + (LIBVIEW_KINDS.find(k => k[0] === libviewKind) || [, 'items'])[1] + ' saved yet.'}</p></div>`;
+  }
+}
+// Always on (Diego, Oct 6, 2026): the Genesis seeds are always there, and the Library is where the Element picks them.
+function libviewBlock() { return ''; }
+function syncLibviewButton() {
+  const btn = ctrl('btn-libview'), why = libviewBlock();
+  btn.setAttribute('aria-disabled', String(!!why));
+  btn.setAttribute('aria-label', why || 'Library');
+  if (why && libviewIsOpen()) closeLibview({ focus: true });
+}
+function openLibview() {
+  const v = ctrl('fvs-libview');
+  if (railIsOpen()) setRailOpen(false);
+  libviewKind = 'all';
+  ctrl('libview-filter').querySelectorAll('.seg-btn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === 'all')));
+  v.hidden = false;
+  ctrl('canvas-wrap').classList.add('is-libview');
+  document.body.classList.add('fvs-libview-open');
+  ctrl('btn-libview').setAttribute('aria-expanded', 'true');
+  Organica.store.library.pull().then(() => renderLibview());   // the user's Genesis seeds, fresh
+  renderLibview();
+  ctrl('libview-q').focus();
+}
+function closeLibview(opts) {
+  const v = document.getElementById('fvs-libview');
+  if (!v || v.hidden) return;
+  v.hidden = true;
+  ctrl('canvas-wrap').classList.remove('is-libview');
+  document.body.classList.remove('fvs-libview-open');
+  ctrl('btn-libview').setAttribute('aria-expanded', 'false');
+  ctrl('libview-status').textContent = '';
+  if (opts && opts.focus) ctrl('btn-libview').focus();
+}
+// A saved item as a file: the same SVG its thumbnail draws (Paper included), or that SVG rasterised.
+function libviewSVG(kind, name) {
+  if (kind === 'element') { const e = ELEMENT_LIB.read()[name]; return e ? savedElementThumb(e) : ''; }
+  if (kind === 'component') return componentThumbSVG(name);
+  if (kind === 'symbol') { const e = SYMBOL_LIBRARY.read()[name]; return e ? symbolEntryThumbSVG(e) : ''; }
+  const f = genesisTileForms().find(x => x.id === name);
+  return f ? String(f.svg).replace(/var\(--ink\)/g, '#000000') : '';
+}
+const fileSlug = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'item';
+async function libviewDownload(kind, name, fmt) {
+  let svg = libviewSVG(kind, name);
+  if (!svg) return;
+  svg = ensureSvgNamespace(svg).replace(/\saria-hidden="true"/, '');
+  const base = 'fvs-' + kind + '-' + fileSlug(kind === 'genesis' ? (genesisTileForms().find(x => x.id === name) || {}).name || name : name);
+  if (fmt === 'svg') { Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp(base, 'svg')); ctrl('libview-status').textContent = 'SVG downloaded'; return; }
+  const vb = (svg.match(/viewBox="([^"]+)"/) || [])[1], parts = vb ? vb.trim().split(/[\s,]+/).map(Number) : [0, 0, 100, 100];
+  const w = parts[2] || 100, h = parts[3] || 100, k = 2000 / Math.max(w, h);
+  const cw = Math.round(w * k), ch = Math.round(h * k);
+  const sized = svg.replace(/<svg\b([^>]*)>/, (m, a) => '<svg' + a.replace(/\s(width|height)="[^"]*"/g, '') + ` width="${cw}" height="${ch}">`);
+  const url = URL.createObjectURL(new Blob([sized], { type: 'image/svg+xml' }));
+  try {
+    const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('PNG failed')); im.src = url; });
+    const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+    cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
+    Organica.download(Organica.dataURLToBlob(cv.toDataURL('image/png')), Organica.stamp(base, 'png'));
+    ctrl('libview-status').textContent = 'PNG downloaded';
+  } catch (e) { ctrl('libview-status').textContent = 'Could not make the PNG'; }
+  finally { URL.revokeObjectURL(url); }
+}
+function libviewOpenItem(kind, name) {
+  if (kind === 'genesis') {
+    const f = genesisTileForms().find(x => x.id === name);
+    if (!f) return;
+    closeLibview();
+    if (state.activeTier !== 'element') setTier('element');
+    try { useSvgAsSeed(f.svg); }   // whole: flower bloom = 9 ellipses, sun = disc + stroked rays
+    catch (e) { ctrl('seed-upload-error').textContent = e.message; ctrl('seed-upload-error').style.display = ''; }
+    return;
+  }
+  closeLibview();
+  if (kind === 'element') openSavedElement(name);
+  else if (kind === 'component') openSavedComponent(name);
+  else railUse('symbol', name);
+}
+const KIND_WORD = { element: 'Element', component: 'Component', symbol: 'Symbol' };
+ctrl('fvs-libview').addEventListener('click', async e => {
+  const seg = e.target.closest('#libview-filter .seg-btn');
+  if (seg) { libviewKind = seg.dataset.kind; ctrl('libview-filter').querySelectorAll('.seg-btn').forEach(b => b.setAttribute('aria-pressed', String(b === seg))); renderLibview(); return; }
+  if (e.target.closest('#libview-close')) { closeLibview({ focus: true }); return; }
+  const tile = e.target.closest('.fvs-libview__tile');
+  if (!tile) return;
+  const th = tile.querySelector('.fvs-libview__thumb'), kind = th.dataset.lvKind, name = th.dataset.lvName;
+  const act = e.target.closest('[data-lv-act]');
+  if (!act) { if (e.target.closest('.fvs-libview__thumb')) libviewOpenItem(kind, name); return; }
+  const verb = act.dataset.lvAct, status = ctrl('libview-status');
+  if (verb === 'svg' || verb === 'png') { libviewDownload(kind, name, verb); return; }
+  if (verb === 'rename') { await railRename(kind, name); renderLibview(); status.textContent = KIND_WORD[kind] + ' renamed'; return; }
+  if (verb === 'duplicate') { if (duplicateSaved(kind, name)) { renderLibview(); status.textContent = KIND_WORD[kind] + ' duplicated'; } return; }
+  if (verb === 'delete') { deleteSaved(kind, name); renderLibview(); status.textContent = KIND_WORD[kind] + ' deleted'; syncLibviewButton(); }
+});
+ctrl('libview-q').addEventListener('input', () => renderLibview());
+ctrl('btn-libview').addEventListener('click', () => {
+  if (ctrl('btn-libview').getAttribute('aria-disabled') === 'true') return;
+  libviewIsOpen() ? closeLibview({ focus: true }) : openLibview();
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || e.defaultPrevented || !libviewIsOpen()) return;
+  if (document.querySelector('dialog[open]')) return;   // Organica.prompt / confirm take their own Escape
+  if (e.target.closest && e.target.closest('[data-armed].is-armed')) return;
+  closeLibview({ focus: true });
+});
+ctrl('btn-libview').innerHTML = Organica.icons.get('library', { size: 'lg' });
+ctrl('libview-close').innerHTML = Organica.icons.get('close', { size: 'sm' });
+
 setRailOpen(false);   // always starts closed — the saved library stays out of the way until asked for (was restored from organica.fvs.rail)
 
 renderGallery();
@@ -13353,6 +13918,7 @@ Organica.autoLabelPanel(document);
 // Cloud sync (shared/store.js): hydrate component + symbol libraries from Supabase.
 LIBRARY.pull().then(() => { pruneAutoLibraryEntries(); renderLibrary(); });        LIBRARY.onSync(() => renderLibrary());
 SYMBOL_LIBRARY.pull().then(() => renderSymbolLibrary()); SYMBOL_LIBRARY.onSync(() => renderSymbolLibrary());
+ELEMENT_LIB.pull().then(() => elementLibraryChanged());   ELEMENT_LIB.onSync(() => elementLibraryChanged());   // saved Elements from the account show on a new device / session without a reload
 // Genesis library (seed picker) — hydrate the cache from Supabase; the picker
 // reads it live each time it opens, so no re-render needed here.
 Organica.store.library.pull();

@@ -1,7 +1,7 @@
 {
-  "maxTiles": 16,
-  "maxTotalKB": 2048,
+  "maxTiles": 24,
+  "maxTotalKB": 3072,
   "maxSampleKB": 300,
   "maxPageKB": 40,
-  "note": "Development test gallery budget. Enforced by scripts/check.py; shown on /gallery/. Raise it deliberately, in a commit that says why."
+  "note": "Development test gallery budget. Enforced by scripts/check.py; shown on /gallery/. Raised Oct 6, 2026 (16 → 24 tiles, 2 → 3 MB) for the FVS overlap & blend tests, on Diego's request — retire tiles rather than raising it again."
 }

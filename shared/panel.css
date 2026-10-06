@@ -929,7 +929,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 .org-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Armed two-click confirm (Organica.armed, [data-armed]) — one look for every destructive button. */
-.mini-btn.is-armed, .org-btn.is-armed, .panel-btn.is-armed { color: var(--danger); border-color: var(--danger); }
+.mini-btn.is-armed, .org-btn.is-armed, .panel-btn.is-armed, .icon-btn.is-armed { color: var(--danger); border-color: var(--danger); }
 
 
 /* ═══════════════════════════════════════════════════════════

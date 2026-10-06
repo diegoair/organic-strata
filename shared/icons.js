@@ -64,6 +64,7 @@
     'invert':        '<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z"/>',
     /* ── views ───────────────────────────────────────── */
     'grid':          '<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/>',
+    'library':       '<path d="M3 3v10.5M5.75 3v10.5M8.5 3v10.5"/><path d="M10.4 3.6l2.8 9.6"/><path d="M2 13.5h12"/>',   // every saved item in one view (FVS Library) — not grid (= a layout of cells / the rail toggle)
     'fullscreen':    '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>',
     'full-family':   '<rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M8 2.5v11M2.5 8h11"/>',
     'generate':      '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M8 2.5v11M2.5 8h11"/><rect x="4" y="4" width="2.5" height="2.5" rx=".4"' + F + '/><rect x="9.5" y="9.5" width="2.5" height="2.5" rx=".4"' + F + '/>',   // fill a grid's cells for you (FVS Symbol Generate) — not refresh (= run again)
