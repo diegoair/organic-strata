@@ -14,7 +14,8 @@ compose it with rules — so a whole pattern stays coherent and every result is 
 real symmetry, not noise. Everything is vector: one `<path>` per cell, the
 preview **is** the export string, and PNG rasterises the same geometry.
 
-Single-file vanilla HTML/CSS/JS (`fvs/index.html`), no build step.
+Vanilla HTML/CSS/JS, no build step: `fvs/index.html` (markup) + `fvs/fvs.css` + native ES modules in
+`fvs/js/` (split out of the single file, Oct 2026 — see §11 Architecture).
 
 ---
 
@@ -782,7 +783,56 @@ fixed battery of builds, hashes every SVG and diffs against
 expected: *All N cases match the baseline*. When a change is intentional, use
 **Show JSON to record** and update the baseline in the same commit. New Flexible Visual System
 behaviour gets new cases in `battery()`. It is run before every commit that
-touches `fvs/index.html` or the shared files Flexible Visual System uses.
+touches `fvs/` or the shared files Flexible Visual System uses. Since the split (§11) the battery runs inside
+`with (window.__fvs)` — the test surface puts every export there — and awaits `loadFigureTier()` first.
+`scripts/test-fvs-qa.sh` adds boot health, every view in both themes, export parity and the lazy Figure check
+(baseline `fvs/_qa-baseline.json`); `scripts/test-fvs-ui.sh` drives real mouse journeys.
 
 Not covered: PNG byte content, cross-browser behaviour (see the backlog in
 CLAUDE.md).
+
+## 11. Architecture (Oct 2026 — the split)
+
+Until October 2026 the whole tool was one 903 KB `fvs/index.html` with a 736 KB inline script. It is now:
+
+| Part | What | Loaded |
+|---|---|---|
+| `fvs/index.html` | head, markup, one `<script type="module" src="/fvs/js/main.js">` (~120 KB) | always |
+| `fvs/fvs.css` | the tool's own sheet (was the inline `<style>`; linted by css-lint, audited by ds-audit) | always |
+| `fvs/js/engine/NN-*.js` | **engine** — model + logic, no DOM UI: rule builders, Paper geometry (Split, Cut out, Irregularity), colourways, Suggest scoring, Loom models, Figure mutations, the `state` model and the saved-item stores | first |
+| `fvs/js/NN-*.js` | **UI** by component view: 00 core · 01 geometry · 02 Element panel · 03 rules · 04 appearance · 05 Component render · 06 Component UI · 07 library · 08 Symbol grid · 09 Symbol render · 10 Arrange/Suggest · 11 Symbol UI · 12 shell · 15 export, rail, Library view · 99 boot | in that order |
+| `fvs/js/13-figure-engine.js`, `14-figure-ui.js` (+ their `engine/` halves) | the Figure tier (~96 KB) | **on demand** — `lazy.js` `loadFigureTier()` → `figure.js`, the first time `setTier('figure')` runs |
+
+**Order.** Each file imports by name what it uses from *earlier* files only, so modules evaluate in the
+order the single script used to run (`main.js` lists them). A reference from an earlier file to a later
+one — only ever made at run time, never while loading — goes through **`hooks.*`** (`fvs/js/hooks.js`):
+the later file `provide()`s live getters as its first statement. Finding one in the code means "this
+reaches a later file". A top-level variable that more than one file assigns lives on **`rt`**
+(`fvs/js/rt.js`: `rt.paperPatternOn`, `rt.appearanceOverride`, …) — an imported binding is read-only.
+
+**Adding code.** Put a function in the file of its view; import what it needs from earlier files. If it
+must call something in a later file, call it as `hooks.name()` and add `name` to that file's
+`provide({…})`. A new top-level variable written from another file goes on `rt`. Engine files
+(`fvs/js/engine/`) must stay engine: `scripts/check.py` ("fvs engine") fails if one imports a UI file
+or touches a panel control, page element or UI `Organica` call. Figure code stays in its two files so
+it keeps loading on demand; anything outside Figure reaches it only through `hooks` after
+`loadFigureTier()`.
+
+**Test surface.** `fvs/js/test-surface.js` puts every export on `window.__fvs` (live getters; `rt`
+fields get + set), plus `__fvs.ready` / `isReady`, `loadFigureTier`, and the one test hook in the tool:
+`rt.afterLoadSymbolGrid` (called by `loadSymbolGrid`, null in use — the regression battery pins *Clip to
+cell* with it). Figure names throw "await __fvs.loadFigureTier()" until Figure has loaded.
+
+**What the engine does not have yet.** The Element, the Component grid and the appearance are read from
+the panel's controls (`getPanelSeed`, `getGrid`, `getElementAppearance`), so everything that reaches them
+— the `SEED_TYPES` geometry chain, `buildComponentSVG`, `buildSymbolItems`/`buildSymbolSVG`, Suggest's
+weights — stays UI. Moving the panel's values into `state` is the next step towards a fully separate
+engine (and is what a React port would do); `scripts/fvs-engine.mjs` on the `fvs-split` branch reports the
+root causes.
+
+**How it was made.** Mechanically, on branch `fvs-split`: `scripts/fvs-split.mjs` (anchor-based cut into
+classic files, every line placed once, no parse-time reach into a later file) → `scripts/fvs-modules.mjs`
++ `scripts/fvs-engine.mjs` (exports/imports, hooks, rt, engine extraction, lazy Figure). Each stage
+passed the regression (unchanged baseline) and `test-fvs-qa`. The generators are deleted when the branch
+merges; from then on the files are the source.
+

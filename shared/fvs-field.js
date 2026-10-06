@@ -5,7 +5,7 @@
    cell's turn set by a named rule. It lies under a page (the 404), never
    takes the pointer, and moves the way FVS itself does. Two motions:
 
-     arrival — FVS's Generate arrival (fvs/index.html runSymbolArrival, after
+     arrival — FVS's Generate arrival (fvs/js/08-symbol-grid.js runSymbolArrival, after
                Bencho, MIT): a cell forms out of a blurred, hard-contrast mass
                into its sharp shape, cells in a scattered order; then one cell
                at a time takes a quarter turn and re-forms.

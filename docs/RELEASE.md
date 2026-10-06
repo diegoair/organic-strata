@@ -15,6 +15,9 @@ Local first, preview second, production last. Nothing reaches `main` without an 
   runs **automatically** in the pre-commit hook (headless Chrome, ~4 s). Run it by hand any time with
   `scripts/regression.sh`. An intended change re-records `fvs/_regression-baseline.json` in the same commit
   (`scripts/regression.sh --record`, then review the `git diff`).
+- Flexible Visual System also has `scripts/test-fvs-qa.sh` (~1 min: boot health, every view in light + dark, export
+  parity against `fvs/_qa-baseline.json`, the `/fvs/` files and the lazy Figure tier) and `scripts/test-fvs-ui.sh`
+  (~25 min: real mouse journeys). Its code is ES modules in `fvs/js/` — see docs/FVS.md §11 before adding any.
 
 ## 2. Local commit (always local first)
 When a release is ready to test, leave it as a **local commit**. Never push at this stage.

@@ -6,7 +6,7 @@
    drag, not per pixel, so history gets one snapshot per drag instead
    of one per mousemove tick).
 
-   Extends FVS's threshold-drag technique (fvs/index.html:2409-2470) but
+   Extends FVS's threshold-drag technique (now fvs/js/, e.g. the layer reorder in 07-library.js) but
    WRITES a new x/y back into the model — that write-back path didn't
    exist anywhere in the repo before this. The card's own header is the
    drag handle (no click-vs-drag ambiguity to resolve: the header has no

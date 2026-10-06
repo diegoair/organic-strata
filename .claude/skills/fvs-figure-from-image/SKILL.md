@@ -29,7 +29,7 @@ FVS describes a figure as **Seed · lattice · slot classes · class→content/p
 - `seed: 'live'` on a symbol level keeps the Element's own settings in every cell.
 - `rules` apply in order; later rules override earlier ones. `when` keys: `class`, `row`, `col`, `index`, `parity`, `ring`, `sector` (a value or an array). `do` keys: `content` (`empty`|`filled`), `rotate`, `flipH`, `flipV`, `scale`.
 - A `component` first level (`rule`: checkerboard / radial / pinwheel / mirror, with `params`) covers the classic 2×2 blocks.
-- Examples: `triangleFigureRecipes()` and `FIGURE_RECIPES_V1_AS_V2` in `fvs/index.html`.
+- Examples: `triangleFigureRecipes()` and `FIGURE_RECIPES_V1_AS_V2` in `fvs/js/engine/13-figure-engine.js`.
 
 ## 3. Verify
 Open `/fvs/` on the dev server, the **Figure** tab, paste the JSON in *Recipe JSON* → Apply. Load the (cropped) reference image: the overlay and the checks report slot counts, shapes drawn, symmetry of mirrors, and the silhouette overlap with the reference. Iterate on the decode, not on the checks — a low overlap on a distorted photo is expected; a wrong count is not.

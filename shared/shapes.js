@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────────────────────
  * shapes.js — Organica.shapes: pure shape geometry + grid cell-placement math.
  *
- * Extracted from fvs/index.html at the second consumer (Trellis) — same
+ * Extracted from fvs/index.html (now fvs/js/) at the second consumer (Trellis) — same
  * "extract at the second consumer" move as noise.js / motion.js / radial.js /
  * pollen-engine.js. FVS's Symbols tier was the first to solve "one shape per
  * grid cell, rect or polygon, fitted/anchored/scaled/rotated"; this file is

@@ -225,7 +225,7 @@ var n = Organica.fvsField.visit('organica.<page>.visit');   // per-browser visit
 - **Behaviour**: inline SVG, own timers only, pauses while the tab is hidden,
   rebuilds on host resize, `prefers-reduced-motion` = the settled picture.
 - **Colour rule, motions, markup**: `/design-system/#fvs-field` (live demo).
-- **Known duplication**: the arrival lives twice — `fvs/index.html`
+- **Known duplication**: the arrival lives twice — `fvs/js/08-symbol-grid.js`
   `runSymbolArrival` and this module (queued in the ledger §4).
 
 ---
