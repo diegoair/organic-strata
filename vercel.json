@@ -7,7 +7,13 @@
       ]
     },
     {
-      "source": "/fvs/(js/(.*)|fvs).(css|js)",
+      "source": "/fvs/js/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/fvs/fvs.css",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=300, stale-while-revalidate=86400" }
       ]

@@ -29,6 +29,8 @@ s = s.replace('''editBtn.innerHTML = '<svg class="ico ico--sm" data-icon="pencil
               "editBtn.innerHTML = Organica.icons.get('pencil', { size: 'sm' });")
 s = s.replace('''<svg class="ico ico--sm" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`;''',
               "${Organica.icons.get('close', { size: 'sm' })}</button>`;")
+s = s.replace("before this tool's own inline <script>, so Organica.* exists at parse time. -->",
+              "before this tool's ES modules (/fvs/js/main.js), so Organica.* exists when they run. -->")
 open(p, 'w', encoding='utf-8').write(s)
 PY
 rm -rf fvs/js fvs/fvs.css

@@ -54,6 +54,20 @@ try:
             extra = set(e) - allowed
             if extra:
                 fail(f"{sect}[{i}] has unknown key(s) {sorted(extra)}")
+    # a route `source` is a path-to-regexp pattern: a group inside a group, or `|` outside one, fails the
+    # deploy with "invalid-route-source-pattern" (Oct 6, 2026: /fvs/(js/(.*)|fvs).(css|js) did) — keep them flat
+    for sect in ("headers", "rewrites", "redirects"):
+        for i, e in enumerate(cfg.get(sect, [])):
+            src, depth, nested = e.get("source", ""), 0, False
+            for ch in src:
+                if ch == "(":
+                    depth += 1; nested = nested or depth > 1
+                elif ch == ")":
+                    depth -= 1
+                elif ch == "|" and depth == 0:
+                    nested = True
+            if nested or depth:
+                fail(f"{sect}[{i}] source {src!r}: nested or unbalanced group — Vercel rejects it (invalid-route-source-pattern)")
     dests = [r["destination"] for r in cfg.get("rewrites", [])]
     for d in dests:
         m = re.match(r"^/([\w-]+)/", d)
