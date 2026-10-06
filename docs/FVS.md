@@ -799,7 +799,7 @@ Until October 2026 the whole tool was one 903 KB `fvs/index.html` with a 736 KB 
 |---|---|---|
 | `fvs/index.html` | head, markup, one `<script type="module" src="/fvs/js/main.js">` (~120 KB) | always |
 | `fvs/fvs.css` | the tool's own sheet (was the inline `<style>`; linted by css-lint, audited by ds-audit) | always |
-| `fvs/js/engine/NN-*.js` | **engine** — model + logic, no DOM UI: rule builders, Paper geometry (Split, Cut out, Irregularity), colourways, Suggest scoring, Loom models, Figure mutations, the `state` model and the saved-item stores | first |
+| `fvs/js/engine/NN-*.js` | **engine** — model + logic, no DOM UI (~303 KB): the Seed geometry (`SEED_TYPES`, Split, Cut out, Irregularity), `getSeed` / `getGrid` / `getElementAppearance`, rule builders, every renderer (`buildComponentSVG`, `drawComponentCanvas`, `buildSymbolSVG`, `drawSymbolCanvas`, `tierSVG`), Suggest, colourways, Loom models, Figure checks and mutations; the model (`state`, `live`, the saved-item stores) and the panel reader | first |
 | `fvs/js/NN-*.js` | **UI** by component view: 00 core · 01 geometry · 02 Element panel · 03 rules · 04 appearance · 05 Component render · 06 Component UI · 07 library · 08 Symbol grid · 09 Symbol render · 10 Arrange/Suggest · 11 Symbol UI · 12 shell · 15 export, rail, Library view · 99 boot | in that order |
 | `fvs/js/13-figure-engine.js`, `14-figure-ui.js` (+ their `engine/` halves) | the Figure tier (~96 KB) | **on demand** — `lazy.js` `loadFigureTier()` → `figure.js`, the first time `setTier('figure')` runs |
 
@@ -807,7 +807,8 @@ Until October 2026 the whole tool was one 903 KB `fvs/index.html` with a 736 KB 
 order the single script used to run (`main.js` lists them). A reference from an earlier file to a later
 one — only ever made at run time, never while loading — goes through **`hooks.*`** (`fvs/js/hooks.js`):
 the later file `provide()`s live getters as its first statement. Finding one in the code means "this
-reaches a later file". A top-level variable that more than one file assigns lives on **`rt`**
+reaches a later file". A top-level variable that more than one file assigns lives on **`rt`** (UI-side,
+7 left; values the engine needs are on `live` instead)
 (`fvs/js/rt.js`: `rt.paperPatternOn`, `rt.appearanceOverride`, …) — an imported binding is read-only.
 
 **Adding code.** Put a function in the file of its view; import what it needs from earlier files. If it
@@ -823,12 +824,23 @@ fields get + set), plus `__fvs.ready` / `isReady`, `loadFigureTier`, and the one
 `rt.afterLoadSymbolGrid` (called by `loadSymbolGrid`, null in use — the regression battery pins *Clip to
 cell* with it). Figure names throw "await __fvs.loadFigureTier()" until Figure has loaded.
 
-**What the engine does not have yet.** The Element, the Component grid and the appearance are read from
-the panel's controls (`getPanelSeed`, `getGrid`, `getElementAppearance`), so everything that reaches them
-— the `SEED_TYPES` geometry chain, `buildComponentSVG`, `buildSymbolItems`/`buildSymbolSVG`, Suggest's
-weights — stays UI. Moving the panel's values into `state` is the next step towards a fully separate
-engine (and is what a React port would do); the split's `scripts/fvs-engine.mjs` (in git history, commit
-`ebd64fe`) reports the root causes.
+**The panel reader (Oct 2026).** The engine never reads the page. A control's value comes through
+`pv(id)` (its value, like `ctrl(id).value`), `pc(id)` (a checkbox, like `ctrl(id).checked`), `pr(id)` (either)
+and `val(id)` (`parseFloat(pv(id))`), all in `engine/00-core.js`. They ask **`panelSource`**, which the UI
+points at the controls once (`setPanelSource`, in `00-core.js`): the same values, read the same way, so
+nothing drifts — there is no copy to keep in step. A port plugs its own state into `setPanelSource`
+instead. **Reading** a control anywhere: use `pv` / `pc` / `val`. **Writing** one stays UI
+(`ctrl(id).value = …`).
+
+**`live`** (`engine/00-core.js`) holds what render code and the UI share at run time — the render
+overrides (`appearanceOverride`, `variantAppearance`, `inkPaletteOverride`, `layerInkOverride`),
+`paperPatternOn`, the Symbol caches, the stack draw counter, `contentOverlayFit`, `lastFigureMeta`. It is part
+of the model, like `state`; a new value of that kind goes there, not in a top-level `let`. The engine's one
+page call is `offscreenCanvas(w, h)` (an unmounted canvas for compositing and raster checks).
+
+**What stays UI.** Everything that builds, wires or reads the page beyond a control's value: panel
+syncing, galleries, the rail and Library view, overlays, drag, the Figure runner (`runFigureRecipe` drives
+the panel), exports that download.
 
 **How it was made.** Mechanically, on branch `fvs-split`: `scripts/fvs-split.mjs` (anchor-based cut into
 classic files, every line placed once, no parse-time reach into a later file) → `scripts/fvs-modules.mjs`
