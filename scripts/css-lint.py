@@ -36,13 +36,14 @@ def all_pages():
             if p.split('/')[0] not in EXCLUDE_DIRS]
 
 def styles(src):
-    """Every tool-local <style> block's contents, plus the tool's own linked
-    sheets (any <link href="/<tool>/….css"> outside /shared/ — e.g. fvs/fvs.css),
-    so moving a <style> block into a file never drops it from the lint."""
+    """Every tool-local <style> block's contents, plus the tool's own sheet when
+    the page links it — <tool>/<tool>.css (O-27; e.g. fvs/fvs.css), the same
+    rule as ds-audit.py — so moving a <style> into its file never drops it."""
     out = re.findall(r'<style[^>]*>(.*?)</style>', src, re.S)
-    for href in re.findall(r'<link[^>]+href="/([^"]+\.css)"', src):
-        if href.startswith('shared/') or not os.path.isfile(href): continue
-        out.append(open(href, encoding='utf-8').read())
+    for href in re.findall(r'<link[^>]+href="/([^"/]+)/([^"/]+)\.css"', src):
+        d, name = href
+        if d != name or d == 'shared' or not os.path.isfile(f'{d}/{d}.css'): continue
+        out.append(open(f'{d}/{d}.css', encoding='utf-8').read())
     return out
 
 def strip_comments(css):

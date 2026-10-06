@@ -78,6 +78,7 @@ In `<head>`, **in this order**:
 <!-- opt-in, in this order after shell: palette.css, seeds-panel.css -->
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <style> /* only the tool's own content — its --tool accent + one-off components */ </style>
+<!-- …or, instead of the <style>, its own sheet in the same place: <link rel="stylesheet" href="/<tool>/<tool>.css"> (O-27; fvs/fvs.css) -->
 <script src="/shared/pattern-init.js"></script>   <!-- theme + canvas pattern before first paint -->
 ```
 
@@ -504,7 +505,7 @@ Class names match what the tools already used, so adoption is *link the file,
 delete the local copy*. `.sec h3`, `.row` and `.group-label` are aliased for
 Living Path, so its JS is untouched.
 
-**Order matters:** the tool's own `<style>` comes after the linked sheet, so
+**Order matters:** the tool's own `<style>` — or its own sheet `/<tool>/<tool>.css`, linked in the same place (O-27) — comes after the linked sheet, so
 any leftover local rule silently overrides the component. When migrating,
 delete the local rules — don't just add the link.
 

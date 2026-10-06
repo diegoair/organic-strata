@@ -4,7 +4,7 @@ Written September 6, 2026, after an audit of all 24 pages and the 8 shared
 stylesheets. Every rule below exists because the audit found that exact bug —
 none of it is style preference.
 
-**The executable half is `scripts/css-lint.py`.** Run it from the repo root:
+**The executable half is `scripts/css-lint.py`.** It lints each page's own `<style>` and, since O-27 (Oct 6, 2026), a tool's own sheet `<tool>/<tool>.css` when the page links it. Run it from the repo root:
 
 ```bash
 python3 scripts/css-lint.py
