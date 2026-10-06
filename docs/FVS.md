@@ -789,7 +789,9 @@ behaviour gets new cases in `battery()`. It is run before every commit that
 touches `fvs/` or the shared files Flexible Visual System uses. Since the split (§11) the battery runs inside
 `with (window.__fvs)` — the test surface puts every export there — and awaits `loadFigureTier()` first.
 `scripts/test-fvs-qa.sh` adds boot health, every view in both themes, export parity and the lazy Figure check
-(baseline `fvs/_qa-baseline.json`); `scripts/test-fvs-ui.sh` drives real mouse journeys.
+(baseline `fvs/_qa-baseline.json`); `scripts/test-fvs-ui.sh` drives real mouse journeys; `scripts/test-fvs-perf.sh`
+times Component saves (click → painted frame) across every cell shape × grid shape × size and traces the paint / GPU
+work of each cell shape (header of the script for the options).
 
 Not covered: PNG byte content, cross-browser behaviour (see the backlog in
 CLAUDE.md).

@@ -18,6 +18,10 @@ Local first, preview second, production last. Nothing reaches `main` without an 
 - Flexible Visual System also has `scripts/test-fvs-qa.sh` (~1 min: boot health, every view in light + dark, export
   parity against `fvs/_qa-baseline.json`, the `/fvs/` files and the lazy Figure tier) and `scripts/test-fvs-ui.sh`
   (~25 min: real mouse journeys). Its code is ES modules in `fvs/js/` — see docs/FVS.md §11 before adding any.
+- FVS speed: `scripts/test-fvs-perf.sh` (~2–3 min; `--quick` ~30 s) — real clicks on the save circle, click → painted
+  frame: 12 saves in a row (circle, grid 1), every cell shape × grid shape × size on a ~300-Component library, and a
+  traced hover sweep per cell shape at 2× density (GPU / paint work). Fails on a save over 500 ms or a save not stored.
+  Before/after: `git worktree add /tmp/old <commit>` then `--root /tmp/old`; try a CSS change with `--css '…'`.
 
 ## 2. Local commit (always local first)
 When a release is ready to test, leave it as a **local commit**. Never push at this stage.
