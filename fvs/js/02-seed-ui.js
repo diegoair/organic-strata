@@ -4,14 +4,14 @@
 import { rt } from './rt.js';
 import { hooks } from './hooks.js';
 import {
-  state
+  pc, pv, state, val
 } from './engine/00-core.js';
 import {
-  INNER_APEX, withCellShape
+  INNER_APEX, SEED_TYPES
 } from './engine/01-geometry.js';
 import {
-  CIRCLE_PARAMS, RETIRED_PREFIX, RETIRED_SEED, SEED_EXTRAS, SEED_ICONS, SHAPE_SELECTOR, cap,
-  ensureSvgNamespace, shapeToPathD, xrId
+  RETIRED_PREFIX, RETIRED_SEED, SEED_DEPENDS, SEED_ICONS, SHAPE_SELECTOR, ensureSvgNamespace, getPanelSeed,
+  shapeToPathD
 } from './engine/02-seed-ui.js';
 import {
   DEFAULT_APPEARANCE, appearanceMatrix, svgToTileGeo
@@ -20,17 +20,16 @@ import {
   layerPlace
 } from './engine/05-render-component.js';
 import {
-  ctrl, val
-} from './00-core.js';
+  syncActiveLayer
+} from './engine/07-library.js';
 import {
-  SEED_TYPES
-} from './01-geometry.js';
-
+  ctrl
+} from './00-core.js';
 export const seedPicker = Organica.selectPicker(ctrl('sel-seed-type'), ctrl('seedtype-picker'), { registry: SEED_ICONS, ariaLabel: 'Shape' });
 
 // Show only the rows of the active Interior / Trim mode / Lobes (dead-control rule).
 export function syncCircleRows() {
-  const interior = ctrl('sel-circle-interior').value, trim = ctrl('sel-circle-trim').value;
+  const interior = pv('sel-circle-interior'), trim = pv('sel-circle-trim');
   const show = (suffix, on) => { ctrl('row-circle-' + suffix).style.display = on ? '' : 'none'; };
   show('lobedepth', val('rg-circle-lobes') >= 2);
   show('inner', interior === 'ring');
@@ -41,29 +40,8 @@ export function syncCircleRows() {
   show('slices', trim === 'slices'); show('slicegap', trim === 'slices');
 }
 
-// Every other shape follows the same dead-control rule: a row that changes nothing until another
-// control moves stays hidden until then (Seed without Irregularity, a gap with one segment, a corner
-// style with no corner…). One table, read after every Seed-panel edit and every load.
-export const SEED_DEPENDS = [
-  ['rg-arc-gap', () => val('rg-arc-segs') > 1],
-  ['rg-tru-gap', () => val('rg-tru-segs') > 1],
-  ['sel-poly-style', () => val('rg-poly-corner') > 0],
-  ['sel-star-style', () => val('rg-star-tip') > 0 || val('rg-star-valley') > 0],
-  ['sel-rr-style', () => val('rg-rr-corner') > 0],
-  ['sel-rr-mask', () => val('rg-rr-corner') > 0],
-  ['sel-chev-style', () => val('rg-chev-round') > 0],
-  ['rg-chev-gap', () => val('rg-chev-stack') > 1],
-  ['sel-cross-style', () => val('rg-cross-corner') > 0],
-  ['rg-seg-cycles', () => val('rg-seg-wave') > 0],
-  ['rg-seg-gap', () => val('rg-seg-dashes') > 1],
-  ['rg-seg-spacing', () => val('rg-seg-lines') > 1],
-  // Space X/Y squeeze each tile's copy along that axis — nothing to squeeze on a flat (or upright) bar
-  ['rg-seg-spaceX', () => val('rg-seg-repeatX') > 1 && (Math.abs(val('rg-seg-angle')) !== 90 || segHasBody())],
-  ['rg-seg-spaceY', () => val('rg-seg-repeatY') > 1 && (val('rg-seg-angle') !== 0 || segHasBody())],
-];
-export const segHasBody = () => val('rg-seg-bend') !== 0 || val('rg-seg-wave') > 0 || val('rg-seg-lines') > 1 || val('rg-seg-rays') > 1;
 export function syncLegacyNote() {
-  const type = ctrl('sel-seed-type').value, sd = getPanelSeed();
+  const type = pv('sel-seed-type'), sd = getPanelSeed();
   const kept = RETIRED_SEED.some(([k, def]) => RETIRED_PREFIX[k.match(/^[a-z]+/)[0]] === type && sd[k] != null && sd[k] !== def);
   ctrl('seed-legacy-note').style.display = kept ? '' : 'none';
 }
@@ -74,7 +52,7 @@ export function syncLegacyNote() {
 // at Count 0. Labels and options only: the stored keys stay innerCount / innerRatio / innerAnchor.
 export function syncCopiesRows() {
   const on = val('rg-inner-count') > 0, cut = val('rg-element-cutout') > 0;
-  const hasApex = !!INNER_APEX[ctrl('sel-seed-type').value];
+  const hasApex = !!INNER_APEX[pv('sel-seed-type')];
   ctrl('rg-inner-ratio').closest('.ctrl-row').style.display = on ? '' : 'none';
   ctrl('sel-inner-anchor').closest('.ctrl-row').style.display = on && (!cut || hasApex) ? '' : 'none';   // with Cut out, no apex → Inner centre is the only choice
   const lr = ctrl('lbl-inner-ratio'), lc = ctrl('lbl-inner-count');
@@ -160,31 +138,6 @@ export function foldLegacySeed(seed, app) {
   return { seed: s2, app: app ? { ...app, scale: place.scale, rotate: place.rotate, l: place.l } : (place.scale !== 1 || place.rotate || place.l !== 1 ? { ...a, scale: place.scale, rotate: place.rotate, l: place.l } : app) };
 }
 
-// The Seed as a snapshot stores it: freehand also carries its editable
-// path data plus the fitted geometry, so it renders with no editor present.
-// Extras registry → getSeed keys (numbers for sliders, strings for selects).
-export function getSeedExtras() {
-  const o = {};
-  Object.values(SEED_EXTRAS).forEach(sh => sh.rows.forEach(r => { const el = ctrl(xrId(sh, r)); o[r.key] = r.kind === 'select' ? el.value : parseFloat(el.value); }));
-  return o;
-}
-// The Seed panel's own controls as ONE shape (the active layer, when the
-// Element is a stack). getSeed()/seedForSnapshot() below are the stack-aware
-// versions every other consumer uses.
-export function panelSeedSnapshot() {
-  const seed = { ...getPanelSeed(), customSeed: state.customSeed };
-  if (seed.type === 'freehand') {
-    seed.customSeed = state.freehand.seed;
-    seed.freehandData = state.freehand.data;
-    seed.freehandRaw = state.freehand.raw;
-  }
-  return seed;
-}
-export function seedForSnapshot() {
-  if (!state.layers) return withCellShape(panelSeedSnapshot());
-  hooks.syncActiveLayer();
-  return withCellShape({ type: 'stack', active: state.layers.active, layers: state.layers.items.map(l => JSON.parse(JSON.stringify(l))) });
-}
 
 // ── Freehand Seed — Genesis Create's Paper.js draw editor, hosted on the
 // Element stage. The stage shows the drawing raw (so it doesn't rescale
@@ -209,7 +162,7 @@ export function onFreehandChange() {
 }
 export function syncFreehandEditor() {
   const frame = ctrl('element-frame');
-  const active = state.activeTier === 'element' && ctrl('sel-seed-type').value === 'freehand';
+  const active = state.activeTier === 'element' && pv('sel-seed-type') === 'freehand';
   frame.classList.toggle('drawing', active);
   if (!active) return;
   const size = frame.clientWidth;
@@ -226,104 +179,13 @@ export function syncFreehandEditor() {
     fitBox: { x: 0, y: 0, width: 100, height: 100 },
     onChange: onFreehandChange,
   });
-  fhEditor.setClosed(ctrl('ck-fh-close').checked);
-  fhEditor.setSmooth(ctrl('ck-fh-smooth').checked);
+  fhEditor.setClosed(pc('ck-fh-close'));
+  fhEditor.setSmooth(pc('ck-fh-smooth'));
   if (data) fhEditor.load(data);
   fhSyncing = false;
   fhSize = size;
 }
 
-export function getSeed() {
-  return state.layers ? seedForSnapshot() : withCellShape(getPanelSeed());
-}
-export function getPanelSeed() {
-  return { ...getSeedExtras(),
-    type: ctrl('sel-seed-type').value,
-    base: val('rg-base'),
-    height: val('rg-height'),
-    triApex: val('rg-tri-apex') * 2 - 100,   // slider is a 0–100 position (0 left corner · 50 centred · 100 right corner); stored/geometry value stays -100..100 centred, so old snapshots need no migration
-    triCorner: val('rg-tri-corner'),
-    triCurve: val('rg-tri-curve'),
-    triIrregular: val('rg-tri-irregular'),
-    triSeed: val('rg-tri-seed'),
-    triOutline: val('rg-tri-outline'),
-    innerCount: val('rg-inner-count'),
-    innerRatio: val('rg-inner-ratio'),
-    innerAnchor: ctrl('sel-inner-anchor').value,
-    cutOut: val('rg-element-cutout'),
-    irregular: val('rg-element-irregular'),
-    irrMode: ctrl('sel-element-irrmode').value,
-    irrWaves: val('rg-element-irrwaves'),
-    irrSeed: val('rg-element-irrseed'),
-    thickness: val('rg-thickness'),
-    arcCount: val('rg-arc-count'),
-    arcRatio: val('rg-arc-ratio') / 100,
-    truFans: +ctrl('sel-tru-fans').value,
-    truCore: val('rg-tru-core'),
-    truSpread: val('rg-tru-spread'),
-    truReach: val('rg-tru-reach'),
-    truRamp: val('rg-tru-ramp'),
-    truCurve: val('rg-tru-curve'),
-    truRound: val('rg-tru-round'),
-    truSegs: val('rg-tru-segs'),
-    truGap: val('rg-tru-gap'),
-    wedgeAngle: val('rg-wedge-angle'),
-    wedgeInner: val('rg-wedge-inner'),
-    wedgeSquash: val('rg-wedge-squash'),
-    wedgeRound: val('rg-wedge-round'),
-    wedgeRotate: val('rg-wedge-rotate'),
-    wedgeCurve: val('rg-wedge-curve'),
-    wedgeIrregular: val('rg-wedge-irregular'),
-    wedgeSeed: val('rg-wedge-seed'),
-    polySides: val('rg-poly-sides'),
-    polyCorner: val('rg-poly-corner'),
-    polyRotate: val('rg-poly-rotate'),
-    polyStep: val('rg-poly-step'),
-    polyStyle: ctrl('sel-poly-style').value,
-    polyCurve: val('rg-poly-curve'),
-    polyOutline: val('rg-poly-outline'),
-    polySkew: val('rg-poly-skew'),
-    polyIrregular: val('rg-poly-irregular'),
-    polySeed: val('rg-poly-seed'),
-    starPoints: val('rg-star-points'),
-    starInner: val('rg-star-inner'),
-    starIrregular: val('rg-star-irregular'),
-    starSeed: val('rg-star-seed'),
-    rrWidth: val('rg-rr-width'),
-    rrHeight: val('rg-rr-height'),
-    rrCorner: val('rg-rr-corner'),
-    chevNotch: val('rg-chev-notch'),
-    chevArm: val('rg-chev-arm'),
-    chevSquash: val('rg-chev-squash'),
-    crossArmWidth: val('rg-cross-armwidth'),
-    crossArmLength: val('rg-cross-armlength'),
-    crossCorner: val('rg-cross-corner'),
-    lensWidth: val('rg-lens-width'),
-    arcPivot: ctrl('sel-arc-pivot').value,
-    arcSweep: val('rg-arc-sweep'),
-    arcStart: val('rg-arc-start'),
-    arcRound: val('rg-arc-round'),
-    arcSegs: val('rg-arc-segs'),
-    arcGap: val('rg-arc-gap'),
-    arcTaper: val('rg-arc-taper'),
-    arcIrregular: val('rg-arc-irregular'),
-    arcSeed: val('rg-arc-seed'),
-    polyRadius: val('rg-poly-radius'),
-    starRadius: val('rg-star-radius'),
-    circleRadius: val('rg-circle-radius'),
-    segLen: val('rg-seg-len'),
-    segWeight: val('rg-seg-weight'),
-    segRound: ctrl('ck-seg-round').checked,
-    dropRadius: val('rg-drop-radius'),
-    dropTail: val('rg-drop-tail'),
-    blobRadius: val('rg-blob-radius'),
-    blobAmount: val('rg-blob-amount'),
-    blobSeed: val('rg-blob-seed'),
-    circleInterior: ctrl('sel-circle-interior').value,
-    circleTrim: ctrl('sel-circle-trim').value,
-    ...Object.fromEntries(CIRCLE_PARAMS.map(([k, id]) => [cap(k), val('rg-circle-' + id)])),
-  };
-}
 
 
 
@@ -371,7 +233,7 @@ export function useSvgAsSeed(svgString) {
   }
   ctrl('sel-seed-type').value = 'custom'; rt.lastShapeType = 'custom';
   hooks.syncSeedUI();
-  if (state.layers) { hooks.syncActiveLayer(); hooks.renderLayersUI(); }   // the active layer's card shows "Custom" at once
+  if (state.layers) { syncActiveLayer(); hooks.renderLayersUI(); }   // the active layer's card shows "Custom" at once
   ctrl('seed-upload-error').style.display = 'none';
   hooks.renderGallery();
   hooks.renderSeedPreview();

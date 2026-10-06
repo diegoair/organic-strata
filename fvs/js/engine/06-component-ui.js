@@ -3,11 +3,21 @@
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import { hooks } from '../hooks.js';
 import {
-  COLOR_RULES, DEFAULT_COLOR_RULE, colorRuleCR, paletteInk, state
+  COLOR_RULES, DEFAULT_COLOR_RULE, colorRuleCR, paletteInk, pc, pv, state
 } from './00-core.js';
 import {
-  resolvedComponentDims
+  resolveGridCells
+} from './01-geometry.js';
+import {
+  getSeed, seedForSnapshot
+} from './02-seed-ui.js';
+import {
+  EXHAUSTIVE_CAP, getGrid, radialEligible, resolvedComponentDims, ruleCheckerboard, ruleMirror,
+  rulePinwheel, ruleRadial
 } from './03-rules.js';
+import {
+  getElementAppearance
+} from './04-appearance.js';
 // The big canvas: buildComponentSVGBody's normal visual output plus an
 // invisible (or, for the selected cell, outlined) hit-rect per cell —
 // exactly Symbol's own data-cell-index pattern, just built as an overlay
@@ -190,4 +200,50 @@ export function syncSelectedColourway() {
   const cw = { scheme: 'custom', label: 'Custom', colors: state.colors.slice(), paper: state.paperColor, colorRule: { ...state.colorRule } };
   comp.colourway = Object.assign(cw, cwMetrics(cw));
   comp.savedName = null;
+}
+// The Element is Freehand with nothing drawn: every candidate would be blank.
+export function elementIsEmpty() {
+  return pv('sel-seed-type') === 'freehand' && !state.freehand.seed;
+}
+export const COMPONENT_STARTER_RULES = [
+  { name: 'checkerboard', fn: ruleCheckerboard },
+  { name: 'pinwheel', fn: rulePinwheel },
+  { name: 'mirror', fn: ruleMirror },
+  { name: 'radial', fn: ruleRadial, eligible: radialEligible },
+];
+export function componentElementSignature() {
+  return JSON.stringify({ seed: getSeed(), appearance: getElementAppearance(), cells: resolveGridCells(getGrid()).length });
+}
+export const layerInksOn = () => pc('chk-layer-inks');
+export function layerInkCombos() {
+  if (!layerInksOn()) return [];
+  const layers = fillLayers();
+  if (!layers.length) return [];
+  const opts = ['cell', ...state.colors.map((_, k) => k)];
+  let combos = [{}];
+  for (const l of layers) combos = combos.flatMap(c => opts.map(o => ({ ...c, [l.id]: o })));
+  const curKey = JSON.stringify(currentLayerInks());
+  const cur = combos.findIndex(c => JSON.stringify(c) === curKey);
+  if (cur > 0) combos.unshift(combos.splice(cur, 1)[0]);
+  return combos;
+}
+export function layerInkComboCount() {
+  const n = layerInksOn() ? fillLayers().length : 0;
+  return n ? Math.pow(state.colors.length + 1, n) : 1;
+}
+// geometry × combos, geometry-major, capped at EXHAUSTIVE_CAP (the total is reported).
+export function expandLayerInks(list) {
+  const combos = layerInkCombos();
+  if (!combos.length) return { list, total: list.length };
+  const out = [];
+  for (const comp of list) {
+    for (let j = 0; j < combos.length && out.length < EXHAUSTIVE_CAP; j++) out.push({ ...comp, id: `${comp.id}-k${j}`, layerInks: combos[j] });
+  }
+  return { list: out, total: list.length * combos.length };
+}
+// Whichever pre-split seed is live right now (freshly snapshotted the first
+// time a chip is toggled on, reused across further toggles while it's ours).
+export function splitCurrentOriginal() {
+  const stillOurs = state.splitOriginal && state.customSeed && state.customSeed === state.splitApplied;
+  return { stillOurs, original: stillOurs ? state.splitOriginal : seedForSnapshot() };
 }

@@ -2,20 +2,43 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  state
+  live, state
 } from './00-core.js';
 import {
-  buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, stateFrom
+  SEED_TYPES, frameDims
+} from './01-geometry.js';
+import {
+  getSeed
+} from './02-seed-ui.js';
+import {
+  buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, getGrid, stateFrom
 } from './03-rules.js';
+import {
+  buildComponentItems
+} from './04-appearance.js';
+import {
+  buildComponentSVG
+} from './05-render-component.js';
+import {
+  getSelectedComponent
+} from './06-component-ui.js';
 import {
   LIBRARY
 } from './07-library.js';
 import {
-  getSymbolGrid, polyOrient, snapPose
+  buildFvsGridSVG, getSymbolGrid, polyOrient, snapPose
 } from './08-symbol-grid.js';
+import {
+  buildSymbolSVG
+} from './09-symbol-render.js';
 import {
   cellColRow
 } from './11-symbol-ui.js';
+import { provide } from '../hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  figureSVGOf: () => figureSVGOf
+});
 // ── Built-in recipes, v1 — no longer in the UI (the Element panel's "Start from a
 // recipe" was removed Oct 4, 2026: its tiled results showed on no page; the same 7
 // live in Figure as "Classic · …", FIGURE_RECIPES_V1_AS_V2). Kept as fixtures for
@@ -187,4 +210,36 @@ export function triangleFigureRecipes() {
       levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: a.rows }, fit: 'fill', rules: a.rules }, ...extra], transform: tf[cn] };
   }));
   return out;
+}
+export function validateFigureRecipe(def) {
+  if (!def || def.tool !== 'fvs-recipe' || def.version !== 2) throw new Error('Not a v2 figure recipe');
+  if (!def.element || !SEED_TYPES[def.element.type]) throw new Error('Unknown Seed type: ' + (def.element && def.element.type));
+  const lv = def.levels || [];
+  if (!lv.length || !['component', 'symbol'].includes(lv[0].kind)) throw new Error('The first level must be a component or a symbol');
+  if (lv.slice(1).some(l => l.kind !== 'grid')) throw new Error('Every level after the first must be a grid');
+  if (lv.length > 4) throw new Error('At most three grid levels');
+  // A transform is only ever applied by buildFvsGridSVG (the Grid step's own
+  // renderer) — with no grid level, runFigureRecipe silently never reaches that
+  // code path, so a mirror/rotate on a gridless figure would be a no-op the
+  // checks panel couldn't even detect. Reject it outright rather than accept a
+  // recipe whose own transform field lies about what gets rendered.
+  const tr = def.transform || {};
+  if (lv.length < 2 && ((tr.rotate && tr.rotate !== 0) || (tr.mirror && tr.mirror !== 'none'))) throw new Error('A transform (rotate/mirror) needs at least one Grid level to apply to');
+  return lv;
+}
+// A finished Grid figure as the tile of the next level: its markup without the paper rect,
+// its frame, and the box it really draws in (set by the last buildFvsGridSVG()).
+export function promoteFigureToTile(svg) {
+  const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
+  return { size: live.lastFigureMeta.size, inner, box: live.lastFigureMeta.box };
+}
+// The finished SVG of one underlying step, whichever step is on screen.
+export function figureSVGOf(tier) {
+  if (tier === 'grid') return buildFvsGridSVG();
+  if (tier === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
+  const comp = getSelectedComponent();
+  if (!comp) return '';
+  state.selectedRuleSource = comp.ruleSource;
+  const grid = getGrid();
+  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameDims(grid));
 }

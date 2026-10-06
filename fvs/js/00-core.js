@@ -4,8 +4,11 @@
 import { rt } from './rt.js';
 import { hooks } from './hooks.js';
 import {
-  COLOR_RULES, DEFAULT_COLOR_RULE, PALETTE_MAX, cellOwnInks, colorRuleCR, ruleInk, state
+  COLOR_RULES, DEFAULT_COLOR_RULE, PALETTE_MAX, pv, setPanelSource, state
 } from './engine/00-core.js';
+import {
+  getGrid
+} from './engine/03-rules.js';
 import {
   componentCellColRow
 } from './engine/04-appearance.js';
@@ -31,7 +34,8 @@ import {
    ───────────────────────────────────────────────────────────── */
 
 export function ctrl(id) { return document.getElementById(id); }
-export function val(id) { return parseFloat(ctrl(id).value); }
+setPanelSource({ value: id => ctrl(id).value, checked: id => ctrl(id).checked,
+  read: id => { const el = ctrl(id); return el.type === 'checkbox' ? el.checked : el.value; } });
 
 export const setStatus = Organica.status();
 
@@ -52,23 +56,6 @@ rt.tilePicker = null;
 
 
 state.colorRule = { ...DEFAULT_COLOR_RULE };
-// A Symbol cell's ink. `color: null` = follow the palette (what new cells
-// store). A stored colour equal to the palette entry for that index — how
-// older saves wrote it — is treated the same, so recolouring the palette
-// recolours those cells too; any other stored colour is a real override.
-export let _symCR = { key: null, rule: null, cr: null };
-export function symbolCR() {
-  const g = state.symbolGrid, r = state.colorRule.mode;
-  if (_symCR.key !== g || _symCR.rule !== r) _symCR = { key: g, rule: r, cr: (r === 'index' || r === 'own') ? null : colorRuleCR(getSymbolGrid(), state.colorRule) };
-  return _symCR.cr;
-}
-export function cellInk(cell, i) {
-  const own = cellOwnInks(cell);
-  const p = own ? own[0] : ruleInk(i, symbolCR());
-  // null = follow the palette; anything else is an explicit override set in Cell properties
-  // (legacy colours that merely pinned the palette value are released when a saved Symbol loads).
-  return cell.color ? cell.color : p;
-}
 
 export function buildPalette() {
   Organica.palette.swatch(ctrl('fvs-palette'), {
@@ -103,7 +90,7 @@ export function syncQuadrantHint() {
   let odd = false;
   if (state.colorRule.mode === 'quadrant') {
     try {
-      const cr = state.activeTier === 'symbol' ? (state.symbolGrid ? cellColRow(getSymbolGrid()) : []) : componentCellColRow(hooks.getGrid());
+      const cr = state.activeTier === 'symbol' ? (state.symbolGrid ? cellColRow(getSymbolGrid()) : []) : componentCellColRow(getGrid());
       if (cr.length) odd = (Math.max(...cr.map(c => c.col)) + 1) % 2 === 1 || (Math.max(...cr.map(c => c.row)) + 1) % 2 === 1;
     } catch (e) { odd = false; }
   }
@@ -115,7 +102,7 @@ export function refreshColourViews() {
   if (state.symbolGrid) hooks.renderSymbolCanvasOnly();
 }
 export function onColorRuleChange() {
-  state.colorRule = { mode: ctrl('sel-color-rule').value, offset: parseInt(ctrl('sel-color-offset').value, 10) || 0 };
+  state.colorRule = { mode: pv('sel-color-rule'), offset: parseInt(pv('sel-color-offset'), 10) || 0 };
   syncColorRuleUI();
   refreshColourViews();
 }

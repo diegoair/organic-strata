@@ -2,16 +2,19 @@
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
 import {
-  state
+  live, pv, state
 } from './engine/00-core.js';
 import {
-  SYMBOL_SEED_DEFAULTS
+  SEED_TYPES
+} from './engine/01-geometry.js';
+import {
+  SYMBOL_SEED_DEFAULTS, getSeed
 } from './engine/02-seed-ui.js';
 import {
-  mulberry32
-} from './engine/03-rules.js';
+  buildSeedPreviewSVG
+} from './engine/05-render-component.js';
 import {
-  CW_MIN_CONTRAST, cwMetrics, getSelectedComponent, undoStack
+  undoStack
 } from './engine/06-component-ui.js';
 import {
   hexKey, isPaperNone
@@ -20,89 +23,35 @@ import {
   getSymbolGrid
 } from './engine/08-symbol-grid.js';
 import {
+  buildSymbolSVG
+} from './engine/09-symbol-render.js';
+import {
   ctrl
 } from './00-core.js';
-import {
-  SEED_TYPES
-} from './01-geometry.js';
-import {
-  getSeed
-} from './02-seed-ui.js';
-import {
-  buildSeedPreviewSVG
-} from './05-render-component.js';
 import {
   syncUndoUI
 } from './06-component-ui.js';
 import {
-  lastFigureMeta
-} from './08-symbol-grid.js';
-import {
-  buildSymbolSVG
-} from './09-symbol-render.js';
-import {
   setTier
 } from './12-shell.js';
 import {
-  isSealedSymbol, slotClassContext
+  figureSVGOf, isSealedSymbol, slotClassContext, validateFigureRecipe
 } from './engine/13-figure-engine.js';
 import {
   FG_GRID_TYPES, FG_ICONS, FG_LATTICE_OF, FG_LOCK_GROUPS, FG_SEEDS, FG_SEED_MAIN, FG_STR_OF,
-  FIGURE_MUTATIONS, FIGURE_TOOLS, applyHandle, capMap, describeRule, fgPick, fgSymbol, figureCardHTML,
-  figureCatalog, figureClassWhen, figureFirstLevelOf, figureGalleryCache, figureHandleTarget,
-  figureHistory, figurePaintable, figureStepCache, isFormRule, maskIoU, normMask, paintCell, svgURI
+  FIGURE_MUTATIONS, FIGURE_TOOLS, applyHandle, capMap, describeRule, fgSymbol, figureCardHTML,
+  figureCatalog, figureChecks, figureClassWhen, figureFirstLevelOf, figureGalleryCache, figureHandleTarget,
+  figureHistory, figureNeighbours, figurePaintable, figureRecipeFromForm, figureShuffle, figureStepCache,
+  maskIoU, normMask, paintCell, svgURI
 } from './engine/14-figure-ui.js';
 import {
-  figureSVGOf, runFigureRecipe, validateFigureRecipe
+  runFigureRecipe
 } from './13-figure-engine.js';
 import { provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   renderFigureTier: () => renderFigureTier
 });
-
-export function figureRecipeFromForm() {
-  const v = id => ctrl(id).value, lat = v('fg-lattice');
-  // the form shows one ink: the recipe's other inks and its colour rule are kept
-  const curEl = (state.figureRecipe && state.figureRecipe.element) || {};
-  const el = { type: v('fg-seed'), style: v('fg-style'), colors: [v('fg-ink'), ...(curEl.colors || []).slice(1)], paper: v('fg-paper') };
-  if (curEl.colorRule) el.colorRule = { ...curEl.colorRule };
-  if (el.type === 'arc') el.params = { 'rg-thickness': 100 };
-  let first;
-  const cur0 = state.figureRecipe && state.figureRecipe.levels[0];
-  if (lat === 'adopted' && isSealedSymbol(cur0)) first = JSON.parse(JSON.stringify(cur0));   // the form can't express it: keep it whole
-  else if (lat === 'component') {
-    const rule = v('fg-comprule');
-    const params = { checkerboard: { a: 180, b: 0 }, radial: { base: 180, chirality: 1 }, pinwheel: { base: 0, chirality: 1 }, mirror: { seed: 0 } }[rule];
-    first = { kind: 'component', grid: 'square2x2', rule, params };
-  } else {
-    const rules = [];
-    const odd = v('fg-odd'); if (odd !== 'none') rules.push({ when: { parity: 'odd' }, do: { rotate: +odd } });
-    if (lat === 'hexagon') {
-      if (v('fg-hexturn') === 'sector') rules.push({ when: {}, do: { rotate: 'sector', scale: 0.62 } });   // a turned shape must stay inside its hexagon
-      if (ctrl('fg-hexcentre').checked) rules.push({ when: { ring: 0 }, do: { content: 'empty' } });
-    }
-    if (lat === 'triangle') {
-      if (v('fg-up') === 'empty') rules.push({ when: { class: 'up' }, do: { content: 'empty' } });
-      const d = v('fg-down');
-      rules.push({ when: { class: 'down' }, do: d === 'empty' ? { content: 'empty' } : d === 'turned' ? { content: 'filled', rotate: 180 } : { content: 'filled' } });
-    }
-    const rows = v('fg-emptyrows').split(',').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
-    if (rows.length) rules.push({ when: { row: rows }, do: { content: 'empty' } });
-    // rules painted on the canvas (single cells, switched-off, flips…) have no field in this form: keep them
-    const cur = state.figureRecipe && state.figureRecipe.levels[0] && state.figureRecipe.levels[0].rules;
-    (cur || []).filter(r => !isFormRule(r)).forEach(r => rules.push(JSON.parse(JSON.stringify(r))));
-    first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : lat === 'hexagon' ? { type: 'hexagon', rings: +v('fg-n') } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
-      fit: lat === 'triangle' ? 'fill' : 'contain', rules };
-    if (ctrl('fg-liveseed').checked) first.seed = 'live';
-  }
-  const levels = [first];
-  if (v('fg-comp') !== 'none') {
-    levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp')), cellSize: 110, altFlip: ctrl('fg-altflip').checked });
-    if (v('fg-comp2') !== 'none') levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp2')), cellSize: 110 });
-  }
-  return { tool: 'fvs-recipe', version: 2, element: el, levels, transform: { rotate: +v('fg-rot'), mirror: v('fg-mirror') } };
-}
 export function figureFormFromRecipe(def) {
   const set = (id, val) => { const e = ctrl(id); e.value = String(val); };
   // fg-n/fg-cols are populated with a recommended 5-8 (or 3-4 hex) range for fresh
@@ -143,7 +92,7 @@ export function figureFormFromRecipe(def) {
 // square rows and triangle rows share the flat 5-8 "Symbol" band every other picker
 // uses. See CLAUDE.md session note.
 export function syncFgNOptions() {
-  const lat = ctrl('fg-lattice').value;
+  const lat = pv('fg-lattice');
   const [lo, hi] = lat === 'hexagon' ? [4, 5] : [5, 8];
   const sel = ctrl('fg-n');
   const prev = +sel.value;
@@ -158,13 +107,13 @@ export function syncFgNOptions() {
 }
 export function syncFigureFormUI() {
   syncFgNOptions();
-  const lat = ctrl('fg-lattice').value;
+  const lat = pv('fg-lattice');
   ctrl('fg-row-n').style.display = lat === 'component' || lat === 'adopted' ? 'none' : '';
   ctrl('fg-row-cols').style.display = lat === 'square' ? '' : 'none';
   ctrl('fg-row-comprule').style.display = lat === 'component' ? '' : 'none';
   ctrl('fg-rules-section').style.display = lat === 'component' || lat === 'adopted' ? 'none' : '';
   ctrl('fg-row-up').style.display = ctrl('fg-row-down').style.display = lat === 'triangle' ? '' : 'none';
-  ctrl('fg-row-comp2').style.display = ctrl('fg-comp').value === 'none' ? 'none' : '';
+  ctrl('fg-row-comp2').style.display = pv('fg-comp') === 'none' ? 'none' : '';
   ctrl('fg-row-hexturn').style.display = ctrl('fg-row-hexcentre').style.display = lat === 'hexagon' ? '' : 'none';
   ctrl('fg-row-n').querySelector('.ctrl-label').textContent = lat === 'hexagon' ? 'Rings' : 'Rows';
 }
@@ -181,7 +130,7 @@ export function applyFigureRecipe(def, opts) {
     const steps = figureStepSVGs(def);
     const svg = runFigureRecipe(def, { keepTier: true });
     state.figureRecipe = def;
-    const metas = (state.figureLevelMeta || []).slice(); if (def.levels.length > 1) metas[def.levels.length - 2] = lastFigureMeta;
+    const metas = (state.figureLevelMeta || []).slice(); if (def.levels.length > 1) metas[def.levels.length - 2] = live.lastFigureMeta;
     state.figureShown = { def, steps, svg, metas };
     if (!opts.noHistory) pushFigureHistory(def);
     renderFigurePipeline(def, steps, svg);
@@ -399,34 +348,6 @@ export function renderFigureToolbar() {
   renderFigurePlay(tb);
 }
 
-export function figureMutateOnce(def, mut, rng) {
-  const d = JSON.parse(JSON.stringify(def));
-  try { if (!mut.fn(d, rng)) return null; validateFigureRecipe(d); } catch (e) { return null; }
-  return JSON.stringify(d) === JSON.stringify(def) ? null : d;
-}
-// Up to `count` different recipes, each one mutation away from `def`. Deterministic for a given seed.
-export function figureNeighbours(def, seed, count) {
-  count = count || 9;
-  const rng = mulberry32(seed >>> 0), order = FIGURE_MUTATIONS.map((m, i) => [rng(), i]).sort((a, b) => a[0] - b[0]).map(x => FIGURE_MUTATIONS[x[1]]);
-  const out = [], seen = new Set([JSON.stringify(def)]);
-  for (let pass = 0; pass < 4 && out.length < count; pass++) for (const m of order) {
-    if (out.length >= count) break;
-    const d = figureMutateOnce(def, m, rng); if (!d) continue;
-    const k = JSON.stringify(d); if (seen.has(k)) continue; seen.add(k); out.push({ recipe: d, label: m.name });
-  }
-  return out;
-}
-// One to three mutations of groups that are not locked; null when everything is locked.
-export function figureShuffle(def, locks, seed) {
-  const rng = mulberry32(seed >>> 0), pool = FIGURE_MUTATIONS.filter(m => !(locks && locks[m.group]));
-  if (!pool.length) return null;
-  // A later mutation can undo an earlier one (Fill ↔ Stroke twice, Add then Remove a Grid) — a step
-  // that lands back on `def` is rejected, so a shuffle always changes something.
-  const start = JSON.stringify(def);
-  let d = def, changed = 0; const want = 1 + Math.floor(rng() * 3);
-  for (let tries = 0; tries < 30 && changed < want; tries++) { const n = figureMutateOnce(d, fgPick(pool, rng), rng); if (n && JSON.stringify(n) !== start) { d = n; changed++; } }
-  return changed ? d : null;
-}
 export function figureShuffleNow() {
   if (!state.figureRecipe) return;
   const locks = state.figureLocks || {};
@@ -629,37 +550,6 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Checks — every one reads the drawn result, none reads the recipe's own intent back.
-export function figureChecks(def, svg) {
-  const out = [];
-  const add = (ok, label, detail) => out.push({ ok, label, detail });
-  const noDefs = svg.replace(/<defs>[\s\S]*?<\/defs>/g, '');
-  add(!/NaN|undefined|Infinity/.test(svg), 'Numbers are valid', '');
-  const refs = [...svg.matchAll(/url\(#([^)]+)\)/g)].map(m => m[1]), ids = new Set([...svg.matchAll(/ id="([^"]+)"/g)].map(m => m[1]));
-  add(refs.every(r => ids.has(r)), 'Every clip reference resolves', refs.length + ' refs');
-  add((svg.match(/<metadata>/g) || []).length <= 1 && (svg.match(/<defs>/g) || []).length <= 1, 'Defs and metadata appear once', '');
-  const paths = (noDefs.match(/<path /g) || []).length;
-  const first = def.levels[0];
-  let slots = null;
-  if (isSealedSymbol(first)) {
-    add(state.symbolCells.length === first.cells.length, 'Lattice has the expected number of slots', `${state.symbolCells.length} of ${first.cells.length}`);
-    // a cell may hold a whole Component (many shapes): count what the Symbol itself draws
-    slots = (buildSymbolSVG().replace(/<defs>[\s\S]*?<\/defs>/g, '').match(/<path /g) || []).length;
-  } else if (first.kind === 'symbol') {
-    const l = first.lattice, total = l.type === 'triangle' ? l.rows * l.rows : l.type === 'hexagon' ? 3 * l.rings * (l.rings - 1) + 1 : l.cols * (l.rows || l.cols);
-    add(state.symbolCells.length === total, 'Lattice has the expected number of slots', `${state.symbolCells.length} of ${total}`);
-    slots = state.symbolCells.filter(c => c.source !== 'empty').length;
-  } else slots = getSelectedComponent() ? getSelectedComponent().cells.length : 0;
-  const stats = state.figureLevelStats || [];
-  const expected = stats.reduce((acc, st) => acc * st.tiles * st.copies, slots);
-  add(paths === expected, 'Shapes drawn = filled slots × tiles × mirror copies (per level)', `${paths} of ${expected}`);
-  add(svg.length < 400000, 'File size is reasonable', Math.round(svg.length / 1024) + ' KB');
-  // colour, read from what was drawn with (the live palette after the run)
-  const cm = cwMetrics({ colors: state.colors.map(hexKey), paper: state.paperColor });
-  add(cm.minContrast >= CW_MIN_CONTRAST, `Inks read on the paper (${CW_MIN_CONTRAST}:1 or more)`, cm.minContrast.toFixed(1) + ':1');
-  if (cm.minDeltaE != null) add(cm.minDeltaE >= Organica.color.DISTINCT_MIN, 'Inks are distinct', 'ΔE ' + Math.round(cm.minDeltaE));
-  return out;
-}
 export function renderFigureReport(rows, extra) {
   const all = rows.concat(extra || []);
   const bad = all.filter(r => !r.ok).length;
@@ -726,7 +616,7 @@ export function drawFigureRef(fm, rm) {
   const offx = (rm.n - w * kk) / 2, offy = (rm.n - h * kk) / 2;
   const sx = (rm.box.x0 - offx) / kk, sy = (rm.box.y0 - offy) / kk, sw = (rm.box.x1 - rm.box.x0) / kk, sh = (rm.box.y1 - rm.box.y0) / kk;
   g.drawImage(figureRef, sx, sy, sw, sh, fm.box.x0 * k, fm.box.y0 * k, (fm.box.x1 - fm.box.x0) * k, (fm.box.y1 - fm.box.y0) * k);
-  cv.style.display = 'block'; cv.style.opacity = String(ctrl('fg-ref-opacity').value / 100);
+  cv.style.display = 'block'; cv.style.opacity = String(pv('fg-ref-opacity') / 100);
 }
 (function initFigureTier() {
   const seedSel = ctrl('fg-seed');
@@ -743,9 +633,9 @@ export function drawFigureRef(fm, rm) {
   ctrl('fg-altflip').addEventListener('change', onForm);
   ctrl('fg-liveseed').addEventListener('change', onForm);
   ctrl('fg-hexcentre').addEventListener('change', onForm);
-  ctrl('fg-json-apply').addEventListener('click', () => { try { applyFigureRecipe(JSON.parse(ctrl('fg-json').value), { resetStep: true }); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; } });
-  ctrl('fg-json-copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(ctrl('fg-json').value); Organica.dirty.set('fvs-figure', false); });
-  ctrl('fg-json-save').addEventListener('click', () => Organica.downloadText(ctrl('fg-json').value, Organica.stamp('fvs-figure', 'json'), 'application/json'));
+  ctrl('fg-json-apply').addEventListener('click', () => { try { applyFigureRecipe(JSON.parse(pv('fg-json')), { resetStep: true }); } catch (e) { ctrl('fg-json-error').textContent = e.message; ctrl('fg-json-error').style.display = ''; } });
+  ctrl('fg-json-copy').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(pv('fg-json')); Organica.dirty.set('fvs-figure', false); });
+  ctrl('fg-json-save').addEventListener('click', () => Organica.downloadText(pv('fg-json'), Organica.stamp('fvs-figure', 'json'), 'application/json'));
   ctrl('fg-ref-load').addEventListener('click', () => ctrl('fg-ref-file').click());
   ctrl('fg-ref-file').addEventListener('change', e => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;

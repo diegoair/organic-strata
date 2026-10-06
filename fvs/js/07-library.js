@@ -3,13 +3,13 @@
 // Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
 import {
-  DEFAULT_COLOR_RULE, PALETTE_MAX, colorAt, entryInkAt, state
+  DEFAULT_COLOR_RULE, PALETTE_MAX, colorAt, entryInkAt, pv, state
 } from './engine/00-core.js';
 import {
   SEG_WEIGHT_DEF, cellShapeOf, frameDims
 } from './engine/01-geometry.js';
 import {
-  CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, xrId
+  CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, panelSeedSnapshot, xrId
 } from './engine/02-seed-ui.js';
 import {
   fitThumbBox
@@ -18,13 +18,11 @@ import {
   buildComponentItems
 } from './engine/04-appearance.js';
 import {
-  LAYER_ROLES, layerPlace
+  LAYER_ROLES, layerInkColor, layerPlace, withEntryInks
 } from './engine/05-render-component.js';
 import {
-  getSelectedComponent, seedWithLayerInks, withComponentColours
-} from './engine/06-component-ui.js';
-import {
-  LAYER_NEW_INKS, LAYER_ROLE_ORDER, LIBRARY, hexKey, libraryNames, newLayerId, uniqueLibraryName
+  LAYER_NEW_INKS, LAYER_ROLE_ORDER, LIBRARY, buildComponentSVGWithPaper, buildLibraryEntryFor, hexKey,
+  layerName, libraryNames, newLayerId, readLookControls, syncActiveLayer, uniqueLibraryName
 } from './engine/07-library.js';
 import {
   addSavedToPool
@@ -36,22 +34,22 @@ import {
   NEW_LAYER_SCALE
 } from './engine/12-shell.js';
 import {
-  buildPalette, ctrl, syncColorRuleUI, val
+  buildPalette, ctrl, syncColorRuleUI
 } from './00-core.js';
 import {
-  SEED_TYPES, setCellShape
+  setCellShape
 } from './01-geometry.js';
 import {
-  fhEditor, foldLegacySeed, panelSeedSnapshot, seedForSnapshot, syncDependentRows
+  fhEditor, foldLegacySeed, syncDependentRows
 } from './02-seed-ui.js';
 import {
-  getGrid, setComponentGrid, syncComponentGridUI
+  setComponentGrid, syncComponentGridUI
 } from './03-rules.js';
 import {
-  appearanceSnapshot, applyAppearanceToUI, syncLookBlocks
+  applyAppearanceToUI, syncLookBlocks
 } from './04-appearance.js';
 import {
-  buildComponentSVG, layerInkColor, renderGallery, renderSeedPreview, withEntryInks
+  renderGallery, renderSeedPreview
 } from './05-render-component.js';
 import {
   syncExhaustiveHint, syncRuleAvailability, syncSeedUI
@@ -61,33 +59,9 @@ import { hooks, provide } from './hooks.js';
 provide({
   applyElementSnapshot: () => applyElementSnapshot, applySeedToPanel: () => applySeedToPanel,
   deleteQuickSavedComponent: () => deleteQuickSavedComponent,
-  quickSaveComponentToLibrary: () => quickSaveComponentToLibrary, readLookControls: () => readLookControls,
-  renderLayersUI: () => renderLayersUI, showLayerStyle: () => showLayerStyle,
-  syncActiveLayer: () => syncActiveLayer, syncComponentRoleUI: () => syncComponentRoleUI
+  quickSaveComponentToLibrary: () => quickSaveComponentToLibrary, renderLayersUI: () => renderLayersUI,
+  showLayerStyle: () => showLayerStyle, syncComponentRoleUI: () => syncComponentRoleUI
 });
-
-
-
-export function buildLibraryEntryFor(comp) {
-  if (!comp) return null;
-  return withComponentColours(comp, () => libraryEntryFromLive(comp));   // a colourway is saved with its own colours
-}
-export function libraryEntryFromLive(comp) {
-  return {
-    seed: seedWithLayerInks(seedForSnapshot(), comp.layerInks),
-    appearance: appearanceSnapshot(),
-    grid: getGrid(),
-    colors: state.colors.slice(),
-    colorRule: { ...state.colorRule },
-    paperColor: state.paperColor,
-    component: { ruleSource: comp.ruleSource, cells: comp.cells },
-    role: state.componentRole,
-    underlyingComponentName: state.underlyingComponentName,
-    ...(state.componentBlend === 'multiply' ? { blend: 'multiply' } : {}),   // absent = Normal (every older Component)
-    savedAt: new Date().toISOString(),
-  };
-}
-export function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedComponent()); }
 
 
 // One-click save straight from a gallery thumbnail's own hover button —
@@ -277,15 +251,6 @@ export function applyPanelSeedRaw(seed) {
 }
 
 
-export function syncActiveLayer() {
-  if (!state.layers) return;
-  const l = state.layers.items[state.layers.active];
-  l.seed = panelSeedSnapshot();
-  l.look = readLookControls();
-}
-export function readLookControls() {
-  return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l') };
-}
 // Style / Stroke W / Rounded / Width / Length show the active layer's own look.
 export function showLayerStyle(l) {
   if (!l.look) l.look = readLookControls();
@@ -364,7 +329,6 @@ export const LAYER_ICONS = {
   mask: Organica.icons.get('role-mask', { size: 'sm' }),
   pattern: Organica.icons.get('role-pattern', { size: 'sm' }),
 };
-export const layerName = l => (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
 export function renderLayersUI() {
   const list = ctrl('layers-list'), L = state.layers, place = ctrl('layer-place-block');
   closeLayerInkPop();
@@ -377,7 +341,7 @@ export function renderLayersUI() {
   // The pattern settings sit right under Style (single shape) or above the Element-wide controls (layers)
   if (L) ctrl('element-wide-label').before(ctrl('element-pattern-block'));
   else ctrl('element-style-row').after(ctrl('element-pattern-block'));
-  if (ctrl('sel-rule').value === 'exhaustive') syncExhaustiveHint();
+  if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint();
   ctrl('layers-hint').textContent = L ? L.items.length + ' · top first' : 'Add new layer';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
   ctrl('split-layers-hint').style.display = L ? '' : 'none';   // Split takes the whole stack
@@ -542,28 +506,6 @@ window.addEventListener('pointercancel', () => { layerPress = null; layerDragFro
 }));
 renderLayersUI();
 
-// Figure recipes rewrite the shared Element seed-type control and replace
-// state.components wholesale as a side effect (runBuiltinRecipe/
-// runFigureRecipe both fireChange('sel-seed-type', el.type) then rebuild the
-// gallery from the recipe) — Figure is meant to be its own sandbox ("edit it
-// there and build the Figure again"), not something that silently overwrites
-// whatever the user had built in Component/Element. Snapshot right before
-// entering Figure, restore right after leaving it back to Component/Element
-// (see setTier()). Nothing saved to LIBRARY is ever touched by this — it's
-// purely the in-session Element/Component working state.
-export function snapshotComponentElementState() {
-  return {
-    seed: seedForSnapshot(), appearance: appearanceSnapshot(),
-    loomGrid: state.loomGrid ? JSON.parse(JSON.stringify(state.loomGrid)) : null,
-    gridCols: ctrl('rg-grid-cols').value, gridRows: ctrl('rg-grid-rows').value,
-    cellSize: ctrl('rg-cellsize').value, gap: ctrl('rg-gap').value,
-    components: state.components.map(c => ({ ...c, cells: c.cells.map(x => ({ ...x })) })),
-    selectedId: state.selectedId, selectionExplicit: state.selectionExplicit,
-    componentAutoGenerated: state.componentAutoGenerated, componentAutoGenSignature: state.componentAutoGenSignature,
-    colors: state.colors.slice(), colorRule: { ...state.colorRule }, paperColor: state.paperColor,
-    componentRole: state.componentRole, underlyingComponentName: state.underlyingComponentName,
-  };
-}
 export function restoreComponentElementState(snap) {
   applyElementSnapshot(snap.seed, snap.appearance);
   state.loomGrid = snap.loomGrid;
@@ -704,20 +646,4 @@ export function renameLibraryEntry(oldName, newName) {
   if (state.fvsGridComponentName === oldName) state.fvsGridComponentName = newName;
   renderLibrary(); hooks.renderSymbolLibrary();
   if (state.symbolGrid) hooks.renderSymbol();
-}
-
-// buildComponentSVG always reads state.paperColor/componentRole/
-// underlyingComponentName — a saved Library entry needs its OWN saved
-// values instead, so this wraps it with a temporary swap rather than
-// duplicating the whole render function. role/underlyingComponentName
-// default to 'normal'/null for entries saved before this feature existed.
-export function buildComponentSVGWithPaper(items, seed, size, paperColor, role, underlyingComponentName, blend) {
-  const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName, blend: state.componentBlend };
-  state.paperColor = paperColor;
-  state.componentRole = role || 'normal';
-  state.underlyingComponentName = underlyingComponentName || null;
-  state.componentBlend = blend === 'multiply' ? 'multiply' : 'normal';
-  const svg = buildComponentSVG(items, seed, size);
-  state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under; state.componentBlend = prev.blend;
-  return svg;
 }

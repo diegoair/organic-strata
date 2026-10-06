@@ -2,14 +2,14 @@
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
 import {
-  DEFAULT_COLOR_RULE, state
+  DEFAULT_COLOR_RULE, live, state
 } from './engine/00-core.js';
 import {
-  frameDims, resolveGridCells
+  resolveGridCells
 } from './engine/01-geometry.js';
 import {
-  buildComponentItems
-} from './engine/04-appearance.js';
+  seedForSnapshot
+} from './engine/02-seed-ui.js';
 import {
   getSelectedComponent
 } from './engine/06-component-ui.js';
@@ -17,33 +17,27 @@ import {
   LIBRARY, hexKey
 } from './engine/07-library.js';
 import {
-  LIVE_SYMBOL, getFvsGrid, getSymbolGrid, hexLoomModel, squareLoomModel, triangleLoomModel,
-  withPlacementDefaults
+  LIVE_SYMBOL, buildFvsGridSVG, getFvsGrid, getSymbolGrid, hexLoomModel, squareLoomModel,
+  triangleLoomModel, withPlacementDefaults
 } from './engine/08-symbol-grid.js';
+import {
+  tierSVG
+} from './engine/15-export-library-view.js';
 import {
   buildPalette, refreshColourViews, syncColorRuleUI
 } from './00-core.js';
 import {
-  SEED_TYPES
-} from './01-geometry.js';
-import {
-  getSeed, seedForSnapshot
-} from './02-seed-ui.js';
-import {
-  getGrid, setComponentGrid
+  setComponentGrid
 } from './03-rules.js';
 import {
-  buildComponentSVG, renderGallery
+  renderGallery
 } from './05-render-component.js';
 import {
   pushUndo
 } from './06-component-ui.js';
 import {
-  buildFvsGridSVG, lastFigureMeta, loadSymbolGrid, tileSelectedInGrid
+  loadSymbolGrid, tileSelectedInGrid
 } from './08-symbol-grid.js';
-import {
-  buildSymbolSVG
-} from './09-symbol-render.js';
 import {
   renderSymbol
 } from './11-symbol-ui.js';
@@ -51,16 +45,9 @@ import {
   fireChange, fireInput, setPaperUI, setTier, syncSymbolViewUI
 } from './12-shell.js';
 import {
-  tierSVG
-} from './15-export-library-view.js';
-import {
-  FIGURE_MAX_SHAPES, applyClassRules, componentCellsFromRule, gridTypeFromLattice, isSealedSymbol
+  FIGURE_MAX_SHAPES, applyClassRules, componentCellsFromRule, figureSVGOf, gridTypeFromLattice,
+  isSealedSymbol, promoteFigureToTile, validateFigureRecipe
 } from './engine/13-figure-engine.js';
-import { provide } from './hooks.js';
-// Names earlier files reach at run time (hooks.*) — live getters.
-provide({
-  figureSVGOf: () => figureSVGOf
-});
 export function runBuiltinRecipe(def) {
   fireChange('sel-seed-type', def.element.type);
   Object.entries(def.element.params || {}).forEach(([id, v]) => fireInput(id, v));
@@ -87,22 +74,6 @@ export function runBuiltinRecipe(def) {
     state.fvsGridConfig = { ...state.fvsGridConfig, type: def.tile.type, cellSize: def.tile.cellSize, gap: 0, altFlip: !!def.tile.altFlip, rot: 0, mirror: 'none' };
   }
   setTier('component');
-}
-export function validateFigureRecipe(def) {
-  if (!def || def.tool !== 'fvs-recipe' || def.version !== 2) throw new Error('Not a v2 figure recipe');
-  if (!def.element || !SEED_TYPES[def.element.type]) throw new Error('Unknown Seed type: ' + (def.element && def.element.type));
-  const lv = def.levels || [];
-  if (!lv.length || !['component', 'symbol'].includes(lv[0].kind)) throw new Error('The first level must be a component or a symbol');
-  if (lv.slice(1).some(l => l.kind !== 'grid')) throw new Error('Every level after the first must be a grid');
-  if (lv.length > 4) throw new Error('At most three grid levels');
-  // A transform is only ever applied by buildFvsGridSVG (the Grid step's own
-  // renderer) — with no grid level, runFigureRecipe silently never reaches that
-  // code path, so a mirror/rotate on a gridless figure would be a no-op the
-  // checks panel couldn't even detect. Reject it outright rather than accept a
-  // recipe whose own transform field lies about what gets rendered.
-  const tr = def.transform || {};
-  if (lv.length < 2 && ((tr.rotate && tr.rotate !== 0) || (tr.mirror && tr.mirror !== 'none'))) throw new Error('A transform (rotate/mirror) needs at least one Grid level to apply to');
-  return lv;
 }
 export function runSealedSymbolLevel(first) {
   const l = first.lattice;
@@ -175,7 +146,7 @@ export function runFigureRecipe(def, opts) {
     state.figureLevelStats.push({ tiles, copies });
     shapes *= tiles * copies;
     if (shapes > FIGURE_MAX_SHAPES) throw new Error(`Too many shapes (${shapes}) — the limit is ${FIGURE_MAX_SHAPES}`);
-    if (!last) { const svg = buildFvsGridSVG(); state.figureLevelMeta[gi] = lastFigureMeta; state.fvsGridRaw = promoteFigureToTile(svg); }   // this figure becomes the next level's tile
+    if (!last) { const svg = buildFvsGridSVG(); state.figureLevelMeta[gi] = live.lastFigureMeta; state.fvsGridRaw = promoteFigureToTile(svg); }   // this figure becomes the next level's tile
   });
   if (!grids.length) { state.fvsGridConfig.rot = tr.rotate || 0; state.fvsGridConfig.mirror = tr.mirror || 'none'; }
   if (opts && opts.keepTier) { state.figureTier = tier; return figureSVGOf(tier); }
@@ -183,20 +154,4 @@ export function runFigureRecipe(def, opts) {
   // 'grid' has no page of its own anymore, so land on Symbol instead of a blank UI.
   setTier(tier === 'grid' ? 'symbol' : tier);
   return tierSVG();
-}
-// A finished Grid figure as the tile of the next level: its markup without the paper rect,
-// its frame, and the box it really draws in (set by the last buildFvsGridSVG()).
-export function promoteFigureToTile(svg) {
-  const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
-  return { size: lastFigureMeta.size, inner, box: lastFigureMeta.box };
-}
-// The finished SVG of one underlying step, whichever step is on screen.
-export function figureSVGOf(tier) {
-  if (tier === 'grid') return buildFvsGridSVG();
-  if (tier === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
-  const comp = getSelectedComponent();
-  if (!comp) return '';
-  state.selectedRuleSource = comp.ruleSource;
-  const grid = getGrid();
-  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameDims(grid));
 }

@@ -1,9 +1,8 @@
 // Flexible Visual System · 15-export-library-view — Variants, Plates, recipe import / export, init, Library rail, Delete, Library view.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
-import { rt } from './rt.js';
 import {
-  state
+  live, pc, pv, state
 } from './engine/00-core.js';
 import {
   frameDims
@@ -15,74 +14,64 @@ import {
   fitThumbBox
 } from './engine/03-rules.js';
 import {
-  ELEMENT_LIB, buildComponentItems, genesisTileForms
+  ELEMENT_LIB, genesisTileForms, savedElementThumb
 } from './engine/04-appearance.js';
 import {
   r2
 } from './engine/05-render-component.js';
 import {
-  getSelectedComponent
-} from './engine/06-component-ui.js';
-import {
-  LIBRARY, hexKey, isPaperNone, libraryNames, shownElementNames
+  LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames, shownElementNames
 } from './engine/07-library.js';
 import {
-  LIVE_SYMBOL, getSymbolGrid
+  LIVE_SYMBOL
 } from './engine/08-symbol-grid.js';
 import {
-  SYMBOL_LIBRARY, patchCell
+  componentThumbSVG
+} from './engine/10-suggest.js';
+import {
+  SYMBOL_LIBRARY, buildSymbolLibraryEntry, patchCell, symbolEntryThumbSVG
 } from './engine/11-symbol-ui.js';
 import {
-  DEFAULT_VARIANTS, KIND_WORD, LIBVIEW_KINDS, RAIL_DBL_MS, componentUsage, dupName, fileSlug, libviewBlock,
-  libviewVerb, plateSVG, railBlock, railTileVerb, recolourSVG, svgBaseDims, svgInnerOf
+  DEFAULT_VARIANTS, KIND_WORD, LIBVIEW_KINDS, RAIL_DBL_MS, componentUsage, dupName, elementInLivePaper,
+  fileSlug, libviewBlock, libviewItems, libviewSVG, libviewVerb, plateSVG, railBlock, railPatch,
+  railTileVerb, renderVariant, svgBaseDims, svgInnerOf, tierSVG
 } from './engine/15-export-library-view.js';
 import {
   buildPalette, ctrl, onColorRuleChange, printSizePanel, setStatus, syncColorRuleUI
 } from './00-core.js';
 import {
-  getSeed, useSvgAsSeed
+  useSvgAsSeed
 } from './02-seed-ui.js';
 import {
-  getGrid
-} from './03-rules.js';
-import {
-  elementLibraryChanged, getElementAppearance, removeSavedElement, savedElementThumb, useAsPaperTile,
-  withAppearance
+  elementLibraryChanged, removeSavedElement, useAsPaperTile
 } from './04-appearance.js';
 import {
-  buildComponentSVG, buildSeedPreviewSVG, printComponentDims, renderGallery, renderSeedPreview
+  printComponentDims, renderGallery, renderSeedPreview
 } from './05-render-component.js';
 import {
   renderComponentEditCanvas, syncRuleAvailability, syncRuleUI, syncSeedUI
 } from './06-component-ui.js';
 import {
-  applyElementSnapshot, applyLibraryEntryToUI, buildLibraryEntry, closeUnderlyingComponentPicker,
+  applyElementSnapshot, applyLibraryEntryToUI, closeUnderlyingComponentPicker,
   openUnderlyingComponentPicker, removeLibraryEntry, removeUnderlyingComponent, renameLibraryEntry,
   renderLibrary, saveAllComponentsToLibrary, syncComponentRoleUI
 } from './07-library.js';
 import {
-  buildFvsGridSVG
-} from './08-symbol-grid.js';
-import {
-  buildSymbolSVG
-} from './09-symbol-render.js';
-import {
-  componentThumbSVG, renderSymbolPool
+  renderSymbolPool
 } from './10-suggest.js';
 import {
-  applySymbolLibraryEntryToUI, applyToSelection, buildSymbolLibraryEntry, removeSymbolLibraryEntry,
-  renderCellPropertiesPanel, renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary, saveSymbolAs,
-  symbolEntryThumbSVG
+  applySymbolLibraryEntryToUI, applyToSelection, removeSymbolLibraryEntry, renderCellPropertiesPanel,
+  renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary, saveSymbolAs
 } from './11-symbol-ui.js';
 import {
   exportByTier, onAppearanceChange, setPaperUI, setTier
 } from './12-shell.js';
-import { hooks, provide } from './hooks.js';
+import { provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   closeLibview: () => closeLibview, deleteSaved: () => deleteSaved, libviewIsOpen: () => libviewIsOpen,
-  railPatch: () => railPatch, renderLibraryRail: () => renderLibraryRail,
-  renderLibview: () => renderLibview, syncRailTier: () => syncRailTier
+  renderLibraryRail: () => renderLibraryRail, renderLibview: () => renderLibview,
+  syncRailTier: () => syncRailTier
 });
 // ── Variants / Plates / Recipe ─────────────────────────────────────
 // One geometry, many outputs. tierSVG() is the single SVG builder for
@@ -97,36 +86,8 @@ export function readVariants() {
 export function writeVariants(list) { try { VARIANTS.write({ list }); } catch (e) {} }
 export let variantList = readVariants();
 
-export function tierSVG() {
-  const t = state.activeTier;
-  if (t === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
-  if (t === 'grid') return buildFvsGridSVG();
-  if (t === 'element') return buildSeedPreviewSVG(getSeed(), 0, false, false, 400);
-  if (t === 'figure') return hooks.figureSVGOf(state.figureTier || 'symbol');
-  const comp = getSelectedComponent();
-  if (!comp) return '';
-  state.selectedRuleSource = comp.ruleSource;
-  const grid = getGrid();
-  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameDims(grid));
-}
 
 
-export function renderVariant(v, transparent) {
-  const prev = { colors: state.colors, paper: state.paperColor };
-  const paper = prev.paper;
-  if (v.paper) state.paperColor = v.paper;
-  const app = { ...getElementAppearance(), fillMode: v.style, strokeW: v.strokeW, rounded: true };
-  rt.variantAppearance = { fillMode: v.style, strokeW: v.strokeW, rounded: true };
-  state.colors = [v.ink];
-  try {
-    let svg = withAppearance(app, tierSVG);
-    if (!svg) return '';
-    const paperNow = v.paper || paper;
-    svg = recolourSVG(svg, v.ink, paperNow);
-    if (transparent) svg = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paperNow}"/>`, 'i'), '');
-    return svg;
-  } finally { rt.variantAppearance = null; state.colors = prev.colors; state.paperColor = prev.paper; }
-}
 
 export function renderVariantRows() {
   const host = ctrl('variant-rows');
@@ -190,21 +151,21 @@ export async function encodeOutput(svg, { format, scale, paper, plate }) {
 // The (scale) sizes to emit: PNG in screen mode honours the ×1/×2/×4 ticks;
 // SVG and print mode are one file per item.
 export function outputScales() {
-  if (ctrl('sel-variant-format').value !== 'png' || printSizePanel.getMode() === 'print') return [1];
-  const out = [1, 2, 4].filter(n => ctrl('chk-vscale-' + n).checked);
+  if (pv('sel-variant-format') !== 'png' || printSizePanel.getMode() === 'print') return [1];
+  const out = [1, 2, 4].filter(n => pc('chk-vscale-' + n));
   return out.length ? out : [1];
 }
 export function outputName(label, scale) {
-  const fmt = ctrl('sel-variant-format').value;
+  const fmt = pv('sel-variant-format');
   return Organica.stamp(`fvs-${label}${fmt === 'png' && scale > 1 ? '@' + scale + 'x' : ''}`, fmt);
 }
-export function syncVariantFormatUI() { ctrl('row-variant-scales').style.display = ctrl('sel-variant-format').value === 'png' ? '' : 'none'; }
+export function syncVariantFormatUI() { ctrl('row-variant-scales').style.display = pv('sel-variant-format') === 'png' ? '' : 'none'; }
 ctrl('sel-variant-format').addEventListener('change', syncVariantFormatUI);
 syncVariantFormatUI();
 
 ctrl('btn-variant-export').addEventListener('click', () => {
-  const transparent = ctrl('chk-variant-transparent').checked;
-  const scales = outputScales(), format = ctrl('sel-variant-format').value;
+  const transparent = pc('chk-variant-transparent');
+  const scales = outputScales(), format = pv('sel-variant-format');
   const jobs = [];
   variantList.forEach(v => scales.forEach(sc => jobs.push({ v, sc })));
   Organica.plateExport.run(jobs.length, {
@@ -223,7 +184,7 @@ ctrl('btn-export').addEventListener('click', syncPlatesBlock);
 ctrl('btn-plates-export').addEventListener('click', () => {
   const svg = tierSVG(); if (!svg) return;
   const colors = state.colors.slice(), paper = state.paperColor;
-  const scales = outputScales(), format = ctrl('sel-variant-format').value;
+  const scales = outputScales(), format = pv('sel-variant-format');
   const jobs = [];
   colors.forEach((c, i) => scales.forEach(sc => jobs.push({ i, sc })));
   Organica.plateExport.run(jobs.length, {
@@ -405,23 +366,6 @@ document.addEventListener('keydown', e => {
   if (railIsOpen() && (inRail || !a || a === document.body)) setRailOpen(false, { focus: true });   // an Escape meant for a field or popover stays theirs
 });
 
-// What a tile puts in a cell — the same patches as the Choose-content overlay.
-export function railPatch(kind, name) {
-  if (kind === 'component') {
-    if (!LIBRARY.read()[name]) return null;
-    return { source: 'component', componentName: name, span: true, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null, rotation: 0, flipH: false, flipV: false, fitMode: rt.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
-  }
-  const entry = ELEMENT_LIB.read()[name];
-  if (!entry || !entry.seed) return null;
-  const sp = JSON.parse(JSON.stringify(entry.seed)), o = entry.orientation || {};
-  if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
-  // The cell carries the palette the Element was saved with (ownColors). It is used while
-  // Colour by is "Element's own colours" (the default): its first ink for the shape, every
-  // layer's ink for a stack (drawn like a Component's own palette). Any other rule colours
-  // the cell like the rest. An entry saved without colours follows the rule.
-  const own = entry.colors && entry.colors.length ? entry.colors.slice() : null;
-  return { source: 'seed', seedType: sp.type, seedParams: sp, color: null, ownColors: own, ownPaper: entry.paperColor || null, ownAppearance: entry.appearance || null, colourway: null, rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV, fitMode: rt.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
-}
 // A cell inside the selection takes the whole selection; any other cell takes only itself.
 export function railApply(kind, name, idx) {
   if (state.activeTier !== 'symbol') return;
@@ -501,7 +445,7 @@ export async function railRename(kind, name) {
   }
   const all = store.read();
   if (!all[name]) return;
-  const livePaper = kind === 'element' && rt.paperPatternOn && ctrl('sel-ground-tile').value === 'saved:' + name;
+  const livePaper = kind === 'element' && live.paperPatternOn && pv('sel-ground-tile') === 'saved:' + name;
   all[next] = all[name]; delete all[name];
   store.write(all);
   if (kind === 'element') {
@@ -592,7 +536,6 @@ export function syncRailTier(tier) {
   if (!show && railIsOpen()) setRailOpen(false);
   renderLibraryRail();
 }
-export function elementInLivePaper(name) { return !!(rt.paperPatternOn && ctrl('sel-ground-tile').value === 'saved:' + name); }
 export function deleteSavedComponent(name) {
   const all = LIBRARY.read();
   if (!all[name]) return;
@@ -643,13 +586,6 @@ export function duplicateSaved(kind, name) {
 
 export let libviewKind = 'all';
 export function libviewIsOpen() { const v = document.getElementById('fvs-libview'); return !!(v && !v.hidden); }
-export function libviewItems(kind) {
-  const newest = all => (a, b) => String((all[b] || {}).savedAt || '').localeCompare(String((all[a] || {}).savedAt || ''));
-  if (kind === 'element') { const all = ELEMENT_LIB.read(); return shownElementNames(all).sort(newest(all)).map(n => ({ name: n, svg: () => savedElementThumb(all[n]) })); }
-  if (kind === 'component') { const all = LIBRARY.read(); return libraryNames(all).sort(newest(all)).map(n => ({ name: n, svg: () => componentThumbSVG(n) })); }
-  if (kind === 'symbol') { const all = SYMBOL_LIBRARY.read(); return Object.keys(all || {}).sort(newest(all)).map(n => ({ name: n, svg: () => symbolEntryThumbSVG(all[n]) })); }
-  return genesisTileForms().map(f => ({ name: f.name || f.id, id: f.id, svg: () => String(f.svg) }));
-}
 export function libviewTile(kind, item) {
   const tile = document.createElement('div');
   tile.className = 'fvs-libview__tile';
@@ -675,7 +611,7 @@ export function libviewTile(kind, item) {
 }
 export function renderLibview() {
   if (!libviewIsOpen()) return;
-  const body = ctrl('libview-body'), q = ctrl('libview-q').value.trim().toLowerCase();
+  const body = ctrl('libview-body'), q = pv('libview-q').trim().toLowerCase();
   body.innerHTML = '';
   let shown = 0, any = 0;
   LIBVIEW_KINDS.forEach(([kind, title]) => {
@@ -693,7 +629,7 @@ export function renderLibview() {
   });
   if (!shown) {
     const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    body.innerHTML = q ? `<div class="org-empty"><p class="org-empty__title">No matches</p><p class="org-empty__hint">Nothing saved is named “${esc(ctrl('libview-q').value.trim())}”.</p></div>`
+    body.innerHTML = q ? `<div class="org-empty"><p class="org-empty__title">No matches</p><p class="org-empty__hint">Nothing saved is named “${esc(pv('libview-q').trim())}”.</p></div>`
       : `<div class="org-empty"><p class="org-empty__title">Nothing here yet</p><p class="org-empty__hint">${libviewKind === 'all' ? 'Save an Element, a Component or a Symbol.' : 'No ' + (LIBVIEW_KINDS.find(k => k[0] === libviewKind) || [, 'items'])[1] + ' saved yet.'}</p></div>`;
   }
 }
@@ -725,14 +661,6 @@ export function closeLibview(opts) {
   ctrl('btn-libview').setAttribute('aria-expanded', 'false');
   ctrl('libview-status').textContent = '';
   if (opts && opts.focus) ctrl('btn-libview').focus();
-}
-// A saved item as a file: the same SVG its thumbnail draws (Paper included), or that SVG rasterised.
-export function libviewSVG(kind, name) {
-  if (kind === 'element') { const e = ELEMENT_LIB.read()[name]; return e ? savedElementThumb(e) : ''; }
-  if (kind === 'component') return componentThumbSVG(name);
-  if (kind === 'symbol') { const e = SYMBOL_LIBRARY.read()[name]; return e ? symbolEntryThumbSVG(e) : ''; }
-  const f = genesisTileForms().find(x => x.id === name);
-  return f ? String(f.svg).replace(/var\(--ink\)/g, '#000000') : '';
 }
 export async function libviewDownload(kind, name, fmt) {
   let svg = libviewSVG(kind, name);

@@ -2,8 +2,11 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  state
+  pc, pv, state, val
 } from './00-core.js';
+import {
+  readPatternControls
+} from './04-appearance.js';
 // ── Components ↔ Symbols tab switch ──
 export const STEP_EXPORT_HINTS = {
   element: 'Exports the current Element on its own, at 0°.',
@@ -56,3 +59,9 @@ export const FVS_SEED_ORDER = {
 export const POLY_PRESETS = { pentagon: [5], hexagon: [6], octagon: [8] };
 export const OUTLINE_ICONS = { hexagon: 'fvs-cell-hexagon', triangle: 'fvs-cell-triangle', diamond: 'fvs-diamond', square: 'fvs-cell-square' };
 export const NEW_LAYER_SCALE = 0.6;   // a new layer starts smaller so it shows on top of the one below (addLayer)
+export function truState() { const o = { fans: +pv('sel-tru-fans') }; Object.keys(TRU_IDS).forEach(k => { o[k] = val(TRU_IDS[k]); }); return o; }
+export function readShapeLook() {
+  return { fillMode: pv('sel-element-fillmode'), strokeW: val('rg-element-strokew'), rounded: pc('ck-element-rounded'), w: val('rg-element-w'), l: val('rg-element-l'),
+    scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), rotate: val('rg-element-rotate'), cutOut: val('rg-element-cutout'),
+    irregular: val('rg-element-irregular'), irrMode: pv('sel-element-irrmode'), irrWaves: val('rg-element-irrwaves'), irrSeed: val('rg-element-irrseed'), ...readPatternControls() };
+}

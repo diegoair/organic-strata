@@ -1,19 +1,24 @@
 // Flexible Visual System · engine/04-appearance — the engine part of 04-appearance.js: model + logic, no DOM UI.
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
-import { hooks } from '../hooks.js';
 import {
-  colorRuleCR, entryInkAt, ruleInk, state
+  colorAt, colorRuleCR, entryInkAt, live, pc, pv, ruleInk, state, val
 } from './00-core.js';
 import {
-  CELL_SHAPES, frameSize, median, ptsToD, resolveGridCells, splitPaperScope
+  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameSize, importAsPaperShape, median, ptsToD, resolveGridCells,
+  splitPaperScope
 } from './01-geometry.js';
 import {
-  ensureSvgNamespace, getCreatorLibraryForms
+  SEED_ICONS, ensureSvgNamespace, getCreatorLibraryForms, getSeed
 } from './02-seed-ui.js';
 import {
   mod360
 } from './03-rules.js';
+import { hooks, provide } from '../hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  componentCellColRow: () => componentCellColRow
+});
 // ── Item resolution + draw/export (shared by canvas + SVG) ──
 export function buildComponentItems(component, grid) {
   const centers = resolveGridCells(grid);
@@ -318,3 +323,199 @@ export function tileThumbSVG(t) {
   return `<svg viewBox="-6 -6 112 112" aria-hidden="true"><g transform="${tileNormAttr(g)}"><path d="${g.d}" ${attrs}${g.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${g.fillRule}"` : ''}/></g></svg>`;
 }
 export const paperPatternGeo = (g, w, h) => { const k = Math.min(w, h) / 100; return { k, pg: hooks.patternGeometry(g, { cx: w / 2 / k, cy: h / 2 / k, r: Math.hypot(w, h) / 2 / k }) }; };
+// A cell's own content override (Component Edit mode) replaces the shared
+// Element's geometry for that one item; every other item keeps using the
+// ONE `defaultGeo` computed once per render — a component with no edited
+// cells renders byte-identical to before this existed.
+export function resolveItemGeo(item, defaultGeo) {
+  if (!item.content) return defaultGeo;
+  return SEED_TYPES[item.content.seedType].geometry(item.content.seedParams);
+}
+// Deliberately still `geo` here, not resolveItemGeo(it, geo) — a per-cell
+// content override (Component Edit mode) changes what a cell PAINTS, not
+// the Container/Mask boundary silhouette, which stays the shared Element's
+// outline for every cell regardless. Mixing per-cell shapes into the clip
+// itself is a real, separate idea, out of scope for this pass.
+export function componentBoundaryClipContent(items, geo, half) {
+  const a = getElementAppearance();
+  const stretch = Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a));
+  return items.map(it => {
+    const fit = it.cellSize / 100;
+    const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
+    const tf = `translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50) ${stretch} translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
+    return `<path transform="${tf}" d="${geo.d}"/>`;
+  }).join('');
+}
+export function readPatternControls() {
+  return { patType: pv('sel-element-pattern'), patSpacing: val('rg-element-patspacing'), patWeight: val('rg-element-patweight'), patAngle: val('rg-element-patangle') };
+}
+// Paper pattern (the "Ground"): a pattern laid over the Paper, always covering the
+// whole canvas, under everything else — in every step (Element preview, Component,
+// Symbol, each nested Component's own paper). Switched on by the Pattern icon on the
+// Palette's Paper row. `null` = plain Paper. Saved in the appearance object, so a
+// saved Component / Symbol keeps its own. Units: 1/100 of the canvas's short side,
+// so the same settings look alike on the Element preview, a Component and a Symbol.
+export function readGroundControls() {
+  if (!live.paperPatternOn) return null;
+  const g = { patType: pv('sel-ground-pattern'), patSpacing: val('rg-ground-patspacing'), patWeight: val('rg-ground-patweight'), patAngle: val('rg-ground-patangle'), ink: +pv('sel-ground-ink') || 0 };
+  if (g.patType === 'element') Object.assign(g, { src: pv('sel-ground-tile') || 'element', layout: pv('sel-ground-layout'), turn: pv('sel-ground-turn'), patSize: val('rg-ground-patsize') });
+  return g;
+}
+export function liveElementTile() {
+  const seed = getSeed();
+  if (!seed || !SEED_TYPES[seed.type]) return null;
+  const geo = SEED_TYPES[seed.type].geometry(seed);
+  if (!geo || !geo.d) return null;
+  // One silhouette: Stroke only for a single shape whose Style is Stroke; a stack / Fill / Pattern is a fill.
+  const fm = pv('sel-element-fillmode'), stroke = !state.layers && fm === 'stroke';
+  return { geo: { d: geo.d, fillRule: geo.fillRule || null, normTx: geo.normTx, normTy: geo.normTy, normScale: geo.normScale },
+    style: stroke ? { fillMode: 'stroke', strokeW: val('rg-element-strokew'), rounded: pc('ck-element-rounded') } : { fillMode: 'fill' } };
+}
+export function resolveTile(g) {
+  if (!g) return null;
+  if (g.tile) return g.tile;
+  const src = g.src || 'element';
+  if (src.startsWith('saved:')) { const e = ELEMENT_LIB.read()[src.slice(6)]; return e ? e.tile : null; }
+  if (src.startsWith('genesis:')) {
+    const id = src.slice(8);
+    if (!_genesisTileCache.has(id)) {
+      const f = genesisTileForms().find(x => x.id === id);
+      let geo = null;
+      try { geo = f ? svgToTileGeo(f.svg) : null; } catch (e) { geo = null; }
+      _genesisTileCache.set(id, geo ? { geo, style: { fillMode: 'fill' } } : null);
+    }
+    return _genesisTileCache.get(id);
+  }
+  return liveElementTile();
+}
+// What a save stores: the appearance with the tile frozen into it.
+export function appearanceSnapshot() {
+  const a = getElementAppearance();
+  if (!a.ground || a.ground.patType !== 'element' || a.ground.tile) return a;
+  const t = resolveTile(a.ground);
+  return t ? { ...a, ground: { ...a.ground, tile: t } } : a;
+}
+export function elementTileSVG(g, w, h, clipId) {
+  const t = resolveTile(g);
+  if (!t || !t.geo || !t.geo.d) return '';
+  const L = elementTileLayout(g, w, h), ink = groundInk(g), id = clipId + 't', sc = L.size / 100;
+  const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: t.style.fillMode, color: ink, strokeW: t.style.strokeW, rounded: t.style.rounded })
+    + (t.geo.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${t.geo.fillRule}"` : '');
+  const uses = L.tiles.map(p => `<use href="#${id}" transform="translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) rotate(${p.rot}) scale(${sc.toFixed(4)}) translate(-50,-50)"/>`).join('');
+  return `<defs><path id="${id}" d="${t.geo.d}" transform="${tileNormAttr(t.geo)}" ${attrs}/></defs>`
+    + `<clipPath id="${clipId}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${clipId})"><g transform="scale(${L.k.toFixed(4)})">${uses}</g></g>`;
+}
+export function paintElementTileCanvas(ctx, g, w, h) {
+  const t = resolveTile(g);
+  if (!t || !t.geo || !t.geo.d) return;
+  const L = elementTileLayout(g, w, h), sc = L.size / 100, path = new Path2D(t.geo.d), geo = t.geo;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
+  ctx.scale(L.k, L.k);
+  const op = Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: t.style.fillMode, color: groundInk(g), strokeW: t.style.strokeW, rounded: t.style.rounded });
+  for (const p of L.tiles) {
+    ctx.save();
+    ctx.translate(p.x, p.y); ctx.rotate(p.rot * Math.PI / 180); ctx.scale(sc, sc); ctx.translate(-50, -50);
+    ctx.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale); ctx.scale(geo.normScale, geo.normScale);
+    hooks.paintPath(ctx, op, path, geo);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+// ── Saved Elements — the Element as it is now, kept for reuse (Paper tile).
+// Same store mechanism as the Component library (Organica.presetStore), its own
+// key; a saved Element is not edited — only used, or removed.
+// One orientation of the live Element as a tile: rotation / flip baked into the path
+// (about the box centre, after the norm fit) — a saved variant is its own shape.
+export function orientedElementTile(rot, flipH, flipV) {
+  const t = liveElementTile();
+  if (!t || (!rot && !flipH && !flipV)) return t;
+  const g = t.geo, scope = splitPaperScope();
+  const cp = importAsPaperShape(scope, g.d, g.fillRule);
+  const m = new scope.Matrix().translate(50, 50).rotate(rot).scale(flipH ? -1 : 1, flipV ? -1 : 1).translate(-50, -50)
+    .translate(g.normTx * g.normScale, g.normTy * g.normScale).scale(g.normScale);
+  cp.transform(m);
+  const d = cp.pathData; cp.remove();
+  const style = t.style.fillMode === 'stroke' ? { ...t.style, strokeW: t.style.strokeW * g.normScale } : t.style;
+  return { geo: { d, fillRule: g.fillRule || null, normTx: 0, normTy: 0, normScale: 1 }, style };
+}
+export function defaultElementName(label) {
+  const type = getSeed().type;
+  return (state.layers ? 'Stack' : ((SEED_ICONS[type] || {}).name || type)) + (label && label !== '0°' ? ' · ' + label : '') + ' ' + new Date().toLocaleTimeString();
+}
+// The Element as drawn — its own inks (Palette, layer inks), this orientation, on its
+// Paper (colour + texture, as the Element frame shows it) — kept with a saved Element as
+// its thumbnail. data-paper="2" marks a thumbnail that already carries the texture.
+export function elementVariantSVG(rot, flipH, flipV) {
+  const seed = getSeed(), geo = SEED_TYPES[seed.type].geometry(seed);
+  const paper = (hooks.isPaperNone(state.paperColor) ? '' : `<rect width="100" height="100" fill="${state.paperColor}"/>`) + paperPatternSVG(100, 100);
+  const cs = cellShapeOf(seed);
+  if (cs !== 'square') {   // the Element's canvas is its cell: Paper + shape inside the outline, framed like the Element step
+    const k = cs === 'triangle' ? 50 / CELL_SHAPES.triangle.R : 1;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" data-paper="2"><g transform="translate(50,50) rotate(${rot}) scale(${(flipH ? -1 : 1) * k},${(flipV ? -1 : 1) * k}) translate(-50,-50)">`
+      + hooks.clipToCellShapes([CELL_SHAPES[cs].poly], paper + hooks.elementPathMarkup(geo, colorAt(0))) + `</g></svg>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true" data-paper="2">${paper}<g transform="translate(50,50) rotate(${rot}) scale(${flipH ? -1 : 1},${flipV ? -1 : 1}) translate(-50,-50)">${hooks.elementPathMarkup(geo, colorAt(0))}</g></svg>`;
+}
+// A saved Element's thumbnail for the library. Thumbnails saved before Oct 4, 2026 drew
+// the Paper colour only: their texture is added back here from the entry's own saved
+// appearance and palette (nothing is rewritten in the store).
+export function savedElementThumb(e) {
+  if (!e.thumb) return tileThumbSVG(e.tile);
+  if (/data-paper="2"/.test(e.thumb) || !e.appearance || !e.appearance.ground) return e.thumb;
+  const pat = hooks.withEntryInks(e.colors, () => withAppearance(e.appearance, () => paperPatternSVG(100, 100)));
+  if (!pat) return e.thumb;
+  const at = e.thumb.indexOf('<g transform=');
+  return at < 0 ? e.thumb : e.thumb.slice(0, at) + pat + e.thumb.slice(at);
+}
+export const groundInk = g => {
+  const pal = live.inkPaletteOverride || state.colors, i = g.ink === 'cell' || g.ink == null ? 0 : +g.ink;
+  return pal[((i % pal.length) + pal.length) % pal.length];
+};
+export function paperPatternSVG(w, h) {
+  const g = getElementAppearance().ground;
+  if (!g || !(w > 0) || !(h > 0)) return '';
+  if (g.patType === 'element') return elementTileSVG(g, w, h, 'gnd' + hooks.nextDrawId());
+  const id = 'gnd' + hooks.nextDrawId(), { k, pg } = paperPatternGeo(g, w, h);
+  return `<clipPath id="${id}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})"><g transform="scale(${k.toFixed(4)})"><path d="${pg.d}" ${hooks.patternAttrs(pg, groundInk(g))}/></g></g>`;
+}
+export function paintPaperPatternCanvas(ctx, w, h) {
+  const g = getElementAppearance().ground;
+  if (!g || !(w > 0) || !(h > 0)) return;
+  if (g.patType === 'element') { paintElementTileCanvas(ctx, g, w, h); return; }
+  const { k, pg } = paperPatternGeo(g, w, h);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
+  ctx.scale(k, k);
+  hooks.paintPatternCanvas(ctx, pg, groundInk(g));
+  ctx.restore();
+}
+// While set, getElementAppearance() returns it instead of the live controls —
+// how a saved Component/Symbol (and the nested Components inside a Symbol)
+// renders with the appearance it was SAVED with, not whatever the Element
+// panel says now. Entries saved before this field existed fall back to plain.
+// Export "Variants" override — merged over a saved Symbol's own appearance
+// in renderedSymbolEntrySVG so the Grid tier can change Style too.
+export function withAppearance(app, fn) {
+  const prev = live.appearanceOverride;
+  live.appearanceOverride = { ...DEFAULT_APPEARANCE, ...(app || {}) };
+  try { return fn(); } finally { live.appearanceOverride = prev; }
+}
+export function getElementAppearance() {
+  if (live.appearanceOverride) return live.appearanceOverride;
+  return {
+    fillMode: pv('sel-element-fillmode'),
+    strokeW: val('rg-element-strokew'),
+    rounded: pc('ck-element-rounded'),
+    // A live multi-layer Element: these two controls edit the ACTIVE layer's
+    // own look, so the Element-wide stretch is identity.
+    w: state.layers ? 1 : val('rg-element-w'),
+    l: state.layers ? 1 : val('rg-element-l'),
+    scale: val('rg-element-scale'),
+    mx: val('rg-element-mx'),
+    my: val('rg-element-my'),
+    rotate: val('rg-element-rotate'),
+    ...readPatternControls(),
+    ground: readGroundControls(),
+  };
+}

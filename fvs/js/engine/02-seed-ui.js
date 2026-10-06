@@ -2,9 +2,17 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
+  pc, pv, state, val
+} from './00-core.js';
+import {
   SYMBOL_ARC, SYMBOL_ARC_TRUCHET, SYMBOL_CHEVRON, SYMBOL_CROSS, SYMBOL_INNER, SYMBOL_LENS, SYMBOL_POLYGON,
-  SYMBOL_ROUNDEDRECT, SYMBOL_STAR, SYMBOL_TRIANGLE, SYMBOL_WEDGE
+  SYMBOL_ROUNDEDRECT, SYMBOL_STAR, SYMBOL_TRIANGLE, SYMBOL_WEDGE, withCellShape
 } from './01-geometry.js';
+import { hooks, provide } from '../hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  circleOptsFrom: () => circleOptsFrom
+});
 // Symbols cells carry no per-seed params of their own (same as they already
 // ignore Base/Height/Thickness) — one merged params object covers every
 // SEED_TYPES geometry fn, each reading only the fields it needs.
@@ -165,4 +173,141 @@ export function getCreatorLibraryForms() {
     if (f && f.svg && !seen.has(f.id)) { seen.add(f.id); forms.push({ id: f.id, name: f.name, svg: f.svg }); }
   }
   return forms;
+}
+// Every other shape follows the same dead-control rule: a row that changes nothing until another
+// control moves stays hidden until then (Seed without Irregularity, a gap with one segment, a corner
+// style with no corner…). One table, read after every Seed-panel edit and every load.
+export const SEED_DEPENDS = [
+  ['rg-arc-gap', () => val('rg-arc-segs') > 1],
+  ['rg-tru-gap', () => val('rg-tru-segs') > 1],
+  ['sel-poly-style', () => val('rg-poly-corner') > 0],
+  ['sel-star-style', () => val('rg-star-tip') > 0 || val('rg-star-valley') > 0],
+  ['sel-rr-style', () => val('rg-rr-corner') > 0],
+  ['sel-rr-mask', () => val('rg-rr-corner') > 0],
+  ['sel-chev-style', () => val('rg-chev-round') > 0],
+  ['rg-chev-gap', () => val('rg-chev-stack') > 1],
+  ['sel-cross-style', () => val('rg-cross-corner') > 0],
+  ['rg-seg-cycles', () => val('rg-seg-wave') > 0],
+  ['rg-seg-gap', () => val('rg-seg-dashes') > 1],
+  ['rg-seg-spacing', () => val('rg-seg-lines') > 1],
+  // Space X/Y squeeze each tile's copy along that axis — nothing to squeeze on a flat (or upright) bar
+  ['rg-seg-spaceX', () => val('rg-seg-repeatX') > 1 && (Math.abs(val('rg-seg-angle')) !== 90 || segHasBody())],
+  ['rg-seg-spaceY', () => val('rg-seg-repeatY') > 1 && (val('rg-seg-angle') !== 0 || segHasBody())],
+];
+export const segHasBody = () => val('rg-seg-bend') !== 0 || val('rg-seg-wave') > 0 || val('rg-seg-lines') > 1 || val('rg-seg-rays') > 1;
+// The Seed as a snapshot stores it: freehand also carries its editable
+// path data plus the fitted geometry, so it renders with no editor present.
+// Extras registry → getSeed keys (numbers for sliders, strings for selects).
+export function getSeedExtras() {
+  const o = {};
+  Object.values(SEED_EXTRAS).forEach(sh => sh.rows.forEach(r => { const v = pv(xrId(sh, r)); o[r.key] = r.kind === 'select' ? v : parseFloat(v); }));
+  return o;
+}
+// The Seed panel's own controls as ONE shape (the active layer, when the
+// Element is a stack). getSeed()/seedForSnapshot() below are the stack-aware
+// versions every other consumer uses.
+export function panelSeedSnapshot() {
+  const seed = { ...getPanelSeed(), customSeed: state.customSeed };
+  if (seed.type === 'freehand') {
+    seed.customSeed = state.freehand.seed;
+    seed.freehandData = state.freehand.data;
+    seed.freehandRaw = state.freehand.raw;
+  }
+  return seed;
+}
+export function seedForSnapshot() {
+  if (!state.layers) return withCellShape(panelSeedSnapshot());
+  hooks.syncActiveLayer();
+  return withCellShape({ type: 'stack', active: state.layers.active, layers: state.layers.items.map(l => JSON.parse(JSON.stringify(l))) });
+}
+export function getSeed() {
+  return state.layers ? seedForSnapshot() : withCellShape(getPanelSeed());
+}
+export function getPanelSeed() {
+  return { ...getSeedExtras(),
+    type: pv('sel-seed-type'),
+    base: val('rg-base'),
+    height: val('rg-height'),
+    triApex: val('rg-tri-apex') * 2 - 100,   // slider is a 0–100 position (0 left corner · 50 centred · 100 right corner); stored/geometry value stays -100..100 centred, so old snapshots need no migration
+    triCorner: val('rg-tri-corner'),
+    triCurve: val('rg-tri-curve'),
+    triIrregular: val('rg-tri-irregular'),
+    triSeed: val('rg-tri-seed'),
+    triOutline: val('rg-tri-outline'),
+    innerCount: val('rg-inner-count'),
+    innerRatio: val('rg-inner-ratio'),
+    innerAnchor: pv('sel-inner-anchor'),
+    cutOut: val('rg-element-cutout'),
+    irregular: val('rg-element-irregular'),
+    irrMode: pv('sel-element-irrmode'),
+    irrWaves: val('rg-element-irrwaves'),
+    irrSeed: val('rg-element-irrseed'),
+    thickness: val('rg-thickness'),
+    arcCount: val('rg-arc-count'),
+    arcRatio: val('rg-arc-ratio') / 100,
+    truFans: +pv('sel-tru-fans'),
+    truCore: val('rg-tru-core'),
+    truSpread: val('rg-tru-spread'),
+    truReach: val('rg-tru-reach'),
+    truRamp: val('rg-tru-ramp'),
+    truCurve: val('rg-tru-curve'),
+    truRound: val('rg-tru-round'),
+    truSegs: val('rg-tru-segs'),
+    truGap: val('rg-tru-gap'),
+    wedgeAngle: val('rg-wedge-angle'),
+    wedgeInner: val('rg-wedge-inner'),
+    wedgeSquash: val('rg-wedge-squash'),
+    wedgeRound: val('rg-wedge-round'),
+    wedgeRotate: val('rg-wedge-rotate'),
+    wedgeCurve: val('rg-wedge-curve'),
+    wedgeIrregular: val('rg-wedge-irregular'),
+    wedgeSeed: val('rg-wedge-seed'),
+    polySides: val('rg-poly-sides'),
+    polyCorner: val('rg-poly-corner'),
+    polyRotate: val('rg-poly-rotate'),
+    polyStep: val('rg-poly-step'),
+    polyStyle: pv('sel-poly-style'),
+    polyCurve: val('rg-poly-curve'),
+    polyOutline: val('rg-poly-outline'),
+    polySkew: val('rg-poly-skew'),
+    polyIrregular: val('rg-poly-irregular'),
+    polySeed: val('rg-poly-seed'),
+    starPoints: val('rg-star-points'),
+    starInner: val('rg-star-inner'),
+    starIrregular: val('rg-star-irregular'),
+    starSeed: val('rg-star-seed'),
+    rrWidth: val('rg-rr-width'),
+    rrHeight: val('rg-rr-height'),
+    rrCorner: val('rg-rr-corner'),
+    chevNotch: val('rg-chev-notch'),
+    chevArm: val('rg-chev-arm'),
+    chevSquash: val('rg-chev-squash'),
+    crossArmWidth: val('rg-cross-armwidth'),
+    crossArmLength: val('rg-cross-armlength'),
+    crossCorner: val('rg-cross-corner'),
+    lensWidth: val('rg-lens-width'),
+    arcPivot: pv('sel-arc-pivot'),
+    arcSweep: val('rg-arc-sweep'),
+    arcStart: val('rg-arc-start'),
+    arcRound: val('rg-arc-round'),
+    arcSegs: val('rg-arc-segs'),
+    arcGap: val('rg-arc-gap'),
+    arcTaper: val('rg-arc-taper'),
+    arcIrregular: val('rg-arc-irregular'),
+    arcSeed: val('rg-arc-seed'),
+    polyRadius: val('rg-poly-radius'),
+    starRadius: val('rg-star-radius'),
+    circleRadius: val('rg-circle-radius'),
+    segLen: val('rg-seg-len'),
+    segWeight: val('rg-seg-weight'),
+    segRound: pc('ck-seg-round'),
+    dropRadius: val('rg-drop-radius'),
+    dropTail: val('rg-drop-tail'),
+    blobRadius: val('rg-blob-radius'),
+    blobAmount: val('rg-blob-amount'),
+    blobSeed: val('rg-blob-seed'),
+    circleInterior: pv('sel-circle-interior'),
+    circleTrim: pv('sel-circle-trim'),
+    ...Object.fromEntries(CIRCLE_PARAMS.map(([k, id]) => [cap(k), val('rg-circle-' + id)])),
+  };
 }

@@ -1,9 +1,8 @@
 // Flexible Visual System · engine/08-symbol-grid — the engine part of 08-symbol-grid.js: model + logic, no DOM UI.
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
-import { hooks } from '../hooks.js';
 import {
-  state
+  DEFAULT_COLOR_RULE, live, pv, state
 } from './00-core.js';
 import {
   frameDims, frameSize, median, resolveGridCells
@@ -12,8 +11,19 @@ import {
   mod360
 } from './03-rules.js';
 import {
-  LIBRARY
+  withAppearance
+} from './04-appearance.js';
+import {
+  r2
+} from './05-render-component.js';
+import {
+  LIBRARY, hexKey
 } from './07-library.js';
+import { hooks, provide } from '../hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  getSymbolGrid: () => getSymbolGrid
+});
 // Two real Loom exports (captured live from /loom/, not hand-built) —
 // a small Bento (7 merged rect cells) and a Hexagonal (17 polygon
 // cells, the "more complex" case), both well under Loom's own
@@ -442,3 +452,120 @@ export function cellNaturalSize(cell, lib) {
   return nd.w === nd.h ? frameSize(entry.grid) : { w: nd.w, h: nd.h };
 }
 export const samePlacement = (a, b) => ['scaleX', 'scaleY', 'offsetX', 'offsetY'].every(k => Math.abs(a[k] - b[k]) < 1e-6);
+export function fvsGridSelectedEntry() {
+  if (state.fvsGridRaw) return { raw: state.fvsGridRaw };   // the figure below, promoted to a tile
+  if (state.fvsGridComponentName) return componentTileEntry(state.fvsGridComponentName);
+  if (!state.fvsGridSymbolName) return null;
+  if (state.fvsGridSymbolName === LIVE_SYMBOL) return state.symbolGrid ? hooks.buildSymbolLibraryEntry() : null;
+  return hooks.SYMBOL_LIBRARY.read()[state.fvsGridSymbolName] || null;
+}
+// Renders one saved Symbol entry's SVG string against its OWN saved
+// state (not the live one), same swap-state-then-restore trick
+// renderSymbolLibrary() already uses for its own thumbnails.
+export function renderedSymbolEntrySVG(entry) {
+  if (entry.raw) return { size: entry.raw.size, inner: entry.raw.inner };   // a finished figure used as a tile
+  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled, overlap: state.symbolOverlap };
+  state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
+  state.symbolCells = entry.cells;
+  state.colors = entry.colors;
+  state.colorRule = entry.colorRule || DEFAULT_COLOR_RULE;
+  state.paperColor = entry.paperColor;
+  state.symbolClipEnabled = entry.clipEnabled !== false;
+  state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(entry.overlap || {}) };
+  // A Symbol with a Canvas may not be square: it is tiled letterboxed in a
+  // square of its long side (centred), so the Grid tier's placement is unchanged.
+  const F = symbolFrame(getSymbolGrid());
+  const size = Math.max(F.w, F.h);
+  const svgStr = withAppearance({ ...entry.appearance, ...(live.variantAppearance || {}) }, hooks.buildSymbolSVG);
+  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip; state.symbolOverlap = prev.overlap;
+  let inner = svgStr.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  if (F.w !== F.h) inner = `<g transform="translate(${r2((size - F.w) / 2)},${r2((size - F.h) / 2)})">${inner}</g>`;
+  return { size, inner };
+}
+export function buildFvsGridSVG() {
+  const grid = getFvsGrid();
+  const entry = fvsGridSelectedEntry();
+  if (!grid || !entry) return '';
+  const size = frameSize(grid);
+  const centers = resolveGridCells(grid);
+  const { size: natSize, inner } = renderedSymbolEntrySVG(entry);
+  const altFlip = state.fvsGridConfig.altFlip;
+  // Checkerboard by (col + row) parity — index parity gave vertical stripes on grids with an even column count.
+  const colRow = altFlip ? Organica.shapes.cellColRow(grid, null, null) : null;
+  // Every tile repeats the same Symbol markup, so the clip <defs> (identical in each tile's own
+  // coordinates) are emitted once and the per-tile <metadata> is dropped: a 36-tile grid used to
+  // carry 36 copies of both. Triangular tiles overlap as boxes, so only the grid's own paper rect
+  // may paint the ground.
+  const defsM = inner.match(/<defs>[\s\S]*?<\/defs>/);
+  const sharedDefs = defsM ? defsM[0] : '';
+  let tileInner = inner.replace(/<metadata>[\s\S]*?<\/metadata>/, '').replace(/<defs>[\s\S]*?<\/defs>/, '');
+  // A tile's own paper is also dropped when it is the ground colour anyway: a Symbol with a Canvas
+  // margin has a paper larger than its drawn box, and a mirrored copy's paper covered the original's
+  // edge across the mirror axis.
+  const tilePaper = tileInner.match(/<rect width="[\d.]+" height="[\d.]+" fill="(#[0-9a-fA-F]+)"\/>/);
+  if (grid.tri || (tilePaper && hexKey(tilePaper[1]) === hexKey(state.paperColor))) tileInner = tileInner.replace(/<rect width="[\d.]+" height="[\d.]+" fill="#[0-9a-fA-F]+"\/>/, '');
+  const cbox = symbolContentBox(entry, natSize);   // where the Symbol actually draws, in its own frame
+  // A promoted figure is placed by its drawn box; a Symbol by its (square) frame, exactly as before.
+  const raw = !!entry.raw && !!cbox;
+  const lcx = raw ? (cbox.x0 + cbox.x1) / 2 : natSize / 2, lcy = raw ? (cbox.y0 + cbox.y1) / 2 : natSize / 2;
+  const ext = raw ? (grid.tri ? cbox.x1 - cbox.x0 : Math.max(cbox.x1 - cbox.x0, cbox.y1 - cbox.y0)) : natSize;
+  let body = '';
+  let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+  centers.forEach((c, i) => {
+    const cw = c.cellW || c.cellSize, ch = c.cellH || c.cellSize;
+    // Triangle lattices: the Symbol's own width matches the cell's width (the cell box is not square)
+    const target = grid.tri ? cw : Math.min(cw, ch);
+    const s = target / ext;
+    const tx = size / 2 + c.cx - (raw ? s * lcx : target / 2), ty = size / 2 + c.cy - (raw ? s * lcy : target / 2);
+    const flip = altFlip && (colRow[i].col + colRow[i].row) % 2 === 1;
+    const flipPart = flip ? ` translate(${2 * lcx},0) scale(-1,1)` : '';
+    // a tile in a down-pointing cell is turned half a turn so it keeps facing its lattice slot
+    const down = grid.tri && polyOrient(grid.cells[i].points) === 'down';
+    const turn = down ? ` rotate(180 ${lcx} ${lcy})` : '';
+    body += `<g transform="translate(${tx.toFixed(3)},${ty.toFixed(3)}) scale(${s.toFixed(4)})${turn}${flipPart}">${tileInner}</g>`;
+    if (cbox) {   // the content box through this tile's own transform (flip, then turn, then scale + move)
+      [[cbox.x0, cbox.y0], [cbox.x1, cbox.y0], [cbox.x0, cbox.y1], [cbox.x1, cbox.y1]].forEach(([px, py]) => {
+        if (flip) px = 2 * lcx - px;
+        if (down) { px = 2 * lcx - px; py = 2 * lcy - py; }
+        const X = tx + px * s, Y = ty + py * s;
+        bx0 = Math.min(bx0, X); bx1 = Math.max(bx1, X); by0 = Math.min(by0, Y); by1 = Math.max(by1, Y);
+      });
+    }
+  });
+  const rot = parseInt(state.fvsGridConfig.rot, 10) || 0, mir = state.fvsGridConfig.mirror;
+  live.lastFigureMeta = { size, box: cbox ? { x0: bx0, y0: by0, x1: bx1, y1: by1 } : { x0: 0, y0: 0, x1: size, y1: size } };
+  if (!rot && mir === 'none') {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">`
+      + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${sharedDefs}${body}</svg>`;
+  }
+  return figureWithMirror(sharedDefs, body, cbox ? { x0: bx0, y0: by0, x1: bx1, y1: by1 } : { x0: 0, y0: 0, x1: size, y1: size }, size, rot, mir);
+}
+// Rotate the tiled figure about its centre, then reflect it over its right and/or
+// bottom edge (the copy shares that edge), then fit the result in a square frame.
+// The figure's box is the drawn content of the tiles (empty cells excluded), so the
+// reflection meets the visible edge for any lattice and any Seed.
+export function figureWithMirror(defs, body, box, size, rot, mir) {
+  const { x0, x1, y0, y1 } = box;   // the figure's drawn box, in frame coordinates
+  const fw = x1 - x0, fh = y1 - y0, quarter = rot % 180 === 90;
+  const bw = quarter ? fh : fw, bh = quarter ? fw : fh;             // box after rotation
+  const mv = mir === 'v' || mir === 'vh', mh = mir === 'h' || mir === 'vh';
+  const mw = bw * (mv ? 2 : 1), mhgt = bh * (mh ? 2 : 1), S = Math.max(mw, mhgt);
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;   // figure centre in frame coords
+  // rotated figure with its box's top-left at the origin
+  const fig = `<g transform="translate(${r2(bw / 2)},${r2(bh / 2)}) rotate(${rot}) translate(${r2(-cx)},${r2(-cy)})">${body}</g>`;
+  let out = fig;
+  if (mv) out += `<g transform="translate(${r2(2 * bw)},0) scale(-1,1)">${fig}</g>`;
+  if (mh) {
+    const row = out;
+    out += `<g transform="translate(0,${r2(2 * bh)}) scale(1,-1)">${row}</g>`;
+  }
+  const ox = (S - mw) / 2, oy = (S - mhgt) / 2;
+  live.lastFigureMeta = { size: S, box: { x0: ox, y0: oy, x1: ox + mw, y1: oy + mhgt } };   // what the next level sees as this figure's drawn box
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${r2(S)} ${r2(S)}" width="${r2(S)}" height="${r2(S)}">`
+    + `<rect width="${r2(S)}" height="${r2(S)}" fill="${state.paperColor}"/>${defs}<g transform="translate(${r2(ox)},${r2(oy)})">${out}</g></svg>`;
+}
+export function readSymgridParams(id) {
+  const out = {};
+  SYMGRID_GENS[id].params.forEach(([k, , a]) => { const v = pv('symgen-' + k); out[k] = a === 'text' ? v : parseFloat(v); });
+  return out;
+}

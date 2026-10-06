@@ -3,7 +3,7 @@
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import { hooks } from '../hooks.js';
 import {
-  state
+  state, val
 } from './00-core.js';
 // ── Seed ──
 // Each type exposes geometry(params) → { d, normTx, normTy, normScale }.
@@ -657,3 +657,61 @@ export const SYMBOL_CROSS = { crossArmWidth: 35, crossArmLength: 100 };
 export const SYMBOL_LENS = { lensWidth: 50 };
 export const SYMBOL_INNER = { innerCount: 0, innerRatio: 70, innerAnchor: 'bbox', cutOut: 0, irregular: 0 };   // Symbols stay plain shapes
 export const SYMBOL_TRIANGLE = { triApex: 0, triCorner: 0, triCurve: 0, triIrregular: 0, triSeed: 1, triOutline: 0 };   // Symbols stay a plain triangle
+export const SEED_TYPES = {
+  triangle: { label: 'Triangle', geometry: (p) => triangleGeometry(p.base, p.height, p.triApex, { corner: p.triCorner, curve: p.triCurve, irregular: p.triIrregular, seed: p.triSeed, outline: p.triOutline }) },
+  arc: { label: 'Arc', geometry: (p) => arcGeometry(p.thickness, p.arcPivot, p.arcSweep, { start: p.arcStart, round: p.arcRound, segs: p.arcSegs, gap: p.arcGap, taper: p.arcTaper, irregular: p.arcIrregular, seed: p.arcSeed }) },
+  arctruchet: { label: 'Arc truchet', geometry: (p) => arcTruchetGeometry(p.arcCount, p.arcRatio, { fans: p.truFans, core: p.truCore, spread: p.truSpread, reach: p.truReach, ramp: p.truRamp, curve: p.truCurve, round: p.truRound, segs: p.truSegs, gap: p.truGap }) },
+  wedge: { label: 'Wedge', geometry: (p) => wedgeGeometry(p.wedgeAngle, p.wedgeInner, p.wedgeSquash, { round: p.wedgeRound, rotate: p.wedgeRotate, curve: p.wedgeCurve, irregular: p.wedgeIrregular, seed: p.wedgeSeed }) },
+  polygon: { label: 'Polygon', geometry: (p) => polygonGeometry(p.polySides, p.polyCorner, p.polyIrregular, p.polySeed, p.polyRadius, { rotate: p.polyRotate, step: p.polyStep, style: p.polyStyle, curve: p.polyCurve, outline: p.polyOutline, skew: p.polySkew }) },
+  star: { label: 'Star', geometry: (p) => starGeometry(p.starPoints, p.starInner, p.starIrregular, p.starSeed, p.starRadius, { rotate: p.starRotate, tipRound: p.starTipRound, valleyRound: p.starValleyRound, style: p.starStyle, curve: p.starCurve, twist: p.starTwist, outline: p.starOutline, skew: p.starSkew }) },
+  roundedrect: { label: 'Square', geometry: (p) => roundedRectGeometry(p.rrWidth, p.rrHeight, p.rrCorner, { style: p.rrStyle, mask: p.rrMask, skew: p.rrSkew, rotate: p.rrRotate, curve: p.rrCurve, outline: p.rrOutline }) },
+  chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm, p.chevSquash, { round: p.chevRound, style: p.chevStyle, curve: p.chevCurve, lean: p.chevLean, flat: p.chevFlat, stack: p.chevStack, gap: p.chevGap, rotate: p.chevRotate }) },
+  cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength, p.crossCorner, { arms: p.crossArms, taper: p.crossTaper, tip: p.crossTip, style: p.crossStyle, rotate: p.crossRotate }) },
+  lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth, { crescent: p.lensCrescent, petals: p.lensPetals, outline: p.lensOutline, rotate: p.lensRotate }) },
+  circle: { label: 'Circle', geometry: (p) => circleGeometry(p.circleRadius, hooks.circleOptsFrom(p)) },
+  segment: { label: 'Segment', geometry: (p) => segmentBar(segmentGeometry(p.segLen, { angle: p.segAngle, bend: p.segBend, wave: p.segWave, cycles: p.segCycles, dashes: p.segDashes, gap: p.segGap, lines: p.segLines, spacing: p.segSpacing, repeatX: p.segRepeatX, spaceX: p.segSpaceX, repeatY: p.segRepeatY, spaceY: p.segSpaceY, rays: p.segRays, tile: true }), p.segWeight == null ? SEG_WEIGHT_DEF : p.segWeight, !!p.segRound) },
+  drop: { label: 'Drop', geometry: (p) => dropGeometry(p.dropRadius, p.dropTail, { bend: p.dropBend, neck: p.dropNeck, petals: p.dropPetals, rotate: p.dropRotate }) },
+  blob: { label: 'Blob', geometry: (p) => blobGeometry(p.blobRadius, p.blobAmount, p.blobSeed, { freq: p.blobFreq, smooth: p.blobSmooth, outline: p.blobOutline }) },
+  // Stack: an Element made of several layered shapes (state.layers). Its
+  // geometry carries the per-layer geometries; elementPathMarkup /
+  // paintGeoCanvas know how to paint them (fills in order, containers clip
+  // and masks knock out everything BELOW them). `d` is the placed union of the
+  // fill layers, only used for measuring / clip boundaries.
+  stack: { label: 'Layers', geometry: (p) => hooks.stackGeometry(p) },
+  // Freehand: every step after Element sees the drawing fitted to the cell;
+  // only the Element stage shows it raw ('freehandraw', not in the picker).
+  freehand: { label: 'Freehand', geometry: (p) => (p && p.customSeed) || (state.freehand && state.freehand.seed) || { d: '', normTx: 0, normTy: 0, normScale: 1 } },
+  freehandraw: { label: 'Freehand (raw)', geometry: () => ({ d: (state.freehand && state.freehand.raw) || '', normTx: 0, normTy: 0, normScale: 1 }) },
+  custom: {
+    label: 'Custom (uploaded)',
+    // Same convention as 'freehand' just above: prefer the snapshot's OWN
+    // customSeed (a per-cell content override in Component Edit mode) and
+    // only fall back to the live global upload when none was passed — a
+    // plain `() => state.customSeed` here (the previous body) ignored its
+    // argument entirely, so every cell showing an uploaded shape displayed
+    // whatever was CURRENTLY uploaded, all changing together regardless of
+    // which cell's content was actually selected.
+    geometry: (p) => (p && p.customSeed) || state.customSeed || { d: '', normTx: 0, normTy: 0, normScale: 1 },
+  },
+};
+export function cellLatticeGrid() {
+  const shape = state.cellShape, rings = state.cellLattice[shape];
+  const outline = CELL_OUTLINES[shape].includes(state.cellOutline[shape]) ? state.cellOutline[shape] : 'hexagon';
+  const cells = cellLatticeCells(shape, rings, val('rg-cellsize'), outline);
+  const xs = cells.flatMap(c => c.points.map(p => p[0])), ys = cells.flatMap(c => c.points.map(p => p[1]));
+  const x0 = Math.min(...xs), y0 = Math.min(...ys);
+  cells.forEach(c => { c.points = c.points.map(([x, y]) => [x - x0, y - y0]); c.centroid = [c.centroid[0] - x0, c.centroid[1] - y0]; });
+  return { kind: 'loom', cellShape: 'polygon', cells, width: Math.max(...xs) - x0, height: Math.max(...ys) - y0, lattice: { shape, rings, outline } };
+}
+export const BASE_GEOMETRY = {};   // each type's geometry before Irregularity / Cut out / Copies (for the panel's Mode check)
+for (const k of Object.keys(SEED_TYPES)) {
+  if (k === 'freehandraw') continue;   // the raw drawing stage view stays untouched
+  const g0 = SEED_TYPES[k].geometry, inner = !INNER_UNSUPPORTED.has(k);
+  BASE_GEOMETRY[k] = g0;
+  SEED_TYPES[k].geometry = p => {
+    const base = p && p.irregular > 0 ? irregularGeometry(g0(p), p) : g0(p);   // Irregularity 0 → byte-identical to before
+    if (!(p && p.cutOut > 0)) return inner ? withInnerCopies(base, p, INNER_APEX[k]) : base;   // Cut out 0 → byte-identical to before
+    const h = hollowGeometry(base, 100 - Math.min(95, p.cutOut));   // Cut out c → a rim of (100 − c) % of the inradius: 0 solid, more = thinner rim, no jump
+    return inner ? withInnerHollowCopies(h, base, p, INNER_APEX[k], p.cutOut) : h;
+  };
+}

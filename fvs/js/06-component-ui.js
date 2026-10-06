@@ -2,53 +2,54 @@
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
 import {
-  state
+  pv, state, val
 } from './engine/00-core.js';
 import {
-  INNER_APEX, INNER_UNSUPPORTED, fitPathToSeed, frameDims, resolveGridCells, splitPaperScope
+  INNER_APEX, INNER_UNSUPPORTED, SEED_TYPES, fitPathToSeed, frameDims, splitPaperScope
 } from './engine/01-geometry.js';
 import {
-  EXHAUSTIVE_CAP, LATTICE_RULES, axisSatisfied, crDims, resolvedComponentDims
+  getSeed, seedForSnapshot
+} from './engine/02-seed-ui.js';
+import {
+  EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
+  exhaustiveTotal, getGrid, isCanonical2x2, latticeRule, radialEligible, readManualCells,
+  resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
+  ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
 } from './engine/03-rules.js';
 import {
-  buildComponentItems, componentCellColRow
+  buildComponentItems, componentCellColRow, getElementAppearance, withAppearance
 } from './engine/04-appearance.js';
 import {
-  componentGridOutlineSVG, gridWrapper
+  buildComponentSVG, buildComponentSVGBody, componentGridOutlineSVG, drawComponentCanvas, gridWrapper
 } from './engine/05-render-component.js';
 import {
-  RULE_TO_FAMILY, STARTER_VARIANTS_PER_RULE, UNDO_MAX, buildColourways, componentEditHitLayer,
-  currentLayerInks, cwColourKey, fillLayers, getSelectedComponent, liveColourKey, undoStack
+  COMPONENT_STARTER_RULES, RULE_TO_FAMILY, STARTER_VARIANTS_PER_RULE, UNDO_MAX, buildColourways,
+  componentEditHitLayer, componentElementSignature, currentLayerInks, cwColourKey, elementIsEmpty,
+  expandLayerInks, getSelectedComponent, layerInkComboCount, liveColourKey, splitCurrentOriginal,
+  undoStack
 } from './engine/06-component-ui.js';
 import {
   fillPaper
 } from './engine/07-library.js';
 import {
-  buildPalette, ctrl, printSizePanel, setStatus, syncColorRuleUI, syncQuadrantHint, val
+  buildPalette, ctrl, printSizePanel, setStatus, syncColorRuleUI, syncQuadrantHint
 } from './00-core.js';
 import {
-  SEED_TYPES, splitElementGeometry
+  splitElementGeometry
 } from './01-geometry.js';
 import {
-  getSeed, seedForSnapshot, seedPicker, syncDependentRows, syncFreehandEditor, useSvgAsSeed
+  seedPicker, syncDependentRows, syncFreehandEditor, useSvgAsSeed
 } from './02-seed-ui.js';
 import {
-  FAMILIES, activeAxes, activeCellCount, exhaustiveTotal, getGrid, isCanonical2x2, latticeRule,
-  radialEligible, readManualCells, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive,
-  ruleIdentity, ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
-} from './03-rules.js';
-import {
-  applyAppearanceToUI, getElementAppearance, withAppearance
+  applyAppearanceToUI
 } from './04-appearance.js';
 import {
-  buildComponentSVG, buildComponentSVGBody, buildPrintComponentSVG, drawComponentCanvas,
-  printComponentDims, renderGallery, renderSeedPreview
+  buildPrintComponentSVG, printComponentDims, renderGallery, renderSeedPreview
 } from './05-render-component.js';
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks,
-  componentElementSignature: () => componentElementSignature, elementIsEmpty: () => elementIsEmpty,
   enterComponentEditMode: () => enterComponentEditMode, generate: () => generate,
   populateComponentStarterGallery: () => populateComponentStarterGallery,
   syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI
@@ -204,10 +205,6 @@ export function componentEditLiveBind(e) {
 }
 
 
-// The Element is Freehand with nothing drawn: every candidate would be blank.
-export function elementIsEmpty() {
-  return ctrl('sel-seed-type').value === 'freehand' && !state.freehand.seed;
-}
 
 
 // ── Grid-driven rule availability — Radial needs an even × even grid (its
@@ -254,7 +251,7 @@ export function syncRuleAvailability() {
 
 export function syncRuleAxisNote() {
   const note = ctrl('rule-axis-note');
-  const famKey = RULE_TO_FAMILY[ctrl('sel-rule').value];
+  const famKey = RULE_TO_FAMILY[pv('sel-rule')];
   const fam = famKey && FAMILIES[famKey];
   // Only Checkerboard still depends on the axes (see familyRuleGallery).
   const satisfied = !fam || fam.requiresAxis !== 'any' || axisSatisfied('any', activeAxes());
@@ -265,7 +262,7 @@ export function syncRuleAxisNote() {
 
 // ── Rule UI wiring ──
 export function syncRuleUI() {
-  const mode = ctrl('sel-rule').value;
+  const mode = pv('sel-rule');
   ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
   ctrl('rule-lines-block').style.display = (mode === 'hlines' || mode === 'vlines') ? '' : 'none';
   ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
@@ -287,14 +284,14 @@ export function syncExhaustiveHint() {
   if (total > EXHAUSTIVE_CAP) {
     hint.textContent = `${total.toLocaleString()} possible — exceeds the ${EXHAUSTIVE_CAP} cap. Narrow active axes or use Random instead.`;
     hint.classList.add('over-cap');
-    ctrl('btn-generate').disabled = ctrl('sel-rule').value === 'exhaustive';
+    ctrl('btn-generate').disabled = pv('sel-rule') === 'exhaustive';
   } else {
     const k = layerInkComboCount();
     hint.textContent = k > 1
       ? `${total.toLocaleString()} possible component${total === 1 ? '' : 's'} × ${k} layer-colour combinations = ${(total * k).toLocaleString()}${total * k > EXHAUSTIVE_CAP ? ` (first ${EXHAUSTIVE_CAP} shown)` : ''}.`
       : `${total.toLocaleString()} possible component${total === 1 ? '' : 's'}.`;
     hint.classList.remove('over-cap');
-    if (ctrl('sel-rule').value === 'exhaustive') ctrl('btn-generate').disabled = false;
+    if (pv('sel-rule') === 'exhaustive') ctrl('btn-generate').disabled = false;
   }
 }
 
@@ -352,15 +349,6 @@ document.addEventListener('keydown', e => {
   e.preventDefault(); undoComponents();
 });
 
-export const COMPONENT_STARTER_RULES = [
-  { name: 'checkerboard', fn: ruleCheckerboard },
-  { name: 'pinwheel', fn: rulePinwheel },
-  { name: 'mirror', fn: ruleMirror },
-  { name: 'radial', fn: ruleRadial, eligible: radialEligible },
-];
-export function componentElementSignature() {
-  return JSON.stringify({ seed: getSeed(), appearance: getElementAppearance(), cells: resolveGridCells(getGrid()).length });
-}
 export function populateComponentStarterGallery() {
   // Runs automatically the moment you land on the Component step: each
   // starter rule's first STARTER_VARIANTS_PER_RULE candidates, nothing
@@ -390,33 +378,6 @@ export function populateComponentStarterGallery() {
   renderGallery();
 }
 
-export const layerInksOn = () => ctrl('chk-layer-inks').checked;
-export function layerInkCombos() {
-  if (!layerInksOn()) return [];
-  const layers = fillLayers();
-  if (!layers.length) return [];
-  const opts = ['cell', ...state.colors.map((_, k) => k)];
-  let combos = [{}];
-  for (const l of layers) combos = combos.flatMap(c => opts.map(o => ({ ...c, [l.id]: o })));
-  const curKey = JSON.stringify(currentLayerInks());
-  const cur = combos.findIndex(c => JSON.stringify(c) === curKey);
-  if (cur > 0) combos.unshift(combos.splice(cur, 1)[0]);
-  return combos;
-}
-export function layerInkComboCount() {
-  const n = layerInksOn() ? fillLayers().length : 0;
-  return n ? Math.pow(state.colors.length + 1, n) : 1;
-}
-// geometry × combos, geometry-major, capped at EXHAUSTIVE_CAP (the total is reported).
-export function expandLayerInks(list) {
-  const combos = layerInkCombos();
-  if (!combos.length) return { list, total: list.length };
-  const out = [];
-  for (const comp of list) {
-    for (let j = 0; j < combos.length && out.length < EXHAUSTIVE_CAP; j++) out.push({ ...comp, id: `${comp.id}-k${j}`, layerInks: combos[j] });
-  }
-  return { list: out, total: list.length * combos.length };
-}
 // Picking a colour variant makes its inks the Element's own, so Export, Tile
 // in Grid, Component Edit and the Symbol step all see what the thumbnail shows.
 export function adoptLayerInks(comp) {
@@ -458,7 +419,7 @@ export function generateColourways() {
 }
 
 export function generate() {
-  const mode = ctrl('sel-rule').value;
+  const mode = pv('sel-rule');
   let produced = state.cellShape !== 'square' && LATTICE_RULES.has(mode) ? latticeRule(mode) : null;
   if (produced && mode === 'exhaustive' && produced.length > EXHAUSTIVE_CAP) return;
   if (!produced) switch (mode) {
@@ -533,12 +494,6 @@ export function syncSplitUI() {
   });
   ctrl('btn-split-save').style.display = state.splitKeep.size === 0 ? 'none' : '';   // below the chips: appearing never moves them
 }
-// Whichever pre-split seed is live right now (freshly snapshotted the first
-// time a chip is toggled on, reused across further toggles while it's ours).
-export function splitCurrentOriginal() {
-  const stillOurs = state.splitOriginal && state.customSeed && state.customSeed === state.splitApplied;
-  return { stillOurs, original: stillOurs ? state.splitOriginal : seedForSnapshot() };
-}
 export function splitElementReset() {
   const status = ctrl('split-status');
   if (state.splitOriginal && state.customSeed === state.splitApplied) {
@@ -576,14 +531,14 @@ export function splitElementApply() {
   const combinedRaw = kept.map(p => p.seed.d).join(' ');
   const fitted = fitPathToSeed(combinedRaw, kept[0].frameBB);
   if (!fitted) { status.textContent = 'Could not combine the kept quadrants.'; return; }
-  if (!stillOurs) state.splitOriginalStyle = ctrl('sel-element-fillmode').value;
+  if (!stillOurs) state.splitOriginalStyle = pv('sel-element-fillmode');
   state.splitOriginal = JSON.parse(JSON.stringify(original));
   state.splitCombinedRaw = combinedRaw;
   // innerCount forced to 0: Inner Seed rings are already baked into the clipped
   // `d`; 'custom' runs back through withInnerCopies, which would nest a second set.
   hooks.applySeedToPanel({ ...original, type: 'custom', customSeed: fitted, innerCount: 0 });
   const strokeConv = kept.some(p => p.strokeConv);
-  if (strokeConv && ctrl('sel-element-fillmode').value !== 'fill') hooks.fireChange('sel-element-fillmode', 'fill');
+  if (strokeConv && pv('sel-element-fillmode') !== 'fill') hooks.fireChange('sel-element-fillmode', 'fill');
   state.splitApplied = state.customSeed;
   renderGallery(); renderSeedPreview();
   syncSplitUI();
@@ -665,7 +620,7 @@ export function exportSelected(format) {
     return;
   }
 
-  const scale = parseInt(ctrl('sel-export-scale').value, 10);
+  const scale = parseInt(pv('sel-export-scale'), 10);
   const off = document.createElement('canvas');
   off.width = baseDims.w * scale; off.height = baseDims.h * scale;
   const ctx = off.getContext('2d');
@@ -681,7 +636,7 @@ export function exportSelected(format) {
 // ── Seed UI — Base/Height only mean anything for the triangle,
 // Thickness only for the arc; an upload has no adjustable params. ──
 export function syncSeedUI() {
-  const type = ctrl('sel-seed-type').value;
+  const type = pv('sel-seed-type');
   ctrl('seed-triangle-block').style.display = type === 'triangle' ? '' : 'none';
   ctrl('seed-arc-block').style.display = type === 'arc' ? '' : 'none';
   ctrl('seed-arctruchet-block').style.display = type === 'arctruchet' ? '' : 'none';

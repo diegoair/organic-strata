@@ -31,6 +31,7 @@ import {
 import {
   setRailOpen
 } from './15-export-library-view.js';
+
 setRailOpen(false);   // always starts closed — the saved library stays out of the way until asked for (was restored from organica.fvs.rail)
 
 renderGallery();

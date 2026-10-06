@@ -2,17 +2,47 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  state
+  live, pv, state
 } from './00-core.js';
 import {
-  ELEMENT_LIB
+  frameDims
+} from './01-geometry.js';
+import {
+  getSeed
+} from './02-seed-ui.js';
+import {
+  getGrid
+} from './03-rules.js';
+import {
+  ELEMENT_LIB, buildComponentItems, genesisTileForms, getElementAppearance, savedElementThumb,
+  withAppearance
 } from './04-appearance.js';
+import {
+  buildComponentSVG, buildSeedPreviewSVG
+} from './05-render-component.js';
+import {
+  getSelectedComponent
+} from './06-component-ui.js';
 import {
   LIBRARY, hexKey, libraryNames, shownElementNames
 } from './07-library.js';
 import {
-  SYMBOL_LIBRARY
+  buildFvsGridSVG, getSymbolGrid
+} from './08-symbol-grid.js';
+import {
+  buildSymbolSVG
+} from './09-symbol-render.js';
+import {
+  componentThumbSVG
+} from './10-suggest.js';
+import {
+  SYMBOL_LIBRARY, symbolEntryThumbSVG
 } from './11-symbol-ui.js';
+import { hooks, provide } from '../hooks.js';
+// Names earlier files reach at run time (hooks.*) — live getters.
+provide({
+  railPatch: () => railPatch, svgInnerOf: () => svgInnerOf
+});
 export const DEFAULT_VARIANTS = [
   { style: 'fill', ink: '#0a9a3e', strokeW: 4, paper: null },
   { style: 'stroke', ink: '#e8321e', strokeW: 5, paper: null },
@@ -91,3 +121,64 @@ export function libviewVerb(kind, name) {
 export function libviewBlock() { return ''; }
 export const fileSlug = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'item';
 export const KIND_WORD = { element: 'Element', component: 'Component', symbol: 'Symbol' };
+export function tierSVG() {
+  const t = state.activeTier;
+  if (t === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
+  if (t === 'grid') return buildFvsGridSVG();
+  if (t === 'element') return buildSeedPreviewSVG(getSeed(), 0, false, false, 400);
+  if (t === 'figure') return hooks.figureSVGOf(state.figureTier || 'symbol');
+  const comp = getSelectedComponent();
+  if (!comp) return '';
+  state.selectedRuleSource = comp.ruleSource;
+  const grid = getGrid();
+  return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameDims(grid));
+}
+export function renderVariant(v, transparent) {
+  const prev = { colors: state.colors, paper: state.paperColor };
+  const paper = prev.paper;
+  if (v.paper) state.paperColor = v.paper;
+  const app = { ...getElementAppearance(), fillMode: v.style, strokeW: v.strokeW, rounded: true };
+  live.variantAppearance = { fillMode: v.style, strokeW: v.strokeW, rounded: true };
+  state.colors = [v.ink];
+  try {
+    let svg = withAppearance(app, tierSVG);
+    if (!svg) return '';
+    const paperNow = v.paper || paper;
+    svg = recolourSVG(svg, v.ink, paperNow);
+    if (transparent) svg = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paperNow}"/>`, 'i'), '');
+    return svg;
+  } finally { live.variantAppearance = null; state.colors = prev.colors; state.paperColor = prev.paper; }
+}
+// What a tile puts in a cell — the same patches as the Choose-content overlay.
+export function railPatch(kind, name) {
+  if (kind === 'component') {
+    if (!LIBRARY.read()[name]) return null;
+    return { source: 'component', componentName: name, span: true, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null, rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
+  }
+  const entry = ELEMENT_LIB.read()[name];
+  if (!entry || !entry.seed) return null;
+  const sp = JSON.parse(JSON.stringify(entry.seed)), o = entry.orientation || {};
+  if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
+  // The cell carries the palette the Element was saved with (ownColors). It is used while
+  // Colour by is "Element's own colours" (the default): its first ink for the shape, every
+  // layer's ink for a stack (drawn like a Component's own palette). Any other rule colours
+  // the cell like the rest. An entry saved without colours follows the rule.
+  const own = entry.colors && entry.colors.length ? entry.colors.slice() : null;
+  return { source: 'seed', seedType: sp.type, seedParams: sp, color: null, ownColors: own, ownPaper: entry.paperColor || null, ownAppearance: entry.appearance || null, colourway: null, rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV, fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
+}
+export function elementInLivePaper(name) { return !!(live.paperPatternOn && pv('sel-ground-tile') === 'saved:' + name); }
+export function libviewItems(kind) {
+  const newest = all => (a, b) => String((all[b] || {}).savedAt || '').localeCompare(String((all[a] || {}).savedAt || ''));
+  if (kind === 'element') { const all = ELEMENT_LIB.read(); return shownElementNames(all).sort(newest(all)).map(n => ({ name: n, svg: () => savedElementThumb(all[n]) })); }
+  if (kind === 'component') { const all = LIBRARY.read(); return libraryNames(all).sort(newest(all)).map(n => ({ name: n, svg: () => componentThumbSVG(n) })); }
+  if (kind === 'symbol') { const all = SYMBOL_LIBRARY.read(); return Object.keys(all || {}).sort(newest(all)).map(n => ({ name: n, svg: () => symbolEntryThumbSVG(all[n]) })); }
+  return genesisTileForms().map(f => ({ name: f.name || f.id, id: f.id, svg: () => String(f.svg) }));
+}
+// A saved item as a file: the same SVG its thumbnail draws (Paper included), or that SVG rasterised.
+export function libviewSVG(kind, name) {
+  if (kind === 'element') { const e = ELEMENT_LIB.read()[name]; return e ? savedElementThumb(e) : ''; }
+  if (kind === 'component') return componentThumbSVG(name);
+  if (kind === 'symbol') { const e = SYMBOL_LIBRARY.read()[name]; return e ? symbolEntryThumbSVG(e) : ''; }
+  const f = genesisTileForms().find(x => x.id === name);
+  return f ? String(f.svg).replace(/var\(--ink\)/g, '#000000') : '';
+}

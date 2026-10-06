@@ -3,25 +3,25 @@
 // Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
 import {
-  DEFAULT_COLOR_RULE, state
+  DEFAULT_COLOR_RULE, live, pv, state, val
 } from './engine/00-core.js';
 import {
-  frameDims, shapeHasCorners
+  BASE_GEOMETRY, SEED_TYPES, frameDims, shapeHasCorners
 } from './engine/01-geometry.js';
 import {
-  CIRCLE_PARAMS, SEED_EXTRAS, xrId
+  CIRCLE_PARAMS, SEED_EXTRAS, getPanelSeed, getSeed, seedForSnapshot, xrId
 } from './engine/02-seed-ui.js';
 import {
-  GALLERY_ZOOM_MAX
+  GALLERY_ZOOM_MAX, getGrid
 } from './engine/03-rules.js';
 import {
-  DEFAULT_APPEARANCE, PATTERN_DEFAULTS
+  DEFAULT_APPEARANCE, PATTERN_DEFAULTS, getElementAppearance, withAppearance
 } from './engine/04-appearance.js';
 import {
-  layerPlace
+  elementPathMarkup, layerPlace
 } from './engine/05-render-component.js';
 import {
-  LIBRARY, PAPER_NONE, hexKey, isPaperNone, libraryNames
+  LIBRARY, PAPER_NONE, hexKey, isPaperNone, libraryNames, readLookControls, snapshotComponentElementState
 } from './engine/07-library.js';
 import {
   snapPose
@@ -32,27 +32,25 @@ import {
 import {
   ARC_PRESETS, FVS_EXTRAS_LABELS, FVS_RETIRED_EXTRAS, FVS_SEED_ORDER, NEW_LAYER_SCALE, OUTLINE_ICONS,
   POLY_PRESETS, STEP_EXPORT_HINTS, TRI_PRESETS, TRU_IDS, TRU_NEUTRAL, TRU_PRESETS, WEDGE_PRESETS,
-  fvsGalleryLive, fvsSurfaceLive
+  fvsGalleryLive, fvsSurfaceLive, readShapeLook, truState
 } from './engine/12-shell.js';
 import {
-  buildPalette, ctrl, syncColorRuleUI, syncQuadrantHint, val
+  buildPalette, ctrl, syncColorRuleUI, syncQuadrantHint
 } from './00-core.js';
 import {
-  BASE_GEOMETRY, SEED_TYPES, setCellShape
+  setCellShape
 } from './01-geometry.js';
 import {
-  fhEditor, getPanelSeed, getSeed, handleSeedUpload, seedForSnapshot, syncCircleRows, syncCopiesRows,
-  syncDependentRows, syncFreehandEditor
+  fhEditor, handleSeedUpload, syncCircleRows, syncCopiesRows, syncDependentRows, syncFreehandEditor
 } from './02-seed-ui.js';
 import {
-  getGrid, setGalleryThumbVars, syncComponentGridUI
+  setGalleryThumbVars, syncComponentGridUI
 } from './03-rules.js';
 import {
-  getElementAppearance, readPatternControls, showPatternControls, syncGroundBlock, syncGroundInkOptions,
-  syncGroundTileNote, syncLookBlocks, withAppearance
+  showPatternControls, syncGroundBlock, syncGroundInkOptions, syncGroundTileNote, syncLookBlocks
 } from './04-appearance.js';
 import {
-  elementPathMarkup, exportElement, renderGallery, renderSeedPreview, setElementView
+  exportElement, renderGallery, renderSeedPreview, setElementView
 } from './05-render-component.js';
 import {
   clearGallery, exitComponentEditMode, exportSelected, generate, generateColourways,
@@ -60,8 +58,7 @@ import {
   syncExhaustiveHint, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant
 } from './06-component-ui.js';
 import {
-  readLookControls, renderLayersUI, renderLibrary, restoreComponentElementState,
-  snapshotComponentElementState
+  renderLayersUI, renderLibrary, restoreComponentElementState
 } from './07-library.js';
 import {
   buildEmptySymbolGrid, buildFitAllAnchorGrid, exportFvsGrid, handleSymbolGridUpload, syncFitAnchorUI
@@ -86,7 +83,6 @@ provide({
   syncPolyType: () => syncPolyType, syncSymbolViewUI: () => syncSymbolViewUI,
   syncTriType: () => syncTriType, syncTruType: () => syncTruType, syncWedgeType: () => syncWedgeType
 });
-
 export function updateStepHint(tier) {
   let msg = '';
   if (tier === 'symbol' && libraryNames(LIBRARY.read()).length === 0 && !elementPool().length) {
@@ -177,7 +173,7 @@ document.addEventListener('keydown', e => {
   if (state.activeTier !== 'symbol' || !state.symbolSelection.size) return;
   if (fvsIsTypingTarget(e.target) || (e.target.closest && e.target.closest('.org-modal, #symbol-content-overlay'))) return;
   e.preventDefault();   // Backspace must not navigate back
-  applyToSelection(cell => (cell.locked ? {} : { source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: rt.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
+  applyToSelection(cell => (cell.locked ? {} : { source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
   renderCellPropertiesPanel();
 });
 export var fvsIsTypingTarget = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
@@ -249,7 +245,6 @@ ctrl('sel-tri-type').addEventListener('change', e => {
 ctrl('rg-base').addEventListener('input', e => { ctrl('v-base').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-height').addEventListener('input', e => { ctrl('v-height').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
 ctrl('rg-tri-apex').addEventListener('input', e => { ctrl('v-tri-apex').textContent = e.target.value; syncTriType(); renderGallery(); renderSeedPreview(); });
-export function truState() { const o = { fans: +ctrl('sel-tru-fans').value }; Object.keys(TRU_IDS).forEach(k => { o[k] = val(TRU_IDS[k]); }); return o; }
 export function syncTruType() {
   const cur = truState();
   const hit = Object.keys(TRU_PRESETS).find(k => { const t = { ...TRU_NEUTRAL, ...TRU_PRESETS[k] }; return Object.keys(t).every(f => t[f] === cur[f]); });
@@ -472,7 +467,7 @@ CIRCLE_PARAMS.forEach(([k, id]) => {
 // Each control gets its real input/change event, so its own listener refreshes
 // the readout + gallery + preview and the slider fill (core.js delegate) follows.
 export function resetSeedShape() {
-  const type = ctrl('sel-seed-type').value;
+  const type = pv('sel-seed-type');
   ['rg-inner-count', 'rg-inner-ratio', 'rg-element-cutout'].forEach(id => {   // Copies + Cut out belong to the Seed, whatever its shape
     const el = ctrl(id);
     if (el.value !== el.defaultValue) { el.value = el.defaultValue; el.dispatchEvent(new Event('input', { bubbles: true })); }
@@ -528,7 +523,7 @@ export function resetElement() {
   resetSeedShape();   // the open shape's parameters + Look & place
   state.colors = ['#000000']; state.colorRule = { ...DEFAULT_COLOR_RULE };
   syncColorRuleUI(); buildPalette();
-  paperSwatch.setPattern(false); rt.paperPatternOn = false;
+  paperSwatch.setPattern(false); live.paperPatternOn = false;
   setPaperUI('#ffffff');
   onAppearanceChange(); renderGallery(); renderSeedPreview();
 }
@@ -573,11 +568,6 @@ ctrl('sel-inner-anchor').addEventListener('change', () => { renderGallery(); ren
 // back what you had. In a multi-layer Element this is the ACTIVE layer's own
 // setting only (remembered on the layer itself), never the other layers'.
 export let roundedBeforeSegment = null;
-export function readShapeLook() {
-  return { fillMode: ctrl('sel-element-fillmode').value, strokeW: val('rg-element-strokew'), rounded: ctrl('ck-element-rounded').checked, w: val('rg-element-w'), l: val('rg-element-l'),
-    scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), rotate: val('rg-element-rotate'), cutOut: val('rg-element-cutout'),
-    irregular: val('rg-element-irregular'), irrMode: ctrl('sel-element-irrmode').value, irrWaves: val('rg-element-irrwaves'), irrSeed: val('rg-element-irrseed'), ...readPatternControls() };
-}
 export function applyShapeLook(look) {   // the Element's own look — not the Paper (ground), which belongs to the whole Element
   const a = { ...DEFAULT_APPEARANCE, ...PATTERN_DEFAULTS, ...(look || {}) };
   ctrl('sel-element-fillmode').value = a.fillMode;
@@ -597,7 +587,7 @@ export function applyShapeLook(look) {   // the Element's own look — not the P
   syncLookBlocks();
 }
 ctrl('sel-seed-type').addEventListener('change', () => {
-  const type = ctrl('sel-seed-type').value, ck = ctrl('ck-element-rounded');
+  const type = pv('sel-seed-type'), ck = ctrl('ck-element-rounded');
   if (!state.layers && rt.lastShapeType && rt.lastShapeType !== type) {
     rt.shapeLooks[rt.lastShapeType] = readShapeLook();
     applyShapeLook(rt.shapeLooks[type]);   // undefined → defaults
@@ -629,14 +619,14 @@ ctrl('sel-seed-type').addEventListener('change', () => {
     ck.checked = saved; onAppearanceChange();
   }
 });
-rt.lastShapeType = ctrl('sel-seed-type').value;   // the shape the panel starts on
+rt.lastShapeType = pv('sel-seed-type');   // the shape the panel starts on
 
 ctrl('ck-fh-close').addEventListener('change', e => { if (fhEditor) fhEditor.setClosed(e.target.checked); });
 ctrl('ck-fh-smooth').addEventListener('change', e => { if (fhEditor) fhEditor.setSmooth(e.target.checked); });
 ctrl('btn-fh-undo').addEventListener('click', () => { if (fhEditor) fhEditor.undo(); });
 ctrl('btn-fh-clear').addEventListener('click', () => { if (fhEditor) fhEditor.clear(); });
 document.addEventListener('keydown', e => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && fhEditor && state.activeTier === 'element' && ctrl('sel-seed-type').value === 'freehand') {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && fhEditor && state.activeTier === 'element' && pv('sel-seed-type') === 'freehand') {
     e.preventDefault(); fhEditor.undo();
   }
 });
@@ -654,10 +644,10 @@ syncGroundInkOptions();
 // Irregularity rows: Mode / Waves / Seed hide at 0; Mode hides when the shape has no corners (Outline is then the
 // only way); Waves shows only when the outline ripples.
 export function syncIrregularRows() {
-  const on = val('rg-element-irregular') > 0, type = ctrl('sel-seed-type').value;
+  const on = val('rg-element-irregular') > 0, type = pv('sel-seed-type');
   let corners = false;
   if (on && BASE_GEOMETRY[type]) { try { corners = shapeHasCorners(BASE_GEOMETRY[type](getPanelSeed())); } catch (e) { corners = false; } }
-  const rippling = !corners || ctrl('sel-element-irrmode').value === 'outline';
+  const rippling = !corners || pv('sel-element-irrmode') === 'outline';
   ctrl('row-element-irrmode').style.display = on && corners ? '' : 'none';
   ctrl('row-element-irrwaves').style.display = on && rippling ? '' : 'none';
   ctrl('row-element-irrseed').style.display = on ? '' : 'none';
@@ -758,7 +748,7 @@ ctrl('seg-content-filter').addEventListener('click', e => {
 });
 ctrl('seg-content-fit').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b) return;
-  rt.contentOverlayFit = b.dataset.fit;
+  live.contentOverlayFit = b.dataset.fit;
   ctrl('seg-content-fit').querySelectorAll('.seg-btn').forEach(x => {
     x.classList.toggle('active', x === b); x.setAttribute('aria-pressed', String(x === b));
   });
@@ -817,7 +807,7 @@ export const repaintPaper = () => { renderGallery(); renderSeedPreview(); if (st
 export const paperSwatch = Organica.palette.swatch('paper', {
   initial: '#ffffff',
   // Paper = colour + an optional pattern (the texture over it): the Pattern icon on the row
-  pattern: { panel: ctrl('paper-pattern-block'), onToggle: on => { rt.paperPatternOn = on; onAppearanceChange(); } },
+  pattern: { panel: ctrl('paper-pattern-block'), onToggle: on => { live.paperPatternOn = on; onAppearanceChange(); } },
   // picking a colour always means an opaque paper again
   onChange: (hex) => { state.paperColor = hexKey(hex); syncPaperClearUI(); repaintPaper(); },
 });
@@ -835,7 +825,7 @@ export function setPaperUI(c) {
   else paperSwatch.set(c);
 }
 ctrl('btn-paper-clear').addEventListener('click', () => {
-  if (isPaperNone(state.paperColor)) paperSwatch.set(hexKey(ctrl('hex-paper').value) || '#ffffff');
+  if (isPaperNone(state.paperColor)) paperSwatch.set(hexKey(pv('hex-paper')) || '#ffffff');
   else setPaperUI(PAPER_NONE);
 });
 syncPaperClearUI();
@@ -852,7 +842,7 @@ ctrl('chk-axis-scale').addEventListener('change', e => {
 });
 
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
-ctrl('chk-layer-inks').addEventListener('change', () => { if (ctrl('sel-rule').value === 'exhaustive') syncExhaustiveHint(); });
+ctrl('chk-layer-inks').addEventListener('change', () => { if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint(); });
 ctrl('btn-generate').addEventListener('click', generate);
 ctrl('btn-clear-gallery').addEventListener('click', clearGallery);
 ctrl('btn-colourways').addEventListener('click', generateColourways);

@@ -2,18 +2,31 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  state
+  DEFAULT_COLOR_RULE, pc, pr, pv, state
 } from './00-core.js';
 import {
-  resolveGridCells
+  frameDims, frameSize, resolveGridCells
 } from './01-geometry.js';
+import {
+  appearanceSnapshot, withAppearance
+} from './04-appearance.js';
+import {
+  r2
+} from './05-render-component.js';
+import {
+  LIBRARY
+} from './07-library.js';
 import {
   getSymbolGrid, symbolFrame
 } from './08-symbol-grid.js';
-import { provide } from '../hooks.js';
+import {
+  buildSymbolItems, buildSymbolSVG, cellOverflowInfo, symbolCellBoxes, symbolSpanLayout
+} from './09-symbol-render.js';
+import { hooks, provide } from '../hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  cellColRow: () => cellColRow
+  SYMBOL_LIBRARY: () => SYMBOL_LIBRARY, buildSymbolLibraryEntry: () => buildSymbolLibraryEntry,
+  cellColRow: () => cellColRow, snap90: () => snap90
 });
 // Per-cell {col,row,cols,rows,cx,cy,nx,ny,angle,index,count} parallel to
 // state.symbolCells. Rect Loom cells carry col/row in their JSON; polygon
@@ -153,4 +166,222 @@ export function symbolPrintDims(F, cv) {
   const trimWmm = mm(cv.pw), trimHmm = mm(cv.ph), bleedMm = cv.bleed || 0;
   const px = v => Math.round(Organica.printSize.mmToPx(v, cv.dpi));
   return { trimWmm, trimHmm, bleedMm, dpi: cv.dpi, trimWpx: px(trimWmm), trimHpx: px(trimHmm), bleedPx: px(bleedMm), k: trimWmm / F.w };
+}
+export function ruleScaleChoices() {
+  const lo = parseInt(pv('rg-rule-scale-min'), 10) / 100;
+  const hi = parseInt(pv('rg-rule-scale-max'), 10) / 100;
+  return [lo, 1, hi];
+}
+export const SYMBOL_RULES = {
+  oscillator: {
+    read: () => ({
+      angle: parseInt(pv('sel-rule-osc-angle'), 10),
+      shift: parseFloat(pv('rg-rule-osc-shift')),
+      period: parseInt(pv('rg-rule-osc-period'), 10),
+      phase: parseInt(pv('rg-rule-osc-phase'), 10),
+    }),
+    fn: (ctx, p) => ({
+      rotation: (((ctx.col + Math.floor(p.shift * ctx.row)) % p.period + p.period) % p.period === p.phase % p.period) ? p.angle : 0,
+    }),
+  },
+  checkerboard: {
+    read: () => ({ rotA: parseInt(pv('sel-rule-chk-rota'), 10), swap: pc('chk-rule-chk-swap'),
+      rotB: parseInt(pv('sel-rule-chk-rot'), 10), flip: pc('chk-rule-chk-flip') }),
+    fn: (ctx, p) => {
+      // Defaults (rotA 0, no swap) reproduce the original A-even / B-odd result exactly.
+      const odd = ((ctx.col + ctx.row + (p.swap ? 1 : 0)) % 2) === 1;
+      if (!odd) return { rotation: p.rotA || 0, flipH: false, flipV: false };
+      return p.flip ? { rotation: 0, flipH: true, flipV: false } : { rotation: p.rotB, flipH: false, flipV: false };
+    },
+  },
+  orientation: {
+    read: () => ({ up: pv('sel-rule-ori-up'), down: pv('sel-rule-ori-down') }),
+    fn: (ctx, p) => {
+      if (!ctx.orient) return {};
+      const mode = ctx.orient === 'up' ? p.up : p.down;
+      return { empty: mode === 'empty', turn: ctx.orient === 'down' ? 180 : 0 };
+    },
+  },
+  rows: {
+    read: () => ({ step: parseInt(pv('rg-rule-rows-step'), 10), mode: pv('sel-rule-rows-mode') }),
+    fn: (ctx, p) => ({ rotation: p.mode === 'ramp' ? snap90(p.step * ctx.row) : p.step * (ctx.row % 2) }),
+  },
+  columns: {
+    read: () => ({ step: parseInt(pv('rg-rule-cols-step'), 10), mode: pv('sel-rule-cols-mode') }),
+    fn: (ctx, p) => ({ rotation: p.mode === 'ramp' ? snap90(p.step * ctx.col) : p.step * (ctx.col % 2) }),
+  },
+  radial: {
+    read: () => ({ snap: pc('chk-rule-radial-snap'), chir: parseInt(pv('sel-rule-radial-chir'), 10) }),
+    fn: (ctx, p) => {
+      const deg = (ctx.angle * 180 / Math.PI) * p.chir;
+      return { rotation: p.snap ? snap90(deg) : deg };
+    },
+  },
+  wave: {
+    read: () => ({
+      amp: parseInt(pv('rg-rule-wave-amp'), 10),
+      freq: parseFloat(pv('rg-rule-wave-freq')),
+      phase: parseInt(pv('rg-rule-wave-phase'), 10),
+      snap: pc('chk-rule-wave-snap'),
+    }),
+    fn: (ctx, p) => {
+      const v = p.amp * Math.sin(p.freq * (ctx.nx + ctx.ny) * Math.PI + p.phase * Math.PI / 180);
+      return { rotation: p.snap ? snap90(v) : v };
+    },
+  },
+  random: {
+    read: () => ({}),
+    fn: (ctx, p, rng) => ({
+      rotation: [0, 90, 180, 270][Math.floor(rng() * 4)],
+      flipH: rng() < 0.5, flipV: rng() < 0.5,
+      scale: ruleScaleChoices()[Math.floor(rng() * 3)],
+    }),
+  },
+};
+// Same technique as buildGridOutlineSVG (preview-only, never inside
+// buildSymbolSVG), a second colour, only the currently-selected cells —
+// Manual mode's own visual feedback for what a Cell properties edit is
+// about to apply to.
+export function buildSelectionOutlineSVG() {
+  const grid = getSymbolGrid();
+  if (!grid || state.symbolSelection.size === 0) return '';
+  const F = symbolFrame(grid);
+  let s = '<g fill="none" stroke="#ff3d7f" stroke-width="2.5">';
+  const L = symbolSpanLayout(grid, state.symbolCells);
+  grid.cells.forEach((c0, i) => {
+    if (!state.symbolSelection.has(i) || L.covered[i] != null) return;
+    const c = L.region[i] ? L.region[i].raw : c0;
+    if (grid.cellShape === 'polygon') {
+      const pts = c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ');
+      s += `<polygon points="${pts}"/>`;
+    } else {
+      const x = F.X(c.x), y = F.Y(c.y);
+      s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}"/>`;
+    }
+  });
+  return s + '</g>';
+}
+// An EMPTY cell draws nothing, so buildSymbolSVG gives it no <g data-cell-index> and a click or a drop
+// found nothing to land on (after Delete / Choose → Empty / removing a Component, those cells were dead).
+// Preview-only invisible hit shape per empty cell — never in the export.
+export function buildEmptyCellHitsSVG() {
+  const grid = getSymbolGrid();
+  if (!grid || !state.symbolCells.some(c => c && c.source === 'empty')) return '';
+  const F = symbolFrame(grid);
+  let s = '';
+  const L = symbolSpanLayout(grid, state.symbolCells);
+  // The guides toggle governs every helper line: off = a clean sheet (the cells still answer hover / a drag).
+  // On a track grid the guides already draw the inner borders, so the empty cells add only the outer frame;
+  // on any other grid (hex, triangle, Voronoi…) each empty cell is outlined.
+  const tracks = !!symbolTrackGrid(), outlined = state.symbolView.guides && !tracks, cls = outlined ? 'is-empty is-outlined' : 'is-empty';
+  if (state.symbolView.guides && tracks) { const g = symbolTrackGrid(); s += `<rect class="sym-empty-frame" x="${F.X(g.inner.x).toFixed(2)}" y="${F.Y(g.inner.y).toFixed(2)}" width="${g.inner.width.toFixed(2)}" height="${g.inner.height.toFixed(2)}"/>`; }
+  grid.cells.forEach((c, i) => {
+    const cell = state.symbolCells[i]; if (!cell || cell.source !== 'empty' || L.covered[i] != null) return;   // a covered cell belongs to its block
+    if (grid.cellShape === 'polygon') s += `<g class="${cls}" data-cell-index="${i}"><polygon points="${c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ')}" fill="transparent"/></g>`;
+    else s += `<g class="${cls}" data-cell-index="${i}"><rect x="${F.X(c.x).toFixed(2)}" y="${F.Y(c.y).toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}" fill="transparent"/></g>`;
+  });
+  return s;
+}
+// Only meaningful while a border drag is actually happening — see the
+// `if (trackDrag)` gate at its one call site in renderSymbolCanvasOnly().
+// Skipped while Clip to cell is on, same guard cellOverflowInfo()'s own
+// docs already state (clipping already makes the question moot).
+export function buildOverflowOutlineSVG() {
+  const grid = getSymbolGrid();
+  if (!grid || state.symbolClipEnabled) return '';
+  const F = symbolFrame(grid);
+  const resolvedCells = symbolCellBoxes(grid), L = symbolSpanLayout(grid, state.symbolCells);
+  let s = '<g fill="none" stroke="var(--danger)" stroke-width="2.5" stroke-dasharray="5 3">';
+  grid.cells.forEach((c0, i) => {
+    if (!cellOverflowInfo(i, resolvedCells)) return;
+    const c = L.region[i] ? L.region[i].raw : c0;
+    if (grid.cellShape === 'polygon') {
+      const pts = c.points.map(p => `${F.X(p[0]).toFixed(2)},${F.Y(p[1]).toFixed(2)}`).join(' ');
+      s += `<polygon points="${pts}"/>`;
+    } else {
+      const x = F.X(c.x), y = F.Y(c.y);
+      s += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${c.width.toFixed(2)}" height="${c.height.toFixed(2)}"/>`;
+    }
+  });
+  return s + '</g>';
+}
+// A light, un-cropped preview of what Cover is scaling to, regardless of
+// drag state — complements buildOverflowOutlineSVG (which only reacts to a
+// genuine surprise, and is silent for auto-Cover on purpose). Box position/
+// size read straight off buildSymbolItems()'s own resolved cx/cy/scale — the
+// same values the real render uses — rather than re-deriving symbolFrame()'s
+// coordinate math by hand (it has two different conventions depending on
+// whether the grid has a canvasFrame, and buildSymbolItems() is the one
+// place that already reconciles them correctly). Rotation ignored
+// (axis-aligned box), same disclosed approximation cellOverflowInfo()/
+// symbolCellBounds() already use elsewhere. Most useful while Clip to cell
+// is on — that's exactly when the crop is otherwise invisible.
+export function buildCoverCropPreviewSVG() {
+  const grid = getSymbolGrid();
+  if (!grid || !state.symbolClipEnabled) return '';
+  const library = LIBRARY.read();
+  const items = buildSymbolItems();
+  let s = '<g fill="none" stroke="var(--tool)" stroke-width="1" stroke-dasharray="2 2" opacity="0.6">';
+  state.symbolCells.forEach((cell, i) => {
+    if (cell.fitMode !== 'cover') return;
+    const it = items[i];
+    if (!it || it.type === 'missing') return;
+    let natural = 100;
+    if (cell.source === 'component') {
+      const entry = library[cell.componentName];
+      if (!entry) return;
+      const nd = frameDims(entry.grid);
+      natural = nd.w === nd.h ? frameSize(entry.grid) : { w: nd.w, h: nd.h };
+    }
+    const itemW = (natural.w || natural) * Math.abs(it.scaleX);
+    const itemH = (natural.h || natural) * Math.abs(it.scaleY);
+    s += `<rect x="${(it.cx - itemW / 2).toFixed(2)}" y="${(it.cy - itemH / 2).toFixed(2)}" width="${itemW.toFixed(2)}" height="${itemH.toFixed(2)}"/>`;
+  });
+  return s + '</g>';
+}
+export function readRuleState() {
+  const s = {};
+  RULE_CONTROL_IDS.forEach(id => { s[id] = pr(id); });
+  return s;
+}
+export function buildSymbolLibraryEntry() {
+  if (!state.symbolGrid) return null;
+  return {
+    gridModel: state.symbolGrid,
+    cells: state.symbolCells.map(c => ({ ...c })),
+    colors: state.colors.slice(),
+    colorRule: { ...state.colorRule },
+    paperColor: state.paperColor,
+    clipEnabled: state.symbolClipEnabled,
+    overlap: { ...state.symbolOverlap },
+    appearance: appearanceSnapshot(),
+    rule: readRuleState(),
+    pool: state.symbolPool.map(p => ({ ...p })),   // was "palette" — renamed to avoid clashing with the colour Palette; `applySymbolLibraryEntryToUI` still reads the old key too
+    arrange: { rule: pv('sel-sym-arrange'), fit: pv('sel-sym-arrange-fit'), seed: pv('num-symbol-seed') },
+    savedAt: new Date().toISOString(),
+  };
+}
+// A saved Symbol's thumbnail, drawn against the ENTRY's own saved state, not the live one —
+// same rule as the Components' own library thumbnails.
+export function symbolEntryThumbSVG(entry) {
+  const prev = { grid: state.symbolGrid, cells: state.symbolCells, colors: state.colors, rule: state.colorRule, paper: state.paperColor, clip: state.symbolClipEnabled, overlap: state.symbolOverlap };
+  state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
+  state.symbolCells = entry.cells;
+  state.colors = entry.colors;
+  state.colorRule = entry.colorRule || DEFAULT_COLOR_RULE;
+  state.paperColor = entry.paperColor;
+  state.symbolClipEnabled = entry.clipEnabled !== false;
+  state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(entry.overlap || {}) };
+  const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
+  state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip; state.symbolOverlap = prev.overlap;
+  return svgStr;
+}
+export function buildSymbolPrintSVG(F, cv) {
+  const d = symbolPrintDims(F, cv);
+  const bw = d.trimWmm + 2 * d.bleedMm, bh = d.trimHmm + 2 * d.bleedMm;
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`
+    + `<rect width="${r2(bw)}" height="${r2(bh)}" fill="${state.paperColor}"/>`
+    + `<g transform="translate(${r2(d.bleedMm)},${r2(d.bleedMm)})"><g transform="scale(${d.k})">${hooks.svgInnerOf(buildSymbolSVG())}</g>`;
+  if (d.bleedMm > 0) out += Organica.printSize.cropMarksSVG(d.trimWmm, d.trimHmm, {}, '#000');
+  return out + '</g></svg>';
 }

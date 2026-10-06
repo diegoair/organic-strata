@@ -1,6 +1,7 @@
 // Flexible Visual System · engine/00-core — the engine part of 00-core.js: model + logic, no DOM UI.
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
+import { hooks } from '../hooks.js';
 // Paper tile dropdown (Organica.selectPicker) — declared up here: renderSeedPreview, which
 // refreshes its "Current Element" thumbnail, runs during boot before the tile code below.
 export const TILE_PICK_REG = {};
@@ -107,3 +108,44 @@ export function entryInkAt(entry) {
 }
 // "Element's own colours": the cell's saved Element palette, when it has one.
 export const cellOwnInks = cell => (state.colorRule.mode === 'own' && cell.ownColors && cell.ownColors.length) ? cell.ownColors : null;
+// ── The panel reader (Oct 2026). The engine (fvs/js/engine/) reads a control through pv / pc / val, never the
+// page: panelSource says where the values come from — today the controls themselves (setPanelSource, below);
+// a port can plug in its own state. Same values, read the same way. docs/FVS.md §11.
+export const panelSource = { value: null, checked: null, read: null };
+export function setPanelSource(src) { Object.assign(panelSource, src); }
+export function pv(id) { return panelSource.value(id); }      // a control's value (a string) — was ctrl(id).value
+export function pc(id) { return panelSource.checked(id); }    // a checkbox's state — was ctrl(id).checked
+export function val(id) { return parseFloat(pv(id)); }
+export function pr(id) { return panelSource.read(id); }       // a checkbox's state or any other control's value
+// ── live: what render code and the UI share at run time (Oct 2026 — were ten top-level variables). Part of
+// the model, like state: the engine reads it, the UI and the render wrappers set it.
+export const live = {
+  _stackDrawSeq: 0,
+  _symCR: { key: null, rule: null, cr: null },
+  _symLattice: { key: null, lat: null },
+  appearanceOverride: null,
+  contentOverlayFit: 'fill',
+  inkPaletteOverride: null,   // set while rendering a saved entry with ITS palette (withEntryInks)
+  lastFigureMeta: { size: 0, box: null },   // the frame and drawn box of the last Grid figure built
+  layerInkOverride: null,   // {layerId: 'cell'|slot} — set while rendering a colour-variant thumbnail
+  paperPatternOn: false,
+  variantAppearance: null,
+};
+// An offscreen canvas for compositing / raster checks — the one page call the engine makes (never mounted).
+export function offscreenCanvas(width, height) { return Object.assign(document.createElement('canvas'), { width, height }); }
+// A Symbol cell's ink. `color: null` = follow the palette (what new cells
+// store). A stored colour equal to the palette entry for that index — how
+// older saves wrote it — is treated the same, so recolouring the palette
+// recolours those cells too; any other stored colour is a real override.
+export function symbolCR() {
+  const g = state.symbolGrid, r = state.colorRule.mode;
+  if (live._symCR.key !== g || live._symCR.rule !== r) live._symCR = { key: g, rule: r, cr: (r === 'index' || r === 'own') ? null : colorRuleCR(hooks.getSymbolGrid(), state.colorRule) };
+  return live._symCR.cr;
+}
+export function cellInk(cell, i) {
+  const own = cellOwnInks(cell);
+  const p = own ? own[0] : ruleInk(i, symbolCR());
+  // null = follow the palette; anything else is an explicit override set in Cell properties
+  // (legacy colours that merely pinned the palette value are released when a saved Symbol loads).
+  return cell.color ? cell.color : p;
+}

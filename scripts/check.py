@@ -231,7 +231,7 @@ else:
 # model's stores (presetStore 'fvs' / 'fvs-element' / 'fvs-symbols', the Genesis library, ORGANIC_SEEDS) are allowed.
 print("fvs engine")
 eng = sorted(f for f in subprocess.run(["git", "ls-files", "fvs/js/engine"], capture_output=True, text=True).stdout.split() if f.endswith(".js"))
-ENGINE_BAD = re.compile(r"\b(ctrl|val|setStatus)\(|\bwindow\.|localStorage|addEventListener|querySelector|getElementById|innerHTML|\bOrganica\.(download|icons|popover|prompt|confirm|notice|store\b|presetStore|dirty|selectPicker)")
+ENGINE_BAD = re.compile(r"\b(ctrl|setStatus)\(|\bwindow\.|localStorage|addEventListener|querySelector|getElementById|innerHTML|\bOrganica\.(download|icons|popover|prompt|confirm|notice|store\b|presetStore|dirty|selectPicker)")
 MODEL_OK = re.compile(r"Organica\.presetStore\('fvs(-element|-symbols)?'\)|Organica\.store\.library\.read\(\)|window\.ORGANIC_SEEDS")
 DOM_OK = re.compile(r"document\.(createElement|createElementNS)\(|document\.body\.(appendChild|removeChild)\(")
 bad_e = []
