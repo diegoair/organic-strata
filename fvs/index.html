@@ -514,7 +514,7 @@
   #element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, #figure-frame > svg { box-shadow: var(--stage-shadow); }
   /* A non-square cell shape is the canvas itself: no square sheet around it — the same stage shadow, cast by
      its own outline (drop-shadow follows the drawn alpha; --stage-shadow has no spread, so it reads here too). */
-  #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { box-shadow: none; filter: drop-shadow(var(--stage-shadow)); }
+  #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { box-shadow: none; filter: drop-shadow(var(--stage-shadow)); overflow: visible; }   /* overflow: the Show-grid wrapper reaches past the cells */
   .fvs-thumb:has(> svg.is-cell) { background: transparent; }
   /* A cell-shape Component's canvas is its grid's outline: no square frame at all — the sheet casts the stage
      shadow, and selected / saved draw their ring along that outline (chained 1px drop-shadows grow the
@@ -5626,6 +5626,49 @@ function componentGridOutlineSVG(items, size) {
     ? `<polygon vector-effect="non-scaling-stroke" points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`
     : `<rect vector-effect="non-scaling-stroke" x="${(hx + it.cx - it.cellSize / 2).toFixed(2)}" y="${(hy + it.cy - it.cellSize / 2).toFixed(2)}" width="${it.cellSize.toFixed(2)}" height="${it.cellSize.toFixed(2)}"/>`).join('') + `</g>`;
 }
+// Show grid, on a cell-shape lattice: the Grid shape that wraps the cells (the triangle round three packed
+// circles, the hexagon round seven…) as a dashed guide — what the Component is as a whole, so its fit in a
+// Symbol grid reads at a glance. The tightest polygon of that shape: per edge direction, the support of every
+// cell point (max p·n), consecutive edge lines intersected; of the shape's possible orientations the one with
+// the least area is the lattice's own. Screen only, never exported. → { svg, box: [x0,y0,x1,y1] } or null.
+const WRAP_NORMALS = {
+  triangle: [0, 30, 60, 90].map(t => [90, 210, 330].map(a => a + t)),
+  hexagon: [0, 30].map(t => [0, 60, 120, 180, 240, 300].map(a => a + t)),
+  diamond: [0, 30, 60, 90, 120, 150].flatMap(a => [[a, a + 60, a + 180, a + 240], [a, a + 120, a + 180, a + 300]]),
+  square: [[0, 90, 180, 270]],
+};
+function gridWrapper(items, outline) {
+  if (!state.componentGridOutline || !items.length || !items[0].poly || !WRAP_NORMALS[outline]) return null;
+  const pts = items.flatMap(it => it.poly);
+  let best = null;
+  for (const set of WRAP_NORMALS[outline]) {
+    const ns = set.map(a => ((a % 360) + 360) % 360).sort((x, y) => x - y).map(a => [Math.cos(a * Math.PI / 180), Math.sin(a * Math.PI / 180)]);
+    const h = ns.map(n => Math.max(...pts.map(p => p[0] * n[0] + p[1] * n[1])));
+    const poly = ns.map((n, i) => {   // the corner between edge i and edge i+1
+      const m = ns[(i + 1) % ns.length], hm = h[(i + 1) % ns.length], det = n[0] * m[1] - n[1] * m[0];
+      return [(h[i] * m[1] - n[1] * hm) / det, (n[0] * hm - h[i] * m[0]) / det];
+    });
+    const area = Math.abs(poly.reduce((acc, p, i) => { const q = poly[(i + 1) % poly.length]; return acc + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+    if (poly.every(p => isFinite(p[0]) && isFinite(p[1])) && (!best || area < best.area - 1e-6)) best = { poly, area };
+  }
+  if (!best) return null;
+  const xs = best.poly.map(p => p[0]), ys = best.poly.map(p => p[1]);
+  return { svg: `<polygon class="grid-wrap" points="${best.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}" fill="none" stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" pointer-events="none"/>`,
+    box: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] };
+}
+// The gallery thumbnail grows its viewBox to take the wrapper in, so it never runs into its neighbours.
+function withGridWrapper(svgStr, items, outline) {
+  const w = gridWrapper(items, outline);
+  if (!w) return svgStr;
+  const vb = (svgStr.match(/viewBox="([^"]+)"/) || [])[1];
+  let out = svgStr.replace(/<\/svg>$/, w.svg + '</svg>');
+  if (vb) {
+    const [x, y, vw, vh] = vb.split(/[\s,]+/).map(Number), pad = 0.02 * Math.max(vw, vh);
+    const x0 = Math.min(x, w.box[0] - pad), y0 = Math.min(y, w.box[1] - pad), x1 = Math.max(x + vw, w.box[2] + pad), y1 = Math.max(y + vh, w.box[3] + pad);
+    out = out.replace(/viewBox="[^"]+"/, `viewBox="${x0.toFixed(2)} ${y0.toFixed(2)} ${(x1 - x0).toFixed(2)} ${(y1 - y0).toFixed(2)}"`).replace(/(<svg[^>]*?)\swidth="[^"]*"\sheight="[^"]*"/, '$1');
+  }
+  return out;
+}
 // SVG: `content` clipped to the union of `polys` (each a point list, in the content's own coords); as-is when polys is null.
 function clipToCellShapes(polys, content) {
   if (!polys) return content;
@@ -6023,7 +6066,7 @@ function renderGallery() {
   for (const comp of state.components) {
     let svgStr;
     layerInkOverride = comp.layerInks || null;
-    try { const its = buildComponentItems(comp, grid); svgStr = withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'); } finally { layerInkOverride = null; }
+    try { const its = buildComponentItems(comp, grid); svgStr = withGridWrapper(withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline); } finally { layerInkOverride = null; }
     const btn = document.createElement('button');
     const isSelected = comp.id === state.selectedId && state.selectionExplicit;
     btn.className = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
@@ -6186,7 +6229,7 @@ function renderComponentEditCanvas() {
   const dims = resolvedComponentDims(size);
   ctrl('component-edit-frame').style.setProperty('--comp-ar', (dims.w / dims.h).toFixed(5));   // the sheet's box takes the component's proportions
   ctrl('component-edit-frame').innerHTML =
-    `<svg xmlns="http://www.w3.org/2000/svg"${items.length && items[0].poly ? ' class="is-cell"' : ''} viewBox="0 0 ${dims.w} ${dims.h}">${body}${componentGridOutlineSVG(items, size)}${hit}</svg>`;
+    `<svg xmlns="http://www.w3.org/2000/svg"${items.length && items[0].poly ? ' class="is-cell"' : ''} viewBox="0 0 ${dims.w} ${dims.h}">${body}${componentGridOutlineSVG(items, size)}${(gridWrapper(items, grid.lattice && grid.lattice.outline) || {}).svg || ''}${hit}</svg>`;
   const cell = state.componentEditSelectedCell;
   ctrl('component-edit-hint').textContent = cell == null
     ? 'Click a cell to give it its own shape'
