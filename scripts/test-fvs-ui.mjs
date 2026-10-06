@@ -56,12 +56,19 @@ const dbgPort = new URL(wsUrl).port;
 const pages = await (await fetch(`http://127.0.0.1:${dbgPort}/json`)).json();
 const ws = new WebSocket(pages.find(p => p.type === 'page').webSocketDebuggerUrl);
 await new Promise(r => ws.addEventListener('open', r));
-let nid = 0; const pend = new Map(); let consoleErrors = [];
+let nid = 0; const pend = new Map(); let consoleErrors = []; const dialogsAccepted = [];
 ws.addEventListener('message', e => {
   const m = JSON.parse(e.data);
   if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); return; }
   if (m.method === 'Runtime.exceptionThrown') consoleErrors.push('exception: ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text).split('\n')[0]);
   else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') consoleErrors.push('console.error: ' + m.params.args.map(a => a.value ?? a.description ?? '').join(' ').slice(0, 200));
+  // A JS dialog blocks the page until answered — and headless Chrome never answers. FVS raises "Leave site?"
+  // (shared/core.js beforeunload, unsaved changes) when load() reloads a page the J tests left dirty: that
+  // froze the run after J4.2 (Oct 2026). Accept it, and note it on the current test.
+  else if (m.method === 'Page.javascriptDialogOpening') {
+    ws.send(JSON.stringify({ id: ++nid, method: 'Page.handleJavaScriptDialog', params: { accept: true } }));
+    dialogsAccepted.push(m.params.type);
+  }
 });
 const cdp = (method, params = {}) => new Promise(r => { const i = ++nid; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -147,7 +154,11 @@ const results = []; let current = null;
 async function test(id, title, fn) {
   current = { id, title, ok: true, notes: [], errors: [] }; consoleErrors = [];
   const t0 = Date.now();
-  try { await fn(current); } catch (e) { current.ok = false; current.notes.push('threw: ' + e.message); }
+  // a time limit per test: a hang fails this test and the run goes on (was: the whole run stalled to its 25-min cap)
+  const LIMIT = 4 * 60 * 1000; let timer;
+  try { await Promise.race([fn(current), new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(`timed out after ${LIMIT / 60000} min`)), LIMIT); })]); }
+  catch (e) { current.ok = false; current.notes.push('threw: ' + e.message); }
+  finally { clearTimeout(timer); }
   const bad = consoleErrors.filter(e => !/Failed to load resource/.test(e));
   if (bad.length) { current.ok = false; current.errors = bad.slice(0, 6); }
   current.ms = Date.now() - t0; results.push(current);
@@ -583,4 +594,5 @@ fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ theme: THEME, 
 if (contact.length) fs.writeFileSync(path.join(OUT, 'contact.html'), `<!doctype html><meta charset=utf-8><title>FVS variants</title><style>body{font:11px monospace;background:#fff;margin:12px}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}.c{border:1px solid #ccc;padding:4px}.c.f{border-color:#c00}.c svg{width:100%;height:auto;display:block;max-height:180px}</style><div class=g>${contact.map(x => `<div class="c ${x.ok ? '' : 'f'}"><b>${x.id}</b> ${x.ok ? '' : '✗'}<br>${x.svg.replace(/<\?xml[^>]*>/, '')}<br>${x.title}</div>`).join('')}</div>`);
 fs.writeFileSync(path.join(OUT, 'summary.md'), `# FVS UI test — ${results.length} cases, ${fail.length} failing (${THEME})\n\n` + results.map(r => `- ${r.ok ? 'PASS' : '**FAIL**'} \`${r.id}\` ${r.title}${r.ok ? '' : '\n  - ' + [...r.notes, ...r.errors].join('\n  - ')}`).join('\n') + '\n');
 console.log(`\n${results.length - fail.length}/${results.length} passed · variants rendered: ${contact.length} · artefacts: ${OUT}`);
+if (dialogsAccepted.length) console.log(`  browser dialogs accepted: ${dialogsAccepted.length} (${[...new Set(dialogsAccepted)].join(', ')}) — e.g. "Leave site?" on a reload after unsaved changes`);
 done(fail.length ? 1 : 0);
