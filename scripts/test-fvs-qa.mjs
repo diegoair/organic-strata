@@ -119,7 +119,7 @@ phase = 'figure-tab-click';
 { const e0 = errors.length;
   const ok = await ev(`document.querySelector('#tier-tabs [data-tier="figure"]').click();
     for (let i = 0; i < 40; i++) { await idle(100); const v = document.querySelector('.tier-view[data-tier="figure"]');
-      if (v && v.classList.contains('active') && document.getElementById('figure-frame') && document.getElementById('figure-frame').innerHTML.length > 200) return true; }
+      if (v && v.classList.contains('active') && document.querySelectorAll('#fg-graph .nc-node').length > 0) return true; }   // the Figure step is a node graph (docs/FVS.md §12)
     return false;`);
   check(ok, 'Figure tab click: the Figure view did not draw');
   const ne = newErrors(e0); check(!ne.length, 'Figure tab click: ' + ne.join(' | '));

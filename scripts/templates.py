@@ -32,12 +32,12 @@ STARTER = 'shared/_template.html'
 SKIP = re.compile(r'^(explorations|archive|scratchpad|\.claude|genesis/archive|figma-plugin|docs)/|(^|/)_')
 
 # The sheets a template is made of, in load-bearing order (each may override the one before).
-ORDER = ['tokens', 'icons', 'header', 'page', 'prose', 'auth-card', 'fvs-field', 'panel', 'floatbar', 'shell',
+ORDER = ['tokens', 'icons', 'header', 'page', 'prose', 'auth-card', 'fvs-field', 'panel', 'floatbar', 'shell', 'node-canvas',
          'palette', 'seeds-panel', 'mobile-gate']      # scripts/css-lint.py keeps the same list
 
 OWN_SURFACE = {   # tool chrome, own canvas surface — no shell.css
     'apostate': 'three-column board (character picker · glyph · panel)',
-    'fvs': 'a step-nav row above #app and its own gallery / symbol surfaces',
+    'fvs': 'a step-nav row above #app, its own gallery / symbol surfaces and the Figure node graph',
     'rhizome': 'an infinite node canvas, no sheet',
     'genesis': 'library grid + Paper.js artboard; retiring, left alone by decision',
 }

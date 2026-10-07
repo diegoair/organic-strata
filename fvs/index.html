@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/node-canvas.css">
 <link rel="stylesheet" href="/shared/palette.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <link rel="stylesheet" href="/fvs/fvs.css">
@@ -79,6 +80,27 @@
     <button class="org-floatbar__btn" id="btn-undo-components" aria-label="Undo (⌘Z)" disabled>
       <svg class="ico" data-icon="undo" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6"/></svg>
     </button>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+  </div>
+  <!-- Figure graph actions (Oct 2026). Shown only on the Figure step by setTier(). -->
+  <div id="fb-figure-actions" class="fvs-fb-group" style="display:none">
+    <span class="org-floatbar__group" role="group" aria-label="Graph">
+      <button class="org-floatbar__btn" id="btn-fg-new" aria-label="New Figure…" data-icon-slot></button>
+    </span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+    <span class="org-floatbar__group" role="group" aria-label="History">
+      <button class="org-floatbar__btn" id="btn-fg-undo" aria-label="Undo" aria-keyshortcuts="Meta+Z Control+Z" disabled data-icon-slot></button>
+      <button class="org-floatbar__btn" id="btn-fg-redo" aria-label="Redo" aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z" disabled data-icon-slot></button>
+    </span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+    <span class="org-floatbar__group" role="group" aria-label="Edit">
+      <button class="org-floatbar__btn" id="btn-fg-delete" aria-label="Delete" aria-keyshortcuts="Delete Backspace" data-icon-slot></button>
+    </span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+    <span class="org-floatbar__group" role="group" aria-label="View">
+      <button class="org-floatbar__btn" id="btn-fg-fit" aria-label="Fit all" aria-keyshortcuts="Shift+1" data-icon-slot></button>
+      <button class="org-floatbar__btn" id="btn-fg-fit-sel" aria-label="Fit selection" aria-keyshortcuts="Shift+2" data-icon-slot></button>
+    </span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
   <!-- Symbol-tier actions. Shown only on that tier by setTier(). -->
@@ -231,6 +253,17 @@
   </div>
 </div>
 
+<!-- Figure graph node bar (Oct 2026): the left dock's occupant on the Figure step (.org-dock, ledger O-30). Filled by 17-figure-graph.js. -->
+<div id="fg-nodebar-dock" class="org-dock" role="group" aria-label="Nodes" hidden>
+  <div class="org-floatbar org-dock__bar" id="fg-nodebar" role="toolbar" aria-label="Nodes" aria-orientation="vertical">
+    <button class="org-floatbar__btn" data-cat="Foundation" aria-label="Foundation nodes" aria-expanded="false" aria-controls="fg-nodebar-panel" data-icon-slot></button>
+    <button class="org-floatbar__btn" data-cat="Content" aria-label="Content nodes" aria-expanded="false" aria-controls="fg-nodebar-panel" data-icon-slot></button>
+    <button class="org-floatbar__btn" data-cat="Rules" aria-label="Rule nodes" aria-expanded="false" aria-controls="fg-nodebar-panel" data-icon-slot></button>
+    <button class="org-floatbar__btn" data-cat="Output" aria-label="Output nodes" aria-expanded="false" aria-controls="fg-nodebar-panel" data-icon-slot></button>
+  </div>
+  <div class="org-floatbar org-dock__panel fg-nodebar__panel" id="fg-nodebar-panel" role="region" aria-label="Foundation" inert></div>
+</div>
+
 <div id="app">
   <div id="zoom-hud" aria-live="polite"><span id="zoom-level">100%</span><button type="button" class="zoom-reset" id="zoom-reset" title="Reset zoom (⌘0)">reset</button></div>
   <div id="canvas-wrap">
@@ -268,6 +301,7 @@
       <div id="symbol-frame"></div>
     </div>
     <div class="tier-view" data-tier="figure">
+      <div id="fg-graph" class="fg-graph" aria-label="Figure graph"></div>
       <div id="fg-strip">
         <div class="fg-strip__bar">
           <button class="mini-btn" id="fg-new" aria-expanded="false">New figure…</button>
@@ -1636,6 +1670,7 @@
       <div class="panel-step-head__title">Figure <span class="hint">all in one</span></div>
       <p class="panel-step-head__desc">Seed → lattice → rules → composition → transform. Every change redraws the figure; the same recipe can be pasted or saved as JSON.</p>
     </div>
+    <div id="fg-inspector" class="fg-inspector"></div>
     <div class="panel-section" id="fg-step-panel" aria-live="polite"></div>
     <details id="fg-advanced" class="fg-advanced">
     <summary>Advanced — form, checks, reference, recipe JSON</summary>
@@ -1772,6 +1807,7 @@
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
+<script src="/shared/node-canvas.js"></script>
 <script src="/shared/icons.js"></script>
 <script src="/shared/supabase.js"></script>
 <script src="/shared/auth.js"></script>

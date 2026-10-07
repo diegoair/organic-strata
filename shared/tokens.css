@@ -530,6 +530,15 @@ html {
   --border-strong: #958462;
   --danger: #a03828;       /* see --danger's note above (moved here with the themes) */
   --canvas-dot: #a8dff0;   /* light cyan blue */
+  /* Node-graph port types (Organica.nodeCanvas — ledger O-34, Oct 7, 2026): the Riso standard inks of the palette
+     library, each taken to the nearest step of its own OKLCH scale that reaches 3:1 on --panel (Organica.color.stepFor). */
+  --port-canvas: #656667;   /* Riso Light Gray */
+  --port-grid: #0078bf;   /* Riso Blue */
+  --port-palette: #e12396;   /* Riso Fluorescent Pink */
+  --port-content: #007b41;   /* Riso Green */
+  --port-rule: #a57a38;   /* Riso Flat Gold */
+  --port-composition: #765ba7;   /* Riso Purple */
+  --port-figure: #db4e00;   /* Riso Orange */
 }
 
 :root,
@@ -583,6 +592,13 @@ html {
   --accent-hover: #bdb8ae;    /* the hover under an ink-filled button: dropped off --ink, the mirror of light's lift */
   --danger: #e0735f;          /* 6.1:1 — light's #a03828 is 2.8:1 here */
   --canvas-dot: #2e4a55;      /* the cyan dot, dimmed to the same quietness on black */
+  --port-canvas: #88898a;
+  --port-grid: #0078bf;
+  --port-palette: #ff48b0;
+  --port-content: #00a95c;
+  --port-rule: #bb8b41;
+  --port-composition: #765ba7;
+  --port-figure: #ff6c2f;
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);   /* the sheet still has to lift off a dark ground */
   color-scheme: dark;
 }

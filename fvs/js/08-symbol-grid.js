@@ -19,7 +19,7 @@ import {
   LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames
 } from './engine/07-library.js';
 import {
-  GEN_ARRIVE, PX_PER_MM, SYMCANVAS_PRESETS, SYMGRID_GENS, buildFvsGridSVG, cellNaturalSize,
+  GEN_ARRIVE, PX_PER_MM, SYMCANVAS_PRESETS, SYMGRID_GENS, buildFvsGridSVG, cellNaturalSize, loomRegistry, symbolGridModel,
   clampWeightTrackCount, defaultSymbolCells, emptySymbolCell, fitPatch, fitTargetIndices, getFvsGrid,
   getSymbolGrid, readSymgridParams, samePlacement, symbolGenerateBlock, symbolHasAlignedComponents,
   symbolHasContent
@@ -129,8 +129,6 @@ export function loadSymbolGridNow(model) {
 // field. Drawing units: px for Screen, px at 96 dpi of the physical size for
 // Print (A4 = 794 × 1123) — the Export converts to the real size.
 export let symCanvasPicker = null;   // the canvas-format thumbnail picker — built once the <select> is filled (below)
-export let loomRegistryP = null;
-export function loomRegistry() { return (loomRegistryP = loomRegistryP || import('/loom/js/generators/registry.js').then(m => m.GENERATORS)); }
 
 export function readSymbolCanvas() {
   const mode = ctrl('seg-symcanvas-mode').querySelector('.seg-btn.active').dataset.mode;
@@ -170,35 +168,6 @@ export function renderSymgridParams() {
     ? `<div class="ctrl-row"><div class="ctrl-label">${label} <span class="hint">5–8 weights</span></div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
     : `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`).join('');
   spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
-}
-// The Loom model for a generated grid — pure, so the regression suite can call it too.
-export async function symbolGridModel(genId, params, cv) {
-  const G = (await loomRegistry())[genId];
-  if (!G) throw new Error(`Unknown grid generator "${genId}".`);
-  const m = Math.min(cv.W, cv.H) * (cv.margin / 100);
-  const inner = { x: m, y: m, width: Math.max(1, cv.W - 2 * m), height: Math.max(1, cv.H - 2 * m) };
-  if (genId === 'rectangular') {
-    // New UI path: cols/rows are just a track COUNT → equal starting weights
-    // (uneven ones come from dragging borders afterward). Old path, still
-    // supported for saved recipes / the regression suite: a literal
-    // colWeights/rowWeights string, clamped to the same 5–8 track band.
-    const equalWeights = n => Array.from({ length: Math.max(1, Math.round(n)) }, () => '1').join(',');
-    if (params.cols != null) params = { ...params, colWeights: equalWeights(params.cols) };
-    if (params.rows != null) params = { ...params, rowWeights: equalWeights(params.rows) };
-    if (params.colWeights != null) params = { ...params, colWeights: clampWeightTrackCount(params.colWeights) };
-    if (params.rowWeights != null) params = { ...params, rowWeights: clampWeightTrackCount(params.rowWeights) };
-  }
-  const full = { ...G.defaults, ...params, gap: 0 };
-  const { grid, cells } = G.generate(full, inner);
-  if (G.cellShape === 'polygon') grid.cellShape = 'polygon';
-  cells.forEach((c, i) => { c.number = i + 1; });
-  const { W, H, ...frame } = cv;
-  return {
-    version: '1.0',
-    canvas: { width: W, height: H, unit: 'px', margin: cv.margin, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, safeArea: 0, bleed: 0,
-      fvsFrame: { ...frame, generator: genId, params } },
-    grid, cells,
-  };
 }
 // ── Overlap & blend — every Symbol grid. Saved with the Symbol (entry.overlap); older Symbols open as Paper under, 0.
 state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest' };

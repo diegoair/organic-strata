@@ -662,6 +662,10 @@
     // so no existing caller's behaviour changes — see docs/ plan for
     // Rhizome (aggiungi-le-axploration-come-shimmying-koala.md, Parte 3.4d).
     const panAlways = !!opts.panAlways;
+    // A node graph (Organica.nodeCanvas) is an infinite board: zooming out to MIN must not snap the pan back to
+    // 0,0, and double-click belongs to the board (open search / Compose), not "reset view". Both opt-in.
+    const infinite = !!opts.infinite;
+    const dblclickReset = opts.dblclickReset !== false;
 
     let zoom = 1, panX = 0, panY = 0;
     let panning = false, startX = 0, startY = 0;
@@ -683,7 +687,14 @@
       const ratio = zoom / prev;
       panX -= cx * (ratio - 1);
       panY -= cy * (ratio - 1);
-      if (zoom === MIN) { panX = 0; panY = 0; }
+      if (zoom === MIN && !infinite) { panX = 0; panY = 0; }
+      apply();
+    }
+    // Set the view outright (fit all / fit selection, restoring a saved view). Zoom is clamped to MIN..MAX.
+    function setView(v) {
+      if (v.zoom != null) zoom = Math.min(MAX, Math.max(MIN, v.zoom));
+      if (v.panX != null) panX = v.panX;
+      if (v.panY != null) panY = v.panY;
       apply();
     }
 
@@ -742,14 +753,14 @@
       if (!panning) return;
       panning = false; canvas.classList.remove('panning');
     });
-    canvas.addEventListener('dblclick', reset);
+    if (dblclickReset) canvas.addEventListener('dblclick', reset);
 
     // ⌘/Ctrl + − 0 are NOT captured: they stay the browser's own page zoom (WCAG 1.4.4). The HUD
     // buttons and double-click reset the canvas.
 
     apply();
     return {
-      zoomBy, reset, apply,
+      zoomBy, reset, apply, setView,
       get zoom() { return zoom; },
       get pan() { return { x: panX, y: panY }; },
     };

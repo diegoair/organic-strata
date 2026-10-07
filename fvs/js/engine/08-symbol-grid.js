@@ -569,3 +569,36 @@ export function readSymgridParams(id) {
   SYMGRID_GENS[id].params.forEach(([k, , a]) => { const v = pv('symgen-' + k); out[k] = a === 'text' ? v : parseFloat(v); });
   return out;
 }
+// Loom's grid generators (loom/js/generators/registry.js, untouched), imported on first use — the Rhizome way.
+export let loomRegistryP = null;
+export function loomRegistry() { return (loomRegistryP = loomRegistryP || import('/loom/js/generators/registry.js').then(m => m.GENERATORS)); }
+// The Loom model for a generated grid inside a canvas (cv = readSymbolCanvas()'s shape) — pure; the Symbol step,
+// the Figure graph's Figure node (engine/17) and the regression suite call it.
+export async function symbolGridModel(genId, params, cv) {
+  const G = (await loomRegistry())[genId];
+  if (!G) throw new Error(`Unknown grid generator "${genId}".`);
+  const m = Math.min(cv.W, cv.H) * (cv.margin / 100);
+  const inner = { x: m, y: m, width: Math.max(1, cv.W - 2 * m), height: Math.max(1, cv.H - 2 * m) };
+  if (genId === 'rectangular') {
+    // New UI path: cols/rows are just a track COUNT → equal starting weights
+    // (uneven ones come from dragging borders afterward). Old path, still
+    // supported for saved recipes / the regression suite: a literal
+    // colWeights/rowWeights string, clamped to the same 5–8 track band.
+    const equalWeights = n => Array.from({ length: Math.max(1, Math.round(n)) }, () => '1').join(',');
+    if (params.cols != null) params = { ...params, colWeights: equalWeights(params.cols) };
+    if (params.rows != null) params = { ...params, rowWeights: equalWeights(params.rows) };
+    if (params.colWeights != null) params = { ...params, colWeights: clampWeightTrackCount(params.colWeights) };
+    if (params.rowWeights != null) params = { ...params, rowWeights: clampWeightTrackCount(params.rowWeights) };
+  }
+  const full = { ...G.defaults, ...params, gap: 0 };
+  const { grid, cells } = G.generate(full, inner);
+  if (G.cellShape === 'polygon') grid.cellShape = 'polygon';
+  cells.forEach((c, i) => { c.number = i + 1; });
+  const { W, H, ...frame } = cv;
+  return {
+    version: '1.0',
+    canvas: { width: W, height: H, unit: 'px', margin: cv.margin, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, safeArea: 0, bleed: 0,
+      fvsFrame: { ...frame, generator: genId, params } },
+    grid, cells,
+  };
+}

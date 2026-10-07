@@ -11,6 +11,7 @@
   "panel",
   "floatbar",
   "shell",
+  "node-canvas",
   "palette",
   "seeds-panel",
   "mobile-gate"
@@ -141,13 +142,14 @@
      "file": "fvs/index.html",
      "template": "tool",
      "variant": "own surface",
-     "why": "a step-nav row above #app and its own gallery / symbol surfaces",
+     "why": "a step-nav row above #app, its own gallery / symbol surfaces and the Figure node graph",
      "sheets": [
       "tokens",
       "icons",
       "header",
       "panel",
       "floatbar",
+      "node-canvas",
       "palette",
       "mobile-gate"
      ],

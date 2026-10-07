@@ -1,6 +1,7 @@
 // Flexible Visual System · 14-figure-ui — Figure UI — form ↔ recipe, pipeline, history, paint tools, Play, checks.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
+import { rt } from './rt.js';
 import {
   live, pv, state
 } from './engine/00-core.js';
@@ -257,7 +258,7 @@ ctrl('fg-gallery-ref').addEventListener('click', () => ctrl('fg-ref-file').click
 ctrl('fg-undo').addEventListener('click', () => figureHistoryStep(-1));
 ctrl('fg-redo').addEventListener('click', () => figureHistoryStep(1));
 document.addEventListener('keydown', e => {
-  if (state.activeTier !== 'figure') return;
+  if (state.activeTier !== 'figure' || rt.figureGraph) return;
   if (e.key === 'Escape' && !ctrl('fg-gallery').hidden) { closeFigureGallery(); return; }
   if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
   const t = e.target;
@@ -398,7 +399,7 @@ export function figureNudgeSize(dir) {
   figureMutate(d => { const s2 = fgSymbol(d); if (!s2) return; const l = s2.lattice, key = l.type === 'triangle' ? 'rows' : l.type === 'hexagon' ? 'rings' : 'cols', lo = l.type === 'hexagon' ? 1 : 2, hi = l.type === 'hexagon' ? 4 : 6; l[key] = Math.max(lo, Math.min(hi, l[key] + dir)); if (l.type === 'square') l.rows = l[key]; });
 }
 document.addEventListener('keydown', e => {
-  if (state.activeTier !== 'figure' || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (state.activeTier !== 'figure' || rt.figureGraph || e.metaKey || e.ctrlKey || e.altKey) return;
   const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.tagName === 'BUTTON' || t.isContentEditable)) return;
   if (e.key === 'Escape' && !ctrl('fg-variations').hidden) { closeFigureVariations(); return; }
   if (!ctrl('fg-gallery').hidden || !ctrl('fg-variations').hidden) return;
@@ -540,7 +541,7 @@ export function figureSetTransform(fn) {
   });
 }
 document.addEventListener('keydown', e => {
-  if (state.activeTier !== 'figure' || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (state.activeTier !== 'figure' || rt.figureGraph || e.metaKey || e.ctrlKey || e.altKey) return;
   const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
   if (figurePaintable() && /^[1-6]$/.test(e.key)) { state.figureTool = FIGURE_TOOLS[+e.key - 1][0]; renderFigureToolbar(); }
   if (figureHandleTarget() > 0) {

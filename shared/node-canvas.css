@@ -1,0 +1,104 @@
+/* ─────────────────────────────────────────────────────────────
+   Organica.nodeCanvas — the node board (paired with shared/node-canvas.js). Tokens only.
+   Card look decided by the design-system agent (ledger, G3 — delegated by Diego, Oct 7, 2026): a --border-strong
+   edge (≥ 3:1 on the board in both themes), no shadow at rest, --stage-shadow only while lifted, a 2px --ink ring
+   when selected (single or many), the shared focus ring for keyboard focus. Wires carry
+   their source type's colour (--port-*), 1.5px at any zoom. Load AFTER shell.css (or the tool's own skeleton).
+   ───────────────────────────────────────────────────────────── */
+.nc-stage {
+  --node-w: 14rem;            /* a card's default width — component-local */
+  --port-d: 10px;             /* port dot diameter (its hit area is --hit-min) */
+  --wire-w: 1.5px;            /* wire stroke at every zoom (non-scaling) */
+  position: relative; overflow: hidden; touch-action: none;
+  background: var(--canvas-grid), var(--canvas-bg);
+  outline: none;
+}
+.nc-stage.nc-stage--pan, .nc-stage.nc-stage--pan * { cursor: grab; }
+.nc-board { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.nc-wires { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
+.nc-nodes { position: absolute; left: 0; top: 0; }
+
+/* ── cards ── */
+.nc-node {
+  position: absolute; left: 0; top: 0; width: var(--node-w);
+  display: flex; flex-direction: column;
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  font-size: var(--t-control-size);
+  user-select: none; cursor: default;
+  transition: border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+}
+@media (hover: hover) { .nc-node:hover { border-color: var(--mid); } }
+.nc-node.is-selected { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.nc-node:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.nc-node.is-lifted { box-shadow: var(--stage-shadow); }
+.nc-node.is-selected.is-lifted { box-shadow: 0 0 0 1px var(--ink), var(--stage-shadow); }
+.nc-node--compact { --node-w: 10rem; }
+.nc-node--wide { --node-w: 26rem; }
+.nc-node__head {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  font-family: var(--font-display); font-size: var(--t-section-size); font-weight: var(--w-medium);
+  cursor: grab;
+}
+.nc-node__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nc-node__io { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) 0; }
+.nc-node__ports { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.nc-node__ports--out { align-items: flex-end; }
+.nc-node__body { padding: 0 var(--space-3) var(--space-3); min-height: 0; }
+.nc-node__body:empty { display: none; }
+.nc-node__status { margin: 0; padding: 0 var(--space-3) var(--space-3); font-size: var(--t-caption-size); color: var(--mid); }
+.nc-node[data-state="error"] { border-color: var(--danger); }
+.nc-node[data-state="error"] .nc-node__status { color: var(--danger); }
+.nc-node[data-state="stale"] .nc-node__body { opacity: 0.5; }
+.nc-node.is-collapsed .nc-node__body, .nc-node.is-collapsed .nc-node__status { display: none; }
+.nc-stage--far .nc-node__io, .nc-stage--far .nc-node__status { visibility: hidden; }   /* below ~35%: plates + titles only */
+
+/* ── ports: a dot (type colour + shape) and its label — colour is never the only cue ── */
+.nc-port { display: flex; align-items: center; gap: var(--space-1); min-height: var(--hit-min); color: var(--mid); font-size: var(--t-label-size); }
+.nc-port--in { margin-left: calc(-1 * var(--port-d) / 2 - 1px); }
+.nc-port--out { margin-right: calc(-1 * var(--port-d) / 2 - 1px); }
+.nc-port__label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nc-port__dot {
+  position: relative; flex: 0 0 auto; width: var(--port-d); height: var(--port-d); padding: 0;
+  border: 1px solid var(--port-c, var(--mid)); border-radius: 50%; background: var(--paper);
+  cursor: crosshair; transition: opacity var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
+}
+.nc-port__dot::before { content: ''; position: absolute; inset: calc((var(--hit-min) - var(--port-d)) / -2); }   /* the hit area */
+.nc-port__dot--multi { border-radius: var(--radius-sm); }   /* a list port: a square dot */
+.nc-port__dot:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.nc-port__dot.is-compatible { box-shadow: 0 0 0 2px var(--ink); }
+.nc-port__dot.is-incompatible { opacity: 0.35; }
+.nc-port__dot[data-type] { --port-c: var(--mid); }
+/* port type → colour (ledger O-34). A tool maps its own type names onto these with the same two rules. */
+.nc-port__dot[data-type="canvas"] { --port-c: var(--port-canvas); }
+.nc-wire--canvas { --wire-c: var(--port-canvas); }
+.nc-port__dot[data-type="grid"] { --port-c: var(--port-grid); }
+.nc-wire--grid { --wire-c: var(--port-grid); }
+.nc-port__dot[data-type="palette"] { --port-c: var(--port-palette); }
+.nc-wire--palette { --wire-c: var(--port-palette); }
+.nc-port__dot[data-type="content"] { --port-c: var(--port-content); }
+.nc-wire--content { --wire-c: var(--port-content); }
+.nc-port__dot[data-type="rule"] { --port-c: var(--port-rule); }
+.nc-wire--rule { --wire-c: var(--port-rule); }
+.nc-port__dot[data-type="composition"] { --port-c: var(--port-composition); }
+.nc-wire--composition { --wire-c: var(--port-composition); }
+.nc-port__dot[data-type="figure"] { --port-c: var(--port-figure); }
+.nc-wire--figure { --wire-c: var(--port-figure); }
+
+/* ── wires ── */
+.nc-wire { fill: none; stroke: var(--wire-c, var(--mid)); stroke-width: var(--wire-w); stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke-width var(--dur-fast) var(--ease-standard); }
+.nc-wire-hit { fill: none; stroke: transparent; stroke-width: var(--hit-min); vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; }
+.nc-wire-hit:hover + .nc-wire { stroke-width: calc(var(--wire-w) + 1px); }
+.nc-wire.is-selected { stroke: var(--ink); stroke-width: calc(var(--wire-w) + 1px); }
+.nc-wire--pending { stroke: var(--ink); stroke-dasharray: 4 4; }
+.nc-wire--faint { stroke-opacity: 0.35; }
+.nc-wire--faint.is-related { stroke-opacity: 1; }
+
+/* ── marquee + live region ── */
+.nc-marquee { position: absolute; left: 0; top: 0; pointer-events: none; background: color-mix(in srgb, var(--ink) 6%, transparent); border: 1px dashed var(--mid); }
+.nc-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) { .nc-node, .nc-port__dot, .nc-wire { transition: none; } }

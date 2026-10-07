@@ -861,7 +861,12 @@ more. A fix goes in `fvs/js/`, never there.
 
 ## 12. Figure graph (in progress, Oct 2026)
 
-Figure is being rebuilt as a node **Graph**: Canvas, Grid and Palette nodes (the foundation), content from the saved libraries only (Saved Element / Component / Symbol), rule nodes, and several **Figure** nodes side by side, each showing its own variations. The plan and Diego's decisions live in `docs/DESIGN-DECISIONS.md`; this section grows phase by phase.
+Figure is being rebuilt as a node **Graph**: Canvas, Grid and Palette nodes (the foundation), content from the saved libraries only (**Element / Component / Symbol / Set** nodes), rule nodes, and several **Figure** nodes side by side, each showing its own variations. The plan and Diego's decisions live in `docs/DESIGN-DECISIONS.md`; this section grows phase by phase.
+
+### 12.0 Words and port colours (decided Oct 7, 2026)
+
+- **Words** — every visible string of the graph is in `docs/UI-COPY.md` §2 (the *Figure graph* rows): Graph, Nodes (the left bar; *node bar* in docs, never "node palette"), the four categories Foundation · Content · Rules · Output, the node and port names, Section (not Frame), Variations / Vary by / Keep / Pin / New variations, Compose → Composition, Region rule, the states and notices. Use them in code and docs from the first commit.
+- **Port types and colours** — `canvas · grid · palette · content · rule · composition · figure`, one `--port-<type>` token each (light + dark, ≥ 3:1 on `--paper` and `--panel`, from TuneSutra’s Riso standard inks — table in the ledger, O-34). A port always shows its label and shape as well; colour is never the only cue. Rhizome maps SVG → content, Image → figure, Grid → grid, Color → palette, Number → rule, Points → composition.
 
 ### 12.1 The pure evaluator (Phase 1, shipped on the branch)
 

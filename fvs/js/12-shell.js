@@ -121,6 +121,8 @@ export function setTier(tier) {
   ctrl('fb-element-actions').style.display = tier === 'element' ? '' : 'none';
   ctrl('fb-component-actions').style.display = tier === 'component' ? '' : 'none';
   ctrl('fb-symbol-actions').style.display = tier === 'symbol' ? '' : 'none';
+  ctrl('fb-figure-actions').style.display = tier === 'figure' ? '' : 'none';
+  ctrl('fg-nodebar-dock').hidden = tier !== 'figure';   // the left dock: Library rail on the other steps, the node bar here
   hooks.syncRailTier(tier);
   syncQuadrantHint();
   hooks.closeLibview();

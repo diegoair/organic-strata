@@ -2,5 +2,6 @@
 // read-only, so they live here as properties). Each file still sets its own initial value where it always did.
 // Also the test flags the harnesses set through window.__fvs.
 export const rt = {
-  afterLoadSymbolGrid: null,   // test hook: called with the model after every loadSymbolGrid() (the regression battery pins Clip to cell)
+  afterLoadSymbolGrid: null,
+  figureGraph: false,   // true once the Figure graph (17-figure-graph.js) owns the Figure step — the old Figure UI's keys go quiet   // test hook: called with the model after every loadSymbolGrid() (the regression battery pins Clip to cell)
 };

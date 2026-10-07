@@ -75,6 +75,19 @@
     'align-left':    '<path d="M1 3.5h14M1 7h9M1 10.5h12"/>',
     'align-center':  '<path d="M1 3.5h14M3.5 7h9M2 10.5h12"/>',
     'align-right':   '<path d="M1 3.5h14M6 7h9M3 10.5h12"/>',
+    /* ── node graph (Organica.nodeCanvas — ledger O-35 + G7, Oct 7, 2026) ── */
+    'node-foundation': '<rect x="4" y="3" width="8" height="6" rx="1"/><path d="M2.5 12.5h11"/>',   // Foundation nodes (Canvas, Grid, Palette)
+    'node-content':  '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 11l3-6 3 6z"/>',   // Content nodes (saved Element / Component / Symbol)
+    'node-rule':     '<circle cx="4" cy="8" r="1.5"/><path d="M5.5 8h3l3-3.5M8.5 8l3 3.5"/>',   // Rule nodes
+    'node-output':   '<rect x="2.5" y="4" width="8" height="8" rx="1"/><path d="M8 8h5.5M11.5 6l2 2-2 2"/>',   // Output nodes (Figure, Export)
+    'fit-view':      '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>',   // Fit all — the view, not "reset" (= defaults)
+    'fit-selection': '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/><rect x="6" y="6" width="4" height="4" rx=".5"/>',
+    'pin':           '<path d="M6 2.5h4l-.5 4 2 2v1h-7v-1l2-2z"/><path d="M8 9.5v4"/>',   // Pin a variation (keeps its seed)
+    'alert':         '<path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3"/><circle cx="8" cy="11.2" r=".7"' + F + '/>',   // a node error / something to look at
+    'select-row':    '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><rect x="2.5" y="6.5" width="11" height="3"' + F + '/>',
+    'select-column': '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><rect x="6.5" y="2.5" width="3" height="11"' + F + '/>',
+    'select-class':  '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><rect x="3.5" y="3.5" width="3.5" height="3.5"' + F + '/><rect x="9" y="9" width="3.5" height="3.5"' + F + '/>',
+    'select-range':  '<path d="M2.5 5V2.5H5M11 2.5h2.5V5M13.5 11v2.5H11M5 13.5H2.5V11"/><rect x="5.5" y="5.5" width="5" height="5"' + F + '/>',
     /* ── glyph editor (Apostate / Living Path) ───────── */
     'edit-points':   '<path d="M2.5 13.5 6 12l6.2-6.2a1.4 1.4 0 0 0 0-2L11.7 3.3a1.4 1.4 0 0 0-2 0L3.5 9.5l-1 4Z"/><circle cx="10.5" cy="4.8" r="1"/>',
     'add-point':     '<circle cx="8" cy="8" r="6" stroke-dasharray="2 2"/><path d="M8 5.5v5M5.5 8h5"/>',
