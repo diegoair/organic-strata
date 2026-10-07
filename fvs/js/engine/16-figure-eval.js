@@ -125,7 +125,7 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
   if (!l || l.type !== 'loomModel' || !l.model) throw new Error('An adopted Symbol needs its Loom grid (lattice.type "loomModel")');
   if (first.componentEntries) {
     const all = LIBRARY.read(); let added = false;
-    Object.entries(first.componentEntries).forEach(([name, entry]) => { if (!all[name] && entry) { all[name] = clone(entry); added = true; } });
+    Object.entries(first.componentEntries).forEach(([name, entry]) => { if (entry && JSON.stringify(all[name]) !== JSON.stringify(entry)) { all[name] = clone(entry); added = true; } });   // the copy carried with the Figure wins over a same-named library entry (sandboxed library — the user's is untouched)
     if (added) LIBRARY.write(all);
   }
   if (first.colors) { state.colors = first.colors.map(hexKey); state.colorRule = { ...DEFAULT_COLOR_RULE, ...(first.colorRule || {}) }; }

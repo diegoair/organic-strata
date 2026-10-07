@@ -141,7 +141,7 @@
       var order = topoSort(model), need = needed(model, order);
       for (var i = 0; i < order.length; i++) {
         var id = order[i], node = findNode(model, id), prev = entries.get(id);
-        if (!need.has(id)) { if (prev && prev.state !== 'stale') setEntry(id, Object.assign({}, prev, { state: 'stale' })); else if (!prev) setEntry(id, { key: null, value: null, ver: 0, state: 'stale' }); continue; }
+        if (!need.has(id)) { if (prev && prev.state !== 'stale') setEntry(id, Object.assign({}, prev, { state: 'stale', was: prev.state })); else if (!prev) setEntry(id, { key: null, value: null, ver: 0, state: 'stale' }); continue; }
         var type = registry.get(node.type), inputs = {}, keyParts = [node.type, rev(id)], blocked = null, missing = null;
         var ins = registry.inputsOf(node);
         for (var j = 0; j < ins.length; j++) {
@@ -164,6 +164,7 @@
         if (blocked) { setEntry(id, { key: null, value: null, ver: (prev ? prev.ver : 0) + 1, state: 'upstream', message: 'Waiting for ' + blocked + ' — fix it first' }); continue; }
         if (missing) { setEntry(id, { key: null, value: null, ver: (prev ? prev.ver : 0) + 1, state: 'waiting', message: 'Connect a ' + missing + ' input' }); continue; }
         if (prev && prev.key === key && (prev.state === 'ok' || prev.state === 'error')) continue;   // nothing it reads changed
+        if (prev && prev.key === key && prev.state === 'stale' && (prev.was === 'ok' || prev.was === 'error')) { setEntry(id, Object.assign({}, prev, { state: prev.was, was: undefined })); continue; }   // back on screen, nothing changed: same value, same version
         try {
           var value = await Promise.resolve(type.compute(inputs, node.params || {}, { node: node, nodeId: id }));
           setEntry(id, { key: key, value: value || {}, ver: (prev ? prev.ver : 0) + 1, state: 'ok' });
@@ -1044,11 +1045,26 @@
     return { sync: sync, name: function () { return current; }, setName: function (n) { current = n || ''; sync(); }, use: use, keepUnsaved: keepUnsaved, savedAs: savedAs };
   }
 
+  // A model from storage or a file, made safe to run: unknown node types, wires to missing nodes or ports, and wires
+  // that would close a loop are dropped (topoSort would throw on every run). → { model, dropped: { nodes, edges } }
+  function repairModel(src, registry) {
+    var m = createModel(src), dn = 0, de = 0;
+    m.nodes = m.nodes.filter(function (n) { var ok = n && n.id && registry.has(n.type); if (!ok) dn++; return ok; });
+    var edges = m.edges; m.edges = [];
+    edges.forEach(function (e) {
+      var a = e && e.from && findNode(m, e.from.node), b = e && e.to && findNode(m, e.to.node);
+      var ports = function (list, name) { return !list || list.some(function (q) { return q.name === name; }); };
+      if (!a || !b || !ports(registry.outputsOf && registry.outputsOf(a), e.from.port) || !ports(registry.inputsOf && registry.inputsOf(b), e.to.port) || wouldCycle(m, e.from, e.to)) { de++; return; }
+      m.edges.push(e);
+    });
+    return { model: m, dropped: { nodes: dn, edges: de } };
+  }
+
   Organica.nodeCanvas = {
     MODEL_VERSION: MODEL_VERSION,
     nextId: nextId, createModel: createModel, findNode: findNode, edgesInto: edgesInto, edgesOutOf: edgesOutOf,
     addNode: addNode, removeNode: removeNode, addEdge: addEdge, removeEdge: removeEdge,
-    topoSort: topoSort, wouldCycle: wouldCycle,
+    topoSort: topoSort, wouldCycle: wouldCycle, repairModel: repairModel,
     createRegistry: createRegistry, canConnect: canConnect,
     createEngine: createEngine, createHistory: createHistory,
     mount: mount, wirePath: wirePath,

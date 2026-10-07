@@ -141,8 +141,12 @@ export const FIGURE_RENDER_CAP = 24;   // ledger O-37 — measured at the Phase 
 // other contents kept), each with its own variations; otherwise one group. → main figure + variations (+ groups).
 export async function figureWithVariations(inputs, p) {
   const all = (inputs.content || []).filter(Boolean), set = all.find(c => c.kind === 'set');
+  const others = set ? all.filter(c => c !== set) : all, items = set ? set.items : [];
+  if (set && p.onlyItem) {   // "New Figure from this" on a fan-out variation: that item only (by name, else by place)
+    const it = items.find(x => x.name === p.onlyItem.name) || items[p.onlyItem.index];
+    if (it) return figureGroup({ ...inputs, content: [it, ...others] }, p);
+  }
   if (!set || p.fanOut === false || !set.items.length) return figureGroup(inputs, p);
-  const others = all.filter(c => c !== set), items = set.items;
   const per = Math.max(1, Math.min(+p.variations || 1, Math.floor(FIGURE_RENDER_CAP / items.length)));
   const shown = items.slice(0, FIGURE_RENDER_CAP);
   const groups = [];
@@ -160,8 +164,8 @@ export async function figureWithVariations(inputs, p) {
 }
 async function figureGroup(inputs, p, item) {
   const keep = p.keep || {};
-  // `fixed`: the variation(s) a "New Figure from this" froze — applied in order, before anything else
-  const base = [].concat(p.fixed || []).reduce((b, spec) => { const v = varyInputs(b.inputs, spec, {}); return { inputs: v.inputs, extra: { ...b.extra, ...v.extra } }; }, { inputs, extra: {} });
+  // `fixed`: the variation(s) a "New Figure from this" froze — applied in order, before anything else (with the Keep they were drawn with)
+  const base = [].concat(p.fixed || []).reduce((b, spec) => { const v = varyInputs(b.inputs, spec, spec.keep || {}); return { inputs: v.inputs, extra: { ...b.extra, ...v.extra } }; }, { inputs, extra: {} });
   const main = await compileFigure(base.inputs, { ...p, ...base.extra }, { checks: true });
   // two renders of one figure differ only in their export time and run-time ids (an Element stack's masks): compare without them
   const keyOf = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
@@ -299,16 +303,17 @@ function changeTransform(inp, rng) {
   inp.rules = rules; return t.mirror !== 'none' ? `Mirror: ${MIRRORS[t.mirror]}` : `Rotate ${t.rotate}°`;
 }
 const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells: changeCells, transform: changeTransform };
+const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) => n + (c.kind === 'set' ? c.items.length : 1), 0);   // a Set counts its items
 export function varyInputs(inputs, spec, keep) {
   keep = keep || {};
   const inp = { ...inputs, rules: (inputs.rules || []).slice() }, rng = mulberry32((spec.seed * 2654435761) >>> 0), labels = [], extra = {};
   const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells
     let did = false;
     if (!keep.grid && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed: Math.floor(rng() * 1000) } }; labels.push('Grid: new random seed'); did = true; }
-    if (!keep.content && (inp.content || []).filter(Boolean).length > 1) { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); did = true; }
+    if (!keep.content && contentCount(inp) > 1) { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); did = true; }
     return did;
   };
-  const kinds = KEEP_KEYS.filter(k => !keep[k] && (k !== 'content' || (inp.content || []).filter(Boolean).length > 1));
+  const kinds = KEEP_KEYS.filter(k => !keep[k] && (k !== 'content' || contentCount(inp) > 1));
   if (spec.mode === 'seed' && reseed()) return { inputs: inp, extra, label: labels.join(' · ') };
   const want = spec.mode === 'several' ? 2 + Math.floor(rng() * 2) : 1;
   for (let tries = 0; tries < 12 && labels.length < want && kinds.length; tries++) {
@@ -344,6 +349,13 @@ export function composeLost(rules, ctxs, n) {
   });
   return out;
 }
+// The distinct solid inks of a drawing (fill / stroke hexes), paper left out — what a plate separates.
+export function inksOf(svg, paper) {
+  const norm = h => { h = h.toLowerCase(); return h.length === 4 ? '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3] : h.slice(0, 7); };
+  const out = [], pk = paper ? norm(paper) : null;
+  String(svg || '').replace(/(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, c) => { const k = norm(c); if (k !== pk && !out.includes(k)) out.push(k); return m; });
+  return out;
+}
 export function exportPlan(figs, p) {
   const which = p.which || 'all', fm = p.formats || { svg: true }, scales = (p.scales && p.scales.length ? p.scales : [1]).slice().sort((a, b) => a - b);
   const files = [];
@@ -354,10 +366,11 @@ export function exportPlan(figs, p) {
     const print = f.canvas && f.canvas.mode === 'print', sc = print ? [1] : scales, many = chosen.length > 1;
     chosen.forEach((v, k) => {
       const tag = (name || 'figure').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + (many ? '-v' + (vars.indexOf(v) + 1) : '') + (v.item ? '-' + String(v.item).split(':').slice(1).join(':').toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
-      const base = { figure: name, svg: v.svg, canvas: f.canvas, paper: p.transparent ? 'none' : f.paper, figPaper: f.paper, colors: f.colors || [], print, tag };
+      const inks = inksOf(v.svg, f.paper);   // the inks this drawing uses — not the Palette's (Keep own colours, a Set item, no Palette)
+      const base = { figure: name, svg: v.svg, canvas: f.canvas, paper: p.transparent ? 'none' : f.paper, figPaper: f.paper, colors: inks, print, tag };
       if (fm.svg) files.push({ ...base, format: 'svg', scale: 1, plate: null });
       if (fm.png) sc.forEach(s => files.push({ ...base, format: 'png', scale: s, plate: null }));
-      if (fm.plates && (f.colors || []).length > 1) (f.colors || []).forEach((c, i) => files.push({ ...base, format: fm.png && !fm.svg ? 'png' : 'svg', scale: 1, plate: i, ink: c, paper: 'none' }));
+      if (fm.plates) inks.forEach((c, i) => files.push({ ...base, format: fm.png && !fm.svg ? 'png' : 'svg', scale: 1, plate: i, ink: c, paper: 'none' }));
     });
   });
   return files;

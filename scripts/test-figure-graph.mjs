@@ -86,6 +86,13 @@ const out = await P.ev(`
   // Keep: with every category kept, 'one change' changes nothing on this figure → only the base remains
   f0.params.keep = { content: true, palette: true, cells: true, grid: true, transform: true }; f0.params.pins = []; eng.touch(f0.id); await eng.run(m);
   res.keepAll = V().length === 1;
+  // New Figure from this with Keep set: the fixed spec carries the Keep, so each copy draws the same variation
+  const KP = { palette: true, transform: true };
+  f0.params.keep = KP; f0.params.variations = 4; eng.touch(f0.id); await eng.run(m);
+  const kvs = V().filter(v => v.spec), copies = kvs.map(kv => { const nk = NC.addNode(m, { type: 'figure', params: { ...JSON.parse(JSON.stringify(f0.params)), keep: {}, fixed: [{ ...kv.spec, keep: KP }], pins: [], variations: 1 } }); NC.edgesInto(m, f0.id).forEach(e => NC.addEdge(m, e.from, { node: nk.id, port: e.to.port }, true)); return nk; });
+  await eng.run(m);
+  res.fromThisKeep = kvs.length > 0 && kvs.every((kv, i) => K(eng.get(copies[i].id).value.figure.svg) === kv.svg);
+  copies.forEach(c => NC.removeNode(m, c.id));
   f0.params.keep = {}; f0.params.variations = 4; eng.touch(f0.id); await eng.run(m);
   // ── Sets (Phase 4b): one group per item; Fan out off = items mixed; cap ──
   const sn = NC.addNode(m, { type: 'set', params: { items: [{ kind: 'element', name: 'Test element', snapshot: el }, { kind: 'component', name: 'Test component', snapshot: compEntry }] } });
@@ -222,6 +229,7 @@ check(out.pinFirst, 'a pinned variation stays in its slot');
 check(out.renewKeepsPin && out.renewChanges, 'New variations keeps the pinned one and changes the others');
 check(out.fromThis, 'New Figure from this draws exactly that variation');
 check(out.keepAll, 'Keep everything → no variation can change anything');
+check(out.fromThisKeep, 'New Figure from this with Keep set draws exactly that variation');
 check(out.setGroups === 'Test element:3,Test component:3', 'a Set fans out, one group per item: ' + out.setGroups);
 check(out.setMixed, 'Fan out off: the Set items are mixed, one group');
 check(out.setCap, 'variations × items stay within the cap');

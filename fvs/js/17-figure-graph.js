@@ -31,7 +31,7 @@ import {
   describeRule, figureCatalog
 } from './engine/14-figure-ui.js';
 import {
-  ruleMatches
+  isSealedSymbol, ruleMatches, validateFigureRecipe
 } from './engine/13-figure-engine.js';
 import {
   evalFigure
@@ -111,7 +111,7 @@ function figureImg(id, svg) {
 }
 function renderBody(node, entry, el) {
   const p = node.params || {}, v = entry && entry.value;
-  if (node.type === 'figure' && composing && composing.fig === node.id) requestAnimationFrame(drawCompose);
+  if (node.type === 'figure' && composing && composing.fig === node.id) requestAnimationFrame(() => { drawCompose(); renderComposeInspector(); });   // the panel's lost-cell notes follow the new result
   if (node.type === 'figure') {
     const f = v && v.figure;
     if (!f) { el.innerHTML = ''; return; }
@@ -187,7 +187,8 @@ function variationAction(id, act, i) {
   }
   if (act === 'from') {   // one undo step
     const [copy] = ctl.duplicate([id], { noCommit: true }); const n = NC.findNode(ctl.model, copy);
-    n.params.fixed = [].concat(p.fixed || [], [v.spec]); n.params.pins = []; n.params.seed = newSeed();
+    n.params.fixed = [].concat(p.fixed || [], [{ ...v.spec, keep: { ...(p.keep || {}) } }]); n.params.pins = []; n.params.seed = newSeed();
+    if (v.item != null) { const at = String(v.item).indexOf(':'); n.params.onlyItem = { index: +String(v.item).slice(0, at), name: String(v.item).slice(at + 1) }; n.params.fanOut = false; }   // a fan-out variation: that Set item only
     ctl.touch(copy); ctl.refresh(); ctl.select([copy]); ctl.commit('new-figure-from'); save();
     announce(`New Figure from variation ${i + 1}`);
   }
@@ -203,7 +204,7 @@ const newSeed = () => 1 + Math.floor(Math.random() * 99999);   // a Figure's own
 function figuresInto(exp) {   // the Figures wired into an Export node: { name, figure }
   return ctl.model.edges.filter(e => e.to.node === exp.id && e.to.port === 'figures').map(e => {
     const src = NC.findNode(ctl.model, e.from.node), en = ctl.engine.get(e.from.node);
-    return src ? { name: nodeLabel(src), figure: en && en.state === 'ok' && en.value ? en.value.figure : null } : null;
+    return src ? { name: nodeLabel(src), figure: en && (en.state === 'ok' || en.state === 'stale') && en.value ? en.value.figure : null } : null;   // off screen = stale, still exported (kept active below)
   }).filter(Boolean);
 }
 function exportFiles(exp) { return exportPlan(figuresInto(exp), exp.params); }
@@ -534,7 +535,9 @@ function renderInspectorBody(box, ids) {
       }));
     });
     const hasSet = ctl.model.edges.some(e => e.to.node === node.id && e.to.port === 'content' && (NC.findNode(ctl.model, e.from.node) || {}).type === 'set');
-    if (hasSet) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-fanout"${p.fanOut !== false ? ' checked' : ''}> Variations per item</label><p class="panel-hint">Each item of the Set gets its own variations. Off: the items are mixed over the cells.</p>`,
+    if (hasSet && p.onlyItem) rows.push({ html: `<p class="panel-hint">Made from one item of the Set: ${esc(p.onlyItem.name)}.</p><div class="row-btns"><button type="button" class="mini-btn" id="fgi-allitems">Use the whole Set</button></div>`,
+      bind: () => ctrl('fgi-allitems').addEventListener('click', () => { delete p.onlyItem; edited(node, true); renderInspector(ids); }) });
+    else if (hasSet) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-fanout"${p.fanOut !== false ? ' checked' : ''}> Variations per item</label><p class="panel-hint">Each item of the Set gets its own variations. Off: the items are mixed over the cells.</p>`,
       bind: () => ctrl('fgi-fanout').addEventListener('change', e => { p.fanOut = e.target.checked; edited(node, true); }) });
     rows.push({ html: '<div class="sub-label">Variations</div>' });
     rows.push(rangeRow('Variations', 'fgi-vcount', 1, 12, 1, +p.variations || 1, (v, c) => { p.variations = v; edited(node, c); }));
@@ -554,7 +557,7 @@ function renderInspectorBody(box, ids) {
     if (cks.length) rows.push({ html: `<div class="sub-label">Checks</div><ul class="fg-checks">${cks.map(c => `<li class="${c.ok ? 'is-ok' : 'is-bad'}">${Organica.icons.get(c.ok ? 'check' : 'alert', { size: 'xs' })}<span>${esc(c.label)}${c.detail ? ` <span class="fg-checks__detail">${esc(c.detail)}</span>` : ''}</span></li>`).join('')}</ul>` });
     rows.push({ html: `<div class="row-btns"><button type="button" class="mini-btn" id="fgi-compose">Compose</button></div>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });
     rows.push({ html: '<div class="sub-label">Cells</div>' });
-    rows.push(selectRow('Fit in cell', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; edited(node, true); }));
+    rows.push(selectRow('Fit in cell', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; delete p.symbolFit; edited(node, true); }));   // a built-in's own fit gives way to the user's
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-keepown"${p.keepOwn ? ' checked' : ''}> Keep own colours</label>`,
       bind: () => { ctrl('fgi-keepown').addEventListener('change', e => { p.keepOwn = e.target.checked; edited(node, true); }); } });
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-clip"${p.clip !== false ? ' checked' : ''}> Clip to cell</label>`,
@@ -777,11 +780,12 @@ function drawCompose() {
   const f = figureValue(composing.fig), stage = ctrl('fg-compose-stage');
   const fig = NC.findNode(ctl.model, composing.fig), n = fig ? (+fig.params.variations || 1) : 1;
   ctrl('fg-compose-note').textContent = `Applies to all ${n} ${n === 1 ? 'variation' : 'variations'} of ${fig ? nodeLabel(fig) : 'the Figure'}`;
-  if (!f) { stage.innerHTML = '<p class="fg-compose__empty">Updating…</p>'; return; }
+  if (!fig) { exitCompose(); return; }   // undone away, or deleted
+  if (!f) { const e = ctl.engine.get(composing.fig), bad = e && /error|waiting|upstream/.test(e.state); stage.innerHTML = `<p class="fg-compose__empty">${bad ? esc(e.message || 'This Figure can’t be drawn') : 'Updating…'}</p>`; return; }
   if (!f.compose || !f.base) { stage.innerHTML = '<p class="fg-compose__empty">This Figure has no cells to compose — a Component rule lays out its own.</p>'; return; }
   const C = f.compose, base = f.base.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
   const hadFocus = stage.contains(document.activeElement), fi = Math.min(composing.focus || 0, C.outlines.length - 1);
-  stage.innerHTML = `<svg class="fg-compose__svg" viewBox="0 0 ${C.w} ${C.h}" role="listbox" aria-multiselectable="true" aria-label="Cells">${base}<g class="fg-cells">${C.outlines.map((pts, i) => `<polygon class="fg-cell${composing.sel.has(i) ? ' is-sel' : ''}" data-i="${i}" points="${pts.map(p => p.join(',')).join(' ')}" role="option" aria-selected="${composing.sel.has(i)}" tabindex="${i === fi ? 0 : -1}"><title>Cell ${i + 1}</title></polygon>`).join('')}</g></svg>`;
+  stage.innerHTML = `<svg class="fg-compose__svg" viewBox="0 0 ${C.w} ${C.h}" role="listbox" aria-multiselectable="true" aria-label="Cells">${base}<g class="fg-cells">${C.outlines.map((pts, i) => `<polygon class="fg-cell${composing.sel.has(i) ? ' is-sel' : ''}" data-i="${i}" points="${pts.map(p => p.join(',')).join(' ')}" role="option" aria-selected="${composing.sel.has(i)}" tabindex="${i === fi ? 0 : -1}"><title>${C.ctxs && C.ctxs[i] && C.ctxs[i].row != null ? 'Row ' + (C.ctxs[i].row + 1) + ', column ' + (C.ctxs[i].col + 1) : 'Cell ' + (i + 1)}</title></polygon>`).join('')}</g></svg>`;
   if (hadFocus) { const c = stage.querySelector(`.fg-cell[data-i="${fi}"]`); if (c) c.focus({ preventScroll: true }); }
 }
 function renderComposeBar() {   // the left dock while composing: the selection tools + the saved items to drop into cells
@@ -998,7 +1002,21 @@ function save() {
 function loadModel() {
   const e = GRAPHS.read()[CURRENT];
   graphName = (e && e.name) || '';
-  return ensureNames(e && e.model ? NC.createModel(e.model) : starterModel());
+  return ensureNames(e && e.model ? safeModel(e.model) : starterModel());
+}
+// A stored or opened graph, made safe to run (unknown nodes, broken or looping wires dropped) — said, not silent.
+function safeModel(m) {
+  const r = NC.repairModel(m, registry), d = r.dropped;
+  if (d.nodes || d.edges) Organica.notice(`Part of this graph could not be opened: ${[d.nodes && `${d.nodes} ${d.nodes === 1 ? 'node' : 'nodes'}`, d.edges && `${d.edges} ${d.edges === 1 ? 'connection' : 'connections'}`].filter(Boolean).join(' and ')} left out`, { kind: 'error' });
+  return r.model;
+}
+// A recipe file → a graph, or the reason it can't be one (an old v1 file; hand-placed cells a graph has no node for yet).
+function recipeProblem(def) {
+  if (def.version !== 2) return 'This recipe is from an older version of FVS and can’t be opened as a graph';
+  try { validateFigureRecipe(def); } catch (e) { return 'This recipe can’t be opened: ' + e.message; }
+  const f = def.levels[0];
+  if (isSealedSymbol(f) || (f.lattice && f.lattice.type === 'loomModel') || (f.kind === 'component' && Array.isArray(f.cells)) || f.seed === 'live') return 'This recipe places its cells by hand — a graph can’t show that yet';
+  return null;
 }
 function syncButtons() {
   ctrl('btn-fg-undo').disabled = !ctl.history.canUndo();
@@ -1018,10 +1036,10 @@ function initGraphMenu() {
     els: { button: ctrl('btn-fg-graph'), popover: ctrl('fg-graph-popover'), saved: ctrl('fg-graph-saved'), name: ctrl('fg-graph-name'), save: ctrl('fg-graph-save'),
       del: ctrl('fg-graph-delete'), newGraph: ctrl('fg-graph-new'), open: ctrl('fg-graph-open'), file: ctrl('fg-graph-file'), input: ctrl('fg-graph-input') },
     store: GRAPHS, getModel: () => ctl.model, hidden: n => n === CURRENT,
-    normalize: m => ensureNames(NC.createModel(m)),
+    normalize: m => ensureNames(safeModel(m)),
     load: (model) => { ctl.setModel(model); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); },
     fileTool: 'fvs-figure-graph', fileName: 'fvs-graph', dirtyKey: 'fvs-figure-graph',
-    openFile: data => { if (!data || data.tool !== 'fvs-recipe') return false; openBuiltin(data); Organica.notice('Recipe opened as a graph'); return true; },
+    openFile: data => { if (!data || data.tool !== 'fvs-recipe') return false; const why = recipeProblem(data); if (why) { Organica.notice(why, { kind: 'error' }); return true; } openBuiltin(data); Organica.notice('Recipe opened as a graph'); return true; },
     onSaved: () => save(),
   });
   graphMenu.setName(graphName);
@@ -1047,7 +1065,7 @@ export function renderFigureGraph() {
     nameCopy: (copy, model) => { if (copy.type === 'figure') { copy.params.seed = newSeed(); copy.params.pins = []; } return NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name; },
     keyScope: t => !!(t && t.closest && t.closest('#fb-figure-actions, #fg-nodebar-dock') && !t.closest('input, select, textarea')),   // not the panel: Delete on a panel button must not delete the node
     onNodeDblClick: node => { if (node.type === 'figure') enterCompose(node.id); },
-    keepActive: n => !!(composing && n.id === composing.fig),
+    keepActive: n => !!(composing && n.id === composing.fig) || (n.type === 'figure' && ctl && ctl.model.edges.some(e => e.from.node === n.id && e.to.port === 'figures')),   // a Figure wired to Export is computed off screen too
   });
   try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); if (v) ctl.zoomPan.setView({ zoom: v.zoom, panX: v.x, panY: v.y }); else requestAnimationFrame(() => ctl.fitAll()); } catch (e) { requestAnimationFrame(() => ctl.fitAll()); }
   const icon = (id, name) => { ctrl(id).innerHTML = Organica.icons.get(name); };
