@@ -155,6 +155,9 @@ function renderBody(node, entry, el) {
     el.innerHTML = `<p class="fg-card__meta">${rs.length ? rs.length + (rs.length === 1 ? ' rule' : ' rules') + ' · ' + esc(describeRule(rs[0])) + (rs.length > 1 ? ' …' : '') : 'No rules yet'}</p>`;
   } else if (node.type === 'component-rule') {
     el.innerHTML = `<p class="fg-card__meta">${esc(COMPONENT_RULES[p.rule] || p.rule)}</p>`;
+  } else if (node.type === 'composition') {
+    const rs = p.rules || [], on = rs.filter(r => !r.off).length;
+    el.innerHTML = `<p class="fg-card__meta">${rs.length ? `${rs.length} region ${rs.length === 1 ? 'rule' : 'rules'}${on < rs.length ? ` (${rs.length - on} off)` : ''} · ${esc(describeComposeRule(rs[0], compInks(node)))}${rs.length > 1 ? ' …' : ''}` : 'No region rules yet'}</p>`;
   } else if (node.type === 'repeat') {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
     el.innerHTML = `<p class="fg-card__meta">${esc(L.label)} · ${p.count}${p.altFlip ? ' · alternate flip' : ''}${(+p.rotate || 0) ? ' · ' + p.rotate + '°' : ''}${p.mirror && p.mirror !== 'none' ? ' · mirror ' + esc(MIRRORS[p.mirror]) : ''}</p>`;
@@ -271,12 +274,18 @@ function protect(node, model) {
 // ── adding nodes: a Figure comes with its Canvas + Grid (the last ones used, or new ones beside it) ──
 function viewCentre() { const r = ctrl('fg-graph').getBoundingClientRect(); return freeSpot(ctl.toBoard(r.left + r.width / 2, r.top + r.height / 3)); }
 function freeSpot(at) {   // the nearest place below / beside `at` that no card covers
-  const boxes = ctl.model.nodes.map(n => { const c = ctl.cardOf(n.id); return { x: n.x, y: n.y, w: c ? c.offsetWidth : 200, h: c ? c.offsetHeight : 120 }; });
+  const boxes = ctl.model.nodes.map(n => { const c = ctl.cardOf(n.id); return { x: n.x, y: n.y, w: (c && c.offsetWidth) || 200, h: (c && c.offsetHeight) || 160 }; });   // 0 while the board is hidden (Compose): use a typical card
   const hit = p => boxes.some(b => p.x < b.x + b.w + 24 && p.x + 240 > b.x - 24 && p.y < b.y + b.h + 24 && p.y + 140 > b.y - 24);
   for (let ring = 0; ring < 12; ring++) for (const [dx, dy] of [[0, 0], [0, 1], [1, 0], [1, 1], [0, -1], [-1, 0]]) {
     const p = { x: Math.round(at.x + dx * ring * 160), y: Math.round(at.y + dy * ring * 120) }; if (!hit(p)) return p;
   }
   return at;
+}
+// Where a new Composition goes: the column just left of its Figure (where its inputs sit), under the lowest card there.
+function composeSpot(fig) {
+  const col = ctl.model.nodes.filter(n => n.id !== fig.id && n.x < fig.x && n.x > fig.x - 320);
+  const y = col.reduce((m, n) => { const c = ctl.cardOf(n.id); return Math.max(m, n.y + ((c && c.offsetHeight) || 160) + 24); }, fig.y);
+  return { x: fig.x - 220, y };
 }
 function centred(at, type) { const w = type === 'figure' ? 416 : type === 'canvas' || type === 'grid' || type === 'palette' ? 160 : 160; return { x: Math.round(at.x - w / 2), y: Math.round(at.y - 24) }; }
 function addNode(type, at, params) {
@@ -371,9 +380,20 @@ function numberRow(label, id, value, onChange, attrs) {
   return { html: `<div class="ctrl-row"><div class="ctrl-label">${esc(label)}</div><input type="number" class="panel-input" id="${id}" value="${esc(value)}" aria-label="${esc(label)}" ${attrs || ''}></div>`,
     bind: () => { ctrl(id).addEventListener('change', e => onChange(e.target.value)); } };
 }
+// A rebuild keeps the focused control (by id, else by its data-* attributes) — as Compose's panel does.
+function focusKey(el) {
+  if (el.id) return '#' + CSS.escape(el.id);
+  const ds = Object.entries(el.dataset || {}); if (!ds.length) return null;
+  return el.tagName.toLowerCase() + ds.map(([k, v]) => `[data-${k.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}="${CSS.escape(v)}"]`).join('');
+}
 function renderInspector(ids) {
   const box = ctrl('fg-inspector');
   if (!box) return;
+  const a = document.activeElement, key = a && a !== box && box.contains(a) ? focusKey(a) : null;
+  renderInspectorBody(box, ids);
+  if (key) { const el = box.querySelector(key); if (el && !el.disabled) el.focus({ preventScroll: true }); }
+}
+function renderInspectorBody(box, ids) {
   const nodes = ids.map(id => NC.findNode(ctl.model, id)).filter(Boolean);
   if (!nodes.length) {
     const m = ctl.model, figs = m.nodes.filter(n => n.type === 'figure').length;
@@ -495,8 +515,14 @@ function renderInspector(ids) {
     rows.push(selectRow('Rotate', 'fgi-trot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
     rows.push(selectRow('Mirror', 'fgi-tmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
     rows.push({ html: '<p class="panel-hint">Turns and mirrors the whole figure — needs a Repeat in grid before it.</p>' });
+  } else if (node.type === 'composition') {
+    const rs = p.rules || [], figs = ctl.model.edges.filter(e => e.from.node === node.id && e.to.port === 'composition').map(e => NC.findNode(ctl.model, e.to.node)).filter(Boolean);
+    rows.push({ html: `<div class="sub-label">Region rules</div>${rs.length ? `<ol class="fg-rulelist">${rs.map(r => `<li${r.off ? ' class="is-off"' : ''}>${esc(describeComposeRule(r, compInks(node)))}${r.off ? ' (off)' : ''}</li>`).join('')}</ol>` : '<p class="panel-hint">No region rules yet.</p>'}
+      <div class="sub-label">Figures</div>${figs.length ? `<div class="row-btns">${figs.map(f => `<button type="button" class="mini-btn" data-compose="${f.id}">Compose ${esc(nodeLabel(f))}</button>`).join('')}</div>` : '<p class="panel-hint">Connect it to a Figure’s Composition input, then compose that Figure to add region rules.</p>'}`,
+      bind: () => box.querySelectorAll('[data-compose]').forEach(b => b.addEventListener('click', () => enterCompose(b.dataset.compose))) });
   } else if (node.type === 'figure') {
     const cur = foundationOf(node);
+    if (!ctl.model.edges.some(e => e.to.node === node.id && e.to.port === 'content')) rows.push({ html: `<p class="org-empty">${savedEntries().element.length + savedEntries().component.length ? 'No content yet — add an Element or a Component from Content nodes on the left, then connect it to this Figure.' : 'No content yet — save an Element or a Component in its step first, or start from a built-in Figure with New Figure…'}</p>` });
     ['canvas', 'grid', 'palette'].forEach((t, k) => {
       const summary = n => t === 'canvas' ? canvasSummary(canvasOf(n.params)) : t === 'grid' ? gridSummary({ gen: n.params.gen, params: n.params.params }) : (n.params.colors || []).length + ' inks';
       const opts = ctl.model.nodes.filter(n => n.type === t).map(n => [n.id, nodeLabel(n) + ' · ' + summary(n)]);
@@ -782,7 +808,7 @@ function pickCells(i, e) {   // a click on cell i, with the current selection to
   const ctxs = f.compose.ctxs, c = ctxs[i], tool = composing.tool;
   const add = e && (e.metaKey || e.ctrlKey || e.shiftKey);
   const by = when => {
-    const hit = ctxs.filter(x => Object.entries(when).every(([k, v]) => [].concat(v).includes(x[k]))).map(x => x.index);
+    const hit = ctxs.filter(x => ruleMatches(when, x)).map(x => x.index);   // the same matcher the rules use (when.class reads ctx.orient)
     if (add && composing.sel.size) { composing.when = null; hit.forEach(x => composing.sel.add(x)); }   // Shift / ⌘: added to the selection, as cells
     else { composing.when = when; composing.sel = new Set(hit); }
   };
@@ -803,7 +829,7 @@ function addComposeRule(d, when) {
   let comp = compNode();
   if (!comp) {   // the first rule brings its Composition node and wire — one undo step with the rule
     const fig = NC.findNode(ctl.model, composing.fig);
-    comp = NC.addNode(ctl.model, { type: 'composition', ...freeSpot({ x: fig.x - 220, y: fig.y + 300 }), params: { rules: [] }, name: compositionName() });
+    comp = NC.addNode(ctl.model, { type: 'composition', ...freeSpot(composeSpot(fig)), params: { rules: [] }, name: compositionName() });
     NC.addEdge(ctl.model, { node: comp.id, port: 'composition' }, { node: fig.id, port: 'composition' });
     composing.comp = comp.id; ctl.touch(fig.id); ctl.refresh();
   }
@@ -834,11 +860,16 @@ function describeComposeRule(r, inks) {
   const w = r.when || {}, d = r.do || {};
   const where = whereText(w);
   const ink = d.color && inks ? inks.indexOf(d.color) : -1;
-  const what = d.content && typeof d.content === 'object' ? d.content.name : d.toggle ? 'Swap empty / filled' : d.color ? (ink >= 0 ? 'Ink ' + (ink + 1) : 'Colour ' + d.color)
+  const what = d.content && typeof d.content === 'object' ? d.content.name : d.toggle ? 'Swap empty / filled' : d.color ? (ink >= 0 ? 'Ink ' + (ink + 1) : inks ? 'Colour ' + d.color : 'Colour')
     : d.symbolRule ? 'Symbol rule: ' + (SYMBOL_RULE_LABELS[d.symbolRule.name] || d.symbolRule.name)
     : d.arrange ? 'Arrange: ' + ((SYMBOL_ARRANGE[d.arrange.rule] || {}).label || d.arrange.rule) + ' · ' + d.arrange.pool.length + ' items'
     : d.pattern ? 'Pattern: ' + (PATTERN_LABELS[d.pattern.patType] || d.pattern.patType) : describeRule({ when: {}, do: d }).split(' → ')[1];
   return where + ' → ' + what;
+}
+// The inks a Composition's colour rules read: the Palette of the first Figure it feeds (none → the rule reads "Colour").
+function compInks(comp) {
+  const e = ctl.model.edges.find(w => w.from.node === comp.id && w.to.port === 'composition'), fig = e && NC.findNode(ctl.model, e.to.node);
+  const pal = fig ? foundationOf(fig)[2] : null; return pal ? (pal.params.colors || []) : null;
 }
 function renderComposeInspector(next) {
   const box = ctrl('fg-inspector'); if (!box || !composing) return;
@@ -931,6 +962,8 @@ function initCompose() {
       if (composing.sel.size) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); } else exitCompose();
       return;
     }
+    const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
+    if (mod && (k === 'z' || k === 'y')) { e.preventDefault(); e.stopPropagation(); (k === 'y' || e.shiftKey) ? ctl.redo() : ctl.undo(); drawCompose(); renderComposeInspector(); return; }
     const cell = e.target.closest && e.target.closest('#fg-compose-stage .fg-cell');
     if (cell) {   // the keyboard path: arrows move between cells, Space / Enter select (Shift / ⌘ add)
       const f = figureValue(composing.fig), ctxs = f && f.compose ? f.compose.ctxs : [], i = +cell.dataset.i, c = ctxs[i];
@@ -941,7 +974,6 @@ function initCompose() {
       if (to != null) { e.preventDefault(); composing.focus = to; drawCompose(); return; }
       if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); pickCells(i, e); return; }
     }
-    else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); e.shiftKey ? ctl.redo() : ctl.undo(); drawCompose(); renderComposeInspector(); }
   }, true);
 }
 // A saved item dropped from the dock onto a Compose cell: called by the node bar's drag (initNodebar).
@@ -1002,18 +1034,18 @@ export function renderFigureGraph() {
   document.querySelector('.tier-block[data-tier="figure"]').classList.add('is-graph');
   ctl = NC.mount({
     stage: ctrl('fg-graph'), registry, model: loadModel(),
-    isActive: () => state.activeTier === 'figure' && !document.body.classList.contains('fvs-libview-open'),
+    isActive: () => state.activeTier === 'figure' && !composing && !document.body.classList.contains('fvs-libview-open'),   // Compose owns the keyboard (its own handler below)
     renderBody, cardClass, nodeLabel, protect,
     fitInset: { left: 88, bottom: 72 },   // the node bar (left dock) and the floatbar
     wireClass: (e, m) => { const src = NC.findNode(m, e.from.node); return !src ? '' : ['canvas', 'grid', 'palette'].includes(src.type) ? 'nc-wire--faint' : src.type === 'set' ? 'nc-wire--list' : ''; },
-    onSelect: ids => { renderInspector(ids); syncButtons(); },
-    onChange: (m, reason) => { syncButtons(); save(); if (reason !== 'move' && reason !== 'params') renderInspector(ctl.selection()); },
+    onSelect: ids => { if (!composing) renderInspector(ids); syncButtons(); },   // in Compose the panel is Compose's
+    onChange: (m, reason) => { syncButtons(); save(); if (reason !== 'move' && reason !== 'params') { if (composing) renderComposeInspector(); else renderInspector(ctl.selection()); } },
     onSearch: (at, from, client) => openSearch(at, from, client),
     onWireDrop: (from, at, client) => openSearch(at, from, client),
     onBoardDblClick: (at, client) => openSearch(at, null, client),
     onPortDblClick: (node, port, dir) => spawnFor(node, port, dir),
     nameCopy: (copy, model) => { if (copy.type === 'figure') { copy.params.seed = newSeed(); copy.params.pins = []; } return NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name; },
-    keyScope: t => !!(t && t.closest && t.closest('#fb-figure-actions, #fg-inspector, #fg-nodebar-dock') && !t.closest('input, select, textarea')),
+    keyScope: t => !!(t && t.closest && t.closest('#fb-figure-actions, #fg-nodebar-dock') && !t.closest('input, select, textarea')),   // not the panel: Delete on a panel button must not delete the node
     onNodeDblClick: node => { if (node.type === 'figure') enterCompose(node.id); },
     keepActive: n => !!(composing && n.id === composing.fig),
   });
