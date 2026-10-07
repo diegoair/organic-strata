@@ -1,7 +1,7 @@
 # Organica — Design System
 
 > Studio Rann · Organica · Typography, tokens, and the Figma mapping
-> Last updated: October 6, 2026 (FVS Library view: `library` icon, 75 drawings, `.icon-btn.is-armed`; FVS Cell shape: six `fvs-*` icons; `.seg-btn[aria-disabled="true"]` = a gated option that keeps its reason; earlier: Oct 3 RMX chips draw `close` / `plus`, `swap`, `pattern`)
+> Last updated: October 7, 2026 (the FVS rule atlas, `/design-system/_fvs-rules.html`, linked from `#fvs-rules`); October 6, 2026 (FVS Library view: `library` icon, 75 drawings, `.icon-btn.is-armed`; FVS Cell shape: six `fvs-*` icons; `.seg-btn[aria-disabled="true"]` = a gated option that keeps its reason; earlier: Oct 3 RMX chips draw `close` / `plus`, `swap`, `pattern`)
 > (§5f, templates, added; the "Page on a field" variant and the FVS field added to it the same day. §1 and §3 — one typeface — and the §5 accent
 > table are **known stale**: the two-typeface rule is in the appendix at the end, and the rewrite is
 > queued in `docs/DESIGN-DECISIONS.md` §4; it waits on O-2 / O-3.)
@@ -348,6 +348,8 @@ ship date — each `.nav__group` carries a `group-label`:
 | Animate an export | Murmur, Undertow, Dapple |
 
 > **Test gallery** (`/gallery/`, Oct 1, 2026) is not a tool and not in this menu: a development log of the animation tests we keep (one tile = one real export + one animator preset + a date and a note). Reachable only from the design system (`#test-gallery`); budget in `gallery/budget.json` (16 tiles, 2 MB samples, 300 KB per sample, 40 KB page), enforced by `scripts/check.py`, which also fails if any other page links to it.
+>
+> **FVS rule atlas** (`/design-system/_fvs-rules.html`, Oct 7, 2026) is not a tool either: a reference of every generative rule in Flexible Visual System (Element → Palette & Paper → Component → Symbol → Figure — controls, ranges, a rules-by-grid-size table, diagrams from FVS's real output), reached from the design system (nav group **Tool references**; entry `#fvs-rules`). A `_` page like the audits — light only, `noindex`, tokens for every chrome value, fixed content colours in its diagrams (O-29) — but scanned by `check-apostrophes.mjs` and `ds-audit.py` (`SCANNED_DEV_PAGES`, O-28). It opens with **relation diagrams**: per step, three views of one link list — Flow (you set → FVS decides → you get), Matrix, Ring — with lettered variables (A you set · B FVS decides · C you get), links typed Fixed · Can be fixed · Shapes, and a worked example embedded in the Flow — Input → Transformation → Output, each step on the example’s path shown with its value and a picture, the generated result large on the right. It is a capture — re-capture a rule and update the page in the commit that changes the rule.
 | Workflow & pipelines | Rhizome |
 | Explorations | (prototype pages, not full tools) |
 

@@ -542,9 +542,29 @@ export function latticeRadialCells(extra, scale) {
     return stateFrom(snap(best + extra), false, false, scale);
   });
 }
+// Checkerboard's two classes on a lattice, read from where each cell sits (it was the cell's number, i % 2,
+// which on rings of hexagons is no pattern at all). Triangles: up / down. Square-packed cells (circles in a
+// Square grid): a true checkerboard. Hex-packed cells (every hexagon grid, packed circles) can't be split in
+// two with every neighbour different, so the classes alternate by line of cells along the neighbour direction
+// nearest an axis (hexagons: columns, packed circles: rows) — each cell then differs from 4 of its 6 neighbours.
 export function latticeParity() {
   const grid = getGrid();
-  return grid.cells.map((c, i) => state.cellShape === 'triangle' ? (c.baseRot > 1 ? 1 : 0) : i % 2);
+  if (state.cellShape === 'triangle') return grid.cells.map(c => (c.baseRot > 1 ? 1 : 0));
+  const P = resolveGridCells(grid).map(c => [c.cx, c.cy]);
+  if (P.length < 2) return P.map(() => 0);
+  let d = Infinity;
+  for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) d = Math.min(d, Math.hypot(P[j][0] - P[i][0], P[j][1] - P[i][1]));
+  const dirs = [];   // neighbour directions, folded into [0°, 180°)
+  for (let i = 0; i < P.length; i++) for (let j = 0; j < P.length; j++) {
+    const dx = P[j][0] - P[i][0], dy = P[j][1] - P[i][1];
+    if (i !== j && Math.hypot(dx, dy) < d * 1.1) dirs.push(mod360(Math.atan2(dy, dx) * 180 / Math.PI) % 180);
+  }
+  const offAxis = a => Math.min(a % 90, 90 - (a % 90));
+  const [x0, y0] = P[0];
+  if (dirs.every(a => offAxis(a) < 5)) return P.map(([x, y]) => (Math.round((x - x0) / d) + Math.round((y - y0) / d)) & 1);
+  const a = dirs.reduce((best, b) => (offAxis(b) < offAxis(best) ? b : best)) * Math.PI / 180;
+  const nx = -Math.sin(a), ny = Math.cos(a), gap = d * Math.sqrt(3) / 2;   // line spacing on a hex lattice
+  return P.map(([x, y]) => Math.round(((x - x0) * nx + (y - y0) * ny) / gap) & 1);
 }
 export function latticeRule(mode) {
   const n = getGrid().cells.length, scales = axisValues().scales;

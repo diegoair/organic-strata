@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>FVS Rule Atlas</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+/* Reference page (underscore prefix, like the audits): every generative rule in Flexible Visual System,
+   Element → Figure. Linked from /design-system/#fvs-rules. The Component diagrams are the real cell turns
+   FVS produced (captured 7 Oct 2026, with the Snap to 90° and lattice Checkerboard fixes); Symbol grids are Loom's real
+   outlines; Colour by / Arrange / Rule mode run the same formulas as fvs/js. Re-capture when a rule changes. */
+/* Layout: a sticky index on the left, one long reference column on the right; diagrams sit on light
+   "sheet" tiles like the FVS stage (fixed content colours, set in the script). Every size, space,
+   radius and chrome colour is an Organica token. */
+:root {
+  --tool: #3fa876;   /* FVS's identity colour (fvs/fvs.css) */
+  --atlas-nav-w: 232px;
+  --atlas-card-min: 290px;
+  --atlas-card-wide-min: 420px;
+  --atlas-wrap-max: 1320px;
+  --atlas-rel-w: 470px;
+  --atlas-rel-kind-w: 88px;
+  /* relation diagrams: content colours (Diego, Oct 7, 2026 — O-29), the same in both themes */
+  --rel-fixed: #d23a2b;
+  --rel-free: #2f8f5f;
+  --rel-shapes: #8c8577;
+  --rel-free-light: #8fcaa9;
+  /* variable codes: A you set · B FVS decides · C you get · D out (content colours, O-29) */
+  --grp-a: #5f238d; --grp-b: #c98a00; --grp-c: #1f5fd6; --grp-d: #333333; --grp-on-dark: #ffffff;
+  --rel-ink: #1b1b1b;
+  --rel-mid: #6a6356;
+  --rel-box: #ffffff;
+  --rel-line: #cfc7b7;
+  --rel-hl: #fff3c4;
+  --atlas-ex-w: 300px;
+  --atlas-mx-head: 150px;
+  --atlas-mx-cell: 24px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-mono); font-size: var(--fs-medium); line-height: var(--lh-normal); }
+a { color: inherit; }
+.wrap { display: grid; grid-template-columns: var(--atlas-nav-w) minmax(0, 1fr); gap: calc(var(--space-8) * 1.5); max-width: var(--atlas-wrap-max); margin: 0 auto; padding-inline: var(--space-7); padding-block: 0 calc(var(--space-8) * 3); }
+nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; max-height: 100vh; overflow-y: auto; padding-block: var(--space-7); font-size: var(--fs-base); }
+nav.toc .brand { font-family: var(--font-display); font-weight: var(--w-semibold); font-size: var(--fs-xl); line-height: var(--lh-tight); margin-bottom: var(--space-6); }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+nav.toc li.step > a { font-family: var(--font-display); font-weight: var(--w-semibold); font-size: var(--fs-base); text-transform: uppercase; letter-spacing: var(--ls-wider); display: block; margin-top: var(--space-5); text-decoration: none; }
+nav.toc li.sub a { color: var(--mid); text-decoration: none; display: block; padding: 0 0 0 var(--space-4); border-left: 1px solid var(--border); }
+nav.toc li.sub a:hover, nav.toc li.sub a:focus-visible { color: var(--ink); border-left-color: var(--tool); }
+#q { width: 100%; font-family: var(--font-mono); font-size: var(--fs-base); padding: var(--space-3) var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-md); background: var(--paper); color: var(--ink); margin-bottom: var(--space-2); }
+#q:focus-visible { outline: 2px solid var(--tool); outline-offset: 1px; }
+.qcount { color: var(--mid); font-size: var(--fs-small); min-height: 1.4em; }
+main { min-width: 0; }
+header.top { padding-block: calc(var(--space-8) + var(--space-3)) var(--space-7); border-bottom: 1px solid var(--border); }
+.eyebrow { font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--ls-widest); color: var(--mid); }
+h1 { font-family: var(--font-display); font-weight: var(--w-bold); font-size: var(--fs-5xl); line-height: var(--lh-none); letter-spacing: var(--ls-tight); margin: var(--space-4) 0 var(--space-5); text-wrap: balance; }
+.lede { max-width: 70ch; color: var(--mid); margin: 0; }
+.lede b { color: var(--ink); font-weight: var(--w-medium); }
+.meta { margin-top: var(--space-5); font-size: var(--fs-small); color: var(--mid); }
+.pipe { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: var(--space-7); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.pipe a { display: block; padding: var(--space-5) var(--space-6) var(--space-6); text-decoration: none; border-right: 1px solid var(--border); }
+.pipe a:last-child { border-right: 0; }
+.pipe a:hover { background: var(--panel); }
+.pipe .n { font-size: var(--fs-small); color: var(--mid); }
+.pipe .t { font-family: var(--font-display); font-weight: var(--w-semibold); font-size: var(--fs-2xl); line-height: var(--lh-tight); margin: var(--space-2) 0; }
+.pipe .d { font-size: var(--fs-base); color: var(--mid); line-height: var(--lh-snug); }
+.pipe .c { font-size: var(--fs-small); margin-top: var(--space-4); }
+.everywhere { margin-top: var(--space-4); padding: var(--space-4) var(--space-6); border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); font-size: var(--fs-base); color: var(--mid); }
+.everywhere b { color: var(--ink); font-weight: var(--w-medium); }
+.legend { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; margin-top: var(--space-7); font-size: var(--fs-small); color: var(--mid); }
+.legend figure { margin: 0; display: grid; justify-items: center; gap: var(--space-1); }
+.legend .note { max-width: 46ch; }
+section.step { padding-top: calc(var(--space-8) * 1.75); }
+section.step > h2 { font-family: var(--font-display); font-weight: var(--w-bold); font-size: var(--fs-4xl); line-height: var(--lh-tight); margin: 0; display: flex; gap: var(--space-5); align-items: baseline; }
+section.step > h2 .num { font-family: var(--font-mono); font-weight: var(--w-medium); font-size: var(--fs-medium); color: var(--mid); }
+section.step > .intro { color: var(--mid); max-width: 72ch; margin: var(--space-3) 0 0; }
+h3 { font-family: var(--font-display); font-weight: var(--w-semibold); font-size: var(--fs-2xl); line-height: var(--lh-heading); margin: calc(var(--space-8) + var(--space-3)) 0 var(--space-1); scroll-margin-top: var(--space-6); }
+h3 + .sub { color: var(--mid); margin: 0 0 var(--space-6); max-width: 72ch; font-size: var(--fs-base); }
+.where { font-size: var(--fs-small); color: var(--mid); }
+code { font-family: var(--font-mono); background: var(--panel); padding: 1px var(--space-1); border-radius: var(--radius-sm); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--atlas-card-min), 1fr)); gap: var(--space-5); }
+.grid.wide { grid-template-columns: repeat(auto-fill, minmax(var(--atlas-card-wide-min), 1fr)); }
+.entry { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-5) var(--space-5) var(--space-4); display: grid; gap: var(--space-3); align-content: start; min-width: 0; background: var(--paper); }
+.entry h4 { margin: 0; font-family: var(--font-display); font-weight: var(--w-semibold); font-size: var(--fs-xl); line-height: var(--lh-tight); display: flex; justify-content: space-between; gap: var(--space-3); align-items: baseline; flex-wrap: wrap; }
+.entry h4 .key { font-family: var(--font-mono); font-weight: var(--w-regular); font-size: var(--fs-small); color: var(--mid); }
+.entry p { margin: 0; }
+.entry .how { font-size: var(--fs-base); }
+.entry .params { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.chip { font-size: var(--fs-small); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px var(--space-2); color: var(--mid); white-space: nowrap; }
+.chip b { color: var(--ink); font-weight: var(--w-medium); }
+.gate { font-size: var(--fs-small); color: var(--mid); font-style: italic; }
+.count { font-size: var(--fs-small); font-weight: var(--w-medium); }
+.sheet { background: var(--panel); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-start; overflow-x: auto; }
+.sheet svg { display: block; flex: none; }
+.sheet figure { margin: 0; display: grid; gap: var(--space-1); justify-items: center; }
+.sheet figcaption { font-size: var(--fs-micro); color: var(--mid); }
+.tbl { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); }
+table { border-collapse: collapse; width: 100%; font-size: var(--fs-base); }
+th, td { text-align: left; vertical-align: top; padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border); }
+th { font-family: var(--font-display); font-weight: var(--w-semibold); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--ls-wider); color: var(--mid); background: var(--panel); }
+tr:last-child td { border-bottom: 0; }
+td.k { white-space: nowrap; }
+td .key { color: var(--mid); font-size: var(--fs-small); }
+table.sizes td, table.sizes th { text-align: center; white-space: nowrap; }
+table.sizes td:first-child, table.sizes th:first-child { text-align: left; }
+table.sizes td.off { color: var(--mid); }
+table.sizes td.note { font-weight: var(--w-semibold); }
+ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: var(--fs-base); display: grid; gap: var(--space-2); }
+.tag { font-size: var(--fs-micro); line-height: 1; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); text-transform: uppercase; letter-spacing: var(--ls-wider); }
+.tag.ok { border: 1px solid var(--tool); color: var(--ink); }
+.tag.read { border: 1px solid var(--border-strong); color: var(--mid); }
+[hidden] { display: none !important; }
+@media (max-width: 960px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 0; padding-inline: var(--space-6); }
+  nav.toc { position: static; max-height: none; padding-block: var(--space-7) 0; }
+  nav.toc ol { display: none; }
+  .pipe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pipe a:nth-child(2) { border-right: 0; }
+  .pipe a:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+  h1 { font-size: var(--fs-4xl); }
+  .grid.wide { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) { .grid { grid-template-columns: minmax(0, 1fr); } .pipe { grid-template-columns: minmax(0, 1fr); } .pipe a { border-right: 0 !important; border-bottom: 1px solid var(--border); } }
+
+.rel-legend { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-7); margin-top: var(--space-6); font-size: var(--fs-base); color: var(--mid); }
+.rel-legend span { display: inline-flex; align-items: center; gap: var(--space-3); }
+.rel-legend b { color: var(--ink); font-weight: var(--w-medium); }
+.code { display: inline-block; min-width: 2.2em; padding: 0 var(--space-1); border-radius: var(--radius-sm); font-size: var(--fs-small); line-height: 1.6; text-align: center; font-weight: var(--w-medium); }
+.rel { margin-top: var(--space-8); }
+.rel-head h3 { margin-top: 0; }
+.rel-bar { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-6); align-items: center; margin-bottom: var(--space-4); }
+.seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-md); overflow: hidden; }
+.seg button { font-family: var(--font-mono); font-size: var(--fs-base); font-weight: var(--w-medium); background: var(--paper); color: var(--ink); border: 0; padding: var(--space-2) var(--space-5); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--border-strong); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg button:focus-visible { outline: 2px solid var(--tool); outline-offset: -2px; }
+.rel-body { display: grid; grid-template-columns: minmax(0, 1fr) var(--atlas-ex-w); gap: var(--space-5); align-items: start; }
+.rel-stage { justify-content: center; }
+.rel-stage svg { max-width: 100%; height: auto; }
+.rel-stage text { font-family: var(--font-mono); fill: var(--rel-ink); }
+.rel-stage .colh { font-family: var(--font-display); font-size: var(--fs-base); fill: var(--rel-mid); letter-spacing: var(--ls-wider); text-transform: uppercase; }
+.rel-stage .nb { fill: var(--rel-box); stroke: var(--rel-line); }
+.rel-stage .nb.out { fill: var(--rel-ink); stroke: var(--rel-ink); }
+.rel-stage .nl.out { fill: var(--rel-box); }
+.rel-stage .node { cursor: pointer; outline: none; }
+.rel-stage .node:focus-visible .nb, .rel-stage .node:focus-visible circle { stroke: var(--tool); stroke-width: 2.5; }
+.rel-stage .e { transition: opacity var(--dur-fast) var(--ease-standard); }
+.rel-stage .e-hit { stroke: transparent; stroke-width: 10; fill: none; cursor: help; }
+.rel.focus .rel-stage .e:not(.on) { opacity: .07; }
+.rel.focus .rel-stage .node:not(.on) { opacity: .3; }
+.rel-stage.is-matrix { overflow-x: auto; justify-content: flex-start; }
+.mx { border-collapse: collapse; font-size: var(--fs-base); margin: 0 auto; color: var(--rel-ink); }
+.mx th, .mx td { border: 1px solid var(--rel-line); }
+.mx th { background: var(--rel-box); font-family: var(--font-mono); font-weight: var(--w-regular); font-size: var(--fs-base); text-transform: none; letter-spacing: normal; color: var(--rel-ink); padding: var(--space-1) var(--space-2); white-space: nowrap; }
+.mx th.r { text-align: right; }
+.mx th.corner { color: var(--rel-mid); font-size: var(--fs-small); }
+.mx thead th.ch { height: var(--atlas-mx-head); vertical-align: bottom; padding: var(--space-1) 2px; }
+.mx thead th.ch .vl { writing-mode: vertical-rl; transform: rotate(180deg); display: block; margin: 0 auto var(--space-1); }
+.mx td { width: var(--atlas-mx-cell); height: var(--atlas-mx-cell); background: var(--rel-box); }
+.mx td.c { cursor: help; }
+.mx td.f { background: var(--rel-fixed); } .mx td.s { background: var(--rel-shapes); }
+.mx td.a { background: repeating-linear-gradient(45deg, var(--rel-free) 0 4px, var(--rel-free-light) 4px 7px); }
+.mx td.on { outline: 3px solid var(--rel-ink); outline-offset: -3px; }
+.rel.focus .mx td.c:not(.on) { opacity: .25; }
+.mx tr.hl th, .mx th.hl { background: var(--rel-hl); }
+.mx .grp th { background: transparent; border: 0; color: var(--rel-mid); font-family: var(--font-display); font-size: var(--fs-small); text-transform: uppercase; letter-spacing: var(--ls-wider); text-align: left; padding-top: var(--space-3); }
+.rel-ex { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-5); display: grid; gap: var(--space-3); outline: none; cursor: default; }
+.rel-ex:hover, .rel-ex:focus-visible { border-color: var(--tool); }
+.rel-ex h4 { margin: 0; font-family: var(--font-display); font-weight: var(--w-semibold); font-size: var(--fs-large); line-height: var(--lh-tight); }
+.rel-ex ol { margin: 0; padding-left: var(--space-6); display: grid; gap: var(--space-2); font-size: var(--fs-base); }
+.ex-pic { justify-content: center; }
+.ex-row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; justify-content: center; }
+.ex-note { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--mid); flex-basis: 100%; text-align: center; }
+.rel-info { min-height: 3.2em; margin-top: var(--space-4); padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--fs-base); }
+.rel-info .hint { color: var(--mid); }
+.rel-all { margin-top: var(--space-4); }
+.rel-all summary { cursor: pointer; font-size: var(--fs-base); color: var(--mid); }
+.rel-all ul { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-1); font-size: var(--fs-base); }
+.rel-all li { display: grid; grid-template-columns: var(--atlas-rel-kind-w) minmax(0, 1fr); gap: var(--space-3); padding: var(--space-1) var(--space-2); border-radius: var(--radius-md); }
+.rel-all li.on { background: var(--panel); }
+.rel-all b { font-weight: var(--w-medium); }
+.rel-k { font-size: var(--fs-small); white-space: nowrap; }
+.rel-k::before { content: ""; display: inline-block; width: var(--space-5); height: 0; margin-right: var(--space-1); vertical-align: middle; border-top: 2px solid; }
+.rel-f::before { border-color: var(--rel-fixed); } .rel-a::before { border-top-style: dashed; border-color: var(--rel-free); } .rel-s::before { border-color: var(--rel-shapes); border-top-width: 1px; }
+@media (max-width: 1100px) { .rel-body { grid-template-columns: minmax(0, 1fr); } }
+.code.g0 { background: var(--grp-a); color: var(--grp-on-dark); } .code.g1 { background: var(--grp-b); color: var(--rel-ink); } .code.g2 { background: var(--grp-c); color: var(--grp-on-dark); } .code.g3 { background: var(--grp-d); color: var(--grp-on-dark); }
+.rel-trail { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); font-size: var(--fs-base); outline: none; cursor: default; }
+.rel-trail:hover, .rel-trail:focus-visible { border-color: var(--tool); }
+.rel-trail .eyebrow { flex-basis: 100%; }
+.rel-trail .steps { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); align-items: center; }
+.rel-trail .arr { color: var(--mid); }
+.rel-stage .colk { font-family: var(--font-mono); font-size: var(--fs-small); fill: var(--rel-mid); }
+.rel-stage .nb.st { stroke: var(--rel-ink); stroke-width: 1.4; }
+.rel-stage .sv { font-family: var(--font-mono); fill: var(--rel-mid); font-style: italic; }
+.rel-stage .sv.out { fill: var(--rel-box); }
+.rel-stage.is-flow .e:not(.path) { opacity: .4; }
+.rel.focus .rel-stage .e:not(.on) { opacity: .06; }
+.rel.focus .rel-stage .e.on { opacity: 1; }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <div class="brand">FVS Rule Atlas</div>
+  <label for="q" class="eyebrow">Filter rules</label>
+  <input id="q" type="search" placeholder="e.g. mirror, paper, sector" autocomplete="off">
+  <div class="qcount" id="qcount" aria-live="polite"></div>
+  <ol id="toc"></ol>
+</nav>
+
+<main>
+<header class="top">
+  <div class="eyebrow">Organica · Flexible Visual System</div>
+  <h1>Every generative rule, from Element to Figure</h1>
+  <p class="lede">What each step can generate, what each rule <b>decides</b>, and the controls that shape it. Labels are the ones in the panel; the <code>key</code> is the stored value. The Component diagrams show the real turns FVS produced for each rule; the Symbol grids are Loom’s real outlines; the Colour‑by, Arrange and Symbol‑rule diagrams run the same formulas as the code.</p>
+  <div class="meta">Read from <code>fvs/js</code> + <code>fvs/index.html</code> · captured 7 Oct 2026, with the Snap to 90° and lattice Checkerboard fixes · default settings unless a diagram says otherwise</div>
+
+  <div class="pipe">
+    <a href="#element"><div class="n">01</div><div class="t">Element</div><div class="d">One shape and how it is drawn.</div><div class="c">15 shapes · 4 cell shapes · 3 styles · 4 layer roles</div></a>
+    <a href="#component"><div class="n">02</div><div class="t">Component</div><div class="d">The Element placed in a small grid by a rule.</div><div class="c">14 rules · 3 axes · 9 families · 6 colourways</div></a>
+    <a href="#symbol"><div class="n">03</div><div class="t">Symbol</div><div class="d">A page, a grid, saved Components in its cells.</div><div class="c">12 grids · 4 fill modes · 10 arrange · 8 rules</div></a>
+    <a href="#figure"><div class="n">04</div><div class="t">Figure</div><div class="d">A recipe: lattice → class rules → grids → mirror.</div><div class="c">25 figures · 6 paint tools · 16 mutations</div></a>
+  </div>
+  <div class="everywhere"><b>Everywhere</b> — the <a href="#palette">Palette &amp; Paper</a> section sits outside the steps: the inks, <i>Colour by</i>, the Paper colour and its texture apply to every step and every export.</div>
+
+  <div class="legend" id="legend"></div>
+</header>
+
+<!-- ====================== RELATIONS ====================== -->
+<section class="step" id="relations">
+  <h2><span class="num">00</span>How the variables tie together</h2>
+  <p class="intro">Every step drawn three ways from the same links, read from the code. <b>Flow</b> — what you set → what FVS decides → what you get; <b>Matrix</b> — cause in rows, effect in columns; <b>Ring</b> — the variables on a ring, after the “precedent models for visual systems” diagrams (Bertin, Dondis, Leborg, Van Nes, as redrawn in Lorenz 2016). Each variable has a code: its column’s letter and colour — <span class="code g0">A</span> you set · <span class="code g1">B</span> FVS decides · <span class="code g2">C</span> you get. In <b>Flow</b>, a worked example runs through the diagram: each variable on its path shows its value and a picture of the state at that point, from the input on the left to the generated output on the right (the bold line).</p>
+  <div class="rel-legend">
+    <span><svg width="34" height="10" aria-hidden="true"><line x1="0" y1="5" x2="34" y2="5" stroke="#d23a2b" stroke-width="2"/></svg><b>Fixed</b> — built into FVS; you can’t change it (gates, caps, order of operations)</span>
+    <span><svg width="34" height="10" aria-hidden="true"><line x1="0" y1="5" x2="34" y2="5" stroke="#2f8f5f" stroke-width="2" stroke-dasharray="5 3"/></svg><b>Can be fixed</b> — a control sets or locks it (Lock, Seed, Snap, a switch)</span>
+    <span><svg width="34" height="10" aria-hidden="true"><line x1="0" y1="5" x2="34" y2="5" stroke="#8c8577" stroke-width="1.2"/></svg><b>Shapes</b> — one feeds the other’s result</span>
+  </div>
+  <div id="rels"></div>
+</section>
+
+<!-- ====================== ELEMENT ====================== -->
+<section class="step" id="element">
+  <h2><span class="num">01</span>Element</h2>
+  <p class="intro">The panel has three sections — <b>Layers</b>, <b>Shape</b> (with Split inside) and <b>Look &amp; place</b> — plus the <b>Cell shape</b> buttons in the floatbar. Nothing here is random except Irregularity’s seed and Blob’s seed.</p>
+
+  <h3 id="el-cell">Cell shape</h3>
+  <p class="sub">Floatbar, shown on Element and Component. The cell the Element is drawn for; it sets the turn step every later rule uses. On a non-square cell every shape is <b>fitted whole inside</b> the outline, except Arc on a triangle (a 60° slice) and Arc truchet on a hexagon (bands round alternate corners).</p>
+  <div class="grid" id="cellshapes"></div>
+
+  <h3 id="el-shape">Shape</h3>
+  <p class="sub">Picker <code>#sel-seed-type</code>. Each shape lists its rows in one order: Type preset → proportions → Rounding / Rounding style / Edge curvature → own details → repeats. A row that would change nothing stays hidden until it would.</p>
+  <div class="tbl"><table id="shapes"><thead><tr><th>Shape</th><th>Type presets</th><th>Controls (range · default)</th></tr></thead><tbody></tbody></table></div>
+  <p class="where" style="margin-top:var(--space-3)">Not in the picker: <code>custom</code> (an uploaded SVG, a Genesis seed or a Split piece — every visible shape united, strokes outlined), <code>stack</code> (the layered Element), <code>freehandraw</code>.</p>
+
+  <h3 id="el-split">Split</h3>
+  <p class="sub">Inside the Shape section. A real geometric cut at the shape’s own box centre; the quadrants kept become one Custom shape.</p>
+  <div class="grid"><div class="entry"><h4>All · TL · TR · BL · BR <span class="key">seg-split-quadrant</span></h4><p class="how">Multi‑select. All, or all four, restores the original. With layers it cuts the whole stack into one shape. <b>Save piece as Seed…</b> appears while a piece is cut; <b>Show cut grid</b> draws the cut.</p></div></div>
+
+  <h3 id="el-look">Look &amp; place</h3>
+  <p class="sub">Applied in this order: Width / Length → Irregularity → Cut out → Copies → Scale / Move / Rotate. With layers, the first five live in each layer’s card; Scale, Move, Rotate and Fit stay here for the whole Element.</p>
+  <div class="grid" id="look"></div>
+
+  <h3 id="el-pattern">Pattern (the Element’s)</h3>
+  <p class="sub">Shown when any layer uses Style = Pattern or the Pattern role. One set for the whole Element. Real vector paths clipped to the shape, laid out in the Element’s 0–100 box from its centre, so they turn with the cell later.</p>
+  <div class="grid" id="patterns"></div>
+
+  <h3 id="el-layers">Layers &amp; roles</h3>
+  <p class="sub">“+” adds a layer on top (a Circle, or a Triangle if the current one is a Circle, at Size 0.6). The role icon cycles Filled → Subtraction mask → Mask → Pattern; a role acts only on the layers <b>below</b> it. Each layer has X / Y / Size / Rot and an ink: <i>Follow cell colour</i> or a fixed Ink n.</p>
+  <div class="grid" id="roles"></div>
+</section>
+
+<!-- ====================== PALETTE ====================== -->
+<section class="step" id="palette">
+  <h2><span class="num">∞</span>Palette &amp; Paper</h2>
+  <p class="intro">One section under every step. Colours are plain hex: a palette is a source, never a link, so saved work never changes on its own. The order of the inks is their role (Base, Secondary, Accent…).</p>
+
+  <h3 id="pal-ink">Inks</h3>
+  <p class="sub">1 to 8 chips. “+” adds <code>#888888</code>. <b>Pick from a palette</b> adds one colour, or all of a palette’s colours (≤ 8).</p>
+  <div class="grid">
+    <div class="entry"><h4>Sources of “Pick from a palette”</h4><p class="how">Your TuneSutra palettes · three built‑in combinations — <b>Violet 06</b>, <b>Stimulating</b>, <b>Violet 07</b> (Base / Secondary / Accent) · <b>Riso standard inks</b> (21, approximate).</p></div>
+  </div>
+
+  <h3 id="pal-colourby">Colour by</h3>
+  <p class="sub">Which ink each cell gets: <code>ink = colors[(f(cell) + Start at) mod n]</code>. Shown on a 5×5 grid with the three inks of <i>Stimulating</i>, Start at = Colour 1.</p>
+  <div class="grid" id="colourby"></div>
+
+  <h3 id="pal-paper">Paper</h3>
+  <p class="sub">The ground of every step, thumbnail and export. The checkerboard button makes it <b>transparent</b> everywhere (<code>fill="none"</code> in SVG, alpha in PNG). The Pattern icon lays a texture over it across the whole canvas, in one ink, in 1/100 of the canvas’s short side.</p>
+  <div class="grid" id="paper"></div>
+  <h3 id="pal-tile" style="margin-top:var(--space-7)">Element (tile): Layout × Turn</h3>
+  <p class="sub">Paper pattern = Element (tile) repeats a shape in ONE ink. The tile is the <b>Current Element</b>, a <b>Saved Element</b> or a <b>Genesis seed</b>. Size = % of Spacing. Capped at 2,500 tiles (Spacing is raised, with a note).</p>
+  <div class="sheet" data-theme="light" id="tilematrix"></div>
+</section>
+
+<!-- ====================== COMPONENT ====================== -->
+<section class="step" id="component">
+  <h2><span class="num">02</span>Component</h2>
+  <p class="intro">The Element in a 1–4 × 1–4 grid (or a cell‑shape lattice). <b>Generate</b> runs the rule and lists every structurally distinct candidate; nothing is hidden except the exact duplicate “flip H + flip V = 180°”.</p>
+
+  <h3 id="co-grid">Grid</h3>
+  <p class="sub">Square cells: Columns 1–4, Rows 1–4, Gap 0–40. Other cell shapes: <b>Grid shape</b> + <b>Grid size</b> 1–4. Changing the grid after a Generate runs the current rule again on the new grid.</p>
+  <div class="tbl"><table><thead><tr><th>Cell shape</th><th>Grid shape → cells at size 1 / 2 / 3 / 4</th></tr></thead><tbody>
+    <tr><td class="k">Square</td><td>Columns × Rows (1×1 … 4×4, rectangular allowed)</td></tr>
+    <tr><td class="k">Triangle</td><td>Hexagon 6 / 24 / 54 / 96 · Triangle 1 / 4 / 9 / 16 · Diamond 2 / 8 / 18 / 32 · <span class="gate">Square — “Square needs circle or hexagon cells”</span></td></tr>
+    <tr><td class="k">Hexagon, Circle</td><td>Hexagon 1 / 7 / 19 / 37 · Triangle 1 / 3 / 6 / 10 · Diamond and Square 1 / 4 / 9 / 16</td></tr>
+  </tbody></table></div>
+
+  <h3 id="co-axes">Transform axes</h3>
+  <p class="sub">Which values Checkerboard, Random and Exhaustive may combine — and they widen the named rules (Scale multiplies every rule’s list by 3). An axis that is off collapses to one value.</p>
+  <div class="grid">
+    <div class="entry"><h4>Rotation <span class="key">chk-axis-rotation · on</span></h4><p class="how">0 / 90 / 180 / 270° (on other cells, multiples of the shape’s own step).</p></div>
+    <div class="entry"><h4>Flip <span class="key">chk-axis-flip</span></h4><p class="how">None / H / V / both. H+V is folded into a 180° turn, never listed twice.</p></div>
+    <div class="entry"><h4>Scale <span class="key">chk-axis-scale</span></h4><p class="how">Small / Medium / Large.</p><div class="params"><span class="chip">Small <b>10–400 · 75%</b></span><span class="chip">Medium <b>100%</b></span><span class="chip">Large <b>125%</b></span></div></div>
+  </div>
+
+  <h3 id="co-rules">Rules</h3>
+  <p class="sub">Each card: the 2×2 candidates (up to 8) and the first 4×4 candidate, with Rotation on only. The number is how many distinct candidates Generate lists with those settings.</p>
+  <div class="grid wide" id="comprules"></div>
+
+
+  <h3 id="co-sizes">Rules by grid size</h3>
+  <p class="sub">The same rule reads each cell’s column and row, so it changes with the grid. Count = distinct candidates with Rotation on (Rotation + Flip in brackets where it differs); “—” = greyed out in the menu, hover for the reason. Columns × rows, as in the panel.</p>
+  <div class="tbl"><table class="sizes" id="sizetable"></table></div>
+  <div class="grid wide" id="sizenotes" style="margin-top:var(--space-5)"></div>
+
+  <h3 id="co-families">Families (what Random and Exhaustive draw from)</h3>
+  <p class="sub">Random picks a family, then one of its parameter sets, until it has <b>Count</b> distinct candidates (never per‑cell noise). Exhaustive lists every set of every active family, deduplicated; above <b>512</b> Generate is disabled and the hint gives the exact count.</p>
+  <div class="tbl"><table><thead><tr><th>Family</th><th>Needs axis</th><th>Grid gate</th><th>Parameter space</th></tr></thead><tbody>
+    <tr><td class="k">identity</td><td>—</td><td>—</td><td>rotations × flips × scales, every cell the same</td></tr>
+    <tr><td class="k">pinwheel</td><td>Rotation</td><td>—</td><td>base 0/90/180/270 × chirality ±1 × scales</td></tr>
+    <tr><td class="k">mirror</td><td>Flip</td><td>—</td><td>seed cell 0–3 × scales</td></tr>
+    <tr><td class="k">bookmatch</td><td>Flip</td><td>not a 2×2</td><td>axis H / V / both through the whole grid × scales</td></tr>
+    <tr><td class="k">diagonal</td><td>Rotation</td><td>—</td><td>R 0/90/180/270 × scales</td></tr>
+    <tr><td class="k">checkerboard</td><td>any axis</td><td>—</td><td>every ordered pair of distinct states A ≠ B</td></tr>
+    <tr><td class="k">rowmirror</td><td>Flip</td><td>rows ≥ 2</td><td>rotations × scales</td></tr>
+    <tr><td class="k">columnmirror</td><td>Flip</td><td>columns ≥ 2</td><td>rotations × scales</td></tr>
+    <tr><td class="k">radial</td><td>Rotation</td><td>even × even</td><td>base × chirality × scales × (one rosette, or tiled per 2×2 when bigger than 2×2)</td></tr>
+  </tbody></table></div>
+
+  <h3 id="co-lattice">Rules on non‑square cells</h3>
+  <p class="sub">Only five rules run on a circle / triangle / hexagon lattice; the others grey out (“… needs a square cell”). Every turn is a multiple of the shape’s step, added to each cell’s own pose.</p>
+  <div class="grid">
+    <div class="entry"><h4>Identity</h4><p class="how">One uniform candidate per state (steps × the shape’s flips × scales).</p></div>
+    <div class="entry"><h4>Radial</h4><p class="how">Each cell turned towards the lattice centre; on triangles the Arc’s pivot corner goes to the nearest corner. One candidate per extra step × scales.</p></div>
+    <div class="entry"><h4>Checkerboard</h4><p class="how">States A / B by where the cell sits: up / down on triangles; a true checkerboard on square‑packed circles; on hex‑packed cells (every hexagon grid, packed circles) alternating lines of cells — no 2‑state pattern can make all six neighbours differ, so each cell differs from 4 of its 6.</p></div>
+    <div class="entry"><h4>Random</h4><p class="how">Each cell picks a state on its own — per‑cell noise here, unlike square cells.</p></div>
+    <div class="entry"><h4>Exhaustive</h4><p class="how">Identity ∪ Radial ∪ Checkerboard, deduplicated.</p></div>
+  </div>
+
+  <h3 id="co-inks">Layer colour variants</h3>
+  <p class="sub">Shown only for a layered Element, on by default. Every candidate is repeated for every combination of layer inks: each Fill layer takes <i>Follow cell colour</i> or one of the palette inks → (inks + 1)<sup>layers</sup> (2 layers × 3 inks = 16). Above 512 the first 512 are shown with a note. Picking a variant makes its inks the Element’s own.</p>
+
+  <h3 id="co-colourways">Colourways of the selection</h3>
+  <p class="sub">Colour variants of the selected Component from the palette’s mains and their 0–900 shade scales. Every result is <b>solved</b>: an ink under 3:1 on its paper moves along its own scale (hue kept) until it reaches 3:1; inks closer than ΔE 6 are pushed apart; a scheme that cannot be solved is dropped. Ranked by 0.5·contrast + 0.3·ΔE + 0.2·lightness spread; “Current” first, then up to 11.</p>
+  <div class="tbl"><table><thead><tr><th>Scheme</th><th>What it builds</th><th>Needs</th></tr></thead><tbody>
+    <tr><td class="k">Roles <span class="key">roles</span></td><td>Rotates the roles of the mains — one colourway per turn</td><td>—</td></tr>
+    <tr><td class="k">Tonal <span class="key">tonal</span></td><td>One main’s scale: paper = its step 100, inks = evenly spaced steps that pass, darkest first (up to 4)</td><td>—</td></tr>
+    <tr><td class="k">Tint ground <span class="key">tint</span></td><td>Paper = Base step 100, same inks</td><td>—</td></tr>
+    <tr><td class="k">Dark ground <span class="key">dark</span></td><td>Paper = Base step 900, same inks</td><td>—</td></tr>
+    <tr><td class="k">Accent <span class="key">accent</span></td><td>Base everywhere, the Accent on the share of cells nearest its role share; searches cell patterns × colour rules × Start at</td><td>≥ 2 mains, ≥ 2 cells</td></tr>
+    <tr><td class="k">Pair <span class="key">pair</span></td><td>The two mains furthest apart (ΔE)</td><td>≥ 3 mains</td></tr>
+  </tbody></table></div>
+
+  <h3 id="co-role">Role</h3>
+  <div class="grid">
+    <div class="entry"><h4>Blend <span class="key">sel-component-blend</span></h4><p class="how"><b>Normal</b> — the later cell covers the earlier. <b>Multiply</b> — where cells’ inks overlap (Scale &gt; 1) they mix, and multiply with the Paper too.</p></div>
+    <div class="entry"><h4>Role <span class="key">sel-component-role</span></h4><p class="how"><b>Normal</b> · <b>Container</b> — another saved Component, clipped to this one’s cells · <b>Mask</b> — this one’s cells knocked out of the other and its paper. Square cells only; forces a square frame.</p></div>
+    <div class="entry"><h4>Starter gallery</h4><p class="how">Before any Generate: the first 4 of Checkerboard, Pinwheel, Mirror and Radial (if eligible) — 16 on a 2×2. On a lattice: Radial, Checkerboard, Identity. Rebuilt live while untouched.</p></div>
+  </div>
+</section>
+
+<!-- ====================== SYMBOL ====================== -->
+<section class="step" id="symbol">
+  <h2><span class="num">03</span>Symbol</h2>
+  <p class="intro">A page (Canvas), a grid generated inside its margin, and content in each cell — saved Components (the pool: the 8 most recently saved), the Element in one of its turns, or Empty. <b>Fill the grid</b> runs Suggest or Arrange on an empty grid only; it never overwrites a composition.</p>
+
+  <h3 id="sy-canvas">Canvas</h3>
+  <div class="grid">
+    <div class="entry"><h4>Format</h4><p class="how">Square 1:1 · Portrait 4:5 · Landscape 16:9 · Vertical 9:16 · Widescreen 3:2 · A4 portrait / landscape · A3 portrait · Letter portrait · Custom.</p></div>
+    <div class="entry"><h4>Screen / Print</h4><p class="how">Print adds Unit (mm / in), DPI 72–2400 (300) and Bleed 0–20 mm (3). Export follows: SVG at physical size with bleed + crop marks, PNG with its DPI.</p></div>
+    <div class="entry"><h4>Margin</h4><p class="how">0–25 % of the short side (5). While every cell is empty, any change rebuilds the grid live.</p></div>
+  </div>
+
+  <h3 id="sy-grids">Grid generators</h3>
+  <p class="sub">Loom’s own generators, run inside the canvas margin with gap 0 so cells meet (drawn here at Loom’s defaults, gap 0). Rectangular grids show drag handles on inner borders; dragging trades size between two tracks.</p>
+  <div class="grid" id="gens"></div>
+
+  <h3 id="sy-overlap">Overlap &amp; blend</h3>
+  <div class="grid">
+    <div class="entry"><h4>Overlap <span class="key">0–100 %</span></h4><p class="how">Each cell’s content grows past its cell by ×(1 + %). Components aligned on a shared cell lattice grow that lattice instead. Above 0, Clip to cell turns off.</p></div>
+    <div class="entry"><h4>Blend</h4><p class="how"><b>Paper under</b> (default) — every Paper first, all inks on top · <b>Normal</b> — each content’s Paper right under its own ink · <b>Multiply</b> — no Paper, inks multiply · <b>Shared cells</b> — a small cell covered by two aligned Components is drawn once.</p></div>
+    <div class="entry"><h4>Drawn by <span class="key">Shared cells only</span></h4><p class="how">Who draws a shared small cell: <b>Nearest centre</b> · <b>Alternate</b> · <b>First</b> · <b>Last</b>.</p></div>
+  </div>
+
+  <h3 id="sy-fill">Fill modes</h3>
+  <div class="grid">
+    <div class="entry"><h4>Suggest <span class="key">suggest · default</span></h4><p class="how">Proposes whole Symbols from the pool, scored (see below). The best is placed at once; the rest are in <b>Variations</b>.</p></div>
+    <div class="entry"><h4>Arrange (pool) <span class="key">generate</span></h4><p class="how">Places the pool by a class rule: the n‑th class takes the n‑th pool entry. Fit Stretch / Contain / Cover / Match cell. Locked cells stay; down triangles get 180°.</p></div>
+    <div class="entry"><h4>Rule <span class="key">rule</span></h4><p class="how">Changes transforms only — never content (except Orientation) — on the axes ticked in <b>Vary</b>. Live; lock‑aware; <i>Reset &amp; apply to all</i> ignores locks.</p></div>
+    <div class="entry"><h4>Manual <span class="key">manual</span></h4><p class="how">Select cells (click, drag, ⌘‑click), then set Content, Rotation, Flip, Fit, Scale, Padding, Colour, Lock.</p></div>
+  </div>
+
+  <h3 id="sy-arrange">Arrange rules</h3>
+  <p class="sub">Shown on a 6×6 grid with a pool of three Components A · B · C. Checkerboard uses only the first two; Random draws by weight (equal weights, seed 1).</p>
+  <div class="grid" id="arrange"></div>
+
+  <h3 id="sy-rules">Rule mode</h3>
+  <p class="sub">Shown on a 6×6 grid at default settings, Vary = Rotation. Radial and Wave are drawn with “Snap to 90°” on (the default).</p>
+  <div class="grid" id="symrules"></div>
+  <div class="params" style="margin-top:var(--space-4)"><span class="chip">Vary <b>Rotation · Flip · Scale</b></span><span class="chip">Scale range <b>20–100 (75) · 100–300 (125)</b></span><span class="chip">Seed <b>0–999999 (1)</b></span></div>
+
+  <h3 id="sy-suggest">Suggest — how it scores</h3>
+  <p class="sub">Each Component is rasterised once into an ink mask; every shared border gets 10 sample points nudged into each side. A variation = per cell {Component, turn} (8 turns/flips for a square Component in a near‑square cell, otherwise 0°/180° ± flip).</p>
+  <div class="grid">
+    <div class="entry"><h4>Continuity <span class="key">0–100 · 60</span></h4><p class="how">Both sides of every shared border agree: ink meets ink counts most, paper meets paper a little, a mismatch costs. Same ink counts fully, distinct inks half, inks under ΔE 6 count as a seam.</p></div>
+    <div class="entry"><h4>Balance <span class="key">0–100 · 30</span></h4><p class="how">Ink spread evenly over a 3×3 split of the page, and each Component used as often as its weight.</p></div>
+    <div class="entry"><h4>Surprise <span class="key">0–100 · 30</span></h4><p class="how">1 − identical neighbour pairs / all pairs.</p></div>
+    <div class="entry"><h4>Colour <span class="key">0–100 · 40</span></h4><p class="how">Only with ≥ 2 inks in the pool: a clear hierarchy against the role shares 51 / 31 / 18…, each ink spread, neighbouring inks distinct.</p></div>
+    <div class="entry"><h4>Generators</h4><p class="how">Every Arrange rule (not Random) with turns refined for continuity · 3 beam searches (width 4) over Component × turn · 2 weighted mixes. Ranked, look‑alikes dropped, top 12.</p></div>
+    <div class="entry"><h4>More like this · Recolour cells (test)</h4><p class="how">More like this: 11 variants, each re‑drawing 8–20 % of the free cells. Recolour: a cell may also take one of up to 3 colourways of its Component (same ink count and colour rule).</p></div>
+  </div>
+
+  <h3 id="sy-cell">Cell properties &amp; Fit</h3>
+  <div class="tbl"><table><thead><tr><th>Control</th><th>Values</th></tr></thead><tbody>
+    <tr><td class="k">Content</td><td>Empty · a saved Component · the Element as it is or turned (90 / 180 / 270 / Flip H / Flip V / Flip H+V) · <i>Apply to all cells</i></td></tr>
+    <tr><td class="k">Rotation · Flip</td><td>0 / 60 / 90 / 120 / 180 / 240 / 270 / 300 · None / H / V / Both (Element cells only)</td></tr>
+    <tr><td class="k">Fit</td><td>Contain (in a polygon cell: inside the cell’s shape) · Stretch · Cover (no gaps; axis Auto / width / height) · Fixed size 5–300 · Match cell (a cell‑shape Element laid exactly onto its cell) · Anchor 9 positions</td></tr>
+    <tr><td class="k">Scale · Padding</td><td>10–400 % · 0–40</td></tr>
+    <tr><td class="k">Colour</td><td>Follow palette · Palette n · Custom</td></tr>
+    <tr><td class="k">Lock</td><td>Rules, Arrange and Suggest leave the cell alone</td></tr>
+  </tbody></table></div>
+</section>
+
+<!-- ====================== FIGURE ====================== -->
+<section class="step" id="figure">
+  <h2><span class="num">04</span>Figure</h2>
+  <p class="intro">One recipe that doesn’t name a particular drawing: <b>Seed → lattice → slot classes → rules (class → content + pose) → grids → transform</b>. Every change redraws; the JSON (<code>{tool:'fvs-recipe', version:2, element, levels, transform}</code>) can be copied, pasted and saved.</p>
+
+  <h3 id="fi-levels">Levels</h3>
+  <div class="grid">
+    <div class="entry"><h4>First level · Symbol</h4><p class="how">A lattice + class rules. <b>Triangle</b> rows² cells · <b>Square</b> cols × rows · <b>Hexagon</b> 3r(r−1)+1 cells (cells know ring + sector). Fit Fill (triangles) or Contain. <i>Use the Element step’s own settings</i> freezes the Element into every cell.</p></div>
+    <div class="entry"><h4>First level · Component</h4><p class="how">A 2×2 block by <b>Checkerboard</b> {A 180°, B 0°} · <b>Radial</b> {base 180°} · <b>Pinwheel</b> {base 0°} · <b>Mirror</b> {seed 0}. ⇄ on the first card swaps Symbol ⇄ Component.</p></div>
+    <div class="entry"><h4>Grid levels (0–3)</h4><p class="how">Each finished figure becomes the next level’s tile. <b>Tier</b> (3 triangles up‑down‑up), <b>Tier ×2</b>, <b>Triangle 2/3/4</b>, <b>Square 2×2 … 12×12</b>; down cells turn 180°. <b>Alternate flip</b> = flip H by (col+row) parity. Guard: 40,000 shapes.</p></div>
+    <div class="entry"><h4>Mirror / Rotate</h4><p class="how">Rotate 0/90/180/270 about the box centre, then Mirror over the <b>right</b> edge, the <b>bottom</b> edge or <b>both</b> — the copy shares that edge. Handles on the figure: ⇔ (M), ⇕ (Shift+M), ⟳ (R).</p></div>
+  </div>
+
+  <h3 id="fi-rules">Class rules</h3>
+  <p class="sub">Each rule is <code>{when, do}</code>; rules run in order, and the later match wins field by field. A switched‑off rule stays in the recipe. Painting a cell writes a rule; <b>Shift</b> writes its whole class.</p>
+  <div class="grid wide">
+    <div class="entry"><h4>when — slot classes</h4><p class="how"><b>class</b> up / down (triangles) · <b>row</b> · <b>col</b> · <b>index</b> · <b>parity</b> odd / even of col + row · <b>ring</b>, <b>sector</b> (hexagons). All present keys must match; arrays mean “any of” (not for parity). <code>{}</code> = every cell.</p></div>
+    <div class="entry"><h4>do — actions</h4><p class="how"><b>content</b> empty / filled · <b>rotate</b> n° (snapped to 30°) or <i>sector</i> (60° × the cell’s sector) · <b>flipH</b> · <b>flipV</b> · <b>scale</b> · <b>seed</b> (a different shape, JSON only).</p></div>
+  </div>
+  <div class="sheet" data-theme="light" id="sierp" style="margin-top:var(--space-5)"></div>
+  <div class="tbl" style="margin-top:var(--space-5)"><table><thead><tr><th>Paint tool</th><th>Key</th><th>Writes</th></tr></thead><tbody>
+    <tr><td>Toggle</td><td>1</td><td>content filled ⇄ empty</td></tr>
+    <tr><td>Seed · Empty</td><td>2 · 3</td><td>content filled · content empty</td></tr>
+    <tr><td>Rotate</td><td>4</td><td>+90° (60° hexagon, 180° triangle)</td></tr>
+    <tr><td>Flip H · Flip V</td><td>5 · 6</td><td>toggles the flip</td></tr>
+  </tbody></table></div>
+
+  <h3 id="fi-presets">Built‑in figures (New figure…)</h3>
+  <div class="grid" id="presets"></div>
+
+  <h3 id="fi-play">Shuffle &amp; Variations</h3>
+  <p class="sub"><b>Shuffle</b> (Space) applies 1–3 random mutations; <b>Variations</b> (V) shows up to 9 figures one mutation away. <b>Lock</b> Element / Symbol / Rules / Grid / Mirror‑Rotate keeps a group out of both. <code>[</code> <code>]</code> change rows / rings.</p>
+  <div class="tbl"><table id="mutations"><thead><tr><th>Group</th><th>Mutation</th><th>How it decides</th></tr></thead><tbody></tbody></table></div>
+
+  <h3 id="fi-checks">Checks</h3>
+  <p class="sub">Read from the drawn result: numbers valid · every clip reference resolves · defs / metadata once · slot count · shapes drawn = filled slots × tiles × mirror copies · file size · inks read on the paper (≥ 3:1) · inks distinct · mirror symmetry (&gt; 97 %) · figure box · with a reference image: silhouette overlap (IoU &gt; 0.8) and proportions.</p>
+</section>
+
+<!-- ====================== EXPORT ====================== -->
+<section class="step" id="export">
+  <h2><span class="num">⤓</span>Export options that change the output</h2>
+  <div class="grid" style="margin-top:var(--space-6)">
+    <div class="entry"><h4>Screen / Print</h4><p class="how">Screen: Scale ×1 / ×2 / ×4. Print: physical size, DPI and bleed, crop marks, DPI written into the PNG.</p></div>
+    <div class="entry"><h4>Variants</h4><p class="how">One row per variant — Fill or Stroke, one ink, a paper, stroke width 1–20 — every non‑paper colour recoloured to that ink. SVG or PNG, transparent paper option.</p></div>
+    <div class="entry"><h4>Plates</h4><p class="how">With ≥ 2 inks: one file per ink, that ink in black, the others removed, no paper. Print adds crop and registration marks.</p></div>
+  </div>
+</section>
+
+<!-- ====================== FINDINGS ====================== -->
+<section class="step" id="findings">
+  <h2><span class="num">!</span>Found while taking the inventory</h2>
+  <p class="intro">Listed so they can be decided. <span class="tag ok">fixed</span> = fixed on 7 Oct 2026; <span class="tag read">from reading</span> = seen while reading, not run.</p>
+  <ul class="flags">
+    <li><span class="tag ok">fixed</span> <b>Symbol → Rule: “Snap to 90°” did nothing.</b> Radial and Wave compute free angles when it is off, but the applier always snaps (<code>cell.rotation = snap90(t.rotation)</code>, <code>fvs/js/11-symbol-ui.js:105</code>), so Wave’s smooth angles never showed. Now the applier keeps the rule’s own angle; with the box on, nothing changes.</li>
+    <li><span class="tag ok">fixed</span> <b>Component Checkerboard on circle / hexagon cells alternated by cell number</b> (<code>i % 2</code>, <code>fvs/js/engine/03-rules.js:547</code>), not by position — now by position (see Rules on non‑square cells).</li>
+    <li><span class="tag read">from reading</span> Figure: four different size ranges for the same lattice (Advanced 5–8, panel slider and <code>[ ]</code> 2–6, Shuffle 2–5 / 2–4 / 1–3, new layout 5 / 5×5 / 4).</li>
+    <li><span class="tag read">from reading</span> Figure Shuffle’s Seed pool has 12 shapes and lacks Arc truchet; the thumbnails offer 13.</li>
+    <li><span class="tag read">from reading</span> Figure “Other colourway” drops the colourway’s colour rule and can never produce Accent.</li>
+    <li><span class="tag read">from reading</span> Figure Advanced form: any edit drops the Seed’s slider values (except Arc thickness), and “Odd cells” offers 60/120/240/300° on square and triangle lattices too.</li>
+    <li><span class="tag read">from reading</span> Figure: the Grid lattices differ by surface — the step panel and Shuffle offer 6, the Advanced form 16; no hexagonal Grid.</li>
+  </ul>
+</section>
+</main>
+</div>
+
+<script>
+const CELLS = {"2|identity":{"n":1,"c":2,"r":2,"s":["0 0 0 0"]},"2|pinwheel":{"n":8,"c":2,"r":2,"s":["0 90 180 270","0 270 180 90","90 180 270 0","90 0 270 180","180 270 0 90","180 90 0 270","270 0 90 180","270 180 90 0"]},"2|mirror":{"n":4,"c":2,"r":2,"s":["0 0h 0v 0hv","0h 0 0hv 0v","0v 0hv 0 0h","0hv 0v 0h 0"]},"2|diagonal":{"n":4,"c":2,"r":2,"s":["0 90 90 0","90 0 0 90","180 270 270 180","270 180 180 270"]},"2|checkerboard":{"n":12,"c":2,"r":2,"s":["0 90 90 0","0 180 180 0","0 270 270 0","90 0 0 90","90 180 180 90","90 270 270 90","180 0 0 180","180 90 90 180"]},"2|rowmirror":{"n":4,"c":2,"r":2,"s":["0 0 0v 0v","90 90 90v 90v","180 180 180v 180v","270 270 270v 270v"]},"2|columnmirror":{"n":4,"c":2,"r":2,"s":["0h 0 0h 0","90h 90 90h 90","180h 180 180h 180","270h 270 270h 270"]},"2|radial":{"n":8,"c":2,"r":2,"s":["0 90 270 180","0 270 90 180","90 180 0 270","90 0 180 270","180 270 90 0","180 90 270 0","270 0 180 90","270 180 0 90"]},"2|hlines":{"n":1,"c":2,"r":2,"s":["0 0 90 90"]},"2|vlines":{"n":1,"c":2,"r":2,"s":["0 90 0 90"]},"2|oscillator":{"n":1,"c":2,"r":2,"s":["0 90 90 0"]},"2|random":{"n":16,"c":2,"r":2,"s":["0 90 90 0","270 180 180 270","90 180 0 270","180 270 270 180","90 0 0 90","90 90 90 90","0 270 180 90","270 0 90 180"]},"2|exhaustive":{"n":32,"c":2,"r":2,"s":["0 0 0 0","90 90 90 90","180 180 180 180","270 270 270 270","0 90 180 270","0 270 180 90","90 180 270 0","90 0 270 180"]},"4|identity":{"n":1,"c":4,"r":4,"s":["0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"]},"4|pinwheel":{"n":8,"c":4,"r":4,"s":["0 90 180 270 180 270 0 90 0 90 180 270 180 270 0 90","0 270 180 90 180 90 0 270 0 270 180 90 180 90 0 270","90 180 270 0 270 0 90 180 90 180 270 0 270 0 90 180","90 0 270 180 270 180 90 0 90 0 270 180 270 180 90 0"]},"4|mirror":{"n":7,"c":4,"r":4,"s":["0 0h 0 0h 0v 0hv 0v 0hv 0 0h 0 0h 0v 0hv 0v 0hv","0h 0 0h 0 0hv 0v 0hv 0v 0h 0 0h 0 0hv 0v 0hv 0v","0v 0hv 0v 0hv 0 0h 0 0h 0v 0hv 0v 0hv 0 0h 0 0h","0hv 0v 0hv 0v 0h 0 0h 0 0hv 0v 0hv 0v 0h 0 0h 0"]},"4|diagonal":{"n":4,"c":4,"r":4,"s":["0 90 0 90 90 0 90 0 0 90 0 90 90 0 90 0","90 0 90 0 0 90 0 90 90 0 90 0 0 90 0 90","180 270 180 270 270 180 270 180 180 270 180 270 270 180 270 180","270 180 270 180 180 270 180 270 270 180 270 180 180 270 180 270"]},"4|checkerboard":{"n":12,"c":4,"r":4,"s":["0 90 0 90 90 0 90 0 0 90 0 90 90 0 90 0","0 180 0 180 180 0 180 0 0 180 0 180 180 0 180 0","0 270 0 270 270 0 270 0 0 270 0 270 270 0 270 0","90 0 90 0 0 90 0 90 90 0 90 0 0 90 0 90"]},"4|rowmirror":{"n":4,"c":4,"r":4,"s":["0 0 0 0 0v 0v 0v 0v 0 0 0 0 0v 0v 0v 0v","90 90 90 90 90v 90v 90v 90v 90 90 90 90 90v 90v 90v 90v","180 180 180 180 180v 180v 180v 180v 180 180 180 180 180v 180v 180v 180v","270 270 270 270 270v 270v 270v 270v 270 270 270 270 270v 270v 270v 270v"]},"4|columnmirror":{"n":4,"c":4,"r":4,"s":["0h 0 0h 0 0h 0 0h 0 0h 0 0h 0 0h 0 0h 0","90h 90 90h 90 90h 90 90h 90 90h 90 90h 90 90h 90 90h 90","180h 180 180h 180 180h 180 180h 180 180h 180 180h 180 180h 180 180h 180","270h 270 270h 270 270h 270 270h 270 270h 270 270h 270 270h 270 270h 270"]},"4|radial":{"n":16,"c":4,"r":4,"s":["0 0 90 90 0 0 90 90 270 270 180 180 270 270 180 180","0 0 270 270 0 0 270 270 90 90 180 180 90 90 180 180","90 90 180 180 90 90 180 180 0 0 270 270 0 0 270 270","90 90 0 0 90 90 0 0 180 180 270 270 180 180 270 270"]},"4|hlines":{"n":1,"c":4,"r":4,"s":["0 0 0 0 90 90 90 90 0 0 0 0 90 90 90 90"]},"4|vlines":{"n":1,"c":4,"r":4,"s":["0 90 0 90 0 90 0 90 0 90 0 90 0 90 0 90"]},"4|oscillator":{"n":1,"c":4,"r":4,"s":["0 90 0 0 90 0 0 90 0 0 90 0 0 90 0 0"]},"4|random":{"n":16,"c":4,"r":4,"s":["0 90 0 90 90 0 90 0 0 90 0 90 90 0 90 0","270 180 270 180 180 270 180 270 270 180 270 180 180 270 180 270","180 180 270 270 180 180 270 270 90 90 0 0 90 90 0 0","180 270 180 270 270 180 270 180 180 270 180 270 270 180 270 180"]},"4|exhaustive":{"n":40,"c":4,"r":4,"s":["0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0","90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90","180 180 180 180 180 180 180 180 180 180 180 180 180 180 180 180","270 270 270 270 270 270 270 270 270 270 270 270 270 270 270 270"]},"2|mirror|F":{"n":4,"c":2,"r":2,"s":["0 0h 0v 0hv","0h 0 0hv 0v","0v 0hv 0 0h","0hv 0v 0h 0"]},"4|mirror|F":{"n":7,"c":4,"r":4,"s":["0 0h 0 0h 0v 0hv 0v 0hv 0 0h 0 0h 0v 0hv 0v 0hv","0h 0 0h 0 0hv 0v 0hv 0v 0h 0 0h 0 0hv 0v 0hv 0v","0v 0hv 0v 0hv 0 0h 0 0h 0v 0hv 0v 0hv 0 0h 0 0h","0hv 0v 0hv 0v 0h 0 0h 0 0hv 0v 0hv 0v 0h 0 0h 0","0 0 0h 0h 0 0 0h 0h 0 0 0h 0h 0 0 0h 0h","0 0 0 0 0 0 0 0 0v 0v 0v 0v 0v 0v 0v 0v","0 0 0h 0h 0 0 0h 0h 0v 0v 0hv 0hv 0v 0v 0hv 0hv"]},"2|checkerboard|RF":{"n":136,"c":2,"r":2,"s":["0 0h 0h 0","0 0v 0v 0","0 0hv 0hv 0","0 90 90 0","0 90h 90h 0","0 90v 90v 0"]},"2|exhaustive|RF":{"n":172,"c":2,"r":2,"s":["0 0 0 0"]},"4|hlines|ramp":{"n":1,"c":4,"r":4,"s":["0 0 0 0 90 90 90 90 180 180 180 180 270 270 270 270"]},"4|vlines|ramp":{"n":1,"c":4,"r":4,"s":["0 90 180 270 0 90 180 270 0 90 180 270 0 90 180 270"]},"4|osc|p2":{"n":1,"c":4,"r":4,"s":["0 90 0 90 90 0 90 0 0 90 0 90 90 0 90 0"]},"4|osc|p4s0":{"n":1,"c":4,"r":4,"s":["0 90 0 0 0 90 0 0 0 90 0 0 0 90 0 0"]},"2|pinwheel|S":{"n":24,"c":2,"r":2,"s":["0@0.75 90@0.75 180@0.75 270@0.75","0 90 180 270","0@1.25 90@1.25 180@1.25 270@1.25","0@0.75 270@0.75 180@0.75 90@0.75","0 270 180 90","0@1.25 270@1.25 180@1.25 90@1.25"]},"4|random|RFS":{"n":16,"c":4,"r":4,"s":["0@0.75 0v 0@0.75 0v 0v 0@0.75 0v 0@0.75 0@0.75 0v 0@0.75 0v 0v 0@0.75 0v 0@0.75","270@1.25 180@1.25 270@1.25 180@1.25 180@1.25 270@1.25 180@1.25 270@1.25 270@1.25 180@1.25 270@1.25 180@1.25 180@1.25 270@1.25 180@1.25 270@1.25","180 180 270 270 180 180 270 270 90 90 0 0 90 90 0 0","180hv 180h@0.75 180hv 180h@0.75 180h@0.75 180hv 180h@0.75 180hv 180hv 180h@0.75 180hv 180h@0.75 180h@0.75 180hv 180h@0.75 180hv","0@1.25 0@1.25 0h@1.25 0h@1.25 0@1.25 0@1.25 0h@1.25 0h@1.25 0v@1.25 0v@1.25 0hv@1.25 0hv@1.25 0v@1.25 0v@1.25 0hv@1.25 0hv@1.25","90@1.25 0@1.25 90@1.25 0@1.25 0@1.25 90@1.25 0@1.25 90@1.25 90@1.25 0@1.25 90@1.25 0@1.25 0@1.25 90@1.25 0@1.25 90@1.25"]},"3|radial":"disabled"};
+const GENS = {"rectangular":{"label":"Rectangular","n":9,"d":"M0 0H60V30H0ZM60 0H90V30H60ZM90 0H120V30H90ZM0 30H60V60H0ZM60 30H90V60H60ZM90 30H120V60H90ZM0 60H60V120H0ZM60 60H90V120H60ZM90 60H120V120H90Z"},"bento":{"label":"Bento","n":10,"d":"M0 0H60V30H0ZM60 0H90V30H60ZM90 0H120V30H90ZM0 30H60V90H0ZM60 30H90V60H60ZM90 30H120V60H90ZM60 60H120V90H60ZM0 90H30V120H0ZM30 90H90V120H30ZM90 90H120V120H90Z"},"sinusoidal":{"label":"Wave","n":24,"d":"M0 0H19V30H0ZM19 0H43V30H19ZM43 0H59V30H43ZM59 0H85V30H59ZM85 0H101V30H85ZM101 0H120V30H101ZM0 30H19V60H0ZM19 30H43V60H19ZM43 30H59V60H43ZM59 30H85V60H59ZM85 30H101V60H85ZM101 30H120V60H101ZM0 60H19V90H0ZM19 60H43V90H19ZM43 60H59V90H43ZM59 60H85V90H59ZM85 60H101V90H85ZM101 60H120V90H101ZM0 90H19V120H0ZM19 90H43V120H19ZM43 90H59V120H43ZM59 90H85V120H59ZM85 90H101V120H85ZM101 90H120V120H101Z"},"masonry":{"label":"Masonry","n":26,"d":"M0 0L0 12L24 12L24 0ZM0 12L0 26L24 26L24 12ZM0 26L0 69L24 69L24 26ZM0 69L0 103L24 103L24 69ZM0 103L0 120L24 120L24 103ZM24 0L24 25L48 25L48 0ZM24 25L24 51L48 51L48 25ZM24 51L24 71L48 71L48 51ZM24 71L24 100L48 100L48 71ZM24 100L24 120L48 120L48 100ZM48 0L48 20L72 20L72 0ZM48 20L48 37L72 37L72 20ZM48 37L48 73L72 73L72 37ZM48 73L48 101L72 101L72 73ZM48 101L48 120L72 120L72 101ZM72 0L72 23L96 23L96 0ZM72 23L72 45L96 45L96 23ZM72 45L72 73L96 73L96 45ZM72 73L72 95L96 95L96 73ZM72 95L72 120L96 120L96 95ZM96 0L96 20L120 20L120 0ZM96 20L96 59L120 59L120 20ZM96 59L96 77L120 77L120 59ZM96 77L96 94L120 94L120 77ZM96 94L96 110L120 110L120 94ZM96 110L96 120L120 120L120 110Z"},"hexagonal":{"label":"Hexagonal","n":35,"d":"M47 0L44 5L28 5L25 0ZM95 0L92 5L76 5L73 0ZM0 12L4 18L0 25ZM25 0L28 5L20 18L4 18L0 12L0 0ZM52 18L44 32L28 32L20 18L28 5L44 5ZM73 0L76 5L68 18L52 18L44 5L47 0ZM100 18L92 32L76 32L68 18L76 5L92 5ZM120 0L120 12L116 18L100 18L92 5L95 0ZM120 25L116 18L120 12ZM0 39L4 46L0 53ZM28 32L20 46L4 46L0 39L0 25L4 18L20 18ZM52 46L44 60L28 60L20 46L28 32L44 32ZM76 32L68 46L52 46L44 32L52 18L68 18ZM100 46L92 60L76 60L68 46L76 32L92 32ZM120 25L120 39L116 46L100 46L92 32L100 18L116 18ZM120 53L116 46L120 39ZM0 67L4 74L0 81ZM28 60L20 74L4 74L0 67L0 53L4 46L20 46ZM52 74L44 88L28 88L20 74L28 60L44 60ZM76 60L68 74L52 74L44 60L52 46L68 46ZM100 74L92 88L76 88L68 74L76 60L92 60ZM120 53L120 67L116 74L100 74L92 60L100 46L116 46ZM120 81L116 74L120 67ZM0 95L4 102L0 108ZM28 88L20 102L4 102L0 95L0 81L4 74L20 74ZM52 102L44 115L28 115L20 102L28 88L44 88ZM76 88L68 102L52 102L44 88L52 74L68 74ZM100 102L92 115L76 115L68 102L76 88L92 88ZM120 81L120 95L116 102L100 102L92 88L100 74L116 74ZM120 108L116 102L120 95ZM28 115L25 120L0 120L0 108L4 102L20 102ZM47 120L25 120L28 115L44 115ZM76 115L73 120L47 120L44 115L52 102L68 102ZM95 120L73 120L76 115L92 115ZM120 108L120 120L95 120L92 115L100 102L116 102Z"},"triangular":{"label":"Triangular","n":76,"d":"M0 0L0 18L12 18L1 0ZM1 0L23 0L12 18ZM23 0L12 18L36 18L25 0ZM25 0L47 0L36 18ZM47 0L36 18L60 18L49 0ZM49 0L71 0L60 18ZM71 0L60 18L84 18L73 0ZM73 0L95 0L84 18ZM95 0L84 18L108 18L97 0ZM97 0L119 0L108 18ZM119 0L108 18L120 18L120 0ZM0 18L0 39L12 39L0 18ZM0 18L24 18L12 39ZM12 39L36 39L24 18ZM24 18L48 18L36 39ZM36 39L60 39L48 18ZM48 18L72 18L60 39ZM60 39L84 39L72 18ZM72 18L96 18L84 39ZM84 39L108 39L96 18ZM96 18L120 18L108 39ZM108 39L120 39L120 18ZM0 39L0 60L12 60L0 39ZM0 39L24 39L12 60ZM12 60L36 60L24 39ZM24 39L48 39L36 60ZM36 60L60 60L48 39ZM48 39L72 39L60 60ZM60 60L84 60L72 39ZM72 39L96 39L84 60ZM84 60L108 60L96 39ZM96 39L120 39L108 60ZM108 60L120 60L120 39ZM0 60L0 81L12 81L0 60ZM0 60L24 60L12 81ZM12 81L36 81L24 60ZM24 60L48 60L36 81ZM36 81L60 81L48 60ZM48 60L72 60L60 81ZM60 81L84 81L72 60ZM72 60L96 60L84 81ZM84 81L108 81L96 60ZM96 60L120 60L108 81ZM108 81L120 81L120 60ZM0 81L0 102L12 102L0 81ZM0 81L24 81L12 102ZM12 102L36 102L24 81ZM24 81L48 81L36 102ZM36 102L60 102L48 81ZM48 81L72 81L60 102ZM60 102L84 102L72 81ZM72 81L96 81L84 102ZM84 102L108 102L96 81ZM96 81L120 81L108 102ZM108 102L120 102L120 81ZM0 102L0 120L11 120L0 102ZM11 120L0 102L24 102L13 120ZM13 120L35 120L24 102ZM35 120L24 102L48 102L37 120ZM37 120L59 120L48 102ZM59 120L48 102L72 102L61 120ZM61 120L83 120L72 102ZM83 120L72 102L96 102L85 120ZM85 120L107 120L96 102ZM107 120L96 102L120 102L109 120ZM109 120L120 120L120 102Z"},"diamond":{"label":"Diamond","n":41,"d":"M103 0L94 9L85 0ZM120 17L111 26L94 9L103 0L119 0L120 1ZM120 35L111 26L120 17ZM69 0L60 9L51 0ZM77 26L60 9L69 0L85 0L94 9ZM94 43L77 26L94 9L111 26ZM120 51L111 60L94 43L111 26L120 35ZM120 69L111 60L120 51ZM35 0L26 9L17 0ZM43 26L26 9L35 0L51 0L60 9ZM60 43L43 26L60 9L77 26ZM77 60L60 43L77 26L94 43ZM94 77L77 60L94 43L111 60ZM120 85L111 94L94 77L111 60L120 69ZM120 103L111 94L120 85ZM9 26L0 17L0 1L1 0L17 0L26 9ZM26 43L9 26L26 9L43 26ZM43 60L26 43L43 26L60 43ZM60 77L43 60L60 43L77 60ZM77 94L60 77L77 60L94 77ZM94 111L77 94L94 77L111 94ZM120 119L119 120L103 120L94 111L111 94L120 103ZM0 35L0 17L9 26ZM9 60L0 51L0 35L9 26L26 43ZM26 77L9 60L26 43L43 60ZM43 94L26 77L43 60L60 77ZM60 111L43 94L60 77L77 94ZM85 120L69 120L60 111L77 94L94 111ZM85 120L94 111L103 120ZM0 69L0 51L9 60ZM9 94L0 85L0 69L9 60L26 77ZM26 111L9 94L26 77L43 94ZM51 120L35 120L26 111L43 94L60 111ZM51 120L60 111L69 120ZM0 103L0 85L9 94ZM17 120L1 120L0 119L0 103L9 94L26 111ZM17 120L26 111L35 120Z"},"circular":{"label":"Circular","n":45,"d":"M24 18L22 24L18 29L12 30L6 29L2 24L0 18L2 12L6 8L12 6L18 8L22 12ZM48 18L46 24L42 29L36 30L30 29L26 24L24 18L26 12L30 8L36 6L42 8L46 12ZM72 18L70 24L66 29L60 30L54 29L50 24L48 18L50 12L54 8L60 6L66 8L70 12ZM96 18L94 24L90 29L84 30L78 29L74 24L72 18L74 12L78 8L84 6L90 8L94 12ZM120 18L118 24L114 29L108 30L102 29L98 24L96 18L98 12L102 8L108 6L114 8L118 12ZM36 39L34 45L30 50L24 51L18 50L14 45L12 39L14 33L18 29L24 27L30 29L34 33ZM60 39L58 45L54 50L48 51L42 50L38 45L36 39L38 33L42 29L48 27L54 29L58 33ZM84 39L82 45L78 50L72 51L66 50L62 45L60 39L62 33L66 29L72 27L78 29L82 33ZM108 39L106 45L102 50L96 51L90 50L86 45L84 39L86 33L90 29L96 27L102 29L106 33ZM24 60L22 66L18 70L12 72L6 70L2 66L0 60L2 54L6 50L12 48L18 50L22 54ZM48 60L46 66L42 70L36 72L30 70L26 66L24 60L26 54L30 50L36 48L42 50L46 54ZM72 60L70 66L66 70L60 72L54 70L50 66L48 60L50 54L54 50L60 48L66 50L70 54ZM96 60L94 66L90 70L84 72L78 70L74 66L72 60L74 54L78 50L84 48L90 50L94 54ZM120 60L118 66L114 70L108 72L102 70L98 66L96 60L98 54L102 50L108 48L114 50L118 54ZM36 81L34 87L30 91L24 93L18 91L14 87L12 81L14 75L18 70L24 69L30 70L34 75ZM60 81L58 87L54 91L48 93L42 91L38 87L36 81L38 75L42 70L48 69L54 70L58 75ZM84 81L82 87L78 91L72 93L66 91L62 87L60 81L62 75L66 70L72 69L78 70L82 75ZM108 81L106 87L102 91L96 93L90 91L86 87L84 81L86 75L90 70L96 69L102 70L106 75ZM24 102L22 108L18 112L12 114L6 112L2 108L0 102L2 96L6 91L12 90L18 91L22 96ZM48 102L46 108L42 112L36 114L30 112L26 108L24 102L26 96L30 91L36 90L42 91L46 96ZM72 102L70 108L66 112L60 114L54 112L50 108L48 102L50 96L54 91L60 90L66 91L70 96ZM96 102L94 108L90 112L84 114L78 112L74 108L72 102L74 96L78 91L84 90L90 91L94 96ZM120 102L118 108L114 112L108 114L102 112L98 108L96 102L98 96L102 91L108 90L114 91L118 96Z"},"radial":{"label":"Radial","n":48,"d":"M69 60L82 61L82 63L81 65L81 67L80 69L79 70L68 64L68 64L69 63L69 62L69 61L69 61ZM68 65L78 72L77 73L76 75L74 76L73 77L71 79L65 68L65 67L66 67L67 66L67 66L68 65ZM65 68L70 79L68 80L66 81L64 81L63 82L61 82L60 69L61 69L62 69L63 69L63 68L64 68ZM60 69L59 82L57 82L55 81L53 81L51 80L50 79L56 68L56 68L57 69L58 69L59 69L59 69ZM56 68L48 78L47 77L45 76L44 74L43 73L41 71L52 65L53 65L53 66L54 67L54 67L55 68ZM52 65L41 70L40 68L39 66L39 64L38 63L38 61L51 60L51 61L51 62L51 63L52 63L52 64ZM51 60L38 59L38 57L39 55L39 53L40 51L41 50L52 56L52 56L51 57L51 58L51 59L51 59ZM52 56L42 48L43 47L44 45L46 44L47 43L49 41L55 52L55 53L54 53L53 54L53 54L52 55ZM56 52L50 41L52 40L54 39L56 39L57 38L59 38L60 51L59 51L58 51L57 51L57 52L56 52ZM60 51L61 38L63 38L65 39L67 39L69 40L70 41L64 52L64 52L63 51L62 51L61 51L61 51ZM65 52L72 42L73 43L75 44L76 46L77 47L79 49L68 55L67 55L67 54L66 53L66 53L65 52ZM68 56L79 50L80 52L81 54L81 56L82 57L82 59L69 60L69 59L69 58L69 57L68 57L68 56ZM82 60L94 62L94 65L94 68L93 71L92 74L90 76L79 70L80 69L81 67L81 65L82 63L82 61ZM79 71L89 79L87 81L85 84L83 86L81 88L78 89L71 79L73 77L74 76L76 75L77 73L78 72ZM71 79L75 91L73 92L70 93L67 94L64 94L61 94L61 82L63 82L64 81L66 81L68 80L70 79ZM60 82L58 94L55 94L52 94L49 93L46 92L44 90L50 79L51 80L53 81L55 81L57 82L59 82ZM49 79L41 89L39 87L36 85L34 83L32 81L31 78L41 71L43 73L44 74L45 76L47 77L48 78ZM41 71L29 75L28 73L27 70L26 67L26 64L26 61L38 61L38 63L39 64L39 66L40 68L41 70ZM38 60L26 58L26 55L26 52L27 49L28 46L30 44L41 50L40 51L39 53L39 55L38 57L38 59ZM41 49L31 41L33 39L35 36L37 34L39 32L42 31L49 41L47 43L46 44L44 45L43 47L42 48ZM49 41L45 29L47 28L50 27L53 26L56 26L59 26L59 38L57 38L56 39L54 39L52 40L50 41ZM60 38L62 26L65 26L68 26L71 27L74 28L76 30L70 41L69 40L67 39L65 39L63 38L61 38ZM71 41L79 31L81 33L84 35L86 37L88 39L89 42L79 49L77 47L76 46L75 44L73 43L72 42ZM79 49L91 45L92 47L93 50L94 53L94 56L94 59L82 59L82 57L81 56L81 54L80 52L79 50ZM95 60L107 63L107 67L106 71L105 75L103 79L102 82L90 76L92 74L93 71L94 68L94 65L94 62ZM90 77L99 86L97 89L94 92L91 95L88 98L85 100L78 89L81 88L83 86L85 84L87 81L89 79ZM77 90L81 102L77 104L74 105L70 106L65 107L61 107L61 94L64 94L67 94L70 93L73 92L75 91ZM60 95L57 107L53 107L49 106L45 105L41 103L38 102L44 90L46 92L49 93L52 94L55 94L58 94ZM43 90L34 99L31 97L28 94L25 91L22 88L20 85L31 78L32 81L34 83L36 85L39 87L41 89ZM30 77L18 81L16 77L15 74L14 70L13 65L13 61L26 61L26 64L26 67L27 70L28 73L29 75ZM26 60L13 57L13 53L14 49L15 45L17 41L18 38L30 44L28 46L27 49L26 52L26 55L26 58ZM30 43L21 34L23 31L26 28L29 25L32 22L35 20L42 31L39 32L37 34L35 36L33 39L31 41ZM43 30L39 18L43 16L46 15L50 14L55 13L59 13L59 26L56 26L53 26L50 27L47 28L45 29ZM60 26L63 13L67 13L71 14L75 15L79 17L82 18L76 30L74 28L71 27L68 26L65 26L62 26ZM77 30L86 21L89 23L92 26L95 29L98 32L100 35L89 42L88 39L86 37L84 35L81 33L79 31ZM90 43L102 39L104 43L105 46L106 50L107 55L107 59L94 59L94 56L94 53L93 50L92 47L91 45ZM107 60L120 63L119 69L118 74L117 79L115 84L113 88L102 82L103 79L105 75L106 71L107 67L107 63ZM101 84L110 93L107 97L104 101L100 105L96 108L91 111L85 100L88 98L91 95L94 92L97 89L99 86ZM84 101L87 114L82 116L77 117L72 119L67 120L62 120L61 107L65 107L70 106L74 105L77 104L81 102ZM60 107L57 120L51 119L46 118L41 117L36 115L32 113L38 102L41 103L45 105L49 106L53 107L57 107ZM36 101L27 110L23 107L19 104L15 100L12 96L9 91L20 85L22 88L25 91L28 94L31 97L34 99ZM19 84L6 87L4 82L3 77L1 72L0 67L0 62L13 61L13 65L14 70L15 74L16 77L18 81ZM13 60L0 57L1 51L2 46L3 41L5 36L7 32L18 38L17 41L15 45L14 49L13 53L13 57ZM19 36L10 27L13 23L16 19L20 15L24 12L29 9L35 20L32 22L29 25L26 28L23 31L21 34ZM36 19L33 6L38 4L43 3L48 1L53 0L58 0L59 13L55 13L50 14L46 15L43 16L39 18ZM60 13L63 0L69 1L74 2L79 3L84 5L88 7L82 18L79 17L75 15L71 14L67 13L63 13ZM84 19L93 10L97 13L101 16L105 20L108 24L111 29L100 35L98 32L95 29L92 26L89 23L86 21ZM101 36L114 33L116 38L117 43L119 48L120 53L120 58L107 59L107 55L106 50L105 46L104 43L102 39Z"},"organic":{"label":"Organic","n":24,"d":"M16 20L0 25L0 0L16 0ZM94 100L89 94L95 74L120 70L120 98ZM94 40L81 61L63 52L62 41L80 29ZM78 19L80 29L62 41L49 32L53 18ZM71 93L67 80L82 65L95 74L89 94ZM53 18L49 32L40 35L29 31L26 25L41 0L45 0ZM95 74L82 65L81 61L94 40L120 38L120 70ZM39 56L27 60L16 45L29 31L40 35ZM50 62L51 74L43 83L28 82L21 70L27 60L39 56ZM25 103L42 104L45 120L20 120ZM47 97L42 104L25 103L20 95L28 82L43 83ZM26 25L16 20L16 0L41 0ZM16 45L0 44L0 25L16 20L26 25L29 31ZM65 101L47 97L43 83L51 74L67 80L71 93ZM0 95L20 95L25 103L20 120L0 120ZM51 74L50 62L63 52L81 61L82 65L67 80ZM94 100L120 98L120 120L90 120ZM65 101L71 93L89 94L94 100L90 120L68 120ZM94 40L80 29L78 19L85 0L120 0L120 38ZM21 70L0 71L0 44L16 45L27 60ZM78 19L53 18L45 0L85 0ZM20 95L0 95L0 71L21 70L28 82ZM50 62L39 56L40 35L49 32L62 41L63 52ZM42 104L47 97L65 101L68 120L45 120Z"},"fractal":{"label":"Fractal","n":32,"d":"M0 0L23 0L23 13L0 13ZM0 13L23 13L23 25L0 25ZM23 0L39 0L39 12L23 12ZM23 12L39 12L39 25L23 25ZM0 25L19 25L19 30L0 30ZM0 30L19 30L19 37L0 37ZM19 25L39 25L39 31L19 31ZM19 31L39 31L39 37L19 37ZM39 0L72 0L72 8L39 8ZM39 8L72 8L72 22L39 22ZM72 0L120 0L120 13L72 13ZM72 13L120 13L120 22L72 22ZM39 22L80 22L80 27L39 27ZM39 27L80 27L80 37L39 37ZM80 22L120 22L120 28L80 28ZM80 28L120 28L120 37L80 37ZM0 37L21 37L21 66L0 66ZM0 66L21 66L21 79L0 79ZM21 37L50 37L50 54L21 54ZM21 54L50 54L50 79L21 79ZM0 79L33 79L33 95L0 95ZM0 95L33 95L33 120L0 120ZM33 79L50 79L50 94L33 94ZM33 94L50 94L50 120L33 120ZM50 37L79 37L79 52L50 52ZM50 52L79 52L79 67L50 67ZM79 37L120 37L120 55L79 55ZM79 55L120 55L120 67L79 67ZM50 67L73 67L73 102L50 102ZM50 102L73 102L73 120L50 120ZM73 67L120 67L120 95L73 95ZM73 95L120 95L120 120L73 120Z"},"spiral":{"label":"Spiral","n":8,"d":"M0 0L46 0L46 120L0 120ZM46 0L120 0L120 46L46 46ZM92 46L120 46L120 120L92 120ZM46 92L92 92L92 120L46 120ZM46 46L63 46L63 92L46 92ZM63 46L92 46L92 63L63 63ZM81 63L92 63L92 92L81 92ZM63 63L81 63L81 92L63 92Z"}};
+const SIZES = {"1x1":{"identity":[1,["0"]],"pinwheel":"A 1×1 Component has no pattern — use Exhaustive for its rotations/flips","mirror":"A 1×1 Component has no pattern — use Exhaustive for its rotations/flips","diagonal":"A 1×1 Component has no pattern — use Exhaustive for its rotations/flips","checkerboard":"A 1×1 Component has no pattern — use Exhaustive for its rotations/flips","rowmirror":"Row mirror needs at least two rows","columnmirror":"Column mirror needs at least two columns","radial":"Radial needs a grid with an even number of columns and rows (2×2, 4×4, …)","hlines":"A 1×1 Component has no pattern — use Exhaustive for its rotations/flips","vlines":"A 1×1 Component has no pattern — use Exhaustive for its rotations/flips","oscillator":"A 1×1 Component has no pattern — use Exhaustive for its rotations/flips","random":[4,["0","270","90"],12],"exhaustive":[4,["0","90","180"],12]},"2x1":{"identity":[1,["0 0"]],"pinwheel":[8,["0 90","0 270","90 180"]],"mirror":[5,["0 0h","0h 0","0v 0hv"]],"diagonal":[4,["0 90","90 0","180 270"]],"checkerboard":[12,["0 90","0 180","0 270"],136],"rowmirror":"Row mirror needs at least two rows","columnmirror":[4,["0h 0","90h 90","180h 180"]],"radial":"Radial needs a grid with an even number of columns and rows (2×2, 4×4, …)","hlines":[1,["0 0"]],"vlines":[1,["0 90"]],"oscillator":[1,["0 90"]],"random":[16,["0 90","270 180","90 0"]],"exhaustive":[16,["0 0","90 90","180 180"],144]},"4x1":{"identity":[1,["0 0 0 0"]],"pinwheel":[8,["0 90 180 270","0 270 180 90","90 180 270 0"]],"mirror":[6,["0 0h 0 0h","0h 0 0h 0","0v 0hv 0v 0hv"]],"diagonal":[4,["0 90 0 90","90 0 90 0","180 270 180 270"]],"checkerboard":[12,["0 90 0 90","0 180 0 180","0 270 0 270"],136],"rowmirror":"Row mirror needs at least two rows","columnmirror":[4,["0h 0 0h 0","90h 90 90h 90","180h 180 180h 180"]],"radial":"Radial needs a grid with an even number of columns and rows (2×2, 4×4, …)","hlines":[1,["0 0 0 0"]],"vlines":[1,["0 90 0 90"]],"oscillator":[1,["0 90 0 0"]],"random":[16,["0 90 0 90","270 180 270 180","90 0 90 0"]],"exhaustive":[24,["0 0 0 0","90 90 90 90","180 180 180 180"],153]},"1x4":{"identity":[1,["0 0 0 0"]],"pinwheel":[4,["0 180 0 180","90 270 90 270","180 0 180 0"]],"mirror":[6,["0 0v 0 0v","0h 0hv 0h 0hv","0v 0 0v 0"]],"diagonal":[4,["0 90 0 90","90 0 90 0","180 270 180 270"]],"checkerboard":[12,["0 90 0 90","0 180 0 180","0 270 0 270"],136],"rowmirror":[4,["0 0v 0 0v","90 90v 90 90v","180 180v 180 180v"]],"columnmirror":"Column mirror needs at least two columns","radial":"Radial needs a grid with an even number of columns and rows (2×2, 4×4, …)","hlines":[1,["0 90 0 90"]],"vlines":[1,["0 0 0 0"]],"oscillator":[1,["0 90 0 0"]],"random":[16,["0 90 0 90","270 180 270 180","90 0 90 0"]],"exhaustive":[16,["0 0 0 0","90 90 90 90","180 180 180 180"],145]},"3x2":{"identity":[1,["0 0 0 0 0 0"]],"pinwheel":[8,["0 90 180 180 270 0","0 270 180 180 90 0","90 180 270 270 0 90"]],"mirror":[7,["0 0h 0 0v 0hv 0v","0h 0 0h 0hv 0v 0hv","0v 0hv 0v 0 0h 0"]],"diagonal":[4,["0 90 0 90 0 90","90 0 90 0 90 0","180 270 180 270 180 270"]],"checkerboard":[12,["0 90 0 90 0 90","0 180 0 180 0 180","0 270 0 270 0 270"],136],"rowmirror":[4,["0 0 0 0v 0v 0v","90 90 90 90v 90v 90v","180 180 180 180v 180v 180v"]],"columnmirror":[4,["0h 0 0h 0h 0 0h","90h 90 90h 90h 90 90h","180h 180 180h 180h 180 180h"]],"radial":"Radial needs a grid with an even number of columns and rows (2×2, 4×4, …)","hlines":[1,["0 0 0 90 90 90"]],"vlines":[1,["0 90 0 0 90 0"]],"oscillator":[1,["0 90 0 90 0 0"]],"random":[16,["0 90 0 90 0 90","270 180 270 180 270 180","90 0 90 0 90 0"]],"exhaustive":[24,["0 0 0 0 0 0","90 90 90 90 90 90","180 180 180 180 180 180"],166]},"3x3":{"identity":[1,["0 0 0 0 0 0 0 0 0"]],"pinwheel":[8,["0 90 180 180 270 0 0 90 180","0 270 180 180 90 0 0 270 180","90 180 270 270 0 90 90 180 270"]],"mirror":[7,["0 0h 0 0v 0hv 0v 0 0h 0","0h 0 0h 0hv 0v 0hv 0h 0 0h","0v 0hv 0v 0 0h 0 0v 0hv 0v"]],"diagonal":[4,["0 90 0 90 0 90 0 90 0","90 0 90 0 90 0 90 0 90","180 270 180 270 180 270 180 270 180"]],"checkerboard":[12,["0 90 0 90 0 90 0 90 0","0 180 0 180 0 180 0 180 0","0 270 0 270 0 270 0 270 0"],136],"rowmirror":[4,["0 0 0 0v 0v 0v 0 0 0","90 90 90 90v 90v 90v 90 90 90","180 180 180 180v 180v 180v 180 180 180"]],"columnmirror":[4,["0h 0 0h 0h 0 0h 0h 0 0h","90h 90 90h 90h 90 90h 90h 90 90h","180h 180 180h 180h 180 180h 180h 180 180h"]],"radial":"Radial needs a grid with an even number of columns and rows (2×2, 4×4, …)","hlines":[1,["0 0 0 90 90 90 0 0 0"]],"vlines":[1,["0 90 0 0 90 0 0 90 0"]],"oscillator":[1,["0 90 0 90 0 0 0 0 90"]],"random":[16,["0 90 0 90 0 90 0 90 0","270 180 270 180 270 180 270 180 270","90 0 90 0 90 0 90 0 90"]],"exhaustive":[24,["0 0 0 0 0 0 0 0 0","90 90 90 90 90 90 90 90 90","180 180 180 180 180 180 180 180 180"],167]},"2x4":{"identity":[1,["0 0 0 0 0 0 0 0"]],"pinwheel":[8,["0 90 180 270 0 90 180 270","0 270 180 90 0 270 180 90","90 180 270 0 90 180 270 0"]],"mirror":[7,["0 0h 0v 0hv 0 0h 0v 0hv","0h 0 0hv 0v 0h 0 0hv 0v","0v 0hv 0 0h 0v 0hv 0 0h"]],"diagonal":[4,["0 90 90 0 0 90 90 0","90 0 0 90 90 0 0 90","180 270 270 180 180 270 270 180"]],"checkerboard":[12,["0 90 90 0 0 90 90 0","0 180 180 0 0 180 180 0","0 270 270 0 0 270 270 0"],136],"rowmirror":[4,["0 0 0v 0v 0 0 0v 0v","90 90 90v 90v 90 90 90v 90v","180 180 180v 180v 180 180 180v 180v"]],"columnmirror":[4,["0h 0 0h 0 0h 0 0h 0","90h 90 90h 90 90h 90 90h 90","180h 180 180h 180 180h 180 180h 180"]],"radial":[16,["0 90 0 90 270 180 270 180","0 270 0 270 90 180 90 180","90 180 90 180 0 270 0 270"]],"hlines":[1,["0 0 90 90 0 0 90 90"]],"vlines":[1,["0 90 0 90 0 90 0 90"]],"oscillator":[1,["0 90 90 0 0 0 0 90"]],"random":[16,["0 90 90 0 0 90 90 0","270 180 180 270 270 180 180 270","180 270 180 270 90 0 90 0"]],"exhaustive":[40,["0 0 0 0 0 0 0 0","90 90 90 90 90 90 90 90","180 180 180 180 180 180 180 180"],183]}};
+
+/* ---------- drawing primitives (the light "sheet": fixed colours, like the FVS stage) ---------- */
+const INK = '#111111', ACC = '#3fa876', GRID = '#d9d3c6', WASH = '#f4f2ed';
+const PAL = ['#5f238d', '#74c476', '#d40039'];
+const MARK = `<path d="M0 0H100A100 100 0 0 1 0 100Z" fill="${INK}"/><circle cx="66" cy="19" r="10" fill="${ACC}"/>`;
+const svg = (w, h, body, label) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${label || ''}">${body}</svg>`;
+function parseCell(s) { const m = /^(\d+)(h?)(v?)(?:@([\d.]+))?$/.exec(s); return { r: +m[1], h: !!m[2], v: !!m[3], s: m[4] ? +m[4] : 1 }; }
+function markAt(cx, cy, size, c) {
+  const k = size / 100;
+  return `<g transform="translate(${cx} ${cy}) scale(${k}) rotate(${c.r}) scale(${(c.h ? -1 : 1) * c.s} ${(c.v ? -1 : 1) * c.s}) translate(-50 -50)">${MARK}</g>`;
+}
+function compSVG(str, cols, rows, cell) {
+  const cs = str.split(' ').map(parseCell); let b = `<rect width="${cols * cell}" height="${rows * cell}" fill="#fff"/>`;
+  cs.forEach((c, i) => { const col = i % cols, row = Math.floor(i / cols); b += markAt(col * cell + cell / 2, row * cell + cell / 2, cell * .86, c); });
+  for (let i = 1; i < cols; i++) b += `<line x1="${i * cell}" y1="0" x2="${i * cell}" y2="${rows * cell}" stroke="${GRID}"/>`;
+  for (let i = 1; i < rows; i++) b += `<line x1="0" y1="${i * cell}" x2="${cols * cell}" y2="${i * cell}" stroke="${GRID}"/>`;
+  return svg(cols * cell, rows * cell, b, str);
+}
+const fig = (inner, cap) => `<figure>${inner}${cap != null ? `<figcaption>${cap}</figcaption>` : ''}</figure>`;
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+function entry({ title, key, how, params, gate, count, sheet, extra }) {
+  return `<article class="entry"><h4>${title}${key ? ` <span class="key">${key}</span>` : ''}</h4>${sheet ? `<div class="sheet" data-theme="light">${sheet}</div>` : ''}${count ? `<div class="count">${count}</div>` : ''}<p class="how">${how}</p>${params && params.length ? `<div class="params">${params.map(p => `<span class="chip">${p[0]} <b>${p[1]}</b></span>`).join('')}</div>` : ''}${gate ? `<div class="gate">${gate}</div>` : ''}${extra || ''}</article>`;
+}
+const $ = id => document.getElementById(id);
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const snap90 = d => ((Math.round(d / 90) * 90) % 360 + 360) % 360;
+
+/* ---------- legend ---------- */
+(function () {
+  const states = [['0°', '0'], ['90°', '90'], ['180°', '180'], ['270°', '270'], ['Flip H', '0h'], ['Flip V', '0v']];
+  $('legend').innerHTML = states.map(([cap, s]) => fig(svg(40, 40, `<rect width="40" height="40" fill="#fff" stroke="${GRID}"/>` + markAt(20, 20, 34, parseCell(s)), cap), cap)).join('') +
+    `<div class="note">The mark used in every diagram: a quarter disc (FVS’s default Arc) with a green dot, so a turn and a flip never look alike. Captions write a cell as <code>90</code>, <code>0h</code> (flip H), <code>0v</code>, <code>0hv</code>, <code>@0.75</code> (scale), in reading order.</div>`;
+})();
+
+/* ---------- Element: cell shapes ---------- */
+(function () {
+  const S = 64, poly = pts => `<polygon points="${pts.map(p => p.join(',')).join(' ')}" fill="${WASH}" stroke="${INK}" stroke-width="1.5"/>`;
+  const hex = [...Array(6)].map((_, i) => [32 + 28 * Math.cos(Math.PI / 3 * i), 32 + 28 * Math.sin(Math.PI / 3 * i)]);
+  const tri = [[32, 6], [60, 54], [4, 54]];
+  const items = [
+    ['Square', 'square', `<rect x="6" y="6" width="52" height="52" fill="${WASH}" stroke="${INK}" stroke-width="1.5"/>`, '90° turns · flip H and V', 'The original 0–100 box; changes nothing.'],
+    ['Circle', 'circle', `<circle cx="32" cy="32" r="27" fill="${WASH}" stroke="${INK}" stroke-width="1.5"/>`, '90° turns · flip H and V', 'Packed circles; Paper shows in the gaps.'],
+    ['Triangle', 'triangle', poly(tri), '120° turns · flip H only', 'Turns strip: 0 / 120 / 240 + Mirror. Arc becomes a 60° slice pivoted on a corner.'],
+    ['Hexagon', 'hexagon', poly(hex), '60° turns · flip H and V', 'Turns strip: 60° steps + Flip H / V. Arc truchet becomes bands round three alternate corners.'],
+  ];
+  $('cellshapes').innerHTML = items.map(([t, k, body, step, how]) => entry({ title: t, key: k, sheet: svg(S, S, body, t), count: step, how })).join('');
+})();
+
+/* ---------- Element: shapes table ---------- */
+(function () {
+  const rows = [
+    ['Arc', 'arc', 'Quarter (90) · Half (180) · Three‑quarter (270) · Custom', 'Pivot Corner / Centre · Sweep 10–350 (90) · Thickness 1–100 (100) · Start angle 0–359 · Rounding 0–100 (end caps) · Taper ±100 · Dashes 1–24 + Dash gap 0–80'],
+    ['Arc truchet', 'arctruchet', 'Butterfly · Rainbow · Horseshoe · Halo · Custom', 'Fans Opposed / Single · Bands 3–12 (5) · Thickness 10–95 (70) · Core 0–80 · Spread 60–180 · Reach 30–100 · Rounding · Thickness ramp ±100 · Spacing curve ±100 · Dashes 1–8 + gap'],
+    ['Blob', 'blob', '—', 'Amount 0–100 (40) · Frequency 1–20 (7) · Smoothness 0–100 · Seed 1–999'],
+    ['Chevron', 'chevron', '—', 'Notch 10–90 (40) · Thickness 20–80 (55) · Rounding + style · Edge curvature · Lean ±100 · Apex flat 0–100 · Stack 1–5 + Stack gap'],
+    ['Circle', 'circle', '—', 'Roundness 0–100 (squircle) · Lobes 0–24 + depth · Interior Solid / Ring (Opening) / Concentric rings / Perforated · Trim None / Cut / Crescent bite / Slices'],
+    ['Cross', 'cross', 'Plus (4) · Y (3) · Asterisk (6) · Custom', 'Arms 2–12 · Thickness 5–50 (35) · Arm length 30–100 · Rounding + style · Taper ±100 · Tip Flat / Point'],
+    ['Drop', 'drop', '—', 'Radius 5–100 (60) · Tail length 0–100 · Tail bend ±100 · Neck ±100 · Petals 1–8'],
+    ['Freehand', 'freehand', '—', 'Click to add bezier anchors · Close path · Smooth · Undo / Clear'],
+    ['Lens', 'lens', '—', 'Width 8–95 (50) · Crescent ±100 · Petals 1–12'],
+    ['Polygon', 'polygon', 'Pentagon · Hexagon · Octagon · Custom', 'Sides 3–20 (6) · Step 1–9 (star polygons) · Rounding + style Round / Chamfer / Scoop · Edge curvature ±100'],
+    ['Segment', 'segment', '—', 'Length 5–100 · Thickness 1–40 (8) · Round ends · Angle ±90 · Bend · Wave + cycles · Dashes + gap · Lines + spacing · Repeat X/Y 1–9 + Space X/Y · Rays 1–12'],
+    ['Square', 'roundedrect', 'Square · Landscape · Portrait · Pill · Custom', 'Width / Height 5–100 · Skew ±60 · Rounding 0–100 + style · Corners All / Top / Bottom / Left / Right / TL+BR / TR+BL / single corners · Edge curvature'],
+    ['Star', 'star', 'Star · Burst · Sparkle · Badge · Custom', 'Points 3–20 (5) · Inner radius 5–90 (45) · Tip / Valley rounding + style · Edge curvature ±100 · Twist ±100'],
+    ['Triangle', 'triangle', 'Isosceles · Right · Equilateral · Custom', 'Base / Height 10–100 · Apex X 0–100 (50) · Rounding 0–100 · Edge curvature ±100'],
+    ['Wedge', 'wedge', 'Quarter · Half · Three‑quarter · Custom', 'Angle 10–360 (90) · Hole 0–95 · Rounding 0–100 · Edge curvature ±100'],
+  ];
+  $('shapes').querySelector('tbody').innerHTML = rows.map(([n, k, t, c]) => `<tr class="entry-row"><td class="k">${n}<br><span class="key">${k}</span></td><td>${t}</td><td>${c}</td></tr>`).join('');
+})();
+
+/* ---------- Element: look & place ---------- */
+(function () {
+  const L = [
+    { title: 'Style', key: 'sel-element-fillmode', how: '<b>Fill</b> — solid in the cell’s ink (evenodd when Copies is on) · <b>Stroke</b> — outline only, Stroke W 1–20 (4), Rounded caps · <b>Pattern</b> — the Element’s pattern clipped to the shape.' },
+    { title: 'Width · Length', how: 'Stretch the shape before it is placed. Remembered per shape type.', params: [['Width', '0.25–2 · 1'], ['Length', '0.25–2 · 1']] },
+    { title: 'Irregularity', how: 'One seeded distortion for every shape, as % of the inscribed radius. <b>Corners</b> — each corner gets a seeded offset, sides stay straight (hand‑cut paper). <b>Outline</b> — the whole edge ripples; Waves = how many. Shapes without corners always ripple.', params: [['Amount', '0–100 · 0'], ['Waves', '2–24 · 6'], ['Seed', '1–999']] },
+    { title: 'Cut out', how: 'Cuts the middle out and leaves a rim of even thickness along the whole outline (rim = 100 − Cut out % of the inradius). Real geometry, unlike Stroke.', params: [['Cut out', '0–95 · 0']] },
+    { title: 'Copies', how: 'Nested copies. With Cut out 0: alternating bands, each Ratio % of the previous. With Cut out &gt; 0: rims, each fitted inside the previous hole; Ratio reads <b>Spacing</b>. Anchor: Bbox centre · Centroid · Inner centre · Apex (Arc, Wedge).', params: [['Copies', '0–8'], ['Ratio', '10–95 · 70']], gate: 'Not for Segment or Arc truchet.' },
+    { title: 'Whole Element', how: 'Scale, Move X/Y (100 = one cell) and Rotate about the centre, after Width / Length. <b>Fit to canvas</b> writes Scale + Move once so the shape fills the cell.', params: [['Scale', '0.1–5 · 1'], ['Move', '±100'], ['Rotate', '±180']] },
+  ];
+  $('look').innerHTML = L.map(entry).join('');
+})();
+
+/* ---------- pattern geometry (lines / crosshatch / dots / concentric) ---------- */
+function patternBody(type, sp, w, ang, box, color) {
+  const c = box / 2, R = box * .75; let d = '';
+  if (type === 'lines' || type === 'crosshatch') {
+    const one = a => { let s = ''; for (let o = -R; o <= R; o += sp) { const ca = Math.cos(a), sa = Math.sin(a); const x1 = c + o * -sa - R * ca, y1 = c + o * ca - R * sa, x2 = c + o * -sa + R * ca, y2 = c + o * ca + R * sa; s += `M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`; } return s; };
+    d = one(ang * Math.PI / 180) + (type === 'crosshatch' ? one((ang + 90) * Math.PI / 180) : '');
+    return `<path d="${d}" stroke="${color}" stroke-width="${w}" fill="none"/>`;
+  }
+  if (type === 'dots') { let s = ''; for (let x = c - R; x <= c + R; x += sp) for (let y = c - R; y <= c + R; y += sp) s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${w / 2}"/>`; return `<g fill="${color}" transform="rotate(${ang} ${c} ${c})">${s}</g>`; }
+  let s = ''; for (let r = sp; r <= R; r += sp) s += `<circle cx="${c}" cy="${c}" r="${r}"/>`; return `<g fill="none" stroke="${color}" stroke-width="${w}">${s}</g>`;
+}
+(function () {
+  const types = [['Lines', 'lines', 'Parallel lines at Angle, every Spacing, at Weight.'], ['Crosshatch', 'crosshatch', 'Lines at Angle and Angle + 90°.'], ['Dots', 'dots', 'A square grid of dots, rotated by Angle; Weight = diameter.'], ['Concentric', 'concentric', 'Circles every Spacing from the centre; Angle hidden.']];
+  $('patterns').innerHTML = types.map(([t, k, how], i) => {
+    const id = 'pc' + i, B = 84;
+    const body = `<defs><clipPath id="${id}"><path d="M8 8H76A68 68 0 0 1 8 76Z"/></clipPath></defs><rect width="${B}" height="${B}" fill="#fff"/><g clip-path="url(#${id})">${patternBody(k, 7, k === 'dots' ? 4 : 1.8, 45, B, INK)}</g><path d="M8 8H76A68 68 0 0 1 8 76Z" fill="none" stroke="${GRID}"/>`;
+    return entry({ title: t, key: k, sheet: svg(B, B, body, t), how, params: i === 0 ? [['Spacing', '3–30 · 8'], ['Weight', '0.5–20 · 2'], ['Angle', '±90 · 45']] : null });
+  }).join('');
+})();
+
+/* ---------- layer roles ---------- */
+(function () {
+  const B = 84, sq = `M14 14H70V70H14Z`, circ = `M42 20A22 22 0 1 1 41.9 20Z`;
+  const items = [
+    ['Filled', 'fill', `<path d="${sq}" fill="${INK}"/><path d="${circ}" fill="${PAL[2]}"/>`, 'Paints its own ink with its own Style (Fill / Stroke / Pattern).'],
+    ['Subtraction mask', 'container', `<defs><clipPath id="rc1"><path d="${circ}"/></clipPath></defs><path d="${sq}" fill="${INK}" clip-path="url(#rc1)"/><path d="${circ}" fill="none" stroke="${GRID}" stroke-dasharray="3 3"/>`, 'Keeps the layers below only <b>inside</b> its shape. No ink.'],
+    ['Mask', 'mask', `<path d="${sq} ${circ}" fill="${INK}" fill-rule="evenodd"/>`, 'Cuts its shape <b>out of</b> every layer below. No ink.'],
+    ['Pattern', 'pattern', `<defs><mask id="rm1"><rect width="${B}" height="${B}" fill="#fff"/>${patternBody('lines', 7, 2.6, 45, B, '#000')}</mask></defs><path d="${sq}" fill="${INK}" mask="url(#rm1)"/>`, 'Cuts its pattern’s lines or dots out of every layer below (real transparency). Uses the Element’s pattern; X/Y/Size/Rot move it.'],
+  ];
+  $('roles').innerHTML = items.map(([t, k, b, how]) => entry({ title: t, key: k, sheet: fig(svg(B, B, `<rect width="${B}" height="${B}" fill="#fff"/>` + b, t), 'square below, circle on top'), how })).join('') +
+    `<p class="where" style="grid-column:1/-1">The keys are counter‑intuitive: <code>container</code> is labelled “Subtraction mask” and keeps the inside; <code>mask</code> is the one that knocks out.</p>`;
+})();
+
+/* ---------- Palette: colour by ---------- */
+(function () {
+  const rules = [
+    ['Element’s own colours', 'own', i => i, 'A saved Element placed in a Symbol cell keeps the palette it was saved with; every other cell (and every Component cell) goes by cell order.'],
+    ['By cell order', 'index', i => i, 'Cell i takes ink i, wrapping.'],
+    ['Checkerboard', 'checker', (i, c) => (c.col + c.row) % 2, 'col + row, mod 2 — only two inks alternate, whatever the palette size.'],
+    ['By row', 'rows', (i, c) => c.row, 'Row number.'],
+    ['By column', 'columns', (i, c) => c.col, 'Column number.'],
+    ['Diagonal bands', 'diagonal', (i, c) => c.col + c.row, 'col + row through all the inks.'],
+    ['By quadrant', 'quadrant', (i, c) => (c.col * 2 >= c.cols ? 1 : 0) + (c.row * 2 >= c.rows ? 2 : 0), 'Which half of the columns and rows. On an odd grid the middle line joins the second half (the panel says so).'],
+  ];
+  const N = 5, S = 16;
+  $('colourby').innerHTML = rules.map(([t, k, f, how]) => {
+    let b = '';
+    for (let i = 0; i < N * N; i++) { const c = { col: i % N, row: Math.floor(i / N), cols: N, rows: N }; const v = f(i, c); b += `<rect x="${c.col * S}" y="${c.row * S}" width="${S - 1}" height="${S - 1}" fill="${PAL[((v % 3) + 3) % 3]}"/>`; }
+    return entry({ title: t, key: k, sheet: svg(N * S, N * S, b, t), how });
+  }).join('') + entry({ title: 'Start at', key: 'sel-color-offset', how: 'Shifts which ink comes first (Colour 1 … n). Hidden with one ink.' });
+})();
+
+/* ---------- Palette: paper ---------- */
+(function () {
+  const items = [
+    ['Colour', 'how', 'Any hex, or <b>transparent</b> (the checkerboard button). Toggling transparent off brings the last colour back.'],
+    ['Lines · Crosshatch · Dots · Concentric', '', 'Same geometry as the Element’s pattern, over the whole canvas, in one <b>Ink</b> (default: the last ink).', [['Spacing', '1.5–30 · 4'], ['Weight', '0.25–20 · 0.75'], ['Angle', '±90 · −45']]],
+    ['Element (tile)', 'element', 'A shape repeated as the texture — see the matrix below. Saved Components and Symbols keep a snapshot of the tile; the live Paper follows the Element.', [['Size', '10–100 % · 70']]],
+  ];
+  $('paper').innerHTML = items.map(([t, k, how, p]) => entry({ title: t, key: k === 'how' ? '' : k, how, params: p })).join('');
+  const layouts = [['Grid', 'grid'], ['Brick', 'brick'], ['Half‑drop', 'halfdrop']], turns = [['None', 'none'], ['Alternate', 'alternate'], ['Quarter', 'quarter']];
+  const S = 18, N = 6, W = N * S + 6;
+  let html = '';
+  for (const [tn, tk] of turns) for (const [ln, lk] of layouts) {
+    let b = `<rect width="${W}" height="${W}" fill="#fff"/>`;
+    for (let j = -1; j <= N; j++) for (let i = -1; i <= N; i++) {
+      let x = i * S + S / 2 + 3, y = j * S + S / 2 + 3;
+      if (lk === 'brick' && (j & 1)) x += S / 2;
+      if (lk === 'halfdrop' && (i & 1)) y += S / 2;
+      const r = tk === 'alternate' ? ((i + j) & 1) * 180 : tk === 'quarter' ? [[0, 90], [270, 180]][((j % 2) + 2) % 2][((i % 2) + 2) % 2] : 0;
+      b += markAt(x, y, S * .7, { r, h: false, v: false, s: 1 });
+    }
+    html += fig(svg(W, W, `<defs><clipPath id="tm${tk}${lk}"><rect width="${W}" height="${W}"/></clipPath></defs><g clip-path="url(#tm${tk}${lk})">${b}</g>`, `${ln} · ${tn}`), `${ln} · ${tn}`);
+  }
+  $('tilematrix').innerHTML = html;
+})();
+
+/* ---------- Component rules ---------- */
+(function () {
+  const R = [
+    { k: 'identity', t: 'Identity', how: 'Every cell 0°, no flip, scale 1.', count: c => c['2|identity'].n },
+    { k: 'pinwheel', t: 'Pinwheel', how: 'Rotation steps one quarter per cell: base + chirality·k·90°. On a 2×2, k = reading order; on bigger grids k = (col + 2·row) mod 4.', gate: 'Not on 1×1. Square cells only. Rotation implied.' },
+    { k: 'mirror', t: 'Mirror (kaleidoscope)', how: 'A seed cell is plain; its side neighbour flips H, the one below flips V, the diagonal both. Beyond 2×2 it also lists the three whole‑grid <b>book‑matched</b> mirrors (left|right, top|bottom, both).', gate: 'Not on 1×1. Flip implied even with Flip off.', extra: '4|mirror|F' },
+    { k: 'diagonal', t: 'Diagonal mirror', how: 'Cells with col + row even take R, odd take 90° − R.', gate: 'Not on 1×1.' },
+    { k: 'checkerboard', t: 'Checkerboard', how: 'Two states A and B alternate by (col + row) parity. A and B are every ordered pair of distinct states from the active axes — 12 with Rotation only, 136 with Rotation + Flip.', gate: 'Needs at least one axis on, else falls back to Identity (with a note).' },
+    { k: 'rowmirror', t: 'Row mirror', how: 'Rotation R everywhere; every odd row flips V.', gate: 'Needs ≥ 2 rows.' },
+    { k: 'columnmirror', t: 'Column mirror', how: 'Rotation R everywhere; every other column flips H.', gate: 'Needs ≥ 2 columns.' },
+    { k: 'radial', t: 'Radial', how: 'A clockwise walk TL → TR → BR → BL, one 90° step each, so four quarter‑arcs close a circle. On larger even grids: one rosette on the whole grid, and a <b>tiled</b> rosette per 2×2 block.', gate: 'Even × even grids only (its centre falls between cells).' },
+    { k: 'hlines', t: 'Horizontal lines', how: 'Keyed on the row. <b>Alternate</b>: odd rows take Step. <b>Ramp</b>: row · Step. With Scale on, rows also cycle Small / Large (Alternate) or S / M / L (Ramp).', params: [['Mode', 'Alternate / Ramp'], ['Step', '0–270 · 90']], extra: '4|hlines|ramp', extraCap: 'Ramp' },
+    { k: 'vlines', t: 'Vertical lines', how: 'The same, keyed on the column.', params: [['Mode', 'Alternate / Ramp'], ['Step', '0–270 · 90']], extra: '4|vlines|ramp', extraCap: 'Ramp' },
+    { k: 'oscillator', t: 'Oscillator (Truchet)', how: 'A cell takes the Angle step when (col + ⌊Row shift · row⌋) mod Period = Phase, else 0°. The bookofshapes concentric‑arc truchet.', params: [['Angle', '90° / 180°'], ['Row shift', '0–2 · 1'], ['Period', '2–6 · 3'], ['Phase', '0–5 · 1']], extra: '4|osc|p4s0', extraCap: 'Period 4, shift 0' },
+    { k: 'random', t: 'Random seeded', how: 'Draws a family, then one of its parameter sets, until it has Count distinct candidates — every result is a real symmetry.', params: [['Count', '1–256 · 16'], ['Seed', '0–999999 · 1']] },
+    { k: 'exhaustive', t: 'Exhaustive', how: 'Every parameter set of every active family, duplicates folded (the count is the honest one). 2×2 with Rotation + Flip: 172.', gate: 'Over 512, Generate is disabled and the hint gives the exact count.' },
+  ];
+  let html = R.map(r => {
+    const two = CELLS['2|' + r.k], four = CELLS['4|' + r.k];
+    let sheet = '';
+    if (two && two.s) sheet += two.s.map(s => fig(compSVG(s, 2, 2, 26), s)).join('');
+    if (four && four.s) sheet += fig(compSVG(four.s[0], 4, 4, 15), '4×4');
+    if (r.extra && CELLS[r.extra]) { const e = CELLS[r.extra]; sheet += e.s.slice(r.k === 'mirror' ? 4 : 0, r.k === 'mirror' ? 7 : 1).map(s => fig(compSVG(s, 4, 4, 15), r.extraCap || 'book‑match')).join(''); }
+    const cnt = two && two.n != null ? `2×2: ${two.n} candidate${two.n === 1 ? '' : 's'}${four && four.n != null ? ` · 4×4: ${four.n}` : ''}` : '';
+    return entry({ title: r.t, key: r.k, sheet, count: cnt, how: r.how, params: r.params, gate: r.gate });
+  }).join('');
+  html += entry({ title: 'Manual', key: 'manual', how: 'One select per cell: Rotation 0/90/180/270, Flip None/H/V/Both, Scale S/M/L. The button reads <b>Add to gallery</b> and adds one Component per click.', gate: 'Square cells only.' });
+  html += entry({ title: 'With Scale on', key: 'axis', sheet: (CELLS['2|pinwheel|S'].s.slice(0, 3).map(s => fig(compSVG(s, 2, 2, 26), s.split(' ')[0].replace(/^\d+/, '') || '@1')).join('')), count: `Pinwheel 2×2: ${CELLS['2|pinwheel|S'].n} candidates`, how: 'Every named rule is listed again at Small, Medium and Large.' });
+  $('comprules').innerHTML = html;
+})();
+
+
+/* ---------- Component: rules by grid size ---------- */
+(function () {
+  const order = ['1x1', '2x1', '4x1', '1x4', '2x2', '3x2', '3x3', '2x4', '4x4'];
+  const label = s => s.replace('x', '×');
+  const names = { identity: 'Identity', pinwheel: 'Pinwheel', mirror: 'Mirror', diagonal: 'Diagonal mirror', checkerboard: 'Checkerboard', rowmirror: 'Row mirror', columnmirror: 'Column mirror', radial: 'Radial', hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Oscillator', random: 'Random', exhaustive: 'Exhaustive' };
+  const from2 = k => CELLS['2|' + k], from4 = k => CELLS['4|' + k];
+  const RF2 = { checkerboard: 136, exhaustive: 172 }, RF4 = { checkerboard: 136 };
+  const cell = (size, k) => {
+    if (size === '2x2') { const c = from2(k); return [c.n, null, RF2[k]]; }
+    if (size === '4x4') { const c = from4(k); return [c.n, null, RF4[k]]; }
+    const v = SIZES[size][k]; return typeof v === 'string' ? v : [v[0], v[1], v[2]];
+  };
+  let h = '<thead><tr><th>Rule</th>' + order.map(s => `<th>${label(s)}</th>`).join('') + '</tr></thead><tbody>';
+  for (const k of Object.keys(names)) {
+    h += `<tr class="entry-row"><td>${names[k]}</td>` + order.map(s => { const v = cell(s, k); if (typeof v === 'string') return `<td class="off" title="${v}">—</td>`; return `<td>${v[0]}${v[2] && v[2] !== v[0] ? ` <span class="key">(${v[2]})</span>` : ''}</td>`; }).join('') + '</tr>';
+  }
+  h += '<tr class="entry-row"><td>Manual</td>' + order.map(() => '<td>✓</td>').join('') + '</tr></tbody>';
+  $('sizetable').innerHTML = h;
+  const ex = (size, k, n) => { const [c, r] = size.split('x').map(Number), v = SIZES[size][k]; return v[1].slice(0, n).map(s => fig(compSVG(s, c, r, c * r > 4 ? 18 : 24), label(size))).join(''); };
+  const notes = [
+    { title: '1×4 — one column, four rows', sheet: ex('1x4', 'pinwheel', 2) + ex('1x4', 'mirror', 2) + ex('1x4', 'hlines', 1), how: '<b>Pinwheel</b> only alternates 0° / 180° (its step k = col + 2·row skips two quarters per row) — 4 candidates, chirality no longer matters. <b>Mirror</b> flips V down the strip (6 with book‑match). <b>Horizontal lines</b> alternate; <b>Vertical lines</b> = Identity. <b>Column mirror</b> and <b>Radial</b> are greyed out.' },
+    { title: '4×1 — four columns, one row', sheet: ex('4x1', 'pinwheel', 1) + ex('4x1', 'mirror', 2) + ex('4x1', 'vlines', 1), how: '<b>Pinwheel</b> walks the full 0 / 90 / 180 / 270 along the row (8 candidates). <b>Mirror</b> flips H along it. <b>Vertical lines</b> alternate; <b>Horizontal lines</b> = Identity. <b>Row mirror</b> and <b>Radial</b> are greyed out.' },
+    { title: '1×1 — a single cell', how: 'Every pattern rule is greyed out (“A 1×1 Component has no pattern — use Exhaustive for its rotations/flips”). Identity, Random, Exhaustive and Manual remain: Exhaustive lists the cell’s 4 turns (12 with Flip). The way to put one Element in a Symbol.' },
+    { title: '2×1 — two cells side by side', sheet: ex('2x1', 'mirror', 2) + ex('2x1', 'pinwheel', 2), how: 'Mirror gives 5 (the seed’s H‑neighbour flips H; V‑flips only via book‑match). Pinwheel steps one quarter between the two cells. Row mirror and Radial greyed out.' },
+    { title: '3×3 and 3×2 — odd sides', sheet: ex('3x3', 'pinwheel', 1) + ex('3x3', 'rowmirror', 1) + ex('3x2', 'oscillator', 1), how: '<b>Radial</b> is greyed out (its centre would fall in a cell). Every other rule runs; Pinwheel’s (col + 2·row) mod 4 step makes a diagonal drift instead of closed pinwheels; Mirror gains the 3 book‑matched mirrors (7).' },
+    { title: '2×4 and 4×4 — even sides', sheet: ex('2x4', 'radial', 2), how: '<b>Radial</b> returns: one rosette on the whole grid plus a <b>tiled</b> rosette per 2×2 block (16 candidates). On 2×4 the tiles stack vertically.' },
+  ];
+  $('sizenotes').innerHTML = notes.map(entry).join('');
+})();
+
+/* ---------- Symbol: generators ---------- */
+(function () {
+  const info = {
+    rectangular: ['Columns 5–8 · Rows 5–8', 'Equal tracks; uneven ones come from dragging borders. Weights follow live.'],
+    bento: ['Columns · Rows · Variety 0–1 · Seed', 'A lattice with seeded merges into 1×1 to 2×2 spans (Kiwi solver).'],
+    sinusoidal: ['Columns · Rows · Amount 0–1 · Frequency 0.5–6', 'Track sizes follow a sine; Amount 0 = uniform.'],
+    masonry: ['Columns 5–8 · Seed', 'Equal columns, each a stack of random‑height cells.'],
+    hexagonal: ['Columns 5–8', 'Regular hexagon tiling (polygon cells; Clip to cell starts on).'],
+    triangular: ['Columns 5–8', 'Equilateral up / down triangles, clipped to the rectangle.'],
+    diamond: ['Columns 5–8', 'A square lattice turned 45°.'],
+    circular: ['Columns 5–8', 'Hex‑packed circles; voids remain, so continuity doesn’t apply.'],
+    radial: ['Rings 5–8 · Sectors 5–8', 'Concentric rings × angular sectors.'],
+    organic: ['Cells 25–64 · Relax 0–8 · Seed', 'Voronoi with Lloyd relaxation; Relax 0 = raw Voronoi.'],
+    fractal: ['Depth 5–6 · Variance 0–0.5 · Seed', 'Recursive binary splits, axis alternating.'],
+    spiral: ['Cells 25–64', 'Golden whirling strip cuts (ratio 0.382).'],
+  };
+  $('gens').innerHTML = Object.entries(GENS).map(([k, g]) => {
+    const body = `<rect width="120" height="120" fill="#fff"/><path d="${g.d}" fill="${WASH}" stroke="${INK}" stroke-width=".8" stroke-linejoin="round"/>`;
+    return entry({ title: g.label, key: k, sheet: svg(120, 120, body, g.label), count: `${g.n} cells at defaults`, how: info[k][1], params: [['Params', info[k][0]]] });
+  }).join('');
+})();
+
+/* ---------- Symbol: arrange + rules on a 6×6 ---------- */
+function ctx6(N) {
+  const out = []; for (let i = 0; i < N * N; i++) { const col = i % N, row = Math.floor(i / N); const cx = col - (N - 1) / 2, cy = row - (N - 1) / 2, h = (N - 1) / 2; out.push({ col, row, nx: cx / h, ny: cy / h, angle: Math.atan2(cy, cx) }); } return out;
+}
+(function () {
+  const ARR = [
+    ['Random (by weight)', 'random', null, 'Each cell draws a pool entry by weight.'],
+    ['Checkerboard', 'checker', c => c.col + c.row, 'col + row — the first two entries only.'],
+    ['Rows', 'rows', c => c.row, 'Row number.'],
+    ['Columns', 'columns', c => c.col, 'Column number.'],
+    ['Diagonal bands', 'diagonal', c => c.col + c.row, 'col + row through every entry.'],
+    ['2×2 blocks', 'blocks', c => (c.col >> 1) + (c.row >> 1), '⌊col/2⌋ + ⌊row/2⌋.'],
+    ['Rings (from the centre)', 'rings', (c, k) => Math.floor(Math.min(.9999, Math.hypot(c.nx, c.ny) / Math.SQRT2) * k), 'Distance from the centre, in k bands.'],
+    ['Sectors (around the centre)', 'sectors', (c, k) => Math.floor(((c.angle + Math.PI) / (2 * Math.PI)) * k) % k, 'Angle around the centre, in k slices.'],
+    ['Wave bands', 'wave', (c, k) => Math.floor(Math.min(.9999, (Math.sin((c.nx * 1.5 + c.ny) * Math.PI) + 1) / 2) * k), 'Bands of sin((1.5·x + y)·π).'],
+  ];
+  const N = 6, S = 15, C = ctx6(N), LET = ['A', 'B', 'C'];
+  let html = ARR.map(([t, k, f, how]) => {
+    const kk = k === 'checker' ? 2 : 3, rng = mulberry32(1); let b = '';
+    C.forEach(c => { const v = f ? ((f(c, kk) % kk) + kk) % kk : Math.floor(rng() * 3); b += `<rect x="${c.col * S}" y="${c.row * S}" width="${S - 1}" height="${S - 1}" fill="${PAL[v]}"/><text x="${c.col * S + S / 2 - .5}" y="${c.row * S + S / 2 + 3.5}" font-size="8" text-anchor="middle" fill="#fff" font-family="IBM Plex Mono, monospace">${LET[v]}</text>`; });
+    return entry({ title: t, key: k, sheet: svg(N * S, N * S, b, t), how });
+  }).join('');
+  // up / down triangles
+  let tb = ''; const T = 22, H = T * .866;
+  for (let r = 0; r < 3; r++) for (let i = 0; i < 9; i++) { const up = (i + r) % 2 === 0, x = i * T / 2, y = r * H; const pts = up ? `${x},${y + H} ${x + T / 2},${y} ${x + T},${y + H}` : `${x},${y} ${x + T},${y} ${x + T / 2},${y + H}`; tb += `<polygon points="${pts}" fill="${PAL[up ? 0 : 1]}" stroke="#fff" stroke-width="1"/>`; }
+  html += entry({ title: 'Up / down (triangles)', key: 'orientation', sheet: svg(5 * T, 3 * H, tb, 'Up / down'), how: 'Up cells take A, down cells take B (turned 180° to fill their slot).' });
+  $('arrange').innerHTML = html;
+
+  const RU = [
+    ['Oscillator (Truchet)', 'oscillator', c => (((c.col + Math.floor(1 * c.row)) % 3 + 3) % 3 === 1 ? 90 : 0), 'Angle when (col + ⌊shift·row⌋) mod Period = Phase, else 0°.', [['Angle', '90° / 180°'], ['Row shift', '0–2 · 1'], ['Period', '2–6 · 3'], ['Phase', '0–5 · 1']]],
+    ['Checkerboard', 'checkerboard', c => ((c.col + c.row) % 2 ? 90 : 0), '(col + row) even → Rotate A, odd → Rotate B, or Flip H instead with <i>Flip B</i>. <i>Swap</i> starts on B.', [['Rotate A', '0°'], ['Rotate B', '90°']]],
+    ['Rows', 'rows', c => 90 * (c.row % 2), '<b>Alternate</b>: Step · (row mod 2). <b>Ramp</b>: Step · row.', [['Step', '0–270 · 90'], ['Mode', 'Alternate / Ramp']]],
+    ['Columns', 'columns', c => 90 * (c.col % 2), 'The same, keyed on the column.', [['Step', '0–270 · 90'], ['Mode', 'Alternate / Ramp']]],
+    ['Radial', 'radial', c => snap90(c.angle * 180 / Math.PI), 'The cell’s angle around the centre × Direction.', [['Direction', 'Clockwise / Counter‑clockwise'], ['Snap to 90°', 'on']], 'Snap off gives free angles (fixed 7 Oct 2026).'],
+    ['Wave', 'wave', c => snap90(90 * Math.sin((c.nx + c.ny) * Math.PI)), 'Amplitude · sin(Frequency · (x + y) · π + Phase).', [['Amplitude', '0–180 · 90'], ['Frequency', '0.2–3 · 1'], ['Phase', '0–360 · 0']], 'Snap off gives smooth angles (fixed 7 Oct 2026).'],
+  ];
+  const S2 = 17;
+  let h2 = RU.map(([t, k, f, how, p, gate]) => {
+    let b = `<rect width="${N * S2}" height="${N * S2}" fill="#fff"/>`; C.forEach(c => { b += markAt(c.col * S2 + S2 / 2, c.row * S2 + S2 / 2, S2 * .86, { r: f(c), h: false, v: false, s: 1 }); });
+    return entry({ title: t, key: k, sheet: svg(N * S2, N * S2, b, t), how, params: p, gate });
+  }).join('');
+  // random transforms
+  { const rng = mulberry32(1); let b = `<rect width="${N * S2}" height="${N * S2}" fill="#fff"/>`; C.forEach(c => { const r = [0, 90, 180, 270][Math.floor(rng() * 4)]; rng(); rng(); rng(); b += markAt(c.col * S2 + S2 / 2, c.row * S2 + S2 / 2, S2 * .86, { r, h: false, v: false, s: 1 }); }); h2 += entry({ title: 'Random (transforms only)', key: 'random', sheet: svg(N * S2, N * S2, b, 'Random'), how: 'Rotation from 0/90/180/270, Flip H and V each 50 %, scale from [min, 1, max] — on the Vary axes. Illustrative draw, seed 1.' }); }
+  h2 += entry({ title: 'Orientation (up / down triangles)', key: 'orientation', how: 'Triangle cells only: up and down cells each become <b>Filled</b> or <b>Empty</b>; a filled down cell turns 180°. Ignores Vary. Up Filled + down Empty on a triangle grid gives the Sierpinski triangle.', params: [['Up cells', 'Filled'], ['Down cells', 'Empty']] });
+  $('symrules').innerHTML = h2;
+})();
+
+/* ---------- Figure: triangle lattices ---------- */
+(function () {
+  function tri(rows, fill) {
+    const T = 34, H = T * .866, W = rows * T; let b = '';
+    for (let r = 0; r < rows; r++) for (let k = 0; k < 2 * r + 1; k++) {
+      const up = k % 2 === 0, x0 = W / 2 - (r + 1) * T / 2 + k * T / 2, y = r * H;
+      const pts = up ? `${x0},${y + H} ${x0 + T / 2},${y} ${x0 + T},${y + H}` : `${x0},${y} ${x0 + T},${y} ${x0 + T / 2},${y + H}`;
+      const f = fill({ r, up, k });
+      b += `<polygon points="${pts}" fill="${f ? '#f0301f' : '#fff'}" stroke="${f ? '#fff' : GRID}" stroke-width="1" ${f ? '' : 'stroke-dasharray="3 2"'}/>`;
+    }
+    return svg(W, rows * H, b, 'triangle lattice');
+  }
+  $('sierp').innerHTML =
+    fig(tri(2, c => c.up), 'Sierpinski · down → empty') +
+    fig(tri(2, c => c.r > 0), 'Trapezoid · down → filled 180°, row 0 → empty') +
+    fig(tri(4, c => c.up), 'Lattice 4 · down → empty');
+})();
+
+/* ---------- Figure: presets + mutations ---------- */
+(function () {
+  const P = [
+    ['Triangle (12)', 'Sierpinski · Trapezoid · Lattice 4, each as <b>asset</b> (no grid) · <b>repeated</b> (Tier ×2) · <b>mirrored, one axis</b> (Tier + Rotate 90 + Mirror right) · <b>mirrored, two axes</b> (Tier + Mirror bottom). Red triangle on white. The default first figure is Sierpinski · asset.'],
+    ['Classic (7)', 'Circle from four arcs · Leaf block 2×2 · Leaf wave (tiled 2×2) · Leaf wave, outline · Leaf wave, two inks (4×4) · Triangle pinwheels (3×3) · Arc kaleidoscope.'],
+    ['Hexagon (3)', 'Rosette (triangles turned by sector) · Star with empty centre · Arcs turned by sector. Rings 3, Contain.'],
+    ['Recursive (3)', 'Sierpinski, three levels · Bow tie tiled 2×2 · Tier of tiers, mirrored.'],
+  ];
+  $('presets').innerHTML = P.map(([t, how]) => entry({ title: t, how })).join('');
+  const M = [
+    ['Element', 'Other Seed', 'A random shape from a pool of 12 (not the current one).'],
+    ['Element', 'Other hue', 'Turns every ink’s OKLCH hue by ±30 / ±60 / ±120 / 180°; a grey gets a hue. Solved to 3:1 on the paper and distinct.'],
+    ['Element', 'Other colourway', 'One of the Colourway schemes on the recipe’s own palette.'],
+    ['Element', 'Other colour rule', 'A different Colour by (needs ≥ 2 inks).'],
+    ['Element', 'Fill ↔ Stroke', 'Toggles the style (Stroke width 4).'],
+    ['Symbol', 'Bigger / smaller layout', 'Rows / rings / columns ± 1.'],
+    ['Rules', 'Toggle a class', 'Triangle: down empty ⇄ filled 180°. Hexagon: centre empty. Square: odd cells empty.'],
+    ['Rules', 'Empty a row', 'Adds “row r → empty” for a random row.'],
+    ['Rules', 'Turn cells', 'Hexagon: turn by sector. Otherwise odd cells rotate (180° on triangles, 90/180/270 on squares).'],
+    ['Rules', 'Flip cells', 'Adds or removes “odd → flip H”.'],
+    ['Rules', 'Drop a rule', 'Removes a random rule.'],
+    ['Grid', 'Other Grid', 'Swaps the last Grid for another (Tier, Tier ×2, Triangle 2/3, Square 2×2/3×3); adds one if none.'],
+    ['Grid', 'Add a Grid', 'Tier, Triangle 2 or Square 2×2 (up to 4 levels).'],
+    ['Grid', 'Remove a Grid', 'Pops the last Grid.'],
+    ['Mirror / Rotate', 'Rotate', '+90° on the last Grid.'],
+    ['Mirror / Rotate', 'Mirror', 'Another of None / right / bottom / both.'],
+  ];
+  $('mutations').querySelector('tbody').innerHTML = M.map(([g, n, h]) => `<tr class="entry-row"><td class="k">${g}</td><td class="k"><b>${n}</b></td><td>${h}</td></tr>`).join('');
+})();
+
+
+/* ---------- Relations: Flow · Matrix · Ring, lettered variables, a worked example per step ---------- */
+(function () {
+  // nodes: [key, label, column]; edges: [from, to, type, why] — f = fixed (built in), a = can be fixed (a control sets / locks it), s = shapes
+  const GRP = ['#5f238d', '#c98a00', '#1f5fd6', '#333333'], GRP_TXT = ['#fff', '#1b1b1b', '#fff', '#fff'], LET = 'ABCD';
+  const R = [
+    { id: 'rel-system', title: 'The whole system', sub: 'How the steps hand over to each other.', cols: ['Element', 'Component', 'Symbol · Figure', 'Out'],
+      nodes: [['cell', 'Cell shape', 0], ['el', 'Element', 0], ['pal', 'Palette & Paper', 0], ['cgrid', 'Component grid', 1], ['crule', 'Component rule', 1], ['saved', 'Saved Components', 1], ['sgrid', 'Symbol grid', 2], ['sfill', 'Symbol fill', 2], ['fig', 'Figure recipe', 2], ['exp', 'Export', 3]],
+      edges: [
+        ['cell', 'el', 'f', 'every shape is fitted whole inside a non‑square cell; Arc and Arc truchet get their own geometry'],
+        ['pal', 'el', 's', 'Colour by inks every cell; the Paper is the ground of every step'],
+        ['el', 'pal', 'a', 'the Element can become the Paper tile (a snapshot when saved)'],
+        ['cell', 'crule', 'f', 'sets the turn step (90° / 120° / 60°) and which rules can run'],
+        ['el', 'crule', 's', 'the rule places the Element in every cell'],
+        ['cgrid', 'crule', 'f', 'the grid size greys rules out (1×1, odd sides, a single row or column)'],
+        ['crule', 'saved', 'a', 'you choose which candidate to save'],
+        ['cell', 'sgrid', 's', 'Match cell lays a cell‑shape Element exactly onto a cell of that shape'],
+        ['saved', 'sfill', 's', 'the pool = the 8 most recently saved; with none, saved Elements'],
+        ['el', 'sfill', 's', 'the Element, as it is or turned, can be a cell’s content'],
+        ['sgrid', 'sfill', 'f', 'cell type gates Up / down, Orientation and Suggest’s continuity'],
+        ['el', 'fig', 'a', 'the Figure starts from the Element; “Use the Element step’s own settings” freezes it into the cells'],
+        ['pal', 'exp', 'f', 'Plates: one file per ink; Print: physical size, DPI, bleed'],
+        ['sfill', 'exp', 's', 'the Symbol is exported as drawn'],
+        ['fig', 'exp', 's', 'the Figure exports its last level'],
+      ],
+      ex: { title: 'An Element, all the way to a file', path: [['el', 'crule'], ['crule', 'saved'], ['saved', 'sfill'], ['sfill', 'exp']],
+        stages: { el: ['a quarter disc', 'sysEl'], crule: ['Radial on a 2×2 — 1 of 8', 'sysRadial'], saved: ['saved → joins the pool', 'sysRadial'], sfill: ['Fill the grid', 'sysTiles'], exp: ['SVG · PNG · one plate per ink', 'sysFile', 1] } } },
+    { id: 'rel-element', title: 'Element', sub: 'Look & place runs top to bottom in the middle column: Width · Length → Irregularity → Cut out → Copies → Scale · Move · Rotate.', cols: ['Shape', 'Look & place — in this order', 'You get'],
+      nodes: [['cell', 'Cell shape', 0], ['shape', 'Shape', 0], ['split', 'Split', 0], ['layers', 'Layers', 0], ['role', 'Layer role', 0], ['seed', 'Seed', 0], ['fit', 'Fit to canvas', 0],
+        ['wl', 'Width · Length', 1], ['irr', 'Irregularity', 1], ['cut', 'Cut out', 1], ['copies', 'Copies', 1], ['smr', 'Scale · Move · Rotate', 1], ['style', 'Style', 1], ['caps', 'Rounded caps', 1], ['pattern', 'Pattern', 1], ['draw', 'Element drawing', 2]],
+      edges: [
+        ['cell', 'shape', 'f', 'fitted whole inside the cell; Arc → a 60° slice on triangles, Arc truchet → bands on hexagons'],
+        ['layers', 'split', 'f', 'Split cuts the whole stack into one shape'],
+        ['split', 'shape', 'f', 'the kept pieces become one Custom shape'],
+        ['wl', 'irr', 'f', 'order: Width · Length first'],
+        ['irr', 'cut', 'f', 'order: the rim follows the irregular outline'],
+        ['cut', 'copies', 'f', 'Cut out > 0 turns Copies into rims inside each hole; Ratio becomes Spacing; Anchor: Inner centre or Apex only'],
+        ['copies', 'smr', 'f', 'order: Scale · Move · Rotate act last, on the whole Element'],
+        ['smr', 'draw', 'f', 'the last step before the drawing'],
+        ['shape', 'irr', 'f', 'a shape without corners always ripples (Mode hidden)'],
+        ['shape', 'copies', 'f', 'not available for Segment or Arc truchet'],
+        ['shape', 'caps', 'f', 'picking Segment turns Rounded caps off; leaving it gives them back'],
+        ['style', 'caps', 's', 'caps only matter in Stroke'],
+        ['style', 'pattern', 's', 'Style = Pattern fills the shape with the Element’s pattern'],
+        ['role', 'pattern', 's', 'the Pattern role cuts the same pattern out of the layers below'],
+        ['layers', 'style', 'a', 'with layers, each layer sets its own Style'],
+        ['layers', 'wl', 'a', 'with layers, Width · Length move into each layer’s card'],
+        ['layers', 'cut', 'a', 'with layers, Irregularity, Cut out and Copies are per layer'],
+        ['seed', 'irr', 'a', 'the same Seed gives the same irregular outline'],
+        ['fit', 'smr', 'a', 'writes Scale + Move once so the shape fills the cell'],
+        ['role', 'draw', 'f', 'a role acts only on the layers below it: fills, keeps inside, or cuts out'],
+        ['style', 'draw', 's', 'Fill, Stroke or Pattern'],
+        ['pattern', 'draw', 's', 'lines, crosshatch, dots or rings clipped to the shape'],
+      ],
+      ex: { title: 'A circle with Cut out 40 and 2 Copies', path: [['shape', 'irr'], ['wl', 'irr'], ['irr', 'cut'], ['cut', 'copies'], ['copies', 'smr'], ['smr', 'draw']],
+        stages: { shape: ['Circle', 'elDisc'], wl: ['1 · 1 — unchanged', 'elDisc'], irr: ['0 — no corners, no change', 'elDisc'], cut: ['40 → a rim 60 % of r', 'elRim'], copies: ['2 → a rim in each hole', 'elRings'], smr: ['Scale 1 · no move', 'elRings'], draw: ['three nested rims', 'elRings', 1] } } },
+    { id: 'rel-palette', title: 'Palette & Paper', sub: '1 to 8 inks; colours are copied, never linked, so saved work never changes on its own.', cols: ['You set', 'FVS decides', 'You get'],
+      nodes: [['pick', 'Pick from a palette', 0], ['inks', 'Inks', 0], ['by', 'Colour by', 0], ['start', 'Start at', 0], ['cways', 'Colourways', 0], ['paper', 'Paper colour', 0], ['transp', 'Transparent', 0], ['ppat', 'Paper pattern', 0], ['tile', 'Element tile', 0], ['layout', 'Layout', 0], ['turn', 'Turn', 0], ['spacing', 'Spacing', 0],
+        ['inkcell', 'Ink of each cell', 1], ['solve', 'Contrast solve', 1], ['pink', 'Pattern ink', 1], ['cap', '2,500‑tile cap', 1], ['cells', 'Coloured cells', 2], ['ground', 'Paper ground', 2]],
+      edges: [
+        ['pick', 'inks', 'a', 'adds one colour, or a whole palette of ≤ 8'],
+        ['inks', 'inkcell', 'f', 'Checkerboard alternates two inks only, whatever the count'],
+        ['by', 'inkcell', 's', 'ink = colors[(f(cell) + Start at) mod n]'],
+        ['start', 'inkcell', 's', 'shifts which ink comes first; hidden with one ink'],
+        ['inkcell', 'cells', 's', 'each cell gets its ink'],
+        ['cways', 'solve', 'f', 'every ink moved along its own scale to ≥ 3:1 on its paper, ΔE ≥ 6 from the others'],
+        ['paper', 'solve', 'f', 'inks are judged on the paper'],
+        ['solve', 'cells', 's', 'the picked colourway becomes the live palette'],
+        ['paper', 'ground', 's', 'the ground of every step and export'],
+        ['transp', 'ground', 'a', 'transparent everywhere; switching it off brings the colour back'],
+        ['ppat', 'pink', 's', 'the texture is drawn in one ink (default: the last)'],
+        ['inks', 'pink', 'f', 'the pattern ink is one of the palette’s inks'],
+        ['pink', 'ground', 's', 'lines, crosshatch, dots or rings over the whole canvas'],
+        ['layout', 'tile', 's', 'Grid · Brick · Half‑drop'],
+        ['turn', 'tile', 's', 'None · Alternate · Quarter'],
+        ['tile', 'ground', 's', 'the Element repeated as the texture, in one ink'],
+        ['spacing', 'cap', 'f', 'at most 2,500 tiles: Spacing is raised, with a note'],
+        ['cap', 'ground', 'f', 'the texture is drawn at the raised spacing'],
+      ],
+      ex: { title: 'Three inks, By row, Start at Colour 2', path: [['inks', 'inkcell'], ['by', 'inkcell'], ['start', 'inkcell'], ['inkcell', 'cells']],
+        stages: { inks: ['A · B · C', 'palInks'], by: ['By row', 'palRows'], start: ['Colour 2 → B first', 'palStart'], inkcell: ['ink = (row + 1) mod 3', 'palPerRow'], cells: ['rows B, C, A, B, C', 'palResult', 1] } } },
+    { id: 'rel-component', title: 'Component', sub: 'Rules read each cell’s column and row; the grid, the cell shape and the axes decide which rules run and how many candidates they list.', cols: ['You set', 'FVS decides', 'You get'],
+      nodes: [['cell', 'Cell shape', 0], ['grid', 'Grid', 0], ['gshape', 'Grid shape', 0], ['rule', 'Rule', 0], ['rot', 'Rotation', 0], ['flip', 'Flip', 0], ['scale', 'Scale', 0], ['seed', 'Random seed', 0], ['inks', 'Layer colour variants', 0], ['role', 'Role', 0], ['blend', 'Blend', 0],
+        ['step', 'Turn step', 1], ['gate', 'Rules that can run', 1], ['fam', 'Families in play', 1], ['cap', '512 cap', 1], ['starter', 'Starter gallery', 1], ['frame', 'Square‑cell gate', 1], ['cand', 'Candidates', 2], ['draw', 'Cell drawing', 2]],
+      edges: [
+        ['cell', 'grid', 'f', 'square cells: Columns × Rows; other shapes: Grid shape + Grid size'],
+        ['cell', 'gshape', 'f', 'triangle cells can’t make a Square grid'],
+        ['cell', 'step', 'f', 'the turn step: 90° square and circle, 120° triangle, 60° hexagon'],
+        ['cell', 'gate', 'f', 'non‑square cells run only Identity, Radial, Checkerboard, Random, Exhaustive; Manual needs square cells'],
+        ['grid', 'gate', 'f', '1×1 greys out the pattern rules; Radial needs even × even; Row / Column mirror need ≥ 2 rows / columns'],
+        ['rule', 'gate', 'f', 'the Rule menu greys out what this grid and cell can’t run (it falls back to Identity)'],
+        ['rule', 'fam', 'f', 'a named rule is its own family; picking a mirror implies Flip even when Flip is off'],
+        ['rot', 'fam', 'f', 'Pinwheel, Diagonal and Radial need Rotation; Checkerboard needs at least one axis'],
+        ['flip', 'fam', 'f', 'Mirror, Book‑match, Row and Column mirror need Flip'],
+        ['scale', 'fam', 's', 'every family listed again at Small, Medium, Large (×3)'],
+        ['gate', 'fam', 's', 'only rules that can run reach the families'],
+        ['fam', 'cap', 's', 'Random draws from the active families; Exhaustive lists all of them'],
+        ['inks', 'cap', 'a', '× (inks + 1)^layers variants; switch it off to list geometry only'],
+        ['cap', 'cand', 'f', 'Exhaustive over 512 disables Generate; layer variants show the first 512'],
+        ['step', 'cand', 's', 'every turn is a step of the cell’s own'],
+        ['gshape', 'cand', 's', 'Grid shape + Grid size set the cells of a lattice'],
+        ['seed', 'cand', 'a', 'the same Seed gives the same Random draw'],
+        ['starter', 'cand', 's', 'until you Generate: the first 4 of Checkerboard, Pinwheel, Mirror, Radial'],
+        ['grid', 'cand', 's', 'changing the grid after Generate runs the rule again'],
+        ['role', 'frame', 'f', 'Container and Mask need square cells and force a square frame'],
+        ['cell', 'frame', 'f', 'on circle, triangle, hexagon cells Container and Mask are off'],
+        ['frame', 'draw', 's', 'Container clips another Component to this one; Mask knocks it out'],
+        ['blend', 'draw', 's', 'Multiply mixes inks where cells overlap'],
+        ['scale', 'draw', 's', 'Scale > 1 makes cells overlap'],
+      ],
+      ex: { title: 'A 1×4 grid with Pinwheel', path: [['cell', 'gate'], ['grid', 'gate'], ['rule', 'gate'], ['gate', 'fam'], ['fam', 'cap'], ['cap', 'cand']],
+        stages: { cell: ['Square', 'coCell'], grid: ['1 column × 4 rows', 'coGrid'], rule: ['Pinwheel', 'coRule'], gate: ['Radial · Column mirror greyed', 'coGate'], fam: ['k = col + 2·row → 0°, 180°', 'coFam'], cap: ['4 ≤ 512', null], cand: ['4 candidates (8 on a 2×2)', 'coCand', 1] } } },
+    { id: 'rel-symbol', title: 'Symbol', sub: 'Grid first, content second: the grid is built empty, then filled by Suggest, Arrange, a Rule or by hand.', cols: ['You set', 'FVS decides', 'You get'],
+      nodes: [['canvas', 'Canvas & margin', 0], ['gen', 'Grid generator', 0], ['pool', 'Pool', 0], ['arr', 'Arrange rule', 0], ['rule', 'Rule mode', 0], ['vary', 'Vary', 0], ['snap', 'Snap to 90°', 0], ['sug', 'Suggest weights', 0], ['seed', 'Seed', 0], ['lock', 'Lock', 0], ['overlap', 'Overlap', 0], ['blend', 'Blend', 0], ['fit', 'Fit', 0],
+        ['ctype', 'Cell type', 1], ['fill', 'Fill the grid', 1], ['score', 'Suggest score', 1], ['clip', 'Clip to cell', 1], ['match', 'Shared‑cells gate', 1], ['cells', 'Cell contents', 2], ['look', 'Drawing', 2]],
+      edges: [
+        ['canvas', 'gen', 's', 'the grid is generated inside the margin, gap 0'],
+        ['canvas', 'fill', 'f', 'while every cell is empty a canvas change rebuilds the grid; once filled, only Generate grid does'],
+        ['gen', 'ctype', 'f', 'Hexagonal, Triangular, Diamond, Circular, Radial, Organic… make polygon cells'],
+        ['pool', 'fill', 'f', 'Fill the grid runs only on an empty grid and only with something saved'],
+        ['pool', 'arr', 'f', 'the n‑th class takes the n‑th pool entry; Checkerboard uses only the first two'],
+        ['arr', 'cells', 's', 'each class gets its pool entry'],
+        ['fill', 'cells', 's', 'Fill the grid runs Suggest or Arrange'],
+        ['ctype', 'cells', 'f', 'Up / down and Orientation need triangle cells'],
+        ['ctype', 'score', 'f', 'no shared borders (Circular) = no continuity; 8 turns for a square Component in a near‑square cell, else 4'],
+        ['pool', 'score', 'f', 'the Colour score needs ≥ 2 inks in the pool'],
+        ['sug', 'score', 's', 'Continuity · Balance · Surprise · Colour weights'],
+        ['score', 'cells', 's', 'the best variation is placed; the rest wait in Variations'],
+        ['vary', 'rule', 'a', 'only the ticked axes change; content stays'],
+        ['snap', 'rule', 'a', 'Radial and Wave: on = 90° steps, off = free angles'],
+        ['rule', 'cells', 's', 'turns, flips and scales every unlocked cell'],
+        ['seed', 'cells', 'a', 'the same Seed gives the same draw (Arrange, Suggest, Rule each have one)'],
+        ['lock', 'cells', 'a', 'locked cells are kept by Rule, Arrange and Suggest; Reset & apply to all ignores locks'],
+        ['ctype', 'clip', 'a', 'polygon grids start clipped; the toggle sets it'],
+        ['overlap', 'clip', 'f', 'Overlap > 0 turns Clip to cell off'],
+        ['blend', 'match', 'f', 'Shared cells needs Match‑cell Components with a Grid shape'],
+        ['clip', 'look', 's', 'content cut at the cell’s edge'],
+        ['match', 'look', 's', 'a small cell two Components cover is drawn once'],
+        ['fit', 'look', 's', 'Contain in a polygon cell fits the cell’s shape, not its box'],
+        ['cells', 'look', 's', 'the Symbol as drawn'],
+      ],
+      ex: { title: 'Arrange · Checkerboard with a pool of A · B · C', path: [['pool', 'arr'], ['arr', 'cells'], ['cells', 'look']],
+        stages: { pool: ['A · B · C', 'syPool'], arr: ['Checkerboard → classes 0 · 1', 'syClasses'], cells: ['A · B alternate; C unused', 'syCells'], look: ['the Symbol', 'syLook', 1] } } },
+    { id: 'rel-figure', title: 'Figure', sub: 'A recipe: Seed → lattice → slot classes → rules → grids → Mirror / Rotate. Rules run in order; the later match wins, field by field.', cols: ['You set', 'FVS decides', 'You get'],
+      nodes: [['seed', 'Seed', 0], ['ink', 'Ink & Paper', 0], ['first', 'First level', 0], ['lat', 'Lattice', 0], ['paint', 'Paint tools', 0], ['rules', 'Class rules', 0], ['grids', 'Grid levels', 0], ['tr', 'Mirror · Rotate', 0], ['locks', 'Locks', 0], ['play', 'Shuffle · Variations', 0],
+        ['cls', 'Slot classes', 1], ['order', 'Rule order', 1], ['guard', 'Shape guard', 1], ['chk', 'Checks', 1], ['fig', 'Figure', 2]],
+      edges: [
+        ['first', 'lat', 's', 'Symbol = a lattice + rules; Component = a 2×2 block by one rule (⇄ swaps)'],
+        ['lat', 'paint', 'f', 'Rotate turns 180° on triangles, 60° on hexagons, 90° on squares'],
+        ['paint', 'rules', 's', 'every gesture writes a rule; Shift writes the whole class'],
+        ['lat', 'cls', 'f', 'up / down only on triangles; ring and sector only on hexagons; parity, row, column, index everywhere'],
+        ['rules', 'cls', 's', 'a rule addresses a class'],
+        ['rules', 'order', 'f', 'rules run in order; the later match wins, field by field'],
+        ['order', 'fig', 's', 'each cell: filled or empty, turned, flipped, scaled'],
+        ['seed', 'fig', 's', 'every filled cell holds the Seed (or the Element’s own settings)'],
+        ['grids', 'tr', 'f', 'Mirror / Rotate needs a Grid and acts on the last one'],
+        ['grids', 'fig', 's', 'each finished figure becomes the next level’s tile'],
+        ['tr', 'fig', 's', 'rotate about the box centre, then mirror over the right / bottom edge'],
+        ['grids', 'guard', 'f', 'filled cells × tiles × mirror copies ≤ 40,000'],
+        ['tr', 'guard', 'f', 'each mirror doubles the shapes'],
+        ['guard', 'fig', 'f', 'above the guard the recipe is refused with the exact count'],
+        ['locks', 'play', 'a', 'locked groups (Element, Symbol, Rules, Grid, Mirror‑Rotate) are left alone'],
+        ['play', 'seed', 's', 'Other Seed, Other hue, Other colourway, Fill ↔ Stroke'],
+        ['play', 'rules', 's', 'Toggle a class, Empty a row, Turn / Flip cells, Drop a rule'],
+        ['play', 'grids', 's', 'Other / Add / Remove a Grid'],
+        ['ink', 'chk', 'f', 'inks must read on the paper (≥ 3:1) and be distinct'],
+        ['grids', 'chk', 'f', 'shapes drawn = filled slots × tiles × mirror copies'],
+        ['chk', 'fig', 's', 'read from the drawn result'],
+      ],
+      ex: { title: 'Sierpinski: down cells empty', path: [['seed', 'fig'], ['lat', 'cls'], ['rules', 'cls'], ['rules', 'order'], ['order', 'fig']],
+        stages: { seed: ['Triangle, red', 'fiSeed'], lat: ['Triangle, 2 rows', 'fiLattice'], rules: ['down → Empty', 'fiRule'], cls: ['3 up (A) · 1 down (B)', 'fiClasses'], order: ['1 rule', null], fig: ['the Sierpinski asset', 'fiResult', 1] } } },
+  ];
+  const COL = { f: '#d23a2b', a: '#2f8f5f', s: '#8c8577' }, NAME = { f: 'Fixed', a: 'Can be fixed', s: 'Shapes' };
+  const INKS = ['#5f238d', '#74c476', '#d40039'], LT = ['A', 'B', 'C'], MONO = 'IBM Plex Mono, monospace';
+
+  /* ---- stage pictures: the worked example at each step (A · B · C cells, as in Colour by and Arrange) ---- */
+  const lab = (x, y, t, fill = '#fff', fs = 8) => `<text x="${x}" y="${y}" font-size="${fs}" text-anchor="middle" fill="${fill}" font-family="${MONO}">${t}</text>`;
+  const cellAB = (x, y, s, k) => `<rect x="${x}" y="${y}" width="${s - 1}" height="${s - 1}" fill="${INKS[k]}"/>${lab(x + s / 2 - .5, y + s / 2 + 3, LT[k])}`;
+  const chips = (hl) => svg(64, 20, [0, 1, 2].map(i => `<rect x="${i * 22}" y="1" width="18" height="18" fill="${INKS[i]}"${hl === i ? ' stroke="#111" stroke-width="2"' : ''}/>${lab(i * 22 + 9, 13.5, LT[i])}`).join(''), 'inks');
+  const rings = (k) => { let d = '', R0 = 38; for (let i = 0; i < k; i++) { const ri = R0 * .4; d += `M${45 - R0} 45a${R0} ${R0} 0 1 0 ${2 * R0} 0a${R0} ${R0} 0 1 0 ${-2 * R0} 0ZM${45 - ri} 45a${ri} ${ri} 0 1 0 ${2 * ri} 0a${ri} ${ri} 0 1 0 ${-2 * ri} 0Z`; R0 = ri * .7; } return svg(90, 90, `<rect width="90" height="90" fill="#fff"/><path d="${d}" fill="#111" fill-rule="evenodd"/>`, 'rings'); };
+  const triLat = (rows, fill, mark) => { const T = 34, H = T * .866, W = rows * T; let b = '';
+    for (let r = 0; r < rows; r++) for (let k = 0; k < 2 * r + 1; k++) { const up = k % 2 === 0, x0 = W / 2 - (r + 1) * T / 2 + k * T / 2, y = r * H;
+      const pts = up ? `${x0},${y + H} ${x0 + T / 2},${y} ${x0 + T},${y + H}` : `${x0},${y} ${x0 + T},${y} ${x0 + T / 2},${y + H}`, f = fill(up);
+      b += `<polygon points="${pts}" fill="${f || '#fff'}" stroke="${f ? '#fff' : '#b9b1a2'}"${f ? '' : ' stroke-dasharray="3 2"'}/>`;
+      if (mark) b += lab(x0 + T / 2, y + H * (up ? .72 : .45), up ? 'A' : 'B', f ? (up ? '#fff' : '#1b1b1b') : '#1b1b1b', 9); }
+    return svg(W, rows * H, b, 'triangle lattice'); };
+  const tiles = (n, cell, pick) => { let b = ''; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) b += `<g transform="translate(${i * cell * 2} ${j * cell * 2})">${compSVG(pick(i, j), 2, 2, cell)}</g>`; return svg(n * cell * 2, n * cell * 2, b, 'Symbol'); };
+  const PICS = {
+    sysEl: () => compSVG('0', 1, 1, 46),
+    sysRadial: () => compSVG('0 90 270 180', 2, 2, 23),
+    sysTiles: () => tiles(3, 15, () => '0 90 270 180'),
+    sysFile: () => svg(120, 120, `<rect x="10" y="4" width="100" height="112" fill="#fff" stroke="#b9b1a2"/><g transform="translate(24 16)">${tiles(3, 12, () => '0 90 270 180')}</g><text x="60" y="108" font-size="9" text-anchor="middle" fill="#6a6356" font-family="${MONO}">.svg · .png · plates</text>`, 'export'),
+    elDisc: () => svg(90, 90, `<rect width="90" height="90" fill="#fff"/><circle cx="45" cy="45" r="38" fill="#111"/>`, 'circle'),
+    elRim: () => rings(1), elRings: () => rings(3),
+    palInks: () => chips(-1),
+    palRows: () => { let b = ''; for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) b += `<rect x="${c * 14}" y="${r * 14}" width="13" height="13" fill="#e4dfd4"/>${lab(c * 14 + 6.5, r * 14 + 9.5, r, '#6a6356', 7)}`; return svg(70, 70, b, 'rows'); },
+    palStart: () => chips(1),
+    palPerRow: () => { let b = ''; for (let r = 0; r < 5; r++) { b += lab(8, r * 15 + 10.5, `row ${r}`, '#6a6356', 7); b += cellAB(36, r * 15, 15, (r + 1) % 3); } return svg(54, 75, b, 'ink per row'); },
+    palResult: () => { let b = ''; for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) b += cellAB(c * 19, r * 19, 19, (r + 1) % 3); return svg(95, 95, b, 'By row'); },
+    coCell: () => svg(40, 40, `<rect x="4" y="4" width="32" height="32" fill="#fff" stroke="#111" stroke-width="1.5"/>`, 'square cell'),
+    coGrid: () => svg(22, 84, [0, 1, 2, 3].map(i => `<rect x="1" y="${1 + i * 20.5}" width="20" height="20" fill="#fff" stroke="#111"/>`).join(''), '1×4 grid'),
+    coRule: () => compSVG('0 90 180 270', 2, 2, 22),
+    coGate: () => svg(118, 52, `${lab(4, 12, '✓ Pinwheel', '#1b1b1b', 9).replace('text-anchor="middle"', 'text-anchor="start"')}${lab(4, 28, 'Radial', '#9b9486', 9).replace('text-anchor="middle"', 'text-anchor="start"')}<line x1="4" y1="25" x2="42" y2="25" stroke="#d23a2b"/>${lab(4, 44, 'Column mirror', '#9b9486', 9).replace('text-anchor="middle"', 'text-anchor="start"')}<line x1="4" y1="41" x2="82" y2="41" stroke="#d23a2b"/>`, 'rules that can run'),
+    coFam: () => { let b = ''; [0, 2, 0, 2].forEach((k, i) => { b += `<rect x="1" y="${1 + i * 21}" width="20" height="20" fill="#fff" stroke="#b9b1a2"/>${lab(11, i * 21 + 14, 'k' + k, '#1b1b1b', 7.5)}${lab(44, i * 21 + 14, k ? '180°' : '0°', '#1f5fd6', 8)}`; }); return svg(64, 86, b, 'step per cell'); },
+    coCand: () => { const c = ['0 180 0 180', '90 270 90 270', '180 0 180 0', '270 90 270 90']; return svg(4 * 30, 84, c.map((s, i) => `<g transform="translate(${i * 30} 0)">${compSVG(s, 1, 4, 21)}</g>`).join(''), '4 candidates'); },
+    syPool: () => svg(102, 44, [['0 90 270 180', 0], ['0 90 180 270', 1], ['0 90 90 0', 2]].map(([s, i]) => `<g transform="translate(${i * 36} 0)">${compSVG(s, 2, 2, 14)}</g><rect x="${i * 36}" y="30" width="28" height="13" fill="${INKS[i]}"/>${lab(i * 36 + 14, 40, LT[i])}`).join(''), 'pool'),
+    syClasses: () => { let b = ''; for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) b += `<rect x="${c * 15}" y="${r * 15}" width="14" height="14" fill="#e4dfd4"/>${lab(c * 15 + 7, r * 15 + 10, (r + c) % 2, '#6a6356', 7.5)}`; return svg(60, 60, b, 'classes'); },
+    syCells: () => { let b = ''; for (let r = 0; r < 6; r++) for (let c = 0; c < 6; c++) b += cellAB(c * 13, r * 13, 13, (r + c) % 2); return svg(78, 78, b, 'cells'); },
+    syLook: () => tiles(6, 9, (i, j) => ((i + j) % 2 ? '0 90 180 270' : '0 90 270 180')),
+    fiSeed: () => svg(40, 36, `<polygon points="20,3 37,33 3,33" fill="#f0301f"/>`, 'triangle seed'),
+    fiLattice: () => triLat(2, () => null, false),
+    fiRule: () => svg(96, 26, `<rect x="1" y="1" width="94" height="24" rx="12" fill="#fff" stroke="#b9b1a2"/>${lab(48, 17, 'down → Empty', '#1b1b1b', 9)}`, 'rule'),
+    fiClasses: () => triLat(2, up => (up ? '#5f238d' : '#c98a00'), true),
+    fiResult: () => triLat(2, up => (up ? '#f0301f' : null), false),
+  };
+  const place = (s, x, y, w, h) => { const W = +s.match(/width="([\d.]+)"/)[1], H = +s.match(/height="([\d.]+)"/)[1], k = Math.min(w / W, h / H, 2.4); return `<g transform="translate(${(x + (w - W * k) / 2).toFixed(1)} ${(y + (h - H * k) / 2).toFixed(1)}) scale(${k.toFixed(3)})">${s}</g>`; };
+
+  function codes(g) { const c = {}, n = [0, 0, 0, 0]; g.nodes.forEach(([k, , col]) => { n[col]++; c[k] = LET[col] + n[col]; }); return c; }
+  const codeChip = (code, col) => `<span class="code g${col}">${code}</span>`;
+  const pathSet = g => new Set(g.ex.path.map(p => g.edges.findIndex(e => e[0] === p[0] && e[1] === p[1])));
+
+  /* ---- Flow: Input → Transformations → Output, the example's pictures on its path ---- */
+  function flowSVG(g, C) {
+    const nc = g.cols.length, W = 980, BW = nc > 3 ? 176 : 196, BH = 26, GAP = 8, X0 = 78, X = [...Array(nc)].map((_, i) => X0 + i * (W - X0 - 14 - BW) / Math.max(1, nc - 1)), TOP = 58;
+    const st = g.ex.stages, P = pathSet(g);
+    const hOf = k => { const s = st[k]; if (!s) return BH; return BH + 16 + (s[1] ? (s[2] ? 128 : 66) : 0) + 6; };
+    const cols = [...Array(nc)].map((_, c) => g.nodes.filter(n => n[2] === c));
+    const colH = cols.map(list => list.reduce((a, [k]) => a + hOf(k) + GAP, -GAP)), maxH = Math.max(...colH);
+    const H = TOP + maxH + 10, pos = {};
+    cols.forEach((list, c) => { let y = TOP + (maxH - colH[c]) / 2; list.forEach(([k]) => { pos[k] = { x: X[c], y, c, h: hOf(k) }; y += hOf(k) + GAP; }); });
+    const pairN = {}; let lines = '', hits = '';
+    g.edges.forEach(([a, b, t], i) => {
+      const A = pos[a], B = pos[b], onPath = P.has(i), ya = A.y + BH / 2, yb = B.y + BH / 2; let d;
+      if (A.c === B.c) { const key = [a, b].sort().join('|'), k = pairN[key] = (pairN[key] || 0) + 1, x = A.x - 4, bend = 22 + Math.abs(yb - ya) * .14 + (k - 1) * 12; d = `M${x} ${ya}C${x - bend} ${ya} ${x - bend} ${yb} ${x} ${yb}`; }
+      else { const x1 = A.x + BW, x2 = B.x - 2, m = (x1 + x2) / 2; d = `M${x1} ${ya}C${m} ${ya} ${m} ${yb} ${x2} ${yb}`; }
+      lines += `<path class="e${onPath ? ' path' : ''}" data-i="${i}" data-a="${a}" data-b="${b}" d="${d}" fill="none" stroke="${COL[t]}" stroke-width="${onPath ? 3.2 : t === 's' ? 1.2 : 1.6}"${t === 'a' ? ' stroke-dasharray="5 3"' : ''} marker-end="url(#ar-${g.id}-${t})"/>`;
+      hits += `<path class="e-hit" data-i="${i}" d="${d}"/>`;
+    });
+    let boxes = '';
+    g.nodes.forEach(([k, label, c]) => { const p = pos[k], s = st[k], out = c === nc - 1;
+      boxes += `<g class="node${s ? ' stage' : ''}" data-n="${k}" tabindex="0" role="button" aria-label="${C[k]} ${label}${s ? ': ' + s[0] : ''}"><rect class="nb${out ? ' out' : ''}${s ? ' st' : ''}" x="${p.x}" y="${p.y}" width="${BW}" height="${p.h}" rx="5"/><rect x="${p.x}" y="${p.y}" width="28" height="${BH}" rx="5" fill="${GRP[c]}"/><text x="${p.x + 14}" y="${p.y + BH / 2 + 3.5}" text-anchor="middle" fill="${GRP_TXT[c]}" font-size="10">${C[k]}</text><text class="nl${out ? ' out' : ''}" x="${p.x + 36}" y="${p.y + BH / 2 + 3.5}" font-size="10.5">${label}</text>`;
+      if (s) { boxes += `<text class="sv${out ? ' out' : ''}" x="${p.x + 10}" y="${p.y + BH + 11}" font-size="9.5">${s[0]}</text>`;
+        if (s[1]) { const ph = s[2] ? 128 : 66; boxes += `<rect x="${p.x + 6}" y="${p.y + BH + 16}" width="${BW - 12}" height="${ph}" rx="3" fill="#f4f2ed"/>` + place(PICS[s[1]](), p.x + 10, p.y + BH + 19, BW - 20, ph - 6); } }
+      boxes += '</g>'; });
+    const heads = g.cols.map((h, i) => `<text class="colh" x="${X[i]}" y="20"><tspan fill="${GRP[i]}" font-weight="600">${LET[i]}</tspan> · ${h}</text><text class="colk" x="${X[i]}" y="36">${i === 0 ? 'Input' : i === nc - 1 ? 'Output' : 'Transformation'}</text>`).join('');
+    const band = g.cols.map((_, i) => `<line x1="${X[i] - 10}" y1="44" x2="${X[i] + BW + 10}" y2="44" stroke="${GRP[i]}" stroke-width="3" opacity=".7"/>`).join('');
+    const mk = `<defs>${Object.entries(COL).map(([k, c]) => `<marker id="ar-${g.id}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')}</defs>`;
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="${g.title}: input, transformations, output — example ${g.ex.title}">${mk}${heads}${band}<g class="lines">${lines}</g><g>${boxes}</g><g>${hits}</g></svg>`;
+  }
+  function ringSVG(g, C) {
+    const W = 560, H = 500, cx = 280, cy = 248, RAD = 168, n = g.nodes.length, pos = {}, P = pathSet(g);
+    g.nodes.forEach(([k], i) => { const a = -Math.PI / 2 + 2 * Math.PI * i / n; pos[k] = [cx + RAD * Math.cos(a), cy + RAD * Math.sin(a), a]; });
+    let s = `<polygon points="${g.nodes.map(([k]) => pos[k].slice(0, 2).map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="#2f8f5f" opacity=".45"/>`, hits = '';
+    g.edges.forEach(([a, b, t], i) => { const [x1, y1] = pos[a], [x2, y2] = pos[b], d = `M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`;
+      s += `<path class="e" data-i="${i}" data-a="${a}" data-b="${b}" d="${d}" stroke="${COL[t]}" stroke-width="${t === 's' ? 1.1 : 1.7}"${t === 'a' ? ' stroke-dasharray="5 3"' : ''}/>`; hits += `<path class="e-hit" data-i="${i}" d="${d}"/>`; });
+    g.nodes.forEach(([k, label, col]) => { const [x, y, a] = pos[k], c = Math.cos(a), lx = cx + (RAD + 15) * c, ly = cy + (RAD + 15) * Math.sin(a) + 4;
+      s += `<g class="node" data-n="${k}" tabindex="0" role="button" aria-label="${C[k]} ${label}"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" fill="${GRP[col]}"/><text x="${x.toFixed(1)}" y="${(y + 3.3).toFixed(1)}" font-size="8" text-anchor="middle" fill="${GRP_TXT[col]}">${C[k]}</text><text font-size="10.5" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${c > .1 ? 'start' : c < -.1 ? 'end' : 'middle'}">${label}</text></g>`; });
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="${g.title}: links on a ring">${s}${hits}</svg>`;
+  }
+  function matrixHTML(g, C) {
+    const causes = g.nodes.filter(n => g.edges.some(e => e[0] === n[0])), effects = g.nodes.filter(n => g.edges.some(e => e[1] === n[0]));
+    let h = `<table class="mx" aria-label="${g.title}: cause in rows, effect in columns"><thead><tr><th class="r corner">cause ↓ · effect →</th>` + effects.map(([k, l, c]) => `<th class="ch" data-col="${k}"><span class="vl">${l}</span>${codeChip(C[k], c)}</th>`).join('') + '</tr></thead><tbody>';
+    let last = -1;
+    causes.forEach(([k, l, c]) => {
+      if (c !== last) { h += `<tr class="grp"><th colspan="${effects.length + 1}">${LET[c]} · ${g.cols[c]}</th></tr>`; last = c; }
+      h += `<tr data-row="${k}"><th class="r">${l} ${codeChip(C[k], c)}</th>` + effects.map(([j]) => { const i = g.edges.findIndex(e => e[0] === k && e[1] === j); return i < 0 ? '<td></td>' : `<td class="c e ${g.edges[i][2]}" data-i="${i}" data-a="${k}" data-b="${j}" tabindex="0" aria-label="${NAME[g.edges[i][2]]}: ${C[k]} → ${C[j]}"></td>`; }).join('') + '</tr>';
+    });
+    return h + '</tbody></table>';
+  }
+
+  let html = '';
+  for (const g of R) {
+    const C = codes(g), colOf = Object.fromEntries(g.nodes.map(n => [n[0], n[2]])), L = Object.fromEntries(g.nodes.map(n => [n[0], n[1]]));
+    const counts = ['f', 'a', 's'].map(t => `${g.edges.filter(e => e[2] === t).length} ${NAME[t].toLowerCase()}`).join(' · ');
+    const rows = g.edges.map(([a, b, t, w], i) => `<li class="entry-row" data-i="${i}" data-a="${a}" data-b="${b}"><span class="rel-k rel-${t}">${NAME[t]}</span><span>${codeChip(C[a], colOf[a])} <b>${L[a]}</b> → ${codeChip(C[b], colOf[b])} <b>${L[b]}</b> — ${w}</span></li>`).join('');
+    const order = g.nodes.map(n => n[0]).filter(k => g.ex.stages[k]).sort((a, b) => colOf[a] - colOf[b]);
+    const trail = order.map(k => `${codeChip(C[k], colOf[k])} ${g.ex.stages[k][0]}`).join(' <span class="arr">→</span> ');
+    html += `<article class="rel" id="${g.id}" data-g="${R.indexOf(g)}">
+      <div class="rel-head"><h3>${g.title}</h3><p class="sub">${g.sub}</p></div>
+      <div class="rel-bar"><div class="seg" role="group" aria-label="View of ${g.title}"><button type="button" data-v="flow" aria-pressed="true">Flow</button><button type="button" data-v="matrix" aria-pressed="false">Matrix</button><button type="button" data-v="ring" aria-pressed="false">Ring</button></div><span class="count">${g.edges.length} links · ${counts}</span></div>
+      <div class="rel-trail" tabindex="0" aria-label="Example: ${g.ex.title} — focus to trace its path"><span class="eyebrow">Example · ${g.ex.title}</span><span class="steps">${trail}</span></div>
+      <div class="sheet rel-stage" data-theme="light"></div>
+      <div class="rel-info" aria-live="polite"><span class="hint">The bold line is the example, from input to output. Hover a box, a line or a square to read any link.</span></div>
+      <details class="rel-all"><summary>All ${g.edges.length} links in words</summary><ul>${rows}</ul></details>
+    </article>`;
+  }
+  $('rels').innerHTML = html;
+
+  document.querySelectorAll('.rel').forEach(card => {
+    const g = R[+card.dataset.g], C = codes(g), L = Object.fromEntries(g.nodes.map(n => [n[0], n[1]])), stage = card.querySelector('.rel-stage'), info = card.querySelector('.rel-info');
+    const hint = '<span class="hint">The bold line is the example, from input to output. Hover a box, a line or a square to read any link.</span>';
+    const say = e => { info.innerHTML = e ? `<span class="rel-k rel-${e[2]}">${NAME[e[2]]}</span> <b>${C[e[0]]} ${L[e[0]]}</b> → <b>${C[e[1]]} ${L[e[1]]}</b> — ${e[3]}` : hint; };
+    const set = m => {
+      card.classList.toggle('focus', !!m);
+      card.querySelectorAll('.e, li[data-i]').forEach(el => el.classList.toggle('on', !!m && m(el)));
+      const on = new Set(); card.querySelectorAll('.e.on').forEach(l => { on.add(l.dataset.a); on.add(l.dataset.b); });
+      card.querySelectorAll('.node').forEach(nd => nd.classList.toggle('on', on.has(nd.dataset.n)));
+      card.querySelectorAll('tr[data-row]').forEach(tr => tr.classList.toggle('hl', !!m && on.has(tr.dataset.row)));
+      card.querySelectorAll('th[data-col]').forEach(th => th.classList.toggle('hl', !!m && on.has(th.dataset.col)));
+    };
+    const wire = () => {
+      stage.querySelectorAll('.node').forEach(nd => { const k = nd.dataset.n, s = g.ex.stages[k], on = () => { set(el => el.dataset.a === k || el.dataset.b === k); info.innerHTML = `<b>${C[k]} ${L[k]}</b>${s ? ` — in the example: ${s[0]}` : ''} · affects ${g.edges.filter(e => e[0] === k).length}, affected by ${g.edges.filter(e => e[1] === k).length}. Hover a line for its reason.`; }, off = () => { set(null); say(null); };
+        nd.addEventListener('mouseenter', on); nd.addEventListener('focus', on); nd.addEventListener('mouseleave', off); nd.addEventListener('blur', off); });
+      stage.querySelectorAll('.e-hit, td.c').forEach(h => { const i = +h.dataset.i, on = () => { set(el => +el.dataset.i === i); say(g.edges[i]); }, off = () => { set(null); say(null); };
+        h.addEventListener('mouseenter', on); h.addEventListener('focus', on); h.addEventListener('mouseleave', off); h.addEventListener('blur', off); });
+    };
+    const show = v => { card.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); stage.innerHTML = v === 'flow' ? flowSVG(g, C) : v === 'ring' ? ringSVG(g, C) : matrixHTML(g, C); stage.classList.toggle('is-matrix', v === 'matrix'); stage.classList.toggle('is-flow', v === 'flow'); set(null); say(null); wire(); };
+    card.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => show(b.dataset.v)));
+    const P = pathSet(g), tr = card.querySelector('.rel-trail'), trOn = () => { set(el => P.has(+el.dataset.i)); info.innerHTML = `<b>Example</b> — ${g.ex.title}: its path is lit.`; }, trOff = () => { set(null); say(null); };
+    tr.addEventListener('mouseenter', trOn); tr.addEventListener('focus', trOn); tr.addEventListener('mouseleave', trOff); tr.addEventListener('blur', trOff);
+    card.querySelectorAll('li[data-i]').forEach(li => { li.addEventListener('mouseenter', () => set(el => el.dataset.i === li.dataset.i)); li.addEventListener('mouseleave', () => set(null)); });
+    show('flow');
+  });
+})();
+
+/* ---------- index + filter ---------- */
+(function () {
+  const toc = $('toc'); let html = '';
+  document.querySelectorAll('section.step').forEach(sec => {
+    html += `<li class="step"><a href="#${sec.id}">${sec.querySelector('h2').lastChild.textContent.trim()}</a></li>`;
+    sec.querySelectorAll('h3[id]').forEach(h => { html += `<li class="sub"><a href="#${h.id}">${h.textContent}</a></li>`; });
+  });
+  toc.innerHTML = html;
+  const q = $('q'), items = () => document.querySelectorAll('.entry, .entry-row');
+  q.addEventListener('input', () => {
+    const v = q.value.trim().toLowerCase(); let n = 0, all = 0;
+    items().forEach(el => { all++; const hit = !v || el.textContent.toLowerCase().includes(v); el.hidden = !hit; if (hit) n++; });
+    $('qcount').textContent = v ? `${n} of ${all} match` : '';
+  });
+})();
+</script>
+</body>
+</html>

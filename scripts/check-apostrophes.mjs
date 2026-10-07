@@ -7,7 +7,8 @@
 // What it skips: comments, code (a ' between letters outside a string is not possible in valid JS anyway), <code> /
 // <pre> blocks, <script type="application/json|text/template">, GLSL / worker source kept in a template literal,
 // the comments a tool writes into an exported CSS file, entity escapes (&#39; / &apos; are an escape function's job).
-// Not scanned: archive/ (frozen), explorations/, scratchpad/, docs/, scripts/, shared/vendor/, _-prefixed dev pages.
+// Not scanned: archive/ (frozen), explorations/, scratchpad/, docs/, scripts/, shared/vendor/, _-prefixed dev pages —
+// except the _ pages in SCANNED_DEV_PAGES: references read by people, not dev tools (Diego, Oct 7, 2026, O-28).
 // A deliberate straight apostrophe: put `apostrophe-ok` on the same line (in a comment for JS).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,11 +17,13 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIX = process.argv.includes('--fix');
 const SKIP = /^(archive|explorations|scratchpad|docs|scripts|node_modules|\.git|\.claude|genesis\/archive|shared\/vendor)(\/|$)|(^|\/)_[^/]*\.(html|js|mjs)$|\.min\.js$/;
+// _-prefixed pages that are references for people, so their copy follows the same rules (scripts/ds-audit.py has the same list)
+export const SCANNED_DEV_PAGES = new Set(['design-system/_fvs-rules.html']);
 const files = [];
 (function walk(d) {
   for (const e of fs.readdirSync(path.join(ROOT, d), { withFileTypes: true })) {
     const rel = d ? d + '/' + e.name : e.name;
-    if (SKIP.test(rel)) continue;
+    if (SKIP.test(rel) && !SCANNED_DEV_PAGES.has(rel)) continue;
     if (e.isDirectory()) walk(rel); else if (/\.(html|js|mjs)$/.test(e.name)) files.push(rel);
   }
 })('');

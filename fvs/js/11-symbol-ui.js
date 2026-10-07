@@ -35,7 +35,7 @@ import {
 import {
   RULE_CONTROL_IDS, SYMBOL_LIBRARY, SYMBOL_RULES, TRACK_MIN_FRAC, buildCoverCropPreviewSVG,
   buildEmptyCellHitsSVG, buildGridOutlineSVG, buildOverflowOutlineSVG, buildSelectionOutlineSVG,
-  buildSymbolLibraryEntry, buildSymbolPrintSVG, cellColRow, patchCell, rectsIntersect, snap90,
+  buildSymbolLibraryEntry, buildSymbolPrintSVG, cellColRow, patchCell, rectsIntersect,
   symbolCellBounds, symbolPrintDims, symbolTrackGrid, trackBands, trackBorders, tracksToWeights
 } from './engine/11-symbol-ui.js';
 import {
@@ -102,7 +102,9 @@ export function applySymbolRule(opts) {
       else { if (cell.source === 'empty') { cell.source = 'seed'; cell.seedType = cell.seedType || 'triangle'; } cell.fitMode = 'fill'; cell.rotation = t.turn || 0; }
       return;
     }
-    if (vary.rotation && t.rotation != null) cell.rotation = snap90(t.rotation);
+    // Each rule snaps its own angle (Radial / Wave by their "Snap to 90°" box, the others are 90° steps by
+    // construction): the applier only folds it into 0–360, so a free angle reaches the cell.
+    if (vary.rotation && t.rotation != null) cell.rotation = Math.round((((t.rotation % 360) + 360) % 360) * 100) / 100;
     if (vary.flip) {
       if (t.flipH != null) cell.flipH = t.flipH;
       if (t.flipV != null) cell.flipV = t.flipV;
@@ -471,7 +473,11 @@ export function renderCellPropertiesPanel() {
   // knob adds little real value against the extra control surface.
   ctrl('row-cellprop-rotation').style.display = isComponent ? 'none' : '';
   ctrl('row-cellprop-flip').style.display = isComponent ? 'none' : '';
-  ctrl('sel-cellprop-rot').value = String(first.rotation);
+  // A free angle (Radial / Wave with Snap off) gets its own option, so the menu shows it instead of a blank.
+  const rotSel = ctrl('sel-cellprop-rot'), rotVal = String(first.rotation || 0);
+  rotSel.querySelectorAll('option[data-free]').forEach(o => { if (o.value !== rotVal) o.remove(); });
+  if (![...rotSel.options].some(o => o.value === rotVal)) rotSel.add(Object.assign(new Option(`${rotVal}°`, rotVal), { title: 'Set by the rule' }), null), rotSel.lastElementChild.dataset.free = '1';
+  rotSel.value = rotVal;
   ctrl('sel-cellprop-flip').value = first.flipH && first.flipV ? 'hv' : first.flipH ? 'h' : first.flipV ? 'v' : 'none';
   ctrl('sel-cellprop-fit').value = first.fitMode || 'contain';
   ctrl('row-cellprop-coveraxis').style.display = first.fitMode === 'cover' ? '' : 'none';

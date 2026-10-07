@@ -524,6 +524,11 @@
       <a href="#radius">Radius</a>
     </div>
     <div class="ds-nav__group">
+      <div class="ds-nav__title">Tool references</div>
+      <a href="/design-system/_fvs-rules.html">FVS rule atlas</a>
+      <a href="#fvs-rules">About the atlas</a>
+    </div>
+    <div class="ds-nav__group">
       <div class="ds-nav__title">Shell</div>
       <a href="#shell">App shell</a>
       <a href="#canvas-stage">Canvas area &amp; stage</a>
@@ -2297,6 +2302,18 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <li><strong>Presets come from the tools.</strong> The gallery reads the same tables as Undertow, Dapple and Murmur (<code>shared/bandfield.js</code>, <code>shared/swarm.js</code>), so a tile is always the tool’s own behaviour.</li>
       </ol>
       <div class="ds-usage"><strong>Open</strong><span><a href="/gallery/">/gallery/</a></span><strong>Defined in</strong><span>gallery/index.html</span><span>gallery/budget.json</span><span>gallery/samples/</span><span>scripts/check.py</span></div>
+    </section>
+
+    <section class="ds-entry ds-prose" id="fvs-rules">
+      <h2>FVS rule atlas</h2>
+      <p><a href="/design-system/_fvs-rules.html"><strong>Open the FVS rule atlas</strong></a></p>
+      <p class="ds-desc">A <strong>reference of every generative rule</strong> in Flexible Visual System, step by step — Element, Palette &amp; Paper, Component, Symbol, Figure — with what each rule decides, its controls and ranges, and a diagram of its output. Use it before touching a rule, and to check that a rule still does what it says.</p>
+      <ol>
+        <li><strong>Diagrams come from the tool, not from memory.</strong> The Component rules show the real cell turns FVS produced (2×2, 4×4 and the other grid sizes, with the candidate counts); the Symbol grids are Loom’s real generator outlines; Colour by, Arrange and Rule mode run the same formulas as <code>fvs/js</code>. One mark — a quarter disc with a dot — so a turn and a flip never look alike.</li>
+        <li><strong>Rules by grid size.</strong> A table of every rule × 1×1 / 2×1 / 4×1 / 1×4 / 2×2 / 3×2 / 3×3 / 2×4 / 4×4: how many candidates it lists, or why it is greyed out, plus notes on what changes (Pinwheel on a 1×4 only alternates 0° / 180°; Radial needs even sides).</li>
+        <li><strong>Keep it current.</strong> The data is a capture (7 Oct 2026). When a rule changes, re-capture its candidates and update the page in the same commit; its Findings section lists what reading the code turned up.</li>
+      </ol>
+      <div class="ds-usage"><strong>Open</strong><span><a href="/design-system/_fvs-rules.html">_fvs-rules.html</a></span><strong>Reads</strong><span>fvs/js/engine/03-rules.js</span><span>fvs/js/engine/11-symbol-ui.js</span><span>fvs/js/engine/10-suggest.js</span><span>fvs/js/engine/00-core.js</span><span>docs/FVS.md</span></div>
     </section>
 
     <section class="ds-entry ds-prose" id="self-check">

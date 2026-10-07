@@ -42,10 +42,15 @@ def sh(*a):
     return subprocess.run(a, capture_output=True, text=True).stdout
 
 
+# _-prefixed pages that are references for people, not dev tools: audited like any page (Diego, Oct 7, 2026, O-28).
+# scripts/check-apostrophes.mjs keeps the same list.
+SCANNED_DEV_PAGES = ('design-system/_fvs-rules.html',)
+
+
 def tracked(*exts):
     return [f for f in sh('git', 'ls-files').split('\n')
             if f.endswith(exts) and os.path.exists(f) and not f.startswith(SKIP_DIRS)
-            and '.min.' not in f and '/_' not in f and '/archive/' not in f]
+            and '.min.' not in f and ('/_' not in f or f in SCANNED_DEV_PAGES) and '/archive/' not in f]
 
 
 def read(f):
