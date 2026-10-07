@@ -257,6 +257,14 @@ if r.returncode:
 else:
     ok("ELEMENTS and BUILTIN match shapes.js / palette.js / color.js")
 
+# 6a. node canvas: the graph model / engine / history logic (shared/node-canvas.js) — pure, no browser
+print("node canvas logic")
+r = subprocess.run(["node", "scripts/test-node-canvas.mjs"], capture_output=True, text=True)
+if r.returncode:
+    fail("node canvas:\n" + "\n".join("      " + l for l in (r.stdout + r.stderr).strip().split("\n")[-8:]))
+else:
+    ok(r.stdout.strip().split("\n")[0].replace("nodeCanvas: ", ""))
+
 # 6b. copy: typographic apostrophe (docs/UI-COPY.md rule 12 — Diego, Oct 7, 2026). Visible text, copy attributes and
 #     JS string literals use ’, never '; comments / code / <code> samples are not copy. Fix: --fix, or apostrophe-ok.
 print("copy apostrophes")

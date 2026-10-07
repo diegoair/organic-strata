@@ -20,10 +20,21 @@ Halide, Komorebi and, in spirit, Living Path):
 │  the artwork, centred             │  controls, scrolls   │
 │  drop target, zoom/pan            │  248px (--panel-w)   │
 │                                   │                      │
+│ ┌─┐                               │                      │
+│ │D│ DOCK left-centre, optional    │                      │
+│ └─┘                               │                      │
 │  HUD bottom-left   [ FLOATBAR ]   │                      │
 └───────────────────────────────────┴──────────────────────┘
    the floatbar: Open · playback · Export, fixed bottom-centre
 ```
+
+**Left dock (optional, Oct 2026 — ledger O-30/O-31).** A vertical `.org-dock` (`shared/floatbar.css`) for what
+you **add** to the canvas: a library of things to place, a node palette. A bar of toggles (`.org-dock__bar`, an
+`.org-floatbar` with `aria-orientation="vertical"`) and one sibling glass panel (`.org-dock__panel`, `data-open` +
+`inert`), both direct children of the dock, the dock a direct child of `<body>`. One occupant per tool step (FVS:
+the Library rail on Element / Component / Symbol, the node palette on the Figure graph). The dock is transformed
+(centred), so a drag ghost or a popover goes on `<body>`, never inside it. Actions stay in the bottom floatbar;
+the panel on the right stays the place for settings. Not a deviation from the Tool template — no `OWN_LAYOUT` entry.
 
 ### Three templates (decided Oct 2, 2026 — `docs/DESIGN-DECISIONS.md` O-6)
 

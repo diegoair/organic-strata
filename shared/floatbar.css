@@ -340,3 +340,20 @@
 .fb-tester .seg-ctrl { flex: 0 0 auto; }
 .fb-tester .seg-btn { min-width: 28px; padding: 0 var(--space-2); font-size: var(--fs-micro); }
 .fb-tester .seg-btn svg { width: var(--icon-md); height: var(--icon-md); display: block; margin: 0 auto; }
+
+/* Left dock (.org-dock) — an optional left slot of the Tool template (docs/UI-SHELL.md §1): a vertical bar of
+   toggles + ONE sibling glass panel, for what you add to the canvas (a library of things to place, a node palette).
+   Promoted Oct 2026 from FVS's Library rail at its second vertical occupant (the Figure graph's node palette) —
+   ledger O-30. Bar and panel are both .org-floatbar (glass, rim, dark values, fallback come from above) and siblings,
+   never nested: a backdrop-filter child would blur only its parent. The dock is transformed (centred), so anything
+   position:fixed belongs on <body>, not inside it (a drag ghost, a popover). One occupant at a time per tool step. */
+.org-dock { position: fixed; left: var(--space-5); top: 50%; transform: translateY(-50%); z-index: 150; display: flex; align-items: center; gap: var(--space-3); pointer-events: none; }
+.org-dock > .org-floatbar { position: relative; left: auto; top: auto; bottom: auto; transform: none; height: auto; flex-direction: column; align-items: stretch; pointer-events: auto; }
+.org-dock > .org-dock__bar { width: 3rem; padding: var(--space-2) 0; align-items: center; justify-content: center; gap: var(--space-1); }
+.org-dock > .org-dock__panel { max-height: 60vh; padding: var(--space-3); border-radius: var(--radius-lg);
+  opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(calc(-1 * var(--space-4)));
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base); }
+.org-dock > .org-dock__panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
+.org-dock > .org-dock__panel.is-dragging-away { opacity: 0.5; }
+.org-dock__bar .org-floatbar__btn[aria-label]:not([aria-expanded="true"]):is(:hover, :focus-visible)::after { bottom: auto; left: calc(100% + var(--space-3)); top: 50%; transform: translateY(-50%); }
+.org-dock__sep { width: 60%; height: 1px; margin: var(--space-1) auto; background: var(--border); }

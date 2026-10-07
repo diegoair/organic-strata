@@ -159,15 +159,7 @@
   /* Library rail (test): a floating left rail — one toggle pane + a sibling glass panel (never nested: a
      backdrop-filter child would blur only its parent). Both are .org-floatbar so the glass, rim, dark values
      and fallback come from shared/floatbar.css; only the geometry is overridden here. */
-  #fvs-rail-dock { position: fixed; left: var(--space-5); top: 50%; transform: translateY(-50%); z-index: 150; display: flex; align-items: center; gap: var(--space-3); pointer-events: none; }
-  #fvs-rail, #fvs-rail-panel { position: relative; left: auto; top: auto; bottom: auto; transform: none; height: auto; flex-direction: column; align-items: stretch; pointer-events: auto; }
-  #fvs-rail { width: 3rem; padding: var(--space-2) 0; align-items: center; justify-content: center; gap: var(--space-1); }
-  #fvs-rail-panel { max-height: 60vh; padding: var(--space-3); border-radius: var(--radius-lg);
-    opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(calc(-1 * var(--space-4)));
-    transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base); }
-  #fvs-rail-panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
-  #fvs-rail-panel.is-dragging-away { opacity: 0.5; }
-  #fvs-rail .org-floatbar__btn[aria-label]:not([aria-expanded="true"]):is(:hover,:focus-visible)::after { bottom: auto; left: calc(100% + var(--space-3)); top: 50%; transform: translateY(-50%); }
+  /* the dock geometry is shared: .org-dock / __bar / __panel in shared/floatbar.css (ledger O-30) */
   .fvs-rail__scroll { overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); scrollbar-width: thin; }
   .fvs-rail__grid { display: grid; grid-template-columns: repeat(2, auto); gap: var(--space-2); justify-content: start; }
   #fvs-rail-panel.is-empty { display: none; }
