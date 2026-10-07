@@ -115,6 +115,7 @@
 .nc-wire.is-selected { stroke: var(--ink); stroke-width: calc(var(--wire-w) + 1px); }
 .nc-wire--pending { stroke: var(--ink); stroke-dasharray: 4 4; }   /* component-local dash: 'pending' (with the marquee) */
 .nc-wire--faint { stroke-opacity: 0.35; }
+.nc-wire--list { stroke-width: calc(var(--wire-w) * 2); }   /* a list (a Set) travels on this wire */
 .nc-wire--faint.is-related, .nc-wire--faint.is-selected { stroke-opacity: 1; }
 
 /* ── marquee + live region ── */

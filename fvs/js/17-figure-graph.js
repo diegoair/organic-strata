@@ -44,6 +44,7 @@ const NC = Organica.nodeCanvas;
 const registry = NC.createRegistry(figureNodeTypes());
 const VIEW_KEY = 'organica.fvs.figure-view';
 const GRAPHS = Organica.store('fvs-figure');
+const SETS = Organica.store('fvs-sets');   // saved Sets: { name: { items: [{kind, name, snapshot}], savedAt } }
 const CURRENT = '__current';   // the graph being edited, autosaved (not a saved graph: never listed)
 let graphName = '';             // the saved graph this one was opened from / saved as ('' = not saved yet)
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -108,15 +109,18 @@ function renderBody(node, entry, el) {
     const crumb = foundationOf(node).map(n => n ? esc(nodeLabel(n)) : '—').join(' · ');
     const vars = f.variations && f.variations.length ? f.variations : [{ key: 'base', svg: f.svg, label: 'As set up' }];
     const layout = p.layout === 'row' ? 'row' : 'rows';
-    el.innerHTML = `<p class="fg-card__crumb">${crumb}</p><div class="fg-vars fg-vars--${layout}${vars.length === 1 ? ' is-single' : ''}">${vars.map((v, i) => `
+    const groups = f.groups || [{ label: null, variations: vars }];
+    let gi = 0;
+    const tile = (v, i, first) => `
       <figure class="fg-var${v.pinned ? ' is-pinned' : ''}" data-i="${i}">
         <div class="fg-card__sheet" data-theme="light">${v.error ? `<p class="fg-var__error">${esc(v.label)}</p>` : `<img class="fg-card__img" alt="${esc(nodeLabel(node))}, variation ${i + 1}" src="${figureImg(node.id + ':' + v.key, v.svg)}">`}</div>
-        <figcaption class="fg-var__label">${i ? esc(v.label) : 'As set up'}</figcaption>
-        ${i ? `<div class="fg-var__tools">
+        <figcaption class="fg-var__label">${first ? 'As set up' : esc(v.label)}</figcaption>
+        ${v.spec ? `<div class="fg-var__tools">
           <button type="button" class="icon-btn" data-act="pin" data-i="${i}" aria-pressed="${!!v.pinned}" aria-label="Pin variation ${i + 1}">${Organica.icons.get('pin', { size: 'xs' })}</button>
           <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${i + 1}">${Organica.icons.get('copy', { size: 'xs' })}</button></div>` : ''}
-      </figure>`).join('')}</div>
-      <p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${vars.length > 1 ? ` · ${vars.length} variations` : ''}</p>`;
+      </figure>`;
+    el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>` + groups.map(g => `${g.label ? `<p class="fg-group__label">${esc(g.label)}</p>` : ''}<div class="fg-vars fg-vars--${layout}${g.variations.length === 1 ? ' is-single' : ''}">${g.variations.map((v, k) => tile(v, gi++, k === 0)).join('')}</div>`).join('')
+      + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${vars.length > 1 ? ` · ${vars.length} ${f.groups ? 'figures' : 'variations'}` : ''}${f.capped ? ` · showing ${f.capped.shownItems} of ${f.capped.items} items, ${f.capped.per} each` : ''}</p>`;
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => ctl.remeasure(node.id), { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act, +b.dataset.i); }); }
     el._vars = vars;
@@ -127,6 +131,10 @@ function renderBody(node, entry, el) {
     el.innerHTML = `<p class="fg-card__meta">${esc(gridSummary({ gen: p.gen, params: p.params }))}</p>`;
   } else if (node.type === 'palette') {
     el.innerHTML = `<div class="fg-card__swatches" data-theme="light">${[p.paper, ...(p.colors || [])].map((c, i) => `<span class="fg-card__swatch${i ? '' : ' is-paper'}" style="background:${esc(c)}"></span>`).join('')}</div>`;
+  } else if (node.type === 'set') {
+    const items = p.items || [];
+    el.innerHTML = items.length ? `<div class="fg-set__strip" data-theme="light">${items.slice(0, 8).map(it => `<span class="fg-set__thumb" title="${esc(it.name)}">${entryThumb(it.kind, it.name, it.snapshot)}</span>`).join('')}</div>
+      <p class="fg-card__meta">${items.length} ${items.length === 1 ? 'item' : 'items'}</p>` : '<p class="fg-card__meta">No items yet</p>';
   } else if (node.type === 'cell-rules') {
     const rs = p.rules || [];
     el.innerHTML = `<p class="fg-card__meta">${rs.length ? rs.length + (rs.length === 1 ? ' rule' : ' rules') + ' · ' + esc(describeRule(rs[0])) + (rs.length > 1 ? ' …' : '') : 'No rules yet'}</p>`;
@@ -196,7 +204,8 @@ function freeSpot(at) {   // the nearest place below / beside `at` that no card 
 function centred(at, type) { const w = type === 'figure' ? 416 : type === 'canvas' || type === 'grid' || type === 'palette' ? 160 : 160; return { x: Math.round(at.x - w / 2), y: Math.round(at.y - 24) }; }
 function addNode(type, at, params) {
   at = at || viewCentre();
-  const named = t => ({ name: nameFor(ctl.model, t, t === type ? params : null) });
+  const named = t => ({ name: t === type && params && params.__name ? params.__name : nameFor(ctl.model, t, t === type ? params : null) });
+  if (params && params.__name) { params = { ...params }; delete params.__name; }
   if (type !== 'figure') return ctl.add(type, at, params, named(type));
   const last = t => { const sel = ctl.selection().map(id => NC.findNode(ctl.model, id)).filter(n => n && n.type === t); return sel[0] || ctl.model.nodes.filter(n => n.type === t).slice(-1)[0]; };
   const fig = ctl.add('figure', at, params, named('figure'));
@@ -232,6 +241,8 @@ function renderNodebar(cat) {
       ? `<div class="fvs-rail__grid">${list.map(e => `<button type="button" class="fvs-library-item fg-nodebar__tile" data-kind="${kind}" data-name="${esc(e.name)}" aria-label="Add ${kind === 'element' ? 'Element' : 'Component'}: ${esc(e.name)}">${entryThumb(kind, e.name, e.entry)}</button>`).join('')}</div>`
       : `<p class="fg-nodebar__empty">Nothing saved yet — save ${kind === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`);
     html += block('element', 'Elements', s.element) + block('component', 'Components', s.component);
+    const sets = Object.keys(SETS.read()).sort((a, b) => a.localeCompare(b));
+    html += `<div class="sub-label">Saved Sets</div>` + (sets.length ? `<div class="fg-nodebar__list">${sets.map(n => `<button type="button" class="fg-nodebar__item fg-nodebar__set" data-set="${esc(n)}" aria-label="Add Set: ${esc(n)}">${esc(n)}</button>`).join('')}</div>` : `<p class="fg-nodebar__empty">No Sets yet — New Set makes one</p>`);
   }
   panel.innerHTML = html;
   panel._items = items;
@@ -245,6 +256,7 @@ function setNodebar(cat) {
 }
 function nodebarSpec(target) {
   const item = target.closest('.fg-nodebar__item'), tile = target.closest('.fg-nodebar__tile');
+  if (item && item.dataset.set) { const e = SETS.read()[item.dataset.set]; return e ? { type: 'set', params: { items: JSON.parse(JSON.stringify(e.items || [])) }, name: item.dataset.set } : null; }
   if (item) return ctrl('fg-nodebar-panel')._items[+item.dataset.i].make();
   if (tile) return addContent(tile.dataset.kind, tile.dataset.name);
   return null;
@@ -271,8 +283,8 @@ function initNodebar() {
       if (ghost) {
         ghost.remove();
         const r = ctrl('fg-graph').getBoundingClientRect();
-        if (ev.type === 'pointerup' && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) addNode(spec.type, centred(ctl.toBoard(ev.clientX, ev.clientY), spec.type), spec.params);
-      } else if (ev.type === 'pointerup') addNode(spec.type, null, spec.params);   // a click: add at the view centre
+        if (ev.type === 'pointerup' && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) addNode(spec.type, centred(ctl.toBoard(ev.clientX, ev.clientY), spec.type), spec.name ? { ...spec.params, __name: spec.name } : spec.params);
+      } else if (ev.type === 'pointerup') addNode(spec.type, null, spec.name ? { ...spec.params, __name: spec.name } : spec.params);   // a click: add at the view centre
     };
     src.addEventListener('pointermove', move); src.addEventListener('pointerup', up); src.addEventListener('pointercancel', up);
   });
@@ -377,6 +389,8 @@ function renderInspector(ids) {
     rows.push({ html: s.length ? `<div class="sub-label">Saved ${node.type === 'element' ? 'Elements' : 'Components'}</div><div class="fvs-rail__grid" id="fgi-pick">${s.map(e => `<button type="button" class="fvs-library-item${e.name === p.name ? ' selected' : ''}" data-name="${esc(e.name)}" aria-label="${esc(e.name)}" aria-pressed="${e.name === p.name}">${entryThumb(node.type, e.name, e.entry)}</button>`).join('')}</div>`
       : `<p class="org-empty">Nothing saved yet — save ${node.type === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`,
       bind: () => { const g = ctrl('fgi-pick'); if (g) g.addEventListener('click', e => { const b = e.target.closest('[data-name]'); if (!b) return; Object.assign(p, addContent(node.type, b.dataset.name).params); node.name = b.dataset.name; edited(node, true); ctl.refresh(); renderInspector(ids); ctl.paint(node.id); }); } });
+  } else if (node.type === 'set') {
+    rows.push(setEditor(node, ids));
   } else if (node.type === 'cell-rules') {
     rows.push(cellRulesEditor(node, ids));
   } else if (node.type === 'component-rule') {
@@ -415,6 +429,9 @@ function renderInspector(ids) {
         renderInspector(ids); save();
       }));
     });
+    const hasSet = ctl.model.edges.some(e => e.to.node === node.id && e.to.port === 'content' && (NC.findNode(ctl.model, e.from.node) || {}).type === 'set');
+    if (hasSet) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-fanout"${p.fanOut !== false ? ' checked' : ''}> One group per item</label><p class="panel-hint">Each item of the Set gets its own variations. Off: the items are mixed over the cells.</p>`,
+      bind: () => ctrl('fgi-fanout').addEventListener('change', e => { p.fanOut = e.target.checked; edited(node, true); }) });
     rows.push({ html: '<div class="sub-label">Variations</div>' });
     rows.push(rangeRow('Variations', 'fgi-vcount', 1, 12, 1, +p.variations || 1, (v, c) => { p.variations = v; edited(node, c); }));
     rows.push(selectRow('Vary by', 'fgi-varyby', [['seed', 'Random seed'], ['one', 'One change'], ['several', 'Several changes']], p.varyBy || 'one', v => { p.varyBy = v; edited(node, true); }));
@@ -439,6 +456,32 @@ function renderInspector(ids) {
   box.innerHTML = title + rows.map(r => r.html).join('') + (why ? `<p class="panel-hint">${esc(why)}.</p>` : '') + '</div>';
   rows.forEach(r => r.bind && r.bind());
   if (Organica.autoLabelPanel) Organica.autoLabelPanel(box);
+}
+
+// ── Set: an ordered list of saved Elements / Components; saved Sets ('fvs-sets') ──
+function setEditor(node, ids) {
+  const p = node.params, items = p.items || (p.items = []), s = savedEntries(), saved = Object.keys(SETS.read()).sort((a, b) => a.localeCompare(b));
+  const row = (it, i) => `<div class="fg-chip"><span class="fg-set__thumb" data-theme="light">${entryThumb(it.kind, it.name, it.snapshot)}</span><span class="fg-chip__text">${esc(it.name)}</span>
+    <button type="button" class="icon-btn" data-act="up" data-i="${i}" aria-label="Move ${esc(it.name)} up"${i ? '' : ' disabled'}>${Organica.icons.get('arrow-up', { size: 'xs' })}</button>
+    <button type="button" class="icon-btn" data-act="down" data-i="${i}" aria-label="Move ${esc(it.name)} down"${i < items.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down', { size: 'xs' })}</button>
+    <button type="button" class="icon-btn" data-act="del" data-i="${i}" aria-label="Remove ${esc(it.name)} from the Set">${Organica.icons.get('trash', { size: 'xs' })}</button></div>`;
+  const tiles = (kind, list) => list.map(e => `<button type="button" class="fvs-library-item" data-add="${kind}" data-name="${esc(e.name)}" aria-label="Add ${esc(e.name)}">${entryThumb(kind, e.name, e.entry)}</button>`).join('');
+  return { html: `<div class="fg-chips" id="fgi-set-items">${items.length ? items.map(row).join('') : '<p class="panel-hint">No items yet — add saved Elements or Components below.</p>'}</div>
+    <div class="sub-label">Add</div><div class="fvs-rail__grid" id="fgi-set-add">${tiles('element', s.element) + tiles('component', s.component) || '<p class="panel-hint">Nothing saved yet — save a Component in the Component step first.</p>'}</div>
+    <div class="sub-label">Saved Sets</div>
+    <div class="ctrl-row"><select class="panel-select" id="fgi-set-saved" aria-label="Saved Sets"><option value="">${saved.length ? 'Open a saved Set…' : 'No Sets yet'}</option>${saved.map(n => `<option>${esc(n)}</option>`).join('')}</select></div>
+    <div class="row-btns"><button type="button" class="mini-btn" id="fgi-set-save">Save Set</button></div>`,
+    bind: () => {
+      const again = () => { edited(node, true); renderInspector(ids); ctl.paint(node.id); };
+      ctrl('fgi-set-items').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; const i = +b.dataset.i;
+        if (b.dataset.act === 'up' && i) [items[i - 1], items[i]] = [items[i], items[i - 1]];
+        else if (b.dataset.act === 'down' && i < items.length - 1) [items[i + 1], items[i]] = [items[i], items[i + 1]];
+        else if (b.dataset.act === 'del') items.splice(i, 1);
+        again(); });
+      ctrl('fgi-set-add').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (!b) return; const c = addContent(b.dataset.add, b.dataset.name); items.push({ kind: b.dataset.add, name: b.dataset.name, snapshot: c.params.snapshot }); again(); });
+      ctrl('fgi-set-saved').addEventListener('change', e => { const v = SETS.read()[e.target.value]; if (!v) return; p.items = JSON.parse(JSON.stringify(v.items || [])); node.name = e.target.value; ctl.refresh(); again(); });
+      ctrl('fgi-set-save').addEventListener('click', () => { if (!items.length) { Organica.notice('Add items to the Set first'); return; } const all = SETS.read(); all[nodeLabel(node)] = { items: JSON.parse(JSON.stringify(items)), savedAt: new Date().toISOString() }; if (SETS.write(all)) Organica.notice('Set saved'); renderInspector(ids); });
+    } };
 }
 
 // ── Cell rules: today's rule chips (eye / up / down / trash) + "Add rule" — which cells, what they get ──
@@ -689,7 +732,7 @@ export function renderFigureGraph() {
     isActive: () => state.activeTier === 'figure' && !document.body.classList.contains('fvs-libview-open'),
     renderBody, cardClass, nodeLabel, protect,
     fitInset: { left: 88, bottom: 72 },   // the node bar (left dock) and the floatbar
-    wireClass: (e, m) => { const src = NC.findNode(m, e.from.node); return src && ['canvas', 'grid', 'palette'].includes(src.type) ? 'nc-wire--faint' : ''; },
+    wireClass: (e, m) => { const src = NC.findNode(m, e.from.node); return !src ? '' : ['canvas', 'grid', 'palette'].includes(src.type) ? 'nc-wire--faint' : src.type === 'set' ? 'nc-wire--list' : ''; },
     onSelect: ids => { renderInspector(ids); syncButtons(); },
     onChange: (m, reason) => { syncButtons(); save(); if (reason !== 'move' && reason !== 'params') renderInspector(ctl.selection()); },
     onSearch: (at, from, client) => openSearch(at, from, client),

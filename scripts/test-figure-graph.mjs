@@ -87,6 +87,18 @@ const out = await P.ev(`
   f0.params.keep = { content: true, palette: true, cells: true, grid: true, transform: true }; f0.params.pins = []; eng.touch(f0.id); await eng.run(m);
   res.keepAll = V().length === 1;
   f0.params.keep = {}; f0.params.variations = 4; eng.touch(f0.id); await eng.run(m);
+  // ── Sets (Phase 4b): one group per item; Fan out off = items mixed; cap ──
+  const sn = NC.addNode(m, { type: 'set', params: { items: [{ kind: 'element', name: 'Test element', snapshot: el }, { kind: 'component', name: 'Test component', snapshot: compEntry }] } });
+  const fs = NC.addNode(m, { type: 'figure', params: { ...reg.defaults('figure'), variations: 3 } });
+  NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fs.id, port: 'canvas' }); NC.addEdge(m, { node: grids[0].id, port: 'grid' }, { node: fs.id, port: 'grid' });
+  NC.addEdge(m, { node: sn.id, port: 'content' }, { node: fs.id, port: 'content' }, true);
+  await eng.run(m);
+  const FS = eng.get(fs.id).value.figure;
+  res.setGroups = FS.groups ? FS.groups.map(g => g.label + ':' + g.variations.length).join(',') : 'none';
+  fs.params.fanOut = false; eng.touch(fs.id); await eng.run(m);
+  res.setMixed = !eng.get(fs.id).value.figure.groups && eng.get(fs.id).value.figure.variations.length === 3;
+  fs.params.fanOut = true; fs.params.variations = 12; sn.params.items = Array.from({ length: 6 }, (_, i) => ({ kind: 'element', name: 'E' + i, snapshot: el })); eng.touch(sn.id); eng.touch(fs.id); await eng.run(m);
+  const C = eng.get(fs.id).value.figure; res.setCap = C.variations.length <= F('FIGURE_RENDER_CAP') && C.groups.length === 6 && !!C.capped;
   res.libUntouched = !F('ELEMENT_LIB').read()['Test element'] && !F('LIBRARY').read()['Test component'];
   res.after = JSON.stringify(F('state').colors) + F('state').activeTier === before;
   return res;`, PRE);
@@ -131,6 +143,9 @@ check(out.pinFirst, 'a pinned variation comes first after the base');
 check(out.renewKeepsPin && out.renewChanges, 'New variations keeps the pinned one and changes the others');
 check(out.fromThis, 'New Figure from this draws exactly that variation');
 check(out.keepAll, 'Keep everything → no variation can change anything');
+check(out.setGroups === 'Test element:3,Test component:3', 'a Set fans out, one group per item: ' + out.setGroups);
+check(out.setMixed, 'Fan out off: the Set items are mixed, one group');
+check(out.setCap, 'variations × items stay within the cap');
 check(out.libUntouched, 'the real library was never written');
 check(out.after, 'FVS state unchanged by graph runs');
 check(!P.errors.length, 'page errors: ' + P.errors.join(' | '));

@@ -144,8 +144,28 @@ function fitOnPage(svg, cv, paper) {   // a figure with its own frame, fitted in
   const inner = svg.replace(/^<svg([^>]*)>/, (all, attrs) => '<svg' + attrs.replace(/\s(width|height|x|y)="[^"]*"/g, '') + ` x="${x}" y="${y}" width="${w}" height="${h}">`);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${cv.W}" height="${cv.H}" viewBox="0 0 ${cv.W} ${cv.H}"><rect width="${cv.W}" height="${cv.H}" fill="${paper}"/>${inner}</svg>`;
 }
-// A Figure node's output: its main figure (the one New Figure from this / a pin fixed, or as set up) + its variations.
+// The most figures one Figure node draws (variations × Set items). Decided by testing in Phase 4 (ledger O-37).
+export const FIGURE_RENDER_CAP = 48;
+// A Figure node's output. With a Set connected and Fan out on: one group per Set item (that item as the content, the
+// other contents kept), each with its own variations; otherwise one group. → main figure + variations (+ groups).
 export async function figureWithVariations(inputs, p) {
+  const all = (inputs.content || []).filter(Boolean), set = all.find(c => c.kind === 'set');
+  if (!set || p.fanOut === false || !set.items.length) return figureGroup(inputs, p);
+  const others = all.filter(c => c !== set), items = set.items;
+  const per = Math.max(1, Math.min(+p.variations || 1, Math.floor(FIGURE_RENDER_CAP / items.length)));
+  const shown = items.slice(0, FIGURE_RENDER_CAP);
+  const groups = [];
+  for (const it of shown) {
+    const g = await figureGroup({ ...inputs, content: [it, ...others] }, { ...p, variations: per });
+    groups.push({ label: it.name, variations: g.variations.map(v => ({ ...v, key: it.name + '|' + v.key })) , main: g });
+  }
+  const main = groups[0].main;
+  main.groups = groups.map(g => ({ label: g.label, variations: g.variations }));
+  main.variations = [].concat(...main.groups.map(g => g.variations));
+  main.capped = items.length > shown.length || per < (+p.variations || 1) ? { items: items.length, shownItems: shown.length, per } : null;
+  return main;
+}
+async function figureGroup(inputs, p) {
   const keep = p.keep || {};
   // `fixed`: the variation(s) a "New Figure from this" froze — applied in order, before anything else
   const base = [].concat(p.fixed || []).reduce((b, spec) => { const v = varyInputs(b.inputs, spec, {}); return { inputs: v.inputs, extra: { ...b.extra, ...v.extra } }; }, { inputs, extra: {} });
@@ -168,7 +188,7 @@ export async function figureWithVariations(inputs, p) {
 }
 export async function compileFigure(inputs, params) {
   const cv = inputs.canvas, grid = inputs.grid, pal = inputs.palette, rules = (inputs.rules || []).filter(Boolean);
-  const contents = (inputs.content || []).filter(Boolean);
+  const contents = [].concat(...(inputs.content || []).filter(Boolean).map(c => c.kind === 'set' ? c.items : [c])).filter(Boolean);
   if (!contents.length) throw new Error('Connect a Content input');
   if (contents.some(c => c.kind === 'symbol')) throw new Error('A Symbol as content is not available yet — use Elements and Components for now.');
   const cellRules = [].concat(...rules.filter(r => r.kind === 'cells').map(r => r.rules));
@@ -362,6 +382,10 @@ export function figureNodeTypes() {
     { meta: { id: 'component', label: 'Component', category: 'Content', inputs: [], outputs: [{ name: 'content', type: 'content', label: 'Content' }],
         params: [{ name: 'name', default: '' }, { name: 'snapshot', default: null }] },
       compute: (i, p) => { if (!p.snapshot) throw new Error('Pick a saved Component.'); return { content: { kind: 'component', name: p.name, entry: p.snapshot } }; } },
+    { meta: { id: 'set', label: 'Set', category: 'Content', inputs: [], outputs: [{ name: 'content', type: 'content', label: 'Content', list: true }],
+        params: [{ name: 'items', default: [] }] },
+      compute: (i, p) => { const items = (p.items || []).filter(x => x && x.snapshot).map(x => ({ kind: x.kind, name: x.name, entry: x.snapshot }));
+        if (!items.length) throw new Error('Add saved Elements or Components to the Set.'); return { content: { kind: 'set', name: p.name || 'Set', items } }; } },
     { meta: { id: 'cell-rules', label: 'Cell rules', category: 'Rules', inputs: [], outputs: RULE_OUT, params: [{ name: 'rules', default: [] }] },
       compute: (i, p) => ({ rules: ruleOf('cell-rules', p) }) },
     { meta: { id: 'component-rule', label: 'Component rule', category: 'Rules', inputs: [], outputs: RULE_OUT, params: [{ name: 'rule', default: 'radial' }, { name: 'params', default: {} }] },
@@ -378,7 +402,7 @@ export function figureNodeTypes() {
         outputs: [{ name: 'figure', type: 'figure', label: 'Figure' }],
         params: [{ name: 'fit', default: 'contain' }, { name: 'clip', default: true }, { name: 'keepOwn', default: false }, { name: 'symbolFit', default: null },
           { name: 'variations', default: 4 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} }, { name: 'layout', default: 'rows' },
-          { name: 'pins', default: [] }, { name: 'fixed', default: null }] },
+          { name: 'pins', default: [] }, { name: 'fixed', default: null }, { name: 'fanOut', default: true }] },
       compute: async (i, p) => ({ figure: await figureWithVariations(i, p) }) },
   ];
 }

@@ -516,3 +516,7 @@
   @media (hover: hover) { .fg-figlist__item:hover { border-color: var(--ink); } }
   .fg-figlist__item:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .fg-figlist__hint { font-size: var(--t-caption-size); color: var(--mid); }
+  .fg-set__strip { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .fg-set__thumb { display: inline-block; width: var(--space-6); height: var(--space-6); background: var(--paper); border: 1px solid var(--border); flex: 0 0 auto; }
+  .fg-set__thumb svg { width: 100%; height: 100%; display: block; }
+  .fg-group__label { margin: var(--space-2) 0 var(--space-1); font-size: var(--t-caption-size); font-weight: var(--w-medium); color: var(--ink); }
