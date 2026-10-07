@@ -87,3 +87,8 @@ Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z are bound at the document level but skip when `d
 ## 8. Verification standard
 
 Every bridge in this doc was verified by actually connecting real nodes (Image Upload → bridge, or Genesis Seed → downstream), waiting for real completion, and checking BOTH a screenshot of genuine tool-specific output (not a placeholder) and a fresh-tab console for zero errors — never "no error" alone, since a clean console only proves something if the exact interaction that would trigger a bug was actually exercised (the lesson repeated several times elsewhere in this project's own history).
+
+## The shared node canvas (Oct 2026)
+
+`shared/node-canvas.js` / `.css` (`Organica.nodeCanvas`) was built for the FVS Figure graph from what Rhizome taught — the pure model, typed ports, cycle guard and serialized recompute — with the problems found in Rhizome fixed on the way: downstream-only recompute keyed by version (not `JSON.stringify` of inputs), wires drawn from the model, no listener leak, no double-click view reset, node search (`/`), compatible-port highlighting, Figma-style marquee, sections, keyboard-focusable cards, tokenised card edge and `--port-*` colours (Rhizome's types map onto them: SVG → content, Image → figure, Grid → grid, Color → palette, Number → rule, Points → composition). **Rhizome does not use it yet** — it still runs the canvas described above. Moving Rhizome onto it is an open task (`docs/SHARED-COMPONENTS.md` §2d documents the API).
+

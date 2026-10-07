@@ -221,7 +221,7 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
     <a href="#element"><div class="n">01</div><div class="t">Element</div><div class="d">One shape and how it is drawn.</div><div class="c">15 shapes · 4 cell shapes · 3 styles · 4 layer roles</div></a>
     <a href="#component"><div class="n">02</div><div class="t">Component</div><div class="d">The Element placed in a small grid by a rule.</div><div class="c">14 rules · 3 axes · 9 families · 6 colourways</div></a>
     <a href="#symbol"><div class="n">03</div><div class="t">Symbol</div><div class="d">A page, a grid, saved Components in its cells.</div><div class="c">12 grids · 4 fill modes · 10 arrange · 8 rules</div></a>
-    <a href="#figure"><div class="n">04</div><div class="t">Figure</div><div class="d">A recipe: lattice → class rules → grids → mirror.</div><div class="c">25 figures · 6 paint tools · 16 mutations</div></a>
+    <a href="#figure"><div class="n">04</div><div class="t">Figure</div><div class="d">A node graph: Canvas + Grid + Palette + content + rules → Figures → Export.</div><div class="c">13 node types · 25 figures · 3 ways to vary</div></a>
   </div>
   <div class="everywhere"><b>Everywhere</b> — the <a href="#palette">Palette &amp; Paper</a> section sits outside the steps: the inks, <i>Colour by</i>, the Paper colour and its texture apply to every step and every export.</div>
 
@@ -436,36 +436,38 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
 <!-- ====================== FIGURE ====================== -->
 <section class="step" id="figure">
   <h2><span class="num">04</span>Figure</h2>
-  <p class="intro">One recipe that doesn’t name a particular drawing: <b>Seed → lattice → slot classes → rules (class → content + pose) → grids → transform</b>. Every change redraws; the JSON (<code>{tool:'fvs-recipe', version:2, element, levels, transform}</code>) can be copied, pasted and saved.</p>
+  <p class="intro">Since Oct 2026 a Figure is made on a <b>node graph</b> (the Figure step’s board): <b>Input</b> — a Canvas, a Grid, a Palette and saved content — → <b>Transformation</b> — rule nodes and a Composition — → <b>Output</b> — Figure nodes, each with its variations, and an Export node. Nodes are shared: one Canvas can feed five Figures, each with its own Grid and Palette. A Figure compiles to the same recipe v2 as before (<code>{tool:'fvs-recipe', version:2, element, levels, transform}</code>), drawn by the pure <code>evalFigure</code>; the 25 built‑ins open as graphs and draw byte‑identically.</p>
 
-  <h3 id="fi-levels">Levels</h3>
+  <h3 id="fi-levels">Nodes</h3>
   <div class="grid">
-    <div class="entry"><h4>First level · Symbol</h4><p class="how">A lattice + class rules. <b>Triangle</b> rows² cells · <b>Square</b> cols × rows · <b>Hexagon</b> 3r(r−1)+1 cells (cells know ring + sector). Fit Fill (triangles) or Contain. <i>Use the Element step’s own settings</i> freezes the Element into every cell.</p></div>
-    <div class="entry"><h4>First level · Component</h4><p class="how">A 2×2 block by <b>Checkerboard</b> {A 180°, B 0°} · <b>Radial</b> {base 180°} · <b>Pinwheel</b> {base 0°} · <b>Mirror</b> {seed 0}. ⇄ on the first card swaps Symbol ⇄ Component.</p></div>
-    <div class="entry"><h4>Grid levels (0–3)</h4><p class="how">Each finished figure becomes the next level’s tile. <b>Tier</b> (3 triangles up‑down‑up), <b>Tier ×2</b>, <b>Triangle 2/3/4</b>, <b>Square 2×2 … 12×12</b>; down cells turn 180°. <b>Alternate flip</b> = flip H by (col+row) parity. Guard: 40,000 shapes.</p></div>
-    <div class="entry"><h4>Mirror / Rotate</h4><p class="how">Rotate 0/90/180/270 about the box centre, then Mirror over the <b>right</b> edge, the <b>bottom</b> edge or <b>both</b> — the copy shares that edge. Handles on the figure: ⇔ (M), ⇕ (Shift+M), ⟳ (R).</p></div>
+    <div class="entry"><h4>Foundation · Canvas</h4><p class="how">Format preset, <b>Screen / Print</b>, unit mm / in, size, DPI (300), bleed (3), margin (5). Decides Screen or Print for every export of the Figures it feeds.</p></div>
+    <div class="entry"><h4>Foundation · Grid</h4><p class="how">One list: Loom’s generators (Rectangular, Hexagonal, Triangular, Bento, Circular … with their own params and seed) and three lattices — <b>Triangle</b> rows 1–8 · <b>Square</b> 1–12 × 1–12 · <b>Hexagon</b> rings 1–6.</p></div>
+    <div class="entry"><h4>Foundation · Palette</h4><p class="how">Inks (from the palette library or by hand) + Paper + a colour rule. Optional: without one a Figure keeps its content’s own inks. Components follow it through their colourway unless <i>Keep own colours</i>.</p></div>
+    <div class="entry"><h4>Content</h4><p class="how"><b>Element</b> · <b>Component</b> — from the saved libraries only, each node keeps a copy so a deleted entry still draws. <b>Set</b> — a saved list of entries; a Figure fed a Set shows one group of variations per item (cap 24 drawn).</p></div>
+    <div class="entry"><h4>Rules</h4><p class="how"><b>Cell rules</b> (the class rules below) · <b>Component rule</b> (poses a Square lattice up to 4 × 4 by a Component family) · <b>Repeat in grid</b> (Square 2–6, Tier 1–3, Triangle 2–4; alternate flip; each finished figure becomes the next level’s tile) · <b>Rotate &amp; mirror</b> (needs a Repeat before it) · <b>Composition</b> (see Compose).</p></div>
+    <div class="entry"><h4>Output · Figure</h4><p class="how">Needs a Canvas, a Grid and content (a Canvas or Grid can’t be deleted while it is a Figure’s only one). Fit, clip, Keep own colours, <b>Variations</b> (4 by default), Vary by, Keep, seed, Pin. <b>Export</b> takes Figures and writes the files.</p></div>
   </div>
 
-  <h3 id="fi-rules">Class rules</h3>
-  <p class="sub">Each rule is <code>{when, do}</code>; rules run in order, and the later match wins field by field. A switched‑off rule stays in the recipe. Painting a cell writes a rule; <b>Shift</b> writes its whole class.</p>
+  <h3 id="fi-rules">Cell rules</h3>
+  <p class="sub">Each rule is <code>{when, do}</code>; rules run in order, and the later match wins field by field. A switched‑off rule stays in the recipe. Compose adds <code>at</code> (cells by grid address) — see below.</p>
   <div class="grid wide">
     <div class="entry"><h4>when — slot classes</h4><p class="how"><b>class</b> up / down (triangles) · <b>row</b> · <b>col</b> · <b>index</b> · <b>parity</b> odd / even of col + row · <b>ring</b>, <b>sector</b> (hexagons). All present keys must match; arrays mean “any of” (not for parity). <code>{}</code> = every cell.</p></div>
     <div class="entry"><h4>do — actions</h4><p class="how"><b>content</b> empty / filled · <b>rotate</b> n° (snapped to 30°) or <i>sector</i> (60° × the cell’s sector) · <b>flipH</b> · <b>flipV</b> · <b>scale</b> · <b>seed</b> (a different shape, JSON only).</p></div>
   </div>
   <div class="sheet" data-theme="light" id="sierp" style="margin-top:var(--space-5)"></div>
-  <div class="tbl" style="margin-top:var(--space-5)"><table><thead><tr><th>Paint tool</th><th>Key</th><th>Writes</th></tr></thead><tbody>
-    <tr><td>Toggle</td><td>1</td><td>content filled ⇄ empty</td></tr>
-    <tr><td>Seed · Empty</td><td>2 · 3</td><td>content filled · content empty</td></tr>
-    <tr><td>Rotate</td><td>4</td><td>+90° (60° hexagon, 180° triangle)</td></tr>
-    <tr><td>Flip H · Flip V</td><td>5 · 6</td><td>toggles the flip</td></tr>
-  </tbody></table></div>
-
   <h3 id="fi-presets">Built‑in figures (New figure…)</h3>
   <div class="grid" id="presets"></div>
 
-  <h3 id="fi-play">Shuffle &amp; Variations</h3>
-  <p class="sub"><b>Shuffle</b> (Space) applies 1–3 random mutations; <b>Variations</b> (V) shows up to 9 figures one mutation away. <b>Lock</b> Element / Symbol / Rules / Grid / Mirror‑Rotate keeps a group out of both. <code>[</code> <code>]</code> change rows / rings.</p>
-  <div class="tbl"><table id="mutations"><thead><tr><th>Group</th><th>Mutation</th><th>How it decides</th></tr></thead><tbody></tbody></table></div>
+  <h3 id="fi-play">Variations</h3>
+  <p class="sub">A Figure shows itself <i>as set up</i> plus its variations, drawn from its seed. <b>Vary by</b>: <b>Random seed</b> (the Grid’s own seed; how several contents spread) · <b>One change</b> · <b>Several changes</b> (2–3). <b>Keep</b> Content / Palette / Cell rules / Grid / Rotate &amp; mirror holds a group still. <b>Pin</b> keeps a variation through a reroll and upstream edits; <b>New Figure from this</b> makes a sibling Figure with that variation fixed.</p>
+  <div class="tbl"><table id="mutations"><thead><tr><th>Group</th><th>Change</th><th>How it decides</th></tr></thead><tbody></tbody></table></div>
+
+  <h3 id="fi-compose">Compose</h3>
+  <p class="sub">Double‑click a Figure (or <i>Compose…</i>): its own cells on a sheet. Select cells — click, Shift / ⌘‑click, or a tool: <b>Row · Column · Similar cells · Range</b> (a rows × columns box) — then pick what they get, or drop a saved item on a cell. Every action is a <b>region rule</b> on the Figure’s <b>Composition</b> node (created with the first rule), so it reaches every variation and survives upstream changes.</p>
+  <div class="grid wide">
+    <div class="entry"><h4>when</h4><p class="how">The Cell‑rule keys plus <b>at</b> <code>[[row, col], …]</code> — clicked cells by grid address, so “row 2, column 3” stays that cell when the Grid gains columns. A rule naming cells the grid no longer has is kept, not drawn, and reported with its number.</p></div>
+    <div class="entry"><h4>do</h4><p class="how">The Cell‑rule actions plus <b>content</b> (a saved Element / Component, Palette colours unless kept) · <b>toggle</b> · <b>color</b> (a Palette ink) · <b>symbolRule</b> (a Symbol‑step rule over the region, its own seed, reading each cell’s place in the whole grid) · <b>arrange</b> (the Figure’s content by an Arrange class) · <b>pattern</b> (Lines / Crosshatch / Dots / Concentric).</p></div>
+  </div>
 
   <h3 id="fi-checks">Checks</h3>
   <p class="sub">Read from the drawn result: numbers valid · every clip reference resolves · defs / metadata once · slot count · shapes drawn = filled slots × tiles × mirror copies · file size · inks read on the paper (≥ 3:1) · inks distinct · mirror symmetry (&gt; 97 %) · figure box · with a reference image: silhouette overlap (IoU &gt; 0.8) and proportions.</p>
@@ -474,6 +476,7 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
 <!-- ====================== EXPORT ====================== -->
 <section class="step" id="export">
   <h2><span class="num">⤓</span>Export options that change the output</h2>
+  <p class="intro">FVS’s export popover (Element / Component / Symbol) and, for Figures, the <b>Export node</b>: Variations all / pinned only / as set up only · SVG · PNG ×1 / ×2 / ×4 · Plates · Transparent paper · Send to Figma; a Figure on a Print Canvas exports at its own size and DPI with bleed and crop marks.</p>
   <div class="grid" style="margin-top:var(--space-6)">
     <div class="entry"><h4>Screen / Print</h4><p class="how">Screen: Scale ×1 / ×2 / ×4. Print: physical size, DPI and bleed, crop marks, DPI written into the PNG.</p></div>
     <div class="entry"><h4>Variants</h4><p class="how">One row per variant — Fill or Stroke, one ink, a paper, stroke width 1–20 — every non‑paper colour recoloured to that ink. SVG or PNG, transparent paper option.</p></div>
@@ -484,15 +487,15 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
 <!-- ====================== FINDINGS ====================== -->
 <section class="step" id="findings">
   <h2><span class="num">!</span>Found while taking the inventory</h2>
-  <p class="intro">Listed so they can be decided. <span class="tag ok">fixed</span> = fixed on 7 Oct 2026; <span class="tag read">from reading</span> = seen while reading, not run.</p>
+  <p class="intro">Listed so they can be decided. <span class="tag ok">fixed</span> = fixed on 7 Oct 2026; <span class="tag read">from reading</span> = seen while reading, not run; <span class="tag ok">retired</span> = gone with the old Figure UI (Oct 2026) — one Grid list, one range per lattice, and the Palette node replace those surfaces.</p>
   <ul class="flags">
     <li><span class="tag ok">fixed</span> <b>Symbol → Rule: “Snap to 90°” did nothing.</b> Radial and Wave compute free angles when it is off, but the applier always snaps (<code>cell.rotation = snap90(t.rotation)</code>, <code>fvs/js/11-symbol-ui.js:105</code>), so Wave’s smooth angles never showed. Now the applier keeps the rule’s own angle; with the box on, nothing changes.</li>
     <li><span class="tag ok">fixed</span> <b>Component Checkerboard on circle / hexagon cells alternated by cell number</b> (<code>i % 2</code>, <code>fvs/js/engine/03-rules.js:547</code>), not by position — now by position (see Rules on non‑square cells).</li>
-    <li><span class="tag read">from reading</span> Figure: four different size ranges for the same lattice (Advanced 5–8, panel slider and <code>[ ]</code> 2–6, Shuffle 2–5 / 2–4 / 1–3, new layout 5 / 5×5 / 4).</li>
-    <li><span class="tag read">from reading</span> Figure Shuffle’s Seed pool has 12 shapes and lacks Arc truchet; the thumbnails offer 13.</li>
-    <li><span class="tag read">from reading</span> Figure “Other colourway” drops the colourway’s colour rule and can never produce Accent.</li>
-    <li><span class="tag read">from reading</span> Figure Advanced form: any edit drops the Seed’s slider values (except Arc thickness), and “Odd cells” offers 60/120/240/300° on square and triangle lattices too.</li>
-    <li><span class="tag read">from reading</span> Figure: the Grid lattices differ by surface — the step panel and Shuffle offer 6, the Advanced form 16; no hexagonal Grid.</li>
+    <li><span class="tag ok">retired</span> Figure: four different size ranges for the same lattice (Advanced 5–8, panel slider and <code>[ ]</code> 2–6, Shuffle 2–5 / 2–4 / 1–3, new layout 5 / 5×5 / 4).</li>
+    <li><span class="tag ok">retired</span> Figure Shuffle’s Seed pool has 12 shapes and lacks Arc truchet; the thumbnails offer 13.</li>
+    <li><span class="tag ok">retired</span> Figure “Other colourway” drops the colourway’s colour rule and can never produce Accent.</li>
+    <li><span class="tag ok">retired</span> Figure Advanced form: any edit drops the Seed’s slider values (except Arc thickness), and “Odd cells” offers 60/120/240/300° on square and triangle lattices too.</li>
+    <li><span class="tag ok">retired</span> Figure: the Grid lattices differ by surface — the step panel and Shuffle offer 6, the Advanced form 16; no hexagonal Grid.</li>
   </ul>
 </section>
 </main>
@@ -814,29 +817,20 @@ function ctx6(N) {
 /* ---------- Figure: presets + mutations ---------- */
 (function () {
   const P = [
-    ['Triangle (12)', 'Sierpinski · Trapezoid · Lattice 4, each as <b>asset</b> (no grid) · <b>repeated</b> (Tier ×2) · <b>mirrored, one axis</b> (Tier + Rotate 90 + Mirror right) · <b>mirrored, two axes</b> (Tier + Mirror bottom). Red triangle on white. The default first figure is Sierpinski · asset.'],
+    ['Triangle (12)', 'Each opens as a graph. Sierpinski · Trapezoid · Lattice 4, each as <b>asset</b> (no grid) · <b>repeated</b> (Tier ×2) · <b>mirrored, one axis</b> (Tier + Rotate 90 + Mirror right) · <b>mirrored, two axes</b> (Tier + Mirror bottom). Red triangle on white. The default first figure is Sierpinski · asset.'],
     ['Classic (7)', 'Circle from four arcs · Leaf block 2×2 · Leaf wave (tiled 2×2) · Leaf wave, outline · Leaf wave, two inks (4×4) · Triangle pinwheels (3×3) · Arc kaleidoscope.'],
     ['Hexagon (3)', 'Rosette (triangles turned by sector) · Star with empty centre · Arcs turned by sector. Rings 3, Contain.'],
     ['Recursive (3)', 'Sierpinski, three levels · Bow tie tiled 2×2 · Tier of tiers, mirrored.'],
   ];
   $('presets').innerHTML = P.map(([t, how]) => entry({ title: t, how })).join('');
   const M = [
-    ['Element', 'Other Seed', 'A random shape from a pool of 12 (not the current one).'],
-    ['Element', 'Other hue', 'Turns every ink’s OKLCH hue by ±30 / ±60 / ±120 / 180°; a grey gets a hue. Solved to 3:1 on the paper and distinct.'],
-    ['Element', 'Other colourway', 'One of the Colourway schemes on the recipe’s own palette.'],
-    ['Element', 'Other colour rule', 'A different Colour by (needs ≥ 2 inks).'],
-    ['Element', 'Fill ↔ Stroke', 'Toggles the style (Stroke width 4).'],
-    ['Symbol', 'Bigger / smaller layout', 'Rows / rings / columns ± 1.'],
-    ['Rules', 'Toggle a class', 'Triangle: down empty ⇄ filled 180°. Hexagon: centre empty. Square: odd cells empty.'],
-    ['Rules', 'Empty a row', 'Adds “row r → empty” for a random row.'],
-    ['Rules', 'Turn cells', 'Hexagon: turn by sector. Otherwise odd cells rotate (180° on triangles, 90/180/270 on squares).'],
-    ['Rules', 'Flip cells', 'Adds or removes “odd → flip H”.'],
-    ['Rules', 'Drop a rule', 'Removes a random rule.'],
-    ['Grid', 'Other Grid', 'Swaps the last Grid for another (Tier, Tier ×2, Triangle 2/3, Square 2×2/3×3); adds one if none.'],
-    ['Grid', 'Add a Grid', 'Tier, Triangle 2 or Square 2×2 (up to 4 levels).'],
-    ['Grid', 'Remove a Grid', 'Pops the last Grid.'],
-    ['Mirror / Rotate', 'Rotate', '+90° on the last Grid.'],
-    ['Mirror / Rotate', 'Mirror', 'Another of None / right / bottom / both.'],
+    ['Grid', 'A Grid setting', 'One of the Grid’s own settings (rows, columns, rings, size…) moved a step or a few within its range.'],
+    ['Palette', 'Inks in another order', 'The inks rotate one place (one time in three, with ≥ 2 inks).'],
+    ['Palette', 'Hue turn', 'Every ink’s OKLCH hue turned (greys stay grey), solved to 3:1 on the paper and distinct.'],
+    ['Cell rules', 'Add a rule', 'From a pool of 8: odd cells turn 90 / 180° or flip, even cells empty, down triangles empty, up triangles turn, row 1 empty, turn by sector.'],
+    ['Cell rules', 'Switch a rule', 'An existing Cell rule switched off or back on.'],
+    ['Content', 'Content spread', 'How several contents spread over the cells (needs ≥ 2 contents).'],
+    ['Rotate & mirror', 'Rotate / Mirror', '+90°, or another mirror (none / right / bottom / both) — only after a Repeat in grid.'],
   ];
   $('mutations').querySelector('tbody').innerHTML = M.map(([g, n, h]) => `<tr class="entry-row"><td class="k">${g}</td><td class="k"><b>${n}</b></td><td>${h}</td></tr>`).join('');
 })();
@@ -848,7 +842,7 @@ function ctx6(N) {
   const GRP = ['#5f238d', '#c98a00', '#1f5fd6', '#333333'], GRP_TXT = ['#fff', '#1b1b1b', '#fff', '#fff'], LET = 'ABCD';
   const R = [
     { id: 'rel-system', title: 'The whole system', sub: 'How the steps hand over to each other.', cols: ['Element', 'Component', 'Symbol · Figure', 'Out'],
-      nodes: [['cell', 'Cell shape', 0], ['el', 'Element', 0], ['pal', 'Palette & Paper', 0], ['cgrid', 'Component grid', 1], ['crule', 'Component rule', 1], ['saved', 'Saved Components', 1], ['sgrid', 'Symbol grid', 2], ['sfill', 'Symbol fill', 2], ['fig', 'Figure recipe', 2], ['exp', 'Export', 3]],
+      nodes: [['cell', 'Cell shape', 0], ['el', 'Element', 0], ['pal', 'Palette & Paper', 0], ['cgrid', 'Component grid', 1], ['crule', 'Component rule', 1], ['saved', 'Saved Components', 1], ['sgrid', 'Symbol grid', 2], ['sfill', 'Symbol fill', 2], ['fig', 'Figure graph', 2], ['exp', 'Export', 3]],
       edges: [
         ['cell', 'el', 'f', 'every shape is fitted whole inside a non‑square cell; Arc and Arc truchet get their own geometry'],
         ['pal', 'el', 's', 'Colour by inks every cell; the Paper is the ground of every step'],
@@ -984,34 +978,34 @@ function ctx6(N) {
       ],
       ex: { title: 'Arrange · Checkerboard with a pool of A · B · C', path: [['pool', 'arr'], ['arr', 'cells'], ['cells', 'look']],
         stages: { pool: ['A · B · C', 'syPool'], arr: ['Checkerboard → classes 0 · 1', 'syClasses'], cells: ['A · B alternate; C unused', 'syCells'], look: ['the Symbol', 'syLook', 1] } } },
-    { id: 'rel-figure', title: 'Figure', sub: 'A recipe: Seed → lattice → slot classes → rules → grids → Mirror / Rotate. Rules run in order; the later match wins, field by field.', cols: ['You set', 'FVS decides', 'You get'],
-      nodes: [['seed', 'Seed', 0], ['ink', 'Ink & Paper', 0], ['first', 'First level', 0], ['lat', 'Lattice', 0], ['paint', 'Paint tools', 0], ['rules', 'Class rules', 0], ['grids', 'Grid levels', 0], ['tr', 'Mirror · Rotate', 0], ['locks', 'Locks', 0], ['play', 'Shuffle · Variations', 0],
-        ['cls', 'Slot classes', 1], ['order', 'Rule order', 1], ['guard', 'Shape guard', 1], ['chk', 'Checks', 1], ['fig', 'Figure', 2]],
+    { id: 'rel-figure', title: 'Figure', sub: 'A node graph: a Canvas, a Grid, a Palette and saved content feed a Figure; rule nodes and a Composition transform it; the Figure shows its variations and Export writes the files. Rules run in order; the later match wins, field by field.', cols: ['You set', 'FVS decides', 'You get'],
+      nodes: [['canvas', 'Canvas', 0], ['lat', 'Grid', 0], ['ink', 'Palette', 0], ['content', 'Content', 0], ['rules', 'Cell rules', 0], ['rep', 'Repeat in grid', 0], ['tr', 'Rotate & mirror', 0], ['comp', 'Composition', 0], ['vary', 'Vary by · Keep', 0], ['pin', 'Pin', 0],
+        ['cls', 'Slot classes', 1], ['order', 'Rule order', 1], ['guard', 'Shape guard', 1], ['chk', 'Checks', 1], ['fig', 'Figure', 2], ['vars', 'Variations', 2], ['exp', 'Export files', 2]],
       edges: [
-        ['first', 'lat', 's', 'Symbol = a lattice + rules; Component = a 2×2 block by one rule (⇄ swaps)'],
-        ['lat', 'paint', 'f', 'Rotate turns 180° on triangles, 60° on hexagons, 90° on squares'],
-        ['paint', 'rules', 's', 'every gesture writes a rule; Shift writes the whole class'],
-        ['lat', 'cls', 'f', 'up / down only on triangles; ring and sector only on hexagons; parity, row, column, index everywhere'],
-        ['rules', 'cls', 's', 'a rule addresses a class'],
-        ['rules', 'order', 'f', 'rules run in order; the later match wins, field by field'],
-        ['order', 'fig', 's', 'each cell: filled or empty, turned, flipped, scaled'],
-        ['seed', 'fig', 's', 'every filled cell holds the Seed (or the Element’s own settings)'],
-        ['grids', 'tr', 'f', 'Mirror / Rotate needs a Grid and acts on the last one'],
-        ['grids', 'fig', 's', 'each finished figure becomes the next level’s tile'],
+        ['canvas', 'fig', 's', 'size and margin of the figure; Screen or Print for every export'],
+        ['lat', 'cls', 'f', 'up / down only on triangles; ring and sector only on hexagons; parity, row, column everywhere'],
+        ['content', 'fig', 's', 'every cell holds saved content; several contents spread over the cells'],
+        ['ink', 'fig', 's', 'inks + paper; Components follow through their colourway unless Keep own colours'],
+        ['rules', 'cls', 's', 'a Cell rule addresses a class'],
+        ['comp', 'cls', 's', 'a region rule addresses a class or cells by grid address'],
+        ['rules', 'order', 'f', 'Cell rules first, then the Composition; the later match wins, field by field'],
+        ['comp', 'order', 'f', 'region rules run in the order of their chips'],
+        ['order', 'fig', 's', 'each cell: its content, filled or empty, turned, flipped, coloured, patterned'],
+        ['rep', 'tr', 'f', 'Rotate & mirror needs a Repeat in grid before it'],
+        ['rep', 'fig', 's', 'each finished figure becomes the next level’s tile'],
         ['tr', 'fig', 's', 'rotate about the box centre, then mirror over the right / bottom edge'],
-        ['grids', 'guard', 'f', 'filled cells × tiles × mirror copies ≤ 40,000'],
-        ['tr', 'guard', 'f', 'each mirror doubles the shapes'],
-        ['guard', 'fig', 'f', 'above the guard the recipe is refused with the exact count'],
-        ['locks', 'play', 'a', 'locked groups (Element, Symbol, Rules, Grid, Mirror‑Rotate) are left alone'],
-        ['play', 'seed', 's', 'Other Seed, Other hue, Other colourway, Fill ↔ Stroke'],
-        ['play', 'rules', 's', 'Toggle a class, Empty a row, Turn / Flip cells, Drop a rule'],
-        ['play', 'grids', 's', 'Other / Add / Remove a Grid'],
+        ['rep', 'guard', 'f', 'filled cells × tiles × mirror copies ≤ 40,000, per variation'],
+        ['guard', 'fig', 'f', 'above the guard the Figure says so on its card'],
+        ['vary', 'vars', 's', 'Random seed · One change · Several changes; kept groups are left alone'],
+        ['pin', 'vars', 'a', 'a pinned variation survives a reroll and upstream edits'],
+        ['fig', 'vars', 's', 'the Figure as set up comes first'],
         ['ink', 'chk', 'f', 'inks must read on the paper (≥ 3:1) and be distinct'],
-        ['grids', 'chk', 'f', 'shapes drawn = filled slots × tiles × mirror copies'],
-        ['chk', 'fig', 's', 'read from the drawn result'],
+        ['chk', 'fig', 's', 'read from the drawn result; a badge on the card'],
+        ['vars', 'exp', 's', 'all, pinned only or as set up · SVG, PNG, plates'],
+        ['canvas', 'exp', 'f', 'a Print Canvas: its size in mm, DPI, bleed and crop marks'],
       ],
-      ex: { title: 'Sierpinski: down cells empty', path: [['seed', 'fig'], ['lat', 'cls'], ['rules', 'cls'], ['rules', 'order'], ['order', 'fig']],
-        stages: { seed: ['Triangle, red', 'fiSeed'], lat: ['Triangle, 2 rows', 'fiLattice'], rules: ['down → Empty', 'fiRule'], cls: ['3 up (A) · 1 down (B)', 'fiClasses'], order: ['1 rule', null], fig: ['the Sierpinski asset', 'fiResult', 1] } } },
+      ex: { title: 'Sierpinski: down cells empty', path: [['content', 'fig'], ['lat', 'cls'], ['rules', 'cls'], ['rules', 'order'], ['order', 'fig']],
+        stages: { content: ['Triangle, red', 'fiSeed'], lat: ['Triangle lattice, 2 rows', 'fiLattice'], rules: ['down → Empty', 'fiRule'], cls: ['3 up (A) · 1 down (B)', 'fiClasses'], order: ['1 rule', null], fig: ['the Sierpinski asset', 'fiResult', 1] } } },
   ];
   const COL = { f: '#d23a2b', a: '#2f8f5f', s: '#8c8577' }, NAME = { f: 'Fixed', a: 'Can be fixed', s: 'Shapes' };
   const INKS = ['#5f238d', '#74c476', '#d40039'], LT = ['A', 'B', 'C'], MONO = 'IBM Plex Mono, monospace';

@@ -342,6 +342,8 @@ layer, the marquee, a polite live region), wires `Organica.createZoomPan` with `
 | `onBoardDblClick(point, client)` | the empty board double-clicked (FVS: the node search) |
 | `nameCopy(node, model)` → name | the name a duplicated / pasted node gets (FVS: the next *Canvas ‹n›*) |
 | `fitInset` | `{ left, bottom }` px of the stage covered by chrome (the left dock, the floatbar) — Fit keeps clear of it |
+| `keepActive(node)` → bool | used by the default engine only: compute this node even when its card is off screen, because the host shows its output elsewhere (FVS: the Figure open in Compose, whose output fills the Compose sheet while the graph is hidden). Ignored when you pass your own `engine` — give it an `isActive` that does the same |
+| `keyScope(target)` → bool | focus on this element still counts as the board for its keyboard shortcuts (FVS: the floatbar’s Figure actions, the inspector, the node bar — fields excluded by the host) |
 | `announce(text)` | replace the default live region |
 | `engine`, `history` | your own instances (default: made here) |
 
