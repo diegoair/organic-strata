@@ -82,6 +82,7 @@
     'node-output':   '<rect x="2.5" y="4" width="8" height="8" rx="1"/><path d="M8 8h5.5M11.5 6l2 2-2 2"/>',   // Output nodes (Figure, Export)
     'fit-view':      '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>',   // Fit all — the view, not "reset" (= defaults)
     'fit-selection': '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/><rect x="6" y="6" width="4" height="4" rx=".5"/>',
+    'figure-from':   '<rect x="2.5" y="2.5" width="5" height="5" rx=".8"/><rect x="8.5" y="8.5" width="5" height="5" rx=".8"/><path d="M7.5 5h3.5v3.5"/><path d="M9.3 6.8 11 8.5l1.7-1.7"/>',   // New Figure from this (a variation → its own Figure) — not copy (= Duplicate)
     'pin':           '<path d="M6 2.5h4l-.5 4 2 2v1h-7v-1l2-2z"/><path d="M8 9.5v4"/>',   // Pin a variation (keeps its seed)
     'alert':         '<path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3"/><circle cx="8" cy="11.2" r=".7"' + F + '/>',   // a node error / something to look at
     'select-row':    '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><rect x="2.5" y="6.5" width="11" height="3"' + F + '/>',

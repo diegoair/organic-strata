@@ -116,7 +116,7 @@ function renderBody(node, entry, el) {
         <figcaption class="fg-var__label">${first ? 'As set up' : esc(v.label)}</figcaption>
         ${v.spec ? `<div class="fg-var__tools">
           <button type="button" class="icon-btn" data-act="pin" data-i="${i}" aria-pressed="${!!v.pinned}" aria-label="Pin variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get('pin', { size: 'xs' })}</button>
-          <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get(Organica.icons.names().includes('figure-from') ? 'figure-from' : 'copy', { size: 'xs' })}</button></div>` : ''}
+          <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get('figure-from', { size: 'xs' })}</button></div>` : ''}
       </figure>`;
     el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>` + groups.map((g, gn) => { const gid = `fgv-${node.id}-${gn}`; return `<div${g.label ? ` role="group" aria-labelledby="${gid}"` : ''}>${g.label ? `<p class="fg-group__label" id="${gid}">${esc(g.label)}</p>` : ''}<div class="fg-vars fg-vars--${layout}${g.variations.length === 1 ? ' is-single' : ''}">${g.variations.map((v, k) => tile(v, gi++, k === 0, k, g.label)).join('')}</div></div>`; }).join('')
       + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · showing ${f.capped.shownItems} of ${f.capped.items} items, ${f.capped.per} variations each` : ''}</p>`;
