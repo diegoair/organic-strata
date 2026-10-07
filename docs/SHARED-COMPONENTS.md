@@ -271,7 +271,8 @@ consumer, the FVS Figure graph (`docs/FVS.md` §12), and fixed on the way. Class
 `export`): ES-module tools read the global. Load **after `core.js`** (it calls
 `Organica.createZoomPan`); the sheet **after `shell.css`** (or the tool's own skeleton). Live
 reference: `/design-system/#node-canvas` (both themes, self-checked); port colours `#color`.
-Consumers: FVS Figure graph. Queued: Rhizome (ledger §4).
+Consumers: FVS Figure graph (first), **Rhizome** (second, Oct 7, 2026 — its own canvas, model,
+engine and history were replaced; Rhizome’s port types map onto the `--port-*` types, below).
 
 **Model** — plain data, saved as is (`MODEL_VERSION` 2).
 
@@ -347,6 +348,10 @@ layer, the marquee, a polite live region), wires `Organica.createZoomPan` with `
 | `announce(text)` | replace the default live region |
 | `engine`, `history` | your own instances (default: made here) |
 
+A card is **rebuilt when its port list changes** (`portSig` = every input / output’s name, type,
+`multi` and label): a node whose `meta.inputs` is a function of its params (Rhizome’s Merge,
+*Inputs* 1–6) gets a fresh card in the old one’s place, so the port dots always match the ports.
+
 Controller: `model, engine, history, zoomPan, select(ids), selection(), add(type, at, params),
 connect(from, to), remove(ids), duplicate(ids), setModel(model, meta)` (clears history),
 `refresh(), run(), touch(id)` (params changed → recompute it and what follows), `commit(reason)`
@@ -368,6 +373,40 @@ CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d
 `--pending`, `.is-related`, `.is-selected`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
 Card look = ledger G3 (edge `--border-strong`, no shadow at rest, `--stage-shadow` lifted, 2px
 `--ink` ring selected).
+
+**Helpers to build the node bar and the node search from** (promoted from the FVS Figure graph at
+Rhizome, Oct 7, 2026 — the host keeps its own items and words):
+
+```js
+NC.nodeBar({ bar, panel, stage, icons?: { <cat>: iconName }, render(cat, panel), specOf(target) → spec|null,
+             onAdd(spec, ev, overStage) })            // → { open(cat), close(), current() }
+NC.search({ items: [{ label, hint, … }], title?, client: { x, y }, onPick(item), onClose?(), returnFocus? })  // → { close, el }
+NC.portFor(registry, model, type, params, from)    // → the port of a NEW node of `type` that takes the wire `from` ({node, port, dir}), or null
+```
+
+- **`nodeBar`** wires a `.org-dock` (see below): the `[data-cat]` buttons in `bar` toggle the one
+  `panel` (`aria-expanded`, panel `aria-label` = the category, `inert` when closed, `data-open`);
+  the host fills it in `render`. Any element `specOf()` recognises is **dragged** onto `stage`
+  (a `.nc-nodebar__ghost` follows the pointer on `<body>` — the dock is transformed — and
+  `onAdd(spec, ev, true)` fires on a drop over the stage) or **clicked** / Enter / Space
+  (`onAdd(spec, {type:'click'}, false)` — the host places it, e.g. at the centre of the view).
+  Copy is the host’s: FVS *Foundation · Content · Rules · Output*, Rhizome *Source · Process ·
+  Output* (`docs/UI-COPY.md` §2).
+- **`search`** — a small dialog at a screen point (`role="dialog"`, name and placeholder *Search
+  nodes*): type to filter (label or hint), ↑↓ Enter to pick, Esc closes and returns focus, an
+  outside pointer-down closes. One open at a time; at most 12 rows; nothing found → *No node matches
+  “‹query›”*. `title` = the heading for a wire drop (*Nodes that connect to ‹Port›*).
+- **`portFor`** — for a wire released on the empty board (`onWireDrop`) or a port double-clicked:
+  which port of the new node to connect. It probes a copy of the model with the new node added,
+  so variable-input types work. Filter the search items with it, then `ctl.connect` the result.
+
+CSS: `.nc-nodebar__panel · __hint · __empty · __list · __item · __ghost` (+ `body.nc-is-dragging`)
+and `.nc-search · __head · __q · __list · __item (.is-current) · __hint · __none` — tokens only,
+moved from `fvs/fvs.css`. Live reference: `/design-system/#node-canvas`.
+
+*Not shared yet:* the **Graph menu** (Saved graphs · Save · Delete · New graph · Open file… · Save
+as file, *Untitled n*, the unsaved dot named *Not saved*) is built twice, the same way, in FVS
+(`fvs/js/17-figure-graph.js`) and Rhizome (`rhizome/js/main.js`) — promotion is ledger O-39.
 
 ### `Organica.createZoomPan` — three opt-ins for a node board (Oct 2026)
 
