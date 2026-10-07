@@ -38,7 +38,7 @@ const out = await P.ev(`
     NC.addEdge(m, { node: grids[i].id, port: 'grid' }, { node: f.id, port: 'grid' });
     NC.addEdge(m, { node: en.id, port: 'content' }, { node: f.id, port: 'content' }, true);
     if (i % 2) NC.addEdge(m, { node: cn.id, port: 'content' }, { node: f.id, port: 'content' }, true);
-    if (i === 4) NC.addEdge(m, { node: pal.id, port: 'palette' }, { node: f.id, port: 'palette' });
+    if (i === 4 || i === 3) NC.addEdge(m, { node: pal.id, port: 'palette' }, { node: f.id, port: 'palette' });
   });
   const lonely = NC.addNode(m, { type: 'figure', params: reg.defaults('figure') });
   NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: lonely.id, port: 'canvas' });
@@ -53,6 +53,9 @@ const out = await P.ev(`
   res.size = v0.map(v => (v.svg.match(/viewBox="([^"]+)"/) || [])[1]);
   res.lonely = eng.get(lonely.id).state + ':' + eng.get(lonely.id).message;
   res.palDiffers = v0[4].svg.includes('#e85d3a') || v0[4].svg.includes('#2f6fb0');
+  res.palComp = v0[3].svg.includes('#e85d3a') || v0[3].svg.includes('#2f6fb0') || v0[3].svg.includes('#1a1a1a');   // figure 3 has a Component: the Palette reaches it
+  figs[3].params.keepOwn = true; eng.touch(figs[3].id); await eng.run(m);
+  res.keepOwn = !eng.get(figs[3].id).value.figure.svg.includes('#e85d3a');
   // change the shared Canvas → all 5 Figures (and only they, plus the Canvas) recompute
   const vers = figs.map(f => eng.get(f.id).ver), gver = grids.map(g => eng.get(g.id).ver), ever = eng.get(en.id).ver;
   cv.params.preset = 'Landscape 16:9'; eng.touch(cv.id);
@@ -92,6 +95,8 @@ check(out.cells.every(n => n > 10), 'cells per figure: ' + out.cells.join(','));
 check(out.size.every(s => /1080 1080$/.test(s || '')), 'figure frame = the Canvas (1080×1080): ' + out.size.join(','));
 check(/^waiting:Connect a Content/.test(out.lonely), 'a figure with no content waits: ' + out.lonely);
 check(out.palDiffers, 'the Palette recolours the figure it feeds');
+check(out.palComp, 'the Palette recolours a Component');
+check(out.keepOwn, 'Keep own colours leaves the content in its own colours');
 check(out.allUpdated, 'changing the shared Canvas updates all 5 figures');
 check(out.othersUntouched, 'only the Canvas and its figures recompute');
 check(/1920 1080$/.test(out.size2 || ''), 'the new Canvas size reaches the figure: ' + out.size2);

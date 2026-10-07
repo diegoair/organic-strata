@@ -168,6 +168,9 @@ export async function compileFigure(inputs, params) {
     const model = lattice ? latticeModel(latticeOf(grid)) : await symbolGridModel(grid.gen, { ...gridDefaults(grid.gen), ...(grid.params || {}) }, cv.fit ? canvasOf({ preset: 'Square 1:1', margin: 5 }) : cv);
     const n = Organica.loadLoomGrid(clone(model)).cells.length;
     let cells = Array.from({ length: n }, (_, i) => contentPatch(contents[i % contents.length], params.fit));
+    // A Palette recolours the content (a Component through its colourway — its own colour rule still picks the inks);
+    // "Keep own colours" leaves every content in the colours it was saved with.
+    if (pal && colors && !params.keepOwn) cells.forEach(c => { if (c.source === 'component') c.colourway = { colors: colors.slice(), paper }; });
     if (compRule) {   // a Component rule poses the cells of a small Square lattice
       const l = lattice ? latticeOf(grid) : null;
       if (!l || l.type !== 'square' || l.cols > 4 || l.rows > 4) throw new Error('A Component rule needs a Square lattice up to 4 × 4.');
@@ -177,7 +180,7 @@ export async function compileFigure(inputs, params) {
     const componentEntries = {};
     contents.forEach(c => { if (c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
     element = { type: firstEl && SEED_TYPES[firstEl.entry.seed.type] ? firstEl.entry.seed.type : 'triangle', style: 'fill', colors: colors || ['#000000'], paper };
-    first = { kind: 'symbol', lattice: { type: 'loomModel', model }, cells, componentEntries, colors: colors || ['#000000'], colorRule, paperColor: paper, clip: params.clip !== false };
+    first = { kind: 'symbol', lattice: { type: 'loomModel', model }, cells, componentEntries, colors: colors || ['#000000'], colorRule: params.keepOwn ? { ...DEFAULT_COLOR_RULE } : colorRule, paperColor: paper, clip: params.clip !== false };
     if (cellRules.length) first.rules = clone(cellRules);
   }
   const recipe = { tool: 'fvs-recipe', version: 2, element, levels: [first, ...repeats] };
@@ -266,7 +269,7 @@ export function figureNodeTypes() {
           { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', required: true, multi: true },
           { name: 'rules', type: 'rule', label: 'Rules', multi: true }],
         outputs: [{ name: 'figure', type: 'figure', label: 'Figure' }],
-        params: [{ name: 'fit', default: 'contain' }, { name: 'clip', default: true }, { name: 'symbolFit', default: null }] },
+        params: [{ name: 'fit', default: 'contain' }, { name: 'clip', default: true }, { name: 'keepOwn', default: false }, { name: 'symbolFit', default: null }] },
       compute: async (i, p) => ({ figure: await compileFigure(i, p) }) },
   ];
 }
