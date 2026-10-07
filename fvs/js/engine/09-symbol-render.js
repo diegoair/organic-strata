@@ -16,7 +16,7 @@ import {
 } from './03-rules.js';
 import {
   DEFAULT_APPEARANCE, buildComponentItems, paintPaperPatternCanvas, paperPatternSVG, resolveItemGeo,
-  withAppearance
+  getElementAppearance, withAppearance
 } from './04-appearance.js';
 import {
   applyElementStretchCanvas, clipToCellShapes, elementPathMarkup, latticeShapePath, nextDrawId,
@@ -375,7 +375,7 @@ export function buildSymbolItems() {
       return {
         type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: place.rotate != null ? place.rotate : cell.rotation,
         scaleX: place.scaleX * (!al && cell.flipH ? -1 : 1), scaleY: place.scaleY * (!al && cell.flipV ? -1 : 1), aligned: !!al,
-        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedBlend: entry.blend === 'multiply', nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(live.variantAppearance || {}) },
+        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedBlend: entry.blend === 'multiply', nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(live.variantAppearance || {}), ...(cell.appearancePatch || {}) },
       };
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
@@ -387,6 +387,8 @@ export function buildSymbolItems() {
       color: cellInk(cell, i), geo, inks: cellOwnInks(cell), cellShape: cellShapeOf(cell.seedParams),   // inks: a saved Element's own palette (Colour by → Element's own colours)
       // …and its own Paper (colour + texture), drawn under it in the Element's 0..100 frame, like a Component's paper
       ownPaper: cellOwnInks(cell) && cell.ownPaper ? cell.ownPaper : null, ownAppearance: cellOwnInks(cell) ? cell.ownAppearance : null,
+      // a cell's own appearance patch (the Figure graph's Pattern fill, Oct 2026) over the look it draws with — absent: unchanged
+      cellAppearance: cell.appearancePatch ? { ...(cellOwnInks(cell) && cell.ownAppearance ? cell.ownAppearance : getElementAppearance()), ...cell.appearancePatch } : null,
     };
   }).filter(Boolean);
   const grow = overlapGrowth();   // Overlap: each content grows past its cell (aligned Components grow their lattice instead)
@@ -473,7 +475,8 @@ export function symbolSVGFromItems(items) {
     if (it.type === 'missing') {
       cellMarkup = missingComponentMarkupSVG(it.cx, it.cy, it.cellW, it.cellH);
     } else if (it.type === 'seed') {
-      cellMarkup = withEntryInks(it.inks, () => seedMarkupSVG(it.cx, it.cy, it.rotation, it.scaleX, it.scaleY, it.geo, it.color));
+      const draw = () => seedMarkupSVG(it.cx, it.cy, it.rotation, it.scaleX, it.scaleY, it.geo, it.color);
+      cellMarkup = withEntryInks(it.inks, () => it.cellAppearance ? withAppearance(it.cellAppearance, draw) : draw());
       if (it.ownPaper) {   // a saved Element's own Paper + texture, as its library thumbnail shows it
         const ground = withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paperPatternSVG(100, 100)));
         paperMarkup = `<g transform="translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(-50,-50)">`
@@ -629,7 +632,7 @@ export function drawSymbolCanvas(ctx) {
         withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paintPaperPatternCanvas(ctx, 100, 100)));
         ctx.restore();
       }
-      inkLayer(ctx, look && look.multiply, g => {
+      const paintSeed = g => {
         g.save();
         g.translate(it.cx, it.cy);
         g.rotate(it.rotation * Math.PI / 180);
@@ -640,7 +643,8 @@ export function drawSymbolCanvas(ctx) {
         g.scale(it.geo.normScale, it.geo.normScale);
         withEntryInks(it.inks, () => paintGeoCanvas(g, it.geo, new Path2D(it.geo.d), it.color));
         g.restore();
-      });
+      };
+      inkLayer(ctx, look && look.multiply, g => (it.cellAppearance ? withAppearance(it.cellAppearance, () => paintSeed(g)) : paintSeed(g)));
     } else {
       const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
       const path = new Path2D(geo.d);

@@ -19,6 +19,9 @@ import {
   seedForSnapshot
 } from './02-seed-ui.js';
 import {
+  mulberry32
+} from './03-rules.js';
+import {
   getSelectedComponent
 } from './06-component-ui.js';
 import {
@@ -28,6 +31,12 @@ import {
   LIVE_SYMBOL, buildFvsGridSVG, defaultSymbolCells, getFvsGrid, getSymbolGrid, hexLoomModel, snapPose, squareLoomModel, symbolFrame,
   triangleLoomModel, withPlacementDefaults
 } from './08-symbol-grid.js';
+import {
+  SYMBOL_ARRANGE, symbolCellContext
+} from './10-suggest.js';
+import {
+  SYMBOL_RULES, snap90
+} from './11-symbol-ui.js';
 import {
   FIGURE_MAX_SHAPES, applyClassRules, componentCellsFromRule, figureSVGOf, gridTypeFromLattice,
   isSealedSymbol, promoteFigureToTile, ruleMatches, slotClassContext, validateFigureRecipe
@@ -127,12 +136,32 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
 // Cell rules on a sealed level (the Figure graph's cells hold content patches): applyClassRules()'s order and
 // matching, but "filled" puts back the cell's own content (or a Seed of `do.seed`), never a bare Seed. Composition
 // rules add: content: {kind, name, entry} (drop saved content into the cells), toggle (empty ↔ its content), color.
+// Region rules (Phase 5b) add: symbolRule {name, params, seed, vary} — a Symbol-step rule over the region's cells only;
+// arrange {rule, pool: [content…], seed} — the region gets content by an Arrange class; pattern {patType, patSpacing,
+// patWeight, patAngle} — a pattern fill (the cell's appearance patch). Seeded rules draw in cell order.
 function applyRulesToContent(rules) {
-  const own = state.symbolCells.map(c => clone(c)), ctxs = slotClassContext(getSymbolGrid());
+  const own = state.symbolCells.map(c => clone(c)), G = getSymbolGrid(), ctxs = slotClassContext(G), sctx = symbolCellContext(G);
+  const rngs = rules.map(r => { const d = r.do || {}, sd = (d.symbolRule && d.symbolRule.seed) || (d.arrange && d.arrange.seed) || 0; return mulberry32(sd >>> 0); });
   state.symbolCells.forEach((cell, i) => {
-    rules.forEach(r => {
+    rules.forEach((r, ri) => {
       if (r.off || !ruleMatches(r.when || {}, ctxs[i])) return;
       const d = r.do || {};
+      if (d.symbolRule && SYMBOL_RULES[d.symbolRule.name]) {
+        const sr = d.symbolRule, vary = { rotation: true, flip: true, scale: false, ...(sr.vary || {}) };
+        const t = SYMBOL_RULES[sr.name].fn(sctx[i], sr.params || {}, rngs[ri]) || {};
+        if (t.empty != null) { if (t.empty) cell.source = 'empty'; else { if (cell.source === 'empty') Object.assign(cell, { source: own[i].source === 'empty' ? 'seed' : own[i].source }); cell.rotation = t.turn || 0; } return; }
+        if (vary.rotation && t.rotation != null) cell.rotation = Math.round((((t.rotation % 360) + 360) % 360) * 100) / 100;
+        if (vary.flip) { if (t.flipH != null) cell.flipH = t.flipH; if (t.flipV != null) cell.flipV = t.flipV; }
+        if (vary.scale && t.scale != null) cell.scale = t.scale;
+        return;
+      }
+      if (d.arrange && (d.arrange.pool || []).length) {
+        const A = SYMBOL_ARRANGE[d.arrange.rule] || SYMBOL_ARRANGE.random, pool = d.arrange.pool, k = d.arrange.rule === 'checker' ? Math.min(2, pool.length) : pool.length;
+        const pick = A.cls ? pool[((A.cls(sctx[i], k) % k) + k) % k] : pool[Math.floor(rngs[ri]() * pool.length)];
+        Object.assign(cell, withPlacementDefaults(contentPatch(pick, cell.fitMode)), { rotation: sctx[i].orient === 'down' ? 180 : 0 }); own[i] = clone(cell);
+        return;
+      }
+      if (d.pattern) cell.appearancePatch = { fillMode: 'pattern', patType: d.pattern.patType || 'lines', patSpacing: +d.pattern.patSpacing || 8, patWeight: +d.pattern.patWeight || 2, patAngle: d.pattern.patAngle != null ? +d.pattern.patAngle : 45 };
       if (d.content && typeof d.content === 'object') { const pose = { rotation: cell.rotation, flipH: cell.flipH, flipV: cell.flipV }; Object.assign(cell, withPlacementDefaults(contentPatch(d.content, cell.fitMode)), d.keepPose ? pose : {}); own[i] = clone(cell); }
       else if (d.toggle) { if (cell.source === 'empty') Object.assign(cell, { source: own[i].source === 'empty' ? 'seed' : own[i].source }); else cell.source = 'empty'; }
       else if (d.content === 'empty') cell.source = 'empty';

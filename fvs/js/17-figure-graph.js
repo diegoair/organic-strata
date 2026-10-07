@@ -19,8 +19,11 @@ import {
   SYMCANVAS_PRESETS, SYMGRID_GENS
 } from './engine/08-symbol-grid.js';
 import {
-  componentThumbSVG
+  SYMBOL_ARRANGE, componentThumbSVG
 } from './engine/10-suggest.js';
+import {
+  SYMBOL_RULES
+} from './engine/11-symbol-ui.js';
 import {
   SEED_TYPES
 } from './engine/01-geometry.js';
@@ -733,11 +736,25 @@ function addComposeRule(d, when) {
   comp.params.rules = (comp.params.rules || []).concat([{ when: JSON.parse(JSON.stringify(when)), do: d }]);
   ctl.touch(comp.id); ctl.commit('compose'); save(); renderComposeInspector();
 }
+// Region rule kinds (Phase 5b) — labels as the Symbol step says them (fvs/index.html #sel-symbol-rule) and Arrange's own.
+const SYMBOL_RULE_LABELS = { oscillator: 'Oscillator (Truchet)', checkerboard: 'Checkerboard', rows: 'Rows', columns: 'Columns', radial: 'Radial', wave: 'Wave', orientation: 'Orientation (up / down triangles)', random: 'Random (transforms only)' };
+const PATTERN_LABELS = { lines: 'Lines', crosshatch: 'Crosshatch', dots: 'Dots', concentric: 'Concentric' };
+function figureContents(figId) {   // the content feeding a Figure, as {kind, name, entry} — a Set's items included
+  const out = [];
+  ctl.model.edges.filter(e => e.to.node === figId && e.to.port === 'content').forEach(e => {
+    const en = ctl.engine.get(e.from.node), c = en && en.value && en.value.content; if (!c) return;
+    if (c.kind === 'set') out.push(...c.items); else out.push(c);
+  });
+  return out;
+}
 const QUICK = [['toggle', 'Toggle', { toggle: true }], ['empty', 'Empty', { content: 'empty' }], ['filled', 'Filled', { content: 'filled' }], ['rot', 'Rotate 90°', { rotate: 90 }], ['rot180', 'Rotate 180°', { rotate: 180 }], ['fh', 'Flip H', { flipH: true }], ['fv', 'Flip V', { flipV: true }]];
 function describeComposeRule(r) {
   const w = r.when || {}, d = r.do || {};
   const where = w.index ? (w.index.length === 1 ? 'cell ' + (w.index[0] + 1) : w.index.length + ' cells') : describeRule({ when: w, do: {} }).split(' → ')[0];
-  const what = d.content && typeof d.content === 'object' ? d.content.name : d.toggle ? 'Toggle' : d.color ? 'Colour ' + d.color : describeRule({ when: {}, do: d }).split(' → ')[1];
+  const what = d.content && typeof d.content === 'object' ? d.content.name : d.toggle ? 'Toggle' : d.color ? 'Colour ' + d.color
+    : d.symbolRule ? 'Symbol rule: ' + (SYMBOL_RULE_LABELS[d.symbolRule.name] || d.symbolRule.name)
+    : d.arrange ? 'Arrange: ' + ((SYMBOL_ARRANGE[d.arrange.rule] || {}).label || d.arrange.rule) + ' · ' + d.arrange.pool.length + ' items'
+    : d.pattern ? 'Pattern: ' + (PATTERN_LABELS[d.pattern.patType] || d.pattern.patType) : describeRule({ when: {}, do: d }).split(' → ')[1];
   return where + ' → ' + what;
 }
 function renderComposeInspector() {
@@ -752,6 +769,9 @@ function renderComposeInspector() {
     <div class="ctrl-row"><div class="ctrl-label">They get</div><select class="panel-select" id="fgc-does" aria-label="They get">
       <optgroup label="Cells">${QUICK.map(([k, l]) => `<option value="q:${k}">${l}</option>`).join('')}</optgroup>
       ${inks.length ? `<optgroup label="Colour">${inks.map((h, i) => `<option value="c:${h}">Ink ${i + 1} ${h}</option>`).join('')}</optgroup>` : ''}
+      <optgroup label="Symbol rule">${Object.entries(SYMBOL_RULE_LABELS).map(([k, l]) => `<option value="s:${k}">${esc(l)}</option>`).join('')}</optgroup>
+      <optgroup label="Arrange the Figure’s content">${Object.entries(SYMBOL_ARRANGE).map(([k, a]) => `<option value="a:${k}">${esc(a.label)}</option>`).join('')}</optgroup>
+      <optgroup label="Pattern">${Object.entries(PATTERN_LABELS).map(([k, l]) => `<option value="p:${k}">${l}</option>`).join('')}</optgroup>
       <optgroup label="Content">${s.element.map(e => `<option value="e:${esc(e.name)}">${esc(e.name)}</option>`).join('')}${s.component.map(e => `<option value="k:${esc(e.name)}">${esc(e.name)}</option>`).join('')}</optgroup></select></div>
     <div class="row-btns"><button type="button" class="mini-btn" id="fgc-add"${n ? '' : ' disabled'}>Add rule to selection</button></div>
     <div class="sub-label">Region rules</div>
@@ -761,12 +781,16 @@ function renderComposeInspector() {
       <button type="button" class="icon-btn" data-act="down" data-i="${i}" aria-label="Move region rule ${i + 1} down"${i < rules.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down', { size: 'xs' })}</button>
       <button type="button" class="icon-btn" data-act="del" data-i="${i}" aria-label="Delete region rule ${i + 1}">${Organica.icons.get('trash', { size: 'xs' })}</button></div>`).join('') : '<p class="panel-hint">No region rules yet — select cells, then pick what they get, or drop a saved item on a cell.</p>'}</div>
     ${f && f.lost && f.lost.length ? f.lost.map(i => `<p class="panel-hint fg-warn">Cell ${i + 1} is not in this grid any more — the placement is kept but not drawn.</p>`).join('') : ''}
+    <p class="panel-hint">A Symbol rule uses the Symbol step’s settings for that rule. Arrange lays out the content feeding the Figure. Pattern fills the cells with a pattern.</p>
     <p class="panel-hint">Rules apply in order: a later rule wins on the cells it matches. Esc clears the selection, then leaves Compose.</p></div>`;
   box.querySelectorAll('[data-quick]').forEach(b => b.addEventListener('click', () => addComposeRule(QUICK.find(q => q[0] === b.dataset.quick)[2])));
   ctrl('fgc-add').addEventListener('click', () => {
     const v = ctrl('fgc-does').value, t = v.slice(0, 1), x = v.slice(2);
     if (t === 'q') addComposeRule(QUICK.find(q => q[0] === x)[2]);
     else if (t === 'c') addComposeRule({ color: x });
+    else if (t === 's') addComposeRule({ symbolRule: { name: x, params: SYMBOL_RULES[x].read(), seed: 1 + Math.floor(Math.random() * 99999) } });   // the Symbol step's own settings for that rule
+    else if (t === 'a') { const pool = figureContents(composing.fig); if (!pool.length) { Organica.notice('Connect content to the Figure first'); return; } addComposeRule({ arrange: { rule: x, pool, seed: 1 + Math.floor(Math.random() * 99999) } }); }
+    else if (t === 'p') addComposeRule({ pattern: { patType: x, patSpacing: 8, patWeight: 2, patAngle: 45 } });
     else { const c = addContent(t === 'e' ? 'element' : 'component', x); addComposeRule({ content: { kind: c.type, name: x, entry: c.params.snapshot } }); }
   });
   ctrl('fgc-rules').addEventListener('click', e => {

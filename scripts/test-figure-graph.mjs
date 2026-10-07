@@ -125,6 +125,17 @@ const out = await P.ev(`
   res.composeAllVariations = eng.get(fc.id).value.figure.variations.slice(1).every(v => (K(v.svg).match(/data-cell-index/g) || []).length <= FC0.cells - 2 + 12);
   co.params.rules.push({ when: { index: [999] }, do: { content: 'empty' } }); eng.touch(co.id); await eng.run(m);
   res.composeLost = JSON.stringify(eng.get(fc.id).value.figure.lost) === '[999]';
+  // ── region rules (Phase 5b): Symbol rule, Arrange, Pattern — only in their region ──
+  const cellG = (svg, i) => { const d = new DOMParser().parseFromString(svg, 'image/svg+xml'); const g = d.querySelector('[data-cell-index="' + i + '"]'); return g ? g.innerHTML : null; };
+  co.params.rules = []; eng.touch(co.id); await eng.run(m); const base5 = K(eng.get(fc.id).value.figure.svg);
+  co.params.rules = [{ when: { row: [1] }, do: { symbolRule: { name: 'checkerboard', params: { rotA: 0, swap: false, rotB: 90, flip: false }, seed: 7 } } }]; eng.touch(co.id); await eng.run(m);
+  const sr = K(eng.get(fc.id).value.figure.svg);
+  res.symRule = sr !== base5 && cellG(sr, 0) === cellG(base5, 0) && cellG(sr, 6) !== cellG(base5, 6) && cellG(sr, 7) === cellG(base5, 7);   // row 0 untouched; row 1: the odd cell turned, the even one not
+  eng.touch(co.id); await eng.run(m); res.symRuleDet = K(eng.get(fc.id).value.figure.svg) === sr;
+  co.params.rules = [{ when: {}, do: { arrange: { rule: 'checker', pool: [{ kind: 'element', name: 'Test element', entry: el }, { kind: 'component', name: 'Test component', entry: compEntry }], seed: 3 } } }]; eng.touch(co.id); await eng.run(m);
+  const ar = K(eng.get(fc.id).value.figure.svg); res.arrange = ar !== base5;
+  co.params.rules = [{ when: { col: [0] }, do: { pattern: { patType: 'crosshatch', patSpacing: 8, patWeight: 2, patAngle: 45 } } }]; eng.touch(co.id); await eng.run(m);
+  const pt = K(eng.get(fc.id).value.figure.svg); res.pattern = pt !== base5 && cellG(pt, 1) === cellG(base5, 1) && cellG(pt, 0) !== cellG(base5, 0);
   res.libUntouched = !F('ELEMENT_LIB').read()['Test element'] && !F('LIBRARY').read()['Test component'];
   res.after = JSON.stringify(F('state').colors) + F('state').activeTier === before;
   return res;`, PRE);
@@ -182,6 +193,10 @@ check(out.composeOff, 'a switched-off region rule does nothing');
 check(out.composeToggle, 'toggle empties filled cells');
 check(out.composeAllVariations, 'a Composition reaches the variations too');
 check(out.composeLost, 'a placement on a cell the grid does not have is reported');
+check(out.symRule, 'a Symbol rule turns its region only');
+check(out.symRuleDet, 'a Symbol rule is the same for the same seed');
+check(out.arrange, 'Arrange gives the region content from its pool');
+check(out.pattern, 'a Pattern fill changes its region only');
 check(out.libUntouched, 'the real library was never written');
 check(out.after, 'FVS state unchanged by graph runs');
 check(!P.errors.length, 'page errors: ' + P.errors.join(' | '));
