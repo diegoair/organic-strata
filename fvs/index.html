@@ -86,6 +86,17 @@
   <div id="fb-figure-actions" class="fvs-fb-group" style="display:none">
     <span class="org-floatbar__group" role="group" aria-label="Graph">
       <button class="org-floatbar__btn" id="btn-fg-new" aria-label="New Figure…" data-icon-slot></button>
+      <span class="org-popover-wrap">
+        <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-fg-graph" aria-label="Graph"><span class="fg-graph-btn__label">Graph</span><span class="fg-graph-btn__chev" data-icon-slot></span></button>
+        <div class="org-popover fg-graph-pop" id="fg-graph-popover" aria-label="Graph">
+          <div class="org-popover__title">Graph</div>
+          <div class="ctrl-row"><span class="ctrl-label">Saved graphs</span><select class="panel-select" id="fg-graph-saved" aria-label="Saved graphs"></select></div>
+          <div class="ctrl-row"><span class="ctrl-label">Graph name</span><input type="text" class="panel-input" id="fg-graph-name" aria-label="Graph name" autocomplete="off"></div>
+          <div class="row-btns"><button type="button" class="mini-btn" id="fg-graph-save">Save</button><button type="button" class="mini-btn" id="fg-graph-delete" data-armed="Delete — click again to confirm">Delete</button></div>
+          <div class="row-btns"><button type="button" class="mini-btn" id="fg-graph-new">New graph</button><button type="button" class="mini-btn" id="fg-graph-open">Open file…</button><button type="button" class="mini-btn" id="fg-graph-file">Save as file</button></div>
+          <input type="file" id="fg-graph-input" accept=".json,application/json" aria-label="Open a graph or a Figure recipe" class="org-file-input">
+        </div>
+      </span>
     </span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
     <span class="org-floatbar__group" role="group" aria-label="History">

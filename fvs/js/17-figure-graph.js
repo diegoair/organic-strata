@@ -44,7 +44,8 @@ const NC = Organica.nodeCanvas;
 const registry = NC.createRegistry(figureNodeTypes());
 const VIEW_KEY = 'organica.fvs.figure-view';
 const GRAPHS = Organica.store('fvs-figure');
-const CURRENT = 'Current graph';   // the graph being edited, autosaved
+const CURRENT = '__current';   // the graph being edited, autosaved (not a saved graph: never listed)
+let graphName = '';             // the saved graph this one was opened from / saved as ('' = not saved yet)
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'node-rule', Output: 'node-output' };
 const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Pinwheel', mirror: 'Mirror', checkerboard: 'Checkerboard' };
@@ -436,12 +437,14 @@ let saveTimer = 0;
 function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    const all = GRAPHS.read(); all[CURRENT] = { model: ctl.model, savedAt: new Date().toISOString() }; GRAPHS.write(all);
+    const all = GRAPHS.read(); all[CURRENT] = { model: ctl.model, name: graphName, savedAt: new Date().toISOString() }; GRAPHS.write(all);
+    Organica.dirty.set('fvs-figure-graph', !savedAs());
     try { localStorage.setItem(VIEW_KEY, JSON.stringify({ zoom: ctl.zoomPan.zoom, ...ctl.zoomPan.pan })); } catch (e) {}
   }, 400);
 }
 function loadModel() {
   const e = GRAPHS.read()[CURRENT];
+  graphName = (e && e.name) || '';
   return ensureNames(e && e.model ? NC.createModel(e.model) : starterModel());
 }
 function syncButtons() {
@@ -452,6 +455,59 @@ function syncButtons() {
   del.setAttribute('aria-disabled', String(refused));
   ctrl('fg-delete-why').textContent = !sel.length ? 'Select a node first' : (why || '');
   if (refused) del.setAttribute('aria-describedby', 'fg-delete-why'); else del.removeAttribute('aria-describedby');
+}
+
+// ── Graph menu (floatbar): Saved graphs · Graph name · Save · Delete · New graph · Open file… · Save as file ──
+const GRAPH_FILE = 'fvs-figure-graph';
+function savedNames() { return Object.keys(GRAPHS.read()).filter(n => n !== CURRENT).sort((a, b) => a.localeCompare(b)); }
+function savedAs() { const e = graphName && GRAPHS.read()[graphName]; return !!e && JSON.stringify(e.model) === JSON.stringify(ctl.model); }
+function syncGraphMenu() {
+  const sel = ctrl('fg-graph-saved'), names = savedNames();
+  sel.innerHTML = names.length ? `<option value="">—</option>` + names.map(n => `<option${n === graphName ? ' selected' : ''}>${esc(n)}</option>`).join('') : '<option value="">No saved graphs yet</option>';
+  sel.disabled = !names.length;
+  ctrl('fg-graph-name').value = graphName;
+  ctrl('fg-graph-delete').disabled = !graphName || !GRAPHS.read()[graphName];
+  const fresh = ctl.model.nodes.length && !savedAs();
+  const nw = ctrl('fg-graph-new');
+  if (fresh) nw.setAttribute('data-armed', 'New graph — click again to confirm'); else nw.removeAttribute('data-armed');
+}
+function useModel(model, name) {
+  graphName = name || '';
+  ctl.setModel(ensureNames(NC.createModel(model)));
+  renderInspector([]); syncButtons(); save(); syncGraphMenu();
+  requestAnimationFrame(() => ctl.fitAll());
+}
+function initGraphMenu() {
+  ctrl('btn-fg-graph').querySelector('.fg-graph-btn__chev').innerHTML = Organica.icons.get('chevron-down', { cls: 'chev' });
+  Organica.popover(ctrl('btn-fg-graph'), ctrl('fg-graph-popover'));
+  ctrl('btn-fg-graph').addEventListener('click', syncGraphMenu);
+  ctrl('fg-graph-saved').addEventListener('change', e => { const n = e.target.value, g = n && GRAPHS.read()[n]; if (g) useModel(g.model, n); });
+  ctrl('fg-graph-save').addEventListener('click', () => {
+    const n = ctrl('fg-graph-name').value.trim(); if (!n) { Organica.notice('Name the graph first'); ctrl('fg-graph-name').focus(); return; }
+    const all = GRAPHS.read(); all[n] = { model: JSON.parse(JSON.stringify(ctl.model)), savedAt: new Date().toISOString() };
+    if (!GRAPHS.write(all)) return;
+    graphName = n; save(); syncGraphMenu(); Organica.notice('Graph saved');
+  });
+  ctrl('fg-graph-delete').addEventListener('click', () => {
+    const all = GRAPHS.read(); if (!graphName || !all[graphName]) return;
+    delete all[graphName]; GRAPHS.write(all); graphName = ''; save(); syncGraphMenu(); Organica.notice('Graph deleted');
+  });
+  ctrl('fg-graph-new').addEventListener('click', () => useModel(NC.createModel(), ''));
+  ctrl('fg-graph-file').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify({ tool: GRAPH_FILE, version: 1, name: graphName, model: ctl.model }, null, 2)], { type: 'application/json' });
+    Organica.download(blob, Organica.stamp(graphName ? graphName.replace(/[^\w-]+/g, '-').toLowerCase() : 'fvs-graph', 'json'));
+    Organica.notice('Graph file saved');
+  });
+  ctrl('fg-graph-open').addEventListener('click', () => ctrl('fg-graph-input').click());
+  ctrl('fg-graph-input').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (data && data.tool === GRAPH_FILE && data.model) useModel(data.model, '');
+      else if (data && data.tool === 'fvs-recipe') { openBuiltin(data); Organica.notice('Recipe opened as a graph'); }
+      else throw new Error('Not a graph or a Figure recipe');
+    } catch (err) { Organica.notice(err.message || 'That file could not be opened', { kind: 'error' }); }
+  });
 }
 
 export function renderFigureGraph() {
@@ -482,6 +538,6 @@ export function renderFigureGraph() {
   ctrl('btn-fg-fit').addEventListener('click', () => ctl.fitAll());
   ctrl('btn-fg-fit-sel').addEventListener('click', () => ctl.fitSelection());
   ctrl('btn-fg-new').addEventListener('click', openNewFigure);
-  initNodebar();
+  initNodebar(); initGraphMenu();
   renderInspector([]); syncButtons();
 }
