@@ -43,7 +43,9 @@
   font-family: var(--font-display); font-size: var(--t-section-size); font-weight: var(--w-medium);
   cursor: grab;
 }
-.nc-node__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nc-node__head { flex-direction: column; align-items: stretch; gap: 0; }
+.nc-node__type { font-family: var(--font-mono); font-size: var(--t-label-size); font-weight: var(--w-regular); color: var(--mid); }   /* the overline: what kind of node */
+.nc-node__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* its own name */
 .nc-node__io { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) 0; }
 .nc-node__ports { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .nc-node__ports--out { align-items: flex-end; }
@@ -89,16 +91,16 @@
 .nc-wire--figure { --wire-c: var(--port-figure); }
 
 /* ── wires ── */
-.nc-wire { fill: none; stroke: var(--wire-c, var(--mid)); stroke-width: var(--wire-w); stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke-width var(--dur-fast) var(--ease-standard); }
+.nc-wire { fill: none; stroke: var(--wire-c, var(--mid)); stroke-width: var(--wire-w); stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke-width var(--dur-fast) var(--ease-standard), stroke-opacity var(--dur-fast) var(--ease-standard); }   /* stroke-width on a 1.5px SVG line is a cheap repaint — a deliberate exception to transform/opacity-only */
 .nc-wire-hit { fill: none; stroke: transparent; stroke-width: var(--hit-min); vector-effect: non-scaling-stroke; pointer-events: stroke; cursor: pointer; }
 .nc-wire-hit:hover + .nc-wire { stroke-width: calc(var(--wire-w) + 1px); }
 .nc-wire.is-selected { stroke: var(--ink); stroke-width: calc(var(--wire-w) + 1px); }
-.nc-wire--pending { stroke: var(--ink); stroke-dasharray: 4 4; }
+.nc-wire--pending { stroke: var(--ink); stroke-dasharray: 4 4; }   /* component-local dash: 'pending' (with the marquee) */
 .nc-wire--faint { stroke-opacity: 0.35; }
 .nc-wire--faint.is-related { stroke-opacity: 1; }
 
 /* ── marquee + live region ── */
 .nc-marquee { position: absolute; left: 0; top: 0; pointer-events: none; background: color-mix(in srgb, var(--ink) 6%, transparent); border: 1px dashed var(--mid); }
-.nc-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.nc-live, .nc-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 @media (prefers-reduced-motion: reduce) { .nc-node, .nc-port__dot, .nc-wire { transition: none; } }

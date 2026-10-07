@@ -161,8 +161,8 @@
           if (p.required && !wires.length) missing = missing || (p.label || p.name);
         }
         var key = keyParts.join('|');
-        if (blocked) { setEntry(id, { key: null, value: null, ver: (prev ? prev.ver : 0) + 1, state: 'upstream', message: 'Waiting on ' + blocked + ', which has an error.' }); continue; }
-        if (missing) { setEntry(id, { key: null, value: null, ver: (prev ? prev.ver : 0) + 1, state: 'waiting', message: 'Connect a ' + missing + '.' }); continue; }
+        if (blocked) { setEntry(id, { key: null, value: null, ver: (prev ? prev.ver : 0) + 1, state: 'upstream', message: 'Waiting for ' + blocked + ' — fix it first' }); continue; }
+        if (missing) { setEntry(id, { key: null, value: null, ver: (prev ? prev.ver : 0) + 1, state: 'waiting', message: 'Connect a ' + missing + ' input' }); continue; }
         if (prev && prev.key === key && (prev.state === 'ok' || prev.state === 'error')) continue;   // nothing it reads changed
         try {
           var value = await Promise.resolve(type.compute(inputs, node.params || {}, { node: node, nodeId: id }));
@@ -249,14 +249,14 @@
     var isActive = o.isActive || function () { return true; };
     var ctl = { model: o.model || createModel() };
     var cards = new Map();      // nodeId → { el, body, ports: Map('in:name'|'out:name' → {el, x, y}), w, h }
-    var selected = new Set(), selectedWire = null, clipboard = null, visible = new Set();
+    var selected = new Set(), selectedWire = null, clipboard = null, visible = new Set(), hovered = null;
     var history = o.history || createHistory();
 
     // ── DOM ──
     stage.classList.add('nc-stage');
     stage.setAttribute('role', 'application');
     stage.setAttribute('aria-roledescription', 'node graph');
-    stage.setAttribute('aria-keyshortcuts', '/');
+    if (o.onSearch) stage.setAttribute('aria-keyshortcuts', '/');
     var board = el('div', 'nc-board');
     var wires = document.createElementNS(SVGNS, 'svg'); wires.setAttribute('class', 'nc-wires'); wires.setAttribute('aria-hidden', 'true');
     var wireG = document.createElementNS(SVGNS, 'g'); wires.appendChild(wireG);
@@ -313,7 +313,7 @@
     function label(node) { return o.nodeLabel ? o.nodeLabel(node) : (node.name || registry.get(node.type).meta.label || node.type); }
     function portRow(node, p, dir) {
       var row = el('div', 'nc-port nc-port--' + dir);
-      var b = el('button', 'nc-port__dot', { type: 'button', 'aria-label': (p.label || p.name) + ' — connect', 'data-port': p.name, 'data-dir': dir, 'data-type': p.type });
+      var b = el('button', 'nc-port__dot', { type: 'button', 'aria-label': (p.label || p.name) + (dir === 'in' ? ' input' : ' output') + ' — connect', 'data-port': p.name, 'data-dir': dir, 'data-type': p.type });
       if (p.multi) b.classList.add('nc-port__dot--multi');
       var t = el('span', 'nc-port__label'); t.textContent = p.label || p.name;
       if (dir === 'in') row.append(b, t); else row.append(t, b);
@@ -323,7 +323,8 @@
       var c = { ports: new Map() };
       var card = el('div', 'nc-node' + (o.cardClass ? ' ' + (o.cardClass(node) || '') : ''), { role: 'group', tabindex: '0', 'data-node-id': node.id });
       card.setAttribute('aria-label', label(node));
-      var head = el('div', 'nc-node__head'); var title = el('span', 'nc-node__title'); title.textContent = label(node); head.appendChild(title);
+      var head = el('div', 'nc-node__head'); var type = el('span', 'nc-node__type'); type.textContent = registry.get(node.type).meta.label;
+      var title = el('span', 'nc-node__title'); title.textContent = label(node); head.append(type, title);
       var ins = el('div', 'nc-node__ports nc-node__ports--in'), outs = el('div', 'nc-node__ports nc-node__ports--out');
       registry.inputsOf(node).forEach(function (p) { var r = portRow(node, p, 'in'); ins.appendChild(r.row); c.ports.set('in:' + p.name, { el: r.dot }); });
       registry.outputsOf(node).forEach(function (p) { var r = portRow(node, p, 'out'); outs.appendChild(r.row); c.ports.set('out:' + p.name, { el: r.dot }); });
@@ -361,7 +362,7 @@
         var path = document.createElementNS(SVGNS, 'path'); path.setAttribute('d', d); path.dataset.edge = e.id;
         var cls = 'nc-wire'; if (op) cls += ' nc-wire--' + op.type;
         if (o.wireClass) cls += ' ' + (o.wireClass(e, ctl.model) || '');
-        if (selected.has(e.from.node) || selected.has(e.to.node)) cls += ' is-related';
+        if (selected.has(e.from.node) || selected.has(e.to.node) || hovered === e.from.node || hovered === e.to.node) cls += ' is-related';
         if (selectedWire === e.id) cls += ' is-selected';
         path.setAttribute('class', cls);
         wireG.append(hit, path);
@@ -438,6 +439,8 @@
         var node = findNode(ctl.model, id); if (node && o.onNodeDblClick) o.onNodeDblClick(node, e);
       });
       card.addEventListener('focus', function () { if (!selected.has(id)) select([id]); });
+      card.addEventListener('pointerenter', function () { hovered = id; drawWires(); });
+      card.addEventListener('pointerleave', function () { if (hovered === id) { hovered = null; drawWires(); } });
     }
 
     // ── wiring: drag from any port; compatible ports glow, others dim; release on a port / a card / the board ──

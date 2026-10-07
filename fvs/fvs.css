@@ -534,3 +534,5 @@
   .fg-nodebar__tile { width: 3rem; height: 3rem; background: var(--paper); cursor: grab; touch-action: none; }
   .fg-nodebar__ghost { width: auto; min-width: 3rem; height: auto; padding: var(--space-2) var(--space-3); line-height: normal; font-size: var(--t-control-size); }
   body.fvs-libview-open #fg-nodebar-dock { visibility: hidden; }
+  .fg-grow { flex: 1; }
+  .fg-size { flex: 1; min-width: 0; }

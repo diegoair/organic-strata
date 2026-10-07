@@ -342,8 +342,8 @@
 .fb-tester .seg-btn svg { width: var(--icon-md); height: var(--icon-md); display: block; margin: 0 auto; }
 
 /* Left dock (.org-dock) — an optional left slot of the Tool template (docs/UI-SHELL.md §1): a vertical bar of
-   toggles + ONE sibling glass panel, for what you add to the canvas (a library of things to place, a node palette).
-   Promoted Oct 2026 from FVS's Library rail at its second vertical occupant (the Figure graph's node palette) —
+   toggles + ONE sibling glass panel, for what you add to the canvas (a library of things to place, the node bar).
+   Promoted Oct 2026 from FVS's Library rail at its second vertical occupant (the Figure graph's node bar) —
    ledger O-30. Bar and panel are both .org-floatbar (glass, rim, dark values, fallback come from above) and siblings,
    never nested: a backdrop-filter child would blur only its parent. The dock is transformed (centred), so anything
    position:fixed belongs on <body>, not inside it (a drag ghost, a popover). One occupant at a time per tool step. */

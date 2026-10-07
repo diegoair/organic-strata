@@ -61,7 +61,7 @@ const x = NC.addNode(m, { type: 'boom' }); const y = NC.addNode(m, { type: 'add'
 NC.addEdge(m, { node: x.id, port: 'n' }, { node: y.id, port: 'a' });
 await eng.run(m);
 ok(eng.get(x.id).state === 'error' && eng.get(x.id).message === 'bad', 'error state');
-ok(eng.get(y.id).state === 'upstream' && /error/.test(eng.get(y.id).message), 'upstream state');
+ok(eng.get(y.id).state === 'upstream' && /fix it first/.test(eng.get(y.id).message), 'upstream state');
 
 // multi input + adapter
 const sm = NC.addNode(m, { type: 'sum' });

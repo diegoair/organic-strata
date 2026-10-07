@@ -40,18 +40,29 @@ const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'n
 let ctl = null;
 
 // ── the graph a first visit starts with: Canvas + Grid + Palette → Figure, fed by the newest saved Component/Element ──
+// Default names (UI-COPY §2): Canvas 1, Grid 1, Palette 1, Figure 1 — given once, when the node is made, so deleting
+// Canvas 1 never renames Canvas 2. A content node is titled by its library entry.
+const NUMBERED = ['canvas', 'grid', 'palette', 'figure', 'set'];
+function nextName(model, type) {
+  const base = registry.get(type).meta.label, re = new RegExp('^' + base + ' (\\d+)$');
+  const used = model.nodes.filter(n => n.type === type).map(n => +((String(n.name || '').match(re) || [])[1] || 0));
+  return base + ' ' + (Math.max(0, ...used) + 1);
+}
+function nameFor(model, type, params) {
+  if (NUMBERED.includes(type)) return nextName(model, type);
+  return params && params.name ? params.name : registry.get(type).meta.label;
+}
+function ensureNames(model) { model.nodes.forEach(n => { if (!n.name) n.name = nameFor(model, n.type, n.params); }); return model; }
 function starterModel() {
   const m = NC.createModel();
-  const cv = NC.addNode(m, { type: 'canvas', x: 40, y: 40, params: registry.defaults('canvas') });
-  const gr = NC.addNode(m, { type: 'grid', x: 40, y: 200, params: registry.defaults('grid') });
-  const pa = NC.addNode(m, { type: 'palette', x: 40, y: 360, params: registry.defaults('palette') });
-  const fg = NC.addNode(m, { type: 'figure', x: 360, y: 40, params: registry.defaults('figure') });
+  const mk = (type, x, y) => NC.addNode(m, { type, x, y, params: registry.defaults(type), name: nextName(m, type) });
+  const cv = mk('canvas', 40, 40), gr = mk('grid', 40, 200), pa = mk('palette', 40, 360), fg = mk('figure', 360, 40);
   NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fg.id, port: 'canvas' });
   NC.addEdge(m, { node: gr.id, port: 'grid' }, { node: fg.id, port: 'grid' });
   NC.addEdge(m, { node: pa.id, port: 'palette' }, { node: fg.id, port: 'palette' });
   const c = newestEntry();
   if (c) {
-    const cn = NC.addNode(m, { type: c.kind, x: 40, y: 520, params: { name: c.name, snapshot: entrySnapshot(c.entry) } });
+    const cn = NC.addNode(m, { type: c.kind, x: 40, y: 520, params: { name: c.name, snapshot: entrySnapshot(c.entry) }, name: c.name });
     NC.addEdge(m, { node: cn.id, port: 'content' }, { node: fg.id, port: 'content' }, true);
   }
   return m;
@@ -80,7 +91,7 @@ function renderBody(node, entry, el) {
   if (node.type === 'figure') {
     const f = v && v.figure;
     if (!f) { el.innerHTML = ''; return; }
-    el.innerHTML = `<div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="" src="${figureImg(node.id, f.svg)}"></div>
+    el.innerHTML = `<div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))} preview" src="${figureImg(node.id, f.svg)}"></div>
       <p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells</p>`;
   } else if (node.type === 'canvas') {
     const cv = canvasOf(p);
@@ -92,19 +103,14 @@ function renderBody(node, entry, el) {
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
     el.innerHTML = p.snapshot ? `<div class="fg-card__thumb" data-theme="light">${entryThumb(node.type, p.name, p.snapshot)}</div>
-      <p class="fg-card__meta">${esc(p.name)}${gone ? ' · drawn from the copy in this graph' : ''}</p>` : '';
+      <p class="fg-card__meta">${gone ? `${esc(p.name)} is no longer in the library — drawn from the copy kept in this graph` : esc(p.name)}</p>` : '';
   }
 }
 function cardClass(node) {
   if (node.type === 'figure') return 'nc-node--wide';
   return 'nc-node--compact';
 }
-function nodeLabel(node) {
-  if (node.name) return node.name;
-  const base = registry.get(node.type).meta.label;
-  const same = ctl ? ctl.model.nodes.filter(n => n.type === node.type) : [node];
-  return same.length > 1 ? `${base} ${same.indexOf(node) + 1}` : base;
-}
+function nodeLabel(node) { return node.name || registry.get(node.type).meta.label; }
 // A Figure always has a Canvas and a Grid: the one feeding it can't be deleted while it is that Figure's only one.
 function protect(node, model) {
   if (node.type !== 'canvas' && node.type !== 'grid') return null;
@@ -116,12 +122,13 @@ function protect(node, model) {
 function viewCentre() { const r = ctrl('fg-graph').getBoundingClientRect(); return ctl.toBoard(r.left + r.width / 2, r.top + r.height / 3); }
 function addNode(type, at, params) {
   at = at || viewCentre();
-  if (type !== 'figure') return ctl.add(type, at, params);
+  const named = t => ({ name: nameFor(ctl.model, t, t === type ? params : null) });
+  if (type !== 'figure') return ctl.add(type, at, params, named(type));
   const last = t => { const sel = ctl.selection().map(id => NC.findNode(ctl.model, id)).filter(n => n && n.type === t); return sel[0] || ctl.model.nodes.filter(n => n.type === t).slice(-1)[0]; };
-  const fig = ctl.add('figure', at, params);
+  const fig = ctl.add('figure', at, params, named('figure'));
   let cv = last('canvas'), gr = last('grid');
-  if (!cv) cv = ctl.add('canvas', { x: at.x - 260, y: at.y });
-  if (!gr) gr = ctl.add('grid', { x: at.x - 260, y: at.y + 150 });
+  if (!cv) cv = ctl.add('canvas', { x: at.x - 260, y: at.y }, null, named('canvas'));
+  if (!gr) gr = ctl.add('grid', { x: at.x - 260, y: at.y + 150 }, null, named('grid'));
   ctl.connect({ node: cv.id, port: 'canvas' }, { node: fig.id, port: 'canvas' });
   ctl.connect({ node: gr.id, port: 'grid' }, { node: fig.id, port: 'grid' });
   ctl.select([fig.id]);
@@ -152,7 +159,7 @@ function renderNodebar(cat) {
       : `<p class="fg-nodebar__empty">Nothing saved yet — save ${kind === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`);
     html += block('element', 'Elements', s.element) + block('component', 'Components', s.component);
   }
-  if (cat === 'Rules') html += `<p class="fg-nodebar__empty">Rule nodes arrive in the next step.</p>`;
+  if (cat === 'Rules') html += `<p class="fg-nodebar__empty">Rule nodes are not available yet.</p>`;
   panel.innerHTML = html;
   panel._items = items;
 }
@@ -218,10 +225,10 @@ function renderInspector(ids) {
   if (!box) return;
   const nodes = ids.map(id => NC.findNode(ctl.model, id)).filter(Boolean);
   if (!nodes.length) {
-    const m = ctl.model, count = t => m.nodes.filter(n => n.type === t).length;
+    const m = ctl.model, figs = m.nodes.filter(n => n.type === 'figure').length;
     box.innerHTML = `<div class="panel-section"><h3>Graph</h3>
-      <p class="panel-hint">${count('figure')} Figures · ${count('canvas')} Canvases · ${count('grid')} Grids · ${count('palette')} Palettes</p>
-      ${m.nodes.length ? '' : '<p class="org-empty">Add a Component, a Grid and a Figure — or start from New Figure….</p>'}
+      <p class="panel-hint">${figs} ${figs === 1 ? 'Figure' : 'Figures'} · ${m.nodes.length} ${m.nodes.length === 1 ? 'node' : 'nodes'}</p>
+      ${m.nodes.length ? '' : '<p class="org-empty">This graph is empty. Add a Figure and some saved content, or start from a built-in Figure with New Figure…</p>'}
       <p class="panel-hint">Add nodes from the bar on the left. Drag from a port to connect; drop a wire on a node to use its first free input.</p></div>`;
     return;
   }
@@ -230,19 +237,27 @@ function renderInspector(ids) {
   const title = `<div class="panel-section"><h3>${esc(nodeLabel(node))}</h3>`;
   const why = protect(node, ctl.model);
   if (node.type === 'canvas') {
-    rows.push(selectRow('Format', 'fgi-preset', [...Object.keys(SYMCANVAS_PRESETS).map(n => [n, n]), ['Custom', 'Custom']], SYMCANVAS_PRESETS[p.preset] ? p.preset : 'Custom', v => { p.preset = v; edited(node, true); renderInspector(ids); }));
-    rows.push(selectRow('Output', 'fgi-mode', [['screen', 'Screen'], ['print', 'Print']], p.mode, v => { p.mode = v; edited(node, true); renderInspector(ids); }));
-    if (p.mode === 'print') {
-      rows.push(selectRow('Unit', 'fgi-unit', [['mm', 'mm'], ['in', 'in']], p.unit, v => { p.unit = v; edited(node, true); renderInspector(ids); }));
-      rows.push(numberRow('DPI', 'fgi-dpi', p.dpi, v => { p.dpi = +v || 300; edited(node, true); }, 'min="72" max="1200" step="1"'));
-      rows.push(numberRow('Bleed (mm)', 'fgi-bleed', p.bleed, v => { p.bleed = Math.max(0, +v || 0); edited(node, true); }, 'min="0" max="20" step="0.5"'));
-    }
-    if (!SYMCANVAS_PRESETS[p.preset]) {
-      const cv = canvasOf(p);
-      rows.push(numberRow('Width', 'fgi-pw', cv.pw, v => { p.preset = 'Custom'; p.pw = +v || 1; edited(node, true); }, 'min="1" step="1"'));
-      rows.push(numberRow('Height', 'fgi-ph', cv.ph, v => { p.preset = 'Custom'; p.ph = +v || 1; edited(node, true); }, 'min="1" step="1"'));
-    }
-    rows.push(rangeRow('Margin', 'fgi-margin', 0, 40, 1, p.margin, (v, c) => { p.margin = v; edited(node, c); }));
+    // The Symbol step's own Canvas section (fvs/index.html #sym-canvas-section) — same controls, same ranges (G4).
+    const cv = canvasOf(p), print = p.mode === 'print';
+    rows.push({ html: `<div class="ctrl-row"><select class="panel-select fg-grow" id="fgi-preset" aria-label="Canvas format">${[...Object.keys(SYMCANVAS_PRESETS), 'Custom'].map(n => `<option${n === (SYMCANVAS_PRESETS[p.preset] ? p.preset : 'Custom') ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+      <div class="ctrl-row"><div class="seg-ctrl" id="fgi-mode" role="group" aria-label="Canvas mode"><button class="seg-btn${print ? '' : ' active'}" data-mode="screen" aria-pressed="${!print}">Screen</button><button class="seg-btn${print ? ' active' : ''}" data-mode="print" aria-pressed="${print}">Print</button></div></div>
+      <div class="ctrl-row"><span class="ctrl-label">Size</span><input type="number" class="panel-input fg-size" id="fgi-pw" min="1" step="1" value="${cv.pw}" aria-label="Canvas width"><span class="hint">×</span><input type="number" class="panel-input fg-size" id="fgi-ph" min="1" step="1" value="${cv.ph}" aria-label="Canvas height"><span class="hint">${esc(cv.unit)}</span></div>
+      ${print ? `<div class="ctrl-row"><span class="ctrl-label">Unit</span><select class="panel-select" id="fgi-unit" aria-label="Canvas unit"><option value="mm"${cv.unit === 'mm' ? ' selected' : ''}>mm</option><option value="in"${cv.unit === 'in' ? ' selected' : ''}>in</option></select></div>
+      <div class="ctrl-row"><span class="ctrl-label">DPI</span><input type="number" class="panel-input" id="fgi-dpi" min="72" max="2400" step="1" value="${cv.dpi}" aria-label="Canvas DPI"></div>
+      <div class="ctrl-row"><span class="ctrl-label">Bleed (mm)</span><input type="number" class="panel-input" id="fgi-bleed" min="0" max="20" step="0.5" value="${cv.bleed}" aria-label="Canvas bleed in millimetres"></div>` : ''}`,
+      bind: () => {
+        const again = () => { edited(node, true); renderInspector(ids); };
+        ctrl('fgi-preset').addEventListener('change', e => { p.preset = e.target.value; if (p.preset === 'Custom') { p.pw = cv.pw; p.ph = cv.ph; } again(); });
+        ctrl('fgi-mode').addEventListener('click', e => { const bt = e.target.closest('[data-mode]'); if (!bt || bt.dataset.mode === p.mode) return; p.mode = bt.dataset.mode; if (!SYMCANVAS_PRESETS[p.preset]) { const c2 = canvasOf({ ...p }); p.pw = c2.pw; p.ph = c2.ph; } again(); });
+        const size = () => { p.preset = 'Custom'; p.pw = +ctrl('fgi-pw').value || 1; p.ph = +ctrl('fgi-ph').value || 1; again(); };
+        ctrl('fgi-pw').addEventListener('change', size); ctrl('fgi-ph').addEventListener('change', size);
+        if (print) {
+          ctrl('fgi-unit').addEventListener('change', e => { p.unit = e.target.value; again(); });
+          ctrl('fgi-dpi').addEventListener('change', e => { p.dpi = Math.min(2400, Math.max(72, +e.target.value || 300)); edited(node, true); });
+          ctrl('fgi-bleed').addEventListener('change', e => { p.bleed = Math.min(20, Math.max(0, +e.target.value || 0)); edited(node, true); });
+        }
+      } });
+    rows.push(rangeRow('Margin', 'fgi-margin', 0, 25, 1, Math.min(25, p.margin), (v, c) => { p.margin = v; edited(node, c); }));
   } else if (node.type === 'grid') {
     rows.push(selectRow('Generator', 'fgi-gen', Object.entries(SYMGRID_GENS).map(([k, g]) => [k, g.label]), p.gen, v => { p.gen = v; p.params = gridDefaults(v); edited(node, true); renderInspector(ids); }));
     (SYMGRID_GENS[p.gen] || SYMGRID_GENS.rectangular).params.forEach(([k, label, a, b, step, def]) => {
@@ -252,19 +267,19 @@ function renderInspector(ids) {
     });
   } else if (node.type === 'palette') {
     rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Inks</div></div><div id="fgi-inks"></div>
-      <div class="ctrl-row"><div class="ctrl-label">Paper</div><input type="color" id="fgi-paper" value="${esc(p.paper)}" aria-label="Paper"></div>`,
+      <div class="color-row"><span class="color-name">Paper</span><span class="color-swatch-wrap"><button class="color-swatch" id="sw-fgi-paper" style="background:${esc(p.paper)}"></button><input type="color" id="cp-fgi-paper" value="${esc(p.paper)}"></span><input class="color-hex" id="hex-fgi-paper" value="${esc(p.paper)}" maxlength="7"></div>`,
       bind: () => {
         Organica.palette.swatch(ctrl('fgi-inks'), { colors: p.colors, min: 1, max: 8, onChange: colors => { p.colors = colors.slice(); edited(node, true); } });
-        ctrl('fgi-paper').addEventListener('change', e => { p.paper = e.target.value; edited(node, true); });
+        Organica.palette.swatch('fgi-paper', { onChange: hex => { if (hex === p.paper) return; p.paper = hex; edited(node, true); } });
       } });
     rows.push(selectRow('Colour by', 'fgi-rule', Object.entries(COLOR_RULES).map(([k, r]) => [k, r.label]), (p.rule || {}).mode || 'index', v => { p.rule = { ...(p.rule || {}), mode: v }; edited(node, true); }));
   } else if (node.type === 'element' || node.type === 'component') {
     const s = savedEntries()[node.type];
     rows.push({ html: s.length ? `<div class="sub-label">Saved ${node.type === 'element' ? 'Elements' : 'Components'}</div><div class="fvs-rail__grid" id="fgi-pick">${s.map(e => `<button type="button" class="fvs-library-item${e.name === p.name ? ' selected' : ''}" data-name="${esc(e.name)}" aria-label="${esc(e.name)}" aria-pressed="${e.name === p.name}">${entryThumb(node.type, e.name, e.entry)}</button>`).join('')}</div>`
       : `<p class="org-empty">Nothing saved yet — save ${node.type === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`,
-      bind: () => { const g = ctrl('fgi-pick'); if (g) g.addEventListener('click', e => { const b = e.target.closest('[data-name]'); if (!b) return; Object.assign(p, addContent(node.type, b.dataset.name).params); edited(node, true); renderInspector(ids); ctl.paint(node.id); }); } });
+      bind: () => { const g = ctrl('fgi-pick'); if (g) g.addEventListener('click', e => { const b = e.target.closest('[data-name]'); if (!b) return; Object.assign(p, addContent(node.type, b.dataset.name).params); node.name = b.dataset.name; edited(node, true); ctl.refresh(); renderInspector(ids); ctl.paint(node.id); }); } });
   } else if (node.type === 'figure') {
-    rows.push(selectRow('Fit in cell', 'fgi-fit', [['contain', 'Contain'], ['fill', 'Stretch'], ['cover', 'Cover']], p.fit, v => { p.fit = v; edited(node, true); }));
+    rows.push(selectRow('Fit in cell', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; edited(node, true); }));
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-clip"${p.clip !== false ? ' checked' : ''}> Clip to cell</label>`,
       bind: () => { ctrl('fgi-clip').addEventListener('change', e => { p.clip = e.target.checked; edited(node, true); }); } });
   }
@@ -284,14 +299,16 @@ function save() {
 }
 function loadModel() {
   const e = GRAPHS.read()[CURRENT];
-  return e && e.model ? NC.createModel(e.model) : starterModel();
+  return ensureNames(e && e.model ? NC.createModel(e.model) : starterModel());
 }
 function syncButtons() {
   ctrl('btn-fg-undo').disabled = !ctl.history.canUndo();
   ctrl('btn-fg-redo').disabled = !ctl.history.canRedo();
   const sel = ctl.selection(), why = sel.map(id => protect(NC.findNode(ctl.model, id), ctl.model)).filter(Boolean)[0];
-  const del = ctrl('btn-fg-delete');
-  del.setAttribute('aria-disabled', String(!sel.length || (sel.length === 1 && !!why)));
+  const del = ctrl('btn-fg-delete'), refused = !sel.length || (sel.length === 1 && !!why);
+  del.setAttribute('aria-disabled', String(refused));
+  ctrl('fg-delete-why').textContent = !sel.length ? 'Select a node first' : (why || '');
+  if (refused) del.setAttribute('aria-describedby', 'fg-delete-why'); else del.removeAttribute('aria-describedby');
 }
 
 export function renderFigureGraph() {
@@ -307,7 +324,7 @@ export function renderFigureGraph() {
     wireClass: (e, m) => { const src = NC.findNode(m, e.from.node); return src && ['canvas', 'grid', 'palette'].includes(src.type) ? 'nc-wire--faint' : ''; },
     onSelect: ids => { renderInspector(ids); syncButtons(); },
     onChange: () => { syncButtons(); save(); },
-    onNodeDblClick: node => { if (node.type === 'figure') Organica.notice('Compose arrives in a later step.'); },
+    onNodeDblClick: node => { if (node.type === 'figure') Organica.notice('Compose is not available yet.'); },
   });
   try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); if (v) ctl.zoomPan.setView({ zoom: v.zoom, panX: v.x, panY: v.y }); else requestAnimationFrame(() => ctl.fitAll()); } catch (e) { requestAnimationFrame(() => ctl.fitAll()); }
   const icon = (id, name) => { ctrl(id).innerHTML = Organica.icons.get(name); };

@@ -881,3 +881,11 @@ Figure is being rebuilt as a node **Graph**: Canvas, Grid and Palette nodes (the
   The test checks that `state`, `live` and every panel control are unchanged after a run, and that a figure gives the same SVG after another figure and on a changed panel.
 - **Fast.** No DOM events, no re-render: about 0.4 ms per catalog figure warm (slowest 1 ms).
 - `runFigureRecipe()` is unchanged: it still drives the panels for today's Figure UI, which Phase 3 replaces.
+
+### 12.2 The Figure graph on screen (Phase 3a, on the branch)
+
+- **Layout.** Left dock = the node bar (`#fg-nodebar-dock`, an `.org-dock`): Foundation · Content · Rules · Output; Content lists the saved Elements and Components as thumbnails; drag onto the graph or click to add. Right panel = the selected node's settings (`#fg-inspector`); while the graph is on screen the panel shows **only** it — the global Palette and Rules sections are hidden (`#panel:has(.tier-block.is-graph.active)`), since every colour now lives in a Palette node. Bottom floatbar group `#fb-figure-actions`, in this order: New Figure… · Undo · Redo · Delete · Fit all · Fit selection, then the FVS-wide Library and Export.
+- **Nodes.** Canvas (the Symbol step's own Canvas controls), Grid (Loom's generators, inside the Canvas), Palette (inks + Paper + Colour by), Element / Component (a saved entry + a copy of it), Figure (Fit in cell, Clip to cell). Default names Canvas 1, Grid 1 … are given when a node is made; the card shows the type above the name.
+- **A Figure always has a Canvas and a Grid.** Adding a Figure attaches the selected / last Canvas and Grid, or makes them. The one feeding a Figure can't be deleted (Delete is `aria-disabled`, the reason is its description and a notice).
+- **Saved.** The graph being edited autosaves to `Organica.store('fvs-figure')` → `Current graph`; the view (zoom, pan) to `localStorage['organica.fvs.figure-view']`.
+- **Known gap.** A Palette recolours Elements; a Component keeps its own colours (as in the Symbol step).
