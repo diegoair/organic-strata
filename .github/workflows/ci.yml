@@ -19,3 +19,7 @@ jobs:
         run: |
           export CHROME="$(which google-chrome || which chromium || which chromium-browser)"
           scripts/regression.sh
+      - name: Rhizome on the shared node canvas (headless Chrome)
+        run: |
+          export CHROME="$(which google-chrome || which chromium || which chromium-browser)"
+          scripts/test-rhizome.sh

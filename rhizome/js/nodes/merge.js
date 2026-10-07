@@ -13,7 +13,7 @@
    fixed meta.inputs array — the first node in the graph whose own port
    list isn't static. See `getInputs()` below and node-registry.js's
    `getNodeInputs(node)` dispatcher, which every port-aware caller
-   (node-card.js, execution-engine.js, ports.js's callbacks in main.js)
+   (the inspector, and the shared node canvas through node-registry.js's sharedTypes())
    goes through instead of reading `meta.inputs` directly.
    ───────────────────────────────────────────────────────────── */
 
@@ -36,7 +36,7 @@ export const meta = {
 
 export function getInputs(node) {
   const n = Math.max(MIN_INPUTS, Math.min(MAX_INPUTS, node.params.inputCount || 2));
-  return Array.from({ length: n }, (_, i) => ({ name: 'in' + i, type: PortType.SVG }));
+  return Array.from({ length: n }, (_, i) => ({ name: 'in' + i, type: PortType.SVG, label: 'SVG ' + (i + 1) }));
 }
 
 function innerMarkup(svgString) {

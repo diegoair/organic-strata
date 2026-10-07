@@ -38,7 +38,7 @@ ORDER = ['tokens', 'icons', 'header', 'page', 'prose', 'auth-card', 'fvs-field',
 OWN_SURFACE = {   # tool chrome, own canvas surface — no shell.css
     'apostate': 'three-column board (character picker · glyph · panel)',
     'fvs': 'a step-nav row above #app, its own gallery / symbol surfaces and the Figure node graph',
-    'rhizome': 'an infinite node canvas, no sheet',
+    'rhizome': 'an infinite node canvas (the shared node canvas), no sheet',
     'genesis': 'library grid + Paper.js artboard; retiring, left alone by decision',
 }
 OWN_LAYOUT = {    # page chrome, own layout (the hub links page.css for the footer, the design system for its specimens)

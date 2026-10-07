@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs scripts/check.py before every commit, plus the headless FVS regression when FVS (or a shared
-# module it uses) is staged. Bypass in an emergency: git commit --no-verify
+# module it uses) is staged, and the headless Rhizome test when Rhizome or the shared node canvas is. Bypass in an emergency: git commit --no-verify
 # Enable once per clone:  scripts/install-hooks.sh
 root="$(git rev-parse --show-toplevel)"
 python3 "$root/scripts/check.py" || { echo; echo "Commit blocked by pre-commit checks."; exit 1; }
@@ -14,5 +14,10 @@ if echo "$staged" | grep -qE '^(fvs/|shared/(shapes|palette|print-size|plate-exp
     echo "(open fvs/_test-regression.html, Run, 'Show JSON to record') and stage it in the same commit."
     exit 1
   fi
+fi
+if echo "$staged" | grep -qE '^(rhizome/|shared/node-canvas\.|scripts/test-rhizome)'; then
+  echo
+  echo "Rhizome (or the shared node canvas) changed — running the headless Rhizome test…"
+  "$root/scripts/test-rhizome.sh" || { echo; echo "Commit blocked: the Rhizome test failed."; exit 1; }
 fi
 exit 0

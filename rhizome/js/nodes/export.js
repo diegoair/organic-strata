@@ -6,7 +6,7 @@
    figma-plugin/code.js listener has been fixed (Piano Parte 3.0).
    This is a "sink": compute() has no meaningful return value, its job
    is the side effect. The actual button click that fires it lives in
-   renderers/node-card.js — this file only owns what happens on click.
+   the inspector (renderers/inspector-panel.js) — this file only owns what happens on click.
    ───────────────────────────────────────────────────────────── */
 
 import { PortType } from '../port-types.js';

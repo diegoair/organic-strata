@@ -445,13 +445,14 @@
      "file": "rhizome/index.html",
      "template": "tool",
      "variant": "own surface",
-     "why": "an infinite node canvas, no sheet",
+     "why": "an infinite node canvas (the shared node canvas), no sheet",
      "sheets": [
       "tokens",
       "icons",
       "header",
       "panel",
       "floatbar",
+      "node-canvas",
       "mobile-gate"
      ],
      "modules": true,

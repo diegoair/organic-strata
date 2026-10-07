@@ -11,9 +11,11 @@
    `change`) — recompute-on-every-tick, same as before. `onCommit()`
    fires only once per interaction (slider `change`, i.e. on release;
    select/file already only fire once) — this is the history-push signal
-   (history.js), so dragging a slider doesn't flood the undo stack with
+   (the shared node canvas's history), so dragging a slider doesn't flood the undo stack with
    one entry per pixel.
    ───────────────────────────────────────────────────────────── */
+
+import { optionLabel } from '../node-registry.js';
 
 export function renderInspector(panelEl, node, nodeType, { onChange, onCommit, exportActions }) {
   panelEl.innerHTML = '';
@@ -34,7 +36,7 @@ export function renderInspector(panelEl, node, nodeType, { onChange, onCommit, e
 
     const label = document.createElement('span');
     label.className = 'ctrl-label';
-    label.textContent = p.name;
+    label.textContent = p.label || p.name;
     row.appendChild(label);
 
     let control;
@@ -43,7 +45,7 @@ export function renderInspector(panelEl, node, nodeType, { onChange, onCommit, e
       control.className = 'panel-select';
       for (const opt of p.options) {
         const o = document.createElement('option');
-        o.value = opt; o.textContent = opt;
+        o.value = opt; o.textContent = optionLabel(opt);
         control.appendChild(o);
       }
       control.value = node.params[p.name];

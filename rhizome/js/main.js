@@ -1,398 +1,240 @@
 /* ─────────────────────────────────────────────────────────────
-   Rhizome — boot. Wires canvas, panel, floatbar, execution engine.
-   Node set (Piano Parte 5 + Fase 2/3): 6 Tier-1 natives (Loom Grid,
-   Loom Grid→Geometry, Contour Trace, SVG→Points, Merge — variadic —,
-   Image Upload, Export) + 9 Tier-2 bridges (Genesis, Komorebi, Warping,
-   Camo Turing, Membrane, Sinew, Spore, Pollen, Halide).
+   Rhizome — boot. Since Oct 2026 the board is the shared node canvas (Organica.nodeCanvas, shared/node-canvas.js
+   + .css — the model, engine, history, view, node bar and node search FVS's Figure graph uses). Rhizome keeps its
+   node types, its Tier-2 bridges, the inspector in #panel, the floatbar and its saved graphs.
+   Node set: 7 Tier-1 natives (Loom grid, Loom grid file, Contour trace, SVG to points, Merge — variable inputs —,
+   Image, Export) + 9 Tier-2 bridges (Genesis, Komorebi, Warping, Camo Turing, Membrane, Sinew, Spore, Pollen, Halide).
    ───────────────────────────────────────────────────────────── */
 
-import { buildModel, addNode, removeNode, removeEdge, addEdge, findNode } from './graph-model.js';
-import { createEngine } from './execution-engine.js';
-import { REGISTRY, getNodeType, getNodeInputs, defaultParams } from './node-registry.js';
-import { createCanvasZoomPan } from './canvas/pan-zoom.js';
-import { WireLayer } from './canvas/wires.js';
-import { bindPortInteractions } from './canvas/ports.js';
-import { bindSelection } from './canvas/selection.js';
-import { createNodeCard, renderPreview } from './renderers/node-card.js';
+import { REGISTRY, getNodeType, createSharedRegistry } from './node-registry.js';
 import { renderInspector } from './renderers/inspector-panel.js';
-import { createHistory } from './history.js';
+import { renderPreview } from './renderers/node-card.js';
 import * as exportOps from './nodes/export.js';
+
+const NC = Organica.nodeCanvas;
+const $ = id => document.getElementById(id);
 
 // The inspector builds its range inputs from JS: enhanceSliders' MutationObserver
 // gives each the shared slider (liquid fill + click/drag-to-edit number) as it appears.
 Organica.enhanceSliders(document);
 
-const graphEl = document.getElementById('graph');
-const wrapEl = document.getElementById('canvas-wrap');
-const nodesLayer = document.getElementById('nodes-layer');
-const wireLayerEl = document.getElementById('wire-layer');
-const marqueeEl = document.getElementById('marquee-rect');
-const panelEl = document.getElementById('panel');
+const panelEl = $('panel'), stageEl = $('canvas-wrap');
+const setStatus = Organica.status();   // errors and guards show as a notice; everything else is silent
+const registry = createSharedRegistry();
 
-const model = buildModel({ nodes: [], edges: [] });
-const engine = createEngine();
-const history = createHistory();
-const portEls = new Map();
-const cardRefs = new Map();   // nodeId -> {el, previewEl, statusEl, refreshPorts}
-const zoomPanRef = { current: null };
-const wireLayer = new WireLayer(wireLayerEl, onWireClick);
-let selectedNodeId = null;
-let selection = null;   // set below, after bindSelection
+// Each node has its own name — the type's label + a number ("Merge 2"); the card shows the type above it.
+function nextName(model, type) {
+  const base = registry.get(type).meta.label, used = new Set(model.nodes.map(n => n.name));
+  let i = 1; while (used.has(base + ' ' + i)) i++; return base + ' ' + i;
+}
+function ensureNames(model) { model.nodes.forEach(n => { if (!n.name) n.name = nextName(model, n.type); }); return model; }
 
-// Errors and guards show as a notice (shared Organica.notice); everything else is silent.
-const setStatus = Organica.status();
+// A graph saved before Oct 2026 (Rhizome's own model, version '1.0') wires by `nodeId`; the shared model by `node`.
+function migrateModel(saved) {
+  const ref = r => ({ node: r.node || r.nodeId, port: r.port });
+  return ensureNames(NC.createModel({
+    nodes: (saved && saved.nodes || []).filter(n => REGISTRY.has(n.type)).map(n => ({ ...n, params: { ...(n.params || {}) } })),
+    edges: (saved && saved.edges || []).map(e => ({ id: e.id, from: ref(e.from), to: ref(e.to) })),
+    frames: saved && saved.frames || [],
+  }));
+}
 
-function guessValueType(value) {
-  if (typeof value === 'string' && value.trim().startsWith('<svg')) return 'svg';
-  if (Array.isArray(value)) return 'points';
-  if (value && Array.isArray(value.cells)) return 'grid';
-  if (value && (value.dataURL || value.mask)) return 'image';
+// Every node computes, on screen or not: a bridge's output feeds what follows, and Export reads it.
+let statusTimer = 0;
+const engine = NC.createEngine({
+  registry, isActive: () => true,
+  onState: () => { clearTimeout(statusTimer); statusTimer = setTimeout(reportStatus, 60); },
+});
+function reportStatus() {
+  if (!ctl) return;
+  const errs = ctl.model.nodes.filter(n => { const e = engine.get(n.id); return e && e.state === 'error'; }).length;
+  setStatus(errs ? 'error' : 'active', errs ? `${errs} node error${errs === 1 ? '' : 's'}` : `${ctl.model.nodes.length} nodes · ${ctl.model.edges.length} wires`);
+}
+
+// ── the card body: a preview of the node's output, on a light work surface ──
+function valueKind(v) {
+  if (typeof v === 'string' && v.trim().startsWith('<svg')) return 'svg';
+  if (Array.isArray(v)) return 'points';
+  if (v && Array.isArray(v.cells)) return 'grid';
+  if (v && (v.dataURL || v.mask)) return 'image';
   return 'other';
 }
-
-function applyPos(node) {
-  const ref = cardRefs.get(node.id);
-  if (ref) { ref.el.style.left = node.x + 'px'; ref.el.style.top = node.y + 'px'; }
+function renderBody(node, entry, el) {
+  let box = el.querySelector('.rz-preview');
+  if (!box) { box = document.createElement('div'); box.className = 'rz-preview'; box.setAttribute('data-theme', 'light'); el.replaceChildren(box); }
+  const v = entry && entry.state === 'ok' && entry.value ? entry.value._v : null;
+  if (v == null && node.type === 'export') { box.hidden = true; return; }
+  box.hidden = false;
+  renderPreview(box, valueKind(v), v);
 }
 
-function updateWires() {
-  wireLayer.updateAll(model, portEls, graphEl, zoomPanRef.current ? zoomPanRef.current.zoom : 1);
-}
-
-function commitHistory() {
-  history.push(model);
-  updateHistoryButtons();
-}
-
-function updateHistoryButtons() {
-  Organica.dirty.set('graph', history.canUndo());   // the graph is memory-only: any edit past the first snapshot is unsaved work until saved as a preset
-  const undoBtn = document.getElementById('btn-undo');
-  const redoBtn = document.getElementById('btn-redo');
-  if (undoBtn) undoBtn.disabled = !history.canUndo();
-  if (redoBtn) redoBtn.disabled = !history.canRedo();
-}
-
-// recompute() calls are serialized, not concurrent: two overlapping
-// runGraph() calls (e.g. add-node then immediately connect, both firing
-// recompute()) each create/reuse the SAME bridge iframe per node
-// (bridge-iframe.js's `pending` map is keyed by nodeId) — the SECOND
-// call's pending-response registration silently overwrites the FIRST's,
-// so the first call's `await runNode(...)` never resolves and its whole
-// for-loop hangs forever with no error surfaced. Found live: a 3-node
-// graph (2 bridge nodes) left one node's preview permanently empty with
-// no error shown, reproduced in isolation, root-caused to this exact
-// race. Fixed by never running two recomputes at once — a later call
-// while one is in flight just marks `queued` and the in-flight call
-// re-runs itself once more after finishing, picking up the latest model.
-let recomputeRunning = false;
-let recomputeQueued = false;
-
-async function recompute() {
-  if (recomputeRunning) { recomputeQueued = true; return; }
-  recomputeRunning = true;
-  try {
-    await recomputeNow();
-    while (recomputeQueued) {
-      recomputeQueued = false;
-      await recomputeNow();
-    }
-  } finally {
-    recomputeRunning = false;
-  }
-}
-
-async function recomputeNow() {
-  setStatus('busy', 'Running…');
-  try {
-    const { values, errors } = await engine.runGraph(model);
-    for (const node of model.nodes) {
-      const ref = cardRefs.get(node.id);
-      if (!ref) continue;
-      const cached = values.get(node.id);
-      const err = errors.get(node.id);
-      if (err) {
-        ref.statusEl.textContent = err.message;
-        ref.previewEl.innerHTML = '<span class="rz-node__empty">error</span>';
-      } else {
-        ref.statusEl.textContent = '';
-        const value = cached ? cached.value : null;
-        renderPreview(ref.previewEl, guessValueType(value), value);
-      }
-    }
-    updateWires();
-    const errCount = [...errors.keys()].length;
-    setStatus(errCount ? 'error' : 'active', errCount ? `${errCount} node error${errCount === 1 ? '' : 's'}` : `${model.nodes.length} nodes · ${model.edges.length} edges`);
-  } catch (e) {
-    setStatus('error', e.message);
-  }
-}
-
-function selectNode(nodeId, evt) {
-  if (evt && evt.shiftKey && nodeId) {
-    selection.toggle(nodeId);
-    // Shift-click adds/removes from the multi-selection but doesn't
-    // necessarily change which node's OWN params show in the inspector —
-    // only a plain click does that, matching Strata's own Refine editor.
-    return;
-  }
-  selectedNodeId = nodeId;
-  wireLayer.setSelectedEdge(null);
-  if (nodeId) selection.set([nodeId]); else selection.clear();
-  for (const [id, ref] of cardRefs) ref.el.classList.toggle('is-selected', id === nodeId);
-  renderInspectorFor(nodeId);
-}
-
-function onWireClick(edgeId) {
-  selectedNodeId = null;
-  selection.clear();
-  for (const [, ref] of cardRefs) ref.el.classList.remove('is-selected');
-  wireLayer.setSelectedEdge(edgeId);
-  renderInspectorFor(null);
-}
-
-function renderInspectorFor(nodeId) {
-  const node = findNode(model, nodeId);
-  const nodeType = node ? getNodeType(node.type) : null;
-  renderInspector(panelEl, node, nodeType, {
+// ── the inspector (#panel) for the one selected node ──
+function renderInspectorFor(ids) {
+  const node = ids.length === 1 ? NC.findNode(ctl.model, ids[0]) : null;
+  const type = node ? getNodeType(node.type) : null;
+  const valueOf = () => { const e = node && engine.get(node.id); return e && e.state === 'ok' && e.value ? e.value._v : null; };
+  const needValue = fn => () => { const v = valueOf(); if (!v) { setStatus('error', 'Nothing to export yet — connect an SVG.'); return; } fn(v); };
+  renderInspector(panelEl, node, type, {
     onChange: () => {
-      engine.invalidate(node.id);
-      // Variadic nodes (Merge) may have just changed their own input
-      // COUNT — re-derive the port list and rebuild the card's port rows
-      // so the canvas can't drift out of sync with node.params.
-      if (nodeType.getInputs) {
-        const ref = cardRefs.get(node.id);
-        const newInputs = getNodeInputs(node);
-        ref.refreshPorts(newInputs, nodeType.meta.outputs);
-        // Dropping an input port orphans any edge still connected to it —
-        // prune those rather than leaving a dangling edge the engine
-        // would otherwise try (and fail) to resolve.
-        const validNames = new Set(newInputs.map(p => p.name));
-        model.edges = model.edges.filter(e => !(e.to.nodeId === node.id && !validNames.has(e.to.port)));
-        updateWires();
+      if (typeof type.getInputs === 'function') {   // Merge: the input count may have changed — drop wires to ports that are gone
+        const names = new Set(type.getInputs(node).map(p => p.name));
+        ctl.model.edges = ctl.model.edges.filter(e => !(e.to.node === node.id && !names.has(e.to.port)));
+        ctl.refresh();
       }
-      recompute();
+      ctl.touch(node.id);
+      onModelChange();
     },
-    onCommit: commitHistory,
-    exportActions: node && nodeType.meta.id === 'export' ? {
-      png: async () => {
-        const cached = engine.cache.get(node.id);
-        if (!cached || !cached.value) { setStatus('error', 'Nothing to export yet.'); return; }
-        await exportOps.exportPNG(cached.value, parseFloat(node.params.scale || '2'));
-      },
-      svg: () => {
-        const cached = engine.cache.get(node.id);
-        if (!cached || !cached.value) { setStatus('error', 'Nothing to export yet.'); return; }
-        exportOps.exportSVG(cached.value);
-      },
-      figma: () => {
-        const cached = engine.cache.get(node.id);
-        if (!cached || !cached.value) { setStatus('error', 'Nothing to export yet.'); return; }
-        exportOps.sendToFigma(cached.value);
-      },
+    onCommit: () => ctl.commit('params'),
+    exportActions: node && type.meta.id === 'export' ? {
+      png: needValue(v => exportOps.exportPNG(v, parseFloat(node.params.scale || '2'))),
+      svg: needValue(v => exportOps.exportSVG(v)),
+      figma: needValue(v => exportOps.sendToFigma(v)),
     } : null,
   });
 }
 
-function addNodeCard(node) {
-  const nodeType = getNodeType(node.type);
-  const nodeInputs = getNodeInputs(node);
-  const { el, previewEl, statusEl, refreshPorts } = createNodeCard(node, nodeType, nodeInputs, {
-    zoomPanRef, portEls,
-    applyPos,
-    onMove: () => updateWires(),
-    onDragEnd: (group, moved) => { if (moved) commitHistory(); },
-    onSelect: selectNode,
-    getDragGroup: (n) => {
-      const sel = selection ? selection.current : new Set();
-      if (sel.has(n.id) && sel.size > 1) {
-        return model.nodes.filter(x => sel.has(x.id));
-      }
-      return [n];
-    },
+// ── adding nodes: the node bar (left dock) and the node search ('/', right-click, double-click on the board,
+// a wire released on empty space — then the picked node arrives wired) ──
+function addNode(type, at, from) {
+  const r = stageEl.getBoundingClientRect(), c = at || ctl.toBoard(r.left + r.width / 2, r.top + r.height / 2);
+  const p = from && NC.portFor(registry, ctl.model, type, null, from);
+  const node = ctl.add(type, { x: c.x - 112, y: c.y - 40 }, null, { name: nextName(ctl.model, type) });
+  if (p) from.dir === 'out' ? ctl.connect({ node: from.node, port: from.port }, { node: node.id, port: p.name }) : ctl.connect({ node: node.id, port: p.name }, { node: from.node, port: from.port });
+  return node;
+}
+function openSearch(at, from, client) {
+  const fromNode = from && NC.findNode(ctl.model, from.node);
+  const fromPort = fromNode && (from.dir === 'out' ? registry.outputsOf(fromNode) : registry.inputsOf(fromNode)).find(p => p.name === from.port);
+  let items = registry.list().map(t => ({ label: t.meta.label, hint: t.meta.category, type: t.meta.id }));
+  if (from) items = items.filter(it => NC.portFor(registry, ctl.model, it.type, null, from));
+  const r = stageEl.getBoundingClientRect();
+  NC.search({
+    items, title: fromPort ? `Nodes that connect to ${fromPort.label || fromPort.name}` : '', returnFocus: stageEl,
+    client: client || { x: r.left + r.width / 2, y: r.top + r.height / 3 },
+    onPick: it => addNode(it.type, at, from),
   });
-  nodesLayer.appendChild(el);
-  cardRefs.set(node.id, { el, previewEl, statusEl, refreshPorts });
 }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const nodebar = NC.nodeBar({
+  bar: $('rz-nodebar'), panel: $('rz-nodebar-panel'), stage: stageEl,
+  icons: { Source: 'node-content', Process: 'node-rule', Output: 'node-output' },
+  render: (cat, panel) => {
+    const types = registry.byCategory()[cat] || [];
+    panel.innerHTML = `<p class="nc-nodebar__hint">Drag onto the graph, or click to add</p><div class="nc-nodebar__list">`
+      + types.map(t => `<button type="button" class="nc-nodebar__item" data-type="${esc(t.meta.id)}" aria-label="Add ${esc(t.meta.label)}">${esc(t.meta.label)}</button>`).join('') + `</div>`;
+  },
+  specOf: t => { const b = t.closest && t.closest('.nc-nodebar__item'); return b ? { type: b.dataset.type } : null; },
+  onAdd: (spec, ev, over) => { if (ev.type === 'click') addNode(spec.type); else if (over) addNode(spec.type, ctl.toBoard(ev.clientX, ev.clientY)); },
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && nodebar.current()) nodebar.close(); });
 
-function addNodeOfType(typeId) {
-  const wrapRect = wrapEl.getBoundingClientRect();
-  const zoom = zoomPanRef.current ? zoomPanRef.current.zoom : 1;
-  const pan = zoomPanRef.current ? zoomPanRef.current.pan : { x: 0, y: 0 };
-  const node = addNode(model, {
-    type: typeId,
-    x: (wrapRect.width / 2 - pan.x) / zoom - 120,
-    y: (wrapRect.height / 2 - pan.y) / zoom - 60,
-    params: defaultParams(typeId),
-  });
-  addNodeCard(node);
-  recompute();
-  selectNode(node.id);
-  commitHistory();
-}
-
-function deleteSelection() {
-  const sel = selection ? selection.current : new Set();
-  const edgeId = wireLayer.selectedEdgeId;
-  if (!sel.size && !edgeId) return;
-  for (const nodeId of sel) {
-    removeNode(model, nodeId);
-    const ref = cardRefs.get(nodeId);
-    if (ref) ref.el.remove();
-    cardRefs.delete(nodeId);
-    for (const key of Array.from(portEls.keys())) if (key.startsWith(nodeId + ':')) portEls.delete(key);
-    engine.invalidate(nodeId);
-  }
-  if (edgeId) removeEdge(model, edgeId);
-  selection.clear();
-  wireLayer.setSelectedEdge(null);
-  selectedNodeId = null;
-  renderInspectorFor(null);
-  updateWires();
-  recompute();
-  commitHistory();
-}
-
-// ── Rebuild the whole canvas from a {nodes, edges} snapshot — shared by
-//    preset-load and undo/redo, so the two can't drift into two
-//    different "restore a saved graph" implementations. ──
-function loadGraphState(nodes, edges) {
-  nodesLayer.innerHTML = '';
-  cardRefs.clear();
-  portEls.clear();
-  model.nodes = nodes;
-  model.edges = edges;
-  for (const node of model.nodes) addNodeCard(node);
-  if (selection) selection.clear();
-  selectedNodeId = null;
-  wireLayer.setSelectedEdge(null);
-  renderInspectorFor(null);
-  updateWires();
-  recompute();
-}
-
-// ── Canvas pan/zoom ──
-zoomPanRef.current = createCanvasZoomPan({ graphEl, wrapEl, onChange: updateWires });
-
-// ── Multi-select / marquee (Shift+drag on empty canvas) ──
-selection = bindSelection({
-  graphEl, wrapEl, marqueeEl, model, cardRefs, zoomPanRef,
-  onSelectionChange: () => {},
+// ── the board ──
+let ctl = null;
+ctl = NC.mount({
+  stage: stageEl, registry, engine, model: NC.createModel(),
+  renderBody,
+  fitInset: { left: 88, bottom: 72 },   // the node bar (left dock) and the floatbar
+  onSelect: ids => { renderInspectorFor(ids); syncButtons(); },
+  onChange: (m, reason) => { onModelChange(); if (reason === 'remove' || reason === 'history') renderInspectorFor(ctl.selection()); },
+  onSearch: openSearch,
+  onWireDrop: (from, at, client) => openSearch(at, from, client),
+  onBoardDblClick: (at, client) => openSearch(at, null, client),
+  nameCopy: (copy, model) => nextName(model, copy.type),
+  keyScope: t => !!(t && t.closest && t.closest('.org-floatbar, #rz-nodebar-dock') && !t.closest('input, select, textarea')),
 });
 
-// ── Port drag-to-connect ──
-bindPortInteractions({
-  graphEl, wireLayer, portEls, model,
-  getNodeOutputType: (nodeId, portName) => {
-    const node = findNode(model, nodeId);
-    return getNodeType(node.type).meta.outputs.find(o => o.name === portName).type;
-  },
-  getNodeInputType: (nodeId, portName) => {
-    const node = findNode(model, nodeId);
-    return getNodeInputs(node).find(i => i.name === portName).type;
-  },
-  zoomPanRef,
-  onConnected: () => { updateWires(); recompute(); commitHistory(); },
-  onRejected: (msg) => setStatus('error', msg),
+// ── floatbar ──
+function onModelChange() { syncButtons(); syncGraphButton(); }
+function syncButtons() {
+  $('btn-undo').disabled = !ctl.history.canUndo();
+  $('btn-redo').disabled = !ctl.history.canRedo();
+  const none = !ctl.selection().length, del = $('btn-delete-selected');
+  del.setAttribute('aria-disabled', String(none));
+  $('rz-delete-why').textContent = none ? 'Select a node first' : '';
+  if (none) del.setAttribute('aria-describedby', 'rz-delete-why'); else del.removeAttribute('aria-describedby');
+}
+const icon = (id, name) => { $(id).innerHTML = Organica.icons.get(name); };
+icon('btn-undo', 'undo'); icon('btn-redo', 'redo'); icon('btn-delete-selected', 'trash'); icon('btn-fit', 'fit-view'); icon('btn-fit-sel', 'fit-selection');
+$('btn-undo').addEventListener('click', () => { ctl.undo(); syncButtons(); });
+$('btn-redo').addEventListener('click', () => { ctl.redo(); syncButtons(); });
+$('btn-delete-selected').addEventListener('click', () => {
+  const sel = ctl.selection(); if (!sel.length) { Organica.notice('Select a node first'); return; }
+  ctl.remove(sel); syncButtons();
 });
+$('btn-fit').addEventListener('click', () => ctl.fitAll());
+$('btn-fit-sel').addEventListener('click', () => ctl.fitSelection());
 
-[['Delete / Backspace', 'Delete selection', 'Edit'], ['⌘Z', 'Undo', 'Edit'], ['⌘⇧Z', 'Redo', 'Edit']]
+// ── Graph menu: Saved graphs · Graph name · Save · Delete · New graph · Open file… · Save as file
+// (the Figure graph's verbs). Saved graphs stay in Organica.presetStore('rhizome'). A graph that was never saved
+// is kept as "Untitled n" before another replaces it, so nothing is lost. ──
+const GRAPHS = Organica.presetStore('rhizome'), GRAPH_FILE = 'rhizome-graph';
+let graphName = '';
+const snap = m => JSON.stringify({ nodes: m.nodes, edges: m.edges, frames: m.frames || [] });
+function savedAs() { const e = graphName && GRAPHS.read()[graphName]; return !!e && snap(migrateModel(e)) === snap(ctl.model); }
+function syncGraphButton() {
+  const unsaved = !!ctl.model.nodes.length && !savedAs();
+  $('btn-rz-graph').classList.toggle('is-unsaved', unsaved);
+  if (unsaved) $('btn-rz-graph').setAttribute('aria-description', 'Not saved'); else $('btn-rz-graph').removeAttribute('aria-description');
+  Organica.dirty.set('graph', unsaved);
+}
+function syncGraphMenu() {
+  const sel = $('rz-graph-saved'), names = Object.keys(GRAPHS.read()).sort((a, b) => a.localeCompare(b));
+  sel.innerHTML = names.length ? '<option value="">—</option>' + names.map(n => `<option${n === graphName ? ' selected' : ''}>${esc(n)}</option>`).join('') : '<option value="">No saved graphs yet</option>';
+  sel.disabled = !names.length;
+  $('rz-graph-name').value = graphName;
+  $('rz-graph-delete').disabled = !graphName || !GRAPHS.read()[graphName];
+  syncGraphButton();
+}
+function keepUnsaved() {
+  if (!ctl.model.nodes.length || savedAs()) return;
+  const all = GRAPHS.read(); let i = 1; while (all['Untitled ' + i]) i++;
+  const n = graphName && !all[graphName] ? graphName : 'Untitled ' + i;
+  all[n] = JSON.parse(JSON.stringify(ctl.model)); GRAPHS.write(all);
+  Organica.notice(`The current graph was saved as “${n}”`);
+}
+function useModel(model, name) {
+  graphName = name || '';
+  ctl.setModel(migrateModel(model));
+  renderInspectorFor([]); syncButtons(); syncGraphMenu();
+  requestAnimationFrame(() => ctl.fitAll());
+}
+$('btn-rz-graph').querySelector('.rz-graph-btn__chev').innerHTML = Organica.icons.get('chevron-down', { cls: 'chev' });
+Organica.popover($('btn-rz-graph'), $('rz-graph-popover'));
+$('btn-rz-graph').addEventListener('click', syncGraphMenu);
+$('rz-graph-saved').addEventListener('change', e => { const n = e.target.value, g = n && GRAPHS.read()[n]; if (!g) return; keepUnsaved(); useModel(g, n); });
+$('rz-graph-save').addEventListener('click', () => {
+  const n = $('rz-graph-name').value.trim(); if (!n) { Organica.notice('Name the graph first'); $('rz-graph-name').focus(); return; }
+  const all = GRAPHS.read(); all[n] = JSON.parse(JSON.stringify(ctl.model)); GRAPHS.write(all);
+  graphName = n; syncGraphMenu(); Organica.notice(`Saved “${n}”`);
+});
+$('rz-graph-delete').addEventListener('click', () => {
+  if (!graphName) return; const all = GRAPHS.read(); delete all[graphName]; GRAPHS.write(all);
+  Organica.notice(`Deleted “${graphName}”`); graphName = ''; syncGraphMenu();
+});
+$('rz-graph-new').addEventListener('click', () => { keepUnsaved(); useModel({ nodes: [], edges: [] }, ''); });
+$('rz-graph-open').addEventListener('click', () => $('rz-graph-input').click());
+$('rz-graph-input').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text()), m = data.model || data;
+    if (!Array.isArray(m.nodes) || !Array.isArray(m.edges)) throw new Error('not a graph');
+    keepUnsaved(); useModel(m, data.name || f.name.replace(/\.json$/i, ''));
+  } catch (err) { setStatus('error', 'That file is not a Rhizome graph.'); }
+});
+$('rz-graph-file').addEventListener('click', () => {
+  const data = { tool: GRAPH_FILE, name: graphName || '', model: ctl.model };
+  Organica.download(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), Organica.stamp(GRAPH_FILE, 'json'));
+});
+GRAPHS.pull().then(syncGraphMenu);   // cloud sync (shared/store.js)
+GRAPHS.onSync(syncGraphMenu);
+
+// ── init ──
+[['/', 'Search nodes', 'Edit'], ['Delete / Backspace', 'Delete selection', 'Edit'], ['⌘Z', 'Undo', 'Edit'], ['⌘⇧Z', 'Redo', 'Edit'], ['⇧1', 'Fit all', 'View'], ['⇧2', 'Fit selection', 'View']]
   .forEach(([keys, label, group]) => Organica.shortcuts.add({ keys, label, group }));
-
-// ── Delete key — removes the selected node(s) or the selected wire.
-//    Ignored while typing in any text field/select so Delete/Backspace
-//    still works normally inside the inspector panel's own controls. ──
-window.addEventListener('keydown', (e) => {
-  if (e.key !== 'Delete' && e.key !== 'Backspace') return;
-  const tag = document.activeElement ? document.activeElement.tagName : '';
-  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-  e.preventDefault();
-  deleteSelection();
-});
-
-// ── Undo/redo — Cmd/Ctrl+Z / Shift+Z, same shortcut convention as
-//    Organica.createZoomPan's own Cmd/Ctrl+/-/0 handling. ──
-window.addEventListener('keydown', (e) => {
-  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
-  const tag = document.activeElement ? document.activeElement.tagName : '';
-  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
-  e.preventDefault();
-  const snap = e.shiftKey ? history.redo() : history.undo();
-  if (snap) loadGraphState(snap.nodes, snap.edges);
-  updateHistoryButtons();
-});
-
-// ── Add-node menu ──
-const addNodeList = document.getElementById('add-node-list');
-for (const [id, type] of REGISTRY) {
-  const btn = document.createElement('button');
-  btn.className = 'org-btn';
-  btn.textContent = type.meta.label;
-  btn.addEventListener('click', () => addNodeOfType(id));
-  addNodeList.appendChild(btn);
-}
-Organica.popover(document.getElementById('btn-add-node'), document.getElementById('add-node-popover'));
-
-// ── Undo/redo/delete floatbar buttons ──
-document.getElementById('btn-undo').addEventListener('click', () => {
-  const snap = history.undo();
-  if (snap) loadGraphState(snap.nodes, snap.edges);
-  updateHistoryButtons();
-});
-document.getElementById('btn-redo').addEventListener('click', () => {
-  const snap = history.redo();
-  if (snap) loadGraphState(snap.nodes, snap.edges);
-  updateHistoryButtons();
-});
-document.getElementById('btn-delete-selected').addEventListener('click', deleteSelection);
-
-// ── Graph presets (Organica.presetStore, same convention as every other tool) ──
-const PRESETS = Organica.presetStore('rhizome');
-function refreshPresetList() {
-  const sel = document.getElementById('sel-preset');
-  sel.innerHTML = '<option value="">— none —</option>';
-  const store = PRESETS.read();
-  for (const name of Object.keys(store)) {
-    const o = document.createElement('option');
-    o.value = name; o.textContent = name;
-    sel.appendChild(o);
-  }
-}
-document.getElementById('btn-save-preset').addEventListener('click', () => {
-  const nameInput = document.getElementById('txt-preset-name');
-  const name = nameInput.value.trim();
-  if (!name) { nameInput.focus(); return; }
-  const store = PRESETS.read();
-  store[name] = model;
-  PRESETS.write(store);
-  Organica.dirty.set('graph', false);
-  nameInput.value = '';
-  refreshPresetList();
-});
-document.getElementById('btn-delete-preset').addEventListener('click', () => {
-  const sel = document.getElementById('sel-preset');
-  if (!sel.value) return;
-  const store = PRESETS.read();
-  delete store[sel.value];
-  PRESETS.write(store);
-  refreshPresetList();
-});
-document.getElementById('sel-preset').addEventListener('change', (e) => {
-  if (!e.target.value) return;
-  const store = PRESETS.read();
-  const saved = store[e.target.value];
-  if (!saved) return;
-  loadGraphState(saved.nodes, saved.edges);
-  commitHistory();
-  Organica.dirty.set('graph', false);
-});
-Organica.popover(document.getElementById('btn-graph-menu'), document.getElementById('graph-popover'));
-refreshPresetList();
-// Cloud sync (shared/store.js): hydrate graph presets from Supabase.
-PRESETS.pull().then(() => refreshPresetList());
-PRESETS.onSync(() => refreshPresetList());
-
-// ── Init ──
 Organica.autoLabelPanel(document);
 setStatus('active', 'Ready');
-selectNode(null);
-commitHistory();   // seed the undo stack with the empty-graph baseline
+renderInspectorFor([]);
+syncButtons(); syncGraphMenu();
+
+// test hook (scripts/test-rhizome.sh)
+window.__rhizome = { ctl, registry, engine, migrateModel, openSearch, nodebar };
