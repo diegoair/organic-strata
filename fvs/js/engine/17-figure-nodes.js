@@ -27,8 +27,17 @@ import {
   PX_PER_MM, SYMCANVAS_PRESETS, SYMGRID_GENS, hexLoomModel, squareLoomModel, symbolGridModel, triangleLoomModel
 } from './08-symbol-grid.js';
 import {
+  mulberry32
+} from './03-rules.js';
+import {
+  cwSolve
+} from './06-component-ui.js';
+import {
   componentCellsFromRule
 } from './13-figure-engine.js';
+import {
+  FG_HUE_TURNS
+} from './14-figure-ui.js';
 import {
   evalFigure, withFigureSandbox
 } from './16-figure-eval.js';
@@ -135,6 +144,28 @@ function fitOnPage(svg, cv, paper) {   // a figure with its own frame, fitted in
   const inner = svg.replace(/^<svg([^>]*)>/, (all, attrs) => '<svg' + attrs.replace(/\s(width|height|x|y)="[^"]*"/g, '') + ` x="${x}" y="${y}" width="${w}" height="${h}">`);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${cv.W}" height="${cv.H}" viewBox="0 0 ${cv.W} ${cv.H}"><rect width="${cv.W}" height="${cv.H}" fill="${paper}"/>${inner}</svg>`;
 }
+// A Figure node's output: its main figure (the one New Figure from this / a pin fixed, or as set up) + its variations.
+export async function figureWithVariations(inputs, p) {
+  const keep = p.keep || {};
+  // `fixed`: the variation(s) a "New Figure from this" froze — applied in order, before anything else
+  const base = [].concat(p.fixed || []).reduce((b, spec) => { const v = varyInputs(b.inputs, spec, {}); return { inputs: v.inputs, extra: { ...b.extra, ...v.extra } }; }, { inputs, extra: {} });
+  const main = await compileFigure(base.inputs, { ...p, ...base.extra });
+  // two renders of one figure differ only in their export time and run-time ids (an Element stack's masks): compare without them
+  const keyOf = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
+  const want = Math.max(1, Math.min(12, +p.variations || 1)), specs = variationSpecs(p, 8), seen = new Set([keyOf(main.svg)]);
+  main.variations = [];
+  for (const v of specs) {
+    if (main.variations.length >= want) break;
+    if (!v.spec) { main.variations.push({ key: v.key, svg: main.svg, label: 'As set up', pinned: false, spec: null }); continue; }
+    const vr = varyInputs(base.inputs, v.spec, keep);
+    try {
+      const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra });
+      if (seen.has(keyOf(r.svg)) && !v.pinned) continue;   // the same figure as one already shown: draw another
+      seen.add(keyOf(r.svg)); main.variations.push({ key: v.key, svg: r.svg, label: vr.label, pinned: v.pinned, spec: v.spec });
+    } catch (e) { if (v.pinned) main.variations.push({ key: v.key, svg: '', label: e.message, pinned: true, spec: v.spec, error: true }); }
+  }
+  return main;
+}
 export async function compileFigure(inputs, params) {
   const cv = inputs.canvas, grid = inputs.grid, pal = inputs.palette, rules = (inputs.rules || []).filter(Boolean);
   const contents = (inputs.content || []).filter(Boolean);
@@ -167,7 +198,8 @@ export async function compileFigure(inputs, params) {
   } else {   // every other Figure: a sealed Symbol level — the grid's model + one content patch per cell
     const model = lattice ? latticeModel(latticeOf(grid)) : await symbolGridModel(grid.gen, { ...gridDefaults(grid.gen), ...(grid.params || {}) }, cv.fit ? canvasOf({ preset: 'Square 1:1', margin: 5 }) : cv);
     const n = Organica.loadLoomGrid(clone(model)).cells.length;
-    let cells = Array.from({ length: n }, (_, i) => contentPatch(contents[i % contents.length], params.fit));
+    const pickRng = params.contentSeed != null && contents.length > 1 ? mulberry32(params.contentSeed >>> 0) : null;
+    let cells = Array.from({ length: n }, (_, i) => contentPatch(contents[pickRng ? Math.floor(pickRng() * contents.length) : i % contents.length], params.fit));
     // A Palette recolours the content (a Component through its colourway — its own colour rule still picks the inks);
     // "Keep own colours" leaves every content in the colours it was saved with.
     if (pal && colors && !params.keepOwn) cells.forEach(c => { if (c.source === 'component') c.colourway = { colors: colors.slice(), paper }; });
@@ -187,7 +219,82 @@ export async function compileFigure(inputs, params) {
   if (final) recipe.transform = clone(final.transform);
   const r = evalFigure(recipe);
   const fitted = !cv.fit && (lattice || repeats.length);
-  return { svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: first.cells ? first.cells.length : (r.stats[0] ? r.stats[0].tiles : 0), shapes: r.shapes, canvas: cv };
+  return { svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv };
+}
+
+// ── Variations (Phase 4): a variation changes the Figure's own INPUTS — what Keep allows — then compiles as usual.
+// spec = { mode: 'seed' | 'one' | 'several', seed }. 'seed' re-draws only what is random (a Grid's seed, how several
+// contents spread over the cells); 'one' makes one change, 'several' two or three. Deterministic per spec.
+export const KEEP_KEYS = ['content', 'palette', 'cells', 'grid', 'transform'];   // UI-COPY §2: Content · Palette · Cell rules · Grid · Rotate & mirror
+const pick = (a, rng) => a[Math.floor(rng() * a.length)];
+function changeGrid(inp, rng) {
+  const g = inp.grid, spec = gridSpec(g.gen), p = { ...gridDefaults(g.gen), ...(g.params || {}) };
+  const keys = spec.params.filter(x => x[2] !== 'text'); if (!keys.length) return null;
+  const [k, label, a, b, step] = pick(keys, rng);
+  const cur = +p[k], span = Math.max(1, Math.round((b - a) / step / 4)) * step;
+  let v = cur; for (let t = 0; t < 6 && v === cur; t++) v = Math.min(b, Math.max(a, Math.round((cur + (rng() < 0.5 ? -1 : 1) * step * (1 + Math.floor(rng() * Math.max(1, span / step)))) / step) * step));
+  if (v === cur) return null;
+  inp.grid = { gen: g.gen, params: { ...p, [k]: v } }; return `${label} ${v}`;
+}
+function changePalette(inp, rng) {
+  const pal = inp.palette; if (!pal || !pal.colors || !pal.colors.length) return null;
+  const C = Organica.color;
+  if (pal.colors.length > 1 && rng() < 0.35) { const c = pal.colors.slice(); c.push(c.shift()); inp.palette = { ...pal, colors: c }; return 'Inks in another order'; }
+  const turn = pick(FG_HUE_TURNS, rng);
+  const turned = pal.colors.map(h => { const o = C.hexToOklch(h); return o.c < 0.03 ? h : C.oklchToHex(o.l, o.c, (o.h + turn + 360) % 360); });
+  const solved = cwSolve(turned, pal.paper || '#ffffff') || turned;
+  inp.palette = { ...pal, colors: solved }; return `Hue ${turn > 0 ? '+' : ''}${turn}°`;
+}
+const RULE_POOL = [
+  { when: { parity: 'odd' }, do: { rotate: 90 } }, { when: { parity: 'odd' }, do: { rotate: 180 } }, { when: { parity: 'even' }, do: { content: 'empty' } },
+  { when: { parity: 'odd' }, do: { flipH: true } }, { when: { class: 'down' }, do: { content: 'empty' } }, { when: { class: 'up' }, do: { rotate: 180 } },
+  { when: { row: [0] }, do: { content: 'empty' } }, { when: {}, do: { rotate: 'sector' } },
+];
+function changeCells(inp, rng) {
+  const rules = (inp.rules || []).slice(), at = rules.findIndex(r => r.kind === 'cells');
+  const cur = at >= 0 ? clone(rules[at].rules) : [];
+  if (cur.length && rng() < 0.4) { const i = Math.floor(rng() * cur.length); cur[i].off = !cur[i].off; }
+  else cur.push(clone(pick(RULE_POOL, rng)));
+  if (at >= 0) rules[at] = { kind: 'cells', rules: cur }; else rules.unshift({ kind: 'cells', rules: cur });
+  inp.rules = rules; return 'A cell rule';
+}
+function changeTransform(inp, rng) {
+  const rules = (inp.rules || []).slice(); if (!rules.some(r => r.kind === 'repeat')) return null;
+  const at = rules.map(r => r.kind).lastIndexOf('transform'), t = at >= 0 ? { ...rules[at].transform } : { rotate: 0, mirror: 'none' };
+  if (rng() < 0.5) t.rotate = (t.rotate + 90) % 360; else t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng);
+  if (at >= 0) rules[at] = { kind: 'transform', transform: t }; else rules.push({ kind: 'transform', transform: t });
+  inp.rules = rules; return t.mirror !== 'none' ? `Mirror ${t.mirror}` : `Rotate ${t.rotate}°`;
+}
+const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells: changeCells, transform: changeTransform };
+export function varyInputs(inputs, spec, keep) {
+  keep = keep || {};
+  const inp = { ...inputs, rules: (inputs.rules || []).slice() }, rng = mulberry32((spec.seed * 2654435761) >>> 0), labels = [], extra = {};
+  const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells
+    let did = false;
+    if (!keep.grid && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed: Math.floor(rng() * 1000) } }; labels.push('Grid seed'); did = true; }
+    if (!keep.content && (inp.content || []).filter(Boolean).length > 1) { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); did = true; }
+    return did;
+  };
+  const kinds = KEEP_KEYS.filter(k => !keep[k] && (k !== 'content' || (inp.content || []).filter(Boolean).length > 1));
+  if (spec.mode === 'seed' && reseed()) return { inputs: inp, extra, label: labels.join(' · ') };
+  const want = spec.mode === 'several' ? 2 + Math.floor(rng() * 2) : 1;
+  for (let tries = 0; tries < 12 && labels.length < want && kinds.length; tries++) {
+    const k = pick(kinds, rng);
+    if (k === 'content') { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); kinds.splice(kinds.indexOf(k), 1); continue; }
+    const l = CHANGES[k](inp, rng); if (l) { labels.push(l); kinds.splice(kinds.indexOf(k), 1); }
+  }
+  return { inputs: inp, extra, label: labels.join(' · ') || 'No change' };
+}
+// The variation specs a Figure shows: the Figure as set up first, then the pinned ones, then new ones from its seed.
+export function variationSpecs(p, spare = 0) {   // spare: extra candidates, to replace a variation that came out the same as another
+  const n = Math.max(1, Math.min(12, +p.variations || 1)) + spare, mode = p.varyBy || 'one', base = (+p.seed || 1) >>> 0;
+  const out = [{ key: 'base', spec: null, pinned: false }];
+  (p.pins || []).forEach(s => { if (out.length < n) out.push({ key: s.mode + ':' + s.seed, spec: s, pinned: true }); });
+  for (let i = 1; out.length < n && i < 200; i++) {
+    const s = { mode, seed: (base * 7919 + i * 104729) >>> 0 };
+    if (!out.some(o => o.spec && o.spec.mode === s.mode && o.spec.seed === s.seed)) out.push({ key: s.mode + ':' + s.seed, spec: s, pinned: false });
+  }
+  return out;
 }
 
 // ── A recipe v2 (a built-in Figure, a JSON file) → the pieces of a graph. Its Element is saved to the library once
@@ -269,7 +376,9 @@ export function figureNodeTypes() {
           { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', required: true, multi: true },
           { name: 'rules', type: 'rule', label: 'Rules', multi: true }],
         outputs: [{ name: 'figure', type: 'figure', label: 'Figure' }],
-        params: [{ name: 'fit', default: 'contain' }, { name: 'clip', default: true }, { name: 'keepOwn', default: false }, { name: 'symbolFit', default: null }] },
-      compute: async (i, p) => ({ figure: await compileFigure(i, p) }) },
+        params: [{ name: 'fit', default: 'contain' }, { name: 'clip', default: true }, { name: 'keepOwn', default: false }, { name: 'symbolFit', default: null },
+          { name: 'variations', default: 4 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} }, { name: 'layout', default: 'rows' },
+          { name: 'pins', default: [] }, { name: 'fixed', default: null }] },
+      compute: async (i, p) => ({ figure: await figureWithVariations(i, p) }) },
   ];
 }

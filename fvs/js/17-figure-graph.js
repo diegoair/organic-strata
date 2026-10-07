@@ -31,7 +31,7 @@ import {
   evalFigure
 } from './engine/16-figure-eval.js';
 import {
-  FIGURE_LATTICES, FIT_PRESET, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  FIGURE_LATTICES, FIT_PRESET, KEEP_KEYS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey
 } from './engine/17-figure-nodes.js';
 import {
@@ -105,12 +105,21 @@ function renderBody(node, entry, el) {
   if (node.type === 'figure') {
     const f = v && v.figure;
     if (!f) { el.innerHTML = ''; return; }
-    const src = figureImg(node.id, f.svg), crumb = foundationOf(node).map(n => n ? esc(nodeLabel(n)) : '—').join(' · ');
-    if (!el.querySelector('.fg-card__img') || el.querySelector('.fg-card__img').getAttribute('src') !== src) {
-      el.innerHTML = `<p class="fg-card__crumb">${crumb}</p><div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))} preview" src="${src}"></div>
-        <p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells</p>`;
-      el.querySelector('.fg-card__img').addEventListener('load', () => ctl.remeasure(node.id), { once: true });
-    } else el.querySelector('.fg-card__crumb').innerHTML = crumb;
+    const crumb = foundationOf(node).map(n => n ? esc(nodeLabel(n)) : '—').join(' · ');
+    const vars = f.variations && f.variations.length ? f.variations : [{ key: 'base', svg: f.svg, label: 'As set up' }];
+    const layout = p.layout === 'row' ? 'row' : 'rows';
+    el.innerHTML = `<p class="fg-card__crumb">${crumb}</p><div class="fg-vars fg-vars--${layout}${vars.length === 1 ? ' is-single' : ''}">${vars.map((v, i) => `
+      <figure class="fg-var${v.pinned ? ' is-pinned' : ''}" data-i="${i}">
+        <div class="fg-card__sheet" data-theme="light">${v.error ? `<p class="fg-var__error">${esc(v.label)}</p>` : `<img class="fg-card__img" alt="${esc(nodeLabel(node))}, variation ${i + 1}" src="${figureImg(node.id + ':' + v.key, v.svg)}">`}</div>
+        <figcaption class="fg-var__label">${i ? esc(v.label) : 'As set up'}</figcaption>
+        ${i ? `<div class="fg-var__tools">
+          <button type="button" class="icon-btn" data-act="pin" data-i="${i}" aria-pressed="${!!v.pinned}" aria-label="Pin variation ${i + 1}">${Organica.icons.get('pin', { size: 'xs' })}</button>
+          <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${i + 1}">${Organica.icons.get('copy', { size: 'xs' })}</button></div>` : ''}
+      </figure>`).join('')}</div>
+      <p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${vars.length > 1 ? ` · ${vars.length} variations` : ''}</p>`;
+    el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => ctl.remeasure(node.id), { once: true }));
+    if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act, +b.dataset.i); }); }
+    el._vars = vars;
   } else if (node.type === 'canvas') {
     const cv = canvasOf(p);
     el.innerHTML = cv.fit ? `<p class="fg-card__meta">Fit to figure — the page is the figure’s own frame</p>` : `<p class="fg-card__meta">${Organica.aspectIcon ? Organica.aspectIcon(cv.W, cv.H) : ''} ${esc(canvasSummary(cv))}</p>`;
@@ -138,6 +147,29 @@ function renderBody(node, entry, el) {
 function foundationOf(fig) {
   const m = ctl ? ctl.model : null; if (!m) return [null, null, null];
   return ['canvas', 'grid', 'palette'].map(port => { const e = m.edges.find(w => w.to.node === fig.id && w.to.port === port); return e ? NC.findNode(m, e.from.node) : null; });
+}
+// Pin keeps a variation through New variations; New Figure from this = a sibling Figure, same wires, that variation fixed.
+function variationAction(id, act, i) {
+  const node = NC.findNode(ctl.model, id), card = ctl.cardOf(id); if (!node || !card) return;
+  const v = (card.querySelector('.nc-node__body')._vars || [])[i]; if (!v || !v.spec) return;
+  const p = node.params;
+  if (act === 'pin') {
+    const pins = (p.pins || []).filter(s => !(s.mode === v.spec.mode && s.seed === v.spec.seed));
+    if (!v.pinned) pins.push(v.spec);
+    p.pins = pins; edited(node, true); return;
+  }
+  if (act === 'from') {
+    const [copy] = ctl.duplicate([id]); const n = NC.findNode(ctl.model, copy);
+    n.params.fixed = [].concat(p.fixed || [], [v.spec]); n.params.pins = []; n.params.seed = 1;
+    ctl.touch(copy); ctl.refresh(); ctl.select([copy]); ctl.commit('new-figure-from'); save();
+    announce(`New Figure from variation ${i + 1}`);
+  }
+}
+const announce = t => { const l = document.querySelector('#fg-graph .nc-live'); if (l) { l.textContent = ''; setTimeout(() => { l.textContent = t; }, 30); } };
+function fitFrame(f) {   // fit the view to a section
+  const r = ctrl('fg-graph').getBoundingClientRect(), pad = 48, L = 88, B = 72, W = r.width - L, H = r.height - B;
+  const z = Math.min(1.5, Math.max(0.1, Math.min((W - pad * 2) / f.w, (H - pad * 2) / (f.h + 40))));
+  ctl.zoomPan.setView({ zoom: z, panX: L + (W - f.w * z) / 2 - f.x * z, panY: (H - f.h * z) / 2 - f.y * z + 20 });
 }
 function cardClass(node) {
   if (node.type === 'figure') return 'nc-node--wide';
@@ -248,7 +280,13 @@ function initNodebar() {
 }
 
 // ── inspector (right panel) ──
-function edited(node, commit) { ctl.touch(node.id); if (commit) ctl.commit('params'); save(); }
+function edited(node, commit) {
+  ctl.touch(node.id); if (commit) ctl.commit('params'); save();
+  if (commit && ['canvas', 'grid', 'palette'].includes(node.type)) {
+    const figs = ctl.model.edges.filter(e => e.from.node === node.id).map(e => e.to.node).filter(id => { const n = NC.findNode(ctl.model, id); return n && n.type === 'figure'; });
+    setTimeout(() => ctl.pulse(figs), 60);
+  }
+}
 function rangeRow(label, id, min, max, step, value, onInput) {
   return { html: `<div class="ctrl-row"><div class="ctrl-label">${esc(label)}</div><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}" aria-label="${esc(label)}"><span class="ctrl-val" id="v-${id}">${value}</span></div>`,
     bind: () => { const r = ctrl(id); r.addEventListener('input', () => { ctrl('v-' + id).textContent = r.value; onInput(+r.value, false); }); r.addEventListener('change', () => onInput(+r.value, true)); } };
@@ -270,10 +308,21 @@ function renderInspector(ids) {
     box.innerHTML = `<div class="panel-section"><h3>Graph</h3>
       <p class="panel-hint">${figs} ${figs === 1 ? 'Figure' : 'Figures'} · ${m.nodes.length} ${m.nodes.length === 1 ? 'node' : 'nodes'}</p>
       ${m.nodes.length ? '' : '<p class="org-empty">This graph is empty. Add a Figure and some saved content, or start from a built-in Figure with New Figure…</p>'}
-      <p class="panel-hint">Add nodes from the bar on the left. Drag from a port to connect; drop a wire on a node to use its first free input.</p></div>`;
+      ${figs ? `<div class="sub-label">Figures</div><div class="fg-figlist">${m.nodes.filter(n => n.type === 'figure').map(n => `<button type="button" class="fg-figlist__item" data-id="${n.id}">${esc(nodeLabel(n))}<span class="fg-figlist__hint">${foundationOf(n).map(x => x ? esc(nodeLabel(x)) : '—').join(' · ')}</span></button>`).join('')}</div>` : ''}
+      ${(m.frames || []).length ? `<div class="sub-label">Sections</div><div class="fg-figlist">${m.frames.map(f => `<button type="button" class="fg-figlist__item" data-frame="${f.id}">${esc(f.name)}</button>`).join('')}</div>` : ''}
+      ${m.nodes.length ? '<div class="row-btns"><button type="button" class="mini-btn" id="fgi-add-section">Add section</button></div>' : ''}
+      <p class="panel-hint">Add nodes from the bar on the left, or press / to search. Drag from a port to connect; drop a wire on a node to use its first free input.</p></div>`;
+    box.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => { ctl.select([b.dataset.id]); ctl.fitTo([b.dataset.id]); }));
+    box.querySelectorAll('[data-frame]').forEach(b => b.addEventListener('click', () => { const f = m.frames.find(x => x.id === b.dataset.frame); if (f) ctl.zoomPan && fitFrame(f); }));
+    const add = ctrl('fgi-add-section'); if (add) add.addEventListener('click', () => { ctl.addSection([]); save(); renderInspector([]); });
     return;
   }
-  if (nodes.length > 1) { box.innerHTML = `<div class="panel-section"><h3>${nodes.length} nodes selected</h3></div>`; return; }
+  if (nodes.length > 1) {
+    box.innerHTML = `<div class="panel-section"><h3>${nodes.length} nodes selected</h3><div class="row-btns"><button type="button" class="mini-btn" id="fgi-add-section" aria-keyshortcuts="Meta+G Control+G">Add section</button><button type="button" class="mini-btn" id="fgi-dup">Duplicate</button></div></div>`;
+    ctrl('fgi-add-section').addEventListener('click', () => { ctl.addSection(ids); save(); });
+    ctrl('fgi-dup').addEventListener('click', () => { ctl.duplicate(ids); save(); });
+    return;
+  }
   const node = nodes[0], p = node.params, rows = [];
   const title = `<div class="panel-section"><h3>${esc(nodeLabel(node))}</h3>`;
   const why = protect(node, ctl.model);
@@ -366,6 +415,21 @@ function renderInspector(ids) {
         renderInspector(ids); save();
       }));
     });
+    rows.push({ html: '<div class="sub-label">Variations</div>' });
+    rows.push(rangeRow('Variations', 'fgi-vcount', 1, 12, 1, +p.variations || 1, (v, c) => { p.variations = v; edited(node, c); }));
+    rows.push(selectRow('Vary by', 'fgi-varyby', [['seed', 'Random seed'], ['one', 'One change'], ['several', 'Several changes']], p.varyBy || 'one', v => { p.varyBy = v; edited(node, true); }));
+    rows.push(numberRow('Random seed', 'fgi-seed', +p.seed || 1, v => { p.seed = Math.max(1, Math.round(+v) || 1); edited(node, true); }, 'min="1" max="999999" step="1"'));
+    const KEEP_LABELS = { content: 'Content', palette: 'Palette', cells: 'Cell rules', grid: 'Grid', transform: 'Rotate & mirror' };
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Keep</div></div><div class="fg-keep">${KEEP_KEYS.map(k => `<label class="check-row"><input type="checkbox" data-keep="${k}"${(p.keep || {})[k] ? ' checked' : ''}> ${KEEP_LABELS[k]}</label>`).join('')}</div>`,
+      bind: () => box.querySelectorAll('[data-keep]').forEach(c => c.addEventListener('change', () => { p.keep = { ...(p.keep || {}), [c.dataset.keep]: c.checked }; edited(node, true); })) });
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Layout</div><div class="seg-ctrl" id="fgi-layout" role="group" aria-label="Layout"><button class="seg-btn${p.layout === 'row' ? ' active' : ''}" data-v="row" aria-pressed="${p.layout === 'row'}">One row</button><button class="seg-btn${p.layout !== 'row' ? ' active' : ''}" data-v="rows" aria-pressed="${p.layout !== 'row'}">Rows</button></div></div>
+      <div class="row-btns"><button type="button" class="mini-btn" id="fgi-renew" aria-label="New variations — pinned ones stay">${Organica.icons.get('refresh', { size: 'xs' })} New variations</button></div>
+      ${(p.pins || []).length ? `<p class="panel-hint">${p.pins.length} pinned</p>` : ''}${(p.fixed || []).length ? `<p class="panel-hint">Made from a variation — ${p.fixed.length === 1 ? 'one change fixed' : p.fixed.length + ' changes fixed'}</p>` : ''}`,
+      bind: () => {
+        ctrl('fgi-layout').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; p.layout = b.dataset.v; edited(node, true); renderInspector(ids); ctl.paint(node.id); });
+        ctrl('fgi-renew').addEventListener('click', () => { p.seed = (+p.seed || 1) + 1; edited(node, true); renderInspector(ids); });
+      } });
+    rows.push({ html: '<div class="sub-label">Cells</div>' });
     rows.push(selectRow('Fit in cell', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; edited(node, true); }));
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-keepown"${p.keepOwn ? ' checked' : ''}> Keep own colours</label>`,
       bind: () => { ctrl('fgi-keepown').addEventListener('change', e => { p.keepOwn = e.target.checked; edited(node, true); }); } });
@@ -440,8 +504,8 @@ function openBuiltin(def) {
   });
   g.edges.forEach(([a, ap, b, bp]) => NC.addEdge(m, { node: ids[a], port: ap }, { node: ids[b], port: bp }, true));
   Object.values(ids).forEach(id => ctl.touch(id));
-  ctl.refresh(); ctl.select([ids.figure]); ctl.commit('new-figure'); save();
-  requestAnimationFrame(() => ctl.fitTo(Object.values(ids)));
+  ctl.refresh(); ctl.select([ids.figure]); ctl.commit('new-figure');
+  requestAnimationFrame(() => { ctl.addSection(Object.values(ids), def.id ? (Object.entries(figureCatalog()).find(([, d]) => d.id === def.id) || [])[0] || 'Section' : undefined); ctl.select([ids.figure]); save(); ctl.fitTo(Object.values(ids)); });
 }
 function openNewFigure() {
   const cat = figureCatalog();
@@ -565,7 +629,8 @@ function syncGraphMenu() {
   const fresh = ctl.model.nodes.length && !savedAs();
   const nw = ctrl('fg-graph-new');
   nw.removeAttribute('data-armed');   // an unsaved graph is kept as "Untitled n", so New graph never loses it
-  ctrl('btn-fg-graph').setAttribute('aria-label', fresh ? 'Graph — not saved' : 'Graph');
+  ctrl('btn-fg-graph').setAttribute('aria-label', 'Graph');
+  if (fresh) ctrl('btn-fg-graph').setAttribute('aria-description', 'Not saved'); else ctrl('btn-fg-graph').removeAttribute('aria-description');
   ctrl('btn-fg-graph').classList.toggle('is-unsaved', !!fresh);
 }
 function keepUnsaved() {   // never lose a graph: an unsaved one is saved as "Untitled n" before another replaces it

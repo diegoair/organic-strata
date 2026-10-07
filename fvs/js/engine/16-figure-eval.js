@@ -179,7 +179,7 @@ export function evalFigure(def) {
       const tiles = resolveGridCells(getFvsGrid()).length, copies = t.mirror === 'vh' ? 4 : (t.mirror === 'v' || t.mirror === 'h') ? 2 : 1;
       state.figureLevelStats.push({ tiles, copies });
       shapes *= tiles * copies;
-      if (shapes > FIGURE_MAX_SHAPES) throw new Error(`Too many shapes (${shapes}) — the limit is ${FIGURE_MAX_SHAPES}`);
+      if (shapes > FIGURE_MAX_SHAPES) throw new Error(`Too many shapes: ${shapes} (limit ${FIGURE_MAX_SHAPES}). Lower Variations or use a smaller Grid.`);
       if (!last) { const svg = buildFvsGridSVG(); state.figureLevelMeta[gi] = live.lastFigureMeta; state.fvsGridRaw = promoteFigureToTile(svg); }
     });
     if (!grids.length) { state.fvsGridConfig.rot = tr.rotate || 0; state.fvsGridConfig.mirror = tr.mirror || 'none'; }
@@ -187,6 +187,7 @@ export function evalFigure(def) {
     const metas = state.figureLevelMeta.slice(); if (grids.length) metas[grids.length - 1] = live.lastFigureMeta;
     const stats = state.figureLevelStats.slice();
     const levels = { component: figureSVGOf('component'), symbol: figureSVGOf('symbol') };
-    return { svg, tier, levels, metas, stats, shapes };
+    const cells = first.kind === 'symbol' ? state.symbolCells.length : (getSelectedComponent() ? getSelectedComponent().cells.length : 0);
+    return { svg, tier, levels, metas, stats, shapes, cells };
   });
 }

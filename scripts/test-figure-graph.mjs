@@ -64,6 +64,29 @@ const out = await P.ev(`
   res.othersUntouched = grids.every((g, i) => eng.get(g.id).ver === gver[i]) && eng.get(en.id).ver === ever;
   res.size2 = (eng.get(figs[0].id).value.figure.svg.match(/viewBox="([^"]+)"/) || [])[1];
   // a deleted library entry still draws (the node keeps a copy) — nothing in the real library was ever written
+  // ── variations (Phase 4) ──
+  const f0 = figs[0]; f0.params.variations = 5; f0.params.varyBy = 'one'; f0.params.seed = 3; eng.touch(f0.id); await eng.run(m);
+  const K = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
+  const V = () => eng.get(f0.id).value.figure.variations.map(v => ({ ...v, svg: K(v.svg) }));
+  const v1 = V().map(v => v.svg), lab1 = V().map(v => v.label);
+  res.varCount = V().length;
+  res.varFirstIsBase = v1[0] === K(eng.get(f0.id).value.figure.svg);
+  res.varUnique = new Set(v1).size === v1.length;
+  eng.touch(f0.id); await eng.run(m); res.varDet = JSON.stringify(V().map(v => v.svg)) === JSON.stringify(v1);
+  const pinSpec = V()[2].spec, pinSvg = V()[2].svg; f0.params.pins = [pinSpec]; eng.touch(f0.id); await eng.run(m);
+  res.pinFirst = V()[1].pinned && V()[1].svg === pinSvg;
+  f0.params.seed = 4; eng.touch(f0.id); await eng.run(m);   // New variations
+  res.renewKeepsPin = V()[1].pinned && V()[1].svg === pinSvg;
+  res.renewChanges = V().slice(2).some(v => !v1.includes(v.svg));
+  // New Figure from this: a Figure with the pinned variation fixed draws exactly that variation
+  const nf = NC.addNode(m, { type: 'figure', params: { ...JSON.parse(JSON.stringify(f0.params)), fixed: [pinSpec], pins: [], variations: 1 } });
+  NC.edgesInto(m, f0.id).forEach(e => NC.addEdge(m, e.from, { node: nf.id, port: e.to.port }, true));
+  await eng.run(m);
+  res.fromThis = K(eng.get(nf.id).value.figure.svg) === pinSvg;
+  // Keep: with every category kept, 'one change' changes nothing on this figure → only the base remains
+  f0.params.keep = { content: true, palette: true, cells: true, grid: true, transform: true }; f0.params.pins = []; eng.touch(f0.id); await eng.run(m);
+  res.keepAll = V().length === 1;
+  f0.params.keep = {}; f0.params.variations = 4; eng.touch(f0.id); await eng.run(m);
   res.libUntouched = !F('ELEMENT_LIB').read()['Test element'] && !F('LIBRARY').read()['Test component'];
   res.after = JSON.stringify(F('state').colors) + F('state').activeTier === before;
   return res;`, PRE);
@@ -100,6 +123,14 @@ check(out.keepOwn, 'Keep own colours leaves the content in its own colours');
 check(out.allUpdated, 'changing the shared Canvas updates all 5 figures');
 check(out.othersUntouched, 'only the Canvas and its figures recompute');
 check(/1920 1080$/.test(out.size2 || ''), 'the new Canvas size reaches the figure: ' + out.size2);
+check(out.varCount === 5, 'variations: count ' + out.varCount);
+check(out.varFirstIsBase, 'variation 1 is the figure as set up');
+check(out.varUnique, 'no two variations are the same');
+check(out.varDet, 'variations are the same for the same seed');
+check(out.pinFirst, 'a pinned variation comes first after the base');
+check(out.renewKeepsPin && out.renewChanges, 'New variations keeps the pinned one and changes the others');
+check(out.fromThis, 'New Figure from this draws exactly that variation');
+check(out.keepAll, 'Keep everything → no variation can change anything');
 check(out.libUntouched, 'the real library was never written');
 check(out.after, 'FVS state unchanged by graph runs');
 check(!P.errors.length, 'page errors: ' + P.errors.join(' | '));
