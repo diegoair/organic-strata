@@ -205,7 +205,7 @@
       peek() { return this.read(); },          // store.js reuses the parse; here it is read() (same read-only contract)
       write(obj) {
         try { localStorage.setItem(key, JSON.stringify(obj)); return true; }
-        catch (e) { return false; }            // quota / private mode — caller decides what to say
+        catch (e) { Organica.storageFull(tool); return false; }   // quota / private mode: the shared notice; the caller must not show it as saved
       },
     };
   };
@@ -778,6 +778,18 @@
   //   busy   pulsing --tool dot, no timer; closed by the next non-busy call
   //          (Organica.status does this) or by hand
   //   info   plain; closes itself after 12s
+  // Saved work the browser refused (localStorage full — ~5 MB per site — or private mode). Every store's write()
+  // returns false then; it also calls this: an 'organica:storage-full' event for the page (detail.tool) and ONE
+  // error notice (not one per write of a batch). The caller must not show the item as saved. (Oct 7, 2026: FVS
+  // saves past ~540 Components were lost silently while the save circle still showed ✓.)
+  let storageFullAt = 0;
+  Organica.storageFull = function (tool) {
+    try { window.dispatchEvent(new CustomEvent('organica:storage-full', { detail: { tool: tool || '' } })); } catch (e) {}
+    const now = Date.now();
+    if (now - storageFullAt < 2000) return;
+    storageFullAt = now;
+    Organica.notice('Not saved: this browser\u2019s storage is full. Delete what you no longer need, then save again.', { kind: 'error' });
+  };
   let noticeEl = null, noticeTimer = 0;
   Organica.notice = function (message, opts) {
     opts = opts || {};

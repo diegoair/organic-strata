@@ -688,7 +688,7 @@ export function saveSymbolAs(chosen) {
   let name = chosen;
   for (let i = 2; all[name]; i++) name = `${chosen} (${i})`;
   all[name] = entry;
-  SYMBOL_LIBRARY.write(all);
+  if (!SYMBOL_LIBRARY.write(all)) return;   // storage full: the store showed the notice — the Symbol stays unsaved (dirty)
   Organica.dirty.set('fvs-symbol', false);
   renderSymbolLibrary();
 }

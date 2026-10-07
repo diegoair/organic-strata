@@ -84,7 +84,7 @@ export function quickSaveComponentToLibrary(compId, chosen) {
   const name = uniqueLibraryName(chosen || comp.ruleSource + ' ' + new Date().toLocaleTimeString());
   const all = LIBRARY.read();
   all[name] = entry;
-  LIBRARY.write(all);
+  if (!LIBRARY.write(all)) return;   // storage full: the store showed the notice — no ✓ for a save that did not happen
   addSavedToPool(name);
   state.selectedId = comp.id;
   state.selectionExplicit = true;
@@ -100,7 +100,7 @@ export function quickSaveComponentToLibrary(compId, chosen) {
 export function saveAllComponentsToLibrary() {
   const all = LIBRARY.read();
   const time = new Date().toLocaleTimeString();
-  let added = 0;
+  const added = [];   // [comp, name]
   state.components.forEach(comp => {
     if (comp.savedName && all[comp.savedName]) return;
     const entry = buildLibraryEntryFor(comp);
@@ -109,15 +109,14 @@ export function saveAllComponentsToLibrary() {
     let name = base, i = 2;
     while (all[name]) name = `${base} (${i++})`;
     all[name] = entry;
-    comp.savedName = name;
-    addSavedToPool(name);
-    added++;
+    added.push([comp, name]);
   });
-  if (!added) return;
-  LIBRARY.write(all);
+  if (!added.length) return;
+  if (!LIBRARY.write(all)) return;   // storage full: the store showed the notice — nothing is marked saved
+  added.forEach(([comp, name]) => { comp.savedName = name; addSavedToPool(name); });
   renderLibrary();
   renderGallery();
-  Organica.notice(`Saved ${added} Component${added === 1 ? '' : 's'}`, { kind: 'info' });
+  Organica.notice(`Saved ${added.length} Component${added.length === 1 ? '' : 's'}`, { kind: 'info' });
 }
 
 // The saved ✓'s own hover-delete affordance — removes the library entry

@@ -107,9 +107,10 @@
       return peekObj;
     }
 
-    function writeCache(obj) {
+    // quiet: a pull refreshing the cache from the account — nothing the user just saved, so no "Not saved" notice
+    function writeCache(obj, quiet) {
       try { localStorage.setItem(cacheKey, JSON.stringify(obj)); tagCache(cacheKey); return true; }
-      catch (e) { return false; }
+      catch (e) { if (!quiet && Organica.storageFull) Organica.storageFull(tool); return false; }   // storage full: the shared notice; write() returns false
     }
 
     function fireSync(obj) {
@@ -199,13 +200,13 @@
             if (serverEmpty && localHas) {
               // first-login migration: push the local library up once
               lastSynced = {};
-              writeCache(local);
+              writeCache(local, true);
               queueFlush();
               fireSync(local);
               return local;
             }
             lastSynced = server;
-            writeCache(server);
+            writeCache(server, true);
             // a diff may still be pending from an offline edit — send it
             if (pending) queueFlush();
             fireSync(server);
@@ -338,9 +339,9 @@
         };
       } catch (e) { return { sets: [], forms: [] }; }
     }
-    function writeCache(lib) {
+    function writeCache(lib, quiet) {
       try { localStorage.setItem(CACHE, JSON.stringify(lib)); tagCache(CACHE); return true; }
-      catch (e) { return false; }
+      catch (e) { if (!quiet && Organica.storageFull) Organica.storageFull('library'); return false; }
     }
     function fire(lib) { subs.forEach(function (cb) { try { cb(lib); } catch (e) {} }); }
 
@@ -490,7 +491,7 @@
           rows.forEach(function (r) { lastSeeds[r.seed_id] = JSON.stringify(r.data); });
           lastMeta = meta ? JSON.stringify({ sets: meta.sets || [] }) : null;
 
-          writeCache(lib);
+          writeCache(lib, true);
           // push local-only seeds (+ the meta row if it's missing / stale)
           if (localOnly.length || lastMeta !== JSON.stringify({ sets: sets }) || pending) {
             queueFlush();

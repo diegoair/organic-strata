@@ -13,6 +13,9 @@
 //   2. matrix — every cell shape × grid shape × grid size (+ square 2×2 / 3×3 / 4×4 / 4×2), N saves each, on top of a
 //      library pre-filled with ~P saved Components, the Library rail open. Catches a save that gets slower with the
 //      library (Oct 6, 2026: every rail thumbnail re-parsed the whole library → ~3–4 s per save at ~400).
+//   4. storage — localStorage filled to the brim (a filler key), then a save circle click, Save all, an Element save
+//      and a Symbol save: each must show the "Not saved" notice and mark nothing saved; with the filler gone the
+//      same save must work. (Oct 7, 2026: past ~540 Components saves were lost silently while ✓ still showed.)
 //   3. paint — hover sweeps over the Component gallery and the Element turns, per cell shape, at 2× pixel density
 //      (a retina screen), traced: the GPU / paint / style work each shape costs. Report only, no budget yet. (Oct 6,
 //      2026: cell shapes cost 5–10× square in GPU work — the 40px stage shadow is a CSS drop-shadow filter on the
@@ -42,7 +45,7 @@ import { fileURLToPath } from 'node:url';
 const arg = (name, def) => { const i = process.argv.indexOf('--' + name); return i > 0 ? process.argv[i + 1] : def; };
 const QUICK = process.argv.includes('--quick');
 const SAVES = +arg('saves', 3), PREFILL = +arg('prefill', 300), MAX_MS = +arg('max-ms', 500);
-const ONLY = (arg('only', 'sequence,matrix,paint')).split(','), CSS = arg('css', '');
+const ONLY = (arg('only', 'sequence,matrix,paint,storage')).split(','), CSS = arg('css', '');
 const RAIL = arg('rail', 'on') !== 'off', PROFILE = arg('profile', ''), JSON_OUT = arg('json', '');
 const ROOT = path.resolve(arg('root', path.join(path.dirname(fileURLToPath(import.meta.url)), '..')));
 
@@ -242,6 +245,36 @@ if (ONLY.includes('paint')) {
     results.paint.push({ tier, shape, ...sum });
     console.log(`  ${tier.padEnd(10)}${shape.padEnd(9)}` + KEYS.map(k => `${k} ${String(Math.round(sum[k] || 0)).padStart(4)}`).join('  '));
   }
+}
+// 5 — storage full: a filler leaves no room, every save path must say so and mark nothing
+if (ONLY.includes('storage')) {
+  await cdp('Emulation.clearDeviceMetricsOverride');
+  await ev(`window.__fvs.setTier('component'); window.__fvs.setCellShape('circle'); window.__fvs.setRailOpen(${RAIL}); new Promise(r => setTimeout(r, 800))`);
+  // fill: grow one key until the browser refuses, then back off a little so only tiny writes still fit
+  const filled = await ev(`(() => { localStorage.removeItem('organica.perf.filler'); let chunk = 'x'.repeat(1 << 20), s = '';
+    for (;;) { try { localStorage.setItem('organica.perf.filler', s + chunk); s += chunk; } catch (e) { if (chunk.length <= 64) break; chunk = chunk.slice(0, chunk.length >> 1); } }
+    return Math.round(s.length / 1024); })()`);
+  const noticeText = () => ev(`(() => { const n = document.querySelector('.org-notice[data-kind="error"] .org-notice__text'); return n ? n.textContent : ''; })()`);
+  const closeNotice = () => ev(`Organica.noticeClose && Organica.noticeClose(); new Promise(r => setTimeout(r, 2100))`);   // past the notice's 2 s de-duplication
+  const st = [];
+  const expectRefused = async (what, run) => {
+    const before = await libCount();
+    const r = await run();
+    const n = await noticeText(), after = await libCount();
+    const ok = /^Not saved:/.test(n) && after === before && !r.markedSaved;
+    st.push(`${what}: ${ok ? 'refused, told' : 'FAIL'}`);
+    if (!ok) fails.push(`storage full — ${what}: notice "${n}", library ${before} → ${after}, marked saved ${r.markedSaved}`);
+    await closeNotice();
+  };
+  await expectRefused('save circle', async () => { const t = await save(false); return { markedSaved: await ev(`!!document.querySelector('#gallery .fvs-thumb.saved-in-library')`) || typeof t === 'number' }; });
+  await expectRefused('Save all', async () => { await ev(`window.__fvs.saveAllComponentsToLibrary(); 1`); return { markedSaved: await ev(`window.__fvs.state.components.some(c => c.savedName)`) }; });
+  await expectRefused('Element save', async () => { const n = await ev(`(() => { const F = window.__fvs; return F.saveElementVariant(0, false, false, '0°') || null; })()`); return { markedSaved: !!n }; });
+  await expectRefused('Symbol save', async () => { await ev(`window.__fvs.setTier('symbol'); new Promise(r => setTimeout(r, 600))`); const had = await ev(`Object.keys(window.__fvs.SYMBOL_LIBRARY.read()).length`); await ev(`(() => { const F = window.__fvs; if (!F.state.symbolGrid && F.generateSymbol) F.generateSymbol(); F.saveSymbolAs('perf symbol'); return 1; })()`); return { markedSaved: (await ev(`Object.keys(window.__fvs.SYMBOL_LIBRARY.read()).length`)) !== had }; });
+  // room again: the same save works
+  await ev(`localStorage.removeItem('organica.perf.filler'); window.__fvs.setTier('component'); new Promise(r => setTimeout(r, 600))`);
+  const again = await save(false);
+  if (typeof again !== 'number') fails.push('storage freed — save circle: ' + again); else st.push('freed: saved in ' + again + ' ms');
+  console.log(`storage   filled ${filled} KB of filler · ` + st.join(' · '));
 }
 if (errors.length) fails.push(...errors.slice(0, 5).map(e => 'page error: ' + e));
 if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(results, null, 1));

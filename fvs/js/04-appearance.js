@@ -112,7 +112,7 @@ export function saveElementVariant(rot, flipH, flipV, label, chosen) {
   let name = chosen || defaultElementName(label);
   while (all[name]) name += '′';
   all[name] = { tile, sig: tileSig(tile), thumb: elementVariantSVG(rot, flipH, flipV), colors: state.colors.slice(), paperColor: state.paperColor, orientation: { rotation: rot, flipH, flipV }, seed: seedForSnapshot(), appearance: getElementAppearance(), savedAt: new Date().toISOString() };
-  ELEMENT_LIB.write(all);
+  if (!ELEMENT_LIB.write(all)) return null;   // storage full: the store showed the notice — no ✓, no Paper tile
   elementLibraryChanged();
   return name;
 }
