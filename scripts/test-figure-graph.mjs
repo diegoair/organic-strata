@@ -136,6 +136,29 @@ const out = await P.ev(`
   const ar = K(eng.get(fc.id).value.figure.svg); res.arrange = ar !== base5;
   co.params.rules = [{ when: { col: [0] }, do: { pattern: { patType: 'crosshatch', patSpacing: 8, patWeight: 2, patAngle: 45 } } }]; eng.touch(co.id); await eng.run(m);
   const pt = K(eng.get(fc.id).value.figure.svg); res.pattern = pt !== base5 && cellG(pt, 1) === cellG(base5, 1) && cellG(pt, 0) !== cellG(base5, 0);
+  // ── Export (Phase 6): the plan, and files encoded as they would download ──
+  const figsIn = [{ name: 'Figure A', figure: eng.get(figs[4].id).value.figure }];   // figure 4 has a 3-ink Palette
+  const plan1 = F('exportPlan')(figsIn, { which: 'all', formats: { svg: true, png: true, plates: true }, scales: [1, 2] });
+  const nv = figsIn[0].figure.variations.length, inks = figsIn[0].figure.colors.length;
+  res.expCount = plan1.length === nv * (1 + 2 + inks);
+  res.expBase = F('exportPlan')(figsIn, { which: 'base', formats: { svg: true } }).length === 1;
+  res.expPinned = F('exportPlan')(figsIn, { which: 'pinned', formats: { svg: true } }).length === figsIn[0].figure.variations.filter(v => v.pinned).length;
+  const png2 = plan1.find(f => f.format === 'png' && f.scale === 2), blob2 = await F('encodeFile')(png2);
+  const dims = async b => { const bm = await createImageBitmap(b); return [bm.width, bm.height]; };
+  const wm = png2.svg.match(/^<svg[^>]*\\swidth="([\\d.]+)"/), W0 = wm ? +wm[1] : 1000;
+  res.expPng2x = (await dims(blob2))[0] === Math.round(W0 * 2);
+  const plate = plan1.find(f => f.plate === 1), pb = await F('encodeFile')(plate), ptxt = await pb.text();
+  res.expPlate = !ptxt.includes(figsIn[0].figure.colors[0]) && ptxt.includes('#000000');
+  // a Print Canvas: mm size + bleed + crop marks; PNG at its DPI with the DPI written in
+  cv.params.mode = 'print'; cv.params.preset = 'A4 portrait'; cv.params.dpi = 150; cv.params.bleed = 3; eng.touch(cv.id); await eng.run(m);
+  const pf = [{ name: 'Figure A', figure: eng.get(figs[4].id).value.figure }];
+  const pplan = F('exportPlan')(pf, { which: 'base', formats: { svg: true, png: true } });
+  const psvg = await (await F('encodeFile')(pplan.find(f => f.format === 'svg'))).text();
+  res.expPrintSvg = /width="216mm" height="303mm"/.test(psvg) && psvg.split('<line').length > 4;
+  const ppng = await F('encodeFile')(pplan.find(f => f.format === 'png')), pd = await dims(ppng);
+  const buf = new Uint8Array(await ppng.arrayBuffer()); let phys = false; for (let i = 0; i < buf.length - 4; i++) if (buf[i] === 0x70 && buf[i + 1] === 0x48 && buf[i + 2] === 0x59 && buf[i + 3] === 0x73) { phys = true; break; }
+  res.expPrintPng = Math.abs(pd[0] - Math.round(216 / 25.4 * 150)) <= 1 && phys;
+  cv.params.mode = 'screen'; cv.params.preset = 'Landscape 16:9'; eng.touch(cv.id); await eng.run(m);
   res.libUntouched = !F('ELEMENT_LIB').read()['Test element'] && !F('LIBRARY').read()['Test component'];
   res.after = JSON.stringify(F('state').colors) + F('state').activeTier === before;
   return res;`, PRE);
@@ -197,6 +220,12 @@ check(out.symRule, 'a Symbol rule turns its region only');
 check(out.symRuleDet, 'a Symbol rule is the same for the same seed');
 check(out.arrange, 'Arrange gives the region content from its pool');
 check(out.pattern, 'a Pattern fill changes its region only');
+check(out.expCount, 'export plan: variations × (SVG + 2 PNG sizes + one plate per ink)');
+check(out.expBase && out.expPinned, 'export plan: As set up only / Pinned only');
+check(out.expPng2x, 'a ×2 PNG is twice the figure size');
+check(out.expPlate, 'a plate keeps one ink, in black');
+check(out.expPrintSvg, 'a Print Canvas exports at its size in mm with bleed and crop marks');
+check(out.expPrintPng, 'a Print PNG is at the Canvas DPI, with the DPI written in');
 check(out.libUntouched, 'the real library was never written');
 check(out.after, 'FVS state unchanged by graph runs');
 check(!P.errors.length, 'page errors: ' + P.errors.join(' | '));

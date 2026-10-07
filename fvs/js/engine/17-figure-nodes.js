@@ -162,7 +162,7 @@ async function figureGroup(inputs, p, item) {
   const keep = p.keep || {};
   // `fixed`: the variation(s) a "New Figure from this" froze — applied in order, before anything else
   const base = [].concat(p.fixed || []).reduce((b, spec) => { const v = varyInputs(b.inputs, spec, {}); return { inputs: v.inputs, extra: { ...b.extra, ...v.extra } }; }, { inputs, extra: {} });
-  const main = await compileFigure(base.inputs, { ...p, ...base.extra });
+  const main = await compileFigure(base.inputs, { ...p, ...base.extra }, { checks: true });
   // two renders of one figure differ only in their export time and run-time ids (an Element stack's masks): compare without them
   const keyOf = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
   const want = Math.max(1, Math.min(12, +p.variations || 1)), seen = new Set([keyOf(main.svg)]);
@@ -189,7 +189,7 @@ async function figureGroup(inputs, p, item) {
   }
   return main;
 }
-export async function compileFigure(inputs, params) {
+export async function compileFigure(inputs, params, opts) {
   const cv = inputs.canvas, grid = inputs.grid, pal = inputs.palette, rules = (inputs.rules || []).filter(Boolean);
   const contents = [].concat(...(inputs.content || []).filter(Boolean).map(c => c.kind === 'set' ? c.items : [c])).filter(Boolean);
   if (!contents.length) throw new Error('Connect a Content input');
@@ -242,12 +242,13 @@ export async function compileFigure(inputs, params) {
   }
   const recipe = { tool: 'fvs-recipe', version: 2, element, levels: [first, ...repeats] };
   if (final) recipe.transform = clone(final.transform);
-  const r = evalFigure(recipe);
+  const r = evalFigure(recipe, opts);
   const fitted = !cv.fit && (lattice || repeats.length);
   // a placement on a cell this grid no longer has: kept in the Composition, not drawn — reported
   const lost = [].concat(...composeRules.filter(x => !x.off && x.when && x.when.index != null).map(x => [].concat(x.when.index))).filter(i => i >= r.cells);
   return { svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv,
-    base: r.levels.symbol || '', compose: r.compose, lost: [...new Set(lost)].sort((a, b) => a - b) };
+    base: r.levels.symbol || '', compose: r.compose, lost: [...new Set(lost)].sort((a, b) => a - b), checks: r.checks,
+    colors: (first.colors || element.colors || []).slice(), paper };
 }
 
 // ── Variations (Phase 4): a variation changes the Figure's own INPUTS — what Keep allows — then compiles as usual.
@@ -323,6 +324,34 @@ export function variationSpecs(p, count) {
 }
 // The pins that apply to a group: { mode, seed, slot, item? } — a pin stays in its slot; in a fan-out it belongs to its item.
 export const pinsFor = (p, item) => (p.pins || []).filter(q => (q.item == null && item == null) || q.item === item);
+
+// ── Export (Phase 6): one export path — the Export node. exportPlan() lists the files (pure); the UI encodes them.
+// Which: all variations · pinned only · as set up. Formats: SVG, PNG (×1 ×2 ×4 on a Screen Canvas; a Print Canvas is
+// one file at its own size + DPI, with bleed and crop marks), Plates (one file per ink, black on transparent, with
+// registration marks in Print). A figure's own Canvas decides Screen / Print.
+export function exportPlan(figs, p) {
+  const which = p.which || 'all', fm = p.formats || { svg: true }, scales = (p.scales && p.scales.length ? p.scales : [1]).slice().sort((a, b) => a - b);
+  const files = [];
+  (figs || []).filter(Boolean).forEach(({ name, figure: f }) => {
+    if (!f) return;
+    const vars = (f.variations && f.variations.length ? f.variations : [{ svg: f.svg, slot: 0, label: 'As set up' }]).filter(v => !v.error && v.svg);
+    const chosen = which === 'base' ? vars.filter(v => v.slot === 0) : which === 'pinned' ? vars.filter(v => v.pinned) : vars;
+    const print = f.canvas && f.canvas.mode === 'print', sc = print ? [1] : scales, many = chosen.length > 1;
+    chosen.forEach((v, k) => {
+      const tag = (name || 'figure').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + (many ? '-v' + (vars.indexOf(v) + 1) : '') + (v.item ? '-' + String(v.item).split(':').slice(1).join(':').toLowerCase().replace(/[^a-z0-9]+/g, '-') : '');
+      const base = { figure: name, svg: v.svg, canvas: f.canvas, paper: p.transparent ? 'none' : f.paper, figPaper: f.paper, colors: f.colors || [], print, tag };
+      if (fm.svg) files.push({ ...base, format: 'svg', scale: 1, plate: null });
+      if (fm.png) sc.forEach(s => files.push({ ...base, format: 'png', scale: s, plate: null }));
+      if (fm.plates && (f.colors || []).length > 1) (f.colors || []).forEach((c, i) => files.push({ ...base, format: fm.png && !fm.svg ? 'png' : 'svg', scale: 1, plate: i, ink: c, paper: 'none' }));
+    });
+  });
+  return files;
+}
+export function exportSummary(files, p) {
+  const fm = p.formats || {}, kinds = [fm.svg && 'SVG', fm.png && 'PNG', fm.plates && 'plates'].filter(Boolean);
+  const print = files.find(x => x.print);
+  return `${files.length} ${files.length === 1 ? 'file' : 'files'}${kinds.length ? ' · ' + kinds.join(' + ') : ''}${print ? ` · ${print.canvas.dpi} dpi` : ''}`;
+}
 
 // ── A recipe v2 (a built-in Figure, a JSON file) → the pieces of a graph. Its Element is saved to the library once
 // (deduplicated by the recipe element it came from; tagged `imported`), so content still comes from the library. ──
@@ -404,6 +433,9 @@ export function figureNodeTypes() {
       compute: (i, p) => ({ composition: { rules: clone(p.rules || []) } }) },
     { meta: { id: 'transform', label: 'Rotate & mirror', category: 'Rules', inputs: [], outputs: RULE_OUT, params: [{ name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }] },
       compute: (i, p) => ({ rules: ruleOf('transform', p) }) },
+    { meta: { id: 'export', label: 'Export', category: 'Output', inputs: [{ name: 'figures', type: 'figure', label: 'Figures', multi: true, required: true }], outputs: [],
+        params: [{ name: 'which', default: 'all' }, { name: 'formats', default: { svg: true, png: false, plates: false } }, { name: 'scales', default: [1] }, { name: 'transparent', default: false }] },
+      compute: (i, p, ctx) => ({ files: null }) },   // the UI fills the plan from the Figures' own results (they carry no names here)
     { meta: { id: 'figure', label: 'Figure', category: 'Output',
         inputs: [{ name: 'canvas', type: 'canvas', label: 'Canvas', required: true }, { name: 'grid', type: 'grid', label: 'Grid', required: true },
           { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', required: true, multi: true },

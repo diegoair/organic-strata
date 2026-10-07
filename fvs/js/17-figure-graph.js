@@ -34,8 +34,11 @@ import {
   evalFigure
 } from './engine/16-figure-eval.js';
 import {
+  plateSVG
+} from './engine/15-export-library-view.js';
+import {
   FIGURE_LATTICES, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
-  graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey
+  exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey
 } from './engine/17-figure-nodes.js';
 import {
   ctrl
@@ -123,7 +126,7 @@ function renderBody(node, entry, el) {
           <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get('figure-from', { size: 'xs' })}</button></div>` : ''}
       </figure>`;
     el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>` + groups.map((g, gn) => { const gid = `fgv-${node.id}-${gn}`; return `<div${g.label ? ` role="group" aria-labelledby="${gid}"` : ''}>${g.label ? `<p class="fg-group__label" id="${gid}">${esc(g.label)}</p>` : ''}<div class="fg-vars fg-vars--${layout}${g.variations.length === 1 ? ' is-single' : ''}">${g.variations.map((v, k) => tile(v, gi++, k === 0, k, g.label)).join('')}</div></div>`; }).join('')
-      + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}</p>`;
+      + checksBadge(f) + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}</p>`;
     const card = el.closest('.nc-node'); if (card) card.classList.toggle('nc-node--xwide', vars.length > 8);
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => ctl.remeasure(node.id), { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act, +b.dataset.i); }); }
@@ -135,6 +138,11 @@ function renderBody(node, entry, el) {
     el.innerHTML = `<p class="fg-card__meta">${esc(gridSummary({ gen: p.gen, params: p.params }))}</p>`;
   } else if (node.type === 'palette') {
     el.innerHTML = `<div class="fg-card__swatches" data-theme="light">${[p.paper, ...(p.colors || [])].map((c, i) => `<span class="fg-card__swatch${i ? '' : ' is-paper'}" style="background:${esc(c)}"></span>`).join('')}</div>`;
+  } else if (node.type === 'export') {
+    const files = exportFiles(node), n = files.length;
+    el.innerHTML = `<p class="fg-card__meta">${esc(exportSummary(files, p))}</p>
+      <div class="row-btns"><button type="button" class="mini-btn fg-export__run" data-act="run"${n ? '' : ' disabled'}>Export ${n} ${n === 1 ? 'file' : 'files'}</button></div>`;
+    if (!el._expBound) { el._expBound = true; el.addEventListener('click', e => { if (e.target.closest('[data-act="run"]')) { e.stopPropagation(); runExport(node.id); } }); }
   } else if (node.type === 'set') {
     const items = p.items || [];
     el.innerHTML = items.length ? `<div class="fg-set__strip" data-theme="light">${items.slice(0, 8).map(it => `<span class="fg-set__thumb" title="${esc(it.name)}">${entryThumb(it.kind, it.name, it.snapshot)}</span>`).join('')}</div>
@@ -185,6 +193,66 @@ function fitFrame(f) {   // fit the view to a section
   ctl.zoomPan.setView({ zoom: z, panX: L + (W - f.w * z) / 2 - f.x * z, panY: (H - f.h * z) / 2 - f.y * z + 20 });
 }
 const newSeed = () => 1 + Math.floor(Math.random() * 99999);   // a Figure's own Random seed — so two Figures don't show the same changes
+// ── Export (Phase 6) ──
+function figuresInto(exp) {   // the Figures wired into an Export node: { name, figure }
+  return ctl.model.edges.filter(e => e.to.node === exp.id && e.to.port === 'figures').map(e => {
+    const src = NC.findNode(ctl.model, e.from.node), en = ctl.engine.get(e.from.node);
+    return src ? { name: nodeLabel(src), figure: en && en.state === 'ok' && en.value ? en.value.figure : null } : null;
+  }).filter(Boolean);
+}
+function exportFiles(exp) { return exportPlan(figuresInto(exp), exp.params); }
+function printWrap(svg, cv, paper, plate) {   // a Print Canvas: its own size in mm, bleed (paper extended), crop marks; plates add registration marks
+  const m = svg.match(/^<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/), W = m ? +m[1] : 1000;
+  const mm = v => v * (cv.unit === 'in' ? 25.4 : 1), tw = mm(cv.pw), th = mm(cv.ph), b = cv.bleed || 0, bw = tw + 2 * b, bh = th + 2 * b, r = v => Math.round(v * 100) / 100;
+  const inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  let out = `<svg xmlns="http://www.w3.org/2000/svg" width="${r(bw)}mm" height="${r(bh)}mm" viewBox="0 0 ${r(bw)} ${r(bh)}">`;
+  if (paper && paper !== 'none') out += `<rect width="100%" height="100%" fill="${paper}"/>`;
+  out += `<g transform="translate(${r(b)},${r(b)})"><g transform="scale(${tw / W})">${inner}</g>`;
+  if (b > 0) out += Organica.printSize.cropMarksSVG(tw, th, {}, '#000');
+  if (plate && b > 0) out += Organica.printSize.registrationMarksSVG(tw, th, { bleed: b }, '#000');
+  return out + '</g></svg>';
+}
+export async function encodeFile(f) {   // exported for scripts/test-figure-graph.sh
+  const noPaper = s => s.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${f.figPaper}"/>`, 'i'), '');
+  let svg = f.plate != null ? plateSVG(f.svg, f.colors, f.plate, f.figPaper) : f.paper === 'none' ? noPaper(f.svg) : f.svg;
+  const doc = f.print ? printWrap(svg, f.canvas, f.plate != null ? 'none' : f.paper, f.plate != null) : svg;
+  if (f.format === 'svg') return new Blob([doc], { type: 'image/svg+xml' });
+  const m = svg.match(/^<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/), W = m ? +m[1] : 1000, H = m ? +m[2] : 1000;
+  let outW = Math.round(W * f.scale), outH = Math.round(H * f.scale), dpi = null;
+  if (f.print) { const cv = f.canvas, mm = v => v * (cv.unit === 'in' ? 25.4 : 1), b = cv.bleed || 0; dpi = cv.dpi; outW = Math.round(Organica.printSize.mmToPx(mm(cv.pw) + 2 * b, dpi)); outH = Math.round(Organica.printSize.mmToPx(mm(cv.ph) + 2 * b, dpi)); }
+  const sized = doc.replace(/^<svg([^>]*?)\swidth="[^"]*"\sheight="[^"]*"/, `<svg$1 width="${outW}" height="${outH}"`);
+  const url = URL.createObjectURL(new Blob([sized], { type: 'image/svg+xml' }));
+  try {
+    const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('SVG raster failed')); im.src = url; });
+    const cv = document.createElement('canvas'); cv.width = outW; cv.height = outH; cv.getContext('2d').drawImage(img, 0, 0, outW, outH);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+    return dpi ? new Blob([Organica.printSize.embedPngDpi(await blob.arrayBuffer(), dpi)], { type: 'image/png' }) : blob;
+  } finally { URL.revokeObjectURL(url); }
+}
+function fileName(f) { return Organica.stamp(`fvs-${f.tag}${f.plate != null ? '-plate' + (f.plate + 1) + '-' + String(f.ink).slice(1) : ''}${f.format === 'png' && f.scale > 1 ? '@' + f.scale + 'x' : ''}`, f.format); }
+function runExport(id) {
+  const exp = NC.findNode(ctl.model, id); if (!exp) return;
+  const files = exportFiles(exp); if (!files.length) { Organica.notice('Nothing to export — connect a Figure, and pick a format'); return; }
+  Organica.plateExport.run(files.length, { build: async i => ({ blob: await encodeFile(files[i]), filename: fileName(files[i]) }), onDone: () => Organica.notice(`${files.length} ${files.length === 1 ? 'file' : 'files'} exported`) });
+}
+// The floatbar Export in the Figure step: the one export path — create (or select) the Export node, wired to the
+// selected Figures (or every Figure), and show its settings.
+function exportFromFloatbar() {
+  const m = ctl.model, sel = ctl.selection().map(i => NC.findNode(m, i)).filter(n => n && n.type === 'figure');
+  let exp = m.nodes.find(n => n.type === 'export');
+  if (!exp) {
+    const figs = sel.length ? sel : m.nodes.filter(n => n.type === 'figure');
+    const right = figs.reduce((a, n) => Math.max(a, n.x + (ctl.cardOf(n.id) ? ctl.cardOf(n.id).offsetWidth : 420)), 0), top = figs.length ? Math.min(...figs.map(n => n.y)) : 40;
+    exp = NC.addNode(m, { type: 'export', x: right + 120, y: top, params: registry.defaults('export'), name: 'Export' });
+    figs.forEach(f => NC.addEdge(m, { node: f.id, port: 'figure' }, { node: exp.id, port: 'figures' }, true));
+    ctl.touch(exp.id); ctl.refresh(); ctl.commit('export'); save();
+  } else sel.forEach(f => { if (!m.edges.some(e => e.from.node === f.id && e.to.node === exp.id)) { NC.addEdge(m, { node: f.id, port: 'figure' }, { node: exp.id, port: 'figures' }, true); ctl.touch(exp.id); ctl.commit('export'); } });
+  ctl.refresh(); ctl.select([exp.id]); ctl.fitTo([exp.id]); save();
+}
+function checksBadge(f) {
+  const cs = f.checks || [], bad = cs.filter(c => !c.ok);
+  return cs.length ? `<p class="fg-card__checks${bad.length ? ' is-bad' : ''}">${bad.length ? Organica.icons.get('alert', { size: 'xs' }) + ` ${bad.length} ${bad.length === 1 ? 'check' : 'checks'} to look at` : Organica.icons.get('check', { size: 'xs' }) + ' Checks pass'}</p>` : '';
+}
 function cardClass(node) {
   if (node.type === 'figure') return 'nc-node--wide';
   return 'nc-node--compact';
@@ -398,6 +466,22 @@ function renderInspector(ids) {
     rows.push({ html: s.length ? `<div class="sub-label">Saved ${node.type === 'element' ? 'Elements' : 'Components'}</div><div class="fvs-rail__grid" id="fgi-pick">${s.map(e => `<button type="button" class="fvs-library-item${e.name === p.name ? ' selected' : ''}" data-name="${esc(e.name)}" aria-label="${esc(e.name)}" aria-pressed="${e.name === p.name}">${entryThumb(node.type, e.name, e.entry)}</button>`).join('')}</div>`
       : `<p class="org-empty">Nothing saved yet — save ${node.type === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`,
       bind: () => { const g = ctrl('fgi-pick'); if (g) g.addEventListener('click', e => { const b = e.target.closest('[data-name]'); if (!b) return; Object.assign(p, addContent(node.type, b.dataset.name).params); node.name = b.dataset.name; edited(node, true); ctl.refresh(); renderInspector(ids); ctl.paint(node.id); }); } });
+  } else if (node.type === 'export') {
+    const fm = p.formats || (p.formats = { svg: true }), sc = p.scales || (p.scales = [1]), files = exportFiles(node), n = files.length;
+    const anyPrint = files.some(f => f.print);
+    rows.push(selectRow('Variations', 'fgi-ex-which', [['all', 'All variations'], ['pinned', 'Pinned only'], ['base', 'As set up only']], p.which || 'all', v => { p.which = v; edited(node, true); renderInspector(ids); }));
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Format</div></div><div class="fg-keep">${[['svg', 'SVG'], ['png', 'PNG'], ['plates', 'Plates (one per ink)']].map(([k, l]) => `<label class="check-row"><input type="checkbox" data-fmt="${k}"${fm[k] ? ' checked' : ''}> ${l}</label>`).join('')}</div>
+      ${fm.png ? `<div class="ctrl-row"><div class="ctrl-label">PNG size</div></div><div class="fg-keep">${[1, 2, 4].map(k => `<label class="check-row"><input type="checkbox" data-scale="${k}"${sc.includes(k) ? ' checked' : ''}> ×${k}</label>`).join('')}</div>${anyPrint ? '<p class="panel-hint">A Figure on a Print Canvas exports one PNG at its own size and DPI.</p>' : ''}` : ''}
+      <label class="check-row"><input type="checkbox" id="fgi-ex-transparent"${p.transparent ? ' checked' : ''}> Transparent paper</label>
+      <p class="panel-hint">${esc(exportSummary(files, p))}. A Print Canvas adds its bleed and crop marks; plates get registration marks.</p>
+      <div class="row-btns"><button type="button" class="mini-btn" id="fgi-ex-run"${n ? '' : ' disabled'}>Export ${n} ${n === 1 ? 'file' : 'files'}</button><button type="button" class="mini-btn" id="fgi-ex-figma"${n ? '' : ' disabled'}>Send to Figma</button></div>`,
+      bind: () => {
+        box.querySelectorAll('[data-fmt]').forEach(c => c.addEventListener('change', () => { p.formats = { ...p.formats, [c.dataset.fmt]: c.checked }; edited(node, true); renderInspector(ids); }));
+        box.querySelectorAll('[data-scale]').forEach(c => c.addEventListener('change', () => { const k = +c.dataset.scale; p.scales = c.checked ? [...new Set([...(p.scales || []), k])] : (p.scales || []).filter(x => x !== k); edited(node, true); renderInspector(ids); }));
+        ctrl('fgi-ex-transparent').addEventListener('change', e => { p.transparent = e.target.checked; edited(node, true); });
+        ctrl('fgi-ex-run').addEventListener('click', () => runExport(node.id));
+        ctrl('fgi-ex-figma').addEventListener('click', () => { const f = exportFiles(node).find(x => x.plate == null); if (f && Organica.sendToFigma) Organica.sendToFigma(f.svg); });
+      } });
   } else if (node.type === 'set') {
     rows.push(setEditor(node, ids));
   } else if (node.type === 'cell-rules') {
@@ -456,6 +540,8 @@ function renderInspector(ids) {
         ctrl('fgi-layout').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; p.layout = b.dataset.v; edited(node, true); renderInspector(ids); ctl.paint(node.id); });
         ctrl('fgi-renew').addEventListener('click', () => { p.seed = (+p.seed || 1) + 1; edited(node, true); renderInspector(ids); });
       } });
+    const fv = figureValue(node.id), cks = fv && fv.checks ? fv.checks : [];
+    if (cks.length) rows.push({ html: `<div class="sub-label">Checks</div><ul class="fg-checks">${cks.map(c => `<li class="${c.ok ? 'is-ok' : 'is-bad'}">${Organica.icons.get(c.ok ? 'check' : 'alert', { size: 'xs' })}<span>${esc(c.label)}${c.detail ? ` <span class="fg-checks__detail">${esc(c.detail)}</span>` : ''}</span></li>`).join('')}</ul>` });
     rows.push({ html: `<div class="row-btns"><button type="button" class="mini-btn" id="fgi-compose">Compose</button></div>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });
     rows.push({ html: '<div class="sub-label">Cells</div>' });
     rows.push(selectRow('Fit in cell', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; edited(node, true); }));
@@ -982,5 +1068,6 @@ export function renderFigureGraph() {
   ctrl('btn-fg-fit-sel').addEventListener('click', () => ctl.fitSelection());
   ctrl('btn-fg-new').addEventListener('click', openNewFigure);
   initNodebar(); initGraphMenu(); initCompose();
+  ctrl('btn-export').addEventListener('click', e => { if (state.activeTier !== 'figure' || composing) return; e.preventDefault(); e.stopImmediatePropagation(); exportFromFloatbar(); }, true);
   renderInspector([]); syncButtons();
 }

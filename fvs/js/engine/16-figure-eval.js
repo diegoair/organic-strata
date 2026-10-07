@@ -38,6 +38,9 @@ import {
   SYMBOL_RULES, snap90
 } from './11-symbol-ui.js';
 import {
+  figureChecks
+} from './14-figure-ui.js';
+import {
   FIGURE_MAX_SHAPES, applyClassRules, componentCellsFromRule, figureSVGOf, gridTypeFromLattice,
   isSealedSymbol, promoteFigureToTile, ruleMatches, slotClassContext, validateFigureRecipe
 } from './13-figure-engine.js';
@@ -177,7 +180,7 @@ function applyRulesToContent(rules) {
 
 // The figure a recipe (v2) describes → { svg, tier, levels: {component, symbol}, metas, stats, shapes }.
 // Throws on an invalid recipe or one over the shape budget, like runFigureRecipe().
-export function evalFigure(def) {
+export function evalFigure(def, opts) {
   const lv = validateFigureRecipe(def);
   return withFigureSandbox(panel => {
     const el = def.element;
@@ -239,6 +242,9 @@ export function evalFigure(def) {
       compose = { w: F.w, h: F.h, ctxs: slotClassContext(G),
         outlines: G.cells.map(c => (c.points ? c.points : [[c.x, c.y], [c.x + c.width, c.y], [c.x + c.width, c.y + c.height], [c.x, c.y + c.height]]).map(p => [+F.X(p[0]).toFixed(2), +F.Y(p[1]).toFixed(2)])) };
     }
-    return { svg, tier, levels, metas, stats, shapes, cells, compose };
+    // the Figure checks (engine/14 figureChecks), read from this run's own state — only when asked (they draw again)
+    let checks = null;
+    if (opts && opts.checks) { try { checks = figureChecks(def, svg); } catch (e) { checks = [{ ok: false, label: 'Checks could not run', detail: e.message }]; } }
+    return { svg, tier, levels, metas, stats, shapes, cells, compose, checks };
   });
 }
