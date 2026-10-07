@@ -348,6 +348,7 @@
    never nested: a backdrop-filter child would blur only its parent. The dock is transformed (centred), so anything
    position:fixed belongs on <body>, not inside it (a drag ghost, a popover). One occupant at a time per tool step. */
 .org-dock { position: fixed; left: var(--space-5); top: 50%; transform: translateY(-50%); z-index: 150; display: flex; align-items: center; gap: var(--space-3); pointer-events: none; }
+.org-dock[hidden] { display: none; }   /* the display:flex above would beat the UA [hidden] rule — FVS hides the node bar off the Figure step this way */
 .org-dock > .org-floatbar { position: relative; left: auto; top: auto; bottom: auto; transform: none; height: auto; flex-direction: column; align-items: stretch; pointer-events: auto; }
 .org-dock > .org-dock__bar { width: 3rem; padding: var(--space-2) 0; align-items: center; justify-content: center; gap: var(--space-1); }
 .org-dock > .org-dock__panel { max-height: 60vh; padding: var(--space-3); border-radius: var(--radius-lg);

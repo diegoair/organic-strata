@@ -144,6 +144,8 @@ async function visitViews(tag) {
     ['libview', `F('openLibview')(); await idle(400); const v = document.getElementById('fvs-libview'); const ok = !v.hidden && v.querySelectorAll('*').length > 0; F('closeLibview')(); return ok;`],
     ['suggest-dock', `F('setTier')('symbol'); F('setSugDockOpen')(true); await idle(300); const ok = F('sugDockIsOpen')(); F('setSugDockOpen')(false); return ok;`],
     ['figure-new', `F('setTier')('figure'); await idle(300); document.getElementById('btn-fg-new').click(); await idle(800); const m = document.querySelector('.fg-new'); const ok = !!m && m.querySelectorAll('.fg-new__thumb svg').length > 0; if (m) m.querySelector('[data-act="close"]').click(); return ok;`],
+    // the Library rail must be reachable (not covered by the Figure node bar) on Element / Component / Symbol
+    ['rail-reachable', `F('setTier')('figure'); await idle(300); let ok = true; for (const t of ['element', 'component', 'symbol']) { F('setTier')(t); await idle(150); const nb = document.getElementById('fg-nodebar-dock'); const b = document.getElementById('btn-rail'); const r = b.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); ok = ok && getComputedStyle(nb).display === 'none' && r.width > 0 && !!hit && b.contains(hit); } return ok;`],
     ['export-popover', `F('setTier')('component'); document.getElementById('btn-export').click(); await idle(300); const p = document.getElementById('export-popover'); const ok = !!p && p.getBoundingClientRect().height > 0; document.body.click(); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); return ok;`],
   ];
   for (const [name, body] of steps) {
