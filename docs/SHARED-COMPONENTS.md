@@ -404,9 +404,40 @@ CSS: `.nc-nodebar__panel · __hint · __empty · __list · __item · __ghost` (+
 and `.nc-search · __head · __q · __list · __item (.is-current) · __hint · __none` — tokens only,
 moved from `fvs/fvs.css`. Live reference: `/design-system/#node-canvas`.
 
-*Not shared yet:* the **Graph menu** (Saved graphs · Save · Delete · New graph · Open file… · Save
-as file, *Untitled n*, the unsaved dot named *Not saved*) is built twice, the same way, in FVS
-(`fvs/js/17-figure-graph.js`) and Rhizome (`rhizome/js/main.js`) — promotion is ledger O-39.
+**Graph menu** (promoted from FVS + Rhizome, Oct 7, 2026 — ledger O-39): the floatbar's file menu
+for a board. The host writes the markup (copy it from `rhizome/index.html` `#btn-rz-graph` /
+`#rz-graph-popover`: an `.org-popover-wrap` holding the button `.org-floatbar__btn--wide.nc-graph-btn`
+> `.nc-graph-btn__label` + `.nc-graph-btn__chev[data-icon-slot]`, and `.org-popover.nc-graph-pop`
+with *Saved graphs* select, *Graph name* input, Save, Delete, New graph, Open file…, Save as file and a
+hidden `type=file` input); the module wires it.
+
+```js
+const menu = NC.graphMenu({
+  els: { button, popover, saved, name, save, del, newGraph, open, file, input },
+  store,                 // Organica.presetStore(tool) — entries { model, name?, savedAt }; a bare model also reads
+  getModel(),            // the board's model now
+  load(model, name),     // put a model on the board (the host refits, re-renders its panel…)
+  normalize?(model),     // how a stored model reads (an older format); also used to compare “saved?”
+  hidden?(name),         // store keys that are not saved graphs (FVS: its autosave slot)
+  fileTool, fileName?,   // the `tool` field of a graph file; base file name when the graph has no name
+  openFile?(data, file), // a file that is not a graph: return true if the host opened it (FVS: a Figure recipe)
+  onSaved?(),            // after the store changed (the host's autosave)
+  dirtyKey?,             // Organica.dirty key set while the graph is unsaved
+});                      // → { sync(), name(), setName(n), use(model, name), keepUnsaved(), savedAs() }
+```
+
+- A graph never saved is kept as *Untitled n* before another replaces it (New graph, a saved graph,
+  a file), so New graph is not armed; Delete stays armed in the markup.
+- Unsaved = the board has nodes and differs from its saved entry (nodes, edges, sections compared
+  after `normalize`): the button gets `.is-unsaved` (a `--mid` dot after the label),
+  `aria-description` *Not saved*, and `Organica.dirty.set(dirtyKey)`. Call `menu.sync()` after
+  every model change (Rhizome: `onModelChange`; FVS: its autosave).
+- Notices (`Organica.notice`): *Graph saved* · *Graph deleted* · *Graph file saved* · *Name the
+  graph first* · *The current graph was saved as “‹name›”*; error *That file is not a graph* /
+  *That file could not be opened* (unreadable JSON). Copy: `docs/UI-COPY.md` §2.
+
+CSS: `.nc-graph-btn` (`.is-unsaved`) · `__label` · `__chev` and `.nc-graph-pop` (18rem) in
+`shared/node-canvas.css`. Consumers: FVS Figure graph, Rhizome.
 
 ### `Organica.createZoomPan` — three opt-ins for a node board (Oct 2026)
 

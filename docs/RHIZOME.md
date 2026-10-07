@@ -73,7 +73,7 @@ Rhizome's own canvas (`canvas/` pan-zoom, node drag, wires, ports, selection), `
 - **Adding nodes** — the **node bar** (left dock, `Organica.nodeCanvas.nodeBar`: Source · Process · Output, drag onto the board or click) and the **node search** (`/`, right-click, double-click on the board, a released wire — `Organica.nodeCanvas.search`; from a wire it lists only what connects, adapters included).
 - **Cards** — the type above the node's own name (*Merge 2*); the body is a preview on a light work surface (`.rz-preview`, `data-theme="light"`): an SVG as an `<img>` from a blob URL (never parsed into the page), *N cells*, *N points*, an image.
 - **Port colours** — Rhizome's types on the seven `--port-*` tokens (ledger O-34): SVG → content, Image → figure, Grid → grid, Color → palette, Number → rule, Points → composition.
-- **Floatbar** — the Figure graph's: **Graph** menu (Saved graphs · Graph name · Save · Delete · New graph · Open file… · Save as file; a graph never saved is kept as *Untitled n* before another replaces it; a dot on *Graph* while unsaved) · Undo · Redo · Delete · Fit all · Fit selection.
+- **Floatbar** — the Figure graph's: **Graph** menu (`Organica.nodeCanvas.graphMenu`, shared with FVS since Oct 7, 2026; saved graphs stored as `{ model, savedAt }`, older bare entries still open — Saved graphs · Graph name · Save · Delete · New graph · Open file… · Save as file; a graph never saved is kept as *Untitled n* before another replaces it; a dot on *Graph* while unsaved) · Undo · Redo · Delete · Fit all · Fit selection.
 
 ## 6. Undo / redo
 
