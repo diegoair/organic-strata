@@ -299,75 +299,55 @@ function addContent(kind, name) {
   return { type: kind, params: { name, snapshot: entrySnapshot(all[name]) } };
 }
 
-// ── node bar (left dock) ──
-let openCat = null;
+// ── node bar (left dock) — Organica.nodeCanvas.nodeBar; this file fills the panel and adds what is dropped ──
+let nodebar = null, openCat = null;
 function nodebarItems(cat) {
   const types = (registry.byCategory()[cat] || []).filter(t => t.meta.id !== 'element' && t.meta.id !== 'component');
   const items = types.map(t => ({ label: t.meta.id === 'set' ? 'New Set' : t.meta.label, make: () => ({ type: t.meta.id }) }));
   return items;
 }
-function renderNodebar(cat) {
-  const panel = ctrl('fg-nodebar-panel');
-  panel.setAttribute('aria-label', cat);
-  let html = `<p class="fg-nodebar__hint">Drag onto the graph, or click to add</p>`;
+function renderNodebar(cat, panel) {
+  openCat = cat;
+  if (composing && cat !== 'Content') cat = 'Content';
+  let html = `<p class="nc-nodebar__hint">Drag onto the graph, or click to add</p>`;
   const items = composing ? [] : nodebarItems(cat);
-  if (items.length) html += `<div class="fg-nodebar__list">${items.map((it, i) => `<button type="button" class="fg-nodebar__item" data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${esc(it.label)}</button>`).join('')}</div>`;
-  if (composing) html = `<p class="fg-nodebar__hint">Drop on a cell, or click to give it to the selected cells</p>`;
+  if (items.length) html += `<div class="nc-nodebar__list">${items.map((it, i) => `<button type="button" class="nc-nodebar__item" data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${esc(it.label)}</button>`).join('')}</div>`;
+  if (composing) html = `<p class="nc-nodebar__hint">Drop on a cell, or click to give it to the selected cells</p>`;
   if (cat === 'Content') {
     const s = savedEntries();
     const block = (kind, title, list, step) => `<div class="sub-label">${title}</div>` + (list.length
       ? `<div class="fvs-rail__grid">${list.map(e => `<button type="button" class="fvs-library-item fg-nodebar__tile" data-kind="${kind}" data-name="${esc(e.name)}" aria-label="Add ${kind === 'element' ? 'Element' : 'Component'}: ${esc(e.name)}">${entryThumb(kind, e.name, e.entry)}</button>`).join('')}</div>`
-      : `<p class="fg-nodebar__empty">Nothing saved yet — save ${kind === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`);
+      : `<p class="nc-nodebar__empty">Nothing saved yet — save ${kind === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`);
     html += block('element', 'Elements', s.element) + block('component', 'Components', s.component);
     const sets = Object.keys(SETS.read()).sort((a, b) => a.localeCompare(b));
-    if (!composing) html += `<div class="sub-label">Saved Sets</div>` + (sets.length ? `<div class="fg-nodebar__list">${sets.map(n => `<button type="button" class="fg-nodebar__item fg-nodebar__set" data-set="${esc(n)}" aria-label="Add Set: ${esc(n)}">${esc(n)}</button>`).join('')}</div>` : `<p class="fg-nodebar__empty">No Sets yet — New Set makes one</p>`);
+    if (!composing) html += `<div class="sub-label">Saved Sets</div>` + (sets.length ? `<div class="nc-nodebar__list">${sets.map(n => `<button type="button" class="nc-nodebar__item fg-nodebar__set" data-set="${esc(n)}" aria-label="Add Set: ${esc(n)}">${esc(n)}</button>`).join('')}</div>` : `<p class="nc-nodebar__empty">No Sets yet — New Set makes one</p>`);
   }
   panel.innerHTML = html;
   panel._items = items;
 }
-function setNodebar(cat) {
-  openCat = cat;
-  const panel = ctrl('fg-nodebar-panel');
-  ctrl('fg-nodebar').querySelectorAll('[data-cat]').forEach(b => b.setAttribute('aria-expanded', String(b.dataset.cat === cat)));
-  if (composing && cat && cat !== 'Content') cat = 'Content';
-  if (cat) { renderNodebar(cat); panel.dataset.open = 'true'; panel.inert = false; }
-  else { panel.dataset.open = 'false'; panel.inert = true; }
-}
+function setNodebar(cat) { if (nodebar) nodebar.open(cat); openCat = nodebar ? nodebar.current() : null; }
 function nodebarSpec(target) {
-  const item = target.closest('.fg-nodebar__item'), tile = target.closest('.fg-nodebar__tile');
+  const item = target.closest('.nc-nodebar__item'), tile = target.closest('.fg-nodebar__tile');
   if (item && item.dataset.set) { const e = SETS.read()[item.dataset.set]; return e ? { type: 'set', params: { items: JSON.parse(JSON.stringify(e.items || [])) }, name: item.dataset.set } : null; }
   if (item) return ctrl('fg-nodebar-panel')._items[+item.dataset.i].make();
   if (tile) return addContent(tile.dataset.kind, tile.dataset.name);
   return null;
 }
 function initNodebar() {
-  ctrl('fg-nodebar').querySelectorAll('[data-cat]').forEach(b => { b.innerHTML = Organica.icons.get(ICON[b.dataset.cat]); });
-  ctrl('fg-nodebar').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) setNodebar(openCat === b.dataset.cat ? null : b.dataset.cat); });
-  const panel = ctrl('fg-nodebar-panel');
-  // drag a node type / a saved entry onto the graph (the ghost lives on <body>: the dock is transformed)
-  panel.addEventListener('pointerdown', e => {
-    const spec = nodebarSpec(e.target); if (!spec || e.button !== 0) return;
-    const src = e.target.closest('button'); const sx = e.clientX, sy = e.clientY; let ghost = null;
-    try { src.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic or ended pointer */ }
-    const move = ev => {
-      if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
-      if (!ghost) { ghost = document.createElement('div'); ghost.className = 'fvs-rail-ghost fg-nodebar__ghost'; ghost.innerHTML = src.innerHTML; document.body.appendChild(ghost); panel.classList.add('is-dragging-away'); document.body.classList.add('is-rail-dragging'); }
-      ghost.style.transform = `translate(${ev.clientX + 8}px, ${ev.clientY + 8}px)`;
-    };
-    const up = ev => {
-      src.removeEventListener('pointermove', move); src.removeEventListener('pointerup', up); src.removeEventListener('pointercancel', up);
-      panel.classList.remove('is-dragging-away'); document.body.classList.remove('is-rail-dragging');
-      if (ghost) {
-        ghost.remove();
-        if (composing) { if (ev.type === 'pointerup' && !composeDrop(spec, ev.clientX, ev.clientY)) Organica.notice('Drop it on a cell'); return; }
-        const r = ctrl('fg-graph').getBoundingClientRect();
-        if (ev.type === 'pointerup' && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) addNode(spec.type, centred(ctl.toBoard(ev.clientX, ev.clientY), spec.type), spec.name ? { ...spec.params, __name: spec.name } : spec.params);
-      } else if (ev.type === 'pointerup' && composing) {   // a click while composing: give the item to the selected cells
+  nodebar = NC.nodeBar({
+    bar: ctrl('fg-nodebar'), panel: ctrl('fg-nodebar-panel'), stage: ctrl('fg-graph'), icons: ICON,
+    render: renderNodebar, specOf: nodebarSpec,
+    onAdd: (spec, ev, over) => {
+      const params = spec.name ? { ...spec.params, __name: spec.name } : spec.params;
+      if (ev.type !== 'click') {   // a drop
+        if (composing) { if (!composeDrop(spec, ev.clientX, ev.clientY)) Organica.notice('Drop it on a cell'); return; }
+        if (over) addNode(spec.type, centred(ctl.toBoard(ev.clientX, ev.clientY), spec.type), params);
+      } else if (composing) {   // a click while composing: give the item to the selected cells
         if (spec.type === 'element' || spec.type === 'component') addComposeRule({ content: { kind: spec.type, name: spec.params.name, entry: spec.params.snapshot } });
-      } else if (ev.type === 'pointerup') addNode(spec.type, null, spec.name ? { ...spec.params, __name: spec.name } : spec.params);   // a click: add at the view centre
-    };
-    src.addEventListener('pointermove', move); src.addEventListener('pointerup', up); src.addEventListener('pointercancel', up);
+      } else addNode(spec.type, null, params);   // a click: add at the view centre
+    },
   });
+  ctrl('fg-nodebar').addEventListener('click', () => { openCat = nodebar.current(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && openCat && state.activeTier === 'figure') setNodebar(null); });
 }
 
@@ -696,50 +676,21 @@ function searchItems() {
   const s = savedEntries();
   return types.concat(s.element.map(e => ({ label: e.name, hint: 'Element', spec: addContent('element', e.name) })), s.component.map(e => ({ label: e.name, hint: 'Component', spec: addContent('component', e.name) })));
 }
-function connects(spec, from) {   // can a new node of this spec connect to `from` (a port being dragged)?
-  const t = registry.get(spec.type), fromNode = NC.findNode(ctl.model, from.node);
-  const fp = (from.dir === 'out' ? registry.outputsOf(fromNode) : registry.inputsOf(fromNode)).find(p => p.name === from.port);
-  if (!fp) return null;
-  const mine = from.dir === 'out' ? (typeof t.meta.inputs === 'function' ? [] : t.meta.inputs) : t.meta.outputs;
-  const want = from.dir === 'out' ? fp.type : (fp.accepts || [fp.type]);
-  return (mine || []).find(p => from.dir === 'out' ? (p.accepts || [p.type]).includes(want) : [].concat(want).includes(p.type)) || null;
-}
-let searchEl = null;
-function closeSearch() { if (searchEl) { searchEl.remove(); searchEl = null; } }
-function openSearch(at, from, client) {
-  closeSearch();
+function connects(spec, from) { return NC.portFor(registry, ctl.model, spec.type, spec.params, from); }   // the new node's port that takes `from`
+function openSearch(at, from, client) {   // Organica.nodeCanvas.search
   const fromNode = from && NC.findNode(ctl.model, from.node);
   const fromPort = fromNode && (from.dir === 'out' ? registry.outputsOf(fromNode) : registry.inputsOf(fromNode)).find(p => p.name === from.port);
   let items = searchItems(); if (from) items = items.filter(it => connects(it.spec, from));
-  const el = document.createElement('div'); el.className = 'fg-search'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Search nodes');
-  el.innerHTML = `${fromPort ? `<p class="fg-search__head">Nodes that connect to ${esc(fromPort.label || fromPort.name)}</p>` : ''}<input type="search" class="org-field fg-search__q" placeholder="Search nodes" aria-label="Search nodes" autocomplete="off"><div class="fg-search__list" role="listbox" aria-label="Nodes"></div>`;
-  const r = ctrl('fg-graph').getBoundingClientRect(), c = client || { x: r.left + r.width / 2, y: r.top + r.height / 3 };
-  el.style.left = Math.min(c.x, innerWidth - 260) + 'px'; el.style.top = Math.min(c.y, innerHeight - 320) + 'px';
-  document.body.appendChild(el); searchEl = el;
-  const q = el.querySelector('.fg-search__q'), list = el.querySelector('.fg-search__list');
-  let shown = [], cur = 0;
-  const draw = () => {
-    const t = q.value.trim().toLowerCase();
-    shown = items.filter(it => !t || it.label.toLowerCase().includes(t) || it.hint.toLowerCase().includes(t)).slice(0, 12);
-    cur = Math.min(cur, Math.max(0, shown.length - 1));
-    list.innerHTML = shown.length ? shown.map((it, i) => `<button type="button" class="fg-search__item${i === cur ? ' is-current' : ''}" role="option" aria-selected="${i === cur}" data-i="${i}"><span>${esc(it.label)}</span><span class="fg-search__hint">${esc(it.hint)}</span></button>`).join('')
-      : `<p class="fg-search__none">No node matches “${esc(q.value.trim())}”</p>`;
-  };
-  const pick = i => {
-    const it = shown[i]; if (!it) return; closeSearch();
-    const node = addNode(it.spec.type, freeSpot(centred(at, it.spec.type)), it.spec.params);
-    if (from && node) { const p = connects(it.spec, from); if (p) from.dir === 'out' ? ctl.connect({ node: from.node, port: from.port }, { node: node.id, port: p.name }) : ctl.connect({ node: node.id, port: p.name }, { node: from.node, port: from.port }); }
-  };
-  q.addEventListener('input', () => { cur = 0; draw(); });
-  q.addEventListener('keydown', e => {
-    if (e.key === 'ArrowDown') { cur = Math.min(shown.length - 1, cur + 1); draw(); e.preventDefault(); }
-    else if (e.key === 'ArrowUp') { cur = Math.max(0, cur - 1); draw(); e.preventDefault(); }
-    else if (e.key === 'Enter') { pick(cur); e.preventDefault(); }
-    else if (e.key === 'Escape') { closeSearch(); ctrl('fg-graph').focus({ preventScroll: true }); e.stopPropagation(); }
+  const r = ctrl('fg-graph').getBoundingClientRect();
+  NC.search({
+    items, title: fromPort ? `Nodes that connect to ${fromPort.label || fromPort.name}` : '', returnFocus: ctrl('fg-graph'),
+    client: client || { x: r.left + r.width / 2, y: r.top + r.height / 3 },
+    onPick: it => {
+      const p = from && connects(it.spec, from);
+      const node = addNode(it.spec.type, freeSpot(centred(at, it.spec.type)), it.spec.params);
+      if (p && node) from.dir === 'out' ? ctl.connect({ node: from.node, port: from.port }, { node: node.id, port: p.name }) : ctl.connect({ node: node.id, port: p.name }, { node: from.node, port: from.port });
+    },
   });
-  list.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) pick(+b.dataset.i); });
-  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (searchEl && !searchEl.contains(e.target)) { closeSearch(); } document.removeEventListener('pointerdown', off, true); }, true), 0);
-  draw(); q.focus();
 }
 // Double-click a port: an input gets the node it needs, beside it and connected; anything else opens the search
 function spawnFor(node, port, dir) {
@@ -973,7 +924,7 @@ function initCompose() {
   });
   // drop a saved item on a cell (or on the selection it belongs to)
   document.addEventListener('keydown', e => {
-    if (!composing || state.activeTier !== 'figure' || (e.target.closest && e.target.closest('input, select, textarea, .org-popover, [role=dialog], .fg-search'))) return;
+    if (!composing || state.activeTier !== 'figure' || (e.target.closest && e.target.closest('input, select, textarea, .org-popover, [role=dialog], .nc-search'))) return;
     if (e.key === 'Escape') {
       e.preventDefault(); e.stopPropagation();
       if (openCat) { setNodebar(null); return; }

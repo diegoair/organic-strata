@@ -336,8 +336,12 @@
       if (dir === 'in') row.append(b, t); else row.append(t, b);
       return { row: row, dot: b };
     }
+    function portSig(node) {   // a card is rebuilt when its port list changes (a node with variable inputs)
+      var f = function (p) { return p.name + ':' + p.type + (p.multi ? '*' : '') + ':' + (p.label || ''); };
+      return registry.inputsOf(node).map(f).join(',') + '|' + registry.outputsOf(node).map(f).join(',');
+    }
     function buildCard(node) {
-      var c = { ports: new Map() };
+      var c = { ports: new Map(), sig: portSig(node) };
       var card = el('div', 'nc-node' + (o.cardClass ? ' ' + (o.cardClass(node) || '') : ''), { role: 'group', tabindex: '0', 'data-node-id': node.id });
       card.setAttribute('aria-label', label(node));
       var head = el('div', 'nc-node__head'); var type = el('span', 'nc-node__type'); type.textContent = registry.get(node.type).meta.label;
@@ -392,7 +396,11 @@
       cards.forEach(function (c, id) { if (!keep.has(id)) { io.unobserve(c.el); c.el.remove(); cards.delete(id); visible.delete(id); } });
       ctl.model.nodes.forEach(function (n) {
         var c = cards.get(n.id);
-        if (!c) { c = buildCard(n); cards.set(n.id, c); nodesLayer.appendChild(c.el); io.observe(c.el); }
+        if (c && c.sig !== portSig(n)) {   // its ports changed: a new card in the old one's place
+          var fresh = buildCard(n); io.unobserve(c.el); c.el.replaceWith(fresh.el); cards.set(n.id, fresh); io.observe(fresh.el);
+          if (visible.has(n.id)) fresh.painted = null;
+          c = fresh; paintState(n.id, true);
+        } else if (!c) { c = buildCard(n); cards.set(n.id, c); nodesLayer.appendChild(c.el); io.observe(c.el); }
         else { place(c.el, n); c.title.textContent = label(n); c.el.setAttribute('aria-label', label(n)); }
         c.el.classList.toggle('is-selected', selected.has(n.id));
         c.el.classList.toggle('is-collapsed', !!n.collapsed);
@@ -845,6 +853,119 @@
     return ctl;
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // HELPERS a host builds its node bar and node search from (promoted from FVS's Figure graph at Rhizome, Oct 2026)
+
+  // The port of a NEW node of `type` that would connect to `from` (a port being dragged: {node, port, dir}), or null.
+  // A probe node is added to a copy of the model, so variable-input types (meta.inputs as a function) work too.
+  function portFor(registry, model, type, params, from) {
+    if (!from) return null;
+    var probe = { id: '__probe', type: type, x: 0, y: 0, params: params || registry.defaults(type) };
+    var m = { nodes: model.nodes.concat([probe]), edges: model.edges, frames: [] };
+    var ports = from.dir === 'out' ? registry.inputsOf(probe) : registry.outputsOf(probe);
+    for (var i = 0; i < ports.length; i++) {
+      var ok = from.dir === 'out' ? canConnect(m, registry, { node: from.node, port: from.port }, { node: '__probe', port: ports[i].name }).ok
+                                  : canConnect(m, registry, { node: '__probe', port: ports[i].name }, { node: from.node, port: from.port }).ok;
+      if (ok) return ports[i];
+    }
+    return null;
+  }
+
+  // Node search — a small dialog at a screen point: type to filter, ↑↓ Enter to pick, Esc to close.
+  // search({ items:[{label, hint, …}], title?, client:{x,y}, onPick(item), onClose?(), returnFocus? }) → { close }
+  // Styles: .nc-search* (node-canvas.css). One open at a time.
+  var openSearchEl = null;
+  function search(o) {
+    if (openSearchEl) openSearchEl.close();
+    var box = el('div', 'nc-search', { role: 'dialog', 'aria-label': 'Search nodes' });
+    if (o.title) { var h = el('p', 'nc-search__head'); h.textContent = o.title; box.appendChild(h); }
+    var q = el('input', 'org-field nc-search__q', { type: 'search', placeholder: 'Search nodes', 'aria-label': 'Search nodes', autocomplete: 'off' });
+    var list = el('div', 'nc-search__list', { role: 'listbox', 'aria-label': 'Nodes' });
+    box.append(q, list);
+    var c = o.client || { x: innerWidth / 2, y: innerHeight / 3 };
+    box.style.left = Math.max(8, Math.min(c.x, innerWidth - 260)) + 'px'; box.style.top = Math.max(8, Math.min(c.y, innerHeight - 320)) + 'px';
+    document.body.appendChild(box);
+    var shown = [], cur = 0, closed = false;
+    function draw() {
+      var t = q.value.trim().toLowerCase();
+      shown = o.items.filter(function (it) { return !t || it.label.toLowerCase().indexOf(t) >= 0 || String(it.hint || '').toLowerCase().indexOf(t) >= 0; }).slice(0, 12);
+      cur = Math.min(cur, Math.max(0, shown.length - 1));
+      list.replaceChildren();
+      if (!shown.length) { var none = el('p', 'nc-search__none'); none.textContent = 'No node matches “' + q.value.trim() + '”'; list.appendChild(none); return; }
+      shown.forEach(function (it, i) {
+        var b = el('button', 'nc-search__item' + (i === cur ? ' is-current' : ''), { type: 'button', role: 'option', 'aria-selected': String(i === cur), 'data-i': String(i) });
+        var a = el('span'); a.textContent = it.label; var hh = el('span', 'nc-search__hint'); hh.textContent = it.hint || '';
+        b.append(a, hh); list.appendChild(b);
+      });
+    }
+    function close(back) {
+      if (closed) return; closed = true; box.remove(); openSearchEl = null;
+      document.removeEventListener('pointerdown', outside, true);
+      if (back && o.returnFocus) o.returnFocus.focus({ preventScroll: true });
+      if (o.onClose) o.onClose();
+    }
+    function pick(i) { var it = shown[i]; if (!it) return; close(false); o.onPick(it); }
+    function outside(e) { if (!box.contains(e.target)) close(false); }
+    q.addEventListener('input', function () { cur = 0; draw(); });
+    q.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown') { cur = Math.min(shown.length - 1, cur + 1); draw(); e.preventDefault(); }
+      else if (e.key === 'ArrowUp') { cur = Math.max(0, cur - 1); draw(); e.preventDefault(); }
+      else if (e.key === 'Enter') { pick(cur); e.preventDefault(); }
+      else if (e.key === 'Escape') { e.stopPropagation(); close(true); }
+    });
+    list.addEventListener('click', function (e) { var b = e.target.closest('[data-i]'); if (b) pick(+b.dataset.i); });
+    setTimeout(function () { document.addEventListener('pointerdown', outside, true); }, 0);
+    draw(); q.focus({ preventScroll: true });
+    openSearchEl = { close: function () { close(false); }, el: box };
+    return openSearchEl;
+  }
+
+  // Node bar — the host's left dock (.org-dock: a bar of category buttons [data-cat] + one panel). A category
+  // button opens the panel (aria-expanded, inert when closed); the host fills it (render). Any panel element
+  // specOf() recognises can be dragged onto the board (a ghost follows the pointer, on <body> — the dock is
+  // transformed) or clicked. nodeBar({ bar, panel, icons?:{cat: iconName}, render(cat, panel), specOf(target) → spec|null,
+  //   onAdd(spec, ev, overStage) — a click (ev.type 'click', overStage false) or a drop; stage: the board element })
+  // → { open(cat), close(), current() }. Styles: .nc-nodebar__* (node-canvas.css).
+  function nodeBar(o) {
+    var bar = o.bar, panel = o.panel, cur = null;
+    if (o.icons && Organica.icons) bar.querySelectorAll('[data-cat]').forEach(function (b) { if (o.icons[b.dataset.cat]) b.innerHTML = Organica.icons.get(o.icons[b.dataset.cat]); });
+    function open(cat) {
+      cur = cat || null;
+      bar.querySelectorAll('[data-cat]').forEach(function (b) { b.setAttribute('aria-expanded', String(b.dataset.cat === cur)); });
+      if (cur) { panel.setAttribute('aria-label', cur); o.render(cur, panel); panel.dataset.open = 'true'; panel.inert = false; }
+      else { panel.dataset.open = 'false'; panel.inert = true; }
+    }
+    bar.addEventListener('click', function (e) { var b = e.target.closest('[data-cat]'); if (b) open(cur === b.dataset.cat ? null : b.dataset.cat); });
+    panel.addEventListener('pointerdown', function (e) {
+      var spec = e.button === 0 && o.specOf(e.target); if (!spec) return;
+      var src = e.target.closest('button') || e.target, sx = e.clientX, sy = e.clientY, ghost = null;
+      try { src.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic or ended pointer */ }
+      function move(ev) {
+        if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
+        if (!ghost) { ghost = el('div', 'nc-nodebar__ghost'); ghost.innerHTML = src.innerHTML; document.body.appendChild(ghost); panel.classList.add('is-dragging-away'); document.body.classList.add('nc-is-dragging'); }
+        ghost.style.transform = 'translate(' + (ev.clientX + 8) + 'px,' + (ev.clientY + 8) + 'px)';
+      }
+      function up(ev) {
+        src.removeEventListener('pointermove', move); src.removeEventListener('pointerup', up); src.removeEventListener('pointercancel', up);
+        panel.classList.remove('is-dragging-away'); document.body.classList.remove('nc-is-dragging');
+        if (ev.type !== 'pointerup') { if (ghost) ghost.remove(); return; }
+        if (ghost) {
+          ghost.remove();
+          var r = o.stage ? o.stage.getBoundingClientRect() : null;
+          var over = !!r && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+          o.onAdd(spec, ev, over);
+        } else o.onAdd(spec, { type: 'click', clientX: ev.clientX, clientY: ev.clientY }, false);
+      }
+      src.addEventListener('pointermove', move); src.addEventListener('pointerup', up); src.addEventListener('pointercancel', up);
+    });
+    // keyboard: Enter / Space on an item = a click
+    panel.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return; var spec = o.specOf(e.target); if (!spec) return;
+      e.preventDefault(); o.onAdd(spec, { type: 'click' }, false);
+    });
+    return { open: open, close: function () { open(null); }, current: function () { return cur; } };
+  }
+
   Organica.nodeCanvas = {
     MODEL_VERSION: MODEL_VERSION,
     nextId: nextId, createModel: createModel, findNode: findNode, edgesInto: edgesInto, edgesOutOf: edgesOutOf,
@@ -853,5 +974,6 @@
     createRegistry: createRegistry, canConnect: canConnect,
     createEngine: createEngine, createHistory: createHistory,
     mount: mount, wirePath: wirePath,
+    portFor: portFor, search: search, nodeBar: nodeBar,
   };
 })();
