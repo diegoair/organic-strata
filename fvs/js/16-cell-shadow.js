@@ -15,7 +15,9 @@
 // Standalone: reads only the DOM and the --stage-shadow token, imports nothing.
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const SEL = 'svg.is-cell';
+// Exactly the sheets fvs.css gives the stage shadow (the drop-shadow rules) — a cell-shape SVG anywhere else
+// (Library rail tiles, Library view, Symbol previews) never had one and gets none.
+const SEL = '#element-svg > svg.is-cell, #component-edit-frame > svg.is-cell, .fvs-thumb > svg.is-cell, .fvs-seed-tile__box > svg.is-cell';
 const cache = new Map();          // key → Promise<objectURL>
 const CACHE_MAX = 60;
 let spec = null;                  // --stage-shadow parsed: { x, y, blur, color }
