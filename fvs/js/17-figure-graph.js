@@ -235,7 +235,7 @@ export async function encodeFile(f) {   // exported for scripts/test-figure-grap
 function fileName(f) { return Organica.stamp(`fvs-${f.tag}${f.plate != null ? '-plate' + (f.plate + 1) + '-' + String(f.ink).slice(1) : ''}${f.format === 'png' && f.scale > 1 ? '@' + f.scale + 'x' : ''}`, f.format); }
 function runExport(id) {
   const exp = NC.findNode(ctl.model, id); if (!exp) return;
-  const files = exportFiles(exp); if (!files.length) { Organica.notice('Nothing to export — connect a Figure, and pick a format'); return; }
+  const files = exportFiles(exp); if (!files.length) { Organica.notice('Nothing to export — connect a Figure and pick a format'); return; }
   Organica.plateExport.run(files.length, { build: async i => ({ blob: await encodeFile(files[i]), filename: fileName(files[i]) }), onDone: () => Organica.notice(`${files.length} ${files.length === 1 ? 'file' : 'files'} exported`) });
 }
 // The floatbar Export in the Figure step: the one export path — create (or select) the Export node, wired to the
@@ -477,7 +477,8 @@ function renderInspector(ids) {
       ${fm.png ? `<div class="ctrl-row"><div class="ctrl-label">PNG size</div></div><div class="fg-keep">${[1, 2, 4].map(k => `<label class="check-row"><input type="checkbox" data-scale="${k}"${sc.includes(k) ? ' checked' : ''}> ×${k}</label>`).join('')}</div>${anyPrint ? '<p class="panel-hint">A Figure on a Print Canvas exports one PNG at its own size and DPI.</p>' : ''}` : ''}
       <label class="check-row"><input type="checkbox" id="fgi-ex-transparent"${p.transparent ? ' checked' : ''}> Transparent paper</label>
       <p class="panel-hint">${esc(exportSummary(files, p))}. A Print Canvas adds its bleed and crop marks; plates get registration marks.</p>
-      <div class="row-btns"><button type="button" class="mini-btn" id="fgi-ex-run"${n ? '' : ' disabled'}>Export ${n} ${n === 1 ? 'file' : 'files'}</button><button type="button" class="mini-btn" id="fgi-ex-figma"${n ? '' : ' disabled'}>Send to Figma</button></div>`,
+      <div class="row-btns"><button type="button" class="mini-btn" id="fgi-ex-run"${n ? '' : ' disabled'}>Export ${n} ${n === 1 ? 'file' : 'files'}</button><button type="button" class="mini-btn" id="fgi-ex-figma"${n ? '' : ' disabled'}>Send to Figma</button></div>
+      <p class="panel-hint">Send to Figma sends the first file — plates stay in the download.</p>`,
       bind: () => {
         box.querySelectorAll('[data-fmt]').forEach(c => c.addEventListener('change', () => { p.formats = { ...p.formats, [c.dataset.fmt]: c.checked }; edited(node, true); renderInspector(ids); }));
         box.querySelectorAll('[data-scale]').forEach(c => c.addEventListener('change', () => { const k = +c.dataset.scale; p.scales = c.checked ? [...new Set([...(p.scales || []), k])] : (p.scales || []).filter(x => x !== k); edited(node, true); renderInspector(ids); }));
@@ -795,6 +796,7 @@ function exitCompose() {
 }
 function drawCompose() {
   if (!composing) return;
+  ctrl('btn-fg-compose-undo').disabled = !ctl.history.canUndo(); ctrl('btn-fg-compose-redo').disabled = !ctl.history.canRedo();
   const f = figureValue(composing.fig), stage = ctrl('fg-compose-stage');
   const fig = NC.findNode(ctl.model, composing.fig), n = fig ? (+fig.params.variations || 1) : 1;
   ctrl('fg-compose-note').textContent = `Applies to all ${n} ${n === 1 ? 'variation' : 'variations'} of ${fig ? nodeLabel(fig) : 'the Figure'}`;
@@ -889,6 +891,7 @@ function describeComposeRule(r, inks) {
 }
 function renderComposeInspector(next) {
   const box = ctrl('fg-inspector'); if (!box || !composing) return;
+  ctrl('btn-fg-compose-undo').disabled = !ctl.history.canUndo(); ctrl('btn-fg-compose-redo').disabled = !ctl.history.canRedo();
   // a rebuild keeps what you were on: the focused control and the "They get" choice
   const a = document.activeElement, keep = box.contains(a) ? (a.id ? '#' + a.id : a.dataset.quick ? `[data-quick="${a.dataset.quick}"]` : a.dataset.act ? `[data-act="${a.dataset.act}"][data-i="${a.dataset.i}"]` : null) : null;
   const does = ctrl('fgc-does') ? ctrl('fgc-does').value : null;
@@ -915,8 +918,8 @@ function renderComposeInspector(next) {
       <button type="button" class="icon-btn" data-act="up" data-i="${i}" aria-label="Move region rule ${i + 1} up"${i ? '' : ' disabled'}>${Organica.icons.get('arrow-up', { size: 'xs' })}</button>
       <button type="button" class="icon-btn" data-act="down" data-i="${i}" aria-label="Move region rule ${i + 1} down"${i < rules.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down', { size: 'xs' })}</button>
       <button type="button" class="icon-btn" data-act="del" data-i="${i}" aria-label="Delete region rule ${i + 1}">${Organica.icons.get('trash', { size: 'xs' })}</button></div>`).join('') : '<p class="panel-hint">No region rules yet — select cells, then pick what they get, or drop a saved item on a cell.</p>'}</div>
-    <div id="fgc-lost">${f && f.lost && f.lost.length ? f.lost.filter(l => rules[l.rule]).map(l => `<div class="fg-lost"><p class="panel-hint fg-warn">Region rule ${l.rule + 1} (${esc(describeComposeRule(rules[l.rule], inks))}): ${l.cells.length ? esc(l.cells.map(x => Array.isArray(x) ? cellAt(x) : 'cell ' + (x + 1)).join(', ')) + (l.cells.length === 1 ? ' is' : ' are') + ' not in this grid any more' : 'it matches no cell in this grid'} — kept, not drawn.</p>
-      <button type="button" class="mini-btn" data-act="del" data-i="${l.rule}">Remove region rule ${l.rule + 1}</button></div>`).join('') : ''}</div>
+    <div id="fgc-lost">${f && f.lost && f.lost.length ? f.lost.filter(l => rules[l.rule]).map(l => `<div class="fg-lost"><p class="panel-hint fg-warn">Region rule ${l.rule + 1} (${esc(describeComposeRule(rules[l.rule], inks))}): ${l.cells.length ? esc(l.cells.map(x => Array.isArray(x) ? cellAt(x) : 'cell ' + (x + 1)).join(', ')) + (l.cells.length === 1 ? ' is' : ' are') + ' not in this grid any more' : 'it matches no cell in this grid'} — kept but not drawn.</p>
+      <button type="button" class="mini-btn" data-act="del" data-i="${l.rule}">Delete region rule ${l.rule + 1}</button></div>`).join('') : ''}</div>
     <p class="panel-hint">A Symbol rule uses the Symbol step’s settings for that rule and reads each cell’s place in the whole grid, so a wave over a region continues the Figure’s wave. Arrange lays out the content feeding the Figure, as it is now. Pattern fills the cells with a pattern.</p>
     <p class="panel-hint">Rules apply in order: a later rule wins on the cells it matches. Esc clears the selection, then leaves Compose.</p></div>`;
   if (does && [...ctrl('fgc-does').options].some(o => o.value === does)) ctrl('fgc-does').value = does;

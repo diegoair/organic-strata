@@ -478,9 +478,8 @@
   .fg-chip { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); }
   .fg-chip.is-off .fg-chip__text { color: var(--mid); text-decoration: line-through; }
   .fg-chip__text { flex: 1; min-width: 0; font-size: var(--t-caption-size); }
-  .fg-chip__pick { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: var(--t-caption-size); text-align: left; cursor: pointer; border-radius: var(--radius-sm); }
+  .fg-chip__pick { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: var(--t-caption-size); text-align: left; cursor: pointer; }
   @media (hover: hover) { .fg-chip__pick:hover { text-decoration: underline; } }
-  .fg-chip__pick:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .fg-new__panel { --org-modal-w: min(56rem, 92vw); }
   .fg-new__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
   .fg-new__item { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }

@@ -365,7 +365,7 @@ export function exportPlan(figs, p) {
 export function exportSummary(files, p) {
   const fm = p.formats || {}, kinds = [fm.svg && 'SVG', fm.png && 'PNG', fm.plates && 'plates'].filter(Boolean);
   const print = files.find(x => x.print);
-  return `${files.length} ${files.length === 1 ? 'file' : 'files'}${kinds.length ? ' · ' + kinds.join(' + ') : ''}${print ? ` · ${print.canvas.dpi} dpi` : ''}`;
+  return `${files.length} ${files.length === 1 ? 'file' : 'files'}${kinds.length ? ' · ' + kinds.join(' + ') : ''}${print ? ` · ${print.canvas.dpi} DPI` : ''}`;
 }
 
 // ── A recipe v2 (a built-in Figure, a JSON file) → the pieces of a graph. Its Element is saved to the library once
