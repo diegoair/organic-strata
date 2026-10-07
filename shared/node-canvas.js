@@ -228,7 +228,9 @@
   //   protect(node, model) → null, or the reason this node can't be deleted (Delete then says so)
   //   onSelect(ids)             the selection changed (the tool fills its panel)
   //   onChange(model, reason)   anything changed (structure, positions, params) — the tool saves / marks dirty
-  //   onWireDrop(from, point)   a wire released on empty board (open the node search there)
+  //   onWireDrop(from, point, client)   a wire released on empty board (open the node search there)
+  //   onSearch(point, from, client)     '/' or right-click on the board: open the node search
+  //   nameCopy(node, model) → name      the name a duplicated / pasted node gets
   //   onPortDblClick(node, port, dir)   a port double-clicked (spawn the node it wants, wired)
   //   onNodeDblClick(node, e)   a card double-clicked (outside its ports)
   //   onBoardDblClick(point)    the empty board double-clicked
@@ -266,6 +268,7 @@
     var marquee = el('div', 'nc-marquee'); marquee.hidden = true;
     var live = el('div', 'nc-live', { 'aria-live': 'polite' });
     stage.append(board, marquee, live);
+    stage.addEventListener('scroll', function () { stage.scrollTop = 0; stage.scrollLeft = 0; });
     var announce = o.announce || function (t) { live.textContent = ''; setTimeout(function () { live.textContent = t; }, 30); };
 
     // ── pan / zoom: wheel zooms, Space-drag / middle-drag pans, plain drag on the board = marquee ──
@@ -290,9 +293,12 @@
       });
     }
     ctl.run = run;
-    function paintState(id) {
+    function paintState(id, force) {
       var c = cards.get(id), node = findNode(ctl.model, id); if (!c || !node) return;
       var e = engine.get(id) || { state: 'stale' };
+      var stamp = e.state + ':' + (e.ver || 0) + ':' + JSON.stringify(node.params).length + ':' + (node.name || '');
+      if (!force && c.painted === stamp) return;
+      c.painted = stamp;
       c.el.dataset.state = e.state;
       c.status.textContent = e.state === 'ok' || e.state === 'stale' ? '' : (e.message || '');
       c.status.hidden = !c.status.textContent;
@@ -313,7 +319,7 @@
     function label(node) { return o.nodeLabel ? o.nodeLabel(node) : (node.name || registry.get(node.type).meta.label || node.type); }
     function portRow(node, p, dir) {
       var row = el('div', 'nc-port nc-port--' + dir);
-      var b = el('button', 'nc-port__dot', { type: 'button', 'aria-label': (p.label || p.name) + (dir === 'in' ? ' input' : ' output') + ' — connect', 'data-port': p.name, 'data-dir': dir, 'data-type': p.type });
+      var b = el('button', 'nc-port__dot', { type: 'button', tabindex: '-1', 'aria-label': (p.label || p.name) + (dir === 'in' ? ' input' : ' output') + ' — connect', 'data-port': p.name, 'data-dir': dir, 'data-type': p.type });
       if (p.multi) b.classList.add('nc-port__dot--multi');
       var t = el('span', 'nc-port__label'); t.textContent = p.label || p.name;
       if (dir === 'in') row.append(b, t); else row.append(t, b);
@@ -382,7 +388,7 @@
       cards.forEach(function (c, id) { measure(id); });
       drawWires();
     }
-    ctl.refresh = function () { render(); run(); };
+    ctl.refresh = function () { render(); cards.forEach(function (c) { c.painted = null; }); run(); };
 
     // ── changes ──
     function changed(reason, structural) {
@@ -438,7 +444,7 @@
         if (e.target.closest('.nc-port__dot')) return;
         var node = findNode(ctl.model, id); if (node && o.onNodeDblClick) o.onNodeDblClick(node, e);
       });
-      card.addEventListener('focus', function () { if (!selected.has(id)) select([id]); });
+      card.addEventListener('focus', function () { stage.scrollTop = 0; stage.scrollLeft = 0; if (!selected.has(id)) select([id]); });
       card.addEventListener('pointerenter', function () { hovered = id; drawWires(); });
       card.addEventListener('pointerleave', function () { if (hovered === id) { hovered = null; drawWires(); } });
     }
@@ -446,12 +452,13 @@
     // ── wiring: drag from any port; compatible ports glow, others dim; release on a port / a card / the board ──
     function portInfo(dot) { var card = dot.closest('.nc-node'); return { node: card.dataset.nodeId, port: dot.dataset.port, dir: dot.dataset.dir }; }
     function startWire(e, dot) {
-      var info = portInfo(dot), from, fixedDir;
+      var info = portInfo(dot), from, fixedDir, detached = false;
+      function noConnect(reason) { if (detached) { drawWires(); commit('disconnect'); run(); } else changed(reason || 'wire'); }
       if (info.dir === 'in') {
         var existing = ctl.model.edges.filter(function (w) { return w.to.node === info.node && w.to.port === info.port; });
         var node = findNode(ctl.model, info.node), ip = registry.inputsOf(node).filter(function (p) { return p.name === info.port; })[0];
         if (existing.length && !(ip && ip.multi)) {   // drag a connected input off: detach it and carry its source
-          var w = existing[existing.length - 1]; removeEdge(ctl.model, w.id); touchDown(info.node);
+          var w = existing[existing.length - 1]; removeEdge(ctl.model, w.id); touchDown(info.node); detached = true;
           from = { node: w.from.node, port: w.from.port, dir: 'out' };
         } else from = info;
       } else from = info;
@@ -479,23 +486,24 @@
         var tdot = target && target.closest && target.closest('.nc-port__dot');
         var tcard = target && target.closest && target.closest('.nc-node');
         if (tdot && stage.contains(tdot)) {
-          var t = portInfo(tdot); if (t.dir === fixedDir) return changed('wire');
+          var t = portInfo(tdot); if (t.dir === fixedDir) return noConnect();
           var a = fixedDir === 'out' ? from : t, b = fixedDir === 'out' ? t : from;
-          tryConnect({ node: a.node, port: a.port }, { node: b.node, port: b.port });
+          if (!tryConnect({ node: a.node, port: a.port }, { node: b.node, port: b.port }) && detached) noConnect();
         } else if (tcard && stage.contains(tcard) && tcard.dataset.nodeId !== from.node && fixedDir === 'out') {
           // Weave: a wire dropped on a card goes to its first compatible input
-          var tn = findNode(ctl.model, tcard.dataset.nodeId), hit = null;
-          registry.inputsOf(tn).some(function (p) {
+          var tn = findNode(ctl.model, tcard.dataset.nodeId), hit = null, taken = [];
+          registry.inputsOf(tn).forEach(function (p) {
+            if (hit || !canConnect(ctl.model, registry, { node: from.node, port: from.port }, { node: tn.id, port: p.name }).ok) return;
             var free = p.multi || !ctl.model.edges.some(function (w) { return w.to.node === tn.id && w.to.port === p.name; });
-            if (free && canConnect(ctl.model, registry, { node: from.node, port: from.port }, { node: tn.id, port: p.name }).ok) { hit = p; return true; }
-            return false;
+            if (free) hit = p; else taken.push(p);
           });
+          if (!hit && taken.length === 1) hit = taken[0];   // the one input it fits is taken: replace that wire
           if (hit) tryConnect({ node: from.node, port: from.port }, { node: tn.id, port: hit.name });
-          else announce('No free input on ' + label(tn) + ' takes this.');
+          else { var msg = 'No input on ' + label(tn) + ' takes this.'; if (Organica.notice) Organica.notice(msg); else announce(msg); noConnect(); }
         } else if (!tcard && o.onWireDrop) {
-          o.onWireDrop({ node: from.node, port: from.port, dir: fixedDir }, toBoard(ev.clientX, ev.clientY));
-          changed('wire', false);
-        } else changed('wire');
+          o.onWireDrop({ node: from.node, port: from.port, dir: fixedDir }, toBoard(ev.clientX, ev.clientY), { x: ev.clientX, y: ev.clientY });
+          noConnect();
+        } else noConnect();
       }
       document.addEventListener('pointermove', move); document.addEventListener('pointerup', up);
     }
@@ -515,10 +523,14 @@
       var dot = e.target.closest && e.target.closest('.nc-port__dot');
       if (dot && e.button === 0 && !spaceDown) { e.preventDefault(); e.stopPropagation(); startWire(e, dot); }
     }, true);
+    stage.addEventListener('contextmenu', function (e) {
+      if (!o.onSearch || e.target.closest('.nc-node')) return;
+      e.preventDefault(); o.onSearch(toBoard(e.clientX, e.clientY), null, { x: e.clientX, y: e.clientY });
+    });
     stage.addEventListener('dblclick', function (e) {
       var dot = e.target.closest && e.target.closest('.nc-port__dot');
       if (dot && o.onPortDblClick) { var i = portInfo(dot); o.onPortDblClick(findNode(ctl.model, i.node), i.port, i.dir); return; }
-      if (!e.target.closest('.nc-node') && o.onBoardDblClick) o.onBoardDblClick(toBoard(e.clientX, e.clientY));
+      if (!e.target.closest('.nc-node') && o.onBoardDblClick) o.onBoardDblClick(toBoard(e.clientX, e.clientY), { x: e.clientX, y: e.clientY });
     });
     // wire selection
     wires.addEventListener('pointerdown', function (e) {
@@ -572,7 +584,7 @@
         if (w) { removeEdge(ctl.model, w.id); touchDown(w.to.node); selectedWire = null; changed('disconnect', true); commit('disconnect'); }
         return;
       }
-      if (kept.length && Organica.notice) Organica.notice(kept[0]);
+      if (kept.length && Organica.notice) Organica.notice(kept.length === 1 ? kept[0] : kept.length + ' nodes kept — ' + kept.filter(function (k, i) { return kept.indexOf(k) === i; }).join(' · '));
       if (!gone.length) return;
       var downstream = new Set();
       gone.forEach(function (n) { edgesOutOf(ctl.model, n.id).forEach(function (e) { downstream.add(e.to.node); }); removeNode(ctl.model, n.id); engine.forget(n.id); selected.delete(n.id); });
@@ -586,7 +598,16 @@
     // nodes outside the copy (ledger B3: a node can feed many figures).
     function cloneNodes(ids, dx, dy, rewireOutside) {
       var map = new Map(), src = ids.map(function (id) { return findNode(ctl.model, id); }).filter(Boolean);
-      src.forEach(function (n) { var c = addNode(ctl.model, JSON.parse(JSON.stringify(Object.assign({}, n, { id: null, x: n.x + dx, y: n.y + dy })))); map.set(n.id, c.id); });
+      if (dx == null) {   // beside the originals: to the right of their bounding box
+        var x0 = Infinity, x1 = -Infinity;
+        src.forEach(function (n) { var c = cards.get(n.id); x0 = Math.min(x0, n.x); x1 = Math.max(x1, n.x + (c ? c.w : 200)); });
+        dx = Math.round(x1 - x0 + 60); dy = 0;
+      }
+      src.forEach(function (n) {
+        var copy = JSON.parse(JSON.stringify(Object.assign({}, n, { id: null, x: n.x + dx, y: n.y + dy })));
+        if (o.nameCopy) copy.name = o.nameCopy(copy, ctl.model);
+        var c = addNode(ctl.model, copy); map.set(n.id, c.id);
+      });
       ctl.model.edges.slice().forEach(function (e) {
         if (!map.has(e.to.node)) return;
         var from = map.has(e.from.node) ? { node: map.get(e.from.node), port: e.from.port } : (rewireOutside ? e.from : null);
@@ -596,7 +617,7 @@
     }
     ctl.duplicate = function (ids) {
       ids = ids || Array.from(selected); if (!ids.length) return [];
-      var made = cloneNodes(ids, 40, 40, true);
+      var made = cloneNodes(ids, null, null, true);
       render(); select(made); made.forEach(touchDown);
       announce(made.length === 1 ? 'Duplicated' : made.length + ' nodes duplicated');
       changed('duplicate', true); commit('duplicate');
@@ -612,7 +633,7 @@
     function paste() {
       if (!clipboard) return;
       var map = new Map(), made = [];
-      clipboard.nodes.forEach(function (n) { var c = addNode(ctl.model, Object.assign({}, JSON.parse(JSON.stringify(n)), { id: null, x: n.x + 60, y: n.y + 60 })); map.set(n.id, c.id); made.push(c.id); });
+      clipboard.nodes.forEach(function (n) { var copy = Object.assign({}, JSON.parse(JSON.stringify(n)), { id: null, x: n.x + 60, y: n.y + 60 }); if (o.nameCopy) copy.name = o.nameCopy(copy, ctl.model); var c = addNode(ctl.model, copy); map.set(n.id, c.id); made.push(c.id); });
       clipboard.edges.forEach(function (e) { addEdge(ctl.model, { node: map.get(e.from.node), port: e.from.port }, { node: map.get(e.to.node), port: e.to.port }, true); });
       clipboard = { nodes: clipboard.nodes.map(function (n) { return Object.assign({}, n, { x: n.x + 60, y: n.y + 60 }); }), edges: clipboard.edges };
       render(); select(made); made.forEach(touchDown); changed('paste', true); commit('paste');
@@ -622,7 +643,7 @@
     function fit(ids) {
       var ns = ids.map(function (id) { return findNode(ctl.model, id); }).filter(Boolean); if (!ns.length) return;
       var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-      ns.forEach(function (n) { var c = cards.get(n.id), w = c ? c.w : 200, h = c ? c.h : 120; x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + w); y1 = Math.max(y1, n.y + h); });
+      ns.forEach(function (n) { measure(n.id); var c = cards.get(n.id), w = c ? c.w : 200, h = c ? c.h : 120; x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + w); y1 = Math.max(y1, n.y + h); });
       var r = stage.getBoundingClientRect(), pad = 48, inset = o.fitInset || {}, L = inset.left || 0, B = inset.bottom || 0;
       var W = r.width - L, H = r.height - B;
       var z = Math.min(1.5, Math.max(0.1, Math.min((W - pad * 2) / (x1 - x0), (H - pad * 2) / (y1 - y0))));
@@ -669,7 +690,7 @@
       if (mod && k.toLowerCase() === 'v') { e.preventDefault(); paste(); return; }
       if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); remove(Array.from(selected)); return; }
       if (k === 'Escape') { select([]); return; }
-      if (k === '/' && o.onSearch) { e.preventDefault(); var r = stage.getBoundingClientRect(); o.onSearch(toBoard(r.left + r.width / 2, r.top + r.height / 2)); return; }
+      if (k === '/' && o.onSearch) { e.preventDefault(); var r = stage.getBoundingClientRect(); o.onSearch(toBoard(r.left + r.width / 2, r.top + r.height / 3), null, { x: r.left + r.width / 2, y: r.top + r.height / 3 }); return; }
       if (/^Arrow/.test(k) && selected.size) {
         e.preventDefault(); var step = e.shiftKey ? 32 : 8, dx = k === 'ArrowLeft' ? -step : k === 'ArrowRight' ? step : 0, dy = k === 'ArrowUp' ? -step : k === 'ArrowDown' ? step : 0;
         selected.forEach(function (id) { var n = findNode(ctl.model, id); if (n) { n.x += dx; n.y += dy; var c = cards.get(id); if (c) place(c.el, n); } });
@@ -686,7 +707,8 @@
       io.disconnect(); stage.replaceChildren(); stage.classList.remove('nc-stage');
     };
     ctl.cardOf = function (id) { var c = cards.get(id); return c ? c.el : null; };
-    ctl.paint = function (id) { paintState(id); };
+    ctl.paint = function (id) { paintState(id, true); };
+    ctl.remeasure = function (id) { measure(id); drawWires(); };
 
     render();
     history.push(ctl.model, { selection: [] });

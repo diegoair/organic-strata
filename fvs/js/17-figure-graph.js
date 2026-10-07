@@ -96,19 +96,24 @@ function entryThumb(kind, name, entry) {
 // ── card bodies ──
 const urls = new Map();
 function figureImg(id, svg) {
-  const old = urls.get(id); if (old) URL.revokeObjectURL(old);
-  const u = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })); urls.set(id, u); return u;
+  const old = urls.get(id); if (old && old.svg === svg) return old.url;
+  if (old) URL.revokeObjectURL(old.url);
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })); urls.set(id, { url, svg }); return url;
 }
 function renderBody(node, entry, el) {
   const p = node.params || {}, v = entry && entry.value;
   if (node.type === 'figure') {
     const f = v && v.figure;
     if (!f) { el.innerHTML = ''; return; }
-    el.innerHTML = `<div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))} preview" src="${figureImg(node.id, f.svg)}"></div>
-      <p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells</p>`;
+    const src = figureImg(node.id, f.svg), crumb = foundationOf(node).map(n => n ? esc(nodeLabel(n)) : '—').join(' · ');
+    if (!el.querySelector('.fg-card__img') || el.querySelector('.fg-card__img').getAttribute('src') !== src) {
+      el.innerHTML = `<p class="fg-card__crumb">${crumb}</p><div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))} preview" src="${src}"></div>
+        <p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells</p>`;
+      el.querySelector('.fg-card__img').addEventListener('load', () => ctl.remeasure(node.id), { once: true });
+    } else el.querySelector('.fg-card__crumb').innerHTML = crumb;
   } else if (node.type === 'canvas') {
     const cv = canvasOf(p);
-    el.innerHTML = `<p class="fg-card__meta">${Organica.aspectIcon ? Organica.aspectIcon(cv.W, cv.H) : ''} ${esc(canvasSummary(cv))}</p>`;
+    el.innerHTML = cv.fit ? `<p class="fg-card__meta">Fit to figure — the page is the figure’s own frame</p>` : `<p class="fg-card__meta">${Organica.aspectIcon ? Organica.aspectIcon(cv.W, cv.H) : ''} ${esc(canvasSummary(cv))}</p>`;
   } else if (node.type === 'grid') {
     el.innerHTML = `<p class="fg-card__meta">${esc(gridSummary({ gen: p.gen, params: p.params }))}</p>`;
   } else if (node.type === 'palette') {
@@ -129,6 +134,11 @@ function renderBody(node, entry, el) {
       <p class="fg-card__meta">${gone ? `${esc(p.name)} is no longer in the library — drawn from the copy kept in this graph` : esc(p.name)}</p>` : '';
   }
 }
+// The Canvas / Grid / Palette feeding a Figure (null where none is connected).
+function foundationOf(fig) {
+  const m = ctl ? ctl.model : null; if (!m) return [null, null, null];
+  return ['canvas', 'grid', 'palette'].map(port => { const e = m.edges.find(w => w.to.node === fig.id && w.to.port === port); return e ? NC.findNode(m, e.from.node) : null; });
+}
 function cardClass(node) {
   if (node.type === 'figure') return 'nc-node--wide';
   return 'nc-node--compact';
@@ -142,7 +152,16 @@ function protect(node, model) {
 }
 
 // ── adding nodes: a Figure comes with its Canvas + Grid (the last ones used, or new ones beside it) ──
-function viewCentre() { const r = ctrl('fg-graph').getBoundingClientRect(); return ctl.toBoard(r.left + r.width / 2, r.top + r.height / 3); }
+function viewCentre() { const r = ctrl('fg-graph').getBoundingClientRect(); return freeSpot(ctl.toBoard(r.left + r.width / 2, r.top + r.height / 3)); }
+function freeSpot(at) {   // the nearest place below / beside `at` that no card covers
+  const boxes = ctl.model.nodes.map(n => { const c = ctl.cardOf(n.id); return { x: n.x, y: n.y, w: c ? c.offsetWidth : 200, h: c ? c.offsetHeight : 120 }; });
+  const hit = p => boxes.some(b => p.x < b.x + b.w + 24 && p.x + 240 > b.x - 24 && p.y < b.y + b.h + 24 && p.y + 140 > b.y - 24);
+  for (let ring = 0; ring < 12; ring++) for (const [dx, dy] of [[0, 0], [0, 1], [1, 0], [1, 1], [0, -1], [-1, 0]]) {
+    const p = { x: Math.round(at.x + dx * ring * 160), y: Math.round(at.y + dy * ring * 120) }; if (!hit(p)) return p;
+  }
+  return at;
+}
+function centred(at, type) { const w = type === 'figure' ? 416 : type === 'canvas' || type === 'grid' || type === 'palette' ? 160 : 160; return { x: Math.round(at.x - w / 2), y: Math.round(at.y - 24) }; }
 function addNode(type, at, params) {
   at = at || viewCentre();
   const named = t => ({ name: nameFor(ctl.model, t, t === type ? params : null) });
@@ -220,7 +239,7 @@ function initNodebar() {
       if (ghost) {
         ghost.remove();
         const r = ctrl('fg-graph').getBoundingClientRect();
-        if (ev.type === 'pointerup' && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) addNode(spec.type, ctl.toBoard(ev.clientX, ev.clientY), spec.params);
+        if (ev.type === 'pointerup' && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) addNode(spec.type, centred(ctl.toBoard(ev.clientX, ev.clientY), spec.type), spec.params);
       } else if (ev.type === 'pointerup') addNode(spec.type, null, spec.params);   // a click: add at the view centre
     };
     src.addEventListener('pointermove', move); src.addEventListener('pointerup', up); src.addEventListener('pointercancel', up);
@@ -294,10 +313,13 @@ function renderInspector(ids) {
       rows.push(rangeRow(label, 'fgi-g-' + k, a, b, step, val, (v, c) => { p.params = { ...(p.params || {}), [k]: v }; edited(node, c); }));
     });
   } else if (node.type === 'palette') {
-    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Inks</div></div><div id="fgi-inks"></div>
+    const lib = Organica.palette.library ? Organica.palette.library() : [];
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">From the library</div><select class="panel-select" id="fgi-lib" aria-label="From the library"><option value="">Choose a palette…</option>${lib.map(l => `<option value="${esc(l.id)}"${l.id === p.source ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>`,
+      bind: () => ctrl('fgi-lib').addEventListener('change', e => { const l = lib.find(x => x.id === e.target.value); if (!l) return; p.colors = l.colors.map(c => c.hex); p.source = l.id; edited(node, true); renderInspector(ids); }) });
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Inks</div></div><div id="fgi-inks" class="rmx-palette"></div>
       <div class="color-row"><span class="color-name">Paper</span><span class="color-swatch-wrap"><button class="color-swatch" id="sw-fgi-paper" style="background:${esc(p.paper)}"></button><input type="color" id="cp-fgi-paper" value="${esc(p.paper)}"></span><input class="color-hex" id="hex-fgi-paper" value="${esc(p.paper)}" maxlength="7"></div>`,
       bind: () => {
-        Organica.palette.swatch(ctrl('fgi-inks'), { colors: p.colors, min: 1, max: 8, onChange: colors => { p.colors = colors.slice(); edited(node, true); } });
+        Organica.palette.swatch(ctrl('fgi-inks'), { colors: p.colors, min: 1, max: 8, library: false, onChange: colors => { p.colors = colors.slice(); delete p.source; edited(node, true); } });
         Organica.palette.swatch('fgi-paper', { onChange: hex => { if (hex === p.paper) return; p.paper = hex; edited(node, true); } });
       } });
     rows.push(selectRow('Colour by', 'fgi-rule', Object.entries(COLOR_RULES).map(([k, r]) => [k, r.label]), (p.rule || {}).mode || 'index', v => { p.rule = { ...(p.rule || {}), mode: v }; edited(node, true); }));
@@ -334,6 +356,16 @@ function renderInspector(ids) {
     rows.push(selectRow('Mirror', 'fgi-tmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
     rows.push({ html: '<p class="panel-hint">Turns and mirrors the whole figure — needs a Repeat in grid before it.</p>' });
   } else if (node.type === 'figure') {
+    const cur = foundationOf(node);
+    ['canvas', 'grid', 'palette'].forEach((t, k) => {
+      const opts = ctl.model.nodes.filter(n => n.type === t).map(n => [n.id, nodeLabel(n)]);
+      if (t === 'palette') opts.unshift(['', 'None — content’s own colours']);
+      rows.push(selectRow(registry.get(t).meta.label, 'fgi-f-' + t, opts, cur[k] ? cur[k].id : '', v => {
+        if (!v) { const e = ctl.model.edges.find(w => w.to.node === node.id && w.to.port === t); if (e) { NC.removeEdge(ctl.model, e.id); ctl.touch(node.id); ctl.commit('disconnect'); ctl.refresh(); } }
+        else ctl.connect({ node: v, port: t }, { node: node.id, port: t });
+        renderInspector(ids); save();
+      }));
+    });
     rows.push(selectRow('Fit in cell', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; edited(node, true); }));
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-keepown"${p.keepOwn ? ' checked' : ''}> Keep own colours</label>`,
       bind: () => { ctrl('fgi-keepown').addEventListener('change', e => { p.keepOwn = e.target.checked; edited(node, true); }); } });
@@ -363,7 +395,7 @@ function cellRulesEditor(node, ids) {
   return { html: `<div class="fg-chips" id="fgi-rules">${rs.length ? rs.map(chip).join('') : '<p class="panel-hint">No rules yet — every cell gets the content.</p>'}</div>
     <div class="sub-label">Add rule</div>
     <div class="ctrl-row"><div class="ctrl-label">Which cells</div><select class="panel-select" id="fgi-which" aria-label="Which cells">${WHICH.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
-    <div class="ctrl-row" id="fgi-n-row" hidden><div class="ctrl-label">Number</div><input type="number" class="panel-input" id="fgi-n" min="0" max="99" step="1" value="1" aria-label="Number"></div>
+    <div class="ctrl-row fg-hide" id="fgi-n-row" hidden><div class="ctrl-label">Number</div><input type="number" class="panel-input" id="fgi-n" min="0" max="99" step="1" value="1" aria-label="Number"></div>
     <div class="ctrl-row"><div class="ctrl-label">They get</div><select class="panel-select" id="fgi-does" aria-label="They get">${DOES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
     <div class="row-btns"><button type="button" class="mini-btn" id="fgi-add-rule">Add rule</button></div>
     <p class="panel-hint">Rules apply in order: a later rule wins on the cells it matches.</p>`,
@@ -434,6 +466,67 @@ function openNewFigure() {
   requestAnimationFrame(step);
 }
 
+// ── Node search: '/', right-click or double-click on the board, a wire released on the board ──
+// From a wire it lists only what connects, and the picked node arrives connected (Figma Weave).
+function searchItems() {
+  const types = registry.list().filter(t => t.meta.id !== 'element' && t.meta.id !== 'component').map(t => ({ label: t.meta.label, hint: t.meta.category, spec: { type: t.meta.id } }));
+  const s = savedEntries();
+  return types.concat(s.element.map(e => ({ label: e.name, hint: 'Element', spec: addContent('element', e.name) })), s.component.map(e => ({ label: e.name, hint: 'Component', spec: addContent('component', e.name) })));
+}
+function connects(spec, from) {   // can a new node of this spec connect to `from` (a port being dragged)?
+  const t = registry.get(spec.type), fromNode = NC.findNode(ctl.model, from.node);
+  const fp = (from.dir === 'out' ? registry.outputsOf(fromNode) : registry.inputsOf(fromNode)).find(p => p.name === from.port);
+  if (!fp) return null;
+  const mine = from.dir === 'out' ? (typeof t.meta.inputs === 'function' ? [] : t.meta.inputs) : t.meta.outputs;
+  const want = from.dir === 'out' ? fp.type : (fp.accepts || [fp.type]);
+  return (mine || []).find(p => from.dir === 'out' ? (p.accepts || [p.type]).includes(want) : [].concat(want).includes(p.type)) || null;
+}
+let searchEl = null;
+function closeSearch() { if (searchEl) { searchEl.remove(); searchEl = null; } }
+function openSearch(at, from, client) {
+  closeSearch();
+  const fromNode = from && NC.findNode(ctl.model, from.node);
+  const fromPort = fromNode && (from.dir === 'out' ? registry.outputsOf(fromNode) : registry.inputsOf(fromNode)).find(p => p.name === from.port);
+  let items = searchItems(); if (from) items = items.filter(it => connects(it.spec, from));
+  const el = document.createElement('div'); el.className = 'fg-search'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Search nodes');
+  el.innerHTML = `${fromPort ? `<p class="fg-search__head">Nodes that connect to ${esc(fromPort.label || fromPort.name)}</p>` : ''}<input type="search" class="org-field fg-search__q" placeholder="Search nodes" aria-label="Search nodes" autocomplete="off"><div class="fg-search__list" role="listbox" aria-label="Nodes"></div>`;
+  const r = ctrl('fg-graph').getBoundingClientRect(), c = client || { x: r.left + r.width / 2, y: r.top + r.height / 3 };
+  el.style.left = Math.min(c.x, innerWidth - 260) + 'px'; el.style.top = Math.min(c.y, innerHeight - 320) + 'px';
+  document.body.appendChild(el); searchEl = el;
+  const q = el.querySelector('.fg-search__q'), list = el.querySelector('.fg-search__list');
+  let shown = [], cur = 0;
+  const draw = () => {
+    const t = q.value.trim().toLowerCase();
+    shown = items.filter(it => !t || it.label.toLowerCase().includes(t) || it.hint.toLowerCase().includes(t)).slice(0, 12);
+    cur = Math.min(cur, Math.max(0, shown.length - 1));
+    list.innerHTML = shown.length ? shown.map((it, i) => `<button type="button" class="fg-search__item${i === cur ? ' is-current' : ''}" role="option" aria-selected="${i === cur}" data-i="${i}"><span>${esc(it.label)}</span><span class="fg-search__hint">${esc(it.hint)}</span></button>`).join('')
+      : `<p class="fg-search__none">No node matches “${esc(q.value.trim())}”</p>`;
+  };
+  const pick = i => {
+    const it = shown[i]; if (!it) return; closeSearch();
+    const node = addNode(it.spec.type, from ? centred(at, it.spec.type) : freeSpot(centred(at, it.spec.type)), it.spec.params);
+    if (from && node) { const p = connects(it.spec, from); if (p) from.dir === 'out' ? ctl.connect({ node: from.node, port: from.port }, { node: node.id, port: p.name }) : ctl.connect({ node: node.id, port: p.name }, { node: from.node, port: from.port }); }
+  };
+  q.addEventListener('input', () => { cur = 0; draw(); });
+  q.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { cur = Math.min(shown.length - 1, cur + 1); draw(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { cur = Math.max(0, cur - 1); draw(); e.preventDefault(); }
+    else if (e.key === 'Enter') { pick(cur); e.preventDefault(); }
+    else if (e.key === 'Escape') { closeSearch(); ctrl('fg-graph').focus({ preventScroll: true }); e.stopPropagation(); }
+  });
+  list.addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) pick(+b.dataset.i); });
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (searchEl && !searchEl.contains(e.target)) { closeSearch(); } document.removeEventListener('pointerdown', off, true); }, true), 0);
+  draw(); q.focus();
+}
+// Double-click a port: an input gets the node it needs, beside it and connected; anything else opens the search
+function spawnFor(node, port, dir) {
+  const ip = dir === 'in' && registry.inputsOf(node).find(p => p.name === port);
+  const direct = ip && { canvas: 'canvas', grid: 'grid', palette: 'palette' }[ip.type];
+  if (direct) { const n = addNode(direct, freeSpot({ x: node.x - 220, y: node.y })); ctl.connect({ node: n.id, port: direct }, { node: node.id, port }); return; }
+  const card = ctl.cardOf(node.id), r = card ? card.getBoundingClientRect() : null;
+  openSearch({ x: dir === 'in' ? node.x - 260 : node.x + (card ? card.offsetWidth : 200) + 60, y: node.y }, { node: node.id, port, dir }, r ? { x: dir === 'in' ? r.left - 250 : r.right + 10, y: r.top } : null);
+}
+
 // ── persistence: the current graph autosaves; the view (zoom, pan) is per browser ──
 let saveTimer = 0;
 function save() {
@@ -471,7 +564,16 @@ function syncGraphMenu() {
   ctrl('fg-graph-delete').disabled = !graphName || !GRAPHS.read()[graphName];
   const fresh = ctl.model.nodes.length && !savedAs();
   const nw = ctrl('fg-graph-new');
-  if (fresh) nw.setAttribute('data-armed', 'New graph — click again to confirm'); else nw.removeAttribute('data-armed');
+  nw.removeAttribute('data-armed');   // an unsaved graph is kept as "Untitled n", so New graph never loses it
+  ctrl('btn-fg-graph').setAttribute('aria-label', fresh ? 'Graph — not saved' : 'Graph');
+  ctrl('btn-fg-graph').classList.toggle('is-unsaved', !!fresh);
+}
+function keepUnsaved() {   // never lose a graph: an unsaved one is saved as "Untitled n" before another replaces it
+  if (!ctl.model.nodes.length || savedAs()) return;
+  const all = GRAPHS.read(); let i = 1; while (all['Untitled ' + i]) i++;
+  const n = graphName && !all[graphName] ? graphName : 'Untitled ' + i;
+  all[n] = { model: JSON.parse(JSON.stringify(ctl.model)), savedAt: new Date().toISOString() }; GRAPHS.write(all);
+  Organica.notice(`The current graph was saved as “${n}”`);
 }
 function useModel(model, name) {
   graphName = name || '';
@@ -483,7 +585,7 @@ function initGraphMenu() {
   ctrl('btn-fg-graph').querySelector('.fg-graph-btn__chev').innerHTML = Organica.icons.get('chevron-down', { cls: 'chev' });
   Organica.popover(ctrl('btn-fg-graph'), ctrl('fg-graph-popover'));
   ctrl('btn-fg-graph').addEventListener('click', syncGraphMenu);
-  ctrl('fg-graph-saved').addEventListener('change', e => { const n = e.target.value, g = n && GRAPHS.read()[n]; if (g) useModel(g.model, n); });
+  ctrl('fg-graph-saved').addEventListener('change', e => { const n = e.target.value, g = n && GRAPHS.read()[n]; if (!g) return; keepUnsaved(); useModel(g.model, n); });
   ctrl('fg-graph-save').addEventListener('click', () => {
     const n = ctrl('fg-graph-name').value.trim(); if (!n) { Organica.notice('Name the graph first'); ctrl('fg-graph-name').focus(); return; }
     const all = GRAPHS.read(); all[n] = { model: JSON.parse(JSON.stringify(ctl.model)), savedAt: new Date().toISOString() };
@@ -494,7 +596,7 @@ function initGraphMenu() {
     const all = GRAPHS.read(); if (!graphName || !all[graphName]) return;
     delete all[graphName]; GRAPHS.write(all); graphName = ''; save(); syncGraphMenu(); Organica.notice('Graph deleted');
   });
-  ctrl('fg-graph-new').addEventListener('click', () => useModel(NC.createModel(), ''));
+  ctrl('fg-graph-new').addEventListener('click', () => { keepUnsaved(); useModel(NC.createModel(), ''); });
   ctrl('fg-graph-file').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify({ tool: GRAPH_FILE, version: 1, name: graphName, model: ctl.model }, null, 2)], { type: 'application/json' });
     Organica.download(blob, Organica.stamp(graphName ? graphName.replace(/[^\w-]+/g, '-').toLowerCase() : 'fvs-graph', 'json'));
@@ -505,7 +607,7 @@ function initGraphMenu() {
     const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
     try {
       const data = JSON.parse(await f.text());
-      if (data && data.tool === GRAPH_FILE && data.model) useModel(data.model, '');
+      if (data && data.tool === GRAPH_FILE && data.model) { keepUnsaved(); useModel(data.model, data.name || ''); }
       else if (data && data.tool === 'fvs-recipe') { openBuiltin(data); Organica.notice('Recipe opened as a graph'); }
       else throw new Error('Not a graph or a Figure recipe');
     } catch (err) { Organica.notice(err.message || 'That file could not be opened', { kind: 'error' }); }
@@ -524,7 +626,12 @@ export function renderFigureGraph() {
     fitInset: { left: 88, bottom: 72 },   // the node bar (left dock) and the floatbar
     wireClass: (e, m) => { const src = NC.findNode(m, e.from.node); return src && ['canvas', 'grid', 'palette'].includes(src.type) ? 'nc-wire--faint' : ''; },
     onSelect: ids => { renderInspector(ids); syncButtons(); },
-    onChange: () => { syncButtons(); save(); },
+    onChange: (m, reason) => { syncButtons(); save(); if (reason !== 'move' && reason !== 'params') renderInspector(ctl.selection()); },
+    onSearch: (at, from, client) => openSearch(at, from, client),
+    onWireDrop: (from, at, client) => openSearch(at, from, client),
+    onBoardDblClick: (at, client) => openSearch(at, null, client),
+    onPortDblClick: (node, port, dir) => spawnFor(node, port, dir),
+    nameCopy: (copy, model) => NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name,
     onNodeDblClick: node => { if (node.type === 'figure') Organica.notice('Compose is not available yet.'); },
   });
   try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); if (v) ctl.zoomPan.setView({ zoom: v.zoom, panX: v.x, panY: v.y }); else requestAnimationFrame(() => ctl.fitAll()); } catch (e) { requestAnimationFrame(() => ctl.fitAll()); }

@@ -152,7 +152,7 @@ export async function compileFigure(inputs, params) {
   const imported = contents.length === 1 && firstEl && firstEl.entry.recipe ? firstEl.entry.recipe : null;
   const lattice = isLattice(grid.gen);
   let element, first;
-  if (lattice && imported) {   // a built-in's own pieces: compile back to its exact recipe
+  if (lattice && imported && !(compRule && cellRules.length)) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
     element = { ...clone(imported), colors: colors || clone(imported.colors || ['#000000']), paper };
     if (pal) element.colorRule = colorRule; else delete element.colorRule;
     if (pal && (pal.rule || {}).mode === DEFAULT_COLOR_RULE.mode && !imported.colorRule) delete element.colorRule;

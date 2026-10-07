@@ -9,7 +9,7 @@
   --node-w: 14rem;            /* a card's default width — component-local */
   --port-d: 10px;             /* port dot diameter (its hit area is --hit-min) */
   --wire-w: 1.5px;            /* wire stroke at every zoom (non-scaling) */
-  position: relative; overflow: hidden; touch-action: none;
+  position: relative; overflow: clip; touch-action: none;
   background: var(--canvas-grid), var(--canvas-bg);
   outline: none;
 }
@@ -68,7 +68,7 @@
   border: 1px solid var(--port-c, var(--mid)); border-radius: 50%; background: var(--paper);
   cursor: crosshair; transition: opacity var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard);
 }
-.nc-port__dot::before { content: ''; position: absolute; inset: calc((var(--hit-min) - var(--port-d)) / -2); }   /* the hit area */
+.nc-port__dot::before { content: ''; position: absolute; inset: calc((max(var(--hit-min), var(--hit-min) / var(--nc-zoom, 1)) - var(--port-d)) / -2); }   /* the hit area: --hit-min on screen at any zoom */
 .nc-port__dot--multi { border-radius: var(--radius-sm); }   /* a list port: a square dot */
 .nc-port__dot:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .nc-port__dot.is-compatible { box-shadow: 0 0 0 2px var(--ink); }

@@ -551,3 +551,13 @@
   .fg-graph-pop { width: 18rem; }
   .fg-graph-btn__label { font-family: var(--font-display); font-size: var(--t-control-size); }
   .fg-graph-btn__chev { display: inline-flex; }
+  .fg-inspector .fg-hide[hidden] { display: none !important; }
+  .fg-card__crumb { margin: 0 0 var(--space-2); font-size: var(--t-caption-size); color: var(--mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fg-card__img { max-height: 24rem; object-fit: contain; }
+  #btn-fg-graph.is-unsaved .fg-graph-btn__label::after { content: '•'; margin-left: var(--space-1); color: var(--mid); }
+  .fg-search { position: fixed; z-index: 160; width: 15rem; padding: var(--space-2); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--stage-shadow); display: flex; flex-direction: column; gap: var(--space-2); }
+  .fg-search__head, .fg-search__none { margin: 0; font-size: var(--t-caption-size); color: var(--mid); }
+  .fg-search__list { display: flex; flex-direction: column; max-height: 16rem; overflow-y: auto; }
+  .fg-search__item { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-2); background: none; border: 0; border-radius: var(--radius-sm); color: var(--ink); font: inherit; font-size: var(--t-control-size); text-align: left; cursor: pointer; }
+  .fg-search__item.is-current, .fg-search__item:hover { background: var(--panel); }
+  .fg-search__hint { color: var(--mid); font-size: var(--t-caption-size); }
