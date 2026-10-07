@@ -44,8 +44,8 @@ a raw hex does — it just shows up in a user's head instead of in the CSS.
 12. **Typographic apostrophe** (Diego, Oct 7, 2026): every visible string uses ’ (U+2019),
     never the straight ' — "browser’s", "don’t", "‹name›’s". Applies to text, options,
     placeholders, hints, toasts, `aria-label` and `title`. Not copy: a `'` that delimits a JS
-    string or belongs to HTML / CSS syntax. Existing straight apostrophes are a sweep in the
-    ledger's maintenance queue (`docs/DESIGN-DECISIONS.md` §4).
+    string or belongs to HTML / CSS syntax. Swept Oct 7, 2026; `scripts/check.py` keeps it (`scripts/check-apostrophes.mjs` —
+    `--fix` rewrites, `apostrophe-ok` on a line keeps a deliberate one).
 
 ## 2. Glossary
 

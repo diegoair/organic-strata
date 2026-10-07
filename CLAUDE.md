@@ -300,7 +300,7 @@ Full detail: [`docs/RELEASE.md`](docs/RELEASE.md). In short: **local first, prev
 
 1. Build + test locally (no-store dev server, browser pane). Flexible Visual System regression runs headless: `scripts/regression.sh` (the hook runs it automatically when FVS/shared shapes are staged).
 2. **UI changed?** `python3 scripts/ds-audit.py --diff` (no new raw values) and the design-system agent's REVIEW — see the Critical Rule.
-3. **Local commit only** when a release is ready to test — never push at this stage. The tracked pre-commit hook runs `scripts/check.py` (`vercel.json` schema guard, JSON, JS syntax, local refs, icons registry, page templates, css-lint). Enable once per clone: `scripts/install-hooks.sh`.
+3. **Local commit only** when a release is ready to test — never push at this stage. The tracked pre-commit hook runs `scripts/check.py` (`vercel.json` schema guard, JSON, JS syntax, local refs, icons registry, page templates, css-lint, copy apostrophes). Enable once per clone: `scripts/install-hooks.sh`.
 4. Preview gate: push to `staging`, run `python3 scripts/smoke.py <preview-url>`.
 5. **Only on "commit in prod" / "porta in prod"**: push `main`.
 6. After every prod push: Vercel MCP `list_deployments` must show READY, then `python3 scripts/smoke.py` (CI's `deploy-verify.yml` also runs it). A successful git push does not prove the deploy worked. CI (`ci.yml`) re-runs check + regression on every push.

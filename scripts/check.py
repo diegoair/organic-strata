@@ -257,6 +257,15 @@ if r.returncode:
 else:
     ok("ELEMENTS and BUILTIN match shapes.js / palette.js / color.js")
 
+# 6b. copy: typographic apostrophe (docs/UI-COPY.md rule 12 — Diego, Oct 7, 2026). Visible text, copy attributes and
+#     JS string literals use ’, never '; comments / code / <code> samples are not copy. Fix: --fix, or apostrophe-ok.
+print("copy apostrophes")
+r = subprocess.run(["node", "scripts/check-apostrophes.mjs"], capture_output=True, text=True)
+if r.returncode:
+    fail("straight apostrophe in visible copy:\n" + "\n".join("      " + l for l in r.stdout.strip().split("\n")[:12]))
+else:
+    ok(r.stdout.strip().split("\n")[-1])
+
 # 7. session log: append-only. On Sep 29, 2026 a commit overwrote docs/SESSION-LOG.md with only
 #    its own new notes (640 lines -> 2) and twelve commits did the same before anyone noticed.
 #    A note may be edited; the log may never hold FEWER notes than the last commit's.
