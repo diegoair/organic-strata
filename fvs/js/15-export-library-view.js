@@ -246,9 +246,9 @@ ctrl('btn-export-svg').addEventListener('click', () => exportByTier('svg'));
 ctrl('btn-export-figma').addEventListener('click', () => {
   const btn = ctrl('btn-export-figma');
   const svg = tierSVG();
-  if (!svg) { btn.textContent = 'Nothing to send'; setTimeout(() => { btn.textContent = 'Figma'; }, 1600); return; }
+  if (!svg) { btn.textContent = 'Nothing to send'; setTimeout(() => { btn.textContent = 'Send to Figma'; }, 1600); return; }
   Organica.sendToFigma(svg, 'Flexible Visual System');
-  btn.textContent = 'Sent ↗'; setTimeout(() => { btn.textContent = 'Figma'; }, 1600);
+  btn.textContent = 'Sent ↗'; setTimeout(() => { btn.textContent = 'Send to Figma'; }, 1600);
 });
 
 state.componentBlend = 'normal';   // Component Blend: Normal | Multiply (saved as entry.blend only when Multiply)

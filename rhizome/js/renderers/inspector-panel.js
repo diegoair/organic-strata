@@ -114,7 +114,7 @@ export function renderInspector(panelEl, node, nodeType, { onChange, onCommit, e
     btnSVG.className = 'mini-btn'; btnSVG.textContent = 'SVG';
     btnSVG.addEventListener('click', () => exportActions.svg());
     const btnFigma = document.createElement('button');
-    btnFigma.className = 'mini-btn'; btnFigma.textContent = '→ Figma';
+    btnFigma.className = 'mini-btn'; btnFigma.textContent = 'Send to Figma';
     btnFigma.addEventListener('click', () => exportActions.figma());
     rowBtns.append(btnPNG, btnSVG, btnFigma);
     actions.appendChild(rowBtns);
