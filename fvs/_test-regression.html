@@ -65,7 +65,7 @@ async function battery() {
   // so a new step dropped the oldest and the history-length checks read 0. Start empty,
   // and with no current recipe (entering the Figure tab re-applies it — a leftover one
   // made the next identical step a no-op in the history).
-  figureHistory.stack.length = 0; figureHistory.idx = -1; syncFigureHistoryUI();
+  figureHistory.stack.length = 0; figureHistory.idx = -1;
   state.figureRecipe = null;
   chg('sel-rule-chk-rota', '0'); chg('sel-rule-chk-rot', '90');
   ctrl('chk-rule-chk-swap').checked = false; ctrl('chk-rule-chk-flip').checked = false;
@@ -538,27 +538,9 @@ async function battery() {
     Object.keys(other).forEach(k => put('fig:seed:' + k, runFigureRecipe(other[k], { keepTier: true })));
     let bad = ''; try { runFigureRecipe({ tool: 'fvs-recipe', version: 2, element: { type: 'nope' }, levels: [] }); } catch (e) { bad = e.message; }
     put('fig:invalid', bad);
-    // Phase 1 — pipeline strip + recipe history
-    const r0 = JSON.parse(JSON.stringify(triangleFigureRecipes()['sierpinski:repeated']));
-    setTier('figure');
-    const h0 = figureHistory.stack.length, u0 = undoStack.length;
-    applyFigureRecipe(r0);
-    const cardsOf = () => Array.from(document.querySelectorAll('#fg-pipeline .fg-card')).map(c => c.textContent.replace(/[×⇄]/g, '')).join('|');
-    put('figstrip:cards', cardsOf());
-    put('figstrip:steps', (figureStepSVGs(r0) || []).map(x => x.length > 200).join(','));
-    put('figstrip:undostack', undoStack.length === u0);
-    const r1 = JSON.parse(JSON.stringify(r0)); r1.levels.push({ kind: 'grid', lattice: { type: 'tier', stack: 1 }, cellSize: 110 });
-    applyFigureRecipe(r1);
-    put('figstrip:cards:grid', cardsOf());
-    put('figstrip:hist', [figureHistory.stack.length - h0, ctrl('fg-undo').disabled].join(','));
-    figureHistoryStep(-1); const back = state.figureRecipe.levels.length;
-    figureHistoryStep(1); const fwd = state.figureRecipe.levels.length;
-    put('figstrip:undoredo', [back, fwd, figureHistory.stack.length - h0].join(','));
-    applyFigureRecipe(r1, { noHistory: true }); put('figstrip:nohist', figureHistory.stack.length - h0);
-    put('figstrip:same', JSON.stringify(state.figureRecipe) === JSON.stringify(r1));
   } finally { setTier('component'); reset(); state.fvsGridConfig.type = 'square4x4'; state.fvsGridConfig.rot = 0; state.fvsGridConfig.mirror = 'none'; }
 
-  // 15 — Figure tier: form ↔ recipe round-trip, checks, catalog, tier wiring
+  // 15 — Figure recipes: catalog and checks (the old Figure tab's form and wiring retired with it — docs/FVS.md §12)
   try {
     const cat = figureCatalog();
     put('fig:catalog', Object.keys(cat).length);
@@ -566,16 +548,8 @@ async function battery() {
     Object.entries(triangleFigureRecipes()).forEach(([k, def]) => {
       const direct = norm(runFigureRecipe(def, { keepTier: true }));
       const rows = figureChecks(def, figureSVGOf(state.figureTier)); if (rows.some(r => !r.ok)) chkBad.push(k);
-      figureFormFromRecipe(def);
-      const back = norm(runFigureRecipe(figureRecipeFromForm(), { keepTier: true }));
-      if (back !== direct) rtBad.push(k);
     });
-    put('fig:form:roundtrip', rtBad.join(',') || 'ok');
     put('fig:checks:triangle', chkBad.join(',') || 'ok');
-    setTier('figure'); applyFigureRecipe(cat['Triangle · Sierpinski · repeated'], { resetStep: true });
-    put('fig:tier', [state.activeTier, state.figureTier, ctrl('figure-frame').innerHTML.length > 100, (tierSVG().match(/<path /g) || []).length === (ctrl('figure-frame').innerHTML.match(/<path /g) || []).length].join(','));
-    ctrl('fg-json').value = '{"tool":"nope"}'; ctrl('fg-json-apply').click();
-    put('fig:json:error', ctrl('fg-json-error').textContent);
     const bent = JSON.parse(JSON.stringify(cat['Triangle · Sierpinski · asset'])); bent.levels[0].lattice.rows = 3;
     const rep3 = figureChecks(bent, runFigureRecipe(bent, { keepTier: true }));
     put('fig:checks:rows3', rep3.filter(r => !r.ok).length);
@@ -606,7 +580,6 @@ async function battery() {
       const svg = runFigureRecipe(def, { keepTier: true });
       put('fig:hex:' + def.id, svg);
       put('fig:hex:checks:' + def.id, figureChecks(def, svg).filter(r => !r.ok).length);
-      figureFormFromRecipe(def); put('fig:hex:roundtrip:' + def.id, norm(runFigureRecipe(figureRecipeFromForm(), { keepTier: true })) === norm(svg));
     });
     put('hex:poses', [...new Set(state.symbolCells.map(c => c.rotation))].sort((a, b) => a - b).join(','));
   } finally { setTier('component'); reset(); state.fvsGridConfig.type = 'square4x4'; }
@@ -618,7 +591,6 @@ async function battery() {
       put('fig:rec:' + def.id, svg);
       put('fig:rec:checks:' + def.id, figureChecks(def, svg).filter(r => !r.ok).length + '/' + (svg.replace(/<defs>[\s\S]*?<\/defs>/g, '').match(/<path /g) || []).length);
       put('fig:rec:stats:' + def.id, state.figureLevelStats.map(s => s.tiles + 'x' + s.copies).join(','));
-      if (def.id !== 'rec-bowtie') { figureFormFromRecipe(def); put('fig:rec:roundtrip:' + def.id, norm(runFigureRecipe(figureRecipeFromForm(), { keepTier: true })) === norm(svg)); }
     });
     let err = ''; try { runFigureRecipe({ tool: 'fvs-recipe', version: 2, element: { type: 'triangle', colors: ['#000000'] },
       levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 8 }, fit: 'fill', rules: [] }, { kind: 'grid', lattice: { type: 'square', n: 6 } }, { kind: 'grid', lattice: { type: 'square', n: 6 } }, { kind: 'grid', lattice: { type: 'square', n: 6 } }] }, { keepTier: true }); } catch (e) { err = e.message.replace(/\d+/g, 'N'); }
@@ -626,7 +598,7 @@ async function battery() {
     put('fig:rec:cleared', (runFigureRecipe(triangleFigureRecipes()['sierpinski:repeated'], { keepTier: true }), state.fvsGridRaw === null));
   } finally { setTier('component'); reset(); state.fvsGridConfig.type = 'square4x4'; state.fvsGridConfig.rot = 0; state.fvsGridConfig.mirror = 'none'; }
 
-  // 19 — painting cells writes Rules; chips; the active step survives edits
+  // 19 — painting cells writes Rules; rule chips
   try {
     const blank = () => ({ tool: 'fvs-recipe', version: 2, element: { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' }, levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 2 }, fit: 'fill', rules: [] }], transform: {} });
     const cellOf = (def, i) => { runFigureRecipe(def, { keepTier: true }); return [slotClassContext(getSymbolGrid())[i], state.symbolCells[i]]; };
@@ -644,56 +616,17 @@ async function battery() {
     const on = blank(); on.levels[0].rules = [{ when: { class: 'down' }, do: { content: 'empty' } }];
     const off = JSON.parse(JSON.stringify(on)); off.levels[0].rules[0].off = true;
     put('paint:off', H(norm(draw(off))) === H(norm(draw(blank()))) && H(norm(draw(on))) !== H(norm(draw(off))));
-    put('paint:isformrule', [isFormRule({ when: { class: 'down' }, do: { content: 'empty' } }), isFormRule({ when: { index: 1 }, do: { content: 'empty' } }), isFormRule({ when: { class: 'down' }, do: { content: 'empty' }, off: true })].join(','));
-    const painted = blank(); painted.levels[0].rules = [{ when: { index: 1 }, do: { content: 'empty' } }];
-    applyFigureRecipe(painted, { resetStep: true }); setFigureStep('level0');
-    figureFormFromRecipe(painted); const back = figureRecipeFromForm();
-    put('paint:formkeeps', JSON.stringify(back.levels[0].rules));
-    applyFigureRecipe(figureRecipeFromForm(), { fromForm: true });
-    put('paint:step', state.figureStep + ',' + figurePaintable());
-    figureMutate(x => { x.levels[0].rules.push({ when: { index: 2 }, do: { content: 'empty' } }); });
-    put('paint:step:kept', state.figureStep);
-    // Phase 5 — main Seed parameters in the step panel
-    const rec = JSON.parse(JSON.stringify(triangleFigureRecipes()['sierpinski:asset']));
-    applyFigureRecipe(rec, { noHistory: true, resetStep: true }); setFigureStep('element');
-    put('fig:seedmain:ids', Object.values(FG_SEED_MAIN).flat().every(([id]) => !!document.getElementById(id)));
-    const counts = [];
-    ['triangle', 'arc', 'star', 'polygon', 'lens', 'blob'].forEach(t => { figureMutate(d => { d.element.type = t; delete d.element.params; }); setFigureStep('element'); counts.push(document.querySelectorAll('#fg-step-panel input[type=range]').length); });
-    put('fig:seedmain:sliders', counts.join(','));
-    figureMutate(d => { d.element.type = 'star'; delete d.element.params; }); setFigureStep('element');
-    const sl = document.querySelector('#fg-step-panel input[type=range]'); sl.value = 8; sl.dispatchEvent(new Event('change', { bubbles: true }));
-    put('fig:seedmain:write', JSON.stringify(state.figureRecipe.element.params) + ',' + ctrl('rg-star-points').value);
-    fireInput('rg-star-points', 5);
   } finally { setTier('component'); reset(); state.fvsGridConfig.type = 'square4x4'; state.fvsGridConfig.rot = 0; state.fvsGridConfig.mirror = 'none'; state.figureStep = null; }
 
-  // 20 — Mirror / Rotate handles
+  // 20 — Mirror / Rotate handles (the transform maths; the on-canvas handles retired with the old Figure view)
   try {
     const seq = [];
     let tr = {}; ['mirror-v', 'mirror-h', 'mirror-v', 'mirror-h'].forEach(k => { applyHandle(tr, k); seq.push(tr.mirror); });
     tr = {}; for (let i = 0; i < 5; i++) applyHandle(tr, 'rotate');
     put('handle:toggle', seq.join(',') + '|' + tr.rotate);
-    const def = JSON.parse(JSON.stringify(figureCatalog()['Triangle · Sierpinski · repeated']));
-    applyFigureRecipe(def, { resetStep: true });
-    const hs = [...document.querySelectorAll('#fg-handles [data-handle]')].map(e => e.dataset.handle).join(',');
-    const vb = ctrl('fg-handles').getAttribute('viewBox') === ctrl('figure-frame').querySelector('svg').getAttribute('viewBox');
-    put('handle:present', hs + '|' + vb);
-    const click = k => document.querySelector(`#fg-handles [data-handle="${k}"]`).dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    click('mirror-v'); const a1 = JSON.stringify(state.figureRecipe.transform);
-    click('rotate'); click('rotate'); const a2 = JSON.stringify(state.figureRecipe.transform);
-    click('mirror-v'); const a3 = JSON.stringify(state.figureRecipe.transform);
-    put('handle:click', [a1, a2, a3, state.figureStep].join(' / '));
-    put('handle:panel', ctrl('fg-step-panel').querySelectorAll('select').length + ':' + [...ctrl('fg-step-panel').querySelectorAll('select')].map(s => s.value).join(','));
-    // a middle Grid keeps its own transform, the last one uses the recipe's
-    const two = JSON.parse(JSON.stringify(figureCatalog()['Recursive · Sierpinski, three levels']));
-    applyFigureRecipe(two, { resetStep: true }); setFigureStep('level1');
-    document.querySelector('#fg-handles [data-handle="mirror-h"]').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    put('handle:level', JSON.stringify(state.figureRecipe.levels[1].transform) + '|' + JSON.stringify(state.figureRecipe.transform || {}) + '|' + state.figureStep);
-    setFigureStep('level0'); put('handle:none', ctrl('fg-handles').style.display + '|' + figureHandleTarget());
-    const noGrid = JSON.parse(JSON.stringify(figureCatalog()['Triangle · Sierpinski · asset'])); applyFigureRecipe(noGrid, { resetStep: true });
-    put('handle:nogrid', ctrl('fg-handles').style.display + '|' + figureHandleTarget());
   } finally { setTier('component'); reset(); state.fvsGridConfig.type = 'square4x4'; state.fvsGridConfig.rot = 0; state.fvsGridConfig.mirror = 'none'; state.figureStep = null; }
 
-  // 21 — play: variations, shuffle with locks, shortcuts
+  // 21 — play: variations, shuffle with locks
   try {
     setTier('figure');   // the shortcuts only listen while the Figure step is on screen
     const cat = figureCatalog(), base = JSON.parse(JSON.stringify(cat['Triangle · Sierpinski · repeated']));
@@ -722,12 +655,6 @@ async function battery() {
       const pale = JSON.parse(JSON.stringify(two)); pale.element.colors = ['#fff3a0', '#fff0a8'];
       const rowsP = figureChecks(pale, runFigureRecipe(JSON.parse(JSON.stringify(pale)), { keepTier: true })).filter(r => /Inks/.test(r.label));
       put('fig:checks:colour', [rowsB.length, rowsB.every(r => r.ok), rowsP.length, rowsP.map(r => r.ok).join('/')].join(','));
-      // the form keeps the recipe's other inks and its colour rule
-      const three = JSON.parse(JSON.stringify(base)); three.element.colors = ['#e8321e', '#1e5be8', '#0a9a3e']; three.element.colorRule = { mode: 'rows', offset: 1 };
-      applyFigureRecipe(three, { noHistory: true });
-      const back = figureRecipeFromForm();
-      put('fig:form:inks', [back.element.colors.join(' '), back.element.colorRule && back.element.colorRule.mode].join(','));
-      applyFigureRecipe(JSON.parse(JSON.stringify(base)), { noHistory: true });
     }
     const allLocked = { element: true, symbol: true, rules: true, grid: true, transform: true };
     put('play:shuffle:alllocked', figureShuffle(base, allLocked, 3) === null);
@@ -742,68 +669,7 @@ async function battery() {
     // triangles are only turned half a turn
     const turned = figureNeighbours(base, 3, 14).filter(c => c.label === 'Turn cells').map(c => JSON.stringify(c.recipe.levels[0].rules)).join('');
     put('play:turn:tri', !/"rotate":(90|270)/.test(turned));
-    // UI: shuffle is one history step and undo restores it
-    applyFigureRecipe(JSON.parse(JSON.stringify(base)), { resetStep: true }); const hist0 = figureHistory.stack.length, before = JSON.stringify(state.figureRecipe);
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-    const after = JSON.stringify(state.figureRecipe), hist1 = figureHistory.stack.length;
-    figureHistoryStep(-1); const undone = JSON.stringify(state.figureRecipe);
-    put('play:shuffle:ui', [after !== before, hist1 === hist0 + 1, undone === before].join(','));
-    // locks from the toolbar
-    const lockBtns = [...document.querySelectorAll('#fg-toolbar .fg-group button')].filter(b => ['Element', 'Symbol', 'Rules', 'Grid', 'Mirror / Rotate'].includes(b.textContent));
-    lockBtns.forEach(b => b.click());
-    put('play:locks:ui', Object.values(state.figureLocks).filter(Boolean).length + ',' + (figureShuffle(state.figureRecipe, state.figureLocks, 1) === null));
-    Object.keys(state.figureLocks).forEach(k => { state.figureLocks[k] = false; });
-    // shortcuts
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', bubbles: true })); const shown = !ctrl('fg-variations').hidden;
-    closeFigureVariations();
-    const sym = JSON.parse(JSON.stringify(cat['Triangle · Sierpinski · asset'])); applyFigureRecipe(sym, { resetStep: true }); const r0 = state.figureRecipe.levels[0].lattice.rows;
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: ']', bubbles: true })); const r1 = state.figureRecipe.levels[0].lattice.rows;
-    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '[', bubbles: true })); const r2 = state.figureRecipe.levels[0].lattice.rows;
-    put('play:shortcuts', [shown, r0, r1, r2].join(','));
-  } finally { closeFigureVariations(); setTier('component'); reset(); state.fvsGridConfig.type = 'square4x4'; state.fvsGridConfig.rot = 0; state.fvsGridConfig.mirror = 'none'; state.figureStep = null; state.figureLocks = {}; }
-
-  // 22 — from a blank figure, with real UI events, in at most six actions
-  try {
-    setTier('figure');
-    const blank = () => ({ tool: 'fvs-recipe', version: 2, element: { type: 'triangle', style: 'fill', colors: ['#f0301f'], paper: '#ffffff' }, levels: [{ kind: 'symbol', lattice: { type: 'triangle', rows: 2 }, fit: 'fill', rules: [] }], transform: {} });
-    const click = el => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    const handle = k => click(document.querySelector(`#fg-handles [data-handle="${k}"]`));
-    const build = steps => {
-      applyFigureRecipe(blank(), { resetStep: true }); let n = 0;
-      click(document.querySelector('#fg-pipeline .fg-card[data-step="level0"]')); n++;                                  // 1 open the Symbol step
-      const cell = document.querySelector('#figure-frame [data-cell-index="2"]');
-      cell.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, shiftKey: true })); window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); n++;   // 2 Shift+click a down cell
-      click([...document.querySelectorAll('#fg-pipeline .mini-btn')].find(b => b.textContent === '+ Grid')); n++;       // 3 add a Grid
-      steps.forEach(st => { st(); n++; });
-      return { n, svg: figureSVGOf(state.figureTier) };
-    };
-    const tier = label => () => click([...document.querySelectorAll('#fg-step-panel .fg-thumb')].find(b => b.title === label));
-    const rep = build([tier('Tier ×2')]), bow = build([tier('Tier'), () => handle('rotate'), () => handle('mirror-v')]), hexa = build([tier('Tier'), () => handle('mirror-h')]);
-    const ref = k => runFigureRecipe(triangleFigureRecipes()[k], { keepTier: true });
-    put('ux:repeated', [rep.n, H(norm(rep.svg)) === H(norm(ref('sierpinski:repeated')))].join(','));
-    put('ux:bowtie', [bow.n, H(norm(bow.svg)) === H(norm(ref('sierpinski:mirror-1')))].join(','));
-    put('ux:hexagon', [hexa.n, H(norm(hexa.svg)) === H(norm(ref('sierpinski:mirror-2')))].join(','));
-    // the Symbol ⇄ Component switch on the first card
-    applyFigureRecipe(blank(), { resetStep: true });
-    const swBtn = () => document.querySelector('#fg-pipeline .fg-card[data-step="level0"] .fg-card__sw');
-    const k0 = state.figureRecipe.levels[0].kind; click(swBtn()); const k1 = state.figureRecipe.levels[0].kind; const ok1 = !ctrl('fg-json-error').textContent || ctrl('fg-json-error').style.display === 'none';
-    click(swBtn()); const k2 = state.figureRecipe.levels[0].kind;
-    put('fig:switch', [k0, k1, k2, ok1, state.figureStep].join(','));
-    // all twelve "Triangle Symbol" figures from a blank one, with real UI events, each in at most six actions
-    const tool = label => click([...document.querySelectorAll('#fg-toolbar .fg-group button')].find(b => b.textContent === label));
-    const paint = (i, shift) => { const c = document.querySelector(`#figure-frame [data-cell-index="${i}"]`); c.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, shiftKey: !!shift })); window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); };
-    const rowsSlider = v => { const r = document.querySelector('#fg-step-panel input[type=range]'); r.value = v; r.dispatchEvent(new Event('change', { bubbles: true })); };
-    const addGrid = () => click([...document.querySelectorAll('#fg-pipeline .mini-btn')].find(b => b.textContent === '+ Grid'));
-    const assets = { sierpinski: [() => paint(2, true)], trapezoid: [() => paint(0, false), () => tool('Rotate'), () => paint(2, true)], lattice4: [() => rowsSlider(4), () => paint(2, true)] };
-    const comps = { asset: [], repeated: [addGrid, tier('Tier ×2')], 'mirror-1': [addGrid, () => handle('rotate'), () => handle('mirror-v')], 'mirror-2': [addGrid, () => handle('mirror-h')] };
-    const all = triangleFigureRecipes();
-    Object.entries(assets).forEach(([an, as]) => Object.entries(comps).forEach(([cn, cs]) => {
-      state.figureTool = 'toggle'; applyFigureRecipe(blank(), { resetStep: true }); let n = 0;   // a fresh session starts on Toggle
-      if (as[0] === assets.lattice4[0]) { click(document.querySelector('#fg-pipeline .fg-card[data-step="level0"]')); }   // the panel with the rows slider belongs to the Symbol step (already active for a blank figure)
-      [...as, ...cs].forEach(st => { st(); n++; });
-      put('ux12:' + an + ':' + cn, [n, n <= 6, H(norm(figureSVGOf(state.figureTier))) === H(norm(runFigureRecipe(all[an + ':' + cn], { keepTier: true })))].join(','));
-    }));
-  } finally { setTier('component'); reset(); state.fvsGridConfig.type = 'square4x4'; state.fvsGridConfig.rot = 0; state.fvsGridConfig.mirror = 'none'; state.figureStep = null; }
+  } finally { setTier('component'); reset(); state.fvsGridConfig.type = 'square4x4'; state.fvsGridConfig.rot = 0; state.fvsGridConfig.mirror = 'none'; state.figureStep = null; state.figureLocks = {}; }
 
   // 23 — Layer rows (Sep 28, 2026 redesign): the role icon on each row (Filled → Subtraction mask → Mask),
   // the eye, drag / ⌥-arrow reorder; the old Content section is gone
@@ -1135,9 +1001,6 @@ async function battery() {
       put('bridge:grid:mirror', runFigureRecipe(JSON.parse(JSON.stringify(def2)), { keepTier: true }));
       // sealed: no Rules, no painting, no mutations of its layout
       put('bridge:sealed', [fgSymbol(def) === null, JSON.stringify(paintCell(def, { index: 0, parity: 'even' }, state.symbolCells[0], 'toggle', false)) === JSON.stringify(def)].join(','));
-      // the Advanced form keeps the whole level
-      state.figureRecipe = def; figureFormFromRecipe(def);
-      put('bridge:form', [ctrl('fg-lattice').value, JSON.stringify(figureRecipeFromForm().levels[0]) === JSON.stringify(level)].join(','));
       let bad = ''; try { runFigureRecipe({ ...def, levels: [{ ...level, cells: level.cells.slice(1) }] }, { keepTier: true }); } catch (e) { bad = e.message; }
       put('bridge:invalid', bad);
     } finally {

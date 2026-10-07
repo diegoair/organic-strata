@@ -2,7 +2,7 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  COLOR_RULES, DEFAULT_COLOR_RULE, pc, pv, state
+  COLOR_RULES, DEFAULT_COLOR_RULE, offscreenCanvas, pc, pv, state
 } from './00-core.js';
 import {
   mulberry32
@@ -35,18 +35,6 @@ export const figureCatalog = () => {
 };
 export const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d+)/)[1] };
 export const FG_STR_OF = l => l.type === 'tier' ? 'tier' + l.stack : l.type === 'triangle' ? 'tri' + l.rows : `square${l.n}x${l.n}`;
-// The rules the Advanced form can express (and re-create itself); everything else is kept as it is.
-export function isFormRule(r) {
-  const w = r.when || {}, d = r.do || {}, keys = Object.keys(w);
-  if (r.off) return false;
-  if (w.parity === 'odd' && keys.length === 1 && d.rotate != null && Object.keys(d).length === 1) return true;
-  if (w.class === 'up' && keys.length === 1 && d.content === 'empty' && Object.keys(d).length === 1) return true;
-  if (w.class === 'down' && keys.length === 1 && (d.content === 'empty' || (d.content === 'filled' && (d.rotate === 180 || d.rotate == null))) && Object.keys(d).length <= 2) return true;
-  if (w.row != null && keys.length === 1 && d.content === 'empty' && Object.keys(d).length === 1) return true;
-  if (keys.length === 0 && d.rotate === 'sector') return true;
-  if (w.ring === 0 && keys.length === 1 && d.content === 'empty' && Object.keys(d).length === 1) return true;
-  return false;
-}
 // ── Pipeline strip, starting gallery, recipe history ──
 // The strip shows each step's own output (Element → Symbol/Component → Grid… → Mirror/Rotate)
 // as a thumbnail; a thumbnail is a truncated run of the same recipe, cached by its JSON.
@@ -216,47 +204,30 @@ export function normMask(M, m) {
   return out;
 }
 export const maskIoU = (a, b) => { let i = 0, u = 0; for (let k = 0; k < a.length; k++) { i += a[k] & b[k]; u += a[k] | b[k]; } return u ? i / u : 0; };
-export function figureRecipeFromForm() {
-  const v = id => pv(id), lat = v('fg-lattice');
-  // the form shows one ink: the recipe's other inks and its colour rule are kept
-  const curEl = (state.figureRecipe && state.figureRecipe.element) || {};
-  const el = { type: v('fg-seed'), style: v('fg-style'), colors: [v('fg-ink'), ...(curEl.colors || []).slice(1)], paper: v('fg-paper') };
-  if (curEl.colorRule) el.colorRule = { ...curEl.colorRule };
-  if (el.type === 'arc') el.params = { 'rg-thickness': 100 };
-  let first;
-  const cur0 = state.figureRecipe && state.figureRecipe.levels[0];
-  if (lat === 'adopted' && isSealedSymbol(cur0)) first = JSON.parse(JSON.stringify(cur0));   // the form can't express it: keep it whole
-  else if (lat === 'component') {
-    const rule = v('fg-comprule');
-    const params = { checkerboard: { a: 180, b: 0 }, radial: { base: 180, chirality: 1 }, pinwheel: { base: 0, chirality: 1 }, mirror: { seed: 0 } }[rule];
-    first = { kind: 'component', grid: 'square2x2', rule, params };
-  } else {
-    const rules = [];
-    const odd = v('fg-odd'); if (odd !== 'none') rules.push({ when: { parity: 'odd' }, do: { rotate: +odd } });
-    if (lat === 'hexagon') {
-      if (v('fg-hexturn') === 'sector') rules.push({ when: {}, do: { rotate: 'sector', scale: 0.62 } });   // a turned shape must stay inside its hexagon
-      if (pc('fg-hexcentre')) rules.push({ when: { ring: 0 }, do: { content: 'empty' } });
-    }
-    if (lat === 'triangle') {
-      if (v('fg-up') === 'empty') rules.push({ when: { class: 'up' }, do: { content: 'empty' } });
-      const d = v('fg-down');
-      rules.push({ when: { class: 'down' }, do: d === 'empty' ? { content: 'empty' } : d === 'turned' ? { content: 'filled', rotate: 180 } : { content: 'filled' } });
-    }
-    const rows = v('fg-emptyrows').split(',').map(x => parseInt(x, 10)).filter(x => !isNaN(x));
-    if (rows.length) rules.push({ when: { row: rows }, do: { content: 'empty' } });
-    // rules painted on the canvas (single cells, switched-off, flips…) have no field in this form: keep them
-    const cur = state.figureRecipe && state.figureRecipe.levels[0] && state.figureRecipe.levels[0].rules;
-    (cur || []).filter(r => !isFormRule(r)).forEach(r => rules.push(JSON.parse(JSON.stringify(r))));
-    first = { kind: 'symbol', lattice: lat === 'triangle' ? { type: 'triangle', rows: +v('fg-n') } : lat === 'hexagon' ? { type: 'hexagon', rings: +v('fg-n') } : { type: 'square', cols: +v('fg-cols'), rows: +v('fg-n') },
-      fit: lat === 'triangle' ? 'fill' : 'contain', rules };
-    if (pc('fg-liveseed')) first.seed = 'live';
+// A figure (SVG text) or an image → a 0/1 mask of what is not ground on an n × n grid, plus its box. For the Figure
+// checks (silhouette, symmetry) and a reference image. Engine-side: drawn on an offscreen canvas, never mounted.
+export async function rasterMask(src, n, ground) {
+  const c = offscreenCanvas(n, n), g = c.getContext('2d');
+  const im = (typeof HTMLImageElement !== 'undefined' && src instanceof HTMLImageElement) ? src : await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(src); });
+  const w = im.naturalWidth || n, h = im.naturalHeight || n, k = Math.min(n / w, n / h);
+  const ox = (n - w * k) / 2, oy = (n - h * k) / 2;
+  g.fillStyle = ground || '#ffffff'; g.fillRect(0, 0, n, n);
+  g.drawImage(im, ox, oy, w * k, h * k);
+  let d = g.getImageData(0, 0, n, n).data;
+  let gr = ground ? null : [0, 0, 0];
+  if (!ground) {
+    // an image's ground is read from its OWN corners (the letterbox is not part of it), then the box is repainted with it
+    const cx0 = Math.ceil(ox), cx1 = Math.floor(ox + w * k) - 1, cy0 = Math.ceil(oy), cy1 = Math.floor(oy + h * k) - 1;
+    [[cx0, cy0], [cx1, cy0], [cx0, cy1], [cx1, cy1]].forEach(([x, y]) => { const i = (y * n + x) * 4; gr[0] += d[i] / 4; gr[1] += d[i + 1] / 4; gr[2] += d[i + 2] / 4; });
+    g.fillStyle = `rgb(${gr.map(Math.round).join(',')})`; g.fillRect(0, 0, n, n); g.drawImage(im, ox, oy, w * k, h * k);
+    d = g.getImageData(0, 0, n, n).data;
+  } else { const t = offscreenCanvas(1, 1).getContext('2d'); t.fillStyle = ground; t.fillRect(0, 0, 1, 1); const p = t.getImageData(0, 0, 1, 1).data; gr = [p[0], p[1], p[2]]; }
+  const mask = new Uint8Array(n * n); let x0 = n, y0 = n, x1 = -1, y1 = -1;
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const i = (y * n + x) * 4, dist = Math.abs(d[i] - gr[0]) + Math.abs(d[i + 1] - gr[1]) + Math.abs(d[i + 2] - gr[2]);
+    if (dist > 110) { mask[y * n + x] = 1; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
   }
-  const levels = [first];
-  if (v('fg-comp') !== 'none') {
-    levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp')), cellSize: 110, altFlip: pc('fg-altflip') });
-    if (v('fg-comp2') !== 'none') levels.push({ kind: 'grid', lattice: FG_LATTICE_OF(v('fg-comp2')), cellSize: 110 });
-  }
-  return { tool: 'fvs-recipe', version: 2, element: el, levels, transform: { rotate: +v('fg-rot'), mirror: v('fg-mirror') } };
+  return { mask, n, box: x1 < 0 ? null : { x0, y0, x1: x1 + 1, y1: y1 + 1 } };
 }
 export function figureMutateOnce(def, mut, rng) {
   const d = JSON.parse(JSON.stringify(def));

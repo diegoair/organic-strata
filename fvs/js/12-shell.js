@@ -126,7 +126,6 @@ export function setTier(tier) {
   hooks.syncRailTier(tier);
   syncQuadrantHint();
   hooks.closeLibview();
-  ctrl('fg-rules-panel').style.display = tier === 'figure' ? '' : 'none';
   if (tier === 'symbol') {
     // A first visit starts the pool with every saved Component (up to the 8-slot cap),
     // most recently saved first — so a fresh Symbol is built from the full saved set, not a subset.

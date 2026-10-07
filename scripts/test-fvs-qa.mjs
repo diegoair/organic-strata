@@ -7,7 +7,7 @@
 // It works on both shapes of the page — the classic scripts (FVS names are globals) and the ES-module build
 // (names on window.__fvs, Figure loaded on demand): `F(name)` resolves either way.
 // Checks: (1) no uncaught exception, console error or same-origin HTTP error from load to ready; (2) each tier,
-// the Library rail, the Library view, the Suggest dock, the Figure gallery and the Export popover open with no new
+// the Library rail, the Library view, the Suggest dock, New Figure… (the Built-in Figures) and the Export popover open with no new
 // error and a non-empty view; (3) the SVG of every tier for fixed Figure recipes matches the baseline hash;
 // (4) every /fvs/ script is 200 + javascript, and (when the page is split) the Figure code is not fetched before
 // the Figure tab opens; (5) the same views in dark mode raise no error.
@@ -143,7 +143,7 @@ async function visitViews(tag) {
     ['rail', `F('setTier')('symbol'); F('setRailOpen')(true); await idle(300); const ok = !document.getElementById('fvs-rail-panel').hidden || F('railIsOpen')(); F('setRailOpen')(false); return ok;`],
     ['libview', `F('openLibview')(); await idle(400); const v = document.getElementById('fvs-libview'); const ok = !v.hidden && v.querySelectorAll('*').length > 0; F('closeLibview')(); return ok;`],
     ['suggest-dock', `F('setTier')('symbol'); F('setSugDockOpen')(true); await idle(300); const ok = F('sugDockIsOpen')(); F('setSugDockOpen')(false); return ok;`],
-    ['figure-gallery', `F('setTier')('figure'); await F('openFigureGallery')(); await idle(800); const ok = !document.getElementById('fg-gallery').hidden; F('closeFigureGallery')(); return ok;`],
+    ['figure-new', `F('setTier')('figure'); await idle(300); document.getElementById('btn-fg-new').click(); await idle(800); const m = document.querySelector('.fg-new'); const ok = !!m && m.querySelectorAll('.fg-new__thumb svg').length > 0; if (m) m.querySelector('[data-act="close"]').click(); return ok;`],
     ['export-popover', `F('setTier')('component'); document.getElementById('btn-export').click(); await idle(300); const p = document.getElementById('export-popover'); const ok = !!p && p.getBoundingClientRect().height > 0; document.body.click(); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); return ok;`],
   ];
   for (const [name, body] of steps) {
@@ -167,7 +167,7 @@ const hashes = await ev(`
   const out = {};
   F('setTier')('figure');
   for (const n of pick) {
-    F('applyFigureRecipe')(cat[n], { resetStep: true, noHistory: true }); await idle(50);
+    F('runFigureRecipe')(JSON.parse(JSON.stringify(cat[n])), { keepTier: true }); await idle(50);
     for (const lvl of ['element', 'component', 'symbol']) { const s = F('figureSVGOf')(lvl); out[n + ' / ' + lvl] = s ? H(norm(s)) : ''; }
   }
   for (const t of ['element', 'component', 'symbol']) { F('setTier')(t); await idle(50); const s = F('tierSVG')(); out['tier / ' + t] = s ? H(norm(s)) : ''; }

@@ -379,68 +379,6 @@
   #component-edit-frame [data-cell-index] { cursor: pointer; }
   #component-edit-frame [data-cell-index]:hover { fill: color-mix(in srgb, var(--tool) 8%, transparent); }
 
-  #canvas-wrap .tier-view[data-tier="figure"].active { flex-direction: column; gap: var(--space-5); }
-  #figure-stage { position: relative; display: block; line-height: 0; width: min(58vh, 100%); }
-  #fg-strip { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); max-width: 100%; }
-  .fg-strip__bar { display: flex; gap: var(--space-2); }
-  .fg-pipeline { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; justify-content: center; }
-  .fg-card { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; font: inherit; font-size: var(--fs-small); color: var(--ink); position: relative; }
-  @media (hover: hover) { .fg-card:hover { border-color: var(--ink); } }
-  .fg-card[aria-selected="true"] { border-color: var(--tool); outline: 2px solid var(--tool); }
-  .fg-card img { width: 64px; height: 64px; object-fit: contain; display: block; background: var(--paper); }
-  .fg-card.dragover { border-style: dashed; border-color: var(--tool); }
-  .fg-card__x { position: absolute; top: 0; right: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; display: inline-flex; align-items: center; }
-  .fg-card__x:hover { color: var(--danger); }
-  .fg-card__sw { position: absolute; top: 0; left: 0; padding: 0 var(--space-2); background: none; border: 0; color: var(--mid); cursor: pointer; display: inline-flex; align-items: center; }
-  .fg-card__sw:hover { color: var(--tool); }
-  .fg-arrow { color: var(--mid); }
-  .fg-gallery { width: min(100%, 720px); max-height: 60vh; overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
-  .fg-gallery[hidden] { display: none; }
-  #fg-strip, .fg-gallery { flex-shrink: 0; }
-  #fg-gallery:not([hidden]) ~ #figure-stage, #fg-variations:not([hidden]) ~ #figure-stage { display: none; }
-  #fg-toolbar { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; justify-content: center; }
-  #fg-toolbar .fg-group { display: inline-flex; gap: var(--space-1); align-items: center; }
-  #fg-toolbar .fg-label { font-size: var(--fs-micro); color: var(--mid); }
-  #fg-chips { display: flex; flex-direction: column; gap: var(--space-2); }
-  #fg-chips .fg-chip { justify-content: space-between; }
-  .fg-chip { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--panel); font-size: var(--fs-micro); }
-  .fg-chip[data-off="true"] > .fg-chip__text { opacity: 0.45; text-decoration: line-through; }
-  .fg-chip button { border: 0; background: none; cursor: pointer; color: var(--mid); display: inline-flex; align-items: center; padding: 0 var(--space-1); }
-  @media (hover: hover) { .fg-chip button:hover:not(:disabled) { color: var(--ink); } }
-  .fg-chip button:disabled { opacity: 0.3; cursor: default; }
-  .fg-advanced > summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: var(--fs-small); color: var(--mid); }
-  .fg-adopted { margin-bottom: var(--space-3); border: 1px solid var(--border); background: var(--paper); }
-  .fg-adopted img { display: block; width: 100%; height: auto; }
-  .fg-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: var(--space-2); margin-bottom: var(--space-3); }
-  .fg-thumb { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-1); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font: inherit; color: var(--ink); }
-  @media (hover: hover) { .fg-thumb:hover { border-color: var(--ink); } }
-  .fg-thumb[aria-pressed="true"] { border-color: var(--tool); }
-  .fg-thumb svg { width: 100%; aspect-ratio: 1; display: block; }
-  .fg-thumb span { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
-  input.fg-color { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
-  #fg-handles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
-  #fg-handles [data-handle] { pointer-events: all; cursor: pointer; fill: var(--tool); fill-opacity: 0.1; }
-  #fg-handles [data-handle]:hover { fill-opacity: 0.4; }
-  #fg-handles .fg-box { fill: none; stroke: var(--tool); stroke-opacity: 0.22; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; pointer-events: none; }
-  #figure-stage:hover #fg-handles .fg-box { stroke-opacity: 0.55; }
-  #fg-handles .fg-handle-icon { pointer-events: none; fill: var(--tool); opacity: 0.6; font-family: var(--font); text-anchor: middle; dominant-baseline: central; }
-  #figure-stage:hover #fg-handles .fg-handle-icon { opacity: 0.95; }
-  #figure-frame svg [data-cell-index] { cursor: pointer; }
-  #figure-frame svg [data-cell-index]:hover > polygon:first-child, #figure-frame svg [data-cell-index]:hover > rect:first-child { fill: var(--tool); fill-opacity: 0.18; }
-  .fg-gallery__head { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-small); }
-  .fg-gallery__actions { display: flex; gap: var(--space-2); }
-  .fg-gallery__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-3); }
-  .fg-gallery__grid .fg-card { text-align: center; }
-  .fg-gallery__grid .fg-card img { width: 80px; height: 80px; }
-  #figure-frame svg { display: block; width: 100%; height: auto; }
-  #fg-ink, #fg-paper { flex: 0 0 var(--row-h); width: var(--row-h); height: var(--row-h); padding: 0; border: 1px solid var(--border-strong); background: none; opacity: 1; position: static; }
-  #figure-ref-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
-  .fg-report { display: grid; gap: var(--space-1); font-size: var(--fs-micro); margin-bottom: var(--space-3); }
-  .fg-report .fg-row { display: flex; gap: var(--space-2); }
-  .fg-report .fg-dot { flex: 0 0 auto; width: 1.2em; }
-  .fg-report .fg-ok { color: var(--tool); }
-  .fg-report .fg-bad { color: var(--danger); }
-  .fg-json { width: 100%; min-height: 120px; }   /* look from THE FIELD (org-field--code, header.css) */
 
   /* ── Layers panel (Element): one .org-layer-card--flush per layer (panel.css) ──
      Local: the stack, the title button reset, the colour swatch, hover-reveal delete,
