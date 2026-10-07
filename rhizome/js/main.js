@@ -48,7 +48,8 @@ const engine = NC.createEngine({
 function reportStatus() {
   if (!ctl) return;
   const errs = ctl.model.nodes.filter(n => { const e = engine.get(n.id); return e && e.state === 'error'; }).length;
-  setStatus(errs ? 'error' : 'active', errs ? `${errs} node error${errs === 1 ? '' : 's'}` : `${ctl.model.nodes.length} nodes · ${ctl.model.edges.length} wires`);
+  const n = ctl.model.nodes.length, c = ctl.model.edges.length;
+  setStatus(errs ? 'error' : 'active', errs ? `${errs} node error${errs === 1 ? '' : 's'}` : `${n} node${n === 1 ? '' : 's'} · ${c} connection${c === 1 ? '' : 's'}`);
 }
 
 // ── the card body: a preview of the node's output, on a light work surface ──
@@ -73,7 +74,7 @@ function renderInspectorFor(ids) {
   const node = ids.length === 1 ? NC.findNode(ctl.model, ids[0]) : null;
   const type = node ? getNodeType(node.type) : null;
   const valueOf = () => { const e = node && engine.get(node.id); return e && e.state === 'ok' && e.value ? e.value._v : null; };
-  const needValue = fn => () => { const v = valueOf(); if (!v) { setStatus('error', 'Nothing to export yet — connect an SVG.'); return; } fn(v); };
+  const needValue = fn => () => { const v = valueOf(); if (!v) { setStatus('error', 'Nothing to export — connect an SVG input'); return; } fn(v); };
   renderInspector(panelEl, node, type, {
     onChange: () => {
       if (typeof type.getInputs === 'function') {   // Merge: the input count may have changed — drop wires to ports that are gone
@@ -205,11 +206,11 @@ $('rz-graph-saved').addEventListener('change', e => { const n = e.target.value, 
 $('rz-graph-save').addEventListener('click', () => {
   const n = $('rz-graph-name').value.trim(); if (!n) { Organica.notice('Name the graph first'); $('rz-graph-name').focus(); return; }
   const all = GRAPHS.read(); all[n] = JSON.parse(JSON.stringify(ctl.model)); GRAPHS.write(all);
-  graphName = n; syncGraphMenu(); Organica.notice(`Saved “${n}”`);
+  graphName = n; syncGraphMenu(); Organica.notice('Graph saved');
 });
 $('rz-graph-delete').addEventListener('click', () => {
   if (!graphName) return; const all = GRAPHS.read(); delete all[graphName]; GRAPHS.write(all);
-  Organica.notice(`Deleted “${graphName}”`); graphName = ''; syncGraphMenu();
+  Organica.notice('Graph deleted'); graphName = ''; syncGraphMenu();
 });
 $('rz-graph-new').addEventListener('click', () => { keepUnsaved(); useModel({ nodes: [], edges: [] }, ''); });
 $('rz-graph-open').addEventListener('click', () => $('rz-graph-input').click());
@@ -224,6 +225,7 @@ $('rz-graph-input').addEventListener('change', async e => {
 $('rz-graph-file').addEventListener('click', () => {
   const data = { tool: GRAPH_FILE, name: graphName || '', model: ctl.model };
   Organica.download(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), Organica.stamp(GRAPH_FILE, 'json'));
+  Organica.notice('Graph file saved');
 });
 GRAPHS.pull().then(syncGraphMenu);   // cloud sync (shared/store.js)
 GRAPHS.onSync(syncGraphMenu);

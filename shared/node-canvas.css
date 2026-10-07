@@ -138,7 +138,8 @@ body.nc-is-dragging { cursor: grabbing; user-select: none; }
 .nc-search__head, .nc-search__none { margin: 0; font-size: var(--t-caption-size); color: var(--mid); }
 .nc-search__list { display: flex; flex-direction: column; max-height: 16rem; overflow-y: auto; }
 .nc-search__item { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-2); background: none; border: 0; border-radius: var(--radius-sm); color: var(--ink); font: inherit; font-size: var(--t-control-size); text-align: left; cursor: pointer; }
-.nc-search__item.is-current, .nc-search__item:hover { background: var(--panel); }
+.nc-search__item.is-current { background: var(--panel); }
+@media (hover: hover) { .nc-search__item:hover { background: var(--panel); } }
 .nc-search__hint { color: var(--mid); font-size: var(--t-caption-size); }
 
 @media (prefers-reduced-motion: reduce) { .nc-node, .nc-port__dot, .nc-wire { transition: none; } }

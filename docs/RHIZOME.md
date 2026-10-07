@@ -1,6 +1,6 @@
 # Rhizome — node-based workflow canvas
 
-`/rhizome/` — a node graph editor that chains Organica's own tools together as pipeline stages: infinite pan/zoom canvas, typed input/output ports, drag-to-connect wires, DAG execution. Not a new visual engine — every node either wraps a real shared function (`Organica.loadLoomGrid`, `Organica.traceContours`, a Loom generator) or drives an actual Organica tool page inside a hidden iframe and reads its real output back. Nothing in Rhizome re-implements a tool's own algorithm.
+`/rhizome/` — a node graph editor that chains Organica's own tools together as pipeline stages: infinite pan/zoom canvas, typed input/output ports, drag-to-connect wires, DAG execution — since Oct 2026 all of it is the shared node canvas (`Organica.nodeCanvas`, §5), the same board as FVS's Figure graph. Not a new visual engine — every node either wraps a real shared function (`Organica.loadLoomGrid`, `Organica.traceContours`, a Loom generator) or drives an actual Organica tool page inside a hidden iframe and reads its real output back. Nothing in Rhizome re-implements a tool's own algorithm.
 
 Named after the botanical rhizome — an underground stem that sends up independent shoots from one connected network — matching what the tool actually does: one graph, many tool "shoots" wired together.
 
@@ -13,37 +13,40 @@ Two-tier node model, decided to avoid two failure modes: re-implementing a tool'
 - **Tier 1 — native.** Zero porting: a thin wrapper around a function the tool already exports as a pure, DOM-free call. `compute(inputs, params)` returns a value synchronously.
 - **Tier 2 — bridge.** A hidden sandboxed `<iframe src="/<tool>/">` loads the real tool page. On run, Rhizome posts `{type:'rhizome-set-input', nodeId, payload}`; a small listener block (~20–30 lines, added directly to the tool's own `index.html`/`main.js`) writes the payload into the tool's real internal state, triggers its own render, waits for it to actually finish, then calls the tool's own export function and posts back `{type:'rhizome-output-ready', nodeId, payload}`. `compute()` for a Tier 2 node returns a Promise.
 
-The canonical model is plain JSON, no derived/cached fields persisted:
+The canonical model is the shared node canvas's plain JSON, no derived/cached fields persisted:
 ```js
-{ version, nodes: [{ id, type, x, y, params }], edges: [{ id, from:{nodeId,port}, to:{nodeId,port} }] }
+{ version: 2, nodes: [{ id, type, x, y, params, name }], edges: [{ id, from:{node,port}, to:{node,port} }], frames: [] }
 ```
+A graph saved before Oct 2026 (`version: '1.0'`, edges by `nodeId`, nodes without names) opens unchanged: `migrateModel()` (`js/main.js`) rewires `nodeId` → `node` and names each node (*Loom grid 1*). Saved graphs stay in `Organica.presetStore('rhizome')`.
 Everything else (resolved values, dirty flags, topological order) is recomputed on demand — the same "don't store what you can derive" discipline Loom's own `json-model.js` documents.
 
-## 2. Node registry (17 types)
+## 2. Node registry (16 types)
 
-**Tier 1 (native, 5):**
-| Node | Wraps |
-|---|---|
-| Loom Grid Generator | `loom/js/generators/*.js` — bento/sinusoidal generators, ES-module import |
-| Loom Grid → Geometry | `Organica.loadLoomGrid` |
-| Contour Trace | `Organica.traceContours`/`contoursToPathD` |
-| SVG → Points | `Organica.motion.parsePrimitives` |
-| Merge | composites N SVG inputs with a per-input offset (variadic — see §4) |
-| Image Upload | file→dataURL source node (not a bridge; no tool page needed) |
-| Export | PNG / SVG / → Figma, terminal node |
+Names are words (`docs/UI-COPY.md` §2): `node-registry.js` gives every type, parameter and port a `label` on load — ids, param names and port names stay as they were, since saved graphs use them. Options read in sentence case (`optionLabel`, the value stays the id). The node bar groups the types as **Source · Process · Output**.
+
+**Tier 1 (native, 7):**
+| Node | Wraps | Group |
+|---|---|---|
+| Loom grid | `loom/js/generators/*.js` — bento / hexagonal / triangular / diamond / circular | Source |
+| Loom grid file | `Organica.loadLoomGrid` on an uploaded grid JSON | Source |
+| Image | file → dataURL source node (not a bridge) | Source |
+| Contour trace | `Organica.traceContours` / `contoursToPathD` | Process |
+| SVG to points | `Organica.motion.parsePrimitives` | Process |
+| Merge | composites N SVG inputs with a per-input offset (variable inputs — see §4) | Process |
+| Export | PNG / SVG / Send to Figma | Output |
 
 **Tier 2 (bridge, 9):**
-| Node | Tool | Params |
-|---|---|---|
-| Genesis Seed | `/genesis/` | seed picker |
-| Komorebi Pattern | `/komorebi/` | preset |
-| Warping Pattern | `/warping/` | preset |
-| Camo Turing Pattern | `/camo-turing/` | preset |
-| Membrane Trail | `/membrane/` | pattern (mouse/linear/orbit/zigzag/figure8/sine), seconds |
-| Sinew Preset | `/sinew/` | 29 presets (`tech:name`, 5 vector + 24 raster) — repointed 2026-09-05 from Living Path, which split into a font-only tool; the shared engine (shared/pathfx.js) is unchanged |
-| Spore Stipple | `/spore/` | — (Spore has no preset dropdown) |
-| Pollen Stipple | `/pollen/` | 6 presets (Fine Dots/Felt-tip/Lines Flow/Duotone/Hatch Flow/Hatch Swirl) |
-| Halide Dither | `/halide/` | 8 presets (Ditherface, Atkinson, Bayer, etc.) |
+| Node | Tool | Params | Group |
+|---|---|---|---|
+| Genesis seed | `/genesis/` | Shape | Source |
+| Komorebi pattern | `/komorebi/` | Pattern | Source |
+| Warping pattern | `/warping/` | Pattern | Source |
+| Camo Turing pattern | `/camo-turing/` | Preset, Steps | Source |
+| Membrane trail | `/membrane/` | Pattern (Mouse / Linear / Orbit / Zigzag / Figure 8 / Sine), Duration (s) | Source |
+| Sinew effect | `/sinew/` | Preset — 29 (`vector:` / `raster:` name, shown *Vector · Coral*) | Source |
+| Spore stipple | `/spore/` | — | Process |
+| Pollen stipple | `/pollen/` | Preset (6) | Process |
+| Halide dither | `/halide/` | Preset (8) | Process |
 
 `makeBridgeNode({id, label, src, inputs, outputs, params, buildPayload})` (`nodes/bridge-iframe.js`) is the one factory every Tier 2 node goes through — a node file is just its own `buildPayload(inputs, params)`.
 
@@ -57,38 +60,33 @@ Fixed identically in all three listener blocks with a **two-phase wait**:
 
 Lesson for any future bridge on an image-gated tool: check for this same two-phase shape before assuming a single poll is sufficient.
 
-## 4. Variadic ports — Merge
+## 4. Variable inputs — Merge
 
-`meta.inputs` is a static array for every other node type. Merge needs a runtime-variable port count (`inputCount`, 1–6), so it instead exports `getInputs(node)`, and every consumer goes through `getNodeInputs(node)` (`node-registry.js`) rather than reading `meta.inputs` directly — the execution engine, `node-card.js`'s port rows, and main.js's connect-time type checks all dispatch through this one function. `node-card.js`'s `buildPortRows` is a standalone rebuildable function (not baked into construction) so changing `inputCount` can rebuild just the port rows without rebuilding the whole card; edges pointing at a now-dropped port are pruned in `main.js`.
+Merge's input count (`inputCount`, 1–6) is per node, so it exports `getInputs(node)` (ports *SVG 1 … SVG 6*), which the shared registry reads as `meta.inputs(node)`. When the count changes, `main.js` drops the wires to ports that are gone and refreshes the board; the shared board rebuilds a card whose port list changed (`portSig`, `shared/node-canvas.js`). Undo brings the count and the wires back.
 
-## 5. Canvas interaction
+## 5. The board — `Organica.nodeCanvas` (Oct 2026)
 
-- **Pan/zoom** — `Organica.createZoomPan` with a new opt-in `panAlways` option (added to `core.js`, no effect on any existing caller that doesn't pass it) so the empty canvas pans without needing to zoom past 100% first.
-- **Node drag** — `bindNodeDrag(handleEl, node, zoomPan, onMove, onDragEnd, getDragGroup)`. `getDragGroup(node)` returns either `[node]` or the full current multi-selection, so dragging one selected node moves the whole group together.
-- **Multi-select / marquee** — `canvas/selection.js`, gated on **Shift+drag** specifically (plain drag is the canvas pan gesture). A capture-phase `mousedown` listener with `stopImmediatePropagation()` intercepts Shift+drag before the pan handler sees it. Plain click on empty canvas clears the selection.
-- **Wires** — `WireLayer` draws Catmull-Rom-style curves (same curve technique as Mycel's own `catmullSegD`), recalculated on every `mousemove` during a drag (not a separate rAF loop — sufficient at this node count). Clicking a wire selects it (`setSelectedEdge`) for Delete.
+Rhizome's own canvas (`canvas/` pan-zoom, node drag, wires, ports, selection), `graph-model.js`, `execution-engine.js` and `history.js` were replaced by the shared node canvas (`shared/node-canvas.js` / `.css`, API in `docs/SHARED-COMPONENTS.md` §2d), built for FVS's Figure graph from what Rhizome taught and fixed on the way. Rhizome adapts its types with `sharedTypes()` (`node-registry.js`): `compute()` returns `{ <output>: value, _v: value }` (`_v` = the preview and Export's value), the three adapters are passed to `createRegistry`.
+
+- **Engine** — every node computes, on screen or not (`isActive: () => true`: a bridge's output feeds what follows, Export reads it); recompute is downstream-only, keyed by versions, serialized; each node has a state — ok · error · waiting · upstream · stale — shown on its card.
+- **Board** — wheel zooms, Space-drag / middle-drag pans, a plain drag draws the marquee (Shift adds), ⌘A / ⌘D / ⌘C ⌘V / ⌘G (section), arrows nudge, Delete, Shift+1 / Shift+2 fit; wires drawn from the model in their port colour; Weave wiring (drop a wire on a card → its first input that fits; release it on the board → the node search, the picked node arrives wired).
+- **Adding nodes** — the **node bar** (left dock, `Organica.nodeCanvas.nodeBar`: Source · Process · Output, drag onto the board or click) and the **node search** (`/`, right-click, double-click on the board, a released wire — `Organica.nodeCanvas.search`; from a wire it lists only what connects, adapters included).
+- **Cards** — the type above the node's own name (*Merge 2*); the body is a preview on a light work surface (`.rz-preview`, `data-theme="light"`): an SVG as an `<img>` from a blob URL (never parsed into the page), *N cells*, *N points*, an image.
+- **Port colours** — Rhizome's types on the seven `--port-*` tokens (ledger O-34): SVG → content, Image → figure, Grid → grid, Color → palette, Number → rule, Points → composition.
+- **Floatbar** — the Figure graph's: **Graph** menu (Saved graphs · Graph name · Save · Delete · New graph · Open file… · Save as file; a graph never saved is kept as *Untitled n* before another replaces it; a dot on *Graph* while unsaved) · Undo · Redo · Delete · Fit all · Fit selection.
 
 ## 6. Undo / redo
 
-`history.js` — a plain JSON-snapshot stack (`push`/`undo`/`redo`/`canUndo`/`canRedo`, `MAX_HISTORY=100`, dedupes no-op pushes, truncates the redo branch on a new push). Pushed only at meaningful checkpoints, never on continuous ticks:
-- add/remove node, connect/disconnect
-- drag **end** (not every intermediate tick)
-- param **commit** — a slider fires `onChange` (live recompute) on every `input` tick but `onCommit` (history push) only once, on `change`/release
-
-Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z are bound at the document level but skip when `document.activeElement` is an INPUT/SELECT/TEXTAREA, so undo doesn't fight text editing. Undo/Redo/Delete-selected buttons live in the floatbar; their disabled state is refreshed after every push **and** after every undo/redo click (a real bug: it was originally only refreshed on push, so the button stayed enabled at the empty baseline).
+The shared history: a snapshot stack pushed at checkpoints — add / remove, connect / disconnect, drag end, a parameter commit (a slider recomputes on every tick, commits once on release) — with the selection restored. ⌘Z / ⌘⇧Z while focus is not in a field.
 
 ## 7. Known limits / deferred
 
 - Bridge timeout is 20s (`bridge-iframe.js`), covering Camo Turing's step-count cost and Membrane's own real wall-clock wait (up to 10s).
 - Not covered by a bridge yet: Vortex, TuneSutra, Mycel (explicitly excluded from this phase — Diego's own "fai solo Living Path, Spore, Pollen, Halide" scoping).
-- A real preset-picker UI (thumbnails, not a plain dropdown) — deferred; Graph save/load uses `Organica.presetStore('rhizome')` with a plain named-preset dropdown today.
-- Figma export inherits the product-wide `Organica.sendToFigma` gap (the plugin's `onmessage` never listens for `'organica-svg'`) — not fixed as part of this tool, same as every other tool's own "→ Figma" button.
+- A thumbnail picker for saved graphs — deferred; the Graph menu lists them by name.
 
 ## 8. Verification standard
 
-Every bridge in this doc was verified by actually connecting real nodes (Image Upload → bridge, or Genesis Seed → downstream), waiting for real completion, and checking BOTH a screenshot of genuine tool-specific output (not a placeholder) and a fresh-tab console for zero errors — never "no error" alone, since a clean console only proves something if the exact interaction that would trigger a bug was actually exercised (the lesson repeated several times elsewhere in this project's own history).
+`scripts/test-rhizome.sh` (headless Chrome, run by the pre-commit hook when Rhizome or the shared node canvas is staged, and by CI): every type named in words; a native graph through the three adapters; a Warping bridge answering through its iframe; Merge's input count rebuilding its card and dropping the orphaned wire, undo bringing both back; a wire no adapter carries refused; a graph saved before Oct 2026 opening and computing; the node search from a wire; the node bar.
 
-## The shared node canvas (Oct 2026)
-
-`shared/node-canvas.js` / `.css` (`Organica.nodeCanvas`) was built for the FVS Figure graph from what Rhizome taught — the pure model, typed ports, cycle guard and serialized recompute — with the problems found in Rhizome fixed on the way: downstream-only recompute keyed by version (not `JSON.stringify` of inputs), wires drawn from the model, no listener leak, no double-click view reset, node search (`/`), compatible-port highlighting, Figma-style marquee, sections, keyboard-focusable cards, tokenised card edge and `--port-*` colours (Rhizome's types map onto them: SVG → content, Image → figure, Grid → grid, Color → palette, Number → rule, Points → composition). **Rhizome does not use it yet** — it still runs the canvas described above. Moving Rhizome onto it is an open task (`docs/SHARED-COMPONENTS.md` §2d documents the API).
-
+Every bridge in this doc was also verified by actually connecting real nodes (Image → bridge, or Genesis seed → downstream), waiting for real completion, and checking BOTH a screenshot of genuine tool-specific output (not a placeholder) and a fresh-tab console for zero errors — never "no error" alone, since a clean console only proves something if the exact interaction that would trigger a bug was actually exercised.
