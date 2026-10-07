@@ -134,7 +134,7 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
   if (first.cells.length !== getSymbolGrid().cells.length) throw new Error(`The adopted Symbol has ${first.cells.length} cells but its grid has ${getSymbolGrid().cells.length}`);
   state.symbolCells = first.cells.map(c => withPlacementDefaults(clone(c)));
   state.symbolClipEnabled = first.clip !== false;
-  if (first.rules && first.rules.length) applyRulesToContent(first.rules);
+  if (first.rules && first.rules.length) applyRulesToContent(first.rules, first.paletteColourway);
 }
 // Cell rules on a sealed level (the Figure graph's cells hold content patches): applyClassRules()'s order and
 // matching, but "filled" puts back the cell's own content (or a Seed of `do.seed`), never a bare Seed. Composition
@@ -142,7 +142,7 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
 // Region rules (Phase 5b) add: symbolRule {name, params, seed, vary} — a Symbol-step rule over the region's cells only;
 // arrange {rule, pool: [content…], seed} — the region gets content by an Arrange class; pattern {patType, patSpacing,
 // patWeight, patAngle} — a pattern fill (the cell's appearance patch). Seeded rules draw in cell order.
-function applyRulesToContent(rules) {
+function applyRulesToContent(rules, cw) {   // cw: the Palette's colourway, given to every Component a rule puts in a cell
   const own = state.symbolCells.map(c => clone(c)), G = getSymbolGrid(), ctxs = slotClassContext(G), sctx = symbolCellContext(G);
   const rngs = rules.map(r => { const d = r.do || {}, sd = (d.symbolRule && d.symbolRule.seed) || (d.arrange && d.arrange.seed) || 0; return mulberry32(sd >>> 0); });
   state.symbolCells.forEach((cell, i) => {
@@ -161,11 +161,11 @@ function applyRulesToContent(rules) {
       if (d.arrange && (d.arrange.pool || []).length) {
         const A = SYMBOL_ARRANGE[d.arrange.rule] || SYMBOL_ARRANGE.random, pool = d.arrange.pool, k = d.arrange.rule === 'checker' ? Math.min(2, pool.length) : pool.length;
         const pick = A.cls ? pool[((A.cls(sctx[i], k) % k) + k) % k] : pool[Math.floor(rngs[ri]() * pool.length)];
-        Object.assign(cell, withPlacementDefaults(contentPatch(pick, cell.fitMode)), { rotation: sctx[i].orient === 'down' ? 180 : 0 }); own[i] = clone(cell);
+        Object.assign(cell, withPlacementDefaults(contentPatch(pick, cell.fitMode)), { rotation: sctx[i].orient === 'down' ? 180 : 0 }); if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell);
         return;
       }
       if (d.pattern) cell.appearancePatch = { fillMode: 'pattern', patType: d.pattern.patType || 'lines', patSpacing: +d.pattern.patSpacing || 8, patWeight: +d.pattern.patWeight || 2, patAngle: d.pattern.patAngle != null ? +d.pattern.patAngle : 45 };
-      if (d.content && typeof d.content === 'object') { const pose = { rotation: cell.rotation, flipH: cell.flipH, flipV: cell.flipV }; Object.assign(cell, withPlacementDefaults(contentPatch(d.content, cell.fitMode)), d.keepPose ? pose : {}); own[i] = clone(cell); }
+      if (d.content && typeof d.content === 'object') { const pose = { rotation: cell.rotation, flipH: cell.flipH, flipV: cell.flipV }; Object.assign(cell, withPlacementDefaults(contentPatch(d.content, cell.fitMode)), d.keepPose ? pose : {}); if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell); }
       else if (d.toggle) { if (cell.source === 'empty') Object.assign(cell, { source: own[i].source === 'empty' ? 'seed' : own[i].source }); else cell.source = 'empty'; }
       else if (d.content === 'empty') cell.source = 'empty';
       else if (d.content === 'filled') { Object.assign(cell, d.seed ? { source: 'seed', seedType: d.seed } : { source: own[i].source === 'empty' ? 'seed' : own[i].source }); }

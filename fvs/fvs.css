@@ -478,6 +478,9 @@
   .fg-chip { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); }
   .fg-chip.is-off .fg-chip__text { color: var(--mid); text-decoration: line-through; }
   .fg-chip__text { flex: 1; min-width: 0; font-size: var(--t-caption-size); }
+  .fg-chip__pick { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: var(--t-caption-size); text-align: left; cursor: pointer; border-radius: var(--radius-sm); }
+  @media (hover: hover) { .fg-chip__pick:hover { text-decoration: underline; } }
+  .fg-chip__pick:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .fg-new__panel { --org-modal-w: min(56rem, 92vw); }
   .fg-new__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
   .fg-new__item { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
@@ -536,6 +539,8 @@
   .fg-cell { fill: transparent; stroke: transparent; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill var(--dur-fast) var(--ease-standard), stroke var(--dur-fast) var(--ease-standard); }
   @media (hover: hover) { .fg-cell:hover { stroke: var(--border-strong); stroke-dasharray: 4 3; } }
   .fg-cell.is-sel { fill: color-mix(in srgb, var(--track-accent, var(--ink)) 18%, transparent); stroke: var(--track-accent, var(--ink)); stroke-dasharray: none; filter: drop-shadow(0 0 1px var(--paper)) drop-shadow(0 0 1px var(--paper)); }   /* a paper halo: the outline reads on any ink */
+  .fg-cell.is-hint:not(.is-sel) { stroke: var(--ink); stroke-dasharray: 4 3; filter: drop-shadow(0 0 1px var(--paper)); }   /* a hovered region rule's cells */
+  .fg-lost { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); margin-bottom: var(--space-2); }
   .fg-cell:focus-visible { outline: none; stroke: var(--ink); stroke-width: 3px; }
   .fg-dock-group { display: contents; }
   .fg-quick { flex-wrap: wrap; }

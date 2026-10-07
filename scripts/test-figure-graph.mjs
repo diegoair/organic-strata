@@ -124,7 +124,7 @@ const out = await P.ev(`
   res.composeToggle = (K(eng.get(fc.id).value.figure.svg).match(/data-cell-index/g) || []).length === FC0.cells - 2;
   res.composeAllVariations = eng.get(fc.id).value.figure.variations.slice(1).every(v => (K(v.svg).match(/data-cell-index/g) || []).length <= FC0.cells - 2 + 12);
   co.params.rules.push({ when: { index: [999] }, do: { content: 'empty' } }); eng.touch(co.id); await eng.run(m);
-  res.composeLost = JSON.stringify(eng.get(fc.id).value.figure.lost) === '[999]';
+  res.composeLost = JSON.stringify(eng.get(fc.id).value.figure.lost) === JSON.stringify([{ rule: 3, cells: [999], none: true }]);
   // ── region rules (Phase 5b): Symbol rule, Arrange, Pattern — only in their region ──
   const cellG = (svg, i) => { const d = new DOMParser().parseFromString(svg, 'image/svg+xml'); const g = d.querySelector('[data-cell-index="' + i + '"]'); return g ? g.innerHTML : null; };
   co.params.rules = []; eng.touch(co.id); await eng.run(m); const base5 = K(eng.get(fc.id).value.figure.svg);
@@ -136,6 +136,25 @@ const out = await P.ev(`
   const ar = K(eng.get(fc.id).value.figure.svg); res.arrange = ar !== base5;
   co.params.rules = [{ when: { col: [0] }, do: { pattern: { patType: 'crosshatch', patSpacing: 8, patWeight: 2, patAngle: 45 } } }]; eng.touch(co.id); await eng.run(m);
   const pt = K(eng.get(fc.id).value.figure.svg); res.pattern = pt !== base5 && cellG(pt, 1) === cellG(base5, 1) && cellG(pt, 0) !== cellG(base5, 0);
+  // ── Compose review fixes: cells by grid address, Palette colours on dropped Components, a live Arrange pool ──
+  const idxAt = (r, c) => { const x = eng.get(fc.id).value.figure.compose.ctxs.find(q => q.row === r && q.col === c); return x ? x.index : -1; };
+  const cellsOf = () => K(eng.get(fc.id).value.figure.svg).match(/data-cell-index="(\\d+)"/g).map(x => +x.match(/\\d+/)[0]);
+  co.params.rules = [{ when: { at: [[1, 2]] }, do: { content: 'empty' } }]; eng.touch(co.id); await eng.run(m);
+  const i6 = idxAt(1, 2), gone6 = !cellsOf().includes(i6) && cellsOf().length === FC0.cells - 1;
+  const cols0 = grids[0].params.params.cols; grids[0].params.params.cols = cols0 + 2; eng.touch(grids[0].id); await eng.run(m);
+  const i8 = idxAt(1, 2); res.composeAddress = gone6 && i8 !== i6 && !cellsOf().includes(i8) && cellsOf().includes(i6) && !eng.get(fc.id).value.figure.lost.length;
+  co.params.rules.push({ when: { at: [[1, 99]] }, do: { content: 'empty' } }); eng.touch(co.id); await eng.run(m);
+  res.composeLostAt = JSON.stringify(eng.get(fc.id).value.figure.lost) === JSON.stringify([{ rule: 1, cells: [[1, 99]], none: true }]);
+  grids[0].params.params.cols = cols0; eng.touch(grids[0].id);
+  NC.addEdge(m, { node: pal.id, port: 'palette' }, { node: fc.id, port: 'palette' });
+  co.params.rules = [{ when: { at: [[0, 0]] }, do: { content: { kind: 'component', name: 'Test component', entry: compEntry } } }]; eng.touch(co.id); await eng.run(m);
+  const pInks = eng.get(fc.id).value.figure.colors, dropped = cellG(eng.get(fc.id).value.figure.svg, idxAt(0, 0)) || '';
+  res.composePaletteComp = pInks.length > 1 && pInks.some(h => dropped.toLowerCase().includes(h.toLowerCase()));
+  NC.addEdge(m, { node: cn.id, port: 'content' }, { node: fc.id, port: 'content' }, true);
+  co.params.rules = []; eng.touch(co.id); await eng.run(m); const mixed = K(eng.get(fc.id).value.figure.svg);
+  co.params.rules = [{ when: {}, do: { arrange: { rule: 'checker', live: true, pool: [], seed: 1 } } }]; eng.touch(co.id); await eng.run(m);
+  res.composeLiveArrange = eng.get(fc.id).state === 'ok' && K(eng.get(fc.id).value.figure.svg) !== mixed;
+  co.params.rules = []; eng.touch(co.id); await eng.run(m);
   // ── Export (Phase 6): the plan, and files encoded as they would download ──
   const figsIn = [{ name: 'Figure A', figure: eng.get(figs[4].id).value.figure }];   // figure 4 has a 3-ink Palette
   const plan1 = F('exportPlan')(figsIn, { which: 'all', formats: { svg: true, png: true, plates: true }, scales: [1, 2] });
@@ -216,6 +235,10 @@ check(out.composeOff, 'a switched-off region rule does nothing');
 check(out.composeToggle, 'toggle empties filled cells');
 check(out.composeAllVariations, 'a Composition reaches the variations too');
 check(out.composeLost, 'a placement on a cell the grid does not have is reported');
+check(out.composeAddress, 'a cell picked by row / column is the same cell after the Grid gains columns');
+check(out.composeLostAt, 'an address past the grid is reported, with its rule');
+check(out.composePaletteComp, 'a Component dropped in a cell takes the Palette colours');
+check(out.composeLiveArrange, 'a live Arrange lays out the content feeding the Figure');
 check(out.symRule, 'a Symbol rule turns its region only');
 check(out.symRuleDet, 'a Symbol rule is the same for the same seed');
 check(out.arrange, 'Arrange gives the region content from its pool');

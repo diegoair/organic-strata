@@ -33,7 +33,7 @@ import {
   cwSolve
 } from './06-component-ui.js';
 import {
-  componentCellsFromRule
+  componentCellsFromRule, ruleMatches
 } from './13-figure-engine.js';
 import {
   FG_HUE_TURNS, describeRule
@@ -204,7 +204,8 @@ export async function compileFigure(inputs, params, opts) {
   const paper = pal && pal.paper ? pal.paper : '#ffffff';
   const firstEl = contents.find(c => c.kind === 'element' && c.entry && c.entry.seed);
   const imported = contents.length === 1 && firstEl && firstEl.entry.recipe ? firstEl.entry.recipe : null;
-  const composeRules = inputs.composition && inputs.composition.rules ? inputs.composition.rules : [];
+  const composeRules = (inputs.composition && inputs.composition.rules ? inputs.composition.rules : [])
+    .map(r => r.do && r.do.arrange && r.do.arrange.live ? { ...r, do: { ...r.do, arrange: { ...r.do.arrange, pool: contents.slice() } } } : r);   // a live Arrange lays out the content feeding the Figure now
   const lattice = isLattice(grid.gen);
   let element, first;
   if (lattice && imported && !(compRule && cellRules.length) && !composeRules.length) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
@@ -239,15 +240,16 @@ export async function compileFigure(inputs, params, opts) {
     element = { type: firstEl && SEED_TYPES[firstEl.entry.seed.type] ? firstEl.entry.seed.type : 'triangle', style: 'fill', colors: colors || ['#000000'], paper };
     first = { kind: 'symbol', lattice: { type: 'loomModel', model }, cells, componentEntries, colors: colors || ['#000000'], colorRule: params.keepOwn ? { ...DEFAULT_COLOR_RULE } : colorRule, paperColor: paper, clip: params.clip !== false };
     if (cellRules.length || composeRules.length) first.rules = clone(cellRules.concat(composeRules));
+    if (composeRules.length && pal && colors && !params.keepOwn) first.paletteColourway = { colors: colors.slice(), paper };
   }
   const recipe = { tool: 'fvs-recipe', version: 2, element, levels: [first, ...repeats] };
   if (final) recipe.transform = clone(final.transform);
   const r = evalFigure(recipe, opts);
   const fitted = !cv.fit && (lattice || repeats.length);
   // a placement on a cell this grid no longer has: kept in the Composition, not drawn — reported
-  const lost = [].concat(...composeRules.filter(x => !x.off && x.when && x.when.index != null).map(x => [].concat(x.when.index))).filter(i => i >= r.cells);
+  const lost = composeLost(composeRules, r.compose ? r.compose.ctxs : null, r.cells);
   return { svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv,
-    base: r.levels.symbol || '', compose: r.compose, lost: [...new Set(lost)].sort((a, b) => a - b), checks: r.checks,
+    base: r.levels.symbol || '', compose: r.compose, lost, checks: r.checks,
     colors: (first.colors || element.colors || []).slice(), paper };
 }
 
@@ -329,6 +331,19 @@ export const pinsFor = (p, item) => (p.pins || []).filter(q => (q.item == null &
 // Which: all variations · pinned only · as set up. Formats: SVG, PNG (×1 ×2 ×4 on a Screen Canvas; a Print Canvas is
 // one file at its own size + DPI, with bleed and crop marks), Plates (one file per ink, black on transparent, with
 // registration marks in Print). A figure's own Canvas decides Screen / Print.
+// Composition rules that name cells this grid does not have: [{rule, cells: [index | [row, col]], none}] — `rule` is the
+// rule's place in the Composition; `none` = it matches no cell at all (a row or column past the grid's edge).
+export function composeLost(rules, ctxs, n) {
+  const out = [];
+  (rules || []).forEach((r, rule) => {
+    const w = r.when; if (r.off || !w) return;
+    const cells = w.index != null ? [].concat(w.index).filter(i => i >= n)
+      : w.at ? w.at.filter(a => !(ctxs || []).some(c => c.row === a[0] && c.col === a[1])) : [];
+    const none = !!ctxs && !ctxs.some(c => ruleMatches(w, c));
+    if (cells.length || none) out.push({ rule, cells, none });
+  });
+  return out;
+}
 export function exportPlan(figs, p) {
   const which = p.which || 'all', fm = p.formats || { svg: true }, scales = (p.scales && p.scales.length ? p.scales : [1]).slice().sort((a, b) => a - b);
   const files = [];

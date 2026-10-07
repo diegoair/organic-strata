@@ -93,7 +93,8 @@ export function ruleMatches(when, ctx) {
   const has = (v, x) => Array.isArray(v) ? v.includes(x) : v === x;
   return (when.class == null || has(when.class, ctx.orient)) && (when.row == null || has(when.row, ctx.row))
     && (when.col == null || has(when.col, ctx.col)) && (when.index == null || has(when.index, ctx.index))
-    && (when.parity == null || when.parity === ctx.parity) && (when.ring == null || has(when.ring, ctx.ring)) && (when.sector == null || has(when.sector, ctx.sector));
+    && (when.parity == null || when.parity === ctx.parity) && (when.ring == null || has(when.ring, ctx.ring)) && (when.sector == null || has(when.sector, ctx.sector))
+    && (when.at == null || when.at.some(a => a[0] === ctx.row && a[1] === ctx.col));   // at: [[row, col], …] — cells by grid address (Compose)
 }
 // Rules apply in order; a later rule overrides an earlier one on the slots it matches.
 export function applyClassRules(rules, seedType) {
