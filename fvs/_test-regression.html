@@ -36,7 +36,7 @@
 // Executed INSIDE the Flexible Visual System page (via eval in the frame, inside `with (window.__fvs)`), so its
 // bare names resolve to the tool's module exports — fvs/js/test-surface.js puts every one on window.__fvs.
 async function battery() {
-  await loadFigureTier();   // Figure loads on demand (fvs/js/lazy.js); the battery checks it like every other tier
+  await loadFigureTestRunners();   // the Figure tier (lazy.js) + the old runners this battery replays — Figure loads on demand (fvs/js/lazy.js); the battery checks it like every other tier
   const H = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };
   // <metadata> carries a timestamp and the last-selected rule name (module state) — neither is geometry.
   // …and the per-drawing suffix of a stack's clip/mask ids (stk<hash>-<seq>-<layer>), which depends on render order

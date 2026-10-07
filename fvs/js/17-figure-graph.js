@@ -6,6 +6,7 @@
 // Fit all / Fit selection. Words: docs/UI-COPY.md §2 "Figure graph".
 import { rt } from './rt.js';
 import { provide } from './hooks.js';
+import { syncExportButton } from './12-shell.js';
 import {
   COLOR_RULES, state
 } from './engine/00-core.js';
@@ -130,13 +131,13 @@ function renderBody(node, entry, el) {
       </figure>`;
     el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>` + groups.map((g, gn) => { const gid = `fgv-${node.id}-${gn}`; return `<div${g.label ? ` role="group" aria-labelledby="${gid}"` : ''}>${g.label ? `<p class="fg-group__label" id="${gid}">${esc(g.label)}</p>` : ''}<div class="fg-vars fg-vars--${layout}${g.variations.length === 1 ? ' is-single' : ''}">${g.variations.map((v, k) => tile(v, gi++, k === 0, k, g.label)).join('')}</div></div>`; }).join('')
       + checksBadge(f) + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}</p>`;
-    const card = el.closest('.nc-node'); if (card) card.classList.toggle('nc-node--xwide', vars.length > 8);
+    const card = el.closest('.nc-node'); if (card) card.classList.toggle('fg-node--xwide', vars.length > 8);
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => ctl.remeasure(node.id), { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act, +b.dataset.i); }); }
     el._vars = vars;
   } else if (node.type === 'canvas') {
     const cv = canvasOf(p);
-    el.innerHTML = cv.fit ? `<p class="fg-card__meta">Fit to figure — the page is the figure’s own frame</p>` : `<p class="fg-card__meta">${Organica.aspectIcon ? Organica.aspectIcon(cv.W, cv.H) : ''} ${esc(canvasSummary(cv))}</p>`;
+    el.innerHTML = cv.fit ? `<p class="fg-card__meta">Fit to figure — the page is the Figure’s own size</p>` : `<p class="fg-card__meta">${Organica.aspectIcon ? Organica.aspectIcon(cv.W, cv.H) : ''} ${esc(canvasSummary(cv))}</p>`;
   } else if (node.type === 'grid') {
     el.innerHTML = `<p class="fg-card__meta">${esc(gridSummary({ gen: p.gen, params: p.params }))}</p>`;
   } else if (node.type === 'palette') {
@@ -162,7 +163,7 @@ function renderBody(node, entry, el) {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
     el.innerHTML = `<p class="fg-card__meta">${esc(L.label)} · ${p.count}${p.altFlip ? ' · alternate flip' : ''}${(+p.rotate || 0) ? ' · ' + p.rotate + '°' : ''}${p.mirror && p.mirror !== 'none' ? ' · mirror ' + esc(MIRRORS[p.mirror]) : ''}</p>`;
   } else if (node.type === 'transform') {
-    el.innerHTML = `<p class="fg-card__meta">${(+p.rotate || 0) ? p.rotate + '°' : 'No turn'} · ${esc(MIRRORS[p.mirror] || 'No mirror')}</p>`;
+    el.innerHTML = `<p class="fg-card__meta">${(+p.rotate || 0) ? 'Rotate ' + p.rotate + '°' : 'No rotation'} · ${p.mirror && p.mirror !== 'none' && MIRRORS[p.mirror] ? 'Mirror: ' + esc(MIRRORS[p.mirror].toLowerCase()) : 'No mirror'}</p>`;
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
     el.innerHTML = p.snapshot ? `<div class="fg-card__thumb" data-theme="light">${entryThumb(node.type, p.name, p.snapshot)}</div>
@@ -404,7 +405,7 @@ function renderInspectorBody(box, ids) {
       ${figs ? `<div class="sub-label">Figures</div><div class="fg-figlist">${m.nodes.filter(n => n.type === 'figure').map(n => `<button type="button" class="fg-figlist__item" data-id="${n.id}">${esc(nodeLabel(n))}<span class="fg-figlist__hint">${foundationOf(n).map(x => x ? esc(nodeLabel(x)) : '—').join(' · ')}</span></button>`).join('')}</div>` : ''}
       ${(m.frames || []).length ? `<div class="sub-label">Sections</div><div class="fg-figlist">${m.frames.map(f => `<button type="button" class="fg-figlist__item" data-frame="${f.id}">${esc(f.name)}</button>`).join('')}</div>` : ''}
       ${m.nodes.length ? '<div class="row-btns"><button type="button" class="mini-btn" id="fgi-add-section">Add section</button></div>' : ''}
-      <p class="panel-hint">Add nodes from the bar on the left, or press / to search. Drag from a port to connect; drop a wire on a node to use its first free input.</p></div>`;
+      <p class="panel-hint">Add nodes from the bar on the left, or press / to search. Drag from a port to connect; drop the connection on a node to use its first free input.</p></div>`;
     box.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => ctl.fitTo([b.dataset.id])));
     box.querySelectorAll('[data-frame]').forEach(b => b.addEventListener('click', () => { const f = m.frames.find(x => x.id === b.dataset.frame); if (f) ctl.zoomPan && fitFrame(f); }));
     const add = ctrl('fgi-add-section'); if (add) add.addEventListener('click', () => { ctl.addSection([]); save(); renderInspector([]); });
@@ -424,7 +425,7 @@ function renderInspectorBody(box, ids) {
     const cv = canvasOf(p), print = p.mode === 'print', fit = p.preset === FIT_PRESET;
     const cur = fit ? FIT_PRESET : SYMCANVAS_PRESETS[p.preset] ? p.preset : 'Custom';
     rows.push({ html: `<div class="ctrl-row"><select class="panel-select fg-grow" id="fgi-preset" aria-label="Canvas format">${[FIT_PRESET, ...Object.keys(SYMCANVAS_PRESETS), 'Custom'].map(n => `<option${n === cur ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
-      ${fit ? '<p class="panel-hint">A Figure on a lattice keeps its own frame. On a Loom grid it uses a square page.</p>' : `
+      ${fit ? '<p class="panel-hint">A Figure on a lattice takes its size from its cells. On a Loom grid it uses a square page.</p>' : `
       <div class="ctrl-row"><div class="seg-ctrl" id="fgi-mode" role="group" aria-label="Canvas mode"><button class="seg-btn${print ? '' : ' active'}" data-mode="screen" aria-pressed="${!print}">Screen</button><button class="seg-btn${print ? ' active' : ''}" data-mode="print" aria-pressed="${print}">Print</button></div></div>
       <div class="ctrl-row"><span class="ctrl-label">Size</span><input type="number" class="panel-input fg-size" id="fgi-pw" min="1" step="1" value="${cv.pw}" aria-label="Canvas width"><span class="hint">×</span><input type="number" class="panel-input fg-size" id="fgi-ph" min="1" step="1" value="${cv.ph}" aria-label="Canvas height"><span class="hint">${esc(cv.unit)}</span></div>
       ${print ? `<div class="ctrl-row"><span class="ctrl-label">Unit</span><select class="panel-select" id="fgi-unit" aria-label="Canvas unit"><option value="mm"${cv.unit === 'mm' ? ' selected' : ''}>mm</option><option value="in"${cv.unit === 'in' ? ' selected' : ''}>in</option></select></div>
@@ -447,7 +448,7 @@ function renderInspectorBody(box, ids) {
   } else if (node.type === 'grid') {
     rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Grid</div><select class="panel-select" id="fgi-gen" aria-label="Grid">
         <optgroup label="Loom grids — inside the Canvas">${Object.entries(SYMGRID_GENS).map(([k, g]) => `<option value="${k}"${k === p.gen ? ' selected' : ''}>${esc(g.label)}</option>`).join('')}</optgroup>
-        <optgroup label="Lattices — their own frame">${Object.entries(FIGURE_LATTICES).map(([k, g]) => `<option value="${k}"${k === p.gen ? ' selected' : ''}>${esc(g.label)}</option>`).join('')}</optgroup></select></div>`,
+        <optgroup label="Lattices — sized by their cells">${Object.entries(FIGURE_LATTICES).map(([k, g]) => `<option value="${k}"${k === p.gen ? ' selected' : ''}>${esc(g.label)}</option>`).join('')}</optgroup></select></div>`,
       bind: () => ctrl('fgi-gen').addEventListener('change', e => { p.gen = e.target.value; p.params = gridDefaults(p.gen); edited(node, true); renderInspector(ids); }) });
     gridSpec(p.gen).params.forEach(([k, label, a, b, step, def]) => {
       if (a === 'text') return;
@@ -515,7 +516,7 @@ function renderInspectorBody(box, ids) {
   } else if (node.type === 'transform') {
     rows.push(selectRow('Rotate', 'fgi-trot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
     rows.push(selectRow('Mirror', 'fgi-tmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
-    rows.push({ html: '<p class="panel-hint">Turns and mirrors the whole figure — needs a Repeat in grid before it.</p>' });
+    rows.push({ html: '<p class="panel-hint">Rotates and mirrors the whole figure — needs a Repeat in grid before it.</p>' });
   } else if (node.type === 'composition') {
     const rs = p.rules || [], figs = ctl.model.edges.filter(e => e.from.node === node.id && e.to.port === 'composition').map(e => NC.findNode(ctl.model, e.to.node)).filter(Boolean);
     rows.push({ html: `<div class="sub-label">Region rules</div>${rs.length ? `<ol class="fg-rulelist">${rs.map(r => `<li${r.off ? ' class="is-off"' : ''}>${esc(describeComposeRule(r, compInks(node)))}${r.off ? ' (off)' : ''}</li>`).join('')}</ol>` : '<p class="panel-hint">No region rules yet.</p>'}
@@ -574,7 +575,7 @@ function setEditor(node, ids) {
   const row = (it, i) => `<div class="fg-chip"><span class="fg-set__thumb" data-theme="light">${entryThumb(it.kind, it.name, it.snapshot)}</span><span class="fg-chip__text">${esc(it.name)}</span>
     <button type="button" class="icon-btn" data-act="up" data-i="${i}" aria-label="Move ${esc(it.name)} up"${i ? '' : ' disabled'}>${Organica.icons.get('arrow-up', { size: 'xs' })}</button>
     <button type="button" class="icon-btn" data-act="down" data-i="${i}" aria-label="Move ${esc(it.name)} down"${i < items.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down', { size: 'xs' })}</button>
-    <button type="button" class="icon-btn" data-act="del" data-i="${i}" aria-label="Remove ${esc(it.name)} from the Set">${Organica.icons.get('trash', { size: 'xs' })}</button></div>`;
+    <button type="button" class="icon-btn" data-act="del" data-i="${i}" aria-label="Remove ${esc(it.name)} from the Set">${Organica.icons.get('close', { size: 'xs' })}</button></div>`;
   const tiles = (kind, list) => list.map(e => `<button type="button" class="fvs-library-item" data-add="${kind}" data-name="${esc(e.name)}" aria-label="Add ${esc(e.name)}">${entryThumb(kind, e.name, e.entry)}</button>`).join('');
   return { html: `<div class="fg-chips" id="fgi-set-items">${items.length ? items.map(row).join('') : '<p class="panel-hint">No items yet — add saved Elements or Components below.</p>'}</div>
     <div class="sub-label">Add</div><div class="fvs-rail__grid" id="fgi-set-add">${tiles('element', s.element) + tiles('component', s.component) || '<p class="panel-hint">Nothing saved yet — save a Component in the Component step first.</p>'}</div>
@@ -683,7 +684,7 @@ function openNewFigure() {
     <button class="org-btn org-btn--icon org-btn--sm org-btn--ghost" data-act="close" aria-label="Close">${Organica.icons.get('close', { size: 'sm' })}</button></div>
     <div class="sub-label">Built-in Figures</div>
     <div class="fg-new__grid" data-theme="light">${Object.keys(cat).map((n, i) => `<button type="button" class="fg-new__item" data-i="${i}" aria-label="${esc(n)}"><span class="fg-new__thumb"></span><span class="fg-new__name">${esc(n)}</span></button>`).join('')}</div>
-    <div class="row-btns"><button type="button" class="mini-btn" data-act="blank">Empty Figure</button></div></div>`;
+    <div class="row-btns"><button type="button" class="mini-btn" data-act="blank">Start with an empty Figure</button></div></div>`;
   const close = () => { if (Organica.modal) Organica.modal.release(m); m.remove(); };
   m.addEventListener('click', e => {
     const b = e.target.closest('[data-act], [data-i]'); if (!b && e.target === m) { close(); return; } if (!b) return;
@@ -754,7 +755,7 @@ function enterCompose(figId) {
   const fig = NC.findNode(ctl.model, figId); if (!fig) return;
   const edge = ctl.model.edges.find(e => e.to.node === figId && e.to.port === 'composition'), comp = edge && NC.findNode(ctl.model, edge.from.node);
   composing = { fig: figId, comp: comp ? comp.id : null, sel: new Set(), when: null, tool: null, anchor: null, focus: 0, opener: document.activeElement, view: { zoom: ctl.zoomPan.zoom, ...ctl.zoomPan.pan } };
-  document.body.classList.add('fg-composing');
+  document.body.classList.add('fg-composing'); syncExportButton();
   ctrl('fg-graph').hidden = true; ctrl('fg-compose').hidden = false;
   ctrl('fb-figure-actions').style.display = 'none'; ctrl('fb-compose-actions').style.display = '';
   setNodebar(null); renderComposeBar();
@@ -765,7 +766,7 @@ function enterCompose(figId) {
 function exitCompose() {
   if (!composing) return;
   const fig = composing.fig, view = composing.view, opener = composing.opener; composing = null;
-  document.body.classList.remove('fg-composing');
+  document.body.classList.remove('fg-composing'); syncExportButton();
   ctrl('fg-compose').hidden = true; ctrl('fg-graph').hidden = false;
   ctrl('fb-compose-actions').style.display = 'none'; ctrl('fb-figure-actions').style.display = '';
   renderNodebarButtons();
@@ -787,11 +788,24 @@ function drawCompose() {
   const hadFocus = stage.contains(document.activeElement), fi = Math.min(composing.focus || 0, C.outlines.length - 1);
   stage.innerHTML = `<svg class="fg-compose__svg" viewBox="0 0 ${C.w} ${C.h}" role="listbox" aria-multiselectable="true" aria-label="Cells">${base}<g class="fg-cells">${C.outlines.map((pts, i) => `<polygon class="fg-cell${composing.sel.has(i) ? ' is-sel' : ''}" data-i="${i}" points="${pts.map(p => p.join(',')).join(' ')}" role="option" aria-selected="${composing.sel.has(i)}" tabindex="${i === fi ? 0 : -1}"><title>${C.ctxs && C.ctxs[i] && C.ctxs[i].row != null ? 'Row ' + (C.ctxs[i].row + 1) + ', column ' + (C.ctxs[i].col + 1) : 'Cell ' + (i + 1)}</title></polygon>`).join('')}</g></svg>`;
   if (hadFocus) { const c = stage.querySelector(`.fg-cell[data-i="${fi}"]`); if (c) c.focus({ preventScroll: true }); }
+  const ct = ctrl('fg-nodebar').querySelector('[data-tool="class"]'); if (ct) ct.setAttribute('aria-label', classToolLabel());   // named once the grid is known
+}
+// "Similar cells" names what it selects on this grid (UI-COPY §2, decided Oct 7, 2026)
+function classToolLabel() {
+  const f = composing && figureValue(composing.fig), c = f && f.compose && f.compose.ctxs && f.compose.ctxs[0];
+  return !c ? 'Select similar cells' : c.orient ? 'Select cells facing the same way' : c.ring != null ? 'Select ring' : 'Select every other cell';
+}
+// The selection, said once it changes (a persistent live region: the panel is rebuilt with innerHTML)
+function announceSelection() {
+  const live = ctrl('fg-compose-live'); if (!live || !composing) return;
+  const n = composing.sel.size, w = composing.when || (n === 1 ? selectionWhen() : null);
+  const t = n ? `${n} ${n === 1 ? 'cell' : 'cells'} selected${w ? ' — ' + whereText(w) : ''}` : 'No cells selected';
+  live.textContent = ''; setTimeout(() => { live.textContent = t; }, 30);
 }
 function renderComposeBar() {   // the left dock while composing: the selection tools + the saved items to drop into cells
   const bar = ctrl('fg-nodebar');
   ctrl('fg-nodebar-dock').setAttribute('aria-label', 'Compose'); bar.setAttribute('aria-label', 'Compose tools');
-  bar.innerHTML = `<span class="fg-dock-group" role="group" aria-label="Select cells">` + COMPOSE_TOOLS.map(([k, icon, label]) => `<button class="org-floatbar__btn" data-tool="${k}" aria-pressed="${composing.tool === k}" aria-label="Select ${label === 'Similar cells' ? 'similar cells' : label.toLowerCase()}">${Organica.icons.get(icon)}</button>`).join('') + `</span>`
+  bar.innerHTML = `<span class="fg-dock-group" role="group" aria-label="Select cells">` + COMPOSE_TOOLS.map(([k, icon, label]) => `<button class="org-floatbar__btn" data-tool="${k}" aria-pressed="${composing.tool === k}" aria-label="${k === 'class' ? classToolLabel() : 'Select ' + label.toLowerCase()}">${Organica.icons.get(icon)}</button>`).join('') + `</span>`
     + `<span class="org-dock__sep" aria-hidden="true"></span><button class="org-floatbar__btn" data-cat="Content" aria-label="Content" aria-expanded="false" aria-controls="fg-nodebar-panel">${Organica.icons.get(ICON.Content)}</button>`;
 }
 function renderNodebarButtons() {   // back to the node bar
@@ -826,7 +840,7 @@ function pickCells(i, e) {   // a click on cell i, with the current selection to
     if (add) { if (composing.sel.has(i)) composing.sel.delete(i); else composing.sel.add(i); }
     else composing.sel = new Set([i]);
   }
-  composing.anchor = i; composing.focus = i; drawCompose(); renderComposeInspector();
+  composing.anchor = i; composing.focus = i; drawCompose(); renderComposeInspector(); announceSelection();
 }
 function addComposeRule(d, when) {
   when = when || selectionWhen(); if (!when) { Organica.notice('Select cells first'); return; }
@@ -923,7 +937,7 @@ function renderComposeInspector(next) {
   if (ctrl('fgc-copy')) ctrl('fgc-copy').addEventListener('click', copyComposition);
   const onRule = e => {
     const b = e.target.closest('[data-act]'); if (!b || !comp) return; const i = +b.dataset.i, rs = comp.params.rules;
-    if (b.dataset.act === 'pick') { const f = figureValue(composing.fig), ctxs = f && f.compose ? f.compose.ctxs : []; composing.when = JSON.parse(JSON.stringify(rs[i].when || {})); composing.sel = new Set(ctxs.filter(c => ruleMatches(composing.when, c)).map(c => c.index)); drawCompose(); renderComposeInspector(`[data-act="pick"][data-i="${i}"]`); return; }
+    if (b.dataset.act === 'pick') { const f = figureValue(composing.fig), ctxs = f && f.compose ? f.compose.ctxs : []; composing.when = JSON.parse(JSON.stringify(rs[i].when || {})); composing.sel = new Set(ctxs.filter(c => ruleMatches(composing.when, c)).map(c => c.index)); drawCompose(); renderComposeInspector(`[data-act="pick"][data-i="${i}"]`); announceSelection(); return; }
     if (b.dataset.act === 'seed') { const k = rs[i].do.symbolRule ? 'symbolRule' : 'arrange'; rs[i].do[k].seed = 1 + Math.floor(Math.random() * 99999); }
     else if (b.dataset.act === 'off') rs[i].off = !rs[i].off;
     else if (b.dataset.act === 'up' && i) [rs[i - 1], rs[i]] = [rs[i], rs[i - 1]];
@@ -945,7 +959,7 @@ function renderComposeInspector(next) {
 }
 function initCompose() {
   const stage = ctrl('fg-compose-stage');
-  stage.addEventListener('click', e => { const c = e.target.closest('.fg-cell'); if (c) pickCells(+c.dataset.i, e); else if (composing) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); } });
+  stage.addEventListener('click', e => { const c = e.target.closest('.fg-cell'); if (c) pickCells(+c.dataset.i, e); else if (composing) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); announceSelection(); } });
   ctrl('fg-compose-back').addEventListener('click', exitCompose);
   ctrl('btn-fg-compose-done').addEventListener('click', exitCompose);
   ctrl('btn-fg-compose-undo').innerHTML = Organica.icons.get('undo'); ctrl('btn-fg-compose-redo').innerHTML = Organica.icons.get('redo');
@@ -963,7 +977,7 @@ function initCompose() {
     if (e.key === 'Escape') {
       e.preventDefault(); e.stopPropagation();
       if (openCat) { setNodebar(null); return; }
-      if (composing.sel.size) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); } else exitCompose();
+      if (composing.sel.size) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); announceSelection(); } else exitCompose();
       return;
     }
     const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();

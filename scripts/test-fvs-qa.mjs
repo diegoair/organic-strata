@@ -167,6 +167,7 @@ const hashes = await ev(`
   const cat = F('figureCatalog')(); const names = Object.keys(cat);
   const pick = [...${JSON.stringify(RECIPES)}.filter(n => cat[n]), names[0], names[Math.floor(names.length / 2)], names[names.length - 1]];
   const out = {};
+  await F('loadFigureTestRunners')();
   F('setTier')('figure');
   for (const n of pick) {
     F('runFigureRecipe')(JSON.parse(JSON.stringify(cat[n])), { keepTier: true }); await idle(50);

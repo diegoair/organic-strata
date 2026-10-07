@@ -234,7 +234,7 @@
   //   onSearch(point, from, client)     '/' or right-click on the board: open the node search
   //   nameCopy(node, model) → name      the name a duplicated / pasted node gets
   //   onPortDblClick(node, port, dir)   a port double-clicked (spawn the node it wants, wired)
-  //   onNodeDblClick(node, e)   a card double-clicked (outside its ports)
+  //   onNodeDblClick(node, e)   a card double-clicked (outside its ports), or Enter on a focused card
   //   onBoardDblClick(point)    the empty board double-clicked
   //   announce(text)            a polite live-region message (default: a hidden region in the stage)
   //   engine                    createEngine(...) — default: one made here, isActive = the card is on screen
@@ -828,6 +828,7 @@
       if (mod && k.toLowerCase() === 'v') { e.preventDefault(); paste(); return; }
       if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); remove(Array.from(selected)); return; }
       if (k === 'Escape') { select([]); return; }
+      if (k === 'Enter' && !mod && e.target.classList && e.target.classList.contains('nc-node') && o.onNodeDblClick) { var en = findNode(ctl.model, e.target.dataset.nodeId); if (en) { e.preventDefault(); o.onNodeDblClick(en, e); } return; }   // Enter on a focused card = its double-click (FVS: Compose)
       if (k === '/' && o.onSearch) { e.preventDefault(); var r = stage.getBoundingClientRect(); o.onSearch(toBoard(r.left + r.width / 2, r.top + r.height / 3), null, { x: r.left + r.width / 2, y: r.top + r.height / 3 }); return; }
       if (/^Arrow/.test(k) && selected.size) {
         e.preventDefault(); var step = e.shiftKey ? 32 : 8, dx = k === 'ArrowLeft' ? -step : k === 'ArrowRight' ? step : 0, dy = k === 'ArrowUp' ? -step : k === 'ArrowDown' ? step : 0;

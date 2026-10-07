@@ -197,12 +197,12 @@ export async function compileFigure(inputs, params, opts) {
   const cv = inputs.canvas, grid = inputs.grid, pal = inputs.palette, rules = (inputs.rules || []).filter(Boolean);
   const contents = [].concat(...(inputs.content || []).filter(Boolean).map(c => c.kind === 'set' ? c.items : [c])).filter(Boolean);
   if (!contents.length) throw new Error('Connect a Content input');
-  if (contents.some(c => c.kind === 'symbol')) throw new Error('A Symbol as content is not available yet — use Elements and Components for now.');
+  if (contents.some(c => c.kind === 'symbol')) throw new Error('A Symbol as content is not available yet — use Elements and Components for now');
   const cellRules = [].concat(...rules.filter(r => r.kind === 'cells').map(r => r.rules));
   const compRule = rules.find(r => r.kind === 'component');
   const repeats = rules.filter(r => r.kind === 'repeat').map(r => clone(r.level));
   const final = rules.filter(r => r.kind === 'transform').pop();
-  if (final && !repeats.length) throw new Error('Rotate & mirror needs a Repeat in grid before it.');
+  if (final && !repeats.length) throw new Error('Rotate & mirror needs a Repeat in grid before it');
   const colors = pal && pal.colors && pal.colors.length ? pal.colors.slice() : null;
   const colorRule = pal ? { ...DEFAULT_COLOR_RULE, ...(pal.rule || {}) } : { ...DEFAULT_COLOR_RULE };
   const paper = pal && pal.paper ? pal.paper : '#ffffff';
@@ -217,7 +217,7 @@ export async function compileFigure(inputs, params, opts) {
     if (pal) element.colorRule = colorRule; else delete element.colorRule;
     if (pal && (pal.rule || {}).mode === DEFAULT_COLOR_RULE.mode && !imported.colorRule) delete element.colorRule;
     if (compRule) {
-      const l = latticeOf(grid); if (l.type !== 'square' || l.cols > 4 || l.rows > 4) throw new Error('A Component rule needs a Square lattice up to 4 × 4.');
+      const l = latticeOf(grid); if (l.type !== 'square' || l.cols > 4 || l.rows > 4) throw new Error('A Component rule needs a Square lattice up to 4 × 4');
       first = { kind: 'component', grid: `square${l.cols}x${l.rows}`, rule: compRule.rule, params: clone(compRule.params) };
     } else {
       const l = latticeOf(grid);
@@ -234,7 +234,7 @@ export async function compileFigure(inputs, params, opts) {
     if (pal && colors && !params.keepOwn) cells.forEach(c => { if (c.source === 'component') c.colourway = { colors: colors.slice(), paper }; });
     if (compRule) {   // a Component rule poses the cells of a small Square lattice
       const l = lattice ? latticeOf(grid) : null;
-      if (!l || l.type !== 'square' || l.cols > 4 || l.rows > 4) throw new Error('A Component rule needs a Square lattice up to 4 × 4.');
+      if (!l || l.type !== 'square' || l.cols > 4 || l.rows > 4) throw new Error('A Component rule needs a Square lattice up to 4 × 4');
       const posed = componentCellsFromRule(compRule.rule, compRule.params);
       cells = cells.map((c, i) => { const q = posed[i % posed.length] || {}; return { ...c, rotation: q.rotation || 0, flipH: !!q.flipH, flipV: !!q.flipV }; });
     }
@@ -442,14 +442,14 @@ export function figureNodeTypes() {
       compute: (i, p) => ({ palette: { colors: (p.colors || []).slice(), paper: p.paper || '#ffffff', rule: COLOR_RULES[(p.rule || {}).mode] ? p.rule : { mode: 'index', offset: 0 } } }) },
     { meta: { id: 'element', label: 'Element', category: 'Content', inputs: [], outputs: [{ name: 'content', type: 'content', label: 'Content' }],
         params: [{ name: 'name', default: '' }, { name: 'snapshot', default: null }] },
-      compute: (i, p) => { if (!p.snapshot) throw new Error('Pick a saved Element.'); return { content: { kind: 'element', name: p.name, entry: p.snapshot } }; } },
+      compute: (i, p) => { if (!p.snapshot) throw new Error('Pick a saved Element'); return { content: { kind: 'element', name: p.name, entry: p.snapshot } }; } },
     { meta: { id: 'component', label: 'Component', category: 'Content', inputs: [], outputs: [{ name: 'content', type: 'content', label: 'Content' }],
         params: [{ name: 'name', default: '' }, { name: 'snapshot', default: null }] },
-      compute: (i, p) => { if (!p.snapshot) throw new Error('Pick a saved Component.'); return { content: { kind: 'component', name: p.name, entry: p.snapshot } }; } },
+      compute: (i, p) => { if (!p.snapshot) throw new Error('Pick a saved Component'); return { content: { kind: 'component', name: p.name, entry: p.snapshot } }; } },
     { meta: { id: 'set', label: 'Set', category: 'Content', inputs: [], outputs: [{ name: 'content', type: 'content', label: 'Content', list: true }],
         params: [{ name: 'items', default: [] }] },
       compute: (i, p) => { const items = (p.items || []).filter(x => x && x.snapshot).map(x => ({ kind: x.kind, name: x.name, entry: x.snapshot }));
-        if (!items.length) throw new Error('Add saved Elements or Components to the Set.'); return { content: { kind: 'set', name: p.name || 'Set', items } }; } },
+        if (!items.length) throw new Error('Add saved Elements or Components to the Set'); return { content: { kind: 'set', name: p.name || 'Set', items } }; } },
     { meta: { id: 'cell-rules', label: 'Cell rules', category: 'Rules', inputs: [], outputs: RULE_OUT, params: [{ name: 'rules', default: [] }] },
       compute: (i, p) => ({ rules: ruleOf('cell-rules', p) }) },
     { meta: { id: 'component-rule', label: 'Component rule', category: 'Rules', inputs: [], outputs: RULE_OUT, params: [{ name: 'rule', default: 'radial' }, { name: 'params', default: {} }] },

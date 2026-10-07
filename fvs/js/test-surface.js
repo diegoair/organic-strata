@@ -41,6 +41,9 @@ for (const name of ["BUILTIN_RECIPES","FG_GRID_TYPES","FG_HUE_TURNS","FG_ICONS",
   Object.defineProperty(api, name, { get: () => { throw new Error(name + ': the Figure tier is not loaded — await __fvs.loadFigureTier()'); }, enumerable: true, configurable: true });
 api.expose = expose;
 api.loadFigureTier = loadFigureTier;
+// The old panel-driven Figure runners (runFigureRecipe …) — only the regression page and the QA / eval scripts use them,
+// so the Figure bundle no longer loads them: a test asks for them after loadFigureTier().
+api.loadFigureTestRunners = async () => { await loadFigureTier(); expose([await import('./13-figure-engine.js')]); };
 api.figureLazy = true;
 for (const name of Object.keys(rt)) Object.defineProperty(api, name, { get: () => rt[name], set: v => { rt[name] = v; }, enumerable: true });
 let ready;

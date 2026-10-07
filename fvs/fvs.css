@@ -296,7 +296,7 @@
   }
   /* A rise you can follow: longer and gentler than a pop, the fade on its own slower ramp so the
      fade is what you notice and the movement is what carries it. */
-  .fvs-flyout[data-open="true"] { display: grid; animation: fvs-flyout-rise 300ms cubic-bezier(0.22, 1.14, 0.36, 1) both; }
+  .fvs-flyout[data-open="true"] { display: grid; animation: fvs-flyout-rise var(--dur-slow) var(--ease-overshoot-soft) both; }
   @keyframes fvs-flyout-rise {
     from { opacity: 0; transform: translateX(-50%) translateY(9px) scale(0.965); }
     55%  { opacity: 1; }
@@ -307,7 +307,7 @@
     display: grid; place-items: center; padding: 0; border: 0;
     border-radius: var(--radius-md);   /* the pane's corner less the padding between them: concentric */
     background: transparent; color: var(--ink); cursor: pointer;
-    transition: background 200ms ease;
+    transition: background var(--dur-base) var(--ease-standard);
   }
   .fvs-flyout__tool:hover { background: var(--pane-thumb); }
   /* The selected pad ARRIVES: its own layer (scaling the button would take the mark with it),
@@ -315,20 +315,20 @@
   .fvs-flyout__tool::before {
     content: ""; position: absolute; inset: 0; z-index: 0; border-radius: inherit;
     background: var(--tool); opacity: 0; scale: 0.72;
-    transition: opacity 140ms ease, scale 300ms var(--ease-overshoot);
+    transition: opacity var(--dur-fast) var(--ease-standard), scale var(--dur-slow) var(--ease-overshoot);
     pointer-events: none;
   }
   /* the mark rides over its own pad, and lifts a hair with it */
   .fvs-flyout__tool > span {
     position: relative; z-index: 1; width: var(--space-1); height: var(--space-1); border-radius: 50%;
     background: currentColor;
-    transition: scale 300ms var(--ease-overshoot);
+    transition: scale var(--dur-slow) var(--ease-overshoot);
   }
   .fvs-flyout__tool[data-on="true"] { color: var(--paper); }
   .fvs-flyout__tool[data-on="true"]:hover { background: transparent; }
   .fvs-flyout__tool[data-on="true"]::before { opacity: 1; scale: 1; }
   .fvs-flyout__tool[data-on="true"] > span { scale: 1.05; }
-  .fvs-flyout__tool:active > span { scale: 0.92; transition-duration: 90ms; }   /* pressed, it yields before it lights */
+  .fvs-flyout__tool:active > span { scale: 0.92; transition-duration: var(--dur-instant); }   /* pressed, it yields before it lights */
   .fvs-flyout__tool:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
   @media (prefers-reduced-motion: reduce) {
     .fvs-flyout[data-open="true"] { animation-duration: 1ms; }
@@ -480,7 +480,7 @@
   .fg-new__item:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .fg-new__thumb { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
   .fg-new__thumb svg { width: 100%; height: 100%; display: block; }
-  .fg-new__name { font-size: var(--t-caption-size); line-height: 1.3; }
+  .fg-new__name { font-size: var(--t-caption-size); line-height: var(--lh-heading); }
   .fg-inspector .fg-hide[hidden] { display: none !important; }
   .fg-card__crumb { margin: 0 0 var(--space-2); font-size: var(--t-caption-size); color: var(--mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fg-card__img { max-height: 24rem; object-fit: contain; }
@@ -520,7 +520,7 @@
   .fg-compose__empty { margin: 0; font-size: var(--t-caption-size); color: var(--mid); }
   .fg-cell { fill: transparent; stroke: transparent; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill var(--dur-fast) var(--ease-standard), stroke var(--dur-fast) var(--ease-standard); }
   @media (hover: hover) { .fg-cell:hover { stroke: var(--border-strong); stroke-dasharray: 4 3; } }
-  .fg-cell.is-sel { fill: color-mix(in srgb, var(--track-accent, var(--ink)) 18%, transparent); stroke: var(--track-accent, var(--ink)); stroke-dasharray: none; filter: drop-shadow(0 0 1px var(--paper)) drop-shadow(0 0 1px var(--paper)); }   /* a paper halo: the outline reads on any ink */
+  .fg-cell.is-sel { fill: color-mix(in srgb, var(--ink) 18%, transparent); stroke: var(--ink); stroke-dasharray: none; filter: drop-shadow(0 0 1px var(--paper)) drop-shadow(0 0 1px var(--paper)); }   /* a paper halo: the outline reads on any ink */
   .fg-cell.is-hint:not(.is-sel) { stroke: var(--ink); stroke-dasharray: 4 3; filter: drop-shadow(0 0 1px var(--paper)); }   /* a hovered region rule's cells */
   .fg-lost { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); margin-bottom: var(--space-2); }
   .fg-cell:focus-visible { outline: none; stroke: var(--ink); stroke-width: 3px; }
@@ -530,8 +530,9 @@
   .fg-warn { color: var(--danger); }
   .fg-var__tools { gap: var(--space-2); }
   .fg-var__tools .icon-btn { min-width: var(--hit-min); min-height: var(--hit-min); justify-content: center; }
-  .nc-node--xwide { --node-w: 52rem; }
-  .nc-node--xwide .fg-vars--rows { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .fg-node--xwide { --node-w: 52rem; }
+  #btn-export.is-graph-export .chev { display: none; }   /* on the Figure graph it shows the Export node — no menu */
+  .fg-node--xwide .fg-vars--rows { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .fg-card__checks { margin: 0 0 var(--space-2); display: flex; align-items: center; gap: var(--space-1); font-size: var(--t-caption-size); color: var(--mid); }
   .fg-card__checks.is-bad { color: var(--danger); }
   .fg-checks { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--t-caption-size); }

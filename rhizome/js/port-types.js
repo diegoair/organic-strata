@@ -26,7 +26,7 @@ export const PORT_META = {
   [PortType.SVG]:    { label: 'SVG',    color: '#3fa876' },
   [PortType.IMAGE]:  { label: 'Image',  color: '#a9683e' },
   [PortType.GRID]:   { label: 'Grid',   color: '#4a7fc9' },
-  [PortType.COLOR]:  { label: 'Color',  color: '#c93ed6' },
+  [PortType.COLOR]:  { label: 'Colour',  color: '#c93ed6' },
   [PortType.NUMBER]: { label: 'Number', color: '#8a7355' },
   [PortType.POINTS]: { label: 'Points', color: '#c85a8c' },
 };

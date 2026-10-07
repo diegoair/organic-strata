@@ -92,7 +92,7 @@ async function freshPage() {
     const r = await cdp('Runtime.evaluate', { expression: `document.readyState === 'complete' && !!(window.__fvs && window.__fvs.isReady)`, returnByValue: true });
     if (r.result?.result?.value) break;
   }
-  await ev(`await F('loadFigureTier')(); await idle(300); return 1;`);
+  await ev(`await F('loadFigureTestRunners')(); await idle(300); return 1;`);
 }
 
 await cdp('Page.enable'); await cdp('Runtime.enable');

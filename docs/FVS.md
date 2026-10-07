@@ -551,7 +551,7 @@ trapezoid; Triangle grid 4 → the finer lattice. Save each, then in Grid: **Tie
 
 A **figure** is one pipeline that does not mention a particular Seed:
 **Seed → lattice → slot classes → rules (class → content + pose) → composition → transform.**
-The **Figure** step (★, after Grid) is one screen for all of it: pick a preset or set the
+The **Figure** step (step 4, after Grid; it was ★ until Oct 7, 2026) is one screen for all of it: pick a preset or set the
 five sections; every change redraws the figure, and the recipe JSON underneath can be
 pasted, copied or saved. It replaces the current Element, palette and Symbol/Grid state.
 
@@ -641,7 +641,7 @@ on Sep 28, 2026 — the role now lives only on the row.
 The saved Elements, Components and Symbols live in one place: the **Library rail**, the
 floating rail on the left (`#fvs-rail` + `#fvs-rail-panel`). The right-sidebar Component and
 Symbol libraries were removed when the rail arrived (Oct 3, 2026, `edafc4d`). The rail is shown on
-the Element, Component and Symbol steps (not on ★ Figure).
+the Element, Component and Symbol steps (not on step 4, Figure).
 
 **Library view** (Oct 6, 2026) — everything in one place, larger: the **Library** button in the
 floatbar (`library` icon, on every step, Figure included) covers the step's view with a page of
@@ -859,16 +859,16 @@ and shares the live library (same storage keys) — useful to compare against or
 more. A fix goes in `fvs/js/`, never there.
 
 
-## 12. Figure graph (in progress, Oct 2026)
+## 12. Figure graph (shipped Oct 7, 2026)
 
-Figure is being rebuilt as a node **Graph**: Canvas, Grid and Palette nodes (the foundation), content from the saved libraries only (**Element / Component / Symbol / Set** nodes), rule nodes, and several **Figure** nodes side by side, each showing its own variations. The plan and Diego's decisions live in `docs/DESIGN-DECISIONS.md`; this section grows phase by phase.
+Figure is a node **Graph**: Canvas, Grid and Palette nodes (the foundation), content from the saved libraries only (**Element / Component / Symbol / Set** nodes), rule nodes, and several **Figure** nodes side by side, each showing its own variations. The plan and Diego's decisions live in `docs/DESIGN-DECISIONS.md`; this section follows the phases (all shipped; the audit of Oct 7, 2026 is §12.7).
 
 ### 12.0 Words and port colours (decided Oct 7, 2026)
 
 - **Words** — every visible string of the graph is in `docs/UI-COPY.md` §2 (the *Figure graph* rows): Graph, Nodes (the left bar; *node bar* in docs, never "node palette"), the four categories Foundation · Content · Rules · Output, the node and port names, Section (not Frame), Variations / Vary by / Keep / Pin / New variations, Compose → Composition, Region rule, the states and notices. Use them in code and docs from the first commit.
 - **Port types and colours** — `canvas · grid · palette · content · rule · composition · figure`, one `--port-<type>` token each (light + dark, ≥ 3:1 on `--paper` and `--panel`, from TuneSutra’s Riso standard inks — table in the ledger, O-34). A port always shows its label and shape as well; colour is never the only cue. Rhizome maps SVG → content, Image → figure, Grid → grid, Color → palette, Number → rule, Points → composition.
 
-### 12.1 The pure evaluator (Phase 1, shipped on the branch)
+### 12.1 The pure evaluator (Phase 1)
 
 `evalFigure(recipe)` (`fvs/js/engine/16-figure-eval.js`, Figure chunk) renders a recipe v2 to `{ svg, tier, levels: {component, symbol}, metas, stats, shapes }` **without touching the page or the user's work**. It is what every Figure node calls, once per variation.
 
@@ -880,9 +880,9 @@ Figure is being rebuilt as a node **Graph**: Canvas, Grid and Palette nodes (the
   - puts every original object back afterwards.
   The test checks that `state`, `live` and every panel control are unchanged after a run, and that a figure gives the same SVG after another figure and on a changed panel.
 - **Fast.** No DOM events, no re-render: about 0.4 ms per catalog figure warm (slowest 1 ms).
-- `runFigureRecipe()` is unchanged: it still drives the panels for today's Figure UI, which Phase 3 replaces.
+- `runFigureRecipe()` (`fvs/js/13-figure-engine.js`) drives the panels; no screen uses it any more. It is **test-only** since Oct 7, 2026: the Figure bundle no longer loads it — the regression page and the QA / eval scripts call `__fvs.loadFigureTestRunners()`.
 
-### 12.2 The Figure graph on screen (Phase 3a, on the branch)
+### 12.2 The Figure graph on screen (Phase 3a)
 
 - **Layout.** Left dock = the node bar (`#fg-nodebar-dock`, an `.org-dock`): Foundation · Content · Rules · Output; Content lists the saved Elements and Components as thumbnails; drag onto the graph or click to add. Right panel = the selected node's settings (`#fg-inspector`); while the graph is on screen the panel shows **only** it — the global Palette and Rules sections are hidden (`#panel:has(.tier-block.is-graph.active)`), since every colour now lives in a Palette node. Bottom floatbar group `#fb-figure-actions`, in this order: New Figure… · Undo · Redo · Delete · Fit all · Fit selection, then the FVS-wide Library and Export.
 - **Nodes.** Canvas (the Symbol step's own Canvas controls), Grid (Loom's generators, inside the Canvas), Palette (inks + Paper + Colour by), Element / Component (a saved entry + a copy of it), Figure (Fit in cell, Clip to cell). Default names Canvas 1, Grid 1 … are given when a node is made; the card shows the type above the name.
@@ -899,25 +899,37 @@ Diego's go-ahead, Oct 7, 2026. The graph is the only Figure UI now.
 - **Regression battery:** 50 cases retired with the UI they drove — the strip (`figstrip:*`), the form round-trips (`fig:form:*`, `fig:hex:roundtrip:*`, `fig:rec:roundtrip:*`, `bridge:form`), the old tab wiring (`fig:tier`, `fig:json:error`), the step panel (`paint:step*`, `paint:formkeeps`, `paint:isformrule`, `fig:seedmain:*`), the on-canvas handles (`handle:*` except `handle:toggle`), the toolbar / shortcuts / overlay (`play:shuffle:ui`, `play:locks:ui`, `play:shortcuts`) and the six-action journeys (`ux:*`, `ux12:*`, `fig:switch`). 0 changed; 346 cases remain. The engine behaviour those cases also exercised is covered by `scripts/test-figure-eval.sh` (25 recipes byte-identical, purity) and `scripts/test-figure-graph.sh` (the 25 built-ins as graphs, byte-identical).
 - **QA:** the Figure gallery view check is now *New Figure…* (the Built-in Figures); export parity runs the recipes through `runFigureRecipe` — the same 15 hashes.
 
-### 12.4 Many outputs (Phase 4, on the branch)
+### 12.4 Many outputs (Phase 4)
 
 - **Variations** — on every Figure node (UI-COPY §2): *Variations* (count 1–12, default 4) · *Vary by* (Random seed · One change · Several changes) · *Random seed* · *Keep* (Content · Palette · Cell rules · Grid · Rotate & mirror) · *Layout* (One row · Rows). A variation changes the Figure's own inputs (`varyInputs`, `engine/17`): the Grid's size or seed, the Palette's hue (contrast-solved) or ink order, how several contents spread over the cells, a cell rule, a turn / mirror once there is a repeat. Variation 1 is the Figure as set up. Deterministic per seed; a variation identical to another is replaced. **Pin** keeps a variation through **New variations**; **New Figure from this** = a sibling Figure with the same wires and that variation fixed (`params.fixed`, chainable).
-- **Sets** — a Set node (Content) is an ordered list of saved Elements / Components, saved as **saved Sets** (`Organica.store('fvs-sets')`, listed in the node bar). Wired into a Figure with **One group per item** on (default), each item gets its own group of variations, labelled by the item; off, the items are mixed over the cells. A list travels on a thicker wire. At most `FIGURE_RENDER_CAP` (48) figures per Figure node — fewer variations per item, then fewer items, and the card says so (ledger O-37: to be confirmed by testing).
+- **Sets** — a Set node (Content) is an ordered list of saved Elements / Components, saved as **saved Sets** (`Organica.store('fvs-sets')`, listed in the node bar). Wired into a Figure with **Variations per item** on (default), each item gets its own group of variations, labelled by the item; off, the items are mixed over the cells. A list travels on a thicker wire. At most `FIGURE_RENDER_CAP` (24) figures per Figure node — fewer variations per item, then fewer items, and the card says so (ledger O-37: 48 froze the board for ~0.7 s at the Phase 4 checkpoint). **New Figure from this** on an item's variation makes a Figure of that item only (`params.onlyItem`, by name then place; *Use the whole Set* undoes it); the fixed variation carries the **Keep** it was drawn with, so the copy draws the same figure.
 - **The board** — **Sections** (⌘G / *Add section* around the selection; drag the label to move what is inside; rename in place; resize; Delete removes only the section); a built-in Figure opens inside its own section. Below 50% zoom cards become chips (names at a constant size, previews kept). With nothing selected the panel lists the Figures (with their foundation) and the Sections — a click fits the view. A committed change to a shared Canvas / Grid / Palette pulses every Figure it feeds.
 
-### 12.5 Compose (Phase 5, on the branch)
+### 12.5 Compose (Phase 5)
 
 - **The mode** (ledger O-32): double-click a Figure or *Compose…* → the Figure's own cells (its first level, before any repeat) on a light sheet with a selectable outline overlay; breadcrumb *Graph › Compose ‹Figure›*, *Done* / Esc back to the graph at the same view; *Applies to all ‹n› variations of ‹Figure›*. The floatbar is Done · Undo · Redo; the left dock holds the selection tools (*Row · Column · Similar cells · Range* — the selector is kept, so "row 3" stays row 3 when the Grid changes) and the saved items to drop.
 - **The Composition node** — created and wired with the first rule (one undo step with it), named *Composition n* — is an ordered list of rules `{ when, do }` applied after the Cell rules (`applyRulesToContent`, `engine/16`): `when` is the Cell-rule selector plus `at: [[row, col], …]` — clicked, ⌘-clicked and dropped-on cells are stored by **grid address**, so they name the same cells when the Grid changes (a grid whose cells share an address falls back to `index`); Range stores a `row` × `col` box; the tools store `row` / `col` / `class` / `ring` / `parity`; `do` adds, to the Cell-rule actions, `content` (a saved Element / Component dropped in), `toggle`, `color` (a Palette ink), `symbolRule` (a Symbol-step rule over the region: oscillator, checkerboard, rows, columns, radial, wave, orientation, random — with that rule's settings from the Symbol step and its own seed), `arrange` (the region gets the Figure's own content by an Arrange class) and `pattern` (Lines / Crosshatch / Dots / Concentric — a per-cell appearance patch, `cell.appearancePatch`, honoured by the Symbol renderer for Element and Component cells; absent = byte-identical output).
 - **Colours** — a Component a rule puts in a cell (drop, Arrange) takes the Palette's colourway like the Figure's own Components (`first.paletteColourway`), unless *Keep own colours*. A live Arrange (`arrange.live`, the default from the panel) lays out the content feeding the Figure *now*, not a copy taken when the rule was made.
 - **Shared** — a Composition feeding other Figures says so (*Shared with Figure 2 — edits change both Figures.*) with *Make a copy for this Figure* (the copy is rewired to this Figure only).
 - **Chips** — hover / focus outlines the rule's cells on the sheet; a click selects them; seeded rules (Symbol rule, Arrange) have *New random seed*.
-- **Survival** — a Composition reaches every variation; a rule naming cells the grid no longer has is kept and reported per rule (`composeLost` → `{rule, cells, none}`): *Region rule 3 (row 2, column 9 → Empty): row 2, column 9 is not in this grid any more — kept, not drawn.* — or *it matches no cell in this grid* for a row / column past the edge — each with *Remove region rule n*.
+- **Survival** — a Composition reaches every variation; a rule naming cells the grid no longer has is kept and reported per rule (`composeLost` → `{rule, cells, none}`): *Region rule 3 (row 2, column 9 → Empty): row 2, column 9 is not in this grid any more — kept, not drawn.* — or *it matches no cell in this grid* for a row / column past the edge — each with *Delete region rule n*. The notes follow every new result of the Figure.
 - Quick tools (Toggle · Empty · Filled · Rotate · Flip) are text buttons in the panel, not floatbar icons (no new drawings needed).
 
-### 12.6 Export (Phase 6, on the branch)
+### 12.6 Export (Phase 6)
 
-- **The Export node** (Output) takes Figures on a list input. Its right panel holds every option (ledger, round 2 #2): *Variations* — all / pinned only / as set up only; *Format* — SVG, PNG, plates (one file per ink, black on transparent); *PNG size* ×1 / ×2 / ×4 (Screen Canvases; a Print Canvas uses its own size and DPI); *Transparent paper*; then *Export n files* and *Send to Figma*. The card shows the summary first (*18 files · SVG + plates · 300 dpi*) and *Export n files*. The floatbar Export selects the Export node — creating it if there is none, wired to the selected Figures (or every Figure); with one already there it wires the selected Figures in.
+- **The Export node** (Output) takes Figures on a list input. Its right panel holds every option (ledger, round 2 #2): *Variations* — all / pinned only / as set up only; *Format* — SVG, PNG, plates (one file per ink the drawing uses — read from its fills and strokes, paper left out — black on transparent); *PNG size* ×1 / ×2 / ×4 (Screen Canvases; a Print Canvas uses its own size and DPI); *Transparent paper*; then *Export n files* and *Send to Figma*. The card shows the summary first (*18 files · SVG + plates · 300 DPI*) and *Export n files*. The floatbar Export selects the Export node — creating it if there is none, wired to the selected Figures (or every Figure); with one already there it wires the selected Figures in.
 - **The plan is pure** (`exportPlan(figs, p)` / `exportSummary`, `engine/17`): one entry per file — figure, variation tag, format, scale, plate / ink, paper, the Canvas. The UI encodes each (`encodeFile`, `17-figure-graph.js`): a Print Canvas wraps the SVG at its size in mm with bleed and crop / registration marks (`Organica.printSize`); PNG rasterises through an `Image` at ×scale or at the Canvas DPI, with the DPI written in (`embedPngDpi`); plates via `plateSVG`; files go out through `Organica.plateExport.run`.
 - **Checks** — each Figure runs `evalFigure(def, {checks: true})` for its main result; the card carries a checks badge (*Checks pass* / *n checks to look at*), the inspector lists them.
 - Tests (`scripts/test-figure-graph.sh`): plan counts (variations × SVG + PNG sizes + one plate per ink), pinned / as-set-up filters, a ×2 PNG at twice the size, a plate keeping one ink in black, a Print SVG in mm with crop marks, a Print PNG at the Canvas DPI with a `pHYs` chunk.
+- A Figure wired to an Export node computes even off screen, and an off-screen (stale) result still counts in the plan.
+
+### 12.7 After the audit (Oct 7, 2026)
+
+- **Keyboard** — the graph's shortcuts are off while composing (Compose has its own: arrows, Space / Enter, ⌘Z / ⌘Y, Esc) and the right panel no longer counts as the board (Delete on a panel button used to delete the selected node). Enter on a focused card = its double-click (a Figure → Compose). The panel keeps its focused control across rebuilds.
+- **Composition node** — its card shows *‹n› region rules (‹k› off) · ‹first rule› …*; its panel lists the rules and a *Compose ‹Figure›* button per Figure it feeds. A new one goes under the Figure's input column.
+- **Similar cells** selects with the rules' own matcher (`ruleMatches`) — on triangle grids it selected nothing before.
+- **Safe loading** — `Organica.nodeCanvas.repairModel` drops unknown node types, broken wires and wires that close a loop when a graph is loaded or opened, with a notice. A v1 recipe file, or one with hand-placed cells, gets a notice instead of an error or a silently different figure.
+- **Content** — a Component in a Figure draws from the copy the node keeps, like an Element (a same-named library entry no longer wins inside the evaluator).
+- **Engine** — a node back on screen with unchanged inputs keeps its value and version (no recompute of its variations).
+- **Fit in cell** applies on built-in Figures (`symbolFit` gives way once the user picks a fit).
+- The Library rail is back on Element / Component / Symbol: the node bar's `.org-dock` beat `[hidden]`; `.org-dock[hidden]` now hides it (QA check *rail-reachable*).

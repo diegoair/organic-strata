@@ -91,6 +91,14 @@ export function updateStepHint(tier) {
   ctrl('stepnav-hint').textContent = msg;
 }
 
+// The floatbar Export on the Figure graph is not a menu: it shows the Export node (17-figure-graph.js) — no chevron,
+// no popup state, its own name. Every other step (and Compose) gets the menu back.
+export function syncExportButton() {
+  const b = ctrl('btn-export'), graph = state.activeTier === 'figure' && !document.body.classList.contains('fg-composing');
+  b.classList.toggle('is-graph-export', graph);
+  b.setAttribute('aria-label', graph ? 'Export — show the Export node' : 'Export');
+  if (graph) { b.removeAttribute('aria-expanded'); b.removeAttribute('aria-haspopup'); } else { if (!b.hasAttribute('aria-expanded')) b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-haspopup', 'dialog'); }
+}
 export function setTier(tier) {
   // Navigating away mid-edit abandons it (no auto-save) — otherwise
   // #component-edit-view and the disabled Grid/Rule controls would stay
@@ -125,6 +133,7 @@ export function setTier(tier) {
   ctrl('fb-compose-actions').style.display = tier === 'figure' && document.body.classList.contains('fg-composing') ? '' : 'none';
   ctrl('fg-nodebar-dock').hidden = tier !== 'figure';   // the left dock: Library rail on the other steps, the node bar here
   hooks.syncRailTier(tier);
+  syncExportButton();
   syncQuadrantHint();
   hooks.closeLibview();
   if (tier === 'symbol') {
