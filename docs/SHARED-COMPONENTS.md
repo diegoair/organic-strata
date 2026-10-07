@@ -288,7 +288,14 @@ NC.addEdge(model, from, to, multi)  // a single input keeps one wire (a new one 
 NC.removeEdge(model, id) · NC.findNode · NC.edgesInto · NC.edgesOutOf
 NC.topoSort(model)              // Kahn; throws a CycleError ("That connection would make a loop.") — never hangs
 NC.wouldCycle(model, from, to)
+NC.repairModel(model, registry)  // → { model, dropped: { nodes, edges } } — a copy safe to run
 ```
+
+`repairModel` is for a model from storage or a file (Oct 7, 2026): it drops nodes of an unknown
+type, wires to a missing node or port, and wires that would close a loop (`topoSort` would throw on
+every run and lock the tab). The host says what was dropped — FVS: an error notice *Part of this
+graph could not be opened: ‹n› nodes and ‹m› connections left out* (`fvs/js/17-figure-graph.js`
+`safeModel`), on load and on Open file.
 
 **Registry** — node types and their typed ports.
 
@@ -314,6 +321,10 @@ versions of the nodes feeding it — counters, never a stringified SVG) and only
 has an explicit state: `ok · error · waiting` (a required input is missing — *Connect a ‹port›
 input*) `· upstream` (a node it reads failed — *Waiting for ‹node› — fix it first*) `· stale`.
 Runs are serialised: a `run()` during a run schedules one more, with the latest model.
+A node that goes off screen becomes `stale` and remembers its last state in `was`; when it comes
+back with the same key (inputs and revision unchanged) and `was` is `ok` or `error`, it gets that
+state back with the **same value and version** — no recompute, and nothing downstream re-runs
+(Oct 7, 2026; before, every variation of a Figure was recomputed on scroll-in).
 
 **History** — `NC.createHistory(max = 100)` → `{ push(model, meta), undo(), redo(), canUndo(),
 canRedo(), clear() }`; snapshots at checkpoints (add / remove, connect, drag end, commit);
@@ -339,7 +350,7 @@ layer, the marquee, a polite live region), wires `Organica.createZoomPan` with `
 | `onSearch(point, from, client)` | `/` or right-click on the board: open the node search (`point` in board units) |
 | `onWireDrop(from, point, client)` | a wire released on the empty board: open the search there, filtered by `from` |
 | `onPortDblClick(node, port, dir)` | a port double-clicked: spawn the node it wants, wired |
-| `onNodeDblClick(node, e)` | a card double-clicked outside its ports |
+| `onNodeDblClick(node, e)` | a card double-clicked outside its ports, **or Enter on a focused card** (no modifier) — the keyboard path to the same action (FVS: a Figure opens in Compose) |
 | `onBoardDblClick(point, client)` | the empty board double-clicked (FVS: the node search) |
 | `nameCopy(node, model)` → name | the name a duplicated / pasted node gets (FVS: the next *Canvas ‹n›*) |
 | `fitInset` | `{ left, bottom }` px of the stage covered by chrome (the left dock, the floatbar) — Fit keeps clear of it |
@@ -362,7 +373,10 @@ Keys while `isActive()` and focus is not in a field: wheel zoom · Space-drag / 
 drag on the board = marquee (Shift / ⌘ adds) · Delete / Backspace · ⌘/Ctrl Z, ⇧Z or Y, A, C, V,
 D · arrows nudge 8 (Shift 32) · Esc · `/` search · **Shift+1** Fit all · **Shift+2** Fit selection
 (ledger O-33; ⌘/Ctrl +−0 stay the browser's). Port dots have a `--hit-min` hit area at any zoom;
-below 35% zoom (`.nc-stage--far`) ports and status lines hide.
+**Enter** on a focused card = its double-click (`onNodeDblClick`). Below **50%** zoom
+(`.nc-stage--far`) a card becomes a **chip**: ports, status line and type overline hide, the
+title keeps its on-screen size, a card that is not `--wide` hides its body, the selection ring
+stays 2px on screen.
 
 CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d` 10px,
 `--wire-w` 1.5px, `--nc-zoom` written by the view): `.nc-stage` · `.nc-board` · `.nc-wires` ·
@@ -466,7 +480,10 @@ Never nest them (a `backdrop-filter` child blurs only its parent). The dock is t
 a drag ghost or popover goes on `<body>`. The tool wires `aria-expanded` / `aria-controls` on the
 toggles and `inert` on the closed panel. One occupant per tool step — FVS: the Library rail
 (`#fvs-rail-dock`, Element / Component / Symbol) and the Figure graph's node bar
-(`#fg-nodebar-dock`). A node board under it passes `fitInset.left`. Promoted from the Library
+(`#fg-nodebar-dock`). A node board under it passes `fitInset.left`. **Hide it with the `hidden`
+attribute**: `.org-dock[hidden] { display: none; }` (Oct 7, 2026) — without that guard the
+`display: flex` above beats the UA `[hidden]` rule, and FVS's node bar stayed on every step, over
+the Library rail. Promoted from the Library
 rail at its second vertical occupant; the Suggest dock (`#fvs-sug-dock`, horizontal, top) is the
 same pattern turned sideways and stays FVS-local. Reference: `/design-system/#dock`.
 
