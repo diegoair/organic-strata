@@ -36,7 +36,7 @@ import {
   componentCellsFromRule
 } from './13-figure-engine.js';
 import {
-  FG_HUE_TURNS
+  FG_HUE_TURNS, describeRule
 } from './14-figure-ui.js';
 import {
   contentPatch, evalFigure, withFigureSandbox
@@ -136,7 +136,7 @@ function fitOnPage(svg, cv, paper) {   // a figure with its own frame, fitted in
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${cv.W}" height="${cv.H}" viewBox="0 0 ${cv.W} ${cv.H}"><rect width="${cv.W}" height="${cv.H}" fill="${paper}"/>${inner}</svg>`;
 }
 // The most figures one Figure node draws (variations × Set items). Decided by testing in Phase 4 (ledger O-37).
-export const FIGURE_RENDER_CAP = 48;
+export const FIGURE_RENDER_CAP = 24;   // ledger O-37 — measured at the Phase 4 UX checkpoint (48 froze the board for ~0.7 s)
 // A Figure node's output. With a Set connected and Fan out on: one group per Set item (that item as the content, the
 // other contents kept), each with its own variations; otherwise one group. → main figure + variations (+ groups).
 export async function figureWithVariations(inputs, p) {
@@ -146,34 +146,46 @@ export async function figureWithVariations(inputs, p) {
   const per = Math.max(1, Math.min(+p.variations || 1, Math.floor(FIGURE_RENDER_CAP / items.length)));
   const shown = items.slice(0, FIGURE_RENDER_CAP);
   const groups = [];
-  for (const it of shown) {
-    const g = await figureGroup({ ...inputs, content: [it, ...others] }, { ...p, variations: per });
-    groups.push({ label: it.name, variations: g.variations.map(v => ({ ...v, key: it.name + '|' + v.key })) , main: g });
+  for (let gi = 0; gi < shown.length; gi++) {
+    const it = shown[gi], itemKey = gi + ':' + it.name;   // by position: the same item twice is two groups
+    if (gi) await new Promise(r => setTimeout(r, 0));   // let the board breathe between groups
+    const g = await figureGroup({ ...inputs, content: [it, ...others] }, { ...p, variations: per }, itemKey);
+    groups.push({ label: it.name, variations: g.variations.map(v => ({ ...v, key: itemKey + '|' + v.key })), main: g });
   }
   const main = groups[0].main;
   main.groups = groups.map(g => ({ label: g.label, variations: g.variations }));
   main.variations = [].concat(...main.groups.map(g => g.variations));
-  main.capped = items.length > shown.length || per < (+p.variations || 1) ? { items: items.length, shownItems: shown.length, per } : null;
+  main.capped = items.length > shown.length || per < (+p.variations || 1) ? { items: items.length, shownItems: shown.length, per, asked: +p.variations || 1, cap: FIGURE_RENDER_CAP } : null;
   return main;
 }
-async function figureGroup(inputs, p) {
+async function figureGroup(inputs, p, item) {
   const keep = p.keep || {};
   // `fixed`: the variation(s) a "New Figure from this" froze — applied in order, before anything else
   const base = [].concat(p.fixed || []).reduce((b, spec) => { const v = varyInputs(b.inputs, spec, {}); return { inputs: v.inputs, extra: { ...b.extra, ...v.extra } }; }, { inputs, extra: {} });
   const main = await compileFigure(base.inputs, { ...p, ...base.extra });
   // two renders of one figure differ only in their export time and run-time ids (an Element stack's masks): compare without them
   const keyOf = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
-  const want = Math.max(1, Math.min(12, +p.variations || 1)), specs = variationSpecs(p, 8), seen = new Set([keyOf(main.svg)]);
-  main.variations = [];
-  for (const v of specs) {
-    if (main.variations.length >= want) break;
-    if (!v.spec) { main.variations.push({ key: v.key, svg: main.svg, label: 'As set up', pinned: false, spec: null }); continue; }
-    const vr = varyInputs(base.inputs, v.spec, keep);
-    try {
-      const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra });
-      if (seen.has(keyOf(r.svg)) && !v.pinned) continue;   // the same figure as one already shown: draw another
-      seen.add(keyOf(r.svg)); main.variations.push({ key: v.key, svg: r.svg, label: vr.label, pinned: v.pinned, spec: v.spec });
-    } catch (e) { if (v.pinned) main.variations.push({ key: v.key, svg: '', label: e.message, pinned: true, spec: v.spec, error: true }); }
+  const want = Math.max(1, Math.min(12, +p.variations || 1)), seen = new Set([keyOf(main.svg)]);
+  const pins = new Map(pinsFor(p, item).filter(q => q.slot >= 1 && q.slot < want).map(q => [q.slot, q]));
+  const queue = variationSpecs(p, want + 12);
+  const draw = async spec => { const vr = varyInputs(base.inputs, spec, keep); const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra }); return { r, label: vr.label }; };
+  main.variations = [{ key: 'base', svg: main.svg, label: 'As set up', pinned: false, spec: null, slot: 0, item }];
+  for (let slot = 1; slot < want; slot++) {
+    const pin = pins.get(slot);
+    if (pin) {   // a pinned variation keeps its place, whatever the new seed
+      const spec = { mode: pin.mode, seed: pin.seed };
+      try { const { r, label } = await draw(spec); seen.add(keyOf(r.svg)); main.variations.push({ key: 'pin:' + spec.mode + ':' + spec.seed, svg: r.svg, label, pinned: true, spec, slot, item }); }
+      catch (e) { main.variations.push({ key: 'pin:' + pin.seed, svg: '', label: e.message, pinned: true, spec, slot, item, error: true }); }
+      continue;
+    }
+    while (queue.length) {
+      const v = queue.shift();
+      try {
+        const { r, label } = await draw(v.spec);
+        if (!r.shapes || seen.has(keyOf(r.svg))) continue;   // blank, or the same as one already shown: draw another
+        seen.add(keyOf(r.svg)); main.variations.push({ key: v.key, svg: r.svg, label, pinned: false, spec: v.spec, slot, item }); break;
+      } catch (e) { /* this change does not apply here: try the next */ }
+    }
   }
   return main;
 }
@@ -270,10 +282,11 @@ const RULE_POOL = [
 function changeCells(inp, rng) {
   const rules = (inp.rules || []).slice(), at = rules.findIndex(r => r.kind === 'cells');
   const cur = at >= 0 ? clone(rules[at].rules) : [];
-  if (cur.length && rng() < 0.4) { const i = Math.floor(rng() * cur.length); cur[i].off = !cur[i].off; }
-  else cur.push(clone(pick(RULE_POOL, rng)));
+  let label;
+  if (cur.length && rng() < 0.4) { const i = Math.floor(rng() * cur.length); cur[i].off = !cur[i].off; label = (cur[i].off ? 'Off: ' : 'On: ') + describeRule(cur[i]); }
+  else { const r = clone(pick(RULE_POOL, rng)); cur.push(r); label = describeRule(r); }
   if (at >= 0) rules[at] = { kind: 'cells', rules: cur }; else rules.unshift({ kind: 'cells', rules: cur });
-  inp.rules = rules; return 'A cell rule';
+  inp.rules = rules; return label.charAt(0).toUpperCase() + label.slice(1);
 }
 function changeTransform(inp, rng) {
   const rules = (inp.rules || []).slice(); if (!rules.some(r => r.kind === 'repeat')) return null;
@@ -302,17 +315,14 @@ export function varyInputs(inputs, spec, keep) {
   }
   return { inputs: inp, extra, label: labels.join(' · ') || 'No change' };
 }
-// The variation specs a Figure shows: the Figure as set up first, then the pinned ones, then new ones from its seed.
-export function variationSpecs(p, spare = 0) {   // spare: extra candidates, to replace a variation that came out the same as another
-  const n = Math.max(1, Math.min(12, +p.variations || 1)) + spare, mode = p.varyBy || 'one', base = (+p.seed || 1) >>> 0;
-  const out = [{ key: 'base', spec: null, pinned: false }];
-  (p.pins || []).forEach(s => { if (out.length < n) out.push({ key: s.mode + ':' + s.seed, spec: s, pinned: true }); });
-  for (let i = 1; out.length < n && i < 200; i++) {
-    const s = { mode, seed: (base * 7919 + i * 104729) >>> 0 };
-    if (!out.some(o => o.spec && o.spec.mode === s.mode && o.spec.seed === s.seed)) out.push({ key: s.mode + ':' + s.seed, spec: s, pinned: false });
-  }
+// The candidate specs a Figure draws from its seed (the base, the Figure as set up, is not one of them).
+export function variationSpecs(p, count) {
+  const mode = p.varyBy || 'one', base = (+p.seed || 1) >>> 0, out = [];
+  for (let i = 1; out.length < count && i < 400; i++) out.push({ key: mode + ':' + ((base * 7919 + i * 104729) >>> 0), spec: { mode, seed: (base * 7919 + i * 104729) >>> 0 }, pinned: false });
   return out;
 }
+// The pins that apply to a group: { mode, seed, slot, item? } — a pin stays in its slot; in a fan-out it belongs to its item.
+export const pinsFor = (p, item) => (p.pins || []).filter(q => (q.item == null && item == null) || q.item === item);
 
 // ── A recipe v2 (a built-in Figure, a JSON file) → the pieces of a graph. Its Element is saved to the library once
 // (deduplicated by the recipe element it came from; tagged `imported`), so content still comes from the library. ──

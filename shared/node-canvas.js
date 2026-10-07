@@ -196,6 +196,7 @@
     max = max || 100;
     var stack = [], index = -1;
     function snap(model) { return JSON.stringify({ nodes: model.nodes, edges: model.edges, frames: model.frames || [] }); }
+    function amend(model, meta) { if (index < 0) return push(model, meta); stack[index] = { s: snap(model), meta: meta }; }
     function push(model, meta) {
       var s = snap(model);
       if (index >= 0 && stack[index].s === s) { stack[index].meta = meta; return; }
@@ -205,7 +206,7 @@
     }
     function at(i) { var e = stack[i]; var m = JSON.parse(e.s); return { model: createModel(m), meta: e.meta }; }
     return {
-      push: push,
+      push: push, amend: amend,
       canUndo: function () { return index > 0; },
       canRedo: function () { return index < stack.length - 1; },
       undo: function () { if (index <= 0) return null; index--; return at(index); },
@@ -239,6 +240,7 @@
   //   history                   createHistory() — default: one made here
   //   fitInset                  { left, bottom } px of the stage covered by chrome (a left dock, a floatbar) — Fit avoids them
   //   keepActive(node) → bool   compute this node even off screen (the host shows its output elsewhere)
+  //   keyScope(target) → bool   focus on this element still counts as the board for its shortcuts (the host's floatbar…)
   // }
   // → ctl: { model, engine, history, zoomPan, select(ids), selection(), add(type, at, params), connect(from, to),
   //          remove(ids), duplicate(ids), setModel(model, meta), refresh(), run(), fitAll(), fitSelection(), fitTo(ids),
@@ -266,7 +268,7 @@
     var wireG = document.createElementNS(SVGNS, 'g'); wires.appendChild(wireG);
     var pending = document.createElementNS(SVGNS, 'path'); pending.setAttribute('class', 'nc-wire nc-wire--pending'); pending.style.display = 'none'; wires.appendChild(pending);
     var nodesLayer = el('div', 'nc-nodes'), framesLayer = el('div', 'nc-frames');
-    board.append(framesLayer, wires, nodesLayer);
+    board.append(wires, nodesLayer, framesLayer);
     var selectedFrame = null;
     var marquee = el('div', 'nc-marquee'); marquee.hidden = true;
     var live = el('div', 'nc-live', { 'aria-live': 'polite' });
@@ -397,8 +399,20 @@
       });
       Array.from(selected).forEach(function (id) { if (!keep.has(id)) selected.delete(id); });
       cards.forEach(function (c, id) { measure(id); });
+      growFrames();
       drawFrames();
       drawWires();
+    }
+    function growFrames() {   // a section grows to hold the cards that sit in it (never shrinks on its own)
+      var pad = 32, grew = false;
+      (ctl.model.frames || []).forEach(function (f) {
+        nodesIn(f).forEach(function (n) {
+          var c = cards.get(n.id), w = c ? c.w : 200, h = c ? c.h : 120;
+          var r = Math.max(f.x + f.w, n.x + w + pad), b = Math.max(f.y + f.h, n.y + h + pad);
+          if (r > f.x + f.w + 0.5 || b > f.y + f.h + 0.5) { f.w = Math.round(r - f.x); f.h = Math.round(b - f.y); grew = true; }
+        });
+      });
+      return grew;
     }
     // ── Sections (model.frames): a named area that moves the nodes inside it; its label stays readable at any zoom ──
     function nodesIn(f) {
@@ -412,8 +426,8 @@
       framesLayer.replaceChildren();
       (ctl.model.frames || []).forEach(function (f) {
         var d = el('div', 'nc-frame' + (selectedFrame === f.id ? ' is-selected' : ''), { 'data-frame': f.id, role: 'group', 'aria-label': f.name });
-        d.style.transform = 'translate(' + f.x + 'px,' + f.y + 'px)'; d.style.width = f.w + 'px'; d.style.height = f.h + 'px';
-        var lab = el('button', 'nc-frame__label', { type: 'button', 'aria-label': f.name, 'aria-keyshortcuts': 'F2 Delete' }); lab.textContent = f.name;
+        d.style.transform = 'translate(' + f.x + 'px,' + f.y + 'px)'; d.style.width = f.w + 'px'; d.style.height = f.h + 'px'; d.style.setProperty('--frame-w', f.w + 'px');
+        var lab = el('button', 'nc-frame__label', { type: 'button', 'aria-label': f.name, 'aria-keyshortcuts': 'F2 Delete', title: f.name }); lab.textContent = f.name;
         var grip = el('span', 'nc-frame__grip', { 'aria-hidden': 'true' });
         d.append(lab, grip); framesLayer.appendChild(d);
         bindFrame(d, lab, grip, f);
@@ -467,7 +481,7 @@
       });
     }
     // Add a section around the given nodes (or the selection, or the view's centre). → the frame
-    ctl.addSection = function (ids, name) {
+    ctl.addSection = function (ids, name, opt) {
       ids = ids || Array.from(selected);
       var ns = ids.map(function (id) { return findNode(ctl.model, id); }).filter(Boolean), pad = 32, f;
       var n = (ctl.model.frames || []).length, nm = name;
@@ -478,7 +492,7 @@
         f = { id: nextId('f'), name: nm, x: Math.round(x0 - pad), y: Math.round(y0 - pad - 28), w: Math.round(x1 - x0 + pad * 2), h: Math.round(y1 - y0 + pad * 2 + 28) };
       } else { var r = stage.getBoundingClientRect(), c0 = toBoard(r.left + r.width / 2, r.top + r.height / 2); f = { id: nextId('f'), name: nm, x: Math.round(c0.x - 300), y: Math.round(c0.y - 200), w: 600, h: 400 }; }
       ctl.model.frames = (ctl.model.frames || []).concat([f]);
-      drawFrames(); announce(nm + ' added'); changed('section', false); commit('section');
+      drawFrames(); announce(nm + ' added'); changed('section', false); if (!(opt && opt.noCommit)) commit('section');
       return f;
     };
     ctl.pulse = function (ids) {
@@ -491,7 +505,7 @@
       if (structural) render(); else drawWires();
       if (o.onChange) o.onChange(ctl.model, reason);
     }
-    function commit(reason) { history.push(ctl.model, { selection: Array.from(selected) }); if (o.onChange) o.onChange(ctl.model, reason || 'commit'); }
+    function commit(reason, opt) { (opt && opt.amend ? history.amend : history.push)(ctl.model, { selection: Array.from(selected) }); if (o.onChange) o.onChange(ctl.model, reason || 'commit'); }
     ctl.commit = commit;
     function touchDown(id) {   // a node's params/wiring changed: bump it; the engine recomputes it and what follows
       engine.touch(id); run();
@@ -699,12 +713,22 @@
     ctl.remove = function (ids) { remove(ids || Array.from(selected)); };
     // Duplicate copies the nodes and their wires among themselves, and re-wires their inputs to the SAME shared
     // nodes outside the copy (ledger B3: a node can feed many figures).
+    function boxOf(n) { var c = cards.get(n.id); return { x: n.x, y: n.y, w: c ? c.w : 200, h: c ? c.h : 120 }; }
+    function freeDy(src, dx, dy) {   // move a copy of `src` (offset dx, dy) down until it covers no other card
+      var others = ctl.model.nodes.filter(function (n) { return src.indexOf(n) < 0; }).map(boxOf);
+      for (var t = 0; t < 40; t++) {
+        var hit = src.some(function (n) { var b = boxOf(n), x = b.x + dx, y = b.y + dy; return others.some(function (q) { return x < q.x + q.w + 24 && x + b.w > q.x - 24 && y < q.y + q.h + 24 && y + b.h > q.y - 24; }); });
+        if (!hit) return dy; dy += 120;
+      }
+      return dy;
+    }
     function cloneNodes(ids, dx, dy, rewireOutside) {
       var map = new Map(), src = ids.map(function (id) { return findNode(ctl.model, id); }).filter(Boolean);
       if (dx == null) {   // beside the originals: to the right of their bounding box
         var x0 = Infinity, x1 = -Infinity;
         src.forEach(function (n) { var c = cards.get(n.id); x0 = Math.min(x0, n.x); x1 = Math.max(x1, n.x + (c ? c.w : 200)); });
         dx = Math.round(x1 - x0 + 60); dy = 0;
+        dy = freeDy(src, dx, dy);
       }
       src.forEach(function (n) {
         var copy = JSON.parse(JSON.stringify(Object.assign({}, n, { id: null, x: n.x + dx, y: n.y + dy })));
@@ -718,12 +742,12 @@
       });
       return Array.from(map.values());
     }
-    ctl.duplicate = function (ids) {
+    ctl.duplicate = function (ids, opt) {
       ids = ids || Array.from(selected); if (!ids.length) return [];
       var made = cloneNodes(ids, null, null, true);
       render(); select(made); made.forEach(touchDown);
       announce(made.length === 1 ? 'Duplicated' : made.length + ' nodes duplicated');
-      changed('duplicate', true); commit('duplicate');
+      changed('duplicate', true); if (!(opt && opt.noCommit)) commit('duplicate');
       return made;
     };
     function copy() {
@@ -743,7 +767,7 @@
     }
 
     // ── view: fit all / fit selection ──
-    function fit(ids) {
+    function fit(ids, again) {
       var ns = ids.map(function (id) { return findNode(ctl.model, id); }).filter(Boolean); if (!ns.length) return;
       var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       ns.forEach(function (n) { measure(n.id); var c = cards.get(n.id), w = c ? c.w : 200, h = c ? c.h : 120; x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + w); y1 = Math.max(y1, n.y + h); });
@@ -751,6 +775,7 @@
       var W = r.width - L, H = r.height - B;
       var z = Math.min(1.5, Math.max(0.1, Math.min((W - pad * 2) / (x1 - x0), (H - pad * 2) / (y1 - y0))));
       zoomPan.setView({ zoom: z, panX: L + (W - (x1 - x0) * z) / 2 - x0 * z, panY: (H - (y1 - y0) * z) / 2 - y0 * z });
+      if (!again) requestAnimationFrame(function () { fit(ids, true); });   // measured again at the new zoom (a chip → a full card)
     }
     ctl.fitAll = function () { fit(ctl.model.nodes.map(function (n) { return n.id; })); };
     ctl.fitTo = function (ids) { fit(ids || []); };
@@ -781,7 +806,7 @@
       if (!isActive() || typing(e.target)) return;
       var mod = e.metaKey || e.ctrlKey, k = e.key;
       if (e.code === 'Space' && !e.repeat && !e.target.closest('button')) { spaceDown = true; stage.classList.add('nc-stage--pan'); e.preventDefault(); return; }
-      var inStage = stage.contains(e.target) || e.target === document.body;
+      var inStage = stage.contains(e.target) || e.target === document.body || !!(o.keyScope && o.keyScope(e.target));
       if (mod && !e.shiftKey && k.toLowerCase() === 'z') { e.preventDefault(); ctl.undo(); return; }
       if (mod && (k.toLowerCase() === 'y' || (e.shiftKey && k.toLowerCase() === 'z'))) { e.preventDefault(); ctl.redo(); return; }
       if (e.shiftKey && !mod && (e.code === 'Digit1' || k === '!')) { e.preventDefault(); ctl.fitAll(); return; }
@@ -812,7 +837,7 @@
     };
     ctl.cardOf = function (id) { var c = cards.get(id); return c ? c.el : null; };
     ctl.paint = function (id) { paintState(id, true); };
-    ctl.remeasure = function (id) { measure(id); drawWires(); };
+    ctl.remeasure = function (id) { measure(id); if (growFrames()) drawFrames(); drawWires(); };
 
     render();
     history.push(ctl.model, { selection: [] });

@@ -73,10 +73,10 @@ const out = await P.ev(`
   res.varFirstIsBase = v1[0] === K(eng.get(f0.id).value.figure.svg);
   res.varUnique = new Set(v1).size === v1.length;
   eng.touch(f0.id); await eng.run(m); res.varDet = JSON.stringify(V().map(v => v.svg)) === JSON.stringify(v1);
-  const pinSpec = V()[2].spec, pinSvg = V()[2].svg; f0.params.pins = [pinSpec]; eng.touch(f0.id); await eng.run(m);
-  res.pinFirst = V()[1].pinned && V()[1].svg === pinSvg;
+  const pinSpec = V()[2].spec, pinSvg = V()[2].svg; f0.params.pins = [{ ...pinSpec, slot: 2 }]; eng.touch(f0.id); await eng.run(m);
+  res.pinFirst = V()[2].pinned && V()[2].svg === pinSvg;   // a pinned variation stays in its slot
   f0.params.seed = 4; eng.touch(f0.id); await eng.run(m);   // New variations
-  res.renewKeepsPin = V()[1].pinned && V()[1].svg === pinSvg;
+  res.renewKeepsPin = V()[2].pinned && V()[2].svg === pinSvg;
   res.renewChanges = V().slice(2).some(v => !v1.includes(v.svg));
   // New Figure from this: a Figure with the pinned variation fixed draws exactly that variation
   const nf = NC.addNode(m, { type: 'figure', params: { ...JSON.parse(JSON.stringify(f0.params)), fixed: [pinSpec], pins: [], variations: 1 } });
@@ -99,6 +99,12 @@ const out = await P.ev(`
   res.setMixed = !eng.get(fs.id).value.figure.groups && eng.get(fs.id).value.figure.variations.length === 3;
   fs.params.fanOut = true; fs.params.variations = 12; sn.params.items = Array.from({ length: 6 }, (_, i) => ({ kind: 'element', name: 'E' + i, snapshot: el })); eng.touch(sn.id); eng.touch(fs.id); await eng.run(m);
   const C = eng.get(fs.id).value.figure; res.setCap = C.variations.length <= F('FIGURE_RENDER_CAP') && C.groups.length === 6 && !!C.capped;
+  // the same item twice = two groups with their own keys; a pin belongs to its item
+  sn.params.items = [{ kind: 'element', name: 'Twice', snapshot: el }, { kind: 'element', name: 'Twice', snapshot: el }]; fs.params.variations = 3; eng.touch(sn.id); eng.touch(fs.id); await eng.run(m);
+  const T = eng.get(fs.id).value.figure, keys = T.variations.map(v => v.key);
+  res.setTwice = T.groups.length === 2 && new Set(keys).size === keys.length;
+  const v1g = T.groups[1].variations[1]; fs.params.pins = [{ ...v1g.spec, slot: 1, item: v1g.item }]; eng.touch(fs.id); await eng.run(m);
+  const P = eng.get(fs.id).value.figure; res.pinPerItem = P.groups[1].variations[1].pinned && !P.groups[0].variations.some(v => v.pinned);
   // ── Composition (Phase 5) ──
   const fc = NC.addNode(m, { type: 'figure', params: { ...reg.defaults('figure'), variations: 3 } });
   NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fc.id, port: 'canvas' }); NC.addEdge(m, { node: grids[0].id, port: 'grid' }, { node: fc.id, port: 'grid' });
@@ -159,13 +165,15 @@ check(out.varCount === 5, 'variations: count ' + out.varCount);
 check(out.varFirstIsBase, 'variation 1 is the figure as set up');
 check(out.varUnique, 'no two variations are the same');
 check(out.varDet, 'variations are the same for the same seed');
-check(out.pinFirst, 'a pinned variation comes first after the base');
+check(out.pinFirst, 'a pinned variation stays in its slot');
 check(out.renewKeepsPin && out.renewChanges, 'New variations keeps the pinned one and changes the others');
 check(out.fromThis, 'New Figure from this draws exactly that variation');
 check(out.keepAll, 'Keep everything → no variation can change anything');
 check(out.setGroups === 'Test element:3,Test component:3', 'a Set fans out, one group per item: ' + out.setGroups);
 check(out.setMixed, 'Fan out off: the Set items are mixed, one group');
 check(out.setCap, 'variations × items stay within the cap');
+check(out.setTwice, 'the same item twice in a Set: two groups, distinct keys');
+check(out.pinPerItem, 'a pin in a fan-out belongs to its item only');
 check(out.composeInfo, 'a Figure tells Compose its cells (classes, outlines, the base SVG)');
 check(out.composeEmptySame, 'an empty Composition changes nothing');
 check(out.composePlaced, 'a placement drops content into a cell');

@@ -450,7 +450,7 @@
   /* ── Figure graph (Oct 2026, docs/FVS.md §12): the Figure step is a node board filling the stage ── */
   #canvas-wrap:has(> .tier-view.is-graph.active) { position: relative; padding: 0; overflow: hidden; }
   #canvas-wrap .tier-view.is-graph.active { position: absolute; inset: 0; display: block; }
-  .tier-view.is-graph > :not(#fg-graph) { display: none !important; }
+  .tier-view.is-graph > :not(#fg-graph):not(#fg-compose) { display: none !important; }
   .tier-block.is-graph > :not(#fg-inspector) { display: none !important; }
   #panel:has(.tier-block.is-graph.active) > :not(.tier-block.is-graph) { display: none !important; }   /* the graph's settings are the whole panel: no global Palette / Rules sections */
   .fg-graph { position: absolute; inset: 0; }
@@ -539,3 +539,7 @@
   .fg-quick { flex-wrap: wrap; }
   .fg-warn { color: var(--danger); }
   body.fg-composing #fg-graph { visibility: hidden; }
+  .fg-var__tools { gap: var(--space-2); }
+  .fg-var__tools .icon-btn { min-width: var(--hit-min); min-height: var(--hit-min); justify-content: center; }
+  .nc-node--xwide { --node-w: 52rem; }
+  .nc-node--xwide .fg-vars--rows { grid-template-columns: repeat(4, minmax(0, 1fr)); }

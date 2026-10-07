@@ -120,7 +120,8 @@ function renderBody(node, entry, el) {
           <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get('figure-from', { size: 'xs' })}</button></div>` : ''}
       </figure>`;
     el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>` + groups.map((g, gn) => { const gid = `fgv-${node.id}-${gn}`; return `<div${g.label ? ` role="group" aria-labelledby="${gid}"` : ''}>${g.label ? `<p class="fg-group__label" id="${gid}">${esc(g.label)}</p>` : ''}<div class="fg-vars fg-vars--${layout}${g.variations.length === 1 ? ' is-single' : ''}">${g.variations.map((v, k) => tile(v, gi++, k === 0, k, g.label)).join('')}</div></div>`; }).join('')
-      + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · showing ${f.capped.shownItems} of ${f.capped.items} items, ${f.capped.per} variations each` : ''}</p>`;
+      + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}</p>`;
+    const card = el.closest('.nc-node'); if (card) card.classList.toggle('nc-node--xwide', vars.length > 8);
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => ctl.remeasure(node.id), { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act, +b.dataset.i); }); }
     el._vars = vars;
@@ -161,14 +162,15 @@ function variationAction(id, act, i) {
   const node = NC.findNode(ctl.model, id), card = ctl.cardOf(id); if (!node || !card) return;
   const v = (card.querySelector('.nc-node__body')._vars || [])[i]; if (!v || !v.spec) return;
   const p = node.params;
-  if (act === 'pin') {
-    const pins = (p.pins || []).filter(s => !(s.mode === v.spec.mode && s.seed === v.spec.seed));
-    if (!v.pinned) pins.push(v.spec);
-    p.pins = pins; edited(node, true); return;
+  if (act === 'pin') {   // a pin keeps its slot (and, in a fan-out, belongs to its item)
+    const same = q => q.slot === v.slot && (q.item == null ? v.item == null : q.item === v.item);
+    const pins = (p.pins || []).filter(q => !same(q));
+    if (!v.pinned) pins.push({ mode: v.spec.mode, seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });
+    p.pins = pins; edited(node, true); ctl.select([id]); return;
   }
-  if (act === 'from') {
-    const [copy] = ctl.duplicate([id]); const n = NC.findNode(ctl.model, copy);
-    n.params.fixed = [].concat(p.fixed || [], [v.spec]); n.params.pins = []; n.params.seed = 1;
+  if (act === 'from') {   // one undo step
+    const [copy] = ctl.duplicate([id], { noCommit: true }); const n = NC.findNode(ctl.model, copy);
+    n.params.fixed = [].concat(p.fixed || [], [v.spec]); n.params.pins = []; n.params.seed = newSeed();
     ctl.touch(copy); ctl.refresh(); ctl.select([copy]); ctl.commit('new-figure-from'); save();
     announce(`New Figure from variation ${i + 1}`);
   }
@@ -179,6 +181,7 @@ function fitFrame(f) {   // fit the view to a section
   const z = Math.min(1.5, Math.max(0.1, Math.min((W - pad * 2) / f.w, (H - pad * 2) / (f.h + 40))));
   ctl.zoomPan.setView({ zoom: z, panX: L + (W - f.w * z) / 2 - f.x * z, panY: (H - f.h * z) / 2 - f.y * z + 20 });
 }
+const newSeed = () => 1 + Math.floor(Math.random() * 99999);   // a Figure's own Random seed — so two Figures don't show the same changes
 function cardClass(node) {
   if (node.type === 'figure') return 'nc-node--wide';
   return 'nc-node--compact';
@@ -208,7 +211,7 @@ function addNode(type, at, params) {
   if (params && params.__name) { params = { ...params }; delete params.__name; }
   if (type !== 'figure') return ctl.add(type, at, params, named(type));
   const last = t => { const sel = ctl.selection().map(id => NC.findNode(ctl.model, id)).filter(n => n && n.type === t); return sel[0] || ctl.model.nodes.filter(n => n.type === t).slice(-1)[0]; };
-  const fig = ctl.add('figure', at, params, named('figure'));
+  const fig = ctl.add('figure', at, { seed: newSeed(), ...(params || {}) }, named('figure'));
   let cv = last('canvas'), gr = last('grid');
   if (!cv) cv = ctl.add('canvas', { x: at.x - 260, y: at.y }, null, named('canvas'));
   if (!gr) gr = ctl.add('grid', { x: at.x - 260, y: at.y + 150 }, null, named('grid'));
@@ -327,7 +330,7 @@ function renderInspector(ids) {
       ${(m.frames || []).length ? `<div class="sub-label">Sections</div><div class="fg-figlist">${m.frames.map(f => `<button type="button" class="fg-figlist__item" data-frame="${f.id}">${esc(f.name)}</button>`).join('')}</div>` : ''}
       ${m.nodes.length ? '<div class="row-btns"><button type="button" class="mini-btn" id="fgi-add-section">Add section</button></div>' : ''}
       <p class="panel-hint">Add nodes from the bar on the left, or press / to search. Drag from a port to connect; drop a wire on a node to use its first free input.</p></div>`;
-    box.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => { ctl.select([b.dataset.id]); ctl.fitTo([b.dataset.id]); }));
+    box.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => ctl.fitTo([b.dataset.id])));
     box.querySelectorAll('[data-frame]').forEach(b => b.addEventListener('click', () => { const f = m.frames.find(x => x.id === b.dataset.frame); if (f) ctl.zoomPan && fitFrame(f); }));
     const add = ctrl('fgi-add-section'); if (add) add.addEventListener('click', () => { ctl.addSection([]); save(); renderInspector([]); });
     return;
@@ -424,7 +427,8 @@ function renderInspector(ids) {
   } else if (node.type === 'figure') {
     const cur = foundationOf(node);
     ['canvas', 'grid', 'palette'].forEach((t, k) => {
-      const opts = ctl.model.nodes.filter(n => n.type === t).map(n => [n.id, nodeLabel(n)]);
+      const summary = n => t === 'canvas' ? canvasSummary(canvasOf(n.params)) : t === 'grid' ? gridSummary({ gen: n.params.gen, params: n.params.params }) : (n.params.colors || []).length + ' inks';
+      const opts = ctl.model.nodes.filter(n => n.type === t).map(n => [n.id, nodeLabel(n) + ' · ' + summary(n)]);
       if (t === 'palette') opts.unshift(['', 'None — content’s own colours']);
       rows.push(selectRow(registry.get(t).meta.label, 'fgi-f-' + t, opts, cur[k] ? cur[k].id : '', v => {
         if (!v) { const e = ctl.model.edges.find(w => w.to.node === node.id && w.to.port === t); if (e) { NC.removeEdge(ctl.model, e.id); ctl.touch(node.id); ctl.commit('disconnect'); ctl.refresh(); } }
@@ -541,10 +545,18 @@ function savedElementFor(el) {   // the built-in's Element, saved once (deduplic
   all[name] = entry; ELEMENT_LIB.write(all);
   return { name, entry };
 }
-function openBuiltin(def) {
+function nextSlot() {   // where a new built-in's section goes: the next place in rows of three sections
+  const fr = ctl.model.frames || [];
+  if (!ctl.model.nodes.length) return { x: 40, y: 40 };
+  if (!fr.length) return { x: ctl.model.nodes.reduce((a, n) => Math.max(a, n.x + 440), 0) + 160, y: 40 };
+  const rowY = Math.max(...fr.map(f => f.y)), row = fr.filter(f => Math.abs(f.y - rowY) < 200);
+  if (row.length < 3) { const last = row.reduce((a, f) => (f.x + f.w > a.x + a.w ? f : a)); return { x: last.x + last.w + 160, y: last.y + 60 }; }
+  return { x: Math.min(...fr.map(f => f.x)) + 32, y: Math.max(...fr.map(f => f.y + f.h)) + 200 };
+}
+function openBuiltin(def, title) {
   const { name, entry } = savedElementFor(def.element);
   const g = graphFromRecipe(def, name);
-  const m = ctl.model, maxX = m.nodes.reduce((a, n) => Math.max(a, n.x + 420), 0), x0 = m.nodes.length ? maxX + 120 : 40, y0 = 40;
+  const m = ctl.model, slot = nextSlot(), x0 = slot.x, y0 = slot.y;
   const col = { canvas: [0, 0], grid: [0, 1], palette: [0, 2], element: [0, 3] }, ids = {};
   let rulesY = 0;
   g.nodes.forEach(n => {
@@ -552,13 +564,14 @@ function openBuiltin(def) {
     const [c, r] = n.type === 'figure' ? [2, 0] : isRule ? [1, rulesY++] : col[n.ref] || [0, 4];
     const params = { ...registry.defaults(n.type), ...n.params };
     if (n.type === 'element') params.snapshot = entrySnapshot(entry);
+    if (n.type === 'figure') params.seed = newSeed();
     const node = NC.addNode(m, { type: n.type, x: x0 + c * 260, y: y0 + r * 150, params, name: n.name || nameFor(m, n.type, params) });
     ids[n.ref] = node.id;
   });
   g.edges.forEach(([a, ap, b, bp]) => NC.addEdge(m, { node: ids[a], port: ap }, { node: ids[b], port: bp }, true));
   Object.values(ids).forEach(id => ctl.touch(id));
   ctl.refresh(); ctl.select([ids.figure]); ctl.commit('new-figure');
-  requestAnimationFrame(() => { ctl.addSection(Object.values(ids), def.id ? (Object.entries(figureCatalog()).find(([, d]) => d.id === def.id) || [])[0] || 'Section' : undefined); ctl.select([ids.figure]); save(); ctl.fitTo(Object.values(ids)); });
+  requestAnimationFrame(() => { ctl.addSection(Object.values(ids), title || undefined, { noCommit: true }); ctl.commit('new-figure', { amend: true }); ctl.select([ids.figure]); save(); ctl.fitTo(Object.values(ids)); });
 }
 function openNewFigure() {
   const cat = figureCatalog();
@@ -574,7 +587,7 @@ function openNewFigure() {
     const b = e.target.closest('[data-act], [data-i]'); if (!b && e.target === m) { close(); return; } if (!b) return;
     if (b.dataset.act === 'close') close();
     else if (b.dataset.act === 'blank') { close(); addNode('figure'); }
-    else { const def = Object.values(cat)[+b.dataset.i]; close(); openBuiltin(JSON.parse(JSON.stringify(def))); }
+    else { const key = Object.keys(cat)[+b.dataset.i]; close(); openBuiltin(JSON.parse(JSON.stringify(cat[key])), key); }
   });
   document.body.appendChild(m); if (Organica.modal) Organica.modal.watch(m);
   // thumbnails, a few per frame (evalFigure ~1 ms each)
@@ -621,7 +634,7 @@ function openSearch(at, from, client) {
   };
   const pick = i => {
     const it = shown[i]; if (!it) return; closeSearch();
-    const node = addNode(it.spec.type, from ? centred(at, it.spec.type) : freeSpot(centred(at, it.spec.type)), it.spec.params);
+    const node = addNode(it.spec.type, freeSpot(centred(at, it.spec.type)), it.spec.params);
     if (from && node) { const p = connects(it.spec, from); if (p) from.dir === 'out' ? ctl.connect({ node: from.node, port: from.port }, { node: node.id, port: p.name }) : ctl.connect({ node: node.id, port: p.name }, { node: from.node, port: from.port }); }
   };
   q.addEventListener('input', () => { cur = 0; draw(); });
@@ -900,7 +913,8 @@ export function renderFigureGraph() {
     onWireDrop: (from, at, client) => openSearch(at, from, client),
     onBoardDblClick: (at, client) => openSearch(at, null, client),
     onPortDblClick: (node, port, dir) => spawnFor(node, port, dir),
-    nameCopy: (copy, model) => NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name,
+    nameCopy: (copy, model) => { if (copy.type === 'figure') { copy.params.seed = newSeed(); copy.params.pins = []; } return NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name; },
+    keyScope: t => !!(t && t.closest && t.closest('#fb-figure-actions, #fg-inspector, #fg-nodebar-dock') && !t.closest('input, select, textarea')),
     onNodeDblClick: node => { if (node.type === 'figure') enterCompose(node.id); },
     keepActive: n => !!(composing && n.id === composing.fig),
   });
