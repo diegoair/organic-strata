@@ -25,12 +25,12 @@ import {
   LIBRARY, PAPER_NONE, buildLibraryEntry, hexKey, isPaperNone
 } from './07-library.js';
 import {
-  LIVE_SYMBOL, buildFvsGridSVG, defaultSymbolCells, getFvsGrid, getSymbolGrid, hexLoomModel, squareLoomModel,
+  LIVE_SYMBOL, buildFvsGridSVG, defaultSymbolCells, getFvsGrid, getSymbolGrid, hexLoomModel, snapPose, squareLoomModel,
   triangleLoomModel, withPlacementDefaults
 } from './08-symbol-grid.js';
 import {
   FIGURE_MAX_SHAPES, applyClassRules, componentCellsFromRule, figureSVGOf, gridTypeFromLattice,
-  isSealedSymbol, promoteFigureToTile, validateFigureRecipe
+  isSealedSymbol, promoteFigureToTile, ruleMatches, slotClassContext, validateFigureRecipe
 } from './13-figure-engine.js';
 
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -110,6 +110,24 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
   if (first.cells.length !== getSymbolGrid().cells.length) throw new Error(`The adopted Symbol has ${first.cells.length} cells but its grid has ${getSymbolGrid().cells.length}`);
   state.symbolCells = first.cells.map(c => withPlacementDefaults(clone(c)));
   state.symbolClipEnabled = first.clip !== false;
+  if (first.rules && first.rules.length) applyRulesToContent(first.rules);
+}
+// Cell rules on a sealed level (the Figure graph's cells hold content patches): applyClassRules()'s order and
+// matching, but "filled" puts back the cell's own content (or a Seed of `do.seed`), never a bare Seed.
+function applyRulesToContent(rules) {
+  const own = state.symbolCells.map(c => clone(c)), ctxs = slotClassContext(getSymbolGrid());
+  state.symbolCells.forEach((cell, i) => {
+    rules.forEach(r => {
+      if (r.off || !ruleMatches(r.when || {}, ctxs[i])) return;
+      const d = r.do || {};
+      if (d.content === 'empty') cell.source = 'empty';
+      else if (d.content === 'filled') { Object.assign(cell, d.seed ? { source: 'seed', seedType: d.seed } : { source: own[i].source === 'empty' ? 'seed' : own[i].source }); }
+      if (d.rotate != null) cell.rotation = snapPose(d.rotate === 'sector' ? 60 * (ctxs[i].sector || 0) : d.rotate);
+      if (d.flipH != null) cell.flipH = !!d.flipH;
+      if (d.flipV != null) cell.flipV = !!d.flipV;
+      if (d.scale != null) cell.scale = d.scale;
+    });
+  });
 }
 
 // The figure a recipe (v2) describes → { svg, tier, levels: {component, symbol}, metas, stats, shapes }.

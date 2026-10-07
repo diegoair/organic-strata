@@ -22,7 +22,17 @@ import {
   componentThumbSVG
 } from './engine/10-suggest.js';
 import {
-  canvasOf, canvasSummary, entrySnapshot, figureNodeTypes, gridDefaults, gridSummary
+  SEED_TYPES
+} from './engine/01-geometry.js';
+import {
+  describeRule, figureCatalog
+} from './engine/14-figure-ui.js';
+import {
+  evalFigure
+} from './engine/16-figure-eval.js';
+import {
+  FIGURE_LATTICES, FIT_PRESET, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey
 } from './engine/17-figure-nodes.js';
 import {
   ctrl
@@ -37,6 +47,8 @@ const GRAPHS = Organica.store('fvs-figure');
 const CURRENT = 'Current graph';   // the graph being edited, autosaved
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'node-rule', Output: 'node-output' };
+const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Pinwheel', mirror: 'Mirror', checkerboard: 'Checkerboard' };
+const MIRRORS = { none: 'No mirror', v: 'Right edge', h: 'Bottom edge', vh: 'Both edges' };
 let ctl = null;
 
 // ── the graph a first visit starts with: Canvas + Grid + Palette → Figure, fed by the newest saved Component/Element ──
@@ -100,6 +112,16 @@ function renderBody(node, entry, el) {
     el.innerHTML = `<p class="fg-card__meta">${esc(gridSummary({ gen: p.gen, params: p.params }))}</p>`;
   } else if (node.type === 'palette') {
     el.innerHTML = `<div class="fg-card__swatches" data-theme="light">${[p.paper, ...(p.colors || [])].map((c, i) => `<span class="fg-card__swatch${i ? '' : ' is-paper'}" style="background:${esc(c)}"></span>`).join('')}</div>`;
+  } else if (node.type === 'cell-rules') {
+    const rs = p.rules || [];
+    el.innerHTML = `<p class="fg-card__meta">${rs.length ? rs.length + (rs.length === 1 ? ' rule' : ' rules') + ' · ' + esc(describeRule(rs[0])) + (rs.length > 1 ? ' …' : '') : 'No rules yet'}</p>`;
+  } else if (node.type === 'component-rule') {
+    el.innerHTML = `<p class="fg-card__meta">${esc(COMPONENT_RULES[p.rule] || p.rule)}</p>`;
+  } else if (node.type === 'repeat') {
+    const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
+    el.innerHTML = `<p class="fg-card__meta">${esc(L.label)} · ${p.count}${p.altFlip ? ' · alternate flip' : ''}${(+p.rotate || 0) ? ' · ' + p.rotate + '°' : ''}${p.mirror && p.mirror !== 'none' ? ' · mirror ' + esc(MIRRORS[p.mirror]) : ''}</p>`;
+  } else if (node.type === 'transform') {
+    el.innerHTML = `<p class="fg-card__meta">${(+p.rotate || 0) ? p.rotate + '°' : 'No turn'} · ${esc(MIRRORS[p.mirror] || 'No mirror')}</p>`;
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
     el.innerHTML = p.snapshot ? `<div class="fg-card__thumb" data-theme="light">${entryThumb(node.type, p.name, p.snapshot)}</div>
@@ -159,7 +181,6 @@ function renderNodebar(cat) {
       : `<p class="fg-nodebar__empty">Nothing saved yet — save ${kind === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`);
     html += block('element', 'Elements', s.element) + block('component', 'Components', s.component);
   }
-  if (cat === 'Rules') html += `<p class="fg-nodebar__empty">Rule nodes are not available yet.</p>`;
   panel.innerHTML = html;
   panel._items = items;
 }
@@ -238,16 +259,19 @@ function renderInspector(ids) {
   const why = protect(node, ctl.model);
   if (node.type === 'canvas') {
     // The Symbol step's own Canvas section (fvs/index.html #sym-canvas-section) — same controls, same ranges (G4).
-    const cv = canvasOf(p), print = p.mode === 'print';
-    rows.push({ html: `<div class="ctrl-row"><select class="panel-select fg-grow" id="fgi-preset" aria-label="Canvas format">${[...Object.keys(SYMCANVAS_PRESETS), 'Custom'].map(n => `<option${n === (SYMCANVAS_PRESETS[p.preset] ? p.preset : 'Custom') ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+    const cv = canvasOf(p), print = p.mode === 'print', fit = p.preset === FIT_PRESET;
+    const cur = fit ? FIT_PRESET : SYMCANVAS_PRESETS[p.preset] ? p.preset : 'Custom';
+    rows.push({ html: `<div class="ctrl-row"><select class="panel-select fg-grow" id="fgi-preset" aria-label="Canvas format">${[FIT_PRESET, ...Object.keys(SYMCANVAS_PRESETS), 'Custom'].map(n => `<option${n === cur ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+      ${fit ? '<p class="panel-hint">A Figure on a lattice keeps its own frame. On a Loom grid it uses a square page.</p>' : `
       <div class="ctrl-row"><div class="seg-ctrl" id="fgi-mode" role="group" aria-label="Canvas mode"><button class="seg-btn${print ? '' : ' active'}" data-mode="screen" aria-pressed="${!print}">Screen</button><button class="seg-btn${print ? ' active' : ''}" data-mode="print" aria-pressed="${print}">Print</button></div></div>
       <div class="ctrl-row"><span class="ctrl-label">Size</span><input type="number" class="panel-input fg-size" id="fgi-pw" min="1" step="1" value="${cv.pw}" aria-label="Canvas width"><span class="hint">×</span><input type="number" class="panel-input fg-size" id="fgi-ph" min="1" step="1" value="${cv.ph}" aria-label="Canvas height"><span class="hint">${esc(cv.unit)}</span></div>
       ${print ? `<div class="ctrl-row"><span class="ctrl-label">Unit</span><select class="panel-select" id="fgi-unit" aria-label="Canvas unit"><option value="mm"${cv.unit === 'mm' ? ' selected' : ''}>mm</option><option value="in"${cv.unit === 'in' ? ' selected' : ''}>in</option></select></div>
       <div class="ctrl-row"><span class="ctrl-label">DPI</span><input type="number" class="panel-input" id="fgi-dpi" min="72" max="2400" step="1" value="${cv.dpi}" aria-label="Canvas DPI"></div>
-      <div class="ctrl-row"><span class="ctrl-label">Bleed (mm)</span><input type="number" class="panel-input" id="fgi-bleed" min="0" max="20" step="0.5" value="${cv.bleed}" aria-label="Canvas bleed in millimetres"></div>` : ''}`,
+      <div class="ctrl-row"><span class="ctrl-label">Bleed (mm)</span><input type="number" class="panel-input" id="fgi-bleed" min="0" max="20" step="0.5" value="${cv.bleed}" aria-label="Canvas bleed in millimetres"></div>` : ''}`}`,
       bind: () => {
         const again = () => { edited(node, true); renderInspector(ids); };
         ctrl('fgi-preset').addEventListener('change', e => { p.preset = e.target.value; if (p.preset === 'Custom') { p.pw = cv.pw; p.ph = cv.ph; } again(); });
+        if (fit) return;
         ctrl('fgi-mode').addEventListener('click', e => { const bt = e.target.closest('[data-mode]'); if (!bt || bt.dataset.mode === p.mode) return; p.mode = bt.dataset.mode; if (!SYMCANVAS_PRESETS[p.preset]) { const c2 = canvasOf({ ...p }); p.pw = c2.pw; p.ph = c2.ph; } again(); });
         const size = () => { p.preset = 'Custom'; p.pw = +ctrl('fgi-pw').value || 1; p.ph = +ctrl('fgi-ph').value || 1; again(); };
         ctrl('fgi-pw').addEventListener('change', size); ctrl('fgi-ph').addEventListener('change', size);
@@ -257,10 +281,13 @@ function renderInspector(ids) {
           ctrl('fgi-bleed').addEventListener('change', e => { p.bleed = Math.min(20, Math.max(0, +e.target.value || 0)); edited(node, true); });
         }
       } });
-    rows.push(rangeRow('Margin', 'fgi-margin', 0, 25, 1, Math.min(25, p.margin), (v, c) => { p.margin = v; edited(node, c); }));
+    if (!fit) rows.push(rangeRow('Margin', 'fgi-margin', 0, 25, 1, Math.min(25, p.margin), (v, c) => { p.margin = v; edited(node, c); }));
   } else if (node.type === 'grid') {
-    rows.push(selectRow('Generator', 'fgi-gen', Object.entries(SYMGRID_GENS).map(([k, g]) => [k, g.label]), p.gen, v => { p.gen = v; p.params = gridDefaults(v); edited(node, true); renderInspector(ids); }));
-    (SYMGRID_GENS[p.gen] || SYMGRID_GENS.rectangular).params.forEach(([k, label, a, b, step, def]) => {
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Grid</div><select class="panel-select" id="fgi-gen" aria-label="Grid">
+        <optgroup label="Loom grids — inside the Canvas">${Object.entries(SYMGRID_GENS).map(([k, g]) => `<option value="${k}"${k === p.gen ? ' selected' : ''}>${esc(g.label)}</option>`).join('')}</optgroup>
+        <optgroup label="Lattices — their own frame">${Object.entries(FIGURE_LATTICES).map(([k, g]) => `<option value="${k}"${k === p.gen ? ' selected' : ''}>${esc(g.label)}</option>`).join('')}</optgroup></select></div>`,
+      bind: () => ctrl('fgi-gen').addEventListener('change', e => { p.gen = e.target.value; p.params = gridDefaults(p.gen); edited(node, true); renderInspector(ids); }) });
+    gridSpec(p.gen).params.forEach(([k, label, a, b, step, def]) => {
       if (a === 'text') return;
       const val = p.params && p.params[k] != null ? p.params[k] : def;
       rows.push(rangeRow(label, 'fgi-g-' + k, a, b, step, val, (v, c) => { p.params = { ...(p.params || {}), [k]: v }; edited(node, c); }));
@@ -278,6 +305,33 @@ function renderInspector(ids) {
     rows.push({ html: s.length ? `<div class="sub-label">Saved ${node.type === 'element' ? 'Elements' : 'Components'}</div><div class="fvs-rail__grid" id="fgi-pick">${s.map(e => `<button type="button" class="fvs-library-item${e.name === p.name ? ' selected' : ''}" data-name="${esc(e.name)}" aria-label="${esc(e.name)}" aria-pressed="${e.name === p.name}">${entryThumb(node.type, e.name, e.entry)}</button>`).join('')}</div>`
       : `<p class="org-empty">Nothing saved yet — save ${node.type === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`,
       bind: () => { const g = ctrl('fgi-pick'); if (g) g.addEventListener('click', e => { const b = e.target.closest('[data-name]'); if (!b) return; Object.assign(p, addContent(node.type, b.dataset.name).params); node.name = b.dataset.name; edited(node, true); ctl.refresh(); renderInspector(ids); ctl.paint(node.id); }); } });
+  } else if (node.type === 'cell-rules') {
+    rows.push(cellRulesEditor(node, ids));
+  } else if (node.type === 'component-rule') {
+    const q = p.params || (p.params = {});
+    rows.push(selectRow('Rule', 'fgi-crule', Object.entries(COMPONENT_RULES), p.rule, v => { p.rule = v; p.params = {}; edited(node, true); renderInspector(ids); }));
+    if (p.rule === 'radial' || p.rule === 'pinwheel') {
+      rows.push(selectRow('Start', 'fgi-cbase', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.base || 0, v => { q.base = +v; edited(node, true); }));
+      rows.push(selectRow('Direction', 'fgi-cchir', [[1, 'Clockwise'], [-1, 'Counter-clockwise']], q.chirality || 1, v => { q.chirality = +v; edited(node, true); }));
+    } else if (p.rule === 'mirror') {
+      rows.push(selectRow('Start', 'fgi-cseed', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.seed || 0, v => { q.seed = +v; edited(node, true); }));
+    } else if (p.rule === 'checkerboard') {
+      rows.push(selectRow('First cells', 'fgi-ca', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.a || 0, v => { q.a = +v; edited(node, true); }));
+      rows.push(selectRow('Second cells', 'fgi-cb', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.b || 0, v => { q.b = +v; edited(node, true); }));
+    }
+    rows.push({ html: '<p class="panel-hint">Lays out a Square lattice up to 4 × 4.</p>' });
+  } else if (node.type === 'repeat') {
+    const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
+    rows.push(selectRow('Lattice', 'fgi-rlat', Object.entries(REPEAT_LATTICES).map(([k, l]) => [k, l.label]), p.lattice, v => { p.lattice = v; p.count = REPEAT_LATTICES[v].def; edited(node, true); renderInspector(ids); }));
+    rows.push(rangeRow(L.key === 'n' ? 'Size' : L.key === 'stack' ? 'Stack' : 'Rows', 'fgi-rcount', L.min, L.max, 1, p.count, (v, c) => { p.count = v; edited(node, c); }));
+    rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-ralt"${p.altFlip ? ' checked' : ''}> Alternate flip</label>`, bind: () => ctrl('fgi-ralt').addEventListener('change', e => { p.altFlip = e.target.checked; edited(node, true); }) });
+    rows.push(selectRow('Rotate', 'fgi-rrot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
+    rows.push(selectRow('Mirror', 'fgi-rmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
+    rows.push({ html: '<p class="panel-hint">Several Repeat in grid nodes apply in the order they were connected.</p>' });
+  } else if (node.type === 'transform') {
+    rows.push(selectRow('Rotate', 'fgi-trot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
+    rows.push(selectRow('Mirror', 'fgi-tmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
+    rows.push({ html: '<p class="panel-hint">Turns and mirrors the whole figure — needs a Repeat in grid before it.</p>' });
   } else if (node.type === 'figure') {
     rows.push(selectRow('Fit in cell', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; edited(node, true); }));
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-clip"${p.clip !== false ? ' checked' : ''}> Clip to cell</label>`,
@@ -286,6 +340,95 @@ function renderInspector(ids) {
   box.innerHTML = title + rows.map(r => r.html).join('') + (why ? `<p class="panel-hint">${esc(why)}.</p>` : '') + '</div>';
   rows.forEach(r => r.bind && r.bind());
   if (Organica.autoLabelPanel) Organica.autoLabelPanel(box);
+}
+
+// ── Cell rules: today's rule chips (eye / up / down / trash) + "Add rule" — which cells, what they get ──
+const WHICH = [['all', 'All cells'], ['up', 'Up cells'], ['down', 'Down cells'], ['odd', 'Odd cells'], ['even', 'Even cells'], ['row', 'Row'], ['col', 'Column'], ['ring', 'Ring'], ['sector', 'Sector'], ['index', 'Cell']];
+const DOES = [['empty', 'Empty'], ['filled', 'Filled'], ['r60', 'Rotate 60°'], ['r90', 'Rotate 90°'], ['r180', 'Rotate 180°'], ['rsector', 'Rotate by sector'], ['fh', 'Flip H'], ['fv', 'Flip V']];
+function ruleFrom(which, n, does) {
+  const when = which === 'all' ? {} : which === 'up' || which === 'down' ? { class: which } : which === 'odd' || which === 'even' ? { parity: which } : { [which]: Math.max(0, n - (which === 'ring' || which === 'sector' ? 0 : 1)) };
+  const d = does === 'empty' ? { content: 'empty' } : does === 'filled' ? { content: 'filled' } : does === 'rsector' ? { rotate: 'sector' } : does[0] === 'r' ? { rotate: +does.slice(1) } : does === 'fh' ? { flipH: true } : { flipV: true };
+  return { when, do: d };
+}
+function cellRulesEditor(node, ids) {
+  const rs = node.params.rules || (node.params.rules = []);
+  const chip = (r, i) => `<div class="fg-chip${r.off ? ' is-off' : ''}"><span class="fg-chip__text">${esc(describeRule(r))}</span>
+    <button type="button" class="icon-btn" data-act="off" data-i="${i}" aria-pressed="${!r.off}" aria-label="Rule ${i + 1} on">${Organica.icons.get(r.off ? 'eye-off' : 'eye', { size: 'xs' })}</button>
+    <button type="button" class="icon-btn" data-act="up" data-i="${i}" aria-label="Move rule ${i + 1} up"${i ? '' : ' disabled'}>${Organica.icons.get('arrow-up', { size: 'xs' })}</button>
+    <button type="button" class="icon-btn" data-act="down" data-i="${i}" aria-label="Move rule ${i + 1} down"${i < rs.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down', { size: 'xs' })}</button>
+    <button type="button" class="icon-btn" data-act="del" data-i="${i}" aria-label="Delete rule ${i + 1}">${Organica.icons.get('trash', { size: 'xs' })}</button></div>`;
+  return { html: `<div class="fg-chips" id="fgi-rules">${rs.length ? rs.map(chip).join('') : '<p class="panel-hint">No rules yet — every cell gets the content.</p>'}</div>
+    <div class="sub-label">Add rule</div>
+    <div class="ctrl-row"><div class="ctrl-label">Which cells</div><select class="panel-select" id="fgi-which" aria-label="Which cells">${WHICH.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
+    <div class="ctrl-row" id="fgi-n-row" hidden><div class="ctrl-label">Number</div><input type="number" class="panel-input" id="fgi-n" min="0" max="99" step="1" value="1" aria-label="Number"></div>
+    <div class="ctrl-row"><div class="ctrl-label">They get</div><select class="panel-select" id="fgi-does" aria-label="They get">${DOES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
+    <div class="row-btns"><button type="button" class="mini-btn" id="fgi-add-rule">Add rule</button></div>
+    <p class="panel-hint">Rules apply in order: a later rule wins on the cells it matches.</p>`,
+    bind: () => {
+      ctrl('fgi-which').addEventListener('change', e => { ctrl('fgi-n-row').hidden = !['row', 'col', 'ring', 'sector', 'index'].includes(e.target.value); });
+      ctrl('fgi-add-rule').addEventListener('click', () => { rs.push(ruleFrom(ctrl('fgi-which').value, +ctrl('fgi-n').value || 0, ctrl('fgi-does').value)); edited(node, true); renderInspector(ids); ctl.paint(node.id); });
+      ctrl('fgi-rules').addEventListener('click', e => {
+        const b = e.target.closest('[data-act]'); if (!b) return; const i = +b.dataset.i;
+        if (b.dataset.act === 'off') rs[i].off = !rs[i].off;
+        else if (b.dataset.act === 'up' && i) [rs[i - 1], rs[i]] = [rs[i], rs[i - 1]];
+        else if (b.dataset.act === 'down' && i < rs.length - 1) [rs[i + 1], rs[i]] = [rs[i], rs[i + 1]];
+        else if (b.dataset.act === 'del') rs.splice(i, 1);
+        edited(node, true); renderInspector(ids); ctl.paint(node.id);
+      });
+    } };
+}
+
+// ── New Figure… → Built-in Figures: a built-in opens as a graph beside what is there ──
+function savedElementFor(el) {   // the built-in's Element, saved once (deduplicated by the recipe element it came from)
+  const all = ELEMENT_LIB.read(), key = recipeElementKey(el);
+  const have = Object.keys(all).find(n => all[n] && all[n].recipe && recipeElementKey(all[n].recipe) === key);
+  if (have) return { name: have, entry: all[have] };
+  const entry = elementEntryFromRecipe(el);
+  let name = `${(SEED_TYPES[el.type] || {}).label || el.type} · built-in`;
+  while (all[name]) name += '′';
+  all[name] = entry; ELEMENT_LIB.write(all);
+  return { name, entry };
+}
+function openBuiltin(def) {
+  const { name, entry } = savedElementFor(def.element);
+  const g = graphFromRecipe(def, name);
+  const m = ctl.model, maxX = m.nodes.reduce((a, n) => Math.max(a, n.x + 420), 0), x0 = m.nodes.length ? maxX + 120 : 40, y0 = 40;
+  const col = { canvas: [0, 0], grid: [0, 1], palette: [0, 2], element: [0, 3] }, ids = {};
+  let rulesY = 0;
+  g.nodes.forEach(n => {
+    const isRule = ['cell-rules', 'component-rule', 'repeat', 'transform'].includes(n.type);
+    const [c, r] = n.type === 'figure' ? [2, 0] : isRule ? [1, rulesY++] : col[n.ref] || [0, 4];
+    const params = { ...registry.defaults(n.type), ...n.params };
+    if (n.type === 'element') params.snapshot = entrySnapshot(entry);
+    const node = NC.addNode(m, { type: n.type, x: x0 + c * 260, y: y0 + r * 150, params, name: n.name || nameFor(m, n.type, params) });
+    ids[n.ref] = node.id;
+  });
+  g.edges.forEach(([a, ap, b, bp]) => NC.addEdge(m, { node: ids[a], port: ap }, { node: ids[b], port: bp }, true));
+  Object.values(ids).forEach(id => ctl.touch(id));
+  ctl.refresh(); ctl.select([ids.figure]); ctl.commit('new-figure'); save();
+  requestAnimationFrame(() => ctl.fitTo(Object.values(ids)));
+}
+function openNewFigure() {
+  const cat = figureCatalog();
+  const m = document.createElement('div'); m.className = 'org-modal fg-new'; m.style.display = 'flex';
+  m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-labelledby', 'fg-new-title');
+  m.innerHTML = `<div class="org-modal__panel fg-new__panel"><div class="org-modal__header"><span class="org-modal__title" id="fg-new-title">New Figure…</span>
+    <button class="org-btn org-btn--icon org-btn--sm org-btn--ghost" data-act="close" aria-label="Close">${Organica.icons.get('close', { size: 'sm' })}</button></div>
+    <div class="sub-label">Built-in Figures</div>
+    <div class="fg-new__grid" data-theme="light">${Object.keys(cat).map((n, i) => `<button type="button" class="fg-new__item" data-i="${i}" aria-label="${esc(n)}"><span class="fg-new__thumb"></span><span class="fg-new__name">${esc(n)}</span></button>`).join('')}</div>
+    <div class="row-btns"><button type="button" class="mini-btn" data-act="blank">Empty Figure</button></div></div>`;
+  const close = () => { if (Organica.modal) Organica.modal.release(m); m.remove(); };
+  m.addEventListener('click', e => {
+    const b = e.target.closest('[data-act], [data-i]'); if (!b && e.target === m) { close(); return; } if (!b) return;
+    if (b.dataset.act === 'close') close();
+    else if (b.dataset.act === 'blank') { close(); addNode('figure'); }
+    else { const def = Object.values(cat)[+b.dataset.i]; close(); openBuiltin(JSON.parse(JSON.stringify(def))); }
+  });
+  document.body.appendChild(m); if (Organica.modal) Organica.modal.watch(m);
+  // thumbnails, a few per frame (evalFigure ~1 ms each)
+  const items = [...m.querySelectorAll('.fg-new__thumb')], defs = Object.values(cat);
+  let i = 0; const step = () => { if (!m.isConnected) return; for (let k = 0; k < 4 && i < items.length; k++, i++) { try { items[i].innerHTML = evalFigure(defs[i]).svg; } catch (e) { items[i].textContent = '—'; } } if (i < items.length) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
 }
 
 // ── persistence: the current graph autosaves; the view (zoom, pan) is per browser ──
@@ -338,7 +481,7 @@ export function renderFigureGraph() {
   });
   ctrl('btn-fg-fit').addEventListener('click', () => ctl.fitAll());
   ctrl('btn-fg-fit-sel').addEventListener('click', () => ctl.fitSelection());
-  ctrl('btn-fg-new').addEventListener('click', () => addNode('figure'));
+  ctrl('btn-fg-new').addEventListener('click', openNewFigure);
   initNodebar();
   renderInspector([]); syncButtons();
 }

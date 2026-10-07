@@ -238,7 +238,7 @@
   //   fitInset                  { left, bottom } px of the stage covered by chrome (a left dock, a floatbar) — Fit avoids them
   // }
   // → ctl: { model, engine, history, zoomPan, select(ids), selection(), add(type, at, params), connect(from, to),
-  //          remove(ids), duplicate(ids), setModel(model, meta), refresh(), run(), fitAll(), fitSelection(),
+  //          remove(ids), duplicate(ids), setModel(model, meta), refresh(), run(), fitAll(), fitSelection(), fitTo(ids),
   //          toBoard(clientX, clientY), commit(reason), undo(), redo(), destroy() }
   var SVGNS = 'http://www.w3.org/2000/svg';
   function el(tag, cls, attrs) { var e = document.createElement(tag); if (cls) e.className = cls; if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); }); return e; }
@@ -629,6 +629,7 @@
       zoomPan.setView({ zoom: z, panX: L + (W - (x1 - x0) * z) / 2 - x0 * z, panY: (H - (y1 - y0) * z) / 2 - y0 * z });
     }
     ctl.fitAll = function () { fit(ctl.model.nodes.map(function (n) { return n.id; })); };
+    ctl.fitTo = function (ids) { fit(ids || []); };
     ctl.fitSelection = function () { var s = Array.from(selected); fit(s.length ? s : ctl.model.nodes.map(function (n) { return n.id; })); };
 
     // ── undo / redo (the graph's own stack — active only while isActive()) ──

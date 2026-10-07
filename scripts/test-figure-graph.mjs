@@ -5,7 +5,10 @@
 // (SVG, one cell per grid cell, the Canvas's own size); five Figures sharing one Canvas all update when it changes, and
 // only they recompute; a Figure without content waits ("Connect …"); a deleted library entry still draws from its
 // copy; the Palette recolours; the run leaves FVS's own state untouched. docs/FVS.md §12.
-import { openChrome } from './lib/chrome-page.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { openChrome, ROOT } from './lib/chrome-page.mjs';
+const BASE = JSON.parse(fs.readFileSync(path.join(ROOT, 'fvs', '_figure-eval-baseline.json'), 'utf8')).hashes;
 
 const P = await openChrome();
 const ok = await P.goto('/fvs/', 'window.__fvs && window.__fvs.isReady');
@@ -62,8 +65,27 @@ const out = await P.ev(`
   res.after = JSON.stringify(F('state').colors) + F('state').activeTier === before;
   return res;`, PRE);
 if (out.early) { console.log('Figure graph: FAIL —', JSON.stringify(out, null, 1)); await P.close(1); }
+// Every built-in Figure, imported as a graph, draws exactly its recipe (the same hash as fvs/_figure-eval-baseline.json).
+const imp = await P.ev(`
+  const H = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); };
+  const norm = s => s.replace(/"exportedAt":"[^"]*"/g, '"exportedAt":""').replace(/"ruleSource":"[^"]*"/g, '"ruleSource":""').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
+  const reg = NC.createRegistry(F('figureNodeTypes')());
+  const out = {};
+  for (const [name, def] of Object.entries(F('figureCatalog')())) {
+    const entry = F('entrySnapshot')(F('elementEntryFromRecipe')(def.element));
+    const g = F('graphFromRecipe')(def, 'Imported element');
+    const m = NC.createModel(), ids = {};
+    g.nodes.forEach(n => { const node = NC.addNode(m, { type: n.type, params: { ...reg.defaults(n.type), ...n.params }, name: n.name }); ids[n.ref] = node.id; if (n.type === 'element') node.params.snapshot = entry; });
+    g.edges.forEach(([a, ap, b, bp]) => NC.addEdge(m, { node: ids[a], port: ap }, { node: ids[b], port: bp }, true));
+    const eng = NC.createEngine({ registry: reg }); await eng.run(m);
+    const e = eng.get(ids.figure);
+    out[name] = e.state === 'ok' ? H(norm(e.value.figure.svg)) : 'ERR ' + e.message;
+  }
+  return out;`, PRE);
 const fails = [];
 const check = (c, m) => { if (!c) fails.push(m); };
+const impBad = Object.entries(imp).filter(([n, h]) => h !== (BASE[n] || {}).final);
+check(!impBad.length, `built-ins as graphs: ${impBad.length}/${Object.keys(imp).length} differ: ` + impBad.map(([n, h]) => `${n} (${h} vs ${(BASE[n] || {}).final})`).join('; '));
 check(out.states.every(s => s === 'ok'), 'figures ok: ' + out.states.join(' | '));
 check(out.svgOk.every(Boolean), 'every figure is an SVG');
 check(out.cells.every(n => n > 10), 'cells per figure: ' + out.cells.join(','));
@@ -76,6 +98,6 @@ check(/1920 1080$/.test(out.size2 || ''), 'the new Canvas size reaches the figur
 check(out.libUntouched, 'the real library was never written');
 check(out.after, 'FVS state unchanged by graph runs');
 check(!P.errors.length, 'page errors: ' + P.errors.join(' | '));
-console.log(`Figure graph: ${fails.length ? 'FAIL' : 'PASS'} — 5 figures + 1 waiting, first run ${out.ms} ms, cells ${out.cells.join('/')}`);
+console.log(`Figure graph: ${fails.length ? 'FAIL' : 'PASS'} — ${Object.keys(imp).length - impBad.length}/${Object.keys(imp).length} built-ins identical as graphs · 5 figures + 1 waiting, first run ${out.ms} ms, cells ${out.cells.join('/')}`);
 fails.forEach(f => console.log('  ✗ ' + f));
 await P.close(fails.length ? 1 : 0);
