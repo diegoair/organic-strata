@@ -145,7 +145,7 @@ ctl = NC.mount({
 });
 
 // ── floatbar ──
-function onModelChange() { syncButtons(); syncGraphButton(); }
+function onModelChange() { syncButtons(); graphMenu.sync(); }
 function syncButtons() {
   $('btn-undo').disabled = !ctl.history.canUndo();
   $('btn-redo').disabled = !ctl.history.canRedo();
@@ -165,70 +165,23 @@ $('btn-delete-selected').addEventListener('click', () => {
 $('btn-fit').addEventListener('click', () => ctl.fitAll());
 $('btn-fit-sel').addEventListener('click', () => ctl.fitSelection());
 
-// ── Graph menu: Saved graphs · Graph name · Save · Delete · New graph · Open file… · Save as file
-// (the Figure graph's verbs). Saved graphs stay in Organica.presetStore('rhizome'). A graph that was never saved
-// is kept as "Untitled n" before another replaces it, so nothing is lost. ──
-const GRAPHS = Organica.presetStore('rhizome'), GRAPH_FILE = 'rhizome-graph';
-let graphName = '';
-const snap = m => JSON.stringify({ nodes: m.nodes, edges: m.edges, frames: m.frames || [] });
-function savedAs() { const e = graphName && GRAPHS.read()[graphName]; return !!e && snap(migrateModel(e)) === snap(ctl.model); }
-function syncGraphButton() {
-  const unsaved = !!ctl.model.nodes.length && !savedAs();
-  $('btn-rz-graph').classList.toggle('is-unsaved', unsaved);
-  if (unsaved) $('btn-rz-graph').setAttribute('aria-description', 'Not saved'); else $('btn-rz-graph').removeAttribute('aria-description');
-  Organica.dirty.set('graph', unsaved);
-}
-function syncGraphMenu() {
-  const sel = $('rz-graph-saved'), names = Object.keys(GRAPHS.read()).sort((a, b) => a.localeCompare(b));
-  sel.innerHTML = names.length ? '<option value="">—</option>' + names.map(n => `<option${n === graphName ? ' selected' : ''}>${esc(n)}</option>`).join('') : '<option value="">No saved graphs yet</option>';
-  sel.disabled = !names.length;
-  $('rz-graph-name').value = graphName;
-  $('rz-graph-delete').disabled = !graphName || !GRAPHS.read()[graphName];
-  syncGraphButton();
-}
-function keepUnsaved() {
-  if (!ctl.model.nodes.length || savedAs()) return;
-  const all = GRAPHS.read(); let i = 1; while (all['Untitled ' + i]) i++;
-  const n = graphName && !all[graphName] ? graphName : 'Untitled ' + i;
-  all[n] = JSON.parse(JSON.stringify(ctl.model)); GRAPHS.write(all);
-  Organica.notice(`The current graph was saved as “${n}”`);
-}
-function useModel(model, name) {
-  graphName = name || '';
-  ctl.setModel(migrateModel(model));
-  renderInspectorFor([]); syncButtons(); syncGraphMenu();
-  requestAnimationFrame(() => ctl.fitAll());
-}
-$('btn-rz-graph').querySelector('.rz-graph-btn__chev').innerHTML = Organica.icons.get('chevron-down', { cls: 'chev' });
-Organica.popover($('btn-rz-graph'), $('rz-graph-popover'));
-$('btn-rz-graph').addEventListener('click', syncGraphMenu);
-$('rz-graph-saved').addEventListener('change', e => { const n = e.target.value, g = n && GRAPHS.read()[n]; if (!g) return; keepUnsaved(); useModel(g, n); });
-$('rz-graph-save').addEventListener('click', () => {
-  const n = $('rz-graph-name').value.trim(); if (!n) { Organica.notice('Name the graph first'); $('rz-graph-name').focus(); return; }
-  const all = GRAPHS.read(); all[n] = JSON.parse(JSON.stringify(ctl.model)); GRAPHS.write(all);
-  graphName = n; syncGraphMenu(); Organica.notice('Graph saved');
+// ── Graph menu — Organica.nodeCanvas.graphMenu (Saved graphs · Graph name · Save · Delete · New graph · Open file… ·
+// Save as file; a graph never saved is kept as "Untitled n"). Saved graphs stay in Organica.presetStore('rhizome');
+// older entries (a bare model, edges by nodeId) read through migrateModel. ──
+const GRAPHS = Organica.presetStore('rhizome');
+const graphMenu = NC.graphMenu({
+  els: { button: $('btn-rz-graph'), popover: $('rz-graph-popover'), saved: $('rz-graph-saved'), name: $('rz-graph-name'), save: $('rz-graph-save'),
+    del: $('rz-graph-delete'), newGraph: $('rz-graph-new'), open: $('rz-graph-open'), file: $('rz-graph-file'), input: $('rz-graph-input') },
+  store: GRAPHS, getModel: () => ctl.model, normalize: migrateModel,
+  load: model => { ctl.setModel(model); renderInspectorFor([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); },
+  fileTool: 'rhizome-graph', dirtyKey: 'graph',
+  openFile: (data, f) => {   // a bare model file (before Oct 2026)
+    if (!data || !Array.isArray(data.nodes) || !Array.isArray(data.edges)) return false;
+    graphMenu.keepUnsaved(); graphMenu.use(data, f.name.replace(/\.json$/i, '')); return true;
+  },
 });
-$('rz-graph-delete').addEventListener('click', () => {
-  if (!graphName) return; const all = GRAPHS.read(); delete all[graphName]; GRAPHS.write(all);
-  Organica.notice('Graph deleted'); graphName = ''; syncGraphMenu();
-});
-$('rz-graph-new').addEventListener('click', () => { keepUnsaved(); useModel({ nodes: [], edges: [] }, ''); });
-$('rz-graph-open').addEventListener('click', () => $('rz-graph-input').click());
-$('rz-graph-input').addEventListener('change', async e => {
-  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-  try {
-    const data = JSON.parse(await f.text()), m = data.model || data;
-    if (!Array.isArray(m.nodes) || !Array.isArray(m.edges)) throw new Error('not a graph');
-    keepUnsaved(); useModel(m, data.name || f.name.replace(/\.json$/i, ''));
-  } catch (err) { setStatus('error', 'That file is not a Rhizome graph.'); }
-});
-$('rz-graph-file').addEventListener('click', () => {
-  const data = { tool: GRAPH_FILE, name: graphName || '', model: ctl.model };
-  Organica.download(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), Organica.stamp(GRAPH_FILE, 'json'));
-  Organica.notice('Graph file saved');
-});
-GRAPHS.pull().then(syncGraphMenu);   // cloud sync (shared/store.js)
-GRAPHS.onSync(syncGraphMenu);
+GRAPHS.pull().then(graphMenu.sync);   // cloud sync (shared/store.js)
+GRAPHS.onSync(graphMenu.sync);
 
 // ── init ──
 [['/', 'Search nodes', 'Edit'], ['Delete / Backspace', 'Delete selection', 'Edit'], ['⌘Z', 'Undo', 'Edit'], ['⌘⇧Z', 'Redo', 'Edit'], ['⇧1', 'Fit all', 'View'], ['⇧2', 'Fit selection', 'View']]
@@ -236,7 +189,7 @@ GRAPHS.onSync(syncGraphMenu);
 Organica.autoLabelPanel(document);
 setStatus('active', 'Ready');
 renderInspectorFor([]);
-syncButtons(); syncGraphMenu();
+syncButtons(); graphMenu.sync();
 
 // test hook (scripts/test-rhizome.sh)
 window.__rhizome = { ctl, registry, engine, migrateModel, openSearch, nodebar };

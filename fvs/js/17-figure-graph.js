@@ -55,7 +55,7 @@ const VIEW_KEY = 'organica.fvs.figure-view';
 const GRAPHS = Organica.store('fvs-figure');
 const SETS = Organica.store('fvs-sets');   // saved Sets: { name: { items: [{kind, name, snapshot}], savedAt } }
 const CURRENT = '__current';   // the graph being edited, autosaved (not a saved graph: never listed)
-let graphName = '';             // the saved graph this one was opened from / saved as ('' = not saved yet)
+let graphName = '';             // the saved graph the autosaved one was opened from / saved as, read at boot ('' = not saved yet); then graphMenu.name()
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'node-rule', Output: 'node-output' };
 const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Pinwheel', mirror: 'Mirror', checkerboard: 'Checkerboard' };
@@ -958,8 +958,8 @@ let saveTimer = 0;
 function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    const all = GRAPHS.read(); all[CURRENT] = { model: ctl.model, name: graphName, savedAt: new Date().toISOString() }; GRAPHS.write(all);
-    Organica.dirty.set('fvs-figure-graph', !savedAs());
+    const all = GRAPHS.read(); all[CURRENT] = { model: ctl.model, name: graphMenu ? graphMenu.name() : graphName, savedAt: new Date().toISOString() }; GRAPHS.write(all);
+    if (graphMenu) graphMenu.sync();   // the unsaved dot + Organica.dirty
     try { localStorage.setItem(VIEW_KEY, JSON.stringify({ zoom: ctl.zoomPan.zoom, ...ctl.zoomPan.pan })); } catch (e) {}
   }, 400);
 }
@@ -978,67 +978,21 @@ function syncButtons() {
   if (refused) del.setAttribute('aria-describedby', 'fg-delete-why'); else del.removeAttribute('aria-describedby');
 }
 
-// ── Graph menu (floatbar): Saved graphs · Graph name · Save · Delete · New graph · Open file… · Save as file ──
-const GRAPH_FILE = 'fvs-figure-graph';
-function savedNames() { return Object.keys(GRAPHS.read()).filter(n => n !== CURRENT).sort((a, b) => a.localeCompare(b)); }
-function savedAs() { const e = graphName && GRAPHS.read()[graphName]; return !!e && JSON.stringify(e.model) === JSON.stringify(ctl.model); }
-function syncGraphMenu() {
-  const sel = ctrl('fg-graph-saved'), names = savedNames();
-  sel.innerHTML = names.length ? `<option value="">—</option>` + names.map(n => `<option${n === graphName ? ' selected' : ''}>${esc(n)}</option>`).join('') : '<option value="">No saved graphs yet</option>';
-  sel.disabled = !names.length;
-  ctrl('fg-graph-name').value = graphName;
-  ctrl('fg-graph-delete').disabled = !graphName || !GRAPHS.read()[graphName];
-  const fresh = ctl.model.nodes.length && !savedAs();
-  const nw = ctrl('fg-graph-new');
-  nw.removeAttribute('data-armed');   // an unsaved graph is kept as "Untitled n", so New graph never loses it
-  ctrl('btn-fg-graph').setAttribute('aria-label', 'Graph');
-  if (fresh) ctrl('btn-fg-graph').setAttribute('aria-description', 'Not saved'); else ctrl('btn-fg-graph').removeAttribute('aria-description');
-  ctrl('btn-fg-graph').classList.toggle('is-unsaved', !!fresh);
-}
-function keepUnsaved() {   // never lose a graph: an unsaved one is saved as "Untitled n" before another replaces it
-  if (!ctl.model.nodes.length || savedAs()) return;
-  const all = GRAPHS.read(); let i = 1; while (all['Untitled ' + i]) i++;
-  const n = graphName && !all[graphName] ? graphName : 'Untitled ' + i;
-  all[n] = { model: JSON.parse(JSON.stringify(ctl.model)), savedAt: new Date().toISOString() }; GRAPHS.write(all);
-  Organica.notice(`The current graph was saved as “${n}”`);
-}
-function useModel(model, name) {
-  graphName = name || '';
-  ctl.setModel(ensureNames(NC.createModel(model)));
-  renderInspector([]); syncButtons(); save(); syncGraphMenu();
-  requestAnimationFrame(() => ctl.fitAll());
-}
+// ── Graph menu (floatbar) — Organica.nodeCanvas.graphMenu: Saved graphs · Graph name · Save · Delete · New graph ·
+// Open file… · Save as file. FVS adds: the autosave slot is not a saved graph, and a Figure recipe file opens as a graph. ──
+let graphMenu = null;
 function initGraphMenu() {
-  ctrl('btn-fg-graph').querySelector('.fg-graph-btn__chev').innerHTML = Organica.icons.get('chevron-down', { cls: 'chev' });
-  Organica.popover(ctrl('btn-fg-graph'), ctrl('fg-graph-popover'));
-  ctrl('btn-fg-graph').addEventListener('click', syncGraphMenu);
-  ctrl('fg-graph-saved').addEventListener('change', e => { const n = e.target.value, g = n && GRAPHS.read()[n]; if (!g) return; keepUnsaved(); useModel(g.model, n); });
-  ctrl('fg-graph-save').addEventListener('click', () => {
-    const n = ctrl('fg-graph-name').value.trim(); if (!n) { Organica.notice('Name the graph first'); ctrl('fg-graph-name').focus(); return; }
-    const all = GRAPHS.read(); all[n] = { model: JSON.parse(JSON.stringify(ctl.model)), savedAt: new Date().toISOString() };
-    if (!GRAPHS.write(all)) return;
-    graphName = n; save(); syncGraphMenu(); Organica.notice('Graph saved');
+  graphMenu = NC.graphMenu({
+    els: { button: ctrl('btn-fg-graph'), popover: ctrl('fg-graph-popover'), saved: ctrl('fg-graph-saved'), name: ctrl('fg-graph-name'), save: ctrl('fg-graph-save'),
+      del: ctrl('fg-graph-delete'), newGraph: ctrl('fg-graph-new'), open: ctrl('fg-graph-open'), file: ctrl('fg-graph-file'), input: ctrl('fg-graph-input') },
+    store: GRAPHS, getModel: () => ctl.model, hidden: n => n === CURRENT,
+    normalize: m => ensureNames(NC.createModel(m)),
+    load: (model) => { ctl.setModel(model); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); },
+    fileTool: 'fvs-figure-graph', fileName: 'fvs-graph', dirtyKey: 'fvs-figure-graph',
+    openFile: data => { if (!data || data.tool !== 'fvs-recipe') return false; openBuiltin(data); Organica.notice('Recipe opened as a graph'); return true; },
+    onSaved: () => save(),
   });
-  ctrl('fg-graph-delete').addEventListener('click', () => {
-    const all = GRAPHS.read(); if (!graphName || !all[graphName]) return;
-    delete all[graphName]; GRAPHS.write(all); graphName = ''; save(); syncGraphMenu(); Organica.notice('Graph deleted');
-  });
-  ctrl('fg-graph-new').addEventListener('click', () => { keepUnsaved(); useModel(NC.createModel(), ''); });
-  ctrl('fg-graph-file').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ tool: GRAPH_FILE, version: 1, name: graphName, model: ctl.model }, null, 2)], { type: 'application/json' });
-    Organica.download(blob, Organica.stamp(graphName ? graphName.replace(/[^\w-]+/g, '-').toLowerCase() : 'fvs-graph', 'json'));
-    Organica.notice('Graph file saved');
-  });
-  ctrl('fg-graph-open').addEventListener('click', () => ctrl('fg-graph-input').click());
-  ctrl('fg-graph-input').addEventListener('change', async e => {
-    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-    try {
-      const data = JSON.parse(await f.text());
-      if (data && data.tool === GRAPH_FILE && data.model) { keepUnsaved(); useModel(data.model, data.name || ''); }
-      else if (data && data.tool === 'fvs-recipe') { openBuiltin(data); Organica.notice('Recipe opened as a graph'); }
-      else throw new Error('Not a graph or a Figure recipe');
-    } catch (err) { Organica.notice(err.message || 'That file could not be opened', { kind: 'error' }); }
-  });
+  graphMenu.setName(graphName);
 }
 
 export function renderFigureGraph() {

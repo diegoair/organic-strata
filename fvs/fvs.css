@@ -481,13 +481,9 @@
   .fg-new__thumb { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
   .fg-new__thumb svg { width: 100%; height: 100%; display: block; }
   .fg-new__name { font-size: var(--t-caption-size); line-height: 1.3; }
-  .fg-graph-pop { width: 18rem; }
-  .fg-graph-btn__label { font-family: var(--font-display); font-size: var(--t-control-size); }
-  .fg-graph-btn__chev { display: inline-flex; }
   .fg-inspector .fg-hide[hidden] { display: none !important; }
   .fg-card__crumb { margin: 0 0 var(--space-2); font-size: var(--t-caption-size); color: var(--mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fg-card__img { max-height: 24rem; object-fit: contain; }
-  #btn-fg-graph.is-unsaved .fg-graph-btn__label::after { content: ''; display: inline-block; width: var(--space-1); height: var(--space-1); margin-left: var(--space-1); border-radius: 50%; background: var(--mid); vertical-align: middle; }
   .fg-vars { display: grid; gap: var(--space-2); grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fg-vars.is-single { grid-template-columns: minmax(0, 1fr); }
   .fg-vars--row { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
@@ -529,6 +525,7 @@
   .fg-lost { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); margin-bottom: var(--space-2); }
   .fg-cell:focus-visible { outline: none; stroke: var(--ink); stroke-width: 3px; }
   .fg-dock-group { display: contents; }
+  .fg-done__label { font-family: var(--font-display); font-size: var(--t-control-size); }   /* Compose's Done: a word on the floatbar, like Graph */
   .fg-quick { flex-wrap: wrap; }
   .fg-warn { color: var(--danger); }
   .fg-var__tools { gap: var(--space-2); }

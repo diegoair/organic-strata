@@ -124,6 +124,12 @@
 .nc-marquee { position: absolute; left: 0; top: 0; pointer-events: none; background: color-mix(in srgb, var(--ink) 6%, transparent); border: 1px dashed var(--mid); }
 .nc-live, .nc-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
+/* ── Graph menu (Organica.nodeCanvas.graphMenu): the floatbar button + its popover ── */
+.nc-graph-pop { width: 18rem; }
+.nc-graph-btn__label { font-family: var(--font-display); font-size: var(--t-control-size); }
+.nc-graph-btn__chev { display: inline-flex; }
+.nc-graph-btn.is-unsaved .nc-graph-btn__label::after { content: ''; display: inline-block; width: var(--space-1); height: var(--space-1); margin-left: var(--space-1); border-radius: 50%; background: var(--mid); vertical-align: middle; }   /* not saved */
+
 /* ── node bar (inside the host's .org-dock) + node search — Organica.nodeCanvas.nodeBar / .search ── */
 .nc-nodebar__panel { width: 13rem; overflow-y: auto; gap: var(--space-2); }
 .nc-nodebar__hint, .nc-nodebar__empty { margin: 0; font-size: var(--t-caption-size); color: var(--mid); }

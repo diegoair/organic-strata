@@ -49,10 +49,6 @@
   .rz-preview { display: flex; align-items: center; justify-content: center; min-height: 3rem; max-height: 8rem; overflow: hidden; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm); }
   .rz-preview img { display: block; max-width: 100%; max-height: 8rem; object-fit: contain; }
   .rz-preview__caption { padding: var(--space-2); font-size: var(--t-caption-size); color: var(--mid); }
-  .rz-graph-pop { width: 18rem; }
-  .rz-graph-btn__label { font-family: var(--font-display); font-size: var(--t-control-size); }
-  .rz-graph-btn__chev { display: inline-flex; }
-  #btn-rz-graph.is-unsaved .rz-graph-btn__label::after { content: ''; display: inline-block; width: var(--space-1); height: var(--space-1); margin-left: var(--space-1); border-radius: 50%; background: var(--mid); vertical-align: middle; }
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -68,8 +64,8 @@
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <span class="org-floatbar__group" role="group" aria-label="Graph">
     <span class="org-popover-wrap">
-      <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-rz-graph" aria-label="Graph"><span class="rz-graph-btn__label">Graph</span><span class="rz-graph-btn__chev" data-icon-slot></span></button>
-      <div class="org-popover rz-graph-pop" id="rz-graph-popover" aria-label="Graph">
+      <button class="org-floatbar__btn org-floatbar__btn--wide nc-graph-btn" id="btn-rz-graph" aria-label="Graph"><span class="nc-graph-btn__label">Graph</span><span class="nc-graph-btn__chev" data-icon-slot></span></button>
+      <div class="org-popover nc-graph-pop" id="rz-graph-popover" aria-label="Graph">
         <div class="org-popover__title">Graph</div>
         <div class="ctrl-row"><span class="ctrl-label">Saved graphs</span><select class="panel-select" id="rz-graph-saved" aria-label="Saved graphs"></select></div>
         <div class="ctrl-row"><span class="ctrl-label">Graph name</span><input type="text" class="panel-input" id="rz-graph-name" aria-label="Graph name" autocomplete="off"></div>

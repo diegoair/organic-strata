@@ -966,6 +966,84 @@
     return { open: open, close: function () { open(null); }, current: function () { return cur; } };
   }
 
+  // Graph menu — the floatbar's file menu for a node board (promoted from FVS + Rhizome, Oct 2026): Saved graphs ·
+  // Graph name · Save · Delete · New graph · Open file… · Save as file. A graph that was never saved is kept as
+  // "Untitled n" before another replaces it, so nothing is lost; the button shows a dot while the graph is unsaved.
+  // graphMenu({
+  //   els: { button, popover, saved (select), name (input), save, del, newGraph, open, file, input (type=file) },
+  //   store              Organica.presetStore(tool) — entries { model, name?, savedAt } (a bare model also reads)
+  //   getModel()         the board's model now
+  //   load(model, name)  put a model on the board (the host refits, re-renders its panel…)
+  //   normalize(model)?  how a stored model reads (e.g. an older format), also used to compare "saved?"
+  //   hidden(name)?      store keys that are not saved graphs (e.g. an autosave slot)
+  //   fileTool           the `tool` field of a graph file;  fileName?  base name when the graph has no name
+  //   openFile(data, file)?  a file that is not a graph: return true if the host opened it
+  //   onSaved?()         after the store changed (the host's autosave)
+  //   dirtyKey?          Organica.dirty key set while the graph is unsaved
+  // }) → { sync(), name(), setName(n), use(model, name), keepUnsaved(), savedAs() }
+  function graphMenu(o) {
+    var E = o.els, store = o.store, current = '';
+    var hidden = o.hidden || function () { return false; };
+    var norm = o.normalize || function (m) { return createModel(m); };
+    function unwrap(e) { return e && e.model ? e.model : e; }
+    function snap(m) { return JSON.stringify({ nodes: m.nodes, edges: m.edges, frames: m.frames || [] }); }
+    function names() { return Object.keys(store.read()).filter(function (n) { return !hidden(n); }).sort(function (a, b) { return a.localeCompare(b); }); }
+    function savedAs() { var e = current && store.read()[current]; return !!e && snap(norm(unwrap(e))) === snap(o.getModel()); }
+    function entry(m) { return { model: JSON.parse(JSON.stringify(m)), savedAt: new Date().toISOString() }; }
+    function sync() {
+      var list = names(), sel = E.saved;
+      sel.replaceChildren();
+      var first = document.createElement('option'); first.value = ''; first.textContent = list.length ? '—' : 'No saved graphs yet'; sel.appendChild(first);
+      list.forEach(function (n) { var op = document.createElement('option'); op.textContent = n; op.value = n; if (n === current) op.selected = true; sel.appendChild(op); });
+      sel.disabled = !list.length;
+      E.name.value = current;
+      E.del.disabled = !current || !store.read()[current];
+      var unsaved = !!o.getModel().nodes.length && !savedAs();
+      E.button.classList.toggle('is-unsaved', unsaved);
+      if (unsaved) E.button.setAttribute('aria-description', 'Not saved'); else E.button.removeAttribute('aria-description');
+      if (o.dirtyKey && Organica.dirty) Organica.dirty.set(o.dirtyKey, unsaved);
+    }
+    function keepUnsaved() {
+      var m = o.getModel(); if (!m.nodes.length || savedAs()) return;
+      var all = store.read(), i = 1; while (all['Untitled ' + i]) i++;
+      var n = current && !all[current] ? current : 'Untitled ' + i;
+      all[n] = entry(m); store.write(all);
+      if (Organica.notice) Organica.notice('The current graph was saved as “' + n + '”');
+    }
+    function use(m, name) { current = name || ''; o.load(norm(m), current); sync(); if (o.onSaved) o.onSaved(); }
+    var chev = E.button.querySelector('.nc-graph-btn__chev'); if (chev && Organica.icons) chev.innerHTML = Organica.icons.get('chevron-down', { cls: 'chev' });
+    if (Organica.popover) Organica.popover(E.button, E.popover);
+    E.button.addEventListener('click', sync);
+    E.saved.addEventListener('change', function (e) { var n = e.target.value, g = n && store.read()[n]; if (!g) return; keepUnsaved(); use(unwrap(g), n); });
+    E.save.addEventListener('click', function () {
+      var n = E.name.value.trim(); if (!n) { if (Organica.notice) Organica.notice('Name the graph first'); E.name.focus(); return; }
+      var all = store.read(); all[n] = entry(o.getModel());
+      if (store.write(all) === false) return;
+      current = n; sync(); if (o.onSaved) o.onSaved(); if (Organica.notice) Organica.notice('Graph saved');
+    });
+    E.del.addEventListener('click', function () {
+      var all = store.read(); if (!current || !all[current]) return;
+      delete all[current]; store.write(all); current = ''; sync(); if (o.onSaved) o.onSaved(); if (Organica.notice) Organica.notice('Graph deleted');
+    });
+    E.newGraph.addEventListener('click', function () { keepUnsaved(); use(createModel(), ''); });
+    E.file.addEventListener('click', function () {
+      var blob = new Blob([JSON.stringify({ tool: o.fileTool, version: 1, name: current, model: o.getModel() }, null, 2)], { type: 'application/json' });
+      Organica.download(blob, Organica.stamp(current ? current.replace(/[^\w-]+/g, '-').toLowerCase() : (o.fileName || o.fileTool), 'json'));
+      if (Organica.notice) Organica.notice('Graph file saved');
+    });
+    E.open.addEventListener('click', function () { E.input.click(); });
+    E.input.addEventListener('change', async function (e) {
+      var f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+      try {
+        var data = JSON.parse(await f.text()), m = data && (data.tool === o.fileTool ? data.model : (!data.tool && data.model ? data.model : null));
+        if (m && Array.isArray(m.nodes) && Array.isArray(m.edges)) { keepUnsaved(); use(m, data.name || ''); return; }
+        if (o.openFile && o.openFile(data, f)) return;
+        throw new Error('That file is not a graph');
+      } catch (err) { if (Organica.notice) Organica.notice(err && err.message && !/JSON/.test(err.message) ? err.message : 'That file could not be opened', { kind: 'error' }); }
+    });
+    return { sync: sync, name: function () { return current; }, setName: function (n) { current = n || ''; sync(); }, use: use, keepUnsaved: keepUnsaved, savedAs: savedAs };
+  }
+
   Organica.nodeCanvas = {
     MODEL_VERSION: MODEL_VERSION,
     nextId: nextId, createModel: createModel, findNode: findNode, edgesInto: edgesInto, edgesOutOf: edgesOutOf,
@@ -974,6 +1052,6 @@
     createRegistry: createRegistry, canConnect: canConnect,
     createEngine: createEngine, createHistory: createHistory,
     mount: mount, wirePath: wirePath,
-    portFor: portFor, search: search, nodeBar: nodeBar,
+    portFor: portFor, search: search, nodeBar: nodeBar, graphMenu: graphMenu,
   };
 })();
