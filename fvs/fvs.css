@@ -503,7 +503,8 @@
   .fg-vars.is-single { grid-template-columns: minmax(0, 1fr); }
   .fg-vars--row { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
   .fg-var { position: relative; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-  .fg-var.is-pinned .fg-card__sheet { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .fg-var { --fg-pin-ring: var(--ink); }   /* resolved in the card's theme, not the light sheet's */
+  .fg-var.is-pinned .fg-card__sheet { outline: 2px solid var(--fg-pin-ring); outline-offset: 2px; }
   .fg-var__label { font-size: var(--t-caption-size); color: var(--mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fg-var__error { margin: 0; padding: var(--space-3); font-size: var(--t-caption-size); color: var(--danger); line-height: normal; }
   .fg-var__tools { position: absolute; top: var(--space-1); right: var(--space-1); display: flex; gap: var(--space-1); opacity: 0; transition: opacity var(--dur-fast) var(--ease-standard); }

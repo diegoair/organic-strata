@@ -278,7 +278,13 @@
     var zoomPan = Organica.createZoomPan({ canvas: board, wrap: stage, min: 0.1, max: 4, panAlways: true, infinite: true, dblclickReset: false,
       isReady: function () { return isActive(); },
       panStart: function (e) { return e.button === 1 || (e.button === 0 && spaceDown); },
-      onChange: function (v) { stage.style.setProperty('--nc-zoom', v.zoom); stage.classList.toggle('nc-stage--far', v.zoom < 0.5); scheduleVisibility(); } });
+      onChange: function (v) {
+        stage.style.setProperty('--nc-zoom', v.zoom);
+        var far = v.zoom < 0.5, was = stage.classList.contains('nc-stage--far');
+        stage.classList.toggle('nc-stage--far', far);
+        if (was !== far && cards) { cards.forEach(function (c, id) { measure(id); }); drawWires(); }
+        scheduleVisibility();
+      } });
     ctl.zoomPan = zoomPan;
     function toBoard(cx, cy) { var r = stage.getBoundingClientRect(); return { x: (cx - r.left - zoomPan.pan.x) / zoomPan.zoom, y: (cy - r.top - zoomPan.pan.y) / zoomPan.zoom }; }
     ctl.toBoard = toBoard;
@@ -348,6 +354,7 @@
     function place(card, node) { card.style.transform = 'translate(' + node.x + 'px,' + node.y + 'px)'; if (node.w) card.style.width = node.w + 'px'; }
     function measure(id) {   // port centres in board units — layout offsets, not screen rects (no per-wire getBoundingClientRect)
       var c = cards.get(id), node = findNode(ctl.model, id); if (!c || !node) return;
+      if (stage.classList.contains('nc-stage--far')) { c.w = c.el.offsetWidth; c.h = c.el.offsetHeight; return; }   // chips hide their ports: keep the last positions
       c.ports.forEach(function (p) {
         var x = 0, y = 0, e = p.el;
         while (e && e !== c.el) { x += e.offsetLeft; y += e.offsetTop; e = e.offsetParent; }
@@ -358,6 +365,7 @@
     function portXY(ref, dir) {
       var node = findNode(ctl.model, ref.node), c = cards.get(ref.node); if (!node || !c) return null;
       var p = c.ports.get(dir + ':' + ref.port); if (!p) return null;
+      if (stage.classList.contains('nc-stage--far')) return { x: node.x + (dir === 'out' ? c.w : 0), y: node.y + Math.min(c.h / 2, 24) };   // a chip: wires meet its edge
       return { x: node.x + p.x, y: node.y + p.y };
     }
     function drawWires() {
@@ -395,12 +403,16 @@
     function nodesIn(f) {
       return ctl.model.nodes.filter(function (n) { var c = cards.get(n.id), w = c ? c.w : 200, h = c ? c.h : 120, cx = n.x + w / 2, cy = n.y + h / 2; return cx > f.x && cx < f.x + f.w && cy > f.y && cy < f.y + f.h; });
     }
+    function selectFrame(id) {   // select a section without rebuilding the frames layer (a drag may hold one of its labels)
+      selectedFrame = null; select([]); selectedFrame = id;
+      framesLayer.querySelectorAll('.nc-frame').forEach(function (x) { x.classList.toggle('is-selected', x.dataset.frame === id); });
+    }
     function drawFrames() {
       framesLayer.replaceChildren();
       (ctl.model.frames || []).forEach(function (f) {
         var d = el('div', 'nc-frame' + (selectedFrame === f.id ? ' is-selected' : ''), { 'data-frame': f.id, role: 'group', 'aria-label': f.name });
         d.style.transform = 'translate(' + f.x + 'px,' + f.y + 'px)'; d.style.width = f.w + 'px'; d.style.height = f.h + 'px';
-        var lab = el('button', 'nc-frame__label', { type: 'button', 'aria-label': f.name + ' — section' }); lab.textContent = f.name;
+        var lab = el('button', 'nc-frame__label', { type: 'button', 'aria-label': f.name, 'aria-keyshortcuts': 'F2 Delete' }); lab.textContent = f.name;
         var grip = el('span', 'nc-frame__grip', { 'aria-hidden': 'true' });
         d.append(lab, grip); framesLayer.appendChild(d);
         bindFrame(d, lab, grip, f);
@@ -409,7 +421,7 @@
     function bindFrame(d, lab, grip, f) {
       lab.addEventListener('pointerdown', function (e) {
         if (e.button !== 0 || spaceDown) return; e.stopPropagation();
-        selectedFrame = f.id; select([]); selectedFrame = f.id; drawFrames();
+        selectFrame(f.id);
         var start = toBoard(e.clientX, e.clientY), fx = f.x, fy = f.y, inside = nodesIn(f).map(function (n) { return { n: n, x: n.x, y: n.y }; }), moved = false;
         try { lab.setPointerCapture(e.pointerId); } catch (err) {}
         function move(ev) {
@@ -420,16 +432,29 @@
           inside.forEach(function (g) { g.n.x = Math.round(g.x + dx); g.n.y = Math.round(g.y + dy); var c = cards.get(g.n.id); if (c) place(c.el, g.n); });
           drawWires();
         }
-        function up() { lab.removeEventListener('pointermove', move); lab.removeEventListener('pointerup', up); lab.removeEventListener('pointercancel', up); if (moved) { changed('move'); commit('move'); } }
+        function up() { lab.removeEventListener('pointermove', move); lab.removeEventListener('pointerup', up); lab.removeEventListener('pointercancel', up); if (moved) { changed('move'); commit('move'); } lab.focus({ preventScroll: true }); }
         lab.addEventListener('pointermove', move); lab.addEventListener('pointerup', up); lab.addEventListener('pointercancel', up);
       });
-      lab.addEventListener('dblclick', function (e) {   // rename in place
-        e.stopPropagation();
+      function rename() {
         var inp = el('input', 'nc-frame__input', { type: 'text', 'aria-label': 'Section name', value: f.name });
         lab.replaceWith(inp); inp.focus(); inp.select();
-        var done = function (ok) { if (ok && inp.value.trim()) { f.name = inp.value.trim(); commit('rename'); } drawFrames(); if (o.onChange) o.onChange(ctl.model, 'rename'); };
+        var over = false;
+        var done = function (ok) { if (over) return; over = true; if (ok && inp.value.trim()) { f.name = inp.value.trim(); commit('rename'); } drawFrames(); if (o.onChange) o.onChange(ctl.model, 'rename'); };
         inp.addEventListener('keydown', function (k) { if (k.key === 'Enter') done(true); else if (k.key === 'Escape') done(false); k.stopPropagation(); });
         inp.addEventListener('blur', function () { done(true); });
+      }
+      lab.addEventListener('dblclick', function (e) { e.stopPropagation(); rename(); });   // rename in place
+      lab.addEventListener('click', function () { if (selectedFrame !== f.id) selectFrame(f.id); });
+      lab.addEventListener('keydown', function (e) {   // the keyboard path: F2 / Enter rename, Delete removes the section, arrows move it
+        if (e.key === 'F2' || (e.key === 'Enter' && selectedFrame === f.id)) { e.preventDefault(); e.stopPropagation(); rename(); return; }
+        if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); e.stopPropagation(); selectFrame(f.id); remove([]); return; }
+        if (/^Arrow/.test(e.key)) {
+          e.preventDefault(); e.stopPropagation(); selectFrame(f.id);
+          var step = e.shiftKey ? 32 : 8, dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0, dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+          nodesIn(f).forEach(function (n) { n.x += dx; n.y += dy; var c = cards.get(n.id); if (c) place(c.el, n); });
+          f.x += dx; f.y += dy; d.style.transform = 'translate(' + f.x + 'px,' + f.y + 'px)'; drawWires(); changed('move');
+          clearTimeout(ctl._nudge); ctl._nudge = setTimeout(function () { commit('move'); }, 400);
+        }
       });
       grip.addEventListener('pointerdown', function (e) {
         if (e.button !== 0) return; e.stopPropagation();

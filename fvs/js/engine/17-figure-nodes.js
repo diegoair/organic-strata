@@ -245,6 +245,7 @@ export async function compileFigure(inputs, params) {
 // ── Variations (Phase 4): a variation changes the Figure's own INPUTS — what Keep allows — then compiles as usual.
 // spec = { mode: 'seed' | 'one' | 'several', seed }. 'seed' re-draws only what is random (a Grid's seed, how several
 // contents spread over the cells); 'one' makes one change, 'several' two or three. Deterministic per spec.
+export const MIRRORS = { none: 'No mirror', v: 'Right edge', h: 'Bottom edge', vh: 'Both edges' };   // the mirror options, as the UI says them
 export const KEEP_KEYS = ['content', 'palette', 'cells', 'grid', 'transform'];   // UI-COPY §2: Content · Palette · Cell rules · Grid · Rotate & mirror
 const pick = (a, rng) => a[Math.floor(rng() * a.length)];
 function changeGrid(inp, rng) {
@@ -283,7 +284,7 @@ function changeTransform(inp, rng) {
   const at = rules.map(r => r.kind).lastIndexOf('transform'), t = at >= 0 ? { ...rules[at].transform } : { rotate: 0, mirror: 'none' };
   if (rng() < 0.5) t.rotate = (t.rotate + 90) % 360; else t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng);
   if (at >= 0) rules[at] = { kind: 'transform', transform: t }; else rules.push({ kind: 'transform', transform: t });
-  inp.rules = rules; return t.mirror !== 'none' ? `Mirror ${t.mirror}` : `Rotate ${t.rotate}°`;
+  inp.rules = rules; return t.mirror !== 'none' ? `Mirror: ${MIRRORS[t.mirror]}` : `Rotate ${t.rotate}°`;
 }
 const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells: changeCells, transform: changeTransform };
 export function varyInputs(inputs, spec, keep) {
@@ -291,7 +292,7 @@ export function varyInputs(inputs, spec, keep) {
   const inp = { ...inputs, rules: (inputs.rules || []).slice() }, rng = mulberry32((spec.seed * 2654435761) >>> 0), labels = [], extra = {};
   const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells
     let did = false;
-    if (!keep.grid && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed: Math.floor(rng() * 1000) } }; labels.push('Grid seed'); did = true; }
+    if (!keep.grid && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed: Math.floor(rng() * 1000) } }; labels.push('Grid: new random seed'); did = true; }
     if (!keep.content && (inp.content || []).filter(Boolean).length > 1) { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); did = true; }
     return did;
   };

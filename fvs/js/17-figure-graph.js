@@ -31,7 +31,7 @@ import {
   evalFigure
 } from './engine/16-figure-eval.js';
 import {
-  FIGURE_LATTICES, FIT_PRESET, KEEP_KEYS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  FIGURE_LATTICES, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey
 } from './engine/17-figure-nodes.js';
 import {
@@ -50,7 +50,6 @@ let graphName = '';             // the saved graph this one was opened from / sa
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'node-rule', Output: 'node-output' };
 const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Pinwheel', mirror: 'Mirror', checkerboard: 'Checkerboard' };
-const MIRRORS = { none: 'No mirror', v: 'Right edge', h: 'Bottom edge', vh: 'Both edges' };
 let ctl = null;
 
 // ── the graph a first visit starts with: Canvas + Grid + Palette → Figure, fed by the newest saved Component/Element ──
@@ -111,16 +110,16 @@ function renderBody(node, entry, el) {
     const layout = p.layout === 'row' ? 'row' : 'rows';
     const groups = f.groups || [{ label: null, variations: vars }];
     let gi = 0;
-    const tile = (v, i, first) => `
+    const tile = (v, i, first, k, item) => `
       <figure class="fg-var${v.pinned ? ' is-pinned' : ''}" data-i="${i}">
         <div class="fg-card__sheet" data-theme="light">${v.error ? `<p class="fg-var__error">${esc(v.label)}</p>` : `<img class="fg-card__img" alt="${esc(nodeLabel(node))}, variation ${i + 1}" src="${figureImg(node.id + ':' + v.key, v.svg)}">`}</div>
         <figcaption class="fg-var__label">${first ? 'As set up' : esc(v.label)}</figcaption>
         ${v.spec ? `<div class="fg-var__tools">
-          <button type="button" class="icon-btn" data-act="pin" data-i="${i}" aria-pressed="${!!v.pinned}" aria-label="Pin variation ${i + 1}">${Organica.icons.get('pin', { size: 'xs' })}</button>
-          <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${i + 1}">${Organica.icons.get('copy', { size: 'xs' })}</button></div>` : ''}
+          <button type="button" class="icon-btn" data-act="pin" data-i="${i}" aria-pressed="${!!v.pinned}" aria-label="Pin variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get('pin', { size: 'xs' })}</button>
+          <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get(Organica.icons.names().includes('figure-from') ? 'figure-from' : 'copy', { size: 'xs' })}</button></div>` : ''}
       </figure>`;
-    el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>` + groups.map(g => `${g.label ? `<p class="fg-group__label">${esc(g.label)}</p>` : ''}<div class="fg-vars fg-vars--${layout}${g.variations.length === 1 ? ' is-single' : ''}">${g.variations.map((v, k) => tile(v, gi++, k === 0)).join('')}</div>`).join('')
-      + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${vars.length > 1 ? ` · ${vars.length} ${f.groups ? 'figures' : 'variations'}` : ''}${f.capped ? ` · showing ${f.capped.shownItems} of ${f.capped.items} items, ${f.capped.per} each` : ''}</p>`;
+    el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>` + groups.map((g, gn) => { const gid = `fgv-${node.id}-${gn}`; return `<div${g.label ? ` role="group" aria-labelledby="${gid}"` : ''}>${g.label ? `<p class="fg-group__label" id="${gid}">${esc(g.label)}</p>` : ''}<div class="fg-vars fg-vars--${layout}${g.variations.length === 1 ? ' is-single' : ''}">${g.variations.map((v, k) => tile(v, gi++, k === 0, k, g.label)).join('')}</div></div>`; }).join('')
+      + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · showing ${f.capped.shownItems} of ${f.capped.items} items, ${f.capped.per} variations each` : ''}</p>`;
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => ctl.remeasure(node.id), { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act, +b.dataset.i); }); }
     el._vars = vars;
@@ -226,7 +225,7 @@ function addContent(kind, name) {
 let openCat = null;
 function nodebarItems(cat) {
   const types = (registry.byCategory()[cat] || []).filter(t => t.meta.id !== 'element' && t.meta.id !== 'component');
-  const items = types.map(t => ({ label: t.meta.label, make: () => ({ type: t.meta.id }) }));
+  const items = types.map(t => ({ label: t.meta.id === 'set' ? 'New Set' : t.meta.label, make: () => ({ type: t.meta.id }) }));
   return items;
 }
 function renderNodebar(cat) {
@@ -234,7 +233,7 @@ function renderNodebar(cat) {
   panel.setAttribute('aria-label', cat);
   let html = `<p class="fg-nodebar__hint">Drag onto the graph, or click to add</p>`;
   const items = nodebarItems(cat);
-  if (items.length) html += `<div class="fg-nodebar__list">${items.map((it, i) => `<button type="button" class="fg-nodebar__item" data-i="${i}" aria-label="Add ${esc(it.label)}">${esc(it.label)}</button>`).join('')}</div>`;
+  if (items.length) html += `<div class="fg-nodebar__list">${items.map((it, i) => `<button type="button" class="fg-nodebar__item" data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${esc(it.label)}</button>`).join('')}</div>`;
   if (cat === 'Content') {
     const s = savedEntries();
     const block = (kind, title, list, step) => `<div class="sub-label">${title}</div>` + (list.length
@@ -430,7 +429,7 @@ function renderInspector(ids) {
       }));
     });
     const hasSet = ctl.model.edges.some(e => e.to.node === node.id && e.to.port === 'content' && (NC.findNode(ctl.model, e.from.node) || {}).type === 'set');
-    if (hasSet) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-fanout"${p.fanOut !== false ? ' checked' : ''}> One group per item</label><p class="panel-hint">Each item of the Set gets its own variations. Off: the items are mixed over the cells.</p>`,
+    if (hasSet) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-fanout"${p.fanOut !== false ? ' checked' : ''}> Variations per item</label><p class="panel-hint">Each item of the Set gets its own variations. Off: the items are mixed over the cells.</p>`,
       bind: () => ctrl('fgi-fanout').addEventListener('change', e => { p.fanOut = e.target.checked; edited(node, true); }) });
     rows.push({ html: '<div class="sub-label">Variations</div>' });
     rows.push(rangeRow('Variations', 'fgi-vcount', 1, 12, 1, +p.variations || 1, (v, c) => { p.variations = v; edited(node, c); }));
@@ -470,7 +469,7 @@ function setEditor(node, ids) {
     <div class="sub-label">Add</div><div class="fvs-rail__grid" id="fgi-set-add">${tiles('element', s.element) + tiles('component', s.component) || '<p class="panel-hint">Nothing saved yet — save a Component in the Component step first.</p>'}</div>
     <div class="sub-label">Saved Sets</div>
     <div class="ctrl-row"><select class="panel-select" id="fgi-set-saved" aria-label="Saved Sets"><option value="">${saved.length ? 'Open a saved Set…' : 'No Sets yet'}</option>${saved.map(n => `<option>${esc(n)}</option>`).join('')}</select></div>
-    <div class="row-btns"><button type="button" class="mini-btn" id="fgi-set-save">Save Set</button></div>`,
+    <div class="row-btns"><button type="button" class="mini-btn" id="fgi-set-save">Save Set</button>${SETS.read()[nodeLabel(node)] ? `<button type="button" class="mini-btn" id="fgi-set-delete" data-armed="Delete — click again to confirm">Delete saved Set</button>` : ''}</div>`,
     bind: () => {
       const again = () => { edited(node, true); renderInspector(ids); ctl.paint(node.id); };
       ctrl('fgi-set-items').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; const i = +b.dataset.i;
@@ -480,7 +479,13 @@ function setEditor(node, ids) {
         again(); });
       ctrl('fgi-set-add').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (!b) return; const c = addContent(b.dataset.add, b.dataset.name); items.push({ kind: b.dataset.add, name: b.dataset.name, snapshot: c.params.snapshot }); again(); });
       ctrl('fgi-set-saved').addEventListener('change', e => { const v = SETS.read()[e.target.value]; if (!v) return; p.items = JSON.parse(JSON.stringify(v.items || [])); node.name = e.target.value; ctl.refresh(); again(); });
-      ctrl('fgi-set-save').addEventListener('click', () => { if (!items.length) { Organica.notice('Add items to the Set first'); return; } const all = SETS.read(); all[nodeLabel(node)] = { items: JSON.parse(JSON.stringify(items)), savedAt: new Date().toISOString() }; if (SETS.write(all)) Organica.notice('Set saved'); renderInspector(ids); });
+      ctrl('fgi-set-save').addEventListener('click', async () => {
+        if (!items.length) { Organica.notice('Add items to the Set first'); return; }
+        const all = SETS.read(), name = nodeLabel(node), same = all[name] && JSON.stringify(all[name].items) === JSON.stringify(items);
+        if (all[name] && !same && Organica.confirm && !(await Organica.confirm({ title: `Replace the saved Set “${name}”?`, message: 'The saved Set gets this Set’s items.', ok: 'Replace' }))) return;
+        all[name] = { items: JSON.parse(JSON.stringify(items)), savedAt: new Date().toISOString() }; if (SETS.write(all)) Organica.notice('Set saved'); renderInspector(ids);
+      });
+      const del = ctrl('fgi-set-delete'); if (del) del.addEventListener('click', () => { const all = SETS.read(); delete all[nodeLabel(node)]; SETS.write(all); Organica.notice('Saved Set deleted'); renderInspector(ids); });
     } };
 }
 
