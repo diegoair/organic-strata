@@ -858,3 +858,21 @@ version before the split): never edited, never linked, `noindex`. It still runs 
 and shares the live library (same storage keys) — useful to compare against or to recover old code, nothing
 more. A fix goes in `fvs/js/`, never there.
 
+
+## 12. Figure graph (in progress, Oct 2026)
+
+Figure is being rebuilt as a node **Graph**: Canvas, Grid and Palette nodes (the foundation), content from the saved libraries only (Saved Element / Component / Symbol), rule nodes, and several **Figure** nodes side by side, each showing its own variations. The plan and Diego's decisions live in `docs/DESIGN-DECISIONS.md`; this section grows phase by phase.
+
+### 12.1 The pure evaluator (Phase 1, shipped on the branch)
+
+`evalFigure(recipe)` (`fvs/js/engine/16-figure-eval.js`, Figure chunk) renders a recipe v2 to `{ svg, tier, levels: {component, symbol}, metas, stats, shapes }` **without touching the page or the user's work**. It is what every Figure node calls, once per variation.
+
+- **Same output as before.** It takes the steps `runFigureRecipe()` takes through the panel as model-only operations. `scripts/test-figure-eval.sh` renders all 25 catalog figures and checks them against `fvs/_figure-eval-baseline.json` (recorded from `runFigureRecipe()` on a fresh page per figure, `--record`): byte-identical.
+- **Pure.** It runs inside `withFigureSandbox(fn)`, which
+  - starts from FVS as it was at boot (`figurePristine` in `engine/00-core.js`: `state` and `live` cloned, plus a **virtual panel** of every control, captured by `captureFigurePristine()` in `fvs/js/00-core.js` just before `markReady`), so the result depends on the recipe alone;
+  - points the panel reader (`pv` / `pc` / `pr`) at the virtual panel. A value set on it is sanitised the way the real control would hold it (a detached copy of the control is asked), so a range clamps and snaps, a select drops an unknown option;
+  - keeps Library writes (the Grid's auto `Tile ·` entry, a sealed Symbol's Components) in memory;
+  - puts every original object back afterwards.
+  The test checks that `state`, `live` and every panel control are unchanged after a run, and that a figure gives the same SVG after another figure and on a changed panel.
+- **Fast.** No DOM events, no re-render: about 0.4 ms per catalog figure warm (slowest 1 ms).
+- `runFigureRecipe()` is unchanged: it still drives the panels for today's Figure UI, which Phase 3 replaces.

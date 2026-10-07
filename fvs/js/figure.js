@@ -4,4 +4,5 @@ import * as e13 from './engine/13-figure-engine.js';
 import * as e14 from './engine/14-figure-ui.js';
 import * as m13 from './13-figure-engine.js';
 import * as m14 from './14-figure-ui.js';
-window.__fvs.expose([e13, e14, m13, m14]);
+import * as e16 from './engine/16-figure-eval.js';
+window.__fvs.expose([e13, e14, m13, m14, e16]);

@@ -32,4 +32,6 @@ import './15-export-library-view.js';
 import './16-cell-shadow.js';
 import './99-boot.js';
 import './test-surface.js';
+import { captureFigurePristine } from './00-core.js';
+captureFigurePristine();   // what evalFigure() starts from (docs/FVS.md §12)
 window.__fvs.markReady();

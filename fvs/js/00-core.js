@@ -4,7 +4,7 @@
 import { rt } from './rt.js';
 import { hooks } from './hooks.js';
 import {
-  COLOR_RULES, DEFAULT_COLOR_RULE, PALETTE_MAX, pv, setPanelSource, state
+  COLOR_RULES, DEFAULT_COLOR_RULE, PALETTE_MAX, pv, setFigurePristine, setPanelSource, state
 } from './engine/00-core.js';
 import {
   getGrid
@@ -36,6 +36,18 @@ import {
 export function ctrl(id) { return document.getElementById(id); }
 setPanelSource({ value: id => ctrl(id).value, checked: id => ctrl(id).checked,
   read: id => { const el = ctrl(id); return el.type === 'checkbox' ? el.checked : el.value; } });
+// The Figure evaluator's starting point (engine/00-core.js figurePristine): every control as it is at boot, and
+// how a real control would hold a value set on it — asked of a detached copy, so nothing on screen changes.
+export function captureFigurePristine() {
+  const panel = new Map(), probes = new Map();
+  document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => panel.set(el.id, { value: el.value, checked: el.checked, type: el.type }));
+  const sanitize = (id, v) => {
+    let p = probes.get(id);
+    if (!p) { const el = ctrl(id); if (!el) return String(v); p = el.cloneNode(true); probes.set(id, p); }
+    p.value = v; return p.value;
+  };
+  setFigurePristine(panel, sanitize);
+}
 
 export const setStatus = Organica.status();
 

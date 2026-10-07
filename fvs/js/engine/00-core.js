@@ -131,6 +131,21 @@ export const live = {
   paperPatternOn: false,
   variantAppearance: null,
 };
+// ── The Figure evaluator's starting point (Oct 2026, docs/FVS.md §12). evalFigure() renders a figure from its
+// recipe alone: it starts from FVS as it was at boot — the model (state + live, cloned) and every panel control
+// (a virtual panel: id → {value, checked, type}) — never from whatever the user has on screen. The UI captures it
+// once, when FVS is ready (setFigurePristine), with `sanitize(id, v)`: the value the real control would hold
+// after `el.value = v` (a range clamps and snaps, a select drops an unknown option).
+export const figurePristine = { state: null, live: null, panel: null, sanitize: null };
+// A deep copy of the model's top level: each field cloned on its own; one that cannot be cloned is shared.
+export function cloneModel(obj) {
+  const out = {};
+  for (const k of Object.keys(obj)) { try { out[k] = structuredClone(obj[k]); } catch (e) { out[k] = obj[k]; } }
+  return out;
+}
+export function setFigurePristine(panel, sanitize) {
+  Object.assign(figurePristine, { state: cloneModel(state), live: cloneModel(live), panel, sanitize });
+}
 // An offscreen canvas for compositing / raster checks — the one page call the engine makes (never mounted).
 export function offscreenCanvas(width, height) { return Object.assign(document.createElement('canvas'), { width, height }); }
 // A Symbol cell's ink. `color: null` = follow the palette (what new cells

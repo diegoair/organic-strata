@@ -1,0 +1,131 @@
+{
+  "recorded": "2026-10-07",
+  "note": "runFigureRecipe() on a fresh /fvs/ page per figure",
+  "hashes": {
+    "Triangle · Sierpinski · asset": {
+      "final": "4d2a6da6",
+      "component": "",
+      "symbol": "4d2a6da6"
+    },
+    "Triangle · Sierpinski · repeated": {
+      "final": "2dc19807",
+      "component": "",
+      "symbol": "4d2a6da6"
+    },
+    "Triangle · Sierpinski · mirrored, one axis": {
+      "final": "b7784421",
+      "component": "",
+      "symbol": "4d2a6da6"
+    },
+    "Triangle · Sierpinski · mirrored, two axes": {
+      "final": "e2a82cab",
+      "component": "",
+      "symbol": "4d2a6da6"
+    },
+    "Triangle · Trapezoid · asset": {
+      "final": "0d705bbe",
+      "component": "",
+      "symbol": "0d705bbe"
+    },
+    "Triangle · Trapezoid · repeated": {
+      "final": "8358ee53",
+      "component": "",
+      "symbol": "0d705bbe"
+    },
+    "Triangle · Trapezoid · mirrored, one axis": {
+      "final": "6be781cf",
+      "component": "",
+      "symbol": "0d705bbe"
+    },
+    "Triangle · Trapezoid · mirrored, two axes": {
+      "final": "0c7d91b7",
+      "component": "",
+      "symbol": "0d705bbe"
+    },
+    "Triangle · Lattice 4 · asset": {
+      "final": "8cc810e4",
+      "component": "",
+      "symbol": "8cc810e4"
+    },
+    "Triangle · Lattice 4 · repeated": {
+      "final": "eb0d23d7",
+      "component": "",
+      "symbol": "8cc810e4"
+    },
+    "Triangle · Lattice 4 · mirrored, one axis": {
+      "final": "1f6f538b",
+      "component": "",
+      "symbol": "8cc810e4"
+    },
+    "Triangle · Lattice 4 · mirrored, two axes": {
+      "final": "65e1ff8b",
+      "component": "",
+      "symbol": "8cc810e4"
+    },
+    "Classic · Circle from four arcs": {
+      "final": "4872e6b8",
+      "component": "4872e6b8",
+      "symbol": ""
+    },
+    "Classic · Leaf block 2×2": {
+      "final": "66d09b67",
+      "component": "66d09b67",
+      "symbol": ""
+    },
+    "Classic · Leaf wave (tiled 2×2)": {
+      "final": "be8a5cf5",
+      "component": "66d09b67",
+      "symbol": ""
+    },
+    "Classic · Leaf wave, outline": {
+      "final": "fcb0b21d",
+      "component": "30ed2fb1",
+      "symbol": ""
+    },
+    "Classic · Leaf wave, two inks (4×4)": {
+      "final": "0a62cfad",
+      "component": "c140c10b",
+      "symbol": ""
+    },
+    "Classic · Triangle pinwheels (3×3)": {
+      "final": "772165e7",
+      "component": "99da7ba0",
+      "symbol": ""
+    },
+    "Classic · Arc kaleidoscope": {
+      "final": "d1e3ebe3",
+      "component": "95b61e85",
+      "symbol": ""
+    },
+    "Hexagon · rosette (triangles turned by sector)": {
+      "final": "c3393d91",
+      "component": "",
+      "symbol": "c3393d91"
+    },
+    "Hexagon · star with empty centre": {
+      "final": "1196b8ed",
+      "component": "",
+      "symbol": "1196b8ed"
+    },
+    "Hexagon · arcs turned by sector": {
+      "final": "438e6ccc",
+      "component": "",
+      "symbol": "438e6ccc"
+    },
+    "Recursive · Sierpinski, three levels": {
+      "final": "2de1c615",
+      "component": "",
+      "symbol": "4d2a6da6"
+    },
+    "Recursive · bow tie tiled 2×2": {
+      "final": "e60f1f65",
+      "component": "",
+      "symbol": "4d2a6da6"
+    },
+    "Recursive · tier of tiers, mirrored": {
+      "final": "d8b483f9",
+      "component": "",
+      "symbol": "4d2a6da6"
+    }
+  }
+}
