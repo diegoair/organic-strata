@@ -689,6 +689,7 @@
       "panel",
       "floatbar",
       "shell",
+      "node-canvas",
       "palette",
       "seeds-panel"
      ],

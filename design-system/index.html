@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/node-canvas.css">
 <link rel="stylesheet" href="/shared/palette.css">
 <link rel="stylesheet" href="/shared/seeds-panel.css">
 <style>
@@ -184,6 +185,13 @@
   .org-fvs-field.ds-fvsf-demo { position: relative; inset: auto; z-index: 0; isolation: isolate; width: 100%; aspect-ratio: 2 / 1; border-radius: var(--radius-md); overflow: hidden; }
   .ds-fvsf-controls { width: var(--panel-w); max-width: 100%; }
   .ds-example--dark { background: var(--ink); }
+  /* #node-canvas demo — only the specimen's frame; cards, ports, wires and marquee are shared/node-canvas.css */
+  .ds-nc-stage { width: 100%; height: calc(var(--space-8) * 14); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .ds-nc-thumb { aspect-ratio: 2 / 1; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); }
+  .ds-nc-legend { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-6); padding: var(--space-5) var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .ds-nc-sample { flex: 1 1 calc(var(--space-8) * 5); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--t-label-size); color: var(--mid); }
+  .ds-nc-sample svg { width: 100%; height: var(--space-8); overflow: visible; }
+  .ds-nc-label { margin: 0; color: var(--ink); font-family: var(--font-display); font-weight: var(--w-bold); }
 
   /* Dark mode entry — the same mini tool, once per theme */
   .ds-theme-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5); width: 100%; }
@@ -535,6 +543,7 @@
       <a href="#modal">Modal</a>
       <a href="#upload">File input</a>
       <a href="#layer-card">Layer card</a>
+      <a href="#node-canvas">Node board</a>
     </div>
     <div class="ds-nav__group">
       <div class="ds-nav__title">Templates</div>
@@ -565,6 +574,7 @@
       <a href="#mega-menu">Mega menu</a>
       <a href="#pattern-switcher">Pattern switcher</a>
       <a href="#floatbar">Floating toolbar</a>
+      <a href="#dock">Left dock</a>
       <a href="#popover">Popover</a>
       <a href="#notice">Notice</a>
     </div>
@@ -742,6 +752,18 @@
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--canvas-bg);box-shadow:inset 0 0 0 1px var(--border)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--canvas-bg</div><div class="ds-swatch__val">canvas area (= --paper)</div></div></div>
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--canvas-dot)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--canvas-dot</div><div class="ds-swatch__val">canvas grid dots</div></div></div>
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--canvas-grid), var(--canvas-bg);box-shadow:inset 0 0 0 1px var(--border)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--canvas-grid</div><div class="ds-swatch__val">dot grid, --space-7 pitch</div></div></div>
+        </div>
+      </div>
+      <p class="ds-desc" style="margin-top:var(--space-5)"><strong>Port types — the node graph’s seven colours</strong> (Oct 7, 2026, ledger O-34). One <code>--port-&lt;type&gt;</code> per port type of the <a href="#node-canvas">node board</a>: the ring of the port dot and every wire leaving that port. Taken from TuneSutra’s <em>Riso standard inks</em> (the palette library’s built-in), each moved along its own OKLCH scale to the nearest step that reaches <strong>3:1 on <code>--panel</code></strong> (<code>Organica.color.stepFor</code>), in each theme — so light and dark have their own values (both in the table under <a href="#dark-mode">Dark mode</a>; the self-check fails if one drops under 3:1 on <code>--paper</code> or <code>--panel</code>). Colour is never the only cue: a port also shows its label, and a list port is a square dot. A tool maps its own type names onto these (Rhizome: SVG → content, Image → figure, Grid → grid, Color → palette, Number → rule, Points → composition).</p>
+      <div class="ds-example">
+        <div class="ds-swatches">
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--port-canvas)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--port-canvas</div><div class="ds-swatch__val">Canvas · Riso Light Gray</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--port-grid)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--port-grid</div><div class="ds-swatch__val">Grid · Riso Blue</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--port-palette)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--port-palette</div><div class="ds-swatch__val">Palette · Riso Fluorescent Pink</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--port-content)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--port-content</div><div class="ds-swatch__val">Content · Riso Green</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--port-rule)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--port-rule</div><div class="ds-swatch__val">Rules · Riso Flat Gold</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--port-composition)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--port-composition</div><div class="ds-swatch__val">Composition · Riso Purple</div></div></div>
+          <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--port-figure)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--port-figure</div><div class="ds-swatch__val">Figure · Riso Orange</div></div></div>
         </div>
       </div>
       <p class="ds-desc" style="margin-top:var(--space-5)"><strong>Grey scale — the scale of black.</strong> <code>--gray-0</code> … <code>--gray-900</code>: ten steps from <code>--paper</code> to <code>--ink</code>, step N being N/10 of <code>--ink</code> mixed into <code>--paper</code>. Derived, not typed, so it follows each tool’s own ink and paper. This page’s own background is <code>--gray-100</code>. The role tokens above (<code>--panel</code>, <code>--track-bg</code>, <code>--border</code>, <code>--mid</code>) keep their names; reach for a step only when you need "a grey" that isn’t a surface role.</p>
@@ -967,6 +989,113 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <section class="ds-entry" id="node-canvas">
+      <h2>Node board</h2>
+      <p class="ds-desc">An infinite board of node cards joined by wires — <code>Organica.nodeCanvas</code>, extracted from Rhizome at its second consumer (the Flexible Visual System Figure graph, Oct 2026). One module holds the <strong>model</strong> (nodes, edges, sections), the <strong>registry</strong> (node types and their typed ports), the <strong>engine</strong> (recomputes only what changed and only what is on screen; every node has a state — ok · error · waiting · upstream · stale) and the <strong>history</strong> (undo / redo); <code>mount()</code> draws it and edits it. Below, both boards are the real <code>shared/node-canvas.css</code> in each theme, wired with the module’s own <code>wirePath</code>.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/node-canvas.css</span><strong>JS</strong><span>Organica.nodeCanvas — shared/node-canvas.js</span><span>Organica.createZoomPan (infinite) — core.js</span><strong>Used in</strong><span>Flexible Visual System (Figure graph)</span><strong>Queued</strong><span>Rhizome (ledger §4)</span></div>
+      <template id="ds-nc-tpl">
+        <div class="nc-stage ds-nc-stage" role="img">
+          <div class="nc-board">
+            <svg class="nc-wires" aria-hidden="true"><g>
+              <path class="nc-wire nc-wire--canvas nc-wire--faint" data-from="canvas:canvas" data-to="f1:canvas"/>
+              <path class="nc-wire nc-wire--grid nc-wire--faint is-related" data-from="grid:grid" data-to="f1:grid"/>
+              <path class="nc-wire nc-wire--palette nc-wire--faint" data-from="palette:palette" data-to="f1:palette"/>
+              <path class="nc-wire nc-wire--content" data-from="comp:content" data-to="f1:content"/>
+              <path class="nc-wire nc-wire--canvas nc-wire--faint" data-from="canvas:canvas" data-to="f2:canvas"/>
+              <path class="nc-wire nc-wire--grid nc-wire--faint is-related" data-from="grid:grid" data-to="f2:grid"/>
+              <path class="nc-wire nc-wire--content is-selected" data-from="comp:content" data-to="f2:content"/>
+              <path class="nc-wire nc-wire--canvas nc-wire--faint" data-from="canvas:canvas" data-to="f3:canvas"/>
+            </g><path class="nc-wire nc-wire--pending" data-from="f3:figure" data-to-xy="700,250"/></svg>
+            <div class="nc-nodes">
+              <div class="nc-node nc-node--compact" data-demo="canvas" data-x="16" data-y="16" role="group" aria-label="Canvas 1">
+                <div class="nc-node__head"><span class="nc-node__type">Canvas</span><span class="nc-node__title">Canvas 1</span></div>
+                <div class="nc-node__io"><div class="nc-node__ports nc-node__ports--in"></div><div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Canvas</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="canvas" data-dir="out" data-type="canvas" aria-label="Canvas output — connect"></button></div></div></div>
+              </div>
+              <div class="nc-node nc-node--compact is-selected" data-demo="grid" data-x="16" data-y="112" role="group" aria-label="Grid 1">
+                <div class="nc-node__head"><span class="nc-node__type">Grid</span><span class="nc-node__title">Grid 1</span></div>
+                <div class="nc-node__io"><div class="nc-node__ports nc-node__ports--in"></div><div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Grid</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="grid" data-dir="out" data-type="grid" aria-label="Grid output — connect"></button></div></div></div>
+              </div>
+              <div class="nc-node nc-node--compact is-lifted" data-demo="palette" data-x="16" data-y="208" role="group" aria-label="Palette 1">
+                <div class="nc-node__head"><span class="nc-node__type">Palette</span><span class="nc-node__title">Palette 1</span></div>
+                <div class="nc-node__io"><div class="nc-node__ports nc-node__ports--in"></div><div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Palette</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="palette" data-dir="out" data-type="palette" aria-label="Palette output — connect"></button></div></div></div>
+              </div>
+              <div class="nc-node nc-node--compact" data-demo="comp" data-x="16" data-y="304" role="group" aria-label="Leaf wave">
+                <div class="nc-node__head"><span class="nc-node__type">Component</span><span class="nc-node__title">Leaf wave</span></div>
+                <div class="nc-node__io"><div class="nc-node__ports nc-node__ports--in"></div><div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Content</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="content" data-dir="out" data-type="content" aria-label="Content output — connect"></button></div></div></div>
+              </div>
+              <div class="nc-node nc-node--compact" data-demo="f1" data-x="232" data-y="16" data-state="error" role="group" aria-label="Figure 1">
+                <div class="nc-node__head"><span class="nc-node__type">Figure</span><span class="nc-node__title">Figure 1</span></div>
+                <div class="nc-node__io">
+                  <div class="nc-node__ports nc-node__ports--in">
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="canvas" data-dir="in" data-type="canvas" aria-label="Canvas input — connect"></button><span class="nc-port__label">Canvas</span></div>
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="grid" data-dir="in" data-type="grid" aria-label="Grid input — connect"></button><span class="nc-port__label">Grid</span></div>
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="palette" data-dir="in" data-type="palette" aria-label="Palette input — connect"></button><span class="nc-port__label">Palette</span></div>
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot nc-port__dot--multi" tabindex="-1" data-port="content" data-dir="in" data-type="content" aria-label="Content input — connect"></button><span class="nc-port__label">Content</span></div>
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot nc-port__dot--multi" tabindex="-1" data-port="rules" data-dir="in" data-type="rule" aria-label="Rules input — connect"></button><span class="nc-port__label">Rules</span></div>
+                  </div>
+                  <div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Figure</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="figure" data-dir="out" data-type="figure" aria-label="Figure output — connect"></button></div></div>
+                </div>
+                <div class="nc-node__body"></div>
+                <p class="nc-node__status" role="status">Too many shapes: 52000 (limit 40000). Lower Variations or use a smaller Grid.</p>
+              </div>
+              <div class="nc-node nc-node--compact" data-demo="f2" data-x="432" data-y="16" data-state="stale" role="group" aria-label="Figure 2">
+                <div class="nc-node__head"><span class="nc-node__type">Figure</span><span class="nc-node__title">Figure 2</span></div>
+                <div class="nc-node__io">
+                  <div class="nc-node__ports nc-node__ports--in">
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="canvas" data-dir="in" data-type="canvas" aria-label="Canvas input — connect"></button><span class="nc-port__label">Canvas</span></div>
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="grid" data-dir="in" data-type="grid" aria-label="Grid input — connect"></button><span class="nc-port__label">Grid</span></div>
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot nc-port__dot--multi" tabindex="-1" data-port="content" data-dir="in" data-type="content" aria-label="Content input — connect"></button><span class="nc-port__label">Content</span></div>
+                  </div>
+                  <div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Figure</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="figure" data-dir="out" data-type="figure" aria-label="Figure output — connect"></button></div></div>
+                </div>
+                <div class="nc-node__body"><div class="ds-nc-thumb"></div></div>
+              </div>
+              <div class="nc-node nc-node--compact" data-demo="f3" data-x="432" data-y="288" data-state="waiting" role="group" aria-label="Figure 3">
+                <div class="nc-node__head"><span class="nc-node__type">Figure</span><span class="nc-node__title">Figure 3</span></div>
+                <div class="nc-node__io">
+                  <div class="nc-node__ports nc-node__ports--in">
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="canvas" data-dir="in" data-type="canvas" aria-label="Canvas input — connect"></button><span class="nc-port__label">Canvas</span></div>
+                    <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="grid" data-dir="in" data-type="grid" aria-label="Grid input — connect"></button><span class="nc-port__label">Grid</span></div>
+                  </div>
+                  <div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Figure</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="figure" data-dir="out" data-type="figure" aria-label="Figure output — connect"></button></div></div>
+                </div>
+                <div class="nc-node__body"></div>
+                <p class="nc-node__status" role="status">Connect a Grid input</p>
+              </div>
+            </div>
+          </div>
+          <div class="nc-marquee" data-x="232" data-y="288" data-w="168" data-h="128"></div>
+        </div>
+        <div class="nc-stage ds-nc-legend">
+          <div class="ds-nc-sample"><div class="nc-port nc-port--out"><span class="nc-port__label">Canvas</span><button type="button" class="nc-port__dot" tabindex="-1" data-type="canvas" aria-label="Canvas port"></button></div><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--canvas" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+          <div class="ds-nc-sample"><div class="nc-port nc-port--out"><span class="nc-port__label">Grid</span><button type="button" class="nc-port__dot" tabindex="-1" data-type="grid" aria-label="Grid port"></button></div><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--grid" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+          <div class="ds-nc-sample"><div class="nc-port nc-port--out"><span class="nc-port__label">Palette</span><button type="button" class="nc-port__dot" tabindex="-1" data-type="palette" aria-label="Palette port"></button></div><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--palette" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+          <div class="ds-nc-sample"><div class="nc-port nc-port--out"><span class="nc-port__label">Content</span><button type="button" class="nc-port__dot" tabindex="-1" data-type="content" aria-label="Content port"></button></div><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--content" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+          <div class="ds-nc-sample"><div class="nc-port nc-port--out"><span class="nc-port__label">Rules</span><button type="button" class="nc-port__dot" tabindex="-1" data-type="rule" aria-label="Rules port"></button></div><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--rule" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+          <div class="ds-nc-sample"><div class="nc-port nc-port--out"><span class="nc-port__label">Composition</span><button type="button" class="nc-port__dot" tabindex="-1" data-type="composition" aria-label="Composition port"></button></div><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--composition" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+          <div class="ds-nc-sample"><div class="nc-port nc-port--out"><span class="nc-port__label">Figure</span><button type="button" class="nc-port__dot" tabindex="-1" data-type="figure" aria-label="Figure port"></button></div><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--figure" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+          <div class="ds-nc-sample"><div class="nc-port nc-port--out"><span class="nc-port__label">List port (multi)</span><button type="button" class="nc-port__dot nc-port__dot--multi" tabindex="-1" data-type="content" aria-label="List port"></button></div><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--content nc-wire--faint" d="M4,26 C60,26 60,6 116,6"/></svg><span>faint (foundation)</span></div>
+          <div class="ds-nc-sample"><span>related</span><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--grid nc-wire--faint is-related" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+          <div class="ds-nc-sample"><span>selected</span><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--content is-selected" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+          <div class="ds-nc-sample"><span>pending (being drawn)</span><svg viewBox="0 0 120 32" aria-hidden="true"><path class="nc-wire nc-wire--pending" d="M4,26 C60,26 60,6 116,6"/></svg></div>
+        </div>
+      </template>
+      <div class="ds-example ds-example--column" data-theme="light" data-nc-host="Light"></div>
+      <div class="ds-example ds-example--column" data-theme="dark" data-nc-host="Dark"></div>
+      <p class="ds-note"><strong>On each board:</strong> column 1 — <em>rest</em> (Canvas 1; hover it: the edge goes <code>--mid</code>), <em>selected</em> (Grid 1: 2px <code>--ink</code> ring — the same for a multi-selection), <em>lifted</em> (Palette 1, while dragged: <code>--stage-shadow</code>; no shadow at rest), rest (Leaf wave). Then three Figures: <em>error</em> (<code>--danger</code> edge and message — the words decided in <code>docs/UI-COPY.md</code>), <em>stale</em> (off screen, not recomputed yet: the body at half opacity), <em>waiting</em> (a required input is missing: the message only). Dashed box: the <em>marquee</em>. Wires: foundation wires (from Canvas, Grid, Palette) are <em>faint</em> until their node is selected or hovered (<em>related</em>); a selected wire is <code>--ink</code> and 1px wider; a hovered one is 1px wider; the wire being drawn is dashed <code>--ink</code>. Second strip: each port type (dot + label + its wire) and the wire states alone.</p>
+      <p class="ds-desc"><strong>The card.</strong> <code>.nc-node</code> on <code>--paper</code>, edge <code>--border-strong</code> (≥ 3:1 on the board in both themes — Rhizome’s 1.66:1 edge is retired), <code>--radius-md</code>; head on <code>--panel</code> with the node type as an overline (<code>.nc-node__type</code>, mono, <code>--mid</code>) over its own name (<code>.nc-node__title</code>, display face); then the ports (<code>.nc-node__io</code>: inputs left, outputs right), the body (filled by the tool through <code>renderBody</code>; hidden when empty) and the status line (<code>.nc-node__status</code>, a <code>role="status"</code>; shown only for error / waiting / upstream). Widths are component-local: <code>--node-w</code> 14rem, <code>.nc-node--compact</code> 10rem, <code>.nc-node--wide</code> 26rem. <code>.is-collapsed</code> hides body and status. Below 35% zoom the stage takes <code>.nc-stage--far</code> and hides ports and status (titles stay).</p>
+      <p class="ds-desc"><strong>Ports.</strong> <code>.nc-port</code> = a dot (<code>.nc-port__dot</code>, <code>--port-d</code> 10px, ring in the type colour <code>--port-&lt;type&gt;</code> via <code>data-type</code>) + its label. A list port (<code>multi</code> — takes many wires) is a square dot, <code>.nc-port__dot--multi</code>. Its hit area is <code>--hit-min</code> on screen at any zoom (a <code>::before</code> divided by <code>--nc-zoom</code>). While a wire is drawn, compatible dots get a 2px <code>--ink</code> ring (<code>.is-compatible</code>) and the others fade (<code>.is-incompatible</code>). Wires: <code>.nc-wire</code> + <code>.nc-wire--&lt;type&gt;</code> (the source port’s type), <code>--wire-w</code> 1.5px at every zoom (<code>vector-effect: non-scaling-stroke</code>), a transparent <code>.nc-wire-hit</code> path of <code>--hit-min</code> under each for the pointer.</p>
+      <p class="ds-desc"><strong>Behaviour (<code>mount</code>).</strong> Wheel zooms, Space-drag or middle-drag pans, a plain drag on the board draws the marquee (Shift adds). <code>/</code>, right-click, a double-click on the empty board or a wire released on empty space open the tool’s node search (<code>onSearch</code> / <code>onBoardDblClick</code> / <code>onWireDrop</code>); double-clicking a port can spawn the node it wants (<code>onPortDblClick</code>). Delete / Backspace remove the selection (a node <code>protect</code> refuses says why, in a notice); ⌘/Ctrl Z undo, ⇧Z or Y redo, A select all, C · V copy and paste, D duplicate; arrows nudge (Shift ×4); Esc clears. <strong>Shift+1</strong> Fit all and <strong>Shift+2</strong> Fit selection (<code>fitAll()</code> / <code>fitSelection()</code>), keeping clear of the chrome given in <code>fitInset</code>. ⌘/Ctrl +−0 stay the browser’s. The stage is <code>role="application"</code>, <code>aria-roledescription="node graph"</code>; each card is a focusable <code>role="group"</code> named by its title; changes are announced in a polite live region. Reduced motion drops the transitions. Options and the controller: <code>docs/SHARED-COMPONENTS.md</code> §2d.</p>
+      <pre class="ds-code"><span class="tag">const</span> registry = Organica.nodeCanvas.createRegistry(types);   <span class="attr">// [{ meta:{ id, label, category, inputs, outputs, params }, compute(inputs, params) }]</span>
+<span class="tag">const</span> ctl = Organica.nodeCanvas.mount({
+  stage, registry, model: Organica.nodeCanvas.createModel(saved),
+  isActive: () =&gt; graphOnScreen,
+  renderBody: (node, entry, el) =&gt; { … },        <span class="attr">// the card’s preview</span>
+  wireClass: (edge, model) =&gt; isFoundation(edge) ? <span class="str">'nc-wire--faint'</span> : <span class="str">''</span>,
+  onSelect, onChange, onSearch, fitInset: { left: 88, bottom: 72 },
+});</pre>
     </section>
 
     <!-- ═══════════════════ PANEL ═══════════════════ -->
@@ -1780,6 +1909,32 @@ Organica.fvsField.mount(field, {
       <p class="ds-note"><strong>Glass icon bar (Sep 29, 2026, after Bencho’s IconBar)</strong> — a full-pill glass pane (<code>--paper 75%</code> + backdrop blur + graded lit rim) with <strong>no tile behind buttons</strong>. Glyphs rest at 60% opacity; one indicator wash (<code>.org-floatbar__ind</code>, injected by <code>Organica.floatbarPill</code> in <code>core.js</code>) travels to the hovered/focused button in two elastic phases (stretch, then settle with overshoot) and rests only on an open toggle (<code>aria-expanded="true"</code>). <strong>Pressed</strong> (<code>aria-pressed="true"</code>) carries its own static <code>--pane-thumb</code> wash (since Oct 5, 2026), so an "on" state never vanishes when you hover another button and any number of toggles can show at once; hovering a pressed button stacks the two washes. <strong>Behaviour per section</strong>, read from the ARIA already on the buttons: actions (no <code>aria-pressed</code>) = hover only · a choice (one pressed) and toggles (any pressed) = their own wash + the pill on hover · an open panel = the pill rests there. Sections are <code>.org-floatbar__group</code> (<code>role="group"</code> + <code>aria-label</code>, a real flex box — never <code>display: contents</code>, Safari drops its role) with <code>.org-floatbar__sep</code> between them. The 8% wash edge stays under 3:1 by decision (the glyph’s opacity and <code>aria-pressed</code> also carry the state); <strong>armed</strong> (<code>.is-armed</code>) = <code>--danger</code> ink. Don’t restyle these per tool — Genesis, Apostate and Living Path each carried an inverted-tile override that was removed. Bencho’s tokens (<code>--pane</code>, <code>--g-*</code>, <code>--ind-*</code>) are defined locally on <code>.org-floatbar</code>, mapped to our tokens; the pill radius is the token rules’ pill exception.</p>
       <p class="ds-note">Centring formula: <code>left: calc(50% - var(--floatbar-offset, var(--panel-w, 248px)) / 2)</code>. A tool whose panel is <em>not</em> <code>--panel-w</code> wide sets <code>--floatbar-offset</code> to its own width; Genesis (260px) is the only one that does.<br>
       It used to read <code>var(--panel-w, var(--panel-width-right, 248px))</code>, described here as "the nested fallback covers Genesis". It could not: <code>panel.css</code> sets <code>--panel-w</code> on <code>:root</code> unconditionally and Genesis links <code>panel.css</code>, so the inner fallback was unreachable and Genesis’s bar sat 6px off-centre for as long as the rule existed. <strong>A fallback chain cannot detect "this tool is different" — only an explicit opt-in can.</strong></p>
+      <h3 class="ds-sub" id="dock">Left dock — <code>.org-dock</code></h3>
+      <p class="ds-desc">The floatbar’s vertical sibling, on the left edge of the canvas: an optional slot of the <a href="#template-tool">Tool template</a> for what you <strong>add</strong> to the canvas — a library of things to place, the node bar (ledger O-30 / O-31, promoted Oct 2026 from the Flexible Visual System Library rail at its second vertical occupant). A bar of toggles (<code>.org-dock__bar</code>, an <code>.org-floatbar</code> with <code>aria-orientation="vertical"</code>, 3rem wide) and <strong>one</strong> sibling glass panel (<code>.org-dock__panel</code>, <code>data-open="true"</code> to show, <code>inert</code> while closed; slides in from the left on <code>--dur-base</code> / <code>--ease-out</code>; <code>.is-dragging-away</code> fades it to half while something is dragged out of it). Bar and panel are siblings, never nested — a <code>backdrop-filter</code> child would blur only its parent. The dock is centred with a transform, so anything <code>position: fixed</code> (a drag ghost, a popover) goes on <code>&lt;body&gt;</code>, not inside it. Tooltips open to the right. <code>.org-dock__sep</code> divides groups of toggles. <strong>One occupant per tool step</strong>: in FVS the Library rail on Element / Component / Symbol, the node bar on the Figure graph. The toggle that opens the panel carries <code>aria-expanded</code> + <code>aria-controls</code>; the panel is a <code>role="region"</code> named after what it shows. A tool that uses it tells Fit where it is (<code>fitInset.left</code> on the node board).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/floatbar.css</span><strong>Used in</strong><span>Flexible Visual System — Library rail, Figure graph node bar</span></div>
+      <div class="ds-example">
+        <div class="org-dock" role="group" aria-label="Nodes" style="position:static;transform:none">
+          <div class="org-floatbar org-dock__bar" role="toolbar" aria-label="Nodes" aria-orientation="vertical">
+            <button type="button" class="org-floatbar__btn" aria-label="Foundation nodes" aria-expanded="true" aria-controls="ds-dock-panel" data-icon-slot data-ds-ico="node-foundation"></button>
+            <button type="button" class="org-floatbar__btn" aria-label="Content nodes" aria-expanded="false" aria-controls="ds-dock-panel" data-icon-slot data-ds-ico="node-content"></button>
+            <button type="button" class="org-floatbar__btn" aria-label="Rule nodes" aria-expanded="false" aria-controls="ds-dock-panel" data-icon-slot data-ds-ico="node-rule"></button>
+            <button type="button" class="org-floatbar__btn" aria-label="Output nodes" aria-expanded="false" aria-controls="ds-dock-panel" data-icon-slot data-ds-ico="node-output"></button>
+          </div>
+          <div class="org-floatbar org-dock__panel" id="ds-dock-panel" role="region" aria-label="Foundation" data-open="true">
+            <p class="ds-note" style="margin:0">Drag onto the graph, or click to add</p>
+            <button type="button" class="org-btn org-btn--sm">Canvas</button>
+            <button type="button" class="org-btn org-btn--sm">Grid</button>
+            <button type="button" class="org-btn org-btn--sm">Palette</button>
+          </div>
+        </div>
+      </div>
+      <p class="ds-note">The demo is placed in the flow (<code>position: static</code>) — the real dock is fixed on the left, vertically centred. The panel’s content belongs to the occupant (here the Figure graph’s node bar, Foundation open).</p>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-dock"</span> <span class="attr">role</span>=<span class="str">"group"</span> <span class="attr">aria-label</span>=<span class="str">"Nodes"</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-floatbar org-dock__bar"</span> <span class="attr">role</span>=<span class="str">"toolbar"</span> <span class="attr">aria-label</span>=<span class="str">"Nodes"</span> <span class="attr">aria-orientation</span>=<span class="str">"vertical"</span>&gt;
+    &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-label</span>=<span class="str">"Foundation nodes"</span> <span class="attr">aria-expanded</span>=<span class="str">"false"</span> <span class="attr">aria-controls</span>=<span class="str">"my-dock-panel"</span>&gt;…icon…&lt;/<span class="tag">button</span>&gt;
+  &lt;/<span class="tag">div</span>&gt;
+  &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-floatbar org-dock__panel"</span> <span class="attr">id</span>=<span class="str">"my-dock-panel"</span> <span class="attr">role</span>=<span class="str">"region"</span> <span class="attr">aria-label</span>=<span class="str">"Foundation"</span> <span class="attr">inert</span>&gt;…&lt;/<span class="tag">div</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
     </section>
 
     <section class="ds-entry" id="popover">
@@ -2337,6 +2492,36 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 <script src="/shared/color.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/fvs-field.js"></script>
+<script src="/shared/node-canvas.js"></script>
+<script>
+/* #node-canvas — one specimen, cloned into a light and a dark host; cards placed from data-x/y (like mount's
+   place()), wires drawn with the module's own wirePath between port centres measured like mount's measure().
+   Runs before the self-check, which asserts on it. */
+(function () {
+  var tpl = document.getElementById('ds-nc-tpl'); if (!tpl) return;
+  var NC = window.Organica && Organica.nodeCanvas;
+  var path = NC ? NC.wirePath : function (x1, y1, x2, y2) { return 'M' + x1 + ',' + y1 + ' L' + x2 + ',' + y2; };
+  document.querySelectorAll('[data-nc-host]').forEach(function (host) {
+    var label = document.createElement('p'); label.className = 'ds-nc-label'; label.textContent = host.dataset.ncHost;
+    host.append(label, tpl.content.cloneNode(true));
+    var stage = host.querySelector('.ds-nc-stage');
+    stage.setAttribute('aria-label', 'Node board specimen, ' + host.dataset.ncHost.toLowerCase() + ' theme');
+    host.querySelectorAll('.nc-node[data-x]').forEach(function (c) { c.style.transform = 'translate(' + c.dataset.x + 'px,' + c.dataset.y + 'px)'; });
+    var m = host.querySelector('.nc-marquee');
+    m.style.transform = 'translate(' + m.dataset.x + 'px,' + m.dataset.y + 'px)'; m.style.width = m.dataset.w + 'px'; m.style.height = m.dataset.h + 'px';
+    function at(ref, dir) {
+      var bits = ref.split(':'), card = host.querySelector('[data-demo="' + bits[0] + '"]');
+      var dot = card && card.querySelector('.nc-port__dot[data-dir="' + dir + '"][data-port="' + bits[1] + '"]'); if (!dot) return null;
+      var x = 0, y = 0, e = dot; while (e && e !== card) { x += e.offsetLeft; y += e.offsetTop; e = e.offsetParent; }
+      return { x: +card.dataset.x + x + dot.offsetWidth / 2, y: +card.dataset.y + y + dot.offsetHeight / 2 };
+    }
+    host.querySelectorAll('.nc-wires path[data-from]').forEach(function (w) {
+      var a = at(w.dataset.from, 'out'), b = w.dataset.toXy ? { x: +w.dataset.toXy.split(',')[0], y: +w.dataset.toXy.split(',')[1] } : at(w.dataset.to, 'in');
+      if (a && b) w.setAttribute('d', path(a.x, a.y, b.x, b.y));
+    });
+  });
+})();
+</script>
 <script>
 /* Section headers: turn each flat .ds-usage (<strong>label</strong><span>…</span>…) into
    label/value rows, and stamp each group title with its entry count (read by ::before). */
@@ -2622,6 +2807,34 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
       }
       if (ratio(warm, drk['--panel']) < 3) bad('--accent-warm on dark --panel is under 3:1');
     }
+    /* the node board (ledger G3 + O-34): the card edge and every port colour ≥ 3:1 on --paper and --panel, both themes */
+    const NODE = ['--border-strong', '--port-canvas', '--port-grid', '--port-palette', '--port-content', '--port-rule', '--port-composition', '--port-figure'];
+    for (const [name, th] of [['light', lit], ['dark', drk]]) for (const t of NODE) for (const bg of ['--paper', '--panel']) {
+      if (!/^#/.test(th[t] || '') || !/^#/.test(th[bg] || '')) { bad(name + ' ' + t + ' or ' + bg + ' not found in the THEMES rules of tokens.css'); continue; }
+      const r = ratio(th[t], th[bg]);
+      if (r < 3) bad(name + ' ' + t + ' on ' + bg + ' is ' + r.toFixed(2) + ':1 — floor 3:1');
+    }
+    /* …and as rendered, in each themed specimen: edge vs card, each port ring vs its dot */
+    const hexOf = (c) => '#' + (c.match(/[\d.]+/g) || []).slice(0, 3).map(v => Math.round(+v).toString(16).padStart(2, '0')).join('');
+    const ncHosts = document.querySelectorAll('[data-nc-host]');
+    if (!ncHosts.length) bad('no node board specimen on this page (#node-canvas)');
+    ncHosts.forEach(host => {
+      const th = host.dataset.ncHost, card = host.querySelector('[data-demo="canvas"]');
+      if (!card) { bad(th + ' node board: no rest card'); return; }
+      const cc = getComputedStyle(card), edge = ratio(hexOf(cc.borderTopColor), hexOf(cc.backgroundColor));
+      if (edge < 3) bad(th + ' node card edge is ' + edge.toFixed(2) + ':1 on the card — floor 3:1');
+      if (cc.boxShadow !== 'none') bad(th + ' node card at rest has a shadow (' + cc.boxShadow + ') — documented as none');
+      const lifted = host.querySelector('.nc-node.is-lifted');
+      if (!lifted || getComputedStyle(lifted).boxShadow === 'none') bad(th + ' lifted node card has no shadow — documented as --stage-shadow');
+      host.querySelectorAll('.nc-port__dot[data-type]').forEach(d => {
+        const dc = getComputedStyle(d), r = ratio(hexOf(dc.borderTopColor), hexOf(dc.backgroundColor));
+        if (r < 3) bad(th + ' port ' + d.dataset.type + ' ring is ' + r.toFixed(2) + ':1 on its dot — floor 3:1');
+      });
+      const multi = host.querySelector('.nc-port__dot--multi');
+      if (!multi || getComputedStyle(multi).borderTopLeftRadius !== '2px') bad(th + ' list port is not a square dot (--radius-sm)');
+      const wire = host.querySelector('.nc-wires path[data-from="comp:content"][data-to="f1:content"]');
+      if (!wire || getComputedStyle(wire).strokeWidth !== '1.5px') bad(th + ' wire stroke is ' + (wire && getComputedStyle(wire).strokeWidth) + ' — documented as --wire-w 1.5px');
+    });
     const body = document.querySelector('#ds-theme-table tbody');
     if (body) body.innerHTML = Object.keys(drk).filter(t => /^#/.test(drk[t])).map(t =>
       '<tr><td><code>' + t + '</code></td>' +
@@ -2648,7 +2861,7 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
 </script>
 <script>
 (function(){
-  var GROUPS=[['General',/^(plus|minus|close|check|chevron-.*|arrow-.*)$/],['File / IO',/^(download|upload|folder-open|video)$/],['History / run',/^(undo|redo|refresh|reset|loop|dice|play|pause|stop)$/],['Edit',/^(trash|eraser|pencil|copy|swap|eye|eye-off|grip|invert)$/],['Views',/^(grid|full-family|sun|moon|mirror|align-.*)$/],['Glyph editor',/^(edit-points|add-point|handles|outline|legible)$/],['Flexible Visual System',/^fvs-/],['Living Path phrases · layer roles',/^(phrase|role)-/],['Other',/./]]; /* catch-all: a registry name no group matches is still shown */
+  var GROUPS=[['General',/^(plus|minus|close|check|chevron-.*|arrow-.*)$/],['File / IO',/^(download|upload|folder-open|video)$/],['History / run',/^(undo|redo|refresh|reset|loop|dice|play|pause|stop)$/],['Edit',/^(trash|eraser|pencil|copy|swap|eye|eye-off|grip|invert)$/],['Views',/^(grid|full-family|sun|moon|mirror|align-.*)$/],['Glyph editor',/^(edit-points|add-point|handles|outline|legible)$/],['Node graph',/^(node-.*|fit-view|fit-selection|pin|alert|select-(row|column|class|range))$/],['Flexible Visual System',/^fvs-/],['Living Path phrases · layer roles',/^(phrase|role)-/],['Other',/./]]; /* catch-all: a registry name no group matches is still shown */
   var host=document.getElementById('ds-icon-groups'); if(!host||!window.Organica||!Organica.icons) return;
   var names=Organica.icons.names(), used={};
   host.innerHTML=GROUPS.map(function(g){
@@ -2656,6 +2869,7 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
     if(!m.length) return '';
     return '<h3 class="ds-sub">'+g[0]+'</h3><div class="ds-icons" role="list">'+m.map(function(n){return '<div class="ds-icon" role="listitem">'+Organica.icons.get(n,{size:'xl'})+'<span>'+n+'</span></div>';}).join('')+'</div>';
   }).join('');
+  document.querySelectorAll('[data-ds-ico]').forEach(function(b){b.innerHTML=Organica.icons.get(b.dataset.dsIco);});
   var $=function(id){return document.getElementById(id);};
   var pop=$('ds-m-pop'); $('ds-m-pop-btn').onclick=function(){pop.classList.toggle('open');};
   var dB=$('ds-m-disc-btn'),d=$('ds-m-disc'); dB.onclick=function(){var o=d.classList.toggle('open');dB.setAttribute('aria-expanded',o);};

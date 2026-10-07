@@ -263,6 +263,143 @@ Organica.shapes.hexTruchetGeometry(count, ratio)    // → same shape of result
 
 ---
 
+## 2d. Node board — `shared/node-canvas.js` (`Organica.nodeCanvas`) + `node-canvas.css` (Oct 2026)
+
+A node graph: one model object is the truth; outputs, order and states are derived. Extracted
+from Rhizome (`rhizome/js/graph-model.js`, `execution-engine.js`, `history.js`) at its second
+consumer, the FVS Figure graph (`docs/FVS.md` §12), and fixed on the way. Classic script (no
+`export`): ES-module tools read the global. Load **after `core.js`** (it calls
+`Organica.createZoomPan`); the sheet **after `shell.css`** (or the tool's own skeleton). Live
+reference: `/design-system/#node-canvas` (both themes, self-checked); port colours `#color`.
+Consumers: FVS Figure graph. Queued: Rhizome (ledger §4).
+
+**Model** — plain data, saved as is (`MODEL_VERSION` 2).
+
+```js
+const NC = Organica.nodeCanvas;
+const model = NC.createModel(saved);   // { version, nodes:[], edges:[], frames:[] }
+// node  { id, type, x, y, params, name?, w?, h?, collapsed? }
+// edge  { id, from:{node, port}, to:{node, port} }
+// frame { id, name, x, y, w, h }      — a Section; stored and undone with the model, not drawn yet
+NC.addNode(model, { type, x, y, params, name })   // → node (id from NC.nextId('n'))
+NC.removeNode(model, id)        // the node and ONLY its own wires — connected nodes keep their settings
+NC.addEdge(model, from, to, multi)  // a single input keeps one wire (a new one replaces it); multi refuses a duplicate
+NC.removeEdge(model, id) · NC.findNode · NC.edgesInto · NC.edgesOutOf
+NC.topoSort(model)              // Kahn; throws a CycleError ("That connection would make a loop.") — never hangs
+NC.wouldCycle(model, from, to)
+```
+
+**Registry** — node types and their typed ports.
+
+```js
+const registry = NC.createRegistry(types, { adapters: { 'grid->svg': fn } });
+// type: { meta: { id, label, category, inputs, outputs, params }, compute(inputs, params, ctx) → { <outPort>: value } }
+// port: { name, type, label?, required?, multi?, accepts? }   — inputs/outputs may be a function of the node (variable ports)
+registry.get(id) · has · list() · byCategory() · inputsOf(node) · outputsOf(node) · defaults(id) · canAdapt(a, b) · adapt(a, b, v)
+NC.canConnect(model, registry, from, to)   // → { ok, multi, inType, outType } or { ok:false, reason } — reason is notice copy
+```
+
+A port's `type` is one of the seven `--port-*` types (`canvas · grid · palette · content · rule ·
+composition · figure`, ledger O-34) — the CSS colours the dot and the wire from it. A tool with
+other type names maps them onto these (Rhizome: SVG → content, Image → figure, Grid → grid,
+Color → palette, Number → rule, Points → composition). `multi: true` = a list port (many wires,
+a square dot).
+
+**Engine** — `NC.createEngine({ registry, isActive?(node), onState?(id, entry) })` →
+`{ run(model) → Promise<{entries}>, touch(id), get(id), forget(id), entries, isRunning() }`.
+Recomputes only what changed (a node's key = its revision, bumped by `touch`, + the output
+versions of the nodes feeding it — counters, never a stringified SVG) and only what is needed
+(`isActive` picks the outputs; their ancestors run with them; the rest goes `stale`). Every node
+has an explicit state: `ok · error · waiting` (a required input is missing — *Connect a ‹port›
+input*) `· upstream` (a node it reads failed — *Waiting for ‹node› — fix it first*) `· stale`.
+Runs are serialised: a `run()` during a run schedules one more, with the latest model.
+
+**History** — `NC.createHistory(max = 100)` → `{ push(model, meta), undo(), redo(), canUndo(),
+canRedo(), clear() }`; snapshots at checkpoints (add / remove, connect, drag end, commit);
+`meta` (the selection) comes back with the model.
+
+**View** — `NC.mount(opts)` → `ctl`. It fills `opts.stage` with the board (cards, an SVG wire
+layer, the marquee, a polite live region), wires `Organica.createZoomPan` with `infinite: true`,
+`dblclickReset: false`, `panAlways: true`, min 0.1, max 4, and runs a default engine whose
+`isActive` = the card is on screen (an `IntersectionObserver`, 25% margin) unless you pass one.
+
+| Option | |
+|---|---|
+| `stage` | the element to fill (`position: relative`); it gets `.nc-stage`, `role="application"`, `aria-roledescription="node graph"` |
+| `registry`, `model` | as above; the controller keeps the model — read `ctl.model` |
+| `isActive()` | shortcuts and wheel only while true (e.g. the Figure step is on screen) |
+| `renderBody(node, entry, el, ctl)` | fill the card body (preview, summary) after every run |
+| `cardClass(node)` | extra class(es) on the card — size variants `nc-node--compact` / `nc-node--wide` |
+| `nodeLabel(node)` | the card title (default `node.name` or the type's label) |
+| `wireClass(edge, model)` | extra class(es) on a wire — FVS: `nc-wire--faint` for foundation wires (from Canvas / Grid / Palette) |
+| `protect(node, model)` | `null`, or the reason this node can't be deleted (Delete keeps it and says why in an `Organica.notice`) |
+| `onSelect(ids)` | the selection changed — fill the panel |
+| `onChange(model, reason)` | anything changed (structure, positions, params) — save / mark dirty |
+| `onSearch(point, from, client)` | `/` or right-click on the board: open the node search (`point` in board units) |
+| `onWireDrop(from, point, client)` | a wire released on the empty board: open the search there, filtered by `from` |
+| `onPortDblClick(node, port, dir)` | a port double-clicked: spawn the node it wants, wired |
+| `onNodeDblClick(node, e)` | a card double-clicked outside its ports |
+| `onBoardDblClick(point, client)` | the empty board double-clicked (FVS: the node search) |
+| `nameCopy(node, model)` → name | the name a duplicated / pasted node gets (FVS: the next *Canvas ‹n›*) |
+| `fitInset` | `{ left, bottom }` px of the stage covered by chrome (the left dock, the floatbar) — Fit keeps clear of it |
+| `announce(text)` | replace the default live region |
+| `engine`, `history` | your own instances (default: made here) |
+
+Controller: `model, engine, history, zoomPan, select(ids), selection(), add(type, at, params),
+connect(from, to), remove(ids), duplicate(ids), setModel(model, meta)` (clears history),
+`refresh(), run(), touch(id)` (params changed → recompute it and what follows), `commit(reason)`
+(push a history checkpoint), `undo(), redo(), fitAll(), fitSelection(), fitTo(ids),
+toBoard(clientX, clientY), cardOf(id), paint(id), remeasure(id), destroy()`.
+
+Keys while `isActive()` and focus is not in a field: wheel zoom · Space-drag / middle-drag pan ·
+drag on the board = marquee (Shift / ⌘ adds) · Delete / Backspace · ⌘/Ctrl Z, ⇧Z or Y, A, C, V,
+D · arrows nudge 8 (Shift 32) · Esc · `/` search · **Shift+1** Fit all · **Shift+2** Fit selection
+(ledger O-33; ⌘/Ctrl +−0 stay the browser's). Port dots have a `--hit-min` hit area at any zoom;
+below 35% zoom (`.nc-stage--far`) ports and status lines hide.
+
+CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d` 10px,
+`--wire-w` 1.5px, `--nc-zoom` written by the view): `.nc-stage` · `.nc-board` · `.nc-wires` ·
+`.nc-nodes` · `.nc-node` (+ `__head`, `__type`, `__title`, `__io`, `__ports(--in|--out)`,
+`__body`, `__status`; `.is-selected`, `.is-lifted`, `.is-collapsed`, `[data-state="error|stale"]`,
+`--compact`, `--wide`) · `.nc-port` (+ `--in|--out`, `__label`, `__dot`, `__dot--multi`,
+`.is-compatible`, `.is-incompatible`, `[data-type]`) · `.nc-wire` (+ `--<type>`, `--faint`,
+`--pending`, `.is-related`, `.is-selected`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
+Card look = ledger G3 (edge `--border-strong`, no shadow at rest, `--stage-shadow` lifted, 2px
+`--ink` ring selected).
+
+### `Organica.createZoomPan` — three opt-ins for a node board (Oct 2026)
+
+`shared/core.js`. Every existing caller is unchanged (the defaults are the old behaviour).
+
+- **`infinite: true`** — zooming out to `min` no longer snaps the pan back to 0,0 (an image tool
+  wants that; an infinite board does not).
+- **`dblclickReset: false`** — double-click no longer resets the view; it belongs to the board
+  (FVS: open the node search; Compose later).
+- **`setView({ zoom?, panX?, panY? })`** — on the returned object: set the view outright (zoom
+  clamped to min…max) — Fit all / Fit selection, restoring a saved view
+  (`localStorage['organica.fvs.figure-view']`).
+
+The returned object is now `{ zoomBy, reset, apply, setView, zoom, pan }`; the other options
+(`canvas, wrap, min, max, isReady, onChange, panAlways, panStart`) are as before.
+
+### The left dock — `.org-dock` (`shared/floatbar.css`, Oct 2026)
+
+CSS only, no module. The optional left slot of the Tool template (ledger O-30 / O-31,
+`docs/UI-SHELL.md` "Left dock"): `.org-dock` (fixed, left `--space-5`, vertically centred,
+`z-index` 150, `pointer-events: none`) holding two **sibling** `.org-floatbar`s —
+`.org-dock__bar` (vertical toggles, 3rem wide, tooltips to the right) and `.org-dock__panel`
+(one glass panel; `data-open="true"` shows it, slides in on `--dur-base` / `--ease-out`;
+`.is-dragging-away` = half opacity while something is dragged out) — plus `.org-dock__sep`.
+Never nest them (a `backdrop-filter` child blurs only its parent). The dock is transformed, so
+a drag ghost or popover goes on `<body>`. The tool wires `aria-expanded` / `aria-controls` on the
+toggles and `inert` on the closed panel. One occupant per tool step — FVS: the Library rail
+(`#fvs-rail-dock`, Element / Component / Symbol) and the Figure graph's node bar
+(`#fg-nodebar-dock`). A node board under it passes `fitInset.left`. Promoted from the Library
+rail at its second vertical occupant; the Suggest dock (`#fvs-sug-dock`, horizontal, top) is the
+same pattern turned sideways and stays FVS-local. Reference: `/design-system/#dock`.
+
+---
+
 ## 3. Backlog — concerns queued for the same treatment
 
 | Concern | State today | Canonical target |
