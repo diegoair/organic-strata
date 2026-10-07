@@ -37,8 +37,15 @@ a raw hex does — it just shows up in a user's head instead of in the CSS.
    close / trash / eraser.)
 9. **Units and ranges are consistent**: a percentage is 0–100 and says %; a seed is a number.
 10. **Status and toasts**: past tense, what happened + what it is — "PNG exported",
-    "Preset saved". Errors say what to do next.
+    "Preset saved". Errors say what to do next — e.g. the shared storage-full notice
+    (`Organica.storageFull`, `shared/core.js`, Oct 7, 2026): *Not saved: this browser’s
+    storage is full. Delete what you no longer need, then save again.*
 11. **Changing a label never changes an id or a preset key** — saved work depends on them.
+12. **Typographic apostrophe** (Diego, Oct 7, 2026): every visible string uses ’ (U+2019),
+    never the straight ' — "browser’s", "don’t", "‹name›’s". Applies to text, options,
+    placeholders, hints, toasts, `aria-label` and `title`. Not copy: a `'` that delimits a JS
+    string or belongs to HTML / CSS syntax. Existing straight apostrophes are a sweep in the
+    ledger's maintenance queue (`docs/DESIGN-DECISIONS.md` §4).
 
 ## 2. Glossary
 
