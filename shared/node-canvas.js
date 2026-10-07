@@ -227,7 +227,7 @@
   //   renderBody(node, entry, el, ctx)   fill the card body (preview, summary) — called after every run
   //   cardClass(node) → extra class(es) for the card (size variants: 'nc-node--compact' / 'nc-node--wide')
   //   nodeLabel(node) → the card title (default: node.name || the type's label)
-  //   protect(node, model) → null, or the reason this node can't be deleted (Delete then says so)
+  //   protect(node, model, ids) → null, or the reason this node can't be deleted (Delete then says so); ids = everything deleted together
   //   onSelect(ids)             the selection changed (the tool fills its panel)
   //   onChange(model, reason)   anything changed (structure, positions, params) — the tool saves / marks dirty
   //   onWireDrop(from, point, client)   a wire released on empty board (open the node search there)
@@ -697,7 +697,7 @@
       var gone = [], kept = [];
       ids.forEach(function (id) {
         var n = findNode(ctl.model, id); if (!n) return;
-        var why = o.protect ? o.protect(n, ctl.model) : null;
+        var why = o.protect ? o.protect(n, ctl.model, ids) : null;   // ids: everything deleted together
         if (why) kept.push(why); else gone.push(n);
       });
       if (selectedFrame && !ids.length) {

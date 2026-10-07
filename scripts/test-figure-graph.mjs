@@ -112,6 +112,12 @@ const out = await P.ev(`
   res.setTwice = T.groups.length === 2 && new Set(keys).size === keys.length;
   const v1g = T.groups[1].variations[1]; fs.params.pins = [{ ...v1g.spec, slot: 1, item: v1g.item }]; eng.touch(fs.id); await eng.run(m);
   const P = eng.get(fs.id).value.figure; res.pinPerItem = P.groups[1].variations[1].pinned && !P.groups[0].variations.some(v => v.pinned);
+  // a reordered Set: the pin follows its item by name (its old place:name key is gone)
+  sn.params.items = [{ kind: 'element', name: 'Alpha', snapshot: el }, { kind: 'component', name: 'Beta', snapshot: compEntry }]; fs.params.pins = []; eng.touch(sn.id); eng.touch(fs.id); await eng.run(m);
+  const vb = eng.get(fs.id).value.figure.groups[1].variations[1]; fs.params.pins = [{ ...vb.spec, slot: 1, item: vb.item }];
+  sn.params.items = sn.params.items.slice().reverse(); eng.touch(sn.id); eng.touch(fs.id); await eng.run(m);
+  const R = eng.get(fs.id).value.figure; res.pinFollowsItem = R.groups[0].label === 'Beta' && R.groups[0].variations[1].pinned && !R.groups[1].variations.some(v => v.pinned);
+  fs.params.pins = [];
   // ── Composition (Phase 5) ──
   const fc = NC.addNode(m, { type: 'figure', params: { ...reg.defaults('figure'), variations: 3 } });
   NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fc.id, port: 'canvas' }); NC.addEdge(m, { node: grids[0].id, port: 'grid' }, { node: fc.id, port: 'grid' });
@@ -132,6 +138,12 @@ const out = await P.ev(`
   res.composeAllVariations = eng.get(fc.id).value.figure.variations.slice(1).every(v => (K(v.svg).match(/data-cell-index/g) || []).length <= FC0.cells - 2 + 12);
   co.params.rules.push({ when: { index: [999] }, do: { content: 'empty' } }); eng.touch(co.id); await eng.run(m);
   res.composeLost = JSON.stringify(eng.get(fc.id).value.figure.lost) === JSON.stringify([{ rule: 3, cells: [999], none: true }]);
+  // a colour region rule names an ink by its place: it follows the Palette
+  NC.addEdge(m, { node: pal.id, port: 'palette' }, { node: fc.id, port: 'palette' }); co.params.rules = [{ when: { index: [0] }, do: { ink: 1 } }]; eng.touch(co.id); await eng.run(m);
+  const inkA = K(eng.get(fc.id).value.figure.svg), oldColors = pal.params.colors.slice();
+  pal.params.colors = pal.params.colors.map((c, i) => i === 1 ? '#00aa55' : c); eng.touch(pal.id); await eng.run(m);
+  res.inkFollowsPalette = oldColors.length > 1 && /#00aa55/i.test(K(eng.get(fc.id).value.figure.svg)) && K(eng.get(fc.id).value.figure.svg) !== inkA;
+  pal.params.colors = oldColors; eng.touch(pal.id); NC.edgesInto(m, fc.id).filter(e => e.to.port === 'palette').forEach(e => NC.removeEdge(m, e.id)); co.params.rules = []; eng.touch(co.id); eng.touch(fc.id); await eng.run(m);
   // ── region rules (Phase 5b): Symbol rule, Arrange, Pattern — only in their region ──
   const cellG = (svg, i) => { const d = new DOMParser().parseFromString(svg, 'image/svg+xml'); const g = d.querySelector('[data-cell-index="' + i + '"]'); return g ? g.innerHTML : null; };
   co.params.rules = []; eng.touch(co.id); await eng.run(m); const base5 = K(eng.get(fc.id).value.figure.svg);
@@ -235,6 +247,8 @@ check(out.setMixed, 'Fan out off: the Set items are mixed, one group');
 check(out.setCap, 'variations × items stay within the cap');
 check(out.setTwice, 'the same item twice in a Set: two groups, distinct keys');
 check(out.pinPerItem, 'a pin in a fan-out belongs to its item only');
+check(out.pinFollowsItem, 'a pin follows its item when the Set is reordered');
+check(out.inkFollowsPalette, 'a colour region rule follows the Palette (ink by place)');
 check(out.composeInfo, 'a Figure tells Compose its cells (classes, outlines, the base SVG)');
 check(out.composeEmptySame, 'an empty Composition changes nothing');
 check(out.composePlaced, 'a placement drops content into a cell');

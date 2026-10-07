@@ -148,12 +148,12 @@ export async function figureWithVariations(inputs, p) {
   }
   if (!set || p.fanOut === false || !set.items.length) return figureGroup(inputs, p);
   const per = Math.max(1, Math.min(+p.variations || 1, Math.floor(FIGURE_RENDER_CAP / items.length)));
-  const shown = items.slice(0, FIGURE_RENDER_CAP);
+  const shown = items.slice(0, FIGURE_RENDER_CAP), keys = shown.map((it, gi) => gi + ':' + it.name);
   const groups = [];
   for (let gi = 0; gi < shown.length; gi++) {
     const it = shown[gi], itemKey = gi + ':' + it.name;   // by position: the same item twice is two groups
     if (gi) await new Promise(r => setTimeout(r, 0));   // let the board breathe between groups
-    const g = await figureGroup({ ...inputs, content: [it, ...others] }, { ...p, variations: per }, itemKey);
+    const g = await figureGroup({ ...inputs, content: [it, ...others] }, { ...p, variations: per }, itemKey, gi === 0, keys);   // checks: the first group's, the one the badge shows
     groups.push({ label: it.name, variations: g.variations.map(v => ({ ...v, key: itemKey + '|' + v.key })), main: g });
   }
   const main = groups[0].main;
@@ -162,16 +162,17 @@ export async function figureWithVariations(inputs, p) {
   main.capped = items.length > shown.length || per < (+p.variations || 1) ? { items: items.length, shownItems: shown.length, per, asked: +p.variations || 1, cap: FIGURE_RENDER_CAP } : null;
   return main;
 }
-async function figureGroup(inputs, p, item) {
+async function figureGroup(inputs, p, item, checks = true, keys = null) {
   const keep = p.keep || {};
   // `fixed`: the variation(s) a "New Figure from this" froze — applied in order, before anything else (with the Keep they were drawn with)
   const base = [].concat(p.fixed || []).reduce((b, spec) => { const v = varyInputs(b.inputs, spec, spec.keep || {}); return { inputs: v.inputs, extra: { ...b.extra, ...v.extra } }; }, { inputs, extra: {} });
-  const main = await compileFigure(base.inputs, { ...p, ...base.extra }, { checks: true });
+  const main = await compileFigure(base.inputs, { ...p, ...base.extra }, { checks });
   // two renders of one figure differ only in their export time and run-time ids (an Element stack's masks): compare without them
   const keyOf = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
   const want = Math.max(1, Math.min(12, +p.variations || 1)), seen = new Set([keyOf(main.svg)]);
-  const pins = new Map(pinsFor(p, item).filter(q => q.slot >= 1 && q.slot < want).map(q => [q.slot, q]));
+  const pins = new Map(pinsFor(p, item, keys).filter(q => q.slot >= 1 && q.slot < want).map(q => [q.slot, q]));
   const queue = variationSpecs(p, want + 12);
+  let failed = 0;
   const draw = async spec => { const vr = varyInputs(base.inputs, spec, keep); const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra }); return { r, label: vr.label }; };
   main.variations = [{ key: 'base', svg: main.svg, label: 'As set up', pinned: false, spec: null, slot: 0, item }];
   for (let slot = 1; slot < want; slot++) {
@@ -188,9 +189,10 @@ async function figureGroup(inputs, p, item) {
         const { r, label } = await draw(v.spec);
         if (!r.shapes || seen.has(keyOf(r.svg))) continue;   // blank, or the same as one already shown: draw another
         seen.add(keyOf(r.svg)); main.variations.push({ key: v.key, svg: r.svg, label, pinned: false, spec: v.spec, slot, item }); break;
-      } catch (e) { /* this change does not apply here: try the next */ }
+      } catch (e) { failed++; }   // this change does not apply here (or a real error): try the next — counted, shown on the card
     }
   }
+  if (main.variations.length < want && failed) main.failedVariations = failed;   // fewer than asked, and some draws threw
   return main;
 }
 export async function compileFigure(inputs, params, opts) {
@@ -209,12 +211,14 @@ export async function compileFigure(inputs, params, opts) {
   const firstEl = contents.find(c => c.kind === 'element' && c.entry && c.entry.seed);
   const imported = contents.length === 1 && firstEl && firstEl.entry.recipe ? firstEl.entry.recipe : null;
   const composeRules = (inputs.composition && inputs.composition.rules ? inputs.composition.rules : [])
+    .map(r => r.do && r.do.ink != null ? { ...r, do: { ...r.do, color: (colors || ['#000000'])[r.do.ink % (colors || ['#000000']).length] } } : r)   // an ink by its place in the Palette: follows Palette edits and hue variations
     .map(r => r.do && r.do.arrange && r.do.arrange.live ? { ...r, do: { ...r.do, arrange: { ...r.do.arrange, pool: contents.slice() } } } : r);   // a live Arrange lays out the content feeding the Figure now
   const lattice = isLattice(grid.gen);
   let element, first;
   if (lattice && imported && !(compRule && cellRules.length) && !composeRules.length) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
-    element = { ...clone(imported), colors: colors || clone(imported.colors || ['#000000']), paper };
-    if (pal) element.colorRule = colorRule; else delete element.colorRule;
+    element = { ...clone(imported), colors: colors && !params.keepOwn ? colors : clone(imported.colors || ['#000000']), paper };
+    if (pal && !params.keepOwn) element.colorRule = colorRule; else delete element.colorRule;
+    if (params.keepOwn && imported.colorRule) element.colorRule = clone(imported.colorRule);   // Keep own colours: the built-in's own inks and rule
     if (pal && (pal.rule || {}).mode === DEFAULT_COLOR_RULE.mode && !imported.colorRule) delete element.colorRule;
     if (compRule) {
       const l = latticeOf(grid); if (l.type !== 'square' || l.cols > 4 || l.rows > 4) throw new Error('A Component rule needs a Square lattice up to 4 × 4');
@@ -223,6 +227,7 @@ export async function compileFigure(inputs, params, opts) {
       const l = latticeOf(grid);
       first = { kind: 'symbol', lattice: l, fit: params.fit === 'match' ? 'contain' : (params.fit || (l.type === 'triangle' ? 'fill' : 'contain')), rules: clone(cellRules) };
       if (params.symbolFit) first.fit = params.symbolFit;   // the built-in's own fit, kept as it was
+      if (params.clip === false) first.clip = false;
     }
   } else {   // every other Figure: a sealed Symbol level — the grid's model + one content patch per cell
     const model = lattice ? latticeModel(latticeOf(grid)) : await symbolGridModel(grid.gen, { ...gridDefaults(grid.gen), ...(grid.params || {}) }, cv.fit ? canvasOf({ preset: 'Square 1:1', margin: 5 }) : cv);
@@ -330,7 +335,10 @@ export function variationSpecs(p, count) {
   return out;
 }
 // The pins that apply to a group: { mode, seed, slot, item? } — a pin stays in its slot; in a fan-out it belongs to its item.
-export const pinsFor = (p, item) => (p.pins || []).filter(q => (q.item == null && item == null) || q.item === item);
+export const itemName = k => k == null ? null : String(k).slice(String(k).indexOf(':') + 1);
+// a pin's item: the exact key (place:name); if that key is gone (the Set was reordered), the item with its name
+export const sameItem = (a, b, keys) => (a == null && b == null) || (a != null && b != null && (a === b || (!!keys && !keys.includes(a) && itemName(a) === itemName(b))));
+export const pinsFor = (p, item, keys) => (p.pins || []).filter(q => sameItem(q.item, item, keys));
 
 // ── Export (Phase 6): one export path — the Export node. exportPlan() lists the files (pure); the UI encodes them.
 // Which: all variations · pinned only · as set up. Formats: SVG, PNG (×1 ×2 ×4 on a Screen Canvas; a Print Canvas is

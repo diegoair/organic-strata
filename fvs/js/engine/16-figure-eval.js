@@ -214,6 +214,7 @@ export function evalFigure(def, opts) {
         state.symbolCells.forEach(c => { c.seedParams = clone(sp); });
       } else state.symbolCells.forEach(c => { delete c.seedParams; });
       applyClassRules(first.rules, el.type);
+      if (first.clip === false) state.symbolClipEnabled = false;   // Clip to cell off on a built-in's own lattice (absent = the default, byte-identical)
       tier = 'symbol';
       if (gridLv) { state.fvsGridSymbolName = LIVE_SYMBOL; state.fvsGridComponentName = null; }
     }

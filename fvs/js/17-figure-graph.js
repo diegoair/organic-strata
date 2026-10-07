@@ -42,7 +42,7 @@ import {
 } from './engine/15-export-library-view.js';
 import {
   FIGURE_LATTICES, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
-  exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey
+  exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey, sameItem
 } from './engine/17-figure-nodes.js';
 import {
   ctrl
@@ -130,7 +130,7 @@ function renderBody(node, entry, el) {
           <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get('figure-from', { size: 'xs' })}</button></div>` : ''}
       </figure>`;
     el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>` + groups.map((g, gn) => { const gid = `fgv-${node.id}-${gn}`; return `<div${g.label ? ` role="group" aria-labelledby="${gid}"` : ''}>${g.label ? `<p class="fg-group__label" id="${gid}">${esc(g.label)}</p>` : ''}<div class="fg-vars fg-vars--${layout}${g.variations.length === 1 ? ' is-single' : ''}">${g.variations.map((v, k) => tile(v, gi++, k === 0, k, g.label)).join('')}</div></div>`; }).join('')
-      + checksBadge(f) + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}</p>`;
+      + checksBadge(f) + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}${f.failedVariations ? ` · ${f.failedVariations} ${f.failedVariations === 1 ? 'change' : 'changes'} could not be drawn` : ''}</p>`;
     const card = el.closest('.nc-node'); if (card) card.classList.toggle('fg-node--xwide', vars.length > 8);
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => ctl.remeasure(node.id), { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act, +b.dataset.i); }); }
@@ -181,7 +181,8 @@ function variationAction(id, act, i) {
   const v = (card.querySelector('.nc-node__body')._vars || [])[i]; if (!v || !v.spec) return;
   const p = node.params;
   if (act === 'pin') {   // a pin keeps its slot (and, in a fan-out, belongs to its item)
-    const same = q => q.slot === v.slot && (q.item == null ? v.item == null : q.item === v.item);
+    const keys = [...new Set((card.querySelector('.nc-node__body')._vars || []).map(x => x.item).filter(x => x != null))];
+    const same = q => q.slot === v.slot && sameItem(q.item, v.item, keys);
     const pins = (p.pins || []).filter(q => !same(q));
     if (!v.pinned) pins.push({ mode: v.spec.mode, seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });
     p.pins = pins; edited(node, true); ctl.select([id]); return;
@@ -267,9 +268,9 @@ function cardClass(node) {
 }
 function nodeLabel(node) { return node.name || registry.get(node.type).meta.label; }
 // A Figure always has a Canvas and a Grid: the one feeding it can't be deleted while it is that Figure's only one.
-function protect(node, model) {
+function protect(node, model, removing) {   // removing: the ids deleted together — a Figure going with its Canvas / Grid does not keep them
   if (node.type !== 'canvas' && node.type !== 'grid') return null;
-  const feeds = model.edges.some(e => e.from.node === node.id && model.nodes.some(n => n.id === e.to.node && n.type === 'figure'));
+  const feeds = model.edges.some(e => e.from.node === node.id && !(removing || []).includes(e.to.node) && model.nodes.some(n => n.id === e.to.node && n.type === 'figure'));
   return feeds ? `A Figure needs a ${node.type === 'canvas' ? 'Canvas' : 'Grid'} — connect another one first` : null;
 }
 
@@ -549,7 +550,7 @@ function renderInspectorBody(box, ids) {
       bind: () => box.querySelectorAll('[data-keep]').forEach(c => c.addEventListener('change', () => { p.keep = { ...(p.keep || {}), [c.dataset.keep]: c.checked }; edited(node, true); })) });
     rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Layout</div><div class="seg-ctrl" id="fgi-layout" role="group" aria-label="Layout"><button class="seg-btn${p.layout === 'row' ? ' active' : ''}" data-v="row" aria-pressed="${p.layout === 'row'}">One row</button><button class="seg-btn${p.layout !== 'row' ? ' active' : ''}" data-v="rows" aria-pressed="${p.layout !== 'row'}">Rows</button></div></div>
       <div class="row-btns"><button type="button" class="mini-btn" id="fgi-renew" aria-label="New variations — pinned ones stay">${Organica.icons.get('refresh', { size: 'xs' })} New variations</button></div>
-      ${(p.pins || []).length ? `<p class="panel-hint">${p.pins.length} pinned</p>` : ''}${(p.fixed || []).length ? `<p class="panel-hint">Made from a variation — ${p.fixed.length === 1 ? 'one change fixed' : p.fixed.length + ' changes fixed'}</p>` : ''}`,
+      ${(p.pins || []).length ? `<p class="panel-hint">${p.pins.length} pinned${p.pins.some(q => q.slot >= (+p.variations || 1)) ? ` — ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length} not shown: raise Variations to see ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length === 1 ? 'it' : 'them'}` : ''}</p>` : ''}${(p.fixed || []).length ? `<p class="panel-hint">Made from a variation — ${p.fixed.length === 1 ? 'one change fixed' : p.fixed.length + ' changes fixed'}</p>` : ''}`,
       bind: () => {
         ctrl('fgi-layout').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; p.layout = b.dataset.v; edited(node, true); renderInspector(ids); ctl.paint(node.id); });
         ctrl('fgi-renew').addEventListener('click', () => { p.seed = (+p.seed || 1) + 1; edited(node, true); renderInspector(ids); });
@@ -878,9 +879,9 @@ function describeComposeRule(r, inks) {
   const w = r.when || {}, d = r.do || {};
   const where = whereText(w);
   const ink = d.color && inks ? inks.indexOf(d.color) : -1;
-  const what = d.content && typeof d.content === 'object' ? d.content.name : d.toggle ? 'Swap empty / filled' : d.color ? (ink >= 0 ? 'Ink ' + (ink + 1) : inks ? 'Colour ' + d.color : 'Colour')
+  const what = d.content && typeof d.content === 'object' ? d.content.name : d.toggle ? 'Swap empty / filled' : d.ink != null ? 'Ink ' + (d.ink + 1) : d.color ? (ink >= 0 ? 'Ink ' + (ink + 1) : inks ? 'Colour ' + d.color : 'Colour')
     : d.symbolRule ? 'Symbol rule: ' + (SYMBOL_RULE_LABELS[d.symbolRule.name] || d.symbolRule.name)
-    : d.arrange ? 'Arrange: ' + ((SYMBOL_ARRANGE[d.arrange.rule] || {}).label || d.arrange.rule) + ' · ' + d.arrange.pool.length + ' items'
+    : d.arrange ? 'Arrange: ' + ((SYMBOL_ARRANGE[d.arrange.rule] || {}).label || d.arrange.rule) + (d.arrange.live ? ' · the Figure’s content' : ' · ' + d.arrange.pool.length + ' items')
     : d.pattern ? 'Pattern: ' + (PATTERN_LABELS[d.pattern.patType] || d.pattern.patType) : describeRule({ when: {}, do: d }).split(' → ')[1];
   return where + ' → ' + what;
 }
@@ -905,7 +906,7 @@ function renderComposeInspector(next) {
     <div class="row-btns fg-quick">${QUICK.map(([k, l]) => `<button type="button" class="mini-btn" data-quick="${k}"${n ? '' : ' disabled'}>${l}</button>`).join('')}</div>
     <div class="ctrl-row"><div class="ctrl-label">They get</div><select class="panel-select" id="fgc-does" aria-label="They get">
       <optgroup label="Cells">${QUICK.map(([k, l]) => `<option value="q:${k}">${l}</option>`).join('')}</optgroup>
-      ${inks.length ? `<optgroup label="Colour">${inks.map((h, i) => `<option value="c:${h}">Ink ${i + 1} ${h}</option>`).join('')}</optgroup>` : ''}
+      ${inks.length ? `<optgroup label="Colour">${inks.map((h, i) => `<option value="c:${i}">Ink ${i + 1} ${h}</option>`).join('')}</optgroup>` : ''}
       <optgroup label="Symbol rule">${Object.entries(SYMBOL_RULE_LABELS).map(([k, l]) => `<option value="s:${k}">${esc(l)}</option>`).join('')}</optgroup>
       <optgroup label="Arrange">${Object.entries(SYMBOL_ARRANGE).map(([k, a]) => `<option value="a:${k}">${esc(a.label)}</option>`).join('')}</optgroup>
       <optgroup label="Pattern">${Object.entries(PATTERN_LABELS).map(([k, l]) => `<option value="p:${k}">${l}</option>`).join('')}</optgroup>
@@ -928,9 +929,9 @@ function renderComposeInspector(next) {
   ctrl('fgc-add').addEventListener('click', () => {
     const v = ctrl('fgc-does').value, t = v.slice(0, 1), x = v.slice(2);
     if (t === 'q') addComposeRule(QUICK.find(q => q[0] === x)[2]);
-    else if (t === 'c') addComposeRule({ color: x });
+    else if (t === 'c') addComposeRule({ ink: +x });   // the ink's place, not its hex: it follows the Palette
     else if (t === 's') addComposeRule({ symbolRule: { name: x, params: SYMBOL_RULES[x].read(), seed: 1 + Math.floor(Math.random() * 99999) } });   // the Symbol step's own settings for that rule
-    else if (t === 'a') { const pool = figureContents(composing.fig); if (!pool.length) { Organica.notice('Connect a Content input to the Figure first'); return; } addComposeRule({ arrange: { rule: x, live: true, pool, seed: 1 + Math.floor(Math.random() * 99999) } }); }   // live: the pool follows the Figure's content
+    else if (t === 'a') { const pool = figureContents(composing.fig); if (!pool.length) { Organica.notice('Connect a Content input to the Figure first'); return; } addComposeRule({ arrange: { rule: x, live: true, pool: [], seed: 1 + Math.floor(Math.random() * 99999) } }); }   // live: the pool follows the Figure's content
     else if (t === 'p') addComposeRule({ pattern: { patType: x, patSpacing: 8, patWeight: 2, patAngle: 45 } });
     else { const c = addContent(t === 'e' ? 'element' : 'component', x); addComposeRule({ content: { kind: c.type, name: x, entry: c.params.snapshot } }); }
   });
@@ -1035,7 +1036,7 @@ function recipeProblem(def) {
 function syncButtons() {
   ctrl('btn-fg-undo').disabled = !ctl.history.canUndo();
   ctrl('btn-fg-redo').disabled = !ctl.history.canRedo();
-  const sel = ctl.selection(), why = sel.map(id => protect(NC.findNode(ctl.model, id), ctl.model)).filter(Boolean)[0];
+  const sel = ctl.selection(), why = sel.map(id => protect(NC.findNode(ctl.model, id), ctl.model, sel)).filter(Boolean)[0];
   const del = ctrl('btn-fg-delete'), refused = !sel.length || (sel.length === 1 && !!why);
   del.setAttribute('aria-disabled', String(refused));
   ctrl('fg-delete-why').textContent = !sel.length ? 'Select a node first' : (why || '');

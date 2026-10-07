@@ -283,7 +283,9 @@ export function figureChecks(def, svg) {
   add(paths === expected, 'Shapes drawn = filled slots × tiles × mirror copies (per level)', `${paths} of ${expected}`);
   add(svg.length < 400000, 'File size is reasonable', Math.round(svg.length / 1024) + ' KB');
   // colour, read from what was drawn with (the live palette after the run)
-  const cm = cwMetrics({ colors: state.colors.map(hexKey), paper: state.paperColor });
+  // the inks the drawing really uses (Keep own colours, Components' own palettes), else the live palette
+  const drawn = [...new Set((svg.match(/(?:fill|stroke)="#[0-9a-fA-F]{6}"/g) || []).map(m => hexKey(m.slice(m.indexOf('#'), m.indexOf('#') + 7))))].filter(h => h !== hexKey(state.paperColor));
+  const cm = cwMetrics({ colors: drawn.length ? drawn : state.colors.map(hexKey), paper: state.paperColor });
   add(cm.minContrast >= CW_MIN_CONTRAST, `Inks read on the paper (${CW_MIN_CONTRAST}:1 or more)`, cm.minContrast.toFixed(1) + ':1');
   if (cm.minDeltaE != null) add(cm.minDeltaE >= Organica.color.DISTINCT_MIN, 'Inks are distinct', 'ΔE ' + Math.round(cm.minDeltaE));
   return out;
