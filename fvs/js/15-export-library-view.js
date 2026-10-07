@@ -46,7 +46,7 @@ import {
   elementLibraryChanged, removeSavedElement, useAsPaperTile
 } from './04-appearance.js';
 import {
-  printComponentDims, renderGallery, renderSeedPreview
+  drawIdFree, printComponentDims, renderGallery, renderSeedPreview
 } from './05-render-component.js';
 import {
   renderComponentEditCanvas, syncRuleAvailability, syncRuleUI, syncSeedUI
@@ -332,16 +332,9 @@ export function railTile(kind, name, svg, w, h) {
 // A group's tiles in this order, reusing every tile whose thumbnail is the same SVG text (kind, name, size
 // and drawing unchanged) — a save then adds one tile instead of re-drawing the whole library (110 saved
 // Components cost ~90 ms of style + paint per save when every tile was rebuilt). Clicks are delegated to the
-// panel, so a kept tile carries no stale listener. A drawing carries a time stamp (<metadata> exportedAt) and
-// per-drawing ids (nextDrawId: clip paths, patterns…): the key leaves the metadata out and reads the ids as
-// their order. A kept tile keeps its own ids, still unique on the page (the counter only goes up).
+// panel, so a kept tile carries no stale listener. "Same drawing" = drawIdFree (05-render-component.js), which
+// ignores the time stamp and the per-drawing ids; a kept tile keeps its own ids, still unique on the page.
 const railTileKey = new WeakMap();
-const drawIdFree = svg => {
-  let out = String(svg).replace(/<metadata>[\s\S]*?<\/metadata>/g, '');
-  const ids = [...new Set([...out.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]))];
-  ids.forEach((id, i) => { out = out.split('"' + id + '"').join('"#' + i + '"').split('#' + id + ')').join('#' + i + ')').split('"#' + id + '"').join('"##' + i + '"'); });
-  return out;
-};
 export function syncRailGroup(group, specs) {
   const old = new Map();
   [...group.children].forEach(t => { const k = railTileKey.get(t); if (k != null && !old.has(k)) old.set(k, t); });

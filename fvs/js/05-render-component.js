@@ -224,6 +224,20 @@ export function withCellRing(svgStr, items) {
   const ring = `<path class="cell-ring" d="${d}" fill="none" stroke-linejoin="miter" vector-effect="non-scaling-stroke" pointer-events="none"/>`;
   return svgStr.replace(/^(<svg[^>]*>)/, '$1' + ring);
 }
+// Two drawings of the same thing differ only in their time stamp (<metadata> exportedAt) and per-drawing ids
+// (nextDrawId: clip paths, patterns…): this text leaves the metadata out and reads the ids as their order, so
+// "same drawing" is a string compare. Used by the gallery below and the Library rail (15-export-library-view.js).
+export const drawIdFree = svg => {
+  let out = String(svg).replace(/<metadata>[\s\S]*?<\/metadata>/g, '');
+  const ids = [...new Set([...out.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]))];
+  ids.forEach((id, i) => { out = out.split('"' + id + '"').join('"#' + i + '"').split('#' + id + ')').join('#' + i + ')').split('"#' + id + '"').join('"##' + i + '"'); });
+  return out;
+};
+// The gallery keeps each thumbnail whose drawing is unchanged (keyed by the Component object, so a new candidate
+// list = new thumbnails): a save, a selection or a redraw that changes nothing visible only updates classes, the
+// caption and the save circle, instead of re-creating and re-painting every SVG (with its baked shadow,
+// 16-cell-shadow.js). A kept SVG keeps its own ids, still unique on the page (the counter only goes up).
+const galleryThumbs = new WeakMap();   // comp → { key, wrap, btn, cap, quickSave, savedName }
 export function renderGallery() {
   // Component Edit mode owns the view while active (renderComponentEditCanvas
   // is its own render path) — a reactive renderGallery() call from elsewhere
@@ -268,8 +282,8 @@ export function renderGallery() {
     if (sig !== state.componentAutoGenSignature) { hooks.populateComponentStarterGallery(); return; }
   }
 
-  gallery.innerHTML = '';
   if (state.components.length === 0) {
+    gallery.innerHTML = '';
     gallery.classList.remove('visible');
     empty.style.display = 'flex';
     ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty — draw a shape or pick one in step 1 first.' : '';
@@ -285,19 +299,35 @@ export function renderGallery() {
   setStatus('active', `${state.components.length} component${state.components.length === 1 ? '' : 's'}`);
 
   syncSelectedColourway();
+  const wraps = [];
   for (const comp of state.components) {
     let svgStr;
     live.layerInkOverride = comp.layerInks || null;
     try { const its = buildComponentItems(comp, grid); svgStr = withCellRing(withGridWrapper(withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline), its); } finally { live.layerInkOverride = null; }
-    const btn = document.createElement('button');
     const isSelected = comp.id === state.selectedId && state.selectionExplicit;
-    btn.className = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
+    const thumbClass = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
+    const caption = componentCaption(comp);
+    const key = drawIdFree(svgStr);
+    const kept = galleryThumbs.get(comp);
+    if (kept && kept.key === key) {
+      if (kept.btn.className !== thumbClass) kept.btn.className = thumbClass;
+      kept.btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
+      if (kept.btn.title !== caption) { kept.btn.title = caption; kept.cap.textContent = caption; }
+      if (kept.savedName !== (comp.savedName || null)) {   // the save circle carries the name in its label / its click
+        const q = galleryQuickSave(comp);
+        kept.quickSave.replaceWith(q);
+        kept.quickSave = q; kept.savedName = comp.savedName || null;
+      }
+      wraps.push(kept.wrap);
+      continue;
+    }
+    const btn = document.createElement('button');
+    btn.className = thumbClass;
     btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; hooks.adoptLayerInks(comp); hooks.adoptColourway(comp); renderGallery(); });
     // Caption = the rule that made it + each cell's rotation (f = flipped),
     // so two look-alike candidates can be told apart without opening them.
-    const caption = componentCaption(comp);
     btn.title = caption;
     const wrap = document.createElement('div');
     wrap.className = 'fvs-thumb-wrap';
@@ -306,18 +336,11 @@ export function renderGallery() {
     // its top-right corner by .fvs-thumb-wrap's own `position: relative`.
     // Once a candidate is saved (comp.savedName), the ✓ stays put — no
     // fade, no revert to "+" — since renderGallery() rebuilds this button
-    // from comp.savedName on every re-render, not from transient DOM state.
+    // from comp.savedName whenever that changes, not from transient DOM state.
     // Hovering that ✓ swaps it to a delete "×" (mouseenter/leave, not CSS
     // content, since the label/title need to change too for a11y) — a
     // click then removes the saved entry instead of re-saving it.
-    const quickSave = quickSaveButton({
-      savedName: comp.savedName,
-      labelSave: 'Save to library',
-      labelSaved: `Saved to library as "${comp.savedName}"`,
-      labelRemove: 'Remove from library',
-      onSave: () => hooks.quickSaveComponentToLibrary(comp.id),
-      onRemove: () => hooks.deleteQuickSavedComponent(comp.id),
-    });
+    const quickSave = galleryQuickSave(comp);
     // Hover-only edit — sits directly left of the save circle, same reveal
     // behaviour. Jumps into Manual mode pre-loaded with THIS candidate's
     // own per-cell rotation/flip/scale, so you can start from what's
@@ -333,6 +356,21 @@ export function renderGallery() {
     cap.className = 'fvs-thumb-caption';
     cap.textContent = caption;
     wrap.append(btn, editBtn, quickSave, cap);
-    gallery.appendChild(wrap);
+    galleryThumbs.set(comp, { key, wrap, btn, cap, quickSave, savedName: comp.savedName || null });
+    wraps.push(wrap);
   }
+  // in order, moving only what moved; thumbnails of candidates no longer listed go
+  wraps.forEach((w, i) => { if (gallery.children[i] !== w) gallery.insertBefore(w, gallery.children[i] || null); });
+  while (gallery.children.length > wraps.length) gallery.lastElementChild.remove();
+}
+// The thumbnail's save circle — rebuilt (alone) when the candidate's saved name changes.
+function galleryQuickSave(comp) {
+  return quickSaveButton({
+    savedName: comp.savedName,
+    labelSave: 'Save to library',
+    labelSaved: `Saved to library as "${comp.savedName}"`,
+    labelRemove: 'Remove from library',
+    onSave: () => hooks.quickSaveComponentToLibrary(comp.id),
+    onRemove: () => hooks.deleteQuickSavedComponent(comp.id),
+  });
 }

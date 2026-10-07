@@ -233,7 +233,9 @@ if (ONLY.includes('paint')) {
   results.paint = [];
   console.log('paint     hover sweep, 48 moves, 2× pixel density — ms of work (lower = lighter)');
   for (const tier of ['component', 'element']) for (const shape of ['square', 'circle', 'triangle', 'hexagon']) {
-    await ev(`window.__fvs.setTier('${tier}'); window.__fvs.setCellShape('${shape}'); new Promise(r => setTimeout(r, 600))`);
+    // 3 s: a cell-shape switch moves the Grid size slider, whose liquid fill rings for ~2.5 s — let it settle, or
+    // its repaints land in the next shape's numbers (it made hexagon read as 2× square on Oct 7, 2026)
+    await ev(`window.__fvs.setTier('${tier}'); window.__fvs.setCellShape('${shape}'); new Promise(r => setTimeout(r, 3000))`);
     const p = await ev(`[...document.querySelectorAll('${tier === 'component' ? '#gallery .fvs-thumb' : '#seed-preview .fvs-seed-tile, #element-frame'}')].slice(0, 16).map(e => { const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; })`);
     while (p.length && p.length < 16) p.push(p[p.length % p.length]);
     const sum = await traced(async () => { for (let k = 0; k < 3; k++) for (const [x, y] of p) { await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }); await sleep(40); } });
