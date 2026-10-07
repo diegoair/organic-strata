@@ -203,7 +203,7 @@
       <div class="org-popover__divider"></div>
       <div class="org-popover__title">Motion</div>
       <button class="org-btn org-btn--block" id="btn-record" onclick="toggleRecording()">Start recording</button>
-      <p class="org-popover__hint" id="record-hint">Records the live canvas as MP4 (WebM if MP4 isn't supported in this browser). Format/Resolution/Tile at time of Start apply to the whole clip.</p>
+      <p class="org-popover__hint" id="record-hint">Records the live canvas as MP4 (WebM if MP4 isn’t supported in this browser). Format/Resolution/Tile at time of Start apply to the whole clip.</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-scale">Scale</label>
@@ -222,7 +222,7 @@
 
   <div id="canvas-wrap">
     <canvas id="gl-canvas" width="256" height="256"></canvas>
-    <p id="gl-error">WebGL2 isn't available in this browser — Camo Turing needs it for the GPU-accelerated simulation. Try a recent Chrome, Firefox, Edge or Safari.</p>
+    <p id="gl-error">WebGL2 isn’t available in this browser — Camo Turing needs it for the GPU-accelerated simulation. Try a recent Chrome, Firefox, Edge or Safari.</p>
     <div class="zoom-badge" id="zoom-badge" aria-live="polite">100%</div>
   </div>
 
@@ -269,7 +269,7 @@
       <div id="seeds-host-b"></div>
 
       <div class="ctrl-row" style="margin-top: var(--space-4)">
-        <div class="ctrl-label" title="Fill: the coverage mask stamps the reaction directly, once — same as Genesis-form seeding in Camouflage. Confine: the mask permanently pins every cell outside it to the resting state, every step — the pattern grows freely but never escapes the shape. Trace outline: nucleation points are sampled along the shape's edge only, not its interior — growth radiates from the contour. Regime boundary: two different f/k values meet at the shape's edge, and the WHOLE canvas keeps evolving on both sides — the shape becomes a border between two regimes, not a container. Background image: doesn't seed the simulation at all — the current Image/SVG source becomes Paper's background, in full colour, wherever the pattern isn't Ink. Stencil: same source image, but visible only THROUGH the Ink shapes instead — Paper stays flat.">Mode</div>
+        <div class="ctrl-label" title="Fill: the coverage mask stamps the reaction directly, once — same as Genesis-form seeding in Camouflage. Confine: the mask permanently pins every cell outside it to the resting state, every step — the pattern grows freely but never escapes the shape. Trace outline: nucleation points are sampled along the shape’s edge only, not its interior — growth radiates from the contour. Regime boundary: two different f/k values meet at the shape’s edge, and the WHOLE canvas keeps evolving on both sides — the shape becomes a border between two regimes, not a container. Background image: doesn’t seed the simulation at all — the current Image/SVG source becomes Paper’s background, in full colour, wherever the pattern isn’t Ink. Stencil: same source image, but visible only THROUGH the Ink shapes instead — Paper stays flat.">Mode</div>
         <select class="panel-select" id="sel-seedmode" onchange="syncSeedModeRows()">
           <option value="fill">Fill</option>
           <option value="confine">Confine</option>
@@ -295,14 +295,14 @@
           <input type="checkbox" id="ck-twoshape" onchange="syncTwoShapeRows()">
           <span>Two seeds</span>
         </label>
-        <span class="org-tip" tabindex="0" role="note" aria-label="Seed A doesn't grow — it just resists Seed B's growth wherever the two overlap.">i<span class="org-tip__bubble" aria-hidden="true">Seed A doesn't grow — it just resists Seed B's growth wherever the two overlap.</span></span>
+        <span class="org-tip" tabindex="0" role="note" aria-label="Seed A doesn’t grow — it just resists Seed B’s growth wherever the two overlap.">i<span class="org-tip__bubble" aria-hidden="true">Seed A doesn’t grow — it just resists Seed B’s growth wherever the two overlap.</span></span>
       </div>
       <div id="seedsrc-a-block" style="display:none">
         <div class="ctrl-label" style="margin-bottom: var(--space-1)">Seed A</div>
         <!-- Organica.seedsPanel builds Seed A's tab strip + panes here. -->
         <div id="seeds-host-a"></div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="How starved Shape A's region starts (how far chemical A is depleted from its resting value of 1.0). Deeper = takes longer to recover, so Shape B's growth has a longer window where reaching this zone actually matters.">Famine depth</div>
+          <div class="ctrl-label" title="How starved Shape A’s region starts (how far chemical A is depleted from its resting value of 1.0). Deeper = takes longer to recover, so Shape B’s growth has a longer window where reaching this zone actually matters.">Famine depth</div>
           <input type="range" id="rg-famine-depth" min="0" max="0.95" step="0.01" value="0.7" oninput="syncVal(this,'v-famine-depth')">
           <span class="ctrl-val" id="v-famine-depth">0.7</span>
         </div>
@@ -330,7 +330,7 @@
       <div class="presets" id="tx-presets"></div>
 
       <div id="tx-particles-controls" style="display:none">
-        <p class="org-panel__hint">Scatters disks of varying size onto the Seed's own ink, unioned together — ported from Living Path's Bubbles preset.</p>
+        <p class="org-panel__hint">Scatters disks of varying size onto the Seed’s own ink, unioned together — ported from Living Path’s Bubbles preset.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How many disks to scatter.">Count</div>
           <input type="range" id="tx-particles-count" min="10" max="400" step="1" value="150" oninput="syncVal(this,'v-tx-particles-count')">
@@ -354,7 +354,7 @@
       </div>
 
       <div id="tx-dilate-controls" style="display:none">
-        <p class="org-panel__hint">Grows (positive) or shrinks (negative) the Seed's own boundary, one pixel-neighbour pass per unit of Amount — ported from Living Path's morph().</p>
+        <p class="org-panel__hint">Grows (positive) or shrinks (negative) the Seed’s own boundary, one pixel-neighbour pass per unit of Amount — ported from Living Path’s morph().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Positive grows the shape (dilate), negative shrinks it (erode). Each unit is one more neighbour-scan pass, so larger amounts cost more to compute.">Amount</div>
           <input type="range" id="tx-dilate-amount" min="-8" max="8" step="1" value="3" oninput="syncVal(this,'v-tx-dilate-amount')">
@@ -363,7 +363,7 @@
       </div>
 
       <div id="tx-blur-controls" style="display:none">
-        <p class="org-panel__hint">Softens the Seed's edge into a graduated ramp instead of a hard boundary — ported from Living Path's boxBlur().</p>
+        <p class="org-panel__hint">Softens the Seed’s edge into a graduated ramp instead of a hard boundary — ported from Living Path’s boxBlur().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Blur radius in cells.">Radius</div>
           <input type="range" id="tx-blur-radius" min="0" max="14" step="1" value="4" oninput="syncVal(this,'v-tx-blur-radius')">
@@ -381,7 +381,7 @@
       </div>
 
       <div id="tx-noise-controls" style="display:none">
-        <p class="org-panel__hint">Adds smooth random jitter to the shape's edge — a grainy, degraded boundary instead of a clean one. Ported from Living Path's addNoise().</p>
+        <p class="org-panel__hint">Adds smooth random jitter to the shape’s edge — a grainy, degraded boundary instead of a clean one. Ported from Living Path’s addNoise().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How strong the jitter is.">Amount</div>
           <input type="range" id="tx-noise-amount" min="0" max="100" step="1" value="35" oninput="syncVal(this,'v-tx-noise-amount')">
@@ -400,7 +400,7 @@
       </div>
 
       <div id="tx-skeleton-controls" style="display:none">
-        <p class="org-panel__hint">Reduces the shape to its 1px centre-line (Zhang–Suen thinning), then thickens that line back to a constant width — a shape becomes a stream/wire tracing its own middle. Ported from Living Path's skeleton().</p>
+        <p class="org-panel__hint">Reduces the shape to its 1px centre-line (Zhang–Suen thinning), then thickens that line back to a constant width — a shape becomes a stream/wire tracing its own middle. Ported from Living Path’s skeleton().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How thick to redraw the centre-line. 0 leaves it at 1px.">Width</div>
           <input type="range" id="tx-skeleton-width" min="0" max="8" step="1" value="2" oninput="syncVal(this,'v-tx-skeleton-width')">
@@ -409,7 +409,7 @@
       </div>
 
       <div id="tx-polygonize-controls" style="display:none">
-        <p class="org-panel__hint">Quantizes the shape onto a coarse block grid — a faceted, low-poly look instead of a smooth boundary. Ported from Living Path's polygonize().</p>
+        <p class="org-panel__hint">Quantizes the shape onto a coarse block grid — a faceted, low-poly look instead of a smooth boundary. Ported from Living Path’s polygonize().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Block size in cells — larger blocks read as chunkier.">Block</div>
           <input type="range" id="tx-polygonize-block" min="3" max="24" step="1" value="9" oninput="syncVal(this,'v-tx-polygonize-block')">
@@ -418,7 +418,7 @@
       </div>
 
       <div id="tx-seam-controls" style="display:none">
-        <p class="org-panel__hint">Content-aware carving (like Photoshop's Seam Carving) — removes low-energy seams one at a time, pinching/warping the shape instead of uniformly scaling it. Ported from Living Path's seamCarve(). Found by testing: a small shape with a lot of empty margin around it (Size well under 1) can absorb quite a few seams from the blank space alone before any visible pinch reaches the shape itself — push Seams higher if nothing seems to happen.</p>
+        <p class="org-panel__hint">Content-aware carving (like Photoshop’s Seam Carving) — removes low-energy seams one at a time, pinching/warping the shape instead of uniformly scaling it. Ported from Living Path’s seamCarve(). Found by testing: a small shape with a lot of empty margin around it (Size well under 1) can absorb quite a few seams from the blank space alone before any visible pinch reaches the shape itself — push Seams higher if nothing seems to happen.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How many seams to remove.">Seams</div>
           <input type="range" id="tx-seam-count" min="0" max="160" step="1" value="16" oninput="syncVal(this,'v-tx-seam-count')">
@@ -428,7 +428,7 @@
       </div>
 
       <div id="tx-reaction-controls" style="display:none">
-        <p class="org-panel__hint">Runs a real Gray-Scott pass CONFINED to the Seed's own ink, then carves the settled pattern as holes into it — the shape becomes coral/cellular instead of solid. A genuine second reaction-diffusion, independent of the tool's own live simulation. Ported from Living Path's grayScott().</p>
+        <p class="org-panel__hint">Runs a real Gray-Scott pass CONFINED to the Seed’s own ink, then carves the settled pattern as holes into it — the shape becomes coral/cellular instead of solid. A genuine second reaction-diffusion, independent of the tool’s own live simulation. Ported from Living Path’s grayScott().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Feed rate.">Feed</div>
           <input type="range" id="tx-reaction-feed" min="12" max="80" step="1" value="55" oninput="syncVal(this,'v-tx-reaction-feed')">
@@ -532,7 +532,7 @@
         </span><input type="checkbox" id="ck-diff" onchange="toggleDiffOverlay()"></div>
       <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="snapshotDiff()">Snapshot</button>
       <div class="org-popover__divider" style="margin: var(--space-3) 0"></div>
-      <div class="ctrl-label" style="margin-bottom: var(--space-1)" title="The literal technique used to verify this session's SVG-export fixes: overlays the exported SVG on the live canvas at mix-blend-mode:difference — near-black means the export matches the preview exactly.">Export vs. preview</div>
+      <div class="ctrl-label" style="margin-bottom: var(--space-1)" title="The literal technique used to verify this session’s SVG-export fixes: overlays the exported SVG on the live canvas at mix-blend-mode:difference — near-black means the export matches the preview exactly.">Export vs. preview</div>
       <button class="mini-btn" style="width:100%" id="btn-export-diff" onclick="toggleExportDiff()">Export vs. preview (CSS diff)</button>
     </div>
 
@@ -581,7 +581,7 @@
           <svg class="ico ico--sm" data-icon="dice" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/></svg>
         </button>
       </div>
-      <p class="org-panel__hint" id="colormode-hint">Solid: the field's own threshold decides ink vs paper, same as Duotone everywhere else in Organica. Adaptive: a smooth blend between Ink and Paper by the field's own value, no hard edge. RMX: up to 5 colours mapped across the field — Tone blends them like a gradient, Posterize bands them, Random/Tone+Random add a hashed jitter (a texture, not per-blob colour — the field is continuous, not discrete marks like Pollen's stipple points).</p>
+      <p class="org-panel__hint" id="colormode-hint">Solid: the field’s own threshold decides ink vs paper, same as Duotone everywhere else in Organica. Adaptive: a smooth blend between Ink and Paper by the field’s own value, no hard edge. RMX: up to 5 colours mapped across the field — Tone blends them like a gradient, Posterize bands them, Random/Tone+Random add a hashed jitter (a texture, not per-blob colour — the field is continuous, not discrete marks like Pollen’s stipple points).</p>
     </div>
 
   </div><!-- /panel -->
@@ -1682,7 +1682,7 @@ function buildLayersUI() {
   const baseRow = document.createElement('div');
   baseRow.className = 'org-layer-card org-layer-card--flush' + (activeLayerId == null ? ' active' : '');
   baseRow.innerHTML = '<div class="org-layer-card__head"><button class="org-layer-card__title layer-name layer-base-row" aria-pressed="' + (activeLayerId == null) + '">Base pattern</button></div>';
-  baseRow.title = "Edit the base pattern's own Feed/Kill/dA/dB above";
+  baseRow.title = "Edit the base pattern’s own Feed/Kill/dA/dB above";
   baseRow.querySelector('.org-layer-card__head').addEventListener('click', () => setActiveLayer(null));
   host.appendChild(baseRow);
   extraLayers.forEach(layer => {
@@ -1691,7 +1691,7 @@ function buildLayersUI() {
     card.innerHTML = `
       <div class="org-layer-card__head">
         <button class="org-layer-card__toggle" title="On/off" aria-pressed="${layer.on}" aria-label="${layer.name} on/off">${Organica.icons.get('check', { size: 'xs' })}</button>
-        <button class="org-layer-card__title layer-name" aria-pressed="${layer.id === activeLayerId}" title="Edit this layer's Feed/Kill/dA/dB above">${layer.name}</button>
+        <button class="org-layer-card__title layer-name" aria-pressed="${layer.id === activeLayerId}" title="Edit this layer’s Feed/Kill/dA/dB above">${layer.name}</button>
       </div>
       <div class="org-layer-card__content">
         <div class="layer-row" style="margin-top:0">
@@ -1702,7 +1702,7 @@ function buildLayersUI() {
           <span class="layer-opacity-val">${Math.round(layer.opacity * 100)}%</span>
         </div>
         <div class="layer-row">
-          <select class="panel-select layer-preset-select" title="Preset (sets this layer's own Feed/Kill)" aria-label="${layer.name} preset">
+          <select class="panel-select layer-preset-select" title="Preset (sets this layer’s own Feed/Kill)" aria-label="${layer.name} preset">
             <option value=""${layer.presetName ? '' : ' selected'}>Custom (f ${layer.f.toFixed(4)} / k ${layer.k.toFixed(4)})</option>
             <optgroup label="Built-in">
               ${Object.keys(BUILTIN_PRESETS).map(n => `<option value="${n}"${n === layer.presetName ? ' selected' : ''}>${n}</option>`).join('')}

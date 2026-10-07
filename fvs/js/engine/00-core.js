@@ -75,7 +75,7 @@ export function colorAt(i) { return state.colors[i % state.colors.length]; }
 // palette it was saved with (cell.ownColors); every other cell — and every Component
 // cell — is coloured by cell order.
 export const COLOR_RULES = {
-  own:      { label: "Element's own colours", fn: (i) => i },
+  own:      { label: "Element’s own colours", fn: (i) => i },
   index:    { label: 'By cell order',  fn: (i) => i },
   checker:  { label: 'Checkerboard',   fn: (i, c) => c.col + c.row },
   rows:     { label: 'By row',         fn: (i, c) => c.row },

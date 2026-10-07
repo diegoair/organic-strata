@@ -75,7 +75,7 @@
 
     <div class="panel-section">
       <h3>About</h3>
-      <p class="hint">A mask shape morphs between presets (GSAP MorphSVGPlugin); a fixed dot lattice is classified live every frame against the mask's own current geometry (<code>SVGGeometryElement.isPointInFill</code>) — dots deep inside stay small and separate, dots straddling the boundary enlarge and overlap into a gooey fringe, dots outside are hidden. No blur/goo filter — the lumpy edge is just plain same-colour circles overlapping. Reference: giuseppelaezza.com/playground.</p>
+      <p class="hint">A mask shape morphs between presets (GSAP MorphSVGPlugin); a fixed dot lattice is classified live every frame against the mask’s own current geometry (<code>SVGGeometryElement.isPointInFill</code>) — dots deep inside stay small and separate, dots straddling the boundary enlarge and overlap into a gooey fringe, dots outside are hidden. No blur/goo filter — the lumpy edge is just plain same-colour circles overlapping. Reference: giuseppelaezza.com/playground.</p>
     </div>
 
     <div class="panel-section">
@@ -127,7 +127,7 @@
         <input type="range" id="rg-samples" min="4" max="16" step="1" value="8">
         <span class="ctrl-val" id="v-samples">8</span>
       </div>
-      <p class="hint">Sample points = how many directions each dot probes around its own radius to decide "straddling the edge." More samples read curved boundaries more accurately, at a proportional per-frame cost — the classification pass is what's actually expensive here, not the mask's own tween.</p>
+      <p class="hint">Sample points = how many directions each dot probes around its own radius to decide "straddling the edge." More samples read curved boundaries more accurately, at a proportional per-frame cost — the classification pass is what’s actually expensive here, not the mask’s own tween.</p>
     </div>
 
     <div class="panel-section">

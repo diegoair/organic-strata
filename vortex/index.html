@@ -82,11 +82,11 @@
         <button class="org-btn" id="btn-export-png">PNG</button>
         <button class="org-btn" id="btn-export-svg">SVG</button>
       </div>
-      <p class="org-popover__hint">PNG ×2/×4 is a genuine re-render at that resolution, not an upsampled bitmap — Vortex redraws from scratch every frame regardless. SVG is real vector geometry: one line per currently-visible segment, depth-correct stroke width and paint order. Both read whatever is on screen right now — pausing first is the natural way to frame a shot (camera drag still works while paused), but isn't required.</p>
+      <p class="org-popover__hint">PNG ×2/×4 is a genuine re-render at that resolution, not an upsampled bitmap — Vortex redraws from scratch every frame regardless. SVG is real vector geometry: one line per currently-visible segment, depth-correct stroke width and paint order. Both read whatever is on screen right now — pausing first is the natural way to frame a shot (camera drag still works while paused), but isn’t required.</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__title">Motion</div>
       <button class="org-btn org-btn--block" id="btn-record">Start recording</button>
-      <p class="org-popover__hint" id="record-hint">Records the live canvas as MP4 (WebM if MP4 isn't supported in this browser). Starts (or resumes) playback automatically.</p>
+      <p class="org-popover__hint" id="record-hint">Records the live canvas as MP4 (WebM if MP4 isn’t supported in this browser). Starts (or resumes) playback automatically.</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-export-scale">Scale</label>
@@ -153,7 +153,7 @@
         <input type="range" id="rg-easing" min="0.3" max="4" step="0.1" value="1">
         <span class="ctrl-val" id="v-easing">1.0</span>
       </div>
-      <p class="org-panel__hint">R small/large set the cone's own two ends; Axis length is its depth. Radius easing bends how the radius grows along the axis — 1 is linear, above 1 stays tight near the small end then flares, below 1 flares early.</p>
+      <p class="org-panel__hint">R small/large set the cone’s own two ends; Axis length is its depth. Radius easing bends how the radius grows along the axis — 1 is linear, above 1 stays tight near the small end then flares, below 1 flares early.</p>
     </div>
 
     <div class="panel-section">
@@ -213,7 +213,7 @@
         <input type="range" id="rg-orbitspeed" min="0" max="6" step="0.1" value="1.5">
         <span class="ctrl-val" id="v-orbitspeed">1.5</span>
       </div>
-      <p class="org-panel__hint">Coherent 3D noise wobbles each segment off the pure spiral, scaled by seed so it's reproducible. Spin/Orbit give each segment its own independent rotation on top.</p>
+      <p class="org-panel__hint">Coherent 3D noise wobbles each segment off the pure spiral, scaled by seed so it’s reproducible. Spin/Orbit give each segment its own independent rotation on top.</p>
     </div>
 
     <div class="panel-section">
@@ -229,7 +229,7 @@
         <span class="ctrl-val" id="v-camdist">700</span>
       </div>
       <button class="org-btn org-btn--block" id="btn-camera-reset">Reset camera angle</button>
-      <p class="org-panel__hint">Drag the canvas to orbit (once the spiral has finished generating); Shift+drag rolls instead. Camera distance is the zoom — Vortex's own real 3D camera, not a 2D pan/zoom overlay. Drag works while paused too, for framing an export.</p>
+      <p class="org-panel__hint">Drag the canvas to orbit (once the spiral has finished generating); Shift+drag rolls instead. Camera distance is the zoom — Vortex’s own real 3D camera, not a 2D pan/zoom overlay. Drag works while paused too, for framing an export.</p>
     </div>
 
     <div class="panel-section">
@@ -284,7 +284,7 @@
           <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
         </button>
       </div>
-      <p class="org-panel__hint">The palette itself is Vortex's ink — segments cycle through it by index, there's no separate single Ink colour to pair with Background. Seed reproducibly drives the noise/spin/orbit randomness — the same seed always gives the same vortex.</p>
+      <p class="org-panel__hint">The palette itself is Vortex’s ink — segments cycle through it by index, there’s no separate single Ink colour to pair with Background. Seed reproducibly drives the noise/spin/orbit randomness — the same seed always gives the same vortex.</p>
     </div>
 
     <div class="panel-section">

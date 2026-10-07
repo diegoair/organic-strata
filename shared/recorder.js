@@ -87,7 +87,7 @@
       const canvas = canvasOf();
       if (!canvas || typeof canvas.captureStream !== 'function' ||
           typeof global.MediaRecorder === 'undefined') {
-        onStatus('error', "Video recording isn't supported in this browser");
+        onStatus('error', "Video recording isn’t supported in this browser");
         return;
       }
       const candidates = Array.isArray(config.mimeCandidates) && config.mimeCandidates.length

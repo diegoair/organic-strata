@@ -57,8 +57,8 @@ export function syncCopiesRows() {
   ctrl('sel-inner-anchor').closest('.ctrl-row').style.display = on && (!cut || hasApex) ? '' : 'none';   // with Cut out, no apex → Inner centre is the only choice
   const lr = ctrl('lbl-inner-ratio'), lc = ctrl('lbl-inner-count');
   lr.textContent = cut ? 'Spacing' : 'Ratio';
-  lr.title = cut ? 'How much of the previous copy\'s hole the next copy fills — high packs the rings close together, low spaces them out. Rings never merge.'
-    : 'Each copy\'s size as a % of the previous one (70 → 70%, 49%, 34%…).';
+  lr.title = cut ? 'How much of the previous copy’s hole the next copy fills — high packs the rings close together, low spaces them out. Rings never merge.'
+    : 'Each copy’s size as a % of the previous one (70 → 70%, 49%, 34%…).';
   lc.title = cut ? 'Copies of the cut-out shape nested inside its hole, one inside the next. 0 turns it off.'
     : 'Nested copies of the shape drawn inside itself, alternating ring and gap. 0 turns it off.';
   const sel = ctrl('sel-inner-anchor');
@@ -210,7 +210,7 @@ export function extractSeedFromSVG(svgString) {
   if (!bbox || bbox.width <= 0 || bbox.height <= 0) throw new Error('Shape has no visible area.');
 
   const d = shapeToPathD(clone);
-  if (!d) throw new Error("Could not read this shape's geometry.");
+  if (!d) throw new Error("Could not read this shape’s geometry.");
 
   const normScale = 100 / Math.max(bbox.width, bbox.height);
   const fitW = bbox.width * normScale, fitH = bbox.height * normScale;

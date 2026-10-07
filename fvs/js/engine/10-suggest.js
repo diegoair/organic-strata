@@ -574,7 +574,7 @@ export function suggestSymbols(opts = {}) {
   // Recolour multiplies every cell's options: a heavy grid searches a narrower beam.
   const maxCw = Math.max(...Object.values(CW).map(l => l.length));
   const beamWidth = recolour && G.pairs.length * pal.length * maxCw > 2400 ? 2 : 4;
-  suggestSymbols.lastNote = !recolour ? '' : `Recolour (test): a cell may take one of its Component's colourways (up to ${maxCw - 1} each)${beamWidth < 4 ? ' — large grid, narrower search' : ''}.`;
+  suggestSymbols.lastNote = !recolour ? '' : `Recolour (test): a cell may take one of its Component’s colourways (up to ${maxCw - 1} each)${beamWidth < 4 ? ' — large grid, narrower search' : ''}.`;
   const fixed = locked.map(Boolean);
   const grid = getSymbolGrid();
   const out = [];

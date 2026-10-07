@@ -2525,7 +2525,7 @@ async function exportOTF(){
     ascender:FONT.ascender||Math.round(upm*0.8), descender:FONT.descender||-Math.round(upm*0.2), glyphs,
     designer:'Organica', designerURL:'https://theorganicalanguage.vercel.app',
     manufacturer:'Organica / Apostate', version:'Version 1.0',
-    description:'A vector-deformed typeface made in Apostate — an independent, Organica-native reimplementation of typoclast.com\'s effect list.',
+    description:'A vector-deformed typeface made in Apostate — an independent, Organica-native reimplementation of typoclast.com’s effect list.',
     license:'All rights reserved.'});
   const buf=font.toArrayBuffer();
   Organica.download(new Blob([buf],{type:'font/otf'}), name.replace(/\s+/g,'-')+'.otf');

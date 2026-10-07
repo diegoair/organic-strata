@@ -91,7 +91,7 @@
           '<input type="number" class="panel-input" id="' + id('dpi') + '" value="300" min="72" step="1" aria-label="DPI" style="width:100%">' +
         '</div>' +
         '<div class="ctrl-row" id="' + id('row-bleed') + '" style="display:none">' +
-          '<div class="ctrl-label" title="Always mm, regardless of the unit above — the real print convention: a bleed spec doesn\'t change because the document happens to be quoted in inches.">Bleed (mm)</div>' +
+          '<div class="ctrl-label" title="Always mm, regardless of the unit above — the real print convention: a bleed spec doesn’t change because the document happens to be quoted in inches.">Bleed (mm)</div>' +
           '<input type="number" class="panel-input" id="' + id('bleed') + '" value="0" min="0" step="0.5" aria-label="Bleed in millimetres" style="width:100%">' +
         '</div>' +
         '<div class="hint" id="' + id('pxhint') + '" style="display:none"></div>' +

@@ -63,7 +63,7 @@ export function bindPortInteractions({ graphEl, wireLayer, portEls, model, getNo
     const toNodeId = portEl.dataset.nodeId, toPort = portEl.dataset.portName;
     const toType = getNodeInputType(toNodeId, toPort);
     if (!canAdapt(from.type, toType)) {
-      onRejected && onRejected(`No connection: "${from.type}" → "${toType}" isn't compatible.`);
+      onRejected && onRejected(`No connection: "${from.type}" → "${toType}" isn’t compatible.`);
       return;
     }
 

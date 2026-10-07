@@ -1409,7 +1409,7 @@
       {"kind": "range", "id": "curve", "key": "starCurve", "label": "Edge curvature", "min": -100, "max": 100, "def": 0, "title": "Bows every edge — negative gives the classic ✦ sparkle."},
       {"kind": "range", "id": "twist", "key": "starTwist", "label": "Twist", "min": -100, "max": 100, "def": 0, "title": "Turns the inner vertices against the outer ones → pinwheel."},
       {"kind": "range", "id": "outline", "key": "starOutline", "label": "Outline (hollow)", "min": 0, "max": 95, "def": 0, "title": "Hollow ring — wall thickness as a % of the radius. Separate from Style → Stroke."},
-      {"kind": "range", "id": "skew", "key": "starSkew", "label": "Angle jitter", "min": 0, "max": 100, "def": 0, "title": "Jitters each vertex's angle. Independent of Irregularity (radius)."},
+      {"kind": "range", "id": "skew", "key": "starSkew", "label": "Angle jitter", "min": 0, "max": 100, "def": 0, "title": "Jitters each vertex’s angle. Independent of Irregularity (radius)."},
     ],
     roundedrect: [
       {"kind": "select", "id": "style", "key": "rrStyle", "label": "Corner style", "options": [["round", "Round"], ["chamfer", "Chamfer"], ["scoop", "Scoop"]], "def": "round", "title": "Round, a straight cut, or a concave scoop (ticket)."},
@@ -1448,7 +1448,7 @@
       {"kind": "range", "id": "wave", "key": "segWave", "label": "Wave", "min": 0, "max": 100, "def": 0, "title": "Wave amplitude — a squiggle."},
       {"kind": "range", "id": "cycles", "key": "segCycles", "label": "Wave cycles", "min": 1, "max": 8, "def": 3, "title": "Number of waves along the line."},
       {"kind": "range", "id": "dashes", "key": "segDashes", "label": "Dashes", "min": 1, "max": 12, "def": 1, "title": "Splits the line into separate dashes."},
-      {"kind": "range", "id": "gap", "key": "segGap", "label": "Dash gap", "min": 0, "max": 80, "def": 30, "title": "Gap between dashes, as a % of a dash's length."},
+      {"kind": "range", "id": "gap", "key": "segGap", "label": "Dash gap", "min": 0, "max": 80, "def": 30, "title": "Gap between dashes, as a % of a dash’s length."},
       {"kind": "range", "id": "lines", "key": "segLines", "label": "Lines", "min": 1, "max": 9, "def": 1, "title": "Parallel copies of the line (hatch)."},
       {"kind": "range", "id": "spacing", "key": "segSpacing", "label": "Line spacing", "min": 1, "max": 12, "def": 6, "title": "Distance between parallel lines."},
       {"kind": "range", "id": "repeatX", "key": "segRepeatX", "label": "Repeat X", "min": 1, "max": 9, "def": 1, "title": "Copies of the whole line, side by side along the horizontal axis — independent of Angle."},

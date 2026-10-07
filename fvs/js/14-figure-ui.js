@@ -483,7 +483,7 @@ export function renderFigureStepPanel() {
       r.addEventListener('change', () => figureMutate(d => { d.element.params = { ...(d.element.params || {}), [pid]: +r.value }; }));
       row(label, r).appendChild(v);
     });
-    hint('More of the Seed\'s own settings (extras, corners…) are in the Element step; tick "Use the Element step\'s own settings" under Advanced to use them in every cell.');
+    hint('More of the Seed’s own settings (extras, corners…) are in the Element step; tick "Use the Element step’s own settings" under Advanced to use them in every cell.');
   } else if (id === 'final') {
     h('Mirror / Rotate');
     if (def.levels.length < 2) { hint('Add a Grid first — Mirror and Rotate act on the figure a Grid makes.'); return; }

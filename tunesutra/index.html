@@ -139,7 +139,7 @@
         <div class="ctrl-row">
           <div class="seg-ctrl">
             <button class="seg-btn" data-v="gradient">Gradient</button>
-            <button class="seg-btn" data-v="system" title="The interface's own colours, derived from this palette">System</button>
+            <button class="seg-btn" data-v="system" title="The interface’s own colours, derived from this palette">System</button>
           </div>
         </div>
       </div>
@@ -155,7 +155,7 @@
         </select>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="How far apart in lightness the generated colours sit. 0 = every colour at the base colour's own lightness.">Lightness spread</div>
+        <div class="ctrl-label" title="How far apart in lightness the generated colours sit. 0 = every colour at the base colour’s own lightness.">Lightness spread</div>
         <input type="range" id="rg-spread" min="0" max="30" step="1" value="0">
         <span class="ctrl-val" id="v-spread">0</span>
       </div>
@@ -263,13 +263,13 @@
 
     <div class="panel-section">
       <h3>System</h3>
-      <p class="org-panel__hint">A proposal for Organica's own interface colours, shown beside today's. Nothing changes until the exported file is reviewed and pasted into the tokens.</p>
+      <p class="org-panel__hint">A proposal for Organica’s own interface colours, shown beside today’s. Nothing changes until the exported file is reviewed and pasted into the tokens.</p>
       <div class="ctrl-row">
-        <span class="ctrl-label" title="Which colour's hue tints the greys: panel, borders, labels.">Neutral</span>
+        <span class="ctrl-label" title="Which colour’s hue tints the greys: panel, borders, labels.">Neutral</span>
         <select class="panel-select" id="sel-sys-neutral" aria-label="Neutral hue from"></select>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="How much of that hue the greys carry. 50 = today's amount, 0 = pure grey.">Tint</div>
+        <div class="ctrl-label" title="How much of that hue the greys carry. 50 = today’s amount, 0 = pure grey.">Tint</div>
         <input type="range" id="rg-sys-tint" min="0" max="100" step="1" value="50">
         <span class="ctrl-val" id="v-sys-tint">50</span>
       </div>
@@ -281,7 +281,7 @@
       <div class="ctrl-row">
         <div class="seg-ctrl" id="seg-sys-mode" role="group" aria-label="Tool accent hues">
           <button class="seg-btn active" data-v="keep" title="Each tool keeps its own hue; lightness and chroma become the same">Keep hues</button>
-          <button class="seg-btn" data-v="even" title="Hues are also spaced evenly round the wheel, in today's order">Even hues</button>
+          <button class="seg-btn" data-v="even" title="Hues are also spaced evenly round the wheel, in today’s order">Even hues</button>
         </div>
       </div>
       <div class="ctrl-row">
@@ -295,7 +295,7 @@
         <span class="ctrl-val" id="v-sys-accc">13</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Shows the proposal on this page's own interface, in whichever theme is on. Not saved, and no other page is affected.">Preview on this page</div>
+        <div class="ctrl-label" title="Shows the proposal on this page’s own interface, in whichever theme is on. Not saved, and no other page is affected.">Preview on this page</div>
         <input type="checkbox" id="ck-sys-preview">
       </div>
     </div>

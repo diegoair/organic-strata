@@ -96,11 +96,11 @@
         <button class="org-btn" id="btn-export-png">PNG</button>
         <button class="org-btn" id="btn-export-svg">SVG</button>
       </div>
-      <p class="org-popover__hint">PNG ×1 saves the canvas exactly as shown; ×2/×4 upsample that same bitmap. SVG is real vector geometry (Catmull-Rom curves, same maths as the live curve render) — a recorded history of recent frames, the same "record marks as data" approach Spore/Pollen's own SVG export uses, capped to the last ~24s of drawing so the file stays a genuine vector document rather than an unbounded one. Clear/resize/Background changes reset that history along with the canvas itself.</p>
+      <p class="org-popover__hint">PNG ×1 saves the canvas exactly as shown; ×2/×4 upsample that same bitmap. SVG is real vector geometry (Catmull-Rom curves, same maths as the live curve render) — a recorded history of recent frames, the same "record marks as data" approach Spore/Pollen’s own SVG export uses, capped to the last ~24s of drawing so the file stays a genuine vector document rather than an unbounded one. Clear/resize/Background changes reset that history along with the canvas itself.</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__title">Motion</div>
       <button class="org-btn org-btn--block" id="btn-record">Start recording</button>
-      <p class="org-popover__hint" id="record-hint">Records the live canvas as MP4 (WebM if MP4 isn't supported in this browser).</p>
+      <p class="org-popover__hint" id="record-hint">Records the live canvas as MP4 (WebM if MP4 isn’t supported in this browser).</p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-export-scale">Scale</label>
@@ -141,7 +141,7 @@
         <div class="ctrl-label">Height</div>
         <input type="number" class="panel-select" id="num-canvas-height" value="800" min="200" max="4000" step="10" style="width:100%">
       </div>
-      <p class="org-panel__hint">Resizing rebuilds the drawing surface — like Clear/Reseed, the accumulated trail can't survive a structural change to the canvas itself. Background colour lives in Palette below, next to Ink.</p>
+      <p class="org-panel__hint">Resizing rebuilds the drawing surface — like Clear/Reseed, the accumulated trail can’t survive a structural change to the canvas itself. Background colour lives in Palette below, next to Ink.</p>
     </div>
 
     <div class="panel-section">
@@ -177,7 +177,7 @@
           <option value="cluster">Cluster</option>
         </select>
       </div>
-      <p class="org-panel__hint">Resolution is how many points make up the form; Init radius sets a freshly spawned one's size. Circle closes the curve into a loop; Line leaves it open; Point collapses the form to a single dot — no curve, driven by any Movement pattern below. Fill (Ink section) has no effect in Point mode. Seed shape (Circle only, Procedural seed) reshapes that ring — Noise blob perturbs the radius with organic noise, Cluster gives each point its own heavy random radius for a lumpy silhouette.</p>
+      <p class="org-panel__hint">Resolution is how many points make up the form; Init radius sets a freshly spawned one’s size. Circle closes the curve into a loop; Line leaves it open; Point collapses the form to a single dot — no curve, driven by any Movement pattern below. Fill (Ink section) has no effect in Point mode. Seed shape (Circle only, Procedural seed) reshapes that ring — Noise blob perturbs the radius with organic noise, Cluster gives each point its own heavy random radius for a lumpy silhouette.</p>
     </div>
 
     <div class="panel-section">
@@ -212,7 +212,7 @@
         <span class="ctrl-val" id="v-threshold">128</span>
       </div>
       <label class="check-row"><input type="checkbox" id="chk-invert"><span>Invert (light = subject)</span></label>
-      <p class="org-panel__hint">Contour rays out from the image's own weighted centroid, tracing the subject's silhouette. Luminance scatter samples points weighted toward dark areas, angle-sorted into one coherent loop.</p>
+      <p class="org-panel__hint">Contour rays out from the image’s own weighted centroid, tracing the subject’s silhouette. Luminance scatter samples points weighted toward dark areas, angle-sorted into one coherent loop.</p>
     </div>
     <p class="org-panel__hint" id="font-status-hint" hidden>Loading font…</p>
 
@@ -349,7 +349,7 @@
         <span class="ctrl-val" id="v-alpha">50</span>
       </div>
       <label class="check-row" id="row-fill"><input type="checkbox" id="chk-fill"><span>Fill each frame (random ink density)</span></label>
-      <p class="org-panel__hint">Single ink is the only mode Fill applies to and the only mode the Ink swatch drives directly — Rainbow cycles the spectrum once around the form/path, Sample from image reads live colour from the loaded image, RMX maps up to 5 colours across the form/path by the chosen mapping (Camo Turing's own Tone/Posterize/Random/Tone+Random, ported from its GLSL to plain JS since Membrane has no shader). Background is the canvas's own ground, independent of Color mode — Camo Turing's Ink/Paper pairing, split here between Palette (Ink) and the canvas's own fill (Background), since Membrane draws marks over a ground rather than a duotone field.</p>
+      <p class="org-panel__hint">Single ink is the only mode Fill applies to and the only mode the Ink swatch drives directly — Rainbow cycles the spectrum once around the form/path, Sample from image reads live colour from the loaded image, RMX maps up to 5 colours across the form/path by the chosen mapping (Camo Turing’s own Tone/Posterize/Random/Tone+Random, ported from its GLSL to plain JS since Membrane has no shader). Background is the canvas’s own ground, independent of Color mode — Camo Turing’s Ink/Paper pairing, split here between Palette (Ink) and the canvas’s own fill (Background), since Membrane draws marks over a ground rather than a duotone field.</p>
     </div>
 
   </div>

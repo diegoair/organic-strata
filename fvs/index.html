@@ -160,7 +160,7 @@
       <div class="org-formats">
         <button class="org-btn" id="btn-export-png">PNG</button>
         <button class="org-btn" id="btn-export-svg">SVG</button>
-        <button class="org-btn" id="btn-export-figma" title="Send the active step's SVG to the Organica Figma plugin">Figma</button>
+        <button class="org-btn" id="btn-export-figma" title="Send the active step’s SVG to the Organica Figma plugin">Figma</button>
       </div>
       <p class="org-popover__hint" id="export-hint">Exports the selected component only — click one in the gallery first. Paper background (Palette section), real vector geometry (one path per cell).</p>
       <div class="org-popover__divider"></div>
@@ -406,7 +406,7 @@
           </select>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Corner = a quarter-style wedge pivoting on the cell's top-left corner (the classic Arc). Centre = pivots on the middle, starting straight up.">Pivot</div>
+          <div class="ctrl-label" title="Corner = a quarter-style wedge pivoting on the cell’s top-left corner (the classic Arc). Centre = pivots on the middle, starting straight up.">Pivot</div>
           <select class="panel-select" id="sel-arc-pivot" aria-label="Arc pivot">
             <option value="corner" selected>Corner</option>
             <option value="center">Centre</option>
@@ -423,12 +423,12 @@
           <span class="ctrl-val" id="v-thickness">100</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rotates the arc in place (degrees, added to the pivot's own start angle).">Start angle</div>
+          <div class="ctrl-label" title="Rotates the arc in place (degrees, added to the pivot’s own start angle).">Start angle</div>
           <input type="range" id="rg-arc-start" min="0" max="359" step="1" value="0">
           <span class="ctrl-val" id="v-arc-start">0</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rounds the arc's ends — 100 is a full semicircular cap (needs Thickness below 100).">Rounding</div>
+          <div class="ctrl-label" title="Rounds the arc’s ends — 100 is a full semicircular cap (needs Thickness below 100).">Rounding</div>
           <input type="range" id="rg-arc-round" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-arc-round">0</span>
         </div>
@@ -443,7 +443,7 @@
           <span class="ctrl-val" id="v-arc-segs">1</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Gap between dashes, as a % of a dash's length.">Dash gap</div>
+          <div class="ctrl-label" title="Gap between dashes, as a % of a dash’s length.">Dash gap</div>
           <input type="range" id="rg-arc-gap" min="0" max="80" step="1" value="20">
           <span class="ctrl-val" id="v-arc-gap">20</span>
         </div>
@@ -512,7 +512,7 @@
           <span class="ctrl-val" id="v-tru-segs">1</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Gap between dashes, as a % of a dash's length.">Dash gap</div>
+          <div class="ctrl-label" title="Gap between dashes, as a % of a dash’s length.">Dash gap</div>
           <input type="range" id="rg-tru-gap" min="0" max="80" step="1" value="20">
           <span class="ctrl-val" id="v-tru-gap">20</span>
         </div>
@@ -618,12 +618,12 @@
       </div>
       <div id="seed-chevron-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label" title="How far down the inner V's apex sits — lower is a shallower chevron.">Notch</div>
+          <div class="ctrl-label" title="How far down the inner V’s apex sits — lower is a shallower chevron.">Notch</div>
           <input type="range" id="rg-chev-notch" min="10" max="90" step="1" value="40">
           <span class="ctrl-val" id="v-chev-notch">40</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="The ribbon's own thickness — outer legs always reach the cell's bottom corners.">Thickness</div>
+          <div class="ctrl-label" title="The ribbon’s own thickness — outer legs always reach the cell’s bottom corners.">Thickness</div>
           <input type="range" id="rg-chev-arm" min="20" max="80" step="1" value="55">
           <span class="ctrl-val" id="v-chev-arm">55</span>
         </div>
@@ -647,7 +647,7 @@
       </div>
       <div id="seed-lens-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Width at the midline — tips are always fixed to the cell's top/bottom edges.">Width</div>
+          <div class="ctrl-label" title="Width at the midline — tips are always fixed to the cell’s top/bottom edges.">Width</div>
           <input type="range" id="rg-lens-width" min="8" max="95" step="1" value="50">
           <span class="ctrl-val" id="v-lens-width">50</span>
         </div>
@@ -836,12 +836,12 @@
           <span class="ctrl-val" id="v-wedge-seed">1</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Jitters each vertex's own radius — 0 stays a perfectly regular polygon.">Irregularity</div>
+          <div class="ctrl-label" title="Jitters each vertex’s own radius — 0 stays a perfectly regular polygon.">Irregularity</div>
           <input type="range" id="rg-poly-irregular" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-poly-irregular">0</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Jitters each vertex's angle (uneven side lengths). Independent of Irregularity, which jitters the radius.">Angle jitter</div>
+          <div class="ctrl-label" title="Jitters each vertex’s angle (uneven side lengths). Independent of Irregularity, which jitters the radius.">Angle jitter</div>
           <input type="range" id="rg-poly-skew" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-poly-skew">0</span>
         </div>
@@ -851,7 +851,7 @@
           <span class="ctrl-val" id="v-poly-seed">1</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Jitters every point's own radius — 0 stays a perfectly regular star.">Irregularity</div>
+          <div class="ctrl-label" title="Jitters every point’s own radius — 0 stays a perfectly regular star.">Irregularity</div>
           <input type="range" id="rg-star-irregular" min="0" max="100" step="1" value="0">
           <span class="ctrl-val" id="v-star-irregular">0</span>
         </div>
@@ -861,12 +861,12 @@
           <span class="ctrl-val" id="v-star-seed">1</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the triangle's inradius, so 0 is solid. This is real geometry, separate from Style → Stroke.">Outline (hollow)</div>
+          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the triangle’s inradius, so 0 is solid. This is real geometry, separate from Style → Stroke.">Outline (hollow)</div>
           <input type="range" id="rg-tri-outline" min="0" max="95" step="1" value="0">
           <span class="ctrl-val" id="v-tri-outline">0</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the polygon's inradius, so 0 is solid. Real geometry, separate from Style → Stroke. Ignored when Step is above 1.">Outline (hollow)</div>
+          <div class="ctrl-label" title="Hollow ring — wall thickness as a % of the polygon’s inradius, so 0 is solid. Real geometry, separate from Style → Stroke. Ignored when Step is above 1.">Outline (hollow)</div>
           <input type="range" id="rg-poly-outline" min="0" max="95" step="1" value="0">
           <span class="ctrl-val" id="v-poly-outline">0</span>
         </div>
@@ -901,7 +901,7 @@
           <span class="ctrl-val" id="v-chev-squash">100</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="100 touches the cell's edges. Use Width/Length in Look &amp; place for an ellipse.">Radius</div>
+          <div class="ctrl-label" title="100 touches the cell’s edges. Use Width/Length in Look &amp; place for an ellipse.">Radius</div>
           <input type="range" id="rg-circle-radius" min="5" max="100" step="1" value="100">
           <span class="ctrl-val" id="v-circle-radius">100</span>
         </div>
@@ -988,7 +988,7 @@
         <span class="ctrl-val" id="v-inner-count">0</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" id="lbl-inner-ratio" title="Each copy's size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
+        <div class="ctrl-label" id="lbl-inner-ratio" title="Each copy’s size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
         <input type="range" id="rg-inner-ratio" min="10" max="95" step="1" value="70">
         <span class="ctrl-val" id="v-inner-ratio">70</span>
       </div>
@@ -1015,7 +1015,7 @@
           </select>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Distance between lines / dots / rings, in the Element's 0–100 box.">Spacing</div>
+          <div class="ctrl-label" title="Distance between lines / dots / rings, in the Element’s 0–100 box.">Spacing</div>
           <input type="range" id="rg-element-patspacing" min="3" max="30" step="0.5" value="8">
           <span class="ctrl-val" id="v-element-patspacing">8</span>
         </div>
@@ -1030,7 +1030,7 @@
           <span class="ctrl-val" id="v-element-patangle">45</span>
         </div>
       </div>
-      <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move, Rotate and Fit act on the whole Element. One layer's own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
+      <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move, Rotate and Fit act on the whole Element. One layer’s own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Uniform size of the shape itself, before it is placed in any cell.">Scale</div>
         <input type="range" id="rg-element-scale" min="0.1" max="5" step="0.01" value="1">
@@ -1110,7 +1110,7 @@
          grid); on any other grid each cell's content grows past its cell (%). Paper under = the drawing as before. -->
     <div class="panel-section" id="symbol-overlap-section">
       <h3>Overlap &amp; blend</h3>
-      <div class="ctrl-row"><div class="ctrl-label" id="symbol-overlap-label" title="How far each cell's content reaches into its neighbours">Overlap</div>
+      <div class="ctrl-row"><div class="ctrl-label" id="symbol-overlap-label" title="How far each cell’s content reaches into its neighbours">Overlap</div>
         <input type="range" id="rg-symbol-overlap" min="0" max="100" step="1" value="0" aria-label="Overlap"><span class="ctrl-val" id="v-symbol-overlap">0</span></div>
       <div class="ctrl-row"><div class="ctrl-label" title="How overlapping contents are drawn">Blend</div>
         <select class="panel-select" id="sel-symbol-blend" aria-label="Blend">
@@ -1260,7 +1260,7 @@
         <div class="ctrl-row"><div class="ctrl-label">Phase</div>
           <input type="range" id="rg-osc-phase" min="0" max="5" step="1" value="1"><span class="ctrl-val" id="v-osc-phase">1</span>
         </div>
-        <p class="org-panel__hint">Rotates a cell by Angle step whenever (column + ⌊Row shift × row⌋) mod Period equals Phase, else leaves it at 0° — the concentric-arc "Truchet" reference (bookofshapes.com/patterns/concentric_arc_truchet_3). Pair with the Arc truchet Seed (step 01) for the exact look. Same rule as the Symbols tier's own Oscillator, generalised to any grid size here.</p>
+        <p class="org-panel__hint">Rotates a cell by Angle step whenever (column + ⌊Row shift × row⌋) mod Period equals Phase, else leaves it at 0° — the concentric-arc "Truchet" reference (bookofshapes.com/patterns/concentric_arc_truchet_3). Pair with the Arc truchet Seed (step 01) for the exact look. Same rule as the Symbols tier’s own Oscillator, generalised to any grid size here.</p>
       </div>
 
       <div id="rule-exhaustive-block" style="display:none">
@@ -1280,7 +1280,7 @@
 
     <div class="panel-section">
       <h3>Role</h3>
-      <div class="ctrl-row"><div class="ctrl-label" title="How the cells' inks draw where they overlap (raise Scale to make them overlap)">Blend</div>
+      <div class="ctrl-row"><div class="ctrl-label" title="How the cells’ inks draw where they overlap (raise Scale to make them overlap)">Blend</div>
         <select class="panel-select" id="sel-component-blend" aria-label="Blend"><option value="normal">Normal</option><option value="multiply">Multiply</option></select></div>
       <div class="ctrl-row"><div class="ctrl-label">Role</div>
         <select class="panel-select" id="sel-component-role" aria-label="Component role">
@@ -1360,7 +1360,7 @@
             </select>
           </div>
           <div class="ctrl-row">
-            <div class="ctrl-label" title="The tile's size, in % of the spacing.">Size</div>
+            <div class="ctrl-label" title="The tile’s size, in % of the spacing.">Size</div>
             <input type="range" id="rg-ground-patsize" min="10" max="100" step="1" value="70">
             <span class="ctrl-val" id="v-ground-patsize">70</span>
           </div>
@@ -1370,7 +1370,7 @@
           <select class="panel-select" id="sel-ground-ink" aria-label="Paper pattern ink"></select>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="In 1/100 of the canvas's short side.">Spacing</div>
+          <div class="ctrl-label" title="In 1/100 of the canvas’s short side.">Spacing</div>
           <input type="range" id="rg-ground-patspacing" min="1.5" max="30" step="0.5" value="4">
           <span class="ctrl-val" id="v-ground-patspacing">4</span>
         </div>
@@ -1507,7 +1507,7 @@
         <button class="mini-btn" id="btn-rule-choose-content" style="width:100%">Set content for all cells…</button>
         <button class="mini-btn" id="btn-symbol-apply-rule" style="width:100%;margin-top:var(--space-1)">Apply rule</button>
         <button class="mini-btn" id="btn-symbol-clear-rule" style="width:100%;margin-top:var(--space-1)">Reset &amp; apply to all</button>
-        <p class="org-panel__hint">The rule fills every cell's transform from its column/row (Oscillator / Checkerboard / Rows / Columns) or its position (Radial / Wave / Random). Content is never changed — set it once with Choose content → "Apply to all". Edit individual cells afterward in Manual; lock a cell there so <em>Apply rule</em> skips it. <em>Reset &amp; apply to all</em> ignores locks.</p>
+        <p class="org-panel__hint">The rule fills every cell’s transform from its column/row (Oscillator / Checkerboard / Rows / Columns) or its position (Radial / Wave / Random). Content is never changed — set it once with Choose content → "Apply to all". Edit individual cells afterward in Manual; lock a cell there so <em>Apply rule</em> skips it. <em>Reset &amp; apply to all</em> ignores locks.</p>
       </div>
 
       <div id="symbol-suggest-block">
@@ -1551,7 +1551,7 @@
           </button>
         </div>
         <button class="mini-btn" id="btn-symbol-regenerate" style="width:100%">Arrange</button>
-        <p class="org-panel__hint">Places the pool's Components by a rule — which one goes in each cell follows its column/row, ring, sector or band (the n-th class takes the n-th Component). Random picks by weight. Locked cells stay. Then refine transforms with Rule, or single cells in Manual.</p>
+        <p class="org-panel__hint">Places the pool’s Components by a rule — which one goes in each cell follows its column/row, ring, sector or band (the n-th class takes the n-th Component). Random picks by weight. Locked cells stay. Then refine transforms with Rule, or single cells in Manual.</p>
       </div>
       <div id="symbol-manual-block" style="display:none">
         <p class="org-panel__hint">Click a cell on the canvas to select it; drag to select several; ⌘-click (Ctrl-click on Windows) adds or removes a cell. Click a selected cell again — or double-click a cell — to choose its content, for the whole selection. Every change below applies to the selection.</p>
@@ -1567,7 +1567,7 @@
           <div class="ctrl-row" id="row-cellprop-seedparams">
             <div class="ctrl-label">Shape</div>
             <span class="ctrl-val" id="symbol-cellprop-seedparams-label" style="flex:1;text-align:left">Default</span>
-            <button class="mini-btn" id="btn-cellprop-useseed" title="Copy the Element step's current settings (extras, thickness…) into the selected cells">Use Element</button>
+            <button class="mini-btn" id="btn-cellprop-useseed" title="Copy the Element step’s current settings (extras, thickness…) into the selected cells">Use Element</button>
             <button class="mini-btn" id="btn-cellprop-defseed" title="Back to the plain default shape">Default</button>
           </div>
           <div class="ctrl-row" id="row-cellprop-rotation"><div class="ctrl-label">Rotation</div>
@@ -1676,7 +1676,7 @@
       <div class="ctrl-row"><div class="ctrl-label">Empty rows</div><input type="text" class="panel-select" id="fg-emptyrows" placeholder="e.g. 0 or 0,2" aria-label="Empty rows (numbers from the top, starting at 0)"></div>
       <div class="ctrl-row"><div class="ctrl-label">Odd cells</div>
         <select class="panel-select" id="fg-odd" aria-label="Rotation of odd cells"><option value="none">Unchanged</option><option value="60">Rotate 60°</option><option value="90">Rotate 90°</option><option value="120">Rotate 120°</option><option value="180">Rotate 180°</option><option value="240">Rotate 240°</option><option value="270">Rotate 270°</option><option value="300">Rotate 300°</option></select></div>
-      <label class="check-row"><input type="checkbox" id="fg-liveseed"><span>Use the Element step's own settings</span></label>
+      <label class="check-row"><input type="checkbox" id="fg-liveseed"><span>Use the Element step’s own settings</span></label>
       <p class="org-panel__hint">Up/Down apply to triangular lattices; "odd" is the checkerboard parity of column + row. With the box ticked, each cell keeps the shape as configured in the Element step (extras, thickness…) instead of the plain default.</p>
     </div>
     <div class="panel-section">
@@ -1707,7 +1707,7 @@
       <div class="ctrl-row"><button class="mini-btn" id="fg-ref-load" style="flex:1">Load image…</button><button class="mini-btn" id="fg-ref-clear">Clear</button></div>
       <input type="file" id="fg-ref-file" accept="image/*" class="org-file-input" aria-label="Reference image">
       <div class="ctrl-row"><div class="ctrl-label">Overlay</div><input type="range" id="fg-ref-opacity" min="0" max="100" value="45"><span class="ctrl-val" id="v-fg-ref-opacity">45</span></div>
-      <p class="org-panel__hint">The image's dark/coloured shape is fitted onto the figure's own box; the check reports how much the two silhouettes overlap. Crop the reference to one figure first.</p>
+      <p class="org-panel__hint">The image’s dark/coloured shape is fitted onto the figure’s own box; the check reports how much the two silhouettes overlap. Crop the reference to one figure first.</p>
     </div>
     <div class="panel-section">
       <h3>Recipe JSON</h3>
