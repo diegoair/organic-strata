@@ -25,7 +25,7 @@ import {
   LIBRARY, PAPER_NONE, buildLibraryEntry, hexKey, isPaperNone
 } from './07-library.js';
 import {
-  LIVE_SYMBOL, buildFvsGridSVG, defaultSymbolCells, getFvsGrid, getSymbolGrid, hexLoomModel, snapPose, squareLoomModel,
+  LIVE_SYMBOL, buildFvsGridSVG, defaultSymbolCells, getFvsGrid, getSymbolGrid, hexLoomModel, snapPose, squareLoomModel, symbolFrame,
   triangleLoomModel, withPlacementDefaults
 } from './08-symbol-grid.js';
 import {
@@ -35,6 +35,18 @@ import {
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
+// A saved Element / Component (with a copy of its entry) → the patch a Symbol cell takes (the Library rail's railPatch,
+// from the copy). Used by the Figure graph's content and by Composition rules that drop content into cells.
+export function contentPatch(c, fit) {
+  const base = { rotation: 0, flipH: false, flipV: false, fitMode: fit || 'contain', scale: 1, padding: 0, anchorX: 0, anchorY: 0, colourway: null };
+  if (c.kind === 'component') return { ...base, source: 'component', componentName: c.name, span: true, ownColors: null, ownPaper: null, ownAppearance: null };
+  const e = c.entry || {};
+  const sp = clone(e.seed), o = e.orientation || {};
+  if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
+  return { ...base, source: 'seed', seedType: sp.type, seedParams: sp, color: null,
+    ownColors: e.colors && e.colors.length ? e.colors.slice() : null, ownPaper: e.paperColor || null, ownAppearance: e.appearance || null,
+    rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV };
+}
 // Run fn(panel) with FVS swapped for its boot-time copy; always restore. `panel` sets a virtual control.
 export function withFigureSandbox(fn) {
   if (!figurePristine.state) throw new Error('The Figure evaluator is not ready yet — FVS is still starting');
@@ -113,15 +125,19 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
   if (first.rules && first.rules.length) applyRulesToContent(first.rules);
 }
 // Cell rules on a sealed level (the Figure graph's cells hold content patches): applyClassRules()'s order and
-// matching, but "filled" puts back the cell's own content (or a Seed of `do.seed`), never a bare Seed.
+// matching, but "filled" puts back the cell's own content (or a Seed of `do.seed`), never a bare Seed. Composition
+// rules add: content: {kind, name, entry} (drop saved content into the cells), toggle (empty ↔ its content), color.
 function applyRulesToContent(rules) {
   const own = state.symbolCells.map(c => clone(c)), ctxs = slotClassContext(getSymbolGrid());
   state.symbolCells.forEach((cell, i) => {
     rules.forEach(r => {
       if (r.off || !ruleMatches(r.when || {}, ctxs[i])) return;
       const d = r.do || {};
-      if (d.content === 'empty') cell.source = 'empty';
+      if (d.content && typeof d.content === 'object') { const pose = { rotation: cell.rotation, flipH: cell.flipH, flipV: cell.flipV }; Object.assign(cell, withPlacementDefaults(contentPatch(d.content, cell.fitMode)), d.keepPose ? pose : {}); own[i] = clone(cell); }
+      else if (d.toggle) { if (cell.source === 'empty') Object.assign(cell, { source: own[i].source === 'empty' ? 'seed' : own[i].source }); else cell.source = 'empty'; }
+      else if (d.content === 'empty') cell.source = 'empty';
       else if (d.content === 'filled') { Object.assign(cell, d.seed ? { source: 'seed', seedType: d.seed } : { source: own[i].source === 'empty' ? 'seed' : own[i].source }); }
+      if (d.color) cell.color = d.color;
       if (d.rotate != null) cell.rotation = snapPose(d.rotate === 'sector' ? 60 * (ctxs[i].sector || 0) : d.rotate);
       if (d.flipH != null) cell.flipH = !!d.flipH;
       if (d.flipV != null) cell.flipV = !!d.flipV;
@@ -188,6 +204,12 @@ export function evalFigure(def) {
     const stats = state.figureLevelStats.slice();
     const levels = { component: figureSVGOf('component'), symbol: figureSVGOf('symbol') };
     const cells = first.kind === 'symbol' ? state.symbolCells.length : (getSelectedComponent() ? getSelectedComponent().cells.length : 0);
-    return { svg, tier, levels, metas, stats, shapes, cells };
+    let compose = null;   // what Compose needs to hit and select cells: each cell's class and its outline in the frame
+    if (first.kind === 'symbol' && getSymbolGrid()) {
+      const G = getSymbolGrid(), F = symbolFrame(G);
+      compose = { w: F.w, h: F.h, ctxs: slotClassContext(G),
+        outlines: G.cells.map(c => (c.points ? c.points : [[c.x, c.y], [c.x + c.width, c.y], [c.x + c.width, c.y + c.height], [c.x, c.y + c.height]]).map(p => [+F.X(p[0]).toFixed(2), +F.Y(p[1]).toFixed(2)])) };
+    }
+    return { svg, tier, levels, metas, stats, shapes, cells, compose };
   });
 }

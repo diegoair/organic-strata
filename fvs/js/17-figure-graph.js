@@ -102,6 +102,7 @@ function figureImg(id, svg) {
 }
 function renderBody(node, entry, el) {
   const p = node.params || {}, v = entry && entry.value;
+  if (node.type === 'figure' && composing && composing.fig === node.id) requestAnimationFrame(drawCompose);
   if (node.type === 'figure') {
     const f = v && v.figure;
     if (!f) { el.innerHTML = ''; return; }
@@ -232,8 +233,9 @@ function renderNodebar(cat) {
   const panel = ctrl('fg-nodebar-panel');
   panel.setAttribute('aria-label', cat);
   let html = `<p class="fg-nodebar__hint">Drag onto the graph, or click to add</p>`;
-  const items = nodebarItems(cat);
+  const items = composing ? [] : nodebarItems(cat);
   if (items.length) html += `<div class="fg-nodebar__list">${items.map((it, i) => `<button type="button" class="fg-nodebar__item" data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${esc(it.label)}</button>`).join('')}</div>`;
+  if (composing) html = `<p class="fg-nodebar__hint">Drop on a cell, or click to give it to the selected cells</p>`;
   if (cat === 'Content') {
     const s = savedEntries();
     const block = (kind, title, list, step) => `<div class="sub-label">${title}</div>` + (list.length
@@ -241,7 +243,7 @@ function renderNodebar(cat) {
       : `<p class="fg-nodebar__empty">Nothing saved yet — save ${kind === 'element' ? 'an Element in the Element' : 'a Component in the Component'} step first.</p>`);
     html += block('element', 'Elements', s.element) + block('component', 'Components', s.component);
     const sets = Object.keys(SETS.read()).sort((a, b) => a.localeCompare(b));
-    html += `<div class="sub-label">Saved Sets</div>` + (sets.length ? `<div class="fg-nodebar__list">${sets.map(n => `<button type="button" class="fg-nodebar__item fg-nodebar__set" data-set="${esc(n)}" aria-label="Add Set: ${esc(n)}">${esc(n)}</button>`).join('')}</div>` : `<p class="fg-nodebar__empty">No Sets yet — New Set makes one</p>`);
+    if (!composing) html += `<div class="sub-label">Saved Sets</div>` + (sets.length ? `<div class="fg-nodebar__list">${sets.map(n => `<button type="button" class="fg-nodebar__item fg-nodebar__set" data-set="${esc(n)}" aria-label="Add Set: ${esc(n)}">${esc(n)}</button>`).join('')}</div>` : `<p class="fg-nodebar__empty">No Sets yet — New Set makes one</p>`);
   }
   panel.innerHTML = html;
   panel._items = items;
@@ -250,6 +252,7 @@ function setNodebar(cat) {
   openCat = cat;
   const panel = ctrl('fg-nodebar-panel');
   ctrl('fg-nodebar').querySelectorAll('[data-cat]').forEach(b => b.setAttribute('aria-expanded', String(b.dataset.cat === cat)));
+  if (composing && cat && cat !== 'Content') cat = 'Content';
   if (cat) { renderNodebar(cat); panel.dataset.open = 'true'; panel.inert = false; }
   else { panel.dataset.open = 'false'; panel.inert = true; }
 }
@@ -261,10 +264,8 @@ function nodebarSpec(target) {
   return null;
 }
 function initNodebar() {
-  ctrl('fg-nodebar').querySelectorAll('[data-cat]').forEach(b => {
-    b.innerHTML = Organica.icons.get(ICON[b.dataset.cat]);
-    b.addEventListener('click', () => setNodebar(openCat === b.dataset.cat ? null : b.dataset.cat));
-  });
+  ctrl('fg-nodebar').querySelectorAll('[data-cat]').forEach(b => { b.innerHTML = Organica.icons.get(ICON[b.dataset.cat]); });
+  ctrl('fg-nodebar').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b) setNodebar(openCat === b.dataset.cat ? null : b.dataset.cat); });
   const panel = ctrl('fg-nodebar-panel');
   // drag a node type / a saved entry onto the graph (the ghost lives on <body>: the dock is transformed)
   panel.addEventListener('pointerdown', e => {
@@ -281,8 +282,11 @@ function initNodebar() {
       panel.classList.remove('is-dragging-away'); document.body.classList.remove('is-rail-dragging');
       if (ghost) {
         ghost.remove();
+        if (composing) { if (ev.type === 'pointerup' && !composeDrop(spec, ev.clientX, ev.clientY)) Organica.notice('Drop it on a cell'); return; }
         const r = ctrl('fg-graph').getBoundingClientRect();
         if (ev.type === 'pointerup' && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) addNode(spec.type, centred(ctl.toBoard(ev.clientX, ev.clientY), spec.type), spec.name ? { ...spec.params, __name: spec.name } : spec.params);
+      } else if (ev.type === 'pointerup' && composing) {   // a click while composing: give the item to the selected cells
+        if (spec.type === 'element' || spec.type === 'component') addComposeRule({ content: { kind: spec.type, name: spec.params.name, entry: spec.params.snapshot } });
       } else if (ev.type === 'pointerup') addNode(spec.type, null, spec.name ? { ...spec.params, __name: spec.name } : spec.params);   // a click: add at the view centre
     };
     src.addEventListener('pointermove', move); src.addEventListener('pointerup', up); src.addEventListener('pointercancel', up);
@@ -445,6 +449,7 @@ function renderInspector(ids) {
         ctrl('fgi-layout').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; p.layout = b.dataset.v; edited(node, true); renderInspector(ids); ctl.paint(node.id); });
         ctrl('fgi-renew').addEventListener('click', () => { p.seed = (+p.seed || 1) + 1; edited(node, true); renderInspector(ids); });
       } });
+    rows.push({ html: `<div class="row-btns"><button type="button" class="mini-btn" id="fgi-compose">Compose…</button></div>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });
     rows.push({ html: '<div class="sub-label">Cells</div>' });
     rows.push(selectRow('Fit in cell', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; edited(node, true); }));
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-keepown"${p.keepOwn ? ' checked' : ''}> Keep own colours</label>`,
@@ -639,6 +644,157 @@ function spawnFor(node, port, dir) {
   openSearch({ x: dir === 'in' ? node.x - 260 : node.x + (card ? card.offsetWidth : 200) + 60, y: node.y }, { node: node.id, port, dir }, r ? { x: dir === 'in' ? r.left - 250 : r.right + 10, y: r.top } : null);
 }
 
+// ── Compose (Phase 5, ledger O-32): a mode of the Figure step. The Figure's own cells, selectable; every action is a
+// rule on the Figure's Composition node (created and wired on first entry), so it applies to all its variations and
+// survives upstream changes. Selection tools keep their meaning (a row stays "row 3" when the Grid changes).
+let composing = null;   // { fig, comp, sel: Set<index>, when: {…} | null, tool, view: {zoom, pan}, anchor }
+const COMPOSE_TOOLS = [['row', 'select-row', 'Row'], ['col', 'select-column', 'Column'], ['class', 'select-class', 'Similar cells'], ['range', 'select-range', 'Range']];
+function figureValue(id) { const e = ctl.engine.get(id); return e && e.state === 'ok' && e.value ? e.value.figure : null; }
+function compNode() { return composing && NC.findNode(ctl.model, composing.comp); }
+function enterCompose(figId) {
+  const fig = NC.findNode(ctl.model, figId); if (!fig) return;
+  let edge = ctl.model.edges.find(e => e.to.node === figId && e.to.port === 'composition'), comp = edge && NC.findNode(ctl.model, edge.from.node);
+  if (!comp) {   // one undo step: the Composition node and its wire
+    comp = NC.addNode(ctl.model, { type: 'composition', x: fig.x - 220, y: fig.y + 300, params: { rules: [] }, name: 'Composition' });
+    NC.addEdge(ctl.model, { node: comp.id, port: 'composition' }, { node: figId, port: 'composition' });
+    ctl.touch(figId); ctl.refresh(); ctl.commit('compose'); save();
+  }
+  composing = { fig: figId, comp: comp.id, sel: new Set(), when: null, tool: null, anchor: null, view: { zoom: ctl.zoomPan.zoom, ...ctl.zoomPan.pan } };
+  document.body.classList.add('fg-composing');
+  ctrl('fg-graph').hidden = true; ctrl('fg-compose').hidden = false;
+  ctrl('fb-figure-actions').style.display = 'none'; ctrl('fb-compose-actions').style.display = '';
+  setNodebar(null); renderComposeBar();
+  ctrl('fg-compose-title').textContent = 'Compose ' + nodeLabel(fig);
+  ctl.run(); drawCompose(); renderComposeInspector();
+  ctrl('fg-compose-back').focus({ preventScroll: true });
+}
+function exitCompose() {
+  if (!composing) return;
+  const fig = composing.fig, view = composing.view; composing = null;
+  document.body.classList.remove('fg-composing');
+  ctrl('fg-compose').hidden = true; ctrl('fg-graph').hidden = false;
+  ctrl('fb-compose-actions').style.display = 'none'; ctrl('fb-figure-actions').style.display = '';
+  renderNodebarButtons();
+  ctl.zoomPan.setView({ zoom: view.zoom, panX: view.x, panY: view.y });
+  ctl.select([fig]); ctl.refresh(); ctl.pulse([fig]);
+}
+function drawCompose() {
+  if (!composing) return;
+  const f = figureValue(composing.fig), stage = ctrl('fg-compose-stage');
+  const fig = NC.findNode(ctl.model, composing.fig), n = fig ? (+fig.params.variations || 1) : 1;
+  ctrl('fg-compose-note').textContent = `Applies to all ${n} ${n === 1 ? 'variation' : 'variations'} of ${fig ? nodeLabel(fig) : 'the Figure'}`;
+  if (!f) { stage.innerHTML = '<p class="fg-compose__empty">Updating…</p>'; return; }
+  if (!f.compose || !f.base) { stage.innerHTML = '<p class="fg-compose__empty">This Figure has no cells to compose — a Component rule lays out its own.</p>'; return; }
+  const C = f.compose, base = f.base.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  stage.innerHTML = `<svg class="fg-compose__svg" viewBox="0 0 ${C.w} ${C.h}" role="group" aria-label="Cells">${base}<g class="fg-cells">${C.outlines.map((pts, i) => `<polygon class="fg-cell${composing.sel.has(i) ? ' is-sel' : ''}" data-i="${i}" points="${pts.map(p => p.join(',')).join(' ')}" tabindex="-1"><title>Cell ${i + 1}</title></polygon>`).join('')}</g></svg>`;
+}
+function renderComposeBar() {   // the left dock while composing: the selection tools + the saved items to drop into cells
+  const bar = ctrl('fg-nodebar');
+  bar.setAttribute('aria-label', 'Select cells');
+  bar.innerHTML = COMPOSE_TOOLS.map(([k, icon, label]) => `<button class="org-floatbar__btn" data-tool="${k}" aria-pressed="${composing.tool === k}" aria-label="Select ${label === 'Similar cells' ? 'similar cells' : label.toLowerCase()}">${Organica.icons.get(icon)}</button>`).join('')
+    + `<span class="org-dock__sep" aria-hidden="true"></span><button class="org-floatbar__btn" data-cat="Content" aria-label="Saved items" aria-expanded="false" aria-controls="fg-nodebar-panel">${Organica.icons.get('grid')}</button>`;
+}
+function renderNodebarButtons() {   // back to the node bar
+  const bar = ctrl('fg-nodebar'); bar.setAttribute('aria-label', 'Nodes');
+  bar.innerHTML = ['Foundation', 'Content', 'Rules', 'Output'].map(c => `<button class="org-floatbar__btn" data-cat="${c}" aria-label="${c === 'Rules' ? 'Rule' : c} nodes" aria-expanded="false" aria-controls="fg-nodebar-panel">${Organica.icons.get(ICON[c])}</button>`).join('');
+  setNodebar(null);
+}
+function selectionWhen() { return composing.when || (composing.sel.size ? { index: [...composing.sel].sort((a, b) => a - b) } : null); }
+function pickCells(i, e) {   // a click on cell i, with the current selection tool
+  const f = figureValue(composing.fig); if (!f || !f.compose) return;
+  const ctxs = f.compose.ctxs, c = ctxs[i], tool = composing.tool;
+  const by = when => { composing.when = when; composing.sel = new Set(ctxs.filter(x => Object.entries(when).every(([k, v]) => [].concat(v).includes(x[k]))).map(x => x.index)); };
+  if (tool === 'row') by({ row: [c.row] });
+  else if (tool === 'col') by({ col: [c.col] });
+  else if (tool === 'class') by(c.orient ? { class: c.orient } : c.ring != null ? { ring: [c.ring] } : { parity: c.parity });
+  else if (tool === 'range' && composing.anchor != null) { const a = Math.min(composing.anchor, i), b = Math.max(composing.anchor, i); composing.when = null; composing.sel = new Set(Array.from({ length: b - a + 1 }, (_, k) => a + k)); }
+  else {
+    composing.when = null;
+    if (e && (e.metaKey || e.ctrlKey || e.shiftKey)) { if (composing.sel.has(i)) composing.sel.delete(i); else composing.sel.add(i); }
+    else composing.sel = new Set([i]);
+  }
+  composing.anchor = i; drawCompose(); renderComposeInspector();
+}
+function addComposeRule(d, when) {
+  const comp = compNode(); when = when || selectionWhen(); if (!comp || !when) { Organica.notice('Select cells first'); return; }
+  comp.params.rules = (comp.params.rules || []).concat([{ when: JSON.parse(JSON.stringify(when)), do: d }]);
+  ctl.touch(comp.id); ctl.commit('compose'); save(); renderComposeInspector();
+}
+const QUICK = [['toggle', 'Toggle', { toggle: true }], ['empty', 'Empty', { content: 'empty' }], ['filled', 'Filled', { content: 'filled' }], ['rot', 'Rotate 90°', { rotate: 90 }], ['rot180', 'Rotate 180°', { rotate: 180 }], ['fh', 'Flip H', { flipH: true }], ['fv', 'Flip V', { flipV: true }]];
+function describeComposeRule(r) {
+  const w = r.when || {}, d = r.do || {};
+  const where = w.index ? (w.index.length === 1 ? 'cell ' + (w.index[0] + 1) : w.index.length + ' cells') : describeRule({ when: w, do: {} }).split(' → ')[0];
+  const what = d.content && typeof d.content === 'object' ? d.content.name : d.toggle ? 'Toggle' : d.color ? 'Colour ' + d.color : describeRule({ when: {}, do: d }).split(' → ')[1];
+  return where + ' → ' + what;
+}
+function renderComposeInspector() {
+  const box = ctrl('fg-inspector'); if (!box || !composing) return;
+  const comp = compNode(), rules = comp ? comp.params.rules || [] : [], f = figureValue(composing.fig);
+  const pal = foundationOf(NC.findNode(ctl.model, composing.fig) || {})[2], inks = pal ? (pal.params.colors || []) : [];
+  const s = savedEntries(), n = composing.sel.size;
+  box.innerHTML = `<div class="panel-section"><h3>Composition</h3>
+    <p class="panel-hint">Selection: ${n} ${n === 1 ? 'cell' : 'cells'}${composing.when && !composing.when.index ? ' — ' + esc(describeRule({ when: composing.when, do: {} }).split(' → ')[0]) : ''}</p>
+    <div class="row-btns fg-quick">${QUICK.map(([k, l]) => `<button type="button" class="mini-btn" data-quick="${k}"${n ? '' : ' disabled'}>${l}</button>`).join('')}</div>
+    <div class="sub-label">Add rule to selection</div>
+    <div class="ctrl-row"><div class="ctrl-label">They get</div><select class="panel-select" id="fgc-does" aria-label="They get">
+      <optgroup label="Cells">${QUICK.map(([k, l]) => `<option value="q:${k}">${l}</option>`).join('')}</optgroup>
+      ${inks.length ? `<optgroup label="Colour">${inks.map((h, i) => `<option value="c:${h}">Ink ${i + 1} ${h}</option>`).join('')}</optgroup>` : ''}
+      <optgroup label="Content">${s.element.map(e => `<option value="e:${esc(e.name)}">${esc(e.name)}</option>`).join('')}${s.component.map(e => `<option value="k:${esc(e.name)}">${esc(e.name)}</option>`).join('')}</optgroup></select></div>
+    <div class="row-btns"><button type="button" class="mini-btn" id="fgc-add"${n ? '' : ' disabled'}>Add rule to selection</button></div>
+    <div class="sub-label">Region rules</div>
+    <div class="fg-chips" id="fgc-rules">${rules.length ? rules.map((r, i) => `<div class="fg-chip${r.off ? ' is-off' : ''}"><span class="fg-chip__text">${esc(describeComposeRule(r))}</span>
+      <button type="button" class="icon-btn" data-act="off" data-i="${i}" aria-pressed="${!r.off}" aria-label="Region rule ${i + 1} on">${Organica.icons.get(r.off ? 'eye-off' : 'eye', { size: 'xs' })}</button>
+      <button type="button" class="icon-btn" data-act="up" data-i="${i}" aria-label="Move region rule ${i + 1} up"${i ? '' : ' disabled'}>${Organica.icons.get('arrow-up', { size: 'xs' })}</button>
+      <button type="button" class="icon-btn" data-act="down" data-i="${i}" aria-label="Move region rule ${i + 1} down"${i < rules.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down', { size: 'xs' })}</button>
+      <button type="button" class="icon-btn" data-act="del" data-i="${i}" aria-label="Delete region rule ${i + 1}">${Organica.icons.get('trash', { size: 'xs' })}</button></div>`).join('') : '<p class="panel-hint">No region rules yet — select cells, then pick what they get, or drop a saved item on a cell.</p>'}</div>
+    ${f && f.lost && f.lost.length ? f.lost.map(i => `<p class="panel-hint fg-warn">Cell ${i + 1} is not in this grid any more — the placement is kept but not drawn.</p>`).join('') : ''}
+    <p class="panel-hint">Rules apply in order: a later rule wins on the cells it matches. Esc clears the selection, then leaves Compose.</p></div>`;
+  box.querySelectorAll('[data-quick]').forEach(b => b.addEventListener('click', () => addComposeRule(QUICK.find(q => q[0] === b.dataset.quick)[2])));
+  ctrl('fgc-add').addEventListener('click', () => {
+    const v = ctrl('fgc-does').value, t = v.slice(0, 1), x = v.slice(2);
+    if (t === 'q') addComposeRule(QUICK.find(q => q[0] === x)[2]);
+    else if (t === 'c') addComposeRule({ color: x });
+    else { const c = addContent(t === 'e' ? 'element' : 'component', x); addComposeRule({ content: { kind: c.type, name: x, entry: c.params.snapshot } }); }
+  });
+  ctrl('fgc-rules').addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b || !comp) return; const i = +b.dataset.i, rs = comp.params.rules;
+    if (b.dataset.act === 'off') rs[i].off = !rs[i].off;
+    else if (b.dataset.act === 'up' && i) [rs[i - 1], rs[i]] = [rs[i], rs[i - 1]];
+    else if (b.dataset.act === 'down' && i < rs.length - 1) [rs[i + 1], rs[i]] = [rs[i], rs[i + 1]];
+    else if (b.dataset.act === 'del') rs.splice(i, 1);
+    ctl.touch(comp.id); ctl.commit('compose'); save(); renderComposeInspector();
+  });
+}
+function initCompose() {
+  const stage = ctrl('fg-compose-stage');
+  stage.addEventListener('click', e => { const c = e.target.closest('.fg-cell'); if (c) pickCells(+c.dataset.i, e); else if (composing) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); } });
+  ctrl('fg-compose-back').addEventListener('click', exitCompose);
+  ctrl('btn-fg-compose-done').addEventListener('click', exitCompose);
+  ctrl('btn-fg-compose-undo').innerHTML = Organica.icons.get('undo'); ctrl('btn-fg-compose-redo').innerHTML = Organica.icons.get('redo');
+  ctrl('btn-fg-compose-undo').addEventListener('click', () => { ctl.undo(); if (composing) { drawCompose(); renderComposeInspector(); } });
+  ctrl('btn-fg-compose-redo').addEventListener('click', () => { ctl.redo(); if (composing) { drawCompose(); renderComposeInspector(); } });
+  // the left dock: selection tools (aria-pressed) and the saved items panel
+  ctrl('fg-nodebar').addEventListener('click', e => {
+    if (!composing) return; const b = e.target.closest('[data-tool]'); if (!b) return;
+    composing.tool = composing.tool === b.dataset.tool ? null : b.dataset.tool; renderComposeBar();
+  });
+  // drop a saved item on a cell (or on the selection it belongs to)
+  stage.addEventListener('dragover', e => { if (composing && e.target.closest('.fg-cell')) e.preventDefault(); });
+  document.addEventListener('keydown', e => {
+    if (!composing || state.activeTier !== 'figure' || (e.target.closest && e.target.closest('input, select, textarea'))) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (composing.sel.size) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); } else exitCompose(); }
+    else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); e.shiftKey ? ctl.redo() : ctl.undo(); drawCompose(); renderComposeInspector(); }
+  }, true);
+}
+// A saved item dropped from the dock onto a Compose cell: called by the node bar's drag (initNodebar).
+function composeDrop(spec, clientX, clientY) {
+  if (!composing || !spec || (spec.type !== 'element' && spec.type !== 'component')) return false;
+  const hit = document.elementFromPoint(clientX, clientY), cell = hit && hit.closest && hit.closest('#fg-compose-stage .fg-cell'); if (!cell) return false;
+  const i = +cell.dataset.i, when = composing.sel.has(i) ? selectionWhen() : { index: [i] };
+  addComposeRule({ content: { kind: spec.type, name: spec.params.name, entry: spec.params.snapshot } }, when);
+  return true;
+}
+
 // ── persistence: the current graph autosaves; the view (zoom, pan) is per browser ──
 let saveTimer = 0;
 function save() {
@@ -728,7 +884,7 @@ function initGraphMenu() {
 }
 
 export function renderFigureGraph() {
-  if (ctl) { ctl.refresh(); return; }
+  if (ctl) { if (composing) { ctrl('fb-figure-actions').style.display = 'none'; ctrl('fb-compose-actions').style.display = ''; drawCompose(); renderComposeInspector(); } else ctl.refresh(); return; }
   rt.figureGraph = true;
   document.querySelector('.tier-view[data-tier="figure"]').classList.add('is-graph');
   document.querySelector('.tier-block[data-tier="figure"]').classList.add('is-graph');
@@ -745,7 +901,8 @@ export function renderFigureGraph() {
     onBoardDblClick: (at, client) => openSearch(at, null, client),
     onPortDblClick: (node, port, dir) => spawnFor(node, port, dir),
     nameCopy: (copy, model) => NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name,
-    onNodeDblClick: node => { if (node.type === 'figure') Organica.notice('Compose is not available yet.'); },
+    onNodeDblClick: node => { if (node.type === 'figure') enterCompose(node.id); },
+    keepActive: n => !!(composing && n.id === composing.fig),
   });
   try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); if (v) ctl.zoomPan.setView({ zoom: v.zoom, panX: v.x, panY: v.y }); else requestAnimationFrame(() => ctl.fitAll()); } catch (e) { requestAnimationFrame(() => ctl.fitAll()); }
   const icon = (id, name) => { ctrl(id).innerHTML = Organica.icons.get(name); };
@@ -760,6 +917,6 @@ export function renderFigureGraph() {
   ctrl('btn-fg-fit').addEventListener('click', () => ctl.fitAll());
   ctrl('btn-fg-fit-sel').addEventListener('click', () => ctl.fitSelection());
   ctrl('btn-fg-new').addEventListener('click', openNewFigure);
-  initNodebar(); initGraphMenu();
+  initNodebar(); initGraphMenu(); initCompose();
   renderInspector([]); syncButtons();
 }

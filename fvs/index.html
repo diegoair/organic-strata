@@ -115,6 +115,18 @@
     </span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
+  <!-- Compose actions (Phase 5). Shown instead of #fb-figure-actions while composing. -->
+  <div id="fb-compose-actions" class="fvs-fb-group" style="display:none">
+    <span class="org-floatbar__group" role="group" aria-label="Compose">
+      <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-fg-compose-done" aria-label="Done" aria-keyshortcuts="Escape"><span class="fg-graph-btn__label">Done</span></button>
+    </span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+    <span class="org-floatbar__group" role="group" aria-label="History">
+      <button class="org-floatbar__btn" id="btn-fg-compose-undo" aria-label="Undo" aria-keyshortcuts="Meta+Z Control+Z" data-icon-slot></button>
+      <button class="org-floatbar__btn" id="btn-fg-compose-redo" aria-label="Redo" aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z" data-icon-slot></button>
+    </span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+  </div>
   <!-- Symbol-tier actions. Shown only on that tier by setTier(). -->
   <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
     <span class="org-floatbar__group" role="group" aria-label="Symbol">
@@ -314,6 +326,12 @@
     </div>
     <div class="tier-view" data-tier="figure">
       <div id="fg-graph" class="fg-graph" aria-label="Figure graph"></div>
+      <!-- Compose (Phase 5): a mode of the Figure step (ledger O-32) — the figure's cells, selectable; built by 17-figure-graph.js -->
+      <section id="fg-compose" class="fg-compose" aria-labelledby="fg-compose-title" hidden>
+        <nav class="fg-compose__crumb" aria-label="Where you are"><button type="button" class="fg-compose__back" id="fg-compose-back">Graph</button><span aria-hidden="true">›</span><h2 class="fg-compose__title" id="fg-compose-title">Compose</h2></nav>
+        <p class="fg-compose__note" id="fg-compose-note"></p>
+        <div class="fg-compose__stage" id="fg-compose-stage" data-theme="light"></div>
+      </section>
     </div>
     <!-- Library view (Oct 6, 2026): covers the tier views while open (#canvas-wrap.is-libview); built by renderLibview(). -->
     <section id="fvs-libview" class="fvs-libview" aria-labelledby="libview-title" hidden>

@@ -39,11 +39,12 @@ import {
   FG_HUE_TURNS
 } from './14-figure-ui.js';
 import {
-  evalFigure, withFigureSandbox
+  contentPatch, evalFigure, withFigureSandbox
 } from './16-figure-eval.js';
+export { contentPatch };
 
 const clone = o => JSON.parse(JSON.stringify(o));
-export const FIGURE_PORT_TYPES = ['canvas', 'grid', 'palette', 'content', 'rule', 'figure'];
+export const FIGURE_PORT_TYPES = ['canvas', 'grid', 'palette', 'content', 'rule', 'composition', 'figure'];
 export const FIT_PRESET = 'Fit to figure';
 
 // ── Canvas: the figure's page — readSymbolCanvas()'s shape, from params instead of the panel ──
@@ -99,17 +100,7 @@ function latticeOf(g) {   // a lattice grid → recipe v2's lattice
 }
 function latticeModel(l) { return l.type === 'triangle' ? triangleLoomModel(l.rows) : l.type === 'hexagon' ? hexLoomModel(l.rings) : squareLoomModel(l.cols, l.rows || l.cols); }
 
-// ── Content: a saved Element / Component with a copy of its entry → the cell patch a Symbol cell takes ──
-export function contentPatch(c, fit) {
-  const base = { rotation: 0, flipH: false, flipV: false, fitMode: fit || 'contain', scale: 1, padding: 0, anchorX: 0, anchorY: 0, colourway: null };
-  if (c.kind === 'component') return { ...base, source: 'component', componentName: c.name, span: true, ownColors: null, ownPaper: null, ownAppearance: null };
-  const e = c.entry || {};
-  const sp = clone(e.seed), o = e.orientation || {};
-  if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
-  return { ...base, source: 'seed', seedType: sp.type, seedParams: sp, color: null,
-    ownColors: e.colors && e.colors.length ? e.colors.slice() : null, ownPaper: e.paperColor || null, ownAppearance: e.appearance || null,
-    rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV };
-}
+// ── Content: a saved Element / Component with a copy of its entry (contentPatch: engine/16) ──
 export function entrySnapshot(entry) {   // what a content node keeps: the entry without its cached thumbnail
   if (!entry) return null;
   const e = clone(entry); delete e.thumb; return e;
@@ -201,9 +192,10 @@ export async function compileFigure(inputs, params) {
   const paper = pal && pal.paper ? pal.paper : '#ffffff';
   const firstEl = contents.find(c => c.kind === 'element' && c.entry && c.entry.seed);
   const imported = contents.length === 1 && firstEl && firstEl.entry.recipe ? firstEl.entry.recipe : null;
+  const composeRules = inputs.composition && inputs.composition.rules ? inputs.composition.rules : [];
   const lattice = isLattice(grid.gen);
   let element, first;
-  if (lattice && imported && !(compRule && cellRules.length)) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
+  if (lattice && imported && !(compRule && cellRules.length) && !composeRules.length) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
     element = { ...clone(imported), colors: colors || clone(imported.colors || ['#000000']), paper };
     if (pal) element.colorRule = colorRule; else delete element.colorRule;
     if (pal && (pal.rule || {}).mode === DEFAULT_COLOR_RULE.mode && !imported.colorRule) delete element.colorRule;
@@ -231,15 +223,19 @@ export async function compileFigure(inputs, params) {
     }
     const componentEntries = {};
     contents.forEach(c => { if (c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
+    composeRules.forEach(r => { const c = r.do && r.do.content; if (c && typeof c === 'object' && c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
     element = { type: firstEl && SEED_TYPES[firstEl.entry.seed.type] ? firstEl.entry.seed.type : 'triangle', style: 'fill', colors: colors || ['#000000'], paper };
     first = { kind: 'symbol', lattice: { type: 'loomModel', model }, cells, componentEntries, colors: colors || ['#000000'], colorRule: params.keepOwn ? { ...DEFAULT_COLOR_RULE } : colorRule, paperColor: paper, clip: params.clip !== false };
-    if (cellRules.length) first.rules = clone(cellRules);
+    if (cellRules.length || composeRules.length) first.rules = clone(cellRules.concat(composeRules));
   }
   const recipe = { tool: 'fvs-recipe', version: 2, element, levels: [first, ...repeats] };
   if (final) recipe.transform = clone(final.transform);
   const r = evalFigure(recipe);
   const fitted = !cv.fit && (lattice || repeats.length);
-  return { svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv };
+  // a placement on a cell this grid no longer has: kept in the Composition, not drawn — reported
+  const lost = [].concat(...composeRules.filter(x => !x.off && x.when && x.when.index != null).map(x => [].concat(x.when.index))).filter(i => i >= r.cells);
+  return { svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv,
+    base: r.levels.symbol || '', compose: r.compose, lost: [...new Set(lost)].sort((a, b) => a - b) };
 }
 
 // ── Variations (Phase 4): a variation changes the Figure's own INPUTS — what Keep allows — then compiles as usual.
@@ -394,12 +390,14 @@ export function figureNodeTypes() {
     { meta: { id: 'repeat', label: 'Repeat in grid', category: 'Rules', inputs: [], outputs: RULE_OUT,
         params: [{ name: 'lattice', default: 'square' }, { name: 'count', default: 2 }, { name: 'cellSize', default: null }, { name: 'altFlip', default: false }, { name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }] },
       compute: (i, p) => ({ rules: ruleOf('repeat', p) }) },
+    { meta: { id: 'composition', label: 'Composition', category: 'Rules', inputs: [], outputs: [{ name: 'composition', type: 'composition', label: 'Composition' }], params: [{ name: 'rules', default: [] }] },
+      compute: (i, p) => ({ composition: { rules: clone(p.rules || []) } }) },
     { meta: { id: 'transform', label: 'Rotate & mirror', category: 'Rules', inputs: [], outputs: RULE_OUT, params: [{ name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }] },
       compute: (i, p) => ({ rules: ruleOf('transform', p) }) },
     { meta: { id: 'figure', label: 'Figure', category: 'Output',
         inputs: [{ name: 'canvas', type: 'canvas', label: 'Canvas', required: true }, { name: 'grid', type: 'grid', label: 'Grid', required: true },
           { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', required: true, multi: true },
-          { name: 'rules', type: 'rule', label: 'Rules', multi: true }],
+          { name: 'rules', type: 'rule', label: 'Rules', multi: true }, { name: 'composition', type: 'composition', label: 'Composition' }],
         outputs: [{ name: 'figure', type: 'figure', label: 'Figure' }],
         params: [{ name: 'fit', default: 'contain' }, { name: 'clip', default: true }, { name: 'keepOwn', default: false }, { name: 'symbolFit', default: null },
           { name: 'variations', default: 4 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} }, { name: 'layout', default: 'rows' },

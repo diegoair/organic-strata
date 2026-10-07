@@ -238,6 +238,7 @@
   //   engine                    createEngine(...) — default: one made here, isActive = the card is on screen
   //   history                   createHistory() — default: one made here
   //   fitInset                  { left, bottom } px of the stage covered by chrome (a left dock, a floatbar) — Fit avoids them
+  //   keepActive(node) → bool   compute this node even off screen (the host shows its output elsewhere)
   // }
   // → ctl: { model, engine, history, zoomPan, select(ids), selection(), add(type, at, params), connect(from, to),
   //          remove(ids), duplicate(ids), setModel(model, meta), refresh(), run(), fitAll(), fitSelection(), fitTo(ids),
@@ -290,7 +291,7 @@
     ctl.toBoard = toBoard;
 
     // ── engine: only cards on screen (and what they need) compute ──
-    var engine = o.engine || createEngine({ registry: registry, isActive: function (n) { return visible.has(n.id); } });
+    var engine = o.engine || createEngine({ registry: registry, isActive: function (n) { return visible.has(n.id) || !!(o.keepActive && o.keepActive(n)); } });
     ctl.engine = engine; ctl.history = history;
     var runQueued = false;
     function run() {
