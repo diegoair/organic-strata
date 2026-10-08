@@ -69,7 +69,7 @@ import {
 import {
   applySymbolRule, applyToSelection, bindSymbolCanvasSelection, bindSymbolTrackDrag,
   closeCellContentOverlay, exportSymbol, openCellContentOverlay, openCellContentOverlayForAll,
-  renderCellPropertiesPanel, renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary,
+  SYMBOL_CELLS, bindCellProps, renderCellPropertiesPanel, renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary,
   renderTrackLabelsOverlay, syncContentFilter, syncManualBlock, syncSymbolRuleUI
 } from './11-symbol-ui.js';
 import { hooks, provide } from './hooks.js';
@@ -750,7 +750,6 @@ new ResizeObserver(() => { if (state.symbolGrid) renderTrackLabelsOverlay(); }).
 buildFitAllAnchorGrid();
 rt.symbolAnchorPopover = Organica.popover(ctrl('btn-symbol-anchor'), ctrl('symbol-anchor-popover'));
 syncFitAnchorUI();
-ctrl('btn-cellprop-choose').addEventListener('click', openCellContentOverlay);
 ctrl('btn-rule-choose-content').addEventListener('click', openCellContentOverlayForAll);
 ctrl('btn-content-overlay-close').addEventListener('click', closeCellContentOverlay);
 ctrl('seg-content-filter').addEventListener('click', e => {
@@ -770,45 +769,7 @@ ctrl('symbol-content-overlay').addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && ctrl('symbol-content-overlay').style.display !== 'none') closeCellContentOverlay();
 });
-ctrl('sel-cellprop-rot').addEventListener('change', e => applyToSelection({ rotation: snapPose(parseInt(e.target.value, 10)) }));
-ctrl('sel-cellprop-flip').addEventListener('change', e => {
-  const v = e.target.value;
-  applyToSelection({ flipH: v === 'h' || v === 'hv', flipV: v === 'v' || v === 'hv' });
-});
-ctrl('sel-cellprop-fit').addEventListener('change', e => {
-  applyToSelection({ fitMode: e.target.value });
-  renderCellPropertiesPanel();
-});
-ctrl('sel-cellprop-coveraxis').addEventListener('change', e => applyToSelection({ coverAxis: e.target.value }));
-ctrl('rg-cellprop-scale').addEventListener('input', e => {
-  ctrl('v-cellprop-scale').textContent = e.target.value;
-  applyToSelection({ scale: parseInt(e.target.value, 10) / 100 });
-});
-ctrl('rg-cellprop-fixedsize').addEventListener('input', e => {
-  ctrl('v-cellprop-fixedsize').textContent = e.target.value;
-  applyToSelection({ fixedSize: parseInt(e.target.value, 10) });
-});
-ctrl('rg-cellprop-padding').addEventListener('input', e => {
-  ctrl('v-cellprop-padding').textContent = e.target.value;
-  applyToSelection({ padding: parseInt(e.target.value, 10) / 100 });
-});
-ctrl('sel-cellprop-color').addEventListener('change', e => {
-  const v = e.target.value;
-  const inp = ctrl('in-cellprop-color');
-  const color = v === '' ? null : v === 'custom' ? hexKey(inp.value || state.colors[0]) : v;
-  if (v === 'custom') inp.value = color;
-  applyToSelection({ color });
-  renderCellPropertiesPanel();
-});
-ctrl('in-cellprop-color').addEventListener('input', e => applyToSelection({ color: hexKey(e.target.value) }));
-ctrl('btn-cellprop-color-reset').addEventListener('click', () => { applyToSelection({ color: null }); renderCellPropertiesPanel(); });
-ctrl('btn-cellprop-useseed').addEventListener('click', () => {
-  const sp = seedForSnapshot();
-  applyToSelection(cell => ({ seedParams: cell.source === 'seed' ? JSON.parse(JSON.stringify(sp)) : undefined, seedType: cell.source === 'seed' ? sp.type : cell.seedType }));
-  renderCellPropertiesPanel();
-});
-ctrl('btn-cellprop-defseed').addEventListener('click', () => { applyToSelection({ seedParams: undefined }); renderCellPropertiesPanel(); });
-ctrl('chk-cellprop-lock').addEventListener('change', e => applyToSelection({ locked: e.target.checked }));
+bindCellProps('', SYMBOL_CELLS);
 
 ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
   btn.addEventListener('click', () => setTier(btn.dataset.tier));

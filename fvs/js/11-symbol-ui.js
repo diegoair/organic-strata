@@ -27,7 +27,7 @@ import {
   LIBRARY, buildComponentSVGWithPaper, fillPaper, hexKey, libraryNames
 } from './engine/07-library.js';
 import {
-  getSymbolGrid, polyOrient, symbolCanvasOf, symbolFrame, symbolHasContent, withPlacementDefaults
+  getSymbolGrid, polyOrient, snapPose, symbolCanvasOf, symbolFrame, symbolHasContent, withPlacementDefaults
 } from './engine/08-symbol-grid.js';
 import {
   buildSymbolSVG, cellOverflowInfo, drawSymbolCanvas
@@ -422,27 +422,118 @@ export function applyToSelection(patch) {
 // Colour: "Follow palette" (color null) or an explicit override — a palette
 // colour or a free one. Only Seed cells carry a colour (a nested Component
 // keeps its own inks).
-export function syncCellColourUI(cell, isComponent) {
-  ctrl('row-cellprop-color').style.display = isComponent ? 'none' : '';
-  if (isComponent) { ctrl('row-cellprop-color-override').style.display = 'none'; return; }
-  const sel = ctrl('sel-cellprop-color');
-  const pal = state.colors.map(hexKey);
+// Cell properties — ONE block for every cell editor (Oct 8, 2026: Compose = the Symbol step's editor). The markup
+// (cellPropsHTML), the readout (syncCellProps) and the wiring (bindCellProps) take an id prefix and a target:
+//   { count(), first() → the cell shown, colors() → the palette's hexes, apply(patch | cell => patch), refresh(),
+//     overflow() → bool, choose() → opens Choose content, lock: show the Lock row }
+// Symbol mounts it with prefix '' — its ids (sel-cellprop-rot …) are unchanged; Compose with 'fgc-'.
+export function cellPropsHTML(pre, opts = {}) {
+  const I = b => pre + b;
+  return `<div class="ctrl-row"><div class="ctrl-label">Selected</div>
+            <span class="ctrl-val" id="${I('symbol-cellprop-count')}" style="flex:1;text-align:left"></span>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Content</div>
+            <span class="ctrl-val" id="${I('symbol-cellprop-content-label')}" style="flex:1;text-align:left">—</span>
+            <button class="mini-btn" id="${I('btn-cellprop-choose')}">Choose…</button>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-seedparams')}">
+            <div class="ctrl-label">Shape</div>
+            <span class="ctrl-val" id="${I('symbol-cellprop-seedparams-label')}" style="flex:1;text-align:left">Default</span>
+            <button class="mini-btn" id="${I('btn-cellprop-useseed')}" title="Copy the Element step’s current settings (extras, thickness…) into the selected cells">Use Element</button>
+            <button class="mini-btn" id="${I('btn-cellprop-defseed')}" title="Back to the plain default shape">Default</button>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-rotation')}"><div class="ctrl-label">Rotation</div>
+            <select class="panel-select" id="${I('sel-cellprop-rot')}">
+              <option value="0">0°</option><option value="60">60°</option><option value="90">90°</option><option value="120">120°</option><option value="180">180°</option><option value="240">240°</option><option value="270">270°</option><option value="300">300°</option>
+            </select>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-flip')}"><div class="ctrl-label">Flip</div>
+            <select class="panel-select" id="${I('sel-cellprop-flip')}">
+              <option value="none">None</option><option value="h">Horizontal</option><option value="v">Vertical</option><option value="hv">Both</option>
+            </select>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Fit</div>
+            <select class="panel-select" id="${I('sel-cellprop-fit')}">
+              <option value="contain">Contain</option>
+              <option value="fill">Stretch</option>
+              <option value="cover">Cover (no gaps)</option>
+              <option value="fixed">Fixed size</option>
+              <option value="match">Match cell</option>
+            </select>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-coveraxis')}" style="display:none">
+            <div class="ctrl-label">Cover axis</div>
+            <select class="panel-select" id="${I('sel-cellprop-coveraxis')}">
+              <option value="auto">Auto (no gaps)</option>
+              <option value="x">Lock to width</option>
+              <option value="y">Lock to height</option>
+            </select>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-overflow')}" style="display:none">
+            <span class="ctrl-val" style="color:var(--danger);text-align:left;flex:1">⚠ Extends beyond cell bounds</span>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-scale')}">
+            <div class="ctrl-label">Scale</div>
+            <input type="range" id="${I('rg-cellprop-scale')}" min="10" max="400" step="1" value="100">
+            <span class="ctrl-val" id="${I('v-cellprop-scale')}">100</span>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-fixedsize')}" style="display:none">
+            <div class="ctrl-label">Size</div>
+            <input type="range" id="${I('rg-cellprop-fixedsize')}" min="5" max="300" step="1" value="100">
+            <span class="ctrl-val" id="${I('v-cellprop-fixedsize')}">100</span>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-color')}">
+            <div class="ctrl-label">Colour</div>
+            <select class="panel-select" id="${I('sel-cellprop-color')}" aria-label="Cell colour"></select>
+            <input type="color" id="${I('in-cellprop-color')}" aria-label="Custom cell colour" style="display:none">
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-color-override')}" style="display:none">
+            <span class="ctrl-val" style="color:var(--tool);text-align:left;flex:1">● Overrides the palette</span>
+            <button class="mini-btn" id="${I('btn-cellprop-color-reset')}">Reset</button>
+          </div>
+          <div class="ctrl-row">
+            <div class="ctrl-label">Padding</div>
+            <input type="range" id="${I('rg-cellprop-padding')}" min="0" max="40" step="1" value="0">
+            <span class="ctrl-val" id="${I('v-cellprop-padding')}">0</span>
+          </div>
+          ${opts.lock === false ? '' : `<label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="${I('chk-cellprop-lock')}"><span>Lock cell (rule skips it)</span></label>`}`;
+}
+// Colour: "Follow palette" (color null) or an explicit override — a palette
+// colour or a free one. Only Seed cells carry a colour (a nested Component
+// keeps its own inks).
+export function syncCellColourUI(cell, isComponent, pre = '', colors = state.colors) {
+  const c = b => ctrl(pre + b);
+  c('row-cellprop-color').style.display = isComponent ? 'none' : '';
+  if (isComponent) { c('row-cellprop-color-override').style.display = 'none'; return; }
+  const sel = c('sel-cellprop-color');
+  const pal = colors.map(hexKey);
   const cur = cell.color ? hexKey(cell.color) : '';
   const custom = cur && !pal.includes(cur);
   sel.innerHTML = `<option value="">Follow palette</option>`
     + pal.map((c, i) => `<option value="${c}">Palette ${i + 1} · ${c}</option>`).join('')
     + `<option value="custom">Custom…</option>`;
   sel.value = !cur ? '' : custom ? 'custom' : cur;
-  const inp = ctrl('in-cellprop-color');
+  const inp = c('in-cellprop-color');
   inp.style.display = custom ? '' : 'none';
   if (custom) inp.value = cur;
-  ctrl('row-cellprop-color-override').style.display = cur ? '' : 'none';
+  c('row-cellprop-color-override').style.display = cur ? '' : 'none';
 }
 // Cell properties belong to the selection, not to the Fill mode: the block
 // shows in Manual, and in any other mode as soon as cells are selected.
 export function syncManualBlock() {
   ctrl('symbol-manual-block').style.display = (pv('sel-symbol-fill') === 'manual' || state.symbolSelection.size > 0) ? '' : 'none';
 }
+// The Symbol step's target: the selected cells of state.symbolCells.
+export const SYMBOL_CELLS = {
+  count: () => state.symbolSelection.size,
+  first: () => state.symbolCells[Math.min(...state.symbolSelection)],
+  colors: () => state.colors,
+  apply: patch => applyToSelection(patch),
+  refresh: () => renderCellPropertiesPanel(),
+  overflow: () => !state.symbolClipEnabled && cellOverflowInfo(Math.min(...state.symbolSelection)),
+  choose: () => openCellContentOverlay(),
+  lock: true,
+};
 export function renderCellPropertiesPanel() {
   syncManualBlock();
   syncFitAnchorUI();
@@ -450,10 +541,13 @@ export function renderCellPropertiesPanel() {
   ctrl('symbol-cell-empty').style.display = hasSelection ? 'none' : '';
   ctrl('symbol-cell-props').style.display = hasSelection ? '' : 'none';
   if (!hasSelection) return;
-  const n = state.symbolSelection.size;
-  ctrl('symbol-cellprop-count').textContent = `${n} cell${n === 1 ? '' : 's'}`;
+  syncCellProps('', SYMBOL_CELLS);
+}
+export function syncCellProps(pre, t) {
+  const c = b => ctrl(pre + b), n = t.count();
+  c('symbol-cellprop-count').textContent = `${n} cell${n === 1 ? '' : 's'}`;
 
-  const first = state.symbolCells[Math.min(...state.symbolSelection)];
+  const first = t.first();
   const isComponent = first.source === 'component';
 
   let label = '—';
@@ -465,40 +559,82 @@ export function renderCellPropertiesPanel() {
   } else if (first.seedType && SEED_TYPES[first.seedType]) {
     label = SEED_TYPES[first.seedType].label;
   }
-  ctrl('symbol-cellprop-content-label').textContent = label;
+  c('symbol-cellprop-content-label').textContent = label;
 
   // Rotation/Flip are hidden entirely for Component cells — a saved
   // Component is already an internally-composed (often symmetric)
   // arrangement, so rotating/flipping the whole nested block as one more
   // knob adds little real value against the extra control surface.
-  ctrl('row-cellprop-rotation').style.display = isComponent ? 'none' : '';
-  ctrl('row-cellprop-flip').style.display = isComponent ? 'none' : '';
+  c('row-cellprop-rotation').style.display = isComponent ? 'none' : '';
+  c('row-cellprop-flip').style.display = isComponent ? 'none' : '';
   // A free angle (Radial / Wave with Snap off) gets its own option, so the menu shows it instead of a blank.
-  const rotSel = ctrl('sel-cellprop-rot'), rotVal = String(first.rotation || 0);
+  const rotSel = c('sel-cellprop-rot'), rotVal = String(first.rotation || 0);
   rotSel.querySelectorAll('option[data-free]').forEach(o => { if (o.value !== rotVal) o.remove(); });
   if (![...rotSel.options].some(o => o.value === rotVal)) rotSel.add(Object.assign(new Option(`${rotVal}°`, rotVal), { title: 'Set by the rule' }), null), rotSel.lastElementChild.dataset.free = '1';
   rotSel.value = rotVal;
-  ctrl('sel-cellprop-flip').value = first.flipH && first.flipV ? 'hv' : first.flipH ? 'h' : first.flipV ? 'v' : 'none';
-  ctrl('sel-cellprop-fit').value = first.fitMode || 'contain';
-  ctrl('row-cellprop-coveraxis').style.display = first.fitMode === 'cover' ? '' : 'none';
-  ctrl('sel-cellprop-coveraxis').value = first.coverAxis || 'auto';
-  ctrl('row-cellprop-scale').style.display = first.fitMode === 'fixed' ? 'none' : '';
-  ctrl('row-cellprop-fixedsize').style.display = first.fitMode === 'fixed' ? '' : 'none';
-  ctrl('rg-cellprop-scale').value = Math.round((first.scale == null ? 1 : first.scale) * 100);
-  ctrl('v-cellprop-scale').textContent = pv('rg-cellprop-scale');
-  ctrl('rg-cellprop-fixedsize').value = first.fixedSize || 100;
-  ctrl('v-cellprop-fixedsize').textContent = pv('rg-cellprop-fixedsize');
-  syncCellColourUI(first, isComponent);
-  ctrl('row-cellprop-seedparams').style.display = (isComponent || first.source === 'empty') ? 'none' : '';
-  ctrl('symbol-cellprop-seedparams-label').textContent = first.seedParams ? 'Element settings' : 'Default';
-  ctrl('rg-cellprop-padding').value = Math.round((first.padding || 0) * 100);
-  ctrl('v-cellprop-padding').textContent = pv('rg-cellprop-padding');
-  ctrl('chk-cellprop-lock').checked = !!first.locked;
+  c('sel-cellprop-flip').value = first.flipH && first.flipV ? 'hv' : first.flipH ? 'h' : first.flipV ? 'v' : 'none';
+  c('sel-cellprop-fit').value = first.fitMode || 'contain';
+  c('row-cellprop-coveraxis').style.display = first.fitMode === 'cover' ? '' : 'none';
+  c('sel-cellprop-coveraxis').value = first.coverAxis || 'auto';
+  c('row-cellprop-scale').style.display = first.fitMode === 'fixed' ? 'none' : '';
+  c('row-cellprop-fixedsize').style.display = first.fitMode === 'fixed' ? '' : 'none';
+  c('rg-cellprop-scale').value = Math.round((first.scale == null ? 1 : first.scale) * 100);
+  c('v-cellprop-scale').textContent = c('rg-cellprop-scale').value;
+  c('rg-cellprop-fixedsize').value = first.fixedSize || 100;
+  c('v-cellprop-fixedsize').textContent = c('rg-cellprop-fixedsize').value;
+  syncCellColourUI(first, isComponent, pre, t.colors());
+  c('row-cellprop-seedparams').style.display = (isComponent || first.source === 'empty') ? 'none' : '';
+  c('symbol-cellprop-seedparams-label').textContent = first.seedParams ? 'Element settings' : 'Default';
+  c('rg-cellprop-padding').value = Math.round((first.padding || 0) * 100);
+  c('v-cellprop-padding').textContent = c('rg-cellprop-padding').value;
+  if (t.lock) c('chk-cellprop-lock').checked = !!first.locked;
 
-  const firstIndex = Math.min(...state.symbolSelection);
-  const overflowing = !state.symbolClipEnabled && cellOverflowInfo(firstIndex);
-  ctrl('row-cellprop-overflow').style.display = overflowing ? '' : 'none';
+  c('row-cellprop-overflow').style.display = t.overflow && t.overflow() ? '' : 'none';
 }
+export function bindCellProps(pre, t) {
+  const c = b => ctrl(pre + b);
+  c('btn-cellprop-choose').addEventListener('click', () => t.choose());
+  c('sel-cellprop-rot').addEventListener('change', e => t.apply({ rotation: snapPose(parseInt(e.target.value, 10)) }));
+  c('sel-cellprop-flip').addEventListener('change', e => {
+    const v = e.target.value;
+    t.apply({ flipH: v === 'h' || v === 'hv', flipV: v === 'v' || v === 'hv' });
+  });
+  c('sel-cellprop-fit').addEventListener('change', e => {
+    t.apply({ fitMode: e.target.value });
+    t.refresh();
+  });
+  c('sel-cellprop-coveraxis').addEventListener('change', e => t.apply({ coverAxis: e.target.value }));
+  c('rg-cellprop-scale').addEventListener('input', e => {
+    c('v-cellprop-scale').textContent = e.target.value;
+    t.apply({ scale: parseInt(e.target.value, 10) / 100 });
+  });
+  c('rg-cellprop-fixedsize').addEventListener('input', e => {
+    c('v-cellprop-fixedsize').textContent = e.target.value;
+    t.apply({ fixedSize: parseInt(e.target.value, 10) });
+  });
+  c('rg-cellprop-padding').addEventListener('input', e => {
+    c('v-cellprop-padding').textContent = e.target.value;
+    t.apply({ padding: parseInt(e.target.value, 10) / 100 });
+  });
+  c('sel-cellprop-color').addEventListener('change', e => {
+    const v = e.target.value;
+    const inp = c('in-cellprop-color');
+    const color = v === '' ? null : v === 'custom' ? hexKey(inp.value || t.colors()[0]) : v;
+    if (v === 'custom') inp.value = color;
+    t.apply({ color });
+    t.refresh();
+  });
+  c('in-cellprop-color').addEventListener('input', e => t.apply({ color: hexKey(e.target.value) }));
+  c('btn-cellprop-color-reset').addEventListener('click', () => { t.apply({ color: null }); t.refresh(); });
+  c('btn-cellprop-useseed').addEventListener('click', () => {
+    const sp = seedForSnapshot();
+    t.apply(cell => ({ seedParams: cell.source === 'seed' ? JSON.parse(JSON.stringify(sp)) : undefined, seedType: cell.source === 'seed' ? sp.type : cell.seedType }));
+    t.refresh();
+  });
+  c('btn-cellprop-defseed').addEventListener('click', () => { t.apply({ seedParams: undefined }); t.refresh(); });
+  if (t.lock) c('chk-cellprop-lock').addEventListener('change', e => t.apply({ locked: e.target.checked }));
+}
+ctrl('symbol-cell-props').innerHTML = cellPropsHTML('');
 
 // ── Choose-content overlay — opened by a plain click on a cell (or the
 // docked panel's own Choose… button for a ⌘-click/drag-built multi-
