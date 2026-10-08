@@ -459,7 +459,7 @@ function addContent(kind, name) {
 let nodebar = null, openCat = null;
 function nodebarItems(cat) {
   const types = (registry.byCategory()[cat] || []).filter(t => t.meta.id !== 'element' && t.meta.id !== 'component' && !t.meta.hidden);
-  const items = types.map(t => ({ label: t.meta.id === 'set' ? 'New Set' : t.meta.label, make: () => ({ type: t.meta.id }) }));
+  const items = types.map(t => ({ label: t.meta.id === 'set' ? 'New Set' : t.meta.label, meta: t.meta, make: () => ({ type: t.meta.id }) }));
   return items;
 }
 function renderNodebar(cat, panel) {
@@ -467,7 +467,9 @@ function renderNodebar(cat, panel) {
   if (composing && cat !== 'Content') cat = 'Content';
   let html = `<p class="nc-nodebar__hint">Drag onto the graph, or click to add</p>`;
   const items = composing ? [] : nodebarItems(cat);
-  if (items.length) html += `<div class="nc-nodebar__list">${items.map((it, i) => `<button type="button" class="nc-nodebar__item" data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${esc(it.label)}</button>`).join('')}</div>`;
+  if (items.length) html += `<div class="nc-nodebar__list">${items.map((it, i) => it.meta.icon   // a pill node is offered as a pill (Diego, Oct 8, 2026)
+    ? `<button type="button" class="nc-nodebar__item nc-nodebar__item--pill"${NC.body.pillAttrs(it.meta)} data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${NC.body.pill(it.meta, it.label)}</button>`
+    : `<button type="button" class="nc-nodebar__item" data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${esc(it.label)}</button>`).join('')}</div>`;
   if (composing) html = `<p class="nc-nodebar__hint">Drop on a cell, or click to give it to the selected cells</p>`;
   if (cat === 'Content') {
     const s = savedEntries();

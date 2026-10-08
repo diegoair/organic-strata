@@ -93,6 +93,9 @@
 .nc-node--pill .nc-node__type, .nc-node--pill .nc-node__title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .nc-node__icon { display: flex; }
 .nc-node--pill .nc-node__icon { color: var(--paper); }   /* a pill's icon is always light (Diego, Oct 8, 2026): --paper is the fixed white inside the light-scoped head. White on yellow 1.6:1 / orange 2.5:1 — ledger §3 node-palette exception; on the other inks ≥ 3.4:1 */
+/* the one exception: in dark the canvas ink is the cover's cream, where white is invisible (1.3:1) — its icon is black
+   (--ink inside the light-scoped head / cap). Not inside a light island on a dark page. */
+[data-theme="dark"] [data-ink="canvas"]:not([data-theme="light"] [data-ink]) :is(.nc-node__icon, .nc-pill__cap) { color: var(--ink); }
 /* the icon is the library's own .ico, untouched: --icon-lg (16px, the grid's native size, as in the floatbar and header) and
    --icon-stroke — aligned with every other icon in the suite (Diego, Oct 8, 2026) */
 .nc-node--pill .nc-node__io { grid-row: 1; grid-column: 1 / -1; align-self: center; padding: 0; }
@@ -168,25 +171,25 @@
 /* port type → colour (ledger O-34). A tool maps its own type names onto these with the same three rules (dot, wire, card ink). */
 .nc-port__dot[data-type="canvas"] { --port-c: var(--port-canvas); }
 .nc-wire--canvas { --wire-c: var(--port-canvas); }
-.nc-node[data-ink="canvas"] { --node-ink: var(--port-canvas); }
+[data-ink="canvas"] { --node-ink: var(--port-canvas); }
 .nc-port__dot[data-type="grid"] { --port-c: var(--port-grid); }
 .nc-wire--grid { --wire-c: var(--port-grid); }
-.nc-node[data-ink="grid"] { --node-ink: var(--port-grid); }
+[data-ink="grid"] { --node-ink: var(--port-grid); }
 .nc-port__dot[data-type="palette"] { --port-c: var(--port-palette); }
 .nc-wire--palette { --wire-c: var(--port-palette); }
-.nc-node[data-ink="palette"] { --node-ink: var(--port-palette); }
+[data-ink="palette"] { --node-ink: var(--port-palette); }
 .nc-port__dot[data-type="content"] { --port-c: var(--port-content); }
 .nc-wire--content { --wire-c: var(--port-content); }
-.nc-node[data-ink="content"] { --node-ink: var(--port-content); }
+[data-ink="content"] { --node-ink: var(--port-content); }
 .nc-port__dot[data-type="rule"] { --port-c: var(--port-rule); }
 .nc-wire--rule { --wire-c: var(--port-rule); }
-.nc-node[data-ink="rule"] { --node-ink: var(--port-rule); }
+[data-ink="rule"] { --node-ink: var(--port-rule); }
 .nc-port__dot[data-type="composition"] { --port-c: var(--port-composition); }
 .nc-wire--composition { --wire-c: var(--port-composition); }
-.nc-node[data-ink="composition"] { --node-ink: var(--port-composition); }
+[data-ink="composition"] { --node-ink: var(--port-composition); }
 .nc-port__dot[data-type="figure"] { --port-c: var(--port-figure); }
 .nc-wire--figure { --wire-c: var(--port-figure); }
-.nc-node[data-ink="figure"] { --node-ink: var(--port-figure); }
+[data-ink="figure"] { --node-ink: var(--port-figure); }
 
 /* ── wires ── */
 .nc-wire { fill: none; stroke: var(--wire-c, var(--mid)); stroke-width: var(--wire-w); stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke-width var(--dur-fast) var(--ease-standard), stroke-opacity var(--dur-fast) var(--ease-standard); }   /* stroke-width on a 1.5px SVG line is a cheap repaint — a deliberate exception to transform/opacity-only */
@@ -219,6 +222,17 @@
 .nc-nodebar__item:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .nc-nodebar__ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; min-width: 3rem; padding: var(--space-2) var(--space-3); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); font-size: var(--t-control-size); color: var(--ink); }
 .nc-nodebar__ghost svg { width: 3rem; height: 3rem; display: block; }   /* a dragged thumbnail tile */
+/* A node-bar item as a pill (Diego, Oct 8, 2026): the node's icon on its solid ink + its name — the same look as the node
+   it adds. A real stadium (radius = half its height, the pill exception); the ghost takes the same class while dragged. */
+.nc-nodebar__item--pill {
+  --bar-pill-h: calc(var(--space-7) + var(--space-1) * 2);
+  display: flex; align-items: center; gap: var(--space-3); min-height: var(--bar-pill-h); padding: 0 var(--space-4) 0 var(--space-1);
+  border-radius: calc(var(--bar-pill-h) / 2 + 1px); font-family: var(--font-display); font-weight: var(--w-medium);
+}
+.nc-nodebar__item--pill:not([data-ink]), .nc-nodebar__item--pill[data-ink=""] { --node-ink: var(--border-strong); }
+.nc-pill__cap { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: var(--space-7); height: var(--space-7); border-radius: 50%; background: var(--node-ink); color: var(--paper); }   /* light-scoped: --paper = white */
+.nc-nodebar__ghost.nc-nodebar__item--pill { padding: 0 var(--space-4) 0 var(--space-1); }
+.nc-nodebar__ghost .nc-pill__cap svg { width: var(--icon-lg); height: var(--icon-lg); }
 body.nc-is-dragging { cursor: grabbing; user-select: none; }
 .nc-search { position: fixed; z-index: 160; width: 15rem; padding: var(--space-2); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: var(--space-2); }
 .nc-search__head, .nc-search__none { margin: 0; font-size: var(--t-caption-size); color: var(--mid); }
