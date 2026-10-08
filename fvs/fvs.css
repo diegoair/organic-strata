@@ -386,8 +386,8 @@
   .fvs-layers-head { display: inline-flex; align-items: center; gap: var(--space-2); }
   .fvs-layers { display: flex; flex-direction: column; }
   .fvs-layers:empty { display: none; }
-  .fvs-layers .org-layer-card { margin-bottom: var(--space-1); }
-  .fvs-layers .org-layer-card__head { gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); }
+  .fvs-layers .org-layer-card, .fg-list .org-layer-card { margin-bottom: var(--space-1); }   /* FVS's one compact flush list (Element Layers, Figure rule / Set lists) */
+  .fvs-layers .org-layer-card__head, .fg-list .org-layer-card__head { gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); }
   .fvs-layers .org-layer-card:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
   .fvs-layer__main { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-1) 0; }
   .fvs-layer__main:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--ink); }
@@ -467,12 +467,10 @@
   body.fvs-libview-open #fg-nodebar-dock { visibility: hidden; }
   .fg-grow { flex: 1; }
   .fg-size { flex: 1; min-width: 0; }
-  .fg-chips { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-3); }
-  .fg-chip { display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--paper); }
-  .fg-chip.is-off .fg-chip__text { color: var(--mid); text-decoration: line-through; }
-  .fg-chip__text { flex: 1; min-width: 0; font-size: var(--t-caption-size); }
-  .fg-chip__pick { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: var(--t-caption-size); text-align: left; cursor: pointer; }
-  @media (hover: hover) { .fg-chip__pick:hover { text-decoration: underline; } }
+  .fg-list { margin-bottom: var(--space-3); }   /* Cell rules, Set items, region rules: the shared .org-layer-card--flush list (as Element Layers) */
+  .fg-list .org-layer-card__title { min-width: 0; font-size: var(--t-caption-size); font-weight: var(--w-regular); letter-spacing: normal; }   /* a rule reads as a sentence, not a layer name */
+  .fg-list--static .org-layer-card__head { pointer-events: none; }   /* the Composition node's list is read-only: no hover cue */
+  .fg-rule__pick { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
   .fg-new__panel { --org-modal-w: min(56rem, 92vw); }
   .fg-new__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
   .fg-new__item { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
@@ -496,6 +494,7 @@
   .fg-var__tools .icon-btn { background: var(--paper); }
   .fg-var:hover .fg-var__tools, .fg-var:focus-within .fg-var__tools, .fg-var.is-pinned .fg-var__tools { opacity: 1; }
   @media (hover: none) { .fg-var__tools { opacity: 1; } }
+  .fg-block { width: 100%; margin-bottom: var(--space-2); }   /* a node's main action, full width (as Symbol's Generate grid in canvas) */
   .fg-keep { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-bottom: var(--space-2); }
   .fg-figlist { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-3); }
   .fg-figlist__item { display: flex; flex-direction: column; align-items: flex-start; gap: 0; padding: var(--space-1) var(--space-2); background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink); font: inherit; font-size: var(--t-control-size); text-align: left; cursor: pointer; }
@@ -539,5 +538,3 @@
   .fg-checks li { display: flex; align-items: flex-start; gap: var(--space-1); }
   .fg-checks li.is-bad { color: var(--danger); }
   .fg-checks__detail { color: var(--mid); }
-  .fg-rulelist { margin: 0 0 var(--space-3); padding-left: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--t-caption-size); }
-  .fg-rulelist .is-off { color: var(--mid); text-decoration: line-through; }
