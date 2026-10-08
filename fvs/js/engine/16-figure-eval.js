@@ -146,6 +146,7 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
 // fixedSize, padding, seedParams} — the Cell properties fields a rotate / flip / scale / colour rule does not carry,
 // copied onto the cell as Symbol's patchCell does (seedParams only on a Seed cell; null = back to the default shape).
 const CELL_KEYS = ['fitMode', 'coverAxis', 'fixedSize', 'padding', 'seedParams'];
+const COMPOSE_CELL_FIELDS = ['source', 'seedType', 'componentName', 'colourway', 'rotation', 'flipH', 'flipV', 'fitMode', 'coverAxis', 'scale', 'fixedSize', 'color', 'padding', 'seedParams'];
 function applyRulesToContent(rules, cw) {   // cw: the Palette's colourway, given to every Component a rule puts in a cell
   const own = state.symbolCells.map(c => clone(c)), G = getSymbolGrid(), ctxs = slotClassContext(G), sctx = symbolCellContext(G);
   const rngs = rules.map(r => { const d = r.do || {}, sd = (d.symbolRule && d.symbolRule.seed) || (d.arrange && d.arrange.seed) || 0; return mulberry32(sd >>> 0); });
@@ -246,6 +247,8 @@ export function evalFigure(def, opts) {
     if (first.kind === 'symbol' && getSymbolGrid()) {
       const G = getSymbolGrid(), F = symbolFrame(G);
       compose = { w: F.w, h: F.h, ctxs: slotClassContext(G),
+        // each cell as drawn — the fields Cell properties shows (Compose = the Symbol step's editor)
+        cells: state.symbolCells.map(c => { const o = {}; COMPOSE_CELL_FIELDS.forEach(k => { if (c[k] != null) o[k] = k === 'colourway' || k === 'seedParams' ? true : c[k]; }); return o; }),
         outlines: G.cells.map(c => (c.points ? c.points : [[c.x, c.y], [c.x + c.width, c.y], [c.x + c.width, c.y + c.height], [c.x, c.y + c.height]]).map(p => [+F.X(p[0]).toFixed(2), +F.Y(p[1]).toFixed(2)])) };
     }
     // the Figure checks (engine/14 figureChecks), read from this run's own state — only when asked (they draw again)
