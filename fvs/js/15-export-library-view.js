@@ -342,7 +342,8 @@ export function syncRailGroup(group, specs) {
   specs.forEach((spec, i) => {
     const k = [spec[0], spec[1], drawIdFree(spec[2]), spec[3], spec[4]].join('\u0000');
     let t = old.get(k);
-    if (t) old.delete(k); else { t = railTile(...spec); railTileKey.set(t, k); }
+    if (t) { old.delete(k); t.querySelector('.fvs-library-item').setAttribute('aria-label', railTileVerb(spec[0]) + ' ' + spec[1]); }   // a kept tile is named for this step too
+    else { t = railTile(...spec); railTileKey.set(t, k); }
     if (group.children[i] !== t) group.insertBefore(t, group.children[i] || null);
   });
   while (group.children.length > specs.length) group.lastElementChild.remove();

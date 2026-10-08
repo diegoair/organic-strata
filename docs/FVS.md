@@ -685,6 +685,17 @@ onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeL
     **dragged** onto a cell (a drop on a selected cell fills the whole selection);
   - on the other steps, a Component tile loads it on the Component step, and an Element tile
     becomes the Paper tile (*Paper Pattern = Element*).
+  - **a saved Symbol goes into cells** (Diego, Oct 8, 2026 — Symbol step and Compose): **drag** a Symbol
+    tile onto a cell. Its 4 central cells (the centre cell for an odd side) start at that cell — the anchor is
+    the dropped-on cell — every other cell keeps its place relative to them, and what falls outside the
+    target grid is cut: an 8 × 8 Symbol fits an 8 × 8 grid, a bigger one is cut at the edges. Elements and
+    Components keep the grid's structure and their own size. Code: `symbolPastePlan(entry, targets, at)`
+    (`engine/11-symbol-ui.js`); the Symbol step writes the cells (`railApply`); a click on a Symbol tile there
+    still loads it;
+  - **in Compose** (Oct 8, 2026) the rail is the left side (the node bar is hidden while composing,
+    `rt.railTarget`): an Element / Component tile dragged onto a cell, or clicked for the selection, becomes a
+    content region rule added after the others (so it wins); a Symbol tile dragged onto a cell, or clicked
+    (= at the first selected cell), becomes a **paste** region rule (below).
 - **Newest first** (Oct 5, 2026) — each group (Elements, Components, Symbols) lists the most recently
   saved at the top, so a save is in view at once (at the end it sat below the panel's fold). A
   one-click save (the quick-save circle) shows no notice — its ✓ says it (Diego, Oct 6, 2026: the
@@ -924,6 +935,8 @@ Diego, Oct 8, 2026: Compose has "exactly the same" design and features as the Sy
 - **One region rule per selection** — every Cell properties edit patches the rule whose `when` is this selection (the picked one, else the last cell rule with the same `when`, else a new one); a slider drag is one undo step (commit after 400 ms). The rule is described in the panel's own words: *rows 1–2 × columns 2–4 → Rotation 90° · Contain · Padding 15*. Fields a cell rule has no kind for go on **`do.cell`** (`fitMode · coverAxis · fixedSize · padding · seedParams · anchorX · anchorY`, `engine/16-figure-eval.js` `CELL_KEYS`; `null` = back to the default); a colour from the Palette is stored as `ink` (its place), a free one as `color`. Arrange carries `fit`. `evalFigure` returns `compose.cells` — each cell as drawn — for the panel to read.
 - **Gestures** — Symbol's: click selects, drag = marquee (⌘ / Shift adds), click on a selected cell = **Choose content** (the Symbol step's window, `openCellContentOverlay(target)`; *Apply to all cells* hidden), click off the cells clears. That is the whole selection model (Diego, Oct 8: the Row · Column · Similar cells · Range dock tools are removed). The keyboard path stays: arrows move between cells, Space / Enter select (Shift / ⌘ add), Esc clears, then leaves.
 - **Floatbar** — Done · Undo · Redo, then Symbol's **Fit in cell** (Contain · Stretch · Cover · Fixed size · Match cell + Anchor; on the selection, or on every cell when none is selected — the names say which) and **View** (*Show grid* = cell outlines — renamed from *Show loaded grid* in both steps, Oct 8, *Clip to cell* = the Figure node's own Clip, an undo step). Not in Compose: guides, track drag, *Show cover crop* (needs the Figure to draw it), Suggest, Variations, Generate, Clear.
+- **Left side = the Library rail** (Oct 8, 2026, `8a35de0`): the node bar is hidden while composing; drag or click a saved item as on the Symbol step (§ Library rail). Dropped on a cell outside the selection it takes that cell only; inside it, the whole selection.
+- **A saved Symbol in a Figure's cells** (`a2ec72f`): region rule `do.paste = {name, at: [row, col], entry: {gridModel, cells}, components}` — the Symbol's 4 central cells start at `at`, the rest keep their relative place, the outside is cut (`symbolPastePlan`, recomputed at every evaluation); its Components travel inside the rule (`components`, read by `evalFigure` like the Figure's own). Described *‹n› cells → Symbol: ‹name›*.
 - **Not built**: the Scale range row under Vary in Compose's Rule; the cover-crop view. C8 (selection tools in Symbol) was dropped Oct 8, 2026.
 
 ### 12.6 Export (Phase 6)

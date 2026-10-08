@@ -10,7 +10,7 @@ import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps } f
 import { syncExportButton } from './12-shell.js';
 import { syncRailTier } from './15-export-library-view.js';
 import {
-  COLOR_RULES, pc, pv, state
+  COLOR_RULES, live, pc, pv, state
 } from './engine/00-core.js';
 import {
   ELEMENT_LIB, savedElementThumb
@@ -862,7 +862,7 @@ function enterCompose(figId) {
   ctrl('fb-figure-actions').style.display = 'none'; ctrl('fb-compose-actions').style.display = '';
   setNodebar(null); renderComposeBar();
   // the left side is the Symbol step's Library rail: drag a saved Element / Component onto a cell, or click it for the selection
-  rt.railTarget = { apply: composeRailApply }; ctrl('fg-nodebar-dock').hidden = true; syncRailTier('figure');
+  rt.railTarget = { apply: composeRailApply }; live.railCompose = true; ctrl('fg-nodebar-dock').hidden = true; syncRailTier('figure');
   ctrl('fg-compose-title').textContent = 'Compose ' + nodeLabel(fig);
   ctl.run(); drawCompose(); renderComposeInspector();
   ctrl('fg-compose-back').focus({ preventScroll: true });
@@ -874,7 +874,7 @@ function exitCompose() {
   ctrl('fg-compose').hidden = true; ctrl('fg-graph').hidden = false;
   ctrl('fb-compose-actions').style.display = 'none'; ctrl('fb-figure-actions').style.display = '';
   renderNodebarButtons();
-  rt.railTarget = null; ctrl('fg-nodebar-dock').hidden = false; syncRailTier('figure');
+  rt.railTarget = null; live.railCompose = false; ctrl('fg-nodebar-dock').hidden = false; syncRailTier('figure');
   ctl.zoomPan.setView({ zoom: view.zoom, panX: view.x, panY: view.y });
   ctl.select([fig]); ctl.refresh(); ctl.pulse([fig]);
   const back = opener && opener.isConnected && !opener.closest('#fg-compose') ? opener : ctl.cardOf(fig);

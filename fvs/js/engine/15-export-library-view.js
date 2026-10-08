@@ -73,6 +73,7 @@ export function plateSVG(svg, colors, i, paper) {
 // What a click on a tile does depends on the tab: the aria-label says which.
 export function railTileVerb(kind) {
   const t = state.activeTier;
+  if (live.railCompose) return kind === 'symbol' ? 'Place Symbol at the first selected cell —' : 'Place ' + (kind === 'element' ? 'Element' : 'Component') + ' in the selected cells —';   // Compose (17-figure-graph sets it)
   if (kind === 'symbol') return 'Load Symbol';
   if (t === 'symbol') return 'Place ' + (kind === 'element' ? 'Element' : 'Component') + ' in the selected cells —';
   return kind === 'element' ? 'Use Element as Paper tile —' : 'Load Component';
