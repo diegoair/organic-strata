@@ -24,13 +24,13 @@ import {
   LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames, shownElementNames
 } from './engine/07-library.js';
 import {
-  LIVE_SYMBOL
+  LIVE_SYMBOL, getSymbolGrid, withPlacementDefaults
 } from './engine/08-symbol-grid.js';
 import {
   componentThumbSVG
 } from './engine/10-suggest.js';
 import {
-  SYMBOL_LIBRARY, buildSymbolLibraryEntry, patchCell, symbolEntryThumbSVG
+  SYMBOL_LIBRARY, buildSymbolLibraryEntry, cellColRow, patchCell, symbolEntryThumbSVG, symbolPastePlan
 } from './engine/11-symbol-ui.js';
 import {
   DEFAULT_VARIANTS, KIND_WORD, LIBVIEW_KINDS, RAIL_DBL_MS, componentUsage, dupName, elementInLivePaper,
@@ -386,6 +386,14 @@ document.addEventListener('keydown', e => {
 // A cell inside the selection takes the whole selection; any other cell takes only itself.
 export function railApply(kind, name, idx) {
   if (state.activeTier !== 'symbol') return;
+  if (kind === 'symbol') {   // a saved Symbol, cell by cell: its 4 central cells start at the cell it is dropped on (symbolPastePlan)
+    const entry = SYMBOL_LIBRARY.read()[name], grid = getSymbolGrid(); if (!entry || !grid || idx == null) return;
+    const targets = cellColRow(grid).map((c, i) => ({ index: i, row: c.row, col: c.col })), at = targets[idx];
+    const plan = symbolPastePlan(entry, targets, at && [at.row, at.col]); if (!plan.length) return;
+    plan.forEach(([ti, src]) => { state.symbolCells[ti] = withPlacementDefaults(JSON.parse(JSON.stringify(src))); });
+    Organica.dirty.set('fvs-symbol', true); renderSymbolCanvasOnly(); renderCellPropertiesPanel();
+    return;
+  }
   const patch = railPatch(kind, name);
   if (!patch) return;
   if (idx != null && !state.symbolSelection.has(idx)) {
@@ -412,7 +420,7 @@ export function cancelRailDrag() {
 }
 railPanel.addEventListener('pointerdown', e => {
   const tile = e.button === 0 && e.target.closest('.fvs-library-item');
-  if (!tile || (state.activeTier !== 'symbol' && !rt.railTarget) || tile.dataset.railKind === 'symbol') return;
+  if (!tile || (state.activeTier !== 'symbol' && !rt.railTarget)) return;   // a Symbol drags too: it is put in the cells
   railPress = { kind: tile.dataset.railKind, name: tile.dataset.railName, tile, x: e.clientX, y: e.clientY, id: e.pointerId };
 });
 window.addEventListener('pointermove', e => {
@@ -486,6 +494,7 @@ export function railNotice(text) {
 export function railRemove(kind, name) { deleteSaved(kind, name); }
 export function railUse(kind, name) {
   const t = state.activeTier;
+  if (rt.railTarget) { rt.railTarget.apply(kind, name, null); return; }   // Compose: into the selected cells (a Symbol too)
   if (kind === 'symbol') {
     const e = SYMBOL_LIBRARY.read()[name];
     if (!e) return;
@@ -493,7 +502,6 @@ export function railUse(kind, name) {
     setTier('symbol'); applySymbolLibraryEntryToUI(e);
     return;
   }
-  if (rt.railTarget) { rt.railTarget.apply(kind, name, null); return; }   // Compose: into the selected cells
   if (t === 'symbol') { railApply(kind, name, null); return; }
   if (kind === 'element') { useAsPaperTile('saved:' + name); return; }
   const e = LIBRARY.read()[name];

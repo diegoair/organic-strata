@@ -37,6 +37,20 @@ provide({
 export function cellColRow(grid) {
   return Organica.shapes.cellColRow(grid, state.symbolGrid && state.symbolGrid.cells, state.symbolGrid && state.symbolGrid.grid);
 }
+// A saved Symbol put into another grid, cell by cell (Diego, Oct 8, 2026 — Symbol step and Compose): its 4 central
+// cells (the centre cell of an odd side) start at the target cell `at` = [row, col], every other cell keeps its place
+// relative to them, and what falls outside the target grid is cut. targets: [{index, row, col}]. → [[targetIndex, cell]].
+export function symbolPastePlan(entry, targets, at) {
+  const gm = entry && entry.gridModel; if (!gm || !entry.cells || !at) return [];
+  const L = Organica.loadLoomGrid(gm);   // the saved grid as getSymbolGrid() reads it
+  const G = { kind: 'loom', cellShape: L.cellShape, cells: L.cells, width: L.inner.width, height: L.inner.height, canvasFrame: L.canvas && L.canvas.fvsFrame ? L.canvas : null };
+  const cr = Organica.shapes.cellColRow(G, L.cells, L.grid);
+  if (!cr.length) return [];
+  const r0 = Math.floor(Math.max(...cr.map(c => c.row)) / 2), c0 = Math.floor(Math.max(...cr.map(c => c.col)) / 2);
+  const byAddr = new Map(targets.map(t => [t.row + ',' + t.col, t.index])), out = [];
+  cr.forEach((c, i) => { const ti = byAddr.get((at[0] + c.row - r0) + ',' + (at[1] + c.col - c0)); if (ti != null && entry.cells[i]) out.push([ti, entry.cells[i]]); });
+  return out;
+}
 export const snap90 = deg => ((Math.round(deg / 90) * 90) % 360 + 360) % 360;
 // Preview-only wireframe of the loaded grid's own cell boundaries — never
 // baked into buildSymbolSVG()/drawSymbolCanvas() (export stays pure

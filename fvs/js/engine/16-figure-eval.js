@@ -35,7 +35,7 @@ import {
   SYMBOL_ARRANGE, symbolCellContext
 } from './10-suggest.js';
 import {
-  SYMBOL_RULES, snap90
+  SYMBOL_RULES, snap90, symbolPastePlan
 } from './11-symbol-ui.js';
 import {
   figureChecks
@@ -142,6 +142,7 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
 // Region rules (Phase 5b) add: symbolRule {name, params, seed, vary} — a Symbol-step rule over the region's cells only;
 // arrange {rule, pool: [content…], seed, fit?} — the region gets content by an Arrange class (fit: the Symbol Arrange's Fit); pattern {patType, patSpacing,
 // patWeight, patAngle} — a pattern fill (the cell's appearance patch). Seeded rules draw in cell order.
+// paste {name, at: [row, col], entry: {gridModel, cells}, components} — a saved Symbol cell by cell (symbolPastePlan);
 // Compose (Oct 8, 2026 — the Symbol step's Cell properties over region rules) adds: cell {fitMode, coverAxis,
 // fixedSize, padding, seedParams} — the Cell properties fields a rotate / flip / scale / colour rule does not carry,
 // copied onto the cell as Symbol's patchCell does (seedParams only on a Seed cell; null = back to the default shape).
@@ -150,10 +151,12 @@ const COMPOSE_CELL_FIELDS = ['source', 'seedType', 'componentName', 'colourway',
 function applyRulesToContent(rules, cw) {   // cw: the Palette's colourway, given to every Component a rule puts in a cell
   const own = state.symbolCells.map(c => clone(c)), G = getSymbolGrid(), ctxs = slotClassContext(G), sctx = symbolCellContext(G);
   const rngs = rules.map(r => { const d = r.do || {}, sd = (d.symbolRule && d.symbolRule.seed) || (d.arrange && d.arrange.seed) || 0; return mulberry32(sd >>> 0); });
+  const pastes = rules.map(r => r.do && r.do.paste ? new Map(symbolPastePlan(r.do.paste.entry, ctxs, r.do.paste.at)) : null);   // a Symbol put in the cells
   state.symbolCells.forEach((cell, i) => {
     rules.forEach((r, ri) => {
       if (r.off || !ruleMatches(r.when || {}, ctxs[i])) return;
       const d = r.do || {};
+      if (pastes[ri]) { const src = pastes[ri].get(i); if (src) { Object.assign(cell, withPlacementDefaults(clone(src))); if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell); } return; }
       if (d.symbolRule && SYMBOL_RULES[d.symbolRule.name]) {
         const sr = d.symbolRule, vary = { rotation: true, flip: true, scale: false, ...(sr.vary || {}) };
         const t = SYMBOL_RULES[sr.name].fn(sctx[i], sr.params || {}, rngs[ri]) || {};

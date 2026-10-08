@@ -247,6 +247,7 @@ export async function compileFigure(inputs, params, opts) {
     const componentEntries = {};
     contents.forEach(c => { if (c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
     composeRules.forEach(r => { const c = r.do && r.do.content; if (c && typeof c === 'object' && c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
+    composeRules.forEach(r => { const p = r.do && r.do.paste; if (p && p.components) Object.entries(p.components).forEach(([n, e]) => { if (e && !componentEntries[n]) componentEntries[n] = e; }); });   // a pasted Symbol's Components travel with it
     element = { type: firstEl && SEED_TYPES[firstEl.entry.seed.type] ? firstEl.entry.seed.type : 'triangle', style: 'fill', colors: colors || ['#000000'], paper };
     first = { kind: 'symbol', lattice: { type: 'loomModel', model }, cells, componentEntries, colors: colors || ['#000000'], colorRule: params.keepOwn ? { ...DEFAULT_COLOR_RULE } : colorRule, paperColor: paper, clip: params.clip !== false };
     if (cellRules.length || composeRules.length) first.rules = clone(cellRules.concat(composeRules));

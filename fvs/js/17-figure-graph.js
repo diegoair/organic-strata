@@ -25,7 +25,7 @@ import {
   SYMBOL_ARRANGE, componentThumbSVG
 } from './engine/10-suggest.js';
 import {
-  SYMBOL_RULES
+  SYMBOL_LIBRARY, SYMBOL_RULES, symbolPastePlan
 } from './engine/11-symbol-ui.js';
 import {
   SEED_TYPES
@@ -1103,6 +1103,7 @@ function describeComposeRule(r, inks) {
   const what = d.content && typeof d.content === 'object' ? d.content.name : d.toggle ? 'Swap empty / filled' : d.ink != null ? 'Ink ' + (d.ink + 1) : d.color ? (ink >= 0 ? 'Ink ' + (ink + 1) : inks ? 'Colour ' + d.color : 'Colour')
     : d.symbolRule ? 'Symbol rule: ' + (SYMBOL_RULE_LABELS[d.symbolRule.name] || d.symbolRule.name)
     : d.arrange ? 'Arrange: ' + ((SYMBOL_ARRANGE[d.arrange.rule] || {}).label || d.arrange.rule) + (d.arrange.live ? ' · the Figure’s content' : ' · ' + d.arrange.pool.length + ' items')
+    : d.paste ? 'Symbol: ' + d.paste.name
     : d.pattern ? 'Pattern: ' + (PATTERN_LABELS[d.pattern.patType] || d.pattern.patType) : describeRule({ when: {}, do: d }).split(' → ')[1];
   return where + ' → ' + what;
 }
@@ -1261,7 +1262,16 @@ function initCompose() {
 // A rail item on cell idx (a dragged tile) or on the selection (a click): a content region rule, after the others so it
 // wins over them; a cell inside the selection takes the whole selection (as Symbol's railApply).
 function composeRailApply(kind, name, idx) {
-  if (!composing || (kind !== 'element' && kind !== 'component')) return;
+  if (!composing) return;
+  if (kind === 'symbol') {   // a saved Symbol, cell by cell — its 4 central cells start at the dropped-on cell (or the first selected one)
+    const f = figureValue(composing.fig), ctxs = f && f.compose ? f.compose.ctxs : null, entry = SYMBOL_LIBRARY.read()[name];
+    const i = idx != null ? idx : composing.sel.size ? Math.min(...composing.sel) : null; if (!ctxs || !entry || i == null || !ctxs[i]) return;
+    const at = [ctxs[i].row, ctxs[i].col], plan = symbolPastePlan(entry, ctxs, at); if (!plan.length) return;
+    const components = {}; plan.forEach(([, c]) => { if (c.source === 'component' && c.componentName && !components[c.componentName]) { const s = addContent('component', c.componentName).params.snapshot; if (s) components[c.componentName] = s; } });
+    addComposeRule({ paste: { name, at, entry: { gridModel: entry.gridModel, cells: entry.cells }, components } }, cellsWhen(plan.map(p => p[0])));
+    return;
+  }
+  if (kind !== 'element' && kind !== 'component') return;
   const when = idx != null && !composing.sel.has(idx) ? cellsWhen([idx]) : selectionWhen(); if (!when) return;   // no cell selected: a click does nothing, as in Symbol
   const c = addContent(kind, name); if (!c.params.snapshot) return;
   addComposeRule({ content: { kind, name, entry: c.params.snapshot } }, when);
