@@ -67,7 +67,7 @@ export function canvasOf(p) {
 }
 export function canvasSummary(cv) {
   if (cv.fit) return 'Fit to figure';
-  return cv.mode === 'print' ? `${cv.pw} × ${cv.ph} ${cv.unit} · ${cv.dpi} dpi` : `${cv.pw} × ${cv.ph} px`;
+  return cv.mode === 'print' ? `${cv.pw} × ${cv.ph} ${cv.unit} · ${cv.dpi} DPI` : `${cv.pw} × ${cv.ph} px`;
 }
 
 // ── Grid: a Loom generator (inside the Canvas) or an FVS lattice (its own frame) ──
@@ -75,7 +75,7 @@ export function canvasSummary(cv) {
 export const FIGURE_LATTICES = {
   'lattice-triangle': { label: 'Triangle lattice', params: [['rows', 'Rows', 1, 8, 1, 2]] },
   'lattice-square': { label: 'Square lattice', params: [['cols', 'Columns', 1, 12, 1, 2], ['rows', 'Rows', 1, 12, 1, 2]] },
-  'lattice-hexagon': { label: 'Hexagon lattice', params: [['rings', 'Rings', 1, 6, 1, 3]] },
+  'lattice-hexagon': { label: 'Hexagon lattice', params: [['rings', 'Grid size', 1, 6, 1, 3]] },   // id stays rings (UI-COPY: Grid size = cells along each side)
 };
 export const isLattice = gen => !!FIGURE_LATTICES[gen];
 export function gridSpec(gen) { return FIGURE_LATTICES[gen] || SYMGRID_GENS[gen] || SYMGRID_GENS.rectangular; }
@@ -86,10 +86,10 @@ export function gridDefaults(gen) {
 }
 export function gridSummary(g) {
   const spec = gridSpec(g.gen), p = g.params || {};
-  if (p.cols != null && p.rows != null) return `${spec.label} ${p.cols} × ${p.rows}`;
+  if (p.cols != null && p.rows != null) return `${spec.label} · ${p.cols} × ${p.rows}`;
   if (p.cols != null) return `${spec.label} · ${p.cols} columns`;
   if (p.rows != null) return `${spec.label} · ${p.rows} rows`;
-  if (p.rings != null) return `${spec.label} · ${p.rings} rings`;
+  if (p.rings != null) return `${spec.label} · grid size ${p.rings}`;
   return spec.label;
 }
 function latticeOf(g) {   // a lattice grid → recipe v2's lattice
@@ -275,7 +275,7 @@ function changeGrid(inp, rng) {
   const cur = +p[k], span = Math.max(1, Math.round((b - a) / step / 4)) * step;
   let v = cur; for (let t = 0; t < 6 && v === cur; t++) v = Math.min(b, Math.max(a, Math.round((cur + (rng() < 0.5 ? -1 : 1) * step * (1 + Math.floor(rng() * Math.max(1, span / step)))) / step) * step));
   if (v === cur) return null;
-  inp.grid = { gen: g.gen, params: { ...p, [k]: v } }; return `${label} ${v}`;
+  inp.grid = { gen: g.gen, params: { ...p, [k]: v } }; return `${k === 'seed' ? 'Random seed' : label} ${v}`;   // the Figure says Random seed (N4 pending for the Symbol step)
 }
 function changePalette(inp, rng) {
   const pal = inp.palette; if (!pal || !pal.colors || !pal.colors.length) return null;
@@ -305,7 +305,7 @@ function changeTransform(inp, rng) {
   const at = rules.map(r => r.kind).lastIndexOf('transform'), t = at >= 0 ? { ...rules[at].transform } : { rotate: 0, mirror: 'none' };
   if (rng() < 0.5) t.rotate = (t.rotate + 90) % 360; else t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng);
   if (at >= 0) rules[at] = { kind: 'transform', transform: t }; else rules.push({ kind: 'transform', transform: t });
-  inp.rules = rules; return t.mirror !== 'none' ? `Mirror: ${MIRRORS[t.mirror]}` : `Rotate ${t.rotate}°`;
+  inp.rules = rules; return t.mirror !== 'none' ? `Mirror: ${MIRRORS[t.mirror].toLowerCase()}` : `Rotate ${t.rotate}°`;
 }
 const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells: changeCells, transform: changeTransform };
 const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) => n + (c.kind === 'set' ? c.items.length : 1), 0);   // a Set counts its items

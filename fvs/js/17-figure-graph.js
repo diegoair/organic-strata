@@ -59,7 +59,7 @@ const CURRENT = '__current';   // the graph being edited, autosaved (not a saved
 let graphName = '';             // the saved graph the autosaved one was opened from / saved as, read at boot ('' = not saved yet); then graphMenu.name()
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'node-rule', Output: 'node-output' };
-const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Pinwheel', mirror: 'Mirror', checkerboard: 'Checkerboard' };
+const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Pinwheel', mirror: 'Mirror (kaleidoscope)', checkerboard: 'Checkerboard' };   // the Component step's own names
 let ctl = null;
 
 // ── the graph a first visit starts with: Canvas + Grid + Palette → Figure, fed by the newest saved Component/Element ──
@@ -164,7 +164,7 @@ function renderBody(node, entry, el) {
     el.innerHTML = `<p class="fg-card__meta">${rs.length ? `${rs.length} region ${rs.length === 1 ? 'rule' : 'rules'}${on < rs.length ? ` (${rs.length - on} off)` : ''} · ${esc(describeComposeRule(rs[0], compInks(node)))}${rs.length > 1 ? ' …' : ''}` : 'No region rules yet'}</p>`;
   } else if (node.type === 'repeat') {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
-    el.innerHTML = `<p class="fg-card__meta">${esc(L.label)} · ${p.count}${p.altFlip ? ' · alternate flip' : ''}${(+p.rotate || 0) ? ' · ' + p.rotate + '°' : ''}${p.mirror && p.mirror !== 'none' ? ' · mirror ' + esc(MIRRORS[p.mirror]) : ''}</p>`;
+    el.innerHTML = `<p class="fg-card__meta">${esc(L.label)} · ${p.count}${p.altFlip ? ' · alternate flip' : ''}${(+p.rotate || 0) ? ' · ' + p.rotate + '°' : ''}${p.mirror && p.mirror !== 'none' ? ' · Mirror: ' + esc(MIRRORS[p.mirror].toLowerCase()) : ''}</p>`;
   } else if (node.type === 'transform') {
     el.innerHTML = `<p class="fg-card__meta">${(+p.rotate || 0) ? 'Rotate ' + p.rotate + '°' : 'No rotation'} · ${p.mirror && p.mirror !== 'none' && MIRRORS[p.mirror] ? 'Mirror: ' + esc(MIRRORS[p.mirror].toLowerCase()) : 'No mirror'}</p>`;
   } else if (node.type === 'element' || node.type === 'component') {
@@ -406,7 +406,7 @@ function renderInspectorBody(box, ids) {
     box.innerHTML = `<div class="panel-section"><h3>Graph</h3>
       <p class="org-panel__hint">${figs} ${figs === 1 ? 'Figure' : 'Figures'} · ${m.nodes.length} ${m.nodes.length === 1 ? 'node' : 'nodes'}</p>
       ${m.nodes.length ? '' : '<p class="org-empty">This graph is empty. Add a Figure and some saved content, or start from a built-in Figure with New Figure…</p>'}
-      ${figs ? `<div class="sub-label">Figures</div><div class="fg-figlist">${m.nodes.filter(n => n.type === 'figure').map(n => `<button type="button" class="fg-figlist__item" data-id="${n.id}">${esc(nodeLabel(n))}<span class="fg-figlist__hint">${foundationOf(n).map(x => x ? esc(nodeLabel(x)) : '—').join(' · ')}</span></button>`).join('')}</div>` : ''}
+      ${figs ? `<div class="sub-label">Figures</div><div class="fg-figlist">${m.nodes.filter(n => n.type === 'figure').map(n => `<button type="button" class="fg-figlist__item" data-id="${n.id}" aria-label="Show ${esc(nodeLabel(n))} — ${foundationOf(n).map(x => x ? esc(nodeLabel(x)) : 'none').join(' · ')}">${esc(nodeLabel(n))}<span class="fg-figlist__hint">${foundationOf(n).map(x => x ? esc(nodeLabel(x)) : '—').join(' · ')}</span></button>`).join('')}</div>` : ''}
       ${(m.frames || []).length ? `<div class="sub-label">Sections</div><div class="fg-figlist">${m.frames.map(f => `<button type="button" class="fg-figlist__item" data-frame="${f.id}">${esc(f.name)}</button>`).join('')}</div>` : ''}
       ${m.nodes.length ? '<div class="row-btns"><button type="button" class="mini-btn" id="fgi-add-section" aria-keyshortcuts="Meta+G Control+G">Add section</button></div>' : ''}
       <p class="org-panel__hint">Add nodes from the bar on the left, or press / to search. Drag from a port to connect; drop the connection on a node to use its first free input.</p></div>`;
@@ -457,19 +457,22 @@ function renderInspectorBody(box, ids) {
     gridSpec(p.gen).params.forEach(([k, label, a, b, step, def]) => {
       if (a === 'text') return;
       const val = p.params && p.params[k] != null ? p.params[k] : def;
-      rows.push(rangeRow(label, 'fgi-g-' + k, a, b, step, val, (v, c) => { p.params = { ...(p.params || {}), [k]: v }; edited(node, c); }));
+      rows.push(rangeRow(k === 'seed' ? 'Random seed' : label, 'fgi-g-' + k, a, b, step, val, (v, c) => { p.params = { ...(p.params || {}), [k]: v }; edited(node, c); }));
+      if (k === 'rings') rows.push({ html: '<p class="org-panel__hint">Cells along each side.</p>' });
     });
   } else if (node.type === 'palette') {
-    const lib = Organica.palette.library ? Organica.palette.library() : [];
-    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">From the library</div><select class="panel-select" id="fgi-lib" aria-label="From the library"><option value="">Choose a palette…</option>${lib.map(l => `<option value="${esc(l.id)}"${l.id === p.source ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}</select></div>`,
-      bind: () => ctrl('fgi-lib').addEventListener('change', e => { const l = lib.find(x => x.id === e.target.value); if (!l) return; p.colors = l.colors.map(c => c.hex); p.source = l.id; edited(node, true); renderInspector(ids); }) });
     rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Inks</div></div><div id="fgi-inks" class="rmx-palette"></div>
       <div class="color-row"><span class="color-name">Paper</span><span class="color-swatch-wrap"><button class="color-swatch" id="sw-fgi-paper" style="background:${esc(p.paper)}"></button><input type="color" id="cp-fgi-paper" value="${esc(p.paper)}"></span><input class="color-hex" id="hex-fgi-paper" value="${esc(p.paper)}" maxlength="7"></div>`,
       bind: () => {
-        Organica.palette.swatch(ctrl('fgi-inks'), { colors: p.colors, min: 1, max: 8, library: false, onChange: colors => { p.colors = colors.slice(); delete p.source; edited(node, true); } });
+        // the strip's own Pick from a palette (as the Palette section); Start at follows the inks without a rebuild
+        Organica.palette.swatch(ctrl('fgi-inks'), { colors: p.colors, min: 1, max: 8, onChange: colors => { p.colors = colors.slice(); delete p.source; edited(node, true); syncStartAt(); } });
         Organica.palette.swatch('fgi-paper', { onChange: hex => { if (hex === p.paper) return; p.paper = hex; edited(node, true); } });
       } });
-    rows.push(selectRow('Colour by', 'fgi-rule', Object.entries(COLOR_RULES).map(([k, r]) => [k, r.label]), (p.rule || {}).mode || 'index', v => { p.rule = { ...(p.rule || {}), mode: v }; edited(node, true); }));
+    const shownMode = (p.rule || {}).mode === 'own' ? 'index' : ((p.rule || {}).mode || 'index');   // a built-in's stored 'own' draws like By cell order (kept as stored: byte-identical)
+    const syncStartAt = () => { const off = ctrl('fgi-roff'), n = (p.colors || []).length; if (!off) return; off.innerHTML = p.colors.map((c, i) => `<option value="${i}">Colour ${i + 1}</option>`).join(''); off.value = String(Math.min((p.rule || {}).offset || 0, Math.max(0, n - 1))); ctrl('fgi-roff-row').hidden = n < 2; };
+    rows.push(selectRow('Colour by', 'fgi-rule', Object.entries(COLOR_RULES).filter(([k]) => k !== 'own').map(([k, r]) => [k, r.label]), shownMode, v => { p.rule = { ...(p.rule || {}), mode: v }; edited(node, true); }));   // "own colours" is Keep own colours on the Figure
+    rows.push({ html: `<div class="ctrl-row" id="fgi-roff-row"${(p.colors || []).length > 1 ? '' : ' hidden'}><div class="ctrl-label">Start at</div><select class="panel-select" id="fgi-roff" aria-label="Start at"></select></div>`,   // as the Palette section
+      bind: () => { syncStartAt(); ctrl('fgi-roff').addEventListener('change', e => { p.rule = { ...(p.rule || {}), offset: +e.target.value }; edited(node, true); }); } });
   } else if (node.type === 'element' || node.type === 'component') {
     const s = savedEntries()[node.type];
     rows.push({ html: s.length ? `<div class="sub-label">Saved ${node.type === 'element' ? 'Elements' : 'Components'}</div><div class="fvs-rail__grid" id="fgi-pick">${s.map(e => `<button type="button" class="fvs-library-item${e.name === p.name ? ' selected' : ''}" data-name="${esc(e.name)}" aria-label="${esc(e.name)}" aria-pressed="${e.name === p.name}">${entryThumb(node.type, e.name, e.entry)}</button>`).join('')}</div>`
@@ -500,10 +503,10 @@ function renderInspectorBody(box, ids) {
     const q = p.params || (p.params = {});
     rows.push(selectRow('Rule', 'fgi-crule', Object.entries(COMPONENT_RULES), p.rule, v => { p.rule = v; p.params = {}; edited(node, true); renderInspector(ids); }));
     if (p.rule === 'radial' || p.rule === 'pinwheel') {
-      rows.push(selectRow('Start', 'fgi-cbase', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.base || 0, v => { q.base = +v; edited(node, true); }));
+      rows.push(selectRow('Starting rotation', 'fgi-cbase', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.base || 0, v => { q.base = +v; edited(node, true); }));
       rows.push(selectRow('Direction', 'fgi-cchir', [[1, 'Clockwise'], [-1, 'Counter-clockwise']], q.chirality || 1, v => { q.chirality = +v; edited(node, true); }));
     } else if (p.rule === 'mirror') {
-      rows.push(selectRow('Start', 'fgi-cseed', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.seed || 0, v => { q.seed = +v; edited(node, true); }));
+      rows.push(selectRow('Starting rotation', 'fgi-cseed', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.seed || 0, v => { q.seed = +v; edited(node, true); }));
     } else if (p.rule === 'checkerboard') {
       rows.push(selectRow('First cells', 'fgi-ca', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.a || 0, v => { q.a = +v; edited(node, true); }));
       rows.push(selectRow('Second cells', 'fgi-cb', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.b || 0, v => { q.b = +v; edited(node, true); }));
@@ -562,7 +565,7 @@ function renderInspectorBody(box, ids) {
     if (cks.length) rows.push({ html: `<div class="sub-label">Checks</div><ul class="fg-checks">${cks.map(c => `<li class="${c.ok ? 'is-ok' : 'is-bad'}">${Organica.icons.get(c.ok ? 'check' : 'alert', { size: 'xs' })}<span>${esc(c.label)}${c.detail ? ` <span class="fg-checks__detail">${esc(c.detail)}</span>` : ''}</span></li>`).join('')}</ul>` });
     rows.push({ html: `<div class="row-btns"><button type="button" class="mini-btn" id="fgi-compose">Compose</button></div>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });
     rows.push({ html: '<div class="sub-label">Cells</div>' });
-    rows.push(selectRow('Fit in cell', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; delete p.symbolFit; edited(node, true); }));   // a built-in's own fit gives way to the user's
+    rows.push(selectRow('Fit', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; delete p.symbolFit; edited(node, true); }));   // a built-in's own fit gives way to the user's
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-keepown"${p.keepOwn ? ' checked' : ''}><span>Keep own colours</span></label>`,
       bind: () => { ctrl('fgi-keepown').addEventListener('change', e => { p.keepOwn = e.target.checked; edited(node, true); }); } });
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-clip"${p.clip !== false ? ' checked' : ''}><span>Clip to cell</span></label>`,
@@ -580,9 +583,9 @@ function setEditor(node, ids) {
     <button type="button" class="icon-btn" data-act="up" data-i="${i}" aria-label="Move ${esc(it.name)} up"${i ? '' : ' disabled'}>${Organica.icons.get('arrow-up')}</button>
     <button type="button" class="icon-btn" data-act="down" data-i="${i}" aria-label="Move ${esc(it.name)} down"${i < items.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down')}</button>
     <button type="button" class="icon-btn" data-act="del" data-i="${i}" aria-label="Remove ${esc(it.name)} from the Set">${Organica.icons.get('close')}</button></div>`;
-  const tiles = (kind, list) => list.map(e => `<button type="button" class="fvs-library-item" data-add="${kind}" data-name="${esc(e.name)}" aria-label="Add ${esc(e.name)}">${entryThumb(kind, e.name, e.entry)}</button>`).join('');
+  const tiles = (kind, list) => list.map(e => `<button type="button" class="fvs-library-item" data-add="${kind}" data-name="${esc(e.name)}" aria-label="Add ${kind === 'element' ? 'Element' : 'Component'}: ${esc(e.name)}">${entryThumb(kind, e.name, e.entry)}</button>`).join('');
   return { html: `<div class="fg-chips" id="fgi-set-items">${items.length ? items.map(row).join('') : '<p class="org-panel__hint">No items yet — add saved Elements or Components below.</p>'}</div>
-    <div class="sub-label">Add</div><div class="fvs-rail__grid" id="fgi-set-add">${tiles('element', s.element) + tiles('component', s.component) || '<p class="org-panel__hint">Nothing saved yet — save a Component in the Component step first.</p>'}</div>
+    <div class="sub-label">Add</div><div class="fvs-rail__grid" id="fgi-set-add">${tiles('element', s.element) + tiles('component', s.component) || '<p class="org-panel__hint">Nothing saved yet — save an Element or a Component in its step first.</p>'}</div>
     <div class="sub-label">Saved Sets</div>
     <div class="ctrl-row"><select class="panel-select" id="fgi-set-saved" aria-label="Saved Sets"><option value="">${saved.length ? 'Open a saved Set…' : 'No Sets yet'}</option>${saved.map(n => `<option>${esc(n)}</option>`).join('')}</select></div>
     <div class="row-btns"><button type="button" class="mini-btn" id="fgi-set-save">Save Set</button>${SETS.read()[nodeLabel(node)] ? `<button type="button" class="mini-btn" id="fgi-set-delete" data-armed="Delete — click again to confirm">Delete saved Set</button>` : ''}</div>`,
@@ -606,8 +609,12 @@ function setEditor(node, ids) {
 }
 
 // ── Cell rules: today's rule chips (eye / up / down / trash) + "Add rule" — which cells, what they get ──
-const WHICH = [['all', 'All cells'], ['up', 'Up cells'], ['down', 'Down cells'], ['odd', 'Odd cells'], ['even', 'Even cells'], ['row', 'Row'], ['col', 'Column'], ['ring', 'Ring'], ['sector', 'Sector'], ['index', 'Cell']];
-const DOES = [['empty', 'Empty'], ['filled', 'Filled'], ['r60', 'Rotate 60°'], ['r90', 'Rotate 90°'], ['r180', 'Rotate 180°'], ['rsector', 'Rotate by sector'], ['fh', 'Flip horizontal'], ['fv', 'Flip vertical']];
+// option groups: [group label | null, [[value, label], …]] — the triangle- and hexagon-only choices say so (as the Symbol step does)
+const WHICH = [[null, [['all', 'All cells'], ['odd', 'Odd cells'], ['even', 'Even cells'], ['row', 'Row'], ['col', 'Column'], ['index', 'Cell']]], ['Triangle grids', [['up', 'Up cells'], ['down', 'Down cells']]], ['Hexagon grids', [['ring', 'Ring'], ['sector', 'Sector']]]];
+const DOES = [[null, [['empty', 'Empty'], ['filled', 'Filled'], ['r90', 'Rotate 90°'], ['r180', 'Rotate 180°'], ['r270', 'Rotate 270°'], ['fh', 'Flip horizontal'], ['fv', 'Flip vertical']]], ['Triangle and hexagon grids', [['r60', 'Rotate 60°'], ['r120', 'Rotate 120°'], ['r240', 'Rotate 240°'], ['r300', 'Rotate 300°'], ['rsector', 'Rotate by sector']]]];
+const groupedOptions = groups => groups.map(([g, os]) => { const o = os.map(([v, l]) => `<option value="${v}">${l}</option>`).join(''); return g ? `<optgroup label="${g}">${o}</optgroup>` : o; }).join('');
+const N_HINT = { ring: 'Ring 0 is the centre.', sector: 'Sector 0 starts on the right; they count clockwise.' };
+const N_LABEL = { row: 'Row number', col: 'Column number', ring: 'Ring', sector: 'Sector', index: 'Cell number' };   // what the number counts
 function ruleFrom(which, n, does) {
   const when = which === 'all' ? {} : which === 'up' || which === 'down' ? { class: which } : which === 'odd' || which === 'even' ? { parity: which } : { [which]: Math.max(0, n - (which === 'ring' || which === 'sector' ? 0 : 1)) };
   const d = does === 'empty' ? { content: 'empty' } : does === 'filled' ? { content: 'filled' } : does === 'rsector' ? { rotate: 'sector' } : does[0] === 'r' ? { rotate: +does.slice(1) } : does === 'fh' ? { flipH: true } : { flipV: true };
@@ -622,13 +629,14 @@ function cellRulesEditor(node, ids) {
     <button type="button" class="icon-btn" data-act="del" data-i="${i}" aria-label="Delete rule ${i + 1}">${Organica.icons.get('trash')}</button></div>`;
   return { html: `<div class="fg-chips" id="fgi-rules">${rs.length ? rs.map(chip).join('') : '<p class="org-panel__hint">No rules yet — every cell gets the content.</p>'}</div>
     <div class="sub-label">Add rule</div>
-    <div class="ctrl-row"><div class="ctrl-label">Which cells</div><select class="panel-select" id="fgi-which" aria-label="Which cells">${WHICH.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
-    <div class="ctrl-row fg-hide" id="fgi-n-row" hidden><div class="ctrl-label">Number</div><input type="number" class="panel-input" id="fgi-n" min="0" max="99" step="1" value="1" aria-label="Number"></div>
-    <div class="ctrl-row"><div class="ctrl-label">They get</div><select class="panel-select" id="fgi-does" aria-label="They get">${DOES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></div>
+    <div class="ctrl-row"><div class="ctrl-label">Which cells</div><select class="panel-select" id="fgi-which" aria-label="Which cells">${groupedOptions(WHICH)}</select></div>
+    <div class="ctrl-row fg-hide" id="fgi-n-row" hidden><div class="ctrl-label" id="fgi-n-label">Row number</div><input type="number" class="panel-input" id="fgi-n" min="0" max="99" step="1" value="1" aria-labelledby="fgi-n-label"></div>
+    <p class="org-panel__hint fg-hide" id="fgi-n-hint" hidden>Ring 0 is the centre.</p>
+    <div class="ctrl-row"><div class="ctrl-label">They get</div><select class="panel-select" id="fgi-does" aria-label="They get">${groupedOptions(DOES)}</select></div>
     <div class="row-btns"><button type="button" class="mini-btn" id="fgi-add-rule">Add rule</button></div>
     <p class="org-panel__hint">Rules apply in order: a later rule wins on the cells it matches.</p>`,
     bind: () => {
-      ctrl('fgi-which').addEventListener('change', e => { ctrl('fgi-n-row').hidden = !['row', 'col', 'ring', 'sector', 'index'].includes(e.target.value); });
+      ctrl('fgi-which').addEventListener('change', e => { const v = e.target.value; ctrl('fgi-n-row').hidden = !N_LABEL[v]; if (N_LABEL[v]) ctrl('fgi-n-label').textContent = N_LABEL[v]; ctrl('fgi-n').min = v === 'ring' || v === 'sector' ? 0 : 1; ctrl('fgi-n-hint').hidden = !N_HINT[v]; if (N_HINT[v]) ctrl('fgi-n-hint').textContent = N_HINT[v]; });
       ctrl('fgi-add-rule').addEventListener('click', () => { rs.push(ruleFrom(ctrl('fgi-which').value, +ctrl('fgi-n').value || 0, ctrl('fgi-does').value)); edited(node, true); renderInspector(ids); ctl.paint(node.id); });
       ctrl('fgi-rules').addEventListener('click', e => {
         const b = e.target.closest('[data-act]'); if (!b) return; const i = +b.dataset.i;
@@ -869,7 +877,7 @@ function figureContents(figId) {   // the content feeding a Figure, as {kind, na
   });
   return out;
 }
-const QUICK = [['toggle', 'Swap empty / filled', { toggle: true }], ['empty', 'Empty', { content: 'empty' }], ['filled', 'Filled', { content: 'filled' }], ['rot', 'Rotate 90°', { rotate: 90 }], ['rot180', 'Rotate 180°', { rotate: 180 }], ['fh', 'Flip horizontal', { flipH: true }], ['fv', 'Flip vertical', { flipV: true }]];
+const QUICK = [['toggle', 'Swap empty / filled', { toggle: true }], ['empty', 'Empty', { content: 'empty' }], ['filled', 'Filled', { content: 'filled' }], ['rot', 'Rotate 90°', { rotate: 90 }], ['rot180', 'Rotate 180°', { rotate: 180 }], ['rot270', 'Rotate 270°', { rotate: 270 }], ['fh', 'Flip horizontal', { flipH: true }], ['fv', 'Flip vertical', { flipV: true }]];
 const cellAt = a => `row ${a[0] + 1}, column ${a[1] + 1}`;
 function whereText(w) {
   if (w.at) return w.at.length === 1 ? cellAt(w.at[0]) : w.at.length + ' cells';

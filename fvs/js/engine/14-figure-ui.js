@@ -142,9 +142,9 @@ export function describeRule(r) {
   if (w.index != null) parts.push('cell ' + [].concat(w.index).map(x => x + 1).join('/'));
   if (w.parity != null) parts.push(w.parity + ' cells');
   const what = [];
-  if (d.content === 'empty') what.push('Empty'); if (d.content === 'filled') what.push('Seed');
+  if (d.content === 'empty') what.push('Empty'); if (d.content === 'filled') what.push('Filled');   // the option the user picked (a Seed is a shape in FVS)
   if (d.rotate != null) what.push(d.rotate === 'sector' ? 'Rotate by sector' : 'Rotate ' + d.rotate + '°');
-  if (d.flipH != null) what.push(d.flipH ? 'Flip H' : 'Unflip H'); if (d.flipV != null) what.push(d.flipV ? 'Flip V' : 'Unflip V');
+  if (d.flipH === false && d.flipV === false) what.push('No flip'); else { if (d.flipH != null) what.push(d.flipH ? 'Flip horizontal' : 'No flip'); if (d.flipV != null) what.push(d.flipV ? 'Flip vertical' : 'No flip'); }
   if (d.scale != null) what.push('Scale ' + Math.round(d.scale * 100) + '%');
   return (parts.length ? parts.join(' + ') : 'all cells') + ' → ' + (what.join(', ') || '—');
 }
