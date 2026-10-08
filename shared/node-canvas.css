@@ -27,13 +27,14 @@
   font-size: var(--t-control-size);
   user-select: none; cursor: default;
   transition: border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard),
-    translate var(--dur-base) var(--ease-overshoot-soft), rotate var(--dur-base) var(--ease-overshoot-soft), scale var(--dur-base) var(--ease-overshoot-soft);
+    translate var(--dur-base) var(--ease-overshoot-soft), rotate var(--dur-base) var(--ease-overshoot-soft), scale var(--dur-base) var(--ease-overshoot-soft),
+    opacity var(--dur-slow) var(--ease-out), filter var(--dur-slow) var(--ease-out);
   --node-ink: var(--border-strong);   /* the card's ink: its output port's --port-* (data-ink, below) */
 }
 @media (hover: hover) { .nc-node:hover { border-color: var(--mid); } }
 /* Gesture feedback (Diego, Oct 8, 2026 — principles: playful, animated, enjoyable). translate / rotate / scale are their
-   own properties, so they add to the card's position transform; nothing moves while the board pans or a card drags. */
-@media (hover: hover) and (prefers-reduced-motion: no-preference) { .nc-stage:not(.nc-stage--pan):not(.nc-stage--dragging):not(.nc-stage--moving) .nc-node:hover { translate: 0 calc(-1 * var(--space-1) / 2); rotate: -0.4deg; } }
+   own properties, so they add to the card's position transform; nothing moves while the board pans or a card drags.
+   No hover motion on the card, its icon or its body (Diego, Oct 8, 2026: "annoying — we'll find others"). */
 @media (prefers-reduced-motion: no-preference) { .nc-node.is-lifted { scale: 1.02; rotate: -1deg; } }   /* picked up: a little tilt, no shadow */
 .nc-node.is-pop { animation: nc-pop var(--dur-slow) var(--ease-overshoot); }   /* added, connected */
 @keyframes nc-pop { 0%, 100% { scale: 1; } 40% { scale: 1.04; } }
@@ -90,33 +91,33 @@
   border-bottom: 0; border-radius: calc(var(--pill-h) / 2) 0 0 calc(var(--pill-h) / 2);
 }
 .nc-node--pill .nc-node__type, .nc-node--pill .nc-node__title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.nc-node__icon { display: flex; transition: rotate var(--dur-base) var(--ease-overshoot); }
-.nc-node__icon .ico { width: var(--icon-xl); height: var(--icon-xl); }
+.nc-node__icon { display: flex; }
+.nc-node--pill .nc-node__icon { color: var(--paper); }   /* a pill's icon is always light (Diego, Oct 8, 2026): --paper is the fixed white inside the light-scoped head. White on yellow 1.6:1 / orange 2.5:1 — ledger §3 node-palette exception; on the other inks ≥ 3.4:1 */
+/* the icon is the library's own .ico, untouched: --icon-lg (16px, the grid's native size, as in the floatbar and header) and
+   --icon-stroke — aligned with every other icon in the suite (Diego, Oct 8, 2026) */
 .nc-node--pill .nc-node__io { grid-row: 1; grid-column: 1 / -1; align-self: center; padding: 0; }
-.nc-node--pill .nc-node__body { grid-row: 1; grid-column: 2; display: flex; align-items: center; padding: 0 var(--space-6) 0 var(--space-3); }
+.nc-node--pill .nc-node__body { grid-row: 1; grid-column: 2; display: flex; align-items: center; padding: 0 calc(var(--space-4) + var(--port-d) / 2) 0 var(--space-4); }   /* the same gap left of the picture as between it and the out-port dot */
 .nc-node--pill .nc-node__status { grid-row: 2; grid-column: 1 / -1; padding-top: var(--space-2); }
 .nc-node--pill .nc-body__line { display: none; }   /* one piece of information: the picture */
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .nc-stage:not(.nc-stage--pan):not(.nc-stage--dragging):not(.nc-stage--moving) .nc-node--pill:hover .nc-node__icon { rotate: -12deg; }
-}
 
 /* ── card bodies: the shared vocabulary (Organica.nodeCanvas.body — Diego, Oct 8, 2026, Foundation first) ──
-   A picture beside one summary line, or a row of colour chips. The picture is drawn in the card's ink; on hover it grows
+   A picture beside one summary line, or a row of colour chips. The picture is drawn in the card's ink.
    a little and the chips hop one after another (gesture feedback only — the same guards as the card's lift). */
 .nc-body { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .nc-body--stack { flex-direction: column; align-items: flex-start; gap: var(--space-2); }
-.nc-body__pic { flex: 0 0 auto; width: calc(var(--space-8) * 1.5); height: calc(var(--space-8) * 1.5); color: var(--node-ink); transition: scale var(--dur-base) var(--ease-overshoot); }
+.nc-body__pic { flex: 0 0 auto; width: calc(var(--space-8) * 1.5); height: calc(var(--space-8) * 1.5); color: var(--node-ink); }
 .nc-body__pic svg { display: block; width: 100%; height: 100%; }
 .nc-body__line { margin: 0; min-width: 0; font-size: var(--t-caption-size); color: var(--mid); overflow-wrap: anywhere; }
+.nc-body__thumb { flex: 0 0 auto; display: block; width: calc(var(--space-8) * 1.5); height: calc(var(--space-8) * 1.5); overflow: hidden;
+  background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); }   /* work on paper: light in both themes */
+.nc-body__thumb svg { display: block; width: 100%; height: 100%; }
+.nc-body__stack { display: flex; flex: 0 0 auto; padding-right: var(--space-1); }
+.nc-body__stack .nc-body__thumb { rotate: calc((var(--i, 0) - 1) * 4deg); }   /* fanned: −4°, 0°, +4° */
+.nc-body__stack .nc-body__thumb + .nc-body__thumb { margin-left: calc(var(--space-8) * -1); }   /* each one a third of the way over the last */
 .nc-body__swatches { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.nc-body__swatch { width: var(--space-5); height: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  transition: translate var(--dur-base) var(--ease-overshoot) calc(var(--i, 0) * var(--dur-stagger) / 2); }
+.nc-body__swatch { width: var(--space-5); height: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 .nc-body__swatch.is-paper { border-color: var(--border-strong); }
 .nc-body__swatch.is-clear { background: repeating-conic-gradient(var(--panel) 0 25%, var(--paper) 0 50%) 0 0 / var(--space-2) var(--space-2) !important; }   /* a transparent paper: the checker, not a white chip */
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .nc-stage:not(.nc-stage--pan):not(.nc-stage--dragging):not(.nc-stage--moving) .nc-node:hover .nc-body__pic { scale: 1.08; }
-  .nc-stage:not(.nc-stage--pan):not(.nc-stage--dragging):not(.nc-stage--moving) .nc-node:hover .nc-body__swatch { translate: 0 calc(-1 * var(--space-1)); }
-}
 
 /* ── sections (model.frames): behind the nodes; the label stays readable at any zoom ── */
 .nc-frames { position: absolute; left: 0; top: 0; pointer-events: none; }   /* above the cards: border + label only */
@@ -130,6 +131,11 @@
 .nc-frame__label:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .nc-frame__input { padding: var(--space-1) var(--space-2); }
 .nc-frame__grip { position: absolute; right: 0; bottom: 0; width: var(--hit-min); height: var(--hit-min); cursor: nwse-resize; pointer-events: auto; }
+
+/* a node wired to nothing is dead (Diego, Oct 8, 2026): it fades and loses its colour, its edge dashed — until a wire
+   lands on it (then it pops back). Set by node-canvas.js on every wire redraw. */
+.nc-node.is-isolated { opacity: 0.45; filter: grayscale(1); border-style: dashed; }
+.nc-node.is-isolated.is-selected { opacity: 0.8; }
 
 /* a shared node changed: every Figure it feeds pulses once */
 .nc-node.is-pulse::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; box-shadow: 0 0 0 2px var(--ink); opacity: 0; pointer-events: none; animation: nc-pulse var(--dur-settle) var(--ease-out); }

@@ -371,7 +371,7 @@
   let menu = null, menuFor = null, pulled = false;
   // the library icon comes from the registry (shared/icons.js 'grid'); the
   // literal is only the fallback for a page that loads palette.js without it.
-  const LIB_ICON_FALLBACK = '<svg class="ico ico--sm" data-icon="grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg>';
+  const LIB_ICON_FALLBACK = '<svg class="ico ico--sm" data-icon="palette" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="5" width="3" height="6" rx=".6"/><rect x="6.5" y="5" width="3" height="6" rx=".6"/><rect x="10.5" y="5" width="3" height="6" rx=".6"/></svg>';
   function libraryButton(cls) {
     const b = document.createElement('button');
     b.type = 'button';
@@ -380,7 +380,7 @@
     b.setAttribute('aria-label', 'Pick from a palette');
     b.setAttribute('aria-haspopup', 'dialog');
     b.setAttribute('aria-expanded', 'false');
-    b.innerHTML = Organica.icons ? Organica.icons.get('grid', { size: 'sm' }) : LIB_ICON_FALLBACK;
+    b.innerHTML = Organica.icons ? Organica.icons.get('palette', { size: 'sm' }) : LIB_ICON_FALLBACK;
     return b;
   }
   function closeMenu(returnFocus) {

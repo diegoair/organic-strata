@@ -160,8 +160,8 @@ function renderBody(node, entry, el) {
     if (!el._expBound) { el._expBound = true; el.addEventListener('click', e => { if (e.target.closest('[data-act="run"]')) { e.stopPropagation(); runExport(node.id); } }); }
   } else if (node.type === 'set') {
     const items = p.items || [];
-    el.innerHTML = items.length ? `<div class="fg-set__strip" data-theme="light">${items.slice(0, 8).map(it => `<span class="fg-set__thumb" title="${esc(it.name)}">${entryThumb(it.kind, it.name, it.snapshot)}</span>`).join('')}</div>
-      <p class="fg-card__meta">${items.length} ${items.length === 1 ? 'item' : 'items'}</p>` : '<p class="fg-card__meta">No items yet</p>';
+    el.innerHTML = items.length ? NC.body.stack(items.map(it => entryThumb(it.kind, it.name, it.snapshot)), `${items.length} ${items.length === 1 ? 'item' : 'items'}`)
+      : NC.body.stack([''], 'No items yet');
   } else if (node.type === 'cell-rules') {
     const rs = p.rules || [];
     el.innerHTML = `<p class="fg-card__meta">${rs.length ? rs.length + (rs.length === 1 ? ' rule' : ' rules') + ' · ' + esc(describeRule(rs[0])) + (rs.length > 1 ? ' …' : '') : 'No rules yet'}</p>`;
@@ -177,8 +177,7 @@ function renderBody(node, entry, el) {
     el.innerHTML = `<p class="fg-card__meta">${(+p.rotate || 0) ? 'Rotation ' + p.rotate + '°' : 'No rotation'} · ${p.mirror && p.mirror !== 'none' && MIRRORS[p.mirror] ? 'Mirror ' + esc(MIRRORS[p.mirror].toLowerCase()) : 'No mirror'}</p>`;
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
-    el.innerHTML = p.snapshot ? `<div class="fg-card__thumb" data-theme="light">${entryThumb(node.type, p.name, p.snapshot)}</div>
-      <p class="fg-card__meta">${gone ? `${esc(p.name)} is no longer in the library — drawn from the copy kept in this graph` : esc(p.name)}</p>` : '';
+    el.innerHTML = p.snapshot ? NC.body.thumb(entryThumb(node.type, p.name, p.snapshot), gone ? `${p.name} is no longer in the library — drawn from the copy kept in this graph` : p.name) : NC.body.thumb('', 'Pick a saved ' + node.type);
   }
 }
 // The page a Grid card draws its grid in: the Canvas of the first Figure it feeds (a square page when there is none).

@@ -78,7 +78,10 @@
     /* ── node graph (Organica.nodeCanvas — ledger O-35 + G7, Oct 7, 2026) ── */
     'node-foundation': '<rect x="4" y="3" width="8" height="6" rx="1"/><path d="M2.5 12.5h11"/>',   // Foundation nodes (Canvas, Grid, Palette)
     'node-canvas':   '<rect x="3" y="2.5" width="10" height="11" rx="1"/><path d="M3 5.5h10"/>',   // a Canvas node: the page (pill head, node board)
-    'node-palette':  '<circle cx="5.5" cy="6" r="3"/><circle cx="10.5" cy="6" r="3"/><circle cx="8" cy="10.5" r="3"/>',   // a Palette node: inks over each other
+    'palette':       '<rect x="2.5" y="5" width="3" height="6" rx=".6"/><rect x="6.5" y="5" width="3" height="6" rx=".6"/><rect x="10.5" y="5" width="3" height="6" rx=".6"/>',   // a palette: a row of colour chips — the Palette node AND "Pick from a palette" (Diego, Oct 8, 2026, option D; took that second meaning off grid)
+    'node-element':   '<path d="M3 3A10 10 0 0 1 13 13H8A5 5 0 0 0 3 8z"/>',   // an Element node: one quarter-ring, the FVS arc mark (pill head)
+    'node-component': '<path d="M3 3h4.5v4.5zM13 3v4.5H8.5zM13 13H8.5V8.5zM3 13V8.5h4.5z"/>',   // a Component node: one Element in four turns (pill head)
+    'node-set':       '<rect x="2.5" y="6.5" width="11" height="7" rx="1"/><path d="M4 4.5h8M5.5 2.5h5"/>',   // a Set node: cards stacked in order — not copy, not library (pill head)
     'node-content':  '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 11l3-6 3 6z"/>',   // Content nodes (saved Element / Component / Symbol)
     'node-rule':     '<circle cx="4" cy="8" r="1.5"/><path d="M5.5 8h3l3-3.5M8.5 8l3 3.5"/>',   // Rule nodes
     'node-output':   '<rect x="2.5" y="4" width="8" height="8" rx="1"/><path d="M8 8h5.5M11.5 6l2 2-2 2"/>',   // Output nodes (Figure, Export)

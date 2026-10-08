@@ -399,16 +399,16 @@ CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d
 A registry type whose `meta` has `pill: true` is drawn by `mount()` (`buildCard`) as `.nc-node--pill`;
 `meta.icon` (any `Organica.icons` name) adds `<span class="nc-node__icon" aria-hidden="true">` first in
 the head, filled with `Organica.icons.get(meta.icon)` (an icon works on any card; a pill needs one).
-The pill = the solid head as a round cap with the icon (`--icon-xl`) + the body (one picture); the
+The pill = the solid head as a round cap with the icon (the library's own `.ico`: `--icon-lg`, `--icon-stroke`, white) + the body (one picture); the
 overline and name stay in the DOM visually hidden (`clip-path: inset(50%)`) — the card's accessible
 name — so the host shows the name in its panel. `--pill-h` is component-local (1.5 × `--space-8` +
 2 × `--space-2`); the radius is `--pill-h / 2` — a stadium, the radius rule's pill exception. A pill
 hides `.nc-body__line` (one piece of information), keeps its body in the chip view, and turns its
 icon −12° on hover (gesture guards, off under reduced motion). FVS: Canvas `node-canvas`, Grid
-`grid`, Palette `node-palette`.
+`fvs-grid`, Palette `palette`.
 
 ```js
-{ meta: { id: 'grid', label: 'Grid', category: 'Foundation', pill: true, icon: 'grid', inputs: [], outputs: [{ name: 'grid', type: 'grid', label: 'Grid' }] }, compute }
+{ meta: { id: 'grid', label: 'Grid', category: 'Foundation', pill: true, icon: 'fvs-grid', inputs: [], outputs: [{ name: 'grid', type: 'grid', label: 'Grid' }] }, compute }
 ```
 
 **Card bodies — `Organica.nodeCanvas.body`** (Oct 8, 2026, ledger §2 *node bodies* — Foundation
