@@ -41,7 +41,7 @@ import {
   plateSVG
 } from './engine/15-export-library-view.js';
 import {
-  FIGURE_LATTICES, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey, sameItem
 } from './engine/17-figure-nodes.js';
 import {
@@ -140,7 +140,7 @@ function renderBody(node, entry, el) {
     el._vars = vars;
   } else if (node.type === 'canvas') {
     const cv = canvasOf(p);
-    el.innerHTML = cv.fit ? `<p class="fg-card__meta">Fit to figure — the page is the Figure’s own size</p>` : `<p class="fg-card__meta">${Organica.aspectIcon ? Organica.aspectIcon(cv.W, cv.H) : ''} ${esc(canvasSummary(cv))}</p>`;
+    el.innerHTML = cv.fit ? `<p class="fg-card__meta">The page is the Figure’s own size</p>` : `<p class="fg-card__meta">${Organica.aspectIcon ? Organica.aspectIcon(cv.W, cv.H) : ''} ${esc(canvasSummary(cv))}</p>`;
   } else if (node.type === 'grid') {
     el.innerHTML = `<p class="fg-card__meta">${esc(gridSummary({ gen: p.gen, params: p.params }))}</p>`;
   } else if (node.type === 'palette') {
@@ -164,9 +164,9 @@ function renderBody(node, entry, el) {
     el.innerHTML = `<p class="fg-card__meta">${rs.length ? `${rs.length} region ${rs.length === 1 ? 'rule' : 'rules'}${on < rs.length ? ` (${rs.length - on} off)` : ''} · ${esc(describeComposeRule(rs[0], compInks(node)))}${rs.length > 1 ? ' …' : ''}` : 'No region rules yet'}</p>`;
   } else if (node.type === 'repeat') {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
-    el.innerHTML = `<p class="fg-card__meta">${esc(L.label)} · ${p.count}${p.altFlip ? ' · alternate flip' : ''}${(+p.rotate || 0) ? ' · ' + p.rotate + '°' : ''}${p.mirror && p.mirror !== 'none' ? ' · Mirror: ' + esc(MIRRORS[p.mirror].toLowerCase()) : ''}</p>`;
+    el.innerHTML = `<p class="fg-card__meta">${esc(L.label)} · ${p.count}${p.altFlip ? ' · alternate flip' : ''}${(+p.rotate || 0) ? ' · rotation ' + p.rotate + '°' : ''}${p.mirror && p.mirror !== 'none' ? ' · Mirror ' + esc(MIRRORS[p.mirror].toLowerCase()) : ''}</p>`;
   } else if (node.type === 'transform') {
-    el.innerHTML = `<p class="fg-card__meta">${(+p.rotate || 0) ? 'Rotate ' + p.rotate + '°' : 'No rotation'} · ${p.mirror && p.mirror !== 'none' && MIRRORS[p.mirror] ? 'Mirror: ' + esc(MIRRORS[p.mirror].toLowerCase()) : 'No mirror'}</p>`;
+    el.innerHTML = `<p class="fg-card__meta">${(+p.rotate || 0) ? 'Rotation ' + p.rotate + '°' : 'No rotation'} · ${p.mirror && p.mirror !== 'none' && MIRRORS[p.mirror] ? 'Mirror ' + esc(MIRRORS[p.mirror].toLowerCase()) : 'No mirror'}</p>`;
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
     el.innerHTML = p.snapshot ? `<div class="fg-card__thumb" data-theme="light">${entryThumb(node.type, p.name, p.snapshot)}</div>
@@ -445,7 +445,7 @@ function renderInspectorBody(box, ids) {
     // The Symbol step's own Canvas section (fvs/index.html #sym-canvas-section) — same controls, same ranges (G4).
     const cv = canvasOf(p), print = p.mode === 'print', fit = p.preset === FIT_PRESET;
     const cur = fit ? FIT_PRESET : SYMCANVAS_PRESETS[p.preset] ? p.preset : 'Custom';
-    rows.push({ html: `<div class="ctrl-row"><div id="fgi-preset-picker"></div><select class="panel-select fg-grow" id="fgi-preset" aria-label="Canvas format">${[FIT_PRESET, ...Object.keys(SYMCANVAS_PRESETS), 'Custom'].map(n => `<option${n === cur ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+    rows.push({ html: `<div class="ctrl-row"><div id="fgi-preset-picker"></div><select class="panel-select fg-grow" id="fgi-preset" aria-label="Canvas format">${[FIT_PRESET, ...Object.keys(SYMCANVAS_PRESETS), 'Custom'].map(n => `<option value="${esc(n)}"${n === cur ? ' selected' : ''}>${esc(n === FIT_PRESET ? FIT_LABEL : n)}</option>`).join('')}</select></div>
       ${fit ? '<p class="org-panel__hint">A Figure on a lattice takes its size from its cells. On a Loom grid it uses a square page.</p>' : `
       <div class="ctrl-row"><div class="seg-ctrl" id="fgi-mode" role="group" aria-label="Canvas mode"><button class="seg-btn${print ? '' : ' active'}" data-mode="screen" aria-pressed="${!print}">Screen</button><button class="seg-btn${print ? ' active' : ''}" data-mode="print" aria-pressed="${print}">Print</button></div></div>
       <div class="ctrl-row"><span class="ctrl-label">Size</span><input type="number" class="panel-input fg-size" id="fgi-pw" min="1" step="1" value="${cv.pw}" aria-label="Size, width"><span class="hint">×</span><input type="number" class="panel-input fg-size" id="fgi-ph" min="1" step="1" value="${cv.ph}" aria-label="Size, height"><span class="hint">${esc(cv.unit)}</span></div>
@@ -455,7 +455,7 @@ function renderInspectorBody(box, ids) {
       bind: () => {
         const again = () => { edited(node, true); renderInspector(ids); };
         // the Symbol Canvas's thumbnail format picker (G4): each format at its aspect, Custom dashed
-        Organica.selectPicker(ctrl('fgi-preset'), ctrl('fgi-preset-picker'), { ariaLabel: 'Canvas format', signal: panelSignal(), registry: Object.assign({ [FIT_PRESET]: { name: FIT_PRESET, icon: Organica.icons.get('fit-view') } }, Object.fromEntries(Object.entries(SYMCANVAS_PRESETS).map(([n, q]) => [n, { name: n, icon: Organica.aspectIcon(q.w, q.h) }])), { Custom: { name: 'Custom', icon: Organica.aspectIcon(1, 1, { dashed: true }) } }) });
+        Organica.selectPicker(ctrl('fgi-preset'), ctrl('fgi-preset-picker'), { ariaLabel: 'Canvas format', signal: panelSignal(), registry: Object.assign({ [FIT_PRESET]: { name: FIT_LABEL, icon: Organica.icons.get('fit-view') } }, Object.fromEntries(Object.entries(SYMCANVAS_PRESETS).map(([n, q]) => [n, { name: n, icon: Organica.aspectIcon(q.w, q.h) }])), { Custom: { name: 'Custom', icon: Organica.aspectIcon(1, 1, { dashed: true }) } }) });
         ctrl('fgi-preset').addEventListener('change', e => { p.preset = e.target.value; if (p.preset === 'Custom') { p.pw = cv.pw; p.ph = cv.ph; } again(); });
         if (fit) return;
         ctrl('fgi-mode').addEventListener('click', e => { const bt = e.target.closest('[data-mode]'); if (!bt || bt.dataset.mode === p.mode) return; p.mode = bt.dataset.mode; if (!SYMCANVAS_PRESETS[p.preset]) { const c2 = canvasOf({ ...p }); p.pw = c2.pw; p.ph = c2.ph; } again(); });
@@ -476,7 +476,7 @@ function renderInspectorBody(box, ids) {
     gridSpec(p.gen).params.forEach(([k, label, a, b, step, def]) => {
       if (a === 'text') return;
       const val = p.params && p.params[k] != null ? p.params[k] : def;
-      rows.push(rangeRow(k === 'seed' ? 'Random seed' : label, 'fgi-g-' + k, a, b, step, val, (v, c) => { p.params = { ...(p.params || {}), [k]: v }; edited(node, c); }));
+      rows.push(rangeRow(label, 'fgi-g-' + k, a, b, step, val, (v, c) => { p.params = { ...(p.params || {}), [k]: v }; edited(node, c); }));
       if (k === 'rings') rows.push({ html: '<p class="org-panel__hint">Cells along each side.</p>' });
     });
   } else if (node.type === 'palette') {
@@ -502,7 +502,7 @@ function renderInspectorBody(box, ids) {
     const anyPrint = files.some(f => f.print);
     rows.push(selectRow('Variations', 'fgi-ex-which', [['all', 'All variations'], ['pinned', 'Pinned only'], ['base', 'As set up only']], p.which || 'all', v => { p.which = v; edited(node, true); renderInspector(ids); }));
     rows.push({ html: `<div class="sub-label">Format</div><div class="fg-keep">${[['svg', 'SVG'], ['png', 'PNG'], ['plates', 'Plates (one per ink)']].map(([k, l]) => `<label class="check-row"><input type="checkbox" data-fmt="${k}"${fm[k] ? ' checked' : ''}><span>${l}</span></label>`).join('')}</div>
-      ${fm.png ? `<div class="sub-label">PNG size</div><div class="fg-keep">${[1, 2, 4].map(k => `<label class="check-row"><input type="checkbox" data-scale="${k}"${sc.includes(k) ? ' checked' : ''}><span>×${k}</span></label>`).join('')}</div>${anyPrint ? '<p class="org-panel__hint">A Figure on a Print Canvas exports one PNG at its own size and DPI.</p>' : ''}` : ''}
+      ${fm.png ? `<div class="sub-label">Resolution</div><div class="fg-keep">${[1, 2, 4].map(k => `<label class="check-row"><input type="checkbox" data-scale="${k}"${sc.includes(k) ? ' checked' : ''}><span>×${k}</span></label>`).join('')}</div>${anyPrint ? '<p class="org-panel__hint">A Figure on a Print Canvas exports one PNG at its own size and DPI.</p>' : ''}` : ''}
       <label class="check-row"><input type="checkbox" id="fgi-ex-transparent"${p.transparent ? ' checked' : ''}><span>Transparent paper</span></label>
       <p class="org-panel__hint">${esc(exportSummary(files, p))}. A Print Canvas adds its bleed and crop marks; plates get registration marks.</p>
       <button type="button" class="panel-btn fg-block" id="fgi-ex-run"${n ? '' : ' disabled'}>Export ${n} ${n === 1 ? 'file' : 'files'}</button><div class="row-btns"><button type="button" class="mini-btn" id="fgi-ex-figma"${n ? '' : ' disabled'}>Send to Figma</button></div>
@@ -527,20 +527,20 @@ function renderInspectorBody(box, ids) {
     } else if (p.rule === 'mirror') {
       rows.push(selectRow('Starting rotation', 'fgi-cseed', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.seed || 0, v => { q.seed = +v; edited(node, true); }));
     } else if (p.rule === 'checkerboard') {
-      rows.push(selectRow('First cells', 'fgi-ca', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.a || 0, v => { q.a = +v; edited(node, true); }));
-      rows.push(selectRow('Second cells', 'fgi-cb', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.b || 0, v => { q.b = +v; edited(node, true); }));
+      rows.push(selectRow('Cells A', 'fgi-ca', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.a || 0, v => { q.a = +v; edited(node, true); }));
+      rows.push(selectRow('Cells B', 'fgi-cb', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.b || 0, v => { q.b = +v; edited(node, true); }));
     }
     rows.push({ html: '<p class="org-panel__hint">Lays out a Square lattice up to 4 × 4.</p>' });
   } else if (node.type === 'repeat') {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
-    rows.push(selectRow('Lattice', 'fgi-rlat', Object.entries(REPEAT_LATTICES).map(([k, l]) => [k, l.label]), p.lattice, v => { p.lattice = v; p.count = REPEAT_LATTICES[v].def; edited(node, true); renderInspector(ids); }));
-    rows.push(rangeRow(L.key === 'n' ? 'Size' : L.key === 'stack' ? 'Stack' : 'Rows', 'fgi-rcount', L.min, L.max, 1, p.count, (v, c) => { p.count = v; edited(node, c); }));
+    rows.push(selectRow('Repeat as', 'fgi-rlat', Object.entries(REPEAT_LATTICES).map(([k, l]) => [k, l.label]), p.lattice, v => { p.lattice = v; p.count = REPEAT_LATTICES[v].def; edited(node, true); renderInspector(ids); }));
+    rows.push(rangeRow(L.key === 'n' ? 'Copies per side' : L.key === 'stack' ? 'Tiers' : 'Rows', 'fgi-rcount', L.min, L.max, 1, p.count, (v, c) => { p.count = v; edited(node, c); }));
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-ralt"${p.altFlip ? ' checked' : ''}><span>Alternate flip</span></label>`, bind: () => ctrl('fgi-ralt').addEventListener('change', e => { p.altFlip = e.target.checked; edited(node, true); }) });
-    rows.push(selectRow('Rotate', 'fgi-rrot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
+    rows.push(selectRow('Rotation', 'fgi-rrot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
     rows.push(selectRow('Mirror', 'fgi-rmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
     rows.push({ html: '<p class="org-panel__hint">Several Repeat in grid nodes apply in the order they were connected.</p>' });
   } else if (node.type === 'transform') {
-    rows.push(selectRow('Rotate', 'fgi-trot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
+    rows.push(selectRow('Rotation', 'fgi-trot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
     rows.push(selectRow('Mirror', 'fgi-tmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
     rows.push({ html: '<p class="org-panel__hint">Rotates and mirrors the whole figure — needs a Repeat in grid before it.</p>' });
   } else if (node.type === 'composition') {

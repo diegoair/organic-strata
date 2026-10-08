@@ -6,7 +6,7 @@
 //   · Grid = a Loom generator → generated INSIDE the Canvas (symbolGridModel, the Symbol step's own path), every cell
 //     takes a content patch (the Library rail's patch), in turn from the connected content;
 //   · Grid = an FVS lattice (Triangle / Square / Hexagon, the old Figure's) → the lattice keeps its own frame; with the
-//     Canvas on "Fit to figure" the SVG is the figure itself, otherwise it is fitted onto the Canvas's page;
+//     Canvas on "Figure’s own size" (id 'Fit to figure') the SVG is the figure itself, otherwise it is fitted onto the Canvas's page;
 //   · rules: Cell rules (by cell class), Component rule (a Square lattice ≤ 4 × 4 laid out by a named rule),
 //     Repeat in grid (tile the figure, any number, in wire order), Rotate & mirror (the last repeat's transform).
 // A built-in Figure (recipe v2) imports as a graph whose nodes keep the recipe's own pieces, so it compiles back to the
@@ -45,7 +45,8 @@ export { contentPatch };
 
 const clone = o => JSON.parse(JSON.stringify(o));
 export const FIGURE_PORT_TYPES = ['canvas', 'grid', 'palette', 'content', 'rule', 'composition', 'figure'];
-export const FIT_PRESET = 'Fit to figure';
+export const FIT_PRESET = 'Fit to figure';   // the stored preset id — saved graphs carry it; never shown
+export const FIT_LABEL = 'Figure’s own size';   // what the UI says (O-43)
 
 // ── Canvas: the figure's page — readSymbolCanvas()'s shape, from params instead of the panel ──
 export function canvasOf(p) {
@@ -66,7 +67,7 @@ export function canvasOf(p) {
     margin: Math.max(0, Math.min(25, +p.margin || 0)), W: Math.round(toPx(pw) * 100) / 100, H: Math.round(toPx(ph) * 100) / 100 };
 }
 export function canvasSummary(cv) {
-  if (cv.fit) return 'Fit to figure';
+  if (cv.fit) return FIT_LABEL;
   return cv.mode === 'print' ? `${cv.pw} × ${cv.ph} ${cv.unit} · ${cv.dpi} DPI` : `${cv.pw} × ${cv.ph} px`;
 }
 
@@ -265,7 +266,7 @@ export async function compileFigure(inputs, params, opts) {
 // ── Variations (Phase 4): a variation changes the Figure's own INPUTS — what Keep allows — then compiles as usual.
 // spec = { mode: 'seed' | 'one' | 'several', seed }. 'seed' re-draws only what is random (a Grid's seed, how several
 // contents spread over the cells); 'one' makes one change, 'several' two or three. Deterministic per spec.
-export const MIRRORS = { none: 'No mirror', v: 'Right edge', h: 'Bottom edge', vh: 'Both edges' };   // the mirror options, as the UI says them
+export const MIRRORS = { none: 'None', v: 'Over the right edge', h: 'Over the bottom edge', vh: 'Over both edges' };   // the mirror options, as the UI says them
 export const KEEP_KEYS = ['content', 'palette', 'cells', 'grid', 'transform'];   // UI-COPY §2: Content · Palette · Cell rules · Grid · Rotate & mirror
 const pick = (a, rng) => a[Math.floor(rng() * a.length)];
 function changeGrid(inp, rng) {
@@ -305,7 +306,7 @@ function changeTransform(inp, rng) {
   const at = rules.map(r => r.kind).lastIndexOf('transform'), t = at >= 0 ? { ...rules[at].transform } : { rotate: 0, mirror: 'none' };
   if (rng() < 0.5) t.rotate = (t.rotate + 90) % 360; else t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng);
   if (at >= 0) rules[at] = { kind: 'transform', transform: t }; else rules.push({ kind: 'transform', transform: t });
-  inp.rules = rules; return t.mirror !== 'none' ? `Mirror: ${MIRRORS[t.mirror].toLowerCase()}` : `Rotate ${t.rotate}°`;
+  inp.rules = rules; return t.mirror !== 'none' ? `Mirror ${MIRRORS[t.mirror].toLowerCase()}` : `Rotation ${t.rotate}°`;
 }
 const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells: changeCells, transform: changeTransform };
 const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) => n + (c.kind === 'set' ? c.items.length : 1), 0);   // a Set counts its items

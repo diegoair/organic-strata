@@ -215,7 +215,7 @@
 
       <div id="screen-scale-rows">
         <div class="org-popover__row">
-          <label class="org-popover__label" for="sel-export-scale">Scale</label>
+          <label class="org-popover__label" for="sel-export-scale">Resolution</label>
           <select class="org-select" id="sel-export-scale">
             <option value="1">&times;1</option>
             <option value="2" selected>&times;2</option>
@@ -236,7 +236,7 @@
         <select class="org-select" id="sel-variant-format"><option value="svg">SVG</option><option value="png">PNG</option></select>
       </div>
       <div class="org-popover__row" id="row-variant-scales">
-        <span class="org-popover__label">PNG size</span>
+        <span class="org-popover__label">Resolution</span>
         <label class="check-row"><input type="checkbox" id="chk-vscale-1" checked><span>×1</span></label>
         <label class="check-row"><input type="checkbox" id="chk-vscale-2"><span>×2</span></label>
         <label class="check-row"><input type="checkbox" id="chk-vscale-4"><span>×4</span></label>
@@ -363,8 +363,8 @@
       <div id="layer-place-block" class="org-layer-card__content fvs-layer__place" style="display:none">
         <div class="ctrl-row"><div class="ctrl-label" title="Move X — shifts this layer inside the Element; 100 is a full cell.">X</div><input type="range" id="rg-layer-mx" min="-100" max="100" step="1" value="0" aria-label="Move X"><span class="ctrl-val" id="v-layer-mx">0</span></div>
         <div class="ctrl-row"><div class="ctrl-label" title="Move Y">Y</div><input type="range" id="rg-layer-my" min="-100" max="100" step="1" value="0" aria-label="Move Y"><span class="ctrl-val" id="v-layer-my">0</span></div>
-        <div class="ctrl-row"><div class="ctrl-label" title="Scale">Size</div><input type="range" id="rg-layer-scale" min="0.1" max="2" step="0.01" value="1" aria-label="Scale"><span class="ctrl-val" id="v-layer-scale">1</span></div>
-        <div class="ctrl-row"><div class="ctrl-label" title="Rotate, in degrees">Rot</div><input type="range" id="rg-layer-rotate" min="-180" max="180" step="1" value="0" aria-label="Rotate"><span class="ctrl-val" id="v-layer-rotate">0</span></div>
+        <div class="ctrl-row"><div class="ctrl-label" title="Size">Size</div><input type="range" id="rg-layer-scale" min="0.1" max="2" step="0.01" value="1" aria-label="Size"><span class="ctrl-val" id="v-layer-scale">1</span></div>
+        <div class="ctrl-row"><div class="ctrl-label" title="Rotation, in degrees">Rotation</div><input type="range" id="rg-layer-rotate" min="-180" max="180" step="1" value="0" aria-label="Rotation"><span class="ctrl-val" id="v-layer-rotate">0</span></div>
       </div>
       <div id="layer-ink-pop" class="fvs-ink-pop" role="dialog" aria-label="Layer colour" hidden></div>
     </div>
@@ -923,12 +923,12 @@
           <span class="ctrl-val" id="v-wedge-squash">100</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rotates the wedge about the cell centre, in degrees.">Rotate</div>
+          <div class="ctrl-label" title="Rotates the wedge about the cell centre, in degrees.">Rotation</div>
           <input type="range" id="rg-wedge-rotate" min="-180" max="180" step="1" value="0">
           <span class="ctrl-val" id="v-wedge-rotate">0</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rotates the polygon about the cell centre, in degrees.">Rotate</div>
+          <div class="ctrl-label" title="Rotates the polygon about the cell centre, in degrees.">Rotation</div>
           <input type="range" id="rg-poly-rotate" min="-180" max="180" step="1" value="0">
           <span class="ctrl-val" id="v-poly-rotate">0</span>
         </div>
@@ -953,7 +953,7 @@
           <span class="ctrl-val" id="v-circle-radius">100</span>
         </div>
         <div class="ctrl-row" id="row-circle-rotate">
-          <div class="ctrl-label" title="Turns a squircle or the lobes; Holes and Slices follow. No visible effect on a plain circle.">Rotate</div>
+          <div class="ctrl-label" title="Turns a squircle or the lobes; Holes and Slices follow. No visible effect on a plain circle.">Rotation</div>
           <input type="range" id="rg-circle-rotate" min="0" max="359" step="1" value="0">
           <span class="ctrl-val" id="v-circle-rotate">0</span>
         </div>
@@ -1077,7 +1077,7 @@
           <span class="ctrl-val" id="v-element-patangle">45</span>
         </div>
       </div>
-      <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move, Rotate and Fit act on the whole Element. One layer’s own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
+      <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move, Rotation and Fit act on the whole Element. One layer’s own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Uniform size of the shape itself, before it is placed in any cell.">Scale</div>
         <input type="range" id="rg-element-scale" min="0.1" max="5" step="0.01" value="1">
@@ -1094,7 +1094,7 @@
         <span class="ctrl-val" id="v-element-my">0</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Turns the whole Element about its centre, in degrees (after Width / Length).">Rotate</div>
+        <div class="ctrl-label" title="Turns the whole Element about its centre, in degrees (after Width / Length).">Rotation</div>
         <input type="range" id="rg-element-rotate" min="-180" max="180" step="1" value="0">
         <span class="ctrl-val" id="v-element-rotate">0</span>
       </div>
@@ -1480,11 +1480,11 @@
         </div>
 
         <div id="rp-checkerboard" class="rule-params" style="display:none">
-          <div class="ctrl-row"><div class="ctrl-label">Rotate A</div>
+          <div class="ctrl-row"><div class="ctrl-label">Cells A</div>
             <select class="panel-select" id="sel-rule-chk-rota"><option value="0" selected>0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
           </div>
           <label class="check-row"><input type="checkbox" id="chk-rule-chk-swap"><span>Swap A and B (start on B)</span></label>
-          <div class="ctrl-row"><div class="ctrl-label">Rotate B</div>
+          <div class="ctrl-row"><div class="ctrl-label">Cells B</div>
             <select class="panel-select" id="sel-rule-chk-rot"><option value="0">0°</option><option value="90" selected>90°</option><option value="180">180°</option><option value="270">270°</option></select>
           </div>
           <label class="check-row"><input type="checkbox" id="chk-rule-chk-flip"><span>Flip B instead of rotate</span></label>
@@ -1540,7 +1540,7 @@
           <input type="range" id="rg-rule-scale-max" min="100" max="300" step="5" value="125"><span class="ctrl-val" id="v-rule-scale-max">125</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+          <div class="ctrl-label">Random seed</div>
           <input type="number" class="panel-input" id="num-rule-seed" value="1" min="0" max="999999" step="1" style="width:70%">
           <button class="icon-btn" id="btn-rule-seed-random" title="Random seed" aria-label="Random seed">
             <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
@@ -1562,8 +1562,8 @@
         <div class="ctrl-row"><div class="ctrl-label">Colour</div>
           <input type="range" id="rg-sug-col" min="0" max="100" step="5" value="40"><span class="ctrl-val" id="v-sug-col">40</span></div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
-          <input type="number" class="panel-input" id="num-sug-seed" value="1" min="0" max="999999" step="1" aria-label="Suggestion seed">
+          <div class="ctrl-label">Random seed</div>
+          <input type="number" class="panel-input" id="num-sug-seed" value="1" min="0" max="999999" step="1" aria-label="Random seed for suggestions">
           <button class="icon-btn" id="btn-sug-seed-random" title="Random seed" aria-label="Random suggestion seed">
             <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
           </button>
@@ -1586,7 +1586,7 @@
           <select class="panel-select" id="sel-sym-arrange-fit" aria-label="Fit in cell"><option value="fill">Stretch</option><option value="contain">Contain</option><option value="cover">Cover (no gaps)</option><option value="match">Match cell</option></select>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
+          <div class="ctrl-label">Random seed</div>
           <input type="number" class="panel-input" id="num-symbol-seed" value="1" min="0" max="999999" step="1" style="width:70%">
           <button class="icon-btn" id="btn-symbol-seed-random" title="Random seed" aria-label="Random seed">
             <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
