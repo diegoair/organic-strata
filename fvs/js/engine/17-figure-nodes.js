@@ -459,15 +459,22 @@ export async function figureVariation(i, p) {
     || (p.item != null ? vars.find(x => x.slot === p.slot && x.item != null && itemName(x.item) === itemName(p.item)) : null);   // the Set was reordered: the item by its name
   if (!v) throw new Error('Not drawn now — raise Variations on its Figure');
   if (v.error) throw new Error(v.label);
-  const one = f => ({ ...f, variations: [{ key: 'base', svg: f.svg, label: v.label, pinned: !!v.pinned, spec: v.spec, slot: v.slot, item: v.item }], groups: undefined, capped: undefined, failedVariations: undefined });
+  const one = (f, label = v.label) => ({ ...f, variations: [{ key: 'base', svg: f.svg, label, pinned: !!v.pinned, spec: v.spec, slot: v.slot, item: v.item }], groups: undefined, capped: undefined, failedVariations: undefined });
   if (!hasOverrides(i) || !v.src) return { figure: one({ ...par, ...(v.res || {}), svg: v.svg, canvas: (v.res || par).canvas || par.canvas, checks: null }) };
   const s = v.src, own = (i.content || []).filter(Boolean);
   const inp = { ...s.inputs, rules: (s.inputs.rules || []).concat((i.rules || []).filter(Boolean)) };
   OVERRIDES.forEach(k => { if (i[k]) inp[k] = i[k]; });
   if (own.length) inp.content = own;
   let r;
-  if (v.spec) { const vr = varyInputs(inp, v.spec, s.params.keep || {}); r = await compileFigure(vr.inputs, { ...s.params, ...s.extra, ...vr.extra }, { checks: false }); }
-  else r = await compileFigure(inp, { ...s.params, ...s.extra }, { checks: false });
+  // What you connect by hand wins over the generated change (Diego, Oct 8, 2026 — as in CSS, declared beats generated):
+  // an own input is kept as if Keep were on for it; the variation changes only what you left alone.
+  const keep = { ...(s.params.keep || {}) };
+  if (i.palette) keep.palette = true;
+  if (i.grid) keep.grid = true;
+  if (own.length) keep.content = true;
+  if ((i.rules || []).some(Boolean)) { keep.cells = true; keep.transform = true; }
+  if (v.spec) { const vr = varyInputs(inp, v.spec, keep); r = await compileFigure(vr.inputs, { ...s.params, ...s.extra, ...vr.extra }, { checks: false }); return { figure: one(r, vr.label) }; }
+  r = await compileFigure(inp, { ...s.params, ...s.extra }, { checks: false });
   return { figure: one(r) };
 }
 
