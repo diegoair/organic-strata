@@ -45,6 +45,11 @@
   .nc-port__dot[data-type="color"] { --port-c: var(--port-palette); }   .nc-wire--color { --wire-c: var(--port-palette); }
   .nc-port__dot[data-type="number"] { --port-c: var(--port-rule); }     .nc-wire--number { --wire-c: var(--port-rule); }
   .nc-port__dot[data-type="points"] { --port-c: var(--port-composition); } .nc-wire--points { --wire-c: var(--port-composition); }
+  .nc-node[data-ink="svg"] { --node-ink: var(--port-content); }
+  .nc-node[data-ink="image"] { --node-ink: var(--port-figure); }
+  .nc-node[data-ink="color"] { --node-ink: var(--port-palette); }
+  .nc-node[data-ink="number"] { --node-ink: var(--port-rule); }
+  .nc-node[data-ink="points"] { --node-ink: var(--port-composition); }
   /* the card body: a preview of the node's output, a light work surface in both themes */
   .rz-preview { display: flex; align-items: center; justify-content: center; min-height: 3rem; max-height: 8rem; overflow: hidden; background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm); }
   .rz-preview img { display: block; max-width: 100%; max-height: 8rem; object-fit: contain; }

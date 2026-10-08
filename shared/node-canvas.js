@@ -279,12 +279,13 @@
     var announce = o.announce || function (t) { live.textContent = ''; setTimeout(function () { live.textContent = t; }, 30); };
 
     // ── pan / zoom: wheel zooms, Space-drag / middle-drag pans, plain drag on the board = marquee ──
-    var spaceDown = false;
+    var spaceDown = false, movingT = 0;
     var zoomPan = Organica.createZoomPan({ canvas: board, wrap: stage, min: 0.1, max: 4, panAlways: true, infinite: true, dblclickReset: false,
       isReady: function () { return isActive(); },
       panStart: function (e) { return e.button === 1 || (e.button === 0 && spaceDown); },
       onChange: function (v) {
         stage.style.setProperty('--nc-zoom', v.zoom);
+        stage.classList.add('nc-stage--moving'); clearTimeout(movingT); movingT = setTimeout(function () { stage.classList.remove('nc-stage--moving'); }, 150);   // no hover lift while the board moves (wheel, middle-drag)
         var far = v.zoom < 0.5, was = stage.classList.contains('nc-stage--far');
         stage.classList.toggle('nc-stage--far', far);
         if (was !== far && cards) { cards.forEach(function (c, id) { measure(id); }); drawWires(); }
@@ -347,7 +348,8 @@
     }
     function buildCard(node) {
       var c = { ports: new Map(), sig: portSig(node) };
-      var card = el('div', 'nc-node' + (o.cardClass ? ' ' + (o.cardClass(node) || '') : ''), { role: 'group', tabindex: '0', 'data-node-id': node.id });
+      var inkPort = registry.outputsOf(node)[0] || registry.inputsOf(node)[0];   // the card's ink: its first output's type (Export: its input's)
+      var card = el('div', 'nc-node' + (o.cardClass ? ' ' + (o.cardClass(node) || '') : ''), { role: 'group', tabindex: '0', 'data-node-id': node.id, 'data-ink': inkPort ? inkPort.type : '' });
       card.setAttribute('aria-label', label(node));
       var head = el('div', 'nc-node__head'); var type = el('span', 'nc-node__type'); type.textContent = registry.get(node.type).meta.label;
       var title = el('span', 'nc-node__title'); title.textContent = label(node); head.append(type, title);
@@ -398,6 +400,8 @@
         if (lbl) { var t = document.createElementNS(SVGNS, 'text'); t.setAttribute('class', 'nc-wire__label'); t.setAttribute('x', (a.x + b.x) / 2); t.setAttribute('y', (a.y + b.y) / 2); t.textContent = lbl; wireG.appendChild(t); }
       });
     }
+    var rendered = false;   // after the first render a new card pops in (not the whole board on load)
+    function pop(elm) { elm.classList.remove('is-pop'); void elm.offsetWidth; elm.classList.add('is-pop'); elm.addEventListener('animationend', function () { elm.classList.remove('is-pop'); }, { once: true }); }
     function render() {   // full rebuild — after setModel / undo / a structural change
       var keep = new Set(ctl.model.nodes.map(function (n) { return n.id; }));
       cards.forEach(function (c, id) { if (!keep.has(id)) { io.unobserve(c.el); c.el.remove(); cards.delete(id); visible.delete(id); } });
@@ -407,13 +411,14 @@
           var fresh = buildCard(n); io.unobserve(c.el); c.el.replaceWith(fresh.el); cards.set(n.id, fresh); io.observe(fresh.el);
           if (visible.has(n.id)) fresh.painted = null;
           c = fresh; paintState(n.id, true);
-        } else if (!c) { c = buildCard(n); cards.set(n.id, c); nodesLayer.appendChild(c.el); io.observe(c.el); }
+        } else if (!c) { c = buildCard(n); cards.set(n.id, c); nodesLayer.appendChild(c.el); io.observe(c.el); if (rendered) pop(c.el); }
         else { place(c.el, n); c.title.textContent = label(n); c.el.setAttribute('aria-label', label(n)); }
         c.el.classList.toggle('is-selected', selected.has(n.id));
         c.el.classList.toggle('is-collapsed', !!n.collapsed);
       });
       Array.from(selected).forEach(function (id) { if (!keep.has(id)) selected.delete(id); });
       cards.forEach(function (c, id) { measure(id); });
+      rendered = true;
       growFrames();
       drawFrames();
       drawWires();
@@ -639,6 +644,7 @@
       if (!r.ok) { if (Organica.notice) Organica.notice(r.reason); else announce(r.reason); changed('wire'); return null; }
       var edge = addEdge(ctl.model, from, to, r.multi);
       touchDown(to.node);
+      var tc = cards.get(to.node), td = tc && tc.ports.get('in:' + to.port); if (td) pop(td.el); if (tc) pop(tc.el);
       var a = findNode(ctl.model, from.node), b = findNode(ctl.model, to.node);
       announce('Connected ' + label(a) + ' to ' + label(b));
       changed('connect'); commit('connect');
@@ -809,7 +815,7 @@
     ctl.undo = function () { restore(history.undo()); };
     ctl.redo = function () { restore(history.redo()); };
     ctl.setModel = function (m, meta) {
-      ctl.model = m; selected = new Set((meta && meta.selection) || []);
+      ctl.model = m; selected = new Set((meta && meta.selection) || []); rendered = false;   // a whole new board does not pop
       m.nodes.forEach(function (n) { engine.touch(n.id); });
       render(); run(); history.clear(); history.push(ctl.model, { selection: Array.from(selected) });
       if (o.onSelect) o.onSelect(Array.from(selected));

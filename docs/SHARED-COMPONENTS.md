@@ -312,7 +312,11 @@ NC.canConnect(model, registry, from, to)   // → { ok, multi, inType, outType }
 A port's `type` is one of the seven `--port-*` types (`canvas · grid · palette · content · rule ·
 composition · figure`, ledger O-34) — the CSS colours the dot and the wire from it. A tool with
 other type names maps them onto these (Rhizome: SVG → content, Image → figure, Grid → grid,
-Color → palette, Number → rule, Points → composition). `multi: true` = a list port (many wires,
+Color → palette, Number → rule, Points → composition) with **three rules per type**: the dot
+(`.nc-port__dot[data-type="x"] { --port-c }`), the wire (`.nc-wire--x { --wire-c }`) and the card
+ink (`.nc-node[data-ink="x"] { --node-ink }`) — Rhizome's are in `rhizome/index.html`. `mount()`
+writes `data-ink` on each card = the type of its first output port (no output, as Export: its first
+input); the head is tinted with it (ledger §2, Oct 8, 2026), no ink = `--border-strong`. `multi: true` = a list port (many wires,
 a square dot).
 
 **Engine** — `NC.createEngine({ registry, isActive?(node), onState?(id, entry) })` →
@@ -386,13 +390,19 @@ stays 2px on screen.
 CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d` 10px,
 `--wire-w` 1.5px, `--nc-zoom` written by the view): `.nc-stage` · `.nc-board` · `.nc-wires` ·
 `.nc-nodes` · `.nc-node` (+ `__head`, `__type`, `__title`, `__io`, `__ports(--in|--out)`,
-`__body`, `__status`; `.is-selected`, `.is-lifted`, `.is-collapsed`, `[data-state="error|stale"]`,
+`__body`, `__status`; `[data-ink]` → `--node-ink`; `.is-selected`, `.is-lifted`, `.is-pop`, `.is-collapsed`, `[data-state="error|stale"]`,
 `--compact`, `--wide`) · `.nc-port` (+ `--in|--out`, `__label`, `__dot`, `__dot--multi`,
 `.is-compatible`, `.is-incompatible`, `[data-type]`) · `.nc-wire` (+ `--<type>`, `--faint`,
 `--pending`, `.is-related`, `.is-selected`) · `.nc-wire__label` (`--mid`, `--font-display`,
 `--t-label-size`, a `--canvas-bg` halo `--space-1` wide via `paint-order: stroke`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
 Card look = ledger G3 (edge `--border-strong`, no shadow, at rest or lifted (Oct 8, 2026), 2px
-`--ink` ring selected).
+`--ink` ring selected) + the tinted head (Oct 8, 2026: head 14 % `--node-ink` into `--paper`, its
+border 45 %, overline 70 % `--node-ink` into `--ink`). Motion = gesture feedback only (Oct 8,
+2026): hover lift (not while `.nc-stage--pan` / `--dragging`), `.is-lifted` = `scale: 1.02` +
+`rotate: -1deg`, `.is-pop` (scale 1.04, `pop()` in `mount`) on a card added after the first
+render and on the card + port dot a wire lands on (dot 1.6), dot 1.3 on hover / `.is-compatible`;
+individual `translate` / `rotate` / `scale` properties, so they compose with the position
+`transform`; none under reduced motion.
 Port label (`.nc-port__label`) = **outside the card, above the wire** (ledger §2, Oct 8, 2026): an
 input’s left of its dot, an output’s right, `--space-1` from it, bottom at the dot’s centre
 (`bottom: 50%`, `padding-bottom: calc(var(--space-1) / 2)`), absolutely placed and

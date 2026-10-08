@@ -531,15 +531,17 @@ html {
   --border-strong: #958462;
   --danger: #a03828;       /* see --danger's note above (moved here with the themes) */
   --canvas-dot: #a8dff0;   /* light cyan blue */
-  /* Node-graph port types (Organica.nodeCanvas — ledger O-34, Oct 7, 2026): the Riso standard inks of the palette
-     library, each taken to the nearest step of its own OKLCH scale that reaches 3:1 on --panel (Organica.color.stepFor). */
-  --port-canvas: #656667;   /* Riso Light Gray */
-  --port-grid: #0078bf;   /* Riso Blue */
-  --port-palette: #e12396;   /* Riso Fluorescent Pink */
-  --port-content: #007b41;   /* Riso Green */
-  --port-rule: #a57a38;   /* Riso Flat Gold */
-  --port-composition: #765ba7;   /* Riso Purple */
-  --port-figure: #db4e00;   /* Riso Orange */
+  /* Node-graph port types (Organica.nodeCanvas) — the NODE palette, used only by the node board (Diego, Oct 8, 2026,
+     replacing the Riso inks of O-34): the cover of "Essential Color Combinations That Just Work" (Em Sans), sampled —
+     black, blue, pink, green, yellow, red, orange. Each taken to the nearest step of its own OKLCH scale reaching 3:1 on
+     --paper and --panel (Organica.color.stepFor); "as is" = the sampled ink already did. Nearest pair ΔE 7.6 (rule / figure). */
+  --port-canvas: #303030;   /* black, as is */
+  --port-grid: #037cc1;   /* blue, as is */
+  --port-palette: #fb4673;   /* pink, as is */
+  --port-content: #018e64;   /* green, as is */
+  --port-rule: #a27e00;   /* yellow #fac400 → 3:1 step */
+  --port-composition: #f73710;   /* red, as is */
+  --port-figure: #c36800;   /* orange #fb8700 → 3:1 step */
 }
 
 :root,
@@ -594,13 +596,13 @@ html {
   --danger: #e0735f;          /* 6.1:1 — light's #a03828 is 2.8:1 here */
   --accent-warm: #d8642a;     /* non-text accent: 5.2:1 on --paper, 4.6:1 on --panel, 3.0:1 against --ink (a light thumb) — light's #c2551b is 3.7:1 on this --panel (Oct 8, 2026) */
   --canvas-dot: #2e4a55;      /* the cyan dot, dimmed to the same quietness on black */
-  --port-canvas: #88898a;
-  --port-grid: #0078bf;
-  --port-palette: #ff48b0;
-  --port-content: #00a95c;
-  --port-rule: #bb8b41;
-  --port-composition: #765ba7;
-  --port-figure: #ff6c2f;
+  --port-canvas: #838383;   /* the node palette in dark: black → its 3:1 step; the rest as sampled */
+  --port-grid: #037cc1;
+  --port-palette: #fb4673;
+  --port-content: #018e64;
+  --port-rule: #fac400;
+  --port-composition: #f73710;
+  --port-figure: #fb8700;
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);   /* the sheet still has to lift off a dark ground */
   color-scheme: dark;
 }
