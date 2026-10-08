@@ -100,6 +100,7 @@ reference. Verify the line before you cite it — this map ages.
 | Colour swatch, RMX chips, palette library | `shared/palette.css` (+ `.color-*` in `panel.css`) | `shared/palette.js`, `shared/color.js` | `#palette-chips` |
 | Templates: Tool (`shell.css`, starter `shared/_template.html`) · Page (`page.css`: `body.org-page` > `.org-page__col`) · Auth card (`auth-card.css`) | `shared/shell.css` · `shared/page.css` · `shared/auth-card.css` | `scripts/templates.py` → `design-system/templates.json` | `#templates` `#template-tool` `#template-page` `#sign-in` |
 | Canvas stage, zoom HUD, drop zone | `shared/shell.css` | `shared/canvas.js` | `#canvas-stage` `#shell` |
+| Node board, left dock | `shared/node-canvas.css` · `.org-dock` in `shared/floatbar.css` | `Organica.nodeCanvas` (model, engine, history, mount, `nodeBar` / `search` / `portFor` / `graphMenu` / `repairModel`) in `shared/node-canvas.js` | `#node-canvas` `#dock` |
 | Seeds panel · Print size · Plates · Recorder | `seeds-panel.css` | `seeds-panel.js` · `print-size-panel.js` · `plate-export.js` · `recorder.js` | `#seeds-panel` |
 | Presets and saved work | — | `Organica.store(tool)` in `shared/store.js` — **cloud-synced**. A per-browser preference (a device id, a view state) is a plain `localStorage['organica.<tool>.<thing>']` instead; registry in `docs/SHARED-LIBRARY.md` §4 | — |
 
@@ -182,6 +183,10 @@ follow without opening the docs.
    stage): events that close each other, `position: fixed` under a transformed ancestor,
    focus traps. A brief that names two components that cannot nest causes the refactor it
    exists to prevent.
+   A node derived from another (FVS child Figures) inherits like CSS — an unwired input comes
+   from its parent, a wired input wins per port, a list input adds after the parent's, and
+   what the user wires beats what a generator changes. A new derived node follows the same
+   contract unless Diego decides otherwise (Diego, Oct 8, 2026).
 4. The contract it must meet, only the lines that apply: both themes, `aria-label` /
    `autoLabelPanel` (and no `title` on floatbar buttons), hover tier, focus ring, `--hit-min`,
    `data-armed` on destructive actions, floatbar order, one dropdown open at a time,
