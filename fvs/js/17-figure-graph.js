@@ -270,6 +270,30 @@ function cardClass(node) {
   return 'nc-node--compact';
 }
 function nodeLabel(node) { return node.name || registry.get(node.type).meta.label; }
+// Rename a named node from the panel title (O-47): the name is a button; click / Enter / F2 → a field,
+// Enter or leaving it keeps the name, Esc cancels. Two nodes of one type never share a name (Save Set saves by it).
+function bindRename(node, ids) {
+  const b = ctrl('fgi-rename'); if (!b) return;
+  const start = () => {
+    const old = nodeLabel(node), typeLabel = registry.get(node.type).meta.label;
+    const inp = document.createElement('input'); inp.type = 'text'; inp.className = 'panel-input fg-rename__input'; inp.value = old; inp.setAttribute('aria-label', typeLabel + ' name');
+    b.replaceWith(inp); inp.focus(); inp.select();
+    let over = false;
+    const done = (ok, refocus = true) => {
+      if (over) return; over = true;
+      const v = inp.value.trim();
+      if (ok && v && v !== old) {
+        if (ctl.model.nodes.some(n => n !== node && n.type === node.type && nodeLabel(n) === v)) Organica.notice(`There is already a ${typeLabel} called “${v}”`);
+        else { node.name = v; ctl.refresh(); ctl.commit('rename'); save(); }
+      }
+      renderInspector(ids); const again = refocus && ctrl('fgi-rename'); if (again) again.focus({ preventScroll: true });
+    };
+    inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); done(true); } else if (e.key === 'Escape') { e.preventDefault(); done(false); } });
+    inp.addEventListener('blur', () => done(true, false));
+  };
+  b.addEventListener('click', start);
+  b.addEventListener('keydown', e => { if (e.key === 'F2') { e.preventDefault(); start(); } });
+}
 // A Figure always has a Canvas and a Grid: the one feeding it can't be deleted while it is that Figure's only one.
 function protect(node, model, removing) {   // removing: the ids deleted together — a Figure going with its Canvas / Grid does not keep them
   if (node.type !== 'canvas' && node.type !== 'grid') return null;
@@ -439,7 +463,8 @@ function renderInspectorBody(box, ids) {
   }
   const node = nodes[0], p = node.params, rows = [];
   const meta = nodeMeta(node), typeLabel = registry.get(node.type).meta.label, name = nodeLabel(node);
-  const title = `<div class="panel-section"><h3>${esc(typeLabel)} <span class="hint">${esc([name !== typeLabel ? name : '', meta].filter(Boolean).join(' · '))}</span></h3>`;   // the concept, then the node's name + a one-line summary
+  const renameable = NUMBERED.includes(node.type);   // the named, shared nodes rename in place from the title (O-47)
+  const title = `<div class="panel-section"><h3>${esc(typeLabel)} <span class="hint">${renameable ? `<button type="button" class="fg-rename" id="fgi-rename" aria-label="Rename ${esc(name)}" aria-keyshortcuts="F2">${esc(name)}</button>${meta ? ' · ' + esc(meta) : ''}` : esc([name !== typeLabel ? name : '', meta].filter(Boolean).join(' · '))}</span></h3>`;   // the concept, then the node's name + a one-line summary
   const why = protect(node, ctl.model);
   if (node.type === 'canvas') {
     // The Symbol step's own Canvas section (fvs/index.html #sym-canvas-section) — same controls, same ranges (G4).
@@ -590,6 +615,7 @@ function renderInspectorBody(box, ids) {
       bind: () => { ctrl('fgi-clip').addEventListener('change', e => { p.clip = e.target.checked; edited(node, true); }); } });
   }
   box.innerHTML = title + (why ? `<p class="org-panel__hint">${esc(why)}</p>` : '') + rows.map(r => r.html).join('') + '</div>';   // a refused Delete explains itself first (no stop: the Decided string has none)
+  if (renameable) bindRename(node, ids);
   rows.forEach(r => r.bind && r.bind());
   if (Organica.autoLabelPanel) Organica.autoLabelPanel(box);
 }
