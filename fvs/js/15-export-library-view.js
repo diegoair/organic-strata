@@ -1,6 +1,7 @@
 // Flexible Visual System · 15-export-library-view — Variants, Plates, recipe import / export, init, Library rail, Delete, Library view.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
+import { rt } from './rt.js';
 import {
   live, pc, pv, state
 } from './engine/00-core.js';
@@ -399,8 +400,9 @@ export function railApply(kind, name, idx) {
 }
 
 export let railPress = null, railDrag = null;   // {kind,name,tile,x,y,id} / {ghost,idx}
-export const railCellAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); const g = el && el.closest('#symbol-frame [data-cell-index]'); return g; };
-export const clearRailDrop = () => document.querySelectorAll('#symbol-frame .is-drop').forEach(g => g.classList.remove('is-drop'));
+export const railCellAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); const g = el && el.closest(rt.railTarget ? '#fg-compose-stage .fg-cell' : '#symbol-frame [data-cell-index]'); return g; };
+const railCellIndex = g => +(g.dataset.cellIndex != null ? g.dataset.cellIndex : g.dataset.i);
+export const clearRailDrop = () => document.querySelectorAll('#symbol-frame .is-drop, #fg-compose-stage .is-drop').forEach(g => g.classList.remove('is-drop'));
 
 export function cancelRailDrag() {
   if (railDrag) railDrag.ghost.remove();
@@ -410,7 +412,7 @@ export function cancelRailDrag() {
 }
 railPanel.addEventListener('pointerdown', e => {
   const tile = e.button === 0 && e.target.closest('.fvs-library-item');
-  if (!tile || state.activeTier !== 'symbol' || tile.dataset.railKind === 'symbol') return;
+  if (!tile || (state.activeTier !== 'symbol' && !rt.railTarget) || tile.dataset.railKind === 'symbol') return;
   railPress = { kind: tile.dataset.railKind, name: tile.dataset.railName, tile, x: e.clientX, y: e.clientY, id: e.pointerId };
 });
 window.addEventListener('pointermove', e => {
@@ -428,7 +430,7 @@ window.addEventListener('pointermove', e => {
   }
   e.preventDefault();
   railDrag.ghost.style.transform = `translate3d(${e.clientX - 24}px, ${e.clientY - 24}px, 0)`;
-  const g = railCellAt(e), idx = g ? +g.dataset.cellIndex : null;
+  const g = railCellAt(e), idx = g ? railCellIndex(g) : null;
   if (idx !== railDrag.idx) { clearRailDrop(); if (g) g.classList.add('is-drop'); railDrag.idx = idx; }
 });
 window.addEventListener('pointerup', e => {
@@ -440,7 +442,7 @@ window.addEventListener('pointerup', e => {
   const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };
   window.addEventListener('click', swallow, { capture: true, once: true });
   setTimeout(() => window.removeEventListener('click', swallow, true), 0);
-  if (idx != null && !Number.isNaN(idx)) railApply(press.kind, press.name, idx);
+  if (idx != null && !Number.isNaN(idx)) (rt.railTarget ? rt.railTarget.apply : railApply)(press.kind, press.name, idx);
 });
 window.addEventListener('pointercancel', cancelRailDrag);
 // Rename: the one centred dialog; a taken name asks again.
@@ -491,6 +493,7 @@ export function railUse(kind, name) {
     setTier('symbol'); applySymbolLibraryEntryToUI(e);
     return;
   }
+  if (rt.railTarget) { rt.railTarget.apply(kind, name, null); return; }   // Compose: into the selected cells
   if (t === 'symbol') { railApply(kind, name, null); return; }
   if (kind === 'element') { useAsPaperTile('saved:' + name); return; }
   const e = LIBRARY.read()[name];
@@ -545,8 +548,11 @@ railSaveBtn.addEventListener('click', async () => {
   tgt.save(name);
   renderLibraryRail();
 });
+// rt.railTarget: set while the Figure step composes (17-figure-graph) — { apply(kind, name, idx) } puts a saved item in
+// Compose's cells as a region rule; the rail is then the same Library rail as the Symbol step's (Oct 8, 2026).
+rt.railTarget = null;
 export function syncRailTier(tier) {
-  const show = tier !== 'figure';
+  const show = tier !== 'figure' || !!rt.railTarget;
   ctrl('fvs-rail-dock').style.display = show ? '' : 'none';
   syncRailSave();
   if (!show && railIsOpen()) setRailOpen(false);

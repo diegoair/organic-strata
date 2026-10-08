@@ -8,6 +8,7 @@ import { rt } from './rt.js';
 import { provide } from './hooks.js';
 import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps } from './11-symbol-ui.js';
 import { syncExportButton } from './12-shell.js';
+import { syncRailTier } from './15-export-library-view.js';
 import {
   COLOR_RULES, pc, pv, state
 } from './engine/00-core.js';
@@ -860,6 +861,8 @@ function enterCompose(figId) {
   ctrl('fg-graph').hidden = true; ctrl('fg-compose').hidden = false;
   ctrl('fb-figure-actions').style.display = 'none'; ctrl('fb-compose-actions').style.display = '';
   setNodebar(null); renderComposeBar();
+  // the left side is the Symbol step's Library rail: drag a saved Element / Component onto a cell, or click it for the selection
+  rt.railTarget = { apply: composeRailApply }; ctrl('fg-nodebar-dock').hidden = true; syncRailTier('figure');
   ctrl('fg-compose-title').textContent = 'Compose ' + nodeLabel(fig);
   ctl.run(); drawCompose(); renderComposeInspector();
   ctrl('fg-compose-back').focus({ preventScroll: true });
@@ -871,6 +874,7 @@ function exitCompose() {
   ctrl('fg-compose').hidden = true; ctrl('fg-graph').hidden = false;
   ctrl('fb-compose-actions').style.display = 'none'; ctrl('fb-figure-actions').style.display = '';
   renderNodebarButtons();
+  rt.railTarget = null; ctrl('fg-nodebar-dock').hidden = false; syncRailTier('figure');
   ctl.zoomPan.setView({ zoom: view.zoom, panX: view.x, panY: view.y });
   ctl.select([fig]); ctl.refresh(); ctl.pulse([fig]);
   const back = opener && opener.isConnected && !opener.closest('#fg-compose') ? opener : ctl.cardOf(fig);
@@ -1254,6 +1258,14 @@ function initCompose() {
   }, true);
 }
 // A saved item dropped from the dock onto a Compose cell: called by the node bar's drag (initNodebar).
+// A rail item on cell idx (a dragged tile) or on the selection (a click): a content region rule, after the others so it
+// wins over them; a cell inside the selection takes the whole selection (as Symbol's railApply).
+function composeRailApply(kind, name, idx) {
+  if (!composing || (kind !== 'element' && kind !== 'component')) return;
+  const when = idx != null && !composing.sel.has(idx) ? cellsWhen([idx]) : selectionWhen(); if (!when) return;   // no cell selected: a click does nothing, as in Symbol
+  const c = addContent(kind, name); if (!c.params.snapshot) return;
+  addComposeRule({ content: { kind, name, entry: c.params.snapshot } }, when);
+}
 function composeDrop(spec, clientX, clientY) {
   if (!composing || !spec || (spec.type !== 'element' && spec.type !== 'component')) return false;
   const hit = document.elementFromPoint(clientX, clientY), cell = hit && hit.closest && hit.closest('#fg-compose-stage .fg-cell'); if (!cell) return false;
