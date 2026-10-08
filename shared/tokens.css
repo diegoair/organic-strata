@@ -203,7 +203,7 @@ html {
      tools stay fixed. */
   --t-display-size:    clamp(2.5rem, 1.5rem + 4vw, var(--fs-6xl));
   --t-display-weight:  var(--w-bold);
-  --t-display-lh:      var(--lh-none);
+  --t-display-lh:      var(--lh-tight);   /* the hub manifesto runs over lines — 1 would touch (Diego, Oct 8, 2026) */
   --t-display-ls:      var(--ls-display);
 
   --t-h1-size:         clamp(1.625rem, 1.1rem + 1.6vw, var(--fs-4xl));

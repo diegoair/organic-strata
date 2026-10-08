@@ -123,7 +123,7 @@ Unitless, so it scales with the element's own size.
 
 | Token | Value | Used for |
 |---|---|---|
-| `--lh-none` | 1 | display |
+| `--lh-none` | 1 | single-line specimens (the display role, `--t-display-lh`, is `--lh-tight` since Oct 8, 2026 — the hub manifesto runs over lines) |
 | `--lh-tight` | 1.15 | H1 |
 | `--lh-heading` | 1.25 | H2–H6 |
 | `--lh-snug` | 1.45 | multi-line labels in panels |
