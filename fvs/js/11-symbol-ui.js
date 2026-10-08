@@ -436,7 +436,7 @@ export function cellPropsHTML(pre, opts = {}) {
             <span class="ctrl-val" id="${I('symbol-cellprop-content-label')}" style="flex:1;text-align:left">—</span>
             <button class="mini-btn" id="${I('btn-cellprop-choose')}">Choose…</button>
           </div>
-          <div class="ctrl-row" id="${I('row-cellprop-seedparams')}">
+          <div class="ctrl-row fvs-cellprop-shape" id="${I('row-cellprop-seedparams')}">
             <div class="ctrl-label">Shape</div>
             <span class="ctrl-val" id="${I('symbol-cellprop-seedparams-label')}" style="flex:1;text-align:left">Default</span>
             <button class="mini-btn" id="${I('btn-cellprop-useseed')}" title="Copy the Element step’s current settings (extras, thickness…) into the selected cells">Use Element</button>
@@ -510,7 +510,7 @@ export function syncCellColourUI(cell, isComponent, pre = '', colors = state.col
   const cur = cell.color ? hexKey(cell.color) : '';
   const custom = cur && !pal.includes(cur);
   sel.innerHTML = `<option value="">Follow palette</option>`
-    + pal.map((c, i) => `<option value="${c}">Palette ${i + 1} · ${c}</option>`).join('')
+    + pal.map((c, i) => `<option value="${c}">Ink ${i + 1} · ${c}</option>`).join('')
     + `<option value="custom">Custom…</option>`;
   sel.value = !cur ? '' : custom ? 'custom' : cur;
   const inp = c('in-cellprop-color');

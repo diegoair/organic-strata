@@ -523,6 +523,7 @@
   .fg-cell { fill: transparent; stroke: transparent; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill var(--dur-fast) var(--ease-standard), stroke var(--dur-fast) var(--ease-standard); }
   @media (hover: hover) { .fg-cell:hover { stroke: var(--border-strong); stroke-dasharray: 4 3; } }
   .fg-cell.is-sel { fill: color-mix(in srgb, var(--ink) 18%, transparent); stroke: var(--ink); stroke-dasharray: none; filter: drop-shadow(0 0 1px var(--paper)) drop-shadow(0 0 1px var(--paper)); }   /* a paper halo: the outline reads on any ink */
+  .fvs-cellprop-shape { flex-wrap: wrap; row-gap: var(--space-1); }   /* Cell properties → Shape: "Element settings" + two buttons wrap instead of running past the panel */
   .is-outlined .fg-cell:not(.is-sel) { stroke: var(--border-strong); }   /* View → Show loaded grid */
   .fg-cell.is-hint:not(.is-sel) { stroke: var(--ink); stroke-dasharray: 4 3; filter: drop-shadow(0 0 1px var(--paper)); }   /* a hovered region rule's cells */
   .fg-lost { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); margin-bottom: var(--space-2); }
