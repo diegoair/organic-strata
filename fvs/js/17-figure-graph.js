@@ -891,6 +891,7 @@ function drawCompose() {
   stage.innerHTML = `<svg class="fg-compose__svg" viewBox="0 0 ${C.w} ${C.h}" role="listbox" aria-multiselectable="true" aria-label="Cells">${base}<g class="fg-cells">${C.outlines.map((pts, i) => `<polygon class="fg-cell${composing.sel.has(i) ? ' is-sel' : ''}" data-i="${i}" points="${pts.map(p => p.join(',')).join(' ')}" role="option" aria-selected="${composing.sel.has(i)}" tabindex="${i === fi ? 0 : -1}"><title>${C.ctxs && C.ctxs[i] && C.ctxs[i].row != null ? 'Row ' + (C.ctxs[i].row + 1) + ', column ' + (C.ctxs[i].col + 1) : 'Cell ' + (i + 1)}</title></polygon>`).join('')}</g>${composing.marquee ? `<rect class="symbol-marquee" x="${composing.marquee.x.toFixed(2)}" y="${composing.marquee.y.toFixed(2)}" width="${composing.marquee.w.toFixed(2)}" height="${composing.marquee.h.toFixed(2)}"/>` : ''}</svg>`;
   if (hadFocus) { const c = stage.querySelector(`.fg-cell[data-i="${fi}"]`); if (c) c.focus({ preventScroll: true }); }
   const ct = ctrl('fg-nodebar').querySelector('[data-tool="class"]'); if (ct) ct.setAttribute('aria-label', classToolLabel());   // named once the grid is known
+  syncComposeFloatbar();
 }
 // "Similar cells" names what it selects on this grid (UI-COPY §2, decided Oct 7, 2026)
 function classToolLabel() {
@@ -1011,8 +1012,8 @@ const COMPOSE_CELLS = {
   count: () => composing ? composing.sel.size : 0,
   first: () => { const f = figureValue(composing.fig), cs = f && f.compose && f.compose.cells; return (cs && cs[Math.min(...composing.sel)]) || {}; },
   colors: () => { const f = figureValue(composing.fig); return (f && f.colors) || composeInks(); },
-  apply: patch => {
-    const when = selectionWhen(); if (!when) return;
+  apply: (patch, all) => {
+    const when = all ? {} : selectionWhen(); if (!when) return;
     let p = typeof patch === 'function' ? patch(COMPOSE_CELLS.first()) : patch, key = JSON.stringify(when);
     if (p.source) {   // a pick in Choose content: the content (+ the window's Fit, an Element tile's turn / flip) — not Symbol's clean-slate resets
       const q = { source: p.source, fitMode: p.fitMode };
@@ -1107,6 +1108,7 @@ function cellRuleText(d, inks) {   // a Cell properties rule, in the panel's own
   if (d.scale != null) out.push(`Scale ${Math.round(d.scale * 100)}`);
   if (d.ink != null) out.push('Ink ' + (d.ink + 1)); else if (d.color) { const k = inks ? inks.indexOf(d.color) : -1; out.push(k >= 0 ? 'Ink ' + (k + 1) : 'Colour ' + d.color); }
   if (c.padding != null) out.push(`Padding ${Math.round(c.padding * 100)}`);
+  if (c.anchorX != null || c.anchorY != null) { const x = c.anchorX || 0, y = c.anchorY || 0; out.push(`Anchor ${x < 0 ? 'left' : x > 0 ? 'right' : 'center'} ${y < 0 ? 'top' : y > 0 ? 'bottom' : 'middle'}`); }
   if ('seedParams' in c) out.push(c.seedParams ? 'Element shape' : 'Default shape');
   return out.join(' · ') || 'No change';
 }
@@ -1178,7 +1180,44 @@ function renderComposeInspector(next) {
     ['pointerleave', 'blur'].forEach(t => b.addEventListener(t, () => hint(null)));
   });
 }
+// ── Compose floatbar — the Symbol step's Fit in cell + View groups (Oct 8, 2026). Fit / Anchor act on the selection,
+// or on every cell when none is selected (the label says which), as one region rule; View: the cells' outlines, and the
+// Figure's own Clip to cell. (Symbol's cover-crop view needs the Figure to draw it — not yet.)
+const FITS = [['contain', 'Contain'], ['fill', 'Stretch'], ['cover', 'Cover'], ['fixed', 'Fixed size'], ['match', 'Match cell']];
+function buildComposeFloatbar() {
+  const host = ctrl('fb-compose-actions');
+  host.insertAdjacentHTML('beforeend', `<span class="org-floatbar__group" role="group" aria-label="Fit in cell">${FITS.map(([k, l]) => `<button class="org-floatbar__btn" id="btn-fgc-fit-${k}" data-fit="${k}" data-fit-name="${l}" aria-pressed="false" aria-label="${l} · all cells">${Organica.icons.get('fvs-' + k)}</button>`).join('')}
+    <div class="org-popover-wrap"><button class="org-floatbar__btn" id="btn-fgc-anchor" aria-label="Anchor · all cells"><svg class="ico" id="ico-fgc-anchor" data-icon-slot viewBox="0 0 16 16" fill="none" aria-hidden="true"></svg></button>
+    <div class="fvs-flyout" id="fgc-anchor-popover" aria-label="Anchor position">${[[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]].map(([ax, ay]) => `<button type="button" class="fvs-flyout__tool" data-on="false" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'center'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`).join('')}</div></div></span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
+    <span class="org-floatbar__group" role="group" aria-label="View">
+    <button class="org-floatbar__btn" id="btn-fgc-view-outline" aria-pressed="false" aria-label="Show loaded grid">${Organica.icons.get('fvs-grid')}</button>
+    <button class="org-floatbar__btn" id="btn-fgc-view-clip" aria-pressed="true" aria-label="Clip to cell">${Organica.icons.get('fvs-clip')}</button></span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>`);
+  const pop = Organica.popover(ctrl('btn-fgc-anchor'), ctrl('fgc-anchor-popover'));
+  FITS.forEach(([k]) => ctrl('btn-fgc-fit-' + k).addEventListener('click', () => {
+    if (!composing) return; const all = !composing.sel.size, first = COMPOSE_CELLS.first();
+    COMPOSE_CELLS.apply({ fitMode: k, ...(k === 'cover' ? { coverAxis: 'auto' } : k === 'fixed' ? { fixedSize: first.fixedSize || 100 } : {}) }, all); renderComposeInspector();
+  }));
+  ctrl('fgc-anchor-popover').addEventListener('click', e => { const b = e.target.closest('[data-ax]'); if (!b || !composing) return; COMPOSE_CELLS.apply({ anchorX: +b.dataset.ax, anchorY: +b.dataset.ay }, !composing.sel.size); pop.close(); renderComposeInspector(); });
+  ctrl('btn-fgc-view-outline').addEventListener('click', e => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); ctrl('fg-compose-stage').classList.toggle('is-outlined', on); });
+  ctrl('btn-fgc-view-clip').addEventListener('click', () => { const fig = composing && NC.findNode(ctl.model, composing.fig); if (!fig) return; fig.params.clip = fig.params.clip === false; ctl.touch(fig.id); ctl.commit('compose'); save(); syncComposeFloatbar(); });
+}
+function syncComposeFloatbar() {
+  if (!composing || !ctrl('btn-fgc-fit-contain')) return;
+  const f = figureValue(composing.fig), cs = (f && f.compose && f.compose.cells) || [], n = composing.sel.size;
+  const who = n ? `${n} selected cell${n === 1 ? '' : 's'}` : 'all cells', idx = n ? [...composing.sel] : cs.map((_, i) => i);
+  const cells = idx.map(i => cs[i]).filter(c => c && c.source !== 'empty'), nothing = !cells.length;
+  const shared = fn => cells.length && cells.every(c => fn(c) === fn(cells[0])) ? fn(cells[0]) : null;
+  const fit = shared(c => c.fitMode || 'contain'), ax = shared(c => c.anchorX || 0), ay = shared(c => c.anchorY || 0);
+  FITS.forEach(([k]) => { const b = ctrl('btn-fgc-fit-' + k); b.setAttribute('aria-pressed', String(fit === k)); b.setAttribute('aria-label', `${b.dataset.fitName} · ${who}${nothing ? ' — nothing to fit (empty)' : ''}`); b.disabled = nothing; });
+  const a = ctrl('btn-fgc-anchor'); a.setAttribute('aria-label', 'Anchor · ' + who + (nothing ? ' — nothing to fit (empty)' : '')); a.disabled = nothing;
+  ctrl('fgc-anchor-popover').querySelectorAll('[data-ax]').forEach(b => { b.dataset.on = String(ax != null && ay != null && +b.dataset.ax === ax && +b.dataset.ay === ay); });
+  ctrl('ico-fgc-anchor').innerHTML = '<rect x="2.5" y="2.5" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.3"/>' + (ax != null && ay != null ? `<circle cx="${8 + ax * 3}" cy="${8 + ay * 3}" r="1.5" fill="currentColor"/>` : '<path d="M6 8h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>');
+  const fig = NC.findNode(ctl.model, composing.fig); ctrl('btn-fgc-view-clip').setAttribute('aria-pressed', String(!fig || fig.params.clip !== false));
+}
 function initCompose() {
+  buildComposeFloatbar();
   const stage = ctrl('fg-compose-stage');
   // The Symbol step's gestures (11-symbol-ui bindSymbolCanvasSelection): drag = marquee (⌘ / Shift adds), click selects,
   // a click on a cell already selected opens Choose content for the selection, a click off the cells clears.
