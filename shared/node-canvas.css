@@ -105,8 +105,7 @@
 .nc-node--pill > .nc-node__body > .nc-body__line { white-space: nowrap; font-family: var(--font-display); font-size: var(--t-control-size); color: var(--ink); }   /* a pill whose one fact is a few words (Rules, Export) */
 
 /* ── card bodies: the shared vocabulary (Organica.nodeCanvas.body — Diego, Oct 8, 2026, Foundation first) ──
-   A picture beside one summary line, or a row of colour chips. The picture is drawn in the card's ink.
-   a little and the chips hop one after another (gesture feedback only — the same guards as the card's lift). */
+   A picture beside one summary line, or a row of colour chips. The picture is drawn in the card's ink. No hover motion. */
 .nc-body { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .nc-body--stack { flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .nc-body__pic { flex: 0 0 auto; width: calc(var(--space-8) * 1.5); height: calc(var(--space-8) * 1.5); color: var(--node-ink); }
@@ -228,7 +227,7 @@
 .nc-nodebar__item--pill {
   --bar-pill-h: calc(var(--space-7) + var(--space-1) * 2);
   display: flex; align-items: center; gap: var(--space-3); min-height: var(--bar-pill-h); padding: 0 var(--space-4) 0 var(--space-1);
-  border-radius: calc(var(--bar-pill-h) / 2 + 1px); font-family: var(--font-display); font-weight: var(--w-medium);
+  border-radius: calc(var(--bar-pill-h) / 2); font-family: var(--font-display);   /* a button is border-box: its min-height includes the edge */ font-weight: var(--w-medium);
 }
 .nc-nodebar__item--pill:not([data-ink]), .nc-nodebar__item--pill[data-ink=""] { --node-ink: var(--border-strong); }
 .nc-pill__cap { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; width: var(--space-7); height: var(--space-7); border-radius: 50%; background: var(--node-ink); color: var(--paper); }   /* light-scoped: --paper = white */

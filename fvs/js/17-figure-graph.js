@@ -149,7 +149,8 @@ function renderBody(node, entry, el) {
     const g = { gen: p.gen, params: p.params }, text = gridSummary(g);
     el.innerHTML = NC.body.picture('', text);
     const cv = gridCanvasOf(node), key = JSON.stringify([g, cv.W, cv.H, cv.margin]); el._gridKey = key;   // a newer render wins
-    gridPreviewModel(g, cv).then(m => { const pic = el._gridKey === key && el.querySelector('.nc-body__pic'); if (pic && m) pic.innerHTML = Organica.loomGridThumb(m); }).catch(() => {});
+    const fallback = () => { if (el._gridKey === key) el.innerHTML = NC.body.line(text); };   // no drawing: the summary stays readable on the pill
+    gridPreviewModel(g, cv).then(m => { const pic = el._gridKey === key && el.querySelector('.nc-body__pic'), svg = m && Organica.loomGridThumb(m); if (!pic) return; if (svg) pic.innerHTML = svg; else fallback(); }).catch(fallback);
   } else if (node.type === 'palette') {
     const k = (p.colors || []).length;
     el.innerHTML = NC.body.swatches([p.transparent ? 'transparent' : (p.paper || '#ffffff'), ...(p.colors || [])], { paper: true, text: k + (k === 1 ? ' ink' : ' inks') });
@@ -159,7 +160,7 @@ function renderBody(node, entry, el) {
   } else if (node.type === 'set') {
     const items = p.items || [];
     el.innerHTML = items.length ? NC.body.stack(items.slice(0, 3).map(it => entryThumb(it.kind, it.name, it.snapshot)), `${items.length} ${items.length === 1 ? 'item' : 'items'}`)
-      : NC.body.stack([''], 'No items yet');
+      : NC.body.stack([], 'No items yet');
   } else if (node.type === 'cell-rules') {
     const rs = p.rules || [];
     el.innerHTML = NC.body.line(rs.length ? rs.length + (rs.length === 1 ? ' rule' : ' rules') : 'No rules yet');   // the rules themselves: the panel

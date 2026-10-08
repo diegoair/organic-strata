@@ -314,9 +314,10 @@ composition · figure`, ledger O-34) — the CSS colours the dot and the wire fr
 other type names maps them onto these (Rhizome: SVG → content, Image → figure, Grid → grid,
 Color → palette, Number → rule, Points → composition) with **three rules per type**: the dot
 (`.nc-port__dot[data-type="x"] { --port-c }`), the wire (`.nc-wire--x { --wire-c }`) and the card
-ink (`.nc-node[data-ink="x"] { --node-ink }`) — Rhizome's are in `rhizome/index.html`. `mount()`
+ink (`[data-ink="x"] { --node-ink }` — **attribute-only** since Oct 8, 2026, so the same rule inks a card,
+a node-bar pill item and its drag ghost) — Rhizome's are in `rhizome/index.html`. `mount()`
 writes `data-ink` on each card = the type of its first output port (no output, as Export: its first
-input); the head is tinted with it (ledger §2, Oct 8, 2026), no ink = `--border-strong`. `multi: true` = a list port (many wires,
+input); the head is solid in it (ledger §2, Oct 8, 2026), no ink = `--border-strong`. `multi: true` = a list port (many wires,
 a square dot).
 
 **Engine** — `NC.createEngine({ registry, isActive?(node), onState?(id, entry) })` →
@@ -390,22 +391,30 @@ stays 2px on screen.
 CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d` 10px,
 `--wire-w` 1.5px, `--nc-zoom` written by the view): `.nc-stage` · `.nc-board` · `.nc-wires` ·
 `.nc-nodes` · `.nc-node` (+ `__head`, `__type`, `__title`, `__io`, `__ports(--in|--out)`,
-`__body`, `__status`; `[data-ink]` → `--node-ink`; `.is-selected`, `.is-lifted`, `.is-pop`, `.is-collapsed`, `[data-state="error|stale"]`,
-`--compact`, `--wide`, `--pill` + `__icon`) · `.nc-port` (+ `--in|--out`, `__label`, `__dot`, `__dot--multi`,
+`__body`, `__status`; `[data-ink]` → `--node-ink`; `.is-selected`, `.is-lifted`, `.is-pop`, `.is-collapsed`, `.is-isolated`, `[data-state="error|stale"]`,
+`--compact`, `--wide`, `--pill` + `__icon`) · `.nc-body` (+ `--stack`, `__pic`, `__line`, `__thumb`, `__stack`, `__swatches`, `__swatch`, `.is-paper`, `.is-clear`) · `.nc-nodebar__*` (+ `__item--pill`, `.nc-pill__cap`) · `.nc-port` (+ `--in|--out`, `__label`, `__dot`, `__dot--multi`,
 `.is-compatible`, `.is-incompatible`, `[data-type]`) · `.nc-wire` (+ `--<type>`, `--faint`,
 `--pending`, `.is-related`, `.is-selected`) · `.nc-wire__label` (`--mid`, `--font-display`,
 `--t-label-size`, a `--canvas-bg` halo `--space-1` wide via `paint-order: stroke`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
-**The pill — `meta.pill` / `meta.icon`** (Oct 8, 2026, ledger §2 *Node pill* — the Foundation nodes).
-A registry type whose `meta` has `pill: true` is drawn by `mount()` (`buildCard`) as `.nc-node--pill`;
-`meta.icon` (any `Organica.icons` name) adds `<span class="nc-node__icon" aria-hidden="true">` first in
-the head, filled with `Organica.icons.get(meta.icon)` (an icon works on any card; a pill needs one).
-The pill = the solid head as a round cap with the icon (the library's own `.ico`: `--icon-lg`, `--icon-stroke`, white) + the body (one picture); the
-overline and name stay in the DOM visually hidden (`clip-path: inset(50%)`) — the card's accessible
-name — so the host shows the name in its panel. `--pill-h` is component-local (1.5 × `--space-8` +
-2 × `--space-2`); the radius is `--pill-h / 2` — a stadium, the radius rule's pill exception. A pill
-hides `.nc-body__line` (one piece of information), keeps its body in the chip view, and turns its
-icon −12° on hover (gesture guards, off under reduced motion). FVS: Canvas `node-canvas`, Grid
-`fvs-grid`, Palette `palette`.
+**The pill — `meta.pill` / `meta.icon`** (Oct 8, 2026, ledger §2 *Node pill* and the rows after it — every
+node but the Figure and its variations). A registry type whose `meta` has `pill: true` is drawn by `mount()`
+(`buildCard`) as `.nc-node--pill`; `meta.icon` (any `Organica.icons` name) adds `<span class="nc-node__icon"
+aria-hidden="true">` first in the head, filled with `Organica.icons.get(meta.icon)` (an icon works on any card;
+a pill needs one). The pill = the solid head as a round cap with the icon (the library's own `.ico`: `--icon-lg`,
+`--icon-stroke`) + the body (one fact); the overline and name stay in the DOM visually hidden
+(`clip-path: inset(50%)`) — the card's accessible name — so the host shows the name in its panel. **Icon colour:**
+always light (`--paper` inside the light-scoped head = white) except on the canvas ink in dark (the cover's
+cream): black — `[data-theme="dark"] [data-ink="canvas"]:not([data-theme="light"] [data-ink])`, the same rule for
+the node-bar cap. `--pill-h` is component-local (1.5 × `--space-8` + 2 × `--space-2`); the radius is
+`--pill-h / 2` + the 1px edge — a stadium, the radius rule's pill exception. **One fact:** a body holding a
+picture (`.nc-body__pic`, `__thumb`, `__stack`, `__swatches`) hides its `.nc-body__line`; a body that is only a
+line (`.nc-node--pill > .nc-node__body > .nc-body__line`) shows it, `nowrap`, display face, `--ink`. The body
+has the same gap left of the picture as between it and the out-port dot. It keeps its body in the chip view;
+no hover motion. **Dead:** `mount()` toggles `.is-isolated` on every card wired to nothing, on each wire
+redraw — opacity 0.45, `grayscale(1)`, dashed edge (0.8 when selected) — until a wire lands on it.
+FVS: Canvas `node-canvas`, Grid `fvs-grid`, Palette `palette`, Element `node-element`, Component
+`node-component`, Set `node-set`, Cell rules `node-cell-rules`, Component rule `node-component-rule`, Repeat in
+grid `node-repeat`, Composition `node-composition`, Rotate & mirror `node-transform`, Export `download`.
 
 ```js
 { meta: { id: 'grid', label: 'Grid', category: 'Foundation', pill: true, icon: 'fvs-grid', inputs: [], outputs: [{ name: 'grid', type: 'grid', label: 'Grid' }] }, compute }
@@ -419,7 +428,11 @@ const B = Organica.nodeCanvas.body;
 el.innerHTML = B.line('No region rules yet');                                  // .nc-body__line — caption, --mid
 el.innerHTML = B.picture(Organica.aspectIcon(1080, 1350), '1080 × 1350 px');    // .nc-body > .nc-body__pic + line
 el.innerHTML = B.picture(Organica.loomGridThumb(grid), 'Square lattice · 3 × 2');
-el.innerHTML = B.swatches([paper, ...inks], { paper: true, text: '3 inks' });   // .nc-body--stack > .nc-body__swatches
+el.innerHTML = B.swatches([paper, ...inks], { paper: true, text: '3 inks' });   // .nc-body--stack > .nc-body__swatches ('transparent' → .is-clear)
+el.innerHTML = B.thumb(svg, 'Leaf wave');                                      // .nc-body__thumb — the work on paper, light in both themes
+el.innerHTML = B.stack([svgA, svgB, svgC], '3 items');                          // .nc-body__stack — the first three thumbs, fanned
+// a node-bar item drawn as the node it adds (the button keeps .nc-nodebar__item):
+`<button type="button" class="nc-nodebar__item nc-nodebar__item--pill"${B.pillAttrs(meta)} aria-label="Add Grid">${B.pill(meta, 'Grid')}</button>`
 ```
 
 `picture` takes any SVG drawn in `currentColor`: it is painted in the card's ink (`--node-ink`),
@@ -428,15 +441,21 @@ Canvas, `Organica.loomGridThumb(grid)` for a Grid (a Loom export **or** an alrea
 `loadLoomGrid`'s own output — Rhizome's grid port; since Oct 8, 2026). An async picture: render
 `picture('', text)` first and fill `.nc-body__pic` when it arrives (FVS Grid, `gridPreviewModel`).
 `swatches` chips are content colours (`--space-5` square, `--border` edge; `paper: true` = the first
-is the ground, `.is-paper`, `--border-strong` edge) and carry `--i` for the hover stagger. Hover
-(gesture only, same guards as the card's lift, off under reduced motion): the picture scales 1.08,
-the chips hop up `--space-1` one after another (`--i` × ½ `--dur-stagger`). Consumers: FVS Canvas /
-Grid / Palette; Rhizome grid (`‹n› cells`) and colour (one chip + its hex). Live: `/design-system/#node-bodies`.
+is the ground, `.is-paper`, `--border-strong` edge). `thumb(svg, text)` = a saved piece of work in its own
+colours on paper (`.nc-body__thumb`, 48px, `--paper`, `--border`, `--radius-md`, `data-theme="light"`);
+`stack(svgs, text)` = the first three as thumbs fanned −4° / 0° / +4° (`--i`), each a third over the last.
+`pill(meta, label)` = `.nc-pill__cap` (`data-theme="light"`, `meta.icon`) + `.nc-pill__label`; `pillAttrs(meta)` =
+` data-ink="‹type›"` (the first output's type, else the first input's) — for a node-bar item: the button gets
+`.nc-nodebar__item--pill` (a `--space-7` cap in the node's ink, white icon, display-face name, a stadium of
+component-local `--bar-pill-h`); `nodeBar()`'s drag ghost copies the class and `data-ink`. No hover motion
+(removed Oct 8, 2026). Consumers: FVS — every node but Figure / Variation; Rhizome grid (`‹n› cells`) and
+colour (one chip + its hex), its node-bar items plain (no `meta.icon`). Live: `/design-system/#node-bodies`
+(every pill kind + a dead node) and `#node-canvas` (two real docks with pill items), both themes, self-checked.
 
 Card look = ledger G3 (edge `--border-strong`, no shadow, at rest or lifted (Oct 8, 2026), 2px
 `--ink` ring selected) + the solid head (Oct 8, 2026: the head is `--node-ink`; `data-theme="light"` on the
 head, text `--paper` on black / blue, `--ink` on the rest; port dots filled with their ink). Motion = gesture feedback only (Oct 8,
-2026): hover lift (not while `.nc-stage--pan` / `--dragging`), `.is-lifted` = `scale: 1.02` +
+2026): no hover motion on cards, icons or bodies (removed the same day), `.is-lifted` = `scale: 1.02` +
 `rotate: -1deg`, `.is-pop` (scale 1.04, `pop()` in `mount`) on a card added after the first
 render and on the card + port dot a wire lands on (dot 1.6), dot 1.3 on hover / `.is-compatible`;
 individual `translate` / `rotate` / `scale` properties, so they compose with the position
@@ -539,9 +558,9 @@ CSS only, no module. The optional left slot of the Tool template (ledger O-30 / 
 `docs/UI-SHELL.md` "Left dock"): `.org-dock` (fixed, left `--space-5`, vertically centred,
 `z-index` 150, `pointer-events: none`) holding two **sibling** `.org-floatbar`s —
 `.org-dock__bar` (vertical toggles, 3rem wide, tooltips to the right) and `.org-dock__panel`
-(one glass panel; `data-open="true"` shows it, slides in on `--dur-base` / `--ease-out`;
+(one panel, opaque like every floatbar since Oct 8, 2026; `data-open="true"` shows it, slides in on `--dur-base` / `--ease-out`;
 `.is-dragging-away` = half opacity while something is dragged out) — plus `.org-dock__sep`.
-Never nest them (a `backdrop-filter` child blurs only its parent). The dock is transformed, so
+Never nest them: each is its own `.org-floatbar`, on its own compositor layer (`will-change: transform`) with its own cached shadow. The dock is transformed, so
 a drag ghost or popover goes on `<body>`. The tool wires `aria-expanded` / `aria-controls` on the
 toggles and `inert` on the closed panel. One occupant per tool step — FVS: the Library rail
 (`#fvs-rail-dock`, Element / Component / Symbol) and the Figure graph's node bar

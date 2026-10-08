@@ -4,8 +4,8 @@
    the canvas, replacing the header's action slot (Open / Export / Figma
    / per-tool extras) across every tool.
 
-   STYLE (Sep 29, 2026 — the glass "Icon bar", after Bencho's IconBar, MIT):
-   a full-pill glass pane with the icons resting quiet (opacity) and ONE
+   STYLE (Sep 29, 2026 — the "Icon bar", after Bencho's IconBar, MIT; opaque since Oct 8, 2026):
+   a full-pill opaque pane with the icons resting quiet (opacity) and ONE
    indicator pill that travels between them — no per-button hover tile. The pill
    follows the hovered / focused button, and rests on an open toggle
    (aria-expanded) when nothing is hovered. A PRESSED toggle (aria-pressed) carries
@@ -22,7 +22,7 @@
    one .org-floatbar__ind span per bar; everything else is CSS here.
 
    Bencho's tokens, mapped to ours (defined on .org-floatbar, so nothing
-   leaks): --ink → --ink · --pane → 75% --paper · --pane-thumb (the
+   leaks): --ink → --ink · --pane → --paper (dark: --panel) · --pane-thumb (the
    indicator "wash") → 8% --ink · --pane-edge → --border · --bar-slot 34px
    (the button) · --bar-pad --space-1 · --bar-gap --space-2 · --shadow-rgb
    → the bar's own two-layer shadow · --g-* → the local values below.

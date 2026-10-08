@@ -30,7 +30,7 @@ Halide, Komorebi and, in spirit, Living Path):
 
 **Left dock (optional, Oct 2026 — ledger O-30/O-31).** A vertical `.org-dock` (`shared/floatbar.css`) for what
 you **add** to the canvas: a library of things to place, the node bar. A bar of toggles (`.org-dock__bar`, an
-`.org-floatbar` with `aria-orientation="vertical"`) and one sibling glass panel (`.org-dock__panel`, `data-open` +
+`.org-floatbar` with `aria-orientation="vertical"`) and one sibling opaque panel (`.org-dock__panel`, `data-open` +
 `inert`), both direct children of the dock, the dock a direct child of `<body>`. One occupant per tool step (FVS:
 the Library rail on Element / Component / Symbol, the node bar on the Figure graph). The dock is transformed
 (centred), so a drag ghost or a popover goes on `<body>`, never inside it. Actions stay in the bottom floatbar;
@@ -130,8 +130,11 @@ the same rule under a class, and keep only real deltas local.
 lives in — see §5's WYSIWYG rule and the many tools' own "Export moved
 here, not the header" notes. Linked by every tool except the Genesis
 catalog pages, which use the `--catalog` header variant instead.
-Since Sep 29, 2026 the bar is a **glass icon bar** (after Bencho's IconBar) —
-a translucent pill, no tile behind buttons, one elastic indicator that
+Since Sep 29, 2026 the bar is an **icon bar** (after Bencho's IconBar) — a
+pill, opaque since Oct 8, 2026 (`--paper`, `--panel` in dark; the frosted
+`backdrop-filter` re-blurred the board on every frame, so it went — the soft
+shadow stays, rasterised once on the bar's own layer, `will-change: transform`),
+no tile behind buttons, one elastic indicator that
 follows hover and rests on an open toggle (`Organica.floatbarPill` in
 `core.js`). Since Oct 5, 2026 a **pressed** toggle carries its own static wash
 (`--pane-thumb`), so an "on" state never vanishes when you hover another button

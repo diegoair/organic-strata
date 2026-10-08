@@ -1107,11 +1107,13 @@
     },
     // a saved piece of work on paper (an SVG in its own colours — a light work surface in both themes) beside its line
     thumb: function (svg, text) {
+      if (!svg) return text != null ? body.line(text) : '';   // nothing to show (none picked): the words say so, on a pill too
       return '<div class="nc-body"><span class="nc-body__thumb" data-theme="light" aria-hidden="true">' + (svg || '') + '</span>' + (text != null ? body.line(text) : '') + '</div>';
     },
     // several pieces of work as a little fanned stack (the first three), beside its line — a Set, a list
     stack: function (svgs, text) {
-      var list = (svgs || []).slice(0, 3);
+      var list = (svgs || []).filter(Boolean).slice(0, 3);
+      if (!list.length) return text != null ? body.line(text) : '';   // an empty list: the words only
       return '<div class="nc-body"><span class="nc-body__stack" aria-hidden="true">' + list.map(function (svg, i) {
         return '<span class="nc-body__thumb" data-theme="light" style="--i:' + i + '">' + (svg || '') + '</span>';
       }).join('') + '</span>' + (text != null ? body.line(text) : '') + '</div>';
