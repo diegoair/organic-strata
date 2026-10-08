@@ -117,7 +117,7 @@ function figureImg(id, svg) {
 }
 function renderBody(node, entry, el) {
   const p = node.params || {}, v = entry && entry.value;
-  if (node.type === 'figure' && composing && composing.fig === node.id) requestAnimationFrame(() => { if (!composing) return; drawCompose(); const a = document.activeElement; if (!(a && a.type === 'range' && ctrl('fg-inspector').contains(a))) renderComposeInspector(); });   // (not under a slider being dragged) the panel's lost-cell notes follow the new result
+  if ((node.type === 'figure' || node.type === 'figure-var') && composing && composing.fig === node.id) requestAnimationFrame(() => { if (!composing) return; drawCompose(); const a = document.activeElement; if (!(a && a.type === 'range' && ctrl('fg-inspector').contains(a))) renderComposeInspector(); });   // (not under a slider being dragged) the panel's lost-cell notes follow the new result
   if (node.type === 'figure') {
     const f = v && v.figure;
     if (!f) { el.innerHTML = ''; return; }
@@ -735,6 +735,7 @@ function renderInspectorBody(box, ids) {
       bind: () => { ctrl('fgi-clip').addEventListener('change', e => { p.clip = e.target.checked; edited(node, true); }); } });
   }
   if (node.type === 'figure-var') {
+    rows.push({ html: `<button type="button" class="panel-btn fg-block" id="fgi-compose">Compose</button>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });   // as the Figure's: the node's main verb
     const par = parentNode(node), en = ctl.engine.get(node.id), v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null;
     const own = ctl.model.edges.filter(e => e.to.node === node.id && e.to.port !== 'from').map(e => registry.inputsOf(node).find(q => q.name === e.to.port).label);
     if (par) rows.push({ html: `<p class="org-panel__hint">Variation ${variationNo(node, par)} of ${esc(nodeLabel(par))}${v && v.slot ? ' — ' + esc(v.label) : ''}</p>
@@ -981,6 +982,7 @@ function copyComposition() {   // this Figure gets its own copy; the other Figur
 }
 function enterCompose(figId) {
   const fig = NC.findNode(ctl.model, figId); if (!fig) return;
+  if (fig.type === 'figure-var') inheritComposition(fig);
   const edge = ctl.model.edges.find(e => e.to.node === figId && e.to.port === 'composition'), comp = edge && NC.findNode(ctl.model, edge.from.node);
   composing = { fig: figId, comp: comp ? comp.id : null, sel: new Set(), when: null, tool: null, anchor: null, focus: 0, opener: document.activeElement, view: { zoom: ctl.zoomPan.zoom, ...ctl.zoomPan.pan } };
   document.body.classList.add('fg-composing'); syncExportButton();
@@ -992,6 +994,14 @@ function enterCompose(figId) {
   ctrl('fg-compose-title').textContent = 'Compose ' + nodeLabel(fig);
   ctl.run(); drawCompose(); renderComposeInspector();
   ctrl('fg-compose-back').focus({ preventScroll: true });
+}
+// A variation without its own Composition draws its Figure's: composing it starts on that same Composition, wired to it
+// too — shared, so the shared notice offers this variation its own copy. No Figure Composition: the first rule makes one.
+function inheritComposition(child) {
+  const m = ctl.model, par = parentNode(child); if (!par || m.edges.some(e => e.to.node === child.id && e.to.port === 'composition')) return;
+  const e = m.edges.find(w => w.to.node === par.id && w.to.port === 'composition'); if (!e) return;
+  NC.addEdge(m, { node: e.from.node, port: 'composition' }, { node: child.id, port: 'composition' });
+  ctl.touch(child.id); ctl.refresh(); ctl.commit('compose'); save();
 }
 function exitCompose() {
   if (!composing) return;
@@ -1011,7 +1021,8 @@ function drawCompose() {
   ctrl('btn-fg-compose-undo').disabled = !ctl.history.canUndo(); ctrl('btn-fg-compose-redo').disabled = !ctl.history.canRedo();
   const f = figureValue(composing.fig), stage = ctrl('fg-compose-stage');
   const fig = NC.findNode(ctl.model, composing.fig), n = fig ? (+fig.params.variations || 1) : 1;
-  ctrl('fg-compose-note').textContent = `Applies to all ${n} ${n === 1 ? 'variation' : 'variations'} of ${fig ? nodeLabel(fig) : 'the Figure'}`;
+  const par = fig && fig.type === 'figure-var' ? parentNode(fig) : null;
+  ctrl('fg-compose-note').textContent = par ? `Variation ${variationNo(fig, par)} of ${nodeLabel(par)}` : `Applies to all ${n} ${n === 1 ? 'variation' : 'variations'} of ${fig ? nodeLabel(fig) : 'the Figure'}`;
   if (!fig) { exitCompose(); return; }   // undone away, or deleted
   if (!f) { const e = ctl.engine.get(composing.fig), bad = e && /error|waiting|upstream/.test(e.state); stage.innerHTML = `<p class="fg-compose__empty">${bad ? esc(e.message || 'This Figure can’t be drawn') : 'Updating…'}</p>`; return; }
   if (!f.compose || !f.base) { stage.innerHTML = '<p class="fg-compose__empty">This Figure has no cells to compose — a Component rule lays out its own.</p>'; return; }
@@ -1496,7 +1507,7 @@ export function renderFigureGraph() {
     onPortDblClick: (node, port, dir) => spawnFor(node, port, dir),
     nameCopy: (copy, model) => { if (copy.type === 'figure') { copy.params.seed = newSeed(); copy.params.pins = []; } return NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name; },
     keyScope: t => !!(t && t.closest && t.closest('#fb-figure-actions, #fg-nodebar-dock') && !t.closest('input, select, textarea')),   // not the panel: Delete on a panel button must not delete the node
-    onNodeDblClick: node => { if (node.type === 'figure') enterCompose(node.id); },
+    onNodeDblClick: node => { if (node.type === 'figure' || node.type === 'figure-var') enterCompose(node.id); },   // a variation composes too (Diego, Oct 8 — O-56 a)
     keepActive: n => !!(composing && n.id === composing.fig) || (ctl && (n.type === 'figure' || n.type === 'figure-var') && [n, n.type === 'figure-var' && parentNode(n)].some(x => x && ctl.model.edges.some(e => e.from.node === x.id && e.to.port === 'figures'))),   // a Figure wired to Export is computed off screen too, with its children (they draw its variations)
   });
   try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); if (v) ctl.zoomPan.setView({ zoom: v.zoom, panX: v.x, panY: v.y }); else requestAnimationFrame(() => ctl.fitAll()); } catch (e) { requestAnimationFrame(() => ctl.fitAll()); }

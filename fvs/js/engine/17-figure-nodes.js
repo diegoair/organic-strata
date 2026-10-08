@@ -155,7 +155,7 @@ export async function figureWithVariations(inputs, p) {
     const it = shown[gi], itemKey = gi + ':' + it.name;   // by position: the same item twice is two groups
     if (gi) await new Promise(r => setTimeout(r, 0));   // let the board breathe between groups
     const g = await figureGroup({ ...inputs, content: [it, ...others] }, { ...p, variations: per }, itemKey, gi === 0, keys);   // checks: the first group's, the one the badge shows
-    groups.push({ label: it.name, variations: g.variations.map(v => withSrc({ ...v, key: itemKey + '|' + v.key }, v.src)), main: g });
+    groups.push({ label: it.name, variations: g.variations.map(v => withSrc({ ...v, key: itemKey + '|' + v.key }, v.src, v.res)), main: g });
   }
   const main = groups[0].main;
   main.groups = groups.map(g => ({ label: g.label, variations: g.variations }));
@@ -164,7 +164,9 @@ export async function figureWithVariations(inputs, p) {
   return main;
 }
 // What a child Figure re-draws its variation from: kept on the variation, out of its JSON (and so lost to a spread — re-attach it).
-const withSrc = (v, src) => (src && Object.defineProperty(v, 'src', { value: src, enumerable: false, configurable: true }), v);
+// `res` = the variation's whole drawing (cells, Compose contexts, inks) — what a child shows, and composes, as is.
+const hide = (v, k, x) => { if (x) Object.defineProperty(v, k, { value: x, enumerable: false, configurable: true }); };
+const withSrc = (v, src, res) => (hide(v, 'src', src), hide(v, 'res', res), v);
 async function figureGroup(inputs, p, item, checks = true, keys = null) {
   const keep = p.keep || {};
   // `fixed`: the variation(s) a "New Figure from this" froze — applied in order, before anything else (with the Keep they were drawn with)
@@ -183,7 +185,7 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
     const pin = pins.get(slot);
     if (pin) {   // a pinned variation keeps its place, whatever the new seed
       const spec = { mode: pin.mode, seed: pin.seed };
-      try { const { r, label } = await draw(spec); seen.add(keyOf(r.svg)); main.variations.push({ key: 'pin:' + spec.mode + ':' + spec.seed, svg: r.svg, label, pinned: true, spec, slot, item }); }
+      try { const { r, label } = await draw(spec); seen.add(keyOf(r.svg)); main.variations.push(withSrc({ key: 'pin:' + spec.mode + ':' + spec.seed, svg: r.svg, label, pinned: true, spec, slot, item }, null, r)); }
       catch (e) { main.variations.push({ key: 'pin:' + pin.seed, svg: '', label: e.message, pinned: true, spec, slot, item, error: true }); }
       continue;
     }
@@ -192,12 +194,12 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
       try {
         const { r, label } = await draw(v.spec);
         if (!r.shapes || seen.has(keyOf(r.svg))) continue;   // blank, or the same as one already shown: draw another
-        seen.add(keyOf(r.svg)); main.variations.push({ key: v.key, svg: r.svg, label, pinned: false, spec: v.spec, slot, item }); break;
+        seen.add(keyOf(r.svg)); main.variations.push(withSrc({ key: v.key, svg: r.svg, label, pinned: false, spec: v.spec, slot, item }, null, r)); break;
       } catch (e) { failed++; }   // this change does not apply here (or a real error): try the next — counted, shown on the card
     }
   }
   if (main.variations.length < want && failed) main.failedVariations = failed;   // fewer than asked, and some draws threw
-  main.variations.forEach(v => withSrc(v, src));
+  main.variations.forEach(v => withSrc(v, src, v.slot === 0 ? { ...main } : null));   // the base: this group's own drawing
   return main;
 }
 export async function compileFigure(inputs, params, opts) {
@@ -458,7 +460,7 @@ export async function figureVariation(i, p) {
   if (!v) throw new Error('Not drawn now — raise Variations on its Figure');
   if (v.error) throw new Error(v.label);
   const one = f => ({ ...f, variations: [{ key: 'base', svg: f.svg, label: v.label, pinned: !!v.pinned, spec: v.spec, slot: v.slot, item: v.item }], groups: undefined, capped: undefined, failedVariations: undefined });
-  if (!hasOverrides(i) || !v.src) return { figure: one({ ...par, svg: v.svg, checks: v.slot === 0 && !v.item ? par.checks : null }) };
+  if (!hasOverrides(i) || !v.src) return { figure: one({ ...par, ...(v.res || {}), svg: v.svg, canvas: (v.res || par).canvas || par.canvas, checks: null }) };
   const s = v.src, own = (i.content || []).filter(Boolean);
   const inp = { ...s.inputs, rules: (s.inputs.rules || []).concat((i.rules || []).filter(Boolean)) };
   OVERRIDES.forEach(k => { if (i[k]) inp[k] = i[k]; });
