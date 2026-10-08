@@ -79,10 +79,15 @@
 @keyframes nc-pulse { 0%, 100% { opacity: 0; } 30% { opacity: 1; } }
 
 /* ── ports: a dot (type colour + shape) and its label — colour is never the only cue ── */
-.nc-port { display: flex; align-items: center; gap: var(--space-1); min-height: var(--hit-min); color: var(--mid); font-size: var(--t-label-size); }
+.nc-port { position: relative; display: flex; align-items: center; gap: var(--space-1); min-height: var(--hit-min); color: var(--mid); font-size: var(--t-label-size); }
 .nc-port--in { margin-left: calc(-1 * var(--port-d) / 2 - 1px); }
 .nc-port--out { margin-right: calc(-1 * var(--port-d) / 2 - 1px); }
-.nc-port__label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Port labels sit OUTSIDE the card, raised above the wire (Diego, Oct 8, 2026): an input's to the left of its dot, an
+   output's to the right, its baseline just over the dot's centre — the wire runs under it, never through it. The card
+   keeps only the dots on its edge. Out of the flow, so a label never widens or shifts the card. */
+.nc-port__label { position: absolute; bottom: 50%; padding-bottom: calc(var(--space-1) / 2); line-height: 1; white-space: nowrap; pointer-events: none; }
+.nc-port--in .nc-port__label { right: calc(100% + var(--space-1)); text-align: right; }
+.nc-port--out .nc-port__label { left: calc(100% + var(--space-1)); }
 .nc-port__dot {
   position: relative; flex: 0 0 auto; width: var(--port-d); height: var(--port-d); padding: 0;
   border: 1px solid var(--port-c, var(--mid)); border-radius: 50%; background: var(--paper);

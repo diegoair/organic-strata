@@ -387,6 +387,11 @@ CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d
 `--pending`, `.is-related`, `.is-selected`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
 Card look = ledger G3 (edge `--border-strong`, no shadow at rest, `--stage-shadow` lifted, 2px
 `--ink` ring selected).
+Port label (`.nc-port__label`) = **outside the card, above the wire** (ledger §2, Oct 8, 2026): an
+input’s left of its dot, an output’s right, `--space-1` from it, bottom at the dot’s centre
+(`bottom: 50%`, `padding-bottom: calc(var(--space-1) / 2)`), absolutely placed and
+`pointer-events: none` — it never widens the card, the wire runs under it. `--mid` on the board
+(`--canvas-bg`); hidden with `__io` in the chip view. Nodes need room between columns for two labels.
 
 **Helpers to build the node bar and the node search from** (promoted from the FVS Figure graph at
 Rhizome, Oct 7, 2026 — the host keeps its own items and words):

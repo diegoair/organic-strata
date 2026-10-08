@@ -76,10 +76,13 @@ function nameFor(model, type, params) {
   return params && params.name ? params.name : registry.get(type).meta.label;
 }
 function ensureNames(model) { model.nodes.forEach(n => { if (!n.name) n.name = nameFor(model, n.type, n.params); }); return model; }
+// Room between node columns: port labels sit outside the cards (node-canvas.css), an output's and an input's face
+// each other across the gap — two one-word labels + their gaps need ~120 px (design-system review, Oct 8, 2026).
+const LABEL_ROOM = 136, COL_STEP = 224 + LABEL_ROOM;   // 224 = the default card width (14rem)
 function starterModel() {
   const m = NC.createModel();
   const mk = (type, x, y) => NC.addNode(m, { type, x, y, params: registry.defaults(type), name: nextName(m, type) });
-  const cv = mk('canvas', 40, 40), gr = mk('grid', 40, 200), pa = mk('palette', 40, 360), fg = mk('figure', 360, 40);
+  const cv = mk('canvas', 40, 40), gr = mk('grid', 40, 200), pa = mk('palette', 40, 360), fg = mk('figure', 40 + COL_STEP, 40);
   NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fg.id, port: 'canvas' });
   NC.addEdge(m, { node: gr.id, port: 'grid' }, { node: fg.id, port: 'grid' });
   NC.addEdge(m, { node: pa.id, port: 'palette' }, { node: fg.id, port: 'palette' });
@@ -252,7 +255,7 @@ function exportFromFloatbar() {
   if (!exp) {
     const figs = sel.length ? sel : m.nodes.filter(n => n.type === 'figure');
     const right = figs.reduce((a, n) => Math.max(a, n.x + (ctl.cardOf(n.id) ? ctl.cardOf(n.id).offsetWidth : 420)), 0), top = figs.length ? Math.min(...figs.map(n => n.y)) : 40;
-    exp = NC.addNode(m, { type: 'export', x: right + 120, y: top, params: registry.defaults('export'), name: 'Export' });
+    exp = NC.addNode(m, { type: 'export', x: right + LABEL_ROOM, y: top, params: registry.defaults('export'), name: 'Export' });
     figs.forEach(f => NC.addEdge(m, { node: f.id, port: 'figure' }, { node: exp.id, port: 'figures' }, true));
     ctl.touch(exp.id); ctl.refresh(); ctl.commit('export'); save();
   } else sel.forEach(f => { if (!m.edges.some(e => e.from.node === f.id && e.to.node === exp.id)) { NC.addEdge(m, { node: f.id, port: 'figure' }, { node: exp.id, port: 'figures' }, true); ctl.touch(exp.id); ctl.commit('export'); } });
@@ -278,17 +281,17 @@ function protect(node, model, removing) {   // removing: the ids deleted togethe
 function viewCentre() { const r = ctrl('fg-graph').getBoundingClientRect(); return freeSpot(ctl.toBoard(r.left + r.width / 2, r.top + r.height / 3)); }
 function freeSpot(at) {   // the nearest place below / beside `at` that no card covers
   const boxes = ctl.model.nodes.map(n => { const c = ctl.cardOf(n.id); return { x: n.x, y: n.y, w: (c && c.offsetWidth) || 200, h: (c && c.offsetHeight) || 160 }; });   // 0 while the board is hidden (Compose): use a typical card
-  const hit = p => boxes.some(b => p.x < b.x + b.w + 24 && p.x + 240 > b.x - 24 && p.y < b.y + b.h + 24 && p.y + 140 > b.y - 24);
+  const hit = p => boxes.some(b => p.x < b.x + b.w + LABEL_ROOM && p.x + 240 > b.x - LABEL_ROOM && p.y < b.y + b.h + 24 && p.y + 140 > b.y - 24);
   for (let ring = 0; ring < 12; ring++) for (const [dx, dy] of [[0, 0], [0, 1], [1, 0], [1, 1], [0, -1], [-1, 0]]) {
-    const p = { x: Math.round(at.x + dx * ring * 160), y: Math.round(at.y + dy * ring * 120) }; if (!hit(p)) return p;
+    const p = { x: Math.round(at.x + dx * ring * COL_STEP), y: Math.round(at.y + dy * ring * 120) }; if (!hit(p)) return p;
   }
   return at;
 }
 // Where a new Composition goes: the column just left of its Figure (where its inputs sit), under the lowest card there.
 function composeSpot(fig) {
-  const col = ctl.model.nodes.filter(n => n.id !== fig.id && n.x < fig.x && n.x > fig.x - 320);
+  const col = ctl.model.nodes.filter(n => n.id !== fig.id && n.x < fig.x && n.x > fig.x - COL_STEP - 60);
   const y = col.reduce((m, n) => { const c = ctl.cardOf(n.id); return Math.max(m, n.y + ((c && c.offsetHeight) || 160) + 24); }, fig.y);
-  return { x: fig.x - 220, y };
+  return { x: fig.x - COL_STEP, y };
 }
 function centred(at, type) { const w = type === 'figure' ? 416 : type === 'canvas' || type === 'grid' || type === 'palette' ? 160 : 160; return { x: Math.round(at.x - w / 2), y: Math.round(at.y - 24) }; }
 function addNode(type, at, params) {
@@ -299,8 +302,8 @@ function addNode(type, at, params) {
   const last = t => { const sel = ctl.selection().map(id => NC.findNode(ctl.model, id)).filter(n => n && n.type === t); return sel[0] || ctl.model.nodes.filter(n => n.type === t).slice(-1)[0]; };
   const fig = ctl.add('figure', at, { seed: newSeed(), ...(params || {}) }, named('figure'));
   let cv = last('canvas'), gr = last('grid');
-  if (!cv) cv = ctl.add('canvas', { x: at.x - 260, y: at.y }, null, named('canvas'));
-  if (!gr) gr = ctl.add('grid', { x: at.x - 260, y: at.y + 150 }, null, named('grid'));
+  if (!cv) cv = ctl.add('canvas', { x: at.x - COL_STEP, y: at.y }, null, named('canvas'));
+  if (!gr) gr = ctl.add('grid', { x: at.x - COL_STEP, y: at.y + 150 }, null, named('grid'));
   ctl.connect({ node: cv.id, port: 'canvas' }, { node: fig.id, port: 'canvas' });
   ctl.connect({ node: gr.id, port: 'grid' }, { node: fig.id, port: 'grid' });
   ctl.select([fig.id]);
@@ -669,7 +672,7 @@ function openBuiltin(def, title) {
     const params = { ...registry.defaults(n.type), ...n.params };
     if (n.type === 'element') params.snapshot = entrySnapshot(entry);
     if (n.type === 'figure') params.seed = newSeed();
-    const node = NC.addNode(m, { type: n.type, x: x0 + c * 260, y: y0 + r * 150, params, name: n.name || nameFor(m, n.type, params) });
+    const node = NC.addNode(m, { type: n.type, x: x0 + c * COL_STEP, y: y0 + r * 150, params, name: n.name || nameFor(m, n.type, params) });
     ids[n.ref] = node.id;
   });
   g.edges.forEach(([a, ap, b, bp]) => NC.addEdge(m, { node: ids[a], port: ap }, { node: ids[b], port: bp }, true));
@@ -727,9 +730,9 @@ function openSearch(at, from, client) {   // Organica.nodeCanvas.search
 function spawnFor(node, port, dir) {
   const ip = dir === 'in' && registry.inputsOf(node).find(p => p.name === port);
   const direct = ip && { canvas: 'canvas', grid: 'grid', palette: 'palette' }[ip.type];
-  if (direct) { const n = addNode(direct, freeSpot({ x: node.x - 220, y: node.y })); ctl.connect({ node: n.id, port: direct }, { node: node.id, port }); return; }
+  if (direct) { const n = addNode(direct, freeSpot({ x: node.x - COL_STEP, y: node.y })); ctl.connect({ node: n.id, port: direct }, { node: node.id, port }); return; }
   const card = ctl.cardOf(node.id), r = card ? card.getBoundingClientRect() : null;
-  openSearch({ x: dir === 'in' ? node.x - 260 : node.x + (card ? card.offsetWidth : 200) + 60, y: node.y }, { node: node.id, port, dir }, r ? { x: dir === 'in' ? r.left - 250 : r.right + 10, y: r.top } : null);
+  openSearch({ x: dir === 'in' ? node.x - COL_STEP : node.x + (card ? card.offsetWidth : 200) + LABEL_ROOM, y: node.y }, { node: node.id, port, dir }, r ? { x: dir === 'in' ? r.left - 250 : r.right + 10, y: r.top } : null);
 }
 
 // ── Compose (Phase 5, ledger O-32): a mode of the Figure step. The Figure's own cells, selectable; every action is a
