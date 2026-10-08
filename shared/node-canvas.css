@@ -55,8 +55,8 @@
 .nc-node__type { font-family: var(--font-mono); font-size: var(--t-label-size); font-weight: var(--w-regular); color: inherit; }
 /* white text on the dark inks (black in light, blue); black on the rest — the cover's cream canvas in dark too */
 .nc-node[data-ink="grid"] .nc-node__head, .nc-node[data-ink="canvas"] .nc-node__head,
-[data-theme="dark"] .nc-node[data-ink=""] .nc-node__head { color: var(--paper); }
-[data-theme="dark"] .nc-node[data-ink="canvas"] .nc-node__head { color: var(--ink); }   /* dark: the canvas ink is the cover's cream */   /* the overline: what kind of node */
+[data-theme="dark"] .nc-node[data-ink=""]:not([data-theme="light"] .nc-node) .nc-node__head { color: var(--paper); }
+[data-theme="dark"] .nc-node[data-ink="canvas"]:not([data-theme="light"] .nc-node) .nc-node__head { color: var(--ink); }   /* not inside a light island on a dark page */   /* dark: the canvas ink is the cover's cream */   /* the overline: what kind of node */
 .nc-node__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* its own name */
 /* The ports and the body share one row (Diego, Oct 8, 2026): the dots sit on the card's edges over the body, so a node
    with many inputs no longer opens an empty band above its body — the card is as tall as the longer of the two. */
@@ -83,7 +83,7 @@
 .nc-node--pill {
   --pill-h: calc(var(--space-8) * 1.5 + var(--space-2) * 2);
   width: max-content; grid-template-columns: auto auto; grid-template-rows: var(--pill-h) auto;
-  border-radius: calc(var(--pill-h) / 2);
+  border-radius: calc(var(--pill-h) / 2 + 1px);   /* + the 1px edge: a true stadium on the outer edge */
 }
 .nc-node--pill .nc-node__head {
   grid-row: 1; grid-column: 1; width: var(--pill-h); padding: 0; justify-content: center; align-items: center;

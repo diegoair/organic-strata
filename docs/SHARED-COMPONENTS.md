@@ -391,10 +391,26 @@ CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d
 `--wire-w` 1.5px, `--nc-zoom` written by the view): `.nc-stage` · `.nc-board` · `.nc-wires` ·
 `.nc-nodes` · `.nc-node` (+ `__head`, `__type`, `__title`, `__io`, `__ports(--in|--out)`,
 `__body`, `__status`; `[data-ink]` → `--node-ink`; `.is-selected`, `.is-lifted`, `.is-pop`, `.is-collapsed`, `[data-state="error|stale"]`,
-`--compact`, `--wide`) · `.nc-port` (+ `--in|--out`, `__label`, `__dot`, `__dot--multi`,
+`--compact`, `--wide`, `--pill` + `__icon`) · `.nc-port` (+ `--in|--out`, `__label`, `__dot`, `__dot--multi`,
 `.is-compatible`, `.is-incompatible`, `[data-type]`) · `.nc-wire` (+ `--<type>`, `--faint`,
 `--pending`, `.is-related`, `.is-selected`) · `.nc-wire__label` (`--mid`, `--font-display`,
 `--t-label-size`, a `--canvas-bg` halo `--space-1` wide via `paint-order: stroke`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
+**The pill — `meta.pill` / `meta.icon`** (Oct 8, 2026, ledger §2 *Node pill* — the Foundation nodes).
+A registry type whose `meta` has `pill: true` is drawn by `mount()` (`buildCard`) as `.nc-node--pill`;
+`meta.icon` (any `Organica.icons` name) adds `<span class="nc-node__icon" aria-hidden="true">` first in
+the head, filled with `Organica.icons.get(meta.icon)` (an icon works on any card; a pill needs one).
+The pill = the solid head as a round cap with the icon (`--icon-xl`) + the body (one picture); the
+overline and name stay in the DOM visually hidden (`clip-path: inset(50%)`) — the card's accessible
+name — so the host shows the name in its panel. `--pill-h` is component-local (1.5 × `--space-8` +
+2 × `--space-2`); the radius is `--pill-h / 2` — a stadium, the radius rule's pill exception. A pill
+hides `.nc-body__line` (one piece of information), keeps its body in the chip view, and turns its
+icon −12° on hover (gesture guards, off under reduced motion). FVS: Canvas `node-canvas`, Grid
+`grid`, Palette `node-palette`.
+
+```js
+{ meta: { id: 'grid', label: 'Grid', category: 'Foundation', pill: true, icon: 'grid', inputs: [], outputs: [{ name: 'grid', type: 'grid', label: 'Grid' }] }, compute }
+```
+
 **Card bodies — `Organica.nodeCanvas.body`** (Oct 8, 2026, ledger §2 *node bodies* — Foundation
 first). HTML strings a host returns into `.nc-node__body` from `renderBody`; text is escaped:
 
