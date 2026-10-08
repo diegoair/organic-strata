@@ -154,13 +154,13 @@ export function applySymbolCanvasToUI(cv) {
   syncSymbolCanvasHint();
 }
 export function setSymbolCanvasMode(mode) {
-  ctrl('seg-symcanvas-mode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  ctrl('seg-symcanvas-mode').querySelectorAll('.seg-btn').forEach(b => { b.classList.toggle('active', b.dataset.mode === mode); b.setAttribute('aria-pressed', String(b.dataset.mode === mode)); });
   ctrl('symcanvas-print-block').style.display = mode === 'print' ? '' : 'none';
   ctrl('symcanvas-unit-label').textContent = mode === 'print' ? pv('sel-symcanvas-unit') : 'px';
 }
 export function syncSymbolCanvasHint() {
   const cv = readSymbolCanvas();
-  ctrl('symbol-canvas-hint').textContent = cv.mode === 'print' ? `${cv.pw} × ${cv.ph} ${cv.unit} · ${cv.dpi} dpi` : `${cv.pw} × ${cv.ph} px`;
+  ctrl('symbol-canvas-hint').textContent = cv.mode === 'print' ? `${cv.pw} × ${cv.ph} ${cv.unit} · ${cv.dpi} DPI` : `${cv.pw} × ${cv.ph} px`;
 }
 export function renderSymgridParams() {
   const genId = pv('sel-symgrid-gen'), spec = SYMGRID_GENS[genId];
