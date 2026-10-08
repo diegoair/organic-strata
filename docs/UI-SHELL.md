@@ -257,7 +257,7 @@ one place. A tool now declares only:
 | `--paper` | page background | `#ffffff` |
 | `--mid` | secondary text, dividers | `#696256` |
 | `--accent` | emphasis text | `#2a2a2a` |
-| `--panel` | inputs, selected rows, floating bars (the canvas surround moved to `--canvas-bg` + `--canvas-grid`, Sep 29, 2026) | `#eceae4` |
+| `--panel` | inputs, selected rows, floating bars (the canvas surround moved to `--canvas-bg` + `--canvas-grid`, Sep 29, 2026) | `--ink` 5% in `--paper` = `--control-bg` (`#f3f3f3`; the warm `#eceae4` retired Oct 8, 2026) |
 | `--border` | all 1px rules | `#d0c8b8` |
 
 A tool's own **content** colour (Halide's ink/paper for the dithered

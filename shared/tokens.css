@@ -514,7 +514,9 @@ html {
   --paper:  #ffffff;
   --mid:    #696256;
   --accent: #2a2a2a;
-  --panel:  #eceae4;
+  /* --panel = the control surface (--control-bg, the dropdown / field ground): the warm #eceae4 is retired —
+     Diego, Oct 8, 2026, "never used again". Mixed here, per scope, so it follows a tool's own --ink / --paper. */
+  --panel:  color-mix(in srgb, var(--ink) 5%, var(--paper));   /* #f3f3f3 */
   --border: #d0c8b8;
   /* The hover fill under an ink-filled button (.org-btn--primary,
      .panel-btn). Lifted off --ink rather than darkened, so the button
@@ -580,12 +582,12 @@ html {
 
 :root[data-theme="dark"],
 [data-theme="dark"] {
-  /* Measured on --paper #121210 / --panel #1f1e1a — text ≥ 4.5:1, boundaries ≥ 3:1. */
-  --ink:    #eceae4;   /* 15.6:1 */
+  /* Measured on --paper #121210 / --panel #1d1d1b (= --control-bg) — text ≥ 4.5:1, boundaries ≥ 3:1. */
+  --ink:    #ededed;   /* 16.0:1 — neutral; the warm #eceae4 retired (Diego, Oct 8, 2026) */
   --paper:  #121210;
   --mid:    #a39c90;   /* 6.9:1 */
   --accent: #d9d6cf;
-  --panel:  #1f1e1a;
+  --panel:  color-mix(in srgb, var(--ink) 5%, var(--paper));   /* #1d1d1b — = --control-bg, as in light */
   --border: #3a362f;   /* decorative, as in light */
   --border-strong: #7d725e;   /* 3.97:1 */
   --accent-hover: #bdb8ae;    /* the hover under an ink-filled button: dropped off --ink, the mirror of light's lift */

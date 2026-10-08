@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="/shared/header.css">
   <style>
   :root{
-    --paper:#ffffff; --mid:#6b6860; --panel:#efece4; --tool:#c8f060;
+    --paper:#ffffff; --mid:#6b6860; --tool:#c8f060;
     --border-strong:#958462;
     --bg:#ffffff;
-    --bg-cell:#efece4;
+    --bg-cell:#f3f3f3;
     --ink:#15140f;
     --ink-soft:#15140fcc;
   }
@@ -1058,7 +1058,7 @@
   body[data-theme="dark"][data-tone="warm"]{--bg-cell:#1d1b15}
   body[data-theme="dark"][data-tone="neutral"]{--bg-cell:#1c1c1c}
   body[data-theme="dark"][data-tone="cool"]{--bg-cell:#171a1d}
-  body[data-theme="light"][data-tone="warm"]{--bg:#f4f1ea;--bg-cell:#efece4}
+  body[data-theme="light"][data-tone="warm"]{--bg:#f4f1ea;--bg-cell:#f3f3f3}
   body[data-theme="light"][data-tone="neutral"]{--bg:#f1f1ef;--bg-cell:#eaeaea}
   body[data-theme="light"][data-tone="cool"]{--bg:#eef1f3;--bg-cell:#e6eaee}
   body[data-cells="off"] .cell{background:transparent}
@@ -1294,7 +1294,7 @@ async function recordCard(cell){
   const ctx = canvas.getContext('2d');
 
   // Use the current bg-cell color for the GIF background
-  const bg = getComputedStyle(cell).backgroundColor || '#efece4';
+  const bg = getComputedStyle(cell).backgroundColor || '#f3f3f3';
   const transparent = bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent';
   const fillBg = transparent ? getComputedStyle(document.body).backgroundColor : bg;
 

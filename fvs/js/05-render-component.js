@@ -235,8 +235,8 @@ export const drawIdFree = svg => {
 };
 // The gallery keeps each thumbnail whose drawing is unchanged (keyed by the Component object, so a new candidate
 // list = new thumbnails): a save, a selection or a redraw that changes nothing visible only updates classes, the
-// caption and the save circle, instead of re-creating and re-painting every SVG (with its baked shadow,
-// 16-cell-shadow.js). A kept SVG keeps its own ids, still unique on the page (the counter only goes up).
+// caption and the save circle, instead of re-creating and re-painting every SVG.
+// A kept SVG keeps its own ids, still unique on the page (the counter only goes up).
 const galleryThumbs = new WeakMap();   // comp → { key, wrap, btn, cap, quickSave, savedName }
 export function renderGallery() {
   // Component Edit mode owns the view while active (renderComponentEditCanvas

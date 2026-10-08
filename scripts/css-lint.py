@@ -189,7 +189,7 @@ for page in all_pages():
 
 # ── 2. A tool may not redeclare a palette token at its own default ────
 DEFAULTS = {'--ink': '#0a0a0a', '--paper': '#ffffff', '--mid': '#696256',
-            '--accent': '#2a2a2a', '--panel': '#eceae4', '--border': '#d0c8b8'}
+            '--accent': '#2a2a2a', '--panel': 'color-mix(in srgb, var(--ink) 5%, var(--paper))', '--border': '#d0c8b8'}
 for page in all_pages():
     # only the tool's own <style> — a docs page may legitimately PRINT a token
     # value as content, and that is not a redeclaration.

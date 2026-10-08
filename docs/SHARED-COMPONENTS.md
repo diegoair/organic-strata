@@ -391,7 +391,7 @@ CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d
 `.is-compatible`, `.is-incompatible`, `[data-type]`) · `.nc-wire` (+ `--<type>`, `--faint`,
 `--pending`, `.is-related`, `.is-selected`) · `.nc-wire__label` (`--mid`, `--font-display`,
 `--t-label-size`, a `--canvas-bg` halo `--space-1` wide via `paint-order: stroke`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
-Card look = ledger G3 (edge `--border-strong`, no shadow at rest, `--stage-shadow` lifted, 2px
+Card look = ledger G3 (edge `--border-strong`, no shadow, at rest or lifted (Oct 8, 2026), 2px
 `--ink` ring selected).
 Port label (`.nc-port__label`) = **outside the card, above the wire** (ledger §2, Oct 8, 2026): an
 input’s left of its dot, an output’s right, `--space-1` from it, bottom at the dot’s centre

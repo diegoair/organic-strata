@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────
    Organica.nodeCanvas — the node board (paired with shared/node-canvas.js). Tokens only.
    Card look decided by the design-system agent (ledger, G3 — delegated by Diego, Oct 7, 2026): a --border-strong
-   edge (≥ 3:1 on the board in both themes), no shadow at rest, --stage-shadow only while lifted, a 2px --ink ring
+   edge (≥ 3:1 on the board in both themes), no shadow (not even lifted — a 40px blur repainted on every drag frame / zoom step, Oct 8, 2026; .is-lifted stays as a state hook, unstyled), a 2px --ink ring
    when selected (single or many), the shared focus ring for keyboard focus. Wires carry
    their source type's colour (--port-*), 1.5px at any zoom. Load AFTER shell.css (or the tool's own skeleton).
    ───────────────────────────────────────────────────────────── */
@@ -31,8 +31,6 @@
 @media (hover: hover) { .nc-node:hover { border-color: var(--mid); } }
 .nc-node.is-selected { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
 .nc-node:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.nc-node.is-lifted { box-shadow: var(--stage-shadow); }
-.nc-node.is-selected.is-lifted { box-shadow: 0 0 0 1px var(--ink), var(--stage-shadow); }
 .nc-node--compact { --node-w: 10rem; }
 .nc-node--wide { --node-w: 26rem; }
 .nc-node__head {
@@ -146,10 +144,10 @@
 .nc-nodebar__item { text-align: left; padding: var(--space-2) var(--space-3); background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); font: inherit; font-size: var(--t-control-size); color: var(--ink); cursor: grab; touch-action: none; }
 @media (hover: hover) { .nc-nodebar__item:hover { border-color: var(--ink); } }
 .nc-nodebar__item:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.nc-nodebar__ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; min-width: 3rem; padding: var(--space-2) var(--space-3); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--stage-shadow); font-size: var(--t-control-size); color: var(--ink); }
+.nc-nodebar__ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; min-width: 3rem; padding: var(--space-2) var(--space-3); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); font-size: var(--t-control-size); color: var(--ink); }
 .nc-nodebar__ghost svg { width: 3rem; height: 3rem; display: block; }   /* a dragged thumbnail tile */
 body.nc-is-dragging { cursor: grabbing; user-select: none; }
-.nc-search { position: fixed; z-index: 160; width: 15rem; padding: var(--space-2); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--stage-shadow); display: flex; flex-direction: column; gap: var(--space-2); }
+.nc-search { position: fixed; z-index: 160; width: 15rem; padding: var(--space-2); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-md); display: flex; flex-direction: column; gap: var(--space-2); }
 .nc-search__head, .nc-search__none { margin: 0; font-size: var(--t-caption-size); color: var(--mid); }
 .nc-search__list { display: flex; flex-direction: column; max-height: 16rem; overflow-y: auto; }
 .nc-search__item { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-2); background: none; border: 0; border-radius: var(--radius-sm); color: var(--ink); font: inherit; font-size: var(--t-control-size); text-align: left; cursor: pointer; }

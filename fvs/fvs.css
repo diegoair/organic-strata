@@ -175,7 +175,7 @@
   @media (hover: none) { .fvs-rail__tile .rmx-x { opacity: 1; } }
   .fvs-rail__grid .fvs-library-item { width: 3rem; height: 3rem; background: var(--paper); touch-action: none; }
   .fvs-rail__grid .fvs-library-item.is-dragging { opacity: 0.35; }
-  .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 3rem; height: 3rem; background: var(--paper); border: 1px solid var(--border-strong); box-shadow: var(--stage-shadow); }
+  .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 3rem; height: 3rem; background: var(--paper); border: 1px solid var(--border-strong); }
   .fvs-rail-ghost svg { width: 100%; height: 100%; display: block; }
   body.is-rail-dragging { cursor: grabbing; user-select: none; }
   #symbol-frame g[data-cell-index].is-drop > :first-child { stroke: var(--ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
@@ -421,27 +421,19 @@
     background: repeating-conic-gradient(var(--panel) 0 25%, var(--paper) 0 50%) 0 0 / var(--space-6) var(--space-6);
   }
 
-  /* The stage: each step's big sheet gets the shared stage shadow (tokens.css --stage-shadow). */
-  #element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, #figure-frame > svg { box-shadow: var(--stage-shadow); }
-  /* A non-square cell shape is the canvas itself: no square sheet around it — the same stage shadow, cast by
-     its own outline (drop-shadow follows the drawn alpha; --stage-shadow has no spread, so it reads here too). */
-  #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { box-shadow: none; filter: drop-shadow(var(--stage-shadow)); overflow: visible; }   /* overflow: the Show-grid wrapper reaches past the cells */
+  /* No stage shadow on FVS sheets (Diego, Oct 8, 2026): a 40px blur on every sheet, thumbnail and Figure card
+     made pan / zoom / drag slow. Only the floatbar keeps its shadow. */
   .fvs-thumb:has(> svg.is-cell) { background: transparent; }
-  /* A cell-shape Component's canvas is its grid's outline: no square frame at all — the sheet casts the stage
-     shadow, and selected / saved draw their ring along that outline: .cell-ring (withCellRing in
-     05-render-component.js), the cells stroked under the Paper, so only the outward half shows — 3px for the
-     selection, 4.5px in --tool for "saved" (the widths the old filter ring drew). Chained 1px drop-shadows did
-     this before: 13 filter passes per saved thumbnail, ~2 s per save with a dozen saved. */
+  /* A cell-shape Component's canvas is its grid's outline: no square frame at all — selected / saved draw their
+     ring along that outline: .cell-ring (withCellRing in 05-render-component.js), the cells stroked under the
+     Paper, so only the outward half shows — 3px for the selection, 4.5px in --tool for "saved". */
   .fvs-thumb:has(> svg.is-cell) { border-color: transparent; box-shadow: none; }
-  .fvs-thumb > svg.is-cell { overflow: visible; filter: drop-shadow(var(--stage-shadow)); }
+  .fvs-thumb > svg.is-cell { overflow: visible; }
+  #element-svg > svg.is-cell, #component-edit-frame > svg.is-cell { overflow: visible; }   /* the Show-grid wrapper reaches past the cells */
   .fvs-thumb > svg.is-cell > .cell-ring { display: none; }
   .fvs-thumb.selected > svg.is-cell > .cell-ring { display: inline; stroke: var(--ink); stroke-width: 6; }
   .fvs-thumb.saved-in-library > svg.is-cell > .cell-ring { display: inline; stroke: var(--tool); stroke-width: 9; }
-  .fvs-seed-tile__box > svg.is-cell { border-color: transparent; overflow: visible; filter: drop-shadow(var(--stage-shadow)); }   /* a sheet like the big canvas: its own outline casts the stage shadow */
-  /* The same shadow, drawn once: 16-cell-shadow.js puts it behind the sheet as an image and sets data-shadow — the
-     filter (a 40px blur re-run on every repaint, 5–10× a square sheet's GPU work) then stays off. */
-  #element-svg > svg.is-cell[data-shadow], #component-edit-frame > svg.is-cell[data-shadow],
-  .fvs-thumb > svg.is-cell[data-shadow], .fvs-seed-tile__box > svg.is-cell[data-shadow] { filter: none; }
+  .fvs-seed-tile__box > svg.is-cell { border-color: transparent; overflow: visible; }
   /* hover / selected follow the cell's outline, not a square box */
   .fvs-seed-tile.is-selected .fvs-seed-tile__box > svg.is-cell { border-color: transparent; box-shadow: none; }
   .fvs-seed-tile.is-selected svg.is-cell > .cell-edge { stroke: var(--ink); stroke-width: 2; }
@@ -454,7 +446,7 @@
   .tier-block.is-graph > :not(#fg-inspector) { display: none !important; }
   #panel:has(.tier-block.is-graph.active) > :not(.tier-block.is-graph) { display: none !important; }   /* the graph's settings are the whole panel: no global Palette / Rules sections */
   .fg-graph { position: absolute; inset: 0; }
-  .fg-card__sheet { background: var(--paper); box-shadow: var(--stage-shadow); line-height: 0; }
+  .fg-card__sheet { background: var(--paper); line-height: 0; }
   .fg-card__img { width: 100%; height: auto; display: block; }
   .fg-card__meta { margin: var(--space-2) 0 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--t-caption-size); color: var(--mid); }
   .fg-card__meta svg { width: var(--icon-md); height: var(--icon-md); flex: 0 0 auto; }
@@ -514,7 +506,7 @@
   .fg-compose__title { margin: 0; font: inherit; color: var(--ink); font-weight: var(--w-medium); }
   .fg-compose__note { margin: 0; font-size: var(--t-caption-size); color: var(--mid); }
   .fg-compose__stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
-  .fg-compose__svg { max-width: 100%; max-height: 100%; width: auto; height: 100%; background: var(--paper); box-shadow: var(--stage-shadow); }
+  .fg-compose__svg { max-width: 100%; max-height: 100%; width: auto; height: 100%; background: var(--paper); }
   .fg-compose__empty { margin: 0; font-size: var(--t-caption-size); color: var(--mid); }
   .fg-cell { fill: transparent; stroke: transparent; stroke-width: 1.5px; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill var(--dur-fast) var(--ease-standard), stroke var(--dur-fast) var(--ease-standard); }
   @media (hover: hover) { .fg-cell:hover { stroke: var(--border-strong); stroke-dasharray: 4 3; } }
