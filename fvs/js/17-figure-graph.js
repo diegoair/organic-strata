@@ -594,12 +594,61 @@ function renderInspectorBody(box, ids) {
   if (Organica.autoLabelPanel) Organica.autoLabelPanel(box);
 }
 
+// ── Reorder a Figure list (Set items, Cell rules, region rules) — the Element Layers' gesture (O-49):
+// press a card's head, move 4px, drop on another card (its upper half = before it, lower half = after);
+// ⌥↑ / ⌥↓ on a card's button moves that card. Cards carry data-i (0 = top). moved(to) re-renders.
+const GRIP = () => `<span class="org-layer-card__grip" aria-hidden="true">${Organica.icons.get('grip', { size: 'sm' })}</span>`;
+function reorderable(list, arr, moved) {
+  if (!list) return;
+  let press = null;
+  const cards = () => [...list.querySelectorAll(':scope > .org-layer-card')];
+  const clear = () => cards().forEach(c => c.classList.remove('drop-before', 'drop-after', 'is-dragging'));
+  const at = e => { const el = document.elementFromPoint(e.clientX, e.clientY), c = el && el.closest('.org-layer-card'); return c && c.parentElement === list ? c : null; };
+  const drop = (e, c) => {
+    const t = +c.dataset.i, r = (c.querySelector('.org-layer-card__head') || c).getBoundingClientRect(), before = e.clientY < r.top + r.height / 2;
+    let to = before ? t : t + 1; if (to > press.from) to--;
+    return { to: Math.max(0, Math.min(arr.length - 1, to)), before };
+  };
+  const move = (from, to) => { if (to === from || to < 0 || to >= arr.length) return false; arr.splice(to, 0, arr.splice(from, 1)[0]); moved(to); return true; };
+  list.addEventListener('pointerdown', e => {
+    const head = e.button === 0 && arr.length > 1 && e.target.closest('.org-layer-card__head');
+    if (!head || e.target.closest('button:not(.fg-rule__pick), input, select')) return;
+    press = { from: +head.parentElement.dataset.i, x: e.clientX, y: e.clientY, id: e.pointerId, moved: false };
+  });
+  list.addEventListener('pointermove', e => {
+    if (!press || e.pointerId !== press.id) return;
+    if (!press.moved) {
+      if (Math.hypot(e.clientX - press.x, e.clientY - press.y) < 4) return;
+      press.moved = true; list.setPointerCapture(e.pointerId);
+      const c = cards()[press.from]; if (c) c.classList.add('is-dragging');
+    }
+    e.preventDefault();
+    cards().forEach(c => c.classList.remove('drop-before', 'drop-after'));
+    const c = at(e); if (c && +c.dataset.i !== press.from) c.classList.add(drop(e, c).before ? 'drop-before' : 'drop-after');
+  });
+  const end = e => {
+    if (!press || e.pointerId !== press.id) return;
+    const c = press.moved && e.type === 'pointerup' ? at(e) : null, to = c && +c.dataset.i !== press.from ? drop(e, c).to : press.from;
+    const p = press; press = null;
+    if (!p.moved) return;   // a plain click keeps its own meaning
+    clear();
+    const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };   // the click that ends a drag is not a click
+    window.addEventListener('click', swallow, { capture: true, once: true }); setTimeout(() => window.removeEventListener('click', swallow, true), 0);
+    move(p.from, to);
+  };
+  list.addEventListener('pointerup', end); list.addEventListener('pointercancel', end);
+  list.addEventListener('keydown', e => {
+    const c = e.target.closest('.org-layer-card');
+    if (!c || c.parentElement !== list || !e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault(); const i = +c.dataset.i; move(i, i + (e.key === 'ArrowUp' ? -1 : 1));
+  });
+}
+const focusCard = (list, i) => { const b = list && list.querySelector(`:scope > .org-layer-card[data-i="${i}"] button`); if (b) b.focus({ preventScroll: true }); };
+
 // ── Set: an ordered list of saved Elements / Components; saved Sets ('fvs-sets') ──
 function setEditor(node, ids) {
   const p = node.params, items = p.items || (p.items = []), s = savedEntries(), saved = Object.keys(SETS.read()).sort((a, b) => a.localeCompare(b));
-  const row = (it, i) => `<div class="org-layer-card org-layer-card--flush" role="listitem"><div class="org-layer-card__head"><span class="fg-set__thumb" data-theme="light">${entryThumb(it.kind, it.name, it.snapshot)}</span><span class="org-layer-card__title">${esc(it.name)}</span>
-    <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="up" data-i="${i}" aria-label="Move ${esc(it.name)} up"${i ? '' : ' disabled'}>${Organica.icons.get('arrow-up')}</button>
-    <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="down" data-i="${i}" aria-label="Move ${esc(it.name)} down"${i < items.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down')}</button>
+  const row = (it, i) => `<div class="org-layer-card org-layer-card--flush${items.length > 1 ? ' is-draggable' : ''}" role="listitem" data-i="${i}"><div class="org-layer-card__head">${items.length > 1 ? GRIP() : ''}<span class="fg-set__thumb" data-theme="light">${entryThumb(it.kind, it.name, it.snapshot)}</span><span class="org-layer-card__title">${esc(it.name)}</span>
     <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-i="${i}" aria-label="Remove ${esc(it.name)} from the Set">${Organica.icons.get('close')}</button></div></div>`;
   const tiles = (kind, list) => list.map(e => `<button type="button" class="fvs-library-item" data-add="${kind}" data-name="${esc(e.name)}" aria-label="Add ${kind === 'element' ? 'Element' : 'Component'}: ${esc(e.name)}">${entryThumb(kind, e.name, e.entry)}</button>`).join('');
   return { html: `<div class="fg-list" role="list" id="fgi-set-items">${items.length ? items.map(row).join('') : '<p class="org-panel__hint">No items yet — add saved Elements or Components below.</p>'}</div>
@@ -610,10 +659,9 @@ function setEditor(node, ids) {
     bind: () => {
       const again = () => { edited(node, true); renderInspector(ids); ctl.paint(node.id); };
       ctrl('fgi-set-items').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; const i = +b.dataset.i;
-        if (b.dataset.act === 'up' && i) [items[i - 1], items[i]] = [items[i], items[i - 1]];
-        else if (b.dataset.act === 'down' && i < items.length - 1) [items[i + 1], items[i]] = [items[i], items[i + 1]];
-        else if (b.dataset.act === 'del') items.splice(i, 1);
+        if (b.dataset.act === 'del') items.splice(i, 1);
         again(); });
+      reorderable(ctrl('fgi-set-items'), items, to => { again(); focusCard(ctrl('fgi-set-items'), to); });
       ctrl('fgi-set-add').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (!b) return; const c = addContent(b.dataset.add, b.dataset.name); items.push({ kind: b.dataset.add, name: b.dataset.name, snapshot: c.params.snapshot }); again(); });
       ctrl('fgi-set-saved').addEventListener('change', e => { const v = SETS.read()[e.target.value]; if (!v) return; p.items = JSON.parse(JSON.stringify(v.items || [])); node.name = e.target.value; ctl.refresh(); again(); });
       ctrl('fgi-set-save').addEventListener('click', async () => {
@@ -640,10 +688,8 @@ function ruleFrom(which, n, does) {
 }
 function cellRulesEditor(node, ids) {
   const rs = node.params.rules || (node.params.rules = []);
-  const chip = (r, i) => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}" role="listitem"><div class="org-layer-card__head"><span class="org-layer-card__title">${esc(describeRule(r))}</span>
+  const chip = (r, i) => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}${rs.length > 1 ? ' is-draggable' : ''}" role="listitem" data-i="${i}"><div class="org-layer-card__head">${rs.length > 1 ? GRIP() : ''}<span class="org-layer-card__title">${esc(describeRule(r))}</span>
     <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="off" data-i="${i}" aria-pressed="${!r.off}" aria-label="Rule ${i + 1} on">${Organica.icons.get(r.off ? 'eye-off' : 'eye')}</button>
-    <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="up" data-i="${i}" aria-label="Move rule ${i + 1} up"${i ? '' : ' disabled'}>${Organica.icons.get('arrow-up')}</button>
-    <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="down" data-i="${i}" aria-label="Move rule ${i + 1} down"${i < rs.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down')}</button>
     <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-i="${i}" aria-label="Delete rule ${i + 1}">${Organica.icons.get('trash')}</button></div></div>`;
   return { html: `<div class="fg-list" role="list" id="fgi-rules">${rs.length ? rs.map(chip).join('') : '<p class="org-panel__hint">No rules yet — every cell gets the content.</p>'}</div>
     <div class="sub-label">Add rule</div>
@@ -659,11 +705,10 @@ function cellRulesEditor(node, ids) {
       ctrl('fgi-rules').addEventListener('click', e => {
         const b = e.target.closest('[data-act]'); if (!b) return; const i = +b.dataset.i;
         if (b.dataset.act === 'off') rs[i].off = !rs[i].off;
-        else if (b.dataset.act === 'up' && i) [rs[i - 1], rs[i]] = [rs[i], rs[i - 1]];
-        else if (b.dataset.act === 'down' && i < rs.length - 1) [rs[i + 1], rs[i]] = [rs[i], rs[i + 1]];
         else if (b.dataset.act === 'del') rs.splice(i, 1);
         edited(node, true); renderInspector(ids); ctl.paint(node.id);
       });
+      reorderable(ctrl('fgi-rules'), rs, to => { edited(node, true); renderInspector(ids); ctl.paint(node.id); focusCard(ctrl('fgi-rules'), to); });
     } };
 }
 
@@ -942,11 +987,9 @@ function renderComposeInspector(next) {
       <optgroup label="Content">${s.element.map(e => `<option value="e:${esc(e.name)}">${esc(e.name)}</option>`).join('')}${s.component.map(e => `<option value="k:${esc(e.name)}">${esc(e.name)}</option>`).join('')}</optgroup></select></div>
     <div class="row-btns"><button type="button" class="mini-btn" id="fgc-add"${n ? '' : ' disabled'}>Add rule to selection</button></div>
     <div class="sub-label">Region rules</div>
-    <div class="fg-list" role="list" id="fgc-rules">${rules.length ? rules.map((r, i) => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}" role="listitem"><div class="org-layer-card__head"><button type="button" class="org-layer-card__title fg-rule__pick" data-act="pick" data-i="${i}" aria-label="Select the cells of region rule ${i + 1}: ${esc(describeComposeRule(r, inks))}">${esc(describeComposeRule(r, inks))}</button>
+    <div class="fg-list" role="list" id="fgc-rules">${rules.length ? rules.map((r, i) => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}${rules.length > 1 ? ' is-draggable' : ''}" role="listitem" data-i="${i}"><div class="org-layer-card__head">${rules.length > 1 ? GRIP() : ''}<button type="button" class="org-layer-card__title fg-rule__pick" data-act="pick" data-i="${i}" aria-label="Select the cells of region rule ${i + 1}: ${esc(describeComposeRule(r, inks))}">${esc(describeComposeRule(r, inks))}</button>
       ${r.do && (r.do.symbolRule || r.do.arrange) ? `<button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="seed" data-i="${i}" aria-label="New random seed for region rule ${i + 1}">${Organica.icons.get('refresh')}</button>` : ''}
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="off" data-i="${i}" aria-pressed="${!r.off}" aria-label="Region rule ${i + 1} on">${Organica.icons.get(r.off ? 'eye-off' : 'eye')}</button>
-      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="up" data-i="${i}" aria-label="Move region rule ${i + 1} up"${i ? '' : ' disabled'}>${Organica.icons.get('arrow-up')}</button>
-      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="down" data-i="${i}" aria-label="Move region rule ${i + 1} down"${i < rules.length - 1 ? '' : ' disabled'}>${Organica.icons.get('arrow-down')}</button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-i="${i}" aria-label="Delete region rule ${i + 1}">${Organica.icons.get('trash')}</button></div></div>`).join('') : '<p class="org-panel__hint">No region rules yet — select cells, then pick what they get, or drop a saved item on a cell.</p>'}</div>
     <div id="fgc-lost">${f && f.lost && f.lost.length ? f.lost.filter(l => rules[l.rule]).map(l => `<div class="fg-lost"><p class="org-panel__hint fg-warn">Region rule ${l.rule + 1} (${esc(describeComposeRule(rules[l.rule], inks))}): ${l.cells.length ? esc(l.cells.map(x => Array.isArray(x) ? cellAt(x) : 'cell ' + (x + 1)).join(', ')) + (l.cells.length === 1 ? ' is' : ' are') + ' not in this grid any more' : 'it matches no cell in this grid'} — kept but not drawn.</p>
       <button type="button" class="mini-btn" data-act="del" data-i="${l.rule}">Delete region rule ${l.rule + 1}</button></div>`).join('') : ''}</div>
@@ -970,14 +1013,12 @@ function renderComposeInspector(next) {
     if (b.dataset.act === 'pick') { const f = figureValue(composing.fig), ctxs = f && f.compose ? f.compose.ctxs : []; composing.when = JSON.parse(JSON.stringify(rs[i].when || {})); composing.sel = new Set(ctxs.filter(c => ruleMatches(composing.when, c)).map(c => c.index)); drawCompose(); renderComposeInspector(`[data-act="pick"][data-i="${i}"]`); announceSelection(); return; }
     if (b.dataset.act === 'seed') { const k = rs[i].do.symbolRule ? 'symbolRule' : 'arrange'; rs[i].do[k].seed = 1 + Math.floor(Math.random() * 99999); }
     else if (b.dataset.act === 'off') rs[i].off = !rs[i].off;
-    else if (b.dataset.act === 'up' && i) [rs[i - 1], rs[i]] = [rs[i], rs[i - 1]];
-    else if (b.dataset.act === 'down' && i < rs.length - 1) [rs[i + 1], rs[i]] = [rs[i], rs[i + 1]];
     else if (b.dataset.act === 'del') rs.splice(i, 1);
-    ctl.touch(comp.id); ctl.commit('compose'); save();
-    const n = b.dataset.act === 'up' ? i - 1 : b.dataset.act === 'down' ? i + 1 : i;   // focus follows the chip (after a Delete: the next one)
-    renderComposeInspector(b.dataset.act === 'del' ? (rs.length ? `[data-act="del"][data-i="${Math.min(i, rs.length - 1)}"]` : '#fgc-add') : `[data-act="${b.dataset.act}"][data-i="${n}"]`);
+    ctl.touch(comp.id); ctl.commit('compose'); save();   // focus follows the chip (after a Delete: the next one)
+    renderComposeInspector(b.dataset.act === 'del' ? (rs.length ? `[data-act="del"][data-i="${Math.min(i, rs.length - 1)}"]` : '#fgc-add') : `[data-act="${b.dataset.act}"][data-i="${i}"]`);
   };
   ctrl('fgc-rules').addEventListener('click', onRule); ctrl('fgc-lost').addEventListener('click', onRule);
+  if (comp) reorderable(ctrl('fgc-rules'), comp.params.rules, to => { ctl.touch(comp.id); ctl.commit('compose'); save(); renderComposeInspector(`.org-layer-card[data-i="${to}"] .fg-rule__pick`); });
   const hint = i => {   // hover / focus a chip: its cells are outlined on the stage
     const f = figureValue(composing.fig), ctxs = f && f.compose ? f.compose.ctxs : [], w = i != null && rules[i] ? rules[i].when || {} : null;
     ctrl('fg-compose-stage').querySelectorAll('.fg-cell').forEach(c => c.classList.toggle('is-hint', !!w && !!ctxs[+c.dataset.i] && ruleMatches(w, ctxs[+c.dataset.i])));
