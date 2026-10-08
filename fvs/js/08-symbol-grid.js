@@ -150,13 +150,14 @@ export function applySymbolCanvasToUI(cv) {
   ctrl('num-symcanvas-w').value = cv.pw; ctrl('num-symcanvas-h').value = cv.ph;
   if (cv.dpi) ctrl('num-symcanvas-dpi').value = cv.dpi;
   if (cv.bleed != null) ctrl('num-symcanvas-bleed').value = cv.bleed;
-  ctrl('rg-symcanvas-margin').value = cv.margin || 0; ctrl('v-symcanvas-margin').textContent = cv.margin || 0;
+  ctrl('rg-symcanvas-margin').value = cv.margin || 0; ctrl('v-symcanvas-margin').textContent = (cv.margin || 0) + '%';
   syncSymbolCanvasHint();
 }
 export function setSymbolCanvasMode(mode) {
   ctrl('seg-symcanvas-mode').querySelectorAll('.seg-btn').forEach(b => { b.classList.toggle('active', b.dataset.mode === mode); b.setAttribute('aria-pressed', String(b.dataset.mode === mode)); });
   ctrl('symcanvas-print-block').style.display = mode === 'print' ? '' : 'none';
   ctrl('symcanvas-unit-label').textContent = mode === 'print' ? pv('sel-symcanvas-unit') : 'px';
+  ctrl('symcanvas-bleed-hint').hidden = !(mode === 'print' && pv('sel-symcanvas-unit') === 'in');   // the size is in inches, the bleed stays mm
 }
 export function syncSymbolCanvasHint() {
   const cv = readSymbolCanvas();
@@ -478,7 +479,7 @@ ctrl('seg-symcanvas-mode').addEventListener('click', e => {
 });
 ['num-symcanvas-w', 'num-symcanvas-h'].forEach(id => ctrl(id).addEventListener('input', () => { ctrl('sel-symcanvas-preset').value = 'Custom'; if (symCanvasPicker) symCanvasPicker.refresh(); syncSymbolCanvasHint(); }));
 ['sel-symcanvas-unit', 'num-symcanvas-dpi', 'num-symcanvas-bleed'].forEach(id => ctrl(id).addEventListener('input', () => { setSymbolCanvasMode(readSymbolCanvas().mode); syncSymbolCanvasHint(); }));
-ctrl('rg-symcanvas-margin').addEventListener('input', e => { ctrl('v-symcanvas-margin').textContent = e.target.value; });
+ctrl('rg-symcanvas-margin').addEventListener('input', e => { ctrl('v-symcanvas-margin').textContent = e.target.value + '%'; });
 syncSymbolCanvasHint();
 
 export function handleSymbolGridUpload(file) {

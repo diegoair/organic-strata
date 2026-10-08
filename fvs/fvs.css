@@ -482,9 +482,6 @@
   .fg-inspector .fg-hide[hidden] { display: none !important; }
   .fg-card__crumb { margin: 0 0 var(--space-2); font-size: var(--t-caption-size); color: var(--mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fg-card__img { max-height: 24rem; object-fit: contain; }
-  .fg-vars { display: grid; gap: var(--space-2); grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .fg-vars.is-single { grid-template-columns: minmax(0, 1fr); }
-  .fg-vars--row { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); grid-template-columns: none; }
   .fg-var { position: relative; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
   .fg-var { --fg-pin-ring: var(--ink); }   /* resolved in the card's theme, not the light sheet's */
   .fg-var.is-pinned .fg-card__sheet { outline: 2px solid var(--fg-pin-ring); outline-offset: 2px; }
@@ -507,7 +504,6 @@
   .fg-set__strip { display: flex; flex-wrap: wrap; gap: var(--space-1); }
   .fg-set__thumb { display: inline-block; width: var(--space-6); height: var(--space-6); background: var(--paper); border: 1px solid var(--border); flex: 0 0 auto; }
   .fg-set__thumb svg { width: 100%; height: 100%; display: block; }
-  .fg-group__label { margin: var(--space-2) 0 var(--space-1); font-size: var(--t-caption-size); font-weight: var(--w-medium); color: var(--ink); }
   /* ── Compose (Phase 5): the Figure's cells, selectable ── */
   .fg-compose { position: absolute; inset: 0; display: flex; flex-direction: column; padding: var(--space-5) var(--space-7) calc(var(--space-8) * 2) calc(var(--space-7) + 5rem); gap: var(--space-2); }
   .fg-compose[hidden] { display: none; }
@@ -533,11 +529,9 @@
   .fg-done__label { font-family: var(--font-display); font-size: var(--t-control-size); }   /* Compose's Done: a word on the floatbar, like Graph */
   .fg-quick { flex-wrap: wrap; }
   .fg-warn { color: var(--danger); }
-  .fg-var__tools { gap: var(--space-2); }
+  .fg-var__tools { gap: var(--space-2); top: auto; bottom: calc(var(--t-caption-size) * 1.5 + var(--space-2)); }   /* bottom-right of the sheet: the child's output port is on the top-right corner */
   .fg-var__tools .icon-btn { min-width: var(--hit-min); min-height: var(--hit-min); justify-content: center; }
-  .fg-node--xwide { --node-w: 52rem; }
   #btn-export.is-graph-export .chev { display: none; }   /* on the Figure graph it shows the Export node — no menu */
-  .fg-node--xwide .fg-vars--rows { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .fg-card__checks { margin: 0 0 var(--space-2); display: flex; align-items: center; gap: var(--space-1); font-size: var(--t-caption-size); color: var(--mid); }
   .fg-card__checks.is-bad { color: var(--danger); }
   .fg-checks { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--t-caption-size); }

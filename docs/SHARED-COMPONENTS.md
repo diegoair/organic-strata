@@ -398,6 +398,12 @@ input’s left of its dot, an output’s right, `--space-1` from it, bottom at t
 (`bottom: 50%`, `padding-bottom: calc(var(--space-1) / 2)`), absolutely placed and
 `pointer-events: none` — it never widens the card, the wire runs under it. `--mid` on the board
 (`--canvas-bg`); hidden with `__io` in the chip view. Nodes need room between columns for two labels.
+Ports and body = **one shared row** (Diego, Oct 8, 2026): `.nc-node` is a grid (`head` row 1 · `__io` and
+`__body` both in row 2 · `__status` row 3), the dots on the card edges over the body, so a card with many
+inputs is as tall as the longer of the two — no empty band above the body. `__io` is `pointer-events: none`
+except `.nc-port__dot` (the dots are positioned, so they stay above the body for the pointer); the body keeps
+`--space-3` side padding so its controls clear the dots' `--hit-min` area at 100 % zoom (below that the
+hit area grows inward — keep a body's own buttons off its top corners, where the first port sits).
 
 **Helpers to build the node bar and the node search from** (promoted from the FVS Figure graph at
 Rhizome, Oct 7, 2026 — the host keeps its own items and words):

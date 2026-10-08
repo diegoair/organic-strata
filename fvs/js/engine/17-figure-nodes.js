@@ -155,7 +155,7 @@ export async function figureWithVariations(inputs, p) {
     const it = shown[gi], itemKey = gi + ':' + it.name;   // by position: the same item twice is two groups
     if (gi) await new Promise(r => setTimeout(r, 0));   // let the board breathe between groups
     const g = await figureGroup({ ...inputs, content: [it, ...others] }, { ...p, variations: per }, itemKey, gi === 0, keys);   // checks: the first group's, the one the badge shows
-    groups.push({ label: it.name, variations: g.variations.map(v => ({ ...v, key: itemKey + '|' + v.key })), main: g });
+    groups.push({ label: it.name, variations: g.variations.map(v => withSrc({ ...v, key: itemKey + '|' + v.key }, v.src)), main: g });
   }
   const main = groups[0].main;
   main.groups = groups.map(g => ({ label: g.label, variations: g.variations }));
@@ -163,6 +163,8 @@ export async function figureWithVariations(inputs, p) {
   main.capped = items.length > shown.length || per < (+p.variations || 1) ? { items: items.length, shownItems: shown.length, per, asked: +p.variations || 1, cap: FIGURE_RENDER_CAP } : null;
   return main;
 }
+// What a child Figure re-draws its variation from: kept on the variation, out of its JSON (and so lost to a spread — re-attach it).
+const withSrc = (v, src) => (src && Object.defineProperty(v, 'src', { value: src, enumerable: false, configurable: true }), v);
 async function figureGroup(inputs, p, item, checks = true, keys = null) {
   const keep = p.keep || {};
   // `fixed`: the variation(s) a "New Figure from this" froze — applied in order, before anything else (with the Keep they were drawn with)
@@ -176,6 +178,7 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   let failed = 0;
   const draw = async spec => { const vr = varyInputs(base.inputs, spec, keep); const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra }); return { r, label: vr.label }; };
   main.variations = [{ key: 'base', svg: main.svg, label: 'As set up', pinned: false, spec: null, slot: 0, item }];
+  const src = { inputs: base.inputs, extra: base.extra, params: p };   // what a child Figure re-draws its variation from, with its own inputs
   for (let slot = 1; slot < want; slot++) {
     const pin = pins.get(slot);
     if (pin) {   // a pinned variation keeps its place, whatever the new seed
@@ -194,6 +197,7 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
     }
   }
   if (main.variations.length < want && failed) main.failedVariations = failed;   // fewer than asked, and some draws threw
+  main.variations.forEach(v => withSrc(v, src));
   return main;
 }
 export async function compileFigure(inputs, params, opts) {
@@ -218,6 +222,7 @@ export async function compileFigure(inputs, params, opts) {
   let element, first;
   if (lattice && imported && !(compRule && cellRules.length) && !composeRules.length) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
     element = { ...clone(imported), colors: colors && !params.keepOwn ? colors : clone(imported.colors || ['#000000']), paper };
+    if (pal && pal.ground) element.ground = clone(pal.ground);
     if (pal && !params.keepOwn) element.colorRule = colorRule; else delete element.colorRule;
     if (params.keepOwn && imported.colorRule) element.colorRule = clone(imported.colorRule);   // Keep own colours: the built-in's own inks and rule
     if (pal && (pal.rule || {}).mode === DEFAULT_COLOR_RULE.mode && !imported.colorRule) delete element.colorRule;
@@ -249,6 +254,7 @@ export async function compileFigure(inputs, params, opts) {
     composeRules.forEach(r => { const c = r.do && r.do.content; if (c && typeof c === 'object' && c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
     composeRules.forEach(r => { const p = r.do && r.do.paste; if (p && p.components) Object.entries(p.components).forEach(([n, e]) => { if (e && !componentEntries[n]) componentEntries[n] = e; }); });   // a pasted Symbol's Components travel with it
     element = { type: firstEl && SEED_TYPES[firstEl.entry.seed.type] ? firstEl.entry.seed.type : 'triangle', style: 'fill', colors: colors || ['#000000'], paper };
+    if (pal && pal.ground) element.ground = clone(pal.ground);
     first = { kind: 'symbol', lattice: { type: 'loomModel', model }, cells, componentEntries, colors: colors || ['#000000'], colorRule: params.keepOwn ? { ...DEFAULT_COLOR_RULE } : colorRule, paperColor: paper, clip: params.clip !== false };
     if (cellRules.length || composeRules.length) first.rules = clone(cellRules.concat(composeRules));
     if (composeRules.length && pal && colors && !params.keepOwn) first.paletteColourway = { colors: colors.slice(), paper };
@@ -285,7 +291,7 @@ function changePalette(inp, rng) {
   if (pal.colors.length > 1 && rng() < 0.35) { const c = pal.colors.slice(); c.push(c.shift()); inp.palette = { ...pal, colors: c }; return 'Inks in another order'; }
   const turn = pick(FG_HUE_TURNS, rng);
   const turned = pal.colors.map(h => { const o = C.hexToOklch(h); return o.c < 0.03 ? h : C.oklchToHex(o.l, o.c, (o.h + turn + 360) % 360); });
-  const solved = cwSolve(turned, pal.paper || '#ffffff') || turned;
+  const solved = cwSolve(turned, pal.paper && pal.paper !== 'none' ? pal.paper : '#ffffff') || turned;
   inp.palette = { ...pal, colors: solved }; return `Hue ${turn > 0 ? '+' : ''}${turn}°`;
 }
 const RULE_POOL = [
@@ -436,6 +442,33 @@ export function graphFromRecipe(def, elementName) {
   return { nodes, edges };
 }
 
+// ── A child Figure (type 'figure-var'): one variation of its parent Figure, as a node of its own (Diego, Oct 8, 2026).
+// It is placed by the UI (params.parent / slot / item) and draws the parent's variation at that slot. Its own inputs
+// override the parent's for this child only — Canvas · Grid · Palette · Composition replace, Content replaces, Rules
+// are added after the parent's — and the variation's change is then made again on top. No own input: the parent's
+// drawing, as is.
+const OVERRIDES = ['canvas', 'grid', 'palette', 'composition'];
+export const hasOverrides = i => OVERRIDES.some(k => i[k]) || (i.content || []).some(Boolean) || (i.rules || []).some(Boolean);
+export const childKey = (slot, item) => slot + '|' + (item == null ? '' : item);
+export async function figureVariation(i, p) {
+  const par = i.from; if (!par) throw new Error('Connect it to its Figure');
+  const vars = par.variations || [];
+  const v = vars.find(x => childKey(x.slot, x.item) === childKey(p.slot, p.item))
+    || (p.item != null ? vars.find(x => x.slot === p.slot && x.item != null && itemName(x.item) === itemName(p.item)) : null);   // the Set was reordered: the item by its name
+  if (!v) throw new Error('Not drawn now — raise Variations on its Figure');
+  if (v.error) throw new Error(v.label);
+  const one = f => ({ ...f, variations: [{ key: 'base', svg: f.svg, label: v.label, pinned: !!v.pinned, spec: v.spec, slot: v.slot, item: v.item }], groups: undefined, capped: undefined, failedVariations: undefined });
+  if (!hasOverrides(i) || !v.src) return { figure: one({ ...par, svg: v.svg, checks: v.slot === 0 && !v.item ? par.checks : null }) };
+  const s = v.src, own = (i.content || []).filter(Boolean);
+  const inp = { ...s.inputs, rules: (s.inputs.rules || []).concat((i.rules || []).filter(Boolean)) };
+  OVERRIDES.forEach(k => { if (i[k]) inp[k] = i[k]; });
+  if (own.length) inp.content = own;
+  let r;
+  if (v.spec) { const vr = varyInputs(inp, v.spec, s.params.keep || {}); r = await compileFigure(vr.inputs, { ...s.params, ...s.extra, ...vr.extra }, { checks: false }); }
+  else r = await compileFigure(inp, { ...s.params, ...s.extra }, { checks: false });
+  return { figure: one(r) };
+}
+
 // ── The registry entries (meta + compute). Labels: UI-COPY §2. ──
 const RULE_OUT = [{ name: 'rules', type: 'rule', label: 'Rules' }];
 export function figureNodeTypes() {
@@ -448,8 +481,10 @@ export function figureNodeTypes() {
         params: [{ name: 'gen', default: 'rectangular' }, { name: 'params', default: gridDefaults('rectangular') }] },
       compute: (i, p) => { const gen = SYMGRID_GENS[p.gen] || FIGURE_LATTICES[p.gen] ? p.gen : 'rectangular'; return { grid: { gen, params: { ...gridDefaults(gen), ...(p.params || {}) } } }; } },
     { meta: { id: 'palette', label: 'Palette', category: 'Foundation', inputs: [], outputs: [{ name: 'palette', type: 'palette', label: 'Palette' }],
-        params: [{ name: 'colors', default: ['#1a1a1a', '#e85d3a', '#2f6fb0'] }, { name: 'paper', default: '#ffffff' }, { name: 'rule', default: { mode: 'index', offset: 0 } }] },
-      compute: (i, p) => ({ palette: { colors: (p.colors || []).slice(), paper: p.paper || '#ffffff', rule: COLOR_RULES[(p.rule || {}).mode] ? p.rule : { mode: 'index', offset: 0 } } }) },
+        params: [{ name: 'colors', default: ['#1a1a1a', '#e85d3a', '#2f6fb0'] }, { name: 'paper', default: '#ffffff' }, { name: 'rule', default: { mode: 'index', offset: 0 } },
+          { name: 'transparent', default: false }, { name: 'pattern', default: null }] },   // O-45: Paper = colour + texture, or none
+      compute: (i, p) => { const pal = { colors: (p.colors || []).slice(), paper: p.transparent ? 'none' : (p.paper || '#ffffff'), rule: COLOR_RULES[(p.rule || {}).mode] ? p.rule : { mode: 'index', offset: 0 } };
+        if (p.pattern) pal.ground = clone(p.pattern); return { palette: pal }; } },
     { meta: { id: 'element', label: 'Element', category: 'Content', inputs: [], outputs: [{ name: 'content', type: 'content', label: 'Content' }],
         params: [{ name: 'name', default: '' }, { name: 'snapshot', default: null }] },
       compute: (i, p) => { if (!p.snapshot) throw new Error('Pick a saved Element'); return { content: { kind: 'element', name: p.name, entry: p.snapshot } }; } },
@@ -483,5 +518,13 @@ export function figureNodeTypes() {
           { name: 'variations', default: 4 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} }, { name: 'layout', default: 'rows' },
           { name: 'pins', default: [] }, { name: 'fixed', default: null }, { name: 'fanOut', default: true }] },
       compute: async (i, p) => ({ figure: await figureWithVariations(i, p) }) },
+    { meta: { id: 'figure-var', label: 'Variation', category: 'Output', hidden: true,   // made by its Figure, never from the node bar
+        inputs: [{ name: 'from', type: 'figure', label: 'Figure', required: true },
+          { name: 'canvas', type: 'canvas', label: 'Canvas' }, { name: 'grid', type: 'grid', label: 'Grid' },
+          { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', multi: true },
+          { name: 'rules', type: 'rule', label: 'Rules', multi: true }, { name: 'composition', type: 'composition', label: 'Composition' }],
+        outputs: [{ name: 'figure', type: 'figure', label: 'Figure' }],
+        params: [{ name: 'parent', default: null }, { name: 'slot', default: 1 }, { name: 'item', default: null }] },
+      compute: async (i, p) => figureVariation(i, p) },
   ];
 }

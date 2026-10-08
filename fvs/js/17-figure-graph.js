@@ -44,7 +44,7 @@ import {
 } from './engine/15-export-library-view.js';
 import {
   FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
-  exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey, sameItem
+  exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
   ctrl
@@ -123,23 +123,25 @@ function renderBody(node, entry, el) {
     if (!f) { el.innerHTML = ''; return; }
     const crumb = foundationOf(node).map(n => n ? esc(nodeLabel(n)) : '—').join(' · ');
     const vars = f.variations && f.variations.length ? f.variations : [{ key: 'base', svg: f.svg, label: 'As set up' }];
-    const layout = p.layout === 'row' ? 'row' : 'rows';
-    const groups = f.groups || [{ label: null, variations: vars }];
-    let gi = 0;
-    const tile = (v, i, first, k, item) => `
-      <figure class="fg-var${v.pinned ? ' is-pinned' : ''}" data-i="${i}">
-        <div class="fg-card__sheet" data-theme="light">${v.error ? `<p class="fg-var__error">${esc(v.label)}</p>` : `<img class="fg-card__img" alt="${esc(nodeLabel(node))}, variation ${i + 1}" src="${figureImg(node.id + ':' + v.key, v.svg)}">`}</div>
-        <figcaption class="fg-var__label">${first ? 'As set up' : esc(v.label)}</figcaption>
-        ${v.spec ? `<div class="fg-var__tools">
-          <button type="button" class="icon-btn" data-act="pin" data-i="${i}" aria-pressed="${!!v.pinned}" aria-label="Pin variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get('pin')}</button>
-          <button type="button" class="icon-btn" data-act="from" data-i="${i}" aria-label="New Figure from variation ${k + 1}${item ? ' — ' + esc(item) : ''}">${Organica.icons.get('figure-from')}</button></div>` : ''}
+    const base = vars[0], kids = childrenOf(node.id).length;   // the other variations are child Figures (nodes of their own)
+    el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>
+      <figure class="fg-var"><div class="fg-card__sheet" data-theme="light">${base.error ? `<p class="fg-var__error">${esc(base.label)}</p>` : `<img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id + ':' + base.key, base.svg)}">`}</div>
+        <figcaption class="fg-var__label">${f.groups ? esc(f.groups[0].label) + ' · ' : ''}As set up</figcaption></figure>`
+      + checksBadge(f) + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${kids ? ` · ${kids} ${kids === 1 ? 'variation' : 'variations'}` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}${f.failedVariations ? ` · ${f.failedVariations} ${f.failedVariations === 1 ? 'change' : 'changes'} could not be drawn` : ''}</p>`;
+    el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); restackChildren(node.id); }, { once: true }));
+  } else if (node.type === 'figure-var') {
+    const f = v && v.figure, par = parentNode(node);
+    if (!f) { el.innerHTML = ''; return; }
+    const vr = f.variations[0], item = vr.item != null ? itemName(vr.item) : null;
+    el.innerHTML = `<figure class="fg-var${vr.pinned ? ' is-pinned' : ''}">
+        <div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id, f.svg)}"></div>
+        <figcaption class="fg-var__label">${item ? esc(item) + ' · ' : ''}${esc(vr.slot === 0 ? 'As set up' : vr.label)}</figcaption>
+        ${vr.spec ? `<div class="fg-var__tools">
+          <button type="button" class="icon-btn" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node, par) : ''}">${Organica.icons.get('pin')}</button>
+          <button type="button" class="icon-btn" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node, par) : ''}">${Organica.icons.get('figure-from')}</button></div>` : ''}
       </figure>`;
-    el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>` + groups.map((g, gn) => { const gid = `fgv-${node.id}-${gn}`; return `<div${g.label ? ` role="group" aria-labelledby="${gid}"` : ''}>${g.label ? `<p class="fg-group__label" id="${gid}">${esc(g.label)}</p>` : ''}<div class="fg-vars fg-vars--${layout}${g.variations.length === 1 ? ' is-single' : ''}">${g.variations.map((v, k) => tile(v, gi++, k === 0, k, g.label)).join('')}</div></div>`; }).join('')
-      + checksBadge(f) + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${f.groups ? ` · ${f.groups.length} items × ${f.groups[0].variations.length} variations` : vars.length > 1 ? ` · ${vars.length} variations` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}${f.failedVariations ? ` · ${f.failedVariations} ${f.failedVariations === 1 ? 'change' : 'changes'} could not be drawn` : ''}</p>`;
-    const card = el.closest('.nc-node'); if (card) card.classList.toggle('fg-node--xwide', vars.length > 8);
-    el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => ctl.remeasure(node.id), { once: true }));
-    if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act, +b.dataset.i); }); }
-    el._vars = vars;
+    el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); if (par) restackChildren(par.id); }, { once: true }));
+    if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act); }); }
   } else if (node.type === 'canvas') {
     const cv = canvasOf(p);
     el.innerHTML = cv.fit ? `<p class="fg-card__meta">The page is the Figure’s own size</p>` : `<p class="fg-card__meta">${Organica.aspectIcon ? Organica.aspectIcon(cv.W, cv.H) : ''} ${esc(canvasSummary(cv))}</p>`;
@@ -180,25 +182,111 @@ function foundationOf(fig) {
   const m = ctl ? ctl.model : null; if (!m) return [null, null, null];
   return ['canvas', 'grid', 'palette'].map(port => { const e = m.edges.find(w => w.to.node === fig.id && w.to.port === port); return e ? NC.findNode(m, e.from.node) : null; });
 }
-// Pin keeps a variation through New variations; New Figure from this = a sibling Figure, same wires, that variation fixed.
-function variationAction(id, act, i) {
-  const node = NC.findNode(ctl.model, id), card = ctl.cardOf(id); if (!node || !card) return;
-  const v = (card.querySelector('.nc-node__body')._vars || [])[i]; if (!v || !v.spec) return;
-  const p = node.params;
+// Pin keeps a child's variation through New variations; New Figure from this = a sibling Figure of the parent, same
+// wires (and the child's own inputs in place of the parent's), that variation fixed.
+function variationAction(childId, act) {
+  const child = NC.findNode(ctl.model, childId), node = child && parentNode(child), en = ctl.engine.get(childId); if (!node) return;
+  const v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null; if (!v || !v.spec) return;
+  const p = node.params, id = node.id;
   if (act === 'pin') {   // a pin keeps its slot (and, in a fan-out, belongs to its item)
-    const keys = [...new Set((card.querySelector('.nc-node__body')._vars || []).map(x => x.item).filter(x => x != null))];
+    const keys = wantedChildren(node).map(k => k.item).filter(x => x != null);
     const same = q => q.slot === v.slot && sameItem(q.item, v.item, keys);
     const pins = (p.pins || []).filter(q => !same(q));
     if (!v.pinned) pins.push({ mode: v.spec.mode, seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });
-    p.pins = pins; edited(node, true); ctl.select([id]); return;
+    p.pins = pins; edited(node, true); ctl.select([childId]); return;
   }
   if (act === 'from') {   // one undo step
-    const [copy] = ctl.duplicate([id], { noCommit: true }); const n = NC.findNode(ctl.model, copy);
-    n.params.fixed = [].concat(p.fixed || [], [{ ...v.spec, keep: { ...(p.keep || {}) } }]); n.params.pins = []; n.params.seed = newSeed();
+    const [copy] = ctl.duplicate([id], { noCommit: true }); const n = NC.findNode(ctl.model, copy), m = ctl.model;
+    n.params.fixed = [].concat(p.fixed || [], [{ ...v.spec, keep: { ...(p.keep || {}) } }]); n.params.pins = []; n.params.seed = newSeed(); n.params.variations = 1;
     if (v.item != null) { const at = String(v.item).indexOf(':'); n.params.onlyItem = { index: +String(v.item).slice(0, at), name: String(v.item).slice(at + 1) }; n.params.fanOut = false; }   // a fan-out variation: that Set item only
+    m.edges.filter(e => e.to.node === childId && e.to.port !== 'from').forEach(e => {   // the child's own inputs: they replace the parent's (Rules are added)
+      if (e.to.port !== 'rules' && e.to.port !== 'content') m.edges.filter(w => w.to.node === copy && w.to.port === e.to.port).forEach(w => NC.removeEdge(m, w.id));
+      if (e.to.port === 'content') m.edges.filter(w => w.to.node === copy && w.to.port === 'content').forEach(w => NC.removeEdge(m, w.id));
+    });
+    m.edges.filter(e => e.to.node === childId && e.to.port !== 'from').forEach(e => NC.addEdge(m, e.from, { node: copy, port: e.to.port }, true));
+    syncChildren();
     ctl.touch(copy); ctl.refresh(); ctl.select([copy]); ctl.commit('new-figure-from'); save();
-    announce(`New Figure from variation ${i + 1}`);
+    announce(`New Figure from ${nodeLabel(child)}`);
   }
+}
+
+// ── Child Figures (Diego, Oct 8, 2026): every variation of a Figure is a node of its own — a child, in a column to the
+// right of its Figure, one under the other. Made and removed with the Figure's Variations (and the Set's items when
+// Variations per item is on); a child can't be deleted alone. Its parent = the Figure wired into its From input.
+function wantedChildren(fig) {   // [{slot, item}] — what figureWithVariations draws, the Figure's own "As set up" left out
+  const p = fig.params || {}, m = ctl.model, want = Math.max(1, Math.min(12, +p.variations || 1));
+  const set = m.edges.filter(e => e.to.node === fig.id && e.to.port === 'content').map(e => NC.findNode(m, e.from.node)).find(n => n && n.type === 'set');
+  const items = set ? ((set.params || {}).items || []).filter(x => x && x.snapshot) : [];
+  const out = [];
+  if (!items.length || p.fanOut === false || p.onlyItem) { for (let k = 1; k < want; k++) out.push({ slot: k, item: null }); return out; }
+  const per = Math.max(1, Math.min(want, Math.floor(FIGURE_RENDER_CAP / items.length)));
+  items.slice(0, FIGURE_RENDER_CAP).forEach((it, gi) => { for (let k = 0; k < per; k++) if (gi || k) out.push({ slot: k, item: gi + ':' + it.name }); });
+  return out;
+}
+function parentNode(child, m) {
+  m = m || ctl.model;
+  const e = m.edges.find(w => w.to.node === child.id && w.to.port === 'from'), src = e && NC.findNode(m, e.from.node);
+  return src && src.type === 'figure' ? src : null;
+}
+function childrenOf(figId) {   // in the order the Figure draws them
+  const fig = NC.findNode(ctl.model, figId); if (!fig) return [];
+  const order = wantedChildren(fig).map(k => childKey(k.slot, k.item));
+  return ctl.model.nodes.filter(n => n.type === 'figure-var' && (parentNode(n) || {}).id === figId)
+    .sort((a, b) => order.indexOf(childKey(a.params.slot, a.params.item)) - order.indexOf(childKey(b.params.slot, b.params.item)));
+}
+let syncing = false;
+function syncChildren() {   // → true when the graph changed
+  if (syncing || !ctl) return false;
+  syncing = true;
+  const m = ctl.model; let changed = false;
+  const drop = n => { NC.removeNode(m, n.id); ctl.engine.forget(n.id); changed = true; };
+  m.nodes.filter(n => n.type === 'figure-var').forEach(n => {   // each child: its parent by its wire, else the one it remembers
+    const into = m.edges.filter(w => w.to.node === n.id && w.to.port === 'from');
+    let par = parentNode(n);
+    into.filter(w => !par || w.from.node !== par.id).forEach(w => { NC.removeEdge(m, w.id); changed = true; });   // only a Figure can be its parent
+    if (!par) { const q = NC.findNode(m, n.params.parent); if (q && q.type === 'figure') { NC.addEdge(m, { node: q.id, port: 'figure' }, { node: n.id, port: 'from' }, true); par = q; changed = true; } }
+    if (!par) { drop(n); return; }
+    if (n.params.parent !== par.id) { n.params.parent = par.id; changed = true; }
+  });
+  m.nodes.filter(n => n.type === 'figure').forEach(fig => {
+    const want = wantedChildren(fig), keys = want.map(k => childKey(k.slot, k.item)), have = new Map();
+    m.nodes.filter(n => n.type === 'figure-var' && n.params.parent === fig.id).forEach(n => {
+      const k = childKey(n.params.slot, n.params.item);
+      if (!keys.includes(k) || have.has(k)) drop(n); else have.set(k, n);   // no longer drawn, or a second copy of one
+    });
+    want.forEach(k => {
+      if (have.has(childKey(k.slot, k.item))) return;
+      const n = NC.addNode(m, { type: 'figure-var', x: fig.x, y: fig.y, params: { ...registry.defaults('figure-var'), auto: true, parent: fig.id, slot: k.slot, item: k.item } });
+      NC.addEdge(m, { node: fig.id, port: 'figure' }, { node: n.id, port: 'from' }, true); changed = true;
+    });
+  });
+  syncing = false;
+  if (changed) { ctl.refresh(); m.nodes.filter(n => n.type === 'figure').forEach(f => restackChildren(f.id, true)); }
+  return changed;
+}
+// After every change: the children follow their Figure (one undo step with the change that made them); a child moved
+// by hand stays where it was put, a Figure moved by hand takes its placed children along.
+function childrenAfter(reason) {
+  if (reason === 'move') {
+    ctl.selection().map(id => NC.findNode(ctl.model, id)).filter(Boolean).forEach(n => { if (n.type === 'figure-var') delete n.params.auto; else if (n.type === 'figure') restackChildren(n.id); });
+    return;
+  }
+  if (reason === 'history' || reason === 'sync' || syncing) return;
+  queueMicrotask(() => { if (syncChildren()) ctl.commit('sync', { amend: true }); });
+}
+// The children placed by their Figure (not yet moved by hand) stand in a column to its right, one under the other.
+function restackChildren(figId, force) {
+  const fig = NC.findNode(ctl.model, figId); if (!fig) return;
+  const fc = ctl.cardOf(figId), x = fig.x + ((fc && fc.offsetWidth) || 416) + LABEL_ROOM;
+  let y = fig.y, moved = false;
+  childrenOf(figId).forEach(n => {
+    const c = ctl.cardOf(n.id), h = (c && c.offsetHeight) || 280;
+    if (n.params.auto) {
+      if (n.x !== x || n.y !== y) { n.x = x; n.y = y; moved = true; if (c) c.style.transform = `translate(${x}px,${y}px)`; }
+    }
+    y = (n.params.auto ? y : Math.max(y, n.y)) + h + 24;
+  });
+  if (moved || force) { childrenOf(figId).forEach(n => ctl.remeasure(n.id)); save(); }
 }
 const announce = t => { const l = document.querySelector('#fg-graph .nc-live'); if (l) { l.textContent = ''; setTimeout(() => { l.textContent = t; }, 30); } };
 function fitFrame(f) {   // fit the view to a section
@@ -211,8 +299,16 @@ const newSeed = () => 1 + Math.floor(Math.random() * 99999);   // a Figure's own
 function figuresInto(exp) {   // the Figures wired into an Export node: { name, figure }
   return ctl.model.edges.filter(e => e.to.node === exp.id && e.to.port === 'figures').map(e => {
     const src = NC.findNode(ctl.model, e.from.node), en = ctl.engine.get(e.from.node);
-    return src ? { name: nodeLabel(src), figure: en && (en.state === 'ok' || en.state === 'stale') && en.value ? en.value.figure : null } : null;   // off screen = stale, still exported (kept active below)
+    const f = en && (en.state === 'ok' || en.state === 'stale') && en.value ? en.value.figure : null;   // off screen = stale, still exported (kept active below)
+    return src ? { name: nodeLabel(src), figure: src.type === 'figure' && f ? withChildren(src, f) : f } : null;
   }).filter(Boolean);
+}
+function withChildren(fig, f) {   // a Figure's variations as its children draw them (a child's own inputs change its drawing)
+  const kids = new Map(childrenOf(fig.id).map(n => [childKey(n.params.slot, n.params.item), n]));
+  return { ...f, variations: (f.variations || []).map(v => {
+    const n = kids.get(childKey(v.slot, v.item)), en = n && ctl.engine.get(n.id), cf = en && (en.state === 'ok' || en.state === 'stale') && en.value ? en.value.figure : null;
+    return cf ? { ...v, svg: cf.svg } : v;
+  }) };
 }
 function exportFiles(exp) { return exportPlan(figuresInto(exp), exp.params); }
 function printWrap(svg, cv, paper, plate) {   // a Print Canvas: its own size in mm, bleed (paper extended), crop marks; plates add registration marks
@@ -252,11 +348,12 @@ function runExport(id) {
 // The floatbar Export in the Figure step: the one export path — create (or select) the Export node, wired to the
 // selected Figures (or every Figure), and show its settings.
 function exportFromFloatbar() {
-  const m = ctl.model, sel = ctl.selection().map(i => NC.findNode(m, i)).filter(n => n && n.type === 'figure');
+  const m = ctl.model, sel = ctl.selection().map(i => NC.findNode(m, i)).filter(n => n && (n.type === 'figure' || n.type === 'figure-var'));   // a child goes on its own
   let exp = m.nodes.find(n => n.type === 'export');
   if (!exp) {
     const figs = sel.length ? sel : m.nodes.filter(n => n.type === 'figure');
-    const right = figs.reduce((a, n) => Math.max(a, n.x + (ctl.cardOf(n.id) ? ctl.cardOf(n.id).offsetWidth : 420)), 0), top = figs.length ? Math.min(...figs.map(n => n.y)) : 40;
+    const cols = figs.concat(...figs.map(f => f.type === 'figure' ? childrenOf(f.id) : []));   // past the children's column too
+    const right = cols.reduce((a, n) => Math.max(a, n.x + (ctl.cardOf(n.id) ? ctl.cardOf(n.id).offsetWidth : 420)), 0), top = figs.length ? Math.min(...figs.map(n => n.y)) : 40;
     exp = NC.addNode(m, { type: 'export', x: right + LABEL_ROOM, y: top, params: registry.defaults('export'), name: 'Export' });
     figs.forEach(f => NC.addEdge(m, { node: f.id, port: 'figure' }, { node: exp.id, port: 'figures' }, true));
     ctl.touch(exp.id); ctl.refresh(); ctl.commit('export'); save();
@@ -269,9 +366,17 @@ function checksBadge(f) {
 }
 function cardClass(node) {
   if (node.type === 'figure') return 'nc-node--wide';
+  if (node.type === 'figure-var') return 'nc-node--wide';
   return 'nc-node--compact';
 }
-function nodeLabel(node) { return node.name || registry.get(node.type).meta.label; }
+function variationNo(child, par) { return childrenOf(par.id).indexOf(child) + 2; }   // the Figure itself is variation 1, as the captions count
+function nodeLabel(node) {
+  if (node.type === 'figure-var') {   // named after its Figure: Figure 1.2, Figure 1.3 … (the Figure itself is the first)
+    const par = ctl && parentNode(node); if (!par) return registry.get(node.type).meta.label;
+    return nodeLabel(par) + ' · variation ' + variationNo(node, par);
+  }
+  return node.name || registry.get(node.type).meta.label;
+}
 // Rename a named node from the panel title (O-47): the name is a button; click / Enter / F2 → a field,
 // Enter or leaving it keeps the name, Esc cancels. Two nodes of one type never share a name (Save Set saves by it).
 function bindRename(node, ids) {
@@ -298,6 +403,7 @@ function bindRename(node, ids) {
 }
 // A Figure always has a Canvas and a Grid: the one feeding it can't be deleted while it is that Figure's only one.
 function protect(node, model, removing) {   // removing: the ids deleted together — a Figure going with its Canvas / Grid does not keep them
+  if (node.type === 'figure-var') { const par = parentNode(node, model); return par && !(removing || []).includes(par.id) ? (node.params.item != null ? `A variation goes with its Figure — lower Variations on ${nodeLabel(par)} or remove the item from the Set instead` : `A variation goes with its Figure — lower Variations on ${nodeLabel(par)} instead`) : null; }
   if (node.type !== 'canvas' && node.type !== 'grid') return null;
   const feeds = model.edges.some(e => e.from.node === node.id && !(removing || []).includes(e.to.node) && model.nodes.some(n => n.id === e.to.node && n.type === 'figure'));
   return feeds ? `A Figure needs a ${node.type === 'canvas' ? 'Canvas' : 'Grid'} — connect another one first` : null;
@@ -343,7 +449,7 @@ function addContent(kind, name) {
 // ── node bar (left dock) — Organica.nodeCanvas.nodeBar; this file fills the panel and adds what is dropped ──
 let nodebar = null, openCat = null;
 function nodebarItems(cat) {
-  const types = (registry.byCategory()[cat] || []).filter(t => t.meta.id !== 'element' && t.meta.id !== 'component');
+  const types = (registry.byCategory()[cat] || []).filter(t => t.meta.id !== 'element' && t.meta.id !== 'component' && !t.meta.hidden);
   const items = types.map(t => ({ label: t.meta.id === 'set' ? 'New Set' : t.meta.label, make: () => ({ type: t.meta.id }) }));
   return items;
 }
@@ -400,9 +506,9 @@ function edited(node, commit) {
     setTimeout(() => ctl.pulse(figs), 60);
   }
 }
-function rangeRow(label, id, min, max, step, value, onInput) {
-  return { html: `<div class="ctrl-row"><div class="ctrl-label">${esc(label)}</div><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}" aria-label="${esc(label)}"><span class="ctrl-val" id="v-${id}">${value}</span></div>`,
-    bind: () => { const r = ctrl(id); r.addEventListener('input', () => { ctrl('v-' + id).textContent = r.value; onInput(+r.value, false); }); r.addEventListener('change', () => onInput(+r.value, true)); } };
+function rangeRow(label, id, min, max, step, value, onInput, unit = '') {
+  return { html: `<div class="ctrl-row"><div class="ctrl-label">${esc(label)}</div><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}" aria-label="${esc(label)}"><span class="ctrl-val" id="v-${id}">${value}${unit}</span></div>`,
+    bind: () => { const r = ctrl(id); r.addEventListener('input', () => { ctrl('v-' + id).textContent = r.value + unit; onInput(+r.value, false); }); r.addEventListener('change', () => onInput(+r.value, true)); } };
 }
 function selectRow(label, id, options, value, onChange) {
   return { html: `<div class="ctrl-row"><div class="ctrl-label">${esc(label)}</div><select class="panel-select" id="${id}" aria-label="${esc(label)}">${options.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(value) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`,
@@ -428,12 +534,17 @@ function renderInspector(ids) {
   renderInspectorBody(box, ids);
   if (key) { const el = box.querySelector(key); if (el && !el.disabled) el.focus({ preventScroll: true }); }
 }
+// A Grid's cell count (audit #12): what a Figure it feeds drew (a generator's cells are only known once generated).
+function gridCells(grid) {
+  const fig = ctl.model.edges.filter(e => e.from.node === grid.id && e.to.port === 'grid').map(e => figureValue(e.to.node)).find(Boolean);
+  return fig ? fig.cells : 0;
+}
 // A node's one-line summary for its panel title (the card shows the same): as E/C/S's h3 hints
 function nodeMeta(node) {
   const p = node.params || {}, n = k => k.length;
   switch (node.type) {
     case 'canvas': return canvasSummary(canvasOf(p));
-    case 'grid': return gridSummary({ gen: p.gen, params: p.params });
+    case 'grid': { const k = gridCells(node); return gridSummary({ gen: p.gen, params: p.params }) + (k ? ` · ${k} ${k === 1 ? 'cell' : 'cells'}` : ''); }
     case 'palette': { const k = (p.colors || []).length; return k + (k === 1 ? ' ink' : ' inks'); }
     case 'set': return n(p.items || []) + ((p.items || []).length === 1 ? ' item' : ' items');
     case 'cell-rules': return n(p.rules || []) + ((p.rules || []).length === 1 ? ' rule' : ' rules');
@@ -478,7 +589,7 @@ function renderInspectorBody(box, ids) {
       <div class="ctrl-row"><span class="ctrl-label">Size</span><input type="number" class="panel-input fg-size" id="fgi-pw" min="1" step="1" value="${cv.pw}" aria-label="Size, width"><span class="hint">×</span><input type="number" class="panel-input fg-size" id="fgi-ph" min="1" step="1" value="${cv.ph}" aria-label="Size, height"><span class="hint">${esc(cv.unit)}</span></div>
       ${print ? `<div class="ctrl-row"><span class="ctrl-label">Unit</span><select class="panel-select" id="fgi-unit" aria-label="Canvas unit"><option value="mm"${cv.unit === 'mm' ? ' selected' : ''}>mm</option><option value="in"${cv.unit === 'in' ? ' selected' : ''}>in</option></select></div>
       <div class="ctrl-row"><span class="ctrl-label">DPI</span><input type="number" class="panel-input" id="fgi-dpi" min="72" max="2400" step="1" value="${cv.dpi}" aria-label="Canvas DPI"></div>
-      <div class="ctrl-row"><span class="ctrl-label">Bleed (mm)</span><input type="number" class="panel-input" id="fgi-bleed" min="0" max="20" step="0.5" value="${cv.bleed}" aria-label="Bleed (mm)"></div>` : ''}`}`,
+      <div class="ctrl-row"><span class="ctrl-label">Bleed (mm)</span><input type="number" class="panel-input" id="fgi-bleed" min="0" max="20" step="0.5" value="${cv.bleed}" aria-label="Bleed (mm)"></div>${cv.unit === 'in' ? '<p class="org-panel__hint">Bleed is always in millimetres.</p>' : ''}` : ''}`}`,
       bind: () => {
         const again = () => { edited(node, true); renderInspector(ids); };
         // the Symbol Canvas's thumbnail format picker (G4): each format at its aspect, Custom dashed
@@ -494,7 +605,7 @@ function renderInspectorBody(box, ids) {
           ctrl('fgi-bleed').addEventListener('change', e => { p.bleed = Math.min(20, Math.max(0, +e.target.value || 0)); edited(node, true); });
         }
       } });
-    if (!fit) rows.push(rangeRow('Margin', 'fgi-margin', 0, 25, 1, Math.min(25, p.margin), (v, c) => { p.margin = v; edited(node, c); }));
+    if (!fit) rows.push(rangeRow('Margin', 'fgi-margin', 0, 25, 1, Math.min(25, p.margin), (v, c) => { p.margin = v; edited(node, c); }, '%'));
   } else if (node.type === 'grid') {
     rows.push({ html: `<div class="ctrl-row"><select class="panel-select fg-grow" id="fgi-gen" aria-label="Grid generator">
         <optgroup label="Loom grids — inside the Canvas">${Object.entries(SYMGRID_GENS).map(([k, g]) => `<option value="${k}"${k === p.gen ? ' selected' : ''}>${esc(g.label)}</option>`).join('')}</optgroup>
@@ -508,11 +619,22 @@ function renderInspectorBody(box, ids) {
     });
   } else if (node.type === 'palette') {
     rows.push({ html: `<div id="fgi-inks" class="rmx-palette"></div>
-      <div class="color-row"><span class="color-name">Paper</span><span class="color-swatch-wrap"><button class="color-swatch" id="sw-fgi-paper" style="background:${esc(p.paper)}"></button><input type="color" id="cp-fgi-paper" value="${esc(p.paper)}"></span><input class="color-hex" id="hex-fgi-paper" value="${esc(p.paper)}" maxlength="7"></div>`,
+      <div class="color-row"><span class="color-name">Paper</span><span class="color-swatch-wrap"><button class="color-swatch" id="sw-fgi-paper" style="background:${esc(p.paper)}"></button><input type="color" id="cp-fgi-paper" value="${esc(p.paper)}"></span><input class="color-hex" id="hex-fgi-paper" value="${esc(p.paper)}" maxlength="7"><button type="button" class="icon-btn" id="fgi-paper-clear" aria-pressed="${!!p.transparent}" aria-label="Transparent paper">${Organica.icons.get('fvs-transparent', { size: 'sm' })}</button></div>
+      <div id="fgi-pattern-block"${p.pattern ? '' : ' hidden'}>${paperPatternRows(p)}</div>`,
       bind: () => {
         // the strip's own Pick from a palette (as the Palette section); Start at follows the inks without a rebuild
-        Organica.palette.swatch(ctrl('fgi-inks'), { colors: p.colors, min: 1, max: 8, onChange: colors => { p.colors = colors.slice(); delete p.source; edited(node, true); syncStartAt(); } });
-        Organica.palette.swatch('fgi-paper', { onChange: hex => { if (hex === p.paper) return; p.paper = hex; edited(node, true); } });
+        Organica.palette.swatch(ctrl('fgi-inks'), { colors: p.colors, min: 1, max: 8, onChange: colors => { p.colors = colors.slice(); delete p.source; edited(node, true); syncStartAt(); syncPatternInks(); } });
+        // Paper = colour + texture (O-45): the shared Palette's Pattern icon shows the pattern settings, as the Palette section does
+        Organica.palette.swatch('fgi-paper', { onChange: hex => { if (hex === p.paper) return; p.paper = hex; edited(node, true); },
+          pattern: { panel: ctrl('fgi-pattern-block'), on: !!p.pattern, onToggle: on => { if (on) p.pattern = { ...PAPER_PATTERN_DEFAULT, ...(p.lastPattern || {}) }; else delete p.pattern; edited(node, true); renderInspector(ids); } } });
+        ctrl('fgi-paper-clear').addEventListener('click', e => { p.transparent = !p.transparent; e.currentTarget.setAttribute('aria-pressed', String(p.transparent)); edited(node, true); });
+        const syncPatternInks = () => { const s = ctrl('fgi-pat-ink'); if (s) { const cur = (p.pattern || {}).ink || 0; s.innerHTML = (p.colors || []).map((c, i) => `<option value="${i}"${i === cur ? ' selected' : ''}>Ink ${i + 1} · ${esc(c)}</option>`).join(''); } };
+        if (p.pattern) {
+          const set = (k, v, commit) => { p.pattern = { ...p.pattern, [k]: v }; p.lastPattern = p.pattern; edited(node, commit); };
+          ctrl('fgi-pat-type').addEventListener('change', e => { set('patType', e.target.value, true); renderInspector(ids); });   // Concentric has no Angle
+          ctrl('fgi-pat-ink').addEventListener('change', e => set('ink', +e.target.value, true));
+          [['spacing', 'patSpacing'], ['weight', 'patWeight'], ['angle', 'patAngle']].forEach(([id, k]) => { const r = ctrl('fgi-pat-' + id); r.addEventListener('input', () => { ctrl('v-fgi-pat-' + id).textContent = r.value; set(k, +r.value, false); }); r.addEventListener('change', () => set(k, +r.value, true)); });
+        }
       } });
     const shownMode = (p.rule || {}).mode === 'own' ? 'index' : ((p.rule || {}).mode || 'index');   // a built-in's stored 'own' draws like By cell order (kept as stored: byte-identical)
     const syncStartAt = () => { const off = ctrl('fgi-roff'), n = (p.colors || []).length; if (!off) return; off.innerHTML = p.colors.map((c, i) => `<option value="${i}">Colour ${i + 1}</option>`).join(''); off.value = String(Math.min((p.rule || {}).offset || 0, Math.max(0, n - 1))); ctrl('fgi-roff-row').hidden = n < 2; };
@@ -602,11 +724,7 @@ function renderInspectorBody(box, ids) {
     const KEEP_LABELS = { content: 'Content', palette: 'Palette', cells: 'Cell rules', grid: 'Grid', transform: 'Rotate & mirror' };
     rows.push({ html: `<div class="sub-label">Keep</div><div class="check-group">${KEEP_KEYS.map(k => `<label class="check-row"><input type="checkbox" data-keep="${k}"${(p.keep || {})[k] ? ' checked' : ''}><span>${KEEP_LABELS[k]}</span></label>`).join('')}</div>`,
       bind: () => box.querySelectorAll('[data-keep]').forEach(c => c.addEventListener('change', () => { p.keep = { ...(p.keep || {}), [c.dataset.keep]: c.checked }; edited(node, true); })) });
-    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Layout</div><div class="seg-ctrl" id="fgi-layout" role="group" aria-label="Layout"><button class="seg-btn${p.layout === 'row' ? ' active' : ''}" data-v="row" aria-pressed="${p.layout === 'row'}">One row</button><button class="seg-btn${p.layout !== 'row' ? ' active' : ''}" data-v="rows" aria-pressed="${p.layout !== 'row'}">Rows</button></div></div>
-      ${(p.pins || []).length ? `<p class="org-panel__hint">${p.pins.length} pinned${p.pins.some(q => q.slot >= (+p.variations || 1)) ? ` — ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length} not shown: raise Variations to see ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length === 1 ? 'it' : 'them'}` : ''}</p>` : ''}${(p.fixed || []).length ? `<p class="org-panel__hint">Made from a variation — ${p.fixed.length === 1 ? 'one change fixed' : p.fixed.length + ' changes fixed'}</p>` : ''}`,
-      bind: () => {
-        ctrl('fgi-layout').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (!b) return; p.layout = b.dataset.v; edited(node, true); renderInspector(ids); ctl.paint(node.id); });
-      } });
+    if ((p.pins || []).length || (p.fixed || []).length) rows.push({ html: `${(p.pins || []).length ? `<p class="org-panel__hint">${p.pins.length} pinned${p.pins.some(q => q.slot >= (+p.variations || 1)) ? ` — ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length} not shown: raise Variations to see ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length === 1 ? 'it' : 'them'}` : ''}</p>` : ''}${(p.fixed || []).length ? `<p class="org-panel__hint">Made from a variation — ${p.fixed.length === 1 ? 'one change fixed' : p.fixed.length + ' changes fixed'}</p>` : ''}` });
     const fv = figureValue(node.id), cks = fv && fv.checks ? fv.checks : [];
     if (cks.length) rows.push({ html: `</div><div class="panel-section"><h3>Checks <span class="hint">${cks.every(c => c.ok) ? 'All pass' : cks.filter(c => !c.ok).length + ' to look at'}</span></h3><ul class="fg-checks">${cks.map(c => `<li class="${c.ok ? 'is-ok' : 'is-bad'}">${Organica.icons.get(c.ok ? 'check' : 'alert', { size: 'xs' })}<span>${esc(c.label)}${c.detail ? ` <span class="fg-checks__detail">${esc(c.detail)}</span>` : ''}</span></li>`).join('')}</ul>` });
     rows.push({ html: '</div><div class="panel-section"><h3>Cells</h3>' });
@@ -616,7 +734,15 @@ function renderInspectorBody(box, ids) {
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-clip"${p.clip !== false ? ' checked' : ''}><span>Clip to cell</span></label>`,
       bind: () => { ctrl('fgi-clip').addEventListener('change', e => { p.clip = e.target.checked; edited(node, true); }); } });
   }
-  box.innerHTML = title + (why ? `<p class="org-panel__hint">${esc(why)}</p>` : '') + rows.map(r => r.html).join('') + '</div>';   // a refused Delete explains itself first (no stop: the Decided string has none)
+  if (node.type === 'figure-var') {
+    const par = parentNode(node), en = ctl.engine.get(node.id), v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null;
+    const own = ctl.model.edges.filter(e => e.to.node === node.id && e.to.port !== 'from').map(e => registry.inputsOf(node).find(q => q.name === e.to.port).label);
+    if (par) rows.push({ html: `<p class="org-panel__hint">Variation ${variationNo(node, par)} of ${esc(nodeLabel(par))}${v && v.slot ? ' — ' + esc(v.label) : ''}</p>
+      <div class="row-btns"><button type="button" class="mini-btn" id="fgi-parent">Select ${esc(nodeLabel(par))}</button></div>
+      <div class="sub-label">Own inputs</div><p class="org-panel__hint">${own.length ? `${esc([...new Set(own)].join(', '))} — for this variation only. ` : ''}Connect a Canvas, Grid, Palette, Content, Rules or Composition to change this variation only. Rules are added to ${esc(nodeLabel(par))}’s; the others replace them.</p>`,
+      bind: () => ctrl('fgi-parent').addEventListener('click', () => { ctl.select([par.id]); ctl.fitTo([par.id, ...childrenOf(par.id).map(n => n.id)]); }) });
+  }
+  box.innerHTML = title + (why && node.type !== 'figure-var' ? `<p class="org-panel__hint">${esc(why)}</p>` : '') + rows.map(r => r.html).join('') + '</div>';   // a refused Delete explains itself first (no stop: the Decided string has none)
   if (renameable) bindRename(node, ids);
   rows.forEach(r => r.bind && r.bind());
   if (Organica.autoLabelPanel) Organica.autoLabelPanel(box);
@@ -805,7 +931,7 @@ function openNewFigure() {
 // ── Node search: '/', right-click or double-click on the board, a wire released on the board ──
 // From a wire it lists only what connects, and the picked node arrives connected (Figma Weave).
 function searchItems() {
-  const types = registry.list().filter(t => t.meta.id !== 'element' && t.meta.id !== 'component').map(t => ({ label: t.meta.label, hint: t.meta.category, spec: { type: t.meta.id } }));
+  const types = registry.list().filter(t => t.meta.id !== 'element' && t.meta.id !== 'component' && !t.meta.hidden).map(t => ({ label: t.meta.label, hint: t.meta.category, spec: { type: t.meta.id } }));
   const s = savedEntries();
   return types.concat(s.element.map(e => ({ label: e.name, hint: 'Element', spec: addContent('element', e.name) })), s.component.map(e => ({ label: e.name, hint: 'Component', spec: addContent('component', e.name) })));
 }
@@ -1064,6 +1190,16 @@ function addComposeRule(d, when, quiet) {
 // Region rule kinds (Phase 5b) — labels as the Symbol step says them (fvs/index.html #sel-symbol-rule) and Arrange's own.
 const SYMBOL_RULE_LABELS = { oscillator: 'Oscillator (Truchet)', checkerboard: 'Checkerboard', rows: 'Rows', columns: 'Columns', radial: 'Radial', wave: 'Wave', orientation: 'Orientation (up / down triangles)', random: 'Random (transforms only)' };
 const PATTERN_LABELS = { lines: 'Lines', crosshatch: 'Crosshatch', dots: 'Dots', concentric: 'Concentric' };
+// The Palette node's Paper pattern (O-45): the Paper pattern section's controls and ranges (fvs/index.html #paper-pattern-block),
+// minus Element (tile) — a Figure's texture is a pattern, its content is the Elements.
+const PAPER_PATTERN_DEFAULT = { patType: 'lines', patSpacing: 4, patWeight: 0.75, patAngle: -45, ink: 0 };
+function paperPatternRows(p) {
+  const g = { ...PAPER_PATTERN_DEFAULT, ...(p.pattern || {}) };
+  const range = (label, id, min, max, step, v) => `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="range" id="fgi-pat-${id}" min="${min}" max="${max}" step="${step}" value="${v}" aria-label="${label}"><span class="ctrl-val" id="v-fgi-pat-${id}">${v}</span></div>`;
+  return `<div class="ctrl-row"><div class="ctrl-label">Pattern</div><select class="panel-select" id="fgi-pat-type" aria-label="Paper pattern">${Object.entries(PATTERN_LABELS).map(([k, l]) => `<option value="${k}"${k === g.patType ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+    <div class="ctrl-row"><div class="ctrl-label">Ink</div><select class="panel-select" id="fgi-pat-ink" aria-label="Paper pattern ink">${(p.colors || []).map((c, i) => `<option value="${i}"${i === g.ink ? ' selected' : ''}>Ink ${i + 1} · ${esc(c)}</option>`).join('')}</select></div>
+    ${range('Spacing', 'spacing', 1.5, 30, 0.5, g.patSpacing)}${range('Weight', 'weight', 0.25, 20, 0.25, g.patWeight)}${g.patType !== 'concentric' ? range('Angle', 'angle', -90, 90, 1, g.patAngle) : ''}`;
+}
 function figureContents(figId) {   // the content feeding a Figure, as {kind, name, entry} — a Set's items included
   const out = [];
   ctl.model.edges.filter(e => e.to.node === figId && e.to.port === 'content').forEach(e => {
@@ -1332,7 +1468,7 @@ function initGraphMenu() {
       del: ctrl('fg-graph-delete'), newGraph: ctrl('fg-graph-new'), open: ctrl('fg-graph-open'), file: ctrl('fg-graph-file'), input: ctrl('fg-graph-input') },
     store: GRAPHS, getModel: () => ctl.model, hidden: n => n === CURRENT,
     normalize: m => ensureNames(safeModel(m)),
-    load: (model) => { ctl.setModel(model); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); },
+    load: (model) => { ctl.setModel(model); if (syncChildren()) ctl.commit('sync', { amend: true }); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); },
     fileTool: 'fvs-figure-graph', fileName: 'fvs-graph', dirtyKey: 'fvs-figure-graph',
     openFile: data => { if (!data || data.tool !== 'fvs-recipe') return false; const why = recipeProblem(data); if (why) { Organica.notice(why, { kind: 'error' }); return true; } openBuiltin(data); Organica.notice('Recipe opened as a graph'); return true; },
     onSaved: () => save(),
@@ -1353,7 +1489,7 @@ export function renderFigureGraph() {
     wireLabel: (e, m) => { const src = NC.findNode(m, e.from.node); return src && src.type === 'set' ? '×' + ((src.params || {}).items || []).length : ''; },   // UI-COPY: the Set's wire is labelled ×n
     wireClass: (e, m) => { const src = NC.findNode(m, e.from.node); return !src ? '' : ['canvas', 'grid', 'palette'].includes(src.type) ? 'nc-wire--faint' : src.type === 'set' ? 'nc-wire--list' : ''; },
     onSelect: ids => { if (!composing) renderInspector(ids); syncButtons(); },   // in Compose the panel is Compose's
-    onChange: (m, reason) => { syncButtons(); save(); if (reason !== 'move' && reason !== 'params') { if (composing) renderComposeInspector(); else renderInspector(ctl.selection()); } },
+    onChange: (m, reason) => { childrenAfter(reason); syncButtons(); save(); if (reason !== 'move' && reason !== 'params') { if (composing) renderComposeInspector(); else renderInspector(ctl.selection()); } },
     onSearch: (at, from, client) => openSearch(at, from, client),
     onWireDrop: (from, at, client) => openSearch(at, from, client),
     onBoardDblClick: (at, client) => openSearch(at, null, client),
@@ -1361,7 +1497,7 @@ export function renderFigureGraph() {
     nameCopy: (copy, model) => { if (copy.type === 'figure') { copy.params.seed = newSeed(); copy.params.pins = []; } return NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name; },
     keyScope: t => !!(t && t.closest && t.closest('#fb-figure-actions, #fg-nodebar-dock') && !t.closest('input, select, textarea')),   // not the panel: Delete on a panel button must not delete the node
     onNodeDblClick: node => { if (node.type === 'figure') enterCompose(node.id); },
-    keepActive: n => !!(composing && n.id === composing.fig) || (n.type === 'figure' && ctl && ctl.model.edges.some(e => e.from.node === n.id && e.to.port === 'figures')),   // a Figure wired to Export is computed off screen too
+    keepActive: n => !!(composing && n.id === composing.fig) || (ctl && (n.type === 'figure' || n.type === 'figure-var') && [n, n.type === 'figure-var' && parentNode(n)].some(x => x && ctl.model.edges.some(e => e.from.node === x.id && e.to.port === 'figures'))),   // a Figure wired to Export is computed off screen too, with its children (they draw its variations)
   });
   try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); if (v) ctl.zoomPan.setView({ zoom: v.zoom, panX: v.x, panY: v.y }); else requestAnimationFrame(() => ctl.fitAll()); } catch (e) { requestAnimationFrame(() => ctl.fitAll()); }
   const icon = (id, name) => { ctrl(id).innerHTML = Organica.icons.get(name); };
@@ -1378,5 +1514,7 @@ export function renderFigureGraph() {
   ctrl('btn-fg-new').addEventListener('click', openNewFigure);
   initNodebar(); initGraphMenu(); initCompose();
   ctrl('btn-export').addEventListener('click', e => { if (state.activeTier !== 'figure' || composing) return; e.preventDefault(); e.stopImmediatePropagation(); exportFromFloatbar(); }, true);
+  if (syncChildren()) ctl.commit('sync', { amend: true });   // a graph saved before child Figures: its variations become nodes
+  else if (ctl.model.nodes.some(n => n.type === 'figure-var')) ctl.refresh();   // their names follow their Figure's: drawn again now that ctl exists
   renderInspector([]); syncButtons();
 }

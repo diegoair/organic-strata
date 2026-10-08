@@ -199,7 +199,12 @@ export function evalFigure(def, opts) {
     if (el.strokeW) panel.set('rg-element-strokew', el.strokeW);
     state.colors = (el.colors || ['#000000']).map(hexKey);
     state.colorRule = { ...DEFAULT_COLOR_RULE, ...(el.colorRule || {}) };
-    setPaper(hexKey(el.paper || '#ffffff'));
+    setPaper(isPaperNone(el.paper) ? PAPER_NONE : hexKey(el.paper || '#ffffff'));
+    if (el.ground) {   // the Paper pattern (a Figure Palette's, O-45): the Appearance's own controls, set as the panel would
+      const g = el.ground; live.paperPatternOn = true;
+      panel.set('sel-ground-pattern', g.patType || 'lines'); panel.set('rg-ground-patspacing', g.patSpacing ?? 4);
+      panel.set('rg-ground-patweight', g.patWeight ?? 0.75); panel.set('rg-ground-patangle', g.patAngle ?? -45); panel.set('sel-ground-ink', g.ink || 0);
+    }
     const first = lv[0], grids = lv.slice(1), gridLv = grids[0];
     let tier;
     state.fvsGridRaw = null; state.figureLevelStats = []; state.figureLevelMeta = [];

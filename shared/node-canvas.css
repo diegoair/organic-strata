@@ -21,7 +21,7 @@
 /* ── cards ── */
 .nc-node {
   position: absolute; left: 0; top: 0; width: var(--node-w);
-  display: flex; flex-direction: column;
+  display: grid; grid-template-columns: 100%; grid-template-rows: auto auto auto;
   background: var(--paper); color: var(--ink);
   border: 1px solid var(--border-strong); border-radius: var(--radius-md);
   font-size: var(--t-control-size);
@@ -43,15 +43,18 @@
   font-family: var(--font-display); font-size: var(--t-section-size); font-weight: var(--w-medium);
   cursor: grab;
 }
-.nc-node__head { flex-direction: column; align-items: stretch; gap: 0; }
+.nc-node__head { grid-row: 1; flex-direction: column; align-items: stretch; gap: 0; }
 .nc-node__type { font-family: var(--font-mono); font-size: var(--t-label-size); font-weight: var(--w-regular); color: var(--mid); }   /* the overline: what kind of node */
 .nc-node__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* its own name */
-.nc-node__io { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) 0; }
+/* The ports and the body share one row (Diego, Oct 8, 2026): the dots sit on the card's edges over the body, so a node
+   with many inputs no longer opens an empty band above its body — the card is as tall as the longer of the two. */
+.nc-node__io { grid-row: 2; grid-column: 1; align-self: start; display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) 0; pointer-events: none; }
+.nc-node__io .nc-port__dot { pointer-events: auto; }
 .nc-node__ports { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .nc-node__ports--out { align-items: flex-end; }
-.nc-node__body { padding: 0 var(--space-3) var(--space-3); min-height: 0; }
+.nc-node__body { grid-row: 2; grid-column: 1; padding: var(--space-2) var(--space-3) var(--space-3); min-width: 0; min-height: 0; }
 .nc-node__body:empty { display: none; }
-.nc-node__status { margin: 0; padding: 0 var(--space-3) var(--space-3); font-size: var(--t-caption-size); color: var(--mid); }
+.nc-node__status { grid-row: 3; margin: 0; padding: 0 var(--space-3) var(--space-3); font-size: var(--t-caption-size); color: var(--mid); }
 .nc-node[data-state="error"] { border-color: var(--danger); }
 .nc-node[data-state="error"] .nc-node__status { color: var(--danger); }
 .nc-node[data-state="stale"] .nc-node__body { opacity: 0.5; }
