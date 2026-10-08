@@ -306,11 +306,13 @@ consumer: FVS's **Paper** (Paper = colour + texture; see `docs/DESIGN-DECISIONS.
 
 | Tool | Accent | Reading |
 |---|---|---|
-| Genesis | `#c8f060` | acid green — organic vitality (Creator's own `#5fc9b4` teal retired Aug 27, 2026 — merged into Genesis, see CLAUDE.md) |
-| Spore | `#a0c8f0` | cool blue-grey |
-| Pollen | `#e8c84a` | pollen yellow |
+| Genesis | `#6a9c2e` | leaf green — organic vitality (was `#c8f060` acid green, darkened for contrast on paper; Creator's own `#5fc9b4` teal retired Aug 27, 2026 — merged into Genesis, see CLAUDE.md) |
+| Spore | `#5a7a96` | cool blue-grey (was `#a0c8f0`; shares Halide's steel-blue) |
+| Pollen | `#c8a83a` | pollen ochre (was `#e8c84a`) |
 | Living Path | `#b48cf0` | vital violet |
-| Halide | `#7a9cb8` | darkroom steel-blue |
+| Sinew | `#b8467a` | sinew rose (Living Path's vector half) |
+| Apostate | `#9c2b3a` | heretic crimson |
+| Halide | `#5a7a96` | darkroom steel-blue (was `#7a9cb8`) |
 | Komorebi | `#8aa054` | dappled forest-green |
 | Camo Turing | `#3f8fa0` | teal-blue |
 | Warping | `#a9683e` | wood / warm terracotta |
@@ -321,6 +323,11 @@ consumer: FVS's **Paper** (Paper = colour + texture; see `docs/DESIGN-DECISIONS.
 | TuneSutra | `#c93ed6` | vivid orchid / magenta |
 | Mycel | `#8a7355` | mushroom taupe |
 | Colornet | `#4a5fc7` | cornflower blue-violet |
+| Radial | `#6b6f8c` | slate blue-grey |
+| Pulsar | `#dd5140` | signal red (Radial's motion tool) |
+| Rhizome | `#7a9c5e` | root moss-green |
+| Trellis | `#c9587a` | rose |
+| Murmur | `#d4762a` | murmuration orange (the stipple exports' animator) |
 | Blob Boundary | `#8a8a28` | mustard gold |
 | Undertow | `#8a4f7d` | plum — the pull beneath a surface (Warping's animator; hue ~315, unclaimed) |
 | Dapple | `#d0905a` | sun-through-leaves amber (Komorebi's animator; lighter than Murmur's `#d4762a`) |

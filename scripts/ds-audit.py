@@ -269,6 +269,8 @@ def registry():
     pages = {f.split('/')[0]: m.group(1).lower() for f in tracked('.html') if f.endswith('/index.html')
              for m in [re.search(r'--tool:\s*(#[0-9a-fA-F]{6})', page_style(f))] if m}
     gone, differ, in_json = [], [], set()
+    CSS_EASE_KEYWORDS = {'ease': 'cubic-bezier(0.25,0.1,0.25,1)', 'linear': 'cubic-bezier(0,0,1,1)', 'ease-in': 'cubic-bezier(0.42,0,1,1)',
+                         'ease-out': 'cubic-bezier(0,0,0.58,1)', 'ease-in-out': 'cubic-bezier(0.42,0,0.58,1)'}
     for path, val in leaves.items():
         if path.startswith('color.accent.'):
             tool = kebab(path.split('.')[-1])
@@ -280,7 +282,9 @@ def registry():
         in_json.add(name)
         if name not in decl: gone.append(f'{path} = {val} — tokens.css has no {name}'); continue
         want = 'cubic-bezier(' + ','.join(str(x) for x in val) + ')' if isinstance(val, list) else val
-        if norm(want) != norm(first(name)): differ.append(f'{path}: json {val} · css {name}: {first(name)}')
+        css = first(name)
+        css = CSS_EASE_KEYWORDS.get(norm(css), css)   # `ease` IS cubic-bezier(0.25,0.1,0.25,1): DTCG has no keywords
+        if norm(want) != norm(css): differ.append(f'{path}: json {val} · css {name}: {first(name)}')
     r['json_gone'], r['json_differ'] = gone, differ
     r['json_missing'] = sorted(n for n in decl if any(n.startswith(c) for _, c in JSON_MAP) and n not in in_json)
     r['json_missing_accent'] = sorted(t for t in pages if t != 'design-system' and
