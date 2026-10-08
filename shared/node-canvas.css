@@ -36,14 +36,13 @@
 .nc-node--compact { --node-w: 10rem; }
 .nc-node--wide { --node-w: 26rem; }
 .nc-node__head {
-  display: flex; align-items: center; gap: var(--space-2);
+  grid-row: 1; display: flex; flex-direction: column; align-items: stretch; gap: 0;
   padding: var(--space-2) var(--space-3);
   background: var(--panel); border-bottom: 1px solid var(--border);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   font-family: var(--font-display); font-size: var(--t-section-size); font-weight: var(--w-medium);
   cursor: grab;
 }
-.nc-node__head { grid-row: 1; flex-direction: column; align-items: stretch; gap: 0; }
 .nc-node__type { font-family: var(--font-mono); font-size: var(--t-label-size); font-weight: var(--w-regular); color: var(--mid); }   /* the overline: what kind of node */
 .nc-node__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* its own name */
 /* The ports and the body share one row (Diego, Oct 8, 2026): the dots sit on the card's edges over the body, so a node

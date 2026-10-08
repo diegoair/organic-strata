@@ -740,7 +740,7 @@ function renderInspectorBody(box, ids) {
     const own = ctl.model.edges.filter(e => e.to.node === node.id && e.to.port !== 'from').map(e => registry.inputsOf(node).find(q => q.name === e.to.port).label);
     if (par) rows.push({ html: `<p class="org-panel__hint">Variation ${variationNo(node, par)} of ${esc(nodeLabel(par))}${v && v.slot ? ' — ' + esc(v.label) : ''}</p>
       <div class="row-btns"><button type="button" class="mini-btn" id="fgi-parent">Select ${esc(nodeLabel(par))}</button></div>
-      <div class="sub-label">Own inputs</div><p class="org-panel__hint">${own.length ? `${esc([...new Set(own)].join(', '))} — for this variation only. ` : ''}Connect a Canvas, Grid, Palette, Content, Rules or Composition to change this variation only. Rules are added to ${esc(nodeLabel(par))}’s; the others replace them.</p>`,
+      <div class="sub-label">Own inputs</div><p class="org-panel__hint">${own.length ? `${esc([...new Set(own)].join(', '))} — for this variation only. ` : ''}Connect a Canvas, Grid, Palette, Content, Rules or Composition to change this variation only. Rules are added to ${esc(nodeLabel(par))}’s; the others replace them, and the variation’s own change leaves them as they are.</p>`,
       bind: () => ctrl('fgi-parent').addEventListener('click', () => { ctl.select([par.id]); ctl.fitTo([par.id, ...childrenOf(par.id).map(n => n.id)]); }) });
   }
   box.innerHTML = title + (why && node.type !== 'figure-var' ? `<p class="org-panel__hint">${esc(why)}</p>` : '') + rows.map(r => r.html).join('') + '</div>';   // a refused Delete explains itself first (no stop: the Decided string has none)
@@ -1267,9 +1267,11 @@ function renderComposeInspector(next) {
   const comp = compNode(), rules = comp ? comp.params.rules || [] : [], f = figureValue(composing.fig);
   const pal = foundationOf(NC.findNode(ctl.model, composing.fig) || {})[2], inks = pal ? (pal.params.colors || []) : [];
   const n = composing.sel.size, shared = sharedWith(comp), fill = composing.fill || 'manual';
+  const cfig = NC.findNode(ctl.model, composing.fig), cpar = cfig && cfig.type === 'figure-var' ? parentNode(cfig) : null;   // composing a variation
   box.innerHTML = `<div class="panel-section"><h3>Composition</h3>
-    ${shared.length ? `<p class="org-panel__hint">Shared with ${esc(shared.map(nodeLabel).join(', '))} — edits change ${shared.length === 1 ? 'both Figures' : 'all of them'}.</p>
-    <div class="row-btns"><button type="button" class="mini-btn" id="fgc-copy">Make a copy for this Figure</button></div>` : ''}
+    ${shared.length ? (cpar ? `<p class="org-panel__hint">Shared with ${esc(shared.map(nodeLabel).join(', '))} — edits change ${esc(nodeLabel(cpar))} and every variation that uses it.</p>
+    <div class="row-btns"><button type="button" class="mini-btn" id="fgc-copy">Make a copy for this variation</button></div>` : `<p class="org-panel__hint">Shared with ${esc(shared.map(nodeLabel).join(', '))} — edits change ${shared.length === 1 ? 'both Figures' : 'all of them'}.</p>
+    <div class="row-btns"><button type="button" class="mini-btn" id="fgc-copy">Make a copy for this Figure</button></div>`) : ''}
     <p class="org-panel__hint">Selection: ${n} ${n === 1 ? 'cell' : 'cells'}${composing.when ? ' — ' + esc(whereText(composing.when)) : n === 1 ? ' — ' + esc(whereText(selectionWhen())) : ''}</p>
     </div>
     <div class="panel-section"><h3>Fill</h3>
