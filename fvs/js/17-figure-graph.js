@@ -289,9 +289,14 @@ function restackChildren(figId, force) {
   const fig = NC.findNode(ctl.model, figId); if (!fig) return;
   const fc = ctl.cardOf(figId), x = fig.x + ((fc && fc.offsetWidth) || 416) + LABEL_ROOM;
   let y = fig.y, moved = false;
+  // nodes that are not this Figure's variations but sit in their column (an Export, a Palette…): the stack steps around them
+  const kids = new Set(childrenOf(figId).map(n => n.id)), box = n => { const c = ctl.cardOf(n.id); return { x: n.x, y: n.y, w: (c && c.offsetWidth) || 224, h: (c && c.offsetHeight) || 120 }; };
+  const others = ctl.model.nodes.filter(n => n.id !== figId && !kids.has(n.id)).map(box);
+  const clear = (top, w, h) => { let t = top, hit; do { hit = others.find(o => o.x < x + w && o.x + o.w > x && o.y < t + h + 24 && o.y + o.h + 24 > t); if (hit) t = hit.y + hit.h + 24; } while (hit); return t; };
   childrenOf(figId).forEach(n => {
     const c = ctl.cardOf(n.id), h = (c && c.offsetHeight) || 280;
     if (n.params.auto) {
+      y = clear(y, (c && c.offsetWidth) || 416, h);
       if (n.x !== x || n.y !== y) { n.x = x; n.y = y; moved = true; if (c) c.style.transform = `translate(${x}px,${y}px)`; }
     }
     y = (n.params.auto ? y : Math.max(y, n.y)) + h + 24;
