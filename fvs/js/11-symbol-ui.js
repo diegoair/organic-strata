@@ -775,13 +775,13 @@ export function renderCellContentOverlayTiles() {
   elTiles.innerHTML = '';
   elSec.style.display = elementIsEmpty() ? 'none' : '';
   if (!elementIsEmpty()) {
-    const live = getSeed();
+    const seedNow = getSeed();   // not `live`: that name is the module's run-time values (contentOverlayFit is read below)
     [[0, false, false, 'As it is'], ...seedPreviewStates().slice(1)].forEach(([r, fh, fv, label]) => {   // the strip's own 0° is "As it is" here
       const btn = document.createElement('button');
       btn.className = 'fvs-library-item';
       btn.title = 'Element · ' + label;
       btn.setAttribute('aria-label', 'Use the Element — ' + label);
-      btn.innerHTML = buildSeedPreviewSVG(live, r, fh, fv, 72);
+      btn.innerHTML = buildSeedPreviewSVG(seedNow, r, fh, fv, 72);
       btn.addEventListener('click', () => {
         const sp = JSON.parse(JSON.stringify(seedForSnapshot()));
         // A layer that follows the cell colour would take a different ink in every cell (the Symbol's
