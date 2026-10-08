@@ -22,8 +22,12 @@ export function renderPreview(box, kind, value) {
     const url = URL.createObjectURL(new Blob([value], { type: 'image/svg+xml' }));
     urls.set(box, url); image(box, url); return;
   }
-  if (kind === 'grid') { caption(box, `${value.cells.length} cells`); return; }
+  if (kind === 'grid') {   // the shared node-body picture: the grid's cells, drawn in the card's ink
+    const n = value.cells.length;
+    box.innerHTML = Organica.nodeCanvas.body.picture(Organica.loomGridThumb(value), `${n} ${n === 1 ? 'cell' : 'cells'}`); return;
+  }
   if (kind === 'image') { if (value.dataURL) image(box, value.dataURL); else caption(box, `${value.width} × ${value.height} mask`); return; }
+  if (kind === 'color' && typeof value === 'string') { box.innerHTML = Organica.nodeCanvas.body.swatches([value], { text: value }); return; }
   if (kind === 'points') { caption(box, `${value.length} points`); return; }
   caption(box, String(value).slice(0, 40));
 }

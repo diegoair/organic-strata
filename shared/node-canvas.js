@@ -351,7 +351,10 @@
       var inkPort = registry.outputsOf(node)[0] || registry.inputsOf(node)[0];   // the card's ink: its first output's type (Export: its input's)
       var card = el('div', 'nc-node' + (o.cardClass ? ' ' + (o.cardClass(node) || '') : ''), { role: 'group', tabindex: '0', 'data-node-id': node.id, 'data-ink': inkPort ? inkPort.type : '' });
       card.setAttribute('aria-label', label(node));
-      var head = el('div', 'nc-node__head'); var type = el('span', 'nc-node__type'); type.textContent = registry.get(node.type).meta.label;
+      var meta = registry.get(node.type).meta;
+      if (meta.pill) card.classList.add('nc-node--pill');   // a pill: the type's icon + one picture; the name is in the panel (and the card's aria-label)
+      var head = el('div', 'nc-node__head', { 'data-theme': 'light' }); /* fixed black / white on the solid ink */ var type = el('span', 'nc-node__type'); type.textContent = meta.label;
+      if (meta.icon && Organica.icons) { var ic = el('span', 'nc-node__icon', { 'aria-hidden': 'true' }); ic.innerHTML = Organica.icons.get(meta.icon); head.appendChild(ic); }
       var title = el('span', 'nc-node__title'); title.textContent = label(node); head.append(type, title);
       var ins = el('div', 'nc-node__ports nc-node__ports--in'), outs = el('div', 'nc-node__ports nc-node__ports--out');
       registry.inputsOf(node).forEach(function (p) { var r = portRow(node, p, 'in'); ins.appendChild(r.row); c.ports.set('in:' + p.name, { el: r.dot }); });
@@ -1078,6 +1081,26 @@
     return { model: m, dropped: { nodes: dn, edges: de } };
   }
 
+  // ── card bodies (Diego, Oct 8, 2026 — the shared body vocabulary, Foundation first): HTML strings a host puts in
+  // .nc-node__body. A picture is an SVG in currentColor, so it is drawn in the card's ink (--node-ink); swatches are
+  // content colours. Styles: .nc-body* in node-canvas.css.
+  function escH(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var body = {
+    line: function (text) { return '<p class="nc-body__line">' + escH(text) + '</p>'; },
+    // a small drawing beside its summary line — Organica.aspectIcon (a Canvas), Organica.loomGridThumb (a Grid), …
+    picture: function (svg, text) {
+      return '<div class="nc-body"><span class="nc-body__pic" aria-hidden="true">' + (svg || '') + '</span>' + (text != null ? body.line(text) : '') + '</div>';
+    },
+    // a row of colour chips; opts.paper = the first is the ground (a stronger edge); opts.text = a summary line under it
+    swatches: function (colors, opts) {
+      opts = opts || {};
+      var chips = (colors || []).map(function (c, i) {
+        return '<span class="nc-body__swatch' + (opts.paper && i === 0 ? ' is-paper' : '') + (c === 'transparent' || c === 'none' ? ' is-clear' : '') + '" style="--i:' + i + ';background:' + escH(c) + '"></span>';
+      }).join('');
+      return '<div class="nc-body nc-body--stack"><span class="nc-body__swatches">' + chips + '</span>' + (opts.text != null ? body.line(opts.text) : '') + '</div>';
+    },
+  };
+
   Organica.nodeCanvas = {
     MODEL_VERSION: MODEL_VERSION,
     nextId: nextId, createModel: createModel, findNode: findNode, edgesInto: edgesInto, edgesOutOf: edgesOutOf,
@@ -1087,5 +1110,6 @@
     createEngine: createEngine, createHistory: createHistory,
     mount: mount, wirePath: wirePath,
     portFor: portFor, search: search, nodeBar: nodeBar, graphMenu: graphMenu,
+    body: body,
   };
 })();

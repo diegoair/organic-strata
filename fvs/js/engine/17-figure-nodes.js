@@ -100,6 +100,10 @@ function latticeOf(g) {   // a lattice grid → recipe v2's lattice
   return { type: 'square', cols: p.cols, rows: p.rows };
 }
 function latticeModel(l) { return l.type === 'triangle' ? triangleLoomModel(l.rows) : l.type === 'hexagon' ? hexLoomModel(l.rings) : squareLoomModel(l.cols, l.rows || l.cols); }
+// A Grid's own drawing, for its card (the Loom model a Figure would draw in `cv`): a lattice, or a generator inside the Canvas.
+export async function gridPreviewModel(grid, cv) {
+  return isLattice(grid.gen) ? latticeModel(latticeOf(grid)) : symbolGridModel(grid.gen, { ...gridDefaults(grid.gen), ...(grid.params || {}) }, cv);
+}
 
 // ── Content: a saved Element / Component with a copy of its entry (contentPatch: engine/16) ──
 export function entrySnapshot(entry) {   // what a content node keeps: the entry without its cached thumbnail
@@ -482,14 +486,14 @@ export async function figureVariation(i, p) {
 const RULE_OUT = [{ name: 'rules', type: 'rule', label: 'Rules' }];
 export function figureNodeTypes() {
   return [
-    { meta: { id: 'canvas', label: 'Canvas', category: 'Foundation', inputs: [], outputs: [{ name: 'canvas', type: 'canvas', label: 'Canvas' }],
+    { meta: { id: 'canvas', label: 'Canvas', category: 'Foundation', pill: true, icon: 'node-canvas', inputs: [], outputs: [{ name: 'canvas', type: 'canvas', label: 'Canvas' }],
         params: [{ name: 'preset', default: 'Square 1:1' }, { name: 'mode', default: 'screen' }, { name: 'unit', default: 'mm' }, { name: 'pw', default: 1080 }, { name: 'ph', default: 1080 },
           { name: 'dpi', default: 300 }, { name: 'bleed', default: 3 }, { name: 'margin', default: 5 }] },
       compute: (i, p) => ({ canvas: canvasOf(p) }) },
-    { meta: { id: 'grid', label: 'Grid', category: 'Foundation', inputs: [], outputs: [{ name: 'grid', type: 'grid', label: 'Grid' }],
+    { meta: { id: 'grid', label: 'Grid', category: 'Foundation', pill: true, icon: 'grid', inputs: [], outputs: [{ name: 'grid', type: 'grid', label: 'Grid' }],
         params: [{ name: 'gen', default: 'rectangular' }, { name: 'params', default: gridDefaults('rectangular') }] },
       compute: (i, p) => { const gen = SYMGRID_GENS[p.gen] || FIGURE_LATTICES[p.gen] ? p.gen : 'rectangular'; return { grid: { gen, params: { ...gridDefaults(gen), ...(p.params || {}) } } }; } },
-    { meta: { id: 'palette', label: 'Palette', category: 'Foundation', inputs: [], outputs: [{ name: 'palette', type: 'palette', label: 'Palette' }],
+    { meta: { id: 'palette', label: 'Palette', category: 'Foundation', pill: true, icon: 'node-palette', inputs: [], outputs: [{ name: 'palette', type: 'palette', label: 'Palette' }],
         params: [{ name: 'colors', default: ['#1a1a1a', '#e85d3a', '#2f6fb0'] }, { name: 'paper', default: '#ffffff' }, { name: 'rule', default: { mode: 'index', offset: 0 } },
           { name: 'transparent', default: false }, { name: 'pattern', default: null }] },   // O-45: Paper = colour + texture, or none
       compute: (i, p) => { const pal = { colors: (p.colors || []).slice(), paper: p.transparent ? 'none' : (p.paper || '#ffffff'), rule: COLOR_RULES[(p.rule || {}).mode] ? p.rule : { mode: 'index', offset: 0 } };

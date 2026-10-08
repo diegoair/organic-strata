@@ -395,9 +395,31 @@ CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d
 `.is-compatible`, `.is-incompatible`, `[data-type]`) · `.nc-wire` (+ `--<type>`, `--faint`,
 `--pending`, `.is-related`, `.is-selected`) · `.nc-wire__label` (`--mid`, `--font-display`,
 `--t-label-size`, a `--canvas-bg` halo `--space-1` wide via `paint-order: stroke`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
+**Card bodies — `Organica.nodeCanvas.body`** (Oct 8, 2026, ledger §2 *node bodies* — Foundation
+first). HTML strings a host returns into `.nc-node__body` from `renderBody`; text is escaped:
+
+```js
+const B = Organica.nodeCanvas.body;
+el.innerHTML = B.line('No region rules yet');                                  // .nc-body__line — caption, --mid
+el.innerHTML = B.picture(Organica.aspectIcon(1080, 1350), '1080 × 1350 px');    // .nc-body > .nc-body__pic + line
+el.innerHTML = B.picture(Organica.loomGridThumb(grid), 'Square lattice · 3 × 2');
+el.innerHTML = B.swatches([paper, ...inks], { paper: true, text: '3 inks' });   // .nc-body--stack > .nc-body__swatches
+```
+
+`picture` takes any SVG drawn in `currentColor`: it is painted in the card's ink (`--node-ink`),
+48px (1.5 × `--space-8`). Use the picker's own sources — `Organica.aspectIcon(w, h[, {dashed}])` for a
+Canvas, `Organica.loomGridThumb(grid)` for a Grid (a Loom export **or** an already-resolved grid,
+`loadLoomGrid`'s own output — Rhizome's grid port; since Oct 8, 2026). An async picture: render
+`picture('', text)` first and fill `.nc-body__pic` when it arrives (FVS Grid, `gridPreviewModel`).
+`swatches` chips are content colours (`--space-5` square, `--border` edge; `paper: true` = the first
+is the ground, `.is-paper`, `--border-strong` edge) and carry `--i` for the hover stagger. Hover
+(gesture only, same guards as the card's lift, off under reduced motion): the picture scales 1.08,
+the chips hop up `--space-1` one after another (`--i` × ½ `--dur-stagger`). Consumers: FVS Canvas /
+Grid / Palette; Rhizome grid (`‹n› cells`) and colour (one chip + its hex). Live: `/design-system/#node-bodies`.
+
 Card look = ledger G3 (edge `--border-strong`, no shadow, at rest or lifted (Oct 8, 2026), 2px
-`--ink` ring selected) + the tinted head (Oct 8, 2026: head 14 % `--node-ink` into `--paper`, its
-border 45 %, overline 70 % `--node-ink` into `--ink`). Motion = gesture feedback only (Oct 8,
+`--ink` ring selected) + the solid head (Oct 8, 2026: the head is `--node-ink`; `data-theme="light"` on the
+head, text `--paper` on black / blue, `--ink` on the rest; port dots filled with their ink). Motion = gesture feedback only (Oct 8,
 2026): hover lift (not while `.nc-stage--pan` / `--dragging`), `.is-lifted` = `scale: 1.02` +
 `rotate: -1deg`, `.is-pop` (scale 1.04, `pop()` in `mount`) on a card added after the first
 render and on the card + port dot a wire lands on (dot 1.6), dot 1.3 on hover / `.is-compatible`;

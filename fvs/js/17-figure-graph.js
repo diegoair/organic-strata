@@ -44,7 +44,7 @@ import {
 } from './engine/15-export-library-view.js';
 import {
   FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
-  exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
+  exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridPreviewModel, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
   ctrl
@@ -144,11 +144,15 @@ function renderBody(node, entry, el) {
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act); }); }
   } else if (node.type === 'canvas') {
     const cv = canvasOf(p);
-    el.innerHTML = cv.fit ? `<p class="fg-card__meta">The page is the Figure’s own size</p>` : `<p class="fg-card__meta">${Organica.aspectIcon ? Organica.aspectIcon(cv.W, cv.H) : ''} ${esc(canvasSummary(cv))}</p>`;
+    el.innerHTML = cv.fit ? NC.body.picture(Organica.aspectIcon(1, 1, { dashed: true }), 'The page is the Figure’s own size') : NC.body.picture(Organica.aspectIcon(cv.W, cv.H), canvasSummary(cv));
   } else if (node.type === 'grid') {
-    el.innerHTML = `<p class="fg-card__meta">${esc(gridSummary({ gen: p.gen, params: p.params }))}</p>`;
+    const g = { gen: p.gen, params: p.params }, text = gridSummary(g);
+    el.innerHTML = NC.body.picture('', text);
+    const cv = gridCanvasOf(node), key = JSON.stringify([g, cv.W, cv.H, cv.margin]); el._gridKey = key;   // a newer render wins
+    gridPreviewModel(g, cv).then(m => { const pic = el._gridKey === key && el.querySelector('.nc-body__pic'); if (pic && m) pic.innerHTML = Organica.loomGridThumb(m); }).catch(() => {});
   } else if (node.type === 'palette') {
-    el.innerHTML = `<div class="fg-card__swatches" data-theme="light">${[p.paper, ...(p.colors || [])].map((c, i) => `<span class="fg-card__swatch${i ? '' : ' is-paper'}" style="background:${esc(c)}"></span>`).join('')}</div>`;
+    const k = (p.colors || []).length;
+    el.innerHTML = NC.body.swatches([p.transparent ? 'transparent' : (p.paper || '#ffffff'), ...(p.colors || [])], { paper: true, text: k + (k === 1 ? ' ink' : ' inks') });
   } else if (node.type === 'export') {
     const files = exportFiles(node), n = files.length;
     el.innerHTML = `<p class="fg-card__meta">${esc(exportSummary(files, p))}</p>
@@ -176,6 +180,12 @@ function renderBody(node, entry, el) {
     el.innerHTML = p.snapshot ? `<div class="fg-card__thumb" data-theme="light">${entryThumb(node.type, p.name, p.snapshot)}</div>
       <p class="fg-card__meta">${gone ? `${esc(p.name)} is no longer in the library — drawn from the copy kept in this graph` : esc(p.name)}</p>` : '';
   }
+}
+// The page a Grid card draws its grid in: the Canvas of the first Figure it feeds (a square page when there is none).
+function gridCanvasOf(grid) {
+  const e = ctl.model.edges.find(x => x.from.node === grid.id && x.to.port === 'grid');
+  const fig = e && NC.findNode(ctl.model, e.to.node), cvn = fig && foundationOf(fig)[0], cv = cvn ? canvasOf(cvn.params || {}) : null;
+  return cv && !cv.fit ? cv : canvasOf({ preset: 'Square 1:1', margin: 5 });
 }
 // The Canvas / Grid / Palette feeding a Figure (null where none is connected).
 function foundationOf(fig) {

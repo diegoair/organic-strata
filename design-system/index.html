@@ -196,6 +196,9 @@
   .ds-nc-panel { display: flex; flex-direction: column; padding: var(--space-3); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); }
   .ds-nc-helpers .nc-search { position: relative; z-index: auto; }
   .ds-nc-label { margin: 0; color: var(--ink); font-family: var(--font-display); font-weight: var(--w-bold); }
+  /* #node-bodies — the cards laid in a row instead of placed on a board; the bodies are shared/node-canvas.css */
+  .ds-nc-bodies { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-5); padding: var(--space-5); border: 1px solid var(--border); border-radius: var(--radius-md); }
+  .ds-nc-bodies .nc-node { position: relative; }
 
   /* Dark mode entry — the same mini tool, once per theme */
   .ds-theme-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-5); width: 100%; }
@@ -768,7 +771,7 @@
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--canvas-grid), var(--canvas-bg);box-shadow:inset 0 0 0 1px var(--border)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--canvas-grid</div><div class="ds-swatch__val">dot grid, --space-7 pitch</div></div></div>
         </div>
       </div>
-      <p class="ds-desc" style="margin-top:var(--space-5)"><strong>Port types — the node graph’s seven colours</strong> (the node palette, Oct 8, 2026 — sampled from the cover of <em>Essential Color Combinations That Just Work</em>; used only by the node board; replaces the Riso inks of O-34). One <code>--port-&lt;type&gt;</code> per port type of the <a href="#node-canvas">node board</a>: the ring of the port dot and every wire leaving that port. Each sampled ink is moved along its own OKLCH scale to the nearest step that reaches <strong>3:1 on <code>--paper</code> and <code>--panel</code></strong> (<code>Organica.color.stepFor</code>), in each theme — so light and dark have their own values (both in the table under <a href="#dark-mode">Dark mode</a>; the self-check fails if one drops under 3:1 on <code>--paper</code> or <code>--panel</code>). Colour is never the only cue: a port also shows its label, and a list port is a square dot. A tool maps its own type names onto these (Rhizome: SVG → content, Image → figure, Grid → grid, Color → palette, Number → rule, Points → composition).</p>
+      <p class="ds-desc" style="margin-top:var(--space-5)"><strong>Port types — the node graph’s seven colours</strong> (the node palette, Oct 8, 2026 — sampled from the cover of <em>Essential Color Combinations That Just Work</em>; used only by the node board; replaces the Riso inks of O-34). One <code>--port-&lt;type&gt;</code> per port type of the <a href="#node-canvas">node board</a>: the ring of the port dot and every wire leaving that port. The sampled inks are used <strong>as is</strong> (dark theme: the cover’s cream for canvas); yellow and orange sit under 3:1 on white — a standing exception, the port also carrying its label and shape (<code>Organica.color.stepFor</code>), in each theme — so light and dark have their own values (both in the table under <a href="#dark-mode">Dark mode</a>; the self-check fails if one drops under 3:1 on <code>--paper</code> or <code>--panel</code>). Colour is never the only cue: a port also shows its label, and a list port is a square dot. A tool maps its own type names onto these (Rhizome: SVG → content, Image → figure, Grid → grid, Color → palette, Number → rule, Points → composition).</p>
       <div class="ds-example">
         <div class="ds-swatches">
           <div class="ds-swatch"><div class="ds-swatch__fill" style="background:var(--port-canvas)"></div><div class="ds-swatch__meta"><div class="ds-swatch__name">--port-canvas</div><div class="ds-swatch__val">Canvas · black</div></div></div>
@@ -1024,23 +1027,23 @@
             </g><path class="nc-wire nc-wire--pending" data-from="f3:figure" data-to-xy="700,250"/></svg>
             <div class="nc-nodes">
               <div class="nc-node nc-node--compact" data-demo="canvas" data-ink="canvas" data-x="16" data-y="16" role="group" aria-label="Canvas 1">
-                <div class="nc-node__head"><span class="nc-node__type">Canvas</span><span class="nc-node__title">Canvas 1</span></div>
+                <div class="nc-node__head" data-theme="light"><span class="nc-node__type">Canvas</span><span class="nc-node__title">Canvas 1</span></div>
                 <div class="nc-node__io"><div class="nc-node__ports nc-node__ports--in"></div><div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Canvas</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="canvas" data-dir="out" data-type="canvas" aria-label="Canvas output — connect"></button></div></div></div>
               </div>
               <div class="nc-node nc-node--compact is-selected" data-demo="grid" data-ink="grid" data-x="16" data-y="112" role="group" aria-label="Grid 1">
-                <div class="nc-node__head"><span class="nc-node__type">Grid</span><span class="nc-node__title">Grid 1</span></div>
+                <div class="nc-node__head" data-theme="light"><span class="nc-node__type">Grid</span><span class="nc-node__title">Grid 1</span></div>
                 <div class="nc-node__io"><div class="nc-node__ports nc-node__ports--in"></div><div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Grid</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="grid" data-dir="out" data-type="grid" aria-label="Grid output — connect"></button></div></div></div>
               </div>
               <div class="nc-node nc-node--compact is-lifted" data-demo="palette" data-ink="palette" data-x="16" data-y="208" role="group" aria-label="Palette 1">
-                <div class="nc-node__head"><span class="nc-node__type">Palette</span><span class="nc-node__title">Palette 1</span></div>
+                <div class="nc-node__head" data-theme="light"><span class="nc-node__type">Palette</span><span class="nc-node__title">Palette 1</span></div>
                 <div class="nc-node__io"><div class="nc-node__ports nc-node__ports--in"></div><div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Palette</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="palette" data-dir="out" data-type="palette" aria-label="Palette output — connect"></button></div></div></div>
               </div>
               <div class="nc-node nc-node--compact" data-demo="comp" data-ink="content" data-x="16" data-y="304" role="group" aria-label="Leaf wave">
-                <div class="nc-node__head"><span class="nc-node__type">Component</span><span class="nc-node__title">Leaf wave</span></div>
+                <div class="nc-node__head" data-theme="light"><span class="nc-node__type">Component</span><span class="nc-node__title">Leaf wave</span></div>
                 <div class="nc-node__io"><div class="nc-node__ports nc-node__ports--in"></div><div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">Content</span><button type="button" class="nc-port__dot" tabindex="-1" data-port="content" data-dir="out" data-type="content" aria-label="Content output — connect"></button></div></div></div>
               </div>
               <div class="nc-node nc-node--compact" data-demo="f1" data-ink="figure" data-x="232" data-y="16" data-state="error" role="group" aria-label="Figure 1">
-                <div class="nc-node__head"><span class="nc-node__type">Figure</span><span class="nc-node__title">Figure 1</span></div>
+                <div class="nc-node__head" data-theme="light"><span class="nc-node__type">Figure</span><span class="nc-node__title">Figure 1</span></div>
                 <div class="nc-node__io">
                   <div class="nc-node__ports nc-node__ports--in">
                     <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="canvas" data-dir="in" data-type="canvas" aria-label="Canvas input — connect"></button><span class="nc-port__label">Canvas</span></div>
@@ -1055,7 +1058,7 @@
                 <p class="nc-node__status" role="status">Too many shapes: 52000 (limit 40000). Lower Variations or use a smaller Grid.</p>
               </div>
               <div class="nc-node nc-node--compact" data-demo="f2" data-ink="figure" data-x="432" data-y="16" data-state="stale" role="group" aria-label="Figure 2">
-                <div class="nc-node__head"><span class="nc-node__type">Figure</span><span class="nc-node__title">Figure 2</span></div>
+                <div class="nc-node__head" data-theme="light"><span class="nc-node__type">Figure</span><span class="nc-node__title">Figure 2</span></div>
                 <div class="nc-node__io">
                   <div class="nc-node__ports nc-node__ports--in">
                     <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="canvas" data-dir="in" data-type="canvas" aria-label="Canvas input — connect"></button><span class="nc-port__label">Canvas</span></div>
@@ -1067,7 +1070,7 @@
                 <div class="nc-node__body"><div class="ds-nc-thumb"></div></div>
               </div>
               <div class="nc-node nc-node--compact" data-demo="f3" data-ink="figure" data-x="432" data-y="288" data-state="waiting" role="group" aria-label="Figure 3">
-                <div class="nc-node__head"><span class="nc-node__type">Figure</span><span class="nc-node__title">Figure 3</span></div>
+                <div class="nc-node__head" data-theme="light"><span class="nc-node__type">Figure</span><span class="nc-node__title">Figure 3</span></div>
                 <div class="nc-node__io">
                   <div class="nc-node__ports nc-node__ports--in">
                     <div class="nc-port nc-port--in"><button type="button" class="nc-port__dot" tabindex="-1" data-port="canvas" data-dir="in" data-type="canvas" aria-label="Canvas input — connect"></button><span class="nc-port__label">Canvas</span></div>
@@ -1121,8 +1124,12 @@
       </template>
       <div class="ds-example ds-example--column" data-theme="light" data-nc-host="Light"></div>
       <div class="ds-example ds-example--column" data-theme="dark" data-nc-host="Dark"></div>
+      <h3 class="ds-sub" id="node-bodies">Node bodies — <code>Organica.nodeCanvas.body</code></h3>
+      <p class="ds-desc">What a card says under its head, as shared components (Diego, Oct 8, 2026 — built group by group; <strong>Foundation first</strong>: Canvas · Grid · Palette). <code>Organica.nodeCanvas.body</code> returns HTML strings a host puts in <code>.nc-node__body</code> from its <code>renderBody</code>: <code>line(text)</code> — one summary line (<code>.nc-body__line</code>, caption size, <code>--mid</code>); <code>picture(svg, text)</code> — a small drawing beside its line (<code>.nc-body</code> › <code>.nc-body__pic</code>, 48px = 1.5 × <code>--space-8</code>, drawn in <code>currentColor</code> = the card’s <code>--node-ink</code>); <code>swatches(colors, { paper, text })</code> — a row of colour chips (<code>.nc-body--stack</code> › <code>.nc-body__swatches</code> › <code>.nc-body__swatch</code>, <code>--space-5</code> square, <code>--border</code> edge; <code>paper: true</code> = the first chip is the ground, <code>.is-paper</code>, <code>--border-strong</code> edge) and a line under it. The pictures are the picker’s own sources: <code>Organica.aspectIcon(w, h)</code> for a Canvas (dashed square = the Figure’s own size), <code>Organica.loomGridThumb(grid)</code> for a Grid — a Loom export or an already-resolved grid. Swatches are content colours: the same in both themes. <strong>Motion on gestures only</strong>: hovering the card grows the picture to 1.08 and hops the chips up <code>--space-1</code> one after another (<code>--i</code> × ½ <code>--dur-stagger</code>), <code>--dur-base</code> / <code>--ease-overshoot</code>; not while the board pans or a card drags; off under reduced motion. Used by: FVS Figure graph (Canvas, Grid, Palette), Rhizome (grid preview = picture + <em>‹n› cells</em>, colour = one swatch + its hex).</p>
+      <div class="ds-example ds-example--column" data-theme="light" data-nc-bodies="Light"></div>
+      <div class="ds-example ds-example--column" data-theme="dark" data-nc-bodies="Dark"></div>
       <p class="ds-note"><strong>On each board:</strong> column 1 — <em>rest</em> (Canvas 1; hover it: the edge goes <code>--mid</code>), <em>selected</em> (Grid 1: 2px <code>--ink</code> ring — the same for a multi-selection), <em>lifted</em> (Palette 1, while dragged: a tilt — <code>scale: 1.02</code>, <code>rotate: -1deg</code> — and no shadow; a blur repainted on every drag frame, removed Oct 8, 2026), rest (Leaf wave). Then three Figures: <em>error</em> (<code>--danger</code> edge and message — the words decided in <code>docs/UI-COPY.md</code>), <em>stale</em> (off screen, not recomputed yet: the body at half opacity), <em>waiting</em> (a required input is missing: the message only). Dashed box: the <em>marquee</em>. Wires: foundation wires (from Canvas, Grid, Palette) are <em>faint</em> until their node is selected or hovered (<em>related</em>); a selected wire is <code>--ink</code> and 1px wider; a hovered one is 1px wider; the wire being drawn is dashed <code>--ink</code>. Each card’s head is tinted in its own ink (<code>data-ink</code>). <strong>Motion, on gestures only</strong> (Diego, Oct 8, 2026): hover lifts a card (<code>translate</code> −½ <code>--space-1</code>, <code>rotate: -0.4deg</code>; never while the board pans or a card drags); a card added after the first render, and the card a wire lands on, <em>pop</em> (<code>.is-pop</code>, scale 1.04 on <code>--dur-slow</code> / <code>--ease-overshoot</code>) and the port dot that took the wire pops to 1.6; a port dot grows to 1.3 on hover and while <code>.is-compatible</code>. The individual <code>translate</code> / <code>rotate</code> / <code>scale</code> properties compose with the card’s position transform. Reduced motion: none of it. Second strip: each port type (dot + label + its wire) and the wire states alone.</p>
-      <p class="ds-desc"><strong>The card.</strong> <code>.nc-node</code> on <code>--paper</code>, edge <code>--border-strong</code> (≥ 3:1 on the board in both themes — Rhizome’s 1.66:1 edge is retired), <code>--radius-md</code>; <strong>a tinted head</strong> (direction B, Diego, Oct 8, 2026): <code>color-mix(in srgb, var(--node-ink) 14%, var(--paper))</code>, its bottom edge 45 %, with the node type as an overline (<code>.nc-node__type</code>, mono, 70 % <code>--node-ink</code> into <code>--ink</code>) over its own name (<code>.nc-node__title</code>, display face, <code>--ink</code>). <code>--node-ink</code> is the <code>--port-*</code> of the card’s first output (Export: its first input), written by <code>mount()</code> as <code>data-ink</code> on the card and mapped beside the dot and wire rules — a tool with its own type names maps it too (Rhizome); no ink = <code>--border-strong</code>. Measured, both themes, all seven inks: overline ≥ 5.5:1 on the head, name ≥ 13:1, the port dot ≥ 3:1. Then the ports (<code>.nc-node__io</code>: inputs left, outputs right) and the body (filled by the tool through <code>renderBody</code>; hidden when empty) <strong>in one shared row</strong> — the card is a grid (<code>head · ports + body · status</code>), the dots sit on the edges over the body, so a node with many inputs is as tall as the longer of the two, with no empty band above its body (Diego, Oct 8, 2026; <code>.nc-node__io</code> is <code>pointer-events: none</code> except its dots, so the body under it stays clickable) — and the status line (<code>.nc-node__status</code>, a <code>role="status"</code>; shown only for error / waiting / upstream). Widths are component-local: <code>--node-w</code> 14rem, <code>.nc-node--compact</code> 10rem, <code>.nc-node--wide</code> 26rem. <code>.is-collapsed</code> hides body and status. Below 50% zoom the stage takes <code>.nc-stage--far</code> and every card becomes a <em>chip</em>: ports, status and type overline hide, the title keeps its size on screen, a card that is not <code>--wide</code> hides its body, a selected chip keeps a 2px ring.</p>
+      <p class="ds-desc"><strong>The card.</strong> <code>.nc-node</code> on <code>--paper</code>, edge <code>--border-strong</code> (≥ 3:1 on the board in both themes — Rhizome’s 1.66:1 edge is retired), <code>--radius-md</code>; <strong>a solid head</strong> (Diego, Oct 8, 2026 — the node palette as is): the head is <code>--node-ink</code>, its text white on black and blue, black on the rest (<code>data-theme="light"</code> on the head makes <code>--paper</code> / <code>--ink</code> fixed there), with the node type as an overline (<code>.nc-node__type</code>, mono) over its own name (<code>.nc-node__title</code>, display face, <code>--ink</code>). <code>--node-ink</code> is the <code>--port-*</code> of the card’s first output (Export: its first input), written by <code>mount()</code> as <code>data-ink</code> on the card and mapped beside the dot and wire rules — a tool with its own type names maps it too (Rhizome); no ink = <code>--border-strong</code>. Measured, both themes, all seven inks: overline ≥ 5.5:1 on the head, name ≥ 13:1, the port dot ≥ 3:1. Then the ports (<code>.nc-node__io</code>: inputs left, outputs right) and the body (filled by the tool through <code>renderBody</code>; hidden when empty) <strong>in one shared row</strong> — the card is a grid (<code>head · ports + body · status</code>), the dots sit on the edges over the body, so a node with many inputs is as tall as the longer of the two, with no empty band above its body (Diego, Oct 8, 2026; <code>.nc-node__io</code> is <code>pointer-events: none</code> except its dots, so the body under it stays clickable) — and the status line (<code>.nc-node__status</code>, a <code>role="status"</code>; shown only for error / waiting / upstream). Widths are component-local: <code>--node-w</code> 14rem, <code>.nc-node--compact</code> 10rem, <code>.nc-node--wide</code> 26rem. <code>.is-collapsed</code> hides body and status. Below 50% zoom the stage takes <code>.nc-stage--far</code> and every card becomes a <em>chip</em>: ports, status and type overline hide, the title keeps its size on screen, a card that is not <code>--wide</code> hides its body, a selected chip keeps a 2px ring.</p>
       <p class="ds-desc"><strong>Ports.</strong> <code>.nc-port</code> = a dot (<code>.nc-port__dot</code>, <code>--port-d</code> 10px, ring in the type colour <code>--port-&lt;type&gt;</code> via <code>data-type</code>) + its label. <strong>The label sits outside the card, raised above the wire</strong> (Diego, Oct 8, 2026): an input’s to the left of its dot, an output’s to the right, <code>var(--space-1)</code> from the dot, its bottom at the dot’s centre (<code>bottom: 50%</code> + <code>padding-bottom: calc(var(--space-1) / 2)</code>) — the wire leaves the dot under it, never through it. Out of the flow (<code>position: absolute</code>, <code>pointer-events: none</code>), so it never widens the card; the card edge carries only the dots. On the board it reads in <code>--mid</code> on <code>--canvas-bg</code> (= <code>--paper</code>: 6.0:1 light, 6.9:1 dark); in the chip view below 50 % it goes with <code>.nc-node__io</code>. The dot’s <code>aria-label</code> (“Canvas input — connect”) is unchanged. A list port (<code>multi</code> — takes many wires) is a square dot, <code>.nc-port__dot--multi</code>. Its hit area is <code>--hit-min</code> on screen at any zoom (a <code>::before</code> divided by <code>--nc-zoom</code>). While a wire is drawn, compatible dots get a 2px <code>--ink</code> ring (<code>.is-compatible</code>) and the others fade (<code>.is-incompatible</code>). Wires: <code>.nc-wire</code> + <code>.nc-wire--&lt;type&gt;</code> (the source port’s type), <code>--wire-w</code> 1.5px at every zoom (<code>vector-effect: non-scaling-stroke</code>), a transparent <code>.nc-wire-hit</code> path of <code>--hit-min</code> under each for the pointer. A host can label a wire with <code>wireLabel(edge, model)</code> → a short text at its midpoint, <code>.nc-wire__label</code>: <code>--mid</code>, display face, <code>--t-label-size</code>, on a <code>--canvas-bg</code> halo (<code>paint-order: stroke</code>, <code>--space-1</code> wide) so it reads over the wire and the dot grid in both themes — FVS writes <strong>×‹n›</strong> on a Set’s wire (Oct 8, 2026).</p>
       <p class="ds-desc"><strong>Behaviour (<code>mount</code>).</strong> Wheel zooms, Space-drag or middle-drag pans, a plain drag on the board draws the marquee (Shift adds). <code>/</code>, right-click, a double-click on the empty board or a wire released on empty space open the tool’s node search (<code>onSearch</code> / <code>onBoardDblClick</code> / <code>onWireDrop</code>); double-clicking a port can spawn the node it wants (<code>onPortDblClick</code>) — with that option the ports are in the tab order after their card and <strong>Enter / Space</strong> on a port does the same (Oct 8, 2026; without it, as in Rhizome, ports stay out of the tab order); a refused connection says why in one clause, no stop (<em>That connection would make a loop</em>, <em>‹Port› can’t connect to ‹Port›</em>); double-clicking a card, or <strong>Enter</strong> on a focused card, calls <code>onNodeDblClick</code> (FVS: the Figure opens in Compose). Delete / Backspace remove the selection (a node <code>protect</code> refuses says why, in a notice); ⌘/Ctrl Z undo, ⇧Z or Y redo, A select all, C · V copy and paste, D duplicate; arrows nudge (Shift ×4); Esc clears. <strong>Shift+1</strong> Fit all and <strong>Shift+2</strong> Fit selection (<code>fitAll()</code> / <code>fitSelection()</code>), keeping clear of the chrome given in <code>fitInset</code>. ⌘/Ctrl +−0 stay the browser’s. The stage is <code>role="application"</code>, <code>aria-roledescription="node graph"</code>; each card is a focusable <code>role="group"</code> named by its title; changes are announced in a polite live region. Reduced motion drops the transitions. The engine computes only what is on screen; a host that shows a node’s output somewhere else passes <code>keepActive(node)</code> — FVS keeps the Figure open in <em>Compose</em> (ledger O-32: a mode of the Figure step that hides the board and draws that Figure’s cells on a sheet) computing while its card is off screen. Options and the controller: <code>docs/SHARED-COMPONENTS.md</code> §2d.</p>
       <p class="ds-desc"><strong>Node bar and node search (helpers).</strong> Under each board: the node bar’s panel (<code>.nc-nodebar__panel</code> · <code>__hint</code> · <code>__list</code> · <code>__item</code>; in a tool it is the <code>.org-dock__panel</code> beside a bar of category buttons, see <a href="#floatbar">Floatbar</a> — left dock) and the node search (<code>.nc-search</code> · <code>__head</code> · <code>__q</code> · <code>__list</code> · <code>__item.is-current</code> · <code>__hint</code> · <code>__none</code>), here laid flat. <code>Organica.nodeCanvas.nodeBar({ bar, panel, stage, icons, render, specOf, onAdd })</code> wires the category buttons (<code>aria-expanded</code>, <code>inert</code> panel) and drag-or-click to add (a <code>.nc-nodebar__ghost</code> follows the pointer on <code>&lt;body&gt;</code>); <code>search({ items, title, client, onPick })</code> opens the dialog at a point (type to filter, ↑↓ Enter, Esc returns focus, an outside click closes); <code>portFor(registry, model, type, params, from)</code> = the port of a new node that takes a dragged wire, so the search can be filtered by port and the node arrives wired. The words are the tool’s: FVS <em>Foundation · Content · Rules · Output</em>, Rhizome <em>Source · Process · Output</em> (specimen) — <code>docs/UI-COPY.md</code> §2. A node whose port list changes (Rhizome’s Merge, <em>Inputs</em> 1–6) gets its card rebuilt.</p>
@@ -2563,6 +2570,34 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 })();
 </script>
 <script>
+/* #node-bodies — three Foundation cards built with the real Organica.nodeCanvas.body helpers, once per theme.
+   Runs before the self-check, which asserts on it. */
+(function () {
+  var NC = window.Organica && Organica.nodeCanvas; if (!NC || !NC.body) return;
+  var grid = { canvas: { width: 300, height: 200 }, inner: { x: 0, y: 0, width: 300, height: 200 }, cells: [] };   // a resolved grid (loadLoomGrid's shape)
+  for (var r = 0; r < 2; r++) for (var c = 0; c < 3; c++) grid.cells.push({ shape: 'rect', x: c * 100, y: r * 100, width: 100, height: 100 });
+  var cards = [
+    { id: 'canvas', type: 'Canvas', name: 'Canvas 1', body: NC.body.picture(Organica.aspectIcon(1080, 1350), '1080 × 1350 px') },
+    { id: 'grid', type: 'Grid', name: 'Grid 1', body: NC.body.picture(Organica.loomGridThumb(grid), 'Square lattice · 3 × 2 · 6 cells') },
+    { id: 'palette', type: 'Palette', name: 'Palette 1', body: NC.body.swatches(['#f4efe6', '#1d3557', '#e63946', '#2a9d8f'], { paper: true, text: '3 inks' }) },
+  ];
+  document.querySelectorAll('[data-nc-bodies]').forEach(function (host) {
+    var th = host.dataset.ncBodies;
+    var label = document.createElement('p'); label.className = 'ds-nc-label'; label.textContent = th;
+    var stage = document.createElement('div'); stage.className = 'nc-stage ds-nc-bodies'; stage.setAttribute('role', 'img');
+    stage.setAttribute('aria-label', 'Node bodies specimen, ' + th.toLowerCase() + ' theme');
+    stage.innerHTML = cards.map(function (k) {
+      return '<div class="nc-node nc-node--compact" data-body-demo="' + k.id + '" data-ink="' + k.id + '" role="group" aria-label="' + k.name + '">' +
+        '<div class="nc-node__head" data-theme="light"><span class="nc-node__type">' + k.type + '</span><span class="nc-node__title">' + k.name + '</span></div>' +
+        '<div class="nc-node__io"><div class="nc-node__ports nc-node__ports--in"></div><div class="nc-node__ports nc-node__ports--out"><div class="nc-port nc-port--out"><span class="nc-port__label">' + k.type + '</span>' +
+        '<button type="button" class="nc-port__dot" tabindex="-1" data-port="' + k.id + '" data-dir="out" data-type="' + k.id + '" aria-label="' + k.type + ' output — connect"></button></div></div></div>' +
+        '<div class="nc-node__body">' + k.body + '</div></div>';
+    }).join('');
+    host.append(label, stage);
+  });
+})();
+</script>
+<script>
 /* Section headers: turn each flat .ds-usage (<strong>label</strong><span>…</span>…) into
    label/value rows, and stamp each group title with its entry count (read by ::before). */
 document.querySelectorAll('.ds-usage').forEach(u => {
@@ -2855,7 +2890,9 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
       if (ratio(warm, drk['--panel']) < 3) bad('--accent-warm on dark --panel is under 3:1');
     }
     /* the node board (ledger G3 + O-34): the card edge and every port colour ≥ 3:1 on --paper and --panel, both themes */
-    const NODE = ['--border-strong', '--port-canvas', '--port-grid', '--port-palette', '--port-content', '--port-rule', '--port-composition', '--port-figure'];
+    /* the --port-* are the node palette AS IS (Diego, Oct 8, 2026 — ledger §3 exception): no 3:1 floor on them; the head
+       text on each solid ink is checked below instead */
+    const NODE = ['--border-strong'];
     for (const [name, th] of [['light', lit], ['dark', drk]]) for (const t of NODE) for (const bg of ['--paper', '--panel']) {
       if (!/^#/.test(th[t] || '') || !/^#/.test(th[bg] || '')) { bad(name + ' ' + t + ' or ' + bg + ' not found in the THEMES rules of tokens.css'); continue; }
       const r = ratio(th[t], th[bg]);
@@ -2873,9 +2910,9 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
       if (cc.boxShadow !== 'none') bad(th + ' node card at rest has a shadow (' + cc.boxShadow + ') — documented as none');
       const lifted = host.querySelector('.nc-node.is-lifted');
       if (!lifted || getComputedStyle(lifted).boxShadow !== 'none') bad(th + ' lifted node card has a shadow — documented as none (Oct 8, 2026)');
-      host.querySelectorAll('.nc-port__dot[data-type]').forEach(d => {
-        const dc = getComputedStyle(d), r = ratio(hexOf(dc.borderTopColor), hexOf(dc.backgroundColor));
-        if (r < 3) bad(th + ' port ' + d.dataset.type + ' ring is ' + r.toFixed(2) + ':1 on its dot — floor 3:1');
+      host.querySelectorAll('.nc-node[data-ink] .nc-node__head').forEach(h => {   // the name on its solid ink: ≥ 4.4:1 (the green is 4.47)
+        const hc = getComputedStyle(h), r = ratio(hexOf(hc.color), hexOf(hc.backgroundColor));
+        if (r < 4.4) bad(th + ' node head (' + h.closest('.nc-node').dataset.ink + ') text is ' + r.toFixed(2) + ':1 on its ink — floor 4.4:1');
       });
       const multi = host.querySelector('.nc-port__dot--multi');
       if (!multi || getComputedStyle(multi).borderTopLeftRadius !== '2px') bad(th + ' list port is not a square dot (--radius-sm)');
@@ -2887,6 +2924,23 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
       if (!host.querySelector('.nc-nodebar__item')) bad(th + ' node board: no node bar specimen');
       const wire = host.querySelector('.nc-wires path[data-from="comp:content"][data-to="f1:content"]');
       if (!wire || getComputedStyle(wire).strokeWidth !== '1.5px') bad(th + ' wire stroke is ' + (wire && getComputedStyle(wire).strokeWidth) + ' — documented as --wire-w 1.5px');
+    });
+    /* node bodies (Oct 8, 2026): 48px picture in the card's ink, a drawn picture, chips with the paper edge */
+    const nbHosts = document.querySelectorAll('[data-nc-bodies]');
+    if (!nbHosts.length) bad('no node bodies specimen on this page (#node-bodies)');
+    nbHosts.forEach(host => {
+      const th = host.dataset.ncBodies;
+      ['canvas', 'grid'].forEach(id => {
+        const card = host.querySelector('[data-body-demo="' + id + '"]'), pic = card && card.querySelector('.nc-body__pic');
+        if (!pic) { bad(th + ' node body ' + id + ': no picture'); return; }
+        const pr = pic.getBoundingClientRect();
+        if (Math.round(pr.width) !== 48 || Math.round(pr.height) !== 48) bad(th + ' node body ' + id + ' picture is ' + pr.width + '×' + pr.height + ' — documented as 48px');
+        if (!pic.querySelector('svg')) bad(th + ' node body ' + id + ': the picture drew nothing');
+        if (getComputedStyle(pic).color !== getComputedStyle(card.querySelector('.nc-node__head')).backgroundColor) bad(th + ' node body ' + id + ' picture is not in the card’s ink');
+      });
+      const sw = host.querySelectorAll('[data-body-demo="palette"] .nc-body__swatch');
+      if (sw.length !== 4) bad(th + ' node body palette: ' + sw.length + ' chips, expected 4');
+      else if (getComputedStyle(sw[0]).borderTopColor === getComputedStyle(sw[1]).borderTopColor) bad(th + ' node body palette: the paper chip has no stronger edge');
     });
     const body = document.querySelector('#ds-theme-table tbody');
     if (body) body.innerHTML = Object.keys(drk).filter(t => /^#/.test(drk[t])).map(t =>

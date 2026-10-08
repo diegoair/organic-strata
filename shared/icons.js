@@ -77,6 +77,8 @@
     'align-right':   '<path d="M1 3.5h14M6 7h9M3 10.5h12"/>',
     /* ── node graph (Organica.nodeCanvas — ledger O-35 + G7, Oct 7, 2026) ── */
     'node-foundation': '<rect x="4" y="3" width="8" height="6" rx="1"/><path d="M2.5 12.5h11"/>',   // Foundation nodes (Canvas, Grid, Palette)
+    'node-canvas':   '<rect x="3" y="2.5" width="10" height="11" rx="1"/><path d="M3 5.5h10"/>',   // a Canvas node: the page (pill head, node board)
+    'node-palette':  '<circle cx="5.5" cy="6" r="3"/><circle cx="10.5" cy="6" r="3"/><circle cx="8" cy="10.5" r="3"/>',   // a Palette node: inks over each other
     'node-content':  '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 11l3-6 3 6z"/>',   // Content nodes (saved Element / Component / Symbol)
     'node-rule':     '<circle cx="4" cy="8" r="1.5"/><path d="M5.5 8h3l3-3.5M8.5 8l3 3.5"/>',   // Rule nodes
     'node-output':   '<rect x="2.5" y="4" width="8" height="8" rx="1"/><path d="M8 8h5.5M11.5 6l2 2-2 2"/>',   // Output nodes (Figure, Export)

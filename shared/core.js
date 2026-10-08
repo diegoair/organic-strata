@@ -294,11 +294,14 @@
   // A saved/built-in Loom grid as a square 'preview' thumbnail (40-unit box): the cell
   // outlines at the grid's own aspect, in currentColor (a structural
   // drawing, so it follows --ink in both themes). Accepts anything
-  // loadLoomGrid accepts ({canvas, grid, cells}); returns '' if it can't
-  // be read. Used by Loom, Flexible Visual System and Trellis.
+  // loadLoomGrid accepts ({canvas, grid, cells}), or loadLoomGrid's own resolved output;
+  // returns '' if it can't be read. Used by Loom, Flexible Visual System, Trellis and the
+  // node-board Grid bodies (FVS Figure + Rhizome, drawn in the card's ink).
   Organica.loomGridThumb = function (input) {
     let g;
-    try { g = Organica.loadLoomGrid(input); } catch (e) { return ''; }
+    // an already-resolved grid (loadLoomGrid's own output — Rhizome's grid port) is drawn as it is
+    if (input && input.inner && Array.isArray(input.cells) && input.canvas && (!input.cells.length || input.cells[0].shape)) g = input;
+    else try { g = Organica.loadLoomGrid(input); } catch (e) { return ''; }
     const cw = g.canvas.width || g.canvas.displayWidth || 1, ch = g.canvas.height || g.canvas.displayHeight || 1;
     const W = 40, H = 40, pad = 3;   // square slot; the grid keeps its own aspect, letterboxed
     const k = Math.min((W - 2 * pad) / cw, (H - 2 * pad) / ch);

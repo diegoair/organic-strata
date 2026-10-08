@@ -531,17 +531,17 @@ html {
   --border-strong: #958462;
   --danger: #a03828;       /* see --danger's note above (moved here with the themes) */
   --canvas-dot: #a8dff0;   /* light cyan blue */
-  /* Node-graph port types (Organica.nodeCanvas) — the NODE palette, used only by the node board (Diego, Oct 8, 2026,
-     replacing the Riso inks of O-34): the cover of "Essential Color Combinations That Just Work" (Em Sans), sampled —
-     black, blue, pink, green, yellow, red, orange. Each taken to the nearest step of its own OKLCH scale reaching 3:1 on
-     --paper and --panel (Organica.color.stepFor); "as is" = the sampled ink already did. Nearest pair ΔE 7.6 (rule / figure). */
-  --port-canvas: #303030;   /* black, as is */
-  --port-grid: #037cc1;   /* blue, as is */
-  --port-palette: #fb4673;   /* pink, as is */
-  --port-content: #018e64;   /* green, as is */
-  --port-rule: #a27e00;   /* yellow #fac400 → 3:1 step */
-  --port-composition: #f73710;   /* red, as is */
-  --port-figure: #c36800;   /* orange #fb8700 → 3:1 step */
+  /* Node-graph port types (Organica.nodeCanvas) — the NODE palette, used only by the node board (Diego, Oct 8, 2026):
+     the cover of "Essential Color Combinations That Just Work" (Em Sans), sampled pixel-exact and used AS IS — no step
+     towards 3:1 (Diego: "the colours are not the ones I gave"). Yellow and orange are under 3:1 on white: a port also
+     carries its label and shape, and the dot is filled (node-canvas.css) — a standing exception, ledger §3. */
+  --port-canvas: #131313;   /* black */
+  --port-grid: #037cc1;   /* blue */
+  --port-palette: #fb4673;   /* pink */
+  --port-content: #018e64;   /* green */
+  --port-rule: #fac400;   /* yellow */
+  --port-composition: #f73710;   /* red */
+  --port-figure: #fb8700;   /* orange */
 }
 
 :root,
@@ -596,7 +596,7 @@ html {
   --danger: #e0735f;          /* 6.1:1 — light's #a03828 is 2.8:1 here */
   --accent-warm: #d8642a;     /* non-text accent: 5.2:1 on --paper, 4.6:1 on --panel, 3.0:1 against --ink (a light thumb) — light's #c2551b is 3.7:1 on this --panel (Oct 8, 2026) */
   --canvas-dot: #2e4a55;      /* the cyan dot, dimmed to the same quietness on black */
-  --port-canvas: #838383;   /* the node palette in dark: black → its 3:1 step; the rest as sampled */
+  --port-canvas: #f1e1c8;   /* the node palette in dark: the cover's cream stands in for its black (black is invisible here); the rest as sampled */
   --port-grid: #037cc1;
   --port-palette: #fb4673;
   --port-content: #018e64;
