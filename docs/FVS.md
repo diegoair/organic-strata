@@ -685,13 +685,12 @@ onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeL
     **dragged** onto a cell (a drop on a selected cell fills the whole selection);
   - on the other steps, a Component tile loads it on the Component step, and an Element tile
     becomes the Paper tile (*Paper Pattern = Element*).
-  - **a saved Symbol goes into cells** (Diego, Oct 8, 2026 — Symbol step and Compose): **drag** a Symbol
+  - **a saved Symbol goes into cells — in Compose only** (Diego, Oct 8, 2026; the same day: “in symbol the user don't drag a symbol” — in the Symbol step a Symbol tile does not drag, a click loads it): **drag** a Symbol
     tile onto a cell. Its 4 central cells (the centre cell for an odd side) start at that cell — the anchor is
     the dropped-on cell — every other cell keeps its place relative to them, and what falls outside the
     target grid is cut: an 8 × 8 Symbol fits an 8 × 8 grid, a bigger one is cut at the edges. Elements and
     Components keep the grid's structure and their own size. Code: `symbolPastePlan(entry, targets, at)`
-    (`engine/11-symbol-ui.js`); the Symbol step writes the cells (`railApply`); a click on a Symbol tile there
-    still loads it;
+    (`engine/11-symbol-ui.js`); in the Symbol step a click on a Symbol tile loads it, as before;
   - **in Compose** (Oct 8, 2026) the rail is the left side (the node bar is hidden while composing,
     `rt.railTarget`): an Element / Component tile dragged onto a cell, or clicked for the selection, becomes a
     content region rule added after the others (so it wins); a Symbol tile dragged onto a cell, or clicked

@@ -24,13 +24,13 @@ import {
   LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames, shownElementNames
 } from './engine/07-library.js';
 import {
-  LIVE_SYMBOL, getSymbolGrid, withPlacementDefaults
+  LIVE_SYMBOL
 } from './engine/08-symbol-grid.js';
 import {
   componentThumbSVG
 } from './engine/10-suggest.js';
 import {
-  SYMBOL_LIBRARY, buildSymbolLibraryEntry, cellColRow, patchCell, symbolEntryThumbSVG, symbolPastePlan
+  SYMBOL_LIBRARY, buildSymbolLibraryEntry, patchCell, symbolEntryThumbSVG
 } from './engine/11-symbol-ui.js';
 import {
   DEFAULT_VARIANTS, KIND_WORD, LIBVIEW_KINDS, RAIL_DBL_MS, componentUsage, dupName, elementInLivePaper,
@@ -387,14 +387,6 @@ document.addEventListener('keydown', e => {
 // A cell inside the selection takes the whole selection; any other cell takes only itself.
 export function railApply(kind, name, idx) {
   if (state.activeTier !== 'symbol') return;
-  if (kind === 'symbol') {   // a saved Symbol, cell by cell: its 4 central cells start at the cell it is dropped on (symbolPastePlan)
-    const entry = SYMBOL_LIBRARY.read()[name], grid = getSymbolGrid(); if (!entry || !grid || idx == null) return;
-    const targets = cellColRow(grid).map((c, i) => ({ index: i, row: c.row, col: c.col })), at = targets[idx];
-    const plan = symbolPastePlan(entry, targets, at && [at.row, at.col]); if (!plan.length) return;
-    plan.forEach(([ti, src]) => { state.symbolCells[ti] = withPlacementDefaults(JSON.parse(JSON.stringify(src))); });
-    Organica.dirty.set('fvs-symbol', true); renderSymbolCanvasOnly(); renderCellPropertiesPanel();
-    return;
-  }
   const patch = railPatch(kind, name);
   if (!patch) return;
   if (idx != null && !state.symbolSelection.has(idx)) {
@@ -421,7 +413,7 @@ export function cancelRailDrag() {
 }
 railPanel.addEventListener('pointerdown', e => {
   const tile = e.button === 0 && e.target.closest('.fvs-library-item');
-  if (!tile || (state.activeTier !== 'symbol' && !rt.railTarget)) return;   // a Symbol drags too: it is put in the cells
+  if (!tile || (state.activeTier !== 'symbol' && !rt.railTarget) || (tile.dataset.railKind === 'symbol' && !rt.railTarget)) return;   // a Symbol drags only in Compose (Diego, Oct 8, 2026: in the Symbol step a click opens it)
   railPress = { kind: tile.dataset.railKind, name: tile.dataset.railName, tile, x: e.clientX, y: e.clientY, id: e.pointerId };
 });
 window.addEventListener('pointermove', e => {

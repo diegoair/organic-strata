@@ -37,7 +37,7 @@ provide({
 export function cellColRow(grid) {
   return Organica.shapes.cellColRow(grid, state.symbolGrid && state.symbolGrid.cells, state.symbolGrid && state.symbolGrid.grid);
 }
-// A saved Symbol put into another grid, cell by cell (Diego, Oct 8, 2026 — Symbol step and Compose): its 4 central
+// A saved Symbol put into another grid, cell by cell (Diego, Oct 8, 2026 — Compose; in the Symbol step a Symbol is not dragged): its 4 central
 // cells (the centre cell of an odd side) start at the target cell `at` = [row, col], every other cell keeps its place
 // relative to them, and what falls outside the target grid is cut. targets: [{index, row, col}]. → [[targetIndex, cell]].
 export function symbolPastePlan(entry, targets, at) {
