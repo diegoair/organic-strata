@@ -837,7 +837,6 @@ function spawnFor(node, port, dir) {
 // rule on the Figure's Composition node (created and wired with the first rule), so it applies to all its variations and
 // survives upstream changes. Selection tools keep their meaning (a row stays "row 3" when the Grid changes).
 let composing = null;   // { fig, comp, sel: Set<index>, when: {…} | null, tool, view: {zoom, pan}, anchor }
-const COMPOSE_TOOLS = [['row', 'select-row', 'Row'], ['col', 'select-column', 'Column'], ['class', 'select-class', 'Similar cells'], ['range', 'select-range', 'Range']];
 function figureValue(id) { const e = ctl.engine.get(id); return e && e.state === 'ok' && e.value ? e.value.figure : null; }
 function compNode() {   // the Composition feeding the Figure now (undo can take it away or bring it back)
   if (!composing) return null;
@@ -890,13 +889,7 @@ function drawCompose() {
   const hadFocus = stage.contains(document.activeElement), fi = Math.min(composing.focus || 0, C.outlines.length - 1);
   stage.innerHTML = `<svg class="fg-compose__svg" viewBox="0 0 ${C.w} ${C.h}" role="listbox" aria-multiselectable="true" aria-label="Cells">${base}<g class="fg-cells">${C.outlines.map((pts, i) => `<polygon class="fg-cell${composing.sel.has(i) ? ' is-sel' : ''}" data-i="${i}" points="${pts.map(p => p.join(',')).join(' ')}" role="option" aria-selected="${composing.sel.has(i)}" tabindex="${i === fi ? 0 : -1}"><title>${C.ctxs && C.ctxs[i] && C.ctxs[i].row != null ? 'Row ' + (C.ctxs[i].row + 1) + ', column ' + (C.ctxs[i].col + 1) : 'Cell ' + (i + 1)}</title></polygon>`).join('')}</g>${composing.marquee ? `<rect class="symbol-marquee" x="${composing.marquee.x.toFixed(2)}" y="${composing.marquee.y.toFixed(2)}" width="${composing.marquee.w.toFixed(2)}" height="${composing.marquee.h.toFixed(2)}"/>` : ''}</svg>`;
   if (hadFocus) { const c = stage.querySelector(`.fg-cell[data-i="${fi}"]`); if (c) c.focus({ preventScroll: true }); }
-  const ct = ctrl('fg-nodebar').querySelector('[data-tool="class"]'); if (ct) ct.setAttribute('aria-label', classToolLabel());   // named once the grid is known
   syncComposeFloatbar();
-}
-// "Similar cells" names what it selects on this grid (UI-COPY §2, decided Oct 7, 2026)
-function classToolLabel() {
-  const f = composing && figureValue(composing.fig), c = f && f.compose && f.compose.ctxs && f.compose.ctxs[0];
-  return !c ? 'Select similar cells' : c.orient ? 'Select cells facing the same way' : c.ring != null ? 'Select ring' : 'Select every other cell';
 }
 // The selection, said once it changes (a persistent live region: the panel is rebuilt with innerHTML)
 function announceSelection() {
@@ -905,11 +898,10 @@ function announceSelection() {
   const t = n ? `${n} ${n === 1 ? 'cell' : 'cells'} selected${w ? ' — ' + whereText(w) : ''}` : 'No cell selected';
   live.textContent = ''; setTimeout(() => { live.textContent = t; }, 30);
 }
-function renderComposeBar() {   // the left dock while composing: the selection tools + the saved items to drop into cells
+function renderComposeBar() {   // the left dock while composing: the saved items to drop into cells (selection is drag / click, as in Symbol)
   const bar = ctrl('fg-nodebar');
   ctrl('fg-nodebar-dock').setAttribute('aria-label', 'Compose'); bar.setAttribute('aria-label', 'Compose tools');
-  bar.innerHTML = `<span class="fg-dock-group" role="group" aria-label="Select cells">` + COMPOSE_TOOLS.map(([k, icon, label]) => `<button class="org-floatbar__btn" data-tool="${k}" aria-pressed="${composing.tool === k}" aria-label="${k === 'class' ? classToolLabel() : 'Select ' + label.toLowerCase()}">${Organica.icons.get(icon)}</button>`).join('') + `</span>`
-    + `<span class="org-dock__sep" aria-hidden="true"></span><button class="org-floatbar__btn" data-cat="Content" aria-label="Content" aria-expanded="false" aria-controls="fg-nodebar-panel">${Organica.icons.get(ICON.Content)}</button>`;
+  bar.innerHTML = `<button class="org-floatbar__btn" data-cat="Content" aria-label="Content" aria-expanded="false" aria-controls="fg-nodebar-panel">${Organica.icons.get(ICON.Content)}</button>`;
 }
 function renderNodebarButtons() {   // back to the node bar
   const bar = ctrl('fg-nodebar'); bar.setAttribute('aria-label', 'Nodes'); ctrl('fg-nodebar-dock').setAttribute('aria-label', 'Nodes');
@@ -1043,25 +1035,12 @@ const COMPOSE_CELLS = {
   lock: false,
 };
 function selectionWhen() { return composing.when || (composing.sel.size ? cellsWhen(composing.sel) : null); }
-function pickCells(i, e) {   // a click on cell i, with the current selection tool
+function pickCells(i, e) {   // a click (or Space / Enter) on cell i — selects it; ⌘ / Shift adds or removes it (as in Symbol)
   const f = figureValue(composing.fig); if (!f || !f.compose) return;
-  const ctxs = f.compose.ctxs, c = ctxs[i], tool = composing.tool;
   const add = e && (e.metaKey || e.ctrlKey || e.shiftKey);
-  const by = when => {
-    const hit = ctxs.filter(x => ruleMatches(when, x)).map(x => x.index);   // the same matcher the rules use (when.class reads ctx.orient)
-    if (add && composing.sel.size) { composing.when = null; hit.forEach(x => composing.sel.add(x)); }   // Shift / ⌘: added to the selection, as cells
-    else { composing.when = when; composing.sel = new Set(hit); }
-  };
-  const span = (a, b) => Array.from({ length: Math.abs(b - a) + 1 }, (_, k) => Math.min(a, b) + k);
-  if (tool === 'row') by({ row: [c.row] });
-  else if (tool === 'col') by({ col: [c.col] });
-  else if (tool === 'class') by(c.orient ? { class: c.orient } : c.ring != null ? { ring: [c.ring] } : { parity: c.parity });
-  else if (tool === 'range' && composing.anchor != null && ctxs[composing.anchor]) { const a = ctxs[composing.anchor]; by({ row: span(a.row, c.row), col: span(a.col, c.col) }); }   // the rows × columns box between two cells
-  else {
-    composing.when = null;
-    if (add) { if (composing.sel.has(i)) composing.sel.delete(i); else composing.sel.add(i); }
-    else composing.sel = new Set([i]);
-  }
+  composing.when = null;
+  if (add) { if (composing.sel.has(i)) composing.sel.delete(i); else composing.sel.add(i); }
+  else composing.sel = new Set([i]);
   composing.anchor = i; composing.focus = i; drawCompose(); renderComposeInspector(); announceSelection();
 }
 function addComposeRule(d, when, quiet) {
@@ -1192,7 +1171,7 @@ function buildComposeFloatbar() {
     <div class="fvs-flyout" id="fgc-anchor-popover" aria-label="Anchor position">${[[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]].map(([ax, ay]) => `<button type="button" class="fvs-flyout__tool" data-on="false" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'centre'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`).join('')}</div></div></span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
     <span class="org-floatbar__group" role="group" aria-label="View">
-    <button class="org-floatbar__btn" id="btn-fgc-view-outline" aria-pressed="false" aria-label="Show loaded grid">${Organica.icons.get('fvs-grid')}</button>
+    <button class="org-floatbar__btn" id="btn-fgc-view-outline" aria-pressed="false" aria-label="Show grid">${Organica.icons.get('fvs-grid')}</button>
     <button class="org-floatbar__btn" id="btn-fgc-view-clip" aria-pressed="true" aria-label="Clip to cell">${Organica.icons.get('fvs-clip')}</button></span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>`);
   const pop = Organica.popover(ctrl('btn-fgc-anchor'), ctrl('fgc-anchor-popover'));
@@ -1222,7 +1201,6 @@ function initCompose() {
   const stage = ctrl('fg-compose-stage');
   // The Symbol step's gestures (11-symbol-ui bindSymbolCanvasSelection): drag = marquee (⌘ / Shift adds), click selects,
   // a click on a cell already selected opens Choose content for the selection, a click off the cells clears.
-  // A selection tool (Row, Column, Similar cells, Range) turns the click into that tool.
   let press = null;
   const addKey = e => e.metaKey || e.ctrlKey || e.shiftKey;
   const svgPt = e => { const svg = stage.querySelector('svg.fg-compose__svg'), m = svg && svg.getScreenCTM(); return m ? new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()) : null; };
@@ -1244,7 +1222,7 @@ function initCompose() {
     const c = e.target.closest && e.target.closest('#fg-compose-stage .fg-cell');
     if (!c) { if (!addKey(e) && composing.sel.size) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); announceSelection(); } return; }
     const i = +c.dataset.i;
-    if (!composing.tool && !addKey(e) && composing.sel.has(i)) { COMPOSE_CELLS.choose(); return; }   // click again → Choose content
+    if (!addKey(e) && composing.sel.has(i)) { COMPOSE_CELLS.choose(); return; }   // click again → Choose content
     pickCells(i, e);
   });
   ctrl('fg-compose-back').addEventListener('click', exitCompose);
@@ -1252,12 +1230,6 @@ function initCompose() {
   ctrl('btn-fg-compose-undo').innerHTML = Organica.icons.get('undo'); ctrl('btn-fg-compose-redo').innerHTML = Organica.icons.get('redo');
   ctrl('btn-fg-compose-undo').addEventListener('click', () => { ctl.undo(); if (composing) { drawCompose(); renderComposeInspector(); } });
   ctrl('btn-fg-compose-redo').addEventListener('click', () => { ctl.redo(); if (composing) { drawCompose(); renderComposeInspector(); } });
-  // the left dock: selection tools (aria-pressed) and the saved items panel
-  ctrl('fg-nodebar').addEventListener('click', e => {
-    if (!composing) return; const b = e.target.closest('[data-tool]'); if (!b) return;
-    composing.tool = composing.tool === b.dataset.tool ? null : b.dataset.tool; composing.anchor = null;   // a Range starts again from the next click
-    ctrl('fg-nodebar').querySelectorAll('[data-tool]').forEach(x => x.setAttribute('aria-pressed', String(composing.tool === x.dataset.tool)));
-  });
   // drop a saved item on a cell (or on the selection it belongs to)
   document.addEventListener('keydown', e => {
     if (!composing || state.activeTier !== 'figure' || (e.target.closest && e.target.closest('input, select, textarea, .org-popover, [role=dialog], .nc-search'))) return;
