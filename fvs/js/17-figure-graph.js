@@ -9,7 +9,7 @@ import { provide } from './hooks.js';
 import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps } from './11-symbol-ui.js';
 import { syncExportButton } from './12-shell.js';
 import {
-  COLOR_RULES, state
+  COLOR_RULES, pc, pv, state
 } from './engine/00-core.js';
 import {
   ELEMENT_LIB, savedElementThumb
@@ -851,7 +851,7 @@ function copyComposition() {   // this Figure gets its own copy; the other Figur
   const copy = NC.addNode(ctl.model, { type: 'composition', x: comp.x, y: comp.y + 120, params: JSON.parse(JSON.stringify(comp.params)), name: compositionName() });
   NC.addEdge(ctl.model, { node: copy.id, port: 'composition' }, { node: fig.id, port: 'composition' });
   composing.comp = copy.id; ctl.touch(fig.id); ctl.refresh(); ctl.commit('compose'); save();
-  Organica.notice(`${nodeLabel(fig)} now has its own ${copy.name}`); renderComposeInspector('#fgc-add');
+  Organica.notice(`${nodeLabel(fig)} now has its own ${copy.name}`); renderComposeInspector('#fgc-fill');
 }
 function enterCompose(figId) {
   const fig = NC.findNode(ctl.model, figId); if (!fig) return;
@@ -922,6 +922,84 @@ function cellsWhen(ids) {
   const unique = ctxs && new Set(ctxs.map(c => c.row + ',' + c.col)).size === ctxs.length;
   return unique ? { at: list.map(i => [ctxs[i].row, ctxs[i].col]) } : { index: list };
 }
+// ── Compose's Fill — the Symbol step's Fill section over the selection (Oct 8, 2026): Manual = Cell properties;
+// Rule and Arrange are the Symbol step's own blocks (the rule's #rp-* controls are cloned from the Symbol panel with
+// a fgc- prefix, read through SYMBOL_RULES[x].fields — one source); Pattern is Compose's own. The settings start from
+// the Symbol step's, or from the region rule being edited; with a rule picked a change updates it at once, and the
+// button writes a new region rule on the selection otherwise.
+const COMPOSE_FILLS = [['manual', 'Manual'], ['rule', 'Rule'], ['arrange', 'Arrange'], ['pattern', 'Pattern']];
+const fillOf = r => { const d = (r && r.do) || {}; return d.symbolRule ? 'rule' : d.arrange ? 'arrange' : d.pattern ? 'pattern' : 'manual'; };
+const newSeedNum = () => 1 + Math.floor(Math.random() * 99999);
+function editedOfKind(comp, kind) {   // the picked region rule, if it is this kind and still covers the selection
+  const rs = comp ? comp.params.rules || [] : [], r = composing.edit != null ? rs[composing.edit] : null, w = selectionWhen();
+  return r && fillOf(r) === kind && w && JSON.stringify(r.when) === JSON.stringify(w) ? r : null;
+}
+function composeDraft(comp, kind) {
+  composing.draft = composing.draft || {};
+  if (composing.draft[kind]) return composing.draft[kind];
+  const r = editedOfKind(comp, kind), d = r && r.do;
+  const v = kind === 'rule' ? (d ? JSON.parse(JSON.stringify(d.symbolRule)) : { name: pv('sel-symbol-rule') || 'oscillator', params: null, seed: newSeedNum(), vary: { rotation: pc('chk-rule-rotation'), flip: pc('chk-rule-flip'), scale: pc('chk-rule-scale') } })
+    : kind === 'arrange' ? (d ? JSON.parse(JSON.stringify(d.arrange)) : { rule: pv('sel-sym-arrange') || Object.keys(SYMBOL_ARRANGE)[0], live: true, pool: [], fit: pv('sel-sym-arrange-fit') || 'fill', seed: newSeedNum() })
+    : (d ? JSON.parse(JSON.stringify(d.pattern)) : { patType: 'lines', patSpacing: 8, patWeight: 2, patAngle: 45 });
+  if (kind === 'rule' && !v.params) v.params = SYMBOL_RULES[v.name].read();
+  return (composing.draft[kind] = v);
+}
+const fieldVal = (el, f) => f.type === 'bool' ? el.checked : f.type === 'int' ? parseInt(el.value, 10) : f.type === 'float' ? parseFloat(el.value) : el.value;
+function mountComposeFill(host, kind, comp) {
+  const draft = composeDraft(comp, kind), editing = editedOfKind(comp, kind), n = composing.sel.size;
+  const key = kind === 'rule' ? 'symbolRule' : kind;
+  const push = () => {   // a change: live on the picked rule
+    const r = editedOfKind(compNode(), kind); if (!r) return;
+    r.do[key] = JSON.parse(JSON.stringify(draft)); const c = compNode(); ctl.touch(c.id); save();
+    clearTimeout(composeCommitT); composeCommitT = setTimeout(() => ctl.commit('compose'), 400);
+  };
+  const seedRow = `<div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" id="fgc-seed" value="${draft.seed}" min="0" max="999999" step="1" aria-label="Seed"><button type="button" class="icon-btn" id="fgc-seed-random" aria-label="Random seed">${Organica.icons.get('refresh', { size: 'sm' })}</button></div>`;
+  const apply = label => `<button type="button" class="mini-btn" id="fgc-apply" style="width:100%"${n ? '' : ' disabled'}>${editing ? 'Apply to a new rule' : label}</button>`;
+  if (kind === 'rule') {
+    const src = ctrl('sel-symbol-rule');
+    host.innerHTML = `<div class="ctrl-row"><select class="panel-select" id="fgc-rule" aria-label="Rule">${[...src.options].map(o => `<option value="${o.value}"${o.value === draft.name ? ' selected' : ''}>${esc(o.textContent)}</option>`).join('')}</select></div>
+      <div id="fgc-rule-params"></div>
+      <div class="sub-label">Vary</div><div class="check-group">${[['rotation', 'Rotation'], ['flip', 'Flip'], ['scale', 'Scale']].map(([k, l]) => `<label class="check-row"><input type="checkbox" data-vary="${k}"${(draft.vary || {})[k] ? ' checked' : ''}><span>${l}</span></label>`).join('')}</div>
+      ${seedRow}${apply('Apply rule')}`;
+    const rp = ctrl('rp-' + draft.name), box = ctrl('fgc-rule-params');
+    if (rp) {   // the Symbol step's own controls for this rule, cloned with a prefix
+      const c = rp.cloneNode(true); c.removeAttribute('style'); c.id = 'fgc-' + c.id;
+      c.querySelectorAll('[id]').forEach(e => { e.id = 'fgc-' + e.id; }); c.querySelectorAll('label[for]').forEach(e => e.setAttribute('for', 'fgc-' + e.getAttribute('for')));
+      box.appendChild(c);
+      SYMBOL_RULES[draft.name].fields.forEach(f => {
+        const el = ctrl('fgc-' + f.id); if (!el) return; const v = draft.params[f.key];
+        if (f.type === 'bool') el.checked = !!v; else if (v != null) el.value = v;
+        const out = ctrl('fgc-' + f.id.replace(/^rg-/, 'v-')); if (out && el.type === 'range') out.textContent = el.value;
+        el.addEventListener(el.type === 'range' ? 'input' : 'change', () => { draft.params[f.key] = fieldVal(el, f); if (out && el.type === 'range') out.textContent = el.value; push(); });
+      });
+    }
+    ctrl('fgc-rule').addEventListener('change', e => { draft.name = e.target.value; draft.params = SYMBOL_RULES[draft.name].read(); push(); renderComposeInspector('#fgc-rule'); });
+    host.querySelectorAll('[data-vary]').forEach(c => c.addEventListener('change', () => { draft.vary = { ...(draft.vary || {}), [c.dataset.vary]: c.checked }; push(); }));
+  } else if (kind === 'arrange') {
+    const fit = ctrl('sel-sym-arrange-fit');
+    host.innerHTML = `<div class="ctrl-row"><div class="ctrl-label">Arrange</div><select class="panel-select" id="fgc-arrange" aria-label="Arrangement">${Object.entries(SYMBOL_ARRANGE).map(([k, a]) => `<option value="${k}"${k === draft.rule ? ' selected' : ''}>${esc(a.label)}</option>`).join('')}</select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Fit</div><select class="panel-select" id="fgc-arrange-fit" aria-label="Fit in cell">${[...fit.options].map(o => `<option value="${o.value}"${o.value === draft.fit ? ' selected' : ''}>${esc(o.textContent)}</option>`).join('')}</select></div>
+      ${seedRow}${apply('Arrange')}
+      <p class="org-panel__hint">Places the content feeding the Figure by a rule — which one goes in each cell follows its column / row, ring, sector or band. Random picks by weight.</p>`;
+    ctrl('fgc-arrange').addEventListener('change', e => { draft.rule = e.target.value; push(); });
+    ctrl('fgc-arrange-fit').addEventListener('change', e => { draft.fit = e.target.value; push(); });
+  } else {
+    const rows = [selectRow('Pattern', 'fgc-pat-type', Object.entries(PATTERN_LABELS), draft.patType, v => { draft.patType = v; push(); })];
+    [['patSpacing', 'Spacing', 3, 30, 0.5], ['patWeight', 'Weight', 0.5, 20, 0.5], ['patAngle', 'Angle', -90, 90, 1]].forEach(([k, l, a, b, st]) => rows.push(rangeRow(l, 'fgc-pat-' + k, a, b, st, draft[k], v => { draft[k] = v; push(); })));
+    host.innerHTML = rows.map(r => r.html).join('') + apply('Apply pattern');
+    rows.forEach(r => r.bind());
+  }
+  const seed = ctrl('fgc-seed');
+  if (seed) {
+    seed.addEventListener('change', () => { draft.seed = Math.max(0, +seed.value || 0); push(); });
+    ctrl('fgc-seed-random').addEventListener('click', () => { draft.seed = newSeedNum(); seed.value = draft.seed; push(); });
+  }
+  ctrl('fgc-apply').addEventListener('click', () => {
+    if (kind === 'arrange' && !figureContents(composing.fig).length) { Organica.notice('Connect a Content input to the Figure first'); return; }
+    composing.draft = null; addComposeRule({ [key]: JSON.parse(JSON.stringify(draft)) });
+  });
+}
+
 // ── Compose's target for the shared Cell properties block (Symbol's editor, Oct 8, 2026): the selected cells as the
 // Figure draws them; an edit patches ONE region rule for this selection (the rule being edited if it covers the
 // same cells, else a new one) — rotation / flip / scale / colour on the rule kinds that exist, the rest on do.cell.
@@ -1010,7 +1088,6 @@ function figureContents(figId) {   // the content feeding a Figure, as {kind, na
   });
   return out;
 }
-const QUICK = [['toggle', 'Swap empty / filled', { toggle: true }], ['empty', 'Empty', { content: 'empty' }], ['filled', 'Filled', { content: 'filled' }], ['rot', 'Rotate 90°', { rotate: 90 }], ['rot180', 'Rotate 180°', { rotate: 180 }], ['rot270', 'Rotate 270°', { rotate: 270 }], ['fh', 'Flip horizontal', { flipH: true }], ['fv', 'Flip vertical', { flipV: true }]];
 const cellAt = a => `row ${a[0] + 1}, column ${a[1] + 1}`;
 function whereText(w) {
   if (w.at) return w.at.length === 1 ? cellAt(w.at[0]) : w.at.length + ' cells';
@@ -1053,55 +1130,41 @@ function renderComposeInspector(next) {
   const box = ctrl('fg-inspector'); if (!box || !composing) return;
   ctrl('btn-fg-compose-undo').disabled = !ctl.history.canUndo(); ctrl('btn-fg-compose-redo').disabled = !ctl.history.canRedo();
   // a rebuild keeps what you were on: the focused control and the "They get" choice
-  const a = document.activeElement, keep = box.contains(a) ? (a.id ? '#' + a.id : a.dataset.quick ? `[data-quick="${a.dataset.quick}"]` : a.dataset.act ? `[data-act="${a.dataset.act}"][data-i="${a.dataset.i}"]` : null) : null;
-  const does = ctrl('fgc-does') ? ctrl('fgc-does').value : null;
+  const a = document.activeElement, keep = box.contains(a) ? (a.id ? '#' + a.id : a.dataset.act ? `[data-act="${a.dataset.act}"][data-i="${a.dataset.i}"]` : null) : null;
   const comp = compNode(), rules = comp ? comp.params.rules || [] : [], f = figureValue(composing.fig);
   const pal = foundationOf(NC.findNode(ctl.model, composing.fig) || {})[2], inks = pal ? (pal.params.colors || []) : [];
-  const s = savedEntries(), n = composing.sel.size, shared = sharedWith(comp);
+  const n = composing.sel.size, shared = sharedWith(comp), fill = composing.fill || 'manual';
   box.innerHTML = `<div class="panel-section"><h3>Composition</h3>
     ${shared.length ? `<p class="org-panel__hint">Shared with ${esc(shared.map(nodeLabel).join(', '))} — edits change ${shared.length === 1 ? 'both Figures' : 'all of them'}.</p>
     <div class="row-btns"><button type="button" class="mini-btn" id="fgc-copy">Make a copy for this Figure</button></div>` : ''}
     <p class="org-panel__hint">Selection: ${n} ${n === 1 ? 'cell' : 'cells'}${composing.when ? ' — ' + esc(whereText(composing.when)) : n === 1 ? ' — ' + esc(whereText(selectionWhen())) : ''}</p>
-    ${n && f && f.compose && f.compose.cells ? `<div id="fgc-cell-props">${cellPropsHTML('fgc-', { lock: false })}</div>` : `<div class="org-empty">No cell selected.</div>`}
-    <div class="row-btns fg-quick">${QUICK.map(([k, l]) => `<button type="button" class="mini-btn" data-quick="${k}"${n ? '' : ' disabled'}>${l}</button>`).join('')}</div>
-    <div class="ctrl-row"><div class="ctrl-label">They get</div><select class="panel-select" id="fgc-does" aria-label="They get">
-      <optgroup label="Cells">${QUICK.map(([k, l]) => `<option value="q:${k}">${l}</option>`).join('')}</optgroup>
-      ${inks.length ? `<optgroup label="Colour">${inks.map((h, i) => `<option value="c:${i}">Ink ${i + 1} ${h}</option>`).join('')}</optgroup>` : ''}
-      <optgroup label="Symbol rule">${Object.entries(SYMBOL_RULE_LABELS).map(([k, l]) => `<option value="s:${k}">${esc(l)}</option>`).join('')}</optgroup>
-      <optgroup label="Arrange">${Object.entries(SYMBOL_ARRANGE).map(([k, a]) => `<option value="a:${k}">${esc(a.label)}</option>`).join('')}</optgroup>
-      <optgroup label="Pattern">${Object.entries(PATTERN_LABELS).map(([k, l]) => `<option value="p:${k}">${l}</option>`).join('')}</optgroup>
-      <optgroup label="Content">${s.element.map(e => `<option value="e:${esc(e.name)}">${esc(e.name)}</option>`).join('')}${s.component.map(e => `<option value="k:${esc(e.name)}">${esc(e.name)}</option>`).join('')}</optgroup></select></div>
-    <div class="row-btns"><button type="button" class="mini-btn" id="fgc-add"${n ? '' : ' disabled'}>Add rule to selection</button></div>
-    <div class="sub-label">Region rules</div>
+    </div>
+    <div class="panel-section"><h3>Fill</h3>
+    <div class="ctrl-row"><select class="panel-select" id="fgc-fill" aria-label="Fill mode">${COMPOSE_FILLS.map(([k, l]) => `<option value="${k}"${k === fill ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+    ${fill === 'manual' ? `<p class="org-panel__hint">Click a cell to select it; drag to select several; ⌘-click (Ctrl-click on Windows) adds or removes a cell. Click a selected cell again to choose its content, for the whole selection. Every change below applies to the selection, as one region rule.</p>
+    ${n && f && f.compose && f.compose.cells ? `<div id="fgc-cell-props">${cellPropsHTML('fgc-', { lock: false })}</div>` : `<div class="org-empty">No cell selected.</div>`}` : `<div id="fgc-fill-block"></div>`}
+    </div>
+    <div class="panel-section"><h3>Region rules</h3>
     <div class="fg-list" role="list" id="fgc-rules">${rules.length ? rules.map((r, i) => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}${rules.length > 1 ? ' is-draggable' : ''}" role="listitem" data-i="${i}"><div class="org-layer-card__head">${rules.length > 1 ? GRIP() : ''}<button type="button" class="org-layer-card__title fg-rule__pick" data-act="pick" data-i="${i}" aria-label="Select the cells of region rule ${i + 1}: ${esc(describeComposeRule(r, inks))}">${esc(describeComposeRule(r, inks))}</button>
       ${r.do && (r.do.symbolRule || r.do.arrange) ? `<button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="seed" data-i="${i}" aria-label="New random seed for region rule ${i + 1}">${Organica.icons.get('refresh')}</button>` : ''}
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="off" data-i="${i}" aria-pressed="${!r.off}" aria-label="Region rule ${i + 1} on">${Organica.icons.get(r.off ? 'eye-off' : 'eye')}</button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-i="${i}" aria-label="Delete region rule ${i + 1}">${Organica.icons.get('trash')}</button></div></div>`).join('') : '<p class="org-panel__hint">No region rules yet — select cells, then pick what they get, or drop a saved item on a cell.</p>'}</div>
     <div id="fgc-lost">${f && f.lost && f.lost.length ? f.lost.filter(l => rules[l.rule]).map(l => `<div class="fg-lost"><p class="org-panel__hint fg-warn">Region rule ${l.rule + 1} (${esc(describeComposeRule(rules[l.rule], inks))}): ${l.cells.length ? esc(l.cells.map(x => Array.isArray(x) ? cellAt(x) : 'cell ' + (x + 1)).join(', ')) + (l.cells.length === 1 ? ' is' : ' are') + ' not in this grid any more' : 'it matches no cell in this grid'} — kept but not drawn.</p>
       <button type="button" class="mini-btn" data-act="del" data-i="${l.rule}">Delete region rule ${l.rule + 1}</button></div>`).join('') : ''}</div>
-    <p class="org-panel__hint">A Symbol rule uses the Symbol step’s settings for that rule and reads each cell’s place in the whole grid, so a wave over a region continues the Figure’s wave. Arrange lays out the content feeding the Figure, as it is now. Pattern fills the cells with a pattern.</p>
+    <p class="org-panel__hint">A rule reads each cell’s place in the whole grid, so a wave over a region continues the Figure’s wave. Arrange lays out the content feeding the Figure, as it is now. Pick a region rule to see and change its settings.</p>
     <p class="org-panel__hint">Rules apply in order: a later rule wins on the cells it matches. Esc clears the selection, then leaves Compose.</p></div>`;
-  if (does && [...ctrl('fgc-does').options].some(o => o.value === does)) ctrl('fgc-does').value = does;
-  const back = next || keep; if (back) { const el = box.querySelector(back) || (next ? ctrl('fgc-add') : null); if (el && !el.disabled) el.focus({ preventScroll: true }); }
-  box.querySelectorAll('[data-quick]').forEach(b => b.addEventListener('click', () => addComposeRule(QUICK.find(q => q[0] === b.dataset.quick)[2])));
-  ctrl('fgc-add').addEventListener('click', () => {
-    const v = ctrl('fgc-does').value, t = v.slice(0, 1), x = v.slice(2);
-    if (t === 'q') addComposeRule(QUICK.find(q => q[0] === x)[2]);
-    else if (t === 'c') addComposeRule({ ink: +x });   // the ink's place, not its hex: it follows the Palette
-    else if (t === 's') addComposeRule({ symbolRule: { name: x, params: SYMBOL_RULES[x].read(), seed: 1 + Math.floor(Math.random() * 99999) } });   // the Symbol step's own settings for that rule
-    else if (t === 'a') { const pool = figureContents(composing.fig); if (!pool.length) { Organica.notice('Connect a Content input to the Figure first'); return; } addComposeRule({ arrange: { rule: x, live: true, pool: [], seed: 1 + Math.floor(Math.random() * 99999) } }); }   // live: the pool follows the Figure's content
-    else if (t === 'p') addComposeRule({ pattern: { patType: x, patSpacing: 8, patWeight: 2, patAngle: 45 } });
-    else { const c = addContent(t === 'e' ? 'element' : 'component', x); addComposeRule({ content: { kind: c.type, name: x, entry: c.params.snapshot } }); }
-  });
+  const back = next || keep; if (back) { const el = box.querySelector(back); if (el && !el.disabled) el.focus({ preventScroll: true }); }
+  ctrl('fgc-fill').addEventListener('change', e => { composing.fill = e.target.value; renderComposeInspector('#fgc-fill'); });
+  if (ctrl('fgc-fill-block')) mountComposeFill(ctrl('fgc-fill-block'), fill, comp);
   if (ctrl('fgc-copy')) ctrl('fgc-copy').addEventListener('click', copyComposition);
   const onRule = e => {
     const b = e.target.closest('[data-act]'); if (!b || !comp) return; const i = +b.dataset.i, rs = comp.params.rules;
-    if (b.dataset.act === 'pick') { composing.edit = i; const f = figureValue(composing.fig), ctxs = f && f.compose ? f.compose.ctxs : []; composing.when = JSON.parse(JSON.stringify(rs[i].when || {})); composing.sel = new Set(ctxs.filter(c => ruleMatches(composing.when, c)).map(c => c.index)); drawCompose(); renderComposeInspector(`[data-act="pick"][data-i="${i}"]`); announceSelection(); return; }
+    if (b.dataset.act === 'pick') { composing.edit = i; composing.fill = fillOf(rs[i]); composing.draft = null; const f = figureValue(composing.fig), ctxs = f && f.compose ? f.compose.ctxs : []; composing.when = JSON.parse(JSON.stringify(rs[i].when || {})); composing.sel = new Set(ctxs.filter(c => ruleMatches(composing.when, c)).map(c => c.index)); drawCompose(); renderComposeInspector(`[data-act="pick"][data-i="${i}"]`); announceSelection(); return; }
     if (b.dataset.act === 'seed') { const k = rs[i].do.symbolRule ? 'symbolRule' : 'arrange'; rs[i].do[k].seed = 1 + Math.floor(Math.random() * 99999); }
     else if (b.dataset.act === 'off') rs[i].off = !rs[i].off;
     else if (b.dataset.act === 'del') rs.splice(i, 1);
     ctl.touch(comp.id); ctl.commit('compose'); save();   // focus follows the chip (after a Delete: the next one)
-    renderComposeInspector(b.dataset.act === 'del' ? (rs.length ? `[data-act="del"][data-i="${Math.min(i, rs.length - 1)}"]` : '#fgc-add') : `[data-act="${b.dataset.act}"][data-i="${i}"]`);
+    renderComposeInspector(b.dataset.act === 'del' ? (rs.length ? `[data-act="del"][data-i="${Math.min(i, rs.length - 1)}"]` : '#fgc-fill') : `[data-act="${b.dataset.act}"][data-i="${i}"]`);
   };
   ctrl('fgc-rules').addEventListener('click', onRule); ctrl('fgc-lost').addEventListener('click', onRule);
   if (ctrl('fgc-cell-props')) { syncCellProps('fgc-', COMPOSE_CELLS); bindCellProps('fgc-', COMPOSE_CELLS); }

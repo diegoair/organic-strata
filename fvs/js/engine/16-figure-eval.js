@@ -140,7 +140,7 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
 // matching, but "filled" puts back the cell's own content (or a Seed of `do.seed`), never a bare Seed. Composition
 // rules add: content: {kind, name, entry} (drop saved content into the cells), toggle (empty ↔ its content), color.
 // Region rules (Phase 5b) add: symbolRule {name, params, seed, vary} — a Symbol-step rule over the region's cells only;
-// arrange {rule, pool: [content…], seed} — the region gets content by an Arrange class; pattern {patType, patSpacing,
+// arrange {rule, pool: [content…], seed, fit?} — the region gets content by an Arrange class (fit: the Symbol Arrange's Fit); pattern {patType, patSpacing,
 // patWeight, patAngle} — a pattern fill (the cell's appearance patch). Seeded rules draw in cell order.
 // Compose (Oct 8, 2026 — the Symbol step's Cell properties over region rules) adds: cell {fitMode, coverAxis,
 // fixedSize, padding, seedParams} — the Cell properties fields a rotate / flip / scale / colour rule does not carry,
@@ -166,7 +166,7 @@ function applyRulesToContent(rules, cw) {   // cw: the Palette's colourway, give
       if (d.arrange && (d.arrange.pool || []).length) {
         const A = SYMBOL_ARRANGE[d.arrange.rule] || SYMBOL_ARRANGE.random, pool = d.arrange.pool, k = d.arrange.rule === 'checker' ? Math.min(2, pool.length) : pool.length;
         const pick = A.cls ? pool[((A.cls(sctx[i], k) % k) + k) % k] : pool[Math.floor(rngs[ri]() * pool.length)];
-        Object.assign(cell, withPlacementDefaults(contentPatch(pick, cell.fitMode)), { rotation: sctx[i].orient === 'down' ? 180 : 0 }); if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell);
+        Object.assign(cell, withPlacementDefaults(contentPatch(pick, d.arrange.fit || cell.fitMode)), { rotation: sctx[i].orient === 'down' ? 180 : 0 }); if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell);
         return;
       }
       if (d.pattern) cell.appearancePatch = { fillMode: 'pattern', patType: d.pattern.patType || 'lines', patSpacing: +d.pattern.patSpacing || 8, patWeight: +d.pattern.patWeight || 2, patAngle: d.pattern.patAngle != null ? +d.pattern.patAngle : 45 };
