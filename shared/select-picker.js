@@ -204,13 +204,15 @@
       else if (e.key === 'Escape') { e.stopPropagation(); closeMenu(true); }
       else if (e.key === 'Tab') closeMenu(false);
     });
+    // opts.signal (an AbortSignal): a picker mounted on markup that is rebuilt (FVS's Figure panel) drops its page listeners
+    const gl = opts.signal ? { signal: opts.signal } : undefined;
     document.addEventListener('click', e => {
       if (!menu.hidden && !host.contains(e.target) && !menu.contains(e.target)) closeMenu(false);
-    });
-    document.addEventListener('organica:dropdown-open', e => { if (e.detail !== host) closeMenu(false); });
+    }, gl);
+    document.addEventListener('organica:dropdown-open', e => { if (e.detail !== host) closeMenu(false); }, gl);
     // the menu is position:fixed from the trigger's rect — it would float away from it on resize / scroll
-    global.addEventListener('resize', () => closeMenu(false));
-    document.addEventListener('scroll', e => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(false); }, true);
+    global.addEventListener('resize', () => closeMenu(false), gl);
+    document.addEventListener('scroll', e => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(false); }, gl ? { capture: true, signal: opts.signal } : true);
     function invalidate(key) {
       if (key == null) cache.clear(); else cache.delete(key);
       refresh();
