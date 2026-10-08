@@ -155,26 +155,26 @@ function renderBody(node, entry, el) {
     el.innerHTML = NC.body.swatches([p.transparent ? 'transparent' : (p.paper || '#ffffff'), ...(p.colors || [])], { paper: true, text: k + (k === 1 ? ' ink' : ' inks') });
   } else if (node.type === 'export') {
     const files = exportFiles(node), n = files.length;
-    el.innerHTML = `<p class="fg-card__meta">${esc(exportSummary(files, p))}</p>
-      <div class="row-btns"><button type="button" class="mini-btn fg-export__run" data-act="run"${n ? '' : ' disabled'}>Export ${n} ${n === 1 ? 'file' : 'files'}</button></div>`;
-    if (!el._expBound) { el._expBound = true; el.addEventListener('click', e => { if (e.target.closest('[data-act="run"]')) { e.stopPropagation(); runExport(node.id); } }); }
+    el.innerHTML = NC.body.line(n ? `${n} ${n === 1 ? 'file' : 'files'}` : 'No files');   // a pill: one fact; Export ‹n› files is the panel's (Diego, Oct 8, 2026)
   } else if (node.type === 'set') {
     const items = p.items || [];
     el.innerHTML = items.length ? NC.body.stack(items.slice(0, 3).map(it => entryThumb(it.kind, it.name, it.snapshot)), `${items.length} ${items.length === 1 ? 'item' : 'items'}`)
       : NC.body.stack([''], 'No items yet');
   } else if (node.type === 'cell-rules') {
     const rs = p.rules || [];
-    el.innerHTML = `<p class="fg-card__meta">${rs.length ? rs.length + (rs.length === 1 ? ' rule' : ' rules') + ' · ' + esc(describeRule(rs[0])) + (rs.length > 1 ? ' …' : '') : 'No rules yet'}</p>`;
+    el.innerHTML = NC.body.line(rs.length ? rs.length + (rs.length === 1 ? ' rule' : ' rules') : 'No rules yet');   // the rules themselves: the panel
   } else if (node.type === 'component-rule') {
-    el.innerHTML = `<p class="fg-card__meta">${esc(COMPONENT_RULES[p.rule] || p.rule)}</p>`;
+    el.innerHTML = NC.body.line(COMPONENT_RULES[p.rule] || p.rule);
   } else if (node.type === 'composition') {
-    const rs = p.rules || [], on = rs.filter(r => !r.off).length;
-    el.innerHTML = `<p class="fg-card__meta">${rs.length ? `${rs.length} region ${rs.length === 1 ? 'rule' : 'rules'}${on < rs.length ? ` (${rs.length - on} off)` : ''} · ${esc(describeComposeRule(rs[0], compInks(node)))}${rs.length > 1 ? ' …' : ''}` : 'No region rules yet'}</p>`;
+    const rs = p.rules || [];
+    el.innerHTML = NC.body.line(rs.length ? `${rs.length} region ${rs.length === 1 ? 'rule' : 'rules'}` : 'No region rules yet');
   } else if (node.type === 'repeat') {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
-    el.innerHTML = `<p class="fg-card__meta">${esc(L.label)} · ${p.count}${p.altFlip ? ' · alternate flip' : ''}${(+p.rotate || 0) ? ' · rotation ' + p.rotate + '°' : ''}${p.mirror && p.mirror !== 'none' ? ' · Mirror ' + esc(MIRRORS[p.mirror].toLowerCase()) : ''}</p>`;
+    const unit = { square: 'per side', tier: +p.count === 1 ? 'tier' : 'tiers', triangle: +p.count === 1 ? 'row' : 'rows' }[p.lattice in REPEAT_LATTICES ? p.lattice : 'square'];
+    el.innerHTML = NC.body.line(`${L.label} · ${p.count} ${unit}`);   // flip, rotation, mirror: the panel
   } else if (node.type === 'transform') {
-    el.innerHTML = `<p class="fg-card__meta">${(+p.rotate || 0) ? 'Rotation ' + p.rotate + '°' : 'No rotation'} · ${p.mirror && p.mirror !== 'none' && MIRRORS[p.mirror] ? 'Mirror ' + esc(MIRRORS[p.mirror].toLowerCase()) : 'No mirror'}</p>`;
+    const rot = +p.rotate || 0, mir = p.mirror && p.mirror !== 'none' && MIRRORS[p.mirror];
+    el.innerHTML = NC.body.line(rot && mir ? `Rotation ${rot}° + mirror` : rot ? `Rotation ${rot}°` : mir ? 'Mirror ' + MIRRORS[p.mirror].toLowerCase() : 'No change');
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
     el.innerHTML = p.snapshot ? NC.body.thumb(entryThumb(node.type, p.name, p.snapshot), gone ? `${p.name} is no longer in the library — drawn from the copy kept in this graph` : p.name) : NC.body.thumb('', 'Pick a saved ' + node.type);

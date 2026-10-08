@@ -82,6 +82,11 @@
     'node-element':   '<path d="M3 3A10 10 0 0 1 13 13H8A5 5 0 0 0 3 8z"/>',   // an Element node: one quarter-ring, the FVS arc mark (pill head)
     'node-component': '<path d="M3 3h4.5v4.5zM13 3v4.5H8.5zM13 13H8.5V8.5zM3 13V8.5h4.5z"/>',   // a Component node: one Element in four turns (pill head)
     'node-set':       '<rect x="2.5" y="6.5" width="11" height="7" rx="1"/><path d="M4 4.5h8M5.5 2.5h5"/>',   // a Set node: cards stacked in order — not copy, not library (pill head)
+    'node-cell-rules':     '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M8 2.5v11M2.5 8h11M9.8 11.6a1.8 1.8 0 1 1 1.8-1.8"/>',   // a Cell rules node: a grid, one cell turning (pill head)
+    'node-component-rule': '<path d="M3 7V3h4M9 3h4v4M13 9v4H9M7 13H3V9"/>',   // a Component rule node: four corners turning (pill head)
+    'node-repeat':         '<rect x="2.5" y="2.5" width="5" height="5" rx=".8"/><path d="M10 5h3.5M12 3.5 13.5 5 12 6.5M5 10v3.5M3.5 12 5 13.5 6.5 12"/>',   // a Repeat in grid node: one tile, repeated across and down — not grid (pill head)
+    'node-composition':    '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><rect x="5" y="5" width="6" height="3.5" rx=".5" stroke-dasharray="1.6 1.2"/><path d="M5 11h6"/>',   // a Composition node: a region inside the figure (pill head)
+    'node-transform':      '<path d="M8 2v12" stroke-dasharray="1.5 1.6"/><path d="M5.5 5 3 8l2.5 3M10.5 4.5a3.5 3.5 0 0 1 0 7M10.5 11.5h1.8V9.7"/>',   // a Rotate & mirror node: a mirror axis + a turn (pill head)
     'node-content':  '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 11l3-6 3 6z"/>',   // Content nodes (saved Element / Component / Symbol)
     'node-rule':     '<circle cx="4" cy="8" r="1.5"/><path d="M5.5 8h3l3-3.5M8.5 8l3 3.5"/>',   // Rule nodes
     'node-output':   '<rect x="2.5" y="4" width="8" height="8" rx="1"/><path d="M8 8h5.5M11.5 6l2 2-2 2"/>',   // Output nodes (Figure, Export)

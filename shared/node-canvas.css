@@ -101,7 +101,8 @@
 .nc-node--pill .nc-node__io { grid-row: 1; grid-column: 1 / -1; align-self: center; padding: 0; }
 .nc-node--pill .nc-node__body { grid-row: 1; grid-column: 2; display: flex; align-items: center; padding: 0 calc(var(--space-4) + var(--port-d) / 2) 0 var(--space-4); }   /* the same gap left of the picture as between it and the out-port dot */
 .nc-node--pill .nc-node__status { grid-row: 2; grid-column: 1 / -1; padding-top: var(--space-2); }
-.nc-node--pill .nc-body__line { display: none; }   /* one piece of information: the picture */
+.nc-node--pill :is(.nc-body__pic, .nc-body__thumb, .nc-body__stack, .nc-body__swatches) ~ .nc-body__line { display: none; }   /* one piece of information: the picture, when there is one */
+.nc-node--pill > .nc-node__body > .nc-body__line { white-space: nowrap; font-family: var(--font-display); font-size: var(--t-control-size); color: var(--ink); }   /* a pill whose one fact is a few words (Rules, Export) */
 
 /* ── card bodies: the shared vocabulary (Organica.nodeCanvas.body — Diego, Oct 8, 2026, Foundation first) ──
    A picture beside one summary line, or a row of colour chips. The picture is drawn in the card's ink.
