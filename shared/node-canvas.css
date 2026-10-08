@@ -123,6 +123,8 @@
 .nc-wire--pending { stroke: var(--ink); stroke-dasharray: 4 4; }   /* component-local dash: 'pending' (with the marquee) */
 .nc-wire--faint { stroke-opacity: 0.35; }
 .nc-wire--list { stroke-width: calc(var(--wire-w) * 2); }   /* a list (a Set) travels on this wire */
+.nc-stage--far .nc-wire__label { display: none; }   /* drawn in board units: unreadable in the chip view */
+.nc-wire__label { fill: var(--mid); font-family: var(--font-display); font-size: var(--t-label-size); text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: var(--canvas-bg, var(--paper)); stroke-width: var(--space-1); stroke-linejoin: round; }   /* ×n on a list wire, on a halo of the board */
 .nc-wire--faint.is-related, .nc-wire--faint.is-selected { stroke-opacity: 1; }
 
 /* ── marquee + live region ── */

@@ -32,11 +32,16 @@ function ensureNames(model) { model.nodes.forEach(n => { if (!n.name) n.name = n
 // A graph saved before Oct 2026 (Rhizome's own model, version '1.0') wires by `nodeId`; the shared model by `node`.
 function migrateModel(saved) {
   const ref = r => ({ node: r.node || r.nodeId, port: r.port });
-  return ensureNames(NC.createModel({
-    nodes: (saved && saved.nodes || []).filter(n => REGISTRY.has(n.type)).map(n => ({ ...n, params: { ...(n.params || {}) } })),
-    edges: (saved && saved.edges || []).map(e => ({ id: e.id, from: ref(e.from), to: ref(e.to) })),
+  const raw = saved && saved.edges || [], ok = raw.filter(e => e && e.from && e.to);
+  const m = NC.createModel({
+    nodes: (saved && saved.nodes || []).map(n => ({ ...n, params: { ...(n.params || {}) } })),
+    edges: ok.map(e => ({ id: e.id, from: ref(e.from), to: ref(e.to) })),
     frames: saved && saved.frames || [],
-  }));
+  });
+  // unknown node types, wires to missing nodes or ports and wires that close a loop would stop every run: dropped, and said (as FVS)
+  const r = NC.repairModel(m, registry), t = NC.droppedText({ nodes: r.dropped.nodes, edges: r.dropped.edges + raw.length - ok.length });
+  if (t && Organica.notice) Organica.notice(t, { kind: 'error' });
+  return ensureNames(r.model);
 }
 
 // Every node computes, on screen or not: a bridge's output feeds what follows, and Export reads it.
@@ -139,6 +144,7 @@ ctl = NC.mount({
   onChange: (m, reason) => { onModelChange(); if (reason === 'remove' || reason === 'history') renderInspectorFor(ctl.selection()); },
   onSearch: openSearch,
   onWireDrop: (from, at, client) => openSearch(at, from, client),
+  onPortDblClick: (node, port, dir) => { const c = ctl.cardOf(node.id), r = c && c.getBoundingClientRect(); openSearch({ x: dir === 'in' ? node.x - 300 : node.x + (c ? c.offsetWidth : 200) + 120, y: node.y }, { node: node.id, port, dir }, r ? { x: dir === 'in' ? r.left - 250 : r.right + 10, y: r.top } : null); },   // a port double-clicked, or Enter on it: what connects here
   onBoardDblClick: (at, client) => openSearch(at, null, client),
   nameCopy: (copy, model) => nextName(model, copy.type),
   keyScope: t => !!(t && t.closest && t.closest('.org-floatbar, #rz-nodebar-dock') && !t.closest('input, select, textarea')),

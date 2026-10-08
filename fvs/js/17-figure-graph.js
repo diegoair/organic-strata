@@ -1051,7 +1051,7 @@ function loadModel() {
 // A stored or opened graph, made safe to run (unknown nodes, broken or looping wires dropped) — said, not silent.
 function safeModel(m) {
   const r = NC.repairModel(m, registry), d = r.dropped;
-  if (d.nodes || d.edges) Organica.notice(`Part of this graph could not be opened: ${[d.nodes && `${d.nodes} ${d.nodes === 1 ? 'node' : 'nodes'}`, d.edges && `${d.edges} ${d.edges === 1 ? 'connection' : 'connections'}`].filter(Boolean).join(' and ')} left out`, { kind: 'error' });
+  const t = NC.droppedText(d); if (t) Organica.notice(t, { kind: 'error' });
   return r.model;
 }
 // A recipe file → a graph, or the reason it can't be one (an old v1 file; hand-placed cells a graph has no node for yet).
@@ -1099,6 +1099,7 @@ export function renderFigureGraph() {
     isActive: () => state.activeTier === 'figure' && !composing && !document.body.classList.contains('fvs-libview-open'),   // Compose owns the keyboard (its own handler below)
     renderBody, cardClass, nodeLabel, protect,
     fitInset: { left: 88, bottom: 72 },   // the node bar (left dock) and the floatbar
+    wireLabel: (e, m) => { const src = NC.findNode(m, e.from.node); return src && src.type === 'set' ? '×' + ((src.params || {}).items || []).length : ''; },   // UI-COPY: the Set's wire is labelled ×n
     wireClass: (e, m) => { const src = NC.findNode(m, e.from.node); return !src ? '' : ['canvas', 'grid', 'palette'].includes(src.type) ? 'nc-wire--faint' : src.type === 'set' ? 'nc-wire--list' : ''; },
     onSelect: ids => { if (!composing) renderInspector(ids); syncButtons(); },   // in Compose the panel is Compose's
     onChange: (m, reason) => { syncButtons(); save(); if (reason !== 'move' && reason !== 'params') { if (composing) renderComposeInspector(); else renderInspector(ctl.selection()); } },

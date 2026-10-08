@@ -52,7 +52,7 @@
   function removeEdge(model, id) { model.edges = model.edges.filter(function (e) { return e.id !== id; }); }
 
   // Kahn's algorithm. Throws (never hangs) on a loop.
-  function CycleError(msg) { var e = new Error(msg || 'That connection would make a loop.'); e.name = 'CycleError'; return e; }
+  function CycleError(msg) { var e = new Error(msg || 'That connection would make a loop'); e.name = 'CycleError'; return e; }
   function topoSort(model) {
     var indeg = new Map(), out = new Map();
     model.nodes.forEach(function (n) { indeg.set(n.id, 0); out.set(n.id, []); });
@@ -101,14 +101,14 @@
   // Can `from` (an output) feed `to` (an input)? → { ok } or { ok:false, reason } (copy for a notice).
   function canConnect(model, registry, from, to) {
     var a = findNode(model, from.node), b = findNode(model, to.node);
-    if (!a || !b) return { ok: false, reason: 'That node is gone.' };
+    if (!a || !b) return { ok: false, reason: 'That node is gone' };
     var op = registry.outputsOf(a).filter(function (p) { return p.name === from.port; })[0];
     var ip = registry.inputsOf(b).filter(function (p) { return p.name === to.port; })[0];
-    if (!op || !ip) return { ok: false, reason: 'That port is gone.' };
+    if (!op || !ip) return { ok: false, reason: 'That port is gone' };
     var accepts = ip.accepts || [ip.type];
     var typeOk = accepts.some(function (t) { return registry.canAdapt(op.type, t); });
-    if (!typeOk) return { ok: false, reason: (op.label || op.type) + ' can’t connect to ' + (ip.label || ip.name) + '.' };
-    if (wouldCycle(model, from, to)) return { ok: false, reason: 'That connection would make a loop.' };
+    if (!typeOk) return { ok: false, reason: (op.label || op.type) + ' can’t connect to ' + (ip.label || ip.name) };   // one clause, no stop (UI-COPY)
+    if (wouldCycle(model, from, to)) return { ok: false, reason: 'That connection would make a loop' };
     return { ok: true, multi: !!ip.multi, inType: accepts.filter(function (t) { return registry.canAdapt(op.type, t); })[0], outType: op.type };
   }
 
@@ -233,7 +233,8 @@
   //   onWireDrop(from, point, client)   a wire released on empty board (open the node search there)
   //   onSearch(point, from, client)     '/' or right-click on the board: open the node search
   //   nameCopy(node, model) → name      the name a duplicated / pasted node gets
-  //   onPortDblClick(node, port, dir)   a port double-clicked (spawn the node it wants, wired)
+  //   onPortDblClick(node, port, dir)   a port double-clicked, or Enter / Space on a focused port (ports are then in the tab order)
+  //   wireLabel(edge, model) → '' or a short text drawn on the wire's midpoint (a list's size)
   //   onNodeDblClick(node, e)   a card double-clicked (outside its ports), or Enter on a focused card
   //   onBoardDblClick(point)    the empty board double-clicked
   //   announce(text)            a polite live-region message (default: a hidden region in the stage)
@@ -331,8 +332,11 @@
     function label(node) { return o.nodeLabel ? o.nodeLabel(node) : (node.name || registry.get(node.type).meta.label || node.type); }
     function portRow(node, p, dir) {
       var row = el('div', 'nc-port nc-port--' + dir);
-      var b = el('button', 'nc-port__dot', { type: 'button', tabindex: '-1', 'aria-label': (p.label || p.name) + (dir === 'in' ? ' input' : ' output') + ' — connect', 'data-port': p.name, 'data-dir': dir, 'data-type': p.type });
+      var b = el('button', 'nc-port__dot', { type: 'button', tabindex: o.onPortDblClick ? '0' : '-1', 'aria-label': (p.label || p.name) + (dir === 'in' ? ' input' : ' output') + ' — connect', 'data-port': p.name, 'data-dir': dir, 'data-type': p.type });
       if (p.multi) b.classList.add('nc-port__dot--multi');
+      if (o.onPortDblClick) b.addEventListener('keydown', function (e) {   // keyboard: Enter / Space on a port = its double-click (what connects here: spawn or search)
+        if (e.key !== 'Enter' && e.key !== ' ') return; e.preventDefault(); e.stopPropagation(); o.onPortDblClick(findNode(ctl.model, node.id), p.name, dir);
+      });
       var t = el('span', 'nc-port__label'); t.textContent = p.label || p.name;
       if (dir === 'in') row.append(b, t); else row.append(t, b);
       return { row: row, dot: b };
@@ -390,6 +394,8 @@
         if (selectedWire === e.id) cls += ' is-selected';
         path.setAttribute('class', cls);
         wireG.append(hit, path);
+        var lbl = o.wireLabel ? o.wireLabel(e, ctl.model) : '';   // e.g. a list's size (FVS: ×n on a Set's wire), at the curve's midpoint
+        if (lbl) { var t = document.createElementNS(SVGNS, 'text'); t.setAttribute('class', 'nc-wire__label'); t.setAttribute('x', (a.x + b.x) / 2); t.setAttribute('y', (a.y + b.y) / 2); t.textContent = lbl; wireG.appendChild(t); }
       });
     }
     function render() {   // full rebuild — after setModel / undo / a structural change
@@ -1048,6 +1054,11 @@
 
   // A model from storage or a file, made safe to run: unknown node types, wires to missing nodes or ports, and wires
   // that would close a loop are dropped (topoSort would throw on every run). → { model, dropped: { nodes, edges } }
+  // The notice for what repairModel dropped — one sentence for every host (FVS, Rhizome); '' when nothing was.
+  function droppedText(d) {
+    var parts = [d.nodes && d.nodes + (d.nodes === 1 ? ' node' : ' nodes'), d.edges && d.edges + (d.edges === 1 ? ' connection' : ' connections')].filter(Boolean);
+    return parts.length ? 'Part of this graph could not be opened: ' + parts.join(' and ') + ' left out' : '';
+  }
   function repairModel(src, registry) {
     var m = createModel(src), dn = 0, de = 0;
     m.nodes = m.nodes.filter(function (n) { var ok = n && n.id && registry.has(n.type); if (!ok) dn++; return ok; });
@@ -1065,7 +1076,7 @@
     MODEL_VERSION: MODEL_VERSION,
     nextId: nextId, createModel: createModel, findNode: findNode, edgesInto: edgesInto, edgesOutOf: edgesOutOf,
     addNode: addNode, removeNode: removeNode, addEdge: addEdge, removeEdge: removeEdge,
-    topoSort: topoSort, wouldCycle: wouldCycle, repairModel: repairModel,
+    topoSort: topoSort, wouldCycle: wouldCycle, repairModel: repairModel, droppedText: droppedText,
     createRegistry: createRegistry, canConnect: canConnect,
     createEngine: createEngine, createHistory: createHistory,
     mount: mount, wirePath: wirePath,
