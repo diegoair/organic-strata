@@ -6,7 +6,7 @@
 // Fit all / Fit selection. Words: docs/UI-COPY.md §2 "Figure graph".
 import { rt } from './rt.js';
 import { provide } from './hooks.js';
-import { bindCellProps, cellPropsHTML, syncCellProps } from './11-symbol-ui.js';
+import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps } from './11-symbol-ui.js';
 import { syncExportButton } from './12-shell.js';
 import {
   COLOR_RULES, state
@@ -888,7 +888,7 @@ function drawCompose() {
   if (!f.compose || !f.base) { stage.innerHTML = '<p class="fg-compose__empty">This Figure has no cells to compose — a Component rule lays out its own.</p>'; return; }
   const C = f.compose, base = f.base.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
   const hadFocus = stage.contains(document.activeElement), fi = Math.min(composing.focus || 0, C.outlines.length - 1);
-  stage.innerHTML = `<svg class="fg-compose__svg" viewBox="0 0 ${C.w} ${C.h}" role="listbox" aria-multiselectable="true" aria-label="Cells">${base}<g class="fg-cells">${C.outlines.map((pts, i) => `<polygon class="fg-cell${composing.sel.has(i) ? ' is-sel' : ''}" data-i="${i}" points="${pts.map(p => p.join(',')).join(' ')}" role="option" aria-selected="${composing.sel.has(i)}" tabindex="${i === fi ? 0 : -1}"><title>${C.ctxs && C.ctxs[i] && C.ctxs[i].row != null ? 'Row ' + (C.ctxs[i].row + 1) + ', column ' + (C.ctxs[i].col + 1) : 'Cell ' + (i + 1)}</title></polygon>`).join('')}</g></svg>`;
+  stage.innerHTML = `<svg class="fg-compose__svg" viewBox="0 0 ${C.w} ${C.h}" role="listbox" aria-multiselectable="true" aria-label="Cells">${base}<g class="fg-cells">${C.outlines.map((pts, i) => `<polygon class="fg-cell${composing.sel.has(i) ? ' is-sel' : ''}" data-i="${i}" points="${pts.map(p => p.join(',')).join(' ')}" role="option" aria-selected="${composing.sel.has(i)}" tabindex="${i === fi ? 0 : -1}"><title>${C.ctxs && C.ctxs[i] && C.ctxs[i].row != null ? 'Row ' + (C.ctxs[i].row + 1) + ', column ' + (C.ctxs[i].col + 1) : 'Cell ' + (i + 1)}</title></polygon>`).join('')}</g>${composing.marquee ? `<rect class="symbol-marquee" x="${composing.marquee.x.toFixed(2)}" y="${composing.marquee.y.toFixed(2)}" width="${composing.marquee.w.toFixed(2)}" height="${composing.marquee.h.toFixed(2)}"/>` : ''}</svg>`;
   if (hadFocus) { const c = stage.querySelector(`.fg-cell[data-i="${fi}"]`); if (c) c.focus({ preventScroll: true }); }
   const ct = ctrl('fg-nodebar').querySelector('[data-tool="class"]'); if (ct) ct.setAttribute('aria-label', classToolLabel());   // named once the grid is known
 }
@@ -925,7 +925,7 @@ function cellsWhen(ids) {
 // ── Compose's target for the shared Cell properties block (Symbol's editor, Oct 8, 2026): the selected cells as the
 // Figure draws them; an edit patches ONE region rule for this selection (the rule being edited if it covers the
 // same cells, else a new one) — rotation / flip / scale / colour on the rule kinds that exist, the rest on do.cell.
-const CELL_DO_KEYS = ['rotate', 'flipH', 'flipV', 'scale', 'color', 'ink', 'cell'];
+const CELL_DO_KEYS = ['content', 'seed', 'rotate', 'flipH', 'flipV', 'scale', 'color', 'ink', 'cell'];
 const isCellRule = r => r && r.do && Object.keys(r.do).length && Object.keys(r.do).every(k => CELL_DO_KEYS.includes(k));
 const composeInks = () => { const pal = foundationOf(NC.findNode(ctl.model, composing.fig) || {})[2]; return pal ? (pal.params.colors || []) : []; };
 let composeCommitT = 0;
@@ -935,7 +935,13 @@ const COMPOSE_CELLS = {
   colors: () => { const f = figureValue(composing.fig); return (f && f.colors) || composeInks(); },
   apply: patch => {
     const when = selectionWhen(); if (!when) return;
-    const p = typeof patch === 'function' ? patch(COMPOSE_CELLS.first()) : patch, key = JSON.stringify(when);
+    let p = typeof patch === 'function' ? patch(COMPOSE_CELLS.first()) : patch, key = JSON.stringify(when);
+    if (p.source) {   // a pick in Choose content: the content (+ the window's Fit, an Element tile's turn / flip) — not Symbol's clean-slate resets
+      const q = { source: p.source, fitMode: p.fitMode };
+      if (p.source === 'component') q.componentName = p.componentName; else if (p.source === 'seed') { q.seedType = p.seedType; if ('seedParams' in p) q.seedParams = p.seedParams; }
+      if (p.rotation) q.rotation = p.rotation; if (p.flipH) q.flipH = true; if (p.flipV) q.flipV = true;
+      p = q;
+    }
     let comp = compNode(), rs = comp ? comp.params.rules || [] : [];
     let i = composing.edit != null && isCellRule(rs[composing.edit]) && JSON.stringify(rs[composing.edit].when) === key ? composing.edit : rs.findIndex(r => isCellRule(r) && JSON.stringify(r.when) === key);
     if (i < 0) { addComposeRule({}, when, true); comp = compNode(); rs = comp.params.rules; i = rs.length - 1; }
@@ -944,7 +950,8 @@ const COMPOSE_CELLS = {
       if (k === 'rotation') d.rotate = v;
       else if (k === 'flipH' || k === 'flipV' || k === 'scale') d[k] = v;
       else if (k === 'color') { delete d.color; delete d.ink; if (v) { const at = COMPOSE_CELLS.colors().map(h => h.toLowerCase()).indexOf(String(v).toLowerCase()); if (at >= 0) d.ink = at; else d.color = v; } }   // a palette ink by its place, so it follows the Palette
-      else if (k === 'seedType') { /* the Seed type follows the cell's content */ }
+      else if (k === 'source') { delete d.seed; d.content = v === 'empty' ? 'empty' : v === 'component' ? { kind: 'component', name: p.componentName, entry: addContent('component', p.componentName).params.snapshot } : 'filled'; if (v === 'seed' && p.seedType) d.seed = p.seedType; }
+      else if (k === 'seedType' || k === 'componentName') { /* carried by source */ }
       else { d.cell = d.cell || {}; d.cell[k] = v === undefined ? null : v; }
     });
     composing.edit = i;
@@ -953,7 +960,7 @@ const COMPOSE_CELLS = {
   },
   refresh: () => renderComposeInspector(),
   overflow: () => false,
-  choose: () => Organica.notice('Drag saved content from Content onto a cell'),
+  choose: () => openCellContentOverlay({ count: () => COMPOSE_CELLS.count(), apply: COMPOSE_CELLS.apply, done: () => renderComposeInspector() }),
   lock: false,
 };
 function selectionWhen() { return composing.when || (composing.sel.size ? cellsWhen(composing.sel) : null); }
@@ -1015,6 +1022,7 @@ function whereText(w) {
 const FIT_WORDS = { contain: 'Contain', fill: 'Stretch', cover: 'Cover (no gaps)', fixed: 'Fixed size', match: 'Match cell' };
 function cellRuleText(d, inks) {   // a Cell properties rule, in the panel's own words: "Rotation 90° · Padding 15"
   const out = [], c = d.cell || {};
+  if (d.content === 'empty') out.push('Empty'); else if (d.content && typeof d.content === 'object') out.push(d.content.name); else if (d.content === 'filled') out.push(d.seed && SEED_TYPES[d.seed] ? SEED_TYPES[d.seed].label : 'Filled');
   if (d.rotate != null) out.push(`Rotation ${d.rotate}°`);
   if (d.flipH != null || d.flipV != null) out.push(d.flipH && d.flipV ? 'Flip both' : d.flipH ? 'Flip horizontal' : d.flipV ? 'Flip vertical' : 'No flip');
   if (c.fitMode) out.push(FIT_WORDS[c.fitMode] || c.fitMode);
@@ -1109,7 +1117,33 @@ function renderComposeInspector(next) {
 }
 function initCompose() {
   const stage = ctrl('fg-compose-stage');
-  stage.addEventListener('click', e => { const c = e.target.closest('.fg-cell'); if (c) pickCells(+c.dataset.i, e); else if (composing) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); announceSelection(); } });
+  // The Symbol step's gestures (11-symbol-ui bindSymbolCanvasSelection): drag = marquee (⌘ / Shift adds), click selects,
+  // a click on a cell already selected opens Choose content for the selection, a click off the cells clears.
+  // A selection tool (Row, Column, Similar cells, Range) turns the click into that tool.
+  let press = null;
+  const addKey = e => e.metaKey || e.ctrlKey || e.shiftKey;
+  const svgPt = e => { const svg = stage.querySelector('svg.fg-compose__svg'), m = svg && svg.getScreenCTM(); return m ? new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse()) : null; };
+  stage.addEventListener('mousedown', e => { if (e.button !== 0 || !composing) return; const pt = svgPt(e); if (!pt) return; e.preventDefault(); press = { pt, moved: false, base: addKey(e) ? [...composing.sel] : [] }; });
+  window.addEventListener('mousemove', e => {
+    if (!press || !composing) return; const pt = svgPt(e); if (!pt) return;
+    if (!press.moved && Math.hypot(pt.x - press.pt.x, pt.y - press.pt.y) > 5) press.moved = true;
+    if (!press.moved) return;
+    const r = { x: Math.min(press.pt.x, pt.x), y: Math.min(press.pt.y, pt.y), w: Math.abs(pt.x - press.pt.x), h: Math.abs(pt.y - press.pt.y) };
+    const f = figureValue(composing.fig), outs = f && f.compose ? f.compose.outlines : [];
+    const hits = outs.map((ps, i) => { const xs = ps.map(p => p[0]), ys = ps.map(p => p[1]); return Math.min(...xs) < r.x + r.w && Math.max(...xs) > r.x && Math.min(...ys) < r.y + r.h && Math.max(...ys) > r.y ? i : -1; }).filter(i => i >= 0);
+    composing.marquee = r; composing.when = null; composing.sel = new Set([...press.base, ...hits]);
+    drawCompose(); renderComposeInspector();
+  });
+  window.addEventListener('mouseup', e => {
+    if (!press || !composing) { press = null; return; }
+    const was = press.moved; press = null;
+    if (was) { composing.marquee = null; drawCompose(); announceSelection(); return; }   // a drag builds a selection — it never opens Choose content
+    const c = e.target.closest && e.target.closest('#fg-compose-stage .fg-cell');
+    if (!c) { if (!addKey(e) && composing.sel.size) { composing.sel.clear(); composing.when = null; drawCompose(); renderComposeInspector(); announceSelection(); } return; }
+    const i = +c.dataset.i;
+    if (!composing.tool && !addKey(e) && composing.sel.has(i)) { COMPOSE_CELLS.choose(); return; }   // click again → Choose content
+    pickCells(i, e);
+  });
   ctrl('fg-compose-back').addEventListener('click', exitCompose);
   ctrl('btn-fg-compose-done').addEventListener('click', exitCompose);
   ctrl('btn-fg-compose-undo').innerHTML = Organica.icons.get('undo'); ctrl('btn-fg-compose-redo').innerHTML = Organica.icons.get('redo');

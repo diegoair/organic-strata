@@ -349,7 +349,7 @@
   #symbol-content-overlay__seeds .fvs-library-item, #symbol-content-overlay__element .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
   #underlying-component-overlay-tiles .fvs-library-item { width: 76px; height: 76px; }
 
-  #symbol-frame svg .symbol-marquee { fill: rgba(51,153,255,0.12); stroke: #3399ff; stroke-width: 1; stroke-dasharray: 4 3; }
+  #symbol-frame svg .symbol-marquee, #fg-compose-stage svg .symbol-marquee { fill: rgba(51,153,255,0.12); stroke: #3399ff; stroke-width: 1; stroke-dasharray: 4 3; }
 
   /* Element tier — a single big live preview of the current Seed, on
      its own canvas (not the scrollable-gallery/live-grid surfaces the

@@ -642,8 +642,13 @@ ctrl('symbol-cell-props').innerHTML = cellPropsHTML('');
 // of source type (scale 100%, Fill, no padding, centred anchor) — a
 // predictable clean slate every time content is assigned, not whatever
 // the previously-selected cell happened to have. ──
-export function openCellContentOverlay() {
-  if (state.symbolSelection.size === 0 && !pc('chk-content-overlay-all')) return;
+// The window has a target, like Cell properties: none = the Symbol step's cells; Compose passes
+// { count(), apply(patch | cell => patch), done() } and its pick becomes the selection's region rule.
+let overlayTarget = null;
+export function openCellContentOverlay(target) {
+  overlayTarget = target && target.apply ? target : null;
+  ctrl('chk-content-overlay-all').closest('label').style.display = overlayTarget ? 'none' : '';   // "all cells" is Symbol-only
+  if (!overlayTarget && state.symbolSelection.size === 0 && !pc('chk-content-overlay-all')) return;
   renderCellContentOverlayTiles();
   ctrl('symbol-content-overlay').style.display = 'flex';
   const first = ctrl('symbol-content-overlay').querySelector('button.fvs-library-item, button#btn-content-overlay-close');
@@ -665,7 +670,8 @@ export function applyToAllCells(patch) {
   if (changed) Organica.dirty.set('fvs-symbol', true);
   renderSymbolCanvasOnly();
 }
-export function contentTarget() { return pc('chk-content-overlay-all') ? applyToAllCells : applyToSelection; }
+export function contentTarget() { return overlayTarget ? overlayTarget.apply : pc('chk-content-overlay-all') ? applyToAllCells : applyToSelection; }
+function pickDone() { const t = overlayTarget; closeCellContentOverlay(); if (t) t.done(); else renderCellPropertiesPanel(); }
 
 // Choose-content filter — which of the two lists to show (memory only).
 rt.contentFilter = 'all';
@@ -679,6 +685,7 @@ export function syncContentFilter() {
 }
 export function closeCellContentOverlay() {
   ctrl('symbol-content-overlay').style.display = 'none';
+  overlayTarget = null;
   ctrl('chk-content-overlay-all').checked = false;   // disarm so a later single-cell edit isn't hijacked
 }
 
@@ -691,7 +698,7 @@ export function closeCellContentOverlay() {
 // that risk — a wrong fit is obvious immediately and easy to redo).
 export function renderCellContentOverlayTiles() {
   const toAll = pc('chk-content-overlay-all');
-  const count = state.symbolSelection.size;
+  const count = overlayTarget ? overlayTarget.count() : state.symbolSelection.size;
   ctrl('symbol-content-overlay__title').textContent = toAll ? 'Choose content for all cells' : count > 1 ? `Choose content for ${count} cells` : 'Choose content';
 
   const elWrap = ctrl('symbol-content-overlay__seeds');
@@ -703,8 +710,7 @@ export function renderCellContentOverlayTiles() {
   emptyBtn.innerHTML = '<svg viewBox="0 0 72 72" aria-hidden="true"><rect x="10" y="10" width="52" height="52" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/></svg>';
   emptyBtn.addEventListener('click', () => {
     contentTarget()(() => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
-    closeCellContentOverlay();
-    renderCellPropertiesPanel();
+    pickDone();
   });
   elWrap.appendChild(emptyBtn);
   ['arc', 'arctruchet', 'blob', 'chevron', 'circle', 'cross', 'drop', 'lens', 'polygon', 'roundedrect', 'star', 'triangle', 'wedge'].forEach(type => {   // alphabetical (UI only — generateSymbolCells' seeded seedTypes array is deliberately NOT reordered)
@@ -720,8 +726,7 @@ export function renderCellContentOverlayTiles() {
         rotation: 0, flipH: false, flipV: false,
         fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       }));
-      closeCellContentOverlay();
-      renderCellPropertiesPanel();
+      pickDone();
     });
     elWrap.appendChild(btn);
   });
@@ -754,8 +759,7 @@ export function renderCellContentOverlayTiles() {
         rotation: 0, flipH: false, flipV: false,
         fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
       });
-      closeCellContentOverlay();
-      renderCellPropertiesPanel();
+      pickDone();
     });
     const item = document.createElement('div');
     const cap = document.createElement('span');
@@ -789,8 +793,7 @@ export function renderCellContentOverlayTiles() {
           rotation: r, flipH: fh, flipV: fv,
           fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
         }));
-        closeCellContentOverlay();
-        renderCellPropertiesPanel();
+        pickDone();
       });
       const item = document.createElement('div');
       const cap = document.createElement('span');
