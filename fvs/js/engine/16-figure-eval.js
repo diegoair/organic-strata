@@ -142,6 +142,10 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
 // Region rules (Phase 5b) add: symbolRule {name, params, seed, vary} — a Symbol-step rule over the region's cells only;
 // arrange {rule, pool: [content…], seed} — the region gets content by an Arrange class; pattern {patType, patSpacing,
 // patWeight, patAngle} — a pattern fill (the cell's appearance patch). Seeded rules draw in cell order.
+// Compose (Oct 8, 2026 — the Symbol step's Cell properties over region rules) adds: cell {fitMode, coverAxis,
+// fixedSize, padding, seedParams} — the Cell properties fields a rotate / flip / scale / colour rule does not carry,
+// copied onto the cell as Symbol's patchCell does (seedParams only on a Seed cell; null = back to the default shape).
+const CELL_KEYS = ['fitMode', 'coverAxis', 'fixedSize', 'padding', 'seedParams'];
 function applyRulesToContent(rules, cw) {   // cw: the Palette's colourway, given to every Component a rule puts in a cell
   const own = state.symbolCells.map(c => clone(c)), G = getSymbolGrid(), ctxs = slotClassContext(G), sctx = symbolCellContext(G);
   const rngs = rules.map(r => { const d = r.do || {}, sd = (d.symbolRule && d.symbolRule.seed) || (d.arrange && d.arrange.seed) || 0; return mulberry32(sd >>> 0); });
@@ -174,6 +178,7 @@ function applyRulesToContent(rules, cw) {   // cw: the Palette's colourway, give
       if (d.flipH != null) cell.flipH = !!d.flipH;
       if (d.flipV != null) cell.flipV = !!d.flipV;
       if (d.scale != null) cell.scale = d.scale;
+      if (d.cell) CELL_KEYS.forEach(k => { if (!(k in d.cell)) return; if (k === 'seedParams' && cell.source !== 'seed') return; if (d.cell[k] == null) delete cell[k]; else cell[k] = clone(d.cell[k]); });
     });
   });
 }

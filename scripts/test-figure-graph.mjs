@@ -155,6 +155,11 @@ const out = await P.ev(`
   const ar = K(eng.get(fc.id).value.figure.svg); res.arrange = ar !== base5;
   co.params.rules = [{ when: { col: [0] }, do: { pattern: { patType: 'crosshatch', patSpacing: 8, patWeight: 2, patAngle: 45 } } }]; eng.touch(co.id); await eng.run(m);
   const pt = K(eng.get(fc.id).value.figure.svg); res.pattern = pt !== base5 && cellG(pt, 1) === cellG(base5, 1) && cellG(pt, 0) !== cellG(base5, 0);
+  // Compose = Symbol's Cell properties: a cell rule (Fit, Padding …) only in its region; padding null = back to none
+  co.params.rules = [{ when: { col: [0] }, do: { cell: { fitMode: 'fixed', fixedSize: 40, padding: 0.2 } } }]; eng.touch(co.id); await eng.run(m);
+  const cp = K(eng.get(fc.id).value.figure.svg); res.cellProps = cp !== base5 && cellG(cp, 1) === cellG(base5, 1) && cellG(cp, 0) !== cellG(base5, 0);
+  co.params.rules = [{ when: { col: [0] }, do: { cell: { padding: null } } }]; eng.touch(co.id); await eng.run(m);
+  res.cellPropsNull = K(eng.get(fc.id).value.figure.svg) === base5;
   // ── Compose review fixes: cells by grid address, Palette colours on dropped Components, a live Arrange pool ──
   const idxAt = (r, c) => { const x = eng.get(fc.id).value.figure.compose.ctxs.find(q => q.row === r && q.col === c); return x ? x.index : -1; };
   const cellsOf = () => K(eng.get(fc.id).value.figure.svg).match(/data-cell-index="(\\d+)"/g).map(x => +x.match(/\\d+/)[0]);
@@ -261,6 +266,8 @@ check(out.composeAddress, 'a cell picked by row / column is the same cell after 
 check(out.composeLostAt, 'an address past the grid is reported, with its rule');
 check(out.composePaletteComp, 'a Component dropped in a cell takes the Palette colours');
 check(out.composeLiveArrange, 'a live Arrange lays out the content feeding the Figure');
+check(out.cellProps, 'a Cell properties region rule (Fit, Size, Padding) changes only its region');
+check(out.cellPropsNull, 'a Cell properties field set to null leaves the cell as it was');
 check(out.symRule, 'a Symbol rule turns its region only');
 check(out.symRuleDet, 'a Symbol rule is the same for the same seed');
 check(out.arrange, 'Arrange gives the region content from its pool');
