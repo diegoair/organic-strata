@@ -237,9 +237,11 @@
       </div>
       <div class="org-popover__row" id="row-variant-scales">
         <span class="org-popover__label">Resolution</span>
-        <label class="check-row"><input type="checkbox" id="chk-vscale-1" checked><span>×1</span></label>
-        <label class="check-row"><input type="checkbox" id="chk-vscale-2"><span>×2</span></label>
-        <label class="check-row"><input type="checkbox" id="chk-vscale-4"><span>×4</span></label>
+        <div class="check-group">
+          <label class="check-row"><input type="checkbox" id="chk-vscale-1" checked><span>×1</span></label>
+          <label class="check-row"><input type="checkbox" id="chk-vscale-2"><span>×2</span></label>
+          <label class="check-row"><input type="checkbox" id="chk-vscale-4"><span>×4</span></label>
+        </div>
       </div>
       <label class="check-row"><input type="checkbox" id="chk-variant-transparent"><span>Transparent paper (all rows)</span></label>
       <p class="org-popover__hint">One file per row and size — same geometry, only Style, ink, paper and stroke width change. In Print mode each file gets bleed + crop marks at the size set above.</p>
@@ -1529,10 +1531,10 @@
         </div>
 
         <div class="sub-label" style="margin-top:var(--space-2)">Vary</div>
-        <div class="ctrl-row" style="gap:var(--space-3)">
-          <label class="check-row" style="margin:0"><input type="checkbox" id="chk-rule-rotation" checked><span>Rotation</span></label>
-          <label class="check-row" style="margin:0"><input type="checkbox" id="chk-rule-flip"><span>Flip</span></label>
-          <label class="check-row" style="margin:0"><input type="checkbox" id="chk-rule-scale"><span>Scale</span></label>
+        <div class="check-group">
+          <label class="check-row"><input type="checkbox" id="chk-rule-rotation" checked><span>Rotation</span></label>
+          <label class="check-row"><input type="checkbox" id="chk-rule-flip"><span>Flip</span></label>
+          <label class="check-row"><input type="checkbox" id="chk-rule-scale"><span>Scale</span></label>
         </div>
         <div class="ctrl-row" id="row-rule-scalerange" style="display:none">
           <div class="ctrl-label">Scale range</div>
@@ -1540,7 +1542,7 @@
           <input type="range" id="rg-rule-scale-max" min="100" max="300" step="5" value="125"><span class="ctrl-val" id="v-rule-scale-max">125</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Random seed</div>
+          <div class="ctrl-label">Seed</div>
           <input type="number" class="panel-input" id="num-rule-seed" value="1" min="0" max="999999" step="1" style="width:70%">
           <button class="icon-btn" id="btn-rule-seed-random" title="Random seed" aria-label="Random seed">
             <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
@@ -1562,8 +1564,8 @@
         <div class="ctrl-row"><div class="ctrl-label">Colour</div>
           <input type="range" id="rg-sug-col" min="0" max="100" step="5" value="40"><span class="ctrl-val" id="v-sug-col">40</span></div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Random seed</div>
-          <input type="number" class="panel-input" id="num-sug-seed" value="1" min="0" max="999999" step="1" aria-label="Random seed for suggestions">
+          <div class="ctrl-label">Seed</div>
+          <input type="number" class="panel-input" id="num-sug-seed" value="1" min="0" max="999999" step="1" aria-label="Suggestion seed">
           <button class="icon-btn" id="btn-sug-seed-random" title="Random seed" aria-label="Random suggestion seed">
             <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
           </button>
@@ -1586,7 +1588,7 @@
           <select class="panel-select" id="sel-sym-arrange-fit" aria-label="Fit in cell"><option value="fill">Stretch</option><option value="contain">Contain</option><option value="cover">Cover (no gaps)</option><option value="match">Match cell</option></select>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Random seed</div>
+          <div class="ctrl-label">Seed</div>
           <input type="number" class="panel-input" id="num-symbol-seed" value="1" min="0" max="999999" step="1" style="width:70%">
           <button class="icon-btn" id="btn-symbol-seed-random" title="Random seed" aria-label="Random seed">
             <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>

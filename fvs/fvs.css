@@ -495,7 +495,6 @@
   .fg-var:hover .fg-var__tools, .fg-var:focus-within .fg-var__tools, .fg-var.is-pinned .fg-var__tools { opacity: 1; }
   @media (hover: none) { .fg-var__tools { opacity: 1; } }
   .fg-block { width: 100%; margin-bottom: var(--space-2); }   /* a node's main action, full width (as Symbol's Generate grid in canvas) */
-  .fg-keep { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-bottom: var(--space-2); }
   .fg-figlist { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-3); }
   .fg-figlist__item { display: flex; flex-direction: column; align-items: flex-start; gap: 0; padding: var(--space-1) var(--space-2); background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink); font: inherit; font-size: var(--t-control-size); text-align: left; cursor: pointer; }
   @media (hover: hover) { .fg-figlist__item:hover { border-color: var(--ink); } }

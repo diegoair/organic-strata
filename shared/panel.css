@@ -330,6 +330,17 @@ input[type=range]:focus-visible::-moz-range-track {
    CONTROLS
    ═══════════════════════════════════════════════════════════ */
 
+/* Checkbox group — several check-rows side by side that wrap (O-50, Oct 8, 2026):
+   FVS Figure Keep / Format / Resolution, Symbol Vary, the Export popover's Resolution */
+.check-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.check-group:last-child { margin-bottom: 0; }
+
 /* Checkbox row — the label is the target, so the whole line is clickable */
 .check-row {
   display: flex;

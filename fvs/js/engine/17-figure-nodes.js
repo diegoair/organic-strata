@@ -276,7 +276,7 @@ function changeGrid(inp, rng) {
   const cur = +p[k], span = Math.max(1, Math.round((b - a) / step / 4)) * step;
   let v = cur; for (let t = 0; t < 6 && v === cur; t++) v = Math.min(b, Math.max(a, Math.round((cur + (rng() < 0.5 ? -1 : 1) * step * (1 + Math.floor(rng() * Math.max(1, span / step)))) / step) * step));
   if (v === cur) return null;
-  inp.grid = { gen: g.gen, params: { ...p, [k]: v } }; return `${k === 'seed' ? 'Random seed' : label} ${v}`;   // the Figure says Random seed (N4 pending for the Symbol step)
+  inp.grid = { gen: g.gen, params: { ...p, [k]: v } }; return `${label} ${v}`;
 }
 function changePalette(inp, rng) {
   const pal = inp.palette; if (!pal || !pal.colors || !pal.colors.length) return null;
@@ -315,7 +315,7 @@ export function varyInputs(inputs, spec, keep) {
   const inp = { ...inputs, rules: (inputs.rules || []).slice() }, rng = mulberry32((spec.seed * 2654435761) >>> 0), labels = [], extra = {};
   const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells
     let did = false;
-    if (!keep.grid && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed: Math.floor(rng() * 1000) } }; labels.push('Grid: new random seed'); did = true; }
+    if (!keep.grid && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed: Math.floor(rng() * 1000) } }; labels.push('Grid: new seed'); did = true; }
     if (!keep.content && contentCount(inp) > 1) { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); did = true; }
     return did;
   };

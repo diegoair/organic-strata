@@ -289,16 +289,16 @@ export const SYMGRID_GENS = {
   // "1,1,1,1,1" field asked the user to hand-author that string blind; this
   // doesn't, and it's the same generate-then-drag workflow Loom itself uses.
   rectangular: { label: 'Rectangular', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6]] },
-  bento: { label: 'Bento', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Random seed', 0, 999, 1, 7]] },
+  bento: { label: 'Bento', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Seed', 0, 999, 1, 7]] },
   sinusoidal: { label: 'Wave', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6], ['amount', 'Amount', 0, 1, 0.05, 0.5], ['frequency', 'Frequency', 0.5, 6, 0.5, 2]] },
-  masonry: { label: 'Masonry', params: [['cols', 'Columns', 5, 8, 1, 6], ['seed', 'Random seed', 0, 999, 1, 7]] },
+  masonry: { label: 'Masonry', params: [['cols', 'Columns', 5, 8, 1, 6], ['seed', 'Seed', 0, 999, 1, 7]] },
   hexagonal: { label: 'Hexagonal', params: [['cols', 'Columns', 5, 8, 1, 6]] },
   triangular: { label: 'Triangular', params: [['cols', 'Columns', 5, 8, 1, 6]] },
   diamond: { label: 'Diamond', params: [['cols', 'Columns', 5, 8, 1, 6]] },
   circular: { label: 'Circular', params: [['cols', 'Columns', 5, 8, 1, 6]] },
   radial: { label: 'Radial', params: [['rings', 'Rings', 5, 8, 1, 6], ['sectors', 'Sectors', 5, 8, 1, 6]] },
-  organic: { label: 'Organic (Voronoi)', params: [['points', 'Cells', 25, 64, 1, 40], ['iterations', 'Relax', 0, 8, 1, 4], ['seed', 'Random seed', 0, 999, 1, 7]] },
-  fractal: { label: 'Fractal', params: [['depth', 'Depth', 5, 6, 1, 5], ['variance', 'Variance', 0, 0.5, 0.05, 0.2], ['seed', 'Random seed', 0, 999, 1, 7]] },
+  organic: { label: 'Organic (Voronoi)', params: [['points', 'Cells', 25, 64, 1, 40], ['iterations', 'Relax', 0, 8, 1, 4], ['seed', 'Seed', 0, 999, 1, 7]] },
+  fractal: { label: 'Fractal', params: [['depth', 'Depth', 5, 6, 1, 5], ['variance', 'Variance', 0, 0.5, 0.05, 0.2], ['seed', 'Seed', 0, 999, 1, 7]] },
   spiral: { label: 'Spiral (golden)', params: [['count', 'Cells', 25, 64, 1, 40]] },
 };
 // Rectangular has no cols/rows slider — column/row count is literally the number of
