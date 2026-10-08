@@ -174,19 +174,15 @@ export function ruleScaleChoices() {
 }
 export const SYMBOL_RULES = {
   oscillator: {
-    read: () => ({
-      angle: parseInt(pv('sel-rule-osc-angle'), 10),
-      shift: parseFloat(pv('rg-rule-osc-shift')),
-      period: parseInt(pv('rg-rule-osc-period'), 10),
-      phase: parseInt(pv('rg-rule-osc-phase'), 10),
-    }),
+    fields: [{ id: 'sel-rule-osc-angle', key: 'angle', type: 'int' }, { id: 'rg-rule-osc-shift', key: 'shift', type: 'float' },
+      { id: 'rg-rule-osc-period', key: 'period', type: 'int' }, { id: 'rg-rule-osc-phase', key: 'phase', type: 'int' }],
     fn: (ctx, p) => ({
       rotation: (((ctx.col + Math.floor(p.shift * ctx.row)) % p.period + p.period) % p.period === p.phase % p.period) ? p.angle : 0,
     }),
   },
   checkerboard: {
-    read: () => ({ rotA: parseInt(pv('sel-rule-chk-rota'), 10), swap: pc('chk-rule-chk-swap'),
-      rotB: parseInt(pv('sel-rule-chk-rot'), 10), flip: pc('chk-rule-chk-flip') }),
+    fields: [{ id: 'sel-rule-chk-rota', key: 'rotA', type: 'int' }, { id: 'chk-rule-chk-swap', key: 'swap', type: 'bool' },
+      { id: 'sel-rule-chk-rot', key: 'rotB', type: 'int' }, { id: 'chk-rule-chk-flip', key: 'flip', type: 'bool' }],
     fn: (ctx, p) => {
       // Defaults (rotA 0, no swap) reproduce the original A-even / B-odd result exactly.
       const odd = ((ctx.col + ctx.row + (p.swap ? 1 : 0)) % 2) === 1;
@@ -195,7 +191,7 @@ export const SYMBOL_RULES = {
     },
   },
   orientation: {
-    read: () => ({ up: pv('sel-rule-ori-up'), down: pv('sel-rule-ori-down') }),
+    fields: [{ id: 'sel-rule-ori-up', key: 'up', type: 'str' }, { id: 'sel-rule-ori-down', key: 'down', type: 'str' }],
     fn: (ctx, p) => {
       if (!ctx.orient) return {};
       const mode = ctx.orient === 'up' ? p.up : p.down;
@@ -203,34 +199,30 @@ export const SYMBOL_RULES = {
     },
   },
   rows: {
-    read: () => ({ step: parseInt(pv('rg-rule-rows-step'), 10), mode: pv('sel-rule-rows-mode') }),
+    fields: [{ id: 'rg-rule-rows-step', key: 'step', type: 'int' }, { id: 'sel-rule-rows-mode', key: 'mode', type: 'str' }],
     fn: (ctx, p) => ({ rotation: p.mode === 'ramp' ? snap90(p.step * ctx.row) : p.step * (ctx.row % 2) }),
   },
   columns: {
-    read: () => ({ step: parseInt(pv('rg-rule-cols-step'), 10), mode: pv('sel-rule-cols-mode') }),
+    fields: [{ id: 'rg-rule-cols-step', key: 'step', type: 'int' }, { id: 'sel-rule-cols-mode', key: 'mode', type: 'str' }],
     fn: (ctx, p) => ({ rotation: p.mode === 'ramp' ? snap90(p.step * ctx.col) : p.step * (ctx.col % 2) }),
   },
   radial: {
-    read: () => ({ snap: pc('chk-rule-radial-snap'), chir: parseInt(pv('sel-rule-radial-chir'), 10) }),
+    fields: [{ id: 'chk-rule-radial-snap', key: 'snap', type: 'bool' }, { id: 'sel-rule-radial-chir', key: 'chir', type: 'int' }],
     fn: (ctx, p) => {
       const deg = (ctx.angle * 180 / Math.PI) * p.chir;
       return { rotation: p.snap ? snap90(deg) : deg };
     },
   },
   wave: {
-    read: () => ({
-      amp: parseInt(pv('rg-rule-wave-amp'), 10),
-      freq: parseFloat(pv('rg-rule-wave-freq')),
-      phase: parseInt(pv('rg-rule-wave-phase'), 10),
-      snap: pc('chk-rule-wave-snap'),
-    }),
+    fields: [{ id: 'rg-rule-wave-amp', key: 'amp', type: 'int' }, { id: 'rg-rule-wave-freq', key: 'freq', type: 'float' },
+      { id: 'rg-rule-wave-phase', key: 'phase', type: 'int' }, { id: 'chk-rule-wave-snap', key: 'snap', type: 'bool' }],
     fn: (ctx, p) => {
       const v = p.amp * Math.sin(p.freq * (ctx.nx + ctx.ny) * Math.PI + p.phase * Math.PI / 180);
       return { rotation: p.snap ? snap90(v) : v };
     },
   },
   random: {
-    read: () => ({}),
+    fields: [],
     fn: (ctx, p, rng) => ({
       rotation: [0, 90, 180, 270][Math.floor(rng() * 4)],
       flipH: rng() < 0.5, flipV: rng() < 0.5,
@@ -238,6 +230,10 @@ export const SYMBOL_RULES = {
     }),
   },
 };
+// Each rule's params are described once by `fields` — {id: the Symbol step's control, key, type} — and read()
+// is derived from them, so another editor (Compose) can build the same controls from the same list.
+const readField = f => f.type === 'bool' ? pc(f.id) : f.type === 'int' ? parseInt(pv(f.id), 10) : f.type === 'float' ? parseFloat(pv(f.id)) : pv(f.id);
+Object.values(SYMBOL_RULES).forEach(r => { r.read = () => Object.fromEntries(r.fields.map(f => [f.key, readField(f)])); });
 // Same technique as buildGridOutlineSVG (preview-only, never inside
 // buildSymbolSVG), a second colour, only the currently-selected cells —
 // Manual mode's own visual feedback for what a Cell properties edit is
