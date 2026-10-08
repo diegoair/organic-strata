@@ -289,9 +289,7 @@
     display: none; grid-template-columns: repeat(3, var(--space-7));
     padding: var(--space-1);
     border-radius: var(--radius-lg);
-    /* A backdrop-filter inside the bar only sees the bar, not the page: the pane cannot frost what is
-       behind it, so it is nearly opaque instead of the bar's 75%. */
-    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    background: var(--pane, var(--paper));   /* opaque, as the bar (Oct 8, 2026) */
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--g-spec)), 0 8px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
   }
   /* A rise you can follow: longer and gentler than a pop, the fade on its own slower ramp so the

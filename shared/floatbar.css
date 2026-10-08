@@ -74,11 +74,12 @@
      >4:1 even when the bar floats over a black canvas; the frost is a
      little wider for the same reason — busy stipple/dither art behind a
      10px label is the case that decides it. */
-  --pane: color-mix(in srgb, var(--paper) 75%, transparent);
+  /* Opaque since Oct 8, 2026 (Diego, "B · soft shadow, cached"): the frosted glass (backdrop-filter) re-blurred the
+     board under the bar on every frame it moved, slid or the board panned — the real cost. The pane is now --paper
+     and the soft shadow stays, painted once: will-change keeps the bar on its own compositor layer, so the shadow is
+     rasterised when the bar appears and only composited after. */
+  --pane: var(--paper);
   --pane-thumb: color-mix(in srgb, var(--ink) 8%, transparent);
-  --g-blur: 6px;
-  --g-sat: 150%;
-  --g-bright: 100%;
   /* the rim's three stops: bright at the corner facing the light, almost
      nothing along the sides running edge-on to it, a weaker catch at the
      far corner. Also the top face catching light (--g-spec). */
@@ -93,12 +94,10 @@
   --ind-size: var(--ease-overshoot-soft);
 
   background: var(--pane);
-  -webkit-backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat)) brightness(var(--g-bright));
-  backdrop-filter: blur(var(--g-blur)) saturate(var(--g-sat)) brightness(var(--g-bright));
   isolation: isolate;
+  will-change: transform;   /* its own layer: the soft shadow below is rasterised once, not on every board frame */
   /* Thickness: the lit top edge says light enters the sheet; the wide soft
-     shadow says the pane is ABOVE the page — the one thing a backdrop
-     filter alone can't say, since a filter has no depth. */
+     shadow says the pane is ABOVE the page. */
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, var(--g-spec)),
     0 8px 28px rgba(0, 0, 0, 0.16),
@@ -106,10 +105,7 @@
 }
 /* Dark theme: the pane is already dark (it mixes --paper); the white rim and
    the lit top edge are dimmed so the glass reads as smoked, not frosted. */
-[data-theme="dark"] .org-floatbar { --g-edge-hi: 0.28; --g-edge-lo: 0.05; --g-edge-far: 0.14; --g-spec: 0.12; }
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .org-floatbar { background: var(--panel); }
-}
+[data-theme="dark"] .org-floatbar { --g-edge-hi: 0.28; --g-edge-lo: 0.05; --g-edge-far: 0.14; --g-spec: 0.12; --pane: var(--panel); }   /* opaque in dark too: one step lighter than the board, which is --paper */
 
 /* The rim. A flat 1px ring is the clearest tell of a rectangle with a
    border rather than a pane with thickness, so the ring is a gradient.
@@ -345,14 +341,13 @@
    toggles + ONE sibling glass panel, for what you add to the canvas (a library of things to place, the node bar).
    Promoted Oct 2026 from FVS's Library rail at its second vertical occupant (the Figure graph's node bar) —
    ledger O-30. Bar and panel are both .org-floatbar (glass, rim, dark values, fallback come from above) and siblings,
-   never nested: a backdrop-filter child would blur only its parent. The dock is transformed (centred), so anything
+   never nested (they were glass once; a backdrop-filter child blurs only its parent). The dock is transformed (centred), so anything
    position:fixed belongs on <body>, not inside it (a drag ghost, a popover). One occupant at a time per tool step. */
 .org-dock { position: fixed; left: var(--space-5); top: 50%; transform: translateY(-50%); z-index: 150; display: flex; align-items: center; gap: var(--space-3); pointer-events: none; }
 .org-dock[hidden] { display: none; }   /* the display:flex above would beat the UA [hidden] rule — FVS hides the node bar off the Figure step this way */
 .org-dock > .org-floatbar { position: relative; left: auto; top: auto; bottom: auto; transform: none; height: auto; flex-direction: column; align-items: stretch; pointer-events: auto; }
 .org-dock > .org-dock__bar { width: 3rem; padding: var(--space-2) 0; align-items: center; justify-content: center; gap: var(--space-1); }
 .org-dock > .org-dock__panel { max-height: 60vh; padding: var(--space-3); border-radius: var(--radius-lg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--g-spec));   /* the lit top edge only, no drop shadow: a 28px blur repainted while the panel slides in and the board moves under it (Diego, Oct 8, 2026) */
   opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(calc(-1 * var(--space-4)));
   transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base); }
 .org-dock > .org-dock__panel[data-open="true"] { opacity: 1; visibility: visible; pointer-events: auto; transform: none; transition-delay: 0s; }
