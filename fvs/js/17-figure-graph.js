@@ -902,7 +902,7 @@ function classToolLabel() {
 function announceSelection() {
   const live = ctrl('fg-compose-live'); if (!live || !composing) return;
   const n = composing.sel.size, w = composing.when || (n === 1 ? selectionWhen() : null);
-  const t = n ? `${n} ${n === 1 ? 'cell' : 'cells'} selected${w ? ' — ' + whereText(w) : ''}` : 'No cells selected';
+  const t = n ? `${n} ${n === 1 ? 'cell' : 'cells'} selected${w ? ' — ' + whereText(w) : ''}` : 'No cell selected';
   live.textContent = ''; setTimeout(() => { live.textContent = t; }, 30);
 }
 function renderComposeBar() {   // the left dock while composing: the selection tools + the saved items to drop into cells
@@ -928,7 +928,7 @@ function cellsWhen(ids) {
 // a fgc- prefix, read through SYMBOL_RULES[x].fields — one source); Pattern is Compose's own. The settings start from
 // the Symbol step's, or from the region rule being edited; with a rule picked a change updates it at once, and the
 // button writes a new region rule on the selection otherwise.
-const COMPOSE_FILLS = [['manual', 'Manual'], ['rule', 'Rule'], ['arrange', 'Arrange'], ['pattern', 'Pattern']];
+const COMPOSE_FILLS = [['arrange', 'Arrange'], ['manual', 'Manual'], ['rule', 'Rule'], ['pattern', 'Pattern']];   // Symbol's order, then Pattern; the default is Manual
 const fillOf = r => { const d = (r && r.do) || {}; return d.symbolRule ? 'rule' : d.arrange ? 'arrange' : d.pattern ? 'pattern' : 'manual'; };
 const newSeedNum = () => 1 + Math.floor(Math.random() * 99999);
 function editedOfKind(comp, kind) {   // the picked region rule, if it is this kind and still covers the selection
@@ -965,7 +965,7 @@ function mountComposeFill(host, kind, comp) {
     const rp = ctrl('rp-' + draft.name), box = ctrl('fgc-rule-params');
     if (rp) {   // the Symbol step's own controls for this rule, cloned with a prefix
       const c = rp.cloneNode(true); c.removeAttribute('style'); c.id = 'fgc-' + c.id;
-      c.querySelectorAll('[id]').forEach(e => { e.id = 'fgc-' + e.id; }); c.querySelectorAll('label[for]').forEach(e => e.setAttribute('for', 'fgc-' + e.getAttribute('for')));
+      c.querySelectorAll('[id]').forEach(e => { e.id = 'fgc-' + e.id; }); c.querySelectorAll('[aria-labelledby]').forEach(e => e.removeAttribute('aria-labelledby'));   // named again by autoLabelPanel, not by Symbol's own labels c.querySelectorAll('label[for]').forEach(e => e.setAttribute('for', 'fgc-' + e.getAttribute('for')));
       box.appendChild(c);
       SYMBOL_RULES[draft.name].fields.forEach(f => {
         const el = ctrl('fgc-' + f.id); if (!el) return; const v = draft.params[f.key];
@@ -1108,8 +1108,8 @@ function cellRuleText(d, inks) {   // a Cell properties rule, in the panel's own
   if (d.scale != null) out.push(`Scale ${Math.round(d.scale * 100)}`);
   if (d.ink != null) out.push('Ink ' + (d.ink + 1)); else if (d.color) { const k = inks ? inks.indexOf(d.color) : -1; out.push(k >= 0 ? 'Ink ' + (k + 1) : 'Colour ' + d.color); }
   if (c.padding != null) out.push(`Padding ${Math.round(c.padding * 100)}`);
-  if (c.anchorX != null || c.anchorY != null) { const x = c.anchorX || 0, y = c.anchorY || 0; out.push(`Anchor ${x < 0 ? 'left' : x > 0 ? 'right' : 'center'} ${y < 0 ? 'top' : y > 0 ? 'bottom' : 'middle'}`); }
-  if ('seedParams' in c) out.push(c.seedParams ? 'Element shape' : 'Default shape');
+  if (c.anchorX != null || c.anchorY != null) { const x = c.anchorX || 0, y = c.anchorY || 0; out.push(`Anchor ${x < 0 ? 'left' : x > 0 ? 'right' : 'centre'} ${y < 0 ? 'top' : y > 0 ? 'bottom' : 'middle'}`); }
+  if ('seedParams' in c) out.push(c.seedParams ? 'Shape: Element settings' : 'Shape: Default');
   return out.join(' · ') || 'No change';
 }
 function describeComposeRule(r, inks) {
@@ -1150,7 +1150,7 @@ function renderComposeInspector(next) {
     <div class="fg-list" role="list" id="fgc-rules">${rules.length ? rules.map((r, i) => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}${rules.length > 1 ? ' is-draggable' : ''}" role="listitem" data-i="${i}"><div class="org-layer-card__head">${rules.length > 1 ? GRIP() : ''}<button type="button" class="org-layer-card__title fg-rule__pick" data-act="pick" data-i="${i}" aria-label="Select the cells of region rule ${i + 1}: ${esc(describeComposeRule(r, inks))}">${esc(describeComposeRule(r, inks))}</button>
       ${r.do && (r.do.symbolRule || r.do.arrange) ? `<button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="seed" data-i="${i}" aria-label="New random seed for region rule ${i + 1}">${Organica.icons.get('refresh')}</button>` : ''}
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="off" data-i="${i}" aria-pressed="${!r.off}" aria-label="Region rule ${i + 1} on">${Organica.icons.get(r.off ? 'eye-off' : 'eye')}</button>
-      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-i="${i}" aria-label="Delete region rule ${i + 1}">${Organica.icons.get('trash')}</button></div></div>`).join('') : '<p class="org-panel__hint">No region rules yet — select cells, then pick what they get, or drop a saved item on a cell.</p>'}</div>
+      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-i="${i}" aria-label="Delete region rule ${i + 1}">${Organica.icons.get('trash')}</button></div></div>`).join('') : '<p class="org-panel__hint">No region rules yet — select cells, then set them in Fill, or drop a saved item on a cell.</p>'}</div>
     <div id="fgc-lost">${f && f.lost && f.lost.length ? f.lost.filter(l => rules[l.rule]).map(l => `<div class="fg-lost"><p class="org-panel__hint fg-warn">Region rule ${l.rule + 1} (${esc(describeComposeRule(rules[l.rule], inks))}): ${l.cells.length ? esc(l.cells.map(x => Array.isArray(x) ? cellAt(x) : 'cell ' + (x + 1)).join(', ')) + (l.cells.length === 1 ? ' is' : ' are') + ' not in this grid any more' : 'it matches no cell in this grid'} — kept but not drawn.</p>
       <button type="button" class="mini-btn" data-act="del" data-i="${l.rule}">Delete region rule ${l.rule + 1}</button></div>`).join('') : ''}</div>
     <p class="org-panel__hint">A rule reads each cell’s place in the whole grid, so a wave over a region continues the Figure’s wave. Arrange lays out the content feeding the Figure, as it is now. Pick a region rule to see and change its settings.</p>
@@ -1179,6 +1179,7 @@ function renderComposeInspector(next) {
     ['pointerenter', 'focus'].forEach(t => b.addEventListener(t, () => hint(+b.dataset.i)));
     ['pointerleave', 'blur'].forEach(t => b.addEventListener(t, () => hint(null)));
   });
+  if (Organica.autoLabelPanel) Organica.autoLabelPanel(box);   // Cell properties + the cloned rule controls get their names from their labels
 }
 // ── Compose floatbar — the Symbol step's Fit in cell + View groups (Oct 8, 2026). Fit / Anchor act on the selection,
 // or on every cell when none is selected (the label says which), as one region rule; View: the cells' outlines, and the
@@ -1188,7 +1189,7 @@ function buildComposeFloatbar() {
   const host = ctrl('fb-compose-actions');
   host.insertAdjacentHTML('beforeend', `<span class="org-floatbar__group" role="group" aria-label="Fit in cell">${FITS.map(([k, l]) => `<button class="org-floatbar__btn" id="btn-fgc-fit-${k}" data-fit="${k}" data-fit-name="${l}" aria-pressed="false" aria-label="${l} · all cells">${Organica.icons.get('fvs-' + k)}</button>`).join('')}
     <div class="org-popover-wrap"><button class="org-floatbar__btn" id="btn-fgc-anchor" aria-label="Anchor · all cells"><svg class="ico" id="ico-fgc-anchor" data-icon-slot viewBox="0 0 16 16" fill="none" aria-hidden="true"></svg></button>
-    <div class="fvs-flyout" id="fgc-anchor-popover" aria-label="Anchor position">${[[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]].map(([ax, ay]) => `<button type="button" class="fvs-flyout__tool" data-on="false" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'center'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`).join('')}</div></div></span>
+    <div class="fvs-flyout" id="fgc-anchor-popover" aria-label="Anchor position">${[[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]].map(([ax, ay]) => `<button type="button" class="fvs-flyout__tool" data-on="false" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'centre'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`).join('')}</div></div></span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
     <span class="org-floatbar__group" role="group" aria-label="View">
     <button class="org-floatbar__btn" id="btn-fgc-view-outline" aria-pressed="false" aria-label="Show loaded grid">${Organica.icons.get('fvs-grid')}</button>

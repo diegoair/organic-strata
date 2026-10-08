@@ -447,7 +447,7 @@ export function applyAnchorToAllCells(ax, ay) {
 export function buildFitAllAnchorGrid() {
   const wrap = ctrl('symbol-fitall-anchor-grid');
   wrap.innerHTML = ANCHOR_POSITIONS.map(([ax, ay]) =>
-    `<button type="button" class="fvs-flyout__tool" data-on="false" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'center'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`
+    `<button type="button" class="fvs-flyout__tool" data-on="false" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'centre'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`
   ).join('');
   wrap.querySelectorAll('.fvs-flyout__tool').forEach(btn => btn.addEventListener('click', () => {
     applyAnchorToAllCells(parseInt(btn.dataset.ax, 10), parseInt(btn.dataset.ay, 10));
