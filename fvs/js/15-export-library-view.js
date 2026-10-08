@@ -446,6 +446,8 @@ window.addEventListener('pointerup', e => {
   if (idx != null && !Number.isNaN(idx)) (rt.railTarget ? rt.railTarget.apply : railApply)(press.kind, press.name, idx);
 });
 window.addEventListener('pointercancel', cancelRailDrag);
+window.addEventListener('blur', () => { if (railPress) cancelRailDrag(); });   // a drag never stays half done when the window loses the pointer
+railPanel.addEventListener('dragstart', e => e.preventDefault());   // never the browser's own drag of a tile's picture or text
 // Rename: the one centred dialog; a taken name asks again.
 export async function railRename(kind, name) {
   const store = kind === 'element' ? ELEMENT_LIB : kind === 'symbol' ? SYMBOL_LIBRARY : LIBRARY;

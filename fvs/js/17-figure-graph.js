@@ -160,7 +160,7 @@ function renderBody(node, entry, el) {
     if (!el._expBound) { el._expBound = true; el.addEventListener('click', e => { if (e.target.closest('[data-act="run"]')) { e.stopPropagation(); runExport(node.id); } }); }
   } else if (node.type === 'set') {
     const items = p.items || [];
-    el.innerHTML = items.length ? NC.body.stack(items.map(it => entryThumb(it.kind, it.name, it.snapshot)), `${items.length} ${items.length === 1 ? 'item' : 'items'}`)
+    el.innerHTML = items.length ? NC.body.stack(items.slice(0, 3).map(it => entryThumb(it.kind, it.name, it.snapshot)), `${items.length} ${items.length === 1 ? 'item' : 'items'}`)
       : NC.body.stack([''], 'No items yet');
   } else if (node.type === 'cell-rules') {
     const rs = p.rules || [];

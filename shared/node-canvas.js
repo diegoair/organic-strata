@@ -955,8 +955,14 @@
       else { panel.dataset.open = 'false'; panel.inert = true; }
     }
     bar.addEventListener('click', function (e) { var b = e.target.closest('[data-cat]'); if (b) open(cur === b.dataset.cat ? null : b.dataset.cat); });
+    // A drag that lost its pointer (a native drag started, the window lost focus, capture dropped) must never stay half
+    // done — a ghost stuck on screen with the board unresponsive was the "browser freezes after two drags" (Oct 8, 2026).
+    var endDrag = null;
+    panel.addEventListener('dragstart', function (e) { e.preventDefault(); });   // never the browser's own drag of the item's text
     panel.addEventListener('pointerdown', function (e) {
       var spec = e.button === 0 && o.specOf(e.target); if (!spec) return;
+      if (endDrag) endDrag();   // a previous drag left hanging
+      e.preventDefault();   // no text selection, no native drag; the item keeps its keyboard focus path (Enter / Space below)
       var src = e.target.closest('button') || e.target, sx = e.clientX, sy = e.clientY, ghost = null;
       try { src.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic or ended pointer */ }
       function move(ev) {
@@ -966,6 +972,7 @@
       }
       function up(ev) {
         src.removeEventListener('pointermove', move); src.removeEventListener('pointerup', up); src.removeEventListener('pointercancel', up);
+        src.removeEventListener('lostpointercapture', lost); window.removeEventListener('blur', up); endDrag = null;
         panel.classList.remove('is-dragging-away'); document.body.classList.remove('nc-is-dragging');
         if (ev.type !== 'pointerup') { if (ghost) ghost.remove(); return; }
         if (ghost) {
@@ -975,7 +982,12 @@
           o.onAdd(spec, ev, over);
         } else o.onAdd(spec, { type: 'click', clientX: ev.clientX, clientY: ev.clientY }, false);
       }
+      // capture lost without a pointerup (it arrives first when the drag ends normally, so this is only the broken case)
+      function lost(ev) { setTimeout(function () { if (endDrag === cancel) up({ type: 'cancel' }); }, 0); }
+      function cancel() { up({ type: 'cancel' }); }
+      endDrag = cancel;
       src.addEventListener('pointermove', move); src.addEventListener('pointerup', up); src.addEventListener('pointercancel', up);
+      src.addEventListener('lostpointercapture', lost); window.addEventListener('blur', up);
     });
     // keyboard: Enter / Space on an item = a click
     panel.addEventListener('keydown', function (e) {
