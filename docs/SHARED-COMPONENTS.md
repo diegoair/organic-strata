@@ -286,7 +286,7 @@ NC.addNode(model, { type, x, y, params, name })   // → node (id from NC.nextId
 NC.removeNode(model, id)        // the node and ONLY its own wires — connected nodes keep their settings
 NC.addEdge(model, from, to, multi)  // a single input keeps one wire (a new one replaces it); multi refuses a duplicate
 NC.removeEdge(model, id) · NC.findNode · NC.edgesInto · NC.edgesOutOf
-NC.topoSort(model)              // Kahn; throws a CycleError ("That connection would make a loop.") — never hangs
+NC.topoSort(model)              // Kahn; throws a CycleError ("That connection would make a loop" — no stop, UI-COPY) — never hangs
 NC.wouldCycle(model, from, to)
 NC.repairModel(model, registry)  // → { model, dropped: { nodes, edges } } — a copy safe to run
 ```
@@ -295,7 +295,8 @@ NC.repairModel(model, registry)  // → { model, dropped: { nodes, edges } } —
 type, wires to a missing node or port, and wires that would close a loop (`topoSort` would throw on
 every run and lock the tab). The host says what was dropped — FVS: an error notice *Part of this
 graph could not be opened: ‹n› nodes and ‹m› connections left out* (`fvs/js/17-figure-graph.js`
-`safeModel`), on load and on Open file.
+`safeModel`), on load and on Open file; Rhizome the same since Oct 8, 2026 (`rhizome/js/main.js`
+`migrateModel`, connections only for now — ledger §4).
 
 **Registry** — node types and their typed ports.
 
@@ -304,7 +305,8 @@ const registry = NC.createRegistry(types, { adapters: { 'grid->svg': fn } });
 // type: { meta: { id, label, category, inputs, outputs, params }, compute(inputs, params, ctx) → { <outPort>: value } }
 // port: { name, type, label?, required?, multi?, accepts? }   — inputs/outputs may be a function of the node (variable ports)
 registry.get(id) · has · list() · byCategory() · inputsOf(node) · outputsOf(node) · defaults(id) · canAdapt(a, b) · adapt(a, b, v)
-NC.canConnect(model, registry, from, to)   // → { ok, multi, inType, outType } or { ok:false, reason } — reason is notice copy
+NC.canConnect(model, registry, from, to)   // → { ok, multi, inType, outType } or { ok:false, reason } — reason is notice copy, one clause, no stop:
+                                            //   That node is gone · That port is gone · ‹Port› can’t connect to ‹Port› · That connection would make a loop
 ```
 
 A port's `type` is one of the seven `--port-*` types (`canvas · grid · palette · content · rule ·
@@ -344,12 +346,13 @@ layer, the marquee, a polite live region), wires `Organica.createZoomPan` with `
 | `cardClass(node)` | extra class(es) on the card — size variants `nc-node--compact` / `nc-node--wide` |
 | `nodeLabel(node)` | the card title (default `node.name` or the type's label) |
 | `wireClass(edge, model)` | extra class(es) on a wire — FVS: `nc-wire--faint` for foundation wires (from Canvas / Grid / Palette) |
+| `wireLabel(edge, model)` → text | a short label drawn at the wire’s midpoint (`.nc-wire__label`, an SVG `<text>`; `''` = none). FVS: **×‹n›** on a Set’s wire, the number of items (Oct 8, 2026). Keep it to a few characters — it sits on the curve |
 | `protect(node, model)` | `null`, or the reason this node can't be deleted (Delete keeps it and says why in an `Organica.notice`) |
 | `onSelect(ids)` | the selection changed — fill the panel |
 | `onChange(model, reason)` | anything changed (structure, positions, params) — save / mark dirty |
 | `onSearch(point, from, client)` | `/` or right-click on the board: open the node search (`point` in board units) |
 | `onWireDrop(from, point, client)` | a wire released on the empty board: open the search there, filtered by `from` |
-| `onPortDblClick(node, port, dir)` | a port double-clicked: spawn the node it wants, wired |
+| `onPortDblClick(node, port, dir)` | a port double-clicked, **or Enter / Space on a focused port**: spawn the node it wants, wired. With this option the port dots are in the tab order (`tabindex="0"`, after their card); without it they stay `-1` (Rhizome) |
 | `onNodeDblClick(node, e)` | a card double-clicked outside its ports, **or Enter on a focused card** (no modifier) — the keyboard path to the same action (FVS: a Figure opens in Compose) |
 | `onBoardDblClick(point, client)` | the empty board double-clicked (FVS: the node search) |
 | `nameCopy(node, model)` → name | the name a duplicated / pasted node gets (FVS: the next *Canvas ‹n›*) |
@@ -373,7 +376,9 @@ Keys while `isActive()` and focus is not in a field: wheel zoom · Space-drag / 
 drag on the board = marquee (Shift / ⌘ adds) · Delete / Backspace · ⌘/Ctrl Z, ⇧Z or Y, A, C, V,
 D · arrows nudge 8 (Shift 32) · Esc · `/` search · **Shift+1** Fit all · **Shift+2** Fit selection
 (ledger O-33; ⌘/Ctrl +−0 stay the browser's). Port dots have a `--hit-min` hit area at any zoom;
-**Enter** on a focused card = its double-click (`onNodeDblClick`). Below **50%** zoom
+**Enter** on a focused card = its double-click (`onNodeDblClick`); with `onPortDblClick`, Tab reaches
+each port after its card (*‹Label› input — connect* / *‹Label› output — connect*) and **Enter / Space**
+on it = its double-click (Oct 8, 2026). Below **50%** zoom
 (`.nc-stage--far`) a card becomes a **chip**: ports, status line and type overline hide, the
 title keeps its on-screen size, a card that is not `--wide` hides its body, the selection ring
 stays 2px on screen.
@@ -384,7 +389,8 @@ CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d
 `__body`, `__status`; `.is-selected`, `.is-lifted`, `.is-collapsed`, `[data-state="error|stale"]`,
 `--compact`, `--wide`) · `.nc-port` (+ `--in|--out`, `__label`, `__dot`, `__dot--multi`,
 `.is-compatible`, `.is-incompatible`, `[data-type]`) · `.nc-wire` (+ `--<type>`, `--faint`,
-`--pending`, `.is-related`, `.is-selected`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
+`--pending`, `.is-related`, `.is-selected`) · `.nc-wire__label` (`--mid`, `--font-display`,
+`--t-label-size`, a `--canvas-bg` halo `--space-1` wide via `paint-order: stroke`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
 Card look = ledger G3 (edge `--border-strong`, no shadow at rest, `--stage-shadow` lifted, 2px
 `--ink` ring selected).
 Port label (`.nc-port__label`) = **outside the card, above the wire** (ledger §2, Oct 8, 2026): an
