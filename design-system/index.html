@@ -2080,7 +2080,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <tr><td>--dur-base</td><td>220ms</td><td>180–220ms</td><td>notice, popover, hint, pill stretch, theme reveal</td></tr>
         <tr><td>--dur-slow</td><td>320ms</td><td>250–320ms</td><td>switch colour, flyout, glyph fade, caption slide</td></tr>
         <tr><td>--dur-settle</td><td>420ms</td><td>400–420ms</td><td>overshoot landings (pill, menu icon)</td></tr>
-        <tr><td>--dur-reveal / --dur-stagger</td><td>800ms / 80ms</td><td>.8 · .9s / .08s</td><td>scroll reveal, per-item offset</td></tr>
+        <tr><td>--dur-stagger</td><td>80ms</td><td>.08s</td><td>per-item offset</td></tr>
         <tr><td>--ease-standard</td><td>ease</td><td>99 bare <code>ease</code></td><td>default</td></tr>
         <tr><td>--ease-out</td><td>cubic-bezier(.2,.7,.2,1)</td><td>hub, gallery, theme reveal</td><td>enters, reveals</td></tr>
         <tr><td>--ease-glide</td><td>cubic-bezier(.32,.72,.24,1)</td><td>floatbar glyph + pill stretch</td><td>travel</td></tr>
@@ -2828,7 +2828,7 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
     const lum = (hex) => { const f = c => (c /= 255) <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); const [r, g, b] = rgb(hex); return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
     const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
     const FLOOR = { '--ink': 4.5, '--mid': 4.5, '--danger': 4.5, '--accent': 4.5, '--border-strong': 3 };
-    const warm = tok('--accent-warm');
+    const warm = drk['--accent-warm'] || tok('--accent-warm');   // its own dark value since Oct 8, 2026
     if (!drk['--paper']) bad('dark theme rule not found in tokens.css');
     else {
       for (const [t, min] of Object.entries(FLOOR)) for (const bg of ['--paper', '--panel']) {

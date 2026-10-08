@@ -367,7 +367,6 @@ html {
   --dur-base:    220ms;    /* notice, popover, hint, pill stretch, theme reveal */
   --dur-slow:    320ms;    /* switch colour, flyout, glyph fade, caption slide */
   --dur-settle:  420ms;    /* overshoot landings: pill, menu icon */
-  --dur-reveal:  800ms;    /* scroll reveals */
   --dur-stagger:  80ms;    /* per-item reveal offset */
   --ease-standard:       ease;
   --ease-out:            cubic-bezier(0.2, 0.7, 0.2, 1);       /* enters, reveals */
@@ -591,6 +590,7 @@ html {
   --border-strong: #7d725e;   /* 3.97:1 */
   --accent-hover: #bdb8ae;    /* the hover under an ink-filled button: dropped off --ink, the mirror of light's lift */
   --danger: #e0735f;          /* 6.1:1 — light's #a03828 is 2.8:1 here */
+  --accent-warm: #d8642a;     /* non-text accent: 5.2:1 on --paper, 4.6:1 on --panel, 3.0:1 against --ink (a light thumb) — light's #c2551b is 3.7:1 on this --panel (Oct 8, 2026) */
   --canvas-dot: #2e4a55;      /* the cyan dot, dimmed to the same quietness on black */
   --port-canvas: #88898a;
   --port-grid: #0078bf;
@@ -608,6 +608,6 @@ html {
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-instant: 1ms; --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms;
-    --dur-settle: 1ms; --dur-reveal: 1ms; --dur-stagger: 0ms;
+    --dur-settle: 1ms; --dur-stagger: 0ms;
   }
 }
