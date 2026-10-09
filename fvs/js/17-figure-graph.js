@@ -46,7 +46,7 @@ import {
   plateSVG
 } from './engine/15-export-library-view.js';
 import {
-  CHANGE_OF, seriesAxes, seriesCount, sweepableOf, FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  CHANGE_OF, isOptIn, seriesAxes, seriesCount, sweepableOf, FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridPreviewModel, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
@@ -209,7 +209,10 @@ function foundationOf(fig) {
 // A pin from a variation: its whole spec (mode, `changes` for a 2–3-change draw, seed) + its slot and item, so New
 // variations re-draws exactly it (review note, Oct 9, 2026: the tile's Pin dropped `changes` and re-drew a pinned
 // 2-change variation with one change)
-const pinOf = v => ({ mode: v.spec.mode, ...(v.spec.changes ? { changes: v.spec.changes } : {}), ...(v.spec.set ? { set: { ...v.spec.set } } : {}), seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });   // set: a Series / Table step (Phase E)
+const pinOf = v => {
+  const kept = (v.changes || []).filter(c => c.keep), edits = { ...(v.spec.edits || {}) }; kept.forEach(c => { edits[c.kind + ':' + c.key] = c.value; });   // what was resolved from outside (another palette, a colourway, a Set item) stays as drawn (O-62)
+  return { mode: v.spec.mode, ...(v.spec.changes ? { changes: v.spec.changes } : {}), ...(v.spec.set ? { set: { ...v.spec.set } } : {}), seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}), ...(Object.keys(edits).length ? { edits } : {}) };   // set: a Series / Table step (Phase E)
+};
 function variationAction(childId, act) {
   const child = NC.findNode(ctl.model, childId), node = child && sourceOf(child), fig = node && figOf(node), en = ctl.engine.get(childId); if (!node || !fig) return;
   const v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null; if (!v || !v.spec) return;
@@ -281,7 +284,9 @@ function useVariation(fig, v, st, child) {
   if (ctl.model.edges.some(e => e.to.node === child.id && e.to.port !== 'from')) { Organica.notice(`${nodeLabel(child)} has its own inputs — use New Figure from this instead`); return; }
   const raw = figureInputsOf(fig), same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const base = [].concat(fig.params.fixed || []).reduce((b, spec) => { const x = varyInputs(b.inputs, spec, spec.st || spec.keep || {}); return { inputs: x.inputs, extra: { ...b.extra, ...x.extra } }; }, { inputs: raw, extra: {} });
-  const vr = varyInputs(base.inputs, v.spec, st), now = vr.inputs, changed = [], shared = new Set(); let unlinked = null;
+  const vr = varyInputs(base.inputs, v.spec, st), cc = (vr.changes || []).filter(c => c.kind === 'content' && c.key !== 'spread');
+  if (cc.some(c => c.key !== 'item')) { Organica.notice(`${nodeLabel(child)} changes the Element itself (${cc.filter(c => c.key !== 'item').map(c => c.label.toLowerCase()).join(', ')}) — a saved Element is never edited — use New Figure from this instead`); return; }   // before any write (review F1)
+  const now = vr.inputs, changed = [], shared = new Set(); let unlinked = null;
   const [, gr, pa] = foundationOf(fig);
   const alsoFeeds = n => ctl.model.edges.filter(e => e.from.node === n.id && e.to.node !== fig.id).map(e => NC.findNode(ctl.model, e.to.node)).filter(x => x && x.type === 'figure').forEach(x => shared.add(nodeLabel(x)));
   if (gr && !same(now.grid, raw.grid)) { alsoFeeds(gr); gr.params = { ...gr.params, gen: now.grid.gen, params: { ...now.grid.params } }; ctl.touch(gr.id); changed.push(nodeLabel(gr)); }
@@ -290,6 +295,7 @@ function useVariation(fig, v, st, child) {
   after.forEach((r, i) => { const n = nodes[i]; if (n && !same(r, was[i])) { writeRule(n, r); ctl.touch(n.id); changed.push(nodeLabel(n)); } });
   const extra = { ...base.extra, ...vr.extra };
   if (extra.contentSeed != null && extra.contentSeed !== fig.params.contentSeed) { fig.params.contentSeed = extra.contentSeed; changed.push('Content'); }
+  const it = cc.find(c => c.key === 'item'); if (it) { const src0 = (raw.content || []).find(c => c && c.kind === 'set'), idx = src0 ? src0.items.findIndex(x => x && x.name === it.value) : -1; fig.params.onlyItem = { index: Math.max(0, idx), name: it.value }; changed.push('Content'); }
   if (fig.params.fixed) delete fig.params.fixed;
   ctl.touch(fig.id); ctl.refresh(); ctl.select([fig.id]); ctl.commit('use-variation'); save();
   Organica.notice(changed.length ? `${nodeLabel(fig)} now uses ${nodeLabel(child)} — changed: ${[...new Set(changed)].join(', ')}${shared.size ? ` — also changes ${[...shared].join(', ')}` : ''}${unlinked ? ` — ${unlinked} is no longer linked to its saved palette` : ''}` : `${nodeLabel(child)} is already ${nodeLabel(fig)}`);
@@ -675,7 +681,7 @@ function repeatBefore(node, seen = new Set()) {
 function seriesMeta(node) {
   const p = node.params || {}; if (p.mode !== 'series' && p.mode !== 'table') return null;
   const en = ctl && ctl.engine.get(node.id), sweep = (en && en.value && en.value.figure && en.value.figure.sweepable) || [], axes = seriesAxes(p);
-  const lab = a => { const sw = sweep.find(x => x.key === a.key); return sw ? sw.label : a.label || ''; }, unit = a => { const sw = sweep.find(x => x.key === a.key); return sw && sw.unit ? sw.unit : ''; };   // the row's own label, never the id (review F2)
+  const lab = a => { const sw = sweep.find(x => x.key === a.key); const l = sw ? sw.label : a.label || ''; return sw && sweep.filter(x => x.label === l).length > 1 ? CHANGE_OF[sw.kind] + ': ' + l : l; },   /* a label that occurs twice (Rotation: Content's and Rotate & mirror's) says whose — review N1 */ unit = a => { const sw = sweep.find(x => x.key === a.key); return sw && sw.unit ? sw.unit : ''; };   // the row's own label, never the id (review F2)
   if (!axes.length) return p.mode === 'table' ? 'Table' : 'Series';   // nothing to sweep yet: the panel says why
   if (p.mode === 'series') { const a = axes[0], u = unit(a); return `Series: ${lab(a)} ${a.from}${u} → ${a.to}${u}`; }
   return `Table: ${lab(axes[0])}${axes[1] ? ' × ' + lab(axes[1]) : ''}`.replace(/\s+$/, '');
@@ -919,7 +925,7 @@ function renderInspectorBody(box, ids) {
       })) });
     const axisRows = (ax, i, name) => {   // Parameter · From · To (· Values in a Table) for one axis; names *‹Axis›: ‹row›* when there are two
       const sw = swOf(ax.key), q = name ? name + ': ' : '', id = 'fgi-' + (name ? name.toLowerCase() : 'axis'), unit = sw && sw.unit ? `<span class="panel-unit">${esc(sw.unit)}</span>` : '';
-      const groups = ['grid', 'palette', 'cells', 'transform'].map(kd => [CHANGE_OF[kd], sweep.filter(x => x.kind === kd).map(x => [x.key, x.label])]).filter(g => g[1].length);
+      const groups = ['grid', 'palette', 'content', 'cells', 'transform'].map(kd => [CHANGE_OF[kd], sweep.filter(x => x.kind === kd).map(x => [x.key, x.label])]).filter(g => g[1].length);
       const num = (k, label, v) => `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="number" class="panel-input" id="${id}-${k}" data-axis="${i}" data-k="${k}" value="${esc(v)}" min="${sw ? sw.min : ''}" max="${sw ? sw.max : ''}" step="${sw ? sw.step : 1}" aria-label="${esc(q + label)}">${unit}</div>`;
       return (name ? `<div class="sub-label">${name}</div>` : '')
         + `<div class="ctrl-row"><div class="ctrl-label">Parameter</div><select class="panel-select" id="${id}-param" data-axis="${i}" aria-label="${esc(q + 'Parameter')}">${groupedOptions(groups)}</select></div>`
@@ -961,8 +967,20 @@ function renderInspectorBody(box, ids) {
     // parameter keys). One row per input with its port colour as a dot; Grid and Palette open to their parameters.
     const VARY_ROWS = [['grid', 'Grid', 'grid'], ['palette', 'Palette', 'palette'], ['content', 'Content', 'content'], ['cells', 'Cell rules', 'rule'], ['transform', 'Rotate & mirror', 'rule']];
     const [, gridNode] = fig ? foundationOf(fig) : [null, null], gridGen = gridNode && gridNode.params ? gridNode.params.gen : 'rectangular';
-    const keysOf = k => k === 'grid' ? gridVaryKeys(gridGen) : k === 'palette' ? VARY_KEYS.palette : null;   // the rows that open (CONSULT: Grid and Palette for now)
-    const vary = p.vary || {}, isOn = k => vary[k] !== false && !(Array.isArray(vary[k]) && !vary[k].length), has = (k, key) => vary[k] == null || vary[k] === true || (Array.isArray(vary[k]) && vary[k].includes(key));
+    // the parameters that apply to this Figure, per input (one rule, O-62: a row opens when more than one applies; a parameter that never applies here is not listed)
+    const [, , palNode] = fig ? foundationOf(fig) : [null, null, null], chainN = fig ? chainNodesOf(fig) : [];
+    const contentNodes = fig ? ctl.model.edges.filter(e => e.to.node === fig.id && e.to.port === 'content').map(e => NC.findNode(ctl.model, e.from.node)).filter(Boolean) : [];
+    const setItems = contentNodes.filter(n => n.type === 'set').flatMap(n => (n.params.items || []).filter(x => x && x.snapshot));
+    const nContent = contentNodes.filter(n => n.type !== 'set').length + setItems.length, hasEl = contentNodes.some(n => n.type === 'element') || setItems.some(x => x.kind === 'element'), hasSetN = contentNodes.some(n => n.type === 'set' && (n.params.items || []).length > 1);
+    const cellRules = chainN.filter(n => n.type === 'cell-rules').flatMap(n => n.params.rules || []), tNode = chainN.find(n => n.type === 'transform'), tOnCells = tNode && !repeatBefore(tNode);
+    const applies = {
+      palette: key => key === 'order' ? (palNode && (palNode.params.colors || []).length > 1) : key === 'paper' ? !(palNode && palNode.params.transparent) : key === 'lib' ? (Organica.palette && Organica.palette.library ? Organica.palette.library() : []).some(q => q && q.colors && q.colors.length >= (palNode ? (palNode.params.colors || []).length : 1)) : true,
+      content: key => key === 'spread' ? nContent > 1 : key === 'item' ? hasSetN && !(hasSet && p.fanOut !== false) : hasEl,
+      cells: key => key === 'angle' ? cellRules.some(r => [90, 180, 270].includes((r.do || {}).rotate)) : key === 'parity' ? cellRules.some(r => (r.when || {}).parity) : cellRules.length > 0,
+      transform: key => !!tNode && (tOnCells ? (key === 'draw' ? !!tNode.params.randomAmount : key !== 'mirror') : key === 'turn' || key === 'mirror'),
+    };
+    const keysOf = k => { const all = k === 'grid' ? gridVaryKeys(gridGen) : (VARY_KEYS[k] || []).filter(([key]) => applies[k](key)); return all.length > 1 ? all : null; };
+    const vary = p.vary || {}, isOn = k => vary[k] !== false && !(Array.isArray(vary[k]) && !vary[k].length), has = (k, key) => Array.isArray(vary[k]) ? vary[k].includes(key) : !isOptIn(k, key);   // true / unset = any of it, the opt-ins off
     rows.push({ html: `<div class="sub-label">Vary</div>` + VARY_ROWS.map(([k, label, ink]) => {
       const keys = keysOf(k), open = varyOpen.has(node.id + ':' + k), off = only && (k === 'palette' || k === 'cells');
       return `<div class="fg-vary__row${open ? ' is-open' : ''}" data-vary-row="${k}"><div class="fg-vary__head"><label class="check-row"><span class="fg-vary__dot" data-ink="${ink}" aria-hidden="true"></span><input type="checkbox" data-vary="${k}"${isOn(k) ? ' checked' : ''}${off ? ' disabled' : ''}><span>${esc(label)}</span></label>`
@@ -973,8 +991,8 @@ function renderInspectorBody(box, ids) {
         box.querySelectorAll('[data-vary]').forEach(c => c.addEventListener('change', () => { p.vary = { ...(p.vary || {}), [c.dataset.vary]: c.checked }; edited(node, true); renderInspector(ids); }));
         box.querySelectorAll('[data-vary-open]').forEach(b => b.addEventListener('click', () => { const id = node.id + ':' + b.dataset.varyOpen; varyOpen.has(id) ? varyOpen.delete(id) : varyOpen.add(id); b.setAttribute('aria-expanded', varyOpen.has(id)); b.closest('.fg-vary__row').classList.toggle('is-open', varyOpen.has(id)); }));
         box.querySelectorAll('[data-vary-key]').forEach(c => c.addEventListener('change', () => {
-          const [k, key] = c.dataset.varyKey.split(':'), all = (keysOf(k) || []).map(x => x[0]), on = all.filter(x => x === key ? c.checked : has(k, x));
-          p.vary = { ...(p.vary || {}), [k]: on.length === all.length ? true : on.length ? on : false }; edited(node, true); renderInspector(ids);
+          const [k, key] = c.dataset.varyKey.split(':'), all = (keysOf(k) || []).map(x => x[0]), on = all.filter(x => x === key ? c.checked : has(k, x)), base = all.filter(x => !isOptIn(k, x));
+          p.vary = { ...(p.vary || {}), [k]: on.length === base.length && on.every(x => !isOptIn(k, x)) ? true : on.length ? on : false }; edited(node, true); renderInspector(ids);   // exactly the first level's set = "any of it"
         }));
       } });
     }   // end of the Random rows
@@ -993,7 +1011,7 @@ function renderInspectorBody(box, ids) {
     // the value; a number can be set by hand (the variation is then pinned and keeps the value — O-60 f); Use variation applies it
     if (par && v && v.spec && v.changes && v.changes.length) {
       const nested = par.type === 'figure-var', INK = { grid: 'grid', palette: 'palette', content: 'content', cells: 'rule', transform: 'rule' }, edits = v.spec.edits || {};
-      const shown = c => ['flip', 'off', 'parity'].includes(c.key) ? String(c.value) : c.text;   // a read-only change: on / off / odd / even, else the caption's words
+      const shown = c => c.shown != null ? c.shown : ['flip', 'off', 'parity'].includes(c.key) ? String(c.value) : c.text;   // a read-only change: its own word (O-62), on / off / odd / even, else the caption's words
       rows.push({ html: `<div class="sub-label">Changes</div>` + v.changes.map((c, i) => {
         const k = c.kind + ':' + c.key, name = `${CHANGE_OF[c.kind]}: ${c.label}`, val = edits[k] != null ? edits[k] : c.value;
         return `<div class="ctrl-row"><span class="fg-vary__dot" data-ink="${INK[c.kind]}" aria-hidden="true"></span><div class="ctrl-label">${esc(c.label)}</div>` + (c.edit && c.edit.type === 'number'

@@ -30,7 +30,7 @@ import {
   mulberry32
 } from './03-rules.js';
 import {
-  cwSolve
+  buildColourways, cwSolve
 } from './06-component-ui.js';
 import {
   componentCellsFromRule, ruleMatches, squareCR
@@ -258,7 +258,7 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   const pins = new Map(pinsFor(p, item, keys).filter(q => q.slot >= 1 && q.slot < want).map(q => [q.slot, q]));
   const queue = variationSpecs(p, want + 40);   // a variation only adjusts what is there (Oct 9, 2026): a Figure with few dials repeats itself more often — more tries
   let failed = 0;
-  const draw = async spec => { const vr = varyInputs(base.inputs, spec, st); const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra }); return { r, label: vr.label, changes: vr.changes }; };
+  const draw = async spec => { const vr = varyInputs(base.inputs, item != null ? { ...spec, fanOut: true } : spec, st); const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra }); return { r, label: vr.label, changes: vr.changes }; };
   main.variations = [{ key: 'base', svg: main.svg, label: 'As set up', pinned: false, spec: null, slot: 0, item }];
   const src = { inputs: base.inputs, extra: base.extra, params: p, raw: inputs };   // what a child Figure re-draws its variation from, with its own inputs; raw = before `fixed` (a Variations node draws again from it)
   for (let slot = 1; slot < want; slot++) {
@@ -368,8 +368,8 @@ export const KEEP_KEYS = ['content', 'palette', 'cells', 'grid', 'transform'];  
 // · false (never) · an array of its parameter keys (only those). The keys per category, in the panel's words:
 export const VARY_KEYS = {
   grid: null,   // the Grid generator's own numeric parameters (gridSpec), by their key — listed per generator
-  palette: [['hue', 'Hue'], ['order', 'Ink order']],
-  content: [['spread', 'Spread']],
+  palette: [['hue', 'Hue'], ['order', 'Ink order'], ['light', 'Lightness'], ['chroma', 'Chroma'], ['paper', 'Paper'], ['lib', 'Another palette'], ['colourway', 'Colourway']],   // light … colourway: opt-in (second level, phase G; words: design-system CONSULT, O-62)
+  content: [['spread', 'Spread'], ['rotation', 'Rotation'], ['flipH', 'Flip horizontal'], ['flipV', 'Flip vertical'], ['style', 'Style'], ['strokeW', 'Stroke width'], ['scale', 'Scale'], ['item', 'Item']],   // rotation … item: opt-in (phase H)
   cells: [['off', 'On / off'], ['angle', 'Angle'], ['parity', 'Odd / even']],
   transform: [['turn', 'Rotation'], ['flip', 'Flip'], ['per', 'Rotation per cell'], ['draw', 'Random draw'], ['mirror', 'Mirror']],   // mirror: after a Repeat in grid
 };
@@ -384,8 +384,12 @@ export function settingsOf(x) {
   KEEP_KEYS.forEach(k => { vary[k] = keep ? !keep[k] : normVary(x.vary ? x.vary[k] : true); });
   return { vary, amount: x.amount == null ? 50 : Math.max(0, Math.min(100, +x.amount || 0)) };
 }
+// The second level's parameters are OPT-IN: `vary[k] = true` (the default, "any of it") never includes them, so every
+// graph saved before draws exactly as it did; a parameter list that names one turns it on.
+export const OPT_IN = { palette: ['light', 'chroma', 'paper', 'lib', 'colourway'], content: ['rotation', 'flipH', 'flipV', 'style', 'strokeW', 'scale', 'item'] };
+export const isOptIn = (k, key) => (OPT_IN[k] || []).includes(key);
 // `allowed(st, k, key)`: may this category / this parameter of it change
-const allowed = (st, k, key) => { const v = st.vary[k]; return v === true || (Array.isArray(v) && (key == null || v.includes(key))); };
+const allowed = (st, k, key) => { const v = st.vary[k]; if (v === true) return key == null || !isOptIn(k, key); return Array.isArray(v) && (key == null || v.includes(key)); };
 // Older Variations params (`keep`, `varyBy`) → `vary`, `changes`, `onlyRandom`. Mutates and returns the params.
 export function migrateVariationParams(p) {
   if (!p) return p;
@@ -421,10 +425,60 @@ function changeGrid(inp, rng, st, spec, only) {
 }
 function changePalette(inp, rng, st, spec, only) {
   const pal = inp.palette; if (!pal || !pal.colors || !pal.colors.length) return null;
-  const C = Organica.color, canOrder = pal.colors.length > 1 && (only ? only === 'order' : allowed(st, 'palette', 'order')), canHue = only ? only === 'hue' : allowed(st, 'palette', 'hue');
-  if (!canOrder && !canHue) return null;
-  if (canOrder && (!canHue || rng() < 0.35)) { const c = pal.colors.slice(); c.push(c.shift()); inp.palette = { ...pal, colors: c }; return { kind: 'palette', key: 'order', label: 'Ink order', value: 'next', text: 'Inks in another order', edit: null }; }
-  const kk = kOf(st), turns = FG_HUE_TURNS.filter(t => kk <= 1 ? Math.abs(t) <= 30 + 150 * kk : Math.abs(t) >= 60 * kk);
+  const C = Organica.color, n = pal.colors.length, ok = key => only ? only === key : allowed(st, 'palette', key);
+  const canOrder = n > 1 && ok('order'), canHue = ok('hue'), extra = OPT_IN.palette.filter(ok);
+  let op;
+  if (!extra.length) { if (!canOrder && !canHue) return null; op = canOrder && (!canHue || rng() < 0.35) ? 'order' : 'hue'; }   // the first level's draw, unchanged
+  else { const opts = [...(canOrder ? ['order'] : []), ...(canHue ? ['hue'] : []), ...extra]; op = only || pick(opts, rng); }
+  const ground = pal.paper && pal.paper !== 'none' ? pal.paper : '#ffffff', kk = kOf(st), solve = inks => cwSolve(inks, ground) || inks;
+  if (op === 'light') {   // every ink's perceived lightness, a signed delta in TuneSutra's points (L × 100), kept apart and legible on the paper
+    let v = (rng() < 0.5 ? -1 : 1) * (3 + Math.floor(rng() * Math.max(1, Math.round(8 * kk)))); const e = editOf(spec, 'palette', 'light'); if (e != null) v = snapTo(e, -20, 20, 1);
+    if (!v && !only) return null;
+    inp.palette = { ...pal, colors: solve(pal.colors.map(h => { const o = C.hexToOklch(h); return C.oklchToHex(Math.min(0.97, Math.max(0.03, o.l + v / 100)), o.c, o.h); })) };
+    return { kind: 'palette', key: 'light', label: 'Lightness', value: v, from: 0, text: `Lightness ${v > 0 ? '+' : ''}${v}`, edit: { type: 'number', min: -20, max: 20, step: 1 } };
+  }
+  if (op === 'chroma') {   // every ink's chroma, a signed delta in TuneSutra's points (C × 100; the gamut map clamps per ink)
+    let v = (rng() < 0.5 ? -1 : 1) * (2 + Math.floor(rng() * Math.max(1, Math.round(4 * kk)))); const e = editOf(spec, 'palette', 'chroma'); if (e != null) v = snapTo(e, -10, 10, 1);
+    if (!v && !only) return null;
+    inp.palette = { ...pal, colors: solve(pal.colors.map(h => { const o = C.hexToOklch(h); return C.oklchToHex(o.l, Math.max(0, o.c + v / 100), o.h); })) };
+    return { kind: 'palette', key: 'chroma', label: 'Chroma', value: v, from: 0, text: `Chroma ${v > 0 ? '+' : ''}${v}`, edit: { type: 'number', min: -10, max: 10, step: 1 } };
+  }
+  if (op === 'paper') {   // the paper one step lighter or darker along its own scale (a transparent paper has no step)
+    if (pal.paper === 'none' || pal.transparent) return null;
+    const sc = C.scale(ground), at = sc.reduce((b, x, i) => Math.abs(x.l - C.hexToOklch(ground).l) < Math.abs(sc[b].l - C.hexToOklch(ground).l) ? i : b, 0);
+    const opts = [at > 0 ? ['lighter', sc[at - 1].hex] : null, at < sc.length - 1 ? ['darker', sc[at + 1].hex] : null].filter(Boolean).filter(([, h]) => h.toLowerCase() !== ground.toLowerCase());
+    if (!opts.length) return null;
+    const [name, hex] = only ? opts[0] : pick(opts, rng);
+    inp.palette = { ...pal, paper: hex, colors: cwSolve(pal.colors, hex) || pal.colors };
+    return { kind: 'palette', key: 'paper', label: 'Paper', value: name, text: `${name === 'lighter' ? 'Lighter' : 'Darker'} paper`, shown: name, edit: null };
+  }
+  if (op === 'lib') {   // the inks of another palette of the library (TuneSutra's saved ones + the built-ins) with at least as many inks; the resolved inks go on the record (and on a pin) so it redraws the same whatever the library does later
+    const fixed = editOf(spec, 'palette', 'lib');
+    let q;
+    if (fixed && Array.isArray(fixed.hexes)) q = fixed;
+    else {
+      const lib = (Organica.palette && Organica.palette.library ? Organica.palette.library() : []).filter(x => x && x.colors && x.colors.length >= n).map(x => ({ name: x.name, hexes: x.colors.slice(0, n).map(c => (c.hex || c).toLowerCase()) })).filter(x => x.hexes.join() !== pal.colors.map(h => h.toLowerCase()).join());
+      if (!lib.length) return null;
+      q = only ? lib[0] : pick(lib, rng);
+    }
+    inp.palette = { ...pal, colors: solve(q.hexes) };
+    return { kind: 'palette', key: 'lib', label: 'Another palette', value: { name: q.name, hexes: q.hexes }, text: `Inks from ${q.name}`, shown: q.name, edit: null, keep: true };
+  }
+  if (op === 'colourway') {   // one of the Component step's colourways of this palette (Tonal / Tint ground / Dark ground / Accent / Pair — Roles = Ink order, left out); the resolved colourway goes on the record
+    const fixed = editOf(spec, 'palette', 'colourway');
+    let cw;
+    if (fixed && Array.isArray(fixed.colors)) cw = fixed;
+    else {
+      let cws = []; try { cws = buildColourways({ colors: pal.colors, paper: ground, colorRule: { ...DEFAULT_COLOR_RULE, ...(pal.rule || {}) } }, null, n, 24).filter(x => x.scheme !== 'current' && x.scheme !== 'roles'); } catch (e) { cws = []; }
+      if (!cws.length) return null;
+      const c0 = only ? cws[0] : pick(cws, rng); cw = { label: c0.label, colors: c0.colors.slice(), paper: c0.paper, colorRule: { ...c0.colorRule } };
+    }
+    inp.palette = { ...pal, colors: cw.colors.slice(), paper: cw.paper, rule: { ...cw.colorRule } };
+    const [scheme, note] = String(cw.label).split(' · ');
+    return { kind: 'palette', key: 'colourway', label: 'Colourway', value: cw, text: `Colourway ${scheme}`, shown: note ? `${scheme}, ${note}` : scheme, edit: null, keep: true };
+  }
+  if (op === 'order') { const c = pal.colors.slice(); c.push(c.shift()); inp.palette = { ...pal, colors: c }; return { kind: 'palette', key: 'order', label: 'Ink order', value: 'next', text: 'Inks in another order', edit: null }; }
+  const turns = FG_HUE_TURNS.filter(t => kk <= 1 ? Math.abs(t) <= 30 + 150 * kk : Math.abs(t) >= 60 * kk);
   let turn = only ? 0 : pick(turns.length ? turns : FG_HUE_TURNS, rng);
   const e = editOf(spec, 'palette', 'hue'); if (e != null) turn = snapTo(e, -180, 180, 1);
   if (!turn && !only) return null;
@@ -496,7 +550,57 @@ function changeTransform(inp, rng, st, spec, only) {
   rules[i] = r; inp.rules = rules; return out;
 }
 export const CHANGE_OF = { grid: 'Grid', palette: 'Palette', content: 'Content', cells: 'Cell rules', transform: 'Rotate & mirror' };   // UI-COPY §2 names
-const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells: changeCells, transform: changeTransform };
+// Content (phase H): the spread of several contents over the cells (as before), or — opt-in — the first Element turned a
+// quarter in every cell (rotation), flipped (flipH / flipV), its Style swapped fill ↔ stroke, its stroke width or scale
+// changed, or — a wired Set — one of its items as the whole content (item; never in a fan-out). Words: O-62.
+// `extra` takes the content seed (the spread). The library is never read: a content node draws from its own entry.
+function changeContent(inp, rng, st, spec, only, extra) {
+  const list = (inp.content || []).filter(Boolean), ok = key => only ? only === key : allowed(st, 'content', key), ed = key => editOf(spec, 'content', key);
+  const firstEl = () => { for (let i = 0; i < list.length; i++) { const c = list[i]; if (c.kind === 'element' && c.entry) return [i, null, c]; if (c.kind === 'set') { const j = (c.items || []).findIndex(x => x && x.kind === 'element' && x.entry); if (j >= 0) return [i, j, c.items[j]]; } } return null; };
+  const el = firstEl(), set = list.find(c => c.kind === 'set' && (c.items || []).length > 1), opts = [];
+  if (contentCount(inp) > 1 && ok('spread')) opts.push('spread');
+  if (el) ['rotation', 'flipH', 'flipV', 'style', 'strokeW', 'scale'].forEach(k => { if (ok(k)) opts.push(k); });
+  if (set && !spec.fanOut && ok('item')) opts.push('item');
+  if (!opts.length) return null;
+  const op = only || (opts.length === 1 && opts[0] === 'spread' ? 'spread' : pick(opts, rng));   // one option = no draw (the first level's spread consumed none)
+  if (op === 'spread') { extra.contentSeed = Math.floor(rng() * 1e9); return { kind: 'content', key: 'spread', label: 'Spread', value: extra.contentSeed, text: 'New spread', shown: 'new', edit: null }; }
+  if (op === 'item') {
+    const fixed = ed('item'), names = set.items.map(x => x && x.name), cur = names.indexOf(fixed) >= 0 ? names.indexOf(fixed) : -1;
+    const i = cur >= 0 ? cur : only ? 0 : Math.floor(rng() * set.items.length), it = set.items[i];
+    inp.content = list.map(c => c === set ? it : c);
+    return { kind: 'content', key: 'item', label: 'Item', value: it.name, text: `Item ${it.name}`, shown: it.name, edit: null, keep: true };
+  }
+  const entry = el[2].entry, kk = kOf(st);
+  // a changed entry is drawn by the general path (a built-in's recipe path reads neither appearance nor orientation — review B1): `recipe` goes
+  const put = e2 => { const [i, j, c] = el, { recipe, ...clean } = e2, nc = { ...c, entry: clean }, copy = list.slice(); void recipe; if (j == null) copy[i] = nc; else copy[i] = { ...list[i], items: list[i].items.map((x, k) => k === j ? nc : x) }; inp.content = copy; };
+  const o = entry.orientation || {}, a = entry.appearance || {};
+  if (op === 'rotation') {
+    let r = ((+o.rotation || 0) + (only ? 0 : 90)) % 360; const e = ed('rotation'); if (e != null) r = snapTo(e, 0, 270, 90);
+    if (r !== (+o.rotation || 0)) put({ ...entry, orientation: { ...o, rotation: r } });   // an identity step (a Series from the current value) leaves the entry — and its recipe — as it is
+    return { kind: 'content', key: 'rotation', label: 'Rotation', value: r, from: +o.rotation || 0, text: `Rotation ${r}°`, edit: { type: 'number', min: 0, max: 270, step: 90, unit: '°' } };
+  }
+  if (op === 'flipH' || op === 'flipV') {
+    const on = !o[op]; put({ ...entry, orientation: { ...o, [op]: on } });
+    const which = op === 'flipH' ? 'Flip horizontal' : 'Flip vertical';
+    return { kind: 'content', key: op, label: which, value: on ? 'on' : 'off', text: `${on ? 'On' : 'Off'}: ${which}`, shown: on ? 'on' : 'off', edit: null };
+  }
+  if (op === 'style') {
+    const mode = a.fillMode === 'stroke' ? 'fill' : 'stroke';
+    put({ ...entry, appearance: { ...a, fillMode: mode, strokeW: a.strokeW || 4 } });
+    return { kind: 'content', key: 'style', label: 'Style', value: mode, text: mode === 'stroke' ? 'Stroke' : 'Fill', shown: mode, edit: null };
+  }
+  if (op === 'strokeW') {
+    const cur = +a.strokeW || 4; let w = cur + (only ? 0 : (rng() < 0.5 ? -1 : 1) * (1 + Math.floor(rng() * Math.max(1, Math.round(3 * kk))))); const e = ed('strokeW'); if (e != null) w = e; w = snapTo(w, 1, 20, 1);
+    if (w === cur && !only) return null;
+    if (w !== cur) put({ ...entry, appearance: { ...a, fillMode: a.fillMode === 'fill' || !a.fillMode ? 'stroke' : a.fillMode, strokeW: w } });   // a width needs a stroke to show
+    return { kind: 'content', key: 'strokeW', label: 'Stroke width', value: w, from: cur, text: `Stroke width ${w}`, edit: { type: 'number', min: 1, max: 20, step: 1 } };
+  }
+  const cur = Math.round((+a.scale || 1) * 100); let pc = cur + (only ? 0 : (rng() < 0.5 ? -1 : 1) * 10 * (1 + Math.floor(rng() * Math.max(1, Math.round(3 * kk))))); const e = ed('scale'); if (e != null) pc = e; pc = snapTo(pc, 10, 500, 10);
+  if (pc === cur && !only) return null;
+  if (pc !== cur) put({ ...entry, appearance: { ...a, scale: pc / 100 } });
+  return { kind: 'content', key: 'scale', label: 'Scale', value: pc, from: cur, text: `Scale ${pc}%`, edit: { type: 'number', min: 10, max: 500, step: 10, unit: '%' } };
+}
+const CHANGES = { grid: changeGrid, palette: changePalette, content: changeContent, cells: changeCells, transform: changeTransform };
 const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) => n + (c.kind === 'set' ? c.items.length : 1), 0);   // a Set counts its items
 // `settings`: a Variations node's params (`vary`, `amount`) or an older `keep` object — see settingsOf().
 // → { inputs, extra, label, changes } — `changes` the records above (each with `text`; the label = the records' texts,
@@ -504,7 +608,7 @@ const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) =>
 export function varyInputs(inputs, spec, settings) {
   const st = settingsOf(settings);
   const inp = { ...inputs, rules: chainOf(inputs.rules) }, rng = mulberry32((spec.seed * 2654435761) >>> 0), changes = [], extra = {};
-  const spread = () => { extra.contentSeed = Math.floor(rng() * 1e9); changes.push({ kind: 'content', key: 'spread', label: 'Spread', value: extra.contentSeed, text: 'Content spread', edit: null }); };
+  const spread = () => { extra.contentSeed = Math.floor(rng() * 1e9); changes.push({ kind: 'content', key: 'spread', label: 'Spread', value: extra.contentSeed, text: 'New spread', shown: 'new', edit: null }); };
   const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells, a rule's Random rotation
     let did = false;
     if (allowed(st, 'grid', 'seed') && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { const seed = Math.floor(rng() * 1000); inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed } }; changes.push({ kind: 'grid', key: 'seed', label: 'Seed', value: seed, text: 'new seed', edit: null }); did = true; }
@@ -516,19 +620,18 @@ export function varyInputs(inputs, spec, settings) {
     }
     return did;
   };
-  const done = () => ({ inputs: inp, extra, changes, label: changes.map(c => (c.kind === 'content' ? '' : CHANGE_OF[c.kind] + ': ') + c.text).join(' · ') || 'No change' });
+  const done = () => ({ inputs: inp, extra, changes, label: changes.map(c => CHANGE_OF[c.kind] + ': ' + c.text).join(' · ') || 'No change' });   // every change prefixed with its input, Content too (O-62)
   if (spec.mode === 'set') {   // Series / Table (Phase E): the given parameters set to the given values, in key order — deterministic, Vary and Amount do not apply
     const sp = { ...spec, edits: { ...(spec.set || {}), ...(spec.edits || {}) } };
-    Object.keys(spec.set || {}).forEach(k => { const [kind, key] = k.split(':'); const f = CHANGES[kind]; const c = f ? f(inp, rng, st, sp, key) : null; if (c) changes.push(c); });
+    Object.keys(spec.set || {}).forEach(k => { const [kind, key] = k.split(':'); const f = CHANGES[kind]; const c = f ? f(inp, rng, st, sp, key, extra) : null; if (c) changes.push(c); });
     return done();
   }
-  const kinds = KEEP_KEYS.filter(k => allowed(st, k) && (k !== 'content' || (contentCount(inp) > 1 && allowed(st, 'content', 'spread'))));
+  const kinds = KEEP_KEYS.filter(k => allowed(st, k) && (k !== 'content' || (contentCount(inp) > 1 && allowed(st, 'content', 'spread')) || OPT_IN.content.some(key => allowed(st, 'content', key))));
   if (spec.mode === 'seed' && reseed()) return done();
   const want = spec.mode === 'several' ? 2 + Math.floor(rng() * 2) : spec.mode === 'changes' ? Math.max(1, Math.min(3, +spec.changes || 1)) : 1;
   for (let tries = 0; tries < 12 && changes.length < want && kinds.length; tries++) {
     const k = pick(kinds, rng);
-    if (k === 'content') { spread(); kinds.splice(kinds.indexOf(k), 1); continue; }
-    const c = CHANGES[k](inp, rng, st, spec); if (c) { changes.push(c); kinds.splice(kinds.indexOf(k), 1); }   // what changed, said with the input it changed (Diego, Oct 9, 2026)
+    const c = CHANGES[k](inp, rng, st, spec, null, extra); if (c) { changes.push(c); kinds.splice(kinds.indexOf(k), 1); }   // what changed, said with the input it changed (Diego, Oct 9, 2026)
   }
   return done();
 }
@@ -548,7 +651,9 @@ export function seriesCount(p) { const ax = seriesAxes(p); return ax.length ? Ma
 export function sweepableOf(inputs) {
   const out = [], rules = chainOf(inputs.rules), g = inputs.grid;
   if (g) { const p = { ...gridDefaults(g.gen), ...(g.params || {}) }; gridSpec(g.gen).params.filter(x => x[2] !== 'text').forEach(([k, label, a, b, step]) => out.push({ key: 'grid:' + k, kind: 'grid', label, min: a, max: b, step, cur: +p[k] })); }
-  if (inputs.palette && inputs.palette.colors && inputs.palette.colors.length) out.push({ key: 'palette:hue', kind: 'palette', label: 'Hue', min: -180, max: 180, step: 15, unit: '°', cur: 0 });
+  if (inputs.palette && inputs.palette.colors && inputs.palette.colors.length) { out.push({ key: 'palette:hue', kind: 'palette', label: 'Hue', min: -180, max: 180, step: 15, unit: '°', cur: 0 }); out.push({ key: 'palette:light', kind: 'palette', label: 'Lightness', min: -20, max: 20, step: 1, cur: 0 }); out.push({ key: 'palette:chroma', kind: 'palette', label: 'Chroma', min: -10, max: 10, step: 1, cur: 0 }); }
+  const anyEl = (inputs.content || []).filter(Boolean).some(c => (c.kind === 'element' && c.entry) || (c.kind === 'set' && (c.items || []).some(x => x && x.kind === 'element' && x.entry)));
+  if (anyEl) { const e = (inputs.content || []).filter(Boolean).flatMap(c => c.kind === 'set' ? (c.items || []) : [c]).find(c => c && c.kind === 'element' && c.entry).entry, a = e.appearance || {}; out.push({ key: 'content:rotation', kind: 'content', label: 'Rotation', min: 0, max: 270, step: 90, unit: '°', cur: +(e.orientation || {}).rotation || 0 }); out.push({ key: 'content:strokeW', kind: 'content', label: 'Stroke width', min: 1, max: 20, step: 1, cur: +a.strokeW || 4 }); out.push({ key: 'content:scale', kind: 'content', label: 'Scale', min: 10, max: 500, step: 10, unit: '%', cur: Math.round((+a.scale || 1) * 100) }); }
   const angled = rules.find(r => r.kind === 'cells' && (r.rules || []).some(q => typeof (q.do || {}).rotate === 'number' && ANGLES.includes(q.do.rotate)));
   if (angled) out.push({ key: 'cells:angle', kind: 'cells', label: 'Angle', min: 90, max: 270, step: 90, unit: '°', cur: angled.rules.find(q => typeof (q.do || {}).rotate === 'number' && ANGLES.includes(q.do.rotate)).do.rotate });
   const ti = rules.findIndex(r => r.kind === 'transform');

@@ -399,7 +399,33 @@ const ch = await P.ev(`
     // Changes as records + edits (Phase D): varyInputs returns the changes it made; an edit by 'kind:key' replaces the drawn
     // value and leaves the other changes as they were (the rng is consumed the same)
     const two = Array.from({ length: 40 }, (_, k) => V(inp, { mode: 'changes', changes: 2, seed: k + 1 })).find(r => r.changes.length === 2 && r.changes.some(c => c.kind === 'grid' && c.key === 'cols'));
-    res.varRecords = !!two && two.changes.every(c => c.kind && c.key && c.label && c.text != null) && two.label === two.changes.map(c => (c.kind === 'content' ? '' : F('CHANGE_OF')[c.kind] + ': ') + c.text).join(' · ');
+    res.varRecords = !!two && two.changes.every(c => c.kind && c.key && c.label && c.text != null) && two.label === two.changes.map(c => F('CHANGE_OF')[c.kind] + ': ' + c.text).join(' · ');
+    // Palette and Content, second level (phases G + H): opt-in — the default draws as before (varSame); each key changes what it says
+    const PK = key => ({ vary: { palette: [key], grid: false, cells: false, transform: false, content: false } }), L = (k, st) => V(inp, { mode: 'one', seed: k }, st);
+    const lt = L(3, PK('light')), ch = L(3, PK('chroma')), pp = L(3, PK('paper')), lb = L(3, PK('lib')), cwv = L(3, PK('colourway'));
+    res.gLight = /^Palette: Lightness [+-]\\d+$/.test(lt.label) && lt.inputs.palette.colors.join() !== inp.palette.colors.join() && lt.changes[0].edit.min === -20;
+    res.gChroma = /^Palette: Chroma [+-]\\d+$/.test(ch.label) && ch.changes[0].edit.max === 10;
+    res.gPaper = /^Palette: (Lighter|Darker) paper$/.test(pp.label) && pp.inputs.palette.paper !== '#ffffff' && /^(lighter|darker)$/.test(pp.changes[0].shown);
+    res.gLib = /^Palette: Inks from .+/.test(lb.label) && lb.changes[0].keep === true && Array.isArray(lb.changes[0].value.hexes) && lb.changes[0].shown === lb.changes[0].value.name;
+    const lb2 = V(inp, { mode: 'one', seed: 3, edits: { 'palette:lib': { name: 'Fixed', hexes: ['#112233', '#445566'] } } }, PK('lib'));   // a pin keeps the resolved inks
+    res.gLibPin = lb2.label === 'Palette: Inks from Fixed' && lb2.inputs.palette.colors.length === 2;
+    res.gCw = /^Palette: Colourway [A-Z][a-z ]+$/.test(cwv.label) && cwv.changes[0].keep === true && Array.isArray(cwv.changes[0].value.colors) && !/Roles/.test(cwv.label);
+    const inpE = { ...inp, content: [{ kind: 'element', name: 'E', entry: { seed: { type: 'arc' }, appearance: { fillMode: 'fill', strokeW: 4, scale: 1 }, orientation: { rotation: 0 } } }] };
+    const CK = key => ({ vary: { content: [key], grid: false, cells: false, transform: false, palette: false } }), E = (k, key) => V(inpE, { mode: 'one', seed: k }, CK(key));
+    const rot = E(1, 'rotation'), fh = E(1, 'flipH'), sty = E(1, 'style'), sw2 = E(1, 'strokeW'), sc = E(1, 'scale');
+    res.hContent = rot.label === 'Content: Rotation 90°' && rot.inputs.content[0].entry.orientation.rotation === 90 && fh.label === 'Content: On: Flip horizontal' && fh.inputs.content[0].entry.orientation.flipH === true && sty.label === 'Content: Stroke' && sty.inputs.content[0].entry.appearance.fillMode === 'stroke' && /^Content: Stroke width \\d+$/.test(sw2.label) && /^Content: Scale \\d+%$/.test(sc.label) && sc.changes[0].edit.unit === '%';
+    const inpS = { ...inp, content: [{ kind: 'set', items: [{ kind: 'element', name: 'A', entry: inpE.content[0].entry }, { kind: 'element', name: 'B', entry: inpE.content[0].entry }] }] };
+    const it = V(inpS, { mode: 'one', seed: 2 }, CK('item')), itF = V(inpS, { mode: 'one', seed: 2, fanOut: true }, CK('item')), itP = V(inpS, { mode: 'one', seed: 2, edits: { 'content:item': 'B' } }, CK('item'));
+    res.hItem = /^Content: Item [AB]$/.test(it.label) && it.inputs.content[0].kind === 'element' && itF.label === 'No change' && itP.label === 'Content: Item B' && itP.inputs.content[0].name === 'B';
+    const sp2 = V(inpS, { mode: 'seed', seed: 2 }); res.hSpread = /^Content: New spread( · Rotate & mirror: New random draw)?$/.test(sp2.label) && sp2.changes[0].shown === 'new';
+    // a built-in's Element (its entry carries a recipe): a Content change draws (the SVG differs), an identity step does not (review B1)
+    { const def = Object.values(F('figureCatalog')())[0], entry = F('entrySnapshot')(F('elementEntryFromRecipe')(def.element));
+      const cv = F('canvasOf')({ preset: 'Square 1:1', mode: 'screen', pw: 1080, ph: 1080, margin: 5 }), inpR = { canvas: cv, grid: { gen: 'lattice-square', params: { cols: 2, rows: 2 } }, palette: { colors: ['#1a1a1a', '#e85d3a'], paper: '#ffffff' }, content: [{ kind: 'element', name: 'R', entry }], rules: [] };
+      const base = await F('compileFigure')(inpR, {}, { checks: false }), K2 = s => s.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
+      const outs = {}; for (const key of ['style', 'rotation', 'scale', 'flipH', 'strokeW']) { const vr = V(inpR, { mode: 'one', seed: 1 }, CK(key)); outs[key] = vr.label !== 'No change' && K2((await F('compileFigure')(vr.inputs, {}, { checks: false })).svg) !== K2(base.svg); }
+      const same = V(inpR, { mode: 'set', set: { 'content:rotation': 0 }, seed: 1 }); outs.identity = same.label === 'Content: Rotation 0°' && K2((await F('compileFigure')(same.inputs, {}, { checks: false })).svg) === K2(base.svg);
+      res.hRecipe = outs; }
+    const swE = F('sweepableOf')(inpE); res.hSweep = ['content:rotation', 'content:strokeW', 'content:scale', 'palette:light', 'palette:chroma'].every(k => swE.some(x => x.key === k));
     if (two) { const seedK = (two.changes[0].kind === 'grid' ? 1 : 0), ed = V(inp, { mode: 'changes', changes: 2, seed: Array.from({ length: 40 }, (_, k) => k + 1).find(k => { const r = V(inp, { mode: 'changes', changes: 2, seed: k }); return r.changes.length === 2 && r.changes.some(c => c.kind === 'grid' && c.key === 'cols'); }), edits: { 'grid:cols': 8 } });
       const other = c => c.kind !== 'grid';
       res.varEdit = ed.inputs.grid.params.cols === 8 && ed.changes.find(c => c.kind === 'grid').value === 8 && /Grid: Columns 8/.test(ed.label) && JSON.stringify(ed.changes.filter(other)) === JSON.stringify(two.changes.filter(other)); void seedK; }
@@ -492,6 +518,9 @@ check(ch.varSame, 'variations: the default settings draw exactly as before Vary 
 check(ch.varThree, 'variations: Changes 3 makes three changes when the figure has the dials');
 check(ch.varAmt0 && ch.varAmt100, 'variations: Amount 0 takes the smallest steps (one grid step, ±30° of hue), 100 the widest (Columns 8, ±120° / 180°)');
 check(ch.sweep && ch.setMode && ch.seriesSpecs, 'variations: sweepable parameters from the inputs; a set spec sets exactly those values; series steps snapped, a table row-major');
+check(ch.gLight && ch.gChroma && ch.gPaper && ch.gLib && ch.gLibPin && ch.gCw, 'variations: Palette Lightness / Chroma / Paper / Another palette (kept on a pin) / Colourway, opt-in — ' + JSON.stringify([ch.gLight, ch.gChroma, ch.gPaper, ch.gLib, ch.gLibPin, ch.gCw]));
+check(ch.hRecipe && Object.values(ch.hRecipe).every(Boolean), 'variations: on a built-in Element every Content key changes the drawing, an identity step does not — ' + JSON.stringify(ch.hRecipe));
+check(ch.hContent && ch.hItem && ch.hSpread && ch.hSweep, 'variations: Content Rotation / Flip / Style / Stroke width / Scale / Item (never in a fan-out, kept on a pin), New spread prefixed, sweepable — ' + JSON.stringify([ch.hContent, ch.hItem, ch.hSpread, ch.hSweep]));
 check(ch.varRecords && ch.varEdit, 'variations: changes come as records (kind · key · label · text = the label); an edit by kind:key replaces that value and leaves the other change as drawn');
 check(ch.varMig && ch.varSpecs, 'variations: older keep / varyBy params migrate to vary / changes / onlyRandom; one change keeps the older spec key');
 check(ch.varMigrated, 'a Figure saved with variations gets a Variations node with its settings, and its Export');
