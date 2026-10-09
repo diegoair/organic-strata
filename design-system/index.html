@@ -1996,14 +1996,12 @@ Organica.fvsField.mount(field, {
             <button type="button" class="org-floatbar__btn" aria-label="Rule nodes" aria-expanded="false" aria-controls="ds-dock-panel" data-icon-slot data-ds-ico="node-rule"></button>
             <button type="button" class="org-floatbar__btn" aria-label="Output nodes" aria-expanded="false" aria-controls="ds-dock-panel" data-icon-slot data-ds-ico="node-output"></button>
           </div>
-          <div class="org-floatbar org-dock__panel" id="ds-dock-panel" role="region" aria-label="Foundation" data-open="true">
-            <button type="button" class="org-btn org-btn--sm">Canvas</button>
-            <button type="button" class="org-btn org-btn--sm">Grid</button>
-            <button type="button" class="org-btn org-btn--sm">Palette</button>
+          <div class="org-floatbar org-dock__panel nc-nodebar__panel" id="ds-dock-panel" role="region" aria-label="Foundation" data-open="true">
+            <div class="nc-nodebar__list" data-ds-bar="Foundation"></div>
           </div>
         </div>
       </div>
-      <p class="ds-note">The demo is placed in the flow (<code>position: static</code>) — the real dock is fixed on the left, vertically centred. The panel’s content belongs to the occupant (here the Figure graph’s node bar, Foundation open, laid out schematically; the real pill items are under <a href="#node-canvas">Node board</a>, both themes).</p>
+      <p class="ds-note">The demo is placed in the flow (<code>position: static</code>) — the real dock is fixed on the left, vertically centred. The panel’s content belongs to the occupant (here the Figure graph’s node bar, Foundation open, with the real tile items built by <code>body.tile</code>; both themes under <a href="#node-canvas">Node board</a>).</p>
       <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-dock"</span> <span class="attr">role</span>=<span class="str">"group"</span> <span class="attr">aria-label</span>=<span class="str">"Nodes"</span>&gt;
   &lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-floatbar org-dock__bar"</span> <span class="attr">role</span>=<span class="str">"toolbar"</span> <span class="attr">aria-label</span>=<span class="str">"Nodes"</span> <span class="attr">aria-orientation</span>=<span class="str">"vertical"</span>&gt;
     &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-floatbar__btn"</span> <span class="attr">aria-label</span>=<span class="str">"Foundation nodes"</span> <span class="attr">aria-expanded</span>=<span class="str">"false"</span> <span class="attr">aria-controls</span>=<span class="str">"my-dock-panel"</span>&gt;…icon…&lt;/<span class="tag">button</span>&gt;
