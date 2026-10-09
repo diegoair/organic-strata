@@ -406,11 +406,11 @@ function changeTransform(inp, rng) {
     else if (o === 'flip') {
       const axis = rng() < 0.5 ? 'v' : 'h', has = x => t.mirror === x || t.mirror === 'vh', on = !has(axis);
       const v = axis === 'v' ? on : has('v'), h = axis === 'h' ? on : has('h'); t.mirror = v && h ? 'vh' : v ? 'v' : h ? 'h' : 'none';
-      label = `Flip ${axis === 'v' ? 'horizontal' : 'vertical'} ${on ? 'on' : 'off'}`;
+      label = `${on ? 'On' : 'Off'}: Flip ${axis === 'v' ? 'horizontal' : 'vertical'}`;   // the Cell rules' form
     } else if (o === 'per') {
       const s = c.turnStep || { deg: 0, by: 'index' }, deg = ((s.deg + by()) % 360 + 360) % 360;
       if (deg) c.turnStep = { ...s, deg }; else delete c.turnStep;
-      label = `${deg}° per ${{ row: 'row', col: 'column' }[s.by] || 'cell'}`;
+      label = `+${deg}° per ${{ row: 'row', col: 'column' }[s.by] || 'cell'}`;   // as the card says it
     } else { c.turnRandom = { ...c.turnRandom, seed: Math.floor(rng() * 1e6) }; label = 'New random draw'; }
     if (!Object.keys(c).length) delete r.cells;
   }
@@ -428,7 +428,7 @@ export function varyInputs(inputs, spec, keep) {
     if (!keep.content && contentCount(inp) > 1) { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); did = true; }
     if (!keep.transform && inp.rules.some(r => r.kind === 'transform' && r.cells && r.cells.turnRandom)) {   // a rule's own luck: Random rotation draws again
       inp.rules = inp.rules.map(r => r.kind === 'transform' && r.cells && r.cells.turnRandom ? { ...r, cells: { ...r.cells, turnRandom: { ...r.cells.turnRandom, seed: Math.floor(rng() * 1e6) } } } : r);
-      labels.push('Rotate & mirror: new random draw'); did = true;
+      labels.push('Rotate & mirror: New random draw'); did = true;
     }
     return did;
   };

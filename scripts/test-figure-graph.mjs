@@ -337,9 +337,10 @@ const ch = await P.ev(`
     const none = { ...inp, rules: [] }, labels = [], lens = [];
     for (let k = 1; k <= 60; k++) { const a = V(inp, { mode: 'one', seed: k }), b = V(none, { mode: 'several', seed: k }); labels.push(a.label); lens.push(a.inputs.rules.length, b.inputs.rules.length - 0); }
     res.varNoAdd = lens.every((n, i) => n === (i % 2 ? 0 : 1));
-    res.varTransform = labels.filter(l => /^Rotate & mirror: (Rotation \d+°|Flip (horizontal|vertical) (on|off)|\d+° per cell|New random draw)$/.test(l)).length;
+    const forms = [/^Rotate & mirror: Rotation \\d+°$/, /^Rotate & mirror: (On|Off): Flip (horizontal|vertical)$/, /^Rotate & mirror: \\+\\d+° per cell$/, /^Rotate & mirror: New random draw$/];
+    res.varTransform = labels.filter(l => forms.some(f => f.test(l))).length; res.varForms = forms.map(f => labels.some(l => f.test(l)));
     const sd = V(inp, { mode: 'seed', seed: 4 });
-    res.varSeedDraw = /Rotate & mirror: new random draw/.test(sd.label) && sd.inputs.rules[0].cells.turnRandom.seed !== 3 && sd.inputs.rules[0].cells.turnRandom.amount === 30;
+    res.varSeedDraw = /Rotate & mirror: New random draw/.test(sd.label) && sd.inputs.rules[0].cells.turnRandom.seed !== 3 && sd.inputs.rules[0].cells.turnRandom.amount === 30;
     res.varKept = !/Rotate & mirror/.test(V(inp, { mode: 'seed', seed: 4 }, { transform: true }).label); }
   return res;`, PRE);
 const fails = [];
@@ -415,7 +416,7 @@ check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4; Radial refuses odd si
 check(ch.chkOpts, 'rules: Checkerboard Swap A and B / Flip B change the drawing');
 check(ch.migrated, 'rules: a graph saved with parallel rule wires becomes one chain, drawing as before');
 check(ch.varNoAdd, 'variations: never add a rule to the chain (with one rule and with none)');
-check(ch.varTransform >= 5, 'variations: Rotate & mirror on the cells is varied, in the panel words (' + ch.varTransform + ' of 60)');
+check(ch.varTransform >= 5 && ch.varForms.every(Boolean), 'variations: Rotate & mirror on the cells is varied, in the panel words (' + ch.varTransform + ' of 60, forms seen ' + ch.varForms + ')');
 check(ch.varSeedDraw && ch.varKept, 'variations: Seed draws Random rotation again (same amount), Keep Rotate & mirror stops it');
 check(ch.varMigrated, 'a Figure saved with variations gets a Variations node with its settings, and its Export');
 check(out.after, 'FVS state unchanged by graph runs');

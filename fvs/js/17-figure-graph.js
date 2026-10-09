@@ -257,19 +257,23 @@ function writeRule(node, r) {   // a rule (ruleOf's shape) back into its node's 
   }
 }
 function useVariation(fig, v, keep, child) {
+  // a variation with inputs of its own was drawn from other inputs than its Figure's: replaying its change on the Figure
+  // could write to the wrong nodes — say so instead (review note, Oct 9, 2026)
+  if (ctl.model.edges.some(e => e.to.node === child.id && e.to.port !== 'from')) { Organica.notice(`${nodeLabel(child)} has its own inputs — use New Figure from this instead`); return; }
   const raw = figureInputsOf(fig), same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const base = [].concat(fig.params.fixed || []).reduce((b, spec) => { const x = varyInputs(b.inputs, spec, spec.keep || {}); return { inputs: x.inputs, extra: { ...b.extra, ...x.extra } }; }, { inputs: raw, extra: {} });
-  const vr = varyInputs(base.inputs, v.spec, keep), now = vr.inputs, changed = [];
+  const vr = varyInputs(base.inputs, v.spec, keep), now = vr.inputs, changed = [], shared = new Set(); let unlinked = null;
   const [, gr, pa] = foundationOf(fig);
-  if (gr && !same(now.grid, raw.grid)) { gr.params = { ...gr.params, gen: now.grid.gen, params: { ...now.grid.params } }; ctl.touch(gr.id); changed.push(nodeLabel(gr)); }
-  if (pa && now.palette && raw.palette && !same(now.palette.colors, raw.palette.colors)) { pa.params = { ...pa.params, colors: now.palette.colors.slice() }; delete pa.params.source; ctl.touch(pa.id); changed.push(nodeLabel(pa)); }
+  const alsoFeeds = n => ctl.model.edges.filter(e => e.from.node === n.id && e.to.node !== fig.id).map(e => NC.findNode(ctl.model, e.to.node)).filter(x => x && x.type === 'figure').forEach(x => shared.add(nodeLabel(x)));
+  if (gr && !same(now.grid, raw.grid)) { alsoFeeds(gr); gr.params = { ...gr.params, gen: now.grid.gen, params: { ...now.grid.params } }; ctl.touch(gr.id); changed.push(nodeLabel(gr)); }
+  if (pa && now.palette && raw.palette && !same(now.palette.colors, raw.palette.colors)) { alsoFeeds(pa); if (pa.params.source) unlinked = nodeLabel(pa); pa.params = { ...pa.params, colors: now.palette.colors.slice() }; delete pa.params.source; ctl.touch(pa.id); changed.push(nodeLabel(pa)); }
   const was = chainOf(raw.rules), after = chainOf(now.rules), nodes = chainNodesOf(fig);
   after.forEach((r, i) => { const n = nodes[i]; if (n && !same(r, was[i])) { writeRule(n, r); ctl.touch(n.id); changed.push(nodeLabel(n)); } });
   const extra = { ...base.extra, ...vr.extra };
-  if (extra.contentSeed != null && extra.contentSeed !== fig.params.contentSeed) { fig.params.contentSeed = extra.contentSeed; changed.push('content spread'); }
+  if (extra.contentSeed != null && extra.contentSeed !== fig.params.contentSeed) { fig.params.contentSeed = extra.contentSeed; changed.push('Content'); }
   if (fig.params.fixed) delete fig.params.fixed;
   ctl.touch(fig.id); ctl.refresh(); ctl.select([fig.id]); ctl.commit('use-variation'); save();
-  Organica.notice(changed.length ? `${nodeLabel(fig)} now uses ${nodeLabel(child)} — changed: ${[...new Set(changed)].join(', ')}` : `${nodeLabel(child)} is already ${nodeLabel(fig)}`);
+  Organica.notice(changed.length ? `${nodeLabel(fig)} now uses ${nodeLabel(child)} — changed: ${[...new Set(changed)].join(', ')}${shared.size ? ` — also changes ${[...shared].join(', ')}` : ''}${unlinked ? ` — ${unlinked} is no longer linked to its saved palette` : ''}` : `${nodeLabel(child)} is already ${nodeLabel(fig)}`);
 }
 
 // ── Child Figures (Diego, Oct 8, 2026; from a Variations node since Oct 9): every variation is a node of its own — a
