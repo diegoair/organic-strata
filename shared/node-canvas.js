@@ -277,11 +277,13 @@
     var marquee = el('div', 'nc-marquee'); marquee.hidden = true;
     var live = el('div', 'nc-live', { 'aria-live': 'polite' });
     stage.append(board, marquee, live);
+    stage.addEventListener('pointerenter', function () { overStage = true; });
+    stage.addEventListener('pointerleave', function () { overStage = false; });
     stage.addEventListener('scroll', function () { stage.scrollTop = 0; stage.scrollLeft = 0; });
     var announce = o.announce || function (t) { live.textContent = ''; setTimeout(function () { live.textContent = t; }, 30); };
 
     // ── pan / zoom: wheel zooms, Space-drag / middle-drag pans, plain drag on the board = marquee ──
-    var spaceDown = false, movingT = 0;
+    var spaceDown = false, movingT = 0, overStage = false;
     var zoomPan = Organica.createZoomPan({ canvas: board, wrap: stage, min: 0.1, max: 4, panAlways: true, infinite: true, dblclickReset: false,
       isReady: function () { return isActive(); },
       panStart: function (e) { return e.button === 1 || (e.button === 0 && spaceDown); },
@@ -840,7 +842,9 @@
     function onKey(e) {
       if (!isActive() || typing(e.target)) return;
       var mod = e.metaKey || e.ctrlKey, k = e.key;
-      if (e.code === 'Space' && !e.repeat && !e.target.closest('button')) { spaceDown = true; stage.classList.add('nc-stage--pan'); e.preventDefault(); return; }
+      // Space pans while the pointer is on the board, even when the focus sits on a button (the dock's step button just
+      // clicked, a floatbar button): the press must not re-press that button. Off the board, a focused button keeps Space.
+      if (e.code === 'Space' && (overStage || !e.target.closest('button'))) { if (!e.repeat) { spaceDown = true; stage.classList.add('nc-stage--pan'); } e.preventDefault(); return; }
       var inStage = stage.contains(e.target) || e.target === document.body || !!(o.keyScope && o.keyScope(e.target));
       if (mod && !e.shiftKey && k.toLowerCase() === 'z') { e.preventDefault(); ctl.undo(); return; }
       if (mod && (k.toLowerCase() === 'y' || (e.shiftKey && k.toLowerCase() === 'z'))) { e.preventDefault(); ctl.redo(); return; }
@@ -862,7 +866,7 @@
         drawWires(); changed('move'); clearTimeout(ctl._nudge); ctl._nudge = setTimeout(function () { commit('move'); }, 400);
       }
     }
-    function onKeyUp(e) { if (e.code === 'Space') { spaceDown = false; stage.classList.remove('nc-stage--pan'); } }
+    function onKeyUp(e) { if (e.code === 'Space') { if (spaceDown && e.type === 'keyup') e.preventDefault(); spaceDown = false; stage.classList.remove('nc-stage--pan'); } }   // a pan's release never clicks the focused button
     document.addEventListener('keydown', onKey);
     document.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onKeyUp);
