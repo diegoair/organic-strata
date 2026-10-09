@@ -135,11 +135,9 @@ export function componentCellsFromRule(rule, p, cr) {
   p = p || {};
   const chkA = () => stateFrom(p.a || 0, false, false, 1), chkB = () => (p.flip ? stateFrom(0, true, false, 1) : stateFrom(p.b || 0, false, false, 1));
   if (cr) {
-    if (rule === 'radial') {
-      const cols = Math.max(...cr.map(c => c.col)) + 1, rows = Math.max(...cr.map(c => c.row)) + 1;
-      if (cols % 2 || rows % 2) throw new Error('Radial needs an even number of columns and rows');
-      return GRID_BUILD.radial(cr, p.base || 0, p.chirality || 1, 1, false);
-    }
+    // Radial: each cell takes its quarter of the grid; an odd count puts the middle column / row in the right / lower half
+    // (Diego, Oct 9, 2026 — no refusal on any grid)
+    if (rule === 'radial') return GRID_BUILD.radial(cr, p.base || 0, p.chirality || 1, 1, false);
     if (rule === 'pinwheel') return GRID_BUILD.pinwheel(cr, p.base || 0, p.chirality || 1, 1);
     if (rule === 'mirror') return GRID_BUILD.mirror(cr, p.seed || 0, 1);
     if (rule === 'checkerboard') return p.swap ? GRID_BUILD.checkerboard(cr, chkB(), chkA()) : GRID_BUILD.checkerboard(cr, chkA(), chkB());

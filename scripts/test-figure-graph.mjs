@@ -323,7 +323,7 @@ const ch = await P.ev(`
   res.twoT = (await run(['rep', 't90', 't90'])).svg === (await run(['rep', 't180'])).svg;
   const p33 = await run(['pin'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } }), r33 = await run(['radial'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } });
   const r44 = await run(['radial'], { gen: 'lattice-square', params: { cols: 4, rows: 4 } }), loom = await run(['radial'], { gen: 'rectangular', params: F('gridDefaults')('rectangular') });
-  res.big = p33.state === 'ok' && r44.state === 'ok' && /even/.test(r33.msg) && loom.state === 'ok';
+  res.big = p33.state === 'ok' && r44.state === 'ok' && r33.state === 'ok' && r33.cells === 9 && loom.state === 'ok';   // odd × odd Radial draws too (Oct 9, 2026)
   // any grid (Oct 9, 2026): the pose comes from each cell's place in the space — every rule draws, changes the drawing, same cells
   const anyGrid = [];
   for (const gen of ['rectangular', 'bento', 'hexagonal', 'circular', 'organic', 'spiral']) {
@@ -481,7 +481,7 @@ check(ch.tAmount, 'rules: Random rotation — 0° changes nothing, an amount and
 check(ch.anyGridOk, 'rules: a Component rule on any grid poses by place — draws and changes the drawing: ' + ch.anyGrid.join(' '));
 check(ch.tAfter, 'rules: Rotate & mirror after a Repeat draws');
 check(ch.twoT, 'rules: two Rotate & mirror add up (90° + 90° = 180°)');
-check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4; Radial refuses odd sizes; a Loom grid is refused with a reason');
+check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4, Radial on an odd grid too, and on a Loom grid');
 check(ch.chkOpts, 'rules: Checkerboard Swap A and B / Flip B change the drawing');
 check(ch.migrated, 'rules: a graph saved with parallel rule wires becomes one chain, drawing as before');
 check(ch.varNoAdd, 'variations: never add a rule to the chain (with one rule and with none)');
