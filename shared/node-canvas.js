@@ -218,6 +218,32 @@
     };
   }
 
+  // A press that brings no pointerdown: when the mouse already reports another button held (a stuck side button —
+  // buttons 8 / 16), the browser sends a chorded pointermove instead of pointerdown, and a pointermove instead of
+  // pointerup, so every gesture under `root` would stay dead. Rebuild the press from the mouse events: a pointerdown on
+  // the pressed element, pointermoves to it (as a capture would), a pointerup at the release. The held button keeps the
+  // real pointer alive, so a capture taken during the gesture would never be released by the browser and every later
+  // press would land on that element: release it on the way in and on the way out.
+  function chordShim(root) {
+    var sawPointerDown = false;
+    function release(el) { for (; el && el.hasPointerCapture; el = el.parentElement) { try { if (el.hasPointerCapture(1)) el.releasePointerCapture(1); } catch (err) {} } }
+    root.addEventListener('pointerdown', function () { sawPointerDown = true; }, true);
+    root.addEventListener('mousedown', function (e) {
+      if (sawPointerDown) { sawPointerDown = false; return; }
+      var target = e.target;
+      release(target);
+      function fire(type, ev) {
+        target.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, pointerId: 1, pointerType: 'mouse', isPrimary: true,
+          button: type === 'pointermove' ? -1 : ev.button, buttons: ev.buttons, clientX: ev.clientX, clientY: ev.clientY, screenX: ev.screenX, screenY: ev.screenY,
+          shiftKey: ev.shiftKey, altKey: ev.altKey, ctrlKey: ev.ctrlKey, metaKey: ev.metaKey }));
+      }
+      function move(ev) { fire('pointermove', ev); }
+      function up(ev) { if (ev.button !== e.button) return; document.removeEventListener('mousemove', move, true); document.removeEventListener('mouseup', up, true); fire('pointerup', ev); release(target); }
+      document.addEventListener('mousemove', move, true); document.addEventListener('mouseup', up, true);
+      fire('pointerdown', e); sawPointerDown = false;   // our own pointerdown is not a real one
+    }, true);
+  }
+
   // ═══════════════════════════════════════════════════════════
   // VIEW — mount(opts) draws a model on an infinite board and edits it. Styles: shared/node-canvas.css.
   //
@@ -279,25 +305,7 @@
     stage.append(board, marquee, live);
     stage.addEventListener('pointerenter', function () { overStage = true; });
     stage.addEventListener('pointerleave', function () { overStage = false; });
-    // A press that brings no pointerdown: when the mouse already reports another button held (a stuck side button —
-    // buttons 8 / 16), the browser sends a chorded pointermove instead of pointerdown, and a pointermove instead of
-    // pointerup, so every board gesture would stay dead. Rebuild the press from the mouse events: a pointerdown on the
-    // pressed element, pointermoves to it (as a capture would), a pointerup at the release.
-    var sawPointerDown = false;
-    stage.addEventListener('pointerdown', function () { sawPointerDown = true; }, true);
-    stage.addEventListener('mousedown', function (e) {
-      if (sawPointerDown) { sawPointerDown = false; return; }
-      var target = e.target;
-      function fire(type, ev, onto) {
-        onto.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, pointerId: 1, pointerType: 'mouse', isPrimary: true,
-          button: type === 'pointermove' ? -1 : ev.button, buttons: ev.buttons, clientX: ev.clientX, clientY: ev.clientY, screenX: ev.screenX, screenY: ev.screenY,
-          shiftKey: ev.shiftKey, altKey: ev.altKey, ctrlKey: ev.ctrlKey, metaKey: ev.metaKey }));
-      }
-      function move(ev) { fire('pointermove', ev, target); }
-      function up(ev) { if (ev.button !== e.button) return; document.removeEventListener('mousemove', move, true); document.removeEventListener('mouseup', up, true); fire('pointerup', ev, target); }
-      document.addEventListener('mousemove', move, true); document.addEventListener('mouseup', up, true);
-      fire('pointerdown', e, target); sawPointerDown = false;   // our own pointerdown is not a real one
-    }, true);
+    chordShim(stage);
     stage.addEventListener('scroll', function () { stage.scrollTop = 0; stage.scrollLeft = 0; });
     var announce = o.announce || function (t) { live.textContent = ''; setTimeout(function () { live.textContent = t; }, 30); };
 
@@ -990,6 +998,7 @@
     // A drag that lost its pointer (a native drag started, the window lost focus, capture dropped) must never stay half
     // done — a ghost stuck on screen with the board unresponsive was the "browser freezes after two drags" (Oct 8, 2026).
     var endDrag = null;
+    chordShim(panel);
     panel.addEventListener('dragstart', function (e) { e.preventDefault(); });   // never the browser's own drag of the item's text
     panel.addEventListener('pointerdown', function (e) {
       var spec = e.button === 0 && o.specOf(e.target); if (!spec) return;
