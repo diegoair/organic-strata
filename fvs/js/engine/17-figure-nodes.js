@@ -253,7 +253,7 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   const keyOf = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
   const want = Math.max(1, Math.min(13, +p.variations || 1)), seen = new Set([keyOf(main.svg)]);   // drawings: the Figure + up to 12 variations
   const pins = new Map(pinsFor(p, item, keys).filter(q => q.slot >= 1 && q.slot < want).map(q => [q.slot, q]));
-  const queue = variationSpecs(p, want + 12);
+  const queue = variationSpecs(p, want + 40);   // a variation only adjusts what is there (Oct 9, 2026): a Figure with few dials repeats itself more often — more tries
   let failed = 0;
   const draw = async spec => { const vr = varyInputs(base.inputs, spec, keep); const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra }); return { r, label: vr.label }; };
   main.variations = [{ key: 'base', svg: main.svg, label: 'As set up', pinned: false, spec: null, slot: 0, item }];
@@ -371,27 +371,50 @@ function changePalette(inp, rng) {
   const solved = cwSolve(turned, pal.paper && pal.paper !== 'none' ? pal.paper : '#ffffff') || turned;
   inp.palette = { ...pal, colors: solved }; return `Hue ${turn > 0 ? '+' : ''}${turn}°`;
 }
-const RULE_POOL = [
-  { when: { parity: 'odd' }, do: { rotate: 90 } }, { when: { parity: 'odd' }, do: { rotate: 180 } }, { when: { parity: 'even' }, do: { content: 'empty' } },
-  { when: { parity: 'odd' }, do: { flipH: true } }, { when: { class: 'down' }, do: { content: 'empty' } }, { when: { class: 'up' }, do: { rotate: 180 } },
-  { when: { row: [0] }, do: { content: 'empty' } }, { when: {}, do: { rotate: 'sector' } },
-];
+// Rules describe, Variations explore (Diego, Oct 9, 2026): a variation adjusts a rule that is in the chain — it never
+// adds one (what a Figure does stays visible in its chain); "Use this" writes the change back into the graph.
+const ANGLES = [90, 180, 270];
 function changeCells(inp, rng) {
-  const rules = (inp.rules || []).slice(), at = rules.findIndex(r => r.kind === 'cells');
-  const cur = at >= 0 ? clone(rules[at].rules) : [];
-  let label;
-  if (cur.length && rng() < 0.4) { const i = Math.floor(rng() * cur.length); cur[i].off = !cur[i].off; label = (cur[i].off ? 'Off: ' : 'On: ') + describeRule(cur[i]); }
-  else { const r = clone(pick(RULE_POOL, rng)); cur.push(r); label = describeRule(r); }
-  if (at >= 0) rules[at] = { kind: 'cells', rules: cur }; else rules.unshift({ kind: 'cells', rules: cur });
+  const rules = (inp.rules || []).slice(), at = rules.map((r, i) => r.kind === 'cells' && (r.rules || []).length ? i : -1).filter(i => i >= 0);
+  if (!at.length) return null;
+  const k = pick(at, rng), cur = clone(rules[k].rules), i = Math.floor(rng() * cur.length), r = cur[i], d = r.do || {}, w = r.when || {};
+  const opts = ['off'];
+  if (typeof d.rotate === 'number' && ANGLES.includes(d.rotate)) opts.push('angle');
+  if (w.parity) opts.push('parity');
+  const o = pick(opts, rng); let label;
+  if (o === 'angle') { r.do = { ...d, rotate: pick(ANGLES.filter(a => a !== d.rotate), rng) }; label = describeRule(r); }
+  else if (o === 'parity') { r.when = { ...w, parity: w.parity === 'odd' ? 'even' : 'odd' }; label = describeRule(r); }
+  else { r.off = !r.off; label = (r.off ? 'Off: ' : 'On: ') + describeRule(r); }
+  rules[k] = { ...rules[k], rules: cur };
   inp.rules = rules; return label.charAt(0).toUpperCase() + label.slice(1);
 }
+// Rotate & mirror, either mode: after a Repeat in grid a quarter turn or another Mirror; on the cells a turn of
+// 15–90° either way, one Flip on / off, Rotation per cell, or a new random draw — said in the panel's own words
 function changeTransform(inp, rng) {
-  const rules = (inp.rules || []).slice(); if (!rules.some(r => r.kind === 'repeat')) return null;
-  const kinds = rules.map(r => r.kind), lastRep = kinds.lastIndexOf('repeat'), last = kinds.lastIndexOf('transform');
-  const at = last > lastRep ? last : -1, t = at >= 0 ? { ...rules[at].transform } : { rotate: 0, mirror: 'none' };   // the one on the Repeat — one before it works on the cells
-  if (rng() < 0.5) t.rotate = (t.rotate + 90) % 360; else t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng);
-  if (at >= 0) rules[at] = { ...rules[at], transform: t }; else rules.push({ kind: 'transform', transform: t });   // keeps its cell settings
-  inp.rules = rules; return t.mirror !== 'none' ? `Mirror ${MIRRORS[t.mirror].toLowerCase()}` : `Rotation ${t.rotate}°`;
+  const rules = (inp.rules || []).slice(), kinds = rules.map(r => r.kind);
+  const at = kinds.map((k, i) => k === 'transform' ? i : -1).filter(i => i >= 0); if (!at.length) return null;
+  const i = pick(at, rng), r = clone(rules[i]), t = r.transform, onCells = kinds.slice(0, i).indexOf('repeat') < 0;
+  let label;
+  if (!onCells) {
+    if (rng() < 0.5) { t.rotate = ((+t.rotate || 0) + 90) % 360; label = `Rotation ${t.rotate}°`; }
+    else { t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng); label = t.mirror === 'none' ? 'No mirror' : `Mirror ${MIRRORS[t.mirror].toLowerCase()}`; }
+  } else {
+    const c = r.cells || (r.cells = {}), opts = ['turn', 'flip', 'per'];
+    if (c.turnRandom) opts.push('draw');
+    const o = pick(opts, rng), by = () => (rng() < 0.5 ? -1 : 1) * (15 + Math.floor(rng() * 76));
+    if (o === 'turn') { t.rotate = (((+t.rotate || 0) + by()) % 360 + 360) % 360; label = `Rotation ${t.rotate}°`; }
+    else if (o === 'flip') {
+      const axis = rng() < 0.5 ? 'v' : 'h', has = x => t.mirror === x || t.mirror === 'vh', on = !has(axis);
+      const v = axis === 'v' ? on : has('v'), h = axis === 'h' ? on : has('h'); t.mirror = v && h ? 'vh' : v ? 'v' : h ? 'h' : 'none';
+      label = `Flip ${axis === 'v' ? 'horizontal' : 'vertical'} ${on ? 'on' : 'off'}`;
+    } else if (o === 'per') {
+      const s = c.turnStep || { deg: 0, by: 'index' }, deg = ((s.deg + by()) % 360 + 360) % 360;
+      if (deg) c.turnStep = { ...s, deg }; else delete c.turnStep;
+      label = `${deg}° per ${{ row: 'row', col: 'column' }[s.by] || 'cell'}`;
+    } else { c.turnRandom = { ...c.turnRandom, seed: Math.floor(rng() * 1e6) }; label = 'New random draw'; }
+    if (!Object.keys(c).length) delete r.cells;
+  }
+  rules[i] = r; inp.rules = rules; return label;
 }
 const CHANGE_OF = { grid: 'Grid', palette: 'Palette', cells: 'Cell rules', transform: 'Rotate & mirror' };   // UI-COPY §2 names
 const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells: changeCells, transform: changeTransform };
@@ -399,10 +422,14 @@ const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) =>
 export function varyInputs(inputs, spec, keep) {
   keep = keep || {};
   const inp = { ...inputs, rules: chainOf(inputs.rules) }, rng = mulberry32((spec.seed * 2654435761) >>> 0), labels = [], extra = {};
-  const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells
+  const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells, a rule's Random rotation
     let did = false;
     if (!keep.grid && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed: Math.floor(rng() * 1000) } }; labels.push('Grid: new seed'); did = true; }
     if (!keep.content && contentCount(inp) > 1) { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); did = true; }
+    if (!keep.transform && inp.rules.some(r => r.kind === 'transform' && r.cells && r.cells.turnRandom)) {   // a rule's own luck: Random rotation draws again
+      inp.rules = inp.rules.map(r => r.kind === 'transform' && r.cells && r.cells.turnRandom ? { ...r, cells: { ...r.cells, turnRandom: { ...r.cells.turnRandom, seed: Math.floor(rng() * 1e6) } } } : r);
+      labels.push('Rotate & mirror: new random draw'); did = true;
+    }
     return did;
   };
   const kinds = KEEP_KEYS.filter(k => !keep[k] && (k !== 'content' || contentCount(inp) > 1));

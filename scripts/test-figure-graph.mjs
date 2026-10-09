@@ -66,6 +66,7 @@ const out = await P.ev(`
   // a deleted library entry still draws (the node keeps a copy) — nothing in the real library was ever written
   // ── variations (Phase 4; a Variations node since Oct 9, 2026: Figure → Variations) ──
   res.figOnlyItself = eng.get(figs[0].id).value.figure.variations.length === 1;
+  { const cr0 = NC.addNode(m, { type: 'cell-rules', params: { rules: [{ when: { parity: 'odd' }, do: { rotate: 90 } }] } }); NC.addEdge(m, { node: cr0.id, port: 'rules' }, { node: figs[0].id, port: 'rules' }); }   // a dial for Variations to turn (they adjust rules, never add them — Oct 9, 2026)
   const f0 = figs[0], vf0 = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 4, varyBy: 'one', seed: 3 } });   // 4 variations made + the Figure = 5 drawings
   NC.addEdge(m, { node: f0.id, port: 'figure' }, { node: vf0.id, port: 'figure' }); await eng.run(m);
   const K = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
@@ -328,6 +329,18 @@ const ch = await P.ev(`
     const eng = NC.createEngine({ registry: reg }); await eng.run(mm);
     const into = mm.edges.find(e => e.to.node === ex.id);
     res.varMigrated = !!vn && vn.params.variations === 2 && vn.params.seed === 7 && !('variations' in mm.nodes.find(n => n.id === f.id).params) && into && into.from.node === vn.id && eng.get(vn.id).value.figure.variations.length === 3; }
+  // Rules describe, Variations explore (Oct 9, 2026): a variation adjusts the rules in the chain, never adds one;
+  // Rotate & mirror on the cells is varied in its own words; Seed draws a rule's Random rotation again
+  { const V = F('varyInputs');
+    const tr = { kind: 'transform', transform: { rotate: 0, mirror: 'none' }, cells: { turnRandom: { seed: 3, amount: 30 } } };
+    const inp = { grid: { gen: 'rectangular', params: F('gridDefaults')('rectangular') }, palette: { colors: ['#000000', '#ff0000'], paper: '#ffffff' }, content: [{ kind: 'element' }], rules: [tr] };
+    const none = { ...inp, rules: [] }, labels = [], lens = [];
+    for (let k = 1; k <= 60; k++) { const a = V(inp, { mode: 'one', seed: k }), b = V(none, { mode: 'several', seed: k }); labels.push(a.label); lens.push(a.inputs.rules.length, b.inputs.rules.length - 0); }
+    res.varNoAdd = lens.every((n, i) => n === (i % 2 ? 0 : 1));
+    res.varTransform = labels.filter(l => /^Rotate & mirror: (Rotation \d+°|Flip (horizontal|vertical) (on|off)|\d+° per cell|New random draw)$/.test(l)).length;
+    const sd = V(inp, { mode: 'seed', seed: 4 });
+    res.varSeedDraw = /Rotate & mirror: new random draw/.test(sd.label) && sd.inputs.rules[0].cells.turnRandom.seed !== 3 && sd.inputs.rules[0].cells.turnRandom.amount === 30;
+    res.varKept = !/Rotate & mirror/.test(V(inp, { mode: 'seed', seed: 4 }, { transform: true }).label); }
   return res;`, PRE);
 const fails = [];
 const check = (c, m) => { if (!c) fails.push(m); };
@@ -401,6 +414,9 @@ check(ch.twoT, 'rules: two Rotate & mirror add up (90° + 90° = 180°)');
 check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4; Radial refuses odd sizes; a Loom grid is refused with a reason');
 check(ch.chkOpts, 'rules: Checkerboard Swap A and B / Flip B change the drawing');
 check(ch.migrated, 'rules: a graph saved with parallel rule wires becomes one chain, drawing as before');
+check(ch.varNoAdd, 'variations: never add a rule to the chain (with one rule and with none)');
+check(ch.varTransform >= 5, 'variations: Rotate & mirror on the cells is varied, in the panel words (' + ch.varTransform + ' of 60)');
+check(ch.varSeedDraw && ch.varKept, 'variations: Seed draws Random rotation again (same amount), Keep Rotate & mirror stops it');
 check(ch.varMigrated, 'a Figure saved with variations gets a Variations node with its settings, and its Export');
 check(out.after, 'FVS state unchanged by graph runs');
 check(!P.errors.length, 'page errors: ' + P.errors.join(' | '));

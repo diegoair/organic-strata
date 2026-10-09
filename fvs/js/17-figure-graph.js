@@ -46,7 +46,7 @@ import {
   plateSVG
 } from './engine/15-export-library-view.js';
 import {
-  FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, whenOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridPreviewModel, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
@@ -143,7 +143,8 @@ function renderBody(node, entry, el) {
         <figcaption class="fg-var__label">${item ? esc(item) + ' · ' : ''}${esc(vr.slot === 0 ? 'As set up' : vr.label)}</figcaption>
         ${vr.spec ? `<div class="fg-var__tools">
           <button type="button" class="icon-btn" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node) : ''}">${Organica.icons.get('pin')}</button>
-          <button type="button" class="icon-btn" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node) : ''}">${Organica.icons.get('figure-from')}</button></div>` : ''}
+          <button type="button" class="icon-btn" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node) : ''}">${Organica.icons.get('figure-from')}</button>
+          <button type="button" class="icon-btn" data-act="use" aria-label="Use variation ${par ? variationNo(node) : ''}">${Organica.icons.get('check')}</button></div>` : ''}
       </figure>`;
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); if (par) restackChildren(par.id); }, { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act); }); }
@@ -213,6 +214,7 @@ function variationAction(childId, act) {
     if (!v.pinned) pins.push({ mode: v.spec.mode, seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });
     p.pins = pins; edited(node, true); ctl.select([childId]); return;
   }
+  if (act === 'use') { useVariation(fig, v, p.keep || {}, child); return; }
   if (act === 'from') {   // one undo step
     const [copy] = ctl.duplicate([id], { noCommit: true }); const n = NC.findNode(ctl.model, copy), m = ctl.model;
     n.params.fixed = [].concat(fig.params.fixed || [], [{ ...v.spec, keep: { ...(p.keep || {}) } }]);
@@ -226,6 +228,48 @@ function variationAction(childId, act) {
     ctl.touch(copy); ctl.refresh(); ctl.select([copy]); ctl.commit('new-figure-from'); save();
     announce(`New Figure from ${nodeLabel(child)}`);
   }
+}
+
+// "Use this" (Diego, Oct 9, 2026 — rules describe, Variations explore): the variation's change is written back into the
+// graph — the Grid's / Palette's own parameters, each rule node it adjusted, the Figure's content spread — so the
+// Figure becomes that variation and Variations proposes again from there. One undo step. A shared Grid or Palette
+// changes for every Figure it feeds (said in the notice).
+function figureInputsOf(fig) {
+  const m = ctl.model, out = {};
+  registry.inputsOf(fig).forEach(port => {
+    const vals = m.edges.filter(e => e.to.node === fig.id && e.to.port === port.name).map(e => { const up = ctl.engine.get(e.from.node); return up && up.value ? up.value[e.from.port] : null; });
+    out[port.name] = port.multi ? vals : (vals.length ? vals[0] : null);
+  });
+  return out;
+}
+function chainNodesOf(fig) {   // the rule nodes feeding the Figure's Rules, first to last — one rule each, the chain's order
+  const out = []; for (let at = fig.id, e; (e = ctl.model.edges.find(w => w.to.node === at && w.to.port === 'rules')) && out.length < 64; at = e.from.node) out.unshift(NC.findNode(ctl.model, e.from.node));
+  return out.filter(Boolean);
+}
+function writeRule(node, r) {   // a rule (ruleOf's shape) back into its node's params
+  const p = node.params;
+  if (r.kind === 'cells') p.rules = JSON.parse(JSON.stringify(r.rules || []));
+  else if (r.kind === 'component') { p.rule = r.rule; p.params = JSON.parse(JSON.stringify(r.params || {})); }
+  else if (r.kind === 'transform') {
+    p.rotate = +r.transform.rotate || 0; p.mirror = r.transform.mirror || 'none';
+    const c = r.cells || {}; p.perCell = c.turnStep ? +c.turnStep.deg || 0 : 0; if (c.turnStep) p.countBy = c.turnStep.by;
+    if (c.turnRandom) p.seed = c.turnRandom.seed;
+  }
+}
+function useVariation(fig, v, keep, child) {
+  const raw = figureInputsOf(fig), same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const base = [].concat(fig.params.fixed || []).reduce((b, spec) => { const x = varyInputs(b.inputs, spec, spec.keep || {}); return { inputs: x.inputs, extra: { ...b.extra, ...x.extra } }; }, { inputs: raw, extra: {} });
+  const vr = varyInputs(base.inputs, v.spec, keep), now = vr.inputs, changed = [];
+  const [, gr, pa] = foundationOf(fig);
+  if (gr && !same(now.grid, raw.grid)) { gr.params = { ...gr.params, gen: now.grid.gen, params: { ...now.grid.params } }; ctl.touch(gr.id); changed.push(nodeLabel(gr)); }
+  if (pa && now.palette && raw.palette && !same(now.palette.colors, raw.palette.colors)) { pa.params = { ...pa.params, colors: now.palette.colors.slice() }; delete pa.params.source; ctl.touch(pa.id); changed.push(nodeLabel(pa)); }
+  const was = chainOf(raw.rules), after = chainOf(now.rules), nodes = chainNodesOf(fig);
+  after.forEach((r, i) => { const n = nodes[i]; if (n && !same(r, was[i])) { writeRule(n, r); ctl.touch(n.id); changed.push(nodeLabel(n)); } });
+  const extra = { ...base.extra, ...vr.extra };
+  if (extra.contentSeed != null && extra.contentSeed !== fig.params.contentSeed) { fig.params.contentSeed = extra.contentSeed; changed.push('content spread'); }
+  if (fig.params.fixed) delete fig.params.fixed;
+  ctl.touch(fig.id); ctl.refresh(); ctl.select([fig.id]); ctl.commit('use-variation'); save();
+  Organica.notice(changed.length ? `${nodeLabel(fig)} now uses ${nodeLabel(child)} — changed: ${[...new Set(changed)].join(', ')}` : `${nodeLabel(child)} is already ${nodeLabel(fig)}`);
 }
 
 // ── Child Figures (Diego, Oct 8, 2026; from a Variations node since Oct 9): every variation is a node of its own — a

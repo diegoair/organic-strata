@@ -281,6 +281,32 @@ async function run(mode) {
     if (process.env.DEBUG_BOARD) console.log(steps.join('\n'));
   });
 
+  if (!held) await test(`${P} use variation`, 'Variations → "Use this" on a variation: the Figure now draws that variation, one undo step brings it back', async c => {
+    const norm = t => t.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
+    const fig = await ev(() => { const n = __b.byKind('capped').find(x => !/variation/i.test(x.innerText) && x.querySelector('img')); return n && n.dataset.nodeId; });
+    expect(c, !!fig, 'no Figure with a drawing'); if (!fig) return;
+    const drawingOf = id => ev(async id => { const f = document.querySelector('[data-node-id="' + id + '"]'); const img = f && f.querySelector('img'); return img && img.src ? await (await fetch(img.src)).text() : ''; }, id);
+    await click(await ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), fig)); await sleep(300);
+    await click(await ev(() => __b.box(document.getElementById('fgi-addvar')))); await sleep(600);
+    // the board draws what is on screen: bring the new Variations and its children in view — click the empty board, Shift+2 (fit selection) after selecting the Variations node is fiddly; Shift+1 fits everything
+    await hover(...Object.values(await ev(() => __b.empty())));
+    await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: '!', code: 'Digit1', windowsVirtualKeyCode: 49, modifiers: 8 }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: '!', code: 'Digit1', windowsVirtualKeyCode: 49, modifiers: 8 }); await sleep(800);
+    let child = null; for (let i = 0; i < 40 && !child; i++) { await sleep(200); child = await ev(() => { const n = __b.nodes().find(x => x.querySelector('[data-act="use"]')); return n && n.dataset.nodeId; }); }
+    expect(c, !!child, 'Add Variations made no variation with a Use button'); if (!child) return;
+    const before = norm(await drawingOf(fig)), want = norm(await drawingOf(child));
+    expect(c, want && want !== before, 'the variation draws the same as its Figure');
+    await ev(id => document.querySelector('[data-node-id="' + id + '"]').scrollIntoView({ block: 'center', inline: 'center' }), child);
+    const use = await ev(id => __b.box(document.querySelector('[data-node-id="' + id + '"] [data-act="use"]')), child);
+    await click(use);
+    let after = ''; for (let i = 0; i < 40; i++) { await sleep(200); after = norm(await drawingOf(fig)); if (after && after !== before) break; }
+    expect(c, after === want, 'after Use this the Figure does not draw the variation');
+    const note = await ev(() => { const n = document.querySelector('.org-notice, [class*="notice"]'); return n ? n.textContent : ''; });
+    c.notes.push('notice: ' + note.slice(0, 120));
+    await key('rawKeyDown', 'KeyZ', 'z', 90); await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 4 }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 4 });
+    let back = ''; for (let i = 0; i < 30; i++) { await sleep(200); back = norm(await drawingOf(fig)); if (back === before) break; }
+    expect(c, back === before, 'undo did not bring the Figure back');
+  });
+
   await test(`${P} after all`, 'after every gesture: a pill still drags (nothing kept the pointer)', async c => {
     const id = await ev(() => { const n = __b.byKind('pill').find(n => { const g = __b.grip(n), e = document.elementFromPoint(g.x, g.y); return g.x > 60 && g.y > 80 && g.x < innerWidth - 400 && g.y < innerHeight - 160 && e && n.contains(e); }); return n && n.dataset.nodeId; });
     expect(c, !!id, 'no pill in sight'); if (!id) return;
