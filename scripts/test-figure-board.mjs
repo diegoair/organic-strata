@@ -234,13 +234,59 @@ async function run(mode) {
     await click(btn); await sleep(250);
   });
 
-  await test(`${P} after all`, 'after every gesture: a pill still drags (nothing kept the pointer)', async c => {
-    const before = await ev(() => __b.box(__b.byKind('pill')[0]));
-    const from = await ev(() => __b.grip(__b.byKind('pill')[0]));
-    await gesture(from, { x: from.x + 60, y: from.y - 60 });
-    const after = await ev(() => __b.box(__b.byKind('pill')[0]));
-    expect(c, moved(before, after), 'did not move');
+  if (!held) await test(`${P} rotate panel`, 'Rotate & mirror on the cells: every control redraws the Figure; the pill says what is set', async c => {
+    // a built-in Figure (it brings its own Element, Grid, Palette): New Figure… → the first built-in; it arrives selected
+    await click(await ev(() => __b.box(document.getElementById('btn-fg-new')))); await sleep(400);
+    await click(await ev(() => __b.box(document.querySelector('.fg-new__item')))); await sleep(1500);
+    const figId = await ev(() => { const n = __b.nodes().find(x => x.classList.contains('is-selected') && x.classList.contains('nc-node--capped')); return n && n.dataset.nodeId; });
+    expect(c, !!figId, 'New Figure… did not select a new Figure'); if (!figId) return;
+    const figDrawing = () => ev(async id => { const f = document.querySelector('[data-node-id="' + id + '"]'); const img = f && f.querySelector('img'); if (!img || !img.src) return ''; try { return await (await fetch(img.src)).text(); } catch { return img.src; } }, figId);
+    const settle = async before => { for (let i = 0; i < 40; i++) { await sleep(150); const d = await figDrawing(); if (d && d !== before) return d; } return await figDrawing(); };
+    const dotOf = re => ev(src => { const n = __b.nodes().find(x => new RegExp(src).test(x.innerText)); const d = n && n.querySelector('.nc-port__dot[data-dir="out"]'); if (!d) return null; const r = d.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, re);
+    const figAt = () => ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), figId);
+    let d0 = await settle('');
+    expect(c, d0.length > 100, 'the built-in Figure did not draw');
+    // add Rotate & mirror from the node bar, wire it into the Figure's Rules
+    const bar = await ev(() => __b.box(document.querySelector('button[aria-label="Rule nodes"]')));
+    await click(bar); await sleep(300);
+    const tile = await ev(() => { const t = [...document.querySelectorAll('.nc-nodebar__item')].find(i => i.offsetParent && /Rotate/.test(i.textContent)); return t && __b.box(t); });
+    await click(tile); await sleep(500); await click(bar); await sleep(250);
+    const rotDot = await dotOf('^Rotate');
+    expect(c, !!rotDot && await ev(p => p.x > 0 && p.y > 0 && p.x < innerWidth && p.y < innerHeight, rotDot), 'a click in the node bar added Rotate & mirror out of sight: ' + JSON.stringify(rotDot));
+    // onto the Figure's Rules port: the built-in already has a Cell rules there, the new rule slots into the chain
+    const rulesPort = await ev(id => __b.box(document.querySelector('[data-node-id="' + id + '"] .nc-port__dot[data-port="rules"]')), figId);
+    await gesture(rotDot, rulesPort, { steps: 10 });
+    d0 = await settle('') || d0;
+    const pill = () => ev(() => { const n = __b.nodes().find(x => /^Rotate/.test(x.innerText)); return n ? n.querySelector('.nc-node__body').innerText.trim() : ''; });
+    const select = async () => { const g = await ev(() => __b.grip(__b.nodes().find(x => /^Rotate/.test(x.innerText)))); await click(g); await sleep(250); };
+    await select();
+    const panelHas = await ev(() => ({ slider: !!document.getElementById('fgi-trot'), hints: [...document.querySelectorAll('#fg-inspector .org-panel__hint')].map(h => h.textContent) }));
+    expect(c, panelHas.slider && !panelHas.hints.length, 'panel: slider ' + panelHas.slider + ', hint text ' + JSON.stringify(panelHas.hints));
+    const slide = (id, v) => ev((id, v) => { const r = document.getElementById(id); r.value = v; r.dispatchEvent(new Event('input', { bubbles: true })); r.dispatchEvent(new Event('change', { bubbles: true })); return r.step + '/' + r.max; }, id, v);
+    const steps = [];
+    const check = async (label, act, pillRe) => { const before = await figDrawing(); try { await act(); } catch (e) { steps.push(label + ' ✗ ' + e.message.slice(0, 80)); c.ok = false; c.notes.push(label + ': ' + e.message.slice(0, 120)); return; } const after = await settle(before); const pt = await pill(); steps.push(label + (after !== before ? ' ✓' : ' ✗') + (pillRe && !pillRe.test(pt) ? ' (pill: ' + pt + ')' : '')); expect(c, after !== before, label + ': the Figure did not change'); if (pillRe) expect(c, pillRe.test(pt), label + ': pill says "' + pt + '"'); };
+    const st = await slide('fgi-trot', 0); expect(c, st === '1/359', 'Rotation slider is not 1° steps: ' + st);
+    await check('rotation 37°', () => slide('fgi-trot', 37), /Rotation 37°/);
+    await check('flip horizontal', async () => click(await ev(() => __b.box(document.getElementById('fgi-tmv')))), /flip horizontal/i);
+    await check('flip vertical too', async () => click(await ev(() => __b.box(document.getElementById('fgi-tmh')))), /flip both/i);
+    await check('which cells: odd', () => ev(() => { const s = document.getElementById('fgi-twhich'); s.value = 'odd'; s.dispatchEvent(new Event('change', { bubbles: true })); }));
+    await check('rotation per cell 15°', () => slide('fgi-tper', 15), /\+15° per cell/);
+    await check('counted by row', () => ev(() => { const s = document.getElementById('fgi-tby'); s.value = 'row'; s.dispatchEvent(new Event('change', { bubbles: true })); }), /per row/);
+    await check('random rotation on', async () => click(await ev(() => __b.box(document.getElementById('fgi-trand')))), /random/);
+    await check('new seed', async () => click(await ev(() => __b.box(document.getElementById('fgi-tseed-new')))));
+    c.notes.push(steps.join(' · '));
+    if (process.env.DEBUG_BOARD) console.log(steps.join('\n'));
   });
+
+  await test(`${P} after all`, 'after every gesture: a pill still drags (nothing kept the pointer)', async c => {
+    const id = await ev(() => { const n = __b.byKind('pill').find(n => { const g = __b.grip(n), e = document.elementFromPoint(g.x, g.y); return g.x > 60 && g.y > 80 && g.x < innerWidth - 400 && g.y < innerHeight - 160 && e && n.contains(e); }); return n && n.dataset.nodeId; });
+    expect(c, !!id, 'no pill in sight'); if (!id) return;
+    const at = () => ev(i => __b.box(document.querySelector('[data-node-id="' + i + '"]')), id);
+    const before = await at(), from = await ev(i => __b.grip(document.querySelector('[data-node-id="' + i + '"]')), id);
+    await gesture(from, { x: from.x + 60, y: from.y + 60 });
+    expect(c, moved(before, await at()), 'did not move');
+  });
+
 }
 
 for (const m of ['clean', 'held']) if (!ONLY || ONLY === m) await run(m);

@@ -447,12 +447,19 @@ function protect(node, model, removing) {   // removing: the ids deleted togethe
 }
 
 // ── adding nodes: a Figure comes with its Canvas + Grid (the last ones used, or new ones beside it) ──
-function viewCentre() { const r = ctrl('fg-graph').getBoundingClientRect(); return freeSpot(ctl.toBoard(r.left + r.width / 2, r.top + r.height / 3)); }
-function freeSpot(at) {   // the nearest place below / beside `at` that no card covers
+// a click in the node bar adds here: a free spot INSIDE the view (Oct 9, 2026 — it used to land off screen and the click
+// looked dead); none free → the centre itself, on top of what is there but in sight
+function viewCentre() {
+  const r = ctrl('fg-graph').getBoundingClientRect(), a = ctl.toBoard(r.left + 24, r.top + 24), b = ctl.toBoard(r.right - 260, r.bottom - 160);
+  return freeSpot(ctl.toBoard(r.left + r.width / 2, r.top + r.height / 3), { x0: a.x, y0: a.y, x1: b.x, y1: b.y });
+}
+function freeSpot(at, inside) {   // the nearest place below / beside `at` that no card covers (within `inside`, if given)
   const boxes = ctl.model.nodes.map(n => { const c = ctl.cardOf(n.id); return { x: n.x, y: n.y, w: (c && c.offsetWidth) || 200, h: (c && c.offsetHeight) || 160 }; });   // 0 while the board is hidden (Compose): use a typical card
   const hit = p => boxes.some(b => p.x < b.x + b.w + LABEL_ROOM && p.x + 240 > b.x - LABEL_ROOM && p.y < b.y + b.h + 24 && p.y + 140 > b.y - 24);
   for (let ring = 0; ring < 12; ring++) for (const [dx, dy] of [[0, 0], [0, 1], [1, 0], [1, 1], [0, -1], [-1, 0]]) {
-    const p = { x: Math.round(at.x + dx * ring * COL_STEP), y: Math.round(at.y + dy * ring * 120) }; if (!hit(p)) return p;
+    const p = { x: Math.round(at.x + dx * ring * COL_STEP), y: Math.round(at.y + dy * ring * 120) };
+    if (inside && (p.x < inside.x0 || p.x > inside.x1 || p.y < inside.y0 || p.y > inside.y1)) continue;
+    if (!hit(p)) return p;
   }
   return at;
 }
@@ -737,10 +744,10 @@ function renderInspectorBody(box, ids) {
   } else if (node.type === 'transform') {
     // two modes by the chain (Oct 9, 2026): no Repeat in grid before it → every Element turns / flips in its own cell
     // (any 30° step, which cells, Rotation per cell, Random rotation); after one → that Repeat, quarter turns, Mirror
-    const onCells = !repeatBefore(node), mir = p.mirror || 'none', has = a => mir === a || mir === 'vh';
+    const onCells = !repeatBefore(node), has = a => (p.mirror || 'none') === a || p.mirror === 'vh';   // read live: the two buttons change it in turn
     const setMirror = (axis, on) => { const v = (has('v') && axis !== 'v') || (axis === 'v' && on), h = (has('h') && axis !== 'h') || (axis === 'h' && on); p.mirror = v && h ? 'vh' : v ? 'v' : h ? 'h' : 'none'; };
-    const fine = onCells || (+p.rotate || 0) % 90;   // after a Repeat: quarter turns — unless the value is not one, so the thumb sits on it and a drag fixes it
-    rows.push(rangeRow('Rotation', 'fgi-trot', 0, fine ? 330 : 270, fine ? 30 : 90, +p.rotate || 0, (v, c) => { const off = (+p.rotate || 0) % 90; p.rotate = v; edited(node, c); if (c && !onCells && !off !== !(v % 90)) renderInspector(ids); }, '°'));
+    const fine = onCells || (+p.rotate || 0) % 90;   // on the cells: any angle; after a Repeat: quarter turns — unless the value is not one, so the thumb sits on it and a drag fixes it
+    rows.push(rangeRow('Rotation', 'fgi-trot', 0, fine ? 359 : 270, fine ? 1 : 90, +p.rotate || 0, (v, c) => { p.rotate = v; edited(node, c); if (c && !onCells && (+ctrl('fgi-trot').step === 1) !== !!(v % 90)) renderInspector(ids); }, '°'));
     const names = onCells ? ['Flip horizontal', 'Flip vertical'] : ['Mirror over the right edge', 'Mirror over the bottom edge'];
     rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">${onCells ? 'Flip' : 'Mirror'}</div><div class="row-btns">
         <button type="button" class="org-btn org-btn--sm org-btn--icon" id="fgi-tmv" aria-pressed="${has('v')}" aria-label="${names[0]}">${Organica.icons.get('mirror')}</button>
@@ -753,14 +760,13 @@ function renderInspectorBody(box, ids) {
         bind: () => { const sel = ctrl('fgi-twhich'); sel.value = which;
           sel.addEventListener('change', e => { p.which = e.target.value; edited(node, true); renderInspector(ids); });
           ctrl('fgi-tn').addEventListener('change', e => { p.n = Math.max(0, +e.target.value || 0); edited(node, true); }); } });
-      rows.push(rangeRow('Rotation per cell', 'fgi-tper', 0, 330, 30, +p.perCell || 0, (v, c) => { const was = +p.perCell || 0; p.perCell = v; edited(node, c); if (c && !was !== !v) renderInspector(ids); }, '°'));
+      rows.push(rangeRow('Rotation per cell', 'fgi-tper', 0, 359, 1, +p.perCell || 0, (v, c) => { p.perCell = v; edited(node, c); if (c && !ctrl('fgi-tby') !== !v) renderInspector(ids); }, '°'));   // Counted by comes and goes with it (the drag already stored the value: ask the panel)
       if (+p.perCell) rows.push(selectRow('Counted by', 'fgi-tby', [['index', 'Cell'], ['row', 'Row'], ['col', 'Column']], p.countBy || 'index', v => { p.countBy = v; edited(node, true); }));
       rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-trand"${p.random ? ' checked' : ''}><span>Random rotation</span></label>`, bind: () => ctrl('fgi-trand').addEventListener('change', e => { p.random = e.target.checked; edited(node, true); renderInspector(ids); }) });
       if (p.random) rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" id="fgi-tseed" min="0" step="1" value="${+p.seed || 0}" aria-label="Seed"><button type="button" class="icon-btn" id="fgi-tseed-new" aria-label="Random seed">${Organica.icons.get('refresh', { size: 'sm' })}</button></div>`,
         bind: () => { ctrl('fgi-tseed').addEventListener('change', e => { p.seed = Math.max(0, Math.floor(+e.target.value || 0)); edited(node, true); });
           ctrl('fgi-tseed-new').addEventListener('click', () => { p.seed = Math.floor(Math.random() * 1e6); ctrl('fgi-tseed').value = p.seed; edited(node, true); }); } });
-      rows.push({ html: '<p class="org-panel__hint">Rotates and flips every Element in its own cell — the grid stays as it is. The rotation adds up: Rotation, then Rotation per cell, then the random turn. Two of these nodes add up too.</p>' });
-    } else rows.push({ html: '<p class="org-panel__hint">Rotates and mirrors the Repeat in grid just before it in the chain — quarter turns only. Two of them add up.</p>' });
+    }
   } else if (node.type === 'composition') {
     const rs = p.rules || [], figs = ctl.model.edges.filter(e => e.from.node === node.id && e.to.port === 'composition').map(e => NC.findNode(ctl.model, e.to.node)).filter(Boolean);
     rows.push({ html: `<div class="sub-label">Region rules</div>${rs.length ? `<div class="fg-list fg-list--static" role="list">${rs.map(r => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}" role="listitem"><div class="org-layer-card__head"><span class="org-layer-card__title">${esc(describeComposeRule(r, compInks(node)))}${r.off ? ' (off)' : ''}</span></div></div>`).join('')}</div>` : '<p class="org-panel__hint">No region rules yet.</p>'}
