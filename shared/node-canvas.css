@@ -15,6 +15,8 @@
 }
 .nc-stage.nc-stage--pan, .nc-stage.nc-stage--pan * { cursor: grab; }
 .nc-stage:has(> .nc-board.panning), .nc-stage:has(> .nc-board.panning) * { cursor: grabbing; }   /* a pan in progress — Space-drag or the wheel button (createZoomPan's .panning) */
+.nc-stage.nc-stage--dragging, .nc-stage.nc-stage--dragging * { cursor: grabbing; }   /* a node (or a group) on the move */
+.nc-stage.nc-stage--wiring, .nc-stage.nc-stage--wiring * { cursor: crosshair; }   /* a wire on the move, from its port */
 .nc-board { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
 .nc-wires { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
 .nc-nodes { position: absolute; left: 0; top: 0; }
@@ -26,7 +28,7 @@
   background: var(--paper); color: var(--ink);
   border: 1px solid var(--border-strong); border-radius: var(--radius-md);
   font-size: var(--t-control-size);
-  user-select: none; cursor: default;
+  user-select: none; cursor: grab;   /* the whole card drags (pills included); ports, buttons and fields keep their own cursor */
   transition: border-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard),
     translate var(--dur-base) var(--ease-overshoot-soft), rotate var(--dur-base) var(--ease-overshoot-soft), scale var(--dur-base) var(--ease-overshoot-soft),
     opacity var(--dur-slow) var(--ease-out), filter var(--dur-slow) var(--ease-out);

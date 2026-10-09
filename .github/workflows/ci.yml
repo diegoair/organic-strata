@@ -23,3 +23,7 @@ jobs:
         run: |
           export CHROME="$(which google-chrome || which chromium || which chromium-browser)"
           scripts/test-rhizome.sh
+      - name: Figure board gestures (headless Chrome, clean mouse + held side button)
+        run: |
+          export CHROME="$(which google-chrome || which chromium || which chromium-browser)"
+          scripts/test-figure-board.sh

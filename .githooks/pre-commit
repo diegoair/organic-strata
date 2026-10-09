@@ -20,4 +20,9 @@ if echo "$staged" | grep -qE '^(rhizome/|shared/node-canvas\.|scripts/test-rhizo
   echo "Rhizome (or the shared node canvas) changed — running the headless Rhizome test…"
   "$root/scripts/test-rhizome.sh" || { echo; echo "Commit blocked: the Rhizome test failed."; exit 1; }
 fi
+if echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/js/17-figure|scripts/test-figure-board)'; then
+  echo
+  echo "The node board changed — running the Figure board gestures (clean mouse + held side button)…"
+  "$root/scripts/test-figure-board.sh" || { echo; echo "Commit blocked: the Figure board test failed."; exit 1; }
+fi
 exit 0
