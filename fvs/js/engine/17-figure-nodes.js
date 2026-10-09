@@ -142,23 +142,28 @@ const MIRROR_AXES = { none: '', v: 'v', h: 'h', vh: 'vh' };
 const mergeMirror = (a, b) => { const s = new Set((MIRROR_AXES[a] || '') + (MIRROR_AXES[b] || '')); return s.has('v') && s.has('h') ? 'vh' : s.has('v') ? 'v' : s.has('h') ? 'h' : 'none'; };
 // The chain → what the recipe needs, in one pass: cell rules (a Component rule's pose overwrites the turns and flips
 // of the cell rules before it — a later step wins, as everywhere in the chain), the last Component rule, the Repeat
-// levels in order, each Rotate & mirror on the Repeat just before it in the chain, and `whole`: the Rotate & mirror
-// with no Repeat before them, which turn / flip the whole Figure in place (turnFigure).
+// levels in order, and each Rotate & mirror on the Repeat just before it in the chain — with no Repeat before it, a
+// rule on every cell that turns / mirrors each Element in its place (do.turnBy / do.mirror, added to what the cell has).
 export function chainPlan(chain) {
   const lastComp = chain.map(r => r.kind).lastIndexOf('component');
-  const cellRules = [], levels = [], tfs = []; let whole = { rotate: 0, mirror: 'none' };
+  const cellRules = [], levels = [], tfs = [];
   chain.forEach((r, i) => {
     if (r.kind === 'cells') (r.rules || []).forEach(c => {
       if (i < lastComp && c.do) {   // before the pose: its turn / flip is overwritten, the rest (empty, filled, scale) stays
-        const d = { ...c.do }; delete d.rotate; delete d.flipH; delete d.flipV;
+        const d = { ...c.do }; delete d.rotate; delete d.flipH; delete d.flipV; delete d.turnBy; delete d.mirror;
         if (Object.keys(d).length) cellRules.push({ ...clone(c), do: d });
       } else cellRules.push(clone(c));
     });
     else if (r.kind === 'repeat') { levels.push(clone(r.level)); tfs.push([]); }
     else if (r.kind === 'transform') {
-      // no Repeat before it: it turns and flips the whole Figure in place — no copies, the grid kept (Diego, Oct 9,
-      // 2026, option A: wired alone it used to stop the Figure with "needs a Repeat in grid")
-      if (!levels.length) { whole = { rotate: ((whole.rotate + (+r.transform.rotate || 0)) % 360 + 360) % 360, mirror: mergeMirror(whole.mirror, r.transform.mirror) }; return; }
+      // no Repeat before it: it turns / mirrors every Element in its own cell — the grid and the cells' places kept
+      // (Diego, Oct 9, 2026: "it should only rotate or mirror the 36 elements in the grid"; wired alone it used to
+      // stop the Figure with "needs a Repeat in grid")
+      if (!levels.length) {
+        const t = r.transform, d = {}; if (+t.rotate) d.turnBy = +t.rotate; if (t.mirror && t.mirror !== 'none') d.mirror = t.mirror;
+        if (Object.keys(d).length) cellRules.push({ when: {}, do: d });
+        return;
+      }
       tfs[levels.length - 1].push(r.transform);
     }
   });
@@ -169,18 +174,10 @@ export function chainPlan(chain) {
     const t = list.reduce((acc, x) => ({ rotate: ((acc.rotate + (+x.rotate || 0)) % 360 + 360) % 360, mirror: mergeMirror(acc.mirror, x.mirror) }), { rotate: (lv.transform && lv.transform.rotate) || 0, mirror: (lv.transform && lv.transform.mirror) || 'none' });
     if (t.rotate || t.mirror !== 'none') lv.transform = t; else delete lv.transform;
   });
-  return { cellRules, compRule: lastComp >= 0 ? chain[lastComp] : null, repeats: levels, transform, whole: whole.rotate || whole.mirror !== 'none' ? whole : null };
+  return { cellRules, compRule: lastComp >= 0 ? chain[lastComp] : null, repeats: levels, transform };
 }
 
 // ── Figure: compile → recipe (v2) → evalFigure ──
-// The whole Figure turned and flipped in place: its own frame (width / height swapped for a quarter turn), no copies.
-// A mirror flips across the Figure's centre — 'v' left ↔ right, 'h' top ↔ bottom — then the turn.
-export function turnFigure(svg, t) {
-  const m = svg.match(/^<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/); if (!m) return svg;
-  const w = +m[1], h = +m[2], q = ((+t.rotate || 0) % 360 + 360) % 360, swap = q === 90 || q === 270;
-  const W = swap ? h : w, H = swap ? w : h, sx = /v/.test(t.mirror || '') ? -1 : 1, sy = /h/.test(t.mirror || '') ? -1 : 1;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><g transform="translate(${W / 2} ${H / 2}) rotate(${q}) scale(${sx} ${sy}) translate(${-w / 2} ${-h / 2})">${svg}</g></svg>`;
-}
 function fitOnPage(svg, cv, paper) {   // a figure with its own frame, fitted inside the Canvas's page (margin %)
   const m = svg.match(/^<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/), fw = m ? +m[1] : 1000, fh = m ? +m[2] : 1000;
   const mg = Math.min(cv.W, cv.H) * (cv.margin / 100), W = cv.W - 2 * mg, H = cv.H - 2 * mg, k = Math.min(W / fw, H / fh);
@@ -260,7 +257,7 @@ export async function compileFigure(inputs, params, opts) {
   const contents = [].concat(...(inputs.content || []).filter(Boolean).map(c => c.kind === 'set' ? c.items : [c])).filter(Boolean);
   if (!contents.length) throw new Error('Connect a Content input');
   if (contents.some(c => c.kind === 'symbol')) throw new Error('A Symbol as content is not available yet — use Elements and Components for now');
-  const { cellRules, compRule, repeats, transform: final, whole } = chainPlan(rules);
+  const { cellRules, compRule, repeats, transform: final } = chainPlan(rules);
   const colors = pal && pal.colors && pal.colors.length ? pal.colors.slice() : null;
   const colorRule = pal ? { ...DEFAULT_COLOR_RULE, ...(pal.rule || {}) } : { ...DEFAULT_COLOR_RULE };
   const paper = pal && pal.paper ? pal.paper : '#ffffff';
@@ -314,8 +311,7 @@ export async function compileFigure(inputs, params, opts) {
   const recipe = { tool: 'fvs-recipe', version: 2, element, levels: [first, ...repeats] };
   if (final) recipe.transform = clone(final);
   const r = evalFigure(recipe, opts);
-  if (whole) r.svg = turnFigure(r.svg, whole);
-  const fitted = !cv.fit && (lattice || repeats.length || (whole && whole.rotate % 180));   // a quarter turn swaps the frame: fit it back on the page
+  const fitted = !cv.fit && (lattice || repeats.length);
   // a placement on a cell this grid no longer has: kept in the Composition, not drawn — reported
   const lost = composeLost(composeRules, r.compose ? r.compose.ctxs : null, r.cells);
   return { svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv,

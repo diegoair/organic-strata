@@ -181,6 +181,9 @@ function applyRulesToContent(rules, cw) {   // cw: the Palette's colourway, give
       if (d.rotate != null) cell.rotation = snapPose(d.rotate === 'sector' ? 60 * (ctxs[i].sector || 0) : d.rotate);
       if (d.flipH != null) cell.flipH = !!d.flipH;
       if (d.flipV != null) cell.flipV = !!d.flipV;
+      if (d.turnBy) cell.rotation = snapPose((+cell.rotation || 0) + +d.turnBy);   // Rotate & mirror on the cells: added to the cell's own turn
+      if (d.mirror === 'v' || d.mirror === 'vh') cell.flipH = !cell.flipH;   // … and its mirror flips what the cell has
+      if (d.mirror === 'h' || d.mirror === 'vh') cell.flipV = !cell.flipV;
       if (d.scale != null) cell.scale = d.scale;
       if (d.cell) CELL_KEYS.forEach(k => { if (!(k in d.cell)) return; if (k === 'seedParams' && cell.source !== 'seed') return; if (d.cell[k] == null) delete cell[k]; else cell[k] = clone(d.cell[k]); });
     });

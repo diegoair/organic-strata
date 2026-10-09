@@ -730,7 +730,7 @@ function renderInspectorBody(box, ids) {
   } else if (node.type === 'transform') {
     rows.push(selectRow('Rotation', 'fgi-trot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
     rows.push(selectRow('Mirror', 'fgi-tmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
-    rows.push({ html: '<p class="org-panel__hint">Rotates and mirrors the Repeat in grid just before it in the chain. With none before it, the whole Figure turns and flips in place. Two of them add up.</p>' });
+    rows.push({ html: '<p class="org-panel__hint">With no Repeat in grid before it in the chain, it turns and mirrors every Element in its own cell — the grid stays as it is. After a Repeat in grid, it rotates and mirrors that Repeat. Two of them add up.</p>' });
   } else if (node.type === 'composition') {
     const rs = p.rules || [], figs = ctl.model.edges.filter(e => e.from.node === node.id && e.to.port === 'composition').map(e => NC.findNode(ctl.model, e.to.node)).filter(Boolean);
     rows.push({ html: `<div class="sub-label">Region rules</div>${rs.length ? `<div class="fg-list fg-list--static" role="list">${rs.map(r => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}" role="listitem"><div class="org-layer-card__head"><span class="org-layer-card__title">${esc(describeComposeRule(r, compInks(node)))}${r.off ? ' (off)' : ''}</span></div></div>`).join('')}</div>` : '<p class="org-panel__hint">No region rules yet.</p>'}
