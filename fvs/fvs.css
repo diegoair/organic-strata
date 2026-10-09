@@ -462,6 +462,13 @@
   .fg-new__name { font-size: var(--t-caption-size); line-height: var(--lh-heading); }
   .fg-inspector .fg-hide[hidden] { display: none !important; }
   .fg-card__img { max-height: 24rem; object-fit: contain; }
+  /* Vary (the Variations panel, Oct 9, 2026): one row per input, its port colour as a dot (data-ink → --node-ink,
+     shared/node-canvas.css); Grid and Palette open to their parameters (the class-driven disclosure, .is-open) */
+  .fg-vary__row { display: flex; flex-direction: column; }
+  .fg-vary__head { display: flex; align-items: center; gap: var(--space-2); }
+  .fg-vary__head .check-row { flex: 1; min-width: 0; }
+  .fg-vary__dot { width: var(--space-3); height: var(--space-3); border-radius: 50%; background: var(--node-ink); flex: 0 0 auto; }
+  .fg-vary__params { padding-left: calc(var(--space-3) * 3 + var(--space-5)); }   /* under the row's label: dot + gap + box + gap */
   .fg-var { position: relative; margin: 0; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
   .fg-var { --fg-pin-ring: var(--ink); }   /* resolved in the card's theme, not the light sheet's */
   .fg-var.is-pinned .fg-card__sheet { outline: 2px solid var(--fg-pin-ring); outline-offset: 2px; }

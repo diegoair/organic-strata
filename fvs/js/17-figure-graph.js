@@ -46,7 +46,7 @@ import {
   plateSVG
 } from './engine/15-export-library-view.js';
 import {
-  FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridPreviewModel, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
@@ -66,6 +66,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'node-rule', Output: 'node-output' };
 const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Pinwheel', mirror: 'Mirror (kaleidoscope)', checkerboard: 'Checkerboard' };   // the Component step's own names
 let ctl = null;
+const varyOpen = new Set();   // the Vary rows open in the Variations panel (node id + ':' + input), kept across re-renders
 
 // ── the graph a first visit starts with: Canvas + Grid + Palette → Figure, fed by the newest saved Component/Element ──
 // Default names (UI-COPY §2): Canvas 1, Grid 1, Palette 1, Figure 1 — given once, when the node is made, so deleting
@@ -133,7 +134,8 @@ function renderBody(node, entry, el) {
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); variationsOf(node.id).forEach(vn => restackChildren(vn.id)); }, { once: true }));
   } else if (node.type === 'variations') {
     const k = Math.max(0, +p.variations || 0), f = v && v.figure;
-    el.innerHTML = NC.body.line(`${k} ${k === 1 ? 'variation' : 'variations'} · ${({ seed: 'Seed', one: 'One change', several: 'Several changes' })[p.varyBy || 'one']}${f && f.failedVariations ? ` · ${f.failedVariations} could not be drawn` : ''}`);
+    const md = specModeOf(p), how = md.mode === 'seed' ? 'New seeds only' : `${md.changes || 1} ${md.changes > 1 ? 'changes' : 'change'}`;   // 'several' never reaches the pill: it migrates on load
+    el.innerHTML = NC.body.line(`${k} ${k === 1 ? 'variation' : 'variations'} · ${how}${f && f.failedVariations ? ` · ${f.failedVariations} could not be drawn` : ''}`);
   } else if (node.type === 'figure-var') {
     const f = v && v.figure, par = sourceOf(node);
     if (!f) { el.innerHTML = ''; return; }
@@ -214,10 +216,10 @@ function variationAction(childId, act) {
     if (!v.pinned) pins.push({ mode: v.spec.mode, seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });
     p.pins = pins; edited(node, true); ctl.select([childId]); return;
   }
-  if (act === 'use') { useVariation(fig, v, p.keep || {}, child); return; }
+  if (act === 'use') { useVariation(fig, v, settingsOf(p), child); return; }
   if (act === 'from') {   // one undo step
     const [copy] = ctl.duplicate([id], { noCommit: true }); const n = NC.findNode(ctl.model, copy), m = ctl.model;
-    n.params.fixed = [].concat(fig.params.fixed || [], [{ ...v.spec, keep: { ...(p.keep || {}) } }]);
+    n.params.fixed = [].concat(fig.params.fixed || [], [{ ...v.spec, st: settingsOf(p) }]);   // the spec + the settings it was drawn with
     if (v.item != null) { const at = String(v.item).indexOf(':'); n.params.onlyItem = { index: +String(v.item).slice(0, at), name: String(v.item).slice(at + 1) }; }   // a fan-out variation: that Set item only
     m.edges.filter(e => e.to.node === childId && e.to.port !== 'from').forEach(e => {   // the child's own inputs: they replace the parent's (Rules are added)
       if (e.to.port !== 'rules' && e.to.port !== 'content') m.edges.filter(w => w.to.node === copy && w.to.port === e.to.port).forEach(w => NC.removeEdge(m, w.id));
@@ -256,13 +258,13 @@ function writeRule(node, r) {   // a rule (ruleOf's shape) back into its node's 
     if (c.turnRandom) p.seed = c.turnRandom.seed;
   }
 }
-function useVariation(fig, v, keep, child) {
+function useVariation(fig, v, st, child) {
   // a variation with inputs of its own was drawn from other inputs than its Figure's: replaying its change on the Figure
   // could write to the wrong nodes — say so instead (review note, Oct 9, 2026)
   if (ctl.model.edges.some(e => e.to.node === child.id && e.to.port !== 'from')) { Organica.notice(`${nodeLabel(child)} has its own inputs — use New Figure from this instead`); return; }
   const raw = figureInputsOf(fig), same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const base = [].concat(fig.params.fixed || []).reduce((b, spec) => { const x = varyInputs(b.inputs, spec, spec.keep || {}); return { inputs: x.inputs, extra: { ...b.extra, ...x.extra } }; }, { inputs: raw, extra: {} });
-  const vr = varyInputs(base.inputs, v.spec, keep), now = vr.inputs, changed = [], shared = new Set(); let unlinked = null;
+  const base = [].concat(fig.params.fixed || []).reduce((b, spec) => { const x = varyInputs(b.inputs, spec, spec.st || spec.keep || {}); return { inputs: x.inputs, extra: { ...b.extra, ...x.extra } }; }, { inputs: raw, extra: {} });
+  const vr = varyInputs(base.inputs, v.spec, st), now = vr.inputs, changed = [], shared = new Set(); let unlinked = null;
   const [, gr, pa] = foundationOf(fig);
   const alsoFeeds = n => ctl.model.edges.filter(e => e.from.node === n.id && e.to.node !== fig.id).map(e => NC.findNode(ctl.model, e.to.node)).filter(x => x && x.type === 'figure').forEach(x => shared.add(nodeLabel(x)));
   if (gr && !same(now.grid, raw.grid)) { alsoFeeds(gr); gr.params = { ...gr.params, gen: now.grid.gen, params: { ...now.grid.params } }; ctl.touch(gr.id); changed.push(nodeLabel(gr)); }
@@ -861,12 +863,37 @@ function renderInspectorBody(box, ids) {
     if (hasSet && !(fig.params || {}).onlyItem) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-fanout"${p.fanOut !== false ? ' checked' : ''}><span>Variations per item</span></label><p class="org-panel__hint">Each item of the Set gets its own variations. Off: the items are mixed over the cells.</p>`,
       bind: () => ctrl('fgi-fanout').addEventListener('change', e => { p.fanOut = e.target.checked; edited(node, true); }) });
     rows.push(rangeRow('Variations', 'fgi-vcount', 1, 12, 1, +p.variations || 1, (v, c) => { p.variations = v; edited(node, c); }));   // variations made, the Figure not counted (O-58 a)
-    rows.push(selectRow('Vary by', 'fgi-varyby', [['seed', 'Seed'], ['one', 'One change'], ['several', 'Several changes']], p.varyBy || 'one', v => { p.varyBy = v; edited(node, true); }));
-    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" id="fgi-seed" value="${+p.seed || 1}" min="1" max="999999" step="1" aria-label="Seed"><button type="button" class="icon-btn" id="fgi-renew" aria-label="New variations — pinned ones stay" title="New variations — pinned ones stay">${Organica.icons.get('refresh', { size: 'sm' })}</button></div>`,   // as every E/C/S seed row: the number + its refresh
+    // Changes per variation · New seeds only · Amount · Seed · Vary (Oct 9, 2026, first level of the Variations rework —
+    // design-system CONSULT): the switch disables what a re-seed never touches (Amount, the count, Palette, Cell rules)
+    const only = !!p.onlyRandom, nChanges = Math.max(1, Math.min(3, +p.changes || 1));
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Changes per variation</div><div class="seg-ctrl" role="group" aria-label="Changes per variation">${[1, 2, 3].map(n => `<button type="button" class="seg-btn${n === nChanges ? ' active' : ''}" data-changes="${n}" aria-pressed="${n === nChanges}"${only ? ' disabled' : ''}>${n}</button>`).join('')}</div></div>`,
+      bind: () => box.querySelectorAll('[data-changes]').forEach(b => b.addEventListener('click', () => { p.changes = +b.dataset.changes; edited(node, true); renderInspector(ids); })) });
+    rows.push({ html: `<label class="check-row org-switch"><span>New seeds only</span><input type="checkbox" id="fgi-onlyrandom"${only ? ' checked' : ''}></label>`,
+      bind: () => ctrl('fgi-onlyrandom').addEventListener('change', e => { p.onlyRandom = e.target.checked; edited(node, true); renderInspector(ids); }) });
+    const amt = rangeRow('Amount', 'fgi-amount', 0, 100, 5, settingsOf(p).amount, (v, c) => { p.amount = v; edited(node, c); }, '%');
+    rows.push({ html: amt.html, bind: () => { amt.bind(); if (only) ctrl('fgi-amount').disabled = true; } });
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" id="fgi-seed" value="${+p.seed || 1}" min="1" max="999999" step="1" aria-label="Seed"><button type="button" class="icon-btn" id="fgi-renew" aria-label="New variations — pinned ones stay">${Organica.icons.get('refresh', { size: 'sm' })}</button></div>`,   // as every E/C/S seed row: the number + its refresh
       bind: () => { ctrl('fgi-seed').addEventListener('change', e => { p.seed = Math.max(1, Math.round(+e.target.value) || 1); edited(node, true); }); ctrl('fgi-renew').addEventListener('click', () => { p.seed = (+p.seed || 1) + 1; edited(node, true); renderInspector(ids); }); } });
-    const KEEP_LABELS = { content: 'Content', palette: 'Palette', cells: 'Cell rules', grid: 'Grid', transform: 'Rotate & mirror' };
-    rows.push({ html: `<div class="sub-label">Keep</div><div class="check-group">${KEEP_KEYS.map(k => `<label class="check-row"><input type="checkbox" data-keep="${k}"${(p.keep || {})[k] ? ' checked' : ''}><span>${KEEP_LABELS[k]}</span></label>`).join('')}</div>`,
-      bind: () => box.querySelectorAll('[data-keep]').forEach(c => c.addEventListener('change', () => { p.keep = { ...(p.keep || {}), [c.dataset.keep]: c.checked }; edited(node, true); })) });
+    // Vary — which inputs a variation may change (the positive form of the old Keep; `vary[k]` true · false · an array of
+    // parameter keys). One row per input with its port colour as a dot; Grid and Palette open to their parameters.
+    const VARY_ROWS = [['grid', 'Grid', 'grid'], ['palette', 'Palette', 'palette'], ['content', 'Content', 'content'], ['cells', 'Cell rules', 'rule'], ['transform', 'Rotate & mirror', 'rule']];
+    const [, gridNode] = fig ? foundationOf(fig) : [null, null], gridGen = gridNode && gridNode.params ? gridNode.params.gen : 'rectangular';
+    const keysOf = k => k === 'grid' ? gridVaryKeys(gridGen) : k === 'palette' ? VARY_KEYS.palette : null;   // the rows that open (CONSULT: Grid and Palette for now)
+    const vary = p.vary || {}, isOn = k => vary[k] !== false && !(Array.isArray(vary[k]) && !vary[k].length), has = (k, key) => vary[k] == null || vary[k] === true || (Array.isArray(vary[k]) && vary[k].includes(key));
+    rows.push({ html: `<div class="sub-label">Vary</div>` + VARY_ROWS.map(([k, label, ink]) => {
+      const keys = keysOf(k), open = varyOpen.has(node.id + ':' + k), off = only && (k === 'palette' || k === 'cells');
+      return `<div class="fg-vary__row${open ? ' is-open' : ''}" data-vary-row="${k}"><div class="fg-vary__head"><label class="check-row"><span class="fg-vary__dot" data-ink="${ink}" aria-hidden="true"></span><input type="checkbox" data-vary="${k}"${isOn(k) ? ' checked' : ''}${off ? ' disabled' : ''}><span>${esc(label)}</span></label>`
+        + (keys ? `<button type="button" class="icon-btn" data-vary-open="${k}" aria-expanded="${open}" aria-label="${esc(label)} parameters">${Organica.icons.get('chevron-right', { size: 'xs', cls: 'org-chev' })}</button>` : '') + `</div>`
+        + (keys ? `<div class="org-disclosure__panel"><div class="fg-vary__params">${keys.map(([key, kl]) => `<label class="check-row"><input type="checkbox" data-vary-key="${k}:${key}"${has(k, key) ? ' checked' : ''}${!isOn(k) || off ? ' disabled' : ''}><span>${esc(kl)}</span></label>`).join('')}</div></div>` : '') + `</div>`;
+    }).join(''),
+      bind: () => {
+        box.querySelectorAll('[data-vary]').forEach(c => c.addEventListener('change', () => { p.vary = { ...(p.vary || {}), [c.dataset.vary]: c.checked }; edited(node, true); renderInspector(ids); }));
+        box.querySelectorAll('[data-vary-open]').forEach(b => b.addEventListener('click', () => { const id = node.id + ':' + b.dataset.varyOpen; varyOpen.has(id) ? varyOpen.delete(id) : varyOpen.add(id); b.setAttribute('aria-expanded', varyOpen.has(id)); b.closest('.fg-vary__row').classList.toggle('is-open', varyOpen.has(id)); }));
+        box.querySelectorAll('[data-vary-key]').forEach(c => c.addEventListener('change', () => {
+          const [k, key] = c.dataset.varyKey.split(':'), all = (keysOf(k) || []).map(x => x[0]), on = all.filter(x => x === key ? c.checked : has(k, x));
+          p.vary = { ...(p.vary || {}), [k]: on.length === all.length ? true : on.length ? on : false }; edited(node, true); renderInspector(ids);
+        }));
+      } });
     const hidden = (p.pins || []).filter(q => q.slot > (+p.variations || 0)).length;
     if ((p.pins || []).length) rows.push({ html: `<p class="org-panel__hint">${p.pins.length} pinned${hidden ? ` — ${hidden} not shown: raise Variations to see ${hidden === 1 ? 'it' : 'them'}` : ''}</p>` });
   }
@@ -1618,9 +1645,9 @@ export function chainRules(src) {
   return m;
 }
 // Variations became a node (Diego, Oct 9, 2026): a Figure saved with Variations above 1 gets a Variations node with its
-// settings (count, Vary by, seed, Keep, pins, per item); its children and the Exports that took its variations move to
+// settings (count, changes, seed, vary, pins, per item); its children and the Exports that took its variations move to
 // it — the board draws as before. The Figure keeps only what is its own (fit, clip, own colours, fixed changes).
-const VAR_KEYS = ['variations', 'varyBy', 'seed', 'keep', 'pins', 'fanOut'];
+const VAR_KEYS = ['variations', 'varyBy', 'seed', 'keep', 'pins', 'fanOut', 'changes', 'onlyRandom', 'vary', 'amount'];
 export function variationsNodes(src) {
   const m = { ...src, nodes: (src.nodes || []).map(n => ({ ...n })), edges: (src.edges || []).slice() };
   let moved = 0;
@@ -1630,7 +1657,7 @@ export function variationsNodes(src) {
     if (count > 1 || kids.length) {
       const vp = { variations: count - 1 }; VAR_KEYS.slice(1).forEach(k => { if (k in p) vp[k] = JSON.parse(JSON.stringify(p[k])); });
       const vn = { id: NC.nextId('n'), type: 'variations', x: fig.x + 416 + LABEL_ROOM, y: fig.y, params: vp, name: nextName(m, 'variations') };
-      m.nodes.push(vn);
+      migrateVariationParams(vp); m.nodes.push(vn);
       m.edges = m.edges.map(e => e.from.node === fig.id && (e.to.port === 'from' || e.to.port === 'figures') ? { ...e, from: { node: vn.id, port: 'figure' } } : e);
       m.edges.push({ id: NC.nextId('e'), from: { node: fig.id, port: 'figure' }, to: { node: vn.id, port: 'figure' } });
       m.nodes.filter(n => n.type === 'figure-var' && n.params && n.params.parent === fig.id).forEach(n => { n.params = { ...n.params, parent: vn.id }; });
@@ -1638,6 +1665,7 @@ export function variationsNodes(src) {
     }
     if (VAR_KEYS.some(k => k in p) || 'layout' in p) { const q = { ...p }; VAR_KEYS.forEach(k => delete q[k]); delete q.layout; fig.params = q; }
   });
+  m.nodes.filter(n => n.type === 'variations' && n.params && ('keep' in n.params || 'varyBy' in n.params)).forEach(n => { n.params = migrateVariationParams({ ...n.params }); });   // a Variations node saved before Vary / Changes (Oct 9, 2026)
   variationsNodes.moved = moved;
   return m;
 }
