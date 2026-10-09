@@ -256,7 +256,7 @@ const ch = await P.ev(`
     const mm = parallel ? F('chainRules')(m) : m;
     const eng = NC.createEngine({ registry: reg }); await eng.run(mm);
     const e = eng.get(f.id);
-    return { state: e.state, msg: e.message || '', svg: e.state === 'ok' ? norm(e.value.figure.svg) : '', rulesIn: mm.edges.filter(w => w.to.node === f.id && w.to.port === 'rules').length };
+    return { state: e.state, msg: e.message || '', svg: e.state === 'ok' ? norm(e.value.figure.svg) : '', cells: e.state === 'ok' ? e.value.figure.cells : 0, shapes: e.state === 'ok' ? e.value.figure.shapes : 0, rulesIn: mm.edges.filter(w => w.to.node === f.id && w.to.port === 'rules').length };
   };
   const res = {};
   const [cells, comp, compThenCells, cellsThenComp] = await Promise.all([run(['rot90']), run(['radial']), run(['radial', 'rot90']), run(['rot90', 'radial'])]);
@@ -268,7 +268,10 @@ const ch = await P.ev(`
   // Rotate & mirror with no Repeat before it turns / mirrors the Figure itself (Oct 9, 2026 — it used to stop the Figure)
   const plain = await run([]), tNoRep = await run(['t90']), tBefore = await run(['t90', 'rep']), mNoRep = await run(['tmv']), t0 = await run(['t0']);
   res.tAlone = [tNoRep, tBefore, mNoRep, t0].map(x => x.state + (x.msg ? ':' + x.msg : ''));
-  res.tNoRep = [tNoRep, tBefore, mNoRep].every(x => x.state === 'ok') && tNoRep.svg !== plain.svg && mNoRep.svg !== plain.svg && mNoRep.svg !== tNoRep.svg && tBefore.svg !== tNoRep.svg && t0.state === 'ok';
+  // option A (Diego): the whole Figure turned / flipped in place — the same cells and shapes (no copies), the drawing changed
+  res.tNoRep = [tNoRep, tBefore, mNoRep].every(x => x.state === 'ok') && tNoRep.svg !== plain.svg && mNoRep.svg !== plain.svg && mNoRep.svg !== tNoRep.svg && tBefore.svg !== tNoRep.svg && t0.state === 'ok'
+    && [tNoRep, mNoRep, t0].every(x => x.cells === plain.cells && x.shapes === plain.shapes) && t0.svg === plain.svg && tNoRep.svg.includes('rotate(90)') && mNoRep.svg.includes('scale(-1 1)');
+  res.tAlone.push('cells/shapes ' + [plain, tNoRep, mNoRep, t0].map(x => x.cells + '/' + x.shapes).join(' '));
   res.tAfter = (await run(['rep', 't90'])).state === 'ok';
   res.twoT = (await run(['rep', 't90', 't90'])).svg === (await run(['rep', 't180'])).svg;
   const p33 = await run(['pin'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } }), r33 = await run(['radial'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } });
@@ -368,7 +371,7 @@ check(ch.orderMatters, 'rules: the chain order changes the drawing');
 check(ch.laterWinsTurn, 'rules: a later step wins on the turn it sets (Cell rules after / before a Component rule)');
 check(ch.poseKeepsEmpty, 'rules: an empty cell from a rule before the pose stays empty');
 check(ch.twoComp, 'rules: two Component rules — the later one poses');
-check(ch.tNoRep, 'rules: Rotate & mirror with no Repeat before it turns / mirrors the Figure itself (alone, before a Repeat, mirror, 0°): ' + ch.tAlone.join(' | '));
+check(ch.tNoRep, 'rules: Rotate & mirror with no Repeat before it turns / flips the whole Figure in place, no copies (alone, before a Repeat, mirror, 0°): ' + ch.tAlone.join(' | '));
 check(ch.aloneOk, 'rules: each rule alone on the default Figure draws (a Component rule on a Loom grid says why): ' + ch.aloneOnDefault.join(' | '));
 check(ch.tAfter, 'rules: Rotate & mirror after a Repeat draws');
 check(ch.twoT, 'rules: two Rotate & mirror add up (90° + 90° = 180°)');
