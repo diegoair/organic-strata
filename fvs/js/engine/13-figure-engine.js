@@ -97,11 +97,14 @@ export function ruleMatches(when, ctx) {
     && (when.at == null || when.at.some(a => a[0] === ctx.row && a[1] === ctx.col));   // at: [[row, col], …] — cells by grid address (Compose)
 }
 // Rotate & mirror on the cells (Oct 9, 2026): how much one cell turns — the Rotation, + the Rotation per cell × the
-// cell's count (cell / row / column, from 0), + a random angle drawn from the Seed and the cell's index.
+// cell's count (cell / row / column, from 0), + a random turn up to ± Random rotation, drawn from the seed and the cell's index.
 export function cellTurnOf(d, ctx) {
   let t = +d.turnBy || 0;
   if (d.turnStep && +d.turnStep.deg) t += +d.turnStep.deg * (+ctx[d.turnStep.by === 'row' ? 'row' : d.turnStep.by === 'col' ? 'col' : 'index'] || 0);
-  if (d.turnRandom != null) t += 360 * Organica.mulberry32(((d.turnRandom >>> 0) ^ Math.imul((+ctx.index || 0) + 1, 2654435761)) >>> 0)();   // any angle
+  if (d.turnRandom != null) {   // { seed, amount }: up to ± amount° each way (a bare number = a seed from before, a full turn)
+    const R = typeof d.turnRandom === 'object' ? d.turnRandom : { seed: d.turnRandom, amount: 180 };
+    t += (+R.amount || 0) * (2 * Organica.mulberry32(((R.seed >>> 0) ^ Math.imul((+ctx.index || 0) + 1, 2654435761)) >>> 0)() - 1);
+  }
   return t;
 }
 // Rules apply in order; a later rule overrides an earlier one on the slots it matches.

@@ -181,7 +181,7 @@ function renderBody(node, entry, el) {
   } else if (node.type === 'transform') {
     const rot = +p.rotate || 0, m = p.mirror && p.mirror !== 'none' ? p.mirror : null, cells = !repeatBefore(node);
     const flip = m && (cells ? { v: 'flip horizontal', h: 'flip vertical', vh: 'flip both' }[m] : 'mirror ' + MIRRORS[m].toLowerCase());
-    const bits = [rot ? `Rotation ${rot}°` : '', flip || '', cells && +p.perCell ? `+${p.perCell}° per ${{ row: 'row', col: 'column' }[p.countBy] || 'cell'}` : '', cells && p.random ? 'random' : ''].filter(Boolean);
+    const bits = [rot ? `Rotation ${rot}°` : '', flip || '', cells && +p.perCell ? `+${p.perCell}° per ${{ row: 'row', col: 'column' }[p.countBy] || 'cell'}` : '', cells && (p.randomAmount != null ? +p.randomAmount : p.random ? 180 : 0) ? `random ±${p.randomAmount != null ? +p.randomAmount : 180}°` : ''].filter(Boolean);
     el.innerHTML = NC.body.line(bits.length ? bits.join(' · ').replace(/^./, c => c.toUpperCase()) : 'No change');
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
@@ -762,10 +762,14 @@ function renderInspectorBody(box, ids) {
           ctrl('fgi-tn').addEventListener('change', e => { p.n = Math.max(0, +e.target.value || 0); edited(node, true); }); } });
       rows.push(rangeRow('Rotation per cell', 'fgi-tper', 0, 359, 1, +p.perCell || 0, (v, c) => { p.perCell = v; edited(node, c); if (c && !ctrl('fgi-tby') !== !v) renderInspector(ids); }, '°'));   // Counted by comes and goes with it (the drag already stored the value: ask the panel)
       if (+p.perCell) rows.push(selectRow('Counted by', 'fgi-tby', [['index', 'Cell'], ['row', 'Row'], ['col', 'Column']], p.countBy || 'index', v => { p.countBy = v; edited(node, true); }));
-      rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-trand"${p.random ? ' checked' : ''}><span>Random rotation</span></label>`, bind: () => ctrl('fgi-trand').addEventListener('change', e => { p.random = e.target.checked; edited(node, true); renderInspector(ids); }) });
-      if (p.random) rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" id="fgi-tseed" min="0" step="1" value="${+p.seed || 0}" aria-label="Seed"><button type="button" class="icon-btn" id="fgi-tseed-new" aria-label="Random seed">${Organica.icons.get('refresh', { size: 'sm' })}</button></div>`,
-        bind: () => { ctrl('fgi-tseed').addEventListener('change', e => { p.seed = Math.max(0, Math.floor(+e.target.value || 0)); edited(node, true); });
-          ctrl('fgi-tseed-new').addEventListener('click', () => { p.seed = Math.floor(Math.random() * 1e6); ctrl('fgi-tseed').value = p.seed; edited(node, true); }); } });
+      // Random rotation (Diego, Oct 9, 2026): how far each cell may turn at random, either way; the dice draws again
+      // (the seed is kept underneath so a result comes back the same, never shown). Saved before as random: true = 180°.
+      const amt = p.randomAmount != null ? +p.randomAmount : p.random ? 180 : 0;
+      rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Random rotation</div><input type="range" id="fgi-trand" min="0" max="180" step="1" value="${amt}" aria-label="Random rotation"><span class="ctrl-val" id="v-fgi-trand">${amt}°</span><button type="button" class="icon-btn" id="fgi-tseed-new" aria-label="Random seed"${amt ? '' : ' disabled'}>${Organica.icons.get('dice', { size: 'sm' })}</button></div>`,
+        bind: () => { const r = ctrl('fgi-trand'), v = ctrl('v-fgi-trand'), dice = ctrl('fgi-tseed-new');
+          const set = commit => { p.randomAmount = +r.value; delete p.random; v.textContent = r.value + '°'; dice.disabled = !+r.value; edited(node, commit); };
+          r.addEventListener('input', () => set(false)); r.addEventListener('change', () => set(true));
+          dice.addEventListener('click', () => { p.seed = Math.floor(Math.random() * 1e6); edited(node, true); }); } });
     }
   } else if (node.type === 'composition') {
     const rs = p.rules || [], figs = ctl.model.edges.filter(e => e.from.node === node.id && e.to.port === 'composition').map(e => NC.findNode(ctl.model, e.to.node)).filter(Boolean);

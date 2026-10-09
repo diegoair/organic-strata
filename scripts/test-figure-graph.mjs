@@ -239,7 +239,7 @@ const ch = await P.ev(`
     chkFlip: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90, flip: true } } },
     rep: { kind: 'repeat', p: { lattice: 'square', count: 2 } }, t90: { kind: 'transform', p: { rotate: 90, mirror: 'none' } }, t180: { kind: 'transform', p: { rotate: 180, mirror: 'none' } }, tmv: { kind: 'transform', p: { rotate: 0, mirror: 'v' } }, t0: { kind: 'transform', p: { rotate: 0, mirror: 'none' } },
     t30: { kind: 'transform', p: { rotate: 30, mirror: 'none' } }, tper: { kind: 'transform', p: { rotate: 0, perCell: 90 } }, tperRow: { kind: 'transform', p: { rotate: 0, perCell: 90, countBy: 'row' } },
-    trand5: { kind: 'transform', p: { random: true, seed: 5 } }, trand6: { kind: 'transform', p: { random: true, seed: 6 } }, todd: { kind: 'transform', p: { rotate: 90, which: 'odd' } }, oddRot: { kind: 'cell-rules', p: { rules: [{ when: { parity: 'odd' }, do: { rotate: 90 } }] } } };
+    trand5: { kind: 'transform', p: { random: true, seed: 5 } }, trand6: { kind: 'transform', p: { random: true, seed: 6 } }, ta10: { kind: 'transform', p: { randomAmount: 10, seed: 5 } }, ta0: { kind: 'transform', p: { randomAmount: 0, seed: 5 } }, ta10b: { kind: 'transform', p: { randomAmount: 10, seed: 9 } }, todd: { kind: 'transform', p: { rotate: 90, which: 'odd' } }, oddRot: { kind: 'cell-rules', p: { rules: [{ when: { parity: 'odd' }, do: { rotate: 90 } }] } } };
   const run = async (steps, grid, parallel) => {
     const m = NC.createModel();
     const cv = NC.addNode(m, { type: 'canvas', params: reg.defaults('canvas') });
@@ -280,6 +280,8 @@ const ch = await P.ev(`
   const odd = await run(['todd']), oddCells = await run(['oddRot']), t30 = await run(['t30']), t30rep = await run(['rep', 't30']);
   res.tCells = [per, perRow, r5, r6, odd, t30].every(x => x.state === 'ok' && x.cells === plain.cells) && per.svg !== plain.svg && perRow.svg !== per.svg
     && r5.svg === r5b.svg && r5.svg !== r6.svg && r5.svg !== plain.svg && odd.svg !== tNoRep.svg && odd.svg !== plain.svg && t30.svg !== plain.svg && /quarter turns only/.test(t30rep.msg);
+  const a10 = await run(['ta10']), a10again = await run(['ta10']), a0 = await run(['ta0']), a10b = await run(['ta10b']);
+  res.tAmount = a0.svg === plain.svg && a10.svg !== plain.svg && a10.svg === a10again.svg && a10b.svg !== a10.svg && a10.svg !== r5.svg;   // 0° = nothing; ±10° ≠ ±180°; same seed = same drawing
   res.tCellsWhy = [per, perRow, r5, r6, odd, t30, t30rep].map(x => x.state + (x.msg ? ':' + x.msg.slice(0, 60) : '')).join(' | ');
   res.tAlone.push('4×90°=none ' + (four.svg === plain.svg) + ', 2 mirrors=none ' + (twoM.svg === plain.svg));
   res.tAlone.push('cells/shapes ' + [plain, tNoRep, mNoRep, t0].map(x => x.cells + '/' + x.shapes).join(' '));
@@ -385,6 +387,7 @@ check(ch.twoComp, 'rules: two Component rules — the later one poses');
 check(ch.tNoRep, 'rules: Rotate & mirror with no Repeat before it turns / mirrors every Element in its cell, grid kept (alone, before a Repeat, mirror, 0°): ' + ch.tAlone.join(' | '));
 check(ch.aloneOk, 'rules: each rule alone on the default Figure draws (a Component rule on a Loom grid says why): ' + ch.aloneOnDefault.join(' | '));
 check(ch.tCells, 'rules: Rotate & mirror on the cells — Rotation per cell (cell / row), Random rotation by Seed, Which cells, 30°; 30° after a Repeat says quarter turns only: ' + ch.tCellsWhy);
+check(ch.tAmount, 'rules: Random rotation — 0° changes nothing, an amount and a seed give the same drawing again, another seed another one');
 check(ch.tAfter, 'rules: Rotate & mirror after a Repeat draws');
 check(ch.twoT, 'rules: two Rotate & mirror add up (90° + 90° = 180°)');
 check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4; Radial refuses odd sizes; a Loom grid is refused with a reason');

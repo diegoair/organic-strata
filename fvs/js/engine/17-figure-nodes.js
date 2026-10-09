@@ -139,7 +139,8 @@ export function ruleOf(type, p) {
     const r = { kind: 'transform', transform: { rotate: +p.rotate || 0, mirror: p.mirror || 'none' } }, c = {};
     if (p.which && p.which !== 'all') c.when = whenOf(p.which, +p.n || 0);
     if (+p.perCell) c.turnStep = { deg: +p.perCell, by: p.countBy === 'row' || p.countBy === 'col' ? p.countBy : 'index' };
-    if (p.random) c.turnRandom = (+p.seed || 0) >>> 0;
+    const amt = p.randomAmount != null ? +p.randomAmount : p.random ? 180 : 0;   // Random rotation (0–180°); `random: true` = saved before the slider
+    if (amt > 0) c.turnRandom = { seed: (+p.seed || 0) >>> 0, amount: amt };
     if (Object.keys(c).length) r.cells = c;
     return r;
   }
@@ -579,7 +580,7 @@ export function figureNodeTypes() {
       compute: (i, p) => chained('repeat', i, p) },
     { meta: { id: 'composition', label: 'Composition', category: 'Rules', pill: true, icon: 'node-composition', inputs: [], outputs: [{ name: 'composition', type: 'composition', label: 'Composition' }], params: [{ name: 'rules', default: [] }] },
       compute: (i, p) => ({ composition: { rules: clone(p.rules || []) } }) },
-    { meta: { id: 'transform', label: 'Rotate & mirror', category: 'Rules', pill: true, icon: 'node-transform', inputs: RULE_IN, outputs: RULE_OUT, params: [{ name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }, { name: 'which', default: 'all' }, { name: 'n', default: 1 }, { name: 'perCell', default: 0 }, { name: 'countBy', default: 'index' }, { name: 'random', default: false }, { name: 'seed', default: 1 }] },
+    { meta: { id: 'transform', label: 'Rotate & mirror', category: 'Rules', pill: true, icon: 'node-transform', inputs: RULE_IN, outputs: RULE_OUT, params: [{ name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }, { name: 'which', default: 'all' }, { name: 'n', default: 1 }, { name: 'perCell', default: 0 }, { name: 'countBy', default: 'index' }, { name: 'randomAmount', default: null }, { name: 'seed', default: 1 }] },
       compute: (i, p) => chained('transform', i, p) },
     { meta: { id: 'export', label: 'Export', category: 'Output', pill: true, icon: 'download', inputs: [{ name: 'figures', type: 'figure', label: 'Figures', multi: true, required: true }], outputs: [],
         params: [{ name: 'which', default: 'all' }, { name: 'formats', default: { svg: true, png: false, plates: false } }, { name: 'scales', default: [1] }, { name: 'transparent', default: false }] },
