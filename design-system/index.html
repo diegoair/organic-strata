@@ -2603,7 +2603,7 @@ window.dsNodePills = (function () {
     { id: 'component-rule', group: 'Rules', type: 'Component rule', name: 'Component rule 1', icon: 'node-component-rule', outputs: RULES, body: B.line('Pinwheel') },
     { id: 'repeat', group: 'Rules', type: 'Repeat in grid', name: 'Repeat in grid 1', icon: 'node-repeat', outputs: RULES, body: B.line('Square · 3 per side') },
     { id: 'composition', group: 'Rules', type: 'Composition', name: 'Composition 1', icon: 'node-composition', outputs: OUT('composition', 'Composition'), body: B.line('No region rules yet') },
-    { id: 'transform', group: 'Rules', type: 'Rotate & mirror', name: 'Rotate & mirror 1', icon: 'node-transform', outputs: RULES, body: B.line('Rotation 90° + mirror') },
+    { id: 'transform', group: 'Rules', type: 'Rotate & mirror', name: 'Rotate & mirror 1', icon: 'node-transform', outputs: RULES, body: B.line('Rotation 90° · Flip horizontal') },
     { id: 'variations', group: 'Rules', type: 'Variations', name: 'Variations', icon: 'variations', inputs: [{ name: 'figure', type: 'figure', label: 'Figure' }], outputs: OUT('figure', 'Figures'), body: B.line('3 variations · One change') },   // FVS, Oct 9, 2026: a Figure in, its variations out
     { id: 'export', group: 'Output', type: 'Export', name: 'Export 1', icon: 'download', inputs: [{ name: 'figures', type: 'figure', label: 'Figures', multi: true }], outputs: [], body: B.line('4 files') },
   ];
