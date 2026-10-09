@@ -222,7 +222,7 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   let failed = 0;
   const draw = async spec => { const vr = varyInputs(base.inputs, spec, keep); const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra }); return { r, label: vr.label }; };
   main.variations = [{ key: 'base', svg: main.svg, label: 'As set up', pinned: false, spec: null, slot: 0, item }];
-  const src = { inputs: base.inputs, extra: base.extra, params: p };   // what a child Figure re-draws its variation from, with its own inputs
+  const src = { inputs: base.inputs, extra: base.extra, params: p, raw: inputs };   // what a child Figure re-draws its variation from, with its own inputs; raw = before `fixed` (a Variations node draws again from it)
   for (let slot = 1; slot < want; slot++) {
     const pin = pins.get(slot);
     if (pin) {   // a pinned variation keeps its place, whatever the new seed
@@ -356,6 +356,7 @@ function changeTransform(inp, rng) {
   if (at >= 0) rules[at] = { kind: 'transform', transform: t }; else rules.push({ kind: 'transform', transform: t });
   inp.rules = rules; return t.mirror !== 'none' ? `Mirror ${MIRRORS[t.mirror].toLowerCase()}` : `Rotation ${t.rotate}°`;
 }
+const CHANGE_OF = { grid: 'Grid', palette: 'Palette', cells: 'Cell rules', transform: 'Rotate & mirror' };   // UI-COPY §2 names
 const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells: changeCells, transform: changeTransform };
 const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) => n + (c.kind === 'set' ? c.items.length : 1), 0);   // a Set counts its items
 export function varyInputs(inputs, spec, keep) {
@@ -373,7 +374,7 @@ export function varyInputs(inputs, spec, keep) {
   for (let tries = 0; tries < 12 && labels.length < want && kinds.length; tries++) {
     const k = pick(kinds, rng);
     if (k === 'content') { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); kinds.splice(kinds.indexOf(k), 1); continue; }
-    const l = CHANGES[k](inp, rng); if (l) { labels.push(l); kinds.splice(kinds.indexOf(k), 1); }
+    const l = CHANGES[k](inp, rng); if (l) { labels.push(CHANGE_OF[k] + ': ' + l); kinds.splice(kinds.indexOf(k), 1); }   // what changed, said with the input it changed (Diego, Oct 9, 2026)
   }
   return { inputs: inp, extra, label: labels.join(' · ') || 'No change' };
 }
@@ -566,9 +567,21 @@ export function figureNodeTypes() {
           { name: 'rules', type: 'rule', label: 'Rules', chain: true }, { name: 'composition', type: 'composition', label: 'Composition' }],
         outputs: [{ name: 'figure', type: 'figure', label: 'Figure' }],
         params: [{ name: 'fit', default: 'contain' }, { name: 'clip', default: true }, { name: 'keepOwn', default: false }, { name: 'symbolFit', default: null },
-          { name: 'variations', default: 4 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} }, { name: 'layout', default: 'rows' },
-          { name: 'pins', default: [] }, { name: 'fixed', default: null }, { name: 'fanOut', default: true }] },
-      compute: async (i, p) => ({ figure: await figureWithVariations(i, p) }) },
+          { name: 'fixed', default: null }] },
+      // a Figure draws itself only (Diego, Oct 9, 2026) — its variations are a Variations node's; a Set's items are mixed over the cells
+      compute: async (i, p) => ({ figure: await figureWithVariations(i, { ...p, variations: 1, fanOut: false }) }) },
+    // Variations (Diego, Oct 9, 2026): Figure → Variations → one Figure per variation, each saying what changed. It draws
+    // again from the Figure's own inputs (carried on its drawing), so a variation changes what Keep allows.
+    { meta: { id: 'variations', label: 'Variations', category: 'Rules', pill: true, icon: 'variations',
+        inputs: [{ name: 'figure', type: 'figure', label: 'Figure', required: true }],
+        outputs: [{ name: 'figure', type: 'figure', label: 'Figures' }],
+        params: [{ name: 'variations', default: 4 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} },
+          { name: 'pins', default: [] }, { name: 'fanOut', default: true }] },
+      compute: async (i, p) => {
+        const base = i.figure && i.figure.variations && i.figure.variations[0], s = base && base.src;
+        if (!s) throw new Error('Connect a Figure input');
+        return { figure: await figureWithVariations(s.raw || s.inputs, { ...s.params, variations: p.variations, varyBy: p.varyBy, seed: p.seed, keep: p.keep, pins: p.pins, fanOut: p.fanOut }) };
+      } },
     { meta: { id: 'figure-var', label: 'Variation', category: 'Output', hidden: true, icon: 'fvs-figure',   // made by its Figure, never from the node bar
         inputs: [{ name: 'from', type: 'figure', label: 'Figure', required: true },
           { name: 'canvas', type: 'canvas', label: 'Canvas' }, { name: 'grid', type: 'grid', label: 'Grid' },

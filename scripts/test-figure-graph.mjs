@@ -64,41 +64,44 @@ const out = await P.ev(`
   res.othersUntouched = grids.every((g, i) => eng.get(g.id).ver === gver[i]) && eng.get(en.id).ver === ever;
   res.size2 = (eng.get(figs[0].id).value.figure.svg.match(/viewBox="([^"]+)"/) || [])[1];
   // a deleted library entry still draws (the node keeps a copy) — nothing in the real library was ever written
-  // ── variations (Phase 4) ──
-  const f0 = figs[0]; f0.params.variations = 5; f0.params.varyBy = 'one'; f0.params.seed = 3; eng.touch(f0.id); await eng.run(m);
+  // ── variations (Phase 4; a Variations node since Oct 9, 2026: Figure → Variations) ──
+  res.figOnlyItself = eng.get(figs[0].id).value.figure.variations.length === 1;
+  const f0 = figs[0], vf0 = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 5, varyBy: 'one', seed: 3 } });
+  NC.addEdge(m, { node: f0.id, port: 'figure' }, { node: vf0.id, port: 'figure' }); await eng.run(m);
   const K = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
-  const V = () => eng.get(f0.id).value.figure.variations.map(v => ({ ...v, svg: K(v.svg) }));
+  const V = () => eng.get(vf0.id).value.figure.variations.map(v => ({ ...v, svg: K(v.svg) }));
   const v1 = V().map(v => v.svg), lab1 = V().map(v => v.label);
   res.varCount = V().length;
   res.varFirstIsBase = v1[0] === K(eng.get(f0.id).value.figure.svg);
   res.varUnique = new Set(v1).size === v1.length;
-  eng.touch(f0.id); await eng.run(m); res.varDet = JSON.stringify(V().map(v => v.svg)) === JSON.stringify(v1);
-  const pinSpec = V()[2].spec, pinSvg = V()[2].svg; f0.params.pins = [{ ...pinSpec, slot: 2 }]; eng.touch(f0.id); await eng.run(m);
+  eng.touch(vf0.id); await eng.run(m); res.varDet = JSON.stringify(V().map(v => v.svg)) === JSON.stringify(v1);
+  const pinSpec = V()[2].spec, pinSvg = V()[2].svg; vf0.params.pins = [{ ...pinSpec, slot: 2 }]; eng.touch(vf0.id); await eng.run(m);
   res.pinFirst = V()[2].pinned && V()[2].svg === pinSvg;   // a pinned variation stays in its slot
-  f0.params.seed = 4; eng.touch(f0.id); await eng.run(m);   // New variations
+  vf0.params.seed = 4; eng.touch(vf0.id); await eng.run(m);   // New variations
   res.renewKeepsPin = V()[2].pinned && V()[2].svg === pinSvg;
   res.renewChanges = V().slice(2).some(v => !v1.includes(v.svg));
   // New Figure from this: a Figure with the pinned variation fixed draws exactly that variation
-  const nf = NC.addNode(m, { type: 'figure', params: { ...JSON.parse(JSON.stringify(f0.params)), fixed: [pinSpec], pins: [], variations: 1 } });
+  const nf = NC.addNode(m, { type: 'figure', params: { ...JSON.parse(JSON.stringify(f0.params)), fixed: [pinSpec] } });
   NC.edgesInto(m, f0.id).forEach(e => NC.addEdge(m, e.from, { node: nf.id, port: e.to.port }, true));
   await eng.run(m);
   res.fromThis = K(eng.get(nf.id).value.figure.svg) === pinSvg;
   // Keep: with every category kept, 'one change' changes nothing on this figure → only the base remains
-  f0.params.keep = { content: true, palette: true, cells: true, grid: true, transform: true }; f0.params.pins = []; eng.touch(f0.id); await eng.run(m);
+  vf0.params.keep = { content: true, palette: true, cells: true, grid: true, transform: true }; vf0.params.pins = []; eng.touch(vf0.id); await eng.run(m);
   res.keepAll = V().length === 1;
   // New Figure from this with Keep set: the fixed spec carries the Keep, so each copy draws the same variation
   const KP = { palette: true, transform: true };
-  f0.params.keep = KP; f0.params.variations = 4; eng.touch(f0.id); await eng.run(m);
-  const kvs = V().filter(v => v.spec), copies = kvs.map(kv => { const nk = NC.addNode(m, { type: 'figure', params: { ...JSON.parse(JSON.stringify(f0.params)), keep: {}, fixed: [{ ...kv.spec, keep: KP }], pins: [], variations: 1 } }); NC.edgesInto(m, f0.id).forEach(e => NC.addEdge(m, e.from, { node: nk.id, port: e.to.port }, true)); return nk; });
+  vf0.params.keep = KP; vf0.params.variations = 4; eng.touch(vf0.id); await eng.run(m);
+  const kvs = V().filter(v => v.spec), copies = kvs.map(kv => { const nk = NC.addNode(m, { type: 'figure', params: { ...JSON.parse(JSON.stringify(f0.params)), fixed: [{ ...kv.spec, keep: KP }] } }); NC.edgesInto(m, f0.id).forEach(e => NC.addEdge(m, e.from, { node: nk.id, port: e.to.port }, true)); return nk; });
   await eng.run(m);
   res.fromThisKeep = kvs.length > 0 && kvs.every((kv, i) => K(eng.get(copies[i].id).value.figure.svg) === kv.svg);
   copies.forEach(c => NC.removeNode(m, c.id));
-  f0.params.keep = {}; f0.params.variations = 4; eng.touch(f0.id); await eng.run(m);
+  vf0.params.keep = {}; vf0.params.variations = 4; eng.touch(vf0.id); await eng.run(m);
   // ── Sets (Phase 4b): one group per item; Fan out off = items mixed; cap ──
   const sn = NC.addNode(m, { type: 'set', params: { items: [{ kind: 'element', name: 'Test element', snapshot: el }, { kind: 'component', name: 'Test component', snapshot: compEntry }] } });
-  const fs = NC.addNode(m, { type: 'figure', params: { ...reg.defaults('figure'), variations: 3 } });
-  NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fs.id, port: 'canvas' }); NC.addEdge(m, { node: grids[0].id, port: 'grid' }, { node: fs.id, port: 'grid' });
-  NC.addEdge(m, { node: sn.id, port: 'content' }, { node: fs.id, port: 'content' }, true);
+  const fs0 = NC.addNode(m, { type: 'figure', params: reg.defaults('figure') }), fs = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 3 } });
+  NC.addEdge(m, { node: fs0.id, port: 'figure' }, { node: fs.id, port: 'figure' });
+  NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fs0.id, port: 'canvas' }); NC.addEdge(m, { node: grids[0].id, port: 'grid' }, { node: fs0.id, port: 'grid' });
+  NC.addEdge(m, { node: sn.id, port: 'content' }, { node: fs0.id, port: 'content' }, true);
   await eng.run(m);
   const FS = eng.get(fs.id).value.figure;
   res.setGroups = FS.groups ? FS.groups.map(g => g.label + ':' + g.variations.length).join(',') : 'none';
@@ -119,7 +122,8 @@ const out = await P.ev(`
   const R = eng.get(fs.id).value.figure; res.pinFollowsItem = R.groups[0].label === 'Beta' && R.groups[0].variations[1].pinned && !R.groups[1].variations.some(v => v.pinned);
   fs.params.pins = [];
   // ── Composition (Phase 5) ──
-  const fc = NC.addNode(m, { type: 'figure', params: { ...reg.defaults('figure'), variations: 3 } });
+  const fc = NC.addNode(m, { type: 'figure', params: reg.defaults('figure') }), vfc = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 3 } });
+  NC.addEdge(m, { node: fc.id, port: 'figure' }, { node: vfc.id, port: 'figure' });
   NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fc.id, port: 'canvas' }); NC.addEdge(m, { node: grids[0].id, port: 'grid' }, { node: fc.id, port: 'grid' });
   NC.addEdge(m, { node: en.id, port: 'content' }, { node: fc.id, port: 'content' }, true);
   await eng.run(m);
@@ -135,7 +139,7 @@ const out = await P.ev(`
   co.params.rules[1].off = true; eng.touch(co.id); await eng.run(m); res.composeOff = K(eng.get(fc.id).value.figure.svg) === placed;
   co.params.rules.push({ when: { index: [1, 2] }, do: { toggle: true } }); eng.touch(co.id); await eng.run(m);
   res.composeToggle = (K(eng.get(fc.id).value.figure.svg).match(/data-cell-index/g) || []).length === FC0.cells - 2;
-  res.composeAllVariations = eng.get(fc.id).value.figure.variations.slice(1).every(v => (K(v.svg).match(/data-cell-index/g) || []).length <= FC0.cells - 2 + 12);
+  res.composeAllVariations = eng.get(vfc.id).value.figure.variations.length === 3 && eng.get(vfc.id).value.figure.variations.slice(1).every(v => (K(v.svg).match(/data-cell-index/g) || []).length <= FC0.cells - 2 + 12);
   co.params.rules.push({ when: { index: [999] }, do: { content: 'empty' } }); eng.touch(co.id); await eng.run(m);
   res.composeLost = JSON.stringify(eng.get(fc.id).value.figure.lost) === JSON.stringify([{ rule: 3, cells: [999], none: true }]);
   // a colour region rule names an ink by its place: it follows the Palette
@@ -273,6 +277,18 @@ const ch = await P.ev(`
   // a graph saved before chains draws as the old engine did: the first Component rule poses, then the Cell rules, whatever the wire order
   const mig = await run(['rot90', 'radial'], null, true), mig2 = await run(['radial', 'pin'], null, true);
   res.migrated = mig.rulesIn === 1 && mig.svg === compThenCells.svg && mig2.svg === comp.svg;
+  // a Figure saved with Variations 3 (before the Variations node): a Variations node takes them, its Export too
+  { const m = NC.createModel();
+    const cv = NC.addNode(m, { type: 'canvas', params: reg.defaults('canvas') }), gr = NC.addNode(m, { type: 'grid', params: { gen: 'lattice-square', params: { cols: 2, rows: 2 } } });
+    const en = NC.addNode(m, { type: 'element', params: { name: 'E', snapshot: entry } });
+    const f = NC.addNode(m, { type: 'figure', params: { fit: 'contain', clip: true, variations: 3, varyBy: 'one', seed: 7, keep: {}, pins: [], fanOut: true, layout: 'rows' } });
+    const ex = NC.addNode(m, { type: 'export', params: reg.defaults('export') });
+    NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: f.id, port: 'canvas' }); NC.addEdge(m, { node: gr.id, port: 'grid' }, { node: f.id, port: 'grid' });
+    NC.addEdge(m, { node: en.id, port: 'content' }, { node: f.id, port: 'content' }, true); NC.addEdge(m, { node: f.id, port: 'figure' }, { node: ex.id, port: 'figures' }, true);
+    const mm = F('variationsNodes')(m), vn = mm.nodes.find(n => n.type === 'variations');
+    const eng = NC.createEngine({ registry: reg }); await eng.run(mm);
+    const into = mm.edges.find(e => e.to.node === ex.id);
+    res.varMigrated = !!vn && vn.params.seed === 7 && !('variations' in mm.nodes.find(n => n.id === f.id).params) && into && into.from.node === vn.id && eng.get(vn.id).value.figure.variations.length === 3; }
   return res;`, PRE);
 const fails = [];
 const check = (c, m) => { if (!c) fails.push(m); };
@@ -289,6 +305,7 @@ check(out.keepOwn, 'Keep own colours leaves the content in its own colours');
 check(out.allUpdated, 'changing the shared Canvas updates all 5 figures');
 check(out.othersUntouched, 'only the Canvas and its figures recompute');
 check(/1920 1080$/.test(out.size2 || ''), 'the new Canvas size reaches the figure: ' + out.size2);
+check(out.figOnlyItself, 'a Figure draws itself only');
 check(out.varCount === 5, 'variations: count ' + out.varCount);
 check(out.varFirstIsBase, 'variation 1 is the figure as set up');
 check(out.varUnique, 'no two variations are the same');
@@ -341,6 +358,7 @@ check(ch.twoT, 'rules: two Rotate & mirror add up (90° + 90° = 180°)');
 check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4; Radial refuses odd sizes; a Loom grid is refused with a reason');
 check(ch.chkOpts, 'rules: Checkerboard Swap A and B / Flip B change the drawing');
 check(ch.migrated, 'rules: a graph saved with parallel rule wires becomes one chain, drawing as before');
+check(ch.varMigrated, 'a Figure saved with variations gets a Variations node with its settings, and its Export');
 check(out.after, 'FVS state unchanged by graph runs');
 check(!P.errors.length, 'page errors: ' + P.errors.join(' | '));
 console.log(`Figure graph: ${fails.length ? 'FAIL' : 'PASS'} — ${Object.keys(imp).length - impBad.length}/${Object.keys(imp).length} built-ins identical as graphs · 5 figures + 1 waiting, first run ${out.ms} ms, cells ${out.cells.join('/')}`);

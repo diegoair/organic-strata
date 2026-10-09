@@ -125,22 +125,25 @@ function renderBody(node, entry, el) {
     const f = v && v.figure;
     if (!f) { el.innerHTML = ''; return; }
     const vars = f.variations && f.variations.length ? f.variations : [{ key: 'base', svg: f.svg, label: 'As set up' }];
-    const base = vars[0], kids = childrenOf(node.id).length;   // the other variations are child Figures (nodes of their own)
+    const base = vars[0];
     // the drawing + one line (Diego, Oct 9, 2026 — the card in line with the others): Canvas · Grid · Palette are in the panel
     el.innerHTML = `<figure class="fg-var"><div class="fg-card__sheet" data-theme="light">${base.error ? `<p class="fg-var__error">${esc(base.label)}</p>` : `<img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id + ':' + base.key, base.svg)}">`}</div>
         ${f.groups ? `<figcaption class="fg-var__label">${esc(f.groups[0].label)}</figcaption>` : ''}</figure>`
-      + checksBadge(f) + `<p class="fg-card__meta">${f.cells} cells${kids ? ` · ${kids} ${kids === 1 ? 'variation' : 'variations'}` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}${f.failedVariations ? ` · ${f.failedVariations} ${f.failedVariations === 1 ? 'change' : 'changes'} could not be drawn` : ''}</p>`;
-    el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); restackChildren(node.id); }, { once: true }));
+      + checksBadge(f) + `<p class="fg-card__meta">${f.cells} cells${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}${f.failedVariations ? ` · ${f.failedVariations} ${f.failedVariations === 1 ? 'change' : 'changes'} could not be drawn` : ''}</p>`;
+    el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); variationsOf(node.id).forEach(vn => restackChildren(vn.id)); }, { once: true }));
+  } else if (node.type === 'variations') {
+    const k = Math.max(0, (+p.variations || 1) - 1), f = v && v.figure;
+    el.innerHTML = NC.body.line(`${k} ${k === 1 ? 'variation' : 'variations'} · ${({ seed: 'Seed', one: 'One change', several: 'Several changes' })[p.varyBy || 'one']}${f && f.failedVariations ? ` · ${f.failedVariations} could not be drawn` : ''}`);
   } else if (node.type === 'figure-var') {
-    const f = v && v.figure, par = parentNode(node);
+    const f = v && v.figure, par = sourceOf(node);
     if (!f) { el.innerHTML = ''; return; }
     const vr = f.variations[0], item = vr.item != null ? itemName(vr.item) : null;
     el.innerHTML = `<figure class="fg-var${vr.pinned ? ' is-pinned' : ''}">
         <div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id, f.svg)}"></div>
         <figcaption class="fg-var__label">${item ? esc(item) + ' · ' : ''}${esc(vr.slot === 0 ? 'As set up' : vr.label)}</figcaption>
         ${vr.spec ? `<div class="fg-var__tools">
-          <button type="button" class="icon-btn" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node, par) : ''}">${Organica.icons.get('pin')}</button>
-          <button type="button" class="icon-btn" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node, par) : ''}">${Organica.icons.get('figure-from')}</button></div>` : ''}
+          <button type="button" class="icon-btn" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node) : ''}">${Organica.icons.get('pin')}</button>
+          <button type="button" class="icon-btn" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node) : ''}">${Organica.icons.get('figure-from')}</button></div>` : ''}
       </figure>`;
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); if (par) restackChildren(par.id); }, { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act); }); }
@@ -198,9 +201,9 @@ function foundationOf(fig) {
 // Pin keeps a child's variation through New variations; New Figure from this = a sibling Figure of the parent, same
 // wires (and the child's own inputs in place of the parent's), that variation fixed.
 function variationAction(childId, act) {
-  const child = NC.findNode(ctl.model, childId), node = child && parentNode(child), en = ctl.engine.get(childId); if (!node) return;
+  const child = NC.findNode(ctl.model, childId), node = child && sourceOf(child), fig = node && figOf(node), en = ctl.engine.get(childId); if (!node || !fig) return;
   const v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null; if (!v || !v.spec) return;
-  const p = node.params, id = node.id;
+  const p = node.params, id = fig.id;   // pins live on the Variations node; New Figure from this copies its Figure
   if (act === 'pin') {   // a pin keeps its slot (and, in a fan-out, belongs to its item)
     const keys = wantedChildren(node).map(k => k.item).filter(x => x != null);
     const same = q => q.slot === v.slot && sameItem(q.item, v.item, keys);
@@ -210,8 +213,8 @@ function variationAction(childId, act) {
   }
   if (act === 'from') {   // one undo step
     const [copy] = ctl.duplicate([id], { noCommit: true }); const n = NC.findNode(ctl.model, copy), m = ctl.model;
-    n.params.fixed = [].concat(p.fixed || [], [{ ...v.spec, keep: { ...(p.keep || {}) } }]); n.params.pins = []; n.params.seed = newSeed(); n.params.variations = 1;
-    if (v.item != null) { const at = String(v.item).indexOf(':'); n.params.onlyItem = { index: +String(v.item).slice(0, at), name: String(v.item).slice(at + 1) }; n.params.fanOut = false; }   // a fan-out variation: that Set item only
+    n.params.fixed = [].concat(fig.params.fixed || [], [{ ...v.spec, keep: { ...(p.keep || {}) } }]);
+    if (v.item != null) { const at = String(v.item).indexOf(':'); n.params.onlyItem = { index: +String(v.item).slice(0, at), name: String(v.item).slice(at + 1) }; }   // a fan-out variation: that Set item only
     m.edges.filter(e => e.to.node === childId && e.to.port !== 'from').forEach(e => {   // the child's own inputs: they replace the parent's (Rules are added)
       if (e.to.port !== 'rules' && e.to.port !== 'content') m.edges.filter(w => w.to.node === copy && w.to.port === e.to.port).forEach(w => NC.removeEdge(m, w.id));
       if (e.to.port === 'content') m.edges.filter(w => w.to.node === copy && w.to.port === 'content').forEach(w => NC.removeEdge(m, w.id));
@@ -223,28 +226,33 @@ function variationAction(childId, act) {
   }
 }
 
-// ── Child Figures (Diego, Oct 8, 2026): every variation of a Figure is a node of its own — a child, in a column to the
-// right of its Figure, one under the other. Made and removed with the Figure's Variations (and the Set's items when
-// Variations per item is on); a child can't be deleted alone. Its parent = the Figure wired into its From input.
-function wantedChildren(fig) {   // [{slot, item}] — what figureWithVariations draws, the Figure's own "As set up" left out
-  const p = fig.params || {}, m = ctl.model, want = Math.max(1, Math.min(12, +p.variations || 1));
+// ── Child Figures (Diego, Oct 8, 2026; from a Variations node since Oct 9): every variation is a node of its own — a
+// child, in a column to the right of its Variations node, one under the other. Made and removed with the node's
+// Variations (and the Set's items when Variations per item is on); a child can't be deleted alone. Its source = the
+// Variations node wired into its From input; its parent = the Figure that node varies.
+function figOf(vn, m) { m = m || ctl.model; const e = vn && m.edges.find(w => w.to.node === vn.id && w.to.port === 'figure'), f = e && NC.findNode(m, e.from.node); return f && f.type === 'figure' ? f : null; }
+function variationsOf(figId, m) { m = m || ctl.model; return m.edges.filter(e => e.from.node === figId && e.to.port === 'figure').map(e => NC.findNode(m, e.to.node)).filter(n => n && n.type === 'variations'); }
+function wantedChildren(vn) {   // [{slot, item}] — what the Variations node draws, its Figure's own "As set up" left out
+  const p = vn.params || {}, m = ctl.model, want = Math.max(1, Math.min(12, +p.variations || 1)), fig = figOf(vn, m);
+  if (!fig) return [];
   const set = m.edges.filter(e => e.to.node === fig.id && e.to.port === 'content').map(e => NC.findNode(m, e.from.node)).find(n => n && n.type === 'set');
   const items = set ? ((set.params || {}).items || []).filter(x => x && x.snapshot) : [];
   const out = [];
-  if (!items.length || p.fanOut === false || p.onlyItem) { for (let k = 1; k < want; k++) out.push({ slot: k, item: null }); return out; }
+  if (!items.length || p.fanOut === false || (fig.params || {}).onlyItem) { for (let k = 1; k < want; k++) out.push({ slot: k, item: null }); return out; }
   const per = Math.max(1, Math.min(want, Math.floor(FIGURE_RENDER_CAP / items.length)));
   items.slice(0, FIGURE_RENDER_CAP).forEach((it, gi) => { for (let k = 0; k < per; k++) if (gi || k) out.push({ slot: k, item: gi + ':' + it.name }); });
   return out;
 }
-function parentNode(child, m) {
+function sourceOf(child, m) {   // the Variations node a child hangs from
   m = m || ctl.model;
   const e = m.edges.find(w => w.to.node === child.id && w.to.port === 'from'), src = e && NC.findNode(m, e.from.node);
-  return src && src.type === 'figure' ? src : null;
+  return src && src.type === 'variations' ? src : null;
 }
-function childrenOf(figId) {   // in the order the Figure draws them
-  const fig = NC.findNode(ctl.model, figId); if (!fig) return [];
-  const order = wantedChildren(fig).map(k => childKey(k.slot, k.item));
-  return ctl.model.nodes.filter(n => n.type === 'figure-var' && (parentNode(n) || {}).id === figId)
+function parentNode(child, m) { m = m || ctl.model; return figOf(sourceOf(child, m), m); }   // the Figure a child is a variation of
+function childrenOf(vnId) {   // in the order the Variations node draws them
+  const vn = NC.findNode(ctl.model, vnId); if (!vn) return [];
+  const order = wantedChildren(vn).map(k => childKey(k.slot, k.item));
+  return ctl.model.nodes.filter(n => n.type === 'figure-var' && (sourceOf(n) || {}).id === vnId)
     .sort((a, b) => order.indexOf(childKey(a.params.slot, a.params.item)) - order.indexOf(childKey(b.params.slot, b.params.item)));
 }
 let syncing = false;
@@ -255,13 +263,13 @@ function syncChildren() {   // → true when the graph changed
   const drop = n => { NC.removeNode(m, n.id); ctl.engine.forget(n.id); changed = true; };
   m.nodes.filter(n => n.type === 'figure-var').forEach(n => {   // each child: its parent by its wire, else the one it remembers
     const into = m.edges.filter(w => w.to.node === n.id && w.to.port === 'from');
-    let par = parentNode(n);
-    into.filter(w => !par || w.from.node !== par.id).forEach(w => { NC.removeEdge(m, w.id); changed = true; });   // only a Figure can be its parent
-    if (!par) { const q = NC.findNode(m, n.params.parent); if (q && q.type === 'figure') { NC.addEdge(m, { node: q.id, port: 'figure' }, { node: n.id, port: 'from' }, true); par = q; changed = true; } }
+    let par = sourceOf(n);
+    into.filter(w => !par || w.from.node !== par.id).forEach(w => { NC.removeEdge(m, w.id); changed = true; });   // only a Variations node can be its source
+    if (!par) { const q = NC.findNode(m, n.params.parent); if (q && q.type === 'variations') { NC.addEdge(m, { node: q.id, port: 'figure' }, { node: n.id, port: 'from' }, true); par = q; changed = true; } }
     if (!par) { drop(n); return; }
     if (n.params.parent !== par.id) { n.params.parent = par.id; changed = true; }
   });
-  m.nodes.filter(n => n.type === 'figure').forEach(fig => {
+  m.nodes.filter(n => n.type === 'variations').forEach(fig => {
     const want = wantedChildren(fig), keys = want.map(k => childKey(k.slot, k.item)), have = new Map();
     m.nodes.filter(n => n.type === 'figure-var' && n.params.parent === fig.id).forEach(n => {
       const k = childKey(n.params.slot, n.params.item);
@@ -274,14 +282,15 @@ function syncChildren() {   // → true when the graph changed
     });
   });
   syncing = false;
-  if (changed) { ctl.refresh(); m.nodes.filter(n => n.type === 'figure').forEach(f => restackChildren(f.id, true)); }
+  if (changed) { ctl.refresh(); m.nodes.filter(n => n.type === 'variations').forEach(f => restackChildren(f.id, true)); }
   return changed;
 }
+function restackAll() { ctl.model.nodes.filter(n => n.type === 'variations').forEach(v => { childrenOf(v.id).forEach(c => { c.params.auto = true; }); restackChildren(v.id, true); }); }
 // After every change: the children follow their Figure (one undo step with the change that made them); a child moved
 // by hand stays where it was put, a Figure moved by hand takes its placed children along.
 function childrenAfter(reason) {
   if (reason === 'move') {
-    ctl.selection().map(id => NC.findNode(ctl.model, id)).filter(Boolean).forEach(n => { if (n.type === 'figure-var') delete n.params.auto; else if (n.type === 'figure') restackChildren(n.id); });
+    ctl.selection().map(id => NC.findNode(ctl.model, id)).filter(Boolean).forEach(n => { if (n.type === 'figure-var') delete n.params.auto; else if (n.type === 'variations') restackChildren(n.id); });
     return;
   }
   if (reason === 'history' || reason === 'sync' || syncing) return;
@@ -290,7 +299,7 @@ function childrenAfter(reason) {
 // The children placed by their Figure (not yet moved by hand) stand in a column to its right, one under the other.
 function restackChildren(figId, force) {
   const fig = NC.findNode(ctl.model, figId); if (!fig) return;
-  const fc = ctl.cardOf(figId), x = fig.x + ((fc && fc.offsetWidth) || 416) + LABEL_ROOM;
+  const fc = ctl.cardOf(figId), x = fig.x + ((fc && fc.offsetWidth) || 200) + LABEL_ROOM;
   let y = fig.y, moved = false;
   // nodes that are not this Figure's variations but sit in their column (an Export, a Palette…): the stack steps around them
   const kids = new Set(childrenOf(figId).map(n => n.id)), box = n => { const c = ctl.cardOf(n.id); return { x: n.x, y: n.y, w: (c && c.offsetWidth) || 224, h: (c && c.offsetHeight) || 120 }; };
@@ -312,13 +321,20 @@ function fitFrame(f) {   // fit the view to a section
   const z = Math.min(1.5, Math.max(0.1, Math.min((W - pad * 2) / f.w, (H - pad * 2) / (f.h + 40))));
   ctl.zoomPan.setView({ zoom: z, panX: L + (W - f.w * z) / 2 - f.x * z, panY: (H - f.h * z) / 2 - f.y * z + 20 });
 }
-const newSeed = () => 1 + Math.floor(Math.random() * 99999);   // a Figure's own seed — so two Figures don't show the same changes
+const newSeed = () => 1 + Math.floor(Math.random() * 99999);
+// A Variations node for a Figure, to its right (the Figure panel's Add Variations) — one undo step with its children.
+function addVariations(figId) {
+  const fig = NC.findNode(ctl.model, figId); if (!fig) return;
+  const fc = ctl.cardOf(figId), vn = NC.addNode(ctl.model, { type: 'variations', x: fig.x + ((fc && fc.offsetWidth) || 416) + LABEL_ROOM, y: fig.y, params: { ...registry.defaults('variations'), seed: newSeed() } });
+  NC.addEdge(ctl.model, { node: fig.id, port: 'figure' }, { node: vn.id, port: 'figure' });
+  syncChildren(); ctl.touch(vn.id); ctl.refresh(); ctl.select([vn.id]); ctl.commit('variations'); save();
+}   // a Figure's own seed — so two Figures don't show the same changes
 // ── Export (Phase 6) ──
 function figuresInto(exp) {   // the Figures wired into an Export node: { name, figure }
   return ctl.model.edges.filter(e => e.to.node === exp.id && e.to.port === 'figures').map(e => {
     const src = NC.findNode(ctl.model, e.from.node), en = ctl.engine.get(e.from.node);
     const f = en && (en.state === 'ok' || en.state === 'stale') && en.value ? en.value.figure : null;   // off screen = stale, still exported (kept active below)
-    return src ? { name: nodeLabel(src), figure: src.type === 'figure' && f ? withChildren(src, f) : f } : null;
+    return src ? { name: nodeLabel(src.type === 'variations' && figOf(src) ? figOf(src) : src), figure: src.type === 'variations' && f ? withChildren(src, f) : f } : null;
   }).filter(Boolean);
 }
 function withChildren(fig, f) {   // a Figure's variations as its children draw them (a child's own inputs change its drawing)
@@ -366,11 +382,11 @@ function runExport(id) {
 // The floatbar Export in the Figure step: the one export path — create (or select) the Export node, wired to the
 // selected Figures (or every Figure), and show its settings.
 function exportFromFloatbar() {
-  const m = ctl.model, sel = ctl.selection().map(i => NC.findNode(m, i)).filter(n => n && (n.type === 'figure' || n.type === 'figure-var'));   // a child goes on its own
+  const m = ctl.model, sel = ctl.selection().map(i => NC.findNode(m, i)).filter(n => n && (n.type === 'figure' || n.type === 'figure-var' || n.type === 'variations'));   // a child goes on its own
   let exp = m.nodes.find(n => n.type === 'export');
   if (!exp) {
     const figs = sel.length ? sel : m.nodes.filter(n => n.type === 'figure');
-    const cols = figs.concat(...figs.map(f => f.type === 'figure' ? childrenOf(f.id) : []));   // past the children's column too
+    const cols = figs.concat(...figs.map(f => (f.type === 'figure' ? variationsOf(f.id) : f.type === 'variations' ? [f] : []).flatMap(v => [v, ...childrenOf(v.id)])));   // past the variations' column too
     const right = cols.reduce((a, n) => Math.max(a, n.x + (ctl.cardOf(n.id) ? ctl.cardOf(n.id).offsetWidth : 420)), 0), top = figs.length ? Math.min(...figs.map(n => n.y)) : 40;
     exp = NC.addNode(m, { type: 'export', x: right + LABEL_ROOM, y: top, params: registry.defaults('export'), name: 'Export' });
     figs.forEach(f => NC.addEdge(m, { node: f.id, port: 'figure' }, { node: exp.id, port: 'figures' }, true));
@@ -387,11 +403,11 @@ function cardClass(node) {
   if (node.type === 'figure-var') return 'nc-node--wide';
   return 'nc-node--compact';
 }
-function variationNo(child, par) { return childrenOf(par.id).indexOf(child) + 2; }   // the Figure itself is variation 1, as the captions count
+function variationNo(child) { const src = sourceOf(child); return src ? childrenOf(src.id).indexOf(child) + 2 : 2; }   // the Figure itself is variation 1, as the captions count
 function nodeLabel(node) {
   if (node.type === 'figure-var') {   // named after its Figure: Figure 1.2, Figure 1.3 … (the Figure itself is the first)
     const par = ctl && parentNode(node); if (!par) return registry.get(node.type).meta.label;
-    return nodeLabel(par) + ' · variation ' + variationNo(node, par);
+    return nodeLabel(par) + ' · variation ' + variationNo(node);
   }
   return node.name || registry.get(node.type).meta.label;
 }
@@ -421,7 +437,7 @@ function bindRename(node, ids) {
 }
 // A Figure always has a Canvas and a Grid: the one feeding it can't be deleted while it is that Figure's only one.
 function protect(node, model, removing) {   // removing: the ids deleted together — a Figure going with its Canvas / Grid does not keep them
-  if (node.type === 'figure-var') { const par = parentNode(node, model); return par && !(removing || []).includes(par.id) ? (node.params.item != null ? `A variation goes with its Figure — lower Variations on ${nodeLabel(par)} or remove the item from the Set instead` : `A variation goes with its Figure — lower Variations on ${nodeLabel(par)} instead`) : null; }
+  if (node.type === 'figure-var') { const par = sourceOf(node, model); return par && !(removing || []).includes(par.id) ? (node.params.item != null ? `A variation goes with its Variations node — lower the count on ${nodeLabel(par)} or remove the item from the Set instead` : `A variation goes with its Variations node — lower the count on ${nodeLabel(par)} instead`) : null; }
   if (node.type !== 'canvas' && node.type !== 'grid') return null;
   const feeds = model.edges.some(e => e.from.node === node.id && !(removing || []).includes(e.to.node) && model.nodes.some(n => n.id === e.to.node && n.type === 'figure'));
   return feeds ? `A Figure needs a ${node.type === 'canvas' ? 'Canvas' : 'Grid'} — connect another one first` : null;
@@ -739,17 +755,8 @@ function renderInspectorBody(box, ids) {
     const hasSet = ctl.model.edges.some(e => e.to.node === node.id && e.to.port === 'content' && (NC.findNode(ctl.model, e.from.node) || {}).type === 'set');
     if (hasSet && p.onlyItem) rows.push({ html: `<p class="org-panel__hint">Made from one item of the Set: ${esc(p.onlyItem.name)}.</p><div class="row-btns"><button type="button" class="mini-btn" id="fgi-allitems">Use the whole Set</button></div>`,
       bind: () => ctrl('fgi-allitems').addEventListener('click', () => { delete p.onlyItem; edited(node, true); renderInspector(ids); }) });
-    else if (hasSet) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-fanout"${p.fanOut !== false ? ' checked' : ''}><span>Variations per item</span></label><p class="org-panel__hint">Each item of the Set gets its own variations. Off: the items are mixed over the cells.</p>`,
-      bind: () => ctrl('fgi-fanout').addEventListener('change', e => { p.fanOut = e.target.checked; edited(node, true); }) });
-    rows.push({ html: '</div><div class="panel-section"><h3>Variations</h3>' });
-    rows.push(rangeRow('Variations', 'fgi-vcount', 1, 12, 1, +p.variations || 1, (v, c) => { p.variations = v; edited(node, c); }));
-    rows.push(selectRow('Vary by', 'fgi-varyby', [['seed', 'Seed'], ['one', 'One change'], ['several', 'Several changes']], p.varyBy || 'one', v => { p.varyBy = v; edited(node, true); }));
-    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" id="fgi-seed" value="${+p.seed || 1}" min="1" max="999999" step="1" aria-label="Seed"><button type="button" class="icon-btn" id="fgi-renew" aria-label="New variations — pinned ones stay" title="New variations — pinned ones stay">${Organica.icons.get('refresh', { size: 'sm' })}</button></div>`,   // as every E/C/S seed row: the number + its refresh
-      bind: () => { ctrl('fgi-seed').addEventListener('change', e => { p.seed = Math.max(1, Math.round(+e.target.value) || 1); edited(node, true); }); ctrl('fgi-renew').addEventListener('click', () => { p.seed = (+p.seed || 1) + 1; edited(node, true); renderInspector(ids); }); } });
-    const KEEP_LABELS = { content: 'Content', palette: 'Palette', cells: 'Cell rules', grid: 'Grid', transform: 'Rotate & mirror' };
-    rows.push({ html: `<div class="sub-label">Keep</div><div class="check-group">${KEEP_KEYS.map(k => `<label class="check-row"><input type="checkbox" data-keep="${k}"${(p.keep || {})[k] ? ' checked' : ''}><span>${KEEP_LABELS[k]}</span></label>`).join('')}</div>`,
-      bind: () => box.querySelectorAll('[data-keep]').forEach(c => c.addEventListener('change', () => { p.keep = { ...(p.keep || {}), [c.dataset.keep]: c.checked }; edited(node, true); })) });
-    if ((p.pins || []).length || (p.fixed || []).length) rows.push({ html: `${(p.pins || []).length ? `<p class="org-panel__hint">${p.pins.length} pinned${p.pins.some(q => q.slot >= (+p.variations || 1)) ? ` — ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length} not shown: raise Variations to see ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length === 1 ? 'it' : 'them'}` : ''}</p>` : ''}${(p.fixed || []).length ? `<p class="org-panel__hint">Made from a variation — ${p.fixed.length === 1 ? 'one change fixed' : p.fixed.length + ' changes fixed'}</p>` : ''}` });
+    if ((p.fixed || []).length) rows.push({ html: `<p class="org-panel__hint">Made from a variation — ${p.fixed.length === 1 ? 'one change fixed' : p.fixed.length + ' changes fixed'}</p>` });
+    if (!variationsOf(node.id).length) rows.push({ html: `<div class="row-btns"><button type="button" class="mini-btn" id="fgi-addvar">Add Variations</button></div>`, bind: () => ctrl('fgi-addvar').addEventListener('click', () => addVariations(node.id)) });
     const fv = figureValue(node.id), cks = fv && fv.checks ? fv.checks : [];
     if (cks.length) rows.push({ html: `</div><div class="panel-section"><h3>Checks <span class="hint">${cks.every(c => c.ok) ? 'All pass' : cks.filter(c => !c.ok).length + ' to look at'}</span></h3><ul class="fg-checks">${cks.map(c => `<li class="${c.ok ? 'is-ok' : 'is-bad'}">${Organica.icons.get(c.ok ? 'check' : 'alert', { size: 'xs' })}<span>${esc(c.label)}${c.detail ? ` <span class="fg-checks__detail">${esc(c.detail)}</span>` : ''}</span></li>`).join('')}</ul>` });
     rows.push({ html: '</div><div class="panel-section"><h3>Cells</h3>' });
@@ -759,14 +766,28 @@ function renderInspectorBody(box, ids) {
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-clip"${p.clip !== false ? ' checked' : ''}><span>Clip to cell</span></label>`,
       bind: () => { ctrl('fgi-clip').addEventListener('change', e => { p.clip = e.target.checked; edited(node, true); }); } });
   }
+  if (node.type === 'variations') {
+    const fig = figOf(node), hasSet = fig && ctl.model.edges.some(e => e.to.node === fig.id && e.to.port === 'content' && (NC.findNode(ctl.model, e.from.node) || {}).type === 'set');
+    if (!fig) rows.push({ html: '<p class="org-empty">Connect a Figure — its variations appear beside this node, each saying what changed.</p>' });
+    if (hasSet && !(fig.params || {}).onlyItem) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-fanout"${p.fanOut !== false ? ' checked' : ''}><span>Variations per item</span></label><p class="org-panel__hint">Each item of the Set gets its own variations. Off: the items are mixed over the cells.</p>`,
+      bind: () => ctrl('fgi-fanout').addEventListener('change', e => { p.fanOut = e.target.checked; edited(node, true); }) });
+    rows.push(rangeRow('Variations', 'fgi-vcount', 1, 12, 1, +p.variations || 1, (v, c) => { p.variations = v; edited(node, c); }));
+    rows.push(selectRow('Vary by', 'fgi-varyby', [['seed', 'Seed'], ['one', 'One change'], ['several', 'Several changes']], p.varyBy || 'one', v => { p.varyBy = v; edited(node, true); }));
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" id="fgi-seed" value="${+p.seed || 1}" min="1" max="999999" step="1" aria-label="Seed"><button type="button" class="icon-btn" id="fgi-renew" aria-label="New variations — pinned ones stay" title="New variations — pinned ones stay">${Organica.icons.get('refresh', { size: 'sm' })}</button></div>`,   // as every E/C/S seed row: the number + its refresh
+      bind: () => { ctrl('fgi-seed').addEventListener('change', e => { p.seed = Math.max(1, Math.round(+e.target.value) || 1); edited(node, true); }); ctrl('fgi-renew').addEventListener('click', () => { p.seed = (+p.seed || 1) + 1; edited(node, true); renderInspector(ids); }); } });
+    const KEEP_LABELS = { content: 'Content', palette: 'Palette', cells: 'Cell rules', grid: 'Grid', transform: 'Rotate & mirror' };
+    rows.push({ html: `<div class="sub-label">Keep</div><div class="check-group">${KEEP_KEYS.map(k => `<label class="check-row"><input type="checkbox" data-keep="${k}"${(p.keep || {})[k] ? ' checked' : ''}><span>${KEEP_LABELS[k]}</span></label>`).join('')}</div>`,
+      bind: () => box.querySelectorAll('[data-keep]').forEach(c => c.addEventListener('change', () => { p.keep = { ...(p.keep || {}), [c.dataset.keep]: c.checked }; edited(node, true); })) });
+    if ((p.pins || []).length) rows.push({ html: `<p class="org-panel__hint">${p.pins.length} pinned${p.pins.some(q => q.slot >= (+p.variations || 1)) ? ` — ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length} not shown: raise Variations to see ${p.pins.filter(q => q.slot >= (+p.variations || 1)).length === 1 ? 'it' : 'them'}` : ''}</p>` });
+  }
   if (node.type === 'figure-var') {
     rows.push({ html: `<button type="button" class="panel-btn fg-block" id="fgi-compose">Compose</button>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });   // as the Figure's: the node's main verb
     const par = parentNode(node), en = ctl.engine.get(node.id), v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null;
     const own = ctl.model.edges.filter(e => e.to.node === node.id && e.to.port !== 'from').map(e => registry.inputsOf(node).find(q => q.name === e.to.port).label);
-    if (par) rows.push({ html: `<p class="org-panel__hint">Variation ${variationNo(node, par)} of ${esc(nodeLabel(par))}${v && v.slot ? ' — ' + esc(v.label) : ''}</p>
+    if (par) rows.push({ html: `<p class="org-panel__hint">Variation ${variationNo(node)} of ${esc(nodeLabel(par))}${v && v.slot ? ' — ' + esc(v.label) : ''}</p>
       <div class="row-btns"><button type="button" class="mini-btn" id="fgi-parent">Select ${esc(nodeLabel(par))}</button></div>
       <div class="sub-label">Own inputs</div><p class="org-panel__hint">${own.length ? `${esc([...new Set(own)].join(', '))} — for this variation only. ` : ''}Connect a Canvas, Grid, Palette, Content, Rules or Composition to change this variation only. Rules are added to ${esc(nodeLabel(par))}’s; the others replace them, and the variation’s own change leaves them as they are.</p>`,
-      bind: () => ctrl('fgi-parent').addEventListener('click', () => { ctl.select([par.id]); ctl.fitTo([par.id, ...childrenOf(par.id).map(n => n.id)]); }) });
+      bind: () => ctrl('fgi-parent').addEventListener('click', () => { const src = sourceOf(node); ctl.select([par.id]); ctl.fitTo([par.id, ...(src ? [src.id, ...childrenOf(src.id).map(n => n.id)] : [])]); }) });
   }
   box.innerHTML = title + (why && node.type !== 'figure-var' ? `<p class="org-panel__hint">${esc(why)}</p>` : '') + rows.map(r => r.html).join('') + '</div>';   // a refused Delete explains itself first (no stop: the Decided string has none)
   if (renameable) bindRename(node, ids);
@@ -922,7 +943,6 @@ function openBuiltin(def, title) {
     const [c, r] = n.type === 'figure' ? [2, 0] : isRule ? [1, rulesY++] : col[n.ref] || [0, 4];
     const params = { ...registry.defaults(n.type), ...n.params };
     if (n.type === 'element') params.snapshot = entrySnapshot(entry);
-    if (n.type === 'figure') params.seed = newSeed();
     const node = NC.addNode(m, { type: n.type, x: x0 + c * COL_STEP, y: y0 + r * 150, params, name: n.name || nameFor(m, n.type, params) });
     ids[n.ref] = node.id;
   });
@@ -1507,10 +1527,37 @@ export function chainRules(src) {
   chainRules.rewired = rewired;
   return m;
 }
-const chainNotice = () => { if (chainRules.rewired) Organica.notice(`Rules are now a chain — ${chainRules.rewired === 1 ? 'one Figure was' : chainRules.rewired + ' Figures were'} rewired, drawing as before`); };
+// Variations became a node (Diego, Oct 9, 2026): a Figure saved with Variations above 1 gets a Variations node with its
+// settings (count, Vary by, seed, Keep, pins, per item); its children and the Exports that took its variations move to
+// it — the board draws as before. The Figure keeps only what is its own (fit, clip, own colours, fixed changes).
+const VAR_KEYS = ['variations', 'varyBy', 'seed', 'keep', 'pins', 'fanOut'];
+export function variationsNodes(src) {
+  const m = { ...src, nodes: (src.nodes || []).map(n => ({ ...n })), edges: (src.edges || []).slice() };
+  let moved = 0;
+  m.nodes.slice().filter(n => n.type === 'figure').forEach(fig => {
+    const p = fig.params || {}, count = p.variations == null ? (VAR_KEYS.some(k => k in p) ? 4 : 1) : +p.variations;
+    const kids = m.edges.filter(e => e.from.node === fig.id && e.to.port === 'from');
+    if (count > 1 || kids.length) {
+      const vp = { variations: count }; VAR_KEYS.slice(1).forEach(k => { if (k in p) vp[k] = JSON.parse(JSON.stringify(p[k])); });
+      const vn = { id: NC.nextId('n'), type: 'variations', x: fig.x + 416 + LABEL_ROOM, y: fig.y, params: vp };
+      m.nodes.push(vn);
+      m.edges = m.edges.map(e => e.from.node === fig.id && (e.to.port === 'from' || e.to.port === 'figures') ? { ...e, from: { node: vn.id, port: 'figure' } } : e);
+      m.edges.push({ id: NC.nextId('e'), from: { node: fig.id, port: 'figure' }, to: { node: vn.id, port: 'figure' } });
+      m.nodes.filter(n => n.type === 'figure-var' && n.params && n.params.parent === fig.id).forEach(n => { n.params = { ...n.params, parent: vn.id }; });
+      moved++;
+    }
+    if (VAR_KEYS.some(k => k in p) || 'layout' in p) { const q = { ...p }; VAR_KEYS.forEach(k => delete q[k]); delete q.layout; fig.params = q; }
+  });
+  variationsNodes.moved = moved;
+  return m;
+}
+const chainNotice = () => {
+  const said = [chainRules.rewired ? `the Rules of ${chainRules.rewired === 1 ? 'one Figure are' : chainRules.rewired + ' Figures are'} now a chain` : '', variationsNodes.moved ? `${variationsNodes.moved === 1 ? 'one Figure’s variations are now a Variations node' : variationsNodes.moved + ' Figures’ variations are now Variations nodes'}` : ''].filter(Boolean);
+  if (said.length) Organica.notice(said.join('; ').replace(/^./, c => c.toUpperCase()) + ' — drawing as before');
+};
 // A stored or opened graph, made safe to run (unknown nodes, broken or looping wires dropped) — said, not silent.
 function safeModel(m) {
-  const r = NC.repairModel(chainRules(m), registry), d = r.dropped; chainNotice();
+  const r = NC.repairModel(variationsNodes(chainRules(m)), registry), d = r.dropped; chainNotice();
   const t = NC.droppedText(d); if (t) Organica.notice(t, { kind: 'error' });
   return r.model;
 }
@@ -1541,7 +1588,7 @@ function initGraphMenu() {
       del: ctrl('fg-graph-delete'), newGraph: ctrl('fg-graph-new'), open: ctrl('fg-graph-open'), file: ctrl('fg-graph-file'), input: ctrl('fg-graph-input') },
     store: GRAPHS, getModel: () => ctl.model, hidden: n => n === CURRENT,
     normalize: m => ensureNames(safeModel(m)),
-    load: (model) => { ctl.setModel(chainRules(model)); chainNotice(); if (syncChildren()) ctl.commit('sync', { amend: true }); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); },
+    load: (model) => { ctl.setModel(variationsNodes(chainRules(model))); chainNotice(); if (syncChildren()) ctl.commit('sync', { amend: true }); renderInspector([]); syncButtons(); requestAnimationFrame(() => { if (variationsNodes.moved) restackAll(); ctl.fitAll(); }); },
     fileTool: 'fvs-figure-graph', fileName: 'fvs-graph', dirtyKey: 'fvs-figure-graph',
     openFile: data => { if (!data || data.tool !== 'fvs-recipe') return false; const why = recipeProblem(data); if (why) { Organica.notice(why, { kind: 'error' }); return true; } openBuiltin(data); Organica.notice('Recipe opened as a graph'); return true; },
     onSaved: () => save(),
@@ -1567,10 +1614,10 @@ export function renderFigureGraph() {
     onWireDrop: (from, at, client) => openSearch(at, from, client),
     onBoardDblClick: (at, client) => openSearch(at, null, client),
     onPortDblClick: (node, port, dir) => spawnFor(node, port, dir),
-    nameCopy: (copy, model) => { if (copy.type === 'figure') { copy.params.seed = newSeed(); copy.params.pins = []; } return NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name; },
+    nameCopy: (copy, model) => { if (copy.type === 'variations') { copy.params.seed = newSeed(); copy.params.pins = []; } return NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name; },
     keyScope: t => !!(t && t.closest && t.closest('#fb-figure-actions, #fg-nodebar-dock') && !t.closest('input, select, textarea')),   // not the panel: Delete on a panel button must not delete the node
     onNodeDblClick: node => { if (node.type === 'figure' || node.type === 'figure-var') enterCompose(node.id); },   // a variation composes too (Diego, Oct 8 — O-56 a)
-    keepActive: n => !!(composing && n.id === composing.fig) || (ctl && (n.type === 'figure' || n.type === 'figure-var') && [n, n.type === 'figure-var' && parentNode(n)].some(x => x && ctl.model.edges.some(e => e.from.node === x.id && e.to.port === 'figures'))),   // a Figure wired to Export is computed off screen too, with its children (they draw its variations)
+    keepActive: n => !!(composing && n.id === composing.fig) || (ctl && (n.type === 'figure' || n.type === 'figure-var' || n.type === 'variations') && [n, n.type === 'figure-var' && sourceOf(n)].some(x => x && ctl.model.edges.some(e => e.from.node === x.id && e.to.port === 'figures'))),   // a Figure / Variations wired to Export is computed off screen too, with the children (they draw its variations)
   });
   try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); if (v) ctl.zoomPan.setView({ zoom: v.zoom, panX: v.x, panY: v.y }); else requestAnimationFrame(() => ctl.fitAll()); } catch (e) { requestAnimationFrame(() => ctl.fitAll()); }
   const icon = (id, name) => { ctrl(id).innerHTML = Organica.icons.get(name); };
@@ -1589,5 +1636,6 @@ export function renderFigureGraph() {
   ctrl('btn-export').addEventListener('click', e => { if (state.activeTier !== 'figure' || composing) return; e.preventDefault(); e.stopImmediatePropagation(); exportFromFloatbar(); }, true);
   if (syncChildren()) ctl.commit('sync', { amend: true });   // a graph saved before child Figures: its variations become nodes
   else if (ctl.model.nodes.some(n => n.type === 'figure-var')) ctl.refresh();   // their names follow their Figure's: drawn again now that ctl exists
+  if (variationsNodes.moved) requestAnimationFrame(restackAll);   // a migrated Variations node: its children stand beside it
   renderInspector([]); syncButtons();
 }
