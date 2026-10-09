@@ -732,7 +732,7 @@ function renderInspectorBody(box, ids) {
       if (!q.flip) rows.push(selectRow('Cells B', 'fgi-cb', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], degOf(q.b), v => { q.b = +v; edited(node, true); }));
       rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-cflip"${q.flip ? ' checked' : ''}><span>Flip B instead of rotate</span></label>`, bind: () => ctrl('fgi-cflip').addEventListener('change', e => { q.flip = e.target.checked; edited(node, true); renderInspector(ids); }) });
     }
-    rows.push({ html: '<p class="org-panel__hint">Poses every cell of a Square lattice Grid, any size (Radial: an even number of columns and rows). A later rule in the chain wins.</p>' });
+    rows.push({ html: '<p class="org-panel__hint">Poses every cell by its place: on a Square lattice by column and row (Radial: an even number of each), on any other Grid by where the cell sits. A later rule in the chain wins.</p>' });
   } else if (node.type === 'repeat') {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
     rows.push(selectRow('Repeat as', 'fgi-rlat', Object.entries(REPEAT_LATTICES).map(([k, l]) => [k, l.label]), p.lattice, v => { p.lattice = v; p.count = REPEAT_LATTICES[v].def; edited(node, true); renderInspector(ids); }));

@@ -289,7 +289,14 @@ const ch = await P.ev(`
   res.twoT = (await run(['rep', 't90', 't90'])).svg === (await run(['rep', 't180'])).svg;
   const p33 = await run(['pin'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } }), r33 = await run(['radial'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } });
   const r44 = await run(['radial'], { gen: 'lattice-square', params: { cols: 4, rows: 4 } }), loom = await run(['radial'], { gen: 'rectangular', params: F('gridDefaults')('rectangular') });
-  res.big = p33.state === 'ok' && r44.state === 'ok' && /even/.test(r33.msg) && /Square lattice/.test(loom.msg);
+  res.big = p33.state === 'ok' && r44.state === 'ok' && /even/.test(r33.msg) && loom.state === 'ok';
+  // any grid (Oct 9, 2026): the pose comes from each cell's place in the space — every rule draws, changes the drawing, same cells
+  const anyGrid = [];
+  for (const gen of ['rectangular', 'bento', 'hexagonal', 'circular', 'organic', 'spiral']) {
+    const g = { gen, params: F('gridDefaults')(gen) }, base = await run([], g);
+    for (const k of ['radial', 'pin', 'chk']) { const r = await run([k], g); anyGrid.push(gen + '/' + k + ':' + (r.state === 'ok' && r.cells === base.cells ? (r.svg !== base.svg ? 'ok' : 'same') : r.state + ' ' + r.msg.slice(0, 50))); }
+  }
+  res.anyGrid = anyGrid; res.anyGridOk = anyGrid.every(x => /:ok$/.test(x));
   const chk = await run(['chk']);
   res.chkOpts = chk.state === 'ok' && (await run(['chkSwap'])).svg !== chk.svg && (await run(['chkFlip'])).svg !== chk.svg;
   // every rule node added alone to the Figure FVS opens with (default Grid / Palette, an Element) — as from the node bar
@@ -305,7 +312,7 @@ const ch = await P.ev(`
     const kinds = ['cell-rules', 'repeat', 'transform', 'composition', 'component-rule'], got = {};
     for (const k of kinds) got[k] = await one(k);
     res.aloneOnDefault = kinds.map(k => k + '=' + got[k]);
-    res.aloneOk = kinds.slice(0, 4).every(k => got[k] === 'ok') && /^error:.*Square lattice/.test(got['component-rule']); }
+    res.aloneOk = kinds.every(k => got[k] === 'ok'); }
   // a graph saved before chains draws as the old engine did: the first Component rule poses, then the Cell rules, whatever the wire order
   const mig = await run(['rot90', 'radial'], null, true), mig2 = await run(['radial', 'pin'], null, true);
   res.migrated = mig.rulesIn === 1 && mig.svg === compThenCells.svg && mig2.svg === comp.svg;
@@ -385,9 +392,10 @@ check(ch.laterWinsTurn, 'rules: a later step wins on the turn it sets (Cell rule
 check(ch.poseKeepsEmpty, 'rules: an empty cell from a rule before the pose stays empty');
 check(ch.twoComp, 'rules: two Component rules — the later one poses');
 check(ch.tNoRep, 'rules: Rotate & mirror with no Repeat before it turns / mirrors every Element in its cell, grid kept (alone, before a Repeat, mirror, 0°): ' + ch.tAlone.join(' | '));
-check(ch.aloneOk, 'rules: each rule alone on the default Figure draws (a Component rule on a Loom grid says why): ' + ch.aloneOnDefault.join(' | '));
+check(ch.aloneOk, 'rules: each rule alone on the default Figure draws: ' + ch.aloneOnDefault.join(' | '));
 check(ch.tCells, 'rules: Rotate & mirror on the cells — Rotation per cell (cell / row), Random rotation by Seed, Which cells, 30°; 30° after a Repeat says quarter turns only: ' + ch.tCellsWhy);
 check(ch.tAmount, 'rules: Random rotation — 0° changes nothing, an amount and a seed give the same drawing again, another seed another one');
+check(ch.anyGridOk, 'rules: a Component rule on any grid poses by place — draws and changes the drawing: ' + ch.anyGrid.join(' '));
 check(ch.tAfter, 'rules: Rotate & mirror after a Repeat draws');
 check(ch.twoT, 'rules: two Rotate & mirror add up (90° + 90° = 180°)');
 check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4; Radial refuses odd sizes; a Loom grid is refused with a reason');

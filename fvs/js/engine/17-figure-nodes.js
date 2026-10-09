@@ -192,6 +192,18 @@ export function chainPlan(chain) {
   return { cellRules, compRule: lastComp >= 0 ? chain[lastComp] : null, repeats: levels, transform };
 }
 
+// A Component rule on a grid without columns and rows: each cell gets a place from where its centre lies. Radial: its
+// quarter around the grid's centre (a 2 × 2 of quarters — the rosette follows the space, whatever the cells). The
+// others: a regular lattice laid over the grid, one square per average cell (Rectangular → its own columns and rows).
+export function spatialCR(cells, rule) {
+  const c = cells.map(k => { if (k.points && k.points.length) { const n = k.points.length; return { x: k.points.reduce((a, p) => a + p[0], 0) / n, y: k.points.reduce((a, p) => a + p[1], 0) / n }; } return { x: k.x + k.width / 2, y: k.y + k.height / 2 }; });
+  const box = cells.map(k => k.points && k.points.length ? k.points : [[k.x, k.y], [k.x + k.width, k.y + k.height]]).flat();
+  const x0 = Math.min(...box.map(p => p[0])), x1 = Math.max(...box.map(p => p[0])), y0 = Math.min(...box.map(p => p[1])), y1 = Math.max(...box.map(p => p[1]));
+  const W = Math.max(1e-6, x1 - x0), H = Math.max(1e-6, y1 - y0);
+  if (rule === 'radial') return c.map(p => ({ col: p.x >= x0 + W / 2 ? 1 : 0, row: p.y >= y0 + H / 2 ? 1 : 0 }));
+  const s = Math.sqrt(W * H / Math.max(1, cells.length)), cols = Math.max(1, Math.round(W / s)), rows = Math.max(1, Math.round(H / s));
+  return c.map(p => ({ col: Math.min(cols - 1, Math.max(0, Math.floor((p.x - x0) / W * cols))), row: Math.min(rows - 1, Math.max(0, Math.floor((p.y - y0) / H * rows))) }));
+}
 // ── Figure: compile → recipe (v2) → evalFigure ──
 function fitOnPage(svg, cv, paper) {   // a figure with its own frame, fitted inside the Canvas's page (margin %)
   const m = svg.match(/^<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/), fw = m ? +m[1] : 1000, fh = m ? +m[2] : 1000;
@@ -307,10 +319,11 @@ export async function compileFigure(inputs, params, opts) {
     // A Palette recolours the content (a Component through its colourway — its own colour rule still picks the inks);
     // "Keep own colours" leaves every content in the colours it was saved with.
     if (pal && colors && !params.keepOwn) cells.forEach(c => { if (c.source === 'component') c.colourway = { colors: colors.slice(), paper }; });
-    if (compRule) {   // a Component rule poses every cell of a Square lattice, by its place (any size; Radial: even × even)
+    if (compRule) {   // a Component rule poses every cell by its place — on a Square lattice its column and row; on any other
+      // grid (Diego, Oct 9, 2026: "the most creative and surprising way") the place each cell's centre has in the space
       const l = lattice ? latticeOf(grid) : null;
-      if (!l || l.type !== 'square') throw new Error('A Component rule needs a Square lattice Grid — this Figure’s Grid is ' + (l ? 'a ' + l.type.charAt(0).toUpperCase() + l.type.slice(1) + ' lattice' : 'a Loom grid'));
-      const posed = componentCellsFromRule(compRule.rule, compRule.params, squareCR(l.cols, l.rows || l.cols));
+      const cr = l && l.type === 'square' ? squareCR(l.cols, l.rows || l.cols) : spatialCR(Organica.loadLoomGrid(clone(model)).cells, compRule.rule);
+      const posed = componentCellsFromRule(compRule.rule, compRule.params, cr);
       cells = cells.map((c, i) => { const q = posed[i] || {}; return { ...c, rotation: q.rotation || 0, flipH: !!q.flipH, flipV: !!q.flipV }; });
     }
     const componentEntries = {};
