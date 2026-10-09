@@ -16,6 +16,9 @@ import {
   ELEMENT_LIB, savedElementThumb
 } from './engine/04-appearance.js';
 import {
+  savedElementEntrySVG
+} from './engine/05-render-component.js';
+import {
   LIBRARY, libraryNames, shownElementNames
 } from './engine/07-library.js';
 import {
@@ -105,7 +108,7 @@ function savedEntries() {
 }
 function newestEntry() { const s = savedEntries(); return s.component[0] || s.element[0] || null; }
 function entryThumb(kind, name, entry) {
-  try { return kind === 'element' ? savedElementThumb(entry) : componentThumbSVG(name); } catch (e) { return ''; }
+  try { return kind === 'element' ? (entry && !entry.thumb && entry.seed ? savedElementEntrySVG(entry) : savedElementThumb(entry)) : componentThumbSVG(name); } catch (e) { return ''; }   // a node's copy has no thumbnail: drawn from the entry
 }
 
 // ── card bodies ──

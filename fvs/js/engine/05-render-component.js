@@ -586,3 +586,14 @@ export function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {
     + `<clipPath id="${id}"><polygon transform="${T}" points="${pts}"/></clipPath>`
     + `<g clip-path="url(#${id})"><rect width="${size}" height="${size}" fill="${state.paperColor}"/>${paperPatternSVG(size, size)}${body}</g>${edge}</svg>`;
 }
+// A saved Element drawn from its entry alone — its own inks, Paper and appearance, its orientation. For a copy that
+// carries no cached thumbnail (a Figure graph's content node keeps the entry without it): drawing it from the outline
+// alone painted every saved Element in --ink, black and white (Diego, Oct 9, 2026).
+export function savedElementEntrySVG(e) {
+  if (!e || !e.seed || !SEED_TYPES[e.seed.type]) return '';
+  const o = e.orientation || {}, prev = { paper: state.paperColor, colors: state.colors };
+  state.paperColor = e.paperColor || '#ffffff';
+  if (e.colors && e.colors.length) state.colors = e.colors.slice();   // colorAt(0) reads state.colors, layer inks the override
+  try { return withEntryInks(e.colors, () => withAppearance(e.appearance, () => buildSeedPreviewSVG(e.seed, o.rotation || 0, !!o.flipH, !!o.flipV, 100))); }
+  finally { state.paperColor = prev.paper; state.colors = prev.colors; }
+}

@@ -387,8 +387,10 @@ export function buildSymbolItems() {
       color: cellInk(cell, i), geo, inks: cellOwnInks(cell), cellShape: cellShapeOf(cell.seedParams),   // inks: a saved Element's own palette (Colour by → Element's own colours)
       // …and its own Paper (colour + texture), drawn under it in the Element's 0..100 frame, like a Component's paper
       ownPaper: cellOwnInks(cell) && cell.ownPaper ? cell.ownPaper : null, ownAppearance: cellOwnInks(cell) ? cell.ownAppearance : null,
-      // a cell's own appearance patch (the Figure graph's Pattern fill, Oct 2026) over the look it draws with — absent: unchanged
-      cellAppearance: cell.appearancePatch ? { ...(cellOwnInks(cell) && cell.ownAppearance ? cell.ownAppearance : getElementAppearance()), ...cell.appearancePatch } : null,
+      // the look it draws with: a saved Element's own appearance (Style — Fill / Stroke / Pattern —, stretch, scale) travels
+      // with it whatever the colour rule — a Palette recolours it, it never restyles it (Diego, Oct 9, 2026: a Pattern
+      // Element drew filled in a Figure) — + a cell's own appearance patch (the Figure graph's Pattern fill) over it
+      cellAppearance: cell.appearancePatch || cell.ownAppearance ? { ...(cell.ownAppearance || getElementAppearance()), ...(cell.appearancePatch || {}) } : null,
     };
   }).filter(Boolean);
   const grow = overlapGrowth();   // Overlap: each content grows past its cell (aligned Components grow their lattice instead)
