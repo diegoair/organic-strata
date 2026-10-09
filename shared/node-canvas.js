@@ -279,6 +279,25 @@
     stage.append(board, marquee, live);
     stage.addEventListener('pointerenter', function () { overStage = true; });
     stage.addEventListener('pointerleave', function () { overStage = false; });
+    // A press that brings no pointerdown: when the mouse already reports another button held (a stuck side button —
+    // buttons 8 / 16), the browser sends a chorded pointermove instead of pointerdown, and a pointermove instead of
+    // pointerup, so every board gesture would stay dead. Rebuild the press from the mouse events: a pointerdown on the
+    // pressed element, pointermoves to it (as a capture would), a pointerup at the release.
+    var sawPointerDown = false;
+    stage.addEventListener('pointerdown', function () { sawPointerDown = true; }, true);
+    stage.addEventListener('mousedown', function (e) {
+      if (sawPointerDown) { sawPointerDown = false; return; }
+      var target = e.target;
+      function fire(type, ev, onto) {
+        onto.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, composed: true, pointerId: 1, pointerType: 'mouse', isPrimary: true,
+          button: type === 'pointermove' ? -1 : ev.button, buttons: ev.buttons, clientX: ev.clientX, clientY: ev.clientY, screenX: ev.screenX, screenY: ev.screenY,
+          shiftKey: ev.shiftKey, altKey: ev.altKey, ctrlKey: ev.ctrlKey, metaKey: ev.metaKey }));
+      }
+      function move(ev) { fire('pointermove', ev, target); }
+      function up(ev) { if (ev.button !== e.button) return; document.removeEventListener('mousemove', move, true); document.removeEventListener('mouseup', up, true); fire('pointerup', ev, target); }
+      document.addEventListener('mousemove', move, true); document.addEventListener('mouseup', up, true);
+      fire('pointerdown', e, target); sawPointerDown = false;   // our own pointerdown is not a real one
+    }, true);
     stage.addEventListener('scroll', function () { stage.scrollTop = 0; stage.scrollLeft = 0; });
     var announce = o.announce || function (t) { live.textContent = ''; setTimeout(function () { live.textContent = t; }, 30); };
 
