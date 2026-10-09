@@ -216,7 +216,7 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   const main = await compileFigure(base.inputs, { ...p, ...base.extra }, { checks });
   // two renders of one figure differ only in their export time and run-time ids (an Element stack's masks): compare without them
   const keyOf = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
-  const want = Math.max(1, Math.min(12, +p.variations || 1)), seen = new Set([keyOf(main.svg)]);
+  const want = Math.max(1, Math.min(13, +p.variations || 1)), seen = new Set([keyOf(main.svg)]);   // drawings: the Figure + up to 12 variations
   const pins = new Map(pinsFor(p, item, keys).filter(q => q.slot >= 1 && q.slot < want).map(q => [q.slot, q]));
   const queue = variationSpecs(p, want + 12);
   let failed = 0;
@@ -575,12 +575,12 @@ export function figureNodeTypes() {
     { meta: { id: 'variations', label: 'Variations', category: 'Rules', pill: true, icon: 'variations',
         inputs: [{ name: 'figure', type: 'figure', label: 'Figure', required: true }],
         outputs: [{ name: 'figure', type: 'figure', label: 'Figures' }],
-        params: [{ name: 'variations', default: 4 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} },
+        params: [{ name: 'variations', default: 3 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} },
           { name: 'pins', default: [] }, { name: 'fanOut', default: true }] },
       compute: async (i, p) => {
         const base = i.figure && i.figure.variations && i.figure.variations[0], s = base && base.src;
         if (!s) throw new Error('Connect a Figure input');
-        return { figure: await figureWithVariations(s.raw || s.inputs, { ...s.params, variations: p.variations, varyBy: p.varyBy, seed: p.seed, keep: p.keep, pins: p.pins, fanOut: p.fanOut }) };
+        return { figure: await figureWithVariations(s.raw || s.inputs, { ...s.params, variations: Math.max(0, +p.variations || 0) + 1, varyBy: p.varyBy, seed: p.seed, keep: p.keep, pins: p.pins, fanOut: p.fanOut }) };
       } },
     { meta: { id: 'figure-var', label: 'Variation', category: 'Output', hidden: true, icon: 'fvs-figure',   // made by its Figure, never from the node bar
         inputs: [{ name: 'from', type: 'figure', label: 'Figure', required: true },

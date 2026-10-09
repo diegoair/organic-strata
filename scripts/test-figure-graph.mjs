@@ -66,7 +66,7 @@ const out = await P.ev(`
   // a deleted library entry still draws (the node keeps a copy) — nothing in the real library was ever written
   // ── variations (Phase 4; a Variations node since Oct 9, 2026: Figure → Variations) ──
   res.figOnlyItself = eng.get(figs[0].id).value.figure.variations.length === 1;
-  const f0 = figs[0], vf0 = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 5, varyBy: 'one', seed: 3 } });
+  const f0 = figs[0], vf0 = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 4, varyBy: 'one', seed: 3 } });   // 4 variations made + the Figure = 5 drawings
   NC.addEdge(m, { node: f0.id, port: 'figure' }, { node: vf0.id, port: 'figure' }); await eng.run(m);
   const K = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
   const V = () => eng.get(vf0.id).value.figure.variations.map(v => ({ ...v, svg: K(v.svg) }));
@@ -90,15 +90,15 @@ const out = await P.ev(`
   res.keepAll = V().length === 1;
   // New Figure from this with Keep set: the fixed spec carries the Keep, so each copy draws the same variation
   const KP = { palette: true, transform: true };
-  vf0.params.keep = KP; vf0.params.variations = 4; eng.touch(vf0.id); await eng.run(m);
+  vf0.params.keep = KP; vf0.params.variations = 3; eng.touch(vf0.id); await eng.run(m);
   const kvs = V().filter(v => v.spec), copies = kvs.map(kv => { const nk = NC.addNode(m, { type: 'figure', params: { ...JSON.parse(JSON.stringify(f0.params)), fixed: [{ ...kv.spec, keep: KP }] } }); NC.edgesInto(m, f0.id).forEach(e => NC.addEdge(m, e.from, { node: nk.id, port: e.to.port }, true)); return nk; });
   await eng.run(m);
   res.fromThisKeep = kvs.length > 0 && kvs.every((kv, i) => K(eng.get(copies[i].id).value.figure.svg) === kv.svg);
   copies.forEach(c => NC.removeNode(m, c.id));
-  vf0.params.keep = {}; vf0.params.variations = 4; eng.touch(vf0.id); await eng.run(m);
+  vf0.params.keep = {}; vf0.params.variations = 3; eng.touch(vf0.id); await eng.run(m);
   // ── Sets (Phase 4b): one group per item; Fan out off = items mixed; cap ──
   const sn = NC.addNode(m, { type: 'set', params: { items: [{ kind: 'element', name: 'Test element', snapshot: el }, { kind: 'component', name: 'Test component', snapshot: compEntry }] } });
-  const fs0 = NC.addNode(m, { type: 'figure', params: reg.defaults('figure') }), fs = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 3 } });
+  const fs0 = NC.addNode(m, { type: 'figure', params: reg.defaults('figure') }), fs = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 2 } });
   NC.addEdge(m, { node: fs0.id, port: 'figure' }, { node: fs.id, port: 'figure' });
   NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fs0.id, port: 'canvas' }); NC.addEdge(m, { node: grids[0].id, port: 'grid' }, { node: fs0.id, port: 'grid' });
   NC.addEdge(m, { node: sn.id, port: 'content' }, { node: fs0.id, port: 'content' }, true);
@@ -107,10 +107,10 @@ const out = await P.ev(`
   res.setGroups = FS.groups ? FS.groups.map(g => g.label + ':' + g.variations.length).join(',') : 'none';
   fs.params.fanOut = false; eng.touch(fs.id); await eng.run(m);
   res.setMixed = !eng.get(fs.id).value.figure.groups && eng.get(fs.id).value.figure.variations.length === 3;
-  fs.params.fanOut = true; fs.params.variations = 12; sn.params.items = Array.from({ length: 6 }, (_, i) => ({ kind: 'element', name: 'E' + i, snapshot: el })); eng.touch(sn.id); eng.touch(fs.id); await eng.run(m);
+  fs.params.fanOut = true; fs.params.variations = 11; sn.params.items = Array.from({ length: 6 }, (_, i) => ({ kind: 'element', name: 'E' + i, snapshot: el })); eng.touch(sn.id); eng.touch(fs.id); await eng.run(m);
   const C = eng.get(fs.id).value.figure; res.setCap = C.variations.length <= F('FIGURE_RENDER_CAP') && C.groups.length === 6 && !!C.capped;
   // the same item twice = two groups with their own keys; a pin belongs to its item
-  sn.params.items = [{ kind: 'element', name: 'Twice', snapshot: el }, { kind: 'element', name: 'Twice', snapshot: el }]; fs.params.variations = 3; eng.touch(sn.id); eng.touch(fs.id); await eng.run(m);
+  sn.params.items = [{ kind: 'element', name: 'Twice', snapshot: el }, { kind: 'element', name: 'Twice', snapshot: el }]; fs.params.variations = 2; eng.touch(sn.id); eng.touch(fs.id); await eng.run(m);
   const T = eng.get(fs.id).value.figure, keys = T.variations.map(v => v.key);
   res.setTwice = T.groups.length === 2 && new Set(keys).size === keys.length;
   const v1g = T.groups[1].variations[1]; fs.params.pins = [{ ...v1g.spec, slot: 1, item: v1g.item }]; eng.touch(fs.id); await eng.run(m);
@@ -122,7 +122,7 @@ const out = await P.ev(`
   const R = eng.get(fs.id).value.figure; res.pinFollowsItem = R.groups[0].label === 'Beta' && R.groups[0].variations[1].pinned && !R.groups[1].variations.some(v => v.pinned);
   fs.params.pins = [];
   // ── Composition (Phase 5) ──
-  const fc = NC.addNode(m, { type: 'figure', params: reg.defaults('figure') }), vfc = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 3 } });
+  const fc = NC.addNode(m, { type: 'figure', params: reg.defaults('figure') }), vfc = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 2 } });
   NC.addEdge(m, { node: fc.id, port: 'figure' }, { node: vfc.id, port: 'figure' });
   NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: fc.id, port: 'canvas' }); NC.addEdge(m, { node: grids[0].id, port: 'grid' }, { node: fc.id, port: 'grid' });
   NC.addEdge(m, { node: en.id, port: 'content' }, { node: fc.id, port: 'content' }, true);
@@ -288,7 +288,7 @@ const ch = await P.ev(`
     const mm = F('variationsNodes')(m), vn = mm.nodes.find(n => n.type === 'variations');
     const eng = NC.createEngine({ registry: reg }); await eng.run(mm);
     const into = mm.edges.find(e => e.to.node === ex.id);
-    res.varMigrated = !!vn && vn.params.seed === 7 && !('variations' in mm.nodes.find(n => n.id === f.id).params) && into && into.from.node === vn.id && eng.get(vn.id).value.figure.variations.length === 3; }
+    res.varMigrated = !!vn && vn.params.variations === 2 && vn.params.seed === 7 && !('variations' in mm.nodes.find(n => n.id === f.id).params) && into && into.from.node === vn.id && eng.get(vn.id).value.figure.variations.length === 3; }
   return res;`, PRE);
 const fails = [];
 const check = (c, m) => { if (!c) fails.push(m); };
