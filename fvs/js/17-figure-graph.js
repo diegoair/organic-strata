@@ -979,16 +979,23 @@ function renderInspectorBody(box, ids) {
       cells: key => key === 'angle' ? cellRules.some(r => [90, 180, 270].includes((r.do || {}).rotate)) : key === 'parity' ? cellRules.some(r => (r.when || {}).parity) : cellRules.length > 0,
       transform: key => !!tNode && (tOnCells ? (key === 'draw' ? !!tNode.params.randomAmount : key !== 'mirror') : key === 'turn' || key === 'mirror'),
     };
-    const keysOf = k => { const all = k === 'grid' ? gridVaryKeys(gridGen) : (VARY_KEYS[k] || []).filter(([key]) => applies[k](key)); return all.length > 1 ? all : null; };
+    const applOf = k => k === 'grid' ? gridVaryKeys(gridGen) : (VARY_KEYS[k] || []).filter(([key]) => applies[k](key));
+    const keysOf = k => { const all = applOf(k); return all.length > 1 ? all : null; };
     const vary = p.vary || {}, isOn = k => vary[k] !== false && !(Array.isArray(vary[k]) && !vary[k].length), has = (k, key) => Array.isArray(vary[k]) ? vary[k].includes(key) : !isOptIn(k, key);   // true / unset = any of it, the opt-ins off
+    // what the row shows (review N2 / N3, Oct 9, 2026): an input is ticked only when something under it is on here — "any of it"
+    // on a Figure where only opt-ins apply varies nothing, so it reads unticked; an input turned off shows its parameters unticked
+    const appl = k => applOf(k).map(x => x[0]), shownOn = k => isOn(k) && (!appl(k).length || appl(k).some(key => has(k, key)));
     rows.push({ html: `<div class="sub-label">Vary</div>` + VARY_ROWS.map(([k, label, ink]) => {
       const keys = keysOf(k), open = varyOpen.has(node.id + ':' + k), off = only && (k === 'palette' || k === 'cells');
-      return `<div class="fg-vary__row${open ? ' is-open' : ''}" data-vary-row="${k}"><div class="fg-vary__head"><label class="check-row"><span class="fg-vary__dot" data-ink="${ink}" aria-hidden="true"></span><input type="checkbox" data-vary="${k}"${isOn(k) ? ' checked' : ''}${off ? ' disabled' : ''}><span>${esc(label)}</span></label>`
+      return `<div class="fg-vary__row${open ? ' is-open' : ''}" data-vary-row="${k}"><div class="fg-vary__head"><label class="check-row"><span class="fg-vary__dot" data-ink="${ink}" aria-hidden="true"></span><input type="checkbox" data-vary="${k}"${shownOn(k) ? ' checked' : ''}${off ? ' disabled' : ''}><span>${esc(label)}</span></label>`
         + (keys ? `<button type="button" class="icon-btn" data-vary-open="${k}" aria-expanded="${open}" aria-label="${esc(label)} parameters">${Organica.icons.get('chevron-right', { size: 'xs', cls: 'org-chev' })}</button>` : '') + `</div>`
-        + (keys ? `<div class="org-disclosure__panel"><div class="fg-vary__params">${keys.map(([key, kl]) => `<label class="check-row"><input type="checkbox" data-vary-key="${k}:${key}"${has(k, key) ? ' checked' : ''}${!isOn(k) || off ? ' disabled' : ''}><span>${esc(kl)}</span></label>`).join('')}</div></div>` : '') + `</div>`;
+        + (keys ? `<div class="org-disclosure__panel"><div class="fg-vary__params">${keys.map(([key, kl]) => `<label class="check-row"><input type="checkbox" data-vary-key="${k}:${key}"${isOn(k) && has(k, key) ? ' checked' : ''}${!isOn(k) || off ? ' disabled' : ''}><span>${esc(kl)}</span></label>`).join('')}</div></div>` : '') + `</div>`;
     }).join(''),
       bind: () => {
-        box.querySelectorAll('[data-vary]').forEach(c => c.addEventListener('change', () => { p.vary = { ...(p.vary || {}), [c.dataset.vary]: c.checked }; edited(node, true); renderInspector(ids); }));
+        box.querySelectorAll('[data-vary]').forEach(c => c.addEventListener('change', () => {   // ticking a row that would still vary nothing turns on every parameter that applies (N2)
+          const k = c.dataset.vary, onAll = c.checked && appl(k).length && !appl(k).some(key => !isOptIn(k, key));
+          p.vary = { ...(p.vary || {}), [k]: onAll ? appl(k) : c.checked }; edited(node, true); renderInspector(ids);
+        }));
         box.querySelectorAll('[data-vary-open]').forEach(b => b.addEventListener('click', () => { const id = node.id + ':' + b.dataset.varyOpen; varyOpen.has(id) ? varyOpen.delete(id) : varyOpen.add(id); b.setAttribute('aria-expanded', varyOpen.has(id)); b.closest('.fg-vary__row').classList.toggle('is-open', varyOpen.has(id)); }));
         box.querySelectorAll('[data-vary-key]').forEach(c => c.addEventListener('change', () => {
           const [k, key] = c.dataset.varyKey.split(':'), all = (keysOf(k) || []).map(x => x[0]), on = all.filter(x => x === key ? c.checked : has(k, x)), base = all.filter(x => !isOptIn(k, x));

@@ -89,6 +89,11 @@ const out = await P.ev(`
   // Vary: with nothing allowed to change, one change changes nothing on this figure → only the base remains
   vf0.params.vary = { content: false, palette: false, cells: false, grid: false, transform: false }; vf0.params.pins = []; eng.touch(vf0.id); await eng.run(m);
   res.keepAll = V().length === 1;
+  // review N8: a child whose slot every draw dedupes says why, not "raise Variations"; a slot past the count still says that
+  { const k1 = NC.addNode(m, { type: 'figure-var', params: { ...reg.defaults('figure-var'), parent: vf0.id, slot: 1, item: null } }), k9 = NC.addNode(m, { type: 'figure-var', params: { ...reg.defaults('figure-var'), parent: vf0.id, slot: 9, item: null } });
+    [k1, k9].forEach(k => NC.addEdge(m, { node: vf0.id, port: 'figure' }, { node: k.id, port: 'from' }, true)); await eng.run(m);
+    res.shortMsg = /^No visible change/.test(eng.get(k1.id).message || '') && /^Not drawn now/.test(eng.get(k9.id).message || '');
+    [k1, k9].forEach(k => NC.removeNode(m, k.id)); }
   // an older node saying the same with Keep (saved before Vary): read the same
   delete vf0.params.vary; vf0.params.keep = { content: true, palette: true, cells: true, grid: true, transform: true }; eng.touch(vf0.id); await eng.run(m);
   res.keepAllLegacy = V().length === 1; delete vf0.params.keep;
@@ -458,6 +463,7 @@ check(out.varDet, 'variations are the same for the same seed');
 check(out.pinFirst, 'a pinned variation stays in its slot');
 check(out.renewKeepsPin && out.renewChanges, 'New variations keeps the pinned one and changes the others');
 check(out.fromThis, 'New Figure from this draws exactly that variation');
+check(out.shortMsg, 'A child no draw can fill says no visible change; one past the count says raise Variations (review N8)');
 check(out.keepAll && out.keepAllLegacy, 'Vary nothing (and an older Keep everything) → no variation can change anything');
 check(out.fromThisKeep, 'New Figure from this with Vary set draws exactly that variation');
 check(out.seriesRun && out.tableRun && out.seriesPin && out.seriesPinSlot, 'a Series draws exactly its steps in order (the base kept as a step); a Table 2 × 2 row-major; a pinned step survives Random; a pin inside a series replaces its own step only');

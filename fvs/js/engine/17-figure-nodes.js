@@ -237,6 +237,7 @@ export async function figureWithVariations(inputs, p) {
   const main = groups[0].main;
   main.groups = groups.map(g => ({ label: g.label, variations: g.variations }));
   main.variations = [].concat(...main.groups.map(g => g.variations));
+  main.short = groups.map(g => g.main.short).find(Boolean) || null;
   main.capped = items.length > shown.length || per < (+p.variations || 1) ? { items: items.length, shownItems: shown.length, per, asked: +p.variations || 1, cap: FIGURE_RENDER_CAP } : null;
   return main;
 }
@@ -283,6 +284,7 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
         seen.add(keyOf(r.svg)); main.variations.push(withSrc({ key: v.key, svg: r.svg, label, changes, pinned: false, spec: v.spec, slot, item }, null, r)); break;
       } catch (e) { failed++; }   // this change does not apply here (or a real error): try the next — counted, shown on the card
     }
+    if (!queue.length && main.variations.length <= slot) { main.short = { want, made: main.variations.length }; }   // every draw left repeats one already shown (review N8)
   }
   if (main.variations.length < want && failed) main.failedVariations = failed;   // fewer than asked, and some draws threw
   main.variations.forEach(v => withSrc(v, src, v.slot === 0 ? { ...main } : null));   // the base: this group's own drawing
@@ -800,7 +802,7 @@ export async function figureVariation(i, p) {
   const vars = par.variations || [];
   const v = vars.find(x => childKey(x.slot, x.item) === childKey(p.slot, p.item))
     || (p.item != null ? vars.find(x => x.slot === p.slot && x.item != null && itemName(x.item) === itemName(p.item)) : null);   // the Set was reordered: the item by its name
-  if (!v) throw new Error('Not drawn now — raise Variations on its Figure');
+  if (!v) throw new Error(par.short && p.slot < par.short.want ? 'No visible change — every draw left matches a variation already shown; tick more under Vary' : 'Not drawn now — raise Variations on its Figure');   // an honest reason (review N8)
   if (v.error) throw new Error(v.label);
   // Its output carries `src` = the variation's own varied inputs (Phase C, Oct 9, 2026): a Variations node wired to a
   // variation draws around IT — `raw` is what that node varies, with no `fixed` left to re-apply and no fan-out item.
