@@ -14,6 +14,7 @@
   outline: none;
 }
 .nc-stage.nc-stage--pan, .nc-stage.nc-stage--pan * { cursor: grab; }
+.nc-stage:has(> .nc-board.panning), .nc-stage:has(> .nc-board.panning) * { cursor: grabbing; }   /* a pan in progress — Space-drag or the wheel button (createZoomPan's .panning) */
 .nc-board { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
 .nc-wires { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; pointer-events: none; }
 .nc-nodes { position: absolute; left: 0; top: 0; }
