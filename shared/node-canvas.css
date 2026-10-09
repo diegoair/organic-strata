@@ -90,12 +90,22 @@
   grid-row: 1; grid-column: 1; width: var(--pill-h); padding: 0; justify-content: center; align-items: center;
   border-bottom: 0; border-radius: calc(var(--pill-h) / 2) 0 0 calc(var(--pill-h) / 2);
 }
-.nc-node--pill .nc-node__type, .nc-node--pill .nc-node__title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.nc-node--pill .nc-node__type, .nc-node--pill .nc-node__title, .nc-node--capped .nc-node__type { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .nc-node__icon { display: flex; }
 .nc-node--pill .nc-node__icon { color: var(--paper); }   /* a pill's icon is always light (Diego, Oct 8, 2026): --paper is the fixed white inside the light-scoped head. White on yellow 1.6:1 / orange 2.5:1 — ledger §3 node-palette exception; on the other inks ≥ 3.4:1 */
 /* the one exception: in dark the canvas ink is the cover's cream, where white is invisible (1.3:1) — its icon is black
    (--ink inside the light-scoped head / cap). Not inside a light island on a dark page. */
 [data-theme="dark"] [data-ink="canvas"]:not([data-theme="light"] [data-ink]) .nc-node__icon { color: var(--ink); }
+/* ── the capped card (Diego, Oct 9, 2026 — Figure "in line with the others"): a full card whose type has an icon. Its
+   head is the pill's round cap (the icon on the solid ink) + the node's name on one row, on the card's own paper — no
+   solid band, no overline (kept for the accessible name, as on a pill). ── */
+.nc-node--capped { --nc-cap-rule: var(--border); }   /* resolved on the card, in the page's theme — the head is light-scoped */
+.nc-node--capped .nc-node__head {
+  flex-direction: row; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3); background: none; border-bottom: 1px solid var(--nc-cap-rule); color: inherit;
+}
+.nc-node--capped .nc-node__icon { flex: 0 0 auto; align-items: center; justify-content: center; width: var(--space-8); height: var(--space-8); border-radius: 50%; background: var(--node-ink); color: var(--paper); }   /* the pill's cap, smaller; --paper = the fixed white inside the light-scoped head */
+.nc-node--capped .nc-node__title { color: inherit; }
 /* the icon is the library's own .ico, untouched: --icon-lg (16px, the grid's native size, as in the floatbar and header) and
    --icon-stroke — aligned with every other icon in the suite (Diego, Oct 8, 2026) */
 .nc-node--pill .nc-node__io { grid-row: 1; grid-column: 1 / -1; align-self: center; padding: 0; }

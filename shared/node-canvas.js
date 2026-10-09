@@ -353,6 +353,7 @@
       card.setAttribute('aria-label', label(node));
       var meta = registry.get(node.type).meta;
       if (meta.pill) card.classList.add('nc-node--pill');   // a pill: the type's icon + one picture; the name is in the panel (and the card's aria-label)
+      else if (meta.icon) card.classList.add('nc-node--capped');   // a full card with an icon: the pill's round cap + its name on one row, no solid band
       var head = el('div', 'nc-node__head', { 'data-theme': 'light' }); /* fixed black / white on the solid ink */ var type = el('span', 'nc-node__type'); type.textContent = meta.label;
       if (meta.icon && Organica.icons) { var ic = el('span', 'nc-node__icon', { 'aria-hidden': 'true' }); ic.innerHTML = Organica.icons.get(meta.icon); head.appendChild(ic); }
       var title = el('span', 'nc-node__title'); title.textContent = label(node); head.append(type, title);

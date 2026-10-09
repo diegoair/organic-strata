@@ -124,13 +124,12 @@ function renderBody(node, entry, el) {
   if (node.type === 'figure') {
     const f = v && v.figure;
     if (!f) { el.innerHTML = ''; return; }
-    const crumb = foundationOf(node).map(n => n ? esc(nodeLabel(n)) : '—').join(' · ');
     const vars = f.variations && f.variations.length ? f.variations : [{ key: 'base', svg: f.svg, label: 'As set up' }];
     const base = vars[0], kids = childrenOf(node.id).length;   // the other variations are child Figures (nodes of their own)
-    el.innerHTML = `<p class="fg-card__crumb">${crumb}</p>
-      <figure class="fg-var"><div class="fg-card__sheet" data-theme="light">${base.error ? `<p class="fg-var__error">${esc(base.label)}</p>` : `<img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id + ':' + base.key, base.svg)}">`}</div>
-        <figcaption class="fg-var__label">${f.groups ? esc(f.groups[0].label) + ' · ' : ''}As set up</figcaption></figure>`
-      + checksBadge(f) + `<p class="fg-card__meta">${esc(canvasSummary(f.canvas))} · ${f.cells} cells${kids ? ` · ${kids} ${kids === 1 ? 'variation' : 'variations'}` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}${f.failedVariations ? ` · ${f.failedVariations} ${f.failedVariations === 1 ? 'change' : 'changes'} could not be drawn` : ''}</p>`;
+    // the drawing + one line (Diego, Oct 9, 2026 — the card in line with the others): Canvas · Grid · Palette are in the panel
+    el.innerHTML = `<figure class="fg-var"><div class="fg-card__sheet" data-theme="light">${base.error ? `<p class="fg-var__error">${esc(base.label)}</p>` : `<img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id + ':' + base.key, base.svg)}">`}</div>
+        ${f.groups ? `<figcaption class="fg-var__label">${esc(f.groups[0].label)}</figcaption>` : ''}</figure>`
+      + checksBadge(f) + `<p class="fg-card__meta">${f.cells} cells${kids ? ` · ${kids} ${kids === 1 ? 'variation' : 'variations'}` : ''}${f.capped ? ` · ${f.capped.per} of ${f.capped.asked} variations per item${f.capped.shownItems < f.capped.items ? `, ${f.capped.shownItems} of ${f.capped.items} items` : ''} — at most ${f.capped.cap} figures` : ''}${f.failedVariations ? ` · ${f.failedVariations} ${f.failedVariations === 1 ? 'change' : 'changes'} could not be drawn` : ''}</p>`;
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); restackChildren(node.id); }, { once: true }));
   } else if (node.type === 'figure-var') {
     const f = v && v.figure, par = parentNode(node);

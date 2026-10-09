@@ -396,6 +396,13 @@ CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d
 `.is-compatible`, `.is-incompatible`, `[data-type]`) · `.nc-wire` (+ `--<type>`, `--faint`,
 `--pending`, `.is-related`, `.is-selected`) · `.nc-wire__label` (`--mid`, `--font-display`,
 `--t-label-size`, a `--canvas-bg` halo `--space-1` wide via `paint-order: stroke`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
+**The capped card — `meta.icon` without `pill`** (Oct 9, 2026, ledger §2 *capped card*). `buildCard` adds
+`.nc-node--capped`: the head becomes the pill's round cap (`.nc-node__icon`, `--space-8` circle on `--node-ink`,
+white icon) + the name on one row, on the card's paper (no band, `background: none`), a 1px `--border` line under it,
+`.nc-node__type` visually hidden (accessible name). The head keeps `data-theme="light"`, so a theme colour read inside it
+is the light one — resolve it on the card. Ports, body, states unchanged. FVS: Figure, Variation (`fvs-figure`).
+A card with no `meta.icon` (Rhizome) keeps the solid head.
+
 **The pill — `meta.pill` / `meta.icon`** (Oct 8, 2026, ledger §2 *Node pill* and the rows after it — every
 node but the Figure and its variations). A registry type whose `meta` has `pill: true` is drawn by `mount()`
 (`buildCard`) as `.nc-node--pill`; `meta.icon` (any `Organica.icons` name) adds `<span class="nc-node__icon"
@@ -449,7 +456,7 @@ replaced `pill` / `pillAttrs` / `.nc-pill__cap`, removed) — for a node-bar ite
 (icon `--icon-lg` monochrome `--ink` over the display-face name, `--paper`, `--border` edge, `--radius-lg`, min-height
 2 × `--space-8`; a `.nc-nodebar__list` holding tiles is a 2-column grid, an icon-less item in it is centred as a tile);
 `nodeBar()`'s drag ghost copies the class. `meta.barIcon` = an icon for the bar tile only, on a type whose card has
-none (FVS Figure: `fvs-figure`). No hover motion
+none (no consumer since Oct 9, 2026 — the FVS Figure now has `meta.icon`). No hover motion
 (removed Oct 8, 2026). Consumers: FVS — every node but Figure / Variation; Rhizome grid (`‹n› cells`) and
 colour (one chip + its hex), its node-bar items plain (no `meta.icon`, no hint line). Live: `/design-system/#node-bodies`
 (every pill kind + a dead node) and `#node-canvas` (two real docks with tile items), both themes, self-checked.

@@ -522,7 +522,7 @@ export function figureNodeTypes() {
     { meta: { id: 'export', label: 'Export', category: 'Output', pill: true, icon: 'download', inputs: [{ name: 'figures', type: 'figure', label: 'Figures', multi: true, required: true }], outputs: [],
         params: [{ name: 'which', default: 'all' }, { name: 'formats', default: { svg: true, png: false, plates: false } }, { name: 'scales', default: [1] }, { name: 'transparent', default: false }] },
       compute: (i, p, ctx) => ({ files: null }) },   // the UI fills the plan from the Figures' own results (they carry no names here)
-    { meta: { id: 'figure', label: 'Figure', category: 'Output', barIcon: 'fvs-figure',   // the node-bar tile's icon only — the card stays without one
+    { meta: { id: 'figure', label: 'Figure', category: 'Content', icon: 'fvs-figure',   // with Content in the bar; a capped card (Diego, Oct 9, 2026)
         inputs: [{ name: 'canvas', type: 'canvas', label: 'Canvas', required: true }, { name: 'grid', type: 'grid', label: 'Grid', required: true },
           { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', required: true, multi: true },
           { name: 'rules', type: 'rule', label: 'Rules', multi: true }, { name: 'composition', type: 'composition', label: 'Composition' }],
@@ -531,7 +531,7 @@ export function figureNodeTypes() {
           { name: 'variations', default: 4 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} }, { name: 'layout', default: 'rows' },
           { name: 'pins', default: [] }, { name: 'fixed', default: null }, { name: 'fanOut', default: true }] },
       compute: async (i, p) => ({ figure: await figureWithVariations(i, p) }) },
-    { meta: { id: 'figure-var', label: 'Variation', category: 'Output', hidden: true,   // made by its Figure, never from the node bar
+    { meta: { id: 'figure-var', label: 'Variation', category: 'Output', hidden: true, icon: 'fvs-figure',   // made by its Figure, never from the node bar
         inputs: [{ name: 'from', type: 'figure', label: 'Figure', required: true },
           { name: 'canvas', type: 'canvas', label: 'Canvas' }, { name: 'grid', type: 'grid', label: 'Grid' },
           { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', multi: true },
