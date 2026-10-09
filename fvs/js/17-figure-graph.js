@@ -46,7 +46,7 @@ import {
   plateSVG
 } from './engine/15-export-library-view.js';
 import {
-  CHANGE_OF, FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  CHANGE_OF, seriesAxes, seriesCount, sweepableOf, FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridPreviewModel, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
@@ -135,7 +135,8 @@ function renderBody(node, entry, el) {
   } else if (node.type === 'variations') {
     const k = Math.max(0, +p.variations || 0), f = v && v.figure;
     const md = specModeOf(p), how = md.mode === 'seed' ? 'New seeds only' : `${md.changes || 1} ${md.changes > 1 ? 'changes' : 'change'}`;   // 'several' never reaches the pill: it migrates on load
-    el.innerHTML = NC.body.line(`${k} ${k === 1 ? 'variation' : 'variations'} · ${how}${f && f.failedVariations ? ` · ${f.failedVariations} could not be drawn` : ''}`);
+    const sm = seriesMeta(node), n = sm ? seriesCount(p) : k;   // Series / Table (Phase E): the steps and the swept parameters
+    el.innerHTML = NC.body.line(`${n} ${n === 1 ? 'variation' : 'variations'} · ${sm || how}${f && f.failedVariations ? ` · ${f.failedVariations} could not be drawn` : ''}`);
   } else if (node.type === 'figure-var') {
     const f = v && v.figure, par = sourceOf(node);
     if (!f) { el.innerHTML = ''; return; }
@@ -208,7 +209,7 @@ function foundationOf(fig) {
 // A pin from a variation: its whole spec (mode, `changes` for a 2–3-change draw, seed) + its slot and item, so New
 // variations re-draws exactly it (review note, Oct 9, 2026: the tile's Pin dropped `changes` and re-drew a pinned
 // 2-change variation with one change)
-const pinOf = v => ({ mode: v.spec.mode, ...(v.spec.changes ? { changes: v.spec.changes } : {}), seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });
+const pinOf = v => ({ mode: v.spec.mode, ...(v.spec.changes ? { changes: v.spec.changes } : {}), ...(v.spec.set ? { set: { ...v.spec.set } } : {}), seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });   // set: a Series / Table step (Phase E)
 function variationAction(childId, act) {
   const child = NC.findNode(ctl.model, childId), node = child && sourceOf(child), fig = node && figOf(node), en = ctl.engine.get(childId); if (!node || !fig) return;
   const v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null; if (!v || !v.spec) return;
@@ -301,13 +302,13 @@ function useVariation(fig, v, st, child) {
 function figOf(vn, m) { m = m || ctl.model; const e = vn && m.edges.find(w => w.to.node === vn.id && w.to.port === 'figure'), f = e && NC.findNode(m, e.from.node); return f && (f.type === 'figure' || f.type === 'figure-var') ? f : null; }   // a variation too (Phase C, Oct 9, 2026: Add Variations on a variation)
 function variationsOf(figId, m) { m = m || ctl.model; return m.edges.filter(e => e.from.node === figId && e.to.port === 'figure').map(e => NC.findNode(m, e.to.node)).filter(n => n && n.type === 'variations'); }
 function wantedChildren(vn) {   // [{slot, item}] — what the Variations node draws, its Figure's own "As set up" left out
-  const p = vn.params || {}, m = ctl.model, want = Math.max(0, Math.min(12, +p.variations || 0)) + 1, fig = figOf(vn, m), out0 = [];   // the count = variations made (O-58 a); slot 0 = the Figure itself
+  const p = vn.params || {}, m = ctl.model, structured = p.mode === 'series' || p.mode === 'table', want = (structured ? seriesCount(p) : Math.max(0, Math.min(12, +p.variations || 0))) + 1, fig = figOf(vn, m), out0 = [];   // the count = variations made (O-58 a), a Series / Table its steps; slot 0 = the Figure itself
   if (!fig) return [];
   if (fig.type === 'figure-var') { for (let k = 1; k < want; k++) out0.push({ slot: k, item: null }); return out0; }   // around a variation: no fan-out (it is one item already)
   const set = m.edges.filter(e => e.to.node === fig.id && e.to.port === 'content').map(e => NC.findNode(m, e.from.node)).find(n => n && n.type === 'set');
   const items = set ? ((set.params || {}).items || []).filter(x => x && x.snapshot) : [];
   const out = [];
-  if (!items.length || p.fanOut === false || (fig.params || {}).onlyItem) { for (let k = 1; k < want; k++) out.push({ slot: k, item: null }); return out; }
+  if (structured || !items.length || p.fanOut === false || (fig.params || {}).onlyItem) { for (let k = 1; k < want; k++) out.push({ slot: k, item: null }); return out; }   // a Series / Table: no fan-out (Phase E)
   const per = Math.max(1, Math.min(want, Math.floor(FIGURE_RENDER_CAP / items.length)));
   items.slice(0, FIGURE_RENDER_CAP).forEach((it, gi) => { for (let k = 0; k < per; k++) if (gi || k) out.push({ slot: k, item: gi + ':' + it.name }); });
   return out;
@@ -374,6 +375,18 @@ function restackChildren(figId, force) {
   const kids = new Set(childrenOf(figId).map(n => n.id)), box = n => { const c = ctl.cardOf(n.id); return { x: n.x, y: n.y, w: (c && c.offsetWidth) || 224, h: (c && c.offsetHeight) || 120 }; };
   const others = ctl.model.nodes.filter(n => n.id !== figId && !kids.has(n.id)).map(box);
   const clear = (top, w, h) => { let t = top, hit; do { hit = others.find(o => o.x < x + w && o.x + o.w > x && o.y < t + h + 24 && o.y + o.h + 24 > t); if (hit) t = hit.y + hit.h + 24; } while (hit); return t; };
+  // a Table (Phase F): its children in rows — the first axis across, the second down; a child moved by hand stays put
+  const axes = fig.type === 'variations' && fig.params.mode === 'table' ? seriesAxes(fig.params) : [], across = axes.length === 2 ? axes[0].steps : 0;
+  if (across) {
+    const kids2 = childrenOf(figId), w = Math.max(...kids2.map(n => { const c = ctl.cardOf(n.id); return (c && c.offsetWidth) || 224; }), 224), h = Math.max(...kids2.map(n => { const c = ctl.cardOf(n.id); return (c && c.offsetHeight) || 280; }), 120);
+    kids2.forEach((n, i) => {
+      if (!n.params.auto) return;
+      const c = ctl.cardOf(n.id), nx = x + (i % across) * (w + 24), ny = fig.y + Math.floor(i / across) * (h + 24);
+      if (n.x !== nx || n.y !== ny) { n.x = nx; n.y = ny; moved = true; if (c) c.style.transform = `translate(${nx}px,${ny}px)`; }
+    });
+    if (moved || force) { kids2.forEach(n => ctl.remeasure(n.id)); save(); }
+    return;
+  }
   childrenOf(figId).forEach(n => {
     const c = ctl.cardOf(n.id), h = (c && c.offsetHeight) || 280;
     if (n.params.auto) {
@@ -658,6 +671,15 @@ function repeatBefore(node, seen = new Set()) {
   if (seen.has(node.id)) return false; seen.add(node.id);
   return ctl.model.edges.filter(e => e.to.node === node.id && e.to.port === 'rules').some(e => { const n = NC.findNode(ctl.model, e.from.node); return n && (n.type === 'repeat' || repeatBefore(n, seen)); });
 }
+// A Variations node's Series / Table in words: *Series: Columns 4 → 8* · *Table: Columns × Hue* · *Series* alone with nothing to sweep (null in Random)
+function seriesMeta(node) {
+  const p = node.params || {}; if (p.mode !== 'series' && p.mode !== 'table') return null;
+  const en = ctl && ctl.engine.get(node.id), sweep = (en && en.value && en.value.figure && en.value.figure.sweepable) || [], axes = seriesAxes(p);
+  const lab = a => { const sw = sweep.find(x => x.key === a.key); return sw ? sw.label : a.label || ''; }, unit = a => { const sw = sweep.find(x => x.key === a.key); return sw && sw.unit ? sw.unit : ''; };   // the row's own label, never the id (review F2)
+  if (!axes.length) return p.mode === 'table' ? 'Table' : 'Series';   // nothing to sweep yet: the panel says why
+  if (p.mode === 'series') { const a = axes[0], u = unit(a); return `Series: ${lab(a)} ${a.from}${u} → ${a.to}${u}`; }
+  return `Table: ${lab(axes[0])}${axes[1] ? ' × ' + lab(axes[1]) : ''}`.replace(/\s+$/, '');
+}
 function nodeMeta(node) {
   const p = node.params || {}, n = k => k.length;
   switch (node.type) {
@@ -668,6 +690,7 @@ function nodeMeta(node) {
     case 'cell-rules': return n(p.rules || []) + ((p.rules || []).length === 1 ? ' rule' : ' rules');
     case 'composition': return n(p.rules || []) + ((p.rules || []).length === 1 ? ' region rule' : ' region rules');
     case 'export': return exportSummary(exportFiles(node), p);
+    case 'variations': return seriesMeta(node) || '';
     default: return '';
   }
 }
@@ -877,6 +900,49 @@ function renderInspectorBody(box, ids) {
   if (node.type === 'variations') {
     const fig = figOf(node), hasSet = fig && ctl.model.edges.some(e => e.to.node === fig.id && e.to.port === 'content' && (NC.findNode(ctl.model, e.from.node) || {}).type === 'set');
     if (!fig) rows.push({ html: '<p class="org-empty">Connect a Figure — its variations appear beside this node, each saying what changed.</p>' });
+    // Mode (second level, Phase E / F — design-system CONSULT, Oct 9, 2026): Random (the rows below) · Series · Table — a mode shows its own rows
+    const mode = p.mode === 'series' || p.mode === 'table' ? p.mode : 'random', sweepOf = () => { const e = ctl.engine.get(node.id); return (e && e.value && e.value.figure && e.value.figure.sweepable) || []; }, sweep = sweepOf();   // read live in the handlers: the engine may finish after this render
+    const drawn = !!(ctl.engine.get(node.id) || {}).value;
+    const distinct = sw => sw ? Math.max(1, Math.floor((sw.max - sw.min) / sw.step + 1e-9) + 1) : 12, swOf = key => sweepOf().find(x => x.key === key);
+    const ensureAxes = n => {   // the axes a mode needs: the first sweepable parameters, their whole range (CONSULT 1–2)
+      const s = (p.series || []).filter(a => a && a.key).slice(0, n), live = sweepOf();
+      while (s.length < n && live.length) { const sw = live[Math.min(s.length, live.length - 1)]; s.push({ key: sw.key, label: sw.label, from: sw.min, to: sw.max, steps: n === 1 ? Math.max(1, Math.min(distinct(sw), 12, +p.variations || 3)) : 3 }); }
+      if (n === 2) { s.forEach(a => { a.steps = Math.max(2, Math.min(4, +a.steps || 3)); }); if (s.length === 2 && s[0].steps * s[1].steps > 12) s[1].steps = 3; }   // a Table's Values are 2–4, the product ≤ 12 (review F3)
+      p.series = s;
+    };
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Mode</div><div class="seg-ctrl" role="group" aria-label="Mode">${[['random', 'Random'], ['series', 'Series'], ['table', 'Table']].map(([v, l]) => `<button type="button" class="seg-btn${v === mode ? ' active' : ''}" data-vmode="${v}" aria-pressed="${v === mode}">${l}</button>`).join('')}</div></div>`,
+      bind: () => box.querySelectorAll('[data-vmode]').forEach(b => b.addEventListener('click', () => {
+        const v = b.dataset.vmode; if (v === mode) return; p.mode = v;
+        if (v !== 'random') { ensureAxes(v === 'table' ? 2 : 1); if (v === 'series' && p.series[0]) p.series[0].steps = Math.max(1, Math.min(distinct(swOf(p.series[0].key)), +p.variations || 3)); }
+        edited(node, true); renderInspector(ids);
+        const n = v === 'random' ? Math.max(0, +p.variations || 0) : seriesCount(p); announce(`${n} ${n === 1 ? 'variation' : 'variations'}${v === 'random' ? '' : v === 'series' ? ' in a series' : ' in a table'}`);
+      })) });
+    const axisRows = (ax, i, name) => {   // Parameter · From · To (· Values in a Table) for one axis; names *‹Axis›: ‹row›* when there are two
+      const sw = swOf(ax.key), q = name ? name + ': ' : '', id = 'fgi-' + (name ? name.toLowerCase() : 'axis'), unit = sw && sw.unit ? `<span class="panel-unit">${esc(sw.unit)}</span>` : '';
+      const groups = ['grid', 'palette', 'cells', 'transform'].map(kd => [CHANGE_OF[kd], sweep.filter(x => x.kind === kd).map(x => [x.key, x.label])]).filter(g => g[1].length);
+      const num = (k, label, v) => `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="number" class="panel-input" id="${id}-${k}" data-axis="${i}" data-k="${k}" value="${esc(v)}" min="${sw ? sw.min : ''}" max="${sw ? sw.max : ''}" step="${sw ? sw.step : 1}" aria-label="${esc(q + label)}">${unit}</div>`;
+      return (name ? `<div class="sub-label">${name}</div>` : '')
+        + `<div class="ctrl-row"><div class="ctrl-label">Parameter</div><select class="panel-select" id="${id}-param" data-axis="${i}" aria-label="${esc(q + 'Parameter')}">${groupedOptions(groups)}</select></div>`
+        + num('from', 'From', ax.from) + num('to', 'To', ax.to);
+    };
+    const bindAxes = () => {
+      box.querySelectorAll('select[data-axis]').forEach(sel => { sel.value = p.series[+sel.dataset.axis].key; sel.addEventListener('change', () => { const ax = p.series[+sel.dataset.axis], sw = swOf(sel.value); ax.key = sel.value; if (sw) { ax.label = sw.label; ax.from = sw.min; ax.to = sw.max; ax.steps = Math.min(ax.steps, distinct(sw)); if (mode === 'series') p.variations = ax.steps; } edited(node, true); renderInspector(ids); }); });
+      box.querySelectorAll('input[data-axis][data-k]').forEach(inp => inp.addEventListener('change', () => { const ax = p.series[+inp.dataset.axis], sw = swOf(ax.key), v = +inp.value; if (!Number.isFinite(v)) return; ax[inp.dataset.k] = sw ? Math.min(sw.max, Math.max(sw.min, v)) : v; edited(node, true); renderInspector(ids); }));
+    };
+    if (mode !== 'random' && fig && !sweep.length) rows.push({ html: `<p class="org-empty">${drawn ? 'Nothing to sweep yet — connect a Grid, a Palette or a rule to the Figure.' : `${esc(nodeLabel(fig))} has not drawn yet — see its own card.`}</p>` });   // two states (review N1)
+    if (mode === 'series' && sweep.length) {
+      ensureAxes(1); const ax = p.series[0], sw = swOf(ax.key), maxN = Math.min(12, distinct(sw)); if (ax.steps > maxN) ax.steps = maxN;
+      rows.push(rangeRow('Variations', 'fgi-vcount', 1, maxN, 1, ax.steps, (v, c) => { ax.steps = v; p.variations = v; edited(node, c); }));   // the count = the steps of the series
+      rows.push({ html: axisRows(ax, 0, null) + `<p class="org-panel__hint">The variations are the steps from one value to the other.</p>`, bind: bindAxes });
+    }
+    if (mode === 'table' && sweep.length) {
+      ensureAxes(2);
+      const seg = (i, name) => { const ax = p.series[i], other = p.series[1 - i], maxN = Math.min(4, distinct(swOf(ax.key))); if (ax.steps > maxN) ax.steps = maxN;
+        return `<div class="ctrl-row"><div class="ctrl-label">Values</div><div class="seg-ctrl" role="group" aria-label="${name}: Values">${[2, 3, 4].map(n => { const gated = n * other.steps > 12, off = n > maxN; return `<button type="button" class="seg-btn${n === ax.steps ? ' active' : ''}" data-axis="${i}" data-values="${n}" aria-pressed="${n === ax.steps}"${off ? ' disabled' : gated ? ' aria-disabled="true" title="4 × 4 needs 16 variations — the limit is 12" aria-description="4 × 4 needs 16 variations — the limit is 12"' : ''}>${n}</button>`; }).join('')}</div></div>`; };
+      rows.push({ html: axisRows(p.series[0], 0, 'Across') + seg(0, 'Across') + axisRows(p.series[1], 1, 'Down') + seg(1, 'Down') + `<p class="org-panel__hint">One variation per pair of values — the first parameter across, the second down.</p>`,
+        bind: () => { bindAxes(); box.querySelectorAll('[data-values]').forEach(b => b.addEventListener('click', () => { if (b.disabled || b.getAttribute('aria-disabled') === 'true') return; p.series[+b.dataset.axis].steps = +b.dataset.values; edited(node, true); renderInspector(ids); })); } });
+    }
+    if (mode === 'random') {
     if (hasSet && !(fig.params || {}).onlyItem) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-fanout"${p.fanOut !== false ? ' checked' : ''}><span>Variations per item</span></label><p class="org-panel__hint">Each item of the Set gets its own variations. Off: the items are mixed over the cells.</p>`,
       bind: () => ctrl('fgi-fanout').addEventListener('change', e => { p.fanOut = e.target.checked; edited(node, true); }) });
     rows.push(rangeRow('Variations', 'fgi-vcount', 1, 12, 1, +p.variations || 1, (v, c) => { p.variations = v; edited(node, c); }));   // variations made, the Figure not counted (O-58 a)
@@ -911,8 +977,9 @@ function renderInspectorBody(box, ids) {
           p.vary = { ...(p.vary || {}), [k]: on.length === all.length ? true : on.length ? on : false }; edited(node, true); renderInspector(ids);
         }));
       } });
-    const hidden = (p.pins || []).filter(q => q.slot > (+p.variations || 0)).length;
-    if ((p.pins || []).length) rows.push({ html: `<p class="org-panel__hint">${p.pins.length} pinned${hidden ? ` — ${hidden} not shown: raise Variations to see ${hidden === 1 ? 'it' : 'them'}` : ''}</p>` });
+    }   // end of the Random rows
+    const shown = mode === 'random' ? (+p.variations || 0) : seriesCount(p), hidden = (p.pins || []).filter(q => q.slot > shown).length;
+    if ((p.pins || []).length) rows.push({ html: `<p class="org-panel__hint">${p.pins.length} pinned${hidden ? ` — ${hidden} not shown${mode === 'random' ? `: raise Variations to see ${hidden === 1 ? 'it' : 'them'}` : ''}` : ''}</p>` });   // a Series / Table has no count to raise (review N2)
   }
   if (node.type === 'figure-var') {
     rows.push({ html: `<button type="button" class="panel-btn fg-block" id="fgi-compose">Compose</button>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });   // as the Figure's: the node's main verb

@@ -100,6 +100,17 @@ const out = await P.ev(`
   res.fromThisKeep = kvs.length > 0 && kvs.every((kv, i) => K(eng.get(copies[i].id).value.figure.svg) === kv.svg);
   copies.forEach(c => NC.removeNode(m, c.id));
   vf0.params.vary = {}; vf0.params.variations = 3; eng.touch(vf0.id); await eng.run(m);
+  // a Series (Phase E): exactly the steps, captioned, in order; a Table 2 × 2 row-major; identical drawings kept
+  { vf0.params.mode = 'series'; vf0.params.series = [{ key: 'grid:cols', from: 5, to: 8, steps: 4 }]; eng.touch(vf0.id); await eng.run(m);
+    const S = V(); res.seriesRun = S.length === 5 && S.slice(1).map(v => v.label).join('|') === 'Grid: Columns 5|Grid: Columns 6|Grid: Columns 7|Grid: Columns 8' && S[2].svg === S[0].svg;   // Columns 6 = the base, kept
+    vf0.params.mode = 'table'; vf0.params.series = [{ key: 'grid:cols', from: 5, to: 7, steps: 2 }, { key: 'grid:rows', from: 5, to: 7, steps: 2 }]; eng.touch(vf0.id); await eng.run(m);
+    const M = V(); res.tableRun = M.length === 5 && M.slice(1).map(v => v.label).join('|') === 'Grid: Columns 5 · Grid: Rows 5|Grid: Columns 7 · Grid: Rows 5|Grid: Columns 5 · Grid: Rows 7|Grid: Columns 7 · Grid: Rows 7';
+    // a pin inside a series (review F1): slot k stays step k — the pin replaces its own step, the other steps are unchanged, the count too
+    vf0.params.mode = 'series'; vf0.params.series = [{ key: 'grid:cols', from: 5, to: 8, steps: 4 }]; vf0.params.pins = [{ ...M[1].spec, slot: 2 }]; eng.touch(vf0.id); await eng.run(m);
+    const SP = V(); res.seriesPinSlot = SP.length === 5 && SP[2].pinned && SP[2].label === 'Grid: Columns 5 · Grid: Rows 5' && [SP[1], SP[3], SP[4]].map(v => v.label).join('|') === 'Grid: Columns 5|Grid: Columns 7|Grid: Columns 8';
+    vf0.params.pins = [{ ...M[1].spec, slot: 1 }]; vf0.params.mode = 'random'; vf0.params.series = []; eng.touch(vf0.id); await eng.run(m);
+    res.seriesPin = V()[1].pinned && V()[1].label === 'Grid: Columns 5 · Grid: Rows 5';   // a pinned step survives the mode going back to Random
+    vf0.params.pins = []; eng.touch(vf0.id); await eng.run(m); }
   // a pin with edits (Phase D): the pinned variation draws with the value set by hand, and differs from the unedited draw
   { vf0.params.vary = { grid: ['cols'], palette: false, cells: false, transform: false, content: false }; eng.touch(vf0.id); await eng.run(m);
     const v1 = V()[1], before = v1.svg; vf0.params.pins = [{ mode: v1.spec.mode, seed: v1.spec.seed, slot: 1, edits: { 'grid:cols': v1.changes[0].value === 8 ? 7 : 8 } }]; eng.touch(vf0.id); await eng.run(m);
@@ -375,6 +386,16 @@ const ch = await P.ev(`
     res.varMig = mg.vary.palette === false && !('grid' in mg.vary) && mg.changes === 2 && mg.onlyRandom === false && !('keep' in mg) && !('varyBy' in mg) && mg2.onlyRandom === true && mg2.changes === 1 && !('keep' in mg2);
     const sp = F('variationSpecs')({ seed: 1, changes: 2 }, 2)[0].spec, sp1 = F('variationSpecs')({ seed: 1 }, 1)[0], spo = F('variationSpecs')({ seed: 1, varyBy: 'one' }, 1)[0];
     res.varSpecs = sp.mode === 'changes' && sp.changes === 2 && sp1.spec.mode === 'one' && sp1.key === spo.key;
+    // Series / Table (Phase E): sweepable parameters from the inputs; a 'set' spec sets exactly those values (no rng, Vary
+    // ignored, a step equal to the current value is still a record); seriesSpecs snaps the steps and crosses two axes row-major
+    const sw = F('sweepableOf')(inp), cols = sw.find(x => x.key === 'grid:cols'), hue = sw.find(x => x.key === 'palette:hue');
+    res.sweep = !!cols && cols.min === 5 && cols.max === 8 && cols.cur === 6 && !!hue && sw.some(x => x.key === 'transform:turn') && sw.some(x => x.key === 'transform:per');
+    const st1 = V(inp, { mode: 'set', set: { 'grid:cols': 8, 'palette:hue': 60 }, seed: 1 }, { vary: { grid: false, palette: false } });
+    const st2 = V(inp, { mode: 'set', set: { 'grid:cols': 6 }, seed: 1 });
+    res.setMode = st1.inputs.grid.params.cols === 8 && st1.changes.length === 2 && st1.label === 'Grid: Columns 8 · Palette: Hue +60°' && st2.changes.length === 1 && st2.label === 'Grid: Columns 6' && st2.inputs.grid.params.cols === 6;
+    const ser = F('seriesSpecs')({ mode: 'series', seed: 3, series: [{ key: 'grid:cols', from: 4, to: 9, steps: 4 }] }, sw).map(q => q.spec.set['grid:cols']);
+    const mat = F('seriesSpecs')({ mode: 'table', seed: 3, series: [{ key: 'grid:cols', from: 5, to: 7, steps: 3 }, { key: 'palette:hue', from: -60, to: 60, steps: 2 }] }, sw).map(q => q.spec.set['grid:cols'] + '/' + q.spec.set['palette:hue']);
+    res.seriesSpecs = JSON.stringify(ser) === JSON.stringify([5, 6, 7, 8]) && JSON.stringify(mat) === JSON.stringify(['5/-60', '6/-60', '7/-60', '5/60', '6/60', '7/60']);
     // Changes as records + edits (Phase D): varyInputs returns the changes it made; an edit by 'kind:key' replaces the drawn
     // value and leaves the other changes as they were (the rng is consumed the same)
     const two = Array.from({ length: 40 }, (_, k) => V(inp, { mode: 'changes', changes: 2, seed: k + 1 })).find(r => r.changes.length === 2 && r.changes.some(c => c.kind === 'grid' && c.key === 'cols'));
@@ -413,6 +434,7 @@ check(out.renewKeepsPin && out.renewChanges, 'New variations keeps the pinned on
 check(out.fromThis, 'New Figure from this draws exactly that variation');
 check(out.keepAll && out.keepAllLegacy, 'Vary nothing (and an older Keep everything) → no variation can change anything');
 check(out.fromThisKeep, 'New Figure from this with Vary set draws exactly that variation');
+check(out.seriesRun && out.tableRun && out.seriesPin && out.seriesPinSlot, 'a Series draws exactly its steps in order (the base kept as a step); a Table 2 × 2 row-major; a pinned step survives Random; a pin inside a series replaces its own step only');
 check(out.pinEdit, 'a pin with an edit draws the variation with the value set by hand (Columns), the other changes as drawn');
 check(out.nested && out.grandchild, 'a Variations node on a variation draws around that variation (base = it, variations differ from it and the Figure; a grandchild draws its own) — state ' + out.nestedState);
 check(out.setGroups === 'Test element:3,Test component:3', 'a Set fans out, one group per item: ' + out.setGroups);
@@ -469,6 +491,7 @@ check(ch.varSub && ch.varSubRows, 'variations: Vary a subset of parameters chang
 check(ch.varSame, 'variations: the default settings draw exactly as before Vary / Amount (one and several changes)');
 check(ch.varThree, 'variations: Changes 3 makes three changes when the figure has the dials');
 check(ch.varAmt0 && ch.varAmt100, 'variations: Amount 0 takes the smallest steps (one grid step, ±30° of hue), 100 the widest (Columns 8, ±120° / 180°)');
+check(ch.sweep && ch.setMode && ch.seriesSpecs, 'variations: sweepable parameters from the inputs; a set spec sets exactly those values; series steps snapped, a table row-major');
 check(ch.varRecords && ch.varEdit, 'variations: changes come as records (kind · key · label · text = the label); an edit by kind:key replaces that value and leaves the other change as drawn');
 check(ch.varMig && ch.varSpecs, 'variations: older keep / varyBy params migrate to vary / changes / onlyRandom; one change keeps the older spec key');
 check(ch.varMigrated, 'a Figure saved with variations gets a Variations node with its settings, and its Export');

@@ -251,7 +251,10 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   const main = await compileFigure(base.inputs, { ...p, ...base.extra }, { checks });
   // two renders of one figure differ only in their export time and run-time ids (an Element stack's masks): compare without them
   const keyOf = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
-  const want = Math.max(1, Math.min(13, +p.variations || 1)), seen = new Set([keyOf(main.svg)]);   // drawings: the Figure + up to 12 variations
+  const structured = p.mode === 'series' || p.mode === 'table';   // Series / Table (Phase E): exactly the steps, a step equal to another drawing still shown
+  const series = structured ? seriesSpecs(p, sweepableOf(base.inputs)) : null;
+  const want = structured ? Math.min(17, series.length + 1) : Math.max(1, Math.min(13, +p.variations || 1)), seen = new Set([keyOf(main.svg)]);   // drawings: the Figure + up to 12 variations (a table up to 16)
+  main.sweepable = sweepableOf(base.inputs);   // what a Series / Table can sweep here — the panel lists it
   const pins = new Map(pinsFor(p, item, keys).filter(q => q.slot >= 1 && q.slot < want).map(q => [q.slot, q]));
   const queue = variationSpecs(p, want + 40);   // a variation only adjusts what is there (Oct 9, 2026): a Figure with few dials repeats itself more often — more tries
   let failed = 0;
@@ -261,9 +264,15 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   for (let slot = 1; slot < want; slot++) {
     const pin = pins.get(slot);
     if (pin) {   // a pinned variation keeps its place, whatever the new seed
-      const spec = { mode: pin.mode, ...(pin.changes ? { changes: pin.changes } : {}), seed: pin.seed, ...(pin.edits && Object.keys(pin.edits).length ? { edits: { ...pin.edits } } : {}) };   // edits: values set by hand on the variation's panel (Phase D)
+      const spec = { mode: pin.mode, ...(pin.changes ? { changes: pin.changes } : {}), ...(pin.set ? { set: { ...pin.set } } : {}), seed: pin.seed, ...(pin.edits && Object.keys(pin.edits).length ? { edits: { ...pin.edits } } : {}) };   // edits: values set by hand on the variation's panel (Phase D); set: a series step
       try { const { r, label, changes } = await draw(spec); seen.add(keyOf(r.svg)); main.variations.push(withSrc({ key: 'pin:' + spec.mode + (spec.changes || '') + ':' + spec.seed, svg: r.svg, label, changes, pinned: true, spec, slot, item }, null, r)); }
       catch (e) { main.variations.push({ key: 'pin:' + pin.seed, svg: '', label: e.message, pinned: true, spec, slot, item, error: true }); }
+      continue;
+    }
+    if (structured) {   // a Series / Table: slot k is step k — a pin replaces its own step (no shift), a failed step is shown as such (no retry)
+      const v = series[slot - 1]; if (!v) break;
+      try { const { r, label, changes } = await draw(v.spec); main.variations.push(withSrc({ key: v.key, svg: r.svg, label, changes, pinned: false, spec: v.spec, slot, item }, null, r)); }
+      catch (e) { failed++; main.variations.push({ key: v.key, svg: '', label: e.message, pinned: false, spec: v.spec, slot, item, error: true }); }
       continue;
     }
     while (queue.length) {
@@ -397,26 +406,28 @@ const kOf = st => st.amount / 50;
 // other changes of the variation stay what they were.
 const editOf = (spec, kind, key) => spec && spec.edits && spec.edits[kind + ':' + key] != null ? spec.edits[kind + ':' + key] : null;
 const snapTo = (v, a, b, step) => Math.min(b, Math.max(a, Math.round((+v - a) / step) * step + a));
-function changeGrid(inp, rng, st, spec) {
+// `only` (Series / Table, Phase E): that parameter and no other, its value from the spec (`editOf`), no rng, Vary ignored;
+// a value equal to the current one is still a record (a step of the series, captioned as such).
+function changeGrid(inp, rng, st, spec, only) {
   const g = inp.grid, gs = gridSpec(g.gen), p = { ...gridDefaults(g.gen), ...(g.params || {}) };
-  const keys = gs.params.filter(x => x[2] !== 'text' && allowed(st, 'grid', x[0])); if (!keys.length) return null;
-  const [k, label, a, b, step] = pick(keys, rng);
+  const keys = gs.params.filter(x => x[2] !== 'text' && (only ? x[0] === only : allowed(st, 'grid', x[0]))); if (!keys.length) return null;
+  const [k, label, a, b, step] = only ? keys[0] : pick(keys, rng);
   const cur = +p[k], span = Math.max(1, Math.round((b - a) / step / 4 * kOf(st))) * step;
-  let v = cur; for (let t = 0; t < 6 && v === cur; t++) v = Math.min(b, Math.max(a, Math.round((cur + (rng() < 0.5 ? -1 : 1) * step * (1 + Math.floor(rng() * Math.max(1, span / step)))) / step) * step));
+  let v = cur; if (!only) for (let t = 0; t < 6 && v === cur; t++) v = Math.min(b, Math.max(a, Math.round((cur + (rng() < 0.5 ? -1 : 1) * step * (1 + Math.floor(rng() * Math.max(1, span / step)))) / step) * step));
   const e = editOf(spec, 'grid', k); if (e != null) v = snapTo(e, a, b, step);
-  if (v === cur) return null;
+  if (v === cur && !only) return null;
   inp.grid = { gen: g.gen, params: { ...p, [k]: v } };
   return { kind: 'grid', key: k, label, value: v, from: cur, text: `${label} ${v}`, edit: { type: 'number', min: a, max: b, step } };
 }
-function changePalette(inp, rng, st, spec) {
+function changePalette(inp, rng, st, spec, only) {
   const pal = inp.palette; if (!pal || !pal.colors || !pal.colors.length) return null;
-  const C = Organica.color, canOrder = pal.colors.length > 1 && allowed(st, 'palette', 'order'), canHue = allowed(st, 'palette', 'hue');
+  const C = Organica.color, canOrder = pal.colors.length > 1 && (only ? only === 'order' : allowed(st, 'palette', 'order')), canHue = only ? only === 'hue' : allowed(st, 'palette', 'hue');
   if (!canOrder && !canHue) return null;
   if (canOrder && (!canHue || rng() < 0.35)) { const c = pal.colors.slice(); c.push(c.shift()); inp.palette = { ...pal, colors: c }; return { kind: 'palette', key: 'order', label: 'Ink order', value: 'next', text: 'Inks in another order', edit: null }; }
   const kk = kOf(st), turns = FG_HUE_TURNS.filter(t => kk <= 1 ? Math.abs(t) <= 30 + 150 * kk : Math.abs(t) >= 60 * kk);
-  let turn = pick(turns.length ? turns : FG_HUE_TURNS, rng);
+  let turn = only ? 0 : pick(turns.length ? turns : FG_HUE_TURNS, rng);
   const e = editOf(spec, 'palette', 'hue'); if (e != null) turn = snapTo(e, -180, 180, 1);
-  if (!turn) return null;
+  if (!turn && !only) return null;
   const turned = pal.colors.map(h => { const o = C.hexToOklch(h); return o.c < 0.03 ? h : C.oklchToHex(o.l, o.c, (o.h + turn + 360) % 360); });
   const solved = cwSolve(turned, pal.paper && pal.paper !== 'none' ? pal.paper : '#ffffff') || turned;
   inp.palette = { ...pal, colors: solved };
@@ -426,18 +437,23 @@ function changePalette(inp, rng, st, spec) {
 // adds one (what a Figure does stays visible in its chain); "Use this" writes the change back into the graph.
 const ANGLES = [90, 180, 270];
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
-function changeCells(inp, rng, st, spec) {
+function changeCells(inp, rng, st, spec, only) {
   const rules = (inp.rules || []).slice(), at = rules.map((r, i) => r.kind === 'cells' && (r.rules || []).length ? i : -1).filter(i => i >= 0);
   if (!at.length) return null;
-  const k = pick(at, rng), cur = clone(rules[k].rules), i = Math.floor(rng() * cur.length), r = cur[i], d = r.do || {}, w = r.when || {};
+  let k, cur, i;
+  if (only === 'angle') {   // the first rule with an angle, deterministic
+    k = at.find(j => (rules[j].rules || []).some(q => typeof (q.do || {}).rotate === 'number' && ANGLES.includes(q.do.rotate))); if (k == null) return null;
+    cur = clone(rules[k].rules); i = cur.findIndex(q => typeof (q.do || {}).rotate === 'number' && ANGLES.includes(q.do.rotate));
+  } else { k = pick(at, rng); cur = clone(rules[k].rules); i = Math.floor(rng() * cur.length); }
+  const r = cur[i], d = r.do || {}, w = r.when || {};
   const opts = [];
-  if (allowed(st, 'cells', 'off')) opts.push('off');
-  if (typeof d.rotate === 'number' && ANGLES.includes(d.rotate) && allowed(st, 'cells', 'angle')) opts.push('angle');
-  if (w.parity && allowed(st, 'cells', 'parity')) opts.push('parity');
+  if (only ? only === 'off' : allowed(st, 'cells', 'off')) opts.push('off');
+  if (typeof d.rotate === 'number' && ANGLES.includes(d.rotate) && (only ? only === 'angle' : allowed(st, 'cells', 'angle'))) opts.push('angle');
+  if (w.parity && (only ? only === 'parity' : allowed(st, 'cells', 'parity'))) opts.push('parity');
   if (!opts.length) return null;
-  const o = pick(opts, rng); let out;
+  const o = only ? opts[0] : pick(opts, rng); let out;
   if (o === 'angle') {
-    let a = pick(ANGLES.filter(x => x !== d.rotate), rng); const e = editOf(spec, 'cells', 'angle'); if (e != null) a = snapTo(e, 0, 270, 90);
+    let a = only ? d.rotate : pick(ANGLES.filter(x => x !== d.rotate), rng); const e = editOf(spec, 'cells', 'angle'); if (e != null) a = snapTo(e, 0, 270, 90);
     r.do = { ...d, rotate: a }; out = { kind: 'cells', key: 'angle', label: 'Angle', value: a, from: d.rotate, text: cap(describeRule(r)), edit: { type: 'number', min: 0, max: 270, step: 90, unit: '°' } };
   } else if (o === 'parity') { r.when = { ...w, parity: w.parity === 'odd' ? 'even' : 'odd' }; out = { kind: 'cells', key: 'parity', label: 'Odd / even', value: r.when.parity, text: cap(describeRule(r)), edit: null }; }
   else { r.off = !r.off; out = { kind: 'cells', key: 'off', label: 'On / off', value: r.off ? 'off' : 'on', text: (r.off ? 'Off: ' : 'On: ') + describeRule(r), edit: null }; }
@@ -446,23 +462,23 @@ function changeCells(inp, rng, st, spec) {
 }
 // Rotate & mirror, either mode: after a Repeat in grid a quarter turn or another Mirror; on the cells a turn of
 // 15–90° either way, one Flip on / off, Rotation per cell, or a new random draw — said in the panel's own words
-function changeTransform(inp, rng, st, spec) {
-  const rules = (inp.rules || []).slice(), kinds = rules.map(r => r.kind), ok = key => allowed(st, 'transform', key), ed = key => editOf(spec, 'transform', key);
+function changeTransform(inp, rng, st, spec, only) {
+  const rules = (inp.rules || []).slice(), kinds = rules.map(r => r.kind), ok = key => only ? only === key : allowed(st, 'transform', key), ed = key => editOf(spec, 'transform', key);
   const at = kinds.map((k, i) => k === 'transform' ? i : -1).filter(i => i >= 0); if (!at.length) return null;
-  const i = pick(at, rng), r = clone(rules[i]), t = r.transform, onCells = kinds.slice(0, i).indexOf('repeat') < 0;
+  const i = only ? at[0] : pick(at, rng), r = clone(rules[i]), t = r.transform, onCells = kinds.slice(0, i).indexOf('repeat') < 0;
   let out;
   const deg = { type: 'number', min: 0, max: 359, step: 1, unit: '°' };
   if (!onCells) {
     const canTurn = ok('turn'), canMirror = ok('mirror'); if (!canTurn && !canMirror) return null;
     if (canTurn && (!canMirror || rng() < 0.5)) {
-      let a = ((+t.rotate || 0) + 90) % 360; const e = ed('turn'); if (e != null) a = snapTo(e, 0, 270, 90);
+      let a = only ? (+t.rotate || 0) : ((+t.rotate || 0) + 90) % 360; const e = ed('turn'); if (e != null) a = snapTo(e, 0, 270, 90);
       t.rotate = a; out = { kind: 'transform', key: 'turn', label: 'Rotation', value: a, text: `Rotation ${a}°`, edit: { ...deg, max: 270, step: 90 } };
     } else { t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng); out = { kind: 'transform', key: 'mirror', label: 'Mirror', value: t.mirror, text: t.mirror === 'none' ? 'No mirror' : `Mirror ${MIRRORS[t.mirror].toLowerCase()}`, edit: null }; }
   } else {
     const c = r.cells || (r.cells = {}), opts = ['turn', 'flip', 'per'].filter(ok);
     if (c.turnRandom && ok('draw')) opts.push('draw');
     if (!opts.length) return null;
-    const kk = kOf(st), o = pick(opts, rng), by = () => (rng() < 0.5 ? -1 : 1) * (5 + Math.round(10 * kk) + Math.floor(rng() * (26 + Math.round(50 * kk))));
+    const kk = kOf(st), o = only ? opts[0] : pick(opts, rng), by = () => only ? 0 : (rng() < 0.5 ? -1 : 1) * (5 + Math.round(10 * kk) + Math.floor(rng() * (26 + Math.round(50 * kk))));
     if (o === 'turn') {
       let a = (((+t.rotate || 0) + by()) % 360 + 360) % 360; const e = ed('turn'); if (e != null) a = snapTo(e, 0, 359, 1);
       t.rotate = a; out = { kind: 'transform', key: 'turn', label: 'Rotation', value: a, text: `Rotation ${a}°`, edit: deg };
@@ -501,6 +517,11 @@ export function varyInputs(inputs, spec, settings) {
     return did;
   };
   const done = () => ({ inputs: inp, extra, changes, label: changes.map(c => (c.kind === 'content' ? '' : CHANGE_OF[c.kind] + ': ') + c.text).join(' · ') || 'No change' });
+  if (spec.mode === 'set') {   // Series / Table (Phase E): the given parameters set to the given values, in key order — deterministic, Vary and Amount do not apply
+    const sp = { ...spec, edits: { ...(spec.set || {}), ...(spec.edits || {}) } };
+    Object.keys(spec.set || {}).forEach(k => { const [kind, key] = k.split(':'); const f = CHANGES[kind]; const c = f ? f(inp, rng, st, sp, key) : null; if (c) changes.push(c); });
+    return done();
+  }
   const kinds = KEEP_KEYS.filter(k => allowed(st, k) && (k !== 'content' || (contentCount(inp) > 1 && allowed(st, 'content', 'spread'))));
   if (spec.mode === 'seed' && reseed()) return done();
   const want = spec.mode === 'several' ? 2 + Math.floor(rng() * 2) : spec.mode === 'changes' ? Math.max(1, Math.min(3, +spec.changes || 1)) : 1;
@@ -518,6 +539,41 @@ export function specModeOf(p) {
   if (p.onlyRandom || p.varyBy === 'seed') return { mode: 'seed' };
   const n = p.changes != null ? Math.max(1, Math.min(3, +p.changes || 1)) : p.varyBy === 'several' ? 0 : 1;
   return n === 0 ? { mode: 'several' } : n === 1 ? { mode: 'one' } : { mode: 'changes', changes: n };
+}
+// How many steps a Series / Table draws (its children): the axes' steps multiplied; 0 when no axis is set.
+export const seriesAxes = p => (p.series || []).filter(a => a && a.key).slice(0, p.mode === 'table' ? 2 : 1).map(a => ({ ...a, steps: Math.max(1, Math.min(12, Math.round(+a.steps || 1))) }));
+export function seriesCount(p) { const ax = seriesAxes(p); return ax.length ? Math.min(16, ax.reduce((n, a) => n * a.steps, 1)) : 0; }
+// The parameters a Series / Table can sweep, from a Figure's inputs: [{ key: 'grid:cols', kind, label, min, max, step, unit?, cur }]
+// — the Grid's numeric parameters, Palette Hue, Cell rules Angle (if a rule has one), Rotate & mirror Rotation / Rotation per cell.
+export function sweepableOf(inputs) {
+  const out = [], rules = chainOf(inputs.rules), g = inputs.grid;
+  if (g) { const p = { ...gridDefaults(g.gen), ...(g.params || {}) }; gridSpec(g.gen).params.filter(x => x[2] !== 'text').forEach(([k, label, a, b, step]) => out.push({ key: 'grid:' + k, kind: 'grid', label, min: a, max: b, step, cur: +p[k] })); }
+  if (inputs.palette && inputs.palette.colors && inputs.palette.colors.length) out.push({ key: 'palette:hue', kind: 'palette', label: 'Hue', min: -180, max: 180, step: 15, unit: '°', cur: 0 });
+  const angled = rules.find(r => r.kind === 'cells' && (r.rules || []).some(q => typeof (q.do || {}).rotate === 'number' && ANGLES.includes(q.do.rotate)));
+  if (angled) out.push({ key: 'cells:angle', kind: 'cells', label: 'Angle', min: 90, max: 270, step: 90, unit: '°', cur: angled.rules.find(q => typeof (q.do || {}).rotate === 'number' && ANGLES.includes(q.do.rotate)).do.rotate });
+  const ti = rules.findIndex(r => r.kind === 'transform');
+  if (ti >= 0) {
+    const t = rules[ti], onCells = rules.slice(0, ti).every(r => r.kind !== 'repeat');
+    out.push(onCells ? { key: 'transform:turn', kind: 'transform', label: 'Rotation', min: 0, max: 359, step: 1, unit: '°', cur: +t.transform.rotate || 0 } : { key: 'transform:turn', kind: 'transform', label: 'Rotation', min: 0, max: 270, step: 90, unit: '°', cur: +t.transform.rotate || 0 });
+    if (onCells) out.push({ key: 'transform:per', kind: 'transform', label: 'Rotation per cell', min: 0, max: 359, step: 1, unit: '°', cur: t.cells && t.cells.turnStep ? +t.cells.turnStep.deg || 0 : 0 });
+  }
+  return out;
+}
+// The specs of a Series (one parameter, `steps` values from → to, snapped to the parameter's step) or a Table (two
+// parameters, row-major: the first across, the second down). p.series = [{ key, from, to, steps, label? }, …] (1 or 2).
+export function seriesSpecs(p, sweep) {
+  const axes = seriesAxes(p).map(a => {
+    const sw = (sweep || []).find(x => x.key === a.key) || { min: -Infinity, max: Infinity, step: 1 };
+    const n = a.steps, from = +a.from, to = +a.to, vals = [];
+    for (let i = 0; i < n; i++) { const v = n === 1 ? from : from + (to - from) * i / (n - 1); vals.push(Number.isFinite(sw.min) ? snapTo(v, sw.min, sw.max, sw.step) : Math.round(v / sw.step) * sw.step); }
+    return { key: a.key, vals };
+  });
+  if (!axes.length) return [];
+  const base = (+p.seed || 1) >>> 0, out = [];
+  const push = set => out.push({ key: 'set:' + Object.entries(set).map(([k, v]) => k + '=' + v).join(','), spec: { mode: 'set', set, seed: base }, pinned: false });
+  if (axes.length === 1) axes[0].vals.forEach(v => push({ [axes[0].key]: v }));
+  else axes[1].vals.forEach(v2 => axes[0].vals.forEach(v1 => push({ [axes[0].key]: v1, [axes[1].key]: v2 })));
+  return out;
 }
 // The candidate specs a Figure draws from its seed (the base, the Figure as set up, is not one of them).
 export function variationSpecs(p, count) {
@@ -727,12 +783,13 @@ export function figureNodeTypes() {
         inputs: [{ name: 'figure', type: 'figure', label: 'Figure', required: true }],
         outputs: [{ name: 'figure', type: 'figure', label: 'Figures' }],
         params: [{ name: 'variations', default: 3 }, { name: 'changes', default: 1 }, { name: 'onlyRandom', default: false }, { name: 'seed', default: 1 },
-          { name: 'vary', default: {} }, { name: 'amount', default: 50 }, { name: 'pins', default: [] }, { name: 'fanOut', default: true }] },
+          { name: 'vary', default: {} }, { name: 'amount', default: 50 }, { name: 'pins', default: [] }, { name: 'fanOut', default: true },
+          { name: 'mode', default: 'random' }, { name: 'series', default: [] }] },   // mode: random · series · table; series: [{ key, from, to, steps }] (Phase E)
       compute: async (i, p) => {
         const base = i.figure && i.figure.variations && i.figure.variations[0], s = base && base.src;
         if (!s) throw new Error('Connect a Figure input');
         const q = migrateVariationParams({ ...p });   // an older node's keep / varyBy, read as vary / changes
-        return { figure: await figureWithVariations(s.raw || s.inputs, { ...s.params, variations: Math.max(0, +q.variations || 0) + 1, changes: q.changes, onlyRandom: q.onlyRandom, seed: q.seed, vary: q.vary, amount: q.amount, pins: q.pins, fanOut: q.fanOut }) };
+        return { figure: await figureWithVariations(s.raw || s.inputs, { ...s.params, variations: Math.max(0, +q.variations || 0) + 1, changes: q.changes, onlyRandom: q.onlyRandom, seed: q.seed, vary: q.vary, amount: q.amount, pins: q.pins, fanOut: q.fanOut, mode: q.mode || 'random', series: q.series || [] }) };
       } },
     { meta: { id: 'figure-var', label: 'Variation', category: 'Output', hidden: true, icon: 'fvs-figure',   // made by its Figure, never from the node bar
         inputs: [{ name: 'from', type: 'figure', label: 'Figure', required: true },

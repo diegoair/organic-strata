@@ -307,6 +307,33 @@ async function run(mode) {
     expect(c, back === before, 'undo did not bring the Figure back');
   });
 
+  if (!held) await test(`${P} series + table`, 'Variations → Mode Series: the count = the steps, Parameter / From / To rows, children captioned with the swept value; Table: two axes, children in rows', async c => {
+    const fig = await ev(() => { const n = __b.byKind('capped').find(x => !/variation/i.test(x.innerText) && x.querySelector('img')); return n && n.dataset.nodeId; });
+    expect(c, !!fig, 'no Figure with a drawing'); if (!fig) return;
+    // the Figure's Variations node (the use-variation case left one; else Add Variations makes it) — selected, its panel shows
+    const vn = await ev(() => { const n = __b.byKind('pill').find(x => /^Variations\b/.test(x.innerText.trim())); return n && n.dataset.nodeId; });
+    if (vn) { await ev(id => document.querySelector('[data-node-id="' + id + '"]').scrollIntoView({ block: 'center', inline: 'center' }), vn); await click(await ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), vn)); await sleep(400); }
+    else { await click(await ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), fig)); await sleep(300); await click(await ev(() => __b.box(document.getElementById('fgi-addvar')))); await sleep(800); }
+    const modes = await ev(() => [...document.querySelectorAll('#fg-inspector [data-vmode]')].map(b => b.textContent));
+    expect(c, modes.join('|') === 'Random|Series|Table', 'Mode seg: ' + modes.join('|'));
+    const captions = () => ev(() => [...document.querySelectorAll('.nc-node .fg-var__label')].map(l => l.textContent).filter(t => !/As set up/.test(t)));
+    const kids = () => ev(() => [...document.querySelectorAll('.nc-node')].filter(n => /variation/i.test(n.innerText) && n.querySelector('.fg-var__label')).map(n => { const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px/.exec(n.style.transform) || []; return { x: Math.round(+m[1]), y: Math.round(+m[2]) }; }));
+    await click(await ev(() => __b.box(document.querySelector('#fg-inspector [data-vmode="series"]')))); await sleep(1500);
+    const sp = await ev(() => ({ count: document.getElementById('fgi-vcount') && document.getElementById('fgi-vcount').value, param: !!document.getElementById('fgi-axis-param'), groups: document.getElementById('fgi-axis-param') ? document.getElementById('fgi-axis-param').querySelectorAll('optgroup').length : 0, from: document.getElementById('fgi-axis-from') && document.getElementById('fgi-axis-from').value, to: document.getElementById('fgi-axis-to') && document.getElementById('fgi-axis-to').value, amount: !!document.getElementById('fgi-amount'), title: document.querySelector('#fg-inspector h3') && document.querySelector('#fg-inspector h3').textContent }));
+    expect(c, sp.param && sp.groups >= 1 && sp.from != null && sp.to != null && !sp.amount, 'Series rows: ' + JSON.stringify(sp));
+    expect(c, /Series: /.test(sp.title || ''), 'the title says the series: ' + sp.title);
+    let caps = []; for (let i = 0; i < 30 && caps.length < +sp.count; i++) { await sleep(300); caps = await captions(); }
+    expect(c, caps.length === +sp.count && caps.every(t => /^(Grid|Palette|Cell rules|Rotate & mirror): .+ -?\d/.test(t)), 'Series children: ' + caps.join(' | ') + ' (count ' + sp.count + ')');
+    await click(await ev(() => __b.box(document.querySelector('#fg-inspector [data-vmode="table"]')))); await sleep(2000);
+    const tp = await ev(() => ({ across: !!document.getElementById('fgi-across-param'), down: !!document.getElementById('fgi-down-param'), values: document.querySelectorAll('#fg-inspector [data-values]').length, pressed: [...document.querySelectorAll('#fg-inspector [data-values][aria-pressed="true"]')].map(b => b.textContent).join('x'), count: !!document.getElementById('fgi-vcount'), title: document.querySelector('#fg-inspector h3') && document.querySelector('#fg-inspector h3').textContent }));
+    expect(c, tp.across && tp.down && tp.values === 6 && tp.pressed === '3x3' && !tp.count && /Table: .+ × /.test(tp.title || ''), 'Table rows: ' + JSON.stringify(tp));
+    let caps2 = []; for (let i = 0; i < 40 && caps2.length < 9; i++) { await sleep(300); caps2 = await captions(); }
+    expect(c, caps2.length === 9 && caps2.every(t => / · /.test(t)), 'Table children: ' + caps2.length + ' — ' + caps2.slice(0, 3).join(' | '));
+    await sleep(500); const pos = await kids(), xs = new Set(pos.map(q => q.x)), ys = new Set(pos.map(q => q.y));
+    expect(c, pos.length === 9 && xs.size === 3 && ys.size === 3, 'Table layout 3 × 3 (x ' + xs.size + ', y ' + ys.size + ' of ' + pos.length + ')');
+    c.notes.push('series: ' + caps.slice(0, 4).join(' | ') + ' · table: ' + caps2.slice(0, 2).join(' | '));
+  });
+
   await test(`${P} after all`, 'after every gesture: a pill still drags (nothing kept the pointer)', async c => {
     const id = await ev(() => { const n = __b.byKind('pill').find(n => { const g = __b.grip(n), e = document.elementFromPoint(g.x, g.y); return g.x > 60 && g.y > 80 && g.x < innerWidth - 400 && g.y < innerHeight - 160 && e && n.contains(e); }); return n && n.dataset.nodeId; });
     expect(c, !!id, 'no pill in sight'); if (!id) return;
