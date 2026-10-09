@@ -301,6 +301,7 @@ Full detail: [`docs/RELEASE.md`](docs/RELEASE.md). In short: **local first, prev
 4. Preview gate: push to `staging`, run `python3 scripts/smoke.py <preview-url>`.
 5. **Only on "commit in prod" / "porta in prod"**: push `main`.
 6. After every prod push: Vercel MCP `list_deployments` must show READY, then `python3 scripts/smoke.py` (CI's `deploy-verify.yml` also runs it). A successful git push does not prove the deploy worked. CI (`ci.yml`) re-runs check + regression on every push.
+7. **End of every working day — the test log + closing gate** (Diego, Oct 9, 2026). Add the day to the **Organica test log** artifact (`https://claude.ai/artifact/FsEoGMwKmWeKinrXfUhvyh`, data in its `db`, never republish the page for it): one `commits/<short sha>` doc per commit of the day (`day` · `n` · `time` · `kind` · `group` · `title` · `test` = a concrete "try this" · `links` [prod path or doc] · `done:false` · `note:''`) + one `days/<YYYY-MM-DD>` doc (`base` · `head` · `prod` · `gate` · `summary`), via one `ArtifactData` batch. For a day that touched the FVS Figure, also run `scripts/gate-figure.sh <base>` and write that day's manual checklist into `docs/FIGURE-GATE.md` §3. Before adding a day, read the previous day's `note` fields: a note = a bug to fix or a ledger question.
 
 ---
 

@@ -81,6 +81,11 @@ A successful `git push` does **not** mean the deploy succeeded.
 
 If prod is broken: `request_rollback` (Vercel MCP) to the previous READY deployment first, diagnose second.
 
+## End of the working day
+1. Add the day to the **Organica test log** artifact (https://claude.ai/artifact/FsEoGMwKmWeKinrXfUhvyh): one row per commit, each with a concrete "try this" and a link, written to its database (`commits/<sha>` + `days/<date>`), so Diego ticks each one while testing and writes a note where something fails. The page is not republished for a new day.
+2. Figure work that day: `scripts/gate-figure.sh <base>` (automated half) and the day's manual checklist in `docs/FIGURE-GATE.md` §3.
+3. Next session, first thing: read the notes left in the log — each is a bug to fix or a question for the ledger.
+
 ## CI (GitHub Actions)
 - `.github/workflows/ci.yml` — every push/PR: `scripts/check.py` + the Flexible Visual System regression. Catches a bypassed hook
   (`--no-verify`) or a push from another machine.
