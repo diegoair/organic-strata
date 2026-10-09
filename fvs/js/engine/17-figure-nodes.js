@@ -255,23 +255,23 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   const pins = new Map(pinsFor(p, item, keys).filter(q => q.slot >= 1 && q.slot < want).map(q => [q.slot, q]));
   const queue = variationSpecs(p, want + 40);   // a variation only adjusts what is there (Oct 9, 2026): a Figure with few dials repeats itself more often — more tries
   let failed = 0;
-  const draw = async spec => { const vr = varyInputs(base.inputs, spec, st); const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra }); return { r, label: vr.label }; };
+  const draw = async spec => { const vr = varyInputs(base.inputs, spec, st); const r = await compileFigure(vr.inputs, { ...p, ...base.extra, ...vr.extra }); return { r, label: vr.label, changes: vr.changes }; };
   main.variations = [{ key: 'base', svg: main.svg, label: 'As set up', pinned: false, spec: null, slot: 0, item }];
   const src = { inputs: base.inputs, extra: base.extra, params: p, raw: inputs };   // what a child Figure re-draws its variation from, with its own inputs; raw = before `fixed` (a Variations node draws again from it)
   for (let slot = 1; slot < want; slot++) {
     const pin = pins.get(slot);
     if (pin) {   // a pinned variation keeps its place, whatever the new seed
-      const spec = { mode: pin.mode, ...(pin.changes ? { changes: pin.changes } : {}), seed: pin.seed };
-      try { const { r, label } = await draw(spec); seen.add(keyOf(r.svg)); main.variations.push(withSrc({ key: 'pin:' + spec.mode + (spec.changes || '') + ':' + spec.seed, svg: r.svg, label, pinned: true, spec, slot, item }, null, r)); }
+      const spec = { mode: pin.mode, ...(pin.changes ? { changes: pin.changes } : {}), seed: pin.seed, ...(pin.edits && Object.keys(pin.edits).length ? { edits: { ...pin.edits } } : {}) };   // edits: values set by hand on the variation's panel (Phase D)
+      try { const { r, label, changes } = await draw(spec); seen.add(keyOf(r.svg)); main.variations.push(withSrc({ key: 'pin:' + spec.mode + (spec.changes || '') + ':' + spec.seed, svg: r.svg, label, changes, pinned: true, spec, slot, item }, null, r)); }
       catch (e) { main.variations.push({ key: 'pin:' + pin.seed, svg: '', label: e.message, pinned: true, spec, slot, item, error: true }); }
       continue;
     }
     while (queue.length) {
       const v = queue.shift();
       try {
-        const { r, label } = await draw(v.spec);
+        const { r, label, changes } = await draw(v.spec);
         if (!r.shapes || seen.has(keyOf(r.svg))) continue;   // blank, or the same as one already shown: draw another
-        seen.add(keyOf(r.svg)); main.variations.push(withSrc({ key: v.key, svg: r.svg, label, pinned: false, spec: v.spec, slot, item }, null, r)); break;
+        seen.add(keyOf(r.svg)); main.variations.push(withSrc({ key: v.key, svg: r.svg, label, changes, pinned: false, spec: v.spec, slot, item }, null, r)); break;
       } catch (e) { failed++; }   // this change does not apply here (or a real error): try the next — counted, shown on the card
     }
   }
@@ -390,29 +390,43 @@ const pick = (a, rng) => a[Math.floor(rng() * a.length)];
 // span is ¼ of the range × k (at least one step); hue: the turns within 30° + 150°·k (k ≤ 1) / at least 60°·k (k > 1);
 // a cell rotation 5 + 10k … 30 + 60k degrees (15–90 at k = 1). Discrete changes (on / off, parity, flip, mirror) are as they are.
 const kOf = st => st.amount / 50;
-function changeGrid(inp, rng, st) {
-  const g = inp.grid, spec = gridSpec(g.gen), p = { ...gridDefaults(g.gen), ...(g.params || {}) };
-  const keys = spec.params.filter(x => x[2] !== 'text' && allowed(st, 'grid', x[0])); if (!keys.length) return null;
+// Every change function returns null (nothing it can change here) or a change record, the structured form the label,
+// the tile caption and a variation's panel read from (Phase D, Oct 9, 2026): { kind, key, label, value, text, edit }.
+// `edit` ('number' with min / max / step / unit, or null) says whether the value can be set by hand; `edits` on a spec
+// ({ 'kind:key': value }) replace the drawn value by that one — the rng is consumed exactly as without the edit, so the
+// other changes of the variation stay what they were.
+const editOf = (spec, kind, key) => spec && spec.edits && spec.edits[kind + ':' + key] != null ? spec.edits[kind + ':' + key] : null;
+const snapTo = (v, a, b, step) => Math.min(b, Math.max(a, Math.round((+v - a) / step) * step + a));
+function changeGrid(inp, rng, st, spec) {
+  const g = inp.grid, gs = gridSpec(g.gen), p = { ...gridDefaults(g.gen), ...(g.params || {}) };
+  const keys = gs.params.filter(x => x[2] !== 'text' && allowed(st, 'grid', x[0])); if (!keys.length) return null;
   const [k, label, a, b, step] = pick(keys, rng);
   const cur = +p[k], span = Math.max(1, Math.round((b - a) / step / 4 * kOf(st))) * step;
   let v = cur; for (let t = 0; t < 6 && v === cur; t++) v = Math.min(b, Math.max(a, Math.round((cur + (rng() < 0.5 ? -1 : 1) * step * (1 + Math.floor(rng() * Math.max(1, span / step)))) / step) * step));
+  const e = editOf(spec, 'grid', k); if (e != null) v = snapTo(e, a, b, step);
   if (v === cur) return null;
-  inp.grid = { gen: g.gen, params: { ...p, [k]: v } }; return `${label} ${v}`;
+  inp.grid = { gen: g.gen, params: { ...p, [k]: v } };
+  return { kind: 'grid', key: k, label, value: v, from: cur, text: `${label} ${v}`, edit: { type: 'number', min: a, max: b, step } };
 }
-function changePalette(inp, rng, st) {
+function changePalette(inp, rng, st, spec) {
   const pal = inp.palette; if (!pal || !pal.colors || !pal.colors.length) return null;
   const C = Organica.color, canOrder = pal.colors.length > 1 && allowed(st, 'palette', 'order'), canHue = allowed(st, 'palette', 'hue');
   if (!canOrder && !canHue) return null;
-  if (canOrder && (!canHue || rng() < 0.35)) { const c = pal.colors.slice(); c.push(c.shift()); inp.palette = { ...pal, colors: c }; return 'Inks in another order'; }
-  const kk = kOf(st), turns = FG_HUE_TURNS.filter(t => kk <= 1 ? Math.abs(t) <= 30 + 150 * kk : Math.abs(t) >= 60 * kk), turn = pick(turns.length ? turns : FG_HUE_TURNS, rng);
+  if (canOrder && (!canHue || rng() < 0.35)) { const c = pal.colors.slice(); c.push(c.shift()); inp.palette = { ...pal, colors: c }; return { kind: 'palette', key: 'order', label: 'Ink order', value: 'next', text: 'Inks in another order', edit: null }; }
+  const kk = kOf(st), turns = FG_HUE_TURNS.filter(t => kk <= 1 ? Math.abs(t) <= 30 + 150 * kk : Math.abs(t) >= 60 * kk);
+  let turn = pick(turns.length ? turns : FG_HUE_TURNS, rng);
+  const e = editOf(spec, 'palette', 'hue'); if (e != null) turn = snapTo(e, -180, 180, 1);
+  if (!turn) return null;
   const turned = pal.colors.map(h => { const o = C.hexToOklch(h); return o.c < 0.03 ? h : C.oklchToHex(o.l, o.c, (o.h + turn + 360) % 360); });
   const solved = cwSolve(turned, pal.paper && pal.paper !== 'none' ? pal.paper : '#ffffff') || turned;
-  inp.palette = { ...pal, colors: solved }; return `Hue ${turn > 0 ? '+' : ''}${turn}°`;
+  inp.palette = { ...pal, colors: solved };
+  return { kind: 'palette', key: 'hue', label: 'Hue', value: turn, from: 0, text: `Hue ${turn > 0 ? '+' : ''}${turn}°`, edit: { type: 'number', min: -180, max: 180, step: 1, unit: '°' } };
 }
 // Rules describe, Variations explore (Diego, Oct 9, 2026): a variation adjusts a rule that is in the chain — it never
 // adds one (what a Figure does stays visible in its chain); "Use this" writes the change back into the graph.
 const ANGLES = [90, 180, 270];
-function changeCells(inp, rng, st) {
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+function changeCells(inp, rng, st, spec) {
   const rules = (inp.rules || []).slice(), at = rules.map((r, i) => r.kind === 'cells' && (r.rules || []).length ? i : -1).filter(i => i >= 0);
   if (!at.length) return null;
   const k = pick(at, rng), cur = clone(rules[k].rules), i = Math.floor(rng() * cur.length), r = cur[i], d = r.do || {}, w = r.when || {};
@@ -421,69 +435,81 @@ function changeCells(inp, rng, st) {
   if (typeof d.rotate === 'number' && ANGLES.includes(d.rotate) && allowed(st, 'cells', 'angle')) opts.push('angle');
   if (w.parity && allowed(st, 'cells', 'parity')) opts.push('parity');
   if (!opts.length) return null;
-  const o = pick(opts, rng); let label;
-  if (o === 'angle') { r.do = { ...d, rotate: pick(ANGLES.filter(a => a !== d.rotate), rng) }; label = describeRule(r); }
-  else if (o === 'parity') { r.when = { ...w, parity: w.parity === 'odd' ? 'even' : 'odd' }; label = describeRule(r); }
-  else { r.off = !r.off; label = (r.off ? 'Off: ' : 'On: ') + describeRule(r); }
+  const o = pick(opts, rng); let out;
+  if (o === 'angle') {
+    let a = pick(ANGLES.filter(x => x !== d.rotate), rng); const e = editOf(spec, 'cells', 'angle'); if (e != null) a = snapTo(e, 0, 270, 90);
+    r.do = { ...d, rotate: a }; out = { kind: 'cells', key: 'angle', label: 'Angle', value: a, from: d.rotate, text: cap(describeRule(r)), edit: { type: 'number', min: 0, max: 270, step: 90, unit: '°' } };
+  } else if (o === 'parity') { r.when = { ...w, parity: w.parity === 'odd' ? 'even' : 'odd' }; out = { kind: 'cells', key: 'parity', label: 'Odd / even', value: r.when.parity, text: cap(describeRule(r)), edit: null }; }
+  else { r.off = !r.off; out = { kind: 'cells', key: 'off', label: 'On / off', value: r.off ? 'off' : 'on', text: (r.off ? 'Off: ' : 'On: ') + describeRule(r), edit: null }; }
   rules[k] = { ...rules[k], rules: cur };
-  inp.rules = rules; return label.charAt(0).toUpperCase() + label.slice(1);
+  inp.rules = rules; return out;
 }
 // Rotate & mirror, either mode: after a Repeat in grid a quarter turn or another Mirror; on the cells a turn of
 // 15–90° either way, one Flip on / off, Rotation per cell, or a new random draw — said in the panel's own words
-function changeTransform(inp, rng, st) {
-  const rules = (inp.rules || []).slice(), kinds = rules.map(r => r.kind), ok = key => allowed(st, 'transform', key);
+function changeTransform(inp, rng, st, spec) {
+  const rules = (inp.rules || []).slice(), kinds = rules.map(r => r.kind), ok = key => allowed(st, 'transform', key), ed = key => editOf(spec, 'transform', key);
   const at = kinds.map((k, i) => k === 'transform' ? i : -1).filter(i => i >= 0); if (!at.length) return null;
   const i = pick(at, rng), r = clone(rules[i]), t = r.transform, onCells = kinds.slice(0, i).indexOf('repeat') < 0;
-  let label;
+  let out;
+  const deg = { type: 'number', min: 0, max: 359, step: 1, unit: '°' };
   if (!onCells) {
     const canTurn = ok('turn'), canMirror = ok('mirror'); if (!canTurn && !canMirror) return null;
-    if (canTurn && (!canMirror || rng() < 0.5)) { t.rotate = ((+t.rotate || 0) + 90) % 360; label = `Rotation ${t.rotate}°`; }
-    else { t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng); label = t.mirror === 'none' ? 'No mirror' : `Mirror ${MIRRORS[t.mirror].toLowerCase()}`; }
+    if (canTurn && (!canMirror || rng() < 0.5)) {
+      let a = ((+t.rotate || 0) + 90) % 360; const e = ed('turn'); if (e != null) a = snapTo(e, 0, 270, 90);
+      t.rotate = a; out = { kind: 'transform', key: 'turn', label: 'Rotation', value: a, text: `Rotation ${a}°`, edit: { ...deg, max: 270, step: 90 } };
+    } else { t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng); out = { kind: 'transform', key: 'mirror', label: 'Mirror', value: t.mirror, text: t.mirror === 'none' ? 'No mirror' : `Mirror ${MIRRORS[t.mirror].toLowerCase()}`, edit: null }; }
   } else {
     const c = r.cells || (r.cells = {}), opts = ['turn', 'flip', 'per'].filter(ok);
     if (c.turnRandom && ok('draw')) opts.push('draw');
     if (!opts.length) return null;
     const kk = kOf(st), o = pick(opts, rng), by = () => (rng() < 0.5 ? -1 : 1) * (5 + Math.round(10 * kk) + Math.floor(rng() * (26 + Math.round(50 * kk))));
-    if (o === 'turn') { t.rotate = (((+t.rotate || 0) + by()) % 360 + 360) % 360; label = `Rotation ${t.rotate}°`; }
-    else if (o === 'flip') {
+    if (o === 'turn') {
+      let a = (((+t.rotate || 0) + by()) % 360 + 360) % 360; const e = ed('turn'); if (e != null) a = snapTo(e, 0, 359, 1);
+      t.rotate = a; out = { kind: 'transform', key: 'turn', label: 'Rotation', value: a, text: `Rotation ${a}°`, edit: deg };
+    } else if (o === 'flip') {
       const axis = rng() < 0.5 ? 'v' : 'h', has = x => t.mirror === x || t.mirror === 'vh', on = !has(axis);
       const v = axis === 'v' ? on : has('v'), h = axis === 'h' ? on : has('h'); t.mirror = v && h ? 'vh' : v ? 'v' : h ? 'h' : 'none';
-      label = `${on ? 'On' : 'Off'}: Flip ${axis === 'v' ? 'horizontal' : 'vertical'}`;   // the Cell rules' form
+      out = { kind: 'transform', key: 'flip', label: `Flip ${axis === 'v' ? 'horizontal' : 'vertical'}`, value: on ? 'on' : 'off', text: `${on ? 'On' : 'Off'}: Flip ${axis === 'v' ? 'horizontal' : 'vertical'}`, edit: null };   // the Cell rules' form
     } else if (o === 'per') {
-      const s = c.turnStep || { deg: 0, by: 'index' }, deg = ((s.deg + by()) % 360 + 360) % 360;
-      if (deg) c.turnStep = { ...s, deg }; else delete c.turnStep;
-      label = `+${deg}° per ${{ row: 'row', col: 'column' }[s.by] || 'cell'}`;   // as the card says it
-    } else { c.turnRandom = { ...c.turnRandom, seed: Math.floor(rng() * 1e6) }; label = 'New random draw'; }
+      const s = c.turnStep || { deg: 0, by: 'index' }; let d = ((s.deg + by()) % 360 + 360) % 360; const e = ed('per'); if (e != null) d = snapTo(e, 0, 359, 1);
+      if (d) c.turnStep = { ...s, deg: d }; else delete c.turnStep;
+      out = { kind: 'transform', key: 'per', label: 'Rotation per cell', value: d, text: `+${d}° per ${{ row: 'row', col: 'column' }[s.by] || 'cell'}`, edit: deg };   // as the card says it
+    } else { c.turnRandom = { ...c.turnRandom, seed: Math.floor(rng() * 1e6) }; out = { kind: 'transform', key: 'draw', label: 'Random draw', value: c.turnRandom.seed, text: 'New random draw', edit: null }; }
     if (!Object.keys(c).length) delete r.cells;
   }
-  rules[i] = r; inp.rules = rules; return label;
+  rules[i] = r; inp.rules = rules; return out;
 }
-const CHANGE_OF = { grid: 'Grid', palette: 'Palette', cells: 'Cell rules', transform: 'Rotate & mirror' };   // UI-COPY §2 names
+export const CHANGE_OF = { grid: 'Grid', palette: 'Palette', content: 'Content', cells: 'Cell rules', transform: 'Rotate & mirror' };   // UI-COPY §2 names
 const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells: changeCells, transform: changeTransform };
 const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) => n + (c.kind === 'set' ? c.items.length : 1), 0);   // a Set counts its items
 // `settings`: a Variations node's params (`vary`, `amount`) or an older `keep` object — see settingsOf().
+// → { inputs, extra, label, changes } — `changes` the records above (each with `text`; the label = the records' texts,
+// each prefixed with the input it changed, joined with ' · ').
 export function varyInputs(inputs, spec, settings) {
   const st = settingsOf(settings);
-  const inp = { ...inputs, rules: chainOf(inputs.rules) }, rng = mulberry32((spec.seed * 2654435761) >>> 0), labels = [], extra = {};
+  const inp = { ...inputs, rules: chainOf(inputs.rules) }, rng = mulberry32((spec.seed * 2654435761) >>> 0), changes = [], extra = {};
+  const spread = () => { extra.contentSeed = Math.floor(rng() * 1e9); changes.push({ kind: 'content', key: 'spread', label: 'Spread', value: extra.contentSeed, text: 'Content spread', edit: null }); };
   const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells, a rule's Random rotation
     let did = false;
-    if (allowed(st, 'grid', 'seed') && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed: Math.floor(rng() * 1000) } }; labels.push('Grid: new seed'); did = true; }
-    if (allowed(st, 'content', 'spread') && contentCount(inp) > 1) { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); did = true; }
+    if (allowed(st, 'grid', 'seed') && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { const seed = Math.floor(rng() * 1000); inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed } }; changes.push({ kind: 'grid', key: 'seed', label: 'Seed', value: seed, text: 'new seed', edit: null }); did = true; }
+    if (allowed(st, 'content', 'spread') && contentCount(inp) > 1) { spread(); did = true; }
     if (allowed(st, 'transform', 'draw') && inp.rules.some(r => r.kind === 'transform' && r.cells && r.cells.turnRandom)) {   // a rule's own luck: Random rotation draws again
-      inp.rules = inp.rules.map(r => r.kind === 'transform' && r.cells && r.cells.turnRandom ? { ...r, cells: { ...r.cells, turnRandom: { ...r.cells.turnRandom, seed: Math.floor(rng() * 1e6) } } } : r);
-      labels.push('Rotate & mirror: New random draw'); did = true;
+      const seed = Math.floor(rng() * 1e6);
+      inp.rules = inp.rules.map(r => r.kind === 'transform' && r.cells && r.cells.turnRandom ? { ...r, cells: { ...r.cells, turnRandom: { ...r.cells.turnRandom, seed } } } : r);
+      changes.push({ kind: 'transform', key: 'draw', label: 'Random draw', value: seed, text: 'New random draw', edit: null }); did = true;
     }
     return did;
   };
+  const done = () => ({ inputs: inp, extra, changes, label: changes.map(c => (c.kind === 'content' ? '' : CHANGE_OF[c.kind] + ': ') + c.text).join(' · ') || 'No change' });
   const kinds = KEEP_KEYS.filter(k => allowed(st, k) && (k !== 'content' || (contentCount(inp) > 1 && allowed(st, 'content', 'spread'))));
-  if (spec.mode === 'seed' && reseed()) return { inputs: inp, extra, label: labels.join(' · ') };
+  if (spec.mode === 'seed' && reseed()) return done();
   const want = spec.mode === 'several' ? 2 + Math.floor(rng() * 2) : spec.mode === 'changes' ? Math.max(1, Math.min(3, +spec.changes || 1)) : 1;
-  for (let tries = 0; tries < 12 && labels.length < want && kinds.length; tries++) {
+  for (let tries = 0; tries < 12 && changes.length < want && kinds.length; tries++) {
     const k = pick(kinds, rng);
-    if (k === 'content') { extra.contentSeed = Math.floor(rng() * 1e9); labels.push('Content spread'); kinds.splice(kinds.indexOf(k), 1); continue; }
-    const l = CHANGES[k](inp, rng, st); if (l) { labels.push(CHANGE_OF[k] + ': ' + l); kinds.splice(kinds.indexOf(k), 1); }   // what changed, said with the input it changed (Diego, Oct 9, 2026)
+    if (k === 'content') { spread(); kinds.splice(kinds.indexOf(k), 1); continue; }
+    const c = CHANGES[k](inp, rng, st, spec); if (c) { changes.push(c); kinds.splice(kinds.indexOf(k), 1); }   // what changed, said with the input it changed (Diego, Oct 9, 2026)
   }
-  return { inputs: inp, extra, label: labels.join(' · ') || 'No change' };
+  return done();
 }
 // The spec mode a Variations node draws with: `onlyRandom` → 'seed'; one change → 'one' (the key older pins have);
 // two or three → 'changes'. Older params (`varyBy`) read as they were.
@@ -615,9 +641,19 @@ export async function figureVariation(i, p) {
     || (p.item != null ? vars.find(x => x.slot === p.slot && x.item != null && itemName(x.item) === itemName(p.item)) : null);   // the Set was reordered: the item by its name
   if (!v) throw new Error('Not drawn now — raise Variations on its Figure');
   if (v.error) throw new Error(v.label);
-  const one = (f, label = v.label) => ({ ...f, variations: [{ key: 'base', svg: f.svg, label, pinned: !!v.pinned, spec: v.spec, slot: v.slot, item: v.item }], groups: undefined, capped: undefined, failedVariations: undefined });
-  if (!hasOverrides(i) || !v.src) return { figure: one({ ...par, ...(v.res || {}), svg: v.svg, canvas: (v.res || par).canvas || par.canvas, checks: null }) };
+  // Its output carries `src` = the variation's own varied inputs (Phase C, Oct 9, 2026): a Variations node wired to a
+  // variation draws around IT — `raw` is what that node varies, with no `fixed` left to re-apply and no fan-out item.
+  const one = (f, label = v.label, src = null, changes = v.changes) => {
+    const out = { ...f, variations: [{ key: 'base', svg: f.svg, label, changes, pinned: !!v.pinned, spec: v.spec, slot: v.slot, item: v.item }], groups: undefined, capped: undefined, failedVariations: undefined };
+    if (src) { const { fixed, onlyItem, ...params } = src.params || {}; withSrc(out.variations[0], { inputs: src.inputs, extra: src.extra, params, raw: src.inputs }, out); }
+    return out;
+  };
   const s = v.src, own = (i.content || []).filter(Boolean);
+  const variedFrom = (inputs, st) => { if (!v.spec) return { inputs, extra: { ...s.extra } }; const vr = varyInputs(inputs, v.spec, st); return { inputs: vr.inputs, extra: { ...s.extra, ...vr.extra } }; };
+  if (!hasOverrides(i) || !v.src) {
+    const src = s ? { ...variedFrom(s.inputs, settingsOf(s.params)), params: s.params } : null;
+    return { figure: one({ ...par, ...(v.res || {}), svg: v.svg, canvas: (v.res || par).canvas || par.canvas, checks: null }, v.label, src) };
+  }
   const inp = { ...s.inputs, rules: chainOf(s.inputs.rules).concat(chainOf(i.rules)) };   // its own chain goes after the Figure's
   OVERRIDES.forEach(k => { if (i[k]) inp[k] = i[k]; });
   if (own.length) inp.content = own;
@@ -629,9 +665,9 @@ export async function figureVariation(i, p) {
   if (i.grid) st.vary.grid = false;
   if (own.length) st.vary.content = false;
   if (chainOf(i.rules).length) { st.vary.cells = false; st.vary.transform = false; }
-  if (v.spec) { const vr = varyInputs(inp, v.spec, st); r = await compileFigure(vr.inputs, { ...s.params, ...s.extra, ...vr.extra }, { checks: false }); return { figure: one(r, vr.label) }; }
+  if (v.spec) { const vr = varyInputs(inp, v.spec, st); r = await compileFigure(vr.inputs, { ...s.params, ...s.extra, ...vr.extra }, { checks: false }); return { figure: one(r, vr.label, { inputs: vr.inputs, extra: { ...s.extra, ...vr.extra }, params: s.params }, vr.changes) }; }
   r = await compileFigure(inp, { ...s.params, ...s.extra }, { checks: false });
-  return { figure: one(r) };
+  return { figure: one(r, v.label, { inputs: inp, extra: { ...s.extra }, params: s.params }) };
 }
 
 // ── The registry entries (meta + compute). Labels: UI-COPY §2. ──

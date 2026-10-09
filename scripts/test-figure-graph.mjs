@@ -100,6 +100,25 @@ const out = await P.ev(`
   res.fromThisKeep = kvs.length > 0 && kvs.every((kv, i) => K(eng.get(copies[i].id).value.figure.svg) === kv.svg);
   copies.forEach(c => NC.removeNode(m, c.id));
   vf0.params.vary = {}; vf0.params.variations = 3; eng.touch(vf0.id); await eng.run(m);
+  // a pin with edits (Phase D): the pinned variation draws with the value set by hand, and differs from the unedited draw
+  { vf0.params.vary = { grid: ['cols'], palette: false, cells: false, transform: false, content: false }; eng.touch(vf0.id); await eng.run(m);
+    const v1 = V()[1], before = v1.svg; vf0.params.pins = [{ mode: v1.spec.mode, seed: v1.spec.seed, slot: 1, edits: { 'grid:cols': v1.changes[0].value === 8 ? 7 : 8 } }]; eng.touch(vf0.id); await eng.run(m);
+    const e1 = V()[1]; res.pinEdit = e1.pinned && e1.changes[0].value === vf0.params.pins[0].edits['grid:cols'] && e1.svg !== before && new RegExp('Columns ' + e1.changes[0].value).test(e1.label);
+    vf0.params.pins = []; vf0.params.vary = {}; eng.touch(vf0.id); await eng.run(m); }
+  // Add Variations on a variation (Phase C, Oct 9, 2026): a Variations node wired to a child draws around THAT variation —
+  // its base is the child's drawing, its variations differ from it and from the Figure; it works through a child node too
+  { const kid = NC.addNode(m, { type: 'figure-var', params: { ...reg.defaults('figure-var'), parent: vf0.id, slot: 1, item: null } });
+    NC.addEdge(m, { node: vf0.id, port: 'figure' }, { node: kid.id, port: 'from' }, true);
+    const vn2 = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 2, seed: 5 } });
+    NC.addEdge(m, { node: kid.id, port: 'figure' }, { node: vn2.id, port: 'figure' }); await eng.run(m);
+    const kidSvg = K(eng.get(kid.id).value.figure.svg), figSvg = K(eng.get(f0.id).value.figure.svg), V2 = eng.get(vn2.id).value.figure.variations.map(v => ({ ...v, svg: K(v.svg) }));
+    res.nestedState = eng.get(vn2.id).state;
+    res.nested = V2.length === 3 && V2[0].svg === kidSvg && kidSvg !== figSvg && V2.slice(1).every(v => v.svg !== kidSvg && v.svg !== figSvg && v.label && v.label !== 'No change');
+    // the grandchild draws its variation of the variation
+    const gk = NC.addNode(m, { type: 'figure-var', params: { ...reg.defaults('figure-var'), parent: vn2.id, slot: 1, item: null } });
+    NC.addEdge(m, { node: vn2.id, port: 'figure' }, { node: gk.id, port: 'from' }, true); await eng.run(m);
+    res.grandchild = K(eng.get(gk.id).value.figure.svg) === V2[1].svg;
+    NC.removeNode(m, gk.id); NC.removeNode(m, vn2.id); NC.removeNode(m, kid.id); await eng.run(m); }
   // ── Sets (Phase 4b): one group per item; Fan out off = items mixed; cap ──
   const sn = NC.addNode(m, { type: 'set', params: { items: [{ kind: 'element', name: 'Test element', snapshot: el }, { kind: 'component', name: 'Test component', snapshot: compEntry }] } });
   const fs0 = NC.addNode(m, { type: 'figure', params: reg.defaults('figure') }), fs = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 2 } });
@@ -356,6 +375,13 @@ const ch = await P.ev(`
     res.varMig = mg.vary.palette === false && !('grid' in mg.vary) && mg.changes === 2 && mg.onlyRandom === false && !('keep' in mg) && !('varyBy' in mg) && mg2.onlyRandom === true && mg2.changes === 1 && !('keep' in mg2);
     const sp = F('variationSpecs')({ seed: 1, changes: 2 }, 2)[0].spec, sp1 = F('variationSpecs')({ seed: 1 }, 1)[0], spo = F('variationSpecs')({ seed: 1, varyBy: 'one' }, 1)[0];
     res.varSpecs = sp.mode === 'changes' && sp.changes === 2 && sp1.spec.mode === 'one' && sp1.key === spo.key;
+    // Changes as records + edits (Phase D): varyInputs returns the changes it made; an edit by 'kind:key' replaces the drawn
+    // value and leaves the other changes as they were (the rng is consumed the same)
+    const two = Array.from({ length: 40 }, (_, k) => V(inp, { mode: 'changes', changes: 2, seed: k + 1 })).find(r => r.changes.length === 2 && r.changes.some(c => c.kind === 'grid' && c.key === 'cols'));
+    res.varRecords = !!two && two.changes.every(c => c.kind && c.key && c.label && c.text != null) && two.label === two.changes.map(c => (c.kind === 'content' ? '' : F('CHANGE_OF')[c.kind] + ': ') + c.text).join(' · ');
+    if (two) { const seedK = (two.changes[0].kind === 'grid' ? 1 : 0), ed = V(inp, { mode: 'changes', changes: 2, seed: Array.from({ length: 40 }, (_, k) => k + 1).find(k => { const r = V(inp, { mode: 'changes', changes: 2, seed: k }); return r.changes.length === 2 && r.changes.some(c => c.kind === 'grid' && c.key === 'cols'); }), edits: { 'grid:cols': 8 } });
+      const other = c => c.kind !== 'grid';
+      res.varEdit = ed.inputs.grid.params.cols === 8 && ed.changes.find(c => c.kind === 'grid').value === 8 && /Grid: Columns 8/.test(ed.label) && JSON.stringify(ed.changes.filter(other)) === JSON.stringify(two.changes.filter(other)); void seedK; }
     // Amount: 0 = the smallest steps (one grid step, ±30° of hue), 100 = the widest; 50 = the older formulas (varSame)
     const HUE = { vary: { palette: ['hue'], grid: false, cells: false, transform: false, content: false } };
     const seeds = Array.from({ length: 24 }, (_, k) => k + 1);
@@ -387,6 +413,8 @@ check(out.renewKeepsPin && out.renewChanges, 'New variations keeps the pinned on
 check(out.fromThis, 'New Figure from this draws exactly that variation');
 check(out.keepAll && out.keepAllLegacy, 'Vary nothing (and an older Keep everything) → no variation can change anything');
 check(out.fromThisKeep, 'New Figure from this with Vary set draws exactly that variation');
+check(out.pinEdit, 'a pin with an edit draws the variation with the value set by hand (Columns), the other changes as drawn');
+check(out.nested && out.grandchild, 'a Variations node on a variation draws around that variation (base = it, variations differ from it and the Figure; a grandchild draws its own) — state ' + out.nestedState);
 check(out.setGroups === 'Test element:3,Test component:3', 'a Set fans out, one group per item: ' + out.setGroups);
 check(out.setMixed, 'Fan out off: the Set items are mixed, one group');
 check(out.setCap, 'variations × items stay within the cap');
@@ -441,6 +469,7 @@ check(ch.varSub && ch.varSubRows, 'variations: Vary a subset of parameters chang
 check(ch.varSame, 'variations: the default settings draw exactly as before Vary / Amount (one and several changes)');
 check(ch.varThree, 'variations: Changes 3 makes three changes when the figure has the dials');
 check(ch.varAmt0 && ch.varAmt100, 'variations: Amount 0 takes the smallest steps (one grid step, ±30° of hue), 100 the widest (Columns 8, ±120° / 180°)');
+check(ch.varRecords && ch.varEdit, 'variations: changes come as records (kind · key · label · text = the label); an edit by kind:key replaces that value and leaves the other change as drawn');
 check(ch.varMig && ch.varSpecs, 'variations: older keep / varyBy params migrate to vary / changes / onlyRandom; one change keeps the older spec key');
 check(ch.varMigrated, 'a Figure saved with variations gets a Variations node with its settings, and its Export');
 check(out.after, 'FVS state unchanged by graph runs');

@@ -46,7 +46,7 @@ import {
   plateSVG
 } from './engine/15-export-library-view.js';
 import {
-  FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  CHANGE_OF, FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridPreviewModel, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
@@ -144,9 +144,9 @@ function renderBody(node, entry, el) {
         <div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id, f.svg)}"></div>
         <figcaption class="fg-var__label">${item ? esc(item) + ' · ' : ''}${esc(vr.slot === 0 ? 'As set up' : vr.label)}</figcaption>
         ${vr.spec ? `<div class="fg-var__tools">
-          <button type="button" class="icon-btn" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node) : ''}">${Organica.icons.get('pin')}</button>
+          <button type="button" class="icon-btn" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node) : ''}">${Organica.icons.get('pin')}</button>${(parentNode(node) || {}).type === 'figure-var' ? '' : `
           <button type="button" class="icon-btn" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node) : ''}">${Organica.icons.get('figure-from')}</button>
-          <button type="button" class="icon-btn" data-act="use" aria-label="Use variation ${par ? variationNo(node) : ''}">${Organica.icons.get('check')}</button></div>` : ''}
+          <button type="button" class="icon-btn" data-act="use" aria-label="Use variation ${par ? variationNo(node) : ''}">${Organica.icons.get('check')}</button>`}</div>` : ''}
       </figure>`;
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); if (par) restackChildren(par.id); }, { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act); }); }
@@ -205,15 +205,20 @@ function foundationOf(fig) {
 }
 // Pin keeps a child's variation through New variations; New Figure from this = a sibling Figure of the parent, same
 // wires (and the child's own inputs in place of the parent's), that variation fixed.
+// A pin from a variation: its whole spec (mode, `changes` for a 2–3-change draw, seed) + its slot and item, so New
+// variations re-draws exactly it (review note, Oct 9, 2026: the tile's Pin dropped `changes` and re-drew a pinned
+// 2-change variation with one change)
+const pinOf = v => ({ mode: v.spec.mode, ...(v.spec.changes ? { changes: v.spec.changes } : {}), seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });
 function variationAction(childId, act) {
   const child = NC.findNode(ctl.model, childId), node = child && sourceOf(child), fig = node && figOf(node), en = ctl.engine.get(childId); if (!node || !fig) return;
   const v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null; if (!v || !v.spec) return;
   const p = node.params, id = fig.id;   // pins live on the Variations node; New Figure from this copies its Figure
+  if (fig.type === 'figure-var' && act !== 'pin') { Organica.notice(`${nodeLabel(child)} varies a variation — Use variation and New Figure from this are on ${nodeLabel(fig)}`); return; }   // a guard: the tile and the panel never offer the two verbs on a nested child (Phase C)
   if (act === 'pin') {   // a pin keeps its slot (and, in a fan-out, belongs to its item)
     const keys = wantedChildren(node).map(k => k.item).filter(x => x != null);
     const same = q => q.slot === v.slot && sameItem(q.item, v.item, keys);
     const pins = (p.pins || []).filter(q => !same(q));
-    if (!v.pinned) pins.push({ mode: v.spec.mode, seed: v.spec.seed, slot: v.slot, ...(v.item != null ? { item: v.item } : {}) });
+    if (!v.pinned) pins.push(pinOf(v));
     p.pins = pins; edited(node, true); ctl.select([childId]); return;
   }
   if (act === 'use') { useVariation(fig, v, settingsOf(p), child); return; }
@@ -232,6 +237,17 @@ function variationAction(childId, act) {
   }
 }
 
+// A change's value set by hand on a variation's panel (Phase D, Oct 9, 2026): the variation is pinned (an edited one is
+// kept through New variations — O-60 f) and the value goes on its pin as `edits['kind:key']`; the engine replays the
+// variation with that value in place of the drawn one (the other changes stay). One undo step on the Variations node.
+function editChange(child, key, value) {
+  const src = sourceOf(child), en = ctl.engine.get(child.id), v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null; if (!src || !v || !v.spec) return;
+  const p = src.params, keys = wantedChildren(src).map(k => k.item).filter(x => x != null), same = q => q.slot === v.slot && sameItem(q.item, v.item, keys);
+  let pin = (p.pins || []).find(same);
+  if (!pin) { pin = pinOf(v); p.pins = [...(p.pins || []), pin]; }
+  const n = +value; pin.edits = { ...(pin.edits || {}) }; if (value !== '' && Number.isFinite(n)) pin.edits[key] = n; else delete pin.edits[key];
+  edited(src, true); ctl.select([child.id]);
+}
 // "Use this" (Diego, Oct 9, 2026 — rules describe, Variations explore): the variation's change is written back into the
 // graph — the Grid's / Palette's own parameters, each rule node it adjusted, the Figure's content spread — so the
 // Figure becomes that variation and Variations proposes again from there. One undo step. A shared Grid or Palette
@@ -282,11 +298,12 @@ function useVariation(fig, v, st, child) {
 // child, in a column to the right of its Variations node, one under the other. Made and removed with the node's
 // Variations (and the Set's items when Variations per item is on); a child can't be deleted alone. Its source = the
 // Variations node wired into its From input; its parent = the Figure that node varies.
-function figOf(vn, m) { m = m || ctl.model; const e = vn && m.edges.find(w => w.to.node === vn.id && w.to.port === 'figure'), f = e && NC.findNode(m, e.from.node); return f && f.type === 'figure' ? f : null; }
+function figOf(vn, m) { m = m || ctl.model; const e = vn && m.edges.find(w => w.to.node === vn.id && w.to.port === 'figure'), f = e && NC.findNode(m, e.from.node); return f && (f.type === 'figure' || f.type === 'figure-var') ? f : null; }   // a variation too (Phase C, Oct 9, 2026: Add Variations on a variation)
 function variationsOf(figId, m) { m = m || ctl.model; return m.edges.filter(e => e.from.node === figId && e.to.port === 'figure').map(e => NC.findNode(m, e.to.node)).filter(n => n && n.type === 'variations'); }
 function wantedChildren(vn) {   // [{slot, item}] — what the Variations node draws, its Figure's own "As set up" left out
-  const p = vn.params || {}, m = ctl.model, want = Math.max(0, Math.min(12, +p.variations || 0)) + 1, fig = figOf(vn, m);   // the count = variations made (O-58 a); slot 0 = the Figure itself
+  const p = vn.params || {}, m = ctl.model, want = Math.max(0, Math.min(12, +p.variations || 0)) + 1, fig = figOf(vn, m), out0 = [];   // the count = variations made (O-58 a); slot 0 = the Figure itself
   if (!fig) return [];
+  if (fig.type === 'figure-var') { for (let k = 1; k < want; k++) out0.push({ slot: k, item: null }); return out0; }   // around a variation: no fan-out (it is one item already)
   const set = m.edges.filter(e => e.to.node === fig.id && e.to.port === 'content').map(e => NC.findNode(m, e.from.node)).find(n => n && n.type === 'set');
   const items = set ? ((set.params || {}).items || []).filter(x => x && x.snapshot) : [];
   const out = [];
@@ -459,7 +476,7 @@ function variationNo(child) { const src = sourceOf(child); return src ? children
 function nodeLabel(node) {
   if (node.type === 'figure-var') {   // named after its Figure: Figure 1.2, Figure 1.3 … (the Figure itself is the first)
     const par = ctl && parentNode(node); if (!par) return registry.get(node.type).meta.label;
-    const src = sourceOf(node), several = src && variationsOf(par.id).length > 1;   // a Figure with several Variations nodes: each child named after its own (O-58 b)
+    const src = sourceOf(node), several = src && (variationsOf(par.id).length > 1 || par.type === 'figure-var');   // a Figure with several Variations nodes, or a Variations node on a variation: each child named after its own (O-58 b, O-60 e)
     return (several ? nodeLabel(src) : nodeLabel(par)) + ' · variation ' + variationNo(node);
   }
   return node.name || registry.get(node.type).meta.label;
@@ -905,6 +922,23 @@ function renderInspectorBody(box, ids) {
       <div class="row-btns"><button type="button" class="mini-btn" id="fgi-parent">Select ${esc(nodeLabel(par))}</button></div>
       <div class="sub-label">Own inputs</div><p class="org-panel__hint">${own.length ? `${esc([...new Set(own)].join(', '))} — for this variation only. ` : ''}Connect a Canvas, Grid, Palette, Content, Rules or Composition to change this variation only. Rules are added to ${esc(nodeLabel(par))}’s; the others replace them, and the variation’s own change leaves them as they are.</p>`,
       bind: () => ctrl('fgi-parent').addEventListener('click', () => { const src = sourceOf(node); ctl.select([par.id]); ctl.fitTo([par.id, ...(src ? [src.id, ...childrenOf(src.id).map(n => n.id)] : [])]); }) });
+    // Changes (Phase D, Oct 9, 2026): one row per change the variation made — its input's colour as a dot, the parameter,
+    // the value; a number can be set by hand (the variation is then pinned and keeps the value — O-60 f); Use variation applies it
+    if (par && v && v.spec && v.changes && v.changes.length) {
+      const nested = par.type === 'figure-var', INK = { grid: 'grid', palette: 'palette', content: 'content', cells: 'rule', transform: 'rule' }, edits = v.spec.edits || {};
+      const shown = c => ['flip', 'off', 'parity'].includes(c.key) ? String(c.value) : c.text;   // a read-only change: on / off / odd / even, else the caption's words
+      rows.push({ html: `<div class="sub-label">Changes</div>` + v.changes.map((c, i) => {
+        const k = c.kind + ':' + c.key, name = `${CHANGE_OF[c.kind]}: ${c.label}`, val = edits[k] != null ? edits[k] : c.value;
+        return `<div class="ctrl-row"><span class="fg-vary__dot" data-ink="${INK[c.kind]}" aria-hidden="true"></span><div class="ctrl-label">${esc(c.label)}</div>` + (c.edit && c.edit.type === 'number'
+          ? `<input type="number" class="panel-input" id="fgi-chg-${i}" data-change="${esc(k)}" value="${esc(val)}" min="${c.edit.min}" max="${c.edit.max}" step="${c.edit.step}" aria-label="${esc(name)}">${c.edit.unit ? `<span class="panel-unit">${esc(c.edit.unit)}</span>` : ''}`
+          : `<span class="ctrl-val">${esc(shown(c))}</span>`) + `</div>`;
+      }).join('') + (nested ? '' : `<div class="row-btns"><button type="button" class="mini-btn" id="fgi-use">Use variation</button></div>`),
+        bind: () => {
+          box.querySelectorAll('[data-change]').forEach(inp => inp.addEventListener('change', () => editChange(node, inp.dataset.change, inp.value)));
+          const u = ctrl('fgi-use'); if (u) u.addEventListener('click', () => variationAction(node.id, 'use'));
+        } });
+    }
+    if (!variationsOf(node.id).length) rows.push({ html: `<div class="row-btns"><button type="button" class="mini-btn" id="fgi-addvar">Add Variations</button></div>`, bind: () => ctrl('fgi-addvar').addEventListener('click', () => addVariations(node.id)) });   // variations around this variation (Phase C, Oct 9, 2026)
   }
   box.innerHTML = title + (why && node.type !== 'figure-var' ? `<p class="org-panel__hint">${esc(why)}</p>` : '') + rows.map(r => r.html).join('') + '</div>';   // a refused Delete explains itself first (no stop: the Decided string has none)
   if (renameable) bindRename(node, ids);
