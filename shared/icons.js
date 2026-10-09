@@ -87,6 +87,8 @@
     'node-repeat':         '<rect x="2.5" y="2.5" width="5" height="5" rx=".8"/><path d="M10 5h3.5M12 3.5 13.5 5 12 6.5M5 10v3.5M3.5 12 5 13.5 6.5 12"/>',   // a Repeat in grid node: one tile, repeated across and down — not grid (pill head)
     'node-composition':    '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><rect x="5" y="5" width="6" height="3.5" rx=".5" stroke-dasharray="1.6 1.2"/><path d="M5 11h6"/>',   // a Composition node: a region inside the figure (pill head)
     'node-transform':      '<path d="M8 2v12" stroke-dasharray="1.5 1.6"/><path d="M5.5 5 3 8l2.5 3M10.5 4.5a3.5 3.5 0 0 1 0 7M10.5 11.5h1.8V9.7"/>',   // a Rotate & mirror node: a mirror axis + a turn (pill head)
+    'fvs-symbol':      '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M8 2.5v11M2.5 8h11M2.5 5A3 3 0 0 1 5.5 8M13.5 11A3 3 0 0 1 10.5 8"/>',   // the FVS Symbol step: a grid of cells, two Elements turned (left dock steps)
+    'fvs-figure':      '<rect x="2.5" y="2.5" width="4.5" height="4" rx=".8"/><rect x="2.5" y="9.5" width="4.5" height="4" rx=".8"/><rect x="9" y="5.5" width="4.5" height="5" rx=".8"/><path d="M7 4.5h.5A1.5 1.5 0 0 1 9 6v1M7 11.5h.5A1.5 1.5 0 0 0 9 10V9"/>',   // the FVS Figure step: two nodes wired into one (left dock steps)
     'node-content':  '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5 11l3-6 3 6z"/>',   // Content nodes (saved Element / Component / Symbol)
     'node-rule':     '<circle cx="4" cy="8" r="1.5"/><path d="M5.5 8h3l3-3.5M8.5 8l3 3.5"/>',   // Rule nodes
     'node-output':   '<rect x="2.5" y="4" width="8" height="8" rx="1"/><path d="M8 8h5.5M11.5 6l2 2-2 2"/>',   // Output nodes (Figure, Export)

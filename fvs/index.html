@@ -29,21 +29,6 @@
   <div class="org-header__spacer"></div>
 </header>
 
-<!-- Step nav — 3 propaedeutic tiers, moved out of the header (same move
-     Genesis made for its Library/Create nav). Element → Component →
-     Symbol: each consumes what the previous step produced. Figure (★) is a
-     separate, self-contained recipe tier that still tiles internally
-     (buildFvsGridSVG et al., kept as page-less helpers — see the Grid tier
-     comment further down) but has no standalone page of its own anymore. -->
-<div class="fvs-stepnav">
-  <div class="org-tabs" id="tier-tabs" role="group" aria-label="Step">
-    <button class="org-btn" data-tier="element" aria-pressed="true"><span class="fvs-stepnav__num">1</span> Element</button>
-    <button class="org-btn" data-tier="component" aria-pressed="false"><span class="fvs-stepnav__num">2</span> Component</button>
-    <button class="org-btn" data-tier="symbol" aria-pressed="false"><span class="fvs-stepnav__num">3</span> Symbol</button>
-    <button class="org-btn" data-tier="figure" aria-pressed="false" title="Combine saved Elements and Components into Figures, in a graph"><span class="fvs-stepnav__num">4</span> Figure</button>
-  </div>
-  <p class="fvs-stepnav__hint" id="stepnav-hint"></p>
-</div>
 
 <!-- Symbol variations: a glass strip above the floatbar, opened by #btn-sug-dock (a sibling, never nested). -->
 <div class="org-floatbar fvs-suggest" id="fvs-sug-panel" role="region" aria-label="Symbol variations" inert></div>
@@ -266,6 +251,14 @@
 
 <div id="fvs-rail-dock" class="org-dock" role="group" aria-label="Library rail">
   <div class="org-floatbar org-dock__bar" id="fvs-rail" role="toolbar" aria-label="Library rail" aria-orientation="vertical">
+    <!-- The steps (Diego, Oct 9, 2026): one group, moved by placeStepNav() (12-shell.js) to whichever left dock bar shows -->
+    <span class="org-floatbar__group" id="tier-tabs" role="group" aria-label="Step">
+      <button class="org-floatbar__btn" data-tier="element" aria-pressed="true" aria-label="Element" data-icon-slot></button>
+      <button class="org-floatbar__btn" data-tier="component" aria-pressed="false" aria-label="Component" data-icon-slot></button>
+      <button class="org-floatbar__btn" data-tier="symbol" aria-pressed="false" aria-label="Symbol" data-icon-slot></button>
+      <button class="org-floatbar__btn" data-tier="figure" aria-pressed="false" aria-label="Figure" data-icon-slot></button>
+    </span>
+    <span class="org-dock__sep" id="tier-tabs-sep" aria-hidden="true"></span>
     <button class="org-floatbar__btn" id="btn-rail" aria-label="Library rail" aria-expanded="false" aria-controls="fvs-rail-panel" data-icon-slot></button>
   </div>
   <div class="org-floatbar org-dock__panel" id="fvs-rail-panel" role="region" aria-label="Saved Elements, Components and Symbols" inert>
@@ -324,6 +317,7 @@
       </div>
     </div>
     <div class="tier-view" data-tier="symbol">
+      <p class="org-empty fvs-symbol-empty" id="stepnav-hint" hidden></p>
       <div id="symbol-frame"></div>
     </div>
     <div class="tier-view" data-tier="figure">

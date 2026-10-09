@@ -7,7 +7,7 @@
 import { rt } from './rt.js';
 import { provide } from './hooks.js';
 import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps } from './11-symbol-ui.js';
-import { syncExportButton } from './12-shell.js';
+import { placeStepNav, syncExportButton } from './12-shell.js';
 import { syncRailTier } from './15-export-library-view.js';
 import {
   COLOR_RULES, live, pc, pv, state
@@ -1007,7 +1007,7 @@ function enterCompose(figId) {
   ctrl('fb-figure-actions').style.display = 'none'; ctrl('fb-compose-actions').style.display = '';
   setNodebar(null); renderComposeBar();
   // the left side is the Symbol step's Library rail: drag a saved Element / Component onto a cell, or click it for the selection
-  rt.railTarget = { apply: composeRailApply }; live.railCompose = true; ctrl('fg-nodebar-dock').hidden = true; syncRailTier('figure');
+  rt.railTarget = { apply: composeRailApply }; live.railCompose = true; ctrl('fg-nodebar-dock').hidden = true; syncRailTier('figure'); placeStepNav();
   ctrl('fg-compose-title').textContent = 'Compose ' + nodeLabel(fig);
   ctl.run(); drawCompose(); renderComposeInspector();
   ctrl('fg-compose-back').focus({ preventScroll: true });
@@ -1027,7 +1027,7 @@ function exitCompose() {
   ctrl('fg-compose').hidden = true; ctrl('fg-graph').hidden = false;
   ctrl('fb-compose-actions').style.display = 'none'; ctrl('fb-figure-actions').style.display = '';
   renderNodebarButtons();
-  rt.railTarget = null; live.railCompose = false; ctrl('fg-nodebar-dock').hidden = false; syncRailTier('figure');
+  rt.railTarget = null; live.railCompose = false; ctrl('fg-nodebar-dock').hidden = false; syncRailTier('figure'); placeStepNav();
   ctl.zoomPan.setView({ zoom: view.zoom, panX: view.x, panY: view.y });
   ctl.select([fig]); ctl.refresh(); ctl.pulse([fig]);
   const back = opener && opener.isConnected && !opener.closest('#fg-compose') ? opener : ctl.cardOf(fig);
@@ -1060,11 +1060,13 @@ function renderComposeBar() {   // the left dock while composing: the saved item
   const bar = ctrl('fg-nodebar');
   ctrl('fg-nodebar-dock').setAttribute('aria-label', 'Compose'); bar.setAttribute('aria-label', 'Compose tools');
   bar.innerHTML = `<button class="org-floatbar__btn" data-cat="Content" aria-label="Content" aria-expanded="false" aria-controls="fg-nodebar-panel">${Organica.icons.get(ICON.Content)}</button>`;
+  placeStepNav();
 }
 function renderNodebarButtons() {   // back to the node bar
   const bar = ctrl('fg-nodebar'); bar.setAttribute('aria-label', 'Nodes'); ctrl('fg-nodebar-dock').setAttribute('aria-label', 'Nodes');
   bar.innerHTML = ['Foundation', 'Content', 'Rules', 'Output'].map(c => `<button class="org-floatbar__btn" data-cat="${c}" aria-label="${c === 'Rules' ? 'Rule' : c} nodes" aria-expanded="false" aria-controls="fg-nodebar-panel">${Organica.icons.get(ICON[c])}</button>`).join('');
   setNodebar(null);
+  placeStepNav();
 }
 // A selection is stored by grid address (row, column), so it names the same cells when the Grid changes; a grid whose
 // cells share an address (some Loom generators) falls back to cell numbers.

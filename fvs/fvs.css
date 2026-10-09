@@ -15,10 +15,6 @@
 
   /* Step nav — sits between header and #app, same "minimal header, nav
      below" move Genesis made for Library/Create. */
-  .fvs-stepnav { flex-shrink: 0; padding: var(--space-3) var(--space-5) 0; background: var(--paper); border-bottom: 1px solid var(--border); }
-  .fvs-stepnav .org-tabs { margin-bottom: var(--space-2); }
-  .fvs-stepnav__num { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: color-mix(in srgb, currentColor 16%, transparent); font-size: var(--fs-micro); margin-right: var(--space-1); }
-  .fvs-stepnav__hint { font-size: var(--fs-small); color: var(--mid); padding-bottom: var(--space-2); min-height: 1.4em; }
 
   #app { display: flex; flex: 1; overflow: hidden; }
 

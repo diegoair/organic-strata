@@ -88,7 +88,17 @@ export function updateStepHint(tier) {
   if (tier === 'symbol' && libraryNames(LIBRARY.read()).length === 0 && !elementPool().length) {
     msg = 'Nothing saved yet — a Symbol is built from saved Components or Elements: save some first.';
   }
-  ctrl('stepnav-hint').textContent = msg;
+  const h = ctrl('stepnav-hint'); h.textContent = msg; h.hidden = !msg;   // inside the Symbol view (the top strip is gone, Oct 9, 2026)
+}
+// The steps live in the left dock (Diego, Oct 9, 2026): one group + its separator, at the top of whichever dock bar is
+// showing — the Library rail (Element / Component / Symbol, and Compose) or the node bar (Figure). Idempotent; call it
+// whenever a dock is shown, hidden or its bar is rebuilt (17-figure-graph.js does, on Compose and on its bar renders).
+const STEP_ICONS = { element: 'node-element', component: 'node-component', symbol: 'fvs-symbol', figure: 'fvs-figure' };
+let stepGroup = null, stepSep = null;   // held here: a bar rebuilt with innerHTML detaches them, and an id lookup would miss
+export function placeStepNav() {
+  const group = stepGroup || (stepGroup = ctrl('tier-tabs')), sep = stepSep || (stepSep = ctrl('tier-tabs-sep'));
+  const nodebarShown = !ctrl('fg-nodebar-dock').hidden, host = ctrl(nodebarShown ? 'fg-nodebar' : 'fvs-rail');
+  if (group.parentElement !== host || host.firstElementChild !== group) host.prepend(group, sep);
 }
 
 // The floatbar Export on the Figure graph is not a menu: it shows the Export node (17-figure-graph.js) — no chevron,
@@ -120,7 +130,7 @@ export function setTier(tier) {
     state.preFigureSnapshot = null;
   }
   state.activeTier = tier;
-  ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.tier === tier)));
+  (stepGroup || (stepGroup = ctrl('tier-tabs'))).querySelectorAll('[data-tier]').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.tier === tier)));
   document.querySelectorAll('.tier-block').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));
   document.querySelectorAll('#canvas-wrap .tier-view').forEach(v => v.classList.toggle('active', v.dataset.tier === tier));
   ctrl('export-hint').textContent = STEP_EXPORT_HINTS[tier] || STEP_EXPORT_HINTS.component;
@@ -133,6 +143,7 @@ export function setTier(tier) {
   ctrl('fb-compose-actions').style.display = tier === 'figure' && document.body.classList.contains('fg-composing') ? '' : 'none';
   ctrl('fg-nodebar-dock').hidden = tier !== 'figure';   // the left dock: Library rail on the other steps, the node bar here
   hooks.syncRailTier(tier);
+  placeStepNav();
   syncExportButton();
   syncQuadrantHint();
   hooks.closeLibview();
@@ -771,9 +782,8 @@ document.addEventListener('keydown', e => {
 });
 bindCellProps('', SYMBOL_CELLS);
 
-ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => {
-  btn.addEventListener('click', () => setTier(btn.dataset.tier));
-});
+ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => { btn.innerHTML = Organica.icons.get(STEP_ICONS[btn.dataset.tier]); });
+ctrl('tier-tabs').addEventListener('click', e => { const b = e.target.closest('[data-tier]'); if (b) setTier(b.dataset.tier); });   // one listener: the group moves between bars
 
 export const repaintPaper = () => { renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); };
 export const paperSwatch = Organica.palette.swatch('paper', {

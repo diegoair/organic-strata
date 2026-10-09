@@ -354,3 +354,4 @@
 .org-dock > .org-dock__panel.is-dragging-away { opacity: 0.5; }
 .org-dock__bar .org-floatbar__btn[aria-label]:not([aria-expanded="true"]):is(:hover, :focus-visible)::after { bottom: auto; left: calc(100% + var(--space-3)); top: 50%; transform: translateY(-50%); }
 .org-dock__sep { width: 60%; height: 1px; margin: var(--space-1) auto; background: var(--border); }
+.org-dock__bar > .org-floatbar__group { flex-direction: column; gap: var(--space-1); }   /* a section of a vertical bar (FVS's steps) stacks like the bar */
