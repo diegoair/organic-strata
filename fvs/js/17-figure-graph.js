@@ -471,10 +471,10 @@ function nodebarItems(cat) {
 function renderNodebar(cat, panel) {
   openCat = cat;
   if (composing && cat !== 'Content') cat = 'Content';
-  let html = `<p class="nc-nodebar__hint">Drag onto the graph, or click to add</p>`;
+  let html = '';   // no hint line: drag or click is the bar's own gesture (Diego, Oct 9, 2026)
   const items = composing ? [] : nodebarItems(cat);
-  if (items.length) html += `<div class="nc-nodebar__list">${items.map((it, i) => it.meta.icon   // a pill node is offered as a pill (Diego, Oct 8, 2026)
-    ? `<button type="button" class="nc-nodebar__item nc-nodebar__item--pill"${NC.body.pillAttrs(it.meta)} data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${NC.body.pill(it.meta, it.label)}</button>`
+  if (items.length) html += `<div class="nc-nodebar__list">${items.map((it, i) => (it.meta.icon || it.meta.barIcon)   // offered as a tile: icon over name (Diego, Oct 9, 2026)
+    ? `<button type="button" class="nc-nodebar__item nc-nodebar__item--tile" data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${NC.body.tile(it.meta, it.label)}</button>`
     : `<button type="button" class="nc-nodebar__item" data-i="${i}" aria-label="${it.label === 'New Set' ? 'New Set' : 'Add ' + esc(it.label)}">${esc(it.label)}</button>`).join('')}</div>`;
   if (composing) html = `<p class="nc-nodebar__hint">Drop on a cell, or click to give it to the selected cells</p>`;
   if (cat === 'Content') {

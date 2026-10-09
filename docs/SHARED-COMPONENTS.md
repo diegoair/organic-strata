@@ -314,8 +314,8 @@ composition · figure`, ledger O-34) — the CSS colours the dot and the wire fr
 other type names maps them onto these (Rhizome: SVG → content, Image → figure, Grid → grid,
 Color → palette, Number → rule, Points → composition) with **three rules per type**: the dot
 (`.nc-port__dot[data-type="x"] { --port-c }`), the wire (`.nc-wire--x { --wire-c }`) and the card
-ink (`[data-ink="x"] { --node-ink }` — **attribute-only** since Oct 8, 2026, so the same rule inks a card,
-a node-bar pill item and its drag ghost) — Rhizome's are in `rhizome/index.html`. `mount()`
+ink (`[data-ink="x"] { --node-ink }` — **attribute-only** since Oct 8, 2026, so the same rule inks a card
+or any other element) — Rhizome's are in `rhizome/index.html`. `mount()`
 writes `data-ink` on each card = the type of its first output port (no output, as Export: its first
 input); the head is solid in it (ledger §2, Oct 8, 2026), no ink = `--border-strong`. `multi: true` = a list port (many wires,
 a square dot).
@@ -392,7 +392,7 @@ CSS (`node-canvas.css`, tokens only; component-local `--node-w` 14rem, `--port-d
 `--wire-w` 1.5px, `--nc-zoom` written by the view): `.nc-stage` · `.nc-board` · `.nc-wires` ·
 `.nc-nodes` · `.nc-node` (+ `__head`, `__type`, `__title`, `__io`, `__ports(--in|--out)`,
 `__body`, `__status`; `[data-ink]` → `--node-ink`; `.is-selected`, `.is-lifted`, `.is-pop`, `.is-collapsed`, `.is-isolated`, `[data-state="error|stale"]`,
-`--compact`, `--wide`, `--pill` + `__icon`) · `.nc-body` (+ `--stack`, `__pic`, `__line`, `__thumb`, `__stack`, `__swatches`, `__swatch`, `.is-paper`, `.is-clear`) · `.nc-nodebar__*` (+ `__item--pill`, `.nc-pill__cap`) · `.nc-port` (+ `--in|--out`, `__label`, `__dot`, `__dot--multi`,
+`--compact`, `--wide`, `--pill` + `__icon`) · `.nc-body` (+ `--stack`, `__pic`, `__line`, `__thumb`, `__stack`, `__swatches`, `__swatch`, `.is-paper`, `.is-clear`) · `.nc-nodebar__*` (+ `__item--tile`, `.nc-tile__icon`, `.nc-tile__label`) · `.nc-port` (+ `--in|--out`, `__label`, `__dot`, `__dot--multi`,
 `.is-compatible`, `.is-incompatible`, `[data-type]`) · `.nc-wire` (+ `--<type>`, `--faint`,
 `--pending`, `.is-related`, `.is-selected`) · `.nc-wire__label` (`--mid`, `--font-display`,
 `--t-label-size`, a `--canvas-bg` halo `--space-1` wide via `paint-order: stroke`) · `.nc-wire-hit` · `.nc-marquee` · `.nc-live`.
@@ -404,8 +404,8 @@ a pill needs one). The pill = the solid head as a round cap with the icon (the l
 `--icon-stroke`) + the body (one fact); the overline and name stay in the DOM visually hidden
 (`clip-path: inset(50%)`) — the card's accessible name — so the host shows the name in its panel. **Icon colour:**
 always light (`--paper` inside the light-scoped head = white) except on the canvas ink in dark (the cover's
-cream): black — `[data-theme="dark"] [data-ink="canvas"]:not([data-theme="light"] [data-ink])`, the same rule for
-the node-bar cap. `--pill-h` is component-local (1.5 × `--space-8` + 2 × `--space-2`); the radius is
+cream): black — `[data-theme="dark"] [data-ink="canvas"]:not([data-theme="light"] [data-ink]) .nc-node__icon`
+(the board only; node-bar tiles are monochrome). `--pill-h` is component-local (1.5 × `--space-8` + 2 × `--space-2`); the radius is
 `--pill-h / 2` + the 1px edge — a stadium, the radius rule's pill exception. **One fact:** a body holding a
 picture (`.nc-body__pic`, `__thumb`, `__stack`, `__swatches`) hides its `.nc-body__line`; a body that is only a
 line (`.nc-node--pill > .nc-node__body > .nc-body__line`) shows it, `nowrap`, display face, `--ink`. The body
@@ -431,8 +431,8 @@ el.innerHTML = B.picture(Organica.loomGridThumb(grid), 'Square lattice · 3 × 2
 el.innerHTML = B.swatches([paper, ...inks], { paper: true, text: '3 inks' });   // .nc-body--stack > .nc-body__swatches ('transparent' → .is-clear)
 el.innerHTML = B.thumb(svg, 'Leaf wave');                                      // .nc-body__thumb — the work on paper, light in both themes
 el.innerHTML = B.stack([svgA, svgB, svgC], '3 items');                          // .nc-body__stack — the first three thumbs, fanned
-// a node-bar item drawn as the node it adds (the button keeps .nc-nodebar__item):
-`<button type="button" class="nc-nodebar__item nc-nodebar__item--pill"${B.pillAttrs(meta)} aria-label="Add Grid">${B.pill(meta, 'Grid')}</button>`
+// a node-bar item as a tile — icon over name (the button keeps .nc-nodebar__item):
+`<button type="button" class="nc-nodebar__item nc-nodebar__item--tile" aria-label="Add Grid">${B.tile(meta, 'Grid')}</button>`
 ```
 
 `picture` takes any SVG drawn in `currentColor`: it is painted in the card's ink (`--node-ink`),
@@ -444,13 +444,15 @@ Canvas, `Organica.loomGridThumb(grid)` for a Grid (a Loom export **or** an alrea
 is the ground, `.is-paper`, `--border-strong` edge). `thumb(svg, text)` = a saved piece of work in its own
 colours on paper (`.nc-body__thumb`, 48px, `--paper`, `--border`, `--radius-md`, `data-theme="light"`);
 `stack(svgs, text)` = the first three as thumbs fanned −4° / 0° / +4° (`--i`), each a third over the last.
-`pill(meta, label)` = `.nc-pill__cap` (`data-theme="light"`, `meta.icon`) + `.nc-pill__label`; `pillAttrs(meta)` =
-` data-ink="‹type›"` (the first output's type, else the first input's) — for a node-bar item: the button gets
-`.nc-nodebar__item--pill` (a `--space-7` cap in the node's ink, white icon, display-face name, a stadium of
-component-local `--bar-pill-h`); `nodeBar()`'s drag ghost copies the class and `data-ink`. No hover motion
+`tile(meta, label)` = `.nc-tile__icon` (`meta.barIcon || meta.icon`, `aria-hidden`) + `.nc-tile__label` (Oct 9, 2026 —
+replaced `pill` / `pillAttrs` / `.nc-pill__cap`, removed) — for a node-bar item: the button gets `.nc-nodebar__item--tile`
+(icon `--icon-lg` monochrome `--ink` over the display-face name, `--paper`, `--border` edge, `--radius-lg`, min-height
+2 × `--space-8`; a `.nc-nodebar__list` holding tiles is a 2-column grid, an icon-less item in it is centred as a tile);
+`nodeBar()`'s drag ghost copies the class. `meta.barIcon` = an icon for the bar tile only, on a type whose card has
+none (FVS Figure: `fvs-figure`). No hover motion
 (removed Oct 8, 2026). Consumers: FVS — every node but Figure / Variation; Rhizome grid (`‹n› cells`) and
-colour (one chip + its hex), its node-bar items plain (no `meta.icon`). Live: `/design-system/#node-bodies`
-(every pill kind + a dead node) and `#node-canvas` (two real docks with pill items), both themes, self-checked.
+colour (one chip + its hex), its node-bar items plain (no `meta.icon`, no hint line). Live: `/design-system/#node-bodies`
+(every pill kind + a dead node) and `#node-canvas` (two real docks with tile items), both themes, self-checked.
 
 Card look = ledger G3 (edge `--border-strong`, no shadow, at rest or lifted (Oct 8, 2026), 2px
 `--ink` ring selected) + the solid head (Oct 8, 2026: the head is `--node-ink`; `data-theme="light"` on the

@@ -967,7 +967,7 @@
       try { src.setPointerCapture(e.pointerId); } catch (err) { /* a synthetic or ended pointer */ }
       function move(ev) {
         if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
-        if (!ghost) { ghost = el('div', 'nc-nodebar__ghost' + (src.classList.contains('nc-nodebar__item--pill') ? ' nc-nodebar__item--pill' : '')); if (src.dataset.ink != null) ghost.setAttribute('data-ink', src.dataset.ink); ghost.innerHTML = src.innerHTML; document.body.appendChild(ghost); panel.classList.add('is-dragging-away'); document.body.classList.add('nc-is-dragging'); }
+        if (!ghost) { ghost = el('div', 'nc-nodebar__ghost' + (src.classList.contains('nc-nodebar__item--tile') ? ' nc-nodebar__item--tile' : '')); ghost.innerHTML = src.innerHTML; document.body.appendChild(ghost); panel.classList.add('is-dragging-away'); document.body.classList.add('nc-is-dragging'); }
         ghost.style.transform = 'translate(' + (ev.clientX + 8) + 'px,' + (ev.clientY + 8) + 'px)';
       }
       function up(ev) {
@@ -1118,14 +1118,11 @@
         return '<span class="nc-body__thumb" data-theme="light" style="--i:' + i + '">' + (svg || '') + '</span>';
       }).join('') + '</span>' + (text != null ? body.line(text) : '') + '</div>';
     },
-    // a node-bar item drawn as the node it adds: the type's icon on its ink + the name (the button keeps its own class and
-    // gets .nc-nodebar__item--pill + data-ink from pillAttrs)
-    pill: function (meta, label) {
-      return '<span class="nc-pill__cap" data-theme="light" aria-hidden="true">' + (meta && meta.icon && Organica.icons ? Organica.icons.get(meta.icon) : '') + '</span><span class="nc-pill__label">' + escH(label) + '</span>';
-    },
-    pillAttrs: function (meta) {
-      var p = meta && ((Array.isArray(meta.outputs) && meta.outputs[0]) || (Array.isArray(meta.inputs) && meta.inputs[0]));
-      return ' data-ink="' + escH(p ? p.type : '') + '"';
+    // a node-bar item as a tile: the type's icon (monochrome) over its name (the button keeps its own class and adds
+    // .nc-nodebar__item--tile). meta.barIcon = an icon for the tile only, on a type whose card has none
+    tile: function (meta, label) {
+      var icon = meta && (meta.barIcon || meta.icon);
+      return '<span class="nc-tile__icon" aria-hidden="true">' + (icon && Organica.icons ? Organica.icons.get(icon) : '') + '</span><span class="nc-tile__label">' + escH(label) + '</span>';
     },
     // a row of colour chips; opts.paper = the first is the ground (a stronger edge); opts.text = a summary line under it
     swatches: function (colors, opts) {

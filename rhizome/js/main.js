@@ -126,7 +126,7 @@ const nodebar = NC.nodeBar({
   icons: { Source: 'node-content', Process: 'node-rule', Output: 'node-output' },
   render: (cat, panel) => {
     const types = registry.byCategory()[cat] || [];
-    panel.innerHTML = `<p class="nc-nodebar__hint">Drag onto the graph, or click to add</p><div class="nc-nodebar__list">`
+    panel.innerHTML = `<div class="nc-nodebar__list">`
       + types.map(t => `<button type="button" class="nc-nodebar__item" data-type="${esc(t.meta.id)}" aria-label="Add ${esc(t.meta.label)}">${esc(t.meta.label)}</button>`).join('') + `</div>`;
   },
   specOf: t => { const b = t.closest && t.closest('.nc-nodebar__item'); return b ? { type: b.dataset.type } : null; },
