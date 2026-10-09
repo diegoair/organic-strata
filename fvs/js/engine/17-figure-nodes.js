@@ -117,6 +117,10 @@ export const REPEAT_LATTICES = {
   tier: { label: 'Tier', key: 'stack', min: 1, max: 3, def: 1 },
   triangle: { label: 'Triangle', key: 'rows', min: 2, max: 4, def: 2 },
 };
+// "Which cells" → a rule's `when` (the Cell rules vocabulary; a row / column / cell number counts from 1, a ring / sector from 0)
+export function whenOf(which, n) {
+  return which === 'all' ? {} : which === 'up' || which === 'down' ? { class: which } : which === 'odd' || which === 'even' ? { parity: which } : { [which]: Math.max(0, n - (which === 'ring' || which === 'sector' ? 0 : 1)) };
+}
 export function ruleOf(type, p) {
   if (type === 'cell-rules') return { kind: 'cells', rules: clone(p.rules || []) };
   if (type === 'component-rule') {   // pose angles in degrees — graphs saved before Oct 9, 2026 stored 1–3 for 90–270° (then drawn as 1–3°)
@@ -131,7 +135,14 @@ export function ruleOf(type, p) {
     if ((+p.rotate || 0) || (p.mirror && p.mirror !== 'none')) r.level.transform = { rotate: +p.rotate || 0, mirror: p.mirror || 'none' };
     return r;
   }
-  if (type === 'transform') return { kind: 'transform', transform: { rotate: +p.rotate || 0, mirror: p.mirror || 'none' } };
+  if (type === 'transform') {   // + what only applies on the cells (no Repeat before it): which cells, Rotation per cell, Random rotation
+    const r = { kind: 'transform', transform: { rotate: +p.rotate || 0, mirror: p.mirror || 'none' } }, c = {};
+    if (p.which && p.which !== 'all') c.when = whenOf(p.which, +p.n || 0);
+    if (+p.perCell) c.turnStep = { deg: +p.perCell, by: p.countBy === 'row' || p.countBy === 'col' ? p.countBy : 'index' };
+    if (p.random) c.turnRandom = (+p.seed || 0) >>> 0;
+    if (Object.keys(c).length) r.cells = c;
+    return r;
+  }
   return null;
 }
 // Rules are a chain (Diego, Oct 9, 2026): rule → rule → Figure, and the order is the chain's. A rule node's output is
@@ -160,10 +171,13 @@ export function chainPlan(chain) {
       // (Diego, Oct 9, 2026: "it should only rotate or mirror the 36 elements in the grid"; wired alone it used to
       // stop the Figure with "needs a Repeat in grid")
       if (!levels.length) {
-        const t = r.transform, d = {}; if (+t.rotate) d.turnBy = +t.rotate; if (t.mirror && t.mirror !== 'none') d.mirror = t.mirror;
-        if (Object.keys(d).length) cellRules.push({ when: {}, do: d });
+        const t = r.transform, c = r.cells || {}, d = {}; if (+t.rotate) d.turnBy = +t.rotate; if (t.mirror && t.mirror !== 'none') d.mirror = t.mirror;
+        if (c.turnStep) d.turnStep = clone(c.turnStep); if (c.turnRandom != null) d.turnRandom = c.turnRandom;
+        if (Object.keys(d).length) cellRules.push({ when: clone(c.when || {}), do: d });
         return;
       }
+      // after a Repeat in grid: quarter turns only (Diego, Oct 9, 2026 — say so rather than round it)
+      if ((+r.transform.rotate || 0) % 90) throw new Error('Rotate & mirror after a Repeat in grid takes quarter turns only — set its Rotation to 0°, 90°, 180° or 270°');
       tfs[levels.length - 1].push(r.transform);
     }
   });
@@ -359,9 +373,10 @@ function changeCells(inp, rng) {
 }
 function changeTransform(inp, rng) {
   const rules = (inp.rules || []).slice(); if (!rules.some(r => r.kind === 'repeat')) return null;
-  const at = rules.map(r => r.kind).lastIndexOf('transform'), t = at >= 0 ? { ...rules[at].transform } : { rotate: 0, mirror: 'none' };
+  const kinds = rules.map(r => r.kind), lastRep = kinds.lastIndexOf('repeat'), last = kinds.lastIndexOf('transform');
+  const at = last > lastRep ? last : -1, t = at >= 0 ? { ...rules[at].transform } : { rotate: 0, mirror: 'none' };   // the one on the Repeat — one before it works on the cells
   if (rng() < 0.5) t.rotate = (t.rotate + 90) % 360; else t.mirror = pick(['none', 'v', 'h', 'vh'].filter(m => m !== t.mirror), rng);
-  if (at >= 0) rules[at] = { kind: 'transform', transform: t }; else rules.push({ kind: 'transform', transform: t });
+  if (at >= 0) rules[at] = { ...rules[at], transform: t }; else rules.push({ kind: 'transform', transform: t });   // keeps its cell settings
   inp.rules = rules; return t.mirror !== 'none' ? `Mirror ${MIRRORS[t.mirror].toLowerCase()}` : `Rotation ${t.rotate}°`;
 }
 const CHANGE_OF = { grid: 'Grid', palette: 'Palette', cells: 'Cell rules', transform: 'Rotate & mirror' };   // UI-COPY §2 names
@@ -564,7 +579,7 @@ export function figureNodeTypes() {
       compute: (i, p) => chained('repeat', i, p) },
     { meta: { id: 'composition', label: 'Composition', category: 'Rules', pill: true, icon: 'node-composition', inputs: [], outputs: [{ name: 'composition', type: 'composition', label: 'Composition' }], params: [{ name: 'rules', default: [] }] },
       compute: (i, p) => ({ composition: { rules: clone(p.rules || []) } }) },
-    { meta: { id: 'transform', label: 'Rotate & mirror', category: 'Rules', pill: true, icon: 'node-transform', inputs: RULE_IN, outputs: RULE_OUT, params: [{ name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }] },
+    { meta: { id: 'transform', label: 'Rotate & mirror', category: 'Rules', pill: true, icon: 'node-transform', inputs: RULE_IN, outputs: RULE_OUT, params: [{ name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }, { name: 'which', default: 'all' }, { name: 'n', default: 1 }, { name: 'perCell', default: 0 }, { name: 'countBy', default: 'index' }, { name: 'random', default: false }, { name: 'seed', default: 1 }] },
       compute: (i, p) => chained('transform', i, p) },
     { meta: { id: 'export', label: 'Export', category: 'Output', pill: true, icon: 'download', inputs: [{ name: 'figures', type: 'figure', label: 'Figures', multi: true, required: true }], outputs: [],
         params: [{ name: 'which', default: 'all' }, { name: 'formats', default: { svg: true, png: false, plates: false } }, { name: 'scales', default: [1] }, { name: 'transparent', default: false }] },

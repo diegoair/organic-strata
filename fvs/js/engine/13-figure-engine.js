@@ -96,6 +96,14 @@ export function ruleMatches(when, ctx) {
     && (when.parity == null || when.parity === ctx.parity) && (when.ring == null || has(when.ring, ctx.ring)) && (when.sector == null || has(when.sector, ctx.sector))
     && (when.at == null || when.at.some(a => a[0] === ctx.row && a[1] === ctx.col));   // at: [[row, col], …] — cells by grid address (Compose)
 }
+// Rotate & mirror on the cells (Oct 9, 2026): how much one cell turns — the Rotation, + the Rotation per cell × the
+// cell's count (cell / row / column, from 0), + a random multiple of 30° drawn from the Seed and the cell's index.
+export function cellTurnOf(d, ctx) {
+  let t = +d.turnBy || 0;
+  if (d.turnStep && +d.turnStep.deg) t += +d.turnStep.deg * (+ctx[d.turnStep.by === 'row' ? 'row' : d.turnStep.by === 'col' ? 'col' : 'index'] || 0);
+  if (d.turnRandom != null) t += 30 * Math.floor(Organica.mulberry32(((d.turnRandom >>> 0) ^ Math.imul((+ctx.index || 0) + 1, 2654435761)) >>> 0)() * 12);
+  return t;
+}
 // Rules apply in order; a later rule overrides an earlier one on the slots it matches.
 export function applyClassRules(rules, seedType) {
   const grid = getSymbolGrid();
@@ -110,7 +118,7 @@ export function applyClassRules(rules, seedType) {
       if (d.rotate != null) cell.rotation = snapPose(d.rotate === 'sector' ? 60 * (ctxs[i].sector || 0) : d.rotate);
       if (d.flipH != null) cell.flipH = !!d.flipH;
       if (d.flipV != null) cell.flipV = !!d.flipV;
-      if (d.turnBy) cell.rotation = snapPose((+cell.rotation || 0) + +d.turnBy);   // Rotate & mirror on the cells: added to the cell's own turn
+      if (d.turnBy || d.turnStep || d.turnRandom != null) cell.rotation = snapPose((+cell.rotation || 0) + cellTurnOf(d, ctxs[i]));   // Rotate & mirror on the cells: added to the cell's own turn
       if (d.mirror === 'v' || d.mirror === 'vh') cell.flipH = !cell.flipH;   // … and its mirror flips what the cell has
       if (d.mirror === 'h' || d.mirror === 'vh') cell.flipV = !cell.flipV;
       if (d.scale != null) cell.scale = d.scale;

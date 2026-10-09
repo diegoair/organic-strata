@@ -237,7 +237,9 @@ const ch = await P.ev(`
     radial: { kind: 'component-rule', p: { rule: 'radial', params: {} } }, pin: { kind: 'component-rule', p: { rule: 'pinwheel', params: {} } },
     chk: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90 } } }, chkSwap: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90, swap: true } } },
     chkFlip: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90, flip: true } } },
-    rep: { kind: 'repeat', p: { lattice: 'square', count: 2 } }, t90: { kind: 'transform', p: { rotate: 90, mirror: 'none' } }, t180: { kind: 'transform', p: { rotate: 180, mirror: 'none' } }, tmv: { kind: 'transform', p: { rotate: 0, mirror: 'v' } }, t0: { kind: 'transform', p: { rotate: 0, mirror: 'none' } } };
+    rep: { kind: 'repeat', p: { lattice: 'square', count: 2 } }, t90: { kind: 'transform', p: { rotate: 90, mirror: 'none' } }, t180: { kind: 'transform', p: { rotate: 180, mirror: 'none' } }, tmv: { kind: 'transform', p: { rotate: 0, mirror: 'v' } }, t0: { kind: 'transform', p: { rotate: 0, mirror: 'none' } },
+    t30: { kind: 'transform', p: { rotate: 30, mirror: 'none' } }, tper: { kind: 'transform', p: { rotate: 0, perCell: 90 } }, tperRow: { kind: 'transform', p: { rotate: 0, perCell: 90, countBy: 'row' } },
+    trand5: { kind: 'transform', p: { random: true, seed: 5 } }, trand6: { kind: 'transform', p: { random: true, seed: 6 } }, todd: { kind: 'transform', p: { rotate: 90, which: 'odd' } }, oddRot: { kind: 'cell-rules', p: { rules: [{ when: { parity: 'odd' }, do: { rotate: 90 } }] } } };
   const run = async (steps, grid, parallel) => {
     const m = NC.createModel();
     const cv = NC.addNode(m, { type: 'canvas', params: reg.defaults('canvas') });
@@ -273,6 +275,12 @@ const ch = await P.ev(`
   const four = await run(['t90', 't90', 't90', 't90']), twoM = await run(['tmv', 'tmv']);
   res.tNoRep = [tNoRep, tBefore, mNoRep].every(x => x.state === 'ok') && tNoRep.svg !== plain.svg && mNoRep.svg !== plain.svg && mNoRep.svg !== tNoRep.svg && tBefore.svg !== tNoRep.svg && t0.state === 'ok'
     && [tNoRep, mNoRep, t0].every(x => x.cells === plain.cells && x.shapes === plain.shapes) && t0.svg === plain.svg && four.svg === plain.svg && twoM.svg === plain.svg;
+  // the cell settings (Oct 9, 2026): Rotation per cell (by cell / row), Random rotation by Seed, Which cells; 30° after a Repeat says why
+  const per = await run(['tper']), perRow = await run(['tperRow']), r5 = await run(['trand5']), r5b = await run(['trand5']), r6 = await run(['trand6']);
+  const odd = await run(['todd']), oddCells = await run(['oddRot']), t30 = await run(['t30']), t30rep = await run(['rep', 't30']);
+  res.tCells = [per, perRow, r5, r6, odd, t30].every(x => x.state === 'ok' && x.cells === plain.cells) && per.svg !== plain.svg && perRow.svg !== per.svg
+    && r5.svg === r5b.svg && r5.svg !== r6.svg && r5.svg !== plain.svg && odd.svg !== tNoRep.svg && odd.svg !== plain.svg && t30.svg !== plain.svg && /quarter turns only/.test(t30rep.msg);
+  res.tCellsWhy = [per, perRow, r5, r6, odd, t30, t30rep].map(x => x.state + (x.msg ? ':' + x.msg.slice(0, 60) : '')).join(' | ');
   res.tAlone.push('4×90°=none ' + (four.svg === plain.svg) + ', 2 mirrors=none ' + (twoM.svg === plain.svg));
   res.tAlone.push('cells/shapes ' + [plain, tNoRep, mNoRep, t0].map(x => x.cells + '/' + x.shapes).join(' '));
   res.tAfter = (await run(['rep', 't90'])).state === 'ok';
@@ -376,6 +384,7 @@ check(ch.poseKeepsEmpty, 'rules: an empty cell from a rule before the pose stays
 check(ch.twoComp, 'rules: two Component rules — the later one poses');
 check(ch.tNoRep, 'rules: Rotate & mirror with no Repeat before it turns / mirrors every Element in its cell, grid kept (alone, before a Repeat, mirror, 0°): ' + ch.tAlone.join(' | '));
 check(ch.aloneOk, 'rules: each rule alone on the default Figure draws (a Component rule on a Loom grid says why): ' + ch.aloneOnDefault.join(' | '));
+check(ch.tCells, 'rules: Rotate & mirror on the cells — Rotation per cell (cell / row), Random rotation by Seed, Which cells, 30°; 30° after a Repeat says quarter turns only: ' + ch.tCellsWhy);
 check(ch.tAfter, 'rules: Rotate & mirror after a Repeat draws');
 check(ch.twoT, 'rules: two Rotate & mirror add up (90° + 90° = 180°)');
 check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4; Radial refuses odd sizes; a Loom grid is refused with a reason');

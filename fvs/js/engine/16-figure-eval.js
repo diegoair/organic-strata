@@ -41,7 +41,7 @@ import {
   figureChecks
 } from './14-figure-ui.js';
 import {
-  FIGURE_MAX_SHAPES, applyClassRules, componentCellsFromRule, figureSVGOf, gridTypeFromLattice, squareCR,
+  FIGURE_MAX_SHAPES, applyClassRules, cellTurnOf, componentCellsFromRule, figureSVGOf, gridTypeFromLattice, squareCR,
   isSealedSymbol, promoteFigureToTile, ruleMatches, slotClassContext, validateFigureRecipe
 } from './13-figure-engine.js';
 
@@ -181,7 +181,7 @@ function applyRulesToContent(rules, cw) {   // cw: the Palette's colourway, give
       if (d.rotate != null) cell.rotation = snapPose(d.rotate === 'sector' ? 60 * (ctxs[i].sector || 0) : d.rotate);
       if (d.flipH != null) cell.flipH = !!d.flipH;
       if (d.flipV != null) cell.flipV = !!d.flipV;
-      if (d.turnBy) cell.rotation = snapPose((+cell.rotation || 0) + +d.turnBy);   // Rotate & mirror on the cells: added to the cell's own turn
+      if (d.turnBy || d.turnStep || d.turnRandom != null) cell.rotation = snapPose((+cell.rotation || 0) + cellTurnOf(d, ctxs[i]));   // Rotate & mirror on the cells: added to the cell's own turn
       if (d.mirror === 'v' || d.mirror === 'vh') cell.flipH = !cell.flipH;   // … and its mirror flips what the cell has
       if (d.mirror === 'h' || d.mirror === 'vh') cell.flipV = !cell.flipV;
       if (d.scale != null) cell.scale = d.scale;

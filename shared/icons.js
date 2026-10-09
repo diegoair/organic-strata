@@ -72,6 +72,7 @@
     'sun':           '<circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3"/>',
     'moon':          '<path d="M13 9.5A5.5 5.5 0 1 1 6.5 3a4.5 4.5 0 0 0 6.5 6.5z"/>',
     'mirror':        '<path d="M8 2v12" stroke-dasharray="1.5 1.6"/><path d="M6.5 4.5 3 8l3.5 3.5zM9.5 4.5 13 8l-3.5 3.5z"/>',
+    'mirror-vertical': '<path d="M2 8h12" stroke-dasharray="1.5 1.6"/><path d="M4.5 6.5 8 3l3.5 3.5zM4.5 9.5 8 13l3.5-3.5z"/>',   // flip top ↔ bottom: the mirror turned, a horizontal axis — Diego, Oct 9, 2026 (FVS Rotate & mirror)
     'align-left':    '<path d="M1 3.5h14M1 7h9M1 10.5h12"/>',
     'align-center':  '<path d="M1 3.5h14M3.5 7h9M2 10.5h12"/>',
     'align-right':   '<path d="M1 3.5h14M6 7h9M3 10.5h12"/>',

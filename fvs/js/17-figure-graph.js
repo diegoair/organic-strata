@@ -46,7 +46,7 @@ import {
   plateSVG
 } from './engine/15-export-library-view.js';
 import {
-  FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, KEEP_KEYS, MIRRORS, REPEAT_LATTICES, whenOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridPreviewModel, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
@@ -179,8 +179,10 @@ function renderBody(node, entry, el) {
     const unit = { square: 'per side', tier: +p.count === 1 ? 'tier' : 'tiers', triangle: +p.count === 1 ? 'row' : 'rows' }[p.lattice in REPEAT_LATTICES ? p.lattice : 'square'];
     el.innerHTML = NC.body.line(`${L.label} · ${p.count} ${unit}`);   // flip, rotation, mirror: the panel
   } else if (node.type === 'transform') {
-    const rot = +p.rotate || 0, mir = p.mirror && p.mirror !== 'none' && MIRRORS[p.mirror];
-    el.innerHTML = NC.body.line(rot && mir ? `Rotation ${rot}° + mirror` : rot ? `Rotation ${rot}°` : mir ? 'Mirror ' + MIRRORS[p.mirror].toLowerCase() : 'No change');
+    const rot = +p.rotate || 0, m = p.mirror && p.mirror !== 'none' ? p.mirror : null, cells = !repeatBefore(node);
+    const flip = m && (cells ? { v: 'flip horizontal', h: 'flip vertical', vh: 'flip both' }[m] : 'mirror ' + MIRRORS[m].toLowerCase());
+    const bits = [rot ? `Rotation ${rot}°` : '', flip || '', cells && +p.perCell ? `+${p.perCell}° per ${{ row: 'row', col: 'column' }[p.countBy] || 'cell'}` : '', cells && p.random ? 'random' : ''].filter(Boolean);
+    el.innerHTML = NC.body.line(bits.length ? bits.join(' · ').replace(/^./, c => c.toUpperCase()) : 'No change');
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
     el.innerHTML = p.snapshot ? NC.body.thumb(entryThumb(node.type, p.name, p.snapshot), gone ? `${p.name} is no longer in the library — drawn from the copy kept in this graph` : p.name) : NC.body.thumb('', 'Pick a saved ' + node.type);
@@ -577,6 +579,11 @@ function gridCells(grid) {
   return fig ? fig.cells : 0;
 }
 // A node's one-line summary for its panel title (the card shows the same): as E/C/S's h3 hints
+// Is there a Repeat in grid before this rule in its chain? (what decides Rotate & mirror's mode — chainPlan reads the same order)
+function repeatBefore(node, seen = new Set()) {
+  if (seen.has(node.id)) return false; seen.add(node.id);
+  return ctl.model.edges.filter(e => e.to.node === node.id && e.to.port === 'rules').some(e => { const n = NC.findNode(ctl.model, e.from.node); return n && (n.type === 'repeat' || repeatBefore(n, seen)); });
+}
 function nodeMeta(node) {
   const p = node.params || {}, n = k => k.length;
   switch (node.type) {
@@ -728,9 +735,32 @@ function renderInspectorBody(box, ids) {
     rows.push(selectRow('Mirror', 'fgi-rmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
     rows.push({ html: '<p class="org-panel__hint">Several Repeat in grid nodes apply in the order of the chain.</p>' });
   } else if (node.type === 'transform') {
-    rows.push(selectRow('Rotation', 'fgi-trot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
-    rows.push(selectRow('Mirror', 'fgi-tmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
-    rows.push({ html: '<p class="org-panel__hint">With no Repeat in grid before it in the chain, it turns and mirrors every Element in its own cell — the grid stays as it is. After a Repeat in grid, it rotates and mirrors that Repeat. Two of them add up.</p>' });
+    // two modes by the chain (Oct 9, 2026): no Repeat in grid before it → every Element turns / flips in its own cell
+    // (any 30° step, which cells, Rotation per cell, Random rotation); after one → that Repeat, quarter turns, Mirror
+    const onCells = !repeatBefore(node), mir = p.mirror || 'none', has = a => mir === a || mir === 'vh';
+    const setMirror = (axis, on) => { const v = (has('v') && axis !== 'v') || (axis === 'v' && on), h = (has('h') && axis !== 'h') || (axis === 'h' && on); p.mirror = v && h ? 'vh' : v ? 'v' : h ? 'h' : 'none'; };
+    const fine = onCells || (+p.rotate || 0) % 90;   // after a Repeat: quarter turns — unless the value is not one, so the thumb sits on it and a drag fixes it
+    rows.push(rangeRow('Rotation', 'fgi-trot', 0, fine ? 330 : 270, fine ? 30 : 90, +p.rotate || 0, (v, c) => { const off = (+p.rotate || 0) % 90; p.rotate = v; edited(node, c); if (c && !onCells && !off !== !(v % 90)) renderInspector(ids); }, '°'));
+    const names = onCells ? ['Flip horizontal', 'Flip vertical'] : ['Mirror over the right edge', 'Mirror over the bottom edge'];
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">${onCells ? 'Flip' : 'Mirror'}</div><div class="row-btns">
+        <button type="button" class="org-btn org-btn--sm org-btn--icon" id="fgi-tmv" aria-pressed="${has('v')}" aria-label="${names[0]}">${Organica.icons.get('mirror')}</button>
+        <button type="button" class="org-btn org-btn--sm org-btn--icon" id="fgi-tmh" aria-pressed="${has('h')}" aria-label="${names[1]}">${Organica.icons.get('mirror-vertical')}</button></div></div>`,
+      bind: () => [['fgi-tmv', 'v'], ['fgi-tmh', 'h']].forEach(([id, axis]) => ctrl(id).addEventListener('click', e => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; setMirror(axis, on); e.currentTarget.setAttribute('aria-pressed', String(on)); edited(node, true); })) });
+    if (onCells) {
+      const which = p.which || 'all';
+      rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Which cells</div><select class="panel-select" id="fgi-twhich" aria-label="Which cells">${groupedOptions(WHICH)}</select></div>
+        <div class="ctrl-row fg-hide" id="fgi-tn-row"${N_LABEL[which] ? '' : ' hidden'}><div class="ctrl-label" id="fgi-tn-label">${N_LABEL[which] || 'Row number'}</div><input type="number" class="panel-input" id="fgi-tn" min="${which === 'ring' || which === 'sector' ? 0 : 1}" max="99" step="1" value="${+p.n || (which === 'ring' || which === 'sector' ? 0 : 1)}" aria-labelledby="fgi-tn-label"></div>${N_HINT[which] ? `<p class="org-panel__hint">${N_HINT[which]}</p>` : ''}`,
+        bind: () => { const sel = ctrl('fgi-twhich'); sel.value = which;
+          sel.addEventListener('change', e => { p.which = e.target.value; edited(node, true); renderInspector(ids); });
+          ctrl('fgi-tn').addEventListener('change', e => { p.n = Math.max(0, +e.target.value || 0); edited(node, true); }); } });
+      rows.push(rangeRow('Rotation per cell', 'fgi-tper', 0, 330, 30, +p.perCell || 0, (v, c) => { const was = +p.perCell || 0; p.perCell = v; edited(node, c); if (c && !was !== !v) renderInspector(ids); }, '°'));
+      if (+p.perCell) rows.push(selectRow('Counted by', 'fgi-tby', [['index', 'Cell'], ['row', 'Row'], ['col', 'Column']], p.countBy || 'index', v => { p.countBy = v; edited(node, true); }));
+      rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-trand"${p.random ? ' checked' : ''}><span>Random rotation</span></label>`, bind: () => ctrl('fgi-trand').addEventListener('change', e => { p.random = e.target.checked; edited(node, true); renderInspector(ids); }) });
+      if (p.random) rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" id="fgi-tseed" min="0" step="1" value="${+p.seed || 0}" aria-label="Seed"><button type="button" class="icon-btn" id="fgi-tseed-new" aria-label="Random seed">${Organica.icons.get('refresh', { size: 'sm' })}</button></div>`,
+        bind: () => { ctrl('fgi-tseed').addEventListener('change', e => { p.seed = Math.max(0, Math.floor(+e.target.value || 0)); edited(node, true); });
+          ctrl('fgi-tseed-new').addEventListener('click', () => { p.seed = Math.floor(Math.random() * 1e6); ctrl('fgi-tseed').value = p.seed; edited(node, true); }); } });
+      rows.push({ html: '<p class="org-panel__hint">Rotates and flips every Element in its own cell — the grid stays as it is. The rotation adds up: Rotation, then Rotation per cell, then the random turn. Two of these nodes add up too.</p>' });
+    } else rows.push({ html: '<p class="org-panel__hint">Rotates and mirrors the Repeat in grid just before it in the chain — quarter turns only. Two of them add up.</p>' });
   } else if (node.type === 'composition') {
     const rs = p.rules || [], figs = ctl.model.edges.filter(e => e.from.node === node.id && e.to.port === 'composition').map(e => NC.findNode(ctl.model, e.to.node)).filter(Boolean);
     rows.push({ html: `<div class="sub-label">Region rules</div>${rs.length ? `<div class="fg-list fg-list--static" role="list">${rs.map(r => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}" role="listitem"><div class="org-layer-card__head"><span class="org-layer-card__title">${esc(describeComposeRule(r, compInks(node)))}${r.off ? ' (off)' : ''}</span></div></div>`).join('')}</div>` : '<p class="org-panel__hint">No region rules yet.</p>'}
@@ -885,7 +915,7 @@ const groupedOptions = groups => groups.map(([g, os]) => { const o = os.map(([v,
 const N_HINT = { ring: 'Ring 0 is the centre.', sector: 'Sector 0 starts on the right; they count clockwise.' };
 const N_LABEL = { row: 'Row number', col: 'Column number', ring: 'Ring', sector: 'Sector', index: 'Cell number' };   // what the number counts
 function ruleFrom(which, n, does) {
-  const when = which === 'all' ? {} : which === 'up' || which === 'down' ? { class: which } : which === 'odd' || which === 'even' ? { parity: which } : { [which]: Math.max(0, n - (which === 'ring' || which === 'sector' ? 0 : 1)) };
+  const when = whenOf(which, n);
   const d = does === 'empty' ? { content: 'empty' } : does === 'filled' ? { content: 'filled' } : does === 'rsector' ? { rotate: 'sector' } : does[0] === 'r' ? { rotate: +does.slice(1) } : does === 'fh' ? { flipH: true } : { flipV: true };
   return { when, do: d };
 }
@@ -1611,7 +1641,7 @@ export function renderFigureGraph() {
     wireLabel: (e, m) => { const src = NC.findNode(m, e.from.node); return src && src.type === 'set' ? '×' + ((src.params || {}).items || []).length : ''; },   // UI-COPY: the Set's wire is labelled ×n
     wireClass: (e, m) => { const src = NC.findNode(m, e.from.node); return !src ? '' : ['canvas', 'grid', 'palette'].includes(src.type) ? 'nc-wire--faint' : src.type === 'set' ? 'nc-wire--list' : ''; },
     onSelect: ids => { if (!composing) renderInspector(ids); syncButtons(); },   // in Compose the panel is Compose's
-    onChange: (m, reason) => { childrenAfter(reason); syncButtons(); save(); if (reason !== 'move' && reason !== 'params') { if (composing) renderComposeInspector(); else renderInspector(ctl.selection()); } },
+    onChange: (m, reason) => { childrenAfter(reason); syncButtons(); save(); if (reason !== 'move' && reason !== 'params') { m.nodes.forEach(n => { if (n.type === 'transform') ctl.paint(n.id); }); /* its pill says Flip or Mirror by the chain */ if (composing) renderComposeInspector(); else renderInspector(ctl.selection()); } },
     onSearch: (at, from, client) => openSearch(at, from, client),
     onWireDrop: (from, at, client) => openSearch(at, from, client),
     onBoardDblClick: (at, client) => openSearch(at, null, client),
