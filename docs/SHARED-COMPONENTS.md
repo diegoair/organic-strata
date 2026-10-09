@@ -303,7 +303,7 @@ graph could not be opened: ‹n› nodes and ‹m› connections left out* (`fvs
 ```js
 const registry = NC.createRegistry(types, { adapters: { 'grid->svg': fn } });
 // type: { meta: { id, label, category, inputs, outputs, params }, compute(inputs, params, ctx) → { <outPort>: value } }
-// port: { name, type, label?, required?, multi?, accepts? }   — inputs/outputs may be a function of the node (variable ports)
+// port: { name, type, label?, required?, multi?, chain?, accepts? }   — inputs/outputs may be a function of the node (variable ports)
 registry.get(id) · has · list() · byCategory() · inputsOf(node) · outputsOf(node) · defaults(id) · canAdapt(a, b) · adapt(a, b, v)
 NC.canConnect(model, registry, from, to)   // → { ok, multi, inType, outType } or { ok:false, reason } — reason is notice copy, one clause, no stop:
                                             //   That node is gone · That port is gone · ‹Port› can’t connect to ‹Port› · That connection would make a loop
@@ -318,7 +318,11 @@ ink (`[data-ink="x"] { --node-ink }` — **attribute-only** since Oct 8, 2026, s
 or any other element) — Rhizome's are in `rhizome/index.html`. `mount()`
 writes `data-ink` on each card = the type of its first output port (no output, as Export: its first
 input); the head is solid in it (ledger §2, Oct 8, 2026), no ink = `--border-strong`. `multi: true` = a list port (many wires,
-a square dot).
+a square dot). `chain: true` (Oct 9, 2026, FVS Rules) = a single input that is the end of a chain: a new wire into it
+when it is taken **slots in** — the source that was there moves to the new node's own free `chain` input (same type, if
+`canConnect` allows), so the chain grows instead of losing its earlier steps (`mount()` → `tryConnect`). Without a free
+chain input on the new node the old wire is replaced, as on any single input. Only `mount()` does this; `NC.addEdge` on a
+model does not.
 
 **Engine** — `NC.createEngine({ registry, isActive?(node), onState?(id, entry) })` →
 `{ run(model) → Promise<{entries}>, touch(id), get(id), forget(id), entries, isRunning() }`.

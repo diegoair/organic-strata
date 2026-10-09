@@ -190,6 +190,7 @@ function gridCanvasOf(grid) {
   return cv && !cv.fit ? cv : canvasOf({ preset: 'Square 1:1', margin: 5 });
 }
 // The Canvas / Grid / Palette feeding a Figure (null where none is connected).
+const degOf = v => { v = +v || 0; return v > 0 && v < 4 ? v * 90 : v; };   // a pose angle in degrees (graphs before Oct 9, 2026 stored 1–3 for 90–270°)
 function foundationOf(fig) {
   const m = ctl ? ctl.model : null; if (!m) return [null, null, null];
   return ['canvas', 'grid', 'palette'].map(port => { const e = m.edges.find(w => w.to.node === fig.id && w.to.port === port); return e ? NC.findNode(m, e.from.node) : null; });
@@ -690,15 +691,17 @@ function renderInspectorBody(box, ids) {
     const q = p.params || (p.params = {});
     rows.push(selectRow('Rule', 'fgi-crule', Object.entries(COMPONENT_RULES), p.rule, v => { p.rule = v; p.params = {}; edited(node, true); renderInspector(ids); }));
     if (p.rule === 'radial' || p.rule === 'pinwheel') {
-      rows.push(selectRow('Starting rotation', 'fgi-cbase', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.base || 0, v => { q.base = +v; edited(node, true); }));
+      rows.push(selectRow('Starting rotation', 'fgi-cbase', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], degOf(q.base), v => { q.base = +v; edited(node, true); }));
       rows.push(selectRow('Direction', 'fgi-cchir', [[1, 'Clockwise'], [-1, 'Counter-clockwise']], q.chirality || 1, v => { q.chirality = +v; edited(node, true); }));
     } else if (p.rule === 'mirror') {
       rows.push(selectRow('Starting rotation', 'fgi-cseed', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.seed || 0, v => { q.seed = +v; edited(node, true); }));
     } else if (p.rule === 'checkerboard') {
-      rows.push(selectRow('Cells A', 'fgi-ca', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.a || 0, v => { q.a = +v; edited(node, true); }));
-      rows.push(selectRow('Cells B', 'fgi-cb', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.b || 0, v => { q.b = +v; edited(node, true); }));
+      rows.push(selectRow('Cells A', 'fgi-ca', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], degOf(q.a), v => { q.a = +v; edited(node, true); }));
+      rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-cswap"${q.swap ? ' checked' : ''}><span>Swap A and B (start on B)</span></label>`, bind: () => ctrl('fgi-cswap').addEventListener('change', e => { q.swap = e.target.checked; edited(node, true); }) });
+      if (!q.flip) rows.push(selectRow('Cells B', 'fgi-cb', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], degOf(q.b), v => { q.b = +v; edited(node, true); }));
+      rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-cflip"${q.flip ? ' checked' : ''}><span>Flip B instead of rotate</span></label>`, bind: () => ctrl('fgi-cflip').addEventListener('change', e => { q.flip = e.target.checked; edited(node, true); renderInspector(ids); }) });
     }
-    rows.push({ html: '<p class="org-panel__hint">Lays out a Square lattice up to 4 × 4.</p>' });
+    rows.push({ html: '<p class="org-panel__hint">Poses every cell of a Square lattice Grid, any size (Radial: an even number of columns and rows). A later rule in the chain wins.</p>' });
   } else if (node.type === 'repeat') {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;
     rows.push(selectRow('Repeat as', 'fgi-rlat', Object.entries(REPEAT_LATTICES).map(([k, l]) => [k, l.label]), p.lattice, v => { p.lattice = v; p.count = REPEAT_LATTICES[v].def; edited(node, true); renderInspector(ids); }));
@@ -706,11 +709,11 @@ function renderInspectorBody(box, ids) {
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-ralt"${p.altFlip ? ' checked' : ''}><span>Alternate flip</span></label>`, bind: () => ctrl('fgi-ralt').addEventListener('change', e => { p.altFlip = e.target.checked; edited(node, true); }) });
     rows.push(selectRow('Rotation', 'fgi-rrot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
     rows.push(selectRow('Mirror', 'fgi-rmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
-    rows.push({ html: '<p class="org-panel__hint">Several Repeat in grid nodes apply in the order they were connected.</p>' });
+    rows.push({ html: '<p class="org-panel__hint">Several Repeat in grid nodes apply in the order of the chain.</p>' });
   } else if (node.type === 'transform') {
     rows.push(selectRow('Rotation', 'fgi-trot', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], +p.rotate || 0, v => { p.rotate = +v; edited(node, true); }));
     rows.push(selectRow('Mirror', 'fgi-tmir', Object.entries(MIRRORS), p.mirror || 'none', v => { p.mirror = v; edited(node, true); }));
-    rows.push({ html: '<p class="org-panel__hint">Rotates and mirrors the whole figure — needs a Repeat in grid before it.</p>' });
+    rows.push({ html: '<p class="org-panel__hint">Rotates and mirrors the Repeat in grid just before it in the chain. Two of them add up.</p>' });
   } else if (node.type === 'composition') {
     const rs = p.rules || [], figs = ctl.model.edges.filter(e => e.from.node === node.id && e.to.port === 'composition').map(e => NC.findNode(ctl.model, e.to.node)).filter(Boolean);
     rows.push({ html: `<div class="sub-label">Region rules</div>${rs.length ? `<div class="fg-list fg-list--static" role="list">${rs.map(r => `<div class="org-layer-card org-layer-card--flush${r.off ? ' is-off' : ''}" role="listitem"><div class="org-layer-card__head"><span class="org-layer-card__title">${esc(describeComposeRule(r, compInks(node)))}${r.off ? ' (off)' : ''}</span></div></div>`).join('')}</div>` : '<p class="org-panel__hint">No region rules yet.</p>'}
@@ -730,6 +733,9 @@ function renderInspectorBody(box, ids) {
         renderInspector(ids); save();
       }));
     });
+    const chainNodes = []; for (let at = node.id, e; (e = ctl.model.edges.find(w => w.to.node === at && w.to.port === 'rules')) && chainNodes.length < 64; at = e.from.node) chainNodes.unshift(NC.findNode(ctl.model, e.from.node));
+    if (chainNodes.length) rows.push({ html: `<div class="sub-label">Rules</div><ol class="fg-chain">${chainNodes.filter(Boolean).map(n => `<li><button type="button" class="fg-figlist__item" data-sel="${n.id}">${esc(nodeLabel(n))}<span class="fg-figlist__hint">${esc(nodeMeta(n))}</span></button></li>`).join('')}</ol><p class="org-panel__hint">In the order of the chain: a later rule wins.</p>`,
+      bind: () => box.querySelectorAll('.fg-chain [data-sel]').forEach(b => b.addEventListener('click', () => ctl.select([b.dataset.sel]))) });
     const hasSet = ctl.model.edges.some(e => e.to.node === node.id && e.to.port === 'content' && (NC.findNode(ctl.model, e.from.node) || {}).type === 'set');
     if (hasSet && p.onlyItem) rows.push({ html: `<p class="org-panel__hint">Made from one item of the Set: ${esc(p.onlyItem.name)}.</p><div class="row-btns"><button type="button" class="mini-btn" id="fgi-allitems">Use the whole Set</button></div>`,
       bind: () => ctrl('fgi-allitems').addEventListener('click', () => { delete p.onlyItem; edited(node, true); renderInspector(ids); }) });
@@ -1469,9 +1475,42 @@ function loadModel() {
   graphName = (e && e.name) || '';
   return ensureNames(e && e.model ? safeModel(e.model) : starterModel());
 }
+// Rules became a chain (Diego, Oct 9, 2026): a graph saved before, with several rule wires into one Figure, is rewired
+// as one chain in the order the old engine applied them — so it draws as before: the first Component rule, then every
+// Cell rules (in wire order), every Repeat in grid (in wire order), the last Rotate & mirror. What the old engine
+// ignored (a second Component rule, an earlier Rotate & mirror) stays on the board, unwired. A rule node that also fed
+// elsewhere is copied for this Figure, so no other Figure changes. Returns the model; chainRules.rewired = Figures rewired.
+const RULE_TYPES = new Set(['cell-rules', 'component-rule', 'repeat', 'transform']);
+export function chainRules(src) {
+  const m = { ...src, nodes: (src.nodes || []).slice(), edges: (src.edges || []).slice() };
+  let rewired = 0;
+  m.nodes.filter(n => n.type === 'figure' || n.type === 'figure-var').forEach(fig => {
+    const ins = m.edges.filter(e => e.to.node === fig.id && e.to.port === 'rules');
+    if (ins.length < 2 || !ins.every(e => { const n = NC.findNode(m, e.from.node); return n && RULE_TYPES.has(n.type); })) return;
+    const of = t => ins.map(e => NC.findNode(m, e.from.node)).filter(n => n.type === t);
+    const reps = of('repeat'), lastRep = reps[reps.length - 1], lp = (lastRep && lastRep.params) || {};
+    const ownTurn = lastRep && ((+lp.rotate || 0) || (lp.mirror && lp.mirror !== 'none'));   // the old engine ignored Rotate & mirror when the last Repeat had its own
+    const order = [...of('component-rule').slice(0, 1), ...of('cell-rules'), ...reps, ...(ownTurn ? [] : of('transform').slice(-1))];
+    m.edges = m.edges.filter(e => !ins.includes(e));
+    let prev = null;
+    order.forEach(n0 => {
+      let n = n0;
+      if (m.edges.some(w => w.from.node === n.id) || m.edges.some(w => w.to.node === n.id && w.to.port === 'rules')) {
+        n = { ...JSON.parse(JSON.stringify(n0)), id: NC.nextId('n'), x: n0.x, y: n0.y + 96 }; m.nodes.push(n);
+      }
+      if (prev) m.edges.push({ id: NC.nextId('e'), from: { node: prev.id, port: 'rules' }, to: { node: n.id, port: 'rules' } });
+      prev = n;
+    });
+    m.edges.push({ id: NC.nextId('e'), from: { node: prev.id, port: 'rules' }, to: { node: fig.id, port: 'rules' } });
+    rewired++;
+  });
+  chainRules.rewired = rewired;
+  return m;
+}
+const chainNotice = () => { if (chainRules.rewired) Organica.notice(`Rules are now a chain — ${chainRules.rewired === 1 ? 'one Figure was' : chainRules.rewired + ' Figures were'} rewired, drawing as before`); };
 // A stored or opened graph, made safe to run (unknown nodes, broken or looping wires dropped) — said, not silent.
 function safeModel(m) {
-  const r = NC.repairModel(m, registry), d = r.dropped;
+  const r = NC.repairModel(chainRules(m), registry), d = r.dropped; chainNotice();
   const t = NC.droppedText(d); if (t) Organica.notice(t, { kind: 'error' });
   return r.model;
 }
@@ -1502,7 +1541,7 @@ function initGraphMenu() {
       del: ctrl('fg-graph-delete'), newGraph: ctrl('fg-graph-new'), open: ctrl('fg-graph-open'), file: ctrl('fg-graph-file'), input: ctrl('fg-graph-input') },
     store: GRAPHS, getModel: () => ctl.model, hidden: n => n === CURRENT,
     normalize: m => ensureNames(safeModel(m)),
-    load: (model) => { ctl.setModel(model); if (syncChildren()) ctl.commit('sync', { amend: true }); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); },
+    load: (model) => { ctl.setModel(chainRules(model)); chainNotice(); if (syncChildren()) ctl.commit('sync', { amend: true }); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); },
     fileTool: 'fvs-figure-graph', fileName: 'fvs-graph', dirtyKey: 'fvs-figure-graph',
     openFile: data => { if (!data || data.tool !== 'fvs-recipe') return false; const why = recipeProblem(data); if (why) { Organica.notice(why, { kind: 'error' }); return true; } openBuiltin(data); Organica.notice('Recipe opened as a graph'); return true; },
     onSaved: () => save(),

@@ -82,7 +82,9 @@
   }
 
   // ── Registry: type id → { meta:{id,label,category,inputs,outputs,params}, compute(inputs, params, ctx) } ──
-  // port: { name, type, label?, required?, multi? } · `inputs` may be a function of the node (variable ports).
+  // port: { name, type, label?, required?, multi?, chain? } · `inputs` may be a function of the node (variable ports).
+  // chain: a single input that is a chain's end (FVS Rules) — a new wire into it slots in: what was wired there moves to
+  // the new source's own chain input (same type, free), so the chain grows instead of losing its earlier steps.
   function createRegistry(types, opts) {
     opts = opts || {};
     var map = new Map();
@@ -648,7 +650,13 @@
     function tryConnect(from, to) {
       var r = canConnect(ctl.model, registry, from, to);
       if (!r.ok) { if (Organica.notice) Organica.notice(r.reason); else announce(r.reason); changed('wire'); return null; }
+      var tn0 = findNode(ctl.model, to.node), ip0 = tn0 && registry.inputsOf(tn0).filter(function (q) { return q.name === to.port; })[0];
+      var was = ip0 && ip0.chain ? ctl.model.edges.filter(function (e) { return e.to.node === to.node && e.to.port === to.port && e.from.node !== from.node; })[0] : null;
       var edge = addEdge(ctl.model, from, to, r.multi);
+      if (was) {   // slot in: the old end of the chain now feeds the new step's own chain input
+        var sn = findNode(ctl.model, from.node), slot = sn && registry.inputsOf(sn).filter(function (q) { return q.chain && !ctl.model.edges.some(function (e) { return e.to.node === sn.id && e.to.port === q.name; }); })[0];
+        if (slot && canConnect(ctl.model, registry, was.from, { node: sn.id, port: slot.name }).ok) addEdge(ctl.model, was.from, { node: sn.id, port: slot.name }, false);
+      }
       touchDown(to.node);
       var tc = cards.get(to.node), td = tc && tc.ports.get('in:' + to.port); if (td) pop(td.el); if (tc) pop(tc.el);
       var a = findNode(ctl.model, from.node), b = findNode(ctl.model, to.node);

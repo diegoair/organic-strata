@@ -477,6 +477,8 @@
   .fg-rename:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
   .fg-rename__input { width: 10em; max-width: 100%; text-align: left; }
   .fg-figlist { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-3); }
+  .fg-chain { list-style: none; margin: 0 0 var(--space-1); padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }   /* a Figure's rule chain, first to last */
+  .fg-chain .fg-figlist__item { width: 100%; }
   .fg-figlist__item { display: flex; flex-direction: column; align-items: flex-start; gap: 0; padding: var(--space-1) var(--space-2); background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--ink); font: inherit; font-size: var(--t-control-size); text-align: left; cursor: pointer; }
   @media (hover: hover) { .fg-figlist__item:hover { border-color: var(--ink); } }
   .fg-figlist__item:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

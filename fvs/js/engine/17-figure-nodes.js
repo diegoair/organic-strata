@@ -33,7 +33,7 @@ import {
   cwSolve
 } from './06-component-ui.js';
 import {
-  componentCellsFromRule, ruleMatches
+  componentCellsFromRule, ruleMatches, squareCR
 } from './13-figure-engine.js';
 import {
   FG_HUE_TURNS, describeRule
@@ -119,7 +119,10 @@ export const REPEAT_LATTICES = {
 };
 export function ruleOf(type, p) {
   if (type === 'cell-rules') return { kind: 'cells', rules: clone(p.rules || []) };
-  if (type === 'component-rule') return { kind: 'component', rule: p.rule || 'radial', params: clone(p.params || {}) };
+  if (type === 'component-rule') {   // pose angles in degrees — graphs saved before Oct 9, 2026 stored 1–3 for 90–270° (then drawn as 1–3°)
+    const q = clone(p.params || {}); ['base', 'a', 'b'].forEach(k => { if (+q[k] > 0 && +q[k] < 4) q[k] = +q[k] * 90; });
+    return { kind: 'component', rule: p.rule || 'radial', params: q };
+  }
   if (type === 'repeat') {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square, n = Math.max(L.min, Math.min(L.max, +p.count || L.def));
     const r = { kind: 'repeat', level: { kind: 'grid', lattice: { type: p.lattice in REPEAT_LATTICES ? p.lattice : 'square', [L.key]: n } } };
@@ -130,6 +133,40 @@ export function ruleOf(type, p) {
   }
   if (type === 'transform') return { kind: 'transform', transform: { rotate: +p.rotate || 0, mirror: p.mirror || 'none' } };
   return null;
+}
+// Rules are a chain (Diego, Oct 9, 2026): rule → rule → Figure, and the order is the chain's. A rule node's output is
+// the ordered list so far (its upstream chain + itself). chainOf flattens whatever arrives on a Rules input — a chain,
+// one rule (a graph saved before chains), or a list of either — into one ordered list of rules.
+export const chainOf = x => [].concat(...[].concat(x == null ? [] : x).map(v => [].concat(v == null ? [] : v))).filter(Boolean);
+const MIRROR_AXES = { none: '', v: 'v', h: 'h', vh: 'vh' };
+const mergeMirror = (a, b) => { const s = new Set((MIRROR_AXES[a] || '') + (MIRROR_AXES[b] || '')); return s.has('v') && s.has('h') ? 'vh' : s.has('v') ? 'v' : s.has('h') ? 'h' : 'none'; };
+// The chain → what the recipe needs, in one pass: cell rules (a Component rule's pose overwrites the turns and flips
+// of the cell rules before it — a later step wins, as everywhere in the chain), the last Component rule, the Repeat
+// levels in order, and each Rotate & mirror on the Repeat just before it in the chain.
+export function chainPlan(chain) {
+  const lastComp = chain.map(r => r.kind).lastIndexOf('component');
+  const cellRules = [], levels = [], tfs = [];
+  chain.forEach((r, i) => {
+    if (r.kind === 'cells') (r.rules || []).forEach(c => {
+      if (i < lastComp && c.do) {   // before the pose: its turn / flip is overwritten, the rest (empty, filled, scale) stays
+        const d = { ...c.do }; delete d.rotate; delete d.flipH; delete d.flipV;
+        if (Object.keys(d).length) cellRules.push({ ...clone(c), do: d });
+      } else cellRules.push(clone(c));
+    });
+    else if (r.kind === 'repeat') { levels.push(clone(r.level)); tfs.push([]); }
+    else if (r.kind === 'transform') {
+      if (!levels.length) throw new Error('Rotate & mirror needs a Repeat in grid before it in the chain');
+      tfs[levels.length - 1].push(r.transform);
+    }
+  });
+  let transform = null;
+  levels.forEach((lv, li) => {
+    const list = tfs[li]; if (!list.length) return;
+    if (li === levels.length - 1 && !lv.transform && list.length === 1) { transform = clone(list[0]); return; }   // the last Repeat's own: as a recipe's transform (unchanged recipes)
+    const t = list.reduce((acc, x) => ({ rotate: ((acc.rotate + (+x.rotate || 0)) % 360 + 360) % 360, mirror: mergeMirror(acc.mirror, x.mirror) }), { rotate: (lv.transform && lv.transform.rotate) || 0, mirror: (lv.transform && lv.transform.mirror) || 'none' });
+    if (t.rotate || t.mirror !== 'none') lv.transform = t; else delete lv.transform;
+  });
+  return { cellRules, compRule: lastComp >= 0 ? chain[lastComp] : null, repeats: levels, transform };
 }
 
 // ── Figure: compile → recipe (v2) → evalFigure ──
@@ -145,6 +182,7 @@ export const FIGURE_RENDER_CAP = 24;   // ledger O-37 — measured at the Phase 
 // A Figure node's output. With a Set connected and Fan out on: one group per Set item (that item as the content, the
 // other contents kept), each with its own variations; otherwise one group. → main figure + variations (+ groups).
 export async function figureWithVariations(inputs, p) {
+  inputs = { ...inputs, rules: chainOf(inputs.rules) };   // the chain, flat and ordered, for every variation
   const all = (inputs.content || []).filter(Boolean), set = all.find(c => c.kind === 'set');
   const others = set ? all.filter(c => c !== set) : all, items = set ? set.items : [];
   if (set && p.onlyItem) {   // "New Figure from this" on a fan-out variation: that item only (by name, else by place)
@@ -207,15 +245,11 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   return main;
 }
 export async function compileFigure(inputs, params, opts) {
-  const cv = inputs.canvas, grid = inputs.grid, pal = inputs.palette, rules = (inputs.rules || []).filter(Boolean);
+  const cv = inputs.canvas, grid = inputs.grid, pal = inputs.palette, rules = chainOf(inputs.rules);
   const contents = [].concat(...(inputs.content || []).filter(Boolean).map(c => c.kind === 'set' ? c.items : [c])).filter(Boolean);
   if (!contents.length) throw new Error('Connect a Content input');
   if (contents.some(c => c.kind === 'symbol')) throw new Error('A Symbol as content is not available yet — use Elements and Components for now');
-  const cellRules = [].concat(...rules.filter(r => r.kind === 'cells').map(r => r.rules));
-  const compRule = rules.find(r => r.kind === 'component');
-  const repeats = rules.filter(r => r.kind === 'repeat').map(r => clone(r.level));
-  const final = rules.filter(r => r.kind === 'transform').pop();
-  if (final && !repeats.length) throw new Error('Rotate & mirror needs a Repeat in grid before it');
+  const { cellRules, compRule, repeats, transform: final } = chainPlan(rules);
   const colors = pal && pal.colors && pal.colors.length ? pal.colors.slice() : null;
   const colorRule = pal ? { ...DEFAULT_COLOR_RULE, ...(pal.rule || {}) } : { ...DEFAULT_COLOR_RULE };
   const paper = pal && pal.paper ? pal.paper : '#ffffff';
@@ -226,14 +260,15 @@ export async function compileFigure(inputs, params, opts) {
     .map(r => r.do && r.do.arrange && r.do.arrange.live ? { ...r, do: { ...r.do, arrange: { ...r.do.arrange, pool: contents.slice() } } } : r);   // a live Arrange lays out the content feeding the Figure now
   const lattice = isLattice(grid.gen);
   let element, first;
-  if (lattice && imported && !(compRule && cellRules.length) && !composeRules.length) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
+  const compSmall = l => l.type === 'square' && l.cols <= 4 && l.rows <= 4;   // a built-in's Component level: up to 4 × 4
+  if (lattice && imported && !(compRule && cellRules.length) && !(compRule && !compSmall(latticeOf(grid))) && !composeRules.length) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
     element = { ...clone(imported), colors: colors && !params.keepOwn ? colors : clone(imported.colors || ['#000000']), paper };
     if (pal && pal.ground) element.ground = clone(pal.ground);
     if (pal && !params.keepOwn) element.colorRule = colorRule; else delete element.colorRule;
     if (params.keepOwn && imported.colorRule) element.colorRule = clone(imported.colorRule);   // Keep own colours: the built-in's own inks and rule
     if (pal && (pal.rule || {}).mode === DEFAULT_COLOR_RULE.mode && !imported.colorRule) delete element.colorRule;
     if (compRule) {
-      const l = latticeOf(grid); if (l.type !== 'square' || l.cols > 4 || l.rows > 4) throw new Error('A Component rule needs a Square lattice up to 4 × 4');
+      const l = latticeOf(grid);
       first = { kind: 'component', grid: `square${l.cols}x${l.rows}`, rule: compRule.rule, params: clone(compRule.params) };
     } else {
       const l = latticeOf(grid);
@@ -249,11 +284,11 @@ export async function compileFigure(inputs, params, opts) {
     // A Palette recolours the content (a Component through its colourway — its own colour rule still picks the inks);
     // "Keep own colours" leaves every content in the colours it was saved with.
     if (pal && colors && !params.keepOwn) cells.forEach(c => { if (c.source === 'component') c.colourway = { colors: colors.slice(), paper }; });
-    if (compRule) {   // a Component rule poses the cells of a small Square lattice
+    if (compRule) {   // a Component rule poses every cell of a Square lattice, by its place (any size; Radial: even × even)
       const l = lattice ? latticeOf(grid) : null;
-      if (!l || l.type !== 'square' || l.cols > 4 || l.rows > 4) throw new Error('A Component rule needs a Square lattice up to 4 × 4');
-      const posed = componentCellsFromRule(compRule.rule, compRule.params);
-      cells = cells.map((c, i) => { const q = posed[i % posed.length] || {}; return { ...c, rotation: q.rotation || 0, flipH: !!q.flipH, flipV: !!q.flipV }; });
+      if (!l || l.type !== 'square') throw new Error('A Component rule needs a Square lattice Grid — this Figure’s Grid is ' + (l ? 'a ' + l.type.charAt(0).toUpperCase() + l.type.slice(1) + ' lattice' : 'a Loom grid'));
+      const posed = componentCellsFromRule(compRule.rule, compRule.params, squareCR(l.cols, l.rows || l.cols));
+      cells = cells.map((c, i) => { const q = posed[i] || {}; return { ...c, rotation: q.rotation || 0, flipH: !!q.flipH, flipV: !!q.flipV }; });
     }
     const componentEntries = {};
     contents.forEach(c => { if (c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
@@ -266,7 +301,7 @@ export async function compileFigure(inputs, params, opts) {
     if (composeRules.length && pal && colors && !params.keepOwn) first.paletteColourway = { colors: colors.slice(), paper };
   }
   const recipe = { tool: 'fvs-recipe', version: 2, element, levels: [first, ...repeats] };
-  if (final) recipe.transform = clone(final.transform);
+  if (final) recipe.transform = clone(final);
   const r = evalFigure(recipe, opts);
   const fitted = !cv.fit && (lattice || repeats.length);
   // a placement on a cell this grid no longer has: kept in the Composition, not drawn — reported
@@ -325,7 +360,7 @@ const CHANGES = { grid: changeGrid, palette: changePalette, content: null, cells
 const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) => n + (c.kind === 'set' ? c.items.length : 1), 0);   // a Set counts its items
 export function varyInputs(inputs, spec, keep) {
   keep = keep || {};
-  const inp = { ...inputs, rules: (inputs.rules || []).slice() }, rng = mulberry32((spec.seed * 2654435761) >>> 0), labels = [], extra = {};
+  const inp = { ...inputs, rules: chainOf(inputs.rules) }, rng = mulberry32((spec.seed * 2654435761) >>> 0), labels = [], extra = {};
   const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells
     let did = false;
     if (!keep.grid && gridSpec(inp.grid.gen).params.some(x => x[0] === 'seed')) { inp.grid = { gen: inp.grid.gen, params: { ...gridDefaults(inp.grid.gen), ...(inp.grid.params || {}), seed: Math.floor(rng() * 1000) } }; labels.push('Grid: new seed'); did = true; }
@@ -444,7 +479,8 @@ export function graphFromRecipe(def, elementName) {
   if ((tr.rotate || 0) || (tr.mirror && tr.mirror !== 'none')) add('tr', 'transform', { rotate: tr.rotate || 0, mirror: tr.mirror || 'none' });
   add('figure', 'figure', { fit: first.fit || 'contain', clip: true, symbolFit: first.fit || null }, null);
   edges.push(['canvas', 'canvas', 'figure', 'canvas'], ['grid', 'grid', 'figure', 'grid'], ['palette', 'palette', 'figure', 'palette'], ['element', 'content', 'figure', 'content']);
-  nodes.filter(n => ['cell-rules', 'component-rule', 'repeat', 'transform'].includes(n.type)).forEach(n => edges.push([n.ref, 'rules', 'figure', 'rules']));
+  const chain = nodes.filter(n => ['cell-rules', 'component-rule', 'repeat', 'transform'].includes(n.type));   // one chain, in the recipe's order
+  chain.forEach((n, k) => edges.push([n.ref, 'rules', k + 1 < chain.length ? chain[k + 1].ref : 'figure', 'rules']));
   return { nodes, edges };
 }
 
@@ -454,7 +490,7 @@ export function graphFromRecipe(def, elementName) {
 // are added after the parent's — and the variation's change is then made again on top. No own input: the parent's
 // drawing, as is.
 const OVERRIDES = ['canvas', 'grid', 'palette', 'composition'];
-export const hasOverrides = i => OVERRIDES.some(k => i[k]) || (i.content || []).some(Boolean) || (i.rules || []).some(Boolean);
+export const hasOverrides = i => OVERRIDES.some(k => i[k]) || (i.content || []).some(Boolean) || chainOf(i.rules).length > 0;
 export const childKey = (slot, item) => slot + '|' + (item == null ? '' : item);
 export async function figureVariation(i, p) {
   const par = i.from; if (!par) throw new Error('Connect it to its Figure');
@@ -466,7 +502,7 @@ export async function figureVariation(i, p) {
   const one = (f, label = v.label) => ({ ...f, variations: [{ key: 'base', svg: f.svg, label, pinned: !!v.pinned, spec: v.spec, slot: v.slot, item: v.item }], groups: undefined, capped: undefined, failedVariations: undefined });
   if (!hasOverrides(i) || !v.src) return { figure: one({ ...par, ...(v.res || {}), svg: v.svg, canvas: (v.res || par).canvas || par.canvas, checks: null }) };
   const s = v.src, own = (i.content || []).filter(Boolean);
-  const inp = { ...s.inputs, rules: (s.inputs.rules || []).concat((i.rules || []).filter(Boolean)) };
+  const inp = { ...s.inputs, rules: chainOf(s.inputs.rules).concat(chainOf(i.rules)) };   // its own chain goes after the Figure's
   OVERRIDES.forEach(k => { if (i[k]) inp[k] = i[k]; });
   if (own.length) inp.content = own;
   let r;
@@ -476,7 +512,7 @@ export async function figureVariation(i, p) {
   if (i.palette) keep.palette = true;
   if (i.grid) keep.grid = true;
   if (own.length) keep.content = true;
-  if ((i.rules || []).some(Boolean)) { keep.cells = true; keep.transform = true; }
+  if (chainOf(i.rules).length) { keep.cells = true; keep.transform = true; }
   if (v.spec) { const vr = varyInputs(inp, v.spec, keep); r = await compileFigure(vr.inputs, { ...s.params, ...s.extra, ...vr.extra }, { checks: false }); return { figure: one(r, vr.label) }; }
   r = await compileFigure(inp, { ...s.params, ...s.extra }, { checks: false });
   return { figure: one(r) };
@@ -484,6 +520,8 @@ export async function figureVariation(i, p) {
 
 // ── The registry entries (meta + compute). Labels: UI-COPY §2. ──
 const RULE_OUT = [{ name: 'rules', type: 'rule', label: 'Rules' }];
+const RULE_IN = [{ name: 'rules', type: 'rule', label: 'Rules', chain: true }];   // the chain so far (a new rule wired in slots in)
+const chained = (type, i, p) => ({ rules: [...chainOf(i.rules), ruleOf(type, p)] });
 export function figureNodeTypes() {
   return [
     { meta: { id: 'canvas', label: 'Canvas', category: 'Foundation', pill: true, icon: 'node-canvas', inputs: [], outputs: [{ name: 'canvas', type: 'canvas', label: 'Canvas' }],
@@ -508,24 +546,24 @@ export function figureNodeTypes() {
         params: [{ name: 'items', default: [] }] },
       compute: (i, p) => { const items = (p.items || []).filter(x => x && x.snapshot).map(x => ({ kind: x.kind, name: x.name, entry: x.snapshot }));
         if (!items.length) throw new Error('Add saved Elements or Components to the Set'); return { content: { kind: 'set', name: p.name || 'Set', items } }; } },
-    { meta: { id: 'cell-rules', label: 'Cell rules', category: 'Rules', pill: true, icon: 'node-cell-rules', inputs: [], outputs: RULE_OUT, params: [{ name: 'rules', default: [] }] },
-      compute: (i, p) => ({ rules: ruleOf('cell-rules', p) }) },
-    { meta: { id: 'component-rule', label: 'Component rule', category: 'Rules', pill: true, icon: 'node-component-rule', inputs: [], outputs: RULE_OUT, params: [{ name: 'rule', default: 'radial' }, { name: 'params', default: {} }] },
-      compute: (i, p) => ({ rules: ruleOf('component-rule', p) }) },
-    { meta: { id: 'repeat', label: 'Repeat in grid', category: 'Rules', pill: true, icon: 'node-repeat', inputs: [], outputs: RULE_OUT,
+    { meta: { id: 'cell-rules', label: 'Cell rules', category: 'Rules', pill: true, icon: 'node-cell-rules', inputs: RULE_IN, outputs: RULE_OUT, params: [{ name: 'rules', default: [] }] },
+      compute: (i, p) => chained('cell-rules', i, p) },
+    { meta: { id: 'component-rule', label: 'Component rule', category: 'Rules', pill: true, icon: 'node-component-rule', inputs: RULE_IN, outputs: RULE_OUT, params: [{ name: 'rule', default: 'radial' }, { name: 'params', default: {} }] },
+      compute: (i, p) => chained('component-rule', i, p) },
+    { meta: { id: 'repeat', label: 'Repeat in grid', category: 'Rules', pill: true, icon: 'node-repeat', inputs: RULE_IN, outputs: RULE_OUT,
         params: [{ name: 'lattice', default: 'square' }, { name: 'count', default: 2 }, { name: 'cellSize', default: null }, { name: 'altFlip', default: false }, { name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }] },
-      compute: (i, p) => ({ rules: ruleOf('repeat', p) }) },
+      compute: (i, p) => chained('repeat', i, p) },
     { meta: { id: 'composition', label: 'Composition', category: 'Rules', pill: true, icon: 'node-composition', inputs: [], outputs: [{ name: 'composition', type: 'composition', label: 'Composition' }], params: [{ name: 'rules', default: [] }] },
       compute: (i, p) => ({ composition: { rules: clone(p.rules || []) } }) },
-    { meta: { id: 'transform', label: 'Rotate & mirror', category: 'Rules', pill: true, icon: 'node-transform', inputs: [], outputs: RULE_OUT, params: [{ name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }] },
-      compute: (i, p) => ({ rules: ruleOf('transform', p) }) },
+    { meta: { id: 'transform', label: 'Rotate & mirror', category: 'Rules', pill: true, icon: 'node-transform', inputs: RULE_IN, outputs: RULE_OUT, params: [{ name: 'rotate', default: 0 }, { name: 'mirror', default: 'none' }] },
+      compute: (i, p) => chained('transform', i, p) },
     { meta: { id: 'export', label: 'Export', category: 'Output', pill: true, icon: 'download', inputs: [{ name: 'figures', type: 'figure', label: 'Figures', multi: true, required: true }], outputs: [],
         params: [{ name: 'which', default: 'all' }, { name: 'formats', default: { svg: true, png: false, plates: false } }, { name: 'scales', default: [1] }, { name: 'transparent', default: false }] },
       compute: (i, p, ctx) => ({ files: null }) },   // the UI fills the plan from the Figures' own results (they carry no names here)
     { meta: { id: 'figure', label: 'Figure', category: 'Content', icon: 'fvs-figure',   // with Content in the bar; a capped card (Diego, Oct 9, 2026)
         inputs: [{ name: 'canvas', type: 'canvas', label: 'Canvas', required: true }, { name: 'grid', type: 'grid', label: 'Grid', required: true },
           { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', required: true, multi: true },
-          { name: 'rules', type: 'rule', label: 'Rules', multi: true }, { name: 'composition', type: 'composition', label: 'Composition' }],
+          { name: 'rules', type: 'rule', label: 'Rules', chain: true }, { name: 'composition', type: 'composition', label: 'Composition' }],
         outputs: [{ name: 'figure', type: 'figure', label: 'Figure' }],
         params: [{ name: 'fit', default: 'contain' }, { name: 'clip', default: true }, { name: 'keepOwn', default: false }, { name: 'symbolFit', default: null },
           { name: 'variations', default: 4 }, { name: 'varyBy', default: 'one' }, { name: 'seed', default: 1 }, { name: 'keep', default: {} }, { name: 'layout', default: 'rows' },
@@ -535,7 +573,7 @@ export function figureNodeTypes() {
         inputs: [{ name: 'from', type: 'figure', label: 'Figure', required: true },
           { name: 'canvas', type: 'canvas', label: 'Canvas' }, { name: 'grid', type: 'grid', label: 'Grid' },
           { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', multi: true },
-          { name: 'rules', type: 'rule', label: 'Rules', multi: true }, { name: 'composition', type: 'composition', label: 'Composition' }],
+          { name: 'rules', type: 'rule', label: 'Rules', chain: true }, { name: 'composition', type: 'composition', label: 'Composition' }],
         outputs: [{ name: 'figure', type: 'figure', label: 'Figure' }],
         params: [{ name: 'parent', default: null }, { name: 'slot', default: 1 }, { name: 'item', default: null }] },
       compute: async (i, p) => figureVariation(i, p) },

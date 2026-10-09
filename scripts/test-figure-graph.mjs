@@ -223,6 +223,57 @@ const imp = await P.ev(`
     out[name] = e.state === 'ok' ? H(norm(e.value.figure.svg)) : 'ERR ' + e.message;
   }
   return out;`, PRE);
+// ── Rules as a chain (Oct 9, 2026): the order is the chain's; a later step wins; nothing silently dropped ──
+const ch = await P.ev(`
+  const norm = s => s.replace(/"exportedAt":"[^"]*"/g, '"exportedAt":""').replace(/"ruleSource":"[^"]*"/g, '"ruleSource":""').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '').replace(/(id|href|url\\()="?#?[a-z]+-?\\d+/g, '$1');
+  const reg = NC.createRegistry(F('figureNodeTypes')());
+  const def = Object.values(F('figureCatalog')())[0];
+  const entry = F('entrySnapshot')(F('elementEntryFromRecipe')(def.element)); delete entry.recipe;   // a saved Element: the general path
+  const R = { rot90: { kind: 'cell-rules', p: { rules: [{ when: {}, do: { rotate: 90 } }] } }, odd: { kind: 'cell-rules', p: { rules: [{ when: { parity: 'odd' }, do: { content: 'empty' } }] } },
+    radial: { kind: 'component-rule', p: { rule: 'radial', params: {} } }, pin: { kind: 'component-rule', p: { rule: 'pinwheel', params: {} } },
+    chk: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90 } } }, chkSwap: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90, swap: true } } },
+    chkFlip: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90, flip: true } } },
+    rep: { kind: 'repeat', p: { lattice: 'square', count: 2 } }, t90: { kind: 'transform', p: { rotate: 90, mirror: 'none' } }, t180: { kind: 'transform', p: { rotate: 180, mirror: 'none' } } };
+  const run = async (steps, grid, parallel) => {
+    const m = NC.createModel();
+    const cv = NC.addNode(m, { type: 'canvas', params: reg.defaults('canvas') });
+    const gr = NC.addNode(m, { type: 'grid', params: grid || { gen: 'lattice-square', params: { cols: 2, rows: 2 } } });
+    const en = NC.addNode(m, { type: 'element', params: { name: 'E', snapshot: entry } });
+    const f = NC.addNode(m, { type: 'figure', params: { ...reg.defaults('figure'), variations: 1 } });
+    NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: f.id, port: 'canvas' });
+    NC.addEdge(m, { node: gr.id, port: 'grid' }, { node: f.id, port: 'grid' });
+    NC.addEdge(m, { node: en.id, port: 'content' }, { node: f.id, port: 'content' }, true);
+    let prev = null;
+    steps.forEach(k => { const n = NC.addNode(m, { type: R[k].kind, params: { ...reg.defaults(R[k].kind), ...JSON.parse(JSON.stringify(R[k].p)) } });
+      if (parallel) m.edges.push({ id: NC.nextId('e'), from: { node: n.id, port: 'rules' }, to: { node: f.id, port: 'rules' } });
+      else if (prev) NC.addEdge(m, { node: prev.id, port: 'rules' }, { node: n.id, port: 'rules' });
+      prev = n; });
+    if (prev && !parallel) NC.addEdge(m, { node: prev.id, port: 'rules' }, { node: f.id, port: 'rules' });
+    const mm = parallel ? F('chainRules')(m) : m;
+    const eng = NC.createEngine({ registry: reg }); await eng.run(mm);
+    const e = eng.get(f.id);
+    return { state: e.state, msg: e.message || '', svg: e.state === 'ok' ? norm(e.value.figure.svg) : '', rulesIn: mm.edges.filter(w => w.to.node === f.id && w.to.port === 'rules').length };
+  };
+  const res = {};
+  const [cells, comp, compThenCells, cellsThenComp] = await Promise.all([run(['rot90']), run(['radial']), run(['radial', 'rot90']), run(['rot90', 'radial'])]);
+  res.allOk = [cells, comp, compThenCells, cellsThenComp].map(x => x.state + (x.msg ? ':' + x.msg : ''));
+  res.orderMatters = compThenCells.svg !== cellsThenComp.svg;
+  res.laterWinsTurn = compThenCells.svg === cells.svg && cellsThenComp.svg === comp.svg;
+  res.poseKeepsEmpty = (await run(['odd', 'radial'])).svg !== comp.svg;   // an empty cell before the pose stays empty
+  res.twoComp = (await run(['radial', 'pin'])).svg === (await run(['pin'])).svg;
+  const tNoRep = await run(['t90']), tBefore = await run(['t90', 'rep']);
+  res.tNeedsRep = /before it/.test(tNoRep.msg) && /before it/.test(tBefore.msg);
+  res.tAfter = (await run(['rep', 't90'])).state === 'ok';
+  res.twoT = (await run(['rep', 't90', 't90'])).svg === (await run(['rep', 't180'])).svg;
+  const p33 = await run(['pin'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } }), r33 = await run(['radial'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } });
+  const r44 = await run(['radial'], { gen: 'lattice-square', params: { cols: 4, rows: 4 } }), loom = await run(['radial'], { gen: 'rectangular', params: F('gridDefaults')('rectangular') });
+  res.big = p33.state === 'ok' && r44.state === 'ok' && /even/.test(r33.msg) && /Square lattice/.test(loom.msg);
+  const chk = await run(['chk']);
+  res.chkOpts = chk.state === 'ok' && (await run(['chkSwap'])).svg !== chk.svg && (await run(['chkFlip'])).svg !== chk.svg;
+  // a graph saved before chains draws as the old engine did: the first Component rule poses, then the Cell rules, whatever the wire order
+  const mig = await run(['rot90', 'radial'], null, true), mig2 = await run(['radial', 'pin'], null, true);
+  res.migrated = mig.rulesIn === 1 && mig.svg === compThenCells.svg && mig2.svg === comp.svg;
+  return res;`, PRE);
 const fails = [];
 const check = (c, m) => { if (!c) fails.push(m); };
 const impBad = Object.entries(imp).filter(([n, h]) => h !== (BASE[n] || {}).final);
@@ -279,6 +330,17 @@ check(out.expPlate, 'a plate keeps one ink, in black');
 check(out.expPrintSvg, 'a Print Canvas exports at its size in mm with bleed and crop marks');
 check(out.expPrintPng, 'a Print PNG is at the Canvas DPI, with the DPI written in');
 check(out.libUntouched, 'the real library was never written');
+check(ch.allOk.every(x => x === 'ok'), 'rule chains draw: ' + ch.allOk.join(' | '));
+check(ch.orderMatters, 'rules: the chain order changes the drawing');
+check(ch.laterWinsTurn, 'rules: a later step wins on the turn it sets (Cell rules after / before a Component rule)');
+check(ch.poseKeepsEmpty, 'rules: an empty cell from a rule before the pose stays empty');
+check(ch.twoComp, 'rules: two Component rules — the later one poses');
+check(ch.tNeedsRep, 'rules: Rotate & mirror needs a Repeat in grid before it in the chain');
+check(ch.tAfter, 'rules: Rotate & mirror after a Repeat draws');
+check(ch.twoT, 'rules: two Rotate & mirror add up (90° + 90° = 180°)');
+check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4; Radial refuses odd sizes; a Loom grid is refused with a reason');
+check(ch.chkOpts, 'rules: Checkerboard Swap A and B / Flip B change the drawing');
+check(ch.migrated, 'rules: a graph saved with parallel rule wires becomes one chain, drawing as before');
 check(out.after, 'FVS state unchanged by graph runs');
 check(!P.errors.length, 'page errors: ' + P.errors.join(' | '));
 console.log(`Figure graph: ${fails.length ? 'FAIL' : 'PASS'} — ${Object.keys(imp).length - impBad.length}/${Object.keys(imp).length} built-ins identical as graphs · 5 figures + 1 waiting, first run ${out.ms} ms, cells ${out.cells.join('/')}`);

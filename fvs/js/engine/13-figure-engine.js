@@ -11,7 +11,7 @@ import {
   getSeed
 } from './02-seed-ui.js';
 import {
-  buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, getGrid, stateFrom
+  GRID_BUILD, buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, getGrid, stateFrom
 } from './03-rules.js';
 import {
   buildComponentItems
@@ -114,14 +114,31 @@ export function applyClassRules(rules, seedType) {
     });
   });
 }
-export function componentCellsFromRule(rule, p) {
+// The poses a Component rule gives the cells. Without `cr`: the four of a 2 × 2 (row-major). With `cr` (each cell's
+// {col, row}, row-major): any Square lattice, through the Component step's own any-grid builders (GRID_BUILD — the same
+// four on a 2 × 2). Checkerboard: p.swap = start on B, p.flip = B is flipped instead of rotated (the Symbol step's pair).
+export function componentCellsFromRule(rule, p, cr) {
   p = p || {};
+  const chkA = () => stateFrom(p.a || 0, false, false, 1), chkB = () => (p.flip ? stateFrom(0, true, false, 1) : stateFrom(p.b || 0, false, false, 1));
+  if (cr) {
+    if (rule === 'radial') {
+      const cols = Math.max(...cr.map(c => c.col)) + 1, rows = Math.max(...cr.map(c => c.row)) + 1;
+      if (cols % 2 || rows % 2) throw new Error('Radial needs an even number of columns and rows');
+      return GRID_BUILD.radial(cr, p.base || 0, p.chirality || 1, 1, false);
+    }
+    if (rule === 'pinwheel') return GRID_BUILD.pinwheel(cr, p.base || 0, p.chirality || 1, 1);
+    if (rule === 'mirror') return GRID_BUILD.mirror(cr, p.seed || 0, 1);
+    if (rule === 'checkerboard') return p.swap ? GRID_BUILD.checkerboard(cr, chkB(), chkA()) : GRID_BUILD.checkerboard(cr, chkA(), chkB());
+    throw new Error('Unknown component rule: ' + rule);
+  }
   if (rule === 'radial') return buildRadialCells(p.base || 0, p.chirality || 1, 1);
   if (rule === 'pinwheel') return buildPinwheelCells(p.base || 0, p.chirality || 1, 1);
   if (rule === 'mirror') return buildMirrorCells(p.seed || 0, 1);
-  if (rule === 'checkerboard') return buildCheckerboardCells(stateFrom(p.a || 0, false, false, 1), stateFrom(p.b || 0, false, false, 1));
+  if (rule === 'checkerboard') return p.swap ? buildCheckerboardCells(chkB(), chkA()) : buildCheckerboardCells(chkA(), chkB());
   throw new Error('Unknown component rule: ' + rule);
 }
+// {col, row} of every cell of a cols × rows Square lattice, row-major
+export const squareCR = (cols, rows) => Array.from({ length: cols * rows }, (_, i) => ({ col: i % cols, row: Math.floor(i / cols) }));
 export function gridTypeFromLattice(l) {
   if (l.type === 'tier') return 'tier' + (l.stack || 1);
   if (l.type === 'triangle') return 'tri' + l.rows;
