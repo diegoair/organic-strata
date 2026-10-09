@@ -765,7 +765,7 @@ function renderInspectorBody(box, ids) {
       // Random rotation (Diego, Oct 9, 2026): how far each cell may turn at random, either way; the dice draws again
       // (the seed is kept underneath so a result comes back the same, never shown). Saved before as random: true = 180°.
       const amt = p.randomAmount != null ? +p.randomAmount : p.random ? 180 : 0;
-      rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Random rotation</div><input type="range" id="fgi-trand" min="0" max="180" step="1" value="${amt}" aria-label="Random rotation"><span class="ctrl-val" id="v-fgi-trand">${amt}°</span><button type="button" class="icon-btn" id="fgi-tseed-new" aria-label="Random seed"${amt ? '' : ' disabled'}>${Organica.icons.get('dice', { size: 'sm' })}</button></div>`,
+      rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label">Random rotation</div><input type="range" id="fgi-trand" min="0" max="180" step="1" value="${amt}" aria-label="Random rotation"><span class="ctrl-val" id="v-fgi-trand">${amt}°</span><button type="button" class="icon-btn" id="fgi-tseed-new" aria-label="Random seed"${amt ? '' : ' disabled'}>${Organica.icons.get('refresh', { size: 'sm' })}</button></div>`,
         bind: () => { const r = ctrl('fgi-trand'), v = ctrl('v-fgi-trand'), dice = ctrl('fgi-tseed-new');
           const set = commit => { p.randomAmount = +r.value; delete p.random; v.textContent = r.value + '°'; dice.disabled = !+r.value; edited(node, commit); };
           r.addEventListener('input', () => set(false)); r.addEventListener('change', () => set(true));
