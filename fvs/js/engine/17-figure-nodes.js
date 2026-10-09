@@ -142,7 +142,7 @@ const MIRROR_AXES = { none: '', v: 'v', h: 'h', vh: 'vh' };
 const mergeMirror = (a, b) => { const s = new Set((MIRROR_AXES[a] || '') + (MIRROR_AXES[b] || '')); return s.has('v') && s.has('h') ? 'vh' : s.has('v') ? 'v' : s.has('h') ? 'h' : 'none'; };
 // The chain → what the recipe needs, in one pass: cell rules (a Component rule's pose overwrites the turns and flips
 // of the cell rules before it — a later step wins, as everywhere in the chain), the last Component rule, the Repeat
-// levels in order, and each Rotate & mirror on the Repeat just before it in the chain.
+// levels in order, and each Rotate & mirror on the Repeat just before it in the chain (none: on the Figure itself).
 export function chainPlan(chain) {
   const lastComp = chain.map(r => r.kind).lastIndexOf('component');
   const cellRules = [], levels = [], tfs = [];
@@ -155,7 +155,9 @@ export function chainPlan(chain) {
     });
     else if (r.kind === 'repeat') { levels.push(clone(r.level)); tfs.push([]); }
     else if (r.kind === 'transform') {
-      if (!levels.length) throw new Error('Rotate & mirror needs a Repeat in grid before it in the chain');
+      // no Repeat before it: it turns and mirrors the Figure itself — a one-copy level (Diego, Oct 9, 2026: a Rotate &
+      // mirror wired alone used to stop the whole Figure with "needs a Repeat in grid")
+      if (!levels.length) { levels.push({ kind: 'grid', lattice: { type: 'tier', stack: 1 } }); tfs.push([]); }
       tfs[levels.length - 1].push(r.transform);
     }
   });

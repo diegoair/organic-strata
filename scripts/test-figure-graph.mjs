@@ -237,7 +237,7 @@ const ch = await P.ev(`
     radial: { kind: 'component-rule', p: { rule: 'radial', params: {} } }, pin: { kind: 'component-rule', p: { rule: 'pinwheel', params: {} } },
     chk: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90 } } }, chkSwap: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90, swap: true } } },
     chkFlip: { kind: 'component-rule', p: { rule: 'checkerboard', params: { a: 0, b: 90, flip: true } } },
-    rep: { kind: 'repeat', p: { lattice: 'square', count: 2 } }, t90: { kind: 'transform', p: { rotate: 90, mirror: 'none' } }, t180: { kind: 'transform', p: { rotate: 180, mirror: 'none' } } };
+    rep: { kind: 'repeat', p: { lattice: 'square', count: 2 } }, t90: { kind: 'transform', p: { rotate: 90, mirror: 'none' } }, t180: { kind: 'transform', p: { rotate: 180, mirror: 'none' } }, tmv: { kind: 'transform', p: { rotate: 0, mirror: 'v' } }, t0: { kind: 'transform', p: { rotate: 0, mirror: 'none' } } };
   const run = async (steps, grid, parallel) => {
     const m = NC.createModel();
     const cv = NC.addNode(m, { type: 'canvas', params: reg.defaults('canvas') });
@@ -265,8 +265,10 @@ const ch = await P.ev(`
   res.laterWinsTurn = compThenCells.svg === cells.svg && cellsThenComp.svg === comp.svg;
   res.poseKeepsEmpty = (await run(['odd', 'radial'])).svg !== comp.svg;   // an empty cell before the pose stays empty
   res.twoComp = (await run(['radial', 'pin'])).svg === (await run(['pin'])).svg;
-  const tNoRep = await run(['t90']), tBefore = await run(['t90', 'rep']);
-  res.tNeedsRep = /before it/.test(tNoRep.msg) && /before it/.test(tBefore.msg);
+  // Rotate & mirror with no Repeat before it turns / mirrors the Figure itself (Oct 9, 2026 — it used to stop the Figure)
+  const plain = await run([]), tNoRep = await run(['t90']), tBefore = await run(['t90', 'rep']), mNoRep = await run(['tmv']), t0 = await run(['t0']);
+  res.tAlone = [tNoRep, tBefore, mNoRep, t0].map(x => x.state + (x.msg ? ':' + x.msg : ''));
+  res.tNoRep = [tNoRep, tBefore, mNoRep].every(x => x.state === 'ok') && tNoRep.svg !== plain.svg && mNoRep.svg !== plain.svg && mNoRep.svg !== tNoRep.svg && tBefore.svg !== tNoRep.svg && t0.state === 'ok';
   res.tAfter = (await run(['rep', 't90'])).state === 'ok';
   res.twoT = (await run(['rep', 't90', 't90'])).svg === (await run(['rep', 't180'])).svg;
   const p33 = await run(['pin'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } }), r33 = await run(['radial'], { gen: 'lattice-square', params: { cols: 3, rows: 3 } });
@@ -274,6 +276,20 @@ const ch = await P.ev(`
   res.big = p33.state === 'ok' && r44.state === 'ok' && /even/.test(r33.msg) && /Square lattice/.test(loom.msg);
   const chk = await run(['chk']);
   res.chkOpts = chk.state === 'ok' && (await run(['chkSwap'])).svg !== chk.svg && (await run(['chkFlip'])).svg !== chk.svg;
+  // every rule node added alone to the Figure FVS opens with (default Grid / Palette, an Element) — as from the node bar
+  // (Oct 9, 2026: a Rotate & mirror alone stopped the Figure). None may stop it, except a Component rule on a Loom grid,
+  // which says why.
+  { const one = async kind => { const m = NC.createModel();
+      const cv = NC.addNode(m, { type: 'canvas', params: reg.defaults('canvas') }), gr = NC.addNode(m, { type: 'grid', params: reg.defaults('grid') }), pa = NC.addNode(m, { type: 'palette', params: reg.defaults('palette') });
+      const en = NC.addNode(m, { type: 'element', params: { name: 'E', snapshot: entry } }), f = NC.addNode(m, { type: 'figure', params: reg.defaults('figure') });
+      NC.addEdge(m, { node: cv.id, port: 'canvas' }, { node: f.id, port: 'canvas' }); NC.addEdge(m, { node: gr.id, port: 'grid' }, { node: f.id, port: 'grid' });
+      NC.addEdge(m, { node: pa.id, port: 'palette' }, { node: f.id, port: 'palette' }); NC.addEdge(m, { node: en.id, port: 'content' }, { node: f.id, port: 'content' }, true);
+      if (kind) { const r = NC.addNode(m, { type: kind, params: reg.defaults(kind) }), port = kind === 'composition' ? 'composition' : 'rules'; NC.addEdge(m, { node: r.id, port }, { node: f.id, port }); }
+      const eng = NC.createEngine({ registry: reg }); await eng.run(m); const e = eng.get(f.id); return e.state + (e.message ? ':' + e.message : ''); };
+    const kinds = ['cell-rules', 'repeat', 'transform', 'composition', 'component-rule'], got = {};
+    for (const k of kinds) got[k] = await one(k);
+    res.aloneOnDefault = kinds.map(k => k + '=' + got[k]);
+    res.aloneOk = kinds.slice(0, 4).every(k => got[k] === 'ok') && /^error:.*Square lattice/.test(got['component-rule']); }
   // a graph saved before chains draws as the old engine did: the first Component rule poses, then the Cell rules, whatever the wire order
   const mig = await run(['rot90', 'radial'], null, true), mig2 = await run(['radial', 'pin'], null, true);
   res.migrated = mig.rulesIn === 1 && mig.svg === compThenCells.svg && mig2.svg === comp.svg;
@@ -352,7 +368,8 @@ check(ch.orderMatters, 'rules: the chain order changes the drawing');
 check(ch.laterWinsTurn, 'rules: a later step wins on the turn it sets (Cell rules after / before a Component rule)');
 check(ch.poseKeepsEmpty, 'rules: an empty cell from a rule before the pose stays empty');
 check(ch.twoComp, 'rules: two Component rules — the later one poses');
-check(ch.tNeedsRep, 'rules: Rotate & mirror needs a Repeat in grid before it in the chain');
+check(ch.tNoRep, 'rules: Rotate & mirror with no Repeat before it turns / mirrors the Figure itself (alone, before a Repeat, mirror, 0°): ' + ch.tAlone.join(' | '));
+check(ch.aloneOk, 'rules: each rule alone on the default Figure draws (a Component rule on a Loom grid says why): ' + ch.aloneOnDefault.join(' | '));
 check(ch.tAfter, 'rules: Rotate & mirror after a Repeat draws');
 check(ch.twoT, 'rules: two Rotate & mirror add up (90° + 90° = 180°)');
 check(ch.big, 'rules: a Component rule on 3 × 3 / 4 × 4; Radial refuses odd sizes; a Loom grid is refused with a reason');
