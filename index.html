@@ -528,11 +528,19 @@
       draw.resize = function (w, h) {
         (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { build(w, h); });
       };
-      function pos(e) { var r = canvas.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; }
-      canvas.addEventListener('pointermove', pos);
+      // Listen on the window, not the canvas, and test the bounds here: while a mouse reports a
+      // button held (Diego's side button, Oct 2026) Chrome routes every move to the element the
+      // press began on, so a canvas listener hears nothing (the board's chordShim, same cause).
+      function pos(e) {
+        var r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+        if (x < 0 || y < 0 || x > r.width || y > r.height) { mouse.x = mouse.y = -1e4; mouse.down = false; return; }
+        mouse.x = x; mouse.y = y;
+      }
+      addEventListener('pointermove', pos, { passive: true });
+      addEventListener('mousemove', pos, { passive: true });
       canvas.addEventListener('pointerdown', function (e) { pos(e); mouse.down = true; });
       addEventListener('pointerup', function () { mouse.down = false; });
-      canvas.addEventListener('pointerleave', function () { mouse.x = mouse.y = -1e4; mouse.down = false; });
+      document.documentElement.addEventListener('mouseleave', function () { mouse.x = mouse.y = -1e4; mouse.down = false; });
       loop(canvas, draw);
 
       // ── ?tune — author-only tuning panel. Never shown to visitors. ──
