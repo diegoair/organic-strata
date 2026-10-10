@@ -290,6 +290,11 @@
       <div class="fvs-seed-preview-wrap">
         <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview — rotation and flip"></div>
       </div>
+      <!-- Element Edit (Oct 10, 2026): entered from the pencil on the canvas; the same toolbar as Component Edit. -->
+      <div id="element-edit-toolbar" class="fvs-edit-toolbar" hidden>
+        <button type="button" id="btn-element-edit-exit" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back</button>
+        <span id="element-edit-hint" class="hint">Choose a Division to divide the shape</span>
+      </div>
       <div id="element-frame" class="fvs-element-frame">
         <div id="element-svg"></div>
         <svg id="fh-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M25 0V100M50 0V100M75 0V100M0 25H100M0 50H100M0 75H100" fill="none" stroke="currentColor" stroke-width="0.3"/></svg>
@@ -308,8 +313,8 @@
            #symbol-frame); the selected cell's own shape edits live from the
            Element sidebar panel, temporarily swapped into view. -->
       <div id="component-edit-view" style="display:none">
-        <div id="component-edit-toolbar">
-          <button type="button" id="btn-component-edit-exit" class="mini-btn">← Back to gallery</button>
+        <div id="component-edit-toolbar" class="fvs-edit-toolbar">
+          <button type="button" id="btn-component-edit-exit" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back to gallery</button>
           <span id="component-edit-hint" class="hint">Click a cell to give it its own shape</span>
           <button type="button" id="btn-component-edit-save" class="panel-btn">Save as new component</button>
         </div>
@@ -359,18 +364,17 @@
   <div id="panel">
 
     <div class="tier-block active" data-tier="element">
+    <!-- Divide into parts (Oct 10, 2026): in Element Edit only. The shape becomes one layer per primordial figure,
+         still driven by the shape's own controls (layers.parts.source). Filled by renderPartsUI. -->
+    <div class="panel-section fvs-parts" id="parts-block" hidden>
+      <h3>Divide into parts</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Division</div><div id="part-method-picker" class="presets"></div><select class="panel-select" id="sel-part-method" aria-label="Division"></select></div>
+      <div class="ctrl-row" id="part-count-row"><div class="ctrl-label" title="How many parts">Parts</div><input type="range" id="rg-part-count" min="1" max="8" step="1" value="3" aria-label="Parts"><span class="ctrl-val" id="v-part-count">3</span></div>
+      <p class="org-panel__hint" id="part-hint"></p>
+      <div class="row-btns" id="part-actions-row"><button type="button" class="mini-btn" id="btn-part-inks">One ink per part</button><button type="button" class="mini-btn" id="btn-part-ungroup">Ungroup</button></div>
+    </div>
     <div class="panel-section" id="layers-section">
       <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint">Add new layer</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg class="ico ico--sm" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button></span></h3>
-      <!-- Divide into parts (Oct 10, 2026): the shape becomes one layer per primordial figure, still driven by
-           the shape's own controls (layers.parts.source). Filled by renderPartsUI. -->
-      <div id="parts-block" class="fvs-parts" style="display:none">
-        <div class="ctrl-row"><div class="ctrl-label" title="How the shape is divided into parts">Division</div><select class="panel-select" id="sel-part-method" aria-label="Division"></select></div>
-        <div class="ctrl-row" id="part-count-row"><div class="ctrl-label" title="How many parts">Parts</div><input type="range" id="rg-part-count" min="1" max="8" step="1" value="3" aria-label="Parts"><span class="ctrl-val" id="v-part-count">3</span></div>
-        <p class="org-panel__hint" id="part-hint"></p>
-        <div class="row-btns" id="part-divide-row"><button type="button" class="mini-btn" id="btn-part-divide">Divide into parts</button></div>
-        <div class="row-btns" id="part-actions-row"><button type="button" class="mini-btn" id="btn-part-edit" aria-pressed="false">Edit parts</button><button type="button" class="mini-btn" id="btn-part-inks">One ink per part</button></div>
-        <div class="row-btns" id="part-actions-row2"><button type="button" class="mini-btn" id="btn-part-ungroup">Ungroup</button><button type="button" class="mini-btn" id="btn-part-join" data-armed="Join — click again to confirm">Join parts</button></div>
-      </div>
       <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
       <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
       <div id="layer-place-block" class="org-layer-card__content fvs-layer__place" style="display:none">

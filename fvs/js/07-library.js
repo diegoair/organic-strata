@@ -57,7 +57,7 @@ import {
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  applyElementSnapshot: () => applyElementSnapshot, applySeedToPanel: () => applySeedToPanel,
+  applyElementSnapshot: () => applyElementSnapshot, applySeedToPanel: () => applySeedToPanel, enterElementEdit: () => enterElementEdit,
   deleteQuickSavedComponent: () => deleteQuickSavedComponent,
   quickSaveComponentToLibrary: () => quickSaveComponentToLibrary, renderLayersUI: () => renderLayersUI,
   showLayerStyle: () => showLayerStyle, syncComponentRoleUI: () => syncComponentRoleUI
@@ -523,9 +523,10 @@ window.addEventListener('pointercancel', () => { layerPress = null; layerDragFro
   renderGallery(); renderSeedPreview();
 }));
 // ── Divide into parts (Oct 10, 2026) ──────────────────────────────────
-// The shape becomes one layer per primordial figure (the Division), each with its own ink, role, place and look,
-// all still driven by the shape's own controls. Edit parts: click a part on the canvas to edit it, ⌘/Ctrl/Shift-click
-// to pick several (the ink chosen for one of them goes to all).
+// Element Edit (the pencil on the canvas): the Division menu — None first, each option drawn on the current shape —
+// divides the shape at once into one layer per primordial figure, each with its own ink, role, place and look, all
+// still driven by the shape's own controls. On the canvas: click a part to edit it, ⌘/Ctrl/Shift-click to pick several
+// (the ink chosen for one of them goes to all). Back to None joins the shape; the parts' settings are kept for the session.
 const partSource = () => (state.layers && state.layers.parts ? state.layers.parts.source : (state.layers ? null : panelSeedSnapshot()));
 export function partGroupName(L) {
   const src = L.parts.source, m = partMethodsFor(src).find(x => x.id === L.parts.method);
@@ -544,75 +545,111 @@ function partChoice() {
   let src = null;
   try { src = partSource(); } catch (e) { src = null; }
   const L = state.layers, methods = src ? partMethodsFor(src) : [];
-  const want = L && L.parts ? L.parts.method : rt.partMethod;
-  const m = methods.find(x => x.id === want && !x.reason) || methods.find(x => !x.reason) || methods[0] || null;
-  const count = !m || !m.count ? 0 : Math.max(m.count[0], Math.min(m.count[1], L && L.parts && L.parts.method === m.id && L.parts.count ? L.parts.count : (rt.partCount && rt.partMethod === m.id ? rt.partCount : m.count[2])));
+  const m = L && L.parts ? methods.find(x => x.id === L.parts.method) || null : null;
+  const count = !m || !m.count ? 0 : Math.max(m.count[0], Math.min(m.count[1], L.parts.count || m.count[2]));
   return { L, src, methods, m, count };
 }
+// The Division menu's thumbnails: the current shape, divided each way, its parts in the Palette's inks (two at least).
+const partThumbRegistry = { none: { name: 'None', thumb: () => partThumb(null) } };
+function partThumb(method) {
+  let src = null;
+  try { src = partSource(); } catch (e) { return ''; }
+  if (!src || !SEED_TYPES[src.type]) return '';
+  const inks = state.colors.length > 1 ? state.colors : [state.colors[0], ...LAYER_NEW_INKS.slice(0, 5)];
+  const m = method && partMethodsFor(src).find(x => x.id === method);
+  const res = method ? partsOf({ source: src, method, count: m && m.count ? m.count[2] : 0 }) : null;
+  const geos = res && !res.reason ? res.list.map(p => p.geo) : [SEED_TYPES[src.type].geometry(src)];
+  const g0 = geos[0];
+  if (!g0 || !g0.d) return '';
+  const T = `translate(${(g0.normTx * g0.normScale).toFixed(3)},${(g0.normTy * g0.normScale).toFixed(3)}) scale(${g0.normScale.toFixed(4)})`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 108 108"><rect x="-4" y="-4" width="108" height="108" fill="${state.paperColor}"/><g transform="${T}">`
+    + geos.map((g, i) => `<path d="${g.d}"${g.fillRule ? ` fill-rule="${g.fillRule}"` : ''} fill="${method ? inks[i % inks.length] : inks[0]}"/>`).join('') + '</g></svg>';
+}
+export const partPicker = Organica.selectPicker(ctrl('sel-part-method'), ctrl('part-method-picker'), { registry: partThumbRegistry, ariaLabel: 'Division', size: 'preview' });
+let partThumbKey = '';
 export function renderPartsUI() {
   syncColorPartsRow();
   const { L, src, methods, m, count } = partChoice();
-  const show = !!(src && (!L || L.parts));
-  ctrl('parts-block').style.display = show ? '' : 'none';
-  if (!show) { if (rt.partEdit) setPartEdit(false); return; }
+  const show = !!(rt.partEdit && src && (!L || L.parts));
+  ctrl('parts-block').hidden = !show;
+  if (!show) return;
   const divided = !!(L && L.parts);
+  // the thumbnails follow the shape and the Palette: drop them when either changed
+  const key = JSON.stringify([src, state.colors, state.paperColor]);
+  if (key !== partThumbKey) { partThumbKey = key; partPicker.invalidate(); }
+  methods.forEach(x => { if (!partThumbRegistry[x.id]) partThumbRegistry[x.id] = { name: x.label, thumb: () => partThumb(x.id) }; else partThumbRegistry[x.id].name = x.label; });
   const sel = ctrl('sel-part-method');
-  // A shape with no Division yet: the block stays in view, so the feature can be found, and says which shapes divide.
-  sel.disabled = !methods.length;
-  if (!methods.length) {
-    sel.innerHTML = '<option>None for this shape</option>';
-    ctrl('part-count-row').style.display = 'none';
-    ctrl('part-hint').textContent = 'This shape cannot be divided.';
-    ctrl('part-divide-row').style.display = '';
-    ctrl('btn-part-divide').disabled = true;
-    ctrl('part-actions-row').style.display = 'none';
-    ctrl('part-actions-row2').style.display = 'none';
-    return;
-  }
-  sel.innerHTML = methods.map(x => `<option value="${x.id}"${x.reason ? ` disabled title="${x.reason}"` : ''}${m && x.id === m.id ? ' selected' : ''}>${x.label}</option>`).join('');
+  sel.innerHTML = `<option value="none"${divided ? '' : ' selected'}>None</option>`
+    + methods.map(x => `<option value="${x.id}"${x.reason ? ` disabled title="${x.reason}"` : ''}${m && x.id === m.id ? ' selected' : ''}>${x.label}</option>`).join('');
+  partPicker.refresh();
   ctrl('part-count-row').style.display = m && m.count ? '' : 'none';
   if (m && m.count) {
     const rg = ctrl('rg-part-count');
     rg.min = m.count[0]; rg.max = m.count[1]; rg.value = count; ctrl('v-part-count').textContent = count;
   }
-  const res = divided ? partsOf(L.parts) : null, off = methods.filter(x => x.reason);
-  ctrl('part-hint').textContent = res && res.reason ? res.reason + ' — the whole shape is drawn meanwhile.'
-    : divided ? `${L.items.filter(l => l.part).length} parts · click a part on the canvas in Edit parts`
-    : partReasonsHint(off);
-  ctrl('part-divide-row').style.display = divided ? 'none' : '';
-  ctrl('btn-part-divide').disabled = !m || !!m.reason;
+  const res = divided ? partsOf(L.parts) : null;
+  ctrl('part-hint').textContent = res && res.reason ? res.reason + ' — the whole shape is drawn meanwhile.' : partReasonsHint(methods.filter(x => x.reason));
   ctrl('part-actions-row').style.display = divided ? '' : 'none';
-  ctrl('part-actions-row2').style.display = divided ? '' : 'none';
-  ctrl('btn-part-edit').setAttribute('aria-pressed', String(!!rt.partEdit));
+  ctrl('element-edit-hint').textContent = divided ? 'Click a part to edit it · ⌘-click to add' : 'Choose a Division to divide the shape';
 }
-// A Division / Parts change: on a divided Element it re-divides at once (the layers follow by key).
-function setPartChoice(method, count) {
+// The parts' settings of the last division of this kind of shape, by part key — back to None and then a Division
+// again finds them; another shape type starts clean.
+let partMemo = { type: null, byKey: {} };
+function rememberParts(L) {
+  if (partMemo.type !== L.parts.source.type) partMemo = { type: L.parts.source.type, byKey: {} };
+  Object.assign(partMemo.byKey, L.parts.stash || {});
+  L.items.forEach(l => { if (l.part) partMemo.byKey[l.part] = JSON.parse(JSON.stringify(l)); });
+}
+function divideNow(method, count) {
   const L = state.layers;
-  if (L && L.parts) {
+  if (L && L.parts) {   // another Division: re-divide in place (the layers follow by key, the gone ones are parked)
     syncActiveLayer();
     L.parts.method = method; L.parts.count = count;
     syncPartLayers(L);
     layersChanged();
-  } else { rt.partMethod = method; rt.partCount = count; renderPartsUI(); }
-}
-ctrl('sel-part-method').addEventListener('change', e => {
-  const m = partMethodsFor(partSource()).find(x => x.id === e.target.value);
-  setPartChoice(e.target.value, m && m.count ? m.count[2] : 0);
-});
-ctrl('rg-part-count').addEventListener('input', e => {
-  ctrl('v-part-count').textContent = e.target.value;
-  setPartChoice(ctrl('sel-part-method').value, +e.target.value);
-});
-ctrl('btn-part-divide').addEventListener('click', () => {
-  const { m, count } = partChoice();
-  if (!m || m.reason || state.layers) return;
-  const r = divideLayers(panelSeedSnapshot(), m.id, count, readLookControls());
+    return;
+  }
+  if (L) return;
+  const r = divideLayers(panelSeedSnapshot(), method, count, readLookControls());
   if (r.reason) { ctrl('part-hint').textContent = r.reason; return; }
+  const memo = partMemo.type === r.layers.parts.source.type ? partMemo.byKey : {};
+  r.layers.items = r.layers.items.map(l => (memo[l.part] ? { ...memo[l.part], partName: l.partName } : l));
   state.layers = r.layers;
   rt.partSel = new Set();
   showLayerStyle(state.layers.items[0]);
-  setPartEdit(true);
   layersChanged();
+}
+// None: back to the one shape — its settings are remembered for the next Division.
+function joinParts() {
+  const L = state.layers;
+  if (!L || !L.parts) return;
+  syncActiveLayer();
+  rememberParts(L);
+  const src = L.parts.source, first = L.items.find(l => l.part), at = L.items.findIndex(l => l.part);
+  const look = first && first.look ? { ...first.look } : readLookControls();
+  const rest = L.items.filter(l => !l.part);
+  rt.partSel = new Set();
+  if (!rest.length) {
+    state.layers = null;
+    applyPanelSeedRaw(src);
+    showLayerStyle({ look });
+  } else {
+    rest.splice(Math.max(0, at), 0, { id: newLayerId(), role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed: JSON.parse(JSON.stringify(src)), look });
+    state.layers = { items: rest, active: Math.max(0, at) };
+    applyPanelSeedRaw(src);
+    showLayerStyle(state.layers.items[state.layers.active]);
+  }
+  layersChanged();
+}
+ctrl('sel-part-method').addEventListener('change', e => {
+  const v = e.target.value;
+  if (v === 'none') { joinParts(); return; }
+  const m = partMethodsFor(partSource()).find(x => x.id === v);
+  divideNow(v, m && m.count ? m.count[2] : 0);
+});
+ctrl('rg-part-count').addEventListener('input', e => {
+  ctrl('v-part-count').textContent = e.target.value;
+  if (state.layers && state.layers.parts) divideNow(state.layers.parts.method, +e.target.value);
 });
 // Part k takes ink k — the Palette grows (up to its maximum) so every part can differ.
 ctrl('btn-part-inks').addEventListener('click', () => {
@@ -629,7 +666,7 @@ ctrl('btn-part-inks').addEventListener('click', () => {
   const added = state.colors.length - had;
   if (added > 0) ctrl('part-hint').textContent = `Palette: ${added} ink${added > 1 ? 's' : ''} added`;   // the Palette grew — say so
 });
-// Ungroup: every part becomes a plain layer with its own fixed outline (a Custom shape); the division ends.
+// Ungroup: every part becomes a plain layer with its own fixed outline (a Custom shape); the division ends, Edit too.
 ctrl('btn-part-ungroup').addEventListener('click', () => {
   const L = state.layers;
   if (!L || !L.parts) return;
@@ -649,33 +686,14 @@ ctrl('btn-part-ungroup').addEventListener('click', () => {
   setPartEdit(false);
   layersChanged();
 });
-// Join parts: back to the one shape — the parts' inks, roles and places go.
-ctrl('btn-part-join').addEventListener('click', () => {
-  const L = state.layers;
-  if (!L || !L.parts) return;
-  syncActiveLayer();
-  const src = L.parts.source, first = L.items.find(l => l.part), at = L.items.findIndex(l => l.part);
-  const look = first && first.look ? { ...first.look } : readLookControls();
-  const rest = L.items.filter(l => !l.part);
-  setPartEdit(false);
-  if (!rest.length) {
-    state.layers = null;
-    applyPanelSeedRaw(src);
-    showLayerStyle({ look });
-  } else {
-    rest.splice(Math.max(0, at), 0, { id: newLayerId(), role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed: JSON.parse(JSON.stringify(src)), look });
-    state.layers = { items: rest, active: Math.max(0, at) };
-    applyPanelSeedRaw(src);
-    showLayerStyle(state.layers.items[state.layers.active]);
-  }
-  layersChanged();
-});
+// Element Edit: in from the pencil on the canvas, out with Back or Esc.
 export function setPartEdit(on) {
   rt.partEdit = !!on;
   if (!on) rt.partSel = new Set();
-  ctrl('btn-part-edit').setAttribute('aria-pressed', String(rt.partEdit));
+  ctrl('element-edit-toolbar').hidden = !rt.partEdit;
 }
-ctrl('btn-part-edit').addEventListener('click', () => { setPartEdit(!rt.partEdit); layersChanged(); });
+export function enterElementEdit() { setPartEdit(true); layersChanged(); }
+ctrl('btn-element-edit-exit').addEventListener('click', () => { setPartEdit(false); layersChanged(); });
 // On the canvas: a click edits that part, ⌘/Ctrl/Shift-click adds it to (or takes it from) the picked set.
 ctrl('element-frame').addEventListener('click', e => {
   if (!rt.partEdit || !state.layers || !state.layers.parts) return;
@@ -694,14 +712,14 @@ ctrl('element-frame').addEventListener('click', e => {
   }
 });
 document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape' || !rt.partEdit || layerInkPopFor != null || e.target.closest('input, select, textarea')) return;
+  if (e.key !== 'Escape' || !rt.partEdit || layerInkPopFor != null || (e.target.closest && e.target.closest('input, select, textarea, .presets'))) return;
   setPartEdit(false); layersChanged();
 });
 // A shape control moved on a divided Element: the parts follow (syncActiveLayer re-divides); new or gone
 // parts change the rows, so the list is redrawn once the change has been drawn.
 const afterShapeEdit = () => {
   if (live.partRowsDirty) { live.partRowsDirty = false; renderLayersUI(); }
-  else if (!state.layers || state.layers.parts) renderPartsUI();   // the Division options and the hint follow the shape
+  else if (rt.partEdit) renderPartsUI();   // the Division options, thumbnails and hint follow the shape
 };
 ctrl('panel').addEventListener('input', afterShapeEdit);
 ctrl('panel').addEventListener('change', afterShapeEdit);

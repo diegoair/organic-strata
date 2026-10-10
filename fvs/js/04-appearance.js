@@ -177,13 +177,20 @@ export function quickSaveButton({ savedName, labelSave, labelSaved, labelRemove,
   return b;
 }
 export function mountElementQuickSaves() {
-  if (elementIsEmpty()) { ctrl('element-frame').querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove()); return; }
+  if (elementIsEmpty()) { ctrl('element-frame').querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile, :scope > .fvs-thumb-edit').forEach(x => x.remove()); return; }
   const boxes = ctrl('seed-preview').querySelectorAll('.fvs-seed-tile__box');
   seedPreviewStates().forEach(([r, fh, fv, label], i) => { const box = boxes[i]; if (box) { box.querySelectorAll('.fvs-thumb-quicksave, .fvs-thumb-tile').forEach(x => x.remove()); box.append(elementTileButton(r, fh, fv, label), elementQuickSaveButton(r, fh, fv, label)); } });
   const frame = ctrl('element-frame');
-  frame.querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove());
+  frame.querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile, :scope > .fvs-thumb-edit').forEach(x => x.remove());
   const v = hooks.currentElementView(), vi = hooks.elementViewIndex(), lbl = vi >= 0 ? seedPreviewStates()[vi][3] : '0°';
-  frame.append(elementTileButton(v.r, v.fh, v.fv, lbl), elementQuickSaveButton(v.r, v.fh, v.fv, lbl));
+  // Element Edit — the Component gallery's pencil, on the big canvas (hover), one slot left of the Paper-tile circle
+  const edit = document.createElement('button');
+  edit.type = 'button'; edit.className = 'fvs-thumb-edit';
+  edit.setAttribute('aria-label', 'Edit element'); edit.title = 'Edit element';
+  edit.innerHTML = Organica.icons.get('pencil', { size: 'sm' });
+  edit.addEventListener('click', e => { e.stopPropagation(); hooks.enterElementEdit(); });
+  // no pencil on a stack of plain layers: Divide into parts takes one shape (or a divided one)
+  frame.append(...(state.layers && !state.layers.parts ? [] : [edit]), elementTileButton(v.r, v.fh, v.fv, lbl), elementQuickSaveButton(v.r, v.fh, v.fv, lbl));
   if (rt.tilePicker) rt.tilePicker.invalidate('element');   // the "Current Element" thumbnail follows the Element
 }
 // Click on a saved Element: Paper pattern on, Pattern = Element, this tile.

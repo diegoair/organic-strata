@@ -128,7 +128,11 @@
   /* Element quick-save: the Component gallery's corner circle, on each strip tile and the big frame */
   .fvs-seed-tile__box { position: relative; width: 100%; }
   .fvs-seed-tile__box:hover :is(.fvs-thumb-quicksave, .fvs-thumb-tile), .fvs-element-frame:hover > :is(.fvs-thumb-quicksave, .fvs-thumb-tile) { opacity: 1; }
-  .fvs-element-frame > :is(.fvs-thumb-quicksave, .fvs-thumb-tile) { z-index: 1; }
+  .fvs-element-frame > :is(.fvs-thumb-quicksave, .fvs-thumb-tile, .fvs-thumb-edit) { z-index: 1; }
+  .fvs-element-frame:hover > .fvs-thumb-edit { opacity: 1; }
+  .fvs-element-frame > .fvs-thumb-edit { right: calc(var(--space-1) + 2 * (20px + 3px)); }   /* Element Edit: one slot left of the Paper-tile circle */
+  .fvs-element-frame.is-editing > .fvs-thumb-edit { display: none; }
+  #part-method-picker { flex: 1; min-width: 0; }
   .fvs-seed-tile[data-view] { cursor: pointer; }
   @media (hover: hover) { .fvs-seed-tile[data-view]:hover .fvs-seed-tile__box > svg { border-color: var(--ink); } }
   /* the shown view: an --ink ring (the system's "pressed" colour) — --tool's green read 2.97:1 on the light canvas, under the 3:1 boundary rule */
@@ -361,8 +365,12 @@
      it. Reuses .fvs-element-frame for the same square-canvas footprint as
      the Element tier's own big preview. */
   #component-edit-view { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: 100%; }
-  #component-edit-toolbar { display: flex; align-items: center; gap: var(--space-3); width: min(60vh, 70vw); }
-  #component-edit-toolbar .hint { flex: 1; text-align: center; }
+  /* The canvas edit modes' one toolbar (Component Edit, Element Edit): Back + a hint (+ Save). Compose keeps its breadcrumb. */
+  .fvs-edit-toolbar { display: flex; align-items: center; gap: var(--space-3); width: min(60vh, 70vw); }
+  .fvs-edit-toolbar[hidden] { display: none; }
+  .fvs-edit-toolbar .hint { flex: 1; text-align: center; }
+  .fvs-edit-toolbar > .mini-btn:first-child { flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--space-1); }
+  #element-edit-toolbar { margin-bottom: var(--space-3); }
   #component-edit-toolbar #btn-component-edit-save { width: auto; padding: 0 var(--space-4); }
   /* Same rule as the Symbol sheet (see #symbol-frame svg): the sheet's box is
      the component's own proportions (--comp-ar, set by renderComponentEditCanvas),
@@ -392,7 +400,6 @@
   .fvs-element-frame.is-part-edit .fvs-part > path { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; }
   .fvs-element-frame.is-part-edit .fvs-part:hover > path { stroke: var(--tool); stroke-width: 2px; }
   .fvs-element-frame.is-part-edit .fvs-part.is-sel > path { stroke: var(--ink); stroke-width: 2px; filter: drop-shadow(0 0 1px var(--paper)) drop-shadow(0 0 1px var(--paper)); }
-  .fvs-parts { margin-bottom: var(--space-2); }
   .fvs-layer__main { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-1) 0; }
   .fvs-layer__main:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--ink); }
   .fvs-layer__icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; }

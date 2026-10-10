@@ -173,6 +173,7 @@ export function renderElementFrame(seed) {
   if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
   ctrl('element-svg').innerHTML = svg;
   frame.classList.toggle('is-part-edit', editing);
+  frame.classList.toggle('is-editing', !!rt.partEdit);   // Element Edit: the pencil steps aside
   if (editing) {
     const L = state.layers, act = L.items[L.active];
     ctrl('element-svg').querySelectorAll('[data-part]').forEach(g => {
