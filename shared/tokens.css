@@ -401,6 +401,19 @@ html {
      canvas area with one soft shadow — the same in every tool. Was retyped
      by hand in 7 tools (two at 0.12). */
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.18);
+  /* The SHEET PILE (Diego, Oct 10, 2026 — the blurred shadow stays off, Oct 8): a work sheet reads off the board
+     as the top of a small ream — its black outline, one loose white sheet and one grey page under it, solid copies
+     (box-shadow, no blur, painted once). A drawing on white paper: the same values in both themes.
+     Tested on /design-system/_stage-shadow.html (the Ream variant). */
+  --sheet-paper: #ffffff;
+  --sheet-line: #111111;
+  --sheet-page: #adadad;
+  --sheet-line-w: 1.5px;
+  --sheet-pile:
+    calc(var(--space-1) / -2) var(--space-1) 0 calc(var(--sheet-line-w) * -1) var(--sheet-paper),
+    calc(var(--space-1) / -2) var(--space-1) 0 0 var(--sheet-line),
+    0 var(--space-2) 0 calc(var(--sheet-line-w) * -1) var(--sheet-page),
+    0 var(--space-2) 0 0 var(--sheet-line);
   /* The canvas-pattern switcher (header) sets <html data-canvas-pattern>. The default
      is dots — the value above; the others re-point the same token, so every canvas area
      follows with no per-tool edit. Persisted by shared/pattern-init.js. */
@@ -579,6 +592,7 @@ html {
   --gray-900: color-mix(in srgb, var(--ink) 90%, var(--paper));
   /* the canvas area: see its note in the main :root block */
   --canvas-bg:   var(--paper);
+  --canvas-paper: #fbf9f3;   /* a work board that is paper, not screen white (FVS, Oct 10, 2026): the white sheet reads off it */
   --canvas-grid: radial-gradient(circle, var(--canvas-dot) 1px, transparent 1.4px) 0 0 / var(--space-7) var(--space-7);
 }
 
@@ -604,6 +618,7 @@ html {
   --port-composition: #f73710;
   --port-figure: #fb8700;
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);   /* the sheet still has to lift off a dark ground */
+  --canvas-paper: #1c1a15;   /* the paper board, dark: the same warmth */
   color-scheme: dark;
 }
 

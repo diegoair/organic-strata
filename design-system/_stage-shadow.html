@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Stage sheet test</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<style>
+  /* Dev-only page (Oct 10, 2026) — the shape of a VISUAL COST TEST: the real tool in a frame, a bar that switches
+     variants / theme / step on it, and the Cost meter (_cost-meter.js) under it — the look and its cost, measured
+     in this browser. Outcome (Diego, Oct 10): Ream on a Cream board, shipped in FVS (tokens --sheet-pile,
+     --canvas-paper). Copy this page for the next visual test. ?v=…&b=…&t=light|dark&s=element|component|symbol|figure */
+  html, body { height: 100%; margin: 0; }
+  body { display: flex; flex-direction: column; font-family: var(--font); font-size: var(--fs-small); color: var(--ink); background: var(--paper); }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border); }
+  .bar strong { font-family: var(--font-display); font-size: var(--fs-base); }
+  fieldset { display: flex; flex-wrap: wrap; gap: var(--space-1); border: 0; margin: 0; padding: 0; }
+  legend { float: left; margin-right: var(--space-2); color: var(--mid); }
+  .bar button { font: inherit; padding: var(--space-1) var(--space-3); border: 1px solid var(--border-strong); background: var(--paper); color: var(--ink); cursor: pointer; }
+  .bar button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .note { color: var(--mid); padding: var(--space-1) var(--space-4) var(--space-2); border-bottom: 1px solid var(--border); }
+  .main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  iframe { flex: 1; min-height: 0; width: 100%; border: 0; }   /* the full width: FVS's desktop gate is 768px */
+  .explain { color: var(--mid); margin: 0; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <strong>Stage sheet</strong>
+  <fieldset id="variant"><legend>Variant</legend>
+    <button type="button" data-v="pile-ream">Ream (shipped)</button>
+    <button type="button" data-v="none">None</button>
+    <button type="button" data-v="stack">Stack</button>
+    <button type="button" data-v="pile-fan">Fanned</button>
+    <button type="button" data-v="pile-riso">Riso papers</button>
+    <button type="button" data-v="pile-ink">Illustrated pile</button>
+    <button type="button" data-v="marks">Crop marks</button>
+    <button type="button" data-v="offset">Offset</button>
+    <button type="button" data-v="soft">Before Oct 8</button>
+  </fieldset>
+  <fieldset id="board"><legend>Board</legend>
+    <button type="button" data-b="cream">Cream (shipped)</button>
+    <button type="button" data-b="white">White</button>
+    <button type="button" data-b="grey">Grey</button>
+    <button type="button" data-b="yellow">Yellow paper</button>
+  </fieldset>
+  <fieldset id="theme"><legend>Theme</legend>
+    <button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button>
+  </fieldset>
+  <button type="button" id="toggle-cost" aria-pressed="true">Cost meter</button>
+  <fieldset id="step"><legend>Step</legend>
+    <button type="button" data-s="element">Element</button><button type="button" data-s="component">Component</button>
+    <button type="button" data-s="symbol">Symbol</button><button type="button" data-s="figure">Figure</button>
+  </fieldset>
+</div>
+<div class="note" id="note"></div>
+<div class="main" id="main">
+  <iframe id="fvs" src="/fvs/" title="Flexible Visual System with the stage variant"></iframe>
+</div>
+<script src="/design-system/_cost-meter.js"></script>
+<script>
+  const frame = document.getElementById('fvs');
+  const q = new URLSearchParams(location.search);
+  const st = { v: q.get('v') || 'pile-ream', b: q.get('b') || 'cream', t: q.get('t') || 'light', s: q.get('s') || 'element' };
+  const INFO = {
+    'pile-ream': ['Ream (shipped): a black outline, one loose white sheet and one grey page under it — the top of a ream.', 'An outline + four box-shadows, no blur (tokens --sheet-pile): painted once with the sheet, nothing recomputed while you move. Square sheets only.'],
+    none: ['None: no outline, no pile — the white sheet alone.', 'Nothing drawn — the reference every other variant is compared with.'],
+    stack: ['Stack: two sheets under it, neatly offset, each a white sheet with a hairline edge.', 'Four box-shadows, no blur: the cost of a border, painted once.'],
+    'pile-fan': ['Fanned: two sheets under it, turned a little each way, as if dropped on the table.', 'Two pseudo-elements, rotated: painted once, they move with the sheet. Element canvas + Figure cards; elsewhere the neat stack.'],
+    'pile-riso': ['Riso papers: the sheets underneath are coloured paper — pink, mint, yellow.', 'Three box-shadows, no blur, solid colours: painted once.'],
+    'pile-ink': ['Illustrated pile: line-art papers, a stray sheet, a solid black shadow, two bookmarks.', 'Nine box-shadows + an outline, two pseudo-elements: no blur, painted once.'],
+    marks: ['Crop marks: printer’s marks outside the four corners, like a proof on the table.', 'Eight 1px gradients in a transparent border: painted once, no blur, no filter.'],
+    offset: ['Offset: one solid copy of the sheet, down and right.', 'One box-shadow, no blur; a no-blur drop-shadow filter on cell shapes.'],
+    soft: ['Before Oct 8: the soft blurred shadow, always on — to compare.', 'A 40 px blur box-shadow (a filter on cell shapes): recomputed whenever a sheet is repainted.'],
+  };
+  const BOARD = { cream: 'Cream (shipped): --canvas-paper.', white: 'White: --paper.', grey: 'Grey: --panel (ink 5 %).', yellow: 'Yellow paper: #f7efd4 (test value).' };
+  const doc = () => frame.contentDocument, win = () => frame.contentWindow;
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const label = v => document.querySelector(`[data-v="${v}"]`).textContent;
+  const construct = document.createElement('p'); construct.className = 'explain';
+
+  function setStep(s) {   // the Figure step loads on demand: click its dock button like a person would
+    const d = doc(); if (!d) return;
+    if (s === 'figure') { const b = d.querySelector('button[aria-label="Figure"]'); if (b) b.click(); else win().__fvs.setTier(s); }
+    else win().__fvs.setTier(s);
+  }
+  function apply() {
+    document.querySelectorAll('[data-v]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === st.v)));
+    document.querySelectorAll('[data-b]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.b === st.b)));
+    document.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === st.t)));
+    document.querySelectorAll('[data-s]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === st.s)));
+    document.getElementById('note').textContent = INFO[st.v][0];
+    construct.textContent = INFO[st.v][1] + ' Board — ' + BOARD[st.b] + ' A board colour costs nothing.';
+    const d = doc();
+    if (d && d.documentElement) {
+      Object.assign(d.documentElement.dataset, { stageShadow: st.v, stageBoard: st.b, theme: st.t });
+      if (win().__fvs && win().__fvs.isReady) setStep(st.s);
+    }
+    history.replaceState(null, '', `?v=${st.v}&b=${st.b}&t=${st.t}&s=${st.s}`);
+    if (window.meter) meter.reset();
+  }
+
+  // the benchmark's moves — real board / canvas gestures, synthesised in the frame
+  async function boardPan(w) {
+    const stage = w.document.querySelector('.nc-stage'); if (!stage) return;
+    const r = stage.getBoundingClientRect(), x0 = r.x + r.width * 0.7, y0 = r.y + r.height * 0.7;
+    const ev = (type, x, y, buttons) => stage.dispatchEvent(new w.PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse', isPrimary: true, button: type === 'pointermove' ? -1 : 1, buttons, clientX: x, clientY: y }));
+    ev('pointerdown', x0, y0, 4);
+    const t0 = performance.now();
+    while (performance.now() - t0 < 2000) { const k = (performance.now() - t0) / 2000; ev('pointermove', x0 - 240 * Math.sin(k * Math.PI), y0 - 140 * Math.sin(k * Math.PI), 4); await new Promise(rr => w.requestAnimationFrame(rr)); }
+    ev('pointerup', x0, y0, 0);
+  }
+  async function boardZoom(w) {
+    const stage = w.document.querySelector('.nc-stage'); if (!stage) return;
+    const r = stage.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2;
+    for (let i = 0; i < 10; i++) { stage.dispatchEvent(new w.WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: i < 5 ? -100 : 100, clientX: x, clientY: y })); await sleep(120); }
+  }
+  async function sliderSweep(w) {
+    const r = w.document.getElementById('rg-thickness'); if (!r) return;
+    const lo = +r.min, hi = +r.max, t0 = performance.now(), start = r.value;
+    while (performance.now() - t0 < 2000) { const k = (performance.now() - t0) / 2000; r.value = String(Math.round(lo + (hi - lo) * (0.5 - 0.5 * Math.cos(k * 2 * Math.PI)))); r.dispatchEvent(new w.Event('input', { bubbles: true })); await new Promise(rr => w.requestAnimationFrame(rr)); }
+    r.value = start; r.dispatchEvent(new w.Event('input', { bubbles: true })); r.dispatchEvent(new w.Event('change', { bubbles: true }));
+  }
+  const goStep = s => async () => { st.s = s; apply(); await sleep(s === 'figure' ? 2500 : 1200); };
+
+  const headless = document.createElement('p'); headless.className = 'explain';
+  headless.textContent = 'Paint / raster / GPU detail: scripts/_test-stage-shadow.mjs and _test-stage-shadow-canvas.mjs (Chrome headless, CPU ×4); their last results appear here from design-system/_stage-shadow-results.json.';
+  fetch('/design-system/_stage-shadow-results.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).then(j => {
+    if (!j || !j.rows) return;
+    headless.innerHTML = `Last headless run (${j.when || ''}, CPU ×${j.cpu}, ${j.theme}):` + j.rows.map(r => `<br>${r.variant} · ${r.gesture}${r.step ? ' · ' + r.step + ' ' + r.shape : ''}: p95 ${r.p95.toFixed(1)} ms, dropped ${r.long}, paint ${Math.round(r.Paint)} ms, GPU ${Math.round(r.GPU)} ms`).join('');
+  }).catch(() => {});
+
+  const VARIANTS = ['none', 'pile-ream', 'stack', 'pile-fan', 'pile-riso', 'pile-ink', 'marks', 'offset', 'soft'];
+  window.meter = CostMeter.mount(document.getElementById('main'), {
+    frame,
+    variants: VARIANTS.map(id => ({ id, label: label(id) })),
+    setVariant: async id => { st.v = id; apply(); },
+    currentLabel: () => label(st.v),
+    moves: [
+      { label: 'Figure · pan', before: goStep('figure'), run: boardPan },
+      { label: 'Figure · zoom', before: goStep('figure'), run: boardZoom },
+      { label: 'Element · slider', before: goStep('element'), run: sliderSweep },
+    ],
+    sections: [{ title: 'Construction', el: construct }, { title: 'Headless trace', el: headless }],
+    onToggle: open => document.getElementById('toggle-cost').setAttribute('aria-pressed', String(open)),
+    afterRun: async () => apply(),
+  });
+  document.getElementById('toggle-cost').addEventListener('click', () => meter.toggle());
+
+  frame.addEventListener('load', async () => {
+    const d = doc();
+    const css = d.createElement('link'); css.rel = 'stylesheet'; css.href = '/design-system/_stage-shadow.css'; d.head.append(css);
+    const js = d.createElement('script'); js.src = '/design-system/_stage-shadow.js'; d.head.append(js);
+    for (let i = 0; i < 100 && !(win().__fvs && win().__fvs.isReady); i++) await sleep(100);
+    apply();
+  });
+  document.querySelector('.bar').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || b.id === 'toggle-cost') return;
+    if (b.dataset.v) st.v = b.dataset.v; if (b.dataset.b) st.b = b.dataset.b; if (b.dataset.t) st.t = b.dataset.t; if (b.dataset.s) st.s = b.dataset.s;
+    apply();
+  });
+  apply();
+</script>
+</body>
+</html>

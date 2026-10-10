@@ -1,0 +1,128 @@
+/* Stage-shadow test (Oct 10, 2026 — LOCAL, not committed). Two ways to give the work sheets a shadow again without
+   the cost that took it away on Oct 8 (ledger §2): set on <html data-stage-shadow="…">.
+     offset      A — a hard offset shadow, no blur (paper on paper, riso). No blur pass at all.
+     offset-ink  A, in --ink instead of a grey.
+     soft        the shadow as it was before Oct 8, always on — the baseline A and C are measured against.
+     rest        C — the old soft --stage-shadow, only at rest: off while the board pans, zooms or a node is dragged
+                 (html.is-moving, set by _stage-shadow.js; the node canvas's own --pan / --dragging classes too).
+   The surfaces are the ones af80efd took the shadow off: each step's big sheet, Figure card sheets, Compose, the
+   gallery thumbnails. A cell-shape sheet (circle / triangle / hexagon) casts it from its outline — a drop-shadow
+   filter (no blur for A: a cheap filter, still one pass). Dark: shadows stay rgba(0,0,0,…); A's offset becomes
+   --border-strong there, a black one does not read on the dark board. */
+/* Since Oct 10, 2026 FVS itself draws the board as paper and each sheet as the top of a ream (fvs.css, tokens
+   --canvas-paper / --sheet-pile). Every variant here starts from a clean sheet and a board it sets itself. */
+:root[data-stage-shadow] :is(#element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg) { outline: none; box-shadow: none; }
+:root[data-stage-board="white"] #app { --canvas-bg: var(--paper); }
+:root { --stage-offset: var(--space-1); --stage-offset-color: rgba(0, 0, 0, 0.18); }
+:root[data-theme="dark"] { --stage-offset-color: var(--border-strong); }
+:root[data-stage-shadow="offset-ink"] { --stage-offset-color: var(--ink); }
+
+:root[data-stage-shadow^="offset"] :is(#element-svg > svg:not(.is-cell), #component-edit-frame > svg:not(.is-cell), #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg:not(.is-cell)) {
+  box-shadow: var(--stage-offset) var(--stage-offset) 0 var(--stage-offset-color);
+}
+:root[data-stage-shadow^="offset"] :is(#element-svg > svg.is-cell, #component-edit-frame > svg.is-cell, .fvs-thumb > svg.is-cell) {
+  overflow: visible; filter: drop-shadow(var(--stage-offset) var(--stage-offset) 0 var(--stage-offset-color));
+}
+
+:root:is([data-stage-shadow="rest"], [data-stage-shadow="soft"]) :is(#element-svg > svg:not(.is-cell), #component-edit-frame > svg:not(.is-cell), #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg:not(.is-cell)) {
+  box-shadow: var(--stage-shadow);
+}
+:root:is([data-stage-shadow="rest"], [data-stage-shadow="soft"]) :is(#element-svg > svg.is-cell, #component-edit-frame > svg.is-cell, .fvs-thumb > svg.is-cell) {
+  overflow: visible; filter: drop-shadow(var(--stage-shadow));
+}
+:root[data-stage-shadow="rest"].is-moving :is(#element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg),
+:root[data-stage-shadow="rest"] :is(.nc-stage--pan, .nc-stage--dragging) .fg-card__sheet {
+  box-shadow: none; filter: none;
+}
+
+/* ── Oct 10, 2026, after C was ruled out: the sheet (#ffffff) on the board (#ffffff) — three paint-once ways to
+   make its edge read, no blur, no filter. The sheet's own white is a content colour (state.paperColor), so the
+   stack's paper layers use `white`, not --paper (which is dark in the dark theme). ── */
+/* 1 · Paper stack — two sheets under it, each an offset copy: a white fill (spread −1px) over a hairline edge. */
+:root[data-stage-shadow="stack"] :is(#element-svg > svg:not(.is-cell), #component-edit-frame > svg:not(.is-cell), #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg:not(.is-cell)) {
+  box-shadow:
+    var(--space-1) var(--space-1) 0 -1px white, var(--space-1) var(--space-1) 0 0 var(--border-strong),
+    var(--space-2) var(--space-2) 0 -1px white, var(--space-2) var(--space-2) 0 0 var(--border-strong);
+}
+/* 2 · Crop marks — printer's marks outside the four corners, like a proof on the table. A transparent border
+   holds them (8 one-pixel gradients, painted once with the sheet); a negative margin keeps the layout. */
+:root[data-stage-shadow="marks"] :is(#element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg) {
+  --mk: var(--space-7); --gap: var(--space-2); --len: calc(var(--mk) - var(--gap)); --ink-mk: var(--mid);
+  border: var(--mk) solid transparent; margin: calc(-1 * var(--mk)); box-sizing: content-box; background-clip: border-box; background-origin: border-box;
+  background-repeat: no-repeat;
+  background-image:
+    linear-gradient(var(--ink-mk), var(--ink-mk)), linear-gradient(var(--ink-mk), var(--ink-mk)),
+    linear-gradient(var(--ink-mk), var(--ink-mk)), linear-gradient(var(--ink-mk), var(--ink-mk)),
+    linear-gradient(var(--ink-mk), var(--ink-mk)), linear-gradient(var(--ink-mk), var(--ink-mk)),
+    linear-gradient(var(--ink-mk), var(--ink-mk)), linear-gradient(var(--ink-mk), var(--ink-mk));
+  background-size:
+    var(--len) 1px, 1px var(--len), var(--len) 1px, 1px var(--len),
+    var(--len) 1px, 1px var(--len), var(--len) 1px, 1px var(--len);
+  background-position:
+    0 var(--mk), var(--mk) 0,                                        /* top-left: horizontal, vertical */
+    100% var(--mk), calc(100% - var(--mk)) 0,                        /* top-right */
+    0 calc(100% - var(--mk)), var(--mk) 100%,                        /* bottom-left */
+    100% calc(100% - var(--mk)), calc(100% - var(--mk)) 100%;        /* bottom-right */
+}
+:root[data-stage-shadow="marks"] .fg-card__sheet { background-color: transparent; }   /* its picture is the paper; the colour would fill the marks band */
+/* 3 · Board ground — the board takes the panel tint (ink 5 % in paper) under its dot grid; the white sheet reads by contrast. */
+
+
+/* ── Diego, Oct 10, 2026: the board as paper, the sheets as a real, playful pile — two controls that combine. ──
+   Board (<html data-stage-board>): white (today) · grey (--panel) · cream · yellow. The cream / yellow values are
+   test values, NOT tokens yet (a new token is Diego's decision); dark keeps a dark board with the same warmth. */
+:root[data-stage-board="grey"] #app { --canvas-bg: var(--panel); }
+:root[data-stage-board="cream"] #app { --canvas-bg: var(--canvas-paper); }   /* shipped as the token --canvas-paper (Oct 10) */
+:root[data-stage-board="yellow"] #app { --canvas-bg: #f7efd4; }
+:root[data-theme="dark"][data-stage-board="yellow"] #app { --canvas-bg: #1f1c12; }
+
+/* Sheets — every pile is solid copies (box-shadow, no blur) or two rotated sheets (pseudo-elements): painted once. */
+:root[data-stage-shadow^="pile"] { --pile-edge: var(--border-strong); }
+/* Ream (Diego, Oct 10: about half the sheets, and pages between them — a grey block like the edge of a ream):
+   under the sheet, a block of grey pages (thin slivers, each its own hairline), one loose white sheet, a second
+   block, a last white sheet. Box-shadows only, no blur: painted once. Square sheets only. */
+:root[data-stage-shadow="pile-ream"] :is(#element-svg > svg:not(.is-cell), #component-edit-frame > svg:not(.is-cell), #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg:not(.is-cell)) {
+  outline: var(--sheet-line-w) solid var(--sheet-line); outline-offset: 0; box-shadow: var(--sheet-pile);   /* = what FVS ships (tokens.css --sheet-pile) */
+}
+/* Riso: the sheets underneath are coloured paper — pink, mint, yellow — offset like a quick pile of prints. */
+:root[data-stage-shadow="pile-riso"] :is(#element-svg > svg:not(.is-cell), #component-edit-frame > svg:not(.is-cell), #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg:not(.is-cell)) {
+  box-shadow: 6px 5px 0 0 #f5a3b4, 11px 12px 0 0 #8fd3b6, 16px 19px 0 0 #f3cf55;
+}
+/* Fanned: two sheets under it, turned a little each way, as if dropped on the table. Where the sheet has its own
+   wrapper (the Element canvas, Figure cards); the Symbol sheet sits in a larger frame → the neat stack there. */
+:root[data-stage-shadow="pile-fan"] :is(#element-svg, .fg-card__sheet) { position: relative; isolation: isolate; }
+:root[data-stage-shadow="pile-fan"] :is(#element-svg, .fg-card__sheet)::before,
+:root[data-stage-shadow="pile-fan"] :is(#element-svg, .fg-card__sheet)::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; background: white; border: 1px solid var(--pile-edge); pointer-events: none;
+}
+:root[data-stage-shadow="pile-fan"] :is(#element-svg, .fg-card__sheet)::before { transform: rotate(-2.5deg) translate(-3px, 4px); }
+:root[data-stage-shadow="pile-fan"] :is(#element-svg, .fg-card__sheet)::after  { transform: rotate(1.8deg) translate(4px, 3px); }
+:root[data-stage-shadow="pile-fan"] :is(#symbol-frame > svg, #component-edit-frame > svg:not(.is-cell), .fvs-thumb > svg:not(.is-cell)) {
+  box-shadow: var(--space-1) var(--space-1) 0 -1px white, var(--space-1) var(--space-1) 0 0 var(--pile-edge), var(--space-2) var(--space-2) 0 -1px white, var(--space-2) var(--space-2) 0 0 var(--pile-edge);
+}
+
+/* ── Illustrated pile (Diego's reference, Oct 10, 2026: a line-art stack of papers) — white sheets with a black
+   outline, a few not quite aligned, a solid black shadow under the pile, two coloured bookmarks peeking out.
+   Solid copies (box-shadow) everywhere; where the sheet has its own wrapper (Element canvas, Figure cards) one
+   stray sheet turned and the bookmarks as pseudo-elements. No blur, painted once. The outline is a fixed black
+   (an illustration on white paper, the same in both themes): a test value. */
+:root[data-stage-shadow="pile-ink"] { --pile-line: #111111; --tab-a: #ff5a4f; --tab-b: #ffd23f; }
+:root[data-stage-shadow="pile-ink"] :is(#element-svg > svg:not(.is-cell), #component-edit-frame > svg:not(.is-cell), #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg:not(.is-cell)) {
+  outline: 1.5px solid var(--pile-line); outline-offset: 0;
+  box-shadow:
+    4px 4px 0 -1.5px white, 4px 4px 0 0 var(--pile-line),
+    -3px 8px 0 -1.5px white, -3px 8px 0 0 var(--pile-line),
+    6px 12px 0 -1.5px white, 6px 12px 0 0 var(--pile-line),
+    1px 16px 0 -1.5px white, 1px 16px 0 0 var(--pile-line),
+    10px 24px 0 0 var(--pile-line);   /* the hard shadow under the pile */
+}
+:root[data-stage-shadow="pile-ink"] :is(#element-svg, .fg-card__sheet) { position: relative; isolation: isolate; }
+:root[data-stage-shadow="pile-ink"] :is(#element-svg, .fg-card__sheet)::before {   /* a stray sheet, turned, under the pile */
+  content: ''; position: absolute; inset: 6% -4% -6% 4%; z-index: -1; background: white; border: 1.5px solid var(--pile-line);
+  transform: rotate(-3.5deg); box-shadow: 8px 10px 0 0 var(--pile-line); pointer-events: none;
+}
+:root[data-stage-shadow="pile-ink"] :is(#element-svg, .fg-card__sheet)::after {   /* two bookmarks out of the left side: one box + a copy of it (box-shadow) */
+  content: ''; position: absolute; left: -16px; top: 56%; width: 16px; height: 18px; z-index: 1; pointer-events: none;
+  background: var(--tab-a); border: 1.5px solid var(--pile-line); border-right: 0; box-sizing: border-box;
+  box-shadow: 4px 30px 0 0 var(--tab-b), 4px 30px 0 1.5px var(--pile-line);
+}

@@ -20,6 +20,13 @@
 
   /* No zoom/pan — the gallery is a static, scrollable grid of thumbnails,
      not a single pannable canvas (there is no one canvas to zoom). */
+  /* The board is paper and each step's sheet the top of a small ream (Diego, Oct 10, 2026 — tokens.css
+     --canvas-paper, --sheet-pile): no blur, painted once with the sheet. A cell-shape sheet (circle, triangle,
+     hexagon) has no square to pile under — it keeps its outline only. */
+  #app { --canvas-bg: var(--canvas-paper); }
+  :where(#element-svg > svg:not(.is-cell), #component-edit-frame > svg:not(.is-cell), #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg:not(.is-cell)) {   /* :where — no specificity: a pinned variation's ring still wins */
+    outline: var(--sheet-line-w) solid var(--sheet-line); outline-offset: 0; box-shadow: var(--sheet-pile);
+  }
   #canvas-wrap { flex: 1; overflow-y: auto; background: var(--canvas-grid), var(--canvas-bg); padding: var(--space-7); padding-left: max(var(--space-7), var(--fvs-rail-reserve, 0px)); }   /* the open Library rail never covers the work: its width is reserved (syncRailSpace) */
   /* Zoom (wheel / ⌘+ ⌘− ⌘0) — the suite-wide Organica.createZoomPan. FVS doesn't
      load shell.css (own canvas surface), so the stage + HUD rules it needs live here,
