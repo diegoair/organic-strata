@@ -544,11 +544,23 @@ function partChoice() {
 }
 export function renderPartsUI() {
   const { L, src, methods, m, count } = partChoice();
-  const show = !!(src && methods.length && (!L || L.parts));
+  const show = !!(src && (!L || L.parts));
   ctrl('parts-block').style.display = show ? '' : 'none';
   if (!show) { if (rt.partEdit) setPartEdit(false); return; }
   const divided = !!(L && L.parts);
   const sel = ctrl('sel-part-method');
+  // A shape with no Division yet: the block stays in view, so the feature can be found, and says which shapes divide.
+  sel.disabled = !methods.length;
+  if (!methods.length) {
+    sel.innerHTML = '<option>None for this shape</option>';
+    ctrl('part-count-row').style.display = 'none';
+    ctrl('part-hint').textContent = 'Square, Polygon, Triangle and Star can be divided into parts.';
+    ctrl('part-divide-row').style.display = '';
+    ctrl('btn-part-divide').disabled = true;
+    ctrl('part-actions-row').style.display = 'none';
+    ctrl('part-actions-row2').style.display = 'none';
+    return;
+  }
   sel.innerHTML = methods.map(x => `<option value="${x.id}"${x.reason ? ' disabled' : ''}${m && x.id === m.id ? ' selected' : ''}>${x.label}</option>`).join('');
   ctrl('part-count-row').style.display = m && m.count ? '' : 'none';
   if (m && m.count) {
