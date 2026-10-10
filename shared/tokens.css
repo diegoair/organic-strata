@@ -623,6 +623,7 @@ html {
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);   /* the sheet still has to lift off a dark ground */
   --canvas-paper: #1c1a15;   /* the paper board, dark: the same warmth */
   --sheet-line: #8f897d;   /* the sheet pile's line on the dark board: 5.0:1 (the light one would be 1.1:1) */
+  --sheet-page: #54514b;   /* the pile's grey, dark: 2.3:1 from its line, 7.9:1 from the white sheet (#adadad sat 1.55:1 from the line — Diego) */
   color-scheme: dark;
 }
 
