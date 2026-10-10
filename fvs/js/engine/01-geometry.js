@@ -729,13 +729,92 @@ function convexHull(pts) {
   for (const q of p.reverse()) { while (hi.length > 1 && cross(hi[hi.length - 2], hi[hi.length - 1], q) <= 0) hi.pop(); hi.push(q); }
   return lo.slice(0, -1).concat(hi.slice(0, -1));
 }
-export const PART_KINDS = { polygon: 'polygon', star: 'star', roundedrect: 'rect', triangle: 'triangle' };
+export const PART_KINDS = { polygon: 'polygon', star: 'star', roundedrect: 'rect', triangle: 'triangle', circle: 'circle', cross: 'cross', lens: 'lens', chevron: 'chevron', arc: 'arc', drop: 'drop' };
+// The frame every generic cut is drawn over: the outline's box centre, its farthest point, its size.
+const _genFrameCache = new Map();
+function genericFrame(seed) {
+  const key = JSON.stringify(seed);
+  if (_genFrameCache.has(key)) return _genFrameCache.get(key);
+  let g = null;
+  try {
+    const geo = SEED_TYPES[seed.type].geometry(seed);
+    if (geo && geo.d) {
+      const scope = splitPaperScope(), p = importAsPaperShape(scope, geo.d, geo.fillRule);
+      const b = p.bounds, flat = p.clone({ insert: false });
+      flat.flatten(0.5);
+      let R = 0;
+      (flat.children && flat.children.length ? flat.children : [flat]).forEach(ch => (ch.segments || []).forEach(sg => { R = Math.max(R, Math.hypot(sg.point.x - b.center.x, sg.point.y - b.center.y)); }));
+      p.remove();
+      g = { cx: b.center.x, cy: b.center.y, R: Math.max(R, 1), w: Math.max(b.width, 1), h: Math.max(b.height, 1), angle: 0 };
+    }
+  } catch (e) { g = null; }
+  if (_genFrameCache.size > 60) _genFrameCache.clear();
+  _genFrameCache.set(key, g);
+  return g;
+}
+// The shape's own separate pieces (an Arc's segments, a Segment's dashes, the rings of Copies, an upload's
+// islands): each outer outline with the holes inside it — an island inside a hole is a piece of its own.
+const _piecesCache = new Map();
+function shapePieces(seed) {
+  const key = JSON.stringify(seed);
+  if (_piecesCache.has(key)) return _piecesCache.get(key);
+  let out = [];
+  try {
+    const geo = SEED_TYPES[seed.type].geometry(seed);
+    const scope = splitPaperScope(), raw = importAsPaperShape(scope, geo.d, geo.fillRule);
+    raw.remove();
+    const shape = raw.unite(new scope.Path({ insert: false }), { insert: false });   // overlapping outlines (Lens petals) → their union first
+    const kids = (shape.children && shape.children.length ? shape.children.slice() : [shape]).map(k => k.clone({ insert: false }));
+    kids.sort((a, b) => Math.abs(b.area) - Math.abs(a.area));
+    const outers = [];
+    for (const k of kids) {
+      if (Math.abs(k.area) < 0.05) continue;
+      const pt = k.interiorPoint || k.bounds.center;
+      const holders = kids.filter(o => o !== k && Math.abs(o.area) > Math.abs(k.area) && o.contains(pt));
+      if (holders.length % 2 === 0) outers.push({ path: k, holes: [] });
+      else {
+        const host = outers.filter(o => o.path.contains(pt)).sort((a, b) => Math.abs(a.path.area) - Math.abs(b.path.area))[0];
+        if (host) host.holes.push(k);
+      }
+    }
+    out = outers.map(o => { let p = o.path; for (const h of o.holes) p = p.subtract(h, { insert: false }); return p; });
+  } catch (e) { out = []; }
+  if (_piecesCache.size > 60) _piecesCache.clear();
+  _piecesCache.set(key, out);
+  return out;
+}
 export function partFrameOf(seed) {
-  const kind = seed && PART_KINDS[seed.type];
-  if (!kind) return null;
+  if (!seed || !SEED_TYPES[seed.type] || seed.type === 'stack' || seed.type === 'freehandraw') return null;
+  const kind = PART_KINDS[seed.type] || 'any';
+  const g = genericFrame(seed);
+  if (!g) return null;
   const num = (v, d) => (Number.isFinite(+v) && v !== '' && v != null ? +v : d);
+  const cl = (v, lo, hi, d) => Math.min(hi, Math.max(lo, num(v, d)));
+  const pf = partFrameOwn(seed, kind, num, cl);
+  pf.frame = { ...(pf.frame || {}), g };
+  return pf;
+}
+function partFrameOwn(seed, kind, num, cl) {
+  if (kind === 'any') return { kind };
+  if (kind === 'circle') { const g = genericFrame(seed); return { kind, frame: { cx: g.cx, cy: g.cy, R: Math.min(g.w, g.h) / 2 } }; }
+  if (kind === 'cross') {
+    const N = Math.round(cl(seed.crossArms, 2, 12, 4)), width = cl(seed.crossArmWidth, 5, 50, 35);
+    const al = Math.max(15, cl(seed.crossArmLength, 30, 100, 100) / 100 * 50), awMax = N === 2 ? Infinity : al * Math.tan(Math.PI / N) * 0.9;
+    return { kind, frame: { arms: N, aw: Math.min(width / 2, al * 0.9, awMax), angle: num(seed.crossRotate, 0) } };
+  }
+  if (kind === 'lens') return { kind, frame: { angle: num(seed.lensRotate, 0), petals: Math.round(cl(seed.lensPetals, 1, 12, 1)) } };
+  if (kind === 'chevron') return { kind, frame: { apex: 50 + cl(seed.chevLean, -100, 100, 0) / 100 * 30, angle: num(seed.chevRotate, 0) } };
+  if (kind === 'arc') {
+    const centre = seed.arcPivot === 'center', R = centre ? 50 : 100;
+    return { kind, frame: { cx: centre ? 50 : 0, cy: centre ? 50 : 0, R, r: R * (1 - cl(seed.thickness, 0, 100, 100) / 100), start: (centre ? -90 : 0) + num(seed.arcStart, 0), sweep: cl(seed.arcSweep, 10, 350, 90) } };
+  }
+  if (kind === 'drop') {
+    if (num(seed.dropBend, 0) || num(seed.dropNeck, 0) || num(seed.dropPetals, 1) > 1 || num(seed.dropRotate, 0)) return { kind, only: { headtail: 'Needs a plain drop (no Bend, Neck, Petals or Rotate)' } };
+    const r = 50 * cl(seed.dropRadius, 5, 100, 60) / 100;
+    return { kind, frame: { cx: 50, cy: 50 + r * 0.3, r } };
+  }
   if (kind === 'polygon') {
-    if (num(seed.polyStep, 1) > 1) return { kind, reason: 'A polygon with Step above 1 cannot be divided' };
+    if (num(seed.polyStep, 1) > 1) return { kind, only: Object.fromEntries(Organica.shapes.PART_METHODS.polygon.map(m => [m.id, 'Needs Step 1'])) };
     return { kind, frame: { sides: Math.max(3, Math.round(num(seed.polySides, 6))), R: 50 * Math.min(100, Math.max(10, num(seed.polyRadius, 100))) / 100, angle: num(seed.polyBase, -90) + num(seed.polyRotate, 0) } };
   }
   if (kind === 'star') {
@@ -750,8 +829,9 @@ export function partFrameOf(seed) {
 export function partMethodsFor(seed) {
   const pf = partFrameOf(seed);
   if (!pf) return [];
-  return (Organica.shapes.PART_METHODS[pf.kind] || []).map(m => {
-    if (pf.reason) return { ...m, reason: pf.reason };
+  return Organica.shapes.partMethods(pf.kind).map(m => {
+    if (pf.only && pf.only[m.id]) return { ...m, reason: pf.only[m.id] };
+    if (m.id === 'pieces') return shapePieces(seed).length > 1 ? m : { ...m, reason: 'The shape is one piece' };
     const r = Organica.shapes.partRegions(pf.kind, pf.frame, m.id, m.count ? m.count[2] : 0);
     return r.reason && !m.count ? { ...m, reason: r.reason } : m;
   });
@@ -764,8 +844,14 @@ export function partsOf(parts) {
   if (_partsCache.has(key)) return _partsCache.get(key);
   const out = { list: [], byKey: {}, reason: null };
   const pf = partFrameOf(src);
-  const reg = !pf ? { reason: 'This shape cannot be divided yet' } : pf.reason ? { reason: pf.reason } : Organica.shapes.partRegions(pf.kind, pf.frame, parts.method, parts.count);
-  if (reg.reason) out.reason = reg.reason;
+  const reg = !pf ? { reason: 'This shape cannot be divided yet' } : pf.only && pf.only[parts.method] ? { reason: pf.only[parts.method] }
+    : parts.method === 'pieces' ? null : Organica.shapes.partRegions(pf.kind, pf.frame, parts.method, parts.count);
+  if (parts.method === 'pieces') {
+    const geo = SEED_TYPES[src.type].geometry(src), ps = shapePieces(src);
+    if (ps.length < 2) out.reason = 'The shape is one piece';
+    else if (ps.length > Organica.shapes.PART_MAX) out.reason = `${ps.length} parts — at most ${Organica.shapes.PART_MAX}`;
+    else ps.forEach((p, i) => { const part = { key: 'piece-' + i, name: 'Piece ' + (i + 1), geo: { d: p.pathData, fillRule: null, normTx: geo.normTx, normTy: geo.normTy, normScale: geo.normScale } }; out.list.push(part); out.byKey[part.key] = part; });
+  } else if (reg.reason) out.reason = reg.reason;
   else {
     const geo = SEED_TYPES[src.type].geometry(src);
     try {
@@ -804,7 +890,7 @@ export function partsOf(parts) {
         const part = { key: g.key, name: g.name, geo: { d: g.path.pathData, fillRule: null, normTx: geo.normTx, normTy: geo.normTy, normScale: geo.normScale } };
         out.list.push(part); out.byKey[g.key] = part;
       }
-      if (!out.list.length) out.reason = 'Nothing to divide';
+      if (out.list.length < 2) { out.reason = out.list.length ? 'This Division leaves one part' : 'Nothing to divide'; out.list = []; out.byKey = {}; }
     } catch (e) { out.reason = 'This shape could not be divided'; }
   }
   if (_partsCache.size > 80) _partsCache.clear();

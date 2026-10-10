@@ -1526,6 +1526,14 @@
   // frame: polygon {sides, R, angle} · star {points, R, r, angle, twist} · rect {w, h, angle} ·
   // triangle {pts:[apex, left, right]}. angle = the first corner's direction in degrees.
   const PART_MAX = 64;
+  // Cuts every shape takes (R2, Oct 10, 2026): `pieces` = the shape's own separate pieces (worked out by the caller,
+  // which has the outline); the rest are drawn over the shape's frame g = {cx, cy, R, w, h, angle}.
+  const PART_GENERIC = [
+    { id: 'pieces', label: 'Pieces' }, { id: 'halves', label: 'Halves' }, { id: 'quadrants', label: 'Quarters' },
+    { id: 'fan', label: 'Fan', count: [2, 16, 6] }, { id: 'rings', label: 'Rings', count: [2, 6, 3] },
+    { id: 'squares', label: 'Squares', count: [2, 8, 3] }, { id: 'strips', label: 'Stripes', count: [2, 12, 5] },
+  ];
+  const PART_GENERIC_IDS = new Set(PART_GENERIC.map(m => m.id));
   const PART_METHODS = {
     rect: [
       { id: 'halves', label: 'Halves' }, { id: 'diagonal', label: 'Diagonal' }, { id: 'hourglass', label: 'Hourglass' },
@@ -1546,7 +1554,19 @@
       { id: 'tips', label: 'Centre + tips' }, { id: 'faceted', label: 'Faceted' },
       { id: 'kites', label: 'Kites' }, { id: 'corefan', label: 'Centre fan + tips' },
     ],
+    circle: [{ id: 'insquare', label: 'Inscribed square' }, { id: 'inpoly', label: 'Inscribed polygon', count: [3, 12, 6] }],
+    cross: [{ id: 'arms', label: 'Centre + arms' }, { id: 'armsplit', label: 'Arm halves' }, { id: 'crosssquares', label: 'Squares of the arm' }],
+    lens: [{ id: 'axis', label: 'Halves along the axis' }, { id: 'petals', label: 'Petal halves' }],
+    chevron: [{ id: 'chevarms', label: 'Two arms' }],
+    arc: [{ id: 'fan', label: 'Fan', count: [2, 12, 3] }, { id: 'rings', label: 'Bands', count: [2, 6, 2] }],   // the generic Fan / Rings, about the Arc's own pivot
+    drop: [{ id: 'headtail', label: 'Head + tail' }],
+    any: [],
   };
+  // A kind's Divisions: its own constructions first, then every generic cut it does not already name.
+  function partMethods(kind) {
+    const own = PART_METHODS[kind] || [], ids = new Set(own.map(m => m.id));
+    return own.concat(PART_GENERIC.filter(m => !ids.has(m.id)));
+  }
   const pAdd = (a, b) => [a[0] + b[0], a[1] + b[1]], pSub = (a, b) => [a[0] - b[0], a[1] - b[1]];
   const pMul = (a, k) => [a[0] * k, a[1] * k], pMid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
   const pLerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
@@ -1555,13 +1575,40 @@
   const ring = (n, R, deg) => Array.from({ length: n }, (_, i) => { const t = (deg + i * 360 / n) * Math.PI / 180; return [50 + R * Math.cos(t), 50 + R * Math.sin(t)]; });
   const rot = (p, deg) => { const t = deg * Math.PI / 180, c = Math.cos(t), s = Math.sin(t), d = pSub(p, C0); return [50 + d[0] * c - d[1] * s, 50 + d[0] * s + d[1] * c]; };
   // Parallel bands across a frame of half-size R, turned by deg; the outer bands reach far out.
-  function strips(n, R, deg, name) {
-    const out = [];
+  function strips(n, R, deg, name, cx, cy) {
+    cx = cx == null ? 50 : cx; cy = cy == null ? 50 : cy;
+    const out = [], turn = p => { const t = deg * Math.PI / 180, c = Math.cos(t), s = Math.sin(t), d = [p[0] - cx, p[1] - cy]; return [cx + d[0] * c - d[1] * s, cy + d[0] * s + d[1] * c]; };
     for (let j = 0; j < n; j++) {
       const u0 = j === 0 ? -4 * R : -R + 2 * R * j / n, u1 = j === n - 1 ? 4 * R : -R + 2 * R * (j + 1) / n;
-      out.push({ key: 'strip-' + j, name: name + ' ' + (j + 1), pts: [[50 + u0, 50 - 4 * R], [50 + u1, 50 - 4 * R], [50 + u1, 50 + 4 * R], [50 + u0, 50 + 4 * R]].map(p => rot(p, deg)) });
+      out.push({ key: 'strip-' + j, name: name + ' ' + (j + 1), pts: [[cx + u0, cy - 4 * R], [cx + u1, cy - 4 * R], [cx + u1, cy + 4 * R], [cx + u0, cy + 4 * R]].map(turn) });
     }
     return out;
+  }
+  const disc = (cx, cy, r, seg) => Array.from({ length: seg || 96 }, (_, i) => { const a = i / (seg || 96) * 2 * Math.PI; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; });
+  // Wedges from (cx, cy): n of them over `span` degrees from `a0`, each reaching far out.
+  const wedges = (cx, cy, R, a0, span, n, key, name) => Array.from({ length: n }, (_, i) => {
+    const pts = [[cx, cy]];
+    for (let k = 0; k <= 4; k++) { const a = (a0 + span * (i + k / 4) / n) * Math.PI / 180; pts.push([cx + 4 * R * Math.cos(a), cy + 4 * R * Math.sin(a)]); }
+    return { key: key + '-' + i, name: name + ' ' + (i + 1), pts };
+  });
+  function genericRegions(g, method, n) {
+    const { cx, cy, R } = g, big = 4 * R;
+    const box = (a, b, c, d) => [[a, b], [c, b], [c, d], [a, d]];
+    if (method === 'halves') return [{ key: 'half-0', name: 'Half 1', pts: box(cx - big, cy - big, cx, cy + big) }, { key: 'half-1', name: 'Half 2', pts: box(cx, cy - big, cx + big, cy + big) }];
+    if (method === 'quadrants') return [box(cx - big, cy - big, cx, cy), box(cx, cy - big, cx + big, cy), box(cx, cy, cx + big, cy + big), box(cx - big, cy, cx, cy + big)].map((pts, i) => ({ key: 'quarter-' + i, name: 'Quarter ' + (i + 1), pts }));
+    if (method === 'fan') return wedges(cx, cy, R, -90 + (g.angle || 0), 360, n, 'slice', 'Slice');
+    if (method === 'rings') return Array.from({ length: n }, (_, i) => ({ key: 'ring-' + i, name: i ? 'Ring ' + i : 'Centre', pts: i === n - 1 ? box(cx - big, cy - big, cx + big, cy + big) : disc(cx, cy, R * (i + 1) / n) }));
+    if (method === 'squares') {
+      const cols = n, rows = Math.max(1, Math.round(n * g.h / Math.max(g.w, 1e-6))), x0 = cx - g.w / 2, y0 = cy - g.h / 2, out = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const a = c === 0 ? x0 - big : x0 + g.w * c / cols, b = r === 0 ? y0 - big : y0 + g.h * r / rows;
+        const cc = c === cols - 1 ? x0 + g.w + big : x0 + g.w * (c + 1) / cols, d = r === rows - 1 ? y0 + g.h + big : y0 + g.h * (r + 1) / rows;
+        out.push({ key: `sq-${r}-${c}`, name: 'Square ' + (r * cols + c + 1), pts: box(a, b, cc, d) });
+      }
+      return out;
+    }
+    if (method === 'strips') return strips(n, Math.max(g.w, g.h) / 2, g.angle || 0, 'Strip', cx, cy);
+    return [];
   }
   // The rhombus tiling of a centrally symmetric 2k-gon: one rhombus per pair of edge directions.
   function zonogonRhombi(V) {
@@ -1579,11 +1626,57 @@
     return out;
   }
   function partRegions(kind, f, method, count) {
-    const m = (PART_METHODS[kind] || []).find(x => x.id === method);
+    const m = partMethods(kind).find(x => x.id === method);
     if (!m) return { reason: 'This shape cannot be divided that way' };
     const n = m.count ? Math.max(m.count[0], Math.min(m.count[1], Math.round(count == null ? m.count[2] : count))) : 0;
     let regions = [];
-    if (kind === 'polygon') {
+    const own = (PART_METHODS[kind] || []).some(x => x.id === method);
+    if (method === 'pieces') return { reason: 'Pieces are worked out from the outline' };
+    if (!own) {
+      if (!f.g) return { reason: 'This shape cannot be divided that way' };
+      regions = genericRegions(f.g, method, n);
+    } else if (kind === 'circle') {
+      const N = method === 'insquare' ? 4 : n, a0 = method === 'insquare' ? -45 : -90, V = ring(N, f.R, a0).map(p => [p[0] - 50 + f.cx, p[1] - 50 + f.cy]);
+      regions.push({ key: 'core', name: 'Centre', pts: V });
+      V.forEach((v, i) => { const w = V[(i + 1) % N]; regions.push({ key: 'seg-' + i, name: 'Cap ' + (i + 1), pts: [[f.cx, f.cy], pAdd([f.cx, f.cy], pMul(pSub(v, [f.cx, f.cy]), 3)), pAdd([f.cx, f.cy], pMul(pSub(w, [f.cx, f.cy]), 3))] }); });
+    } else if (kind === 'cross') {
+      const N = f.arms, step = 360 / N, th = k => -90 + k * step + f.angle, R = 80;
+      const P = (deg, r) => [50 + r * Math.cos(deg * Math.PI / 180), 50 + r * Math.sin(deg * Math.PI / 180)];
+      if (method === 'crosssquares') {
+        if (N !== 4) return { reason: 'Needs four arms' };
+        const a = 2 * f.aw, k = Math.ceil(50 / a) + 1, out = [];
+        for (let r = -k; r <= k; r++) for (let c = -k; c <= k; c++) {
+          const x = 50 - f.aw + c * a, y = 50 - f.aw + r * a;
+          out.push({ key: `sq-${r}-${c}`, name: '', pts: [[x, y], [x + a, y], [x + a, y + a], [x, y + a]].map(p => rot(p, f.angle)) });
+        }
+        out.sort((p, q) => Math.hypot(...pSub(pMul(pAdd(p.pts[0], p.pts[2]), 0.5), C0)) - Math.hypot(...pSub(pMul(pAdd(q.pts[0], q.pts[2]), 0.5), C0)));
+        out.forEach((o, i) => { o.name = i ? 'Square ' + i : 'Centre'; });
+        regions = out;
+      } else {
+        // the centre: the N-gon whose sides meet the arms' edges (a bar of two arms: a square of the arm's width)
+        const core = N === 2 ? [45, 135, 225, 315].map(a => P(th(0) + a, f.aw * Math.SQRT2))
+          : Array.from({ length: N }, (_, k) => P(th(k) + step / 2, f.aw / Math.cos(Math.PI / N)));
+        regions.push({ key: 'core', name: 'Centre', pts: core });
+        for (let k = 0; k < N; k++) {
+          if (method === 'arms') regions.push({ key: 'arm-' + k, name: 'Arm ' + (k + 1), pts: [C0, P(th(k) - step / 2, R), P(th(k), R), P(th(k) + step / 2, R)] });
+          else {
+            regions.push({ key: `arm-${k}-a`, name: `Arm ${k + 1} · left`, pts: [C0, P(th(k) - step / 2, R), P(th(k), R)] });
+            regions.push({ key: `arm-${k}-b`, name: `Arm ${k + 1} · right`, pts: [C0, P(th(k), R), P(th(k) + step / 2, R)] });
+          }
+        }
+      }
+    } else if (kind === 'lens') {
+      if (method === 'axis') regions = [0, 1].map(h => ({ key: 'half-' + h, name: 'Half ' + (h + 1), pts: [[50, -200], [50, 300], [h ? 300 : -200, 300], [h ? 300 : -200, -200]].map(p => rot(p, f.angle)) }));
+      else regions = wedges(50, 50, 50, -90 + f.angle - 90 / f.petals, 360, 2 * f.petals, 'petal', 'Petal half');
+    } else if (kind === 'chevron') {
+      regions = [0, 1].map(h => ({ key: 'arm-' + h, name: 'Arm ' + (h + 1), pts: [[f.apex, -300], [f.apex, 400], [h ? 400 : -300, 400], [h ? 400 : -300, -300]].map(p => rot(p, f.angle)) }));
+    } else if (kind === 'arc') {
+      if (method === 'rings') {
+        for (let i = 0; i < n; i++) regions.push({ key: 'band-' + i, name: 'Band ' + (i + 1), pts: i === n - 1 ? [[f.cx - 4 * f.R, f.cy - 4 * f.R], [f.cx + 4 * f.R, f.cy - 4 * f.R], [f.cx + 4 * f.R, f.cy + 4 * f.R], [f.cx - 4 * f.R, f.cy + 4 * f.R]] : disc(f.cx, f.cy, f.r + (f.R - f.r) * (i + 1) / n) });
+      } else regions = wedges(f.cx, f.cy, f.R, f.start, f.sweep, n, 'slice', 'Slice');
+    } else if (kind === 'drop') {
+      regions = [{ key: 'head', name: 'Head', pts: disc(f.cx, f.cy, f.r) }, { key: 'tail', name: 'Tail', pts: [[f.cx - 4 * f.r, f.cy - 400], [f.cx + 4 * f.r, f.cy - 400], [f.cx + 4 * f.r, f.cy + 4 * f.r], [f.cx - 4 * f.r, f.cy + 4 * f.r]] }];
+    } else if (kind === 'polygon') {
       const N = f.sides, V = ring(N, f.R, f.angle), M = V.map((v, i) => pMid(v, V[(i + 1) % N]));
       const at = i => V[((i % N) + N) % N], mid = i => M[((i % N) + N) % N];
       if (method === 'fan') regions = V.map((v, i) => ({ key: 'tri-' + i, name: 'Triangle ' + (i + 1), pts: [C0, far(v), far(at(i + 1))] }));
@@ -1595,7 +1688,7 @@
           a.forEach((p, i) => regions.push({ key: `ring-${r}-${i}`, name: n > 1 ? `Ring ${r} · ${i + 1}` : 'Ring ' + (i + 1), pts: [p, a[(i + 1) % N], b[(i + 1) % N], b[i]] }));
         }
       } else if (method === 'rhombi') {
-        if (N % 2) return { reason: 'Rhombi need an even number of sides' };
+        if (N % 2) return { reason: 'Needs an even number of sides' };
         regions = zonogonRhombi(V);
       } else if (method === 'centre') {
         regions.push({ key: 'core', name: 'Centre', pts: M });
@@ -1604,7 +1697,7 @@
         const big = 4 * f.R;
         regions = [0, 1].map(h => ({ key: 'half-' + h, name: 'Half ' + (h + 1), pts: [[50 - big, 50], [50 + big, 50], [50 + big, 50 + (h ? -big : big)], [50 - big, 50 + (h ? -big : big)]].map(p => rot(p, f.angle)) }));
       } else if (method === 'centresquare') {
-        if (N !== 8) return { reason: 'Centre square needs 8 sides' };
+        if (N !== 8) return { reason: 'Needs 8 sides' };
         // The octagon's 3 × 3: four chords V0V5, V1V4, V2V7, V3V6 in the frame of its first edge.
         const u = pSub(V[1], V[0]), ul = Math.hypot(u[0], u[1]), ux = pMul(u, 1 / ul), vy = [-ux[1], ux[0]];
         const loc = p => [(p[0] - 50) * ux[0] + (p[1] - 50) * ux[1], (p[0] - 50) * vy[0] + (p[1] - 50) * vy[1]];
@@ -1718,6 +1811,6 @@
     crossGeometry, crossPathD, lensGeometry, lensPathD,
     EXTRAS, starExtrasActive, rrExtrasActive, chevronExtrasActive, crossExtrasActive, lensExtrasActive, segmentExtrasActive, dropExtrasActive, blobExtrasActive,
     resolveGridCells, resolveCellPlacement, cellColRow, frameSize, frameDims, median,
-    PART_METHODS, PART_MAX, partRegions,
+    PART_METHODS, PART_GENERIC, PART_MAX, partMethods, partRegions,
   };
 })(window);

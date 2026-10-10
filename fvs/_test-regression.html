@@ -1023,17 +1023,21 @@ async function battery() {
   // drawing, and that the parts add up to the shape; a count change keeps the inks by key.
   reset();
   state.colors = ['#e8321e', '#0a9a3e', '#1e5be8', '#f2b300']; buildPalette();
-  const partArea = d => { const sc = splitPaperScope(), p = importAsPaperShape(sc, d, null); const a = Math.abs(p.area); p.remove(); return a; };
-  for (const [t, extra] of [['roundedrect', {}], ['polygon', { polySides: 6, polyBase: 0 }], ['polygon', { polySides: 8 }], ['triangle', {}], ['star', {}], ['star', { starTipRound: 40, starCurve: 30 }]]) {
+  const solidArea = (d, fr) => { const sc = splitPaperScope(), p = importAsPaperShape(sc, d, fr), u = p.unite(new sc.Path({ insert: false }), { insert: false }); p.remove(); return Math.abs(u.area); };
+  const partArea = d => solidArea(d, null);
+  for (const [t, extra] of [['roundedrect', {}], ['polygon', { polySides: 6, polyBase: 0 }], ['polygon', { polySides: 8 }], ['triangle', {}], ['star', {}], ['star', { starTipRound: 40, starCurve: 30 }],
+    // R2: the curved shapes, generic cuts, Pieces
+    ['circle', {}], ['cross', {}], ['cross', { crossArms: 6 }], ['lens', { lensPetals: 3 }], ['chevron', { chevStack: 2 }], ['arc', { arcSegs: 4, arcGap: 30 }], ['drop', {}], ['blob', {}], ['segment', { segDashes: 4 }]]) {
     chg('sel-seed-type', t);
     const src = { ...panelSeedSnapshot(), ...extra };
     for (const m of partMethodsFor(src)) {
       if (m.reason) { put(`parts:${t}:${JSON.stringify(extra)}:${m.id}`, m.reason); continue; }
       const r = divideLayers(src, m.id, m.count ? m.count[2] : 0, readLookControls());
+      if (r.reason) { put(`parts:${t}:${JSON.stringify(extra)}:${m.id}`, r.reason); continue; }
       r.layers.items.forEach((l, k) => { l.ink = k % state.colors.length; });
       const sd = { type: 'stack', active: 0, layers: r.layers.items, parts: r.layers.parts };
       const res = partsOf(r.layers.parts), whole = SEED_TYPES[t].geometry(src);
-      const sum = res.list.reduce((a, p) => a + partArea(p.geo.d), 0), A = Math.abs((() => { const sc = splitPaperScope(), p = importAsPaperShape(sc, whole.d, whole.fillRule); const a = p.area; p.remove(); return a; })());
+      const sum = res.list.reduce((a, p) => a + partArea(p.geo.d), 0), A = solidArea(whole.d, whole.fillRule);
       put(`parts:${t}:${JSON.stringify(extra)}:${m.id}`, buildSeedPreviewSVG(sd, 0, false, false, 100));
       put(`parts:${t}:${JSON.stringify(extra)}:${m.id}:sum`, [res.list.length, Math.abs(sum - A) / A < 0.005].join(','));
     }

@@ -532,6 +532,13 @@ export function partGroupName(L) {
   const n = L.items.filter(l => l.part).length;
   return `${(SEED_ICONS[src.type] || {}).name || (SEED_TYPES[src.type] || {}).label || src.type} · ${m ? m.label : L.parts.method} · ${n}`;
 }
+// The greyed options, said once: a reason several share is listed with all their names ("Rhombi, Centre square: …").
+// Pieces greyed = a one-piece shape — too common to say.
+function partReasonsHint(off) {
+  const by = new Map();
+  off.filter(x => x.id !== 'pieces').forEach(x => by.set(x.reason, (by.get(x.reason) || []).concat(x.label)));
+  return [...by].map(([r, labels]) => `${labels.length > 3 ? 'Its own Divisions' : labels.join(', ')}: ${r.charAt(0).toLowerCase() + r.slice(1)}`).join(' · ');
+}
 function partChoice() {
   // The first renderLayersUI() runs while the module loads, before the shape extras' rows exist: no source yet.
   let src = null;
@@ -554,14 +561,14 @@ export function renderPartsUI() {
   if (!methods.length) {
     sel.innerHTML = '<option>None for this shape</option>';
     ctrl('part-count-row').style.display = 'none';
-    ctrl('part-hint').textContent = 'Square, Polygon, Triangle and Star can be divided into parts.';
+    ctrl('part-hint').textContent = 'This shape cannot be divided.';
     ctrl('part-divide-row').style.display = '';
     ctrl('btn-part-divide').disabled = true;
     ctrl('part-actions-row').style.display = 'none';
     ctrl('part-actions-row2').style.display = 'none';
     return;
   }
-  sel.innerHTML = methods.map(x => `<option value="${x.id}"${x.reason ? ' disabled' : ''}${m && x.id === m.id ? ' selected' : ''}>${x.label}</option>`).join('');
+  sel.innerHTML = methods.map(x => `<option value="${x.id}"${x.reason ? ` disabled title="${x.reason}"` : ''}${m && x.id === m.id ? ' selected' : ''}>${x.label}</option>`).join('');
   ctrl('part-count-row').style.display = m && m.count ? '' : 'none';
   if (m && m.count) {
     const rg = ctrl('rg-part-count');
@@ -570,7 +577,7 @@ export function renderPartsUI() {
   const res = divided ? partsOf(L.parts) : null, off = methods.filter(x => x.reason);
   ctrl('part-hint').textContent = res && res.reason ? res.reason + ' — the whole shape is drawn meanwhile.'
     : divided ? `${L.items.filter(l => l.part).length} parts · click a part on the canvas in Edit parts`
-    : off.length && off.length === methods.length ? off[0].reason : off.length ? off.map(x => `${x.label}: ${x.reason.toLowerCase()}`).join(' · ') : '';
+    : partReasonsHint(off);
   ctrl('part-divide-row').style.display = divided ? 'none' : '';
   ctrl('btn-part-divide').disabled = !m || !!m.reason;
   ctrl('part-actions-row').style.display = divided ? '' : 'none';
