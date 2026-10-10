@@ -694,14 +694,16 @@
   // stream each call so the same seed always reproduces the same
   // silhouette (same discipline as Symbols' own
   // generateSymbolCells/ruleRandom).
-  function polygonPathD(sides, cornerRadiusPct, irregularityPct, seed, radiusPct) {
+  // `base` = where the first corner points, in degrees (default −90, up — every polygon drawn before Oct 10,
+  // 2026; FVS passes 0, first corner to the right, for a shape made since).
+  function polygonPathD(sides, cornerRadiusPct, irregularityPct, seed, radiusPct, base) {
     sides = Math.max(3, Math.round(sides == null ? 6 : sides));
     const irregular = Math.min(100, Math.max(0, irregularityPct == null ? 0 : irregularityPct)) / 100;
     const cx = 50, cy = 50, R = 50 * Math.min(100, Math.max(10, radiusPct == null ? 100 : radiusPct)) / 100;
     const rng = Organica.mulberry32((seed == null ? 1 : seed) >>> 0);
     const pts = [];
     for (let i = 0; i < sides; i++) {
-      const t = (i * 360 / sides - 90) * Math.PI / 180;
+      const t = (i * 360 / sides + (base == null ? -90 : base)) * Math.PI / 180;
       const rad = R * (1 - irregular * 0.5 + rng() * irregular);
       pts.push([cx + rad * Math.cos(t), cy + rad * Math.sin(t)]);
     }
@@ -729,7 +731,7 @@
     const pts = [];
     for (let i = 0; i < sides; i++) {
       const jit = rng2 ? (rng2() - 0.5) * 2 * skew * 0.45 * (360 / sides) : 0;
-      const t = (i * 360 / sides - 90 + rot + jit) * Math.PI / 180;
+      const t = (i * 360 / sides + (o.base == null ? -90 : o.base) + rot + jit) * Math.PI / 180;
       const rad = R * (1 - irregular * 0.5 + rng() * irregular);
       pts.push([50 + rad * Math.cos(t), 50 + rad * Math.sin(t)]);
     }
@@ -756,7 +758,7 @@
   }
   function polygonGeometry(sides, cornerRadiusPct, irregularityPct, seed, radiusPct, opts) {
     if (polygonExtrasActive(opts)) return polygonBuild(sides, cornerRadiusPct, irregularityPct, seed, radiusPct, opts);
-    return { d: polygonPathD(sides, cornerRadiusPct, irregularityPct, seed, radiusPct), normTx: 0, normTy: 0, normScale: 1 };
+    return { d: polygonPathD(sides, cornerRadiusPct, irregularityPct, seed, radiusPct, opts && opts.base), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Star: `points`-pointed, alternating outer (radius 50, box-edge-touching)
@@ -764,7 +766,7 @@
   // irregularityPct (0-100, default 0 — byte-identical to the regular
   // star) jitters each of the outer AND inner vertices' own radius by a
   // seeded amount, same discipline as polygonPathD's own irregularity.
-  function starPathD(points, innerRadiusPct, irregularityPct, seed, radiusPct) {
+  function starPathD(points, innerRadiusPct, irregularityPct, seed, radiusPct, base) {   // base: as polygonPathD's
     points = Math.max(3, Math.round(points == null ? 5 : points));
     innerRadiusPct = Math.min(90, Math.max(5, innerRadiusPct == null ? 45 : innerRadiusPct));
     const irregular = Math.min(100, Math.max(0, irregularityPct == null ? 0 : irregularityPct)) / 100;
@@ -773,16 +775,16 @@
     const r2 = v => Math.round(v * 1000) / 1000;
     const n = points * 2, pts = [];
     for (let i = 0; i < n; i++) {
-      const t = (i * 360 / n - 90) * Math.PI / 180;
-      const base = i % 2 === 0 ? R : r;
-      const rad = base * (1 - irregular * 0.5 + rng() * irregular);
+      const t = (i * 360 / n + (base == null ? -90 : base)) * Math.PI / 180;
+      const len = i % 2 === 0 ? R : r;
+      const rad = len * (1 - irregular * 0.5 + rng() * irregular);
       pts.push([cx + rad * Math.cos(t), cy + rad * Math.sin(t)]);
     }
     return 'M ' + pts.map(p => `${r2(p[0])},${r2(p[1])}`).join(' L ') + ' Z';
   }
   function starGeometry(points, innerRadiusPct, irregularityPct, seed, radiusPct, opts) {
     if (starExtrasActive(opts)) return starBuild(points, innerRadiusPct, irregularityPct, seed, radiusPct, opts);
-    return { d: starPathD(points, innerRadiusPct, irregularityPct, seed, radiusPct), normTx: 0, normTy: 0, normScale: 1 };
+    return { d: starPathD(points, innerRadiusPct, irregularityPct, seed, radiusPct, opts && opts.base), normTx: 0, normTy: 0, normScale: 1 };
   }
 
   // Rounded rect / capsule, centred at (50,50). cornerRadiusPct maps to a
@@ -931,7 +933,7 @@
     for (let i = 0; i < n; i++) {
       const jit = rng2 ? (rng2() - 0.5) * 2 * skew * 0.45 * (360 / n) : 0;
       const tw = i % 2 ? twist * 0.45 * (360 / n) : 0;
-      const t = (i * 360 / n - 90 + rot + tw + jit) * Math.PI / 180;
+      const t = (i * 360 / n + (o.base == null ? -90 : o.base) + rot + tw + jit) * Math.PI / 180;
       const rad = (i % 2 === 0 ? R : r) * (1 - irr * 0.5 + rng() * irr);
       pts.push([50 + rad * Math.cos(t), 50 + rad * Math.sin(t)]);
     }

@@ -848,6 +848,7 @@
            Kept, never shown, so an older snapshot still round-trips through getPanelSeed(); foldLegacySeed()
            moves their values into Appearance on load whenever the result is identical. -->
       <div id="seed-legacy" style="display:none">
+        <input type="hidden" id="rg-poly-base" value="0"><input type="hidden" id="rg-star-base" value="0">
         <div class="ctrl-row">
           <div class="ctrl-label" title="Jitters each vertex — 0 stays a perfectly clean triangle.">Irregularity</div>
           <input type="range" id="rg-tri-irregular" min="0" max="100" step="1" value="0">

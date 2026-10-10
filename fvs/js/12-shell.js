@@ -415,7 +415,10 @@ ctrl('rg-lines-step').addEventListener('input', e => { ctrl('v-lines-step').text
   ctrl(rangeId).addEventListener('input', e => { ctrl(valId).textContent = e.target.value; });
 });
 
-ctrl('sel-seed-type').addEventListener('change', () => { syncSeedUI(); renderGallery(); renderSeedPreview(); });
+ctrl('sel-seed-type').addEventListener('change', () => {
+  ctrl('rg-poly-base').value = 0; ctrl('rg-star-base').value = 0;   // a shape picked now starts with its first corner to the right (Oct 10, 2026)
+  syncSeedUI(); renderGallery(); renderSeedPreview();
+});
 ctrl('btn-upload-seed').addEventListener('click', () => ctrl('file-seed').click());
 ctrl('file-seed').addEventListener('change', e => {
   const file = e.target.files[0];

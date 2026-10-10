@@ -187,6 +187,8 @@ export function applyPanelSeedRaw(seed) {
     const v = seed[k] != null ? seed[k] : def;
     ctrl('rg-wedge-' + id).value = v; ctrl('v-wedge-' + id).textContent = v;
   });
+  ctrl('rg-poly-base').value = seed.polyBase != null ? seed.polyBase : -90;   // saved before Oct 10, 2026: first corner up, as it was drawn
+  ctrl('rg-star-base').value = seed.starBase != null ? seed.starBase : -90;
   if (seed.polySides != null) { ctrl('rg-poly-sides').value = seed.polySides; ctrl('v-poly-sides').textContent = seed.polySides; }
   [['polyRotate', 'rotate', 0], ['polyStep', 'step', 1], ['polyCurve', 'curve', 0], ['polyOutline', 'outline', 0], ['polySkew', 'skew', 0]].forEach(([k, id, def]) => {
     const v = seed[k] != null ? seed[k] : def;
