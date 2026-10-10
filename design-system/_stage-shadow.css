@@ -12,7 +12,7 @@
 /* Since Oct 10, 2026 FVS itself draws the board as paper and each sheet as the top of a ream (fvs.css, tokens
    --canvas-paper / --sheet-pile). Every variant here starts from a clean sheet and a board it sets itself. */
 :root[data-stage-shadow] :is(#element-svg > svg, #component-edit-frame > svg, #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg) { outline: none; box-shadow: none; }
-:root[data-stage-board="white"] #app { --canvas-bg: var(--paper); }
+:root[data-stage-board="white"] { --canvas-bg: var(--paper); }
 :root { --stage-offset: var(--space-1); --stage-offset-color: rgba(0, 0, 0, 0.18); }
 :root[data-theme="dark"] { --stage-offset-color: var(--border-strong); }
 :root[data-stage-shadow="offset-ink"] { --stage-offset-color: var(--ink); }
@@ -71,10 +71,10 @@
 /* ── Diego, Oct 10, 2026: the board as paper, the sheets as a real, playful pile — two controls that combine. ──
    Board (<html data-stage-board>): white (today) · grey (--panel) · cream · yellow. The cream / yellow values are
    test values, NOT tokens yet (a new token is Diego's decision); dark keeps a dark board with the same warmth. */
-:root[data-stage-board="grey"] #app { --canvas-bg: var(--panel); }
-:root[data-stage-board="cream"] #app { --canvas-bg: var(--canvas-paper); }   /* shipped as the token --canvas-paper (Oct 10) */
-:root[data-stage-board="yellow"] #app { --canvas-bg: #f7efd4; }
-:root[data-theme="dark"][data-stage-board="yellow"] #app { --canvas-bg: #1f1c12; }
+:root[data-stage-board="grey"] { --canvas-bg: var(--panel); }
+:root[data-stage-board="cream"] { --canvas-bg: var(--canvas-paper); }   /* shipped as the token --canvas-paper (Oct 10) */
+:root[data-stage-board="yellow"] { --canvas-bg: #f7efd4; }
+:root[data-theme="dark"][data-stage-board="yellow"] { --canvas-bg: #1f1c12; }
 
 /* Sheets — every pile is solid copies (box-shadow, no blur) or two rotated sheets (pseudo-elements): painted once. */
 :root[data-stage-shadow^="pile"] { --pile-edge: var(--border-strong); }

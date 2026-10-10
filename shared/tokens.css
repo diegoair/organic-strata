@@ -409,11 +409,14 @@ html {
   --sheet-line: #111111;
   --sheet-page: #adadad;
   --sheet-line-w: 1.5px;
+  --sheet-gap: 1px;   /* the board between two layers of the pile (Diego, Oct 10) */
   --sheet-pile:
-    calc(var(--space-1) / -2) var(--space-1) 0 calc(var(--sheet-line-w) * -1) var(--sheet-page),   /* the sheet right under it: grey, not white (Diego, Oct 10) */
-    calc(var(--space-1) / -2) var(--space-1) 0 0 var(--sheet-line),
-    0 var(--space-2) 0 calc(var(--sheet-line-w) * -1) var(--sheet-page),
-    0 var(--space-2) 0 0 var(--sheet-line);
+    0 0 0 calc(var(--sheet-line-w) + var(--sheet-gap)) var(--canvas-bg),   /* the gap round the sheet (its outline is the `outline`) */
+    calc(var(--space-1) * -1) calc(var(--space-1) + var(--sheet-gap)) 0 calc(var(--sheet-line-w) * -1) var(--sheet-page),   /* the sheet right under it */
+    calc(var(--space-1) * -1) calc(var(--space-1) + var(--sheet-gap)) 0 0 var(--sheet-line),
+    calc(var(--space-1) * -1) calc(var(--space-1) + var(--sheet-gap)) 0 var(--sheet-gap) var(--canvas-bg),   /* the gap round it */
+    0 calc(var(--space-2) + 3 * var(--sheet-gap)) 0 calc(var(--sheet-line-w) * -1) var(--sheet-page),   /* the page at the bottom */
+    0 calc(var(--space-2) + 3 * var(--sheet-gap)) 0 0 var(--sheet-line);
   /* The canvas-pattern switcher (header) sets <html data-canvas-pattern>. The default
      is dots — the value above; the others re-point the same token, so every canvas area
      follows with no per-tool edit. Persisted by shared/pattern-init.js. */
