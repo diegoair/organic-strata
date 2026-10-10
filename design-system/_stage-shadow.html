@@ -64,7 +64,7 @@
   const q = new URLSearchParams(location.search);
   const st = { v: q.get('v') || 'pile-ream', b: q.get('b') || 'cream', t: q.get('t') || 'light', s: q.get('s') || 'element' };
   const INFO = {
-    'pile-ream': ['Ream (shipped): a black outline, one loose white sheet and one grey page under it — the top of a ream.', 'An outline + four box-shadows, no blur (tokens --sheet-pile): painted once with the sheet, nothing recomputed while you move. Square sheets only.'],
+    'pile-ream': ['Ream (shipped): a black outline, one loose grey sheet and one grey page under it — the top of a ream.', 'An outline + four box-shadows, no blur (tokens --sheet-pile): painted once with the sheet, nothing recomputed while you move. Square sheets only.'],
     none: ['None: no outline, no pile — the white sheet alone.', 'Nothing drawn — the reference every other variant is compared with.'],
     stack: ['Stack: two sheets under it, neatly offset, each a white sheet with a hairline edge.', 'Four box-shadows, no blur: the cost of a border, painted once.'],
     'pile-fan': ['Fanned: two sheets under it, turned a little each way, as if dropped on the table.', 'Two pseudo-elements, rotated: painted once, they move with the sheet. Element canvas + Figure cards; elsewhere the neat stack.'],
