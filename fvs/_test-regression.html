@@ -1018,6 +1018,37 @@ async function battery() {
   setTier('symbol'); loadSymbolGrid(squareLoomModel(2, 2));
   put('symbol:clip:default', [state.symbolClipEnabled, /<clipPath/.test(buildSymbolSVG()), JSON.stringify(state.symbolView)].join(','));
   setTier('component');
+
+  // Divide into parts (Oct 10, 2026): every Division of the four straight-edged shapes, one ink per part — the
+  // drawing, and that the parts add up to the shape; a count change keeps the inks by key.
+  reset();
+  state.colors = ['#e8321e', '#0a9a3e', '#1e5be8', '#f2b300']; buildPalette();
+  const partArea = d => { const sc = splitPaperScope(), p = importAsPaperShape(sc, d, null); const a = Math.abs(p.area); p.remove(); return a; };
+  for (const [t, extra] of [['roundedrect', {}], ['polygon', { polySides: 6, polyBase: 0 }], ['polygon', { polySides: 8 }], ['triangle', {}], ['star', {}], ['star', { starTipRound: 40, starCurve: 30 }]]) {
+    chg('sel-seed-type', t);
+    const src = { ...panelSeedSnapshot(), ...extra };
+    for (const m of partMethodsFor(src)) {
+      if (m.reason) { put(`parts:${t}:${JSON.stringify(extra)}:${m.id}`, m.reason); continue; }
+      const r = divideLayers(src, m.id, m.count ? m.count[2] : 0, readLookControls());
+      r.layers.items.forEach((l, k) => { l.ink = k % state.colors.length; });
+      const sd = { type: 'stack', active: 0, layers: r.layers.items, parts: r.layers.parts };
+      const res = partsOf(r.layers.parts), whole = SEED_TYPES[t].geometry(src);
+      const sum = res.list.reduce((a, p) => a + partArea(p.geo.d), 0), A = Math.abs((() => { const sc = splitPaperScope(), p = importAsPaperShape(sc, whole.d, whole.fillRule); const a = p.area; p.remove(); return a; })());
+      put(`parts:${t}:${JSON.stringify(extra)}:${m.id}`, buildSeedPreviewSVG(sd, 0, false, false, 100));
+      put(`parts:${t}:${JSON.stringify(extra)}:${m.id}:sum`, [res.list.length, Math.abs(sum - A) / A < 0.005].join(','));
+    }
+  }
+  {
+    chg('sel-seed-type', 'star');
+    const src = { ...panelSeedSnapshot(), starPoints: 5 };
+    const L = divideLayers(src, 'tips', 0, readLookControls()).layers;
+    L.items.forEach((l, k) => { l.ink = k % 4; });
+    L.parts.source = { ...src, starPoints: 7 }; syncPartLayers(L);
+    const seven = L.items.map(l => l.part + ':' + l.ink).join(',');
+    L.parts.source = { ...src, starPoints: 5 }; syncPartLayers(L);
+    put('parts:keys:5-7-5', seven + ' | ' + L.items.map(l => l.part + ':' + l.ink).join(','));
+  }
+  reset();
   return out;
 }
 

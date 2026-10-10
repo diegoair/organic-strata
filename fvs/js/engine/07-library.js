@@ -2,10 +2,10 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  pc, pv, state, val
+  live, pc, pv, state, val
 } from './00-core.js';
 import {
-  SEED_TYPES
+  SEED_TYPES, syncPartLayers
 } from './01-geometry.js';
 import {
   SEED_ICONS, panelSeedSnapshot, seedForSnapshot
@@ -113,14 +113,16 @@ export function libraryEntryFromLive(comp) {
 export function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedComponent()); }
 export function syncActiveLayer() {
   if (!state.layers) return;
-  const l = state.layers.items[state.layers.active];
-  l.seed = panelSeedSnapshot();
+  const L = state.layers, l = L.items[L.active];
+  // A part layer: the panel edits the shape the parts come from (one source for the whole group).
+  if (l.part && L.parts) { L.parts.source = panelSeedSnapshot(); if (syncPartLayers(L)) live.partRowsDirty = true; }
+  else l.seed = panelSeedSnapshot();
   l.look = readLookControls();
 }
 export function readLookControls() {
   return { fillMode: pv('sel-element-fillmode'), strokeW: val('rg-element-strokew'), rounded: pc('ck-element-rounded'), w: val('rg-element-w'), l: val('rg-element-l') };
 }
-export const layerName = l => (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
+export const layerName = l => l.part || l.partName ? (l.partName || l.part) : (SEED_ICONS[l.seed.type] || {}).name || (SEED_TYPES[l.seed.type] || {}).label || l.seed.type;
 // Figure recipes rewrite the shared Element seed-type control and replace
 // state.components wholesale as a side effect (runBuiltinRecipe/
 // runFigureRecipe both fireChange('sel-seed-type', el.type) then rebuild the

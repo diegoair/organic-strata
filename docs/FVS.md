@@ -215,6 +215,21 @@ The cell the Element is drawn for. Four icon buttons in the floatbar, on the Ele
 - **Saved data.** A seed carries `cellShape` only when it isn't square; a Component grid carries `lattice: {shape, rings, outline}` (rings = Grid size). Missing = square — every existing file and the regression baseline are unchanged.
 - **Not yet:** layered Elements aren't cut to the cell; Arc truchet's square-only rows still show on a hexagon; Symbol rules still make 90° turns (Match cell rounds them); Element as Paper tile is square-only; the Transform axes label still reads 0/90/180/270°.
 
+### 3b. Divide into parts (Oct 10, 2026 — R1)
+
+An Element can be divided into its **primordial figures** — squares, triangles, rhombi, kites, strips, the shape's own centre — so each piece takes its own colour. The parts **are layers** (§6a): each has its ink, role, place, look and eye, and everything that reads layers (Component, Symbol, Figure, export, plates, *Layer colour variants*) reads them unchanged.
+
+- **Where.** Layers section, at the top: **Division** (the options the current shape offers; one that does not fit is greyed, the reason under it) · **Parts** (the count, for Squares / Stripes / Log cabin / Centre + ring / Nested triangles) · **Divide into parts**. Once divided: **Edit parts** · **One ink per part** · **Ungroup** · **Join parts** (armed). The parts sit in one group in the list, *Star · Centre + tips · 6*.
+- **Divisions (R1 — the straight-edged shapes).** Square: Halves · Diagonal · Hourglass · Squares *n* · Centre + border · Square in square · Log cabin *n* · Windmill · Stripes *n*. Polygon: Fan · Kites · Centre + ring *n* · Rhombi (even sides) · Centre polygon · Halves · Centre square (8 sides) · Stripes *n*. Triangle: Fan · Nested triangles (depth 1–3) · Kites · Stripes *n*. Star: Centre + tips · Faceted · Kites · Centre fan + tips. At most 64 parts.
+- **Live.** The parts stay driven by the shape's own controls: the panel edits the shape they come from (`layers.parts.source`). Change the Star's points 5 → 7 and tips 1–5 keep their colours, tips 6–7 arrive following the cell; turn it back and the parked parts return with their settings (`parts.stash`). A Division that stops fitting (Rhombi on 7 sides) draws the whole shape meanwhile, with the reason in the hint.
+- **Exact.** `Organica.shapes.partRegions(kind, frame, method, n)` gives the ideal construction; `partsOf()` (engine/01-geometry.js) cuts each region to the real outline minus the regions before it (Paper.js), and any outward bulge joins the part whose region, pushed out from the centre, covers it — so rounding, curvature, irregularity, Cut out and Copies keep the parts adding up to the shape (regression `parts:*:sum`).
+- **Edit parts.** Click a part on the canvas to edit it (its row opens), ⌘ / Ctrl / Shift-click to pick several — the colour chosen for one of them goes to all (*Colour for 3 parts*). Esc leaves. On-screen only: exports never carry the hit tags.
+- **Ungroup** turns every part into a plain layer with its own fixed outline (a Custom shape, the part's name kept). **Join parts** goes back to the one shape (the parts' inks, roles and places go).
+- **Saved data.** A divided Element is a `stack` seed with `parts: {source, method, count, stash}`; a part layer is `{…layer, part: '<key>', partName, seed: {type:'part'}}`. Older files have no `parts` and draw as before.
+- **Next (planned).** R2 — the curved shapes (Circle, Arc / Wedge, Drop, Lens, Chevron, Cross, Segment, Arc truchet) and generic cuts for any shape incl. Blob and uploads. R3 — part colours per Component cell and a *Parts by* colour rule.
+
+---
+
 ## 4. Palette and colour rules
 
 - **Ink** — 1 to 8 colours (RMX chips); **Paper** is the ground for every

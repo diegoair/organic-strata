@@ -715,3 +715,142 @@ for (const k of Object.keys(SEED_TYPES)) {
     return inner ? withInnerHollowCopies(h, base, p, INNER_APEX[k], p.cutOut) : h;
   };
 }
+
+// ── Parts (Element › Divide into parts, Oct 10, 2026) ─────────────────
+// A divided Element is a stack whose `parts = { source, method, count }` holds the shape it came from;
+// each part layer carries `part: '<key>'` and draws partsOf(source)[key] — live, so a slider on the
+// source re-divides it. Organica.shapes.partRegions gives the ideal construction; here each region
+// is cut to the REAL outline (rounding, curvature, irregularity, cut out) minus the parts before it,
+// and any sliver left over (an outward curve) joins the nearest part — the parts always add up to the shape.
+function convexHull(pts) {
+  const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]), cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], hi = [];
+  for (const q of p) { while (lo.length > 1 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of p.reverse()) { while (hi.length > 1 && cross(hi[hi.length - 2], hi[hi.length - 1], q) <= 0) hi.pop(); hi.push(q); }
+  return lo.slice(0, -1).concat(hi.slice(0, -1));
+}
+export const PART_KINDS = { polygon: 'polygon', star: 'star', roundedrect: 'rect', triangle: 'triangle' };
+export function partFrameOf(seed) {
+  const kind = seed && PART_KINDS[seed.type];
+  if (!kind) return null;
+  const num = (v, d) => (Number.isFinite(+v) && v !== '' && v != null ? +v : d);
+  if (kind === 'polygon') {
+    if (num(seed.polyStep, 1) > 1) return { kind, reason: 'A polygon with Step above 1 cannot be divided' };
+    return { kind, frame: { sides: Math.max(3, Math.round(num(seed.polySides, 6))), R: 50 * Math.min(100, Math.max(10, num(seed.polyRadius, 100))) / 100, angle: num(seed.polyBase, -90) + num(seed.polyRotate, 0) } };
+  }
+  if (kind === 'star') {
+    const R = 50 * Math.min(100, Math.max(10, num(seed.starRadius, 100))) / 100;
+    return { kind, frame: { points: Math.max(3, Math.round(num(seed.starPoints, 5))), R, r: R * Math.min(90, Math.max(5, num(seed.starInner, 45))) / 100, angle: num(seed.starBase, -90) + num(seed.starRotate, 0), twist: num(seed.starTwist, 0) / 100 } };
+  }
+  if (kind === 'rect') return { kind, frame: { w: Math.min(100, Math.max(5, num(seed.rrWidth, 100))), h: Math.min(100, Math.max(5, num(seed.rrHeight, 100))), angle: num(seed.rrRotate, 0) } };
+  const b = num(seed.base, 100), h = num(seed.height, 100), apex = 50 + b / 2 * Math.max(-100, Math.min(100, num(seed.triApex, 0))) / 100;
+  return { kind, frame: { pts: [[apex, 50 - h / 2], [50 - b / 2, 50 + h / 2], [50 + b / 2, 50 + h / 2]] } };
+}
+// The Division options a seed offers ([{id, label, count?, reason?}]), each with the reason it cannot apply.
+export function partMethodsFor(seed) {
+  const pf = partFrameOf(seed);
+  if (!pf) return [];
+  return (Organica.shapes.PART_METHODS[pf.kind] || []).map(m => {
+    if (pf.reason) return { ...m, reason: pf.reason };
+    const r = Organica.shapes.partRegions(pf.kind, pf.frame, m.id, m.count ? m.count[2] : 0);
+    return r.reason && !m.count ? { ...m, reason: r.reason } : m;
+  });
+}
+const _partsCache = new Map();
+export function partsOf(parts) {
+  const src = parts && parts.source;
+  if (!src || !SEED_TYPES[src.type]) return { list: [], byKey: {}, reason: 'No shape to divide' };
+  const key = JSON.stringify([src, parts.method, parts.count]);
+  if (_partsCache.has(key)) return _partsCache.get(key);
+  const out = { list: [], byKey: {}, reason: null };
+  const pf = partFrameOf(src);
+  const reg = !pf ? { reason: 'This shape cannot be divided yet' } : pf.reason ? { reason: pf.reason } : Organica.shapes.partRegions(pf.kind, pf.frame, parts.method, parts.count);
+  if (reg.reason) out.reason = reg.reason;
+  else {
+    const geo = SEED_TYPES[src.type].geometry(src);
+    try {
+      const scope = splitPaperScope();
+      const shape = importAsPaperShape(scope, geo.d, geo.fillRule);
+      shape.remove();
+      // Each region minus the regions before it, one at a time (a running union of regions that only touch at
+      // corners — the middle of Nested triangles — closes the hole between them and swallows the next part).
+      const prev = [], got = [];
+      for (const r of reg.regions) {
+        const poly = new scope.Path({ segments: r.pts, closed: true, insert: false });
+        poly.clockwise = true;   // one winding for every region (a mirrored construction step draws some the other way)
+        let piece = shape.intersect(poly, { insert: false });
+        for (const q of prev) if (q.bounds.intersects(piece.bounds)) piece = piece.subtract(q, { insert: false });
+        prev.push(poly);
+        if (Math.abs(piece.area) > 0.05) got.push({ key: r.key, name: r.name, path: piece, pts: r.pts });
+      }
+      // What the ideal construction does not reach (an outward curve) goes to the part whose region, pushed out
+      // from the centre, covers it — so a bulge joins the part it grows from.
+      let rest = shape.clone({ insert: false });
+      for (const g of got) rest = rest.subtract(g.path, { insert: false });
+      if (Math.abs(rest.area) > 0.05) {
+        const c = shape.bounds.center;
+        for (const g of got) {
+          const pts = g.pts.flatMap(q => [q, [c.x + (q[0] - c.x) * 4, c.y + (q[1] - c.y) * 4]]);
+          const fan = new scope.Path({ segments: convexHull(pts), closed: true, insert: false });
+          fan.clockwise = true;
+          const bit = rest.intersect(fan, { insert: false });
+          if (Math.abs(bit.area) <= 0.05) continue;
+          g.path = g.path.unite(bit, { insert: false });
+          rest = rest.subtract(fan, { insert: false });
+          if (Math.abs(rest.area) <= 0.05) break;
+        }
+      }
+      for (const g of got) {
+        const part = { key: g.key, name: g.name, geo: { d: g.path.pathData, fillRule: null, normTx: geo.normTx, normTy: geo.normTy, normScale: geo.normScale } };
+        out.list.push(part); out.byKey[g.key] = part;
+      }
+      if (!out.list.length) out.reason = 'Nothing to divide';
+    } catch (e) { out.reason = 'This shape could not be divided'; }
+  }
+  if (_partsCache.size > 80) _partsCache.clear();
+  _partsCache.set(key, out);
+  return out;
+}
+// Keep a stack's part layers in step with its source: a key that appears gets a new layer (ink of the
+// cell, or the one it had before it went away), a key that goes is parked in `parts.stash` with its
+// settings, so turning a count down and up again gives the same colours. Returns true when the rows changed.
+export function syncPartLayers(L) {
+  if (!L || !L.parts) return false;
+  const res = partsOf(L.parts), have = new Set(res.list.map(p => p.key));
+  if (res.reason) return false;   // drawn whole meanwhile (stackGeometry) — the rows wait for a division that applies
+  const stash = L.parts.stash || (L.parts.stash = {});
+  const activeItem = L.items[L.active];
+  let changed = false;
+  const kept = [];
+  for (const l of L.items) {
+    if (!l.part) { kept.push(l); continue; }
+    if (have.has(l.part)) { const nm = res.byKey[l.part].name; if (l.partName !== nm) { l.partName = nm; changed = true; } kept.push(l); continue; }
+    stash[l.part] = l; changed = true;
+  }
+  const present = new Set(kept.filter(l => l.part).map(l => l.part));
+  let at = kept.reduce((m, l, i) => (l.part ? i + 1 : m), -1);
+  if (at < 0) at = kept.length;
+  for (const p of res.list) {
+    if (present.has(p.key)) continue;
+    const l = stash[p.key] || newPartLayer(p);
+    delete stash[p.key];
+    l.partName = p.name;
+    kept.splice(at++, 0, l);
+    changed = true;
+  }
+  if (changed) {
+    L.items = kept;
+    const i = kept.indexOf(activeItem);
+    L.active = i >= 0 ? i : Math.max(0, kept.findIndex(l => l.part));
+  }
+  return changed;
+}
+export const newPartLayer = p => ({ id: 'p' + Math.random().toString(36).slice(2, 7), role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed: { type: 'part' }, part: p.key, partName: p.name });
+// Divide the shape `source` (a panel seed) → a fresh layers object, parts in construction order (bottom first).
+export function divideLayers(source, method, count, look) {
+  const parts = { source: JSON.parse(JSON.stringify(source)), method, count };
+  const res = partsOf(parts);
+  if (res.reason) return { reason: res.reason };
+  const items = res.list.map(p => ({ ...newPartLayer(p), look: { ...look } }));
+  return { layers: { items, active: 0, parts } };
+}

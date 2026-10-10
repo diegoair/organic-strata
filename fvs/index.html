@@ -354,6 +354,16 @@
     <div class="tier-block active" data-tier="element">
     <div class="panel-section" id="layers-section">
       <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint">Add new layer</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg class="ico ico--sm" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button></span></h3>
+      <!-- Divide into parts (Oct 10, 2026): the shape becomes one layer per primordial figure, still driven by
+           the shape's own controls (layers.parts.source). Filled by renderPartsUI. -->
+      <div id="parts-block" class="fvs-parts" style="display:none">
+        <div class="ctrl-row"><div class="ctrl-label" title="How the shape is divided into parts">Division</div><select class="panel-select" id="sel-part-method" aria-label="Division"></select></div>
+        <div class="ctrl-row" id="part-count-row"><div class="ctrl-label" title="How many parts">Parts</div><input type="range" id="rg-part-count" min="1" max="8" step="1" value="3" aria-label="Parts"><span class="ctrl-val" id="v-part-count">3</span></div>
+        <p class="org-panel__hint" id="part-hint"></p>
+        <div class="row-btns" id="part-divide-row"><button type="button" class="mini-btn" id="btn-part-divide">Divide into parts</button></div>
+        <div class="row-btns" id="part-actions-row"><button type="button" class="mini-btn" id="btn-part-edit" aria-pressed="false">Edit parts</button><button type="button" class="mini-btn" id="btn-part-inks">One ink per part</button></div>
+        <div class="row-btns" id="part-actions-row2"><button type="button" class="mini-btn" id="btn-part-ungroup">Ungroup</button><button type="button" class="mini-btn" id="btn-part-join" data-armed="Join — click again to confirm">Join parts</button></div>
+      </div>
       <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
       <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
       <div id="layer-place-block" class="org-layer-card__content fvs-layer__place" style="display:none">

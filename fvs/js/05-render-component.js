@@ -163,10 +163,24 @@ export function renderElementFrame(seed) {
   const frame = ctrl('element-frame');
   if (!frame) return;
   const sd = seed || getSeed(), v = currentElementView();
-  let svg = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, v.r, v.fh, v.fv, 400, { outline: true });
+  // Edit parts: the part layers carry data-part on this canvas only, so a click finds the part under it.
+  const editing = !!(rt.partEdit && state.layers && state.layers.parts);
+  live.tagParts = editing;
+  let svg;
+  try { svg = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, v.r, v.fh, v.fv, 400, { outline: true }); }
+  finally { live.tagParts = false; }
   const overlay = buildSplitGridOverlaySVG(400);
   if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
   ctrl('element-svg').innerHTML = svg;
+  frame.classList.toggle('is-part-edit', editing);
+  if (editing) {
+    const L = state.layers, act = L.items[L.active];
+    ctrl('element-svg').querySelectorAll('[data-part]').forEach(g => {
+      const id = g.getAttribute('data-part');
+      g.classList.add('fvs-part');
+      if ((act && act.id === id) || (rt.partSel && rt.partSel.has(id))) g.classList.add('is-sel');
+    });
+  }
 }
 
 export function exportElement(format) {

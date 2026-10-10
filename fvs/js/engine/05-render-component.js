@@ -5,7 +5,7 @@ import {
   colorAt, live, state
 } from './00-core.js';
 import {
-  CELL_SHAPES, SEED_TYPES, cellShapeOf, cellShapeStates, importAsPaperShape, splitPaperScope
+  CELL_SHAPES, SEED_TYPES, cellShapeOf, cellShapeStates, importAsPaperShape, partsOf, splitPaperScope
 } from './01-geometry.js';
 import {
   componentRoleActive, resolvedComponentDims
@@ -263,7 +263,18 @@ export function stackFlatD(layers) {
 export function stackGeometry(p) {
   // A hidden layer (the eye on its row) is skipped here once — every renderer,
   // export and nested Component/Symbol reads geo.layers.
-  const layers = ((p && p.layers) || []).filter(l => !l.hidden).map(l => ({ ...l, geo: SEED_TYPES[l.seed.type].geometry(l.seed) }));
+  // A part layer (Element › Divide) draws its piece of the stack's source shape; a key the source no longer has draws nothing.
+  // When the source cannot be divided the current way (Rhombi on 7 sides, a shape with no division), the parts
+  // give way to the whole source shape in their place, in the cell's ink — never an empty Element.
+  const parts = p && p.parts ? partsOf(p.parts) : null;
+  let all = (p && p.layers) || [];
+  if (parts && parts.reason && SEED_TYPES[p.parts.source && p.parts.source.type]) {
+    const at = all.findIndex(l => l.part), whole = { id: 'whole', role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, wholeSource: true };
+    all = all.filter(l => !l.part);
+    all.splice(at < 0 ? all.length : at, 0, whole);
+  }
+  const layers = all.filter(l => !l.hidden && (!l.part || (parts && parts.byKey[l.part])))
+    .map(l => ({ ...l, geo: l.wholeSource ? SEED_TYPES[p.parts.source.type].geometry(p.parts.source) : l.part ? parts.byKey[l.part].geo : SEED_TYPES[l.seed.type].geometry(l.seed) }));
   return { d: stackFlatD(layers), normTx: 0, normTy: 0, normScale: 1, layers };
 }
 export function stackUid(geo) {
@@ -306,11 +317,12 @@ export function stackPathMarkup(geo, color, forceFill) {
       const lk = layerLook(l, a), fm = forceFill ? 'fill' : lk.fillMode, ink = forceFill ? color : layerInkColor(l, color);
       if (fm === 'pattern') {
         const pl = layerPlace(l), pg = patternGeometry(lk, placedExt(pl.mx, pl.my, pl.scale, lk.w, lk.l));
-        out += `<clipPath id="${id}p"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id}p)"><path d="${pg.d}" ${patternAttrs(pg, ink)}/></g>`;
+        out += `<clipPath id="${id}p"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id}p)"${live.tagParts && l.part ? ` data-part="${l.id}"` : ''}><path d="${pg.d}" ${patternAttrs(pg, ink)}/></g>`;
         return;
       }
       const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: fm, color: ink, strokeW: lk.strokeW, rounded: lk.rounded });
-      out += `<g transform="${t}"><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
+      const tag = live.tagParts && l.part ? ` data-part="${l.id}"` : '';   // the Element canvas in Edit parts only — never an export
+      out += `<g transform="${t}"${tag}><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
     }
   });
   if (appearanceIsIdentity(a)) return out;

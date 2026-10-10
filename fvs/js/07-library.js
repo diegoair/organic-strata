@@ -3,10 +3,10 @@
 // Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
 import {
-  DEFAULT_COLOR_RULE, PALETTE_MAX, colorAt, entryInkAt, pv, state
+  DEFAULT_COLOR_RULE, PALETTE_MAX, colorAt, entryInkAt, live, pv, state
 } from './engine/00-core.js';
 import {
-  SEG_WEIGHT_DEF, cellShapeOf, frameDims
+  SEG_WEIGHT_DEF, SEED_TYPES, cellShapeOf, divideLayers, frameDims, partMethodsFor, partsOf, syncPartLayers
 } from './engine/01-geometry.js';
 import {
   CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, panelSeedSnapshot, xrId
@@ -156,8 +156,8 @@ export function applySeedToPanel(seed) {
   if (seed && seed.type === 'stack' && Array.isArray(seed.layers) && seed.layers.length) {
     const items = seed.layers.map(l => JSON.parse(JSON.stringify(l)));
     const active = Math.max(0, Math.min(items.length - 1, seed.active | 0));
-    state.layers = { items, active };
-    applyPanelSeedRaw(items[active].seed);
+    state.layers = { items, active, ...(seed.parts ? { parts: JSON.parse(JSON.stringify(seed.parts)) } : {}) };
+    applyPanelSeedRaw(layerPanelSeed(state.layers, items[active]));
   } else {
     state.layers = null;
     applyPanelSeedRaw(seed);
@@ -267,15 +267,19 @@ export function layersChanged() { renderLayersUI(); renderGallery(); renderSeedP
 export function selectLayer(i) {
   if (!state.layers || i === state.layers.active || !state.layers.items[i]) return;
   syncActiveLayer();
+  const from = state.layers.items[state.layers.active];
   state.layers.active = i;
-  applyPanelSeedRaw(state.layers.items[i].seed);
-  showLayerStyle(state.layers.items[i]);
+  const to = state.layers.items[i];
+  if (!(from.part && to.part)) applyPanelSeedRaw(layerPanelSeed(state.layers, to));   // part → part: the same source, the panel stays as it is
+  showLayerStyle(to);
   layersChanged();
 }
+// What the Shape panel shows for a layer: its own shape, or for a part the shape the parts come from.
+export const layerPanelSeed = (L, l) => (l.part && L.parts ? L.parts.source : l.seed);
 export function addLayer() {
   if (!state.layers) state.layers = { items: [{ id: newLayerId(), role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed: panelSeedSnapshot(), look: readLookControls() }], active: 0 };
   syncActiveLayer();
-  const L = state.layers, base = L.items[L.active].seed, baseLook = L.items[L.active].look;
+  const L = state.layers, base = layerPanelSeed(L, L.items[L.active]), baseLook = L.items[L.active].look;
   const seed = JSON.parse(JSON.stringify(base));
   seed.type = base.type === 'circle' ? 'triangle' : 'circle';
   const slot = L.items.length;
@@ -295,7 +299,7 @@ export function addLayer() {
 }
 export function removeLayer(i) {
   const L = state.layers;
-  if (!L || !L.items[i]) return;
+  if (!L || !L.items[i] || L.items[i].part) return;   // a part is hidden, never deleted — Join parts / Ungroup end the division
   syncActiveLayer();
   L.items.splice(i, 1);
   if (L.items.length <= 1) {
@@ -305,7 +309,7 @@ export function removeLayer(i) {
     showLayerStyle(only);   // back to one shape: its Style becomes the Element's
   } else {
     L.active = Math.min(L.active > i ? L.active - 1 : L.active, L.items.length - 1);
-    applyPanelSeedRaw(L.items[L.active].seed);
+    applyPanelSeedRaw(layerPanelSeed(L, L.items[L.active]));
     showLayerStyle(L.items[L.active]);
   }
   layersChanged();
@@ -346,22 +350,31 @@ export function renderLayersUI() {
   ctrl('layers-hint').textContent = L ? L.items.length + ' · top first' : 'Add new layer';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
   ctrl('split-layers-hint').style.display = L ? '' : 'none';   // Split takes the whole stack
+  renderPartsUI();
   if (!L) { list.innerHTML = ''; return; }
-  // Top layer first, like every layer panel.
+  // Top layer first, like every layer panel. The parts of a divided shape sit in one group (a disclosure, open
+  // while one of them is being edited or picked on the canvas).
+  const partIdx = L.items.map((l, i) => (l.part ? i : -1)).filter(i => i >= 0);
+  const topPart = partIdx.length ? Math.max(...partIdx) : -1, lowPart = partIdx.length ? Math.min(...partIdx) : -1;
+  const src = L.parts && L.parts.source, srcIcon = src ? (SEED_ICONS[src.type] || SEED_ICONS.custom).icon : '';
+  const groupOpen = (L.items[L.active] && L.items[L.active].part) || rt.partEdit;
   list.innerHTML = L.items.map((l, i) => i).reverse().map(i => {
     const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill';
     const tint = isFill ? layerInkColor(l, colorAt(0)) : 'var(--mid)', cell = l.ink == null || l.ink === 'cell';
-    const icon = (SEED_ICONS[l.seed.type] || SEED_ICONS.custom).icon;
-    return `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}" data-layer="${i}" role="listitem" tabindex="-1">
+    const icon = l.part ? srcIcon : (SEED_ICONS[l.seed.type] || SEED_ICONS.custom).icon;
+    const picked = l.part && rt.partSel && rt.partSel.has(l.id);
+    const open = i === topPart ? `<details class="org-disclosure fvs-part-group" role="listitem"${groupOpen ? ' open' : ''}><summary class="org-disclosure__head">${Organica.icons.get('chevron-right', { size: 'xs', cls: 'org-chev' })}<span class="org-disclosure__label">${partGroupName(L)}</span></summary><div class="org-disclosure__body" role="list" aria-label="${partGroupName(L)}">` : '';
+    const close = i === lowPart ? '</div></details>' : '';
+    return open + `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}${picked ? ' is-picked' : ''}" data-layer="${i}" role="listitem" tabindex="-1">
       <div class="org-layer-card__head" title="Drag to reorder · ⌥↑ / ⌥↓">
       <span class="org-layer-card__grip" aria-hidden="true">${LAYER_ICONS.grip}</span>
       <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on}" aria-label="Edit layer ${i + 1}: ${layerName(l)}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span><span class="org-layer-card__title">${layerName(l)}</span></button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="eye" aria-pressed="${!l.hidden}" aria-label="${l.hidden ? 'Show' : 'Hide'} layer" title="${l.hidden ? 'Hidden — click to show' : 'Hide this layer'}">${l.hidden ? LAYER_ICONS.eyeOff : LAYER_ICONS.eye}</button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : role === 'pattern' ? 'cuts its pattern out of the layers below' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % LAYER_ROLE_ORDER.length]]}">${LAYER_ICONS[role]}</button>
       <button type="button" class="fvs-layer__swatch${cell ? ' is-cell' : ''}" data-layer-act="ink" style="--sw:${isFill ? layerInkColor(l, colorAt(0)) : 'var(--border)'}" aria-label="Colour: ${cell ? 'follow cell colour' : 'Ink ' + (l.ink + 1)}" title="${isFill ? (cell ? 'Follows the cell colour' : 'Ink ' + (l.ink + 1)) + ' — click to change' : 'Mask layers have no colour'}"${isFill ? '' : ' disabled'}></button>
-      <button type="button" class="org-btn org-btn--sm org-btn--icon fvs-layer__del" data-layer-act="del" aria-label="Delete layer" title="Delete layer">${LAYER_ICONS.trash}</button>
+      ${l.part ? '' : `<button type="button" class="org-btn org-btn--sm org-btn--icon fvs-layer__del" data-layer-act="del" aria-label="Delete layer" title="Delete layer">${LAYER_ICONS.trash}</button>`}
       </div>
-    </div>`;
+    </div>` + close;
   }).join('');
   const activeRow = list.querySelector(`.org-layer-card[data-layer="${L.active}"]`);
   if (activeRow) activeRow.appendChild(place);   // Move / Size / Rotate live under the layer they edit
@@ -393,7 +406,9 @@ export function openLayerInkPop(i, anchor) {
   const pop = ctrl('layer-ink-pop'), l = state.layers.items[i];
   if (layerInkPopFor === i && !pop.hidden) { closeLayerInkPop(); return; }
   const cur = l.ink == null ? 'cell' : l.ink;
-  pop.innerHTML = `<button type="button" class="is-cell" data-ink="cell" style="--sw:${colorAt(0)}" aria-pressed="${cur === 'cell'}" aria-label="Follow cell colour" title="Follow the cell colour"></button>`
+  const many = l.part && rt.partSel && rt.partSel.size > 1 && rt.partSel.has(l.id) ? rt.partSel.size : 0;
+  pop.setAttribute('aria-label', many ? `Colour for ${many} parts` : 'Layer colour');
+  pop.innerHTML = (many ? `<p class="fvs-ink-pop__head">Colour for ${many} parts</p>` : '') + `<button type="button" class="is-cell" data-ink="cell" style="--sw:${colorAt(0)}" aria-pressed="${cur === 'cell'}" aria-label="Follow cell colour" title="Follow the cell colour"></button>`
     + state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-pressed="${cur === k}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"></button>`).join('');
   const r = anchor.getBoundingClientRect();
   pop.hidden = false;
@@ -405,8 +420,10 @@ export function openLayerInkPop(i, anchor) {
 ctrl('layer-ink-pop').addEventListener('click', e => {
   const b = e.target.closest('[data-ink]');
   if (!b || layerInkPopFor == null || !state.layers) return;
-  const l = state.layers.items[layerInkPopFor];
-  l.ink = b.dataset.ink === 'cell' ? 'cell' : +b.dataset.ink;
+  const l = state.layers.items[layerInkPopFor], ink = b.dataset.ink === 'cell' ? 'cell' : +b.dataset.ink;
+  l.ink = ink;
+  // several parts picked on the canvas (⌘-click) and this one among them: they all take the ink
+  if (l.part && rt.partSel && rt.partSel.has(l.id)) state.layers.items.forEach(x => { if (x.part && rt.partSel.has(x.id)) x.ink = ink; });
   const i = layerInkPopFor;
   closeLayerInkPop();
   layersChanged();
@@ -505,6 +522,170 @@ window.addEventListener('pointercancel', () => { layerPress = null; layerDragFro
   ctrl('v-layer-' + k).textContent = e.target.value;
   renderGallery(); renderSeedPreview();
 }));
+// ── Divide into parts (Oct 10, 2026) ──────────────────────────────────
+// The shape becomes one layer per primordial figure (the Division), each with its own ink, role, place and look,
+// all still driven by the shape's own controls. Edit parts: click a part on the canvas to edit it, ⌘/Ctrl/Shift-click
+// to pick several (the ink chosen for one of them goes to all).
+const partSource = () => (state.layers && state.layers.parts ? state.layers.parts.source : (state.layers ? null : panelSeedSnapshot()));
+export function partGroupName(L) {
+  const src = L.parts.source, m = partMethodsFor(src).find(x => x.id === L.parts.method);
+  const n = L.items.filter(l => l.part).length;
+  return `${(SEED_ICONS[src.type] || {}).name || (SEED_TYPES[src.type] || {}).label || src.type} · ${m ? m.label : L.parts.method} · ${n}`;
+}
+function partChoice() {
+  // The first renderLayersUI() runs while the module loads, before the shape extras' rows exist: no source yet.
+  let src = null;
+  try { src = partSource(); } catch (e) { src = null; }
+  const L = state.layers, methods = src ? partMethodsFor(src) : [];
+  const want = L && L.parts ? L.parts.method : rt.partMethod;
+  const m = methods.find(x => x.id === want && !x.reason) || methods.find(x => !x.reason) || methods[0] || null;
+  const count = !m || !m.count ? 0 : Math.max(m.count[0], Math.min(m.count[1], L && L.parts && L.parts.method === m.id && L.parts.count ? L.parts.count : (rt.partCount && rt.partMethod === m.id ? rt.partCount : m.count[2])));
+  return { L, src, methods, m, count };
+}
+export function renderPartsUI() {
+  const { L, src, methods, m, count } = partChoice();
+  const show = !!(src && methods.length && (!L || L.parts));
+  ctrl('parts-block').style.display = show ? '' : 'none';
+  if (!show) { if (rt.partEdit) setPartEdit(false); return; }
+  const divided = !!(L && L.parts);
+  const sel = ctrl('sel-part-method');
+  sel.innerHTML = methods.map(x => `<option value="${x.id}"${x.reason ? ' disabled' : ''}${m && x.id === m.id ? ' selected' : ''}>${x.label}</option>`).join('');
+  ctrl('part-count-row').style.display = m && m.count ? '' : 'none';
+  if (m && m.count) {
+    const rg = ctrl('rg-part-count');
+    rg.min = m.count[0]; rg.max = m.count[1]; rg.value = count; ctrl('v-part-count').textContent = count;
+  }
+  const res = divided ? partsOf(L.parts) : null, off = methods.filter(x => x.reason);
+  ctrl('part-hint').textContent = res && res.reason ? res.reason + ' — the whole shape is drawn meanwhile.'
+    : divided ? `${L.items.filter(l => l.part).length} parts · click a part on the canvas in Edit parts`
+    : off.length && off.length === methods.length ? off[0].reason : off.length ? off.map(x => `${x.label}: ${x.reason.toLowerCase()}`).join(' · ') : '';
+  ctrl('part-divide-row').style.display = divided ? 'none' : '';
+  ctrl('btn-part-divide').disabled = !m || !!m.reason;
+  ctrl('part-actions-row').style.display = divided ? '' : 'none';
+  ctrl('part-actions-row2').style.display = divided ? '' : 'none';
+  ctrl('btn-part-edit').setAttribute('aria-pressed', String(!!rt.partEdit));
+}
+// A Division / Parts change: on a divided Element it re-divides at once (the layers follow by key).
+function setPartChoice(method, count) {
+  const L = state.layers;
+  if (L && L.parts) {
+    syncActiveLayer();
+    L.parts.method = method; L.parts.count = count;
+    syncPartLayers(L);
+    layersChanged();
+  } else { rt.partMethod = method; rt.partCount = count; renderPartsUI(); }
+}
+ctrl('sel-part-method').addEventListener('change', e => {
+  const m = partMethodsFor(partSource()).find(x => x.id === e.target.value);
+  setPartChoice(e.target.value, m && m.count ? m.count[2] : 0);
+});
+ctrl('rg-part-count').addEventListener('input', e => {
+  ctrl('v-part-count').textContent = e.target.value;
+  setPartChoice(ctrl('sel-part-method').value, +e.target.value);
+});
+ctrl('btn-part-divide').addEventListener('click', () => {
+  const { m, count } = partChoice();
+  if (!m || m.reason || state.layers) return;
+  const r = divideLayers(panelSeedSnapshot(), m.id, count, readLookControls());
+  if (r.reason) { ctrl('part-hint').textContent = r.reason; return; }
+  state.layers = r.layers;
+  rt.partSel = new Set();
+  showLayerStyle(state.layers.items[0]);
+  setPartEdit(true);
+  layersChanged();
+});
+// Part k takes ink k — the Palette grows (up to its maximum) so every part can differ.
+ctrl('btn-part-inks').addEventListener('click', () => {
+  const L = state.layers;
+  if (!L || !L.parts) return;
+  const parts = L.items.filter(l => l.part), want = Math.min(PALETTE_MAX, parts.length), had = state.colors.length;
+  if (state.colors.length < want) {
+    let k = 0;
+    while (state.colors.length < want) state.colors = state.colors.concat(hexKey(LAYER_NEW_INKS[k++ % LAYER_NEW_INKS.length]));
+    buildPalette(); syncColorRuleUI();
+  }
+  parts.forEach((l, k) => { l.ink = k % state.colors.length; });
+  layersChanged();
+  const added = state.colors.length - had;
+  if (added > 0) ctrl('part-hint').textContent = `Palette: ${added} ink${added > 1 ? 's' : ''} added`;   // the Palette grew — say so
+});
+// Ungroup: every part becomes a plain layer with its own fixed outline (a Custom shape); the division ends.
+ctrl('btn-part-ungroup').addEventListener('click', () => {
+  const L = state.layers;
+  if (!L || !L.parts) return;
+  syncActiveLayer();
+  const res = partsOf(L.parts);
+  if (res.reason) { ctrl('part-hint').textContent = res.reason; return; }
+  L.items.forEach(l => {
+    if (!l.part) return;
+    const p = res.byKey[l.part];
+    if (p) l.seed = { type: 'custom', customSeed: { ...p.geo } };
+    delete l.part;   // partName stays: an ungrouped part keeps its name ("Tip 3")
+  });
+  L.items = L.items.filter(l => l.seed && l.seed.type !== 'part');
+  delete L.parts;
+  L.active = Math.min(L.active, L.items.length - 1);
+  applyPanelSeedRaw(L.items[L.active].seed);
+  setPartEdit(false);
+  layersChanged();
+});
+// Join parts: back to the one shape — the parts' inks, roles and places go.
+ctrl('btn-part-join').addEventListener('click', () => {
+  const L = state.layers;
+  if (!L || !L.parts) return;
+  syncActiveLayer();
+  const src = L.parts.source, first = L.items.find(l => l.part), at = L.items.findIndex(l => l.part);
+  const look = first && first.look ? { ...first.look } : readLookControls();
+  const rest = L.items.filter(l => !l.part);
+  setPartEdit(false);
+  if (!rest.length) {
+    state.layers = null;
+    applyPanelSeedRaw(src);
+    showLayerStyle({ look });
+  } else {
+    rest.splice(Math.max(0, at), 0, { id: newLayerId(), role: 'fill', ink: 'cell', place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed: JSON.parse(JSON.stringify(src)), look });
+    state.layers = { items: rest, active: Math.max(0, at) };
+    applyPanelSeedRaw(src);
+    showLayerStyle(state.layers.items[state.layers.active]);
+  }
+  layersChanged();
+});
+export function setPartEdit(on) {
+  rt.partEdit = !!on;
+  if (!on) rt.partSel = new Set();
+  ctrl('btn-part-edit').setAttribute('aria-pressed', String(rt.partEdit));
+}
+ctrl('btn-part-edit').addEventListener('click', () => { setPartEdit(!rt.partEdit); layersChanged(); });
+// On the canvas: a click edits that part, ⌘/Ctrl/Shift-click adds it to (or takes it from) the picked set.
+ctrl('element-frame').addEventListener('click', e => {
+  if (!rt.partEdit || !state.layers || !state.layers.parts) return;
+  const g = e.target.closest('[data-part]');
+  const L = state.layers;
+  if (!g) { if (rt.partSel.size) { rt.partSel = new Set(); layersChanged(); } return; }
+  const id = g.getAttribute('data-part'), i = L.items.findIndex(l => l.id === id);
+  if (i < 0) return;
+  if (e.metaKey || e.ctrlKey || e.shiftKey) {
+    if (!rt.partSel.size) rt.partSel.add(L.items[L.active].id);
+    if (rt.partSel.has(id) && rt.partSel.size > 1) rt.partSel.delete(id); else rt.partSel.add(id);
+    if (i !== L.active && rt.partSel.has(id)) selectLayer(i); else layersChanged();
+  } else {
+    rt.partSel = new Set();
+    if (i !== L.active) selectLayer(i); else layersChanged();
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !rt.partEdit || layerInkPopFor != null || e.target.closest('input, select, textarea')) return;
+  setPartEdit(false); layersChanged();
+});
+// A shape control moved on a divided Element: the parts follow (syncActiveLayer re-divides); new or gone
+// parts change the rows, so the list is redrawn once the change has been drawn.
+const afterShapeEdit = () => {
+  if (live.partRowsDirty) { live.partRowsDirty = false; renderLayersUI(); }
+  else if (!state.layers || state.layers.parts) renderPartsUI();   // the Division options and the hint follow the shape
+};
+ctrl('panel').addEventListener('input', afterShapeEdit);
+ctrl('panel').addEventListener('change', afterShapeEdit);
+
 renderLayersUI();
 
 export function restoreComponentElementState(snap) {

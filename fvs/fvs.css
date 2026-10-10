@@ -383,6 +383,16 @@
   .fvs-layers .org-layer-card, .fg-list .org-layer-card { margin-bottom: var(--space-1); }   /* FVS's one compact flush list (Element Layers, Figure rule / Set lists) */
   .fvs-layers .org-layer-card__head, .fg-list .org-layer-card__head { gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); }
   .fvs-layers .org-layer-card:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  /* Divide into parts: the parts sit in one group in the list; on the canvas (Edit parts) a part under the
+     pointer takes the tool tint, the edited / picked ones the selection outline with a paper halo (as .fg-cell.is-sel). */
+  .fvs-part-group > .org-disclosure__body { padding-top: var(--space-1); }
+  .fvs-part-group { margin-bottom: var(--space-1); }
+  .fvs-layers .org-layer-card.is-picked { box-shadow: inset 2px 0 0 var(--ink); }
+  .fvs-element-frame.is-part-edit .fvs-part { cursor: pointer; }
+  .fvs-element-frame.is-part-edit .fvs-part > path { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+  .fvs-element-frame.is-part-edit .fvs-part:hover > path { stroke: var(--tool); stroke-width: 2px; }
+  .fvs-element-frame.is-part-edit .fvs-part.is-sel > path { stroke: var(--ink); stroke-width: 2px; filter: drop-shadow(0 0 1px var(--paper)) drop-shadow(0 0 1px var(--paper)); }
+  .fvs-parts { margin-bottom: var(--space-2); }
   .fvs-layer__main { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-1) 0; }
   .fvs-layer__main:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--ink); }
   .fvs-layer__icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; }
@@ -403,6 +413,7 @@
   .fvs-layer__place .ctrl-val { flex: 0 0 22px; }
   .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
   .fvs-ink-pop[hidden] { display: none; }
+  .fvs-ink-pop__head { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--mid); }   /* "Colour for 3 parts": the ink goes to every picked part */
   .fvs-ink-pop button { all: unset; width: 20px; height: 20px; border-radius: 50%; background: var(--sw); cursor: pointer; }
   .fvs-ink-pop button.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
   .fvs-ink-pop button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }

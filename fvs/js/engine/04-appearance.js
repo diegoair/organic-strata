@@ -441,7 +441,7 @@ export function orientedElementTile(rot, flipH, flipV) {
 }
 export function defaultElementName(label) {
   const type = getSeed().type;
-  return (state.layers ? 'Stack' : ((SEED_ICONS[type] || {}).name || type)) + (label && label !== '0°' ? ' · ' + label : '') + ' ' + new Date().toLocaleTimeString();
+  return (state.layers ? (state.layers.parts ? ((SEED_ICONS[state.layers.parts.source.type] || {}).name || state.layers.parts.source.type) + ' · parts' : 'Stack') : ((SEED_ICONS[type] || {}).name || type)) + (label && label !== '0°' ? ' · ' + label : '') + ' ' + new Date().toLocaleTimeString();
 }
 // The Element as drawn — its own inks (Palette, layer inks), this orientation, on its
 // Paper (colour + texture, as the Element frame shows it) — kept with a saved Element as
