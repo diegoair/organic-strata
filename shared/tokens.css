@@ -410,6 +410,8 @@ html {
   --sheet-page: #adadad;
   --sheet-line-w: 1.5px;
   --sheet-gap: 1px;   /* the board between two layers of the pile (Diego, Oct 10) */
+  --sheet-pile-depth: calc(var(--space-2) + 3 * var(--sheet-gap));   /* how far the pile reaches under the sheet: the room to leave before a caption */
+  --sheet-pile-side: calc(var(--space-1) + var(--sheet-line-w));   /* how far it reaches out on the left */
   --sheet-pile:
     0 0 0 calc(var(--sheet-line-w) + var(--sheet-gap)) var(--canvas-bg),   /* the gap round the sheet (its outline is the `outline`) */
     calc(var(--space-1) * -1) calc(var(--space-1) + var(--sheet-gap)) 0 calc(var(--sheet-line-w) * -1) var(--sheet-page),   /* the sheet right under it */

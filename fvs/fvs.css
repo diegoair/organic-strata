@@ -27,6 +27,8 @@
   :where(#element-svg > svg:not(.is-cell), #component-edit-frame > svg:not(.is-cell), #symbol-frame > svg, .fg-card__sheet, .fg-compose__svg, .fvs-thumb > svg:not(.is-cell)) {   /* :where — no specificity: a pinned variation's ring still wins */
     outline: var(--sheet-line-w) solid var(--sheet-line); outline-offset: 0; box-shadow: var(--sheet-pile);
   }
+  /* the pile reaches under (and a little left of) the sheet: leave it that room, so it never runs into a caption or a neighbour */
+  :where(.fvs-thumb > svg:not(.is-cell), .fg-card__sheet, .fg-compose__svg, #component-edit-frame > svg:not(.is-cell)) { margin-bottom: var(--sheet-pile-depth); }
   #canvas-wrap { flex: 1; overflow-y: auto; background: var(--canvas-grid), var(--canvas-bg); padding: var(--space-7); padding-left: max(var(--space-7), var(--fvs-rail-reserve, 0px)); }   /* the open Library rail never covers the work: its width is reserved (syncRailSpace) */
   /* Zoom (wheel / ⌘+ ⌘− ⌘0) — the suite-wide Organica.createZoomPan. FVS doesn't
      load shell.css (own canvas surface), so the stage + HUD rules it needs live here,
