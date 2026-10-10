@@ -416,7 +416,7 @@ ctrl('rg-lines-step').addEventListener('input', e => { ctrl('v-lines-step').text
 });
 
 ctrl('sel-seed-type').addEventListener('change', () => {
-  ctrl('rg-poly-base').value = 0; ctrl('rg-star-base').value = 0;   // a shape picked now starts with its first corner to the right (Oct 10, 2026)
+  ctrl('rg-poly-base').value = 0; ctrl('rg-star-base').value = -90;   // a Polygon picked now starts with its first corner to the right, a Star still points up (Oct 10, 2026)
   syncSeedUI(); renderGallery(); renderSeedPreview();
 });
 ctrl('btn-upload-seed').addEventListener('click', () => ctrl('file-seed').click());

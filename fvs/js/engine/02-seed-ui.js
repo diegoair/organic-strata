@@ -222,7 +222,7 @@ export function seedForSnapshot() {
 }
 // The first corner's direction of a Polygon / Star (Diego, Oct 10, 2026: 0° = right, so a hexagon sits flat). An
 // Element saved before carries none and keeps −90 (up) — the loader writes it into the hidden input.
-const baseOf = id => { const v = val(id); return Number.isFinite(v) ? v : 0; };
+const baseOf = (id, def = 0) => { const v = val(id); return Number.isFinite(v) ? v : def; };
 export function getSeed() {
   return state.layers ? seedForSnapshot() : withCellShape(getPanelSeed());
 }
@@ -277,7 +277,7 @@ export function getPanelSeed() {
     polyIrregular: val('rg-poly-irregular'),
     polySeed: val('rg-poly-seed'),
     starPoints: val('rg-star-points'),
-    starBase: baseOf('rg-star-base'),
+    starBase: baseOf('rg-star-base', -90),   // a Star points up (Diego, Oct 10, 2026)
     starInner: val('rg-star-inner'),
     starIrregular: val('rg-star-irregular'),
     starSeed: val('rg-star-seed'),
