@@ -617,5 +617,9 @@
   "parts:segment:{\"segDashes\":4}:squares:sum": "3,true",
   "parts:segment:{\"segDashes\":4}:strips": "23256315",
   "parts:segment:{\"segDashes\":4}:strips:sum": "5,true",
-  "parts:keys:5-7-5": "87e08ce0"
+  "parts:keys:5-7-5": "87e08ce0",
+  "parts:cell-inks": "ac3d1119",
+  "parts:step:index": "efbb65cb",
+  "parts:step:checker": "938cef71",
+  "parts:step:off-clean": "true"
 }

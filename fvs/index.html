@@ -313,6 +313,13 @@
           <span id="component-edit-hint" class="hint">Click a cell to give it its own shape</span>
           <button type="button" id="btn-component-edit-save" class="panel-btn">Save as new component</button>
         </div>
+        <!-- Divide into parts, per cell (R3): the picked cells' own colour for one part of the divided Element. -->
+        <div id="component-edit-parts" class="fvs-ce-parts" hidden>
+          <label class="ctrl-label" for="sel-ce-part">Part</label>
+          <select class="panel-select" id="sel-ce-part" aria-label="Part"></select>
+          <div class="fvs-ink-pop fvs-ink-pop--inline" id="ce-part-inks" role="group" aria-label="Part colour"></div>
+          <button type="button" class="mini-btn" id="btn-ce-part-clear">Clear part colour</button>
+        </div>
         <div id="component-edit-frame" class="fvs-element-frame"></div>
       </div>
     </div>
@@ -1368,6 +1375,7 @@
         <span class="ctrl-label">Start at</span>
         <select class="panel-select" id="sel-color-offset" aria-label="Start at"></select>
       </div>
+      <label class="check-row org-switch" id="row-color-parts" hidden><input type="checkbox" id="chk-color-parts"><span>Each part the next ink</span></label>
       <p class="org-panel__hint" id="color-quadrant-hint" style="display:none">By quadrant needs an even number of columns and rows — on this grid the middle column or row falls in the second half.</p>
       <div class="color-row">
         <span class="color-name">Paper</span>

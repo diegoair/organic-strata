@@ -85,13 +85,15 @@ export const COLOR_RULES = {
 };
 export const DEFAULT_COLOR_RULE = { mode: 'own', offset: 0 };
 // `checker` alternates between two neighbours only, whatever the palette size.
-export function paletteInk(colors, rule, i, cr) {
+export function paletteInk(colors, rule, i, cr) { return colors[paletteSlot(colors, rule, i, cr)]; }
+// Which palette slot cell i takes (paletteInk's index) — the base the parts step from (colorRule.parts 'step').
+export function paletteSlot(colors, rule, i, cr) {
   const r = rule || DEFAULT_COLOR_RULE;
   const def = COLOR_RULES[r.mode] || COLOR_RULES.index;
   let k = def.fn(i, cr ? cr[i] : { col: i, row: 0, cols: 1, rows: 1 }) + (r.offset || 0);
   if (r.mode === 'checker') k = ((k % 2) + 2) % 2;
   const n = colors.length;
-  return colors[((k % n) + n) % n];
+  return ((k % n) + n) % n;
 }
 // col/row of every cell of a Component/Symbol grid (binning fallback, so it
 // works for square and Loom grids alike). Null when the rule needs no position.
@@ -105,6 +107,17 @@ export function ruleInk(i, cr) { return paletteInk(state.colors, state.colorRule
 export function entryInkAt(entry) {
   const cr = colorRuleCR(entry.grid, entry.colorRule);
   return j => paletteInk(entry.colors, entry.colorRule, j, cr);
+}
+// A saved entry's items: each cell's ink from the entry's own palette + rule, and — when its parts step through
+// the inks (colorRule.parts 'step') — the slot they step from, also the entry's own (not the live palette's).
+export function entryItemInk(entry) {
+  const at = entryInkAt(entry), rule = entry.colorRule, step = !!(rule && rule.parts === 'step');
+  const cr = step ? colorRuleCR(entry.grid, rule) : null;
+  return (it, j) => {
+    const o = { ...it, color: at(j) };
+    if (step) o.inkSlot = paletteSlot(entry.colors, rule, j, cr); else delete o.inkSlot;
+    return o;
+  };
 }
 // "Element's own colours": the cell's saved Element palette, when it has one.
 export const cellOwnInks = cell => (state.colorRule.mode === 'own' && cell.ownColors && cell.ownColors.length) ? cell.ownColors : null;
@@ -128,6 +141,8 @@ export const live = {
   inkPaletteOverride: null,   // set while rendering a saved entry with ITS palette (withEntryInks)
   lastFigureMeta: { size: 0, box: null },   // the frame and drawn box of the last Grid figure built
   layerInkOverride: null,   // {layerId: 'cell'|slot} — set while rendering a colour-variant thumbnail
+  partInkOverride: null,    // {partKey: 'cell'|slot} — one Component cell's own part colours (cell.partInks), while it draws
+  partStep: null,           // {base, order: {partKey: k}} — the parts step through the inks from the cell's slot (colorRule.parts 'step')
   paperPatternOn: false,
   variantAppearance: null,
 };

@@ -229,7 +229,9 @@ export function withEntryInks(colors, fn) {
   try { return fn(); } finally { live.inkPaletteOverride = prev; }
 }
 export function layerInkColor(l, cellColor) {
-  const ink = live.layerInkOverride && l.id in live.layerInkOverride ? live.layerInkOverride[l.id] : l.ink;
+  let ink = live.layerInkOverride && l.id in live.layerInkOverride ? live.layerInkOverride[l.id] : l.ink;
+  if (l.part && live.partInkOverride && l.part in live.partInkOverride) ink = live.partInkOverride[l.part];   // the cell's own part colour
+  if ((ink == null || ink === 'cell') && l.part && live.partStep && l.part in live.partStep.order) ink = live.partStep.base + live.partStep.order[l.part];   // parts step through the inks
   if (ink == null || ink === 'cell') return cellColor;
   const pal = live.inkPaletteOverride || state.colors;
   return pal[((ink % pal.length) + pal.length) % pal.length];
@@ -388,6 +390,19 @@ export function componentBoundaryMaskContent(items, geo, half) {
       + elementPathMarkup(geo, '#000', true) + `</g>`;
   }).join('');
 }
+// One Component cell drawn with its own part colours / the parts stepping from its palette slot (Divide into parts,
+// R3) — a no-op for every item that carries neither.
+export function withItemParts(it, g, fn) {
+  if (!it.partInks && it.inkSlot == null) return fn();
+  const prev = [live.partInkOverride, live.partStep];
+  live.partInkOverride = it.partInks || null;
+  if (it.inkSlot != null && g && g.layers) {
+    const order = {};
+    g.layers.filter(l => l.part).forEach((l, k) => { order[l.part] = k; });
+    live.partStep = { base: it.inkSlot, order };
+  }
+  try { return fn(); } finally { [live.partInkOverride, live.partStep] = prev; }
+}
 export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply) {
   const halfX = boxW / 2, halfY = (boxH == null ? boxW : boxH) / 2;
   const overrideCache = new Map();   // seedType|params → {geo,path}, so several cells sharing one override don't re-tessellate
@@ -417,8 +432,9 @@ export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply
     // (Component Edit mode) — withAppearance makes every getElementAppearance()
     // read inside drawOne() (including applyElementStretchCanvas's own) see
     // that snapshot instead of the live/global panel, for this item only.
-    if (it.content && it.content.appearance) withAppearance(it.content.appearance, drawOne);
-    else drawOne();
+    const drawIt = () => withItemParts(it, itGeo, drawOne);
+    if (it.content && it.content.appearance) withAppearance(it.content.appearance, drawIt);
+    else drawIt();
   }
 }
 // SVG: `content` clipped to the union of `polys` (each a point list, in the content's own coords); as-is when polys is null.
@@ -554,9 +570,8 @@ export function buildComponentSVGBody(items, seed, size) {
       // reading whatever appearance is already in effect for this whole
       // call (the live panel normally, or componentEditDefaultAppearance
       // while renderComponentEditCanvas has it wrapped).
-      const markup = (it.content && it.content.appearance)
-        ? withAppearance(it.content.appearance, () => elementPathMarkup(resolveItemGeo(it, geo), it.color))
-        : elementPathMarkup(resolveItemGeo(it, geo), it.color);
+      const itGeo = resolveItemGeo(it, geo), paint = () => withItemParts(it, itGeo, () => elementPathMarkup(itGeo, it.color));
+      const markup = (it.content && it.content.appearance) ? withAppearance(it.content.appearance, paint) : paint();
       body += `<g transform="translate(${(halfX + it.cx).toFixed(2)},${(halfY + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
         + markup + `</g>`;
     }

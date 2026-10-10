@@ -34,7 +34,7 @@ import {
   NEW_LAYER_SCALE
 } from './engine/12-shell.js';
 import {
-  buildPalette, ctrl, syncColorRuleUI
+  buildPalette, ctrl, syncColorPartsRow, syncColorRuleUI
 } from './00-core.js';
 import {
   setCellShape
@@ -550,6 +550,7 @@ function partChoice() {
   return { L, src, methods, m, count };
 }
 export function renderPartsUI() {
+  syncColorPartsRow();
   const { L, src, methods, m, count } = partChoice();
   const show = !!(src && (!L || L.parts));
   ctrl('parts-block').style.display = show ? '' : 'none';

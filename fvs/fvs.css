@@ -413,6 +413,15 @@
   .fvs-layer__place .ctrl-val { flex: 0 0 22px; }
   .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
   .fvs-ink-pop[hidden] { display: none; }
+  /* the same swatches inline, in the Component Edit toolbar (Divide into parts, per cell) — a full hit target each */
+  .fvs-ink-pop--inline { position: static; box-shadow: none; padding: 0; max-width: none; background: none; gap: var(--space-1); }
+  .fvs-ink-pop.fvs-ink-pop--inline button { width: var(--hit-min); height: var(--hit-min); }
+  .fvs-ink-pop button:disabled { opacity: 0.42; cursor: not-allowed; }   /* as header.css's disabled buttons — all: unset drops the native look */
+  .fvs-ce-parts { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); width: min(60vh, 70vw); }
+  .fvs-ce-parts[hidden] { display: none; }
+  .fvs-ce-parts .panel-select { width: auto; }
+  .fvs-ce-parts .mini-btn { flex: 0 0 auto; }
+  #component-edit-frame [data-cell-index].is-picked { stroke: var(--tool); stroke-width: 2px; vector-effect: non-scaling-stroke; }   /* the edited cell: 3px; a picked one beside it: 2px — --tool reads on the light sheet in both themes */
   .fvs-ink-pop__head { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--mid); }   /* "Colour for 3 parts": the ink goes to every picked part */
   .fvs-ink-pop button { all: unset; width: 20px; height: 20px; border-radius: 50%; background: var(--sw); cursor: pointer; }
   .fvs-ink-pop button.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }

@@ -84,6 +84,11 @@ export function buildPalette() {
   hooks.syncGroundInkOptions();
 }
 
+// "Each part the next ink" means something only while the Element is divided (or the rule is already on).
+export function syncColorPartsRow() {
+  const L = state.layers, divided = !!(L && L.parts) || !!(state.componentEditDefaultSeed && state.componentEditDefaultSeed.parts);
+  ctrl('row-color-parts').hidden = !(divided || state.colorRule.parts === 'step');
+}
 export function syncColorRuleUI() {
   const sel = ctrl('sel-color-rule'), off = ctrl('sel-color-offset');
   if (!sel.options.length) Object.entries(COLOR_RULES).forEach(([k, v]) => sel.add(new Option(v.label, k)));
@@ -93,6 +98,8 @@ export function syncColorRuleUI() {
   sel.value = state.colorRule.mode;
   off.value = String(Math.min(state.colorRule.offset || 0, n - 1));
   ctrl('row-color-offset').style.display = n < 2 ? 'none' : '';
+  ctrl('chk-color-parts').checked = state.colorRule.parts === 'step';
+  syncColorPartsRow();
   syncQuadrantHint();
 }
 // "By quadrant" splits the grid at its middle; with an odd number of columns
@@ -114,7 +121,7 @@ export function refreshColourViews() {
   if (state.symbolGrid) hooks.renderSymbolCanvasOnly();
 }
 export function onColorRuleChange() {
-  state.colorRule = { mode: pv('sel-color-rule'), offset: parseInt(pv('sel-color-offset'), 10) || 0 };
+  state.colorRule = { mode: pv('sel-color-rule'), offset: parseInt(pv('sel-color-offset'), 10) || 0, ...(ctrl('chk-color-parts').checked ? { parts: 'step' } : {}) };
   syncColorRuleUI();
   refreshColourViews();
 }

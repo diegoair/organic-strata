@@ -2,7 +2,7 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  cellInk, cellOwnInks, entryInkAt, live, offscreenCanvas, state
+  cellInk, cellOwnInks, entryItemInk, live, offscreenCanvas, state
 } from './00-core.js';
 import {
   CELL_SHAPES, SEED_TYPES, cellShapeOf, frameDims, frameSize, polygonCellTurn, resolveCellPlacement,
@@ -365,9 +365,7 @@ export function buildSymbolItems() {
       // colorAt(), not any particular saved snapshot's colours.
       // A cell may recolour its Component (cell.colourway, written by Suggest's Recolour).
       const own = cell.colourway ? { ...entry, colors: cell.colourway.colors, paperColor: cell.colourway.paper } : entry;
-      const savedColorAt = entryInkAt(own);
-      let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid)
-        .map((it, j) => ({ ...it, color: savedColorAt(j) }));
+      let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(own));
       if (reg) nestedItems = modulesToBlockCells(nestedItems, nestedW, nestedH, reg, cell);
       // A cell-shape Component set to Match cell sits on the Symbol's shared small-cell lattice (alignedPlacements).
       const al = AL.get(i);

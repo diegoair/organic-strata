@@ -1,8 +1,9 @@
 // Flexible Visual System · 06-component-ui — Component UI — Edit mode, rule UI, undo, Colourways, Generate, Split.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
+import { rt } from './rt.js';
 import {
-  pv, state, val
+  colorAt, live, pv, state, val
 } from './engine/00-core.js';
 import {
   INNER_APEX, INNER_UNSUPPORTED, SEED_TYPES, fitPathToSeed, frameDims, splitPaperScope
@@ -78,6 +79,7 @@ export function enterComponentEditMode(compId) {
   state.componentEditCells = comp.cells.map(c => ({ ...c }));
   state.componentEditGrid = structuredClone(getGrid());
   state.componentEditSelectedCell = null;
+  rt.cePicked = new Set();
   // Frozen once, at entry — every non-overridden cell's DEFAULT shape must
   // stay this, even while the same physical Seed panel is being reused as
   // the SELECTED cell's own scratch pad (selectComponentEditCell/
@@ -113,6 +115,8 @@ export function exitComponentEditMode() {
   state.componentEditSelectedCell = null;
   state.componentEditDefaultSeed = null;
   state.componentEditDefaultAppearance = null;
+  rt.cePicked = new Set();
+  ctrl('component-edit-parts').hidden = true;
   ctrl('rg-grid-cols').disabled = false; ctrl('rg-grid-rows').disabled = false;
   ctrl('sel-rule').disabled = false;
   ctrl('component-edit-view').style.display = 'none';
@@ -148,17 +152,60 @@ export function renderComponentEditCanvas() {
   // Frozen default Appearance for the whole call (every non-overridden cell) —
   // an overridden cell's own withAppearance (inside buildComponentSVGBody's
   // per-item loop) nests inside this one and wins for just that item.
-  const body = withAppearance(state.componentEditDefaultAppearance, () => buildComponentSVGBody(items, seed, size));
-  const hit = componentEditHitLayer(items, size);
+  live.tagParts = !!seed.parts;   // a divided Element: a click finds the part under it (renderComponentEditParts)
+  let body;
+  try { body = withAppearance(state.componentEditDefaultAppearance, () => buildComponentSVGBody(items, seed, size)); }
+  finally { live.tagParts = false; }
+  const hit = componentEditHitLayer(items, size, rt.cePicked);
   const dims = resolvedComponentDims(size);
   ctrl('component-edit-frame').style.setProperty('--comp-ar', (dims.w / dims.h).toFixed(5));   // the sheet's box takes the component's proportions
   ctrl('component-edit-frame').innerHTML =
     `<svg xmlns="http://www.w3.org/2000/svg"${items.length && items[0].poly ? ' class="is-cell"' : ''} viewBox="0 0 ${dims.w} ${dims.h}">${body}${componentGridOutlineSVG(items, size)}${(gridWrapper(items, grid.lattice && grid.lattice.outline) || {}).svg || ''}${hit}</svg>`;
   const cell = state.componentEditSelectedCell;
   ctrl('component-edit-hint').textContent = cell == null
-    ? 'Click a cell to give it its own shape'
+    ? (seed.parts ? 'Click cells — ⌘-click adds — then a part and an ink' : 'Click a cell to give it its own shape')
     : `Editing cell ${cell + 1} — adjust the Seed panel on the right`;
+  renderComponentEditParts();
 }
+// ── Divide into parts, per cell (R3) ── the picked cells' own colour for one part of the divided Element
+// (cell.partInks {partKey: 'cell' | slot}); it lives in the edit's working copy until Save as new component.
+const ceParts = () => {
+  const seed = state.componentEditDefaultSeed;
+  return seed && seed.parts ? (seed.layers || []).filter(l => l.part) : [];
+};
+export function renderComponentEditParts() {
+  const parts = ceParts(), box = ctrl('component-edit-parts');
+  box.hidden = !parts.length;
+  if (!parts.length) return;
+  const sel = ctrl('sel-ce-part');
+  if (!parts.some(l => l.part === rt.cePart)) rt.cePart = parts[0].part;
+  sel.innerHTML = parts.map(l => `<option value="${l.part}"${l.part === rt.cePart ? ' selected' : ''}>${l.partName || l.part}</option>`).join('');
+  const picked = [...rt.cePicked].map(i => state.componentEditCells[i]).filter(Boolean);
+  const vals = new Set(picked.map(c => (c.partInks && rt.cePart in c.partInks) ? String(c.partInks[rt.cePart]) : 'unset'));
+  const cur = vals.size === 1 ? [...vals][0] : null;
+  ctrl('ce-part-inks').innerHTML = `<button type="button" class="is-cell" data-ink="cell" style="--sw:${colorAt(0)}" aria-pressed="${cur === 'cell'}" aria-label="Follow cell colour" title="Follow the cell colour"></button>`
+    + state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-pressed="${cur === String(k)}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"></button>`).join('');
+  const off = !picked.length;
+  ctrl('ce-part-inks').querySelectorAll('button').forEach(b => { b.disabled = off; });
+  ctrl('btn-ce-part-clear').disabled = off || !picked.some(c => c.partInks && rt.cePart in c.partInks);
+}
+ctrl('sel-ce-part').addEventListener('change', e => { rt.cePart = e.target.value; renderComponentEditParts(); });
+ctrl('ce-part-inks').addEventListener('click', e => {
+  const b = e.target.closest('[data-ink]');
+  if (!b || !rt.cePart) return;
+  const ink = b.dataset.ink === 'cell' ? 'cell' : +b.dataset.ink;
+  rt.cePicked.forEach(i => { const c = state.componentEditCells[i]; if (c) c.partInks = { ...(c.partInks || {}), [rt.cePart]: ink }; });
+  renderComponentEditCanvas();
+});
+ctrl('btn-ce-part-clear').addEventListener('click', () => {
+  rt.cePicked.forEach(i => {   // the picked cells' colour for the chosen Part only; the other parts keep theirs
+    const c = state.componentEditCells[i];
+    if (!c || !c.partInks) return;
+    const { [rt.cePart]: _gone, ...rest } = c.partInks;
+    if (Object.keys(rest).length) c.partInks = rest; else delete c.partInks;
+  });
+  renderComponentEditCanvas();
+});
 
 // Selecting a cell swaps the sidebar to the Element panel and loads that
 // cell's own content (or, if it has none yet, leaves the panel exactly as
@@ -180,7 +227,20 @@ export function selectComponentEditCell(i) {
 ctrl('component-edit-frame').addEventListener('click', e => {
   const hit = e.target.closest('[data-cell-index]');
   if (!hit) return;
-  selectComponentEditCell(parseInt(hit.dataset.cellIndex, 10));
+  const i = parseInt(hit.dataset.cellIndex, 10);
+  // the part under the pointer (the hit layer sits on top of the drawing): it becomes the Part
+  if (ceParts().length) {
+    const under = document.elementsFromPoint(e.clientX, e.clientY).map(el => el.closest && el.closest('[data-part]')).find(Boolean);
+    const seed = state.componentEditDefaultSeed, l = under && (seed.layers || []).find(x => x.id === under.getAttribute('data-part'));
+    if (l && l.part) rt.cePart = l.part;
+  }
+  if (e.metaKey || e.ctrlKey || e.shiftKey) {
+    if (rt.cePicked.has(i) && rt.cePicked.size > 1) rt.cePicked.delete(i); else rt.cePicked.add(i);
+    renderComponentEditCanvas();
+    return;
+  }
+  rt.cePicked = new Set([i]);
+  selectComponentEditCell(i);
 });
 ctrl('btn-component-edit-exit').addEventListener('click', exitComponentEditMode);
 ctrl('btn-component-edit-save').addEventListener('click', saveComponentEditAsNew);

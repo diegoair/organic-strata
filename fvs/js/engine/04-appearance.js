@@ -2,7 +2,7 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  colorAt, colorRuleCR, entryInkAt, live, pc, pv, ruleInk, state, val
+  colorAt, colorRuleCR, entryItemInk, live, paletteSlot, pc, pv, ruleInk, state, val
 } from './00-core.js';
 import {
   CELL_SHAPES, SEED_TYPES, cellShapeOf, frameSize, importAsPaperShape, median, ptsToD, resolveGridCells,
@@ -27,16 +27,23 @@ export function buildComponentItems(component, grid) {
     const localR = CELL_SHAPES[grid.lattice.shape].R;
     return component.cells.map((t, i) => {
       const c = grid.cells[i], cellR = Math.max(...c.points.map(p => Math.hypot(p[0] - c.centroid[0], p[1] - c.centroid[1])));
-      return { cx: centers[i].cx, cy: centers[i].cy, rotation: mod360((c.baseRot || 0) + t.rotation), flipH: t.flipH, flipV: t.flipV, scale: t.scale,
-        cellSize: 100 * cellR / localR, color: ruleInk(i, cr), content: t.content || null, poly: c.points };   // poly: the cell in frame coords — the canvas is the lattice's outline
+      return withPartInks({ cx: centers[i].cx, cy: centers[i].cy, rotation: mod360((c.baseRot || 0) + t.rotation), flipH: t.flipH, flipV: t.flipV, scale: t.scale,
+        cellSize: 100 * cellR / localR, color: ruleInk(i, cr), content: t.content || null, poly: c.points }, t, i, cr);   // poly: the cell in frame coords — the canvas is the lattice's outline
     });
   }
-  return component.cells.map((t, i) => ({
+  return component.cells.map((t, i) => withPartInks({
     cx: centers[i].cx, cy: centers[i].cy,
     rotation: t.rotation, flipH: t.flipH, flipV: t.flipV, scale: t.scale,
     cellSize: centers[i].cellSize, color: ruleInk(i, cr),
     content: t.content || null,
-  }));
+  }, t, i, cr));
+}
+// Divide into parts, per cell (R3): a cell's own part colours, and the cell's palette slot when the parts step
+// through the inks. Only added when used — every other item is the same object as before.
+function withPartInks(item, cell, i, cr) {
+  if (cell.partInks && Object.keys(cell.partInks).length) item.partInks = cell.partInks;
+  if (state.colorRule.parts === 'step') item.inkSlot = paletteSlot(state.colors, state.colorRule, i, cr);
+  return item;
 }
 // Per-cell {col,row,cols,rows,cx,cy,nx,ny,angle,index,count} for the
 // Components tier's own grid — used by the named component rules
@@ -95,8 +102,7 @@ export function resolveUnderlyingComponent(name) {
   if (!name) return null;
   const entry = hooks.LIBRARY.read()[name];
   if (!entry) return null;
-  const savedColorAt = entryInkAt(entry);
-  const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
+  const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(entry));
   return { items, seed: entry.seed, size: frameSize(entry.grid), paperColor: entry.paperColor, appearance: entry.appearance, colors: entry.colors };
 }
 // Real, empirically-verified browser bug (found building the equivalent

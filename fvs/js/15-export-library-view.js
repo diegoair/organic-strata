@@ -274,6 +274,7 @@ buildPalette();
 syncColorRuleUI();
 ctrl('sel-color-rule').addEventListener('change', onColorRuleChange);
 ctrl('sel-color-offset').addEventListener('change', onColorRuleChange);
+ctrl('chk-color-parts').addEventListener('change', onColorRuleChange);
 syncSeedUI();
 syncComponentRoleUI();
 syncRuleAvailability();

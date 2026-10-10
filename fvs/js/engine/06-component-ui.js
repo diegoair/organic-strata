@@ -22,15 +22,16 @@ import {
 // invisible (or, for the selected cell, outlined) hit-rect per cell —
 // exactly Symbol's own data-cell-index pattern, just built as an overlay
 // layer instead of threading the attribute through every <g> in the body.
-export function componentEditHitLayer(items, size) {
+export function componentEditHitLayer(items, size, picked) {
   const dims = resolvedComponentDims(size);
   const halfX = dims.w / 2, halfY = dims.h / 2;
   return items.map((it, i) => {
     const x = halfX + it.cx - it.cellSize / 2, y = halfY + it.cy - it.cellSize / 2;
     const sel = i === state.componentEditSelectedCell;
     const style = sel ? 'fill:transparent;stroke:var(--tool);stroke-width:3px;' : 'fill:transparent;';
-    if (it.poly) return `<polygon data-cell-index="${i}" points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}" style="${style}"/>`;   // a cell-shape lattice: the cell's own outline
-    return `<rect data-cell-index="${i}" x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${it.cellSize}" height="${it.cellSize}" style="${style}"/>`;
+    const cls = picked && picked.has(i) && !sel ? ' class="is-picked"' : '';   // picked for part colours, beside the edited cell
+    if (it.poly) return `<polygon data-cell-index="${i}"${cls} points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}" style="${style}"/>`;   // a cell-shape lattice: the cell's own outline
+    return `<rect data-cell-index="${i}"${cls} x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${it.cellSize}" height="${it.cellSize}" style="${style}"/>`;
   }).join('');
 }
 export function componentCaption(comp) {

@@ -1052,6 +1052,24 @@ async function battery() {
     L.parts.source = { ...src, starPoints: 5 }; syncPartLayers(L);
     put('parts:keys:5-7-5', seven + ' | ' + L.items.map(l => l.part + ':' + l.ink).join(','));
   }
+  // R3: part colours per Component cell, and the parts stepping through the inks
+  {
+    reset();
+    state.colors = ['#e8321e', '#0a9a3e', '#1e5be8', '#f2b300']; buildPalette();
+    chg('sel-seed-type', 'star');
+    const r = divideLayers(panelSeedSnapshot(), 'tips', 0, readLookControls());
+    applySeedToPanel({ type: 'stack', active: 0, layers: r.layers.items, parts: r.layers.parts });
+    setComponentGrid('square2x2'); chg('sel-rule', 'identity'); generate();
+    const comp = state.components[0], g = getGrid();
+    const cells = comp.cells.map((c, i) => (i % 2 ? { ...c } : { ...c, partInks: { core: 3, 'tip-0': 1 } }));
+    put('parts:cell-inks', buildComponentSVG(buildComponentItems({ cells }, g), getSeed(), frameSize(g)));
+    for (const mode of ['index', 'checker']) {
+      state.colorRule = { mode, offset: 0, parts: 'step' }; syncColorRuleUI();
+      put('parts:step:' + mode, buildComponentSVG(buildComponentItems({ cells }, g), getSeed(), frameSize(g)));
+    }
+    state.colorRule = { ...DEFAULT_COLOR_RULE }; syncColorRuleUI();
+    put('parts:step:off-clean', buildComponentItems(comp, g).every(it => !('inkSlot' in it) && !('partInks' in it)));   // rule off, no part colours: the items are as before
+  }
   reset();
   return out;
 }

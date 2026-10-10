@@ -2,7 +2,7 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  DEFAULT_COLOR_RULE, entryInkAt, offscreenCanvas, pc, pv, state
+  DEFAULT_COLOR_RULE, entryItemInk, offscreenCanvas, pc, pv, state
 } from './00-core.js';
 import {
   frameDims, frameSize, resolveCellPlacement, resolveGridCells
@@ -389,8 +389,7 @@ export function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
 export function componentThumbSVG(name) {
   const entry = LIBRARY.peek()[name];   // peek: one call per thumbnail — read() re-parses the whole library each time
   if (!entry) return '';
-  const savedColorAt = entryInkAt(entry);
-  const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
+  const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(entry));
   return withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName, entry.blend));
 }
 export function analyseComponent(name) {
@@ -404,8 +403,7 @@ export function analyseComponent(name) {
   const prev = { paper: state.paperColor, role: state.componentRole, under: state.underlyingComponentName, blend: state.componentBlend };
   state.paperColor = entry.paperColor || '#ffffff'; state.componentRole = entry.role || 'normal'; state.underlyingComponentName = entry.underlyingComponentName || null; state.componentBlend = entry.blend === 'multiply' ? 'multiply' : 'normal';
   try {
-    const savedColorAt = entryInkAt(entry);
-    const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map((it, j) => ({ ...it, color: savedColorAt(j) }));
+    const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(entry));
     ctx.setTransform(RES / S, 0, 0, RES / S, 0, 0);
     withEntryInks(entry.colors, () => withAppearance(entry.appearance, () => drawComponentCanvas(ctx, items, entry.seed, S)));
   } finally { state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under; state.componentBlend = prev.blend; ctx.setTransform(1, 0, 0, 1, 0, 0); }
