@@ -335,7 +335,7 @@
 
   /* ── The empty Symbol = its grid, empty (built from the panel); the user fills cells by hand (Library
      rail, Choose content) or presses Generate in the floatbar. The arrival is runSymbolArrival(). */
-  #symbol-frame g.is-empty.is-outlined > :first-child, #symbol-frame .sym-empty-frame { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 5; }
+  #symbol-frame g.is-empty.is-outlined > :first-child, #symbol-frame .sym-empty-frame { stroke: var(--track-accent); stroke-opacity: 0.35; stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 6 5; }   /* the margin + empty cells: the guides' own blue, dashed (Diego, Oct 10, 2026 — was --border-strong) */
   #symbol-frame .sym-empty-frame { fill: none; pointer-events: none; }
   @media (hover: hover) { #symbol-frame g.is-empty:hover > :first-child { stroke: var(--ink); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: none; fill: color-mix(in srgb, var(--ink) 8%, transparent); } }   /* also with the guides off: a cell still answers the pointer */
 
