@@ -403,9 +403,9 @@ html {
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.18);
   /* The SHEET PILE (Diego, Oct 10, 2026 — the blurred shadow stays off, Oct 8): a work sheet reads off the board
      as the top of a small ream — its black outline, one loose grey sheet and one grey page under it, solid copies
-     (box-shadow, no blur, painted once). A drawing on white paper: the same values in both themes.
+     (box-shadow, no blur, painted once). The same in both themes, except the line: a gentle ~5:1 on each board.
      Tested on /design-system/_stage-shadow.html (the Ream variant). */
-  --sheet-line: #111111;
+  --sheet-line: #6b665c;   /* a gentle line: 5.4:1 on --canvas-paper (was #111111, 17.9:1 — Diego, Oct 10) */
   --sheet-page: #adadad;
   --sheet-line-w: 1.5px;
   --sheet-gap: 1px;   /* the board between two layers of the pile (Diego, Oct 10) */
@@ -622,6 +622,7 @@ html {
   --port-figure: #fb8700;
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);   /* the sheet still has to lift off a dark ground */
   --canvas-paper: #1c1a15;   /* the paper board, dark: the same warmth */
+  --sheet-line: #8f897d;   /* the sheet pile's line on the dark board: 5.0:1 (the light one would be 1.1:1) */
   color-scheme: dark;
 }
 
