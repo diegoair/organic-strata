@@ -643,11 +643,13 @@ ctrl('symbol-cell-props').innerHTML = cellPropsHTML('');
 // predictable clean slate every time content is assigned, not whatever
 // the previously-selected cell happened to have. ──
 // The window has a target, like Cell properties: none = the Symbol step's cells; Compose passes
-// { count(), apply(patch | cell => patch), done() } and its pick becomes the selection's region rule.
+// { count(), apply(patch | cell => patch), done() } and its pick becomes the selection's region rule. seedsOnly: true =
+// the Seeds only (Component Edit's cells, 18-step-boards.js — a Component cell can't hold a Component).
 let overlayTarget = null;
 export function openCellContentOverlay(target) {
   overlayTarget = target && target.apply ? target : null;
   ctrl('chk-content-overlay-all').closest('label').style.display = overlayTarget ? 'none' : '';   // "all cells" is Symbol-only
+  ctrl('symbol-content-overlay').classList.toggle('is-seeds-only', !!(overlayTarget && overlayTarget.seedsOnly));
   if (!overlayTarget && state.symbolSelection.size === 0 && !pc('chk-content-overlay-all')) return;
   renderCellContentOverlayTiles();
   ctrl('symbol-content-overlay').style.display = 'flex';
@@ -685,6 +687,7 @@ export function syncContentFilter() {
 }
 export function closeCellContentOverlay() {
   ctrl('symbol-content-overlay').style.display = 'none';
+  ctrl('symbol-content-overlay').classList.remove('is-seeds-only');
   overlayTarget = null;
   ctrl('chk-content-overlay-all').checked = false;   // disarm so a later single-cell edit isn't hijacked
 }

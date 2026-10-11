@@ -97,6 +97,7 @@ export function enterComponentEditMode(compId) {
   ctrl('gallery-empty').style.display = 'none';
   ctrl('gallery-status').textContent = '';
   ctrl('component-edit-view').style.display = 'flex';
+  if (hooks.boardComponentEdit) hooks.boardComponentEdit(true);   // Edit is the Component board's single view (18-step-boards.js)
   renderComponentEditCanvas();
   hooks.syncFvsZoomHud();   // gallery ⇄ Edit: the zoom chip follows
 }
@@ -120,6 +121,7 @@ export function exitComponentEditMode() {
   ctrl('rg-grid-cols').disabled = false; ctrl('rg-grid-rows').disabled = false;
   ctrl('sel-rule').disabled = false;
   ctrl('component-edit-view').style.display = 'none';
+  if (hooks.boardComponentEdit) hooks.boardComponentEdit(false);
   const compBlock = document.querySelector('.tier-block[data-tier="component"]');
   const elBlock = document.querySelector('.tier-block[data-tier="element"]');
   if (compBlock) compBlock.classList.add('active');

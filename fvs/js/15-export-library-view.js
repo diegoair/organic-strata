@@ -402,9 +402,12 @@ export function railApply(kind, name, idx) {
 }
 
 export let railPress = null, railDrag = null;   // {kind,name,tile,x,y,id} / {ghost,idx}
-export const railCellAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); const g = el && el.closest(rt.railTarget ? '#fg-compose-stage .fg-cell' : '#symbol-frame [data-cell-index]'); return g; };
+// A drop target other than the Symbol step's cells: { apply(kind, name, idx), cellSel } — Compose (cellSel left out:
+// its .fg-cell) and Component Edit's cells (18-step-boards.js). null = the Symbol step's own.
+export function setRailTarget(t) { rt.railTarget = t || null; }
+export const railCellAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); const g = el && el.closest(rt.railTarget ? (rt.railTarget.cellSel || '#fg-compose-stage .fg-cell') : '#symbol-frame [data-cell-index]'); return g; };
 const railCellIndex = g => +(g.dataset.cellIndex != null ? g.dataset.cellIndex : g.dataset.i);
-export const clearRailDrop = () => document.querySelectorAll('#symbol-frame .is-drop, #fg-compose-stage .is-drop').forEach(g => g.classList.remove('is-drop'));
+export const clearRailDrop = () => document.querySelectorAll('#canvas-wrap .is-drop').forEach(g => g.classList.remove('is-drop'));
 
 export function cancelRailDrag() {
   if (railDrag) railDrag.ghost.remove();

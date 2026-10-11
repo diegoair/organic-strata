@@ -15,6 +15,9 @@ export const state = {
   // where each cell is clickable and, once selected, the Element sidebar edits
   // THAT cell's own shape live. Editing never mutates the source component —
   // "Save as new" (saveComponentEditAsNew) pushes a fresh gallery candidate.
+  // The Element board (Oct 2026, docs/FVS.md §13): several Elements, each a snapshot {seed, app} as a saved Element keeps;
+  // the active one is the live panel. [{id, name, custom (renamed by hand), seed, app}] — persisted by 18-step-boards.js.
+  elements: [], activeElement: null,
   componentEditMode: false,
   componentEditId: null,          // the component being edited FROM (read-only source, never mutated)
   componentEditCells: null,       // working copy of cells, edited in place while in this mode

@@ -182,6 +182,7 @@ export function renderElementFrame(seed) {
       if ((act && act.id === id) || (rt.partSel && rt.partSel.has(id))) g.classList.add('is-sel');
     });
   }
+  if (hooks.boardElementDrawn) hooks.boardElementDrawn();   // the Element board: Inks, New element's Paper, the list (18-step-boards.js)
 }
 
 export function exportElement(format) {
@@ -254,6 +255,10 @@ export const drawIdFree = svg => {
 // A kept SVG keeps its own ids, still unique on the page (the counter only goes up).
 const galleryThumbs = new WeakMap();   // comp → { key, wrap, btn, cap, quickSave, savedName }
 export function renderGallery() {
+  renderGalleryNow();
+  if (hooks.boardGalleryDrawn) hooks.boardGalleryDrawn();   // the Component board's Clear board (18-step-boards.js)
+}
+function renderGalleryNow() {
   // Component Edit mode owns the view while active (renderComponentEditCanvas
   // is its own render path) — a reactive renderGallery() call from elsewhere
   // (e.g. a Palette edit) must not repaint the hidden #gallery underneath it.

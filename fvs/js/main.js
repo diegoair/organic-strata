@@ -29,6 +29,8 @@ import './10-suggest.js';
 import './11-symbol-ui.js';
 import './12-shell.js';
 import './15-export-library-view.js';
+import './16-board.js';
+import './18-step-boards.js';
 import './99-boot.js';
 import './test-surface.js';
 import { captureFigurePristine } from './00-core.js';

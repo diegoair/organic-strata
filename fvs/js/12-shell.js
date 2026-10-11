@@ -32,7 +32,7 @@ import {
 import {
   ARC_PRESETS, FVS_EXTRAS_LABELS, FVS_RETIRED_EXTRAS, FVS_SEED_ORDER, NEW_LAYER_SCALE, OUTLINE_ICONS,
   POLY_PRESETS, STEP_EXPORT_HINTS, TRI_PRESETS, TRU_IDS, TRU_NEUTRAL, TRU_PRESETS, WEDGE_PRESETS,
-  fvsGalleryLive, fvsSurfaceLive, readShapeLook, truState
+  fvsSurfaceLive, readShapeLook, truState
 } from './engine/12-shell.js';
 import {
   buildPalette, ctrl, syncColorRuleUI, syncQuadrantHint
@@ -64,7 +64,7 @@ import {
   buildEmptySymbolGrid, buildFitAllAnchorGrid, exportFvsGrid, handleSymbolGridUpload, syncFitAnchorUI
 } from './08-symbol-grid.js';
 import {
-  generateSymbolCells, renderSymbolPool, setSugDockOpen, sugDockIsOpen
+  generateSymbolCells, renderSymbolPool
 } from './10-suggest.js';
 import {
   applySymbolRule, applyToSelection, bindSymbolCanvasSelection, bindSymbolTrackDrag,
@@ -114,7 +114,6 @@ export function setTier(tier) {
   // #component-edit-view and the disabled Grid/Rule controls would stay
   // stuck in their edit-mode state the next time Component tier is shown.
   if (state.componentEditMode && tier !== 'component') exitComponentEditMode();
-  if (tier !== 'symbol' && sugDockIsOpen()) setSugDockOpen(false);   // the variations strip floats above the bar: Symbol only
   const prevTier = state.activeTier;
   // See snapshotComponentElementState()/restoreComponentElementState() —
   // Figure is a sandbox; entering it captures how Element/Component looked,
@@ -170,19 +169,18 @@ export function setTier(tier) {
   syncFreehandEditor();
   updateStepHint(tier);
   syncFvsZoomHud();
+  if (hooks.boardTierShown) hooks.boardTierShown(tier);   // a step board's first visit: its saved view, or fit (16-board.js)
 }
 
-// ── Zoom: mouse wheel / ⌘+ ⌘− ⌘0 — only in Symbol and Component (Diego:
-// not in Element; Figure has none either).
-//   · Symbol, Component Edit: the suite's Organica.createZoomPan, one instance
-//     each, live only while that step/mode shows. FVS's own clicks and drags stay
-//     theirs: a pan starts only with Space / ⌥ held or the middle button
-//     (`panStart`). Double-click / ⌘0 / "reset" = 100%.
-//   · Component gallery: zoom = thumbnail size (galleryZoom → the --thumb-w/h
-//     vars), so the grid reflows and still scrolls with its scrollbar.
+// ── Zoom. Element, Component and Symbol are boards (16-board.js, Oct 2026): the wheel zooms the board,
+// Space / ⌥ / the middle button pan it. Component Edit's single view keeps its own zoom here:
+//   · Component Edit: the suite's Organica.createZoomPan, live only while Edit shows. FVS's own clicks and
+//     drags stay theirs: a pan starts only with Space / ⌥ held or the middle button (`panStart`).
+//     Double-click / "reset" = 100%.
+//   · the candidates on the board: galleryZoom sets their size (the --thumb-w/h vars, 2× on the board).
 // Keyboard shortcuts — list-only (each is handled by its own listener below); `?` shows them.
 [['⌘Z', 'Undo (Component, Figure, Freehand)', 'Edit'], ['⌘⇧Z', 'Redo (Figure)', 'Edit'],
- ['Space (hold)', 'Pan a zoomed view', 'View'], ['⌘ + / − / 0', 'Gallery zoom in / out / reset', 'View'],
+ ['Space (hold)', 'Pan the board', 'View'], ['Shift+1', 'Fit the board', 'View'], ['Shift+2', 'Fit the selection', 'View'],
  ['Space', 'Figure: shuffle', 'Figure'], ['V', 'Figure: variations', 'Figure'], ['[ / ]', 'Figure: nudge size', 'Figure'],
  ['1–6', 'Figure: pick a paint tool', 'Figure'], ['R / m / M', 'Figure: rotate / mirror V / mirror H the handle target', 'Figure'],
  ['Delete / ⌫', 'Symbol: empty the selected cells', 'Edit'],
@@ -213,7 +211,6 @@ document.addEventListener('keyup', e => {
 window.addEventListener('blur', () => { fvsPanKey = false; document.body.classList.remove('fvs-pan-key'); });
 export var FVS_ZOOM_SURFACES = [
   { tier: 'component', canvas: 'component-edit-frame', wrap: 'component-edit-view', ready: () => !!state.componentEditMode },
-  { tier: 'symbol', canvas: 'symbol-frame' },
 ];
 export var fvsZoom = {};
 export function fvsZoomActive() { if (!FVS_ZOOM_SURFACES) return null; const sf = FVS_ZOOM_SURFACES.find(fvsSurfaceLive); return sf ? fvsZoom[sf.tier] : null; }
@@ -225,7 +222,7 @@ export function galleryZoomTo(z) {
 export function syncFvsZoomHud() {
   if (!FVS_ZOOM_SURFACES) return;   // startup: setTier can run before this block
   const zp = fvsZoomActive();
-  const z = zp ? zp.zoom : fvsGalleryLive() ? rt.galleryZoom : 1;
+  const z = zp ? zp.zoom : 1;   // a board shows its zoom in its sheets' size
   ctrl('zoom-level').textContent = Math.round(z * 100) + '%';
   ctrl('zoom-hud').classList.toggle('visible', z > 1.001);
 }
@@ -240,18 +237,7 @@ FVS_ZOOM_SURFACES.forEach(sf => {
     onChange(st) { canvas.classList.toggle('zoomed', st.zoomed); if (fvsSurfaceLive(sf)) syncFvsZoomHud(); },
   });
 });
-ctrl('zoom-reset').addEventListener('click', () => { const zp = fvsZoomActive(); if (zp) zp.reset(); else if (fvsGalleryLive()) galleryZoomTo(1); });
-document.querySelector('#canvas-wrap .tier-view[data-tier="component"]').addEventListener('wheel', e => {
-  if (!fvsGalleryLive() || e.target.closest('#component-edit-view')) return;
-  e.preventDefault();
-  galleryZoomTo(rt.galleryZoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
-}, { passive: false });
-window.addEventListener('keydown', e => {
-  if (!(e.metaKey || e.ctrlKey) || !fvsGalleryLive()) return;
-  if (e.key === '+' || e.key === '=') { e.preventDefault(); galleryZoomTo(rt.galleryZoom * 1.2); }
-  else if (e.key === '-' || e.key === '_') { e.preventDefault(); galleryZoomTo(rt.galleryZoom / 1.2); }
-  else if (e.key === '0') { e.preventDefault(); galleryZoomTo(1); }
-});
+ctrl('zoom-reset').addEventListener('click', () => { const zp = fvsZoomActive(); if (zp) zp.reset(); });
 
 export function syncTriType() {
   const cur = [val('rg-base'), val('rg-height'), val('rg-tri-apex')];

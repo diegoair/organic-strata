@@ -25,4 +25,9 @@ if echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/js/17-f
   echo "The node board changed — running the Figure board gestures (clean mouse + held side button)…"
   "$root/scripts/test-figure-board.sh" || { echo; echo "Commit blocked: the Figure board test failed."; exit 1; }
 fi
+if echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/index\.html|fvs/fvs\.css|fvs/js/(0[5-9]|1[0-8])-|scripts/test-fvs-boards)'; then
+  echo
+  echo "The step boards changed — running the Element / Component / Symbol board gestures (clean mouse + held side button)…"
+  "$root/scripts/test-fvs-boards.sh" || { echo; echo "Commit blocked: the step boards test failed."; exit 1; }
+fi
 exit 0

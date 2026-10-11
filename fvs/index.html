@@ -30,8 +30,6 @@
 </header>
 
 
-<!-- Symbol variations: a glass strip above the floatbar, opened by #btn-sug-dock (a sibling, never nested). -->
-<div class="org-floatbar fvs-suggest" id="fvs-sug-panel" role="region" aria-label="Symbol variations" inert></div>
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
   <!-- Cell shape (test, Oct 6, 2026): the cell the Element is drawn for — Square is today's box; the others clip the
        shape to their outline, set its turns, and give the Component its own grid. One setting, shown on the Element
@@ -51,6 +49,10 @@
     <button class="org-floatbar__btn" id="btn-reset-seed" aria-label="Reset Element — hold to confirm" data-hold="Reset Element — click again to confirm">
       <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
     </button>
+    <!-- Clear board: every Element goes, one starting Element is left (as Symbol's Clear — no undo). Hold to confirm. -->
+    <button class="org-floatbar__btn" id="btn-board-clear-element" aria-label="Clear board — hold to confirm" data-hold="Clear board — click again to confirm">
+      <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
+    </button>
     <button class="org-floatbar__btn" id="btn-upload-seed" aria-label="Upload SVG">
       <svg class="ico" data-icon="upload" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 9.2V2M5.3 4.7 8 2l2.7 2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
     </button>
@@ -61,6 +63,10 @@
     <!-- Show grid: the cells' outlines over every Component — a preview aid, never exported. -->
     <button class="org-floatbar__btn" id="btn-component-view-outline" aria-pressed="false" aria-label="Show grid">
       <svg class="ico" data-icon="fvs-grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11"/></svg>
+    </button>
+    <!-- Clear board: every candidate goes (clearGallery keeps an undo step, so ⌘Z brings them back). Hold to confirm. -->
+    <button class="org-floatbar__btn" id="btn-board-clear-component" aria-label="Clear board — hold to confirm" data-hold="Clear board — click again to confirm">
+      <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-undo-components" aria-label="Undo (⌘Z)" disabled>
       <svg class="ico" data-icon="undo" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -116,13 +122,9 @@
   <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
     <span class="org-floatbar__group" role="group" aria-label="Symbol">
     <!-- Generate: fills the empty grid (Suggest / Arrange). aria-disabled + the reason in its label (the tooltip)
-         when nothing is saved or the grid already has content. Variations: always there, aria-disabled until Suggest has some (the badge shows how many). -->
+         when nothing is saved or the grid already has content. The variations are sheets on the Symbol board (18-step-boards.js). -->
     <button class="org-floatbar__btn" id="btn-symbol-generate" aria-label="Fill the grid">
       <svg class="ico" data-icon="generate" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M8 2.5v11M2.5 8h11"/><rect x="4" y="4" width="2.5" height="2.5" rx=".4" fill="currentColor" stroke="none"/><rect x="9.5" y="9.5" width="2.5" height="2.5" rx=".4" fill="currentColor" stroke="none"/></svg>
-    </button>
-    <button class="org-floatbar__btn" id="btn-sug-dock" aria-label="Variations — none yet" aria-disabled="true" aria-expanded="false" aria-controls="fvs-sug-panel">
-      <svg class="ico" data-icon="variations" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1"/><circle cx="9.5" cy="9.5" r="2"/><path d="M3.5 11.5v-7a1 1 0 0 1 1-1h7M1.5 9.5v-7a1 1 0 0 1 1-1h7"/></svg>
-      <b class="fvs-count-badge" id="sug-dock-count" aria-hidden="true" hidden></b>
     </button>
     <!-- Clear: every cell empty, the grid kept. Hold to confirm (data-hold, core.js); a bare click falls back to two clicks. Shown with the grid, disabled while every cell is empty. -->
     <button class="org-floatbar__btn" id="btn-symbol-clear" aria-label="Clear Symbol — hold to confirm" data-hold="Clear Symbol — click again to confirm" style="display:none">
@@ -286,27 +288,69 @@
 <div id="app">
   <div id="zoom-hud" aria-live="polite"><span id="zoom-level">100%</span><button type="button" class="zoom-reset" id="zoom-reset" title="Reset zoom (⌘0)">reset</button></div>
   <div id="canvas-wrap">
+    <!-- The step boards (Oct 2026, docs/FVS.md §13): Element, Component and Symbol each on an infinite board, the way Figure is.
+         A .fvs-board-stage holds the board; sheets sit on it (a label above: drag it to move, click it to select). The HUD
+         above the board holds the edit toolbars and the empty notes. A single view (double-click) is this same markup laid
+         out as the classic page (.tier-view.is-single, fvs.css). Built by 16-board.js + 18-step-boards.js. -->
     <div class="tier-view active" data-tier="element">
-      <div class="fvs-seed-preview-wrap">
-        <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview — rotation and flip"></div>
+      <div class="nc-stage fvs-board-stage" data-board="element" role="application" tabindex="0" aria-label="Element board">
+        <div class="nc-board fvs-board">
+          <!-- The Element being edited: its name + Views, and its sheet. The other Elements are drawn from their snapshot. -->
+          <div class="fvs-board-sheet fvs-board-views" id="board-live-views">
+            <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="Element — drag to move, double-click to rename">Element</button>
+            <div class="fvs-board-sheet__body">
+              <div class="fvs-seed-preview-wrap">
+                <div id="seed-preview" class="fvs-seed-preview" aria-label="Seed transform preview — rotation and flip"></div>
+              </div>
+            </div>
+          </div>
+          <div class="fvs-board-sheet fvs-board-element" id="board-live-element">
+            <div class="fvs-board-sheet__body">
+              <div id="element-frame" class="fvs-element-frame">
+                <div id="element-svg"></div>
+                <svg id="fh-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M25 0V100M50 0V100M75 0V100M0 25H100M0 50H100M0 75H100" fill="none" stroke="currentColor" stroke-width="0.3"/></svg>
+                <canvas id="fvs-draw-canvas" aria-label="Freehand drawing"></canvas>
+              </div>
+            </div>
+          </div>
+          <!-- Inks: the Palette as a tray — click an ink to colour the selected parts, or drag it onto a part -->
+          <div class="fvs-board-sheet" id="board-inks">
+            <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="Inks — drag to move">Inks</button>
+            <div class="fvs-board-sheet__body"><div class="fvs-ink-pop fvs-ink-pop--inline fvs-board-inks" id="board-inks-tray" role="group" aria-label="Inks" aria-describedby="board-inks-hint"></div><p class="hint fvs-board-inks__hint" id="board-inks-hint">Edit the Element and choose a Division to colour its parts</p></div>
+          </div>
+          <!-- New element: an empty sheet of the pile -->
+          <div class="fvs-board-sheet" id="board-new-element">
+            <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="New element — drag to move">New element</button>
+            <div class="fvs-board-sheet__body"><button type="button" class="fvs-board-new" id="btn-board-new-element" aria-label="New element" data-theme="light" data-icon-slot></button></div>
+          </div>
+        </div>
       </div>
-      <!-- Element Edit (Oct 10, 2026): entered from the pencil on the canvas; the same toolbar as Component Edit. -->
-      <div id="element-edit-toolbar" class="fvs-edit-toolbar" hidden>
-        <button type="button" id="btn-element-edit-exit" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back</button>
-        <span id="element-edit-hint" class="hint">Choose a Division to divide the shape</span>
-      </div>
-      <div id="element-frame" class="fvs-element-frame">
-        <div id="element-svg"></div>
-        <svg id="fh-grid" viewBox="0 0 100 100" aria-hidden="true"><path d="M25 0V100M50 0V100M75 0V100M0 25H100M0 50H100M0 75H100" fill="none" stroke="currentColor" stroke-width="0.3"/></svg>
-        <canvas id="fvs-draw-canvas" aria-label="Freehand drawing"></canvas>
+      <div class="fvs-board-hud">
+        <div class="fvs-edit-toolbar fvs-board-back" id="element-board-back">
+          <button type="button" id="btn-element-board-back" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back to board</button>
+        </div>
+        <!-- Element Edit (Oct 10, 2026): entered from the pencil on the canvas; the same toolbar as Component Edit. -->
+        <div id="element-edit-toolbar" class="fvs-edit-toolbar" hidden>
+          <button type="button" id="btn-element-edit-exit" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back</button>
+          <span id="element-edit-hint" class="hint">Choose a Division to divide the shape</span>
+        </div>
       </div>
     </div>
     <div class="tier-view" data-tier="component">
-      <div id="gallery-empty">
-        <p>No components generated yet.<br>Pick a rule below and hit Generate.</p>
+      <div class="nc-stage fvs-board-stage" data-board="component" role="application" tabindex="0" aria-label="Component board">
+        <div class="nc-board fvs-board">
+          <div class="fvs-board-sheet" id="board-gallery">
+            <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="Gallery — drag to move">Gallery</button>
+            <div class="fvs-board-sheet__body fvs-board-gallery"><div id="gallery"></div></div>
+          </div>
+        </div>
       </div>
-      <div id="gallery-status"></div>
-      <div id="gallery"></div>
+      <div class="fvs-board-hud">
+        <div id="gallery-empty">
+          <p>No components generated yet.<br>Pick a rule below and hit Generate.</p>
+        </div>
+        <div id="gallery-status"></div>
+      </div>
       <!-- Component Edit mode — a big single-component view, shown instead of
            #gallery while state.componentEditMode is true. Each cell is
            clickable (data-cell-index hit layer, same pattern as Symbol's own
@@ -314,7 +358,7 @@
            Element sidebar panel, temporarily swapped into view. -->
       <div id="component-edit-view" style="display:none">
         <div id="component-edit-toolbar" class="fvs-edit-toolbar">
-          <button type="button" id="btn-component-edit-exit" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back to gallery</button>
+          <button type="button" id="btn-component-edit-exit" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back to board</button>
           <span id="component-edit-hint" class="hint">Click a cell to give it its own shape</span>
           <button type="button" id="btn-component-edit-save" class="panel-btn">Save as new component</button>
         </div>
@@ -329,8 +373,25 @@
       </div>
     </div>
     <div class="tier-view" data-tier="symbol">
-      <p class="org-empty fvs-symbol-empty" id="stepnav-hint" hidden></p>
-      <div id="symbol-frame"></div>
+      <div class="nc-stage fvs-board-stage" data-board="symbol" role="application" tabindex="0" aria-label="Symbol board">
+        <div class="nc-board fvs-board">
+          <div class="fvs-board-sheet" id="board-symbol">
+            <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="Symbol — drag to move">Symbol</button>
+            <div class="fvs-board-sheet__body fvs-board-symbol"><div id="symbol-frame"></div></div>
+          </div>
+          <!-- Variations: Suggest's variations as sheets beside the Symbol, always open; a click puts one on the Symbol -->
+          <div class="fvs-board-sheet" id="board-variations">
+            <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="Variations — drag to move">Variations</button>
+            <div class="fvs-board-sheet__body">
+              <div class="fvs-board-variations" id="fvs-sug-panel" role="region" aria-label="Symbol variations"></div>
+              <p class="org-empty fvs-board-variations__empty" id="fvs-sug-empty">Fill the grid with Suggest to see variations here</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="fvs-board-hud">
+        <p class="org-empty fvs-symbol-empty" id="stepnav-hint" hidden></p>
+      </div>
     </div>
     <div class="tier-view" data-tier="figure">
       <div id="fg-graph" class="fg-graph" aria-label="Figure graph"></div>

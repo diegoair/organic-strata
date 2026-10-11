@@ -1,0 +1,342 @@
+#!/usr/bin/env node
+// FVS step boards — the Element, Component and Symbol boards (fvs/js/16-board.js + 18-step-boards.js) with REAL
+// mouse and keyboard input (Input.dispatch*Event), run twice: a clean mouse, and a mouse that reports its side "back"
+// button held the whole time (the Figure board's chordShim case, scripts/test-figure-board.mjs).
+// Pan, zoom, fit, sheet and group drag, the group ring; add / switch / rename / delete an Element; parts marquee, ink
+// click + drag; the single views and their Esc order; Component Edit's cell marquee, second click → Choose content,
+// a rail drop, Delete; Clear board (held) on both boards; the Symbol's variations on the board.
+// Usage: scripts/test-fvs-boards.sh [--only clean|held] [--theme light|dark]
+// No dependencies: serves the repo on 127.0.0.1, headless Chrome over CDP, never writes to the repo.
+import http from 'node:http';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawn, execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
+const ONLY = arg('only', ''), THEME = arg('theme', 'light');
+
+const which = n => { try { return execFileSync('which', [n], { encoding: 'utf8' }).trim(); } catch { return ''; } };
+const CHROME = [process.env.CHROME, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  which('google-chrome'), which('chromium'), which('chromium-browser')].find(c => c && fs.existsSync(c));
+if (!CHROME) { console.error('No Chrome found (set CHROME=/path/to/chrome)'); process.exit(2); }
+if (typeof WebSocket === 'undefined') { console.error('Run with: node --experimental-websocket scripts/test-fvs-boards.mjs'); process.exit(2); }
+
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css',
+  '.json': 'application/json', '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.png': 'image/png' };
+const server = http.createServer((req, res) => {
+  const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  let f = path.join(ROOT, p);
+  if (!f.startsWith(ROOT)) { res.writeHead(403).end(); return; }
+  if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html');
+  if (!fs.existsSync(f)) { res.writeHead(404).end('not found'); return; }
+  res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+  fs.createReadStream(f).pipe(res);
+});
+await new Promise(r => server.listen(0, '127.0.0.1', r));
+const port = server.address().port;
+
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'organica-chrome-'));
+const chrome = spawn(CHROME, ['--headless=new', '--no-sandbox', '--remote-debugging-port=0', '--window-size=1440,900',
+  `--user-data-dir=${profile}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+const done = code => { try { chrome.kill('SIGKILL'); } catch {} server.close(); try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 3 }); } catch {} process.exit(code); };
+setTimeout(() => { console.log('FVS boards test: ERROR — timed out after 6 min'); done(1); }, 6 * 60 * 1000);
+
+const wsUrl = await new Promise((resolve, reject) => {
+  let buf = '';
+  chrome.stderr.on('data', d => { buf += d; const m = buf.match(/DevTools listening on (ws:\/\/\S+)/); if (m) resolve(m[1]); });
+  chrome.on('exit', () => reject(new Error('Chrome exited early')));
+});
+const dbgPort = new URL(wsUrl).port;
+const pages = await (await fetch(`http://127.0.0.1:${dbgPort}/json`)).json();
+const ws = new WebSocket(pages.find(p => p.type === 'page').webSocketDebuggerUrl);
+await new Promise(r => ws.addEventListener('open', r));
+let nid = 0; const pend = new Map(); let consoleErrors = [];
+ws.addEventListener('message', e => {
+  const m = JSON.parse(e.data);
+  if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); return; }
+  if (m.method === 'Runtime.exceptionThrown') consoleErrors.push('exception: ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text).split('\n')[0]);
+  else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') consoleErrors.push('console.error: ' + m.params.args.map(a => a.value ?? a.description ?? '').join(' ').slice(0, 200));
+  else if (m.method === 'Page.javascriptDialogOpening') ws.send(JSON.stringify({ id: ++nid, method: 'Page.handleJavaScriptDialog', params: { accept: true } }));
+});
+const cdp = (method, params = {}) => new Promise(r => { const i = ++nid; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function ev(fn, ...args) {
+  const r = await cdp('Runtime.evaluate', { expression: `(${fn.toString()})(...${JSON.stringify(args)})`, awaitPromise: true, returnByValue: true });
+  if (r.result?.exceptionDetails) throw new Error('page: ' + (r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text).split('\n')[0]);
+  return r.result?.result?.value;
+}
+
+// ── the mouse: `held` = the side button reported down for the whole mode (bit 8 in every event) ──
+let held = false;
+const BIT = { left: 1, right: 2, middle: 4, back: 8 };
+const raw = (type, x, y, button, buttons) => cdp('Input.dispatchMouseEvent', { type, x, y, button, buttons: buttons | (held ? 8 : 0), clickCount: type === 'mouseMoved' ? 0 : 1 });
+const hover = async (x, y) => { await raw('mouseMoved', x, y, 'none', 0); await sleep(40); };
+// a press, steps, an optional probe mid-gesture (cursor / state), the release
+async function gesture(from, to, { button = 'left', steps = 8, mid } = {}) {
+  await hover(from.x, from.y);
+  await raw('mousePressed', from.x, from.y, button, BIT[button]);
+  let probe;
+  for (let i = 1; i <= steps; i++) {
+    const x = from.x + (to.x - from.x) * i / steps, y = from.y + (to.y - from.y) * i / steps;
+    await raw('mouseMoved', x, y, button, BIT[button]); await sleep(12);
+    if (mid && i === Math.ceil(steps / 2)) probe = await ev(mid, { x, y });
+  }
+  await raw('mouseReleased', to.x, to.y, button, 0); await sleep(150);
+  return probe;
+}
+const click = async (p, mods = 0) => { await hover(p.x, p.y); await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1 | (held ? 8 : 0), clickCount: 1, modifiers: mods }); await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: held ? 8 : 0, clickCount: 1, modifiers: mods }); await sleep(120); };
+const key = async (type, code, keyName, vk) => cdp('Input.dispatchKeyEvent', { type, code, key: keyName, windowsVirtualKeyCode: vk });
+
+const dblclick = async p => {
+  await hover(p.x, p.y);
+  for (const n of [1, 2]) { await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1 | (held ? 8 : 0), clickCount: n }); await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: held ? 8 : 0, clickCount: n }); }
+  await sleep(200);
+};
+const wheel = async (p, dy) => { await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x: p.x, y: p.y, deltaX: 0, deltaY: dy }); await sleep(120); };
+// a press held for `ms` (Clear board's hold to confirm), then released on the spot
+const hold = async (p, ms = 1200) => { await hover(p.x, p.y); await raw('mousePressed', p.x, p.y, 'left', 1); await sleep(ms); await raw('mouseReleased', p.x, p.y, 'left', 0); await sleep(250); };
+const press = async (code, keyName, vk, mods = 0) => { await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', code, key: keyName, windowsVirtualKeyCode: vk, modifiers: mods }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code, key: keyName, windowsVirtualKeyCode: vk, modifiers: mods }); await sleep(150); };
+const type = async text => { await cdp('Input.insertText', { text }); await sleep(80); };
+const SHIFT = 8, META = 4;
+
+// ── in-page probes ──
+const PAGE = `(() => {
+  const w = window; if (w.__t) return;
+  const F = w.__fvs, B = t => F.boards[t];
+  const box = el => { if (typeof el === 'string') el = document.querySelector(el); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, l: r.x, t: r.y, r: r.right, b: r.bottom, w: r.width, h: r.height }; };
+  const view = t => ({ zoom: B(t).zp.zoom, x: B(t).zp.pan.x, y: B(t).zp.pan.y });
+  const sheetAt = (t, id) => { const s = B(t).sheets[id]; return s ? { x: s.p.x, y: s.p.y } : null; };
+  // an empty spot of the board: the stage itself under the point
+  const empty = t => { const st = B(t).stage, r = st.getBoundingClientRect(); for (let y = r.bottom - 120; y > r.top + 60; y -= 29) for (let x = r.right - 60; x > r.left + 120; x -= 37) { const e = document.elementFromPoint(x, y); if (e === st || e === B(t).board) return { x, y }; } return null; };
+  const captured = () => [...document.querySelectorAll('*')].filter(e => e.hasPointerCapture && e.hasPointerCapture(1)).length;
+  const leftovers = t => { const out = [], st = B(t).stage; ['nc-stage--dragging', 'nc-stage--pan'].forEach(c => { if (st.classList.contains(c)) out.push(c); }); if (B(t).board.classList.contains('panning')) out.push('board.panning'); if (document.querySelector('.fvs-board-marquee')) out.push('marquee left'); if (document.querySelector('.fvs-rail-ghost')) out.push('ghost left'); if (captured()) out.push('pointer capture held'); return out; };
+  w.__t = { F, B, box, view, sheetAt, empty, leftovers };
+})()`;
+
+let failures = 0, passes = 0;
+const results = [];
+function check(mode, name, ok, detail = '') { results.push({ mode, name, ok, detail }); if (ok) passes++; else failures++; }
+
+async function openFvs() {
+  await cdp('Page.enable'); await cdp('Runtime.enable');
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/fvs/` });
+  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
+  await ev(() => { try { localStorage.clear(); } catch {} });
+  await cdp('Page.reload'); await sleep(800);
+  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
+  await ev(t => { document.documentElement.dataset.theme = t; }, THEME);
+  await sleep(600);
+  await cdp('Runtime.evaluate', { expression: PAGE });
+  consoleErrors = [];
+}
+const step = async t => { await click(await ev(t => __t.box(`#tier-tabs [data-tier="${t}"]`), t)); await sleep(700); };
+
+async function elementBoard(mode) {
+  const C = (n, ok, d) => check(mode, 'Element · ' + n, ok, d);
+  await step('element');
+  // zoom: the wheel zooms around the cursor
+  const e0 = await ev(() => __t.empty('element'));
+  const v0 = await ev(() => __t.view('element'));
+  await wheel(e0, -240);
+  const v1 = await ev(() => __t.view('element'));
+  C('wheel zooms the board', v1.zoom > v0.zoom * 1.05, `${v0.zoom.toFixed(3)} → ${v1.zoom.toFixed(3)}`);
+  // fit: Shift+1
+  await press('Digit1', '!', 49, SHIFT);
+  const v2 = await ev(() => __t.view('element'));
+  C('Shift+1 fits the board', Math.abs(v2.zoom - v0.zoom) < 0.02, `zoom ${v2.zoom.toFixed(3)} (boot fit ${v0.zoom.toFixed(3)})`);
+  // pan: Space-drag, middle-button drag
+  const e1 = await ev(() => __t.empty('element'));
+  await cdp('Input.dispatchKeyEvent', { type: 'keyDown', code: 'Space', key: ' ', windowsVirtualKeyCode: 32 });
+  const cur = await gesture(e1, { x: e1.x - 120, y: e1.y - 80 }, { mid: () => getComputedStyle(document.elementFromPoint(innerWidth / 2, innerHeight / 2)).cursor });
+  await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code: 'Space', key: ' ', windowsVirtualKeyCode: 32 }); await sleep(100);
+  const v3 = await ev(() => __t.view('element'));
+  C('Space+drag pans', Math.abs(v3.x - v2.x + 120) < 3 && Math.abs(v3.y - v2.y + 80) < 3, `pan Δ ${(v3.x - v2.x).toFixed(0)},${(v3.y - v2.y).toFixed(0)} · cursor mid-pan ${cur}`);
+  await gesture(e1, { x: e1.x + 120, y: e1.y + 80 }, { button: 'middle' });
+  const v4 = await ev(() => __t.view('element'));
+  C('middle-button drag pans', Math.abs(v4.x - v3.x - 120) < 3, `pan Δ ${(v4.x - v3.x).toFixed(0)}`);
+  // a group drag by its name: the Views and the Element move together, the position is kept
+  const id0 = await ev(() => __t.F.state.activeElement);
+  const lab = await ev(() => __t.box('#board-live-views > .fvs-board-sheet__label'));
+  const p0 = await ev(id => [__t.sheetAt('element', 'el-' + id), __t.sheetAt('element', 'vw-' + id)], id0);
+  await gesture({ x: lab.l + 12, y: lab.y }, { x: lab.l + 112, y: lab.y + 60 });
+  const p1 = await ev(id => [__t.sheetAt('element', 'el-' + id), __t.sheetAt('element', 'vw-' + id), JSON.parse(localStorage.getItem('organica.fvs.board.element') || '{}').pos], id0);
+  const dz = await ev(() => __t.view('element').zoom);
+  const moved = (a, b) => Math.round((b.x - a.x) * dz) === 100 || Math.abs((b.x - a.x) * dz - 100) < 2;
+  C('dragging the name moves the group', moved(p0[0], p1[0]) && moved(p0[1], p1[1]), `Element Δx ${((p1[0].x - p0[0].x) * dz).toFixed(1)}px, Views Δx ${((p1[1].x - p0[1].x) * dz).toFixed(1)}px`);
+  C('the group position is saved', !!(p1[2] && p1[2]['el-' + id0] && p1[2]['el-' + id0].x === p1[0].x));
+  C('one ring round the selected group', await ev(() => document.querySelectorAll('.fvs-board-ring').length === 1));
+  // a click on the bare board clears the selection
+  await click(await ev(() => __t.empty('element')));
+  C('a click on the board clears the selection', await ev(() => !document.querySelector('.fvs-board-ring') && __t.B('element').selected.size === 0));
+  // New element: a second Element, edited at once
+  await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); b.scrollIntoView(); return __t.box(b); }));
+  await sleep(500);
+  const s1 = await ev(() => ({ n: __t.F.state.elements.length, active: __t.F.state.activeElement, statics: document.querySelectorAll('.fvs-board-el').length }));
+  C('New element adds an Element and edits it', s1.n === 2 && s1.active !== id0 && s1.statics === 1, JSON.stringify(s1));
+  // change the new one's shape, then switch back by clicking the other Element
+  await ev(() => { const s = document.getElementById('sel-seed-type'); const o = [...s.options].find(o => !o.disabled && o.value !== s.value && ['circle', 'square', 'triangle', 'star'].includes(o.value)); s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); });
+  await sleep(700);
+  const typeNew = await ev(() => document.getElementById('sel-seed-type').value);
+  await ev(() => document.querySelector('.fvs-board-el').scrollIntoView());
+  await press('Digit1', '!', 49, SHIFT);
+  await click(await ev(() => __t.box('.fvs-board-el')));
+  await sleep(700);
+  const s2 = await ev(() => ({ active: __t.F.state.activeElement, type: document.getElementById('sel-seed-type').value, other: __t.F.state.elements.find(e => e.id !== __t.F.state.activeElement).seed.type }));
+  C('a click on another Element edits it', s2.active === id0 && s2.type !== typeNew && s2.other === typeNew, JSON.stringify(s2) + ' new=' + typeNew);
+  // rename: double-click the name, type, Enter; empty = made again
+  await dblclick(await ev(() => { const l = document.querySelector('#board-live-views > .fvs-board-sheet__label'); return { x: __t.box(l).l + 14, y: __t.box(l).y }; }));
+  const hasInput = await ev(() => !!document.querySelector('#board-live-views .fvs-board-sheet__input'));
+  if (hasInput) { await ev(() => { document.querySelector('#board-live-views .fvs-board-sheet__input').select(); }); await type('Test name'); await press('Enter', 'Enter', 13); }
+  const nm = await ev(() => { const e = __t.F.state.elements.find(e => e.id === __t.F.state.activeElement); return { name: e.name, custom: e.custom, label: document.querySelector('#board-live-views > .fvs-board-sheet__label').textContent }; });
+  C('double-click the name renames it', hasInput && nm.name === 'Test name' && nm.custom && nm.label.startsWith('Test name'), JSON.stringify(nm));
+  // Delete on the other (selected) group removes it
+  await click(await ev(() => __t.box('.fvs-board-views-static .fvs-board-sheet__label, .fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label')));
+  await press('Delete', 'Delete', 46);
+  C('Delete removes a selected Element', await ev(() => __t.F.state.elements.length === 1 && !document.querySelector('.fvs-board-el')));
+  // the list is the user's: in the store
+  C('the list is kept in the store', await ev(() => { const o = Organica.store('fvs-elements').read(); return Object.keys(o).filter(k => k !== 'board').length === 1 && o.board && o.board.active === __t.F.state.activeElement; }));
+  // parts: Edit, divide, marquee, an ink by click and by drag
+  await ev(() => { const s = document.getElementById('sel-seed-type'); s.value = 'roundedrect'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+  await sleep(400);
+  await ev(() => { __t.F.enterElementEdit(); const s = document.getElementById('sel-part-method'); const o = [...s.options].find(o => !o.disabled && o.value !== 'none'); s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); });
+  await sleep(400);
+  await ev(() => document.getElementById('btn-part-inks').click());
+  await sleep(400);
+  await press('Digit2', '@', 50, SHIFT);
+  const fr = await ev(() => __t.box('#element-svg svg'));
+  const nParts = await ev(() => document.querySelectorAll('#element-svg [data-part]').length);
+  await gesture({ x: fr.l + 4, y: fr.t + 4 }, { x: fr.l + fr.w * 0.3, y: fr.t + fr.h * 0.3 });
+  const picked = await ev(() => { const L = __t.F.state.layers, ids = new Set(__t.F.partSel); if (L.items[L.active] && L.items[L.active].part) ids.add(L.items[L.active].id); return [...ids]; });
+  C('a marquee picks the parts it touches', nParts >= 2 && picked.length >= 1 && picked.length < nParts + 1, `${picked.length} of ${nParts} parts`);
+  const inks = await ev(() => document.querySelectorAll('#board-inks-tray button[data-ink]:not([disabled])').length);
+  if (inks >= 2) {
+    await click(await ev(() => __t.box('#board-inks-tray button[data-ink="1"]')));
+    const k = await ev(ids => __t.F.state.layers.items.filter(l => ids.includes(l.id)).map(l => l.ink), picked);
+    C('a click on an ink colours the picked parts', k.length && k.every(x => x === 1), JSON.stringify(k));
+    // drag ink 0 onto a part outside the selection
+    const target = await ev(ids => { const g = [...document.querySelectorAll('#element-svg [data-part]')].find(g => !ids.includes(g.getAttribute('data-part'))); if (!g) return null; const p = g.querySelector('path'), len = p.getTotalLength(), m = p.getScreenCTM(); for (let k = 1; k < 40; k++) { const q = p.getPointAtLength(len * k / 40), x = m.a * q.x + m.c * q.y + m.e, y = m.b * q.x + m.d * q.y + m.f; for (const [dx, dy] of [[3, 3], [-3, 3], [3, -3], [-3, -3]]) { const e = document.elementFromPoint(x + dx, y + dy); if (e && e.closest('[data-part]') === g) return { x: x + dx, y: y + dy, id: g.getAttribute('data-part') }; } } return null; }, picked);
+    if (target) {
+      await gesture(await ev(() => __t.box('#board-inks-tray button[data-ink="0"]')), target, { steps: 12 });
+      const ink = await ev(id => __t.F.state.layers.items.find(l => l.id === id).ink, target.id);
+      C('dragging an ink onto a part colours it', ink === 0, 'ink ' + ink);
+    } else C('dragging an ink onto a part colours it', false, 'no free part under the pointer');
+  } else C('the tray has the inks', false, inks + ' inks');
+  C('no gesture state left (Element)', (await ev(() => __t.leftovers('element'))).length === 0, (await ev(() => __t.leftovers('element'))).join(', '));
+  // the single view: double-click the Element; Esc leaves Edit first, then the view
+  await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
+  const sv = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), back: !!document.getElementById('btn-element-board-back').offsetParent }));
+  C('double-click opens the single view (one Back at a time: Edit\'s while it is on)', sv.single && !sv.back, JSON.stringify(sv));
+  await press('Escape', 'Escape', 27);
+  const e1s = await ev(() => ({ edit: __t.F.partEdit, single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), back: !!document.getElementById('btn-element-board-back').offsetParent }));
+  await press('Escape', 'Escape', 27);
+  const e2s = await ev(() => document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'));
+  C('Esc leaves Edit first (Back to board shows), then the single view', !e1s.edit && e1s.single && e1s.back && !e2s, JSON.stringify(e1s) + ' then single=' + e2s);
+  // Clear board (held): one starting Element is left
+  await press('Digit1', '!', 49, SHIFT);
+  await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); return __t.box(b); }));
+  await sleep(400);
+  const before = await ev(() => __t.F.state.elements.length);
+  await hold(await ev(() => __t.box('#btn-board-clear-element')));
+  await sleep(400);
+  const after = await ev(() => ({ n: __t.F.state.elements.length, dis: document.getElementById('btn-board-clear-element').disabled }));
+  C('Clear board (held) leaves one starting Element', before === 2 && after.n === 1, `${before} → ${after.n}, then disabled=${after.dis}`);
+}
+
+async function componentBoard(mode) {
+  const C = (n, ok, d) => check(mode, 'Component · ' + n, ok, d);
+  await step('component');
+  await sleep(600);
+  const n0 = await ev(() => __t.F.state.components.length);
+  C('the gallery sits on the board', n0 > 0 && await ev(() => !!document.querySelector('#board-gallery #gallery .fvs-thumb-wrap')), n0 + ' candidates');
+  const v0 = await ev(() => __t.view('component'));
+  await wheel(await ev(() => __t.empty('component')), 240);
+  C('wheel zooms the board', (await ev(() => __t.view('component'))).zoom < v0.zoom * 0.95);
+  await press('Digit1', '!', 49, SHIFT);
+  // a saved Element in the library, for the rail drop
+  const savedType = await ev(() => { const n = __t.F.saveElementVariant(0, false, false, '0°', 'Board test'); return n && __t.F.ELEMENT_LIB.read()[n].seed.type; });
+  // double-click a candidate = Component Edit, in its single view
+  await dblclick(await ev(() => __t.box('#gallery .fvs-thumb-wrap svg')));
+  await sleep(500);
+  const ed = await ev(() => ({ edit: __t.F.state.componentEditMode, single: document.querySelector('.tier-view[data-tier="component"]').classList.contains('is-single'), back: document.getElementById('btn-component-edit-exit').textContent.trim() }));
+  C('double-click a candidate opens Component Edit', ed.edit && ed.single && ed.back === 'Back to board', JSON.stringify(ed));
+  // marquee over two cells
+  const cells = await ev(() => [...document.querySelectorAll('#component-edit-frame [data-cell-index]')].map(c => __t.box(c)));
+  if (cells.length >= 2) {
+    const fr = await ev(() => __t.box('#component-edit-frame svg'));
+    await gesture({ x: fr.l + 3, y: cells[0].y }, { x: cells[1].x, y: cells[1].y + 4 });
+    const pk = await ev(() => [...__t.F.cePicked]);
+    C('a marquee picks the cells it touches', pk.length >= 2, JSON.stringify(pk));
+    // a second click on a picked cell = Choose content, Seeds only
+    await click(cells[0]);
+    const ov = await ev(() => { const o = document.getElementById('symbol-content-overlay'); return { open: o.style.display !== 'none', seeds: o.classList.contains('is-seeds-only'), comps: getComputedStyle(document.getElementById('content-sec-components')).display }; });
+    C('a second click on a picked cell opens Choose content (Seeds only)', ov.open && ov.seeds && ov.comps === 'none', JSON.stringify(ov));
+    await press('Escape', 'Escape', 27);
+    const after = await ev(() => ({ ov: document.getElementById('symbol-content-overlay').style.display !== 'none', edit: __t.F.state.componentEditMode }));
+    C('Esc closes Choose content first', !after.ov && after.edit, JSON.stringify(after));
+    // a saved Element dragged from the rail onto a cell
+    await ev(() => { if (!__t.F.railIsOpen()) document.getElementById('btn-rail').click(); });
+    await sleep(500);
+    const tile = await ev(() => { const t = document.querySelector('#fvs-rail-panel .fvs-library-item[data-rail-kind="element"][data-rail-name="Board test"]'); return t ? __t.box(t) : null; });
+    const free = await ev(() => { const c = [...document.querySelectorAll('#component-edit-frame [data-cell-index]')].find(c => !__t.F.cePicked.has(+c.dataset.cellIndex)); return c ? { ...__t.box(c), i: +c.dataset.cellIndex } : null; });
+    if (tile && free) {
+      await gesture(tile, free, { steps: 14 });
+      const got = await ev(i => { const c = __t.F.state.componentEditCells[i]; return c && c.content ? c.content.seedType : null; }, free.i);
+      C('a rail Element dropped on a cell fills it', !!savedType && got === savedType, 'cell ' + free.i + ': ' + got + ' (saved ' + savedType + ')');
+      // Delete returns the picked cells to the Component's own Element
+      await ev(i => { __t.F.cePicked = new Set([i]); }, free.i);
+      await press('Delete', 'Delete', 46);
+      C('Delete returns a cell to the Component\'s Element', await ev(i => !__t.F.state.componentEditCells[i].content, free.i));
+    } else C('a rail Element dropped on a cell fills it', false, 'tile ' + !!tile + ' cell ' + !!free);
+    await ev(() => { if (__t.F.railIsOpen()) document.getElementById('btn-rail').click(); });
+    await sleep(300);
+  } else C('Component Edit has cells', false);
+  await press('Escape', 'Escape', 27);
+  C('Esc leaves Component Edit, back to the board', await ev(() => !__t.F.state.componentEditMode && !document.querySelector('.tier-view[data-tier="component"]').classList.contains('is-single')));
+  C('no gesture state left (Component)', (await ev(() => __t.leftovers('component'))).length === 0, (await ev(() => __t.leftovers('component'))).join(', '));
+  // Clear board (held), then ⌘Z
+  await hold(await ev(() => __t.box('#btn-board-clear-component')));
+  const cl = await ev(() => ({ n: __t.F.state.components.length, dis: document.getElementById('btn-board-clear-component').disabled }));
+  await press('KeyZ', 'z', 90, META);
+  const un = await ev(() => __t.F.state.components.length);
+  C('Clear board (held) empties the gallery, ⌘Z brings it back', cl.n === 0 && cl.dis && un === n0, `${n0} → ${cl.n} (disabled ${cl.dis}) → ${un}`);
+}
+
+async function symbolBoard(mode) {
+  const C = (n, ok, d) => check(mode, 'Symbol · ' + n, ok, d);
+  await step('symbol');
+  await sleep(500);
+  C('the Symbol sheet and an empty Variations sheet', await ev(() => !!document.querySelector('#board-symbol #symbol-frame svg') && document.getElementById('board-variations').classList.contains('is-empty')));
+  C('no Variations button in the floatbar', await ev(() => !document.getElementById('btn-sug-dock')));
+  // variations: shown as sheets, a click puts one on the Symbol
+  await ev(() => { const F = __t.F; F.state.symbolSuggestions = [0, 1, 2].map(i => ({ cells: F.state.symbolCells.map(c => ({ ...c })), label: 'test ' + i, score: { edges: 0 } })); F.renderSuggestGallery(0); });
+  await press('Digit1', '!', 49, SHIFT);
+  const items = await ev(() => document.querySelectorAll('#fvs-sug-panel .fvs-suggest__item').length);
+  C('Suggest\'s variations are sheets beside the Symbol', items === 3 && await ev(() => !document.getElementById('board-variations').classList.contains('is-empty')), items + ' items');
+  await click(await ev(() => __t.box('#fvs-sug-panel .fvs-suggest__item:nth-child(3)')));
+  C('a click on a variation makes it current', await ev(() => document.querySelector('#fvs-sug-panel .fvs-suggest__item:nth-child(3)').classList.contains('is-current')));
+  // the % labels: placed again after a zoom, at the same size on screen
+  await ev(() => { __t.F.state.symbolView.guides = true; __t.F.renderSymbol(); });
+  await wheel(await ev(() => __t.empty('symbol')), -240);
+  await sleep(200);
+  const lb = await ev(() => { const w = document.getElementById('sym-track-labels'), z = __t.view('symbol').zoom; if (!w) return null; const m = new DOMMatrix(getComputedStyle(w).transform); const l = w.querySelector('.sym-track-label--col'), svg = document.querySelector('#symbol-frame svg').getBoundingClientRect(); return { scale: m.a, inv: 1 / z, above: l ? l.getBoundingClientRect().bottom <= svg.top + 1 : false }; });
+  C('the % labels follow the zoom', lb && Math.abs(lb.scale - lb.inv) < 0.01 && lb.above, JSON.stringify(lb));
+  C('no gesture state left (Symbol)', (await ev(() => __t.leftovers('symbol'))).length === 0, (await ev(() => __t.leftovers('symbol'))).join(', '));
+}
+
+for (const mode of ['clean', 'held']) {
+  if (ONLY && ONLY !== mode) continue;
+  held = false;
+  await openFvs();
+  held = mode === 'held';
+  try { await elementBoard(mode); } catch (e) { check(mode, 'Element board ran', false, e.message); }
+  try { await componentBoard(mode); } catch (e) { check(mode, 'Component board ran', false, e.message); }
+  try { await symbolBoard(mode); } catch (e) { check(mode, 'Symbol board ran', false, e.message); }
+  check(mode, 'console clean', !consoleErrors.length, consoleErrors.slice(0, 4).join(' | '));
+}
+for (const r of results) console.log(`${r.ok ? '✓' : '✗'} [${r.mode}] ${r.name}${r.detail ? ' — ' + r.detail : ''}`);
+console.log(`\nFVS boards test (${THEME}): ${failures ? 'FAIL' : 'PASS'} — ${passes}/${passes + failures}`);
+done(failures ? 1 : 0);

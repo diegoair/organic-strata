@@ -371,7 +371,7 @@ ctrl('btn-symbol-generate').addEventListener('click', () => {
   fillSymbolCells();
   if (symbolHasContent()) runSymbolArrival();
   syncSymbolStart();
-  if (state.symbolSuggestions.length) ctrl('btn-sug-dock').focus({ preventScroll: true });   // Generate is disabled now
+  if (state.symbolSuggestions.length) { const cur = document.querySelector('#fvs-sug-panel .is-current, #fvs-sug-panel .fvs-suggest__item'); if (cur) cur.focus({ preventScroll: true }); }   // Generate is disabled now: focus on the variation shown
 });
 // Fit (floatbar, Symbol step) and Anchor (Symbol grid section) act on the SELECTION when there is one,
 // on every cell when there is none — one control for both, the label says which.

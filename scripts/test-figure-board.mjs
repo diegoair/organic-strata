@@ -91,7 +91,7 @@ const key = async (type, code, keyName, vk) => cdp('Input.dispatchKeyEvent', { t
 // ── in-page probes ──
 const PAGE = `(() => {
   const w = window; if (w.__b) return;
-  const st = () => document.querySelector('.nc-stage'), board = () => document.querySelector('.nc-board');
+  const st = () => document.querySelector('.tier-view[data-tier="figure"] .nc-stage'), board = () => document.querySelector('.tier-view[data-tier="figure"] .nc-board');   // the Figure step's: the step boards use .nc-stage too
   const nodes = () => [...document.querySelectorAll('.nc-node')];
   const byKind = k => nodes().filter(n => k === 'pill' ? n.classList.contains('nc-node--pill') : n.classList.contains('nc-node--capped'));
   const box = el => { const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, l: r.x, t: r.y, w: r.width, h: r.height }; };
@@ -100,7 +100,7 @@ const PAGE = `(() => {
   const captured = () => [...document.querySelectorAll('*')].filter(e => e.hasPointerCapture && (e.hasPointerCapture(1) )).map(e => e.className && e.className.baseVal === undefined ? e.className.split(' ')[0] : e.tagName);
   const sel = () => nodes().filter(n => n.classList.contains('is-selected')).map(n => n.dataset.nodeId);
   const empty = () => { const r = st().getBoundingClientRect(); for (let y = r.bottom - 40; y > r.top + 40; y -= 23) for (let x = r.right - 40; x > r.left + 40; x -= 31) { if (document.elementFromPoint(x, y) === st()) return { x, y }; } return null; };
-  const leftovers = () => { const s = st().className, out = []; ['nc-stage--dragging', 'nc-stage--wiring', 'nc-stage--pan'].forEach(c => { if (s.includes(c)) out.push(c); }); if (board().classList.contains('panning')) out.push('board.panning'); if (!document.querySelector('.nc-marquee').hidden) out.push('marquee shown'); if (document.querySelector('.is-lifted')) out.push('.is-lifted'); if (document.body.classList.contains('nc-is-dragging')) out.push('body.nc-is-dragging'); const c = captured(); if (c.length) out.push('capture on ' + c.join(',')); return out; };
+  const leftovers = () => { const s = st().className, out = []; ['nc-stage--dragging', 'nc-stage--wiring', 'nc-stage--pan'].forEach(c => { if (s.includes(c)) out.push(c); }); if (board().classList.contains('panning')) out.push('board.panning'); if (!document.querySelector('.tier-view[data-tier="figure"] .nc-marquee').hidden) out.push('marquee shown'); if (document.querySelector('.is-lifted')) out.push('.is-lifted'); if (document.body.classList.contains('nc-is-dragging')) out.push('body.nc-is-dragging'); const c = captured(); if (c.length) out.push('capture on ' + c.join(',')); return out; };
   w.__b = { st, board, nodes, byKind, box, grip, cursorAt, sel, empty, leftovers };
 })()`;
 
@@ -178,7 +178,7 @@ async function run(mode) {
   await test(`${P} marquee`, 'a drag on the empty board draws the box and selects what it covers', async c => {
     const r = await ev(() => { const s = __b.st().getBoundingClientRect(); return { a: { x: s.left + 8, y: s.top + 8 }, b: { x: s.right - 8, y: s.bottom - 8 } }; });
     const from = await ev(() => __b.empty());
-    const mid = await gesture(from, r.a, { mid: () => ({ shown: !document.querySelector('.nc-marquee').hidden }) });
+    const mid = await gesture(from, r.a, { mid: () => ({ shown: !document.querySelector('.tier-view[data-tier="figure"] .nc-marquee').hidden }) });
     const n = await ev(() => __b.sel().length);
     expect(c, mid && mid.shown, 'no marquee during the drag'); expect(c, n > 0, 'nothing selected');
     await click(await ev(() => __b.empty()));

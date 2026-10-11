@@ -1185,5 +1185,6 @@
     mount: mount, wirePath: wirePath,
     portFor: portFor, search: search, nodeBar: nodeBar, graphMenu: graphMenu,
     body: body,
+    chordShim: chordShim,   // for another board on the same mouse (FVS's step boards)
   };
 })();
