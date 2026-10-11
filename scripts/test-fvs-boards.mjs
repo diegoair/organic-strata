@@ -240,36 +240,36 @@ async function elementBoard(mode) {
   C('Delete with every part picked keeps them (one part stays)', q3.layers === q0.layers, JSON.stringify(q3));
   C('no Inks tray on the board (Diego, Oct 11)', await ev(() => !document.getElementById('board-inks') && !__t.B('element').sheets.inks));
   C('no gesture state left (Element)', (await ev(() => __t.leftovers('element'))).length === 0, (await ev(() => __t.leftovers('element'))).join(', '));
-  // Element Edit by double-click (the hover pencil went, Diego Oct 11): leave Edit, then double-click the Element →
-  // its single view with Edit on; Esc leaves Edit, then the view. Then Enter on the focused Element does the same.
-  C('no Edit pencil on the Element or the Component thumbnails', await ev(() => !document.querySelector('.fvs-thumb-edit')));
-  await ev(() => document.getElementById('btn-element-edit-exit').click()); await sleep(300);
+  // No Element Edit mode (Diego, Oct 11: edit on the board): Division and parts work on the board; double-click / Enter =
+  // the single view only (a view, Back to board at the top), Esc returns.
+  C('no Edit pencil and no Edit Back', await ev(() => !document.querySelector('.fvs-thumb-edit') && !document.getElementById('btn-element-edit-exit')));
+  const onb = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), division: !document.getElementById('parts-block').hidden, hint: !document.getElementById('element-edit-toolbar').hidden && document.getElementById('element-edit-hint').textContent }));
+  C('on the board: the Division section and the parts hint, no mode to enter', !onb.single && onb.division && /Click a part to select it/.test(onb.hint || ''), JSON.stringify(onb));
+  // a click on a part picks it — and not the Element's group — so Delete takes the part; ⌘Z brings it back
+  const pt = await ev(() => { const g = document.querySelector('#element-svg [data-part]'), r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, id: g.getAttribute('data-part') }; });
+  const nb = await ev(() => __t.F.state.layers.items.filter(l => l.part).length);
+  await click(pt);
+  const pk = await ev(() => ({ sel: [...__t.F.partSel], board: [...__t.B('element').selected] }));
+  C('a click on a part picks the part, not the Element group', pk.sel.length === 1 && pk.sel[0] === pt.id && pk.board.length === 0, JSON.stringify(pk));
+  await press('Delete', 'Delete', 46); await sleep(300);
+  const na = await ev(() => ({ parts: __t.F.state.layers.items.filter(l => l.part).length, els: __t.F.state.elements.length }));
+  await press('KeyZ', 'z', 90, META); await sleep(300);
+  const nz = await ev(() => __t.F.state.layers.items.filter(l => l.part).length);
+  C('Delete after a part click deletes the part (not the Element); ⌘Z restores', na.parts === nb - 1 && nz === nb, JSON.stringify({ nb, na, nz }));
+  // the single view: double-click; Back to board at the top; Esc returns
   await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
-  const de = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), edit: !!__t.F.rt?.partEdit || !document.getElementById('element-edit-toolbar').hidden, focus: document.activeElement && document.activeElement.id }));
-  C('double-click opens the single view with Element Edit on (focus on Back to board)', de.single && de.edit && de.focus === 'btn-element-board-back', JSON.stringify(de));
-  await press('Escape', 'Escape', 27); await sleep(200); await press('Escape', 'Escape', 27); await sleep(300);
+  const sv = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), back: !!document.getElementById('btn-element-board-back').offsetParent, top: document.getElementById('btn-element-board-back').getBoundingClientRect().top < document.getElementById('seed-preview').getBoundingClientRect().top, focus: document.activeElement && document.activeElement.id }));
+  C('double-click opens the single view: Back to board at the top, focused', sv.single && sv.back && sv.top && sv.focus === 'btn-element-board-back', JSON.stringify(sv));
+  await press('Escape', 'Escape', 27); await sleep(300);
+  C('Esc goes back to the board', await ev(() => !document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single')));
   await ev(() => document.getElementById('board-live-element').focus());
   await press('Enter', 'Enter', 13); await sleep(300);
-  const ke = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), edit: !document.getElementById('element-edit-toolbar').hidden }));
-  C('Enter on the focused Element opens Element Edit too (the keyboard path)', ke.single && ke.edit, JSON.stringify(ke));
-  // ...and double-click inside Edit, on the board, opens the single view (Edit stays on)
-  await press('Escape', 'Escape', 27); await sleep(200); await press('Escape', 'Escape', 27); await sleep(300);
-  await ev(() => { if (document.getElementById('element-edit-toolbar').hidden) __t.F.enterElementEdit(); }); await sleep(300);
-  // the single view: double-click the Element; Esc leaves Edit first, then the view
-  await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
-  const sv = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), back: !!document.getElementById('btn-element-board-back').offsetParent }));
-  C('double-click in Edit on the board opens the single view, Back to board shown', sv.single && sv.back, JSON.stringify(sv));
-  await press('Escape', 'Escape', 27); await sleep(200);
-  const e1s = await ev(() => ({ edit: !document.getElementById('element-edit-toolbar').hidden, single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single') }));
-  C('Esc in Edit goes straight back to the board (one step)', !e1s.edit && !e1s.single, JSON.stringify(e1s));
-  // Edit's Back: also one step to the board (Diego, Oct 11: no second Back)
-  await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
-  const one = await ev(() => ({ board: !!document.getElementById('btn-element-board-back').offsetParent, edit: !!document.getElementById('btn-element-edit-exit').offsetParent, top: document.getElementById('btn-element-board-back').getBoundingClientRect().top < document.getElementById('seed-preview').getBoundingClientRect().top }));
-  C('one Back in Edit: Back to board, at the top (above the Views)', one.board && !one.edit && one.top, JSON.stringify(one));
+  const ke = await ev(() => document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'));
+  C('Enter on the focused Element opens the single view (the keyboard path)', ke);
   await click(await ev(() => __t.box('#btn-element-board-back')));
   await sleep(300);
-  const b1 = await ev(() => ({ edit: !document.getElementById('element-edit-toolbar').hidden, single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single') }));
-  C('Back to board leaves Edit and the single view (one step)', !b1.edit && !b1.single, JSON.stringify(b1));
+  const b1 = await ev(() => document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'));
+  C('Back to board returns to the board', !b1);
   // Clear board (held): one starting Element is left
   await press('Digit1', '!', 49, SHIFT);
   await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); return __t.box(b); }));

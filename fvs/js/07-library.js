@@ -523,7 +523,7 @@ window.addEventListener('pointercancel', () => { layerPress = null; layerDragFro
   renderGallery(); renderSeedPreview();
 }));
 // ── Divide into parts (Oct 10, 2026) ──────────────────────────────────
-// Element Edit (a double-click on the Element): the Division menu — None first, each option drawn on the current shape —
+// On the board (Oct 11, 2026): the Division menu — None first, each option drawn on the current shape —
 // divides the shape at once into one layer per primordial figure, each with its own ink, role, place and look, all
 // still driven by the shape's own controls. On the canvas: click a part to edit it, ⌘/Ctrl/Shift-click to pick several
 // (the ink chosen for one of them goes to all). Back to None joins the shape; the parts' settings are kept for the session.
@@ -591,7 +591,8 @@ export function renderPartsUI() {
   ctrl('part-hint').textContent = res && res.reason ? res.reason + ' — the whole shape is drawn meanwhile.' : partReasonsHint(methods.filter(x => x.reason));
   ctrl('part-actions-row').style.display = divided ? '' : 'none';
   const eh = ctrl('element-edit-hint');   // only once divided — "Choose a Division…" went (Diego, Oct 11: not necessary)
-  eh.textContent = divided ? 'Click a part to edit it · ⌘-click to add' : ''; eh.hidden = !divided;
+  eh.textContent = divided ? 'Click a part to select it · drag to select several · ⌘-click adds or removes' : ''; eh.hidden = !divided;
+  ctrl('element-edit-toolbar').hidden = !divided;   // the hint, while the edited Element is divided
 }
 // The parts' settings of the last division of this kind of shape, by part key — back to None and then a Division
 // again finds them; another shape type starts clean.
@@ -688,14 +689,12 @@ ctrl('btn-part-ungroup').addEventListener('click', () => {
   setPartEdit(false);
   layersChanged();
 });
-// Element Edit: in by a double-click / Enter on the Element (18-step-boards.js), out with Back or Esc.
+// No Element Edit mode since Oct 11, 2026 (Diego: edit on the board): rt.partEdit stays on, a divided Element's parts are
+// picked on the board. setPartEdit(false) now only drops the picked parts; enterElementEdit only redraws.
 export function setPartEdit(on) {
-  rt.partEdit = !!on;
   if (!on) rt.partSel = new Set();
-  ctrl('element-edit-toolbar').hidden = !rt.partEdit;
 }
-export function enterElementEdit() { setPartEdit(true); layersChanged(); }
-ctrl('btn-element-edit-exit').addEventListener('click', () => { setPartEdit(false); layersChanged(); });
+export function enterElementEdit() { layersChanged(); }
 // On the canvas: a click edits that part, ⌘/Ctrl/Shift-click adds it to (or takes it from) the picked set.
 ctrl('element-frame').addEventListener('click', e => {
   if (!rt.partEdit || !state.layers || !state.layers.parts) return;
@@ -709,12 +708,13 @@ ctrl('element-frame').addEventListener('click', e => {
     if (rt.partSel.has(id) && rt.partSel.size > 1) rt.partSel.delete(id); else rt.partSel.add(id);
     if (i !== L.active && rt.partSel.has(id)) selectLayer(i); else layersChanged();
   } else {
-    rt.partSel = new Set();
+    rt.partSel = new Set([id]);   // a pick of its own: Delete acts on it (18-step-boards.js)
     if (i !== L.active) selectLayer(i); else layersChanged();
   }
 });
 document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape' || !rt.partEdit || layerInkPopFor != null || (e.target.closest && e.target.closest('input, select, textarea, .presets'))) return;
+  // Esc drops the picked parts first (then the board's own Esc: the single view)
+  if (e.key !== 'Escape' || !rt.partSel.size || layerInkPopFor != null || (e.target.closest && e.target.closest('input, select, textarea, .presets'))) return;
   setPartEdit(false); layersChanged();
 });
 // A shape control moved on a divided Element: the parts follow (syncActiveLayer re-divides); new or gone

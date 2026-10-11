@@ -292,10 +292,12 @@ export function cellEditor(B, a) {
   }, true);
 }
 
-// A part is in the marquee when its outline is: sample the path and test each point (its bounding box is not
-// enough — the parts of a Fan all share a corner).
+// A part is in the marquee when its outline is, or when the marquee lies inside it: sample the path and test each
+// point (its bounding box is not enough — the parts of a Fan all share a corner), then the marquee's corners and centre
+// against the fill (a drag inside one big part crosses no outline — Oct 11, 2026).
 export function shapeInRect(c, r) {
   if (!rectsHit(r, c.getBoundingClientRect())) return false;
+  const probe = [[r.left, r.top], [r.right, r.top], [r.left, r.bottom], [r.right, r.bottom], [(r.left + r.right) / 2, (r.top + r.bottom) / 2]];
   return [...c.querySelectorAll('path')].some(path => {
     const m = path.getScreenCTM(), len = path.getTotalLength(), n = 96;
     if (!m || !len) return false;
@@ -303,6 +305,7 @@ export function shapeInRect(c, r) {
       const q = path.getPointAtLength(len * k / n), x = m.a * q.x + m.c * q.y + m.e, y = m.b * q.x + m.d * q.y + m.f;
       if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
     }
-    return false;
+    const inv = m.inverse();
+    return probe.some(([x, y]) => { const p = new DOMPoint(x, y).matrixTransform(inv); return path.isPointInFill(p); });
   });
 }

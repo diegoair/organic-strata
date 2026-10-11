@@ -30,7 +30,7 @@ import {
   clearGallery, enterComponentEditMode, exitComponentEditMode, renderComponentEditCanvas, selectComponentEditCell
 } from './06-component-ui.js';
 import {
-  applyElementSnapshot, enterElementEdit, layersChanged, selectLayer, setPartEdit
+  applyElementSnapshot, layersChanged, selectLayer, setPartEdit
 } from './07-library.js';
 import { syncPartLayers } from './engine/01-geometry.js';
 import { hexKey, syncActiveLayer } from './engine/07-library.js';
@@ -146,7 +146,7 @@ function mountElementBoard() {
       sh.el.classList.toggle('is-active', on); B.sheets[viewsId(e.id)].el.classList.toggle('is-active', on);
       lab.textContent = e.name;
       lab.setAttribute('aria-label', e.name + (on ? ' · editing' : '') + ' — drag to move, double-click to rename');
-      if (on) { lab.append(el('span', 'fvs-board-sheet__state', { textContent: ' · editing' })); liveEl.setAttribute('aria-label', e.name + (state.layers && !state.layers.parts ? ' — double-click or press Enter to open' : ' — double-click or press Enter to edit')); }
+      if (on) { lab.append(el('span', 'fvs-board-sheet__state', { textContent: ' · editing' })); liveEl.setAttribute('aria-label', e.name + ' — double-click or press Enter to open'); }
     });
   }
   const nameNow = () => { const e = find(active()); if (e && !e.custom) e.name = madeName(); };
@@ -328,14 +328,21 @@ function mountElementBoard() {
   [frame, liveViews].forEach(n => n.addEventListener('click', later, true));   // a save to the library (the circles on the frame / Views) names it
   window.addEventListener('pagehide', () => { snap(); save(); });
   // the selection: a click anywhere on the live group selects it
-  [liveViews.querySelector('.fvs-board-sheet__body'), liveEl].forEach(n => n.addEventListener('pointerdown', ev => { if (ev.button === 0 && !isPanKey(ev) && !B.single) selectSheets(B, [sheetId(active())]); }));
+  // the innermost hit wins (Oct 11, 2026): a press on a part of the divided Element picks the part (07-library.js) and
+  // leaves the board selection empty, so Delete acts on the part; anywhere else on the Element selects its group
+  [liveViews.querySelector('.fvs-board-sheet__body'), liveEl].forEach(n => n.addEventListener('pointerdown', ev => {
+    if (ev.button !== 0 || isPanKey(ev) || B.single) return;
+    if (ev.target.closest && ev.target.closest('#element-svg [data-part]') && parts().length) { selectSheets(B, []); return; }
+    selectSheets(B, [sheetId(active())]);
+  }));
   // Delete on a selected Element group removes it from the board — the one being edited too (Diego, Oct 11, 2026: a
   // blank New element you don't want must go): editing moves to the nearest Element left first. The last one stays.
   document.addEventListener('keydown', ev => {
-    if (state.activeTier !== 'element' || B.single || (ev.key !== 'Delete' && ev.key !== 'Backspace') || fvsIsTypingTarget(ev.target) || rt.partEdit) return;
+    if (state.activeTier !== 'element' || B.single || (ev.key !== 'Delete' && ev.key !== 'Backspace') || fvsIsTypingTarget(ev.target)) return;
     let ids = [...new Set([...B.selected].filter(k => k.startsWith('el-') || k.startsWith('vw-')).map(k => k.slice(3)))].filter(find);
-    if (!ids.length) return;
+    if (!ids.length) return;   // no group selected: the picked parts' Delete (below)
     ev.preventDefault();
+    if (rt.partSel.size) { rt.partSel = new Set(); layersChanged(); }   // a group selected after a part pick: the group wins
     const left = state.elements.filter(e => !ids.includes(e.id));
     if (!left.length) { ids = ids.filter(id => id !== active()); if (!ids.length) return; }
     pushUndo();
@@ -399,26 +406,23 @@ function mountElementBoard() {
     later();
   };
 
-  // Double-click an Element (or Enter on it) = its single view, the classic Element page, and Element Edit in it — as a
-  // Component's double-click opens Component Edit (Diego, Oct 11, 2026: the hover pencil went). A stack of plain layers
-  // cannot be divided: its single view only. Back / Esc leave Edit first, then the single view.
+  // Double-click an Element (or Enter on it) = its single view, the classic Element page — a view to work in, nothing
+  // more: the Element is edited on the board (Diego, Oct 11, 2026). Back to board / Esc return.
   const enterSingle = () => { if (B.single) return; setSingle(B, true); renderSeedPreview(); ctrl('btn-element-board-back').focus({ preventScroll: true }); };
-  const exitSingle = () => { if (!B.single) return; if (rt.partEdit) { setPartEdit(false); layersChanged(); } setSingle(B, false); renderSeedPreview(); };   // Back to board leaves Edit too
+  const exitSingle = () => { if (!B.single) return; setSingle(B, false); renderSeedPreview(); };
   ctrl('btn-element-board-back').addEventListener('click', exitSingle);
-  const openEdit = () => {
-    enterSingle();
-    if (rt.partEdit || (state.layers && !state.layers.parts)) return;
-    enterElementEdit();
-  };
+  // the single view only — Element editing is on the board (Oct 11, 2026); the part the double-click's first press
+  // picked is dropped, so one Esc returns
+  const openEdit = () => { if (rt.partSel.size) { rt.partSel = new Set(); layersChanged(); } enterSingle(); };
   // the second press of a double-click, not dblclick: in Edit the first click redraws the parts, and a dblclick whose
   // first target left the page never comes
-  frame.addEventListener('mousedown', e => { if (e.detail !== 2 || e.button !== 0 || (B.single && rt.partEdit) || e.target.closest('button')) return; e.preventDefault(); openEdit(); });
-  liveEl.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === liveEl && !(B.single && rt.partEdit)) { e.preventDefault(); openEdit(); } });
+  frame.addEventListener('mousedown', e => { if (e.detail !== 2 || e.button !== 0 || B.single || e.target.closest('button')) return; e.preventDefault(); openEdit(); });
+  liveEl.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === liveEl && !B.single) { e.preventDefault(); openEdit(); } });
   // Esc / Back: one step back to the board (Diego, Oct 11 — "2 Backs"): Edit opened in the single view leaves both at
   // once (07-library.js leaves Edit; the view follows here); the single view alone (a plain-layer stack) leaves too.
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape' || !B.single || state.activeTier !== 'element' || fvsIsTypingTarget(e.target) || overlayOpen()) return;
-    if (rt.partEdit) { setTimeout(() => { if (!rt.partEdit) exitSingle(); }); return; }   // after 07-library.js's own Esc (a microtask would run before it)
+    if (rt.partSel.size) return;   // picked parts go first (07-library.js), the view on the next Esc
     e.preventDefault(); exitSingle();
   }, true);
   // Parts, the Symbol way: marquee + ⌘.
@@ -437,13 +441,13 @@ function mountElementBoard() {
       if (i >= 0 && i !== L.active) selectLayer(i); else layersChanged();
     },
   });
-  // Delete on picked parts (Element Edit): those parts leave the Element (O-67 e, Diego, Oct 11, 2026 — not a join:
+  // Delete on picked parts (on the board): those parts leave the Element (O-67 e, Diego, Oct 11, 2026 — not a join:
   // join = Division back to None). One part always stays; ⌘Z / Undo brings them back; another Division starts whole.
   document.addEventListener('keydown', ev => {
-    if (state.activeTier !== 'element' || !rt.partEdit || (ev.key !== 'Delete' && ev.key !== 'Backspace') || fvsIsTypingTarget(ev.target) || overlayOpen()) return;
+    if (state.activeTier !== 'element' || ev.defaultPrevented || (ev.key !== 'Delete' && ev.key !== 'Backspace') || fvsIsTypingTarget(ev.target) || overlayOpen()) return;
     const L = state.layers;
     if (!L || !L.parts) return;
-    const ids = picked(), all = parts(), keys = all.filter(l => ids.has(l.id)).map(l => l.part);
+    const all = parts(), keys = all.filter(l => rt.partSel.has(l.id)).map(l => l.part);   // the explicit picks only
     if (!keys.length) return;
     ev.preventDefault();
     if (keys.length >= all.length) { ctrl('part-hint').textContent = 'One part stays — choose None in Division to join the parts'; return; }

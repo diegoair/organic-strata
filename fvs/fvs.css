@@ -589,7 +589,6 @@
   .tier-view[data-tier="element"].is-single :is(.fvs-board-stage, .fvs-board, #board-live-views, #board-live-element, #board-live-views > .fvs-board-sheet__body, #board-live-element > .fvs-board-sheet__body, .fvs-board-hud) { display: contents; }
   .tier-view[data-tier="element"].is-single :is(.fvs-board-sheet:not(#board-live-views, #board-live-element), .fvs-board-ring, #board-live-views > .fvs-board-sheet__label) { display: none; }
   .tier-view[data-tier="element"].is-single #element-board-back { order: 1; justify-content: flex-start; }
-  .tier-view[data-tier="element"].is-single #btn-element-edit-exit { display: none; }   /* one Back: Back to board, at the top — it leaves Edit too (Diego, Oct 11) */
   .tier-view[data-tier="element"].is-single .fvs-seed-preview-wrap { order: 2; }
   .tier-view[data-tier="element"].is-single #element-edit-toolbar { order: 3; }
   .tier-view[data-tier="element"].is-single #element-frame { order: 4; }

@@ -217,7 +217,7 @@ The cell the Element is drawn for. Four icon buttons in the floatbar, on the Ele
 
 An Element can be divided into its **primordial figures** — squares, triangles, rhombi, kites, strips, the shape's own centre — so each piece takes its own colour. The parts **are layers** (§6a): each has its ink, role, place, look and eye, and everything that reads layers (Component, Symbol, Figure, export, plates, *Layer colour variants*) reads them unchanged.
 
-- **Where — Element Edit** (Oct 10, 2026, Diego). A **double-click on the Element** (or **Enter** on it, focused) opens its single view with **Edit** on — the hover pencil that entered it until Oct 11, 2026 is gone (Diego: *to edit you just double-click*); a stack of plain layers gets the single view only: the shared edit toolbar above the canvas (**Back**, Esc — the same `.fvs-edit-toolbar` as Component Edit) and, at the top of the panel, **Divide into parts**: the **Division** menu — **None** first, every option drawn as a thumbnail of the *current* shape already divided in the Palette's inks (`Organica.selectPicker`, `size: 'preview'`; options that do not fit are left out, their reasons in the hint) · **Parts** (the count, for Squares / Stripes / Log cabin / Centre + ring / Nested triangles / Fan / Rings) · **One ink per part** · **Ungroup** (leaves Edit). Picking a Division divides at once; **None** joins the shape back and remembers the parts' settings for the session (pick the Division again and they return). Outside Edit the part layers stay in the Layers list, in one group (*Star · Centre + tips · 6*).
+- **Where — on the board** (Oct 11, 2026, Diego: *edit on the board*; was **Element Edit**, a mode entered by a pencil, then a double-click). There is no Edit mode: the Element being edited is edited where it sits. A divided Element shows its parts' outlines and a hint at the top (*Click a part to select it · drag to select several · ⌘-click adds or removes*); a click on a part picks it (not the Element's group), a drag picks several, ⌘-click adds or removes, Esc drops the pick. Measured before the change: 60 fps pan / zoom with 120 Elements, a panel edit ~32 ms whatever the count (only the edited Element is live). Always shown for the Element being edited (not for a stack of plain layers), at the top of the panel, **Divide into parts**: the **Division** menu — **None** first, every option drawn as a thumbnail of the *current* shape already divided in the Palette's inks (`Organica.selectPicker`, `size: 'preview'`; options that do not fit are left out, their reasons in the hint) · **Parts** (the count, for Squares / Stripes / Log cabin / Centre + ring / Nested triangles / Fan / Rings) · **One ink per part** · **Ungroup** (leaves Edit). Picking a Division divides at once; **None** joins the shape back and remembers the parts' settings for the session (pick the Division again and they return). Outside Edit the part layers stay in the Layers list, in one group (*Star · Centre + tips · 6*).
 - **Divisions (R1 — the straight-edged shapes; R2 below adds every other shape).** Square: Halves · Diagonal · Hourglass · Squares *n* · Centre + border · Square in square · Log cabin *n* · Windmill · Stripes *n*. Polygon: Fan · Kites · Centre + ring *n* · Rhombi (even sides) · Centre polygon · Halves · Centre square (8 sides) · Stripes *n*. Triangle: Fan · Nested triangles (depth 1–3) · Kites · Stripes *n*. Star: Centre + tips · Faceted · Kites · Centre fan + tips. At most 64 parts.
 - **Live.** The parts stay driven by the shape's own controls: the panel edits the shape they come from (`layers.parts.source`). Change the Star's points 5 → 7 and tips 1–5 keep their colours, tips 6–7 arrive following the cell; turn it back and the parked parts return with their settings (`parts.stash`). A Division that stops fitting (Rhombi on 7 sides) draws the whole shape meanwhile, with the reason in the hint.
 - **Exact.** `Organica.shapes.partRegions(kind, frame, method, n)` gives the ideal construction; `partsOf()` (engine/01-geometry.js) cuts each region to the real outline minus the regions before it (Paper.js), and any outward bulge joins the part whose region, pushed out from the centre, covers it — so rounding, curvature, irregularity, Cut out and Copies keep the parts adding up to the shape (regression `parts:*:sum`).
@@ -1049,7 +1049,7 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   Element; Diego, Oct 11, 2026: an Arc until Freehand is improved (a blank Freehand was tried the same day).
 - *(Inks — a tray of the Palette's inks beside the Element being edited — was removed from the board, Diego, Oct 11,
   2026: parts are inked in the panel.)*
-- **Parts**: in Edit, a marquee picks the parts whose outline it touches; ⌘-click as before. **Delete** on picked parts
+- **Parts** (on the board): a click picks a part, a marquee picks the parts whose outline it crosses **or that it lies inside** (a drag inside one big part — fixed Oct 11, 2026); ⌘-click adds or removes. The innermost hit wins: a press on a part never selects the Element's group, so Delete acts on the part; with a group selected (its name), Delete acts on the group. **Delete** on picked parts
   removes them from the Element (O-67 e, Diego, Oct 11, 2026 — not a join: *join* = Division back to *None*): their keys go on
   `parts.removed`, so `syncPartLayers` parks them like a part the source lost; one part always stays (hint *One part stays —
   choose None in Division to join the parts*); ⌘Z / Undo brings them back (the Element board's undo); another Division
@@ -1057,9 +1057,10 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
 - **Delete** on a selected group removes that Element — the one being edited too (editing moves to the nearest Element left; Diego, Oct 11, 2026) — never the last one. **Undo** (⌘Z, or the floatbar's Undo beside Clear board) brings it back — up to 20 steps for Delete and Clear board; ⌘Z stays the drawing's while a Freehand has points to undo (a blank one leaves it to the board); the Element being edited keeps what was done to it since (Diego, Oct 11, 2026).
 - **Clear board** (floatbar eraser, hold to confirm): every Element goes, one fresh Arc is left; disabled
   when there is nothing to clear (one Element, a fresh Arc). Undo brings them back, as Component's Clear board.
-- **Single view**: double-click the Element (the second press, not `dblclick` — in Edit the first click redraws
-  the parts) → the classic Element page: *Back to board*, Views, the Edit toolbar, the sheet. While Edit is on
-  only its own *Back* shows.
+- **Single view**: double-click the Element (the second press, not `dblclick` — the first click redraws the parts),
+  or Enter on it (focusable, *‹name› — double-click or press Enter to open*) → the classic Element page: *Back to board*
+  at the top (focused), the Views, the hint, the sheet — a view, nothing more; the part the first press picked is
+  dropped. Back to board / Esc return.
 - **Where the list lives**: the user's account — `Organica.store('fvs-elements')`, one row per Element
   (`{name, custom, seed, app, n}` keyed by its id) + the row `board` (`{active}`); signed out, that store's local
   cache. Written a moment after each change (and on `pagehide`), `pull()` at boot, drawn again on `onSync` (the
@@ -1069,10 +1070,8 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
 
 **Component board**
 - The gallery is one area (**Gallery**) on the board, its candidates at 2× (`galleryZoomTo(2)`).
-- **No hint before a Division** (Diego, Oct 11, 2026): Edit's toolbar no longer says *Choose a Division to divide the shape*
-  (not necessary); once divided it still reads *Click a part to edit it · ⌘-click to add*.
-- **One Back** (Diego, Oct 11, 2026): in the single view Element Edit shows one button, **Back to board**, at the top above
-  the Views (Edit's own *Back* is hidden there); it — or Esc — leaves Edit and the single view at once.
+- **No hint before a Division** (Diego, Oct 11, 2026): *Choose a Division to divide the shape* went (not necessary); the
+  parts hint shows only while the edited Element is divided.
 - **Landing** (Diego, Oct 11, 2026): the first visit of the Element step in a page load zooms on the first Element only
   (its sheet and Views, `B.firstFit`), **centred on the stage** (`fit(ids, { centred: true })`: the dock / floatbar margins
   mirrored on the other side), not the whole board and not the last saved view; Shift+1 still fits everything. The edit toolbars' outline buttons are filled `--paper` on the board (never an empty outline).

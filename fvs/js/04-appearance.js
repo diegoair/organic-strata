@@ -183,7 +183,7 @@ export function mountElementQuickSaves() {
   const frame = ctrl('element-frame');
   frame.querySelectorAll(':scope > .fvs-thumb-quicksave, :scope > .fvs-thumb-tile').forEach(x => x.remove());
   const v = hooks.currentElementView(), vi = hooks.elementViewIndex(), lbl = vi >= 0 ? seedPreviewStates()[vi][3] : '0°';
-  // (Element Edit is entered by a double-click / Enter on the Element — 18-step-boards.js; the pencil went Oct 11, 2026)
+  // (no pencil since Oct 11, 2026: parts are picked on the board — 18-step-boards.js)
   frame.append(elementTileButton(v.r, v.fh, v.fv, lbl), elementQuickSaveButton(v.r, v.fh, v.fv, lbl));
   if (rt.tilePicker) rt.tilePicker.invalidate('element');   // the "Current Element" thumbnail follows the Element
 }

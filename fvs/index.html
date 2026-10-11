@@ -307,7 +307,7 @@
               </div>
             </div>
           </div>
-          <div class="fvs-board-sheet fvs-board-element" id="board-live-element" tabindex="0" role="group" aria-label="Element — double-click or press Enter to edit">
+          <div class="fvs-board-sheet fvs-board-element" id="board-live-element" tabindex="0" role="group" aria-label="Element — double-click or press Enter to open">
             <div class="fvs-board-sheet__body">
               <div id="element-frame" class="fvs-element-frame">
                 <div id="element-svg"></div>
@@ -327,9 +327,8 @@
         <div class="fvs-edit-toolbar fvs-board-back" id="element-board-back">
           <button type="button" id="btn-element-board-back" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back to board</button>
         </div>
-        <!-- Element Edit (Oct 10, 2026): entered by a double-click / Enter on the Element (the pencil went Oct 11); the same toolbar as Component Edit. -->
+        <!-- The parts hint (Oct 11, 2026: no Element Edit mode — parts are picked on the board while the Element is divided). -->
         <div id="element-edit-toolbar" class="fvs-edit-toolbar" hidden>
-          <button type="button" id="btn-element-edit-exit" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back</button>
           <span id="element-edit-hint" class="hint" hidden></span>
         </div>
       </div>
@@ -423,7 +422,7 @@
   <div id="panel">
 
     <div class="tier-block active" data-tier="element">
-    <!-- Divide into parts (Oct 10, 2026): in Element Edit only. The shape becomes one layer per primordial figure,
+    <!-- Divide into parts (Oct 10, 2026): shown for the edited Element while it can be divided (on the board since Oct 11, 2026). The shape becomes one layer per primordial figure,
          still driven by the shape's own controls (layers.parts.source). Filled by renderPartsUI. -->
     <div class="panel-section fvs-parts" id="parts-block" hidden>
       <h3>Divide into parts</h3>
