@@ -1069,6 +1069,8 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
 
 **Component board**
 - The gallery is one area (**Gallery**) on the board, its candidates at 2× (`galleryZoomTo(2)`).
+- **No hint before a Division** (Diego, Oct 11, 2026): Edit's toolbar no longer says *Choose a Division to divide the shape*
+  (not necessary); once divided it still reads *Click a part to edit it · ⌘-click to add*.
 - **One Back** (Diego, Oct 11, 2026): in the single view Element Edit shows one button, **Back to board**, at the top above
   the Views (Edit's own *Back* is hidden there); it — or Esc — leaves Edit and the single view at once.
 - **Landing** (Diego, Oct 11, 2026): the first visit of the Element step in a page load zooms on the first Element only

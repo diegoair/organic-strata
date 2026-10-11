@@ -590,7 +590,8 @@ export function renderPartsUI() {
   const res = divided ? partsOf(L.parts) : null;
   ctrl('part-hint').textContent = res && res.reason ? res.reason + ' — the whole shape is drawn meanwhile.' : partReasonsHint(methods.filter(x => x.reason));
   ctrl('part-actions-row').style.display = divided ? '' : 'none';
-  ctrl('element-edit-hint').textContent = divided ? 'Click a part to edit it · ⌘-click to add' : 'Choose a Division to divide the shape';
+  const eh = ctrl('element-edit-hint');   // only once divided — "Choose a Division…" went (Diego, Oct 11: not necessary)
+  eh.textContent = divided ? 'Click a part to edit it · ⌘-click to add' : ''; eh.hidden = !divided;
 }
 // The parts' settings of the last division of this kind of shape, by part key — back to None and then a Division
 // again finds them; another shape type starts clean.
