@@ -138,8 +138,8 @@ async function elementBoard(mode) {
   const C = (n, ok, d) => check(mode, 'Element · ' + n, ok, d);
   await step('element');
   // landing: zoom on the first Element only — its sheet fills most of the stage height (Diego, Oct 11)
-  const land = await ev(() => { const st = __t.B('element').stage.getBoundingClientRect(), el = document.querySelector('#board-live-element').getBoundingClientRect(); return { inside: el.top >= st.top - 1 && el.bottom <= st.bottom + 1, share: el.height / st.height }; });
-  C('landing on Element zooms on the first Element', land.inside && land.share > 0.5, JSON.stringify(land));
+  const land = await ev(() => { const st = __t.B('element').stage.getBoundingClientRect(), el = document.querySelector('#board-live-element').getBoundingClientRect(); const vw = document.querySelector('#board-live-views').getBoundingClientRect(), lb = document.querySelector('#board-live-views > .fvs-board-sheet__label').getBoundingClientRect(), top = Math.min(vw.top, el.top, lb.top); return { inside: el.top >= st.top - 1 && el.bottom <= st.bottom + 1, share: el.height / st.height, dx: Math.round((el.left + el.right) / 2 - (st.left + st.right) / 2), dy: Math.round((top + el.bottom) / 2 - (st.top + st.bottom) / 2) }; });
+  C('landing on Element zooms on the first Element, centred on the stage', land.inside && land.share > 0.5 && Math.abs(land.dx) <= 2 && Math.abs(land.dy) <= 2, JSON.stringify(land));
   // zoom: the wheel zooms around the cursor
   const e0 = await ev(() => __t.empty('element'));
   const v0 = await ev(() => __t.view('element'));

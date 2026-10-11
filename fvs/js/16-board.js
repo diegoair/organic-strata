@@ -77,7 +77,7 @@ export function makeBoard(tier) {
     if (e.button !== 0 || isPanKey(e)) return;
     if (e.target === stage || e.target === board) { stage.focus({ preventScroll: true }); selectSheets(B, []); document.dispatchEvent(new CustomEvent('organica:dropdown-open', { detail: stage })); }
   });
-  B.fit = ids => fitSheets(B, ids);
+  B.fit = (ids, opts) => fitSheets(B, ids, opts);
   boards[tier] = B;
   return B;
 }
@@ -184,19 +184,22 @@ export function sheetBox(sh) {
   const lh = shown ? sh.label.getBoundingClientRect().height / z + 4 : 0;   // + its margin
   return { x: sh.p.x, y: sh.p.y - lh, w: Math.max(sh.el.offsetWidth, shown ? sh.label.getBoundingClientRect().width / z : 0), h: sh.el.offsetHeight + lh };
 }
-function fitSheets(B, ids) {
+function fitSheets(B, ids, opts) {
   const list = (ids && ids.length ? ids : Object.keys(B.sheets)).map(k => B.sheets[k]).filter(sh => sh && sh.el.offsetParent);
   if (!list.length) return;
-  fitBox(B, list.map(sheetBox));
+  fitBox(B, list.map(sheetBox), opts);
 }
-function fitBox(B, boxes) {
+// opts.centred: in the middle of the stage — the dock / floatbar / HUD margins mirrored on the opposite side, so the
+// sheets sit at the page's centre and still clear them (Element's landing, Diego Oct 11)
+function fitBox(B, boxes, opts = {}) {
   const x0 = Math.min(...boxes.map(b => b.x)), y0 = Math.min(...boxes.map(b => b.y));
   const x1 = Math.max(...boxes.map(b => b.x + b.w)), y1 = Math.max(...boxes.map(b => b.y + b.h));
   // …and clear of the HUD at the top (Edit toolbar, empty notes) when it shows something
   const r = B.stage.getBoundingClientRect(), pad = 48, hud = B.hud.getBoundingClientRect();
   if (!r.width || !r.height) return;
   const inset = { ...fitInset(r), top: hud.height > 1 ? Math.max(0, hud.bottom - r.top) : 0 };
-  const w = r.width - inset.left - 2 * pad, h = r.height - inset.top - inset.bottom - 2 * pad;
+  if (opts.centred) { inset.left = Math.max(inset.left, 0); inset.right = inset.left; inset.top = inset.bottom = Math.max(inset.top, inset.bottom); }
+  const w = r.width - inset.left - (inset.right || 0) - 2 * pad, h = r.height - inset.top - inset.bottom - 2 * pad;
   const zoom = Math.min(1.5, w / Math.max(1, x1 - x0), h / Math.max(1, y1 - y0));
   B.zp.setView({ zoom, panX: inset.left + pad + w / 2 - ((x0 + x1) / 2) * zoom, panY: inset.top + pad + h / 2 - ((y0 + y1) / 2) * zoom });
 }

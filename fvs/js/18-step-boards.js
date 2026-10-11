@@ -458,7 +458,7 @@ function mountElementBoard() {
   });
   B.fitFocus = () => B.fit([sheetId(active())]);
   // landing on the Element step: zoom on the first Element only, its sheet and Views (Diego, Oct 11, 2026)
-  B.firstFit = () => { const e = state.elements[0]; if (e) B.fit([viewsId(e.id), sheetId(e.id)]); else B.fit(); };
+  B.firstFit = () => { const e = state.elements[0]; if (e) B.fit([viewsId(e.id), sheetId(e.id)], { centred: true }); else B.fit(); };
   requestAnimationFrame(syncClear);   // the board as it opens: nothing to clear on a fresh one
 }
 
