@@ -415,11 +415,14 @@ function mountElementBoard() {
   // first target left the page never comes
   frame.addEventListener('mousedown', e => { if (e.detail !== 2 || e.button !== 0 || (B.single && rt.partEdit) || e.target.closest('button')) return; e.preventDefault(); openEdit(); });
   liveEl.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === liveEl && !(B.single && rt.partEdit)) { e.preventDefault(); openEdit(); } });
-  // Esc: leaves Edit first (FVS's own, 07-library.js), then the single view
+  // Esc / Back: one step back to the board (Diego, Oct 11 — "2 Backs"): Edit opened in the single view leaves both at
+  // once (07-library.js leaves Edit; the view follows here); the single view alone (a plain-layer stack) leaves too.
   document.addEventListener('keydown', e => {
-    if (e.key !== 'Escape' || !B.single || state.activeTier !== 'element' || rt.partEdit || fvsIsTypingTarget(e.target) || overlayOpen()) return;
+    if (e.key !== 'Escape' || !B.single || state.activeTier !== 'element' || fvsIsTypingTarget(e.target) || overlayOpen()) return;
+    if (rt.partEdit) { setTimeout(() => { if (!rt.partEdit) exitSingle(); }); return; }   // after 07-library.js's own Esc (a microtask would run before it)
     e.preventDefault(); exitSingle();
   }, true);
+  ctrl('btn-element-edit-exit').addEventListener('click', () => { if (B.single) exitSingle(); });   // after 07-library.js's own (Edit off)
   // Parts, the Symbol way: marquee + ⌘.
   cellEditor(B, {
     frame,

@@ -256,11 +256,15 @@ async function elementBoard(mode) {
   await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
   const sv = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), back: !!document.getElementById('btn-element-board-back').offsetParent }));
   C('double-click opens the single view (one Back at a time: Edit\'s while it is on)', sv.single && !sv.back, JSON.stringify(sv));
-  await press('Escape', 'Escape', 27);
-  const e1s = await ev(() => ({ edit: __t.F.partEdit, single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), back: !!document.getElementById('btn-element-board-back').offsetParent }));
-  await press('Escape', 'Escape', 27);
-  const e2s = await ev(() => document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'));
-  C('Esc leaves Edit first (Back to board shows), then the single view', !e1s.edit && e1s.single && e1s.back && !e2s, JSON.stringify(e1s) + ' then single=' + e2s);
+  await press('Escape', 'Escape', 27); await sleep(200);
+  const e1s = await ev(() => ({ edit: !document.getElementById('element-edit-toolbar').hidden, single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single') }));
+  C('Esc in Edit goes straight back to the board (one step)', !e1s.edit && !e1s.single, JSON.stringify(e1s));
+  // Edit's Back: also one step to the board (Diego, Oct 11: no second Back)
+  await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
+  await click(await ev(() => __t.box('#btn-element-edit-exit')));
+  await sleep(300);
+  const b1 = await ev(() => ({ edit: !document.getElementById('element-edit-toolbar').hidden, single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single') }));
+  C('Edit\'s Back goes straight back to the board (one step)', !b1.edit && !b1.single, JSON.stringify(b1));
   // Clear board (held): one starting Element is left
   await press('Digit1', '!', 49, SHIFT);
   await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); return __t.box(b); }));

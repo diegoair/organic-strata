@@ -359,6 +359,7 @@
   .fvs-edit-toolbar[hidden] { display: none; }
   .fvs-edit-toolbar .hint { flex: 1; text-align: center; }
   .fvs-edit-toolbar > .mini-btn:first-child { flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--space-1); }
+  .fvs-edit-toolbar > :where(.mini-btn) { background: var(--paper); }   /* on the board the outline button is a paper chip, as the board HUD toolbar (Diego, Oct 11: never an empty fill); :where keeps the shared hover */
   #element-edit-toolbar { margin-bottom: var(--space-3); }
   #component-edit-toolbar #btn-component-edit-save { width: auto; padding: 0 var(--space-4); }
   /* Same rule as the Symbol sheet (see #symbol-frame svg): the sheet's box is
