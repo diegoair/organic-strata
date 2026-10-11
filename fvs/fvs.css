@@ -551,7 +551,7 @@
      .nc-frame__label / .nc-marquee); here only what is FVS's. Board sizes are content geometry, component-local. */
   #canvas-wrap:not(.is-libview):has(> .tier-view.active > .fvs-board-stage) { padding: 0; overflow: hidden; position: relative; }
   #canvas-wrap .tier-view.active:has(> .fvs-board-stage) { display: block; position: relative; height: 100%;
-    --fvs-board-element-w: 560px; --fvs-board-symbol-w: 900px; --fvs-board-gallery-w: 1400px; --fvs-board-inks-w: 300px; --fvs-board-variation-w: 260px; }
+    --fvs-board-element-w: 560px; --fvs-board-symbol-w: 900px; --fvs-board-gallery-w: 1400px; --fvs-board-variation-w: 260px; }
   .fvs-board-stage { position: absolute; inset: 0; }
   .fvs-board-hud { position: absolute; left: 50%; top: var(--space-4); translate: -50% 0; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); pointer-events: none; }
   .fvs-board-hud > * { pointer-events: auto; }
@@ -583,12 +583,6 @@
   @media (hover: hover) { .fvs-board-new:hover { color: var(--ink); outline-color: var(--ink); } }
   .fvs-board-new:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   /* Inks: the Palette as a tray (FVS's own inline ink swatches) */
-  #board-inks { --frame-w: var(--fvs-board-inks-w); }
-  #board-inks .fvs-board-sheet__body { width: var(--fvs-board-inks-w); display: flex; flex-direction: column; gap: var(--space-2); }
-  .fvs-board-inks { gap: var(--space-3); }
-  .fvs-board-inks__hint { margin: 0; }
-  .fvs-board-inks__hint[hidden] { display: none; }
-  .fvs-rail-ghost--ink { width: var(--space-6); height: var(--space-6); border-radius: 50%; background: var(--sw); }
   #element-svg .fvs-part.is-marquee-hit > path { stroke: var(--ink); stroke-width: 2px; vector-effect: non-scaling-stroke; }   /* as .is-sel */
   /* the Element's single view (double-click an Element): the classic step layout — the same markup, its board
      wrappers out of the way (display: contents) and the other sheets hidden; Back to board, Views, Edit, the Element */

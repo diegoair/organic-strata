@@ -2,8 +2,7 @@
 // FVS step boards — the Element, Component and Symbol boards (fvs/js/16-board.js + 18-step-boards.js) with REAL
 // mouse and keyboard input (Input.dispatch*Event), run twice: a clean mouse, and a mouse that reports its side "back"
 // button held the whole time (the Figure board's chordShim case, scripts/test-figure-board.mjs).
-// Pan, zoom, fit, sheet and group drag, the group ring; add / switch / rename / delete an Element; parts marquee, ink
-// click + drag; the single views and their Esc order; Component Edit's cell marquee, second click → Choose content,
+// Pan, zoom, fit, sheet and group drag, the group ring; add / switch / rename / delete an Element; parts marquee; the single views and their Esc order; Component Edit's cell marquee, second click → Choose content,
 // a rail drop, Delete; Clear board (held) on both boards; the Symbol's variations on the board.
 // Usage: scripts/test-fvs-boards.sh [--only clean|held] [--theme light|dark]
 // No dependencies: serves the repo on 127.0.0.1, headless Chrome over CDP, never writes to the repo.
@@ -210,7 +209,7 @@ async function elementBoard(mode) {
   await press('Delete', 'Delete', 46);
   // the list is the user's: in the store
   C('the list is kept in the store', await ev(() => { const o = Organica.store('fvs-elements').read(); return Object.keys(o).filter(k => k !== 'board').length === 1 && o.board && o.board.active === __t.F.state.activeElement; }));
-  // parts: Edit, divide, marquee, an ink by click and by drag
+  // parts: Edit, divide, marquee
   await ev(() => { const s = document.getElementById('sel-seed-type'); s.value = 'roundedrect'; s.dispatchEvent(new Event('change', { bubbles: true })); });
   await sleep(400);
   await ev(() => { __t.F.enterElementEdit(); const s = document.getElementById('sel-part-method'); const o = [...s.options].find(o => !o.disabled && o.value !== 'none'); s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); });
@@ -223,19 +222,7 @@ async function elementBoard(mode) {
   await gesture({ x: fr.l + 4, y: fr.t + 4 }, { x: fr.l + fr.w * 0.3, y: fr.t + fr.h * 0.3 });
   const picked = await ev(() => { const L = __t.F.state.layers, ids = new Set(__t.F.partSel); if (L.items[L.active] && L.items[L.active].part) ids.add(L.items[L.active].id); return [...ids]; });
   C('a marquee picks the parts it touches', nParts >= 2 && picked.length >= 1 && picked.length < nParts + 1, `${picked.length} of ${nParts} parts`);
-  const inks = await ev(() => document.querySelectorAll('#board-inks-tray button[data-ink]:not([disabled])').length);
-  if (inks >= 2) {
-    await click(await ev(() => __t.box('#board-inks-tray button[data-ink="1"]')));
-    const k = await ev(ids => __t.F.state.layers.items.filter(l => ids.includes(l.id)).map(l => l.ink), picked);
-    C('a click on an ink colours the picked parts', k.length && k.every(x => x === 1), JSON.stringify(k));
-    // drag ink 0 onto a part outside the selection
-    const target = await ev(ids => { const g = [...document.querySelectorAll('#element-svg [data-part]')].find(g => !ids.includes(g.getAttribute('data-part'))); if (!g) return null; const p = g.querySelector('path'), len = p.getTotalLength(), m = p.getScreenCTM(); for (let k = 1; k < 40; k++) { const q = p.getPointAtLength(len * k / 40), x = m.a * q.x + m.c * q.y + m.e, y = m.b * q.x + m.d * q.y + m.f; for (const [dx, dy] of [[3, 3], [-3, 3], [3, -3], [-3, -3]]) { const e = document.elementFromPoint(x + dx, y + dy); if (e && e.closest('[data-part]') === g) return { x: x + dx, y: y + dy, id: g.getAttribute('data-part') }; } } return null; }, picked);
-    if (target) {
-      await gesture(await ev(() => __t.box('#board-inks-tray button[data-ink="0"]')), target, { steps: 12 });
-      const ink = await ev(id => __t.F.state.layers.items.find(l => l.id === id).ink, target.id);
-      C('dragging an ink onto a part colours it', ink === 0, 'ink ' + ink);
-    } else C('dragging an ink onto a part colours it', false, 'no free part under the pointer');
-  } else C('the tray has the inks', false, inks + ' inks');
+  C('no Inks tray on the board (Diego, Oct 11)', await ev(() => !document.getElementById('board-inks') && !__t.B('element').sheets.inks));
   C('no gesture state left (Element)', (await ev(() => __t.leftovers('element'))).length === 0, (await ev(() => __t.leftovers('element'))).join(', '));
   // the single view: double-click the Element; Esc leaves Edit first, then the view
   await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));

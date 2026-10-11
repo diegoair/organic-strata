@@ -1,7 +1,7 @@
 // Flexible Visual System · 18-step-boards — the Element, Component and Symbol boards (Oct 2026; from the prototype
 // fvs/_proto-board/, Oct 10–11). The board itself is 16-board.js; the markup is the tier views' own (fvs/index.html).
 //   · Element: several Elements in a column, each its name + Views + sheet (one group); the one being edited is the live
-//     panel, the others are drawn from their snapshot; Inks (a tray), New element, Clear board, the single view.
+//     panel, the others are drawn from their snapshot; New element, Clear board, the single view.
 //   · Component: the gallery as one area; double-click a candidate = Component Edit in its single view, its cells with
 //     Symbol's grammar (marquee, a second click = Choose content, a rail Element dropped on them, Delete).
 //   · Symbol: the Symbol sheet with Suggest's variations as sheets beside it.
@@ -30,7 +30,7 @@ import {
   clearGallery, enterComponentEditMode, exitComponentEditMode, renderComponentEditCanvas, selectComponentEditCell
 } from './06-component-ui.js';
 import {
-  applyElementSnapshot, enterElementEdit, layersChanged, selectLayer, setPartEdit
+  applyElementSnapshot, layersChanged, selectLayer, setPartEdit
 } from './07-library.js';
 import {
   openCellContentOverlay, renderTrackLabelsOverlay, syncContentFilter
@@ -43,7 +43,7 @@ import {
 } from './15-export-library-view.js';
 import {
   addSheet, boardTierShown, cellEditor, drawRings, isPanKey, makeBoard, placeSheet, removeSheet, selectSheets, setSingle,
-  shapeInRect, swallowNextClick
+  shapeInRect
 } from './16-board.js';
 import { fhCanUndo } from './02-seed-ui.js';
 import { provide } from './hooks.js';
@@ -187,11 +187,6 @@ function mountElementBoard() {
   const posOf = id => ({ ...B.sheets[sheetId(id)].p });
   const lowest = () => state.elements.map(e => B.sheets[sheetId(e.id)]).filter(Boolean).reduce((a, b) => (b.p.y > a.p.y ? b : a));
   const placeAdd = () => { const low = lowest(); placeSheet(B, 'new-element', low.p.x, low.p.y + W + GAP + VH); };   // under the lowest Element, lined up with it
-  const placeInks = () => {   // Inks follows the Element being edited: to its right, unless moved by hand
-    const v = B.sheets[sheetId(active())];
-    if (!v || B.pos.inks) return;
-    placeSheet(B, 'inks', v.p.x + W + 60, v.p.y);
-  };
   function activate(id) {
     if (id === active() || !find(id)) return;
     if (rt.partEdit) setPartEdit(false);
@@ -205,7 +200,7 @@ function mountElementBoard() {
     applyElementSnapshot(next.seed, next.app);
     onAppearanceChange(); renderGallery(); renderSeedPreview();
     selectSheets(B, [sheetId(id)]);
-    relabel(); save(); B.save(); placeInks();
+    relabel(); save(); B.save();
   }
   function add() {
     snap();
@@ -215,7 +210,7 @@ function mountElementBoard() {
     mountStatic(e, at.x, at.y);
     activate(e.id);
     placeAdd();
-    requestAnimationFrame(() => B.fit());   // the whole board: the Views and Inks stay in sight
+    requestAnimationFrame(() => B.fit());   // the whole board: the Views stay in sight
   }
   // Undo (Diego, Oct 11, 2026): Delete and Clear board each keep a step — the list and the places as they were
   const undoStack = [], UNDO_MAX = 20, undoBtn = ctrl('btn-board-undo-element');
@@ -254,7 +249,7 @@ function mountElementBoard() {
       const y = VH + i * (VH + W + GAP), p = B.pos[sheetId(e.id)] || { x: 0, y };
       if (e.id === active()) placeLive(e, p.x, p.y); else mountStatic(e, p.x, p.y);
     });
-    placeAdd(); placeInks(); relabel();
+    placeAdd(); relabel();
   }
   function load(list) {   // a list from the store (boot, or another device): the board drawn again
     if (rt.partEdit) setPartEdit(false);
@@ -278,9 +273,8 @@ function mountElementBoard() {
     state.activeElement = state.elements[0].id;
     layout();
   }
-  addSheet(B, 'inks', 'Inks', 0, 0, ctrl('board-inks'));
   addSheet(B, 'new-element', 'New element', 0, 0, ctrl('board-new-element'));
-  placeAdd(); placeInks();
+  placeAdd();
   // the account's copy (signed in): drawn when it arrives, and again when another device changes it
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   ELEMENTS.pull().then(() => { const l = readElements(); if (l.items.length && !same(l.items, state.elements.map(e => ({ ...e })))) load(l); else save(); }).catch(() => {});
@@ -336,69 +330,24 @@ function mountElementBoard() {
     applyElementSnapshot(clone(BLANK.seed), clone(BLANK.app));
     onAppearanceChange(); renderGallery(); renderSeedPreview();
     relabel(); save(); B.save();
-    placeAdd(); placeInks();
+    placeAdd();
     requestAnimationFrame(() => B.fit());
   }
   const clearBtn = ctrl('btn-board-clear-element');
   const syncClear = () => { snap(); clearBtn.disabled = isClear(); };
   clearBtn.addEventListener('click', () => { pushUndo(); clearAll(); syncClear(); });
-  B.afterMove = () => { placeInks(); placeAdd(); };   // Inks beside the Element being edited, New element under the lowest Element
+  B.afterMove = () => { placeAdd(); };   // New element under the lowest Element
 
-  // Inks: the Palette as a tray — click puts an ink on the selected parts, drag it onto a part.
-  const tray = ctrl('board-inks-tray'), trayHint = ctrl('board-inks-hint');
+  // the parts of a divided Element, and the ones picked (the marquee below)
   const parts = () => (state.layers && state.layers.parts ? state.layers.items.filter(l => l.part) : []);
   const picked = () => {
     const L = state.layers, ids = new Set(rt.partSel);
     if (L && L.items[L.active] && L.items[L.active].part) ids.add(L.items[L.active].id);
     return ids;
   };
-  const setInk = (ids, ink) => { parts().forEach(l => { if (ids.has(l.id)) l.ink = ink; }); layersChanged(); };
-  const renderTray = () => {
-    const on = parts().length > 0, key = JSON.stringify([state.colors, on]);
-    if (tray.dataset.key === key) return;
-    tray.dataset.key = key;
-    trayHint.hidden = on;
-    tray.innerHTML = state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"${on ? '' : ' disabled'}></button>`).join('');
-  };
-  tray.addEventListener('click', e => {
-    const b = e.target.closest('button[data-ink]');
-    if (!b) return;
-    const ids = picked();
-    if (ids.size) setInk(ids, +b.dataset.ink);
-  });
-  // drag an ink onto a part: a part in the selection colours the whole selection
-  tray.addEventListener('pointerdown', e => {
-    const b = e.target.closest('button[data-ink]');
-    if (!b || b.disabled || e.button !== 0) return;
-    const sx = e.clientX, sy = e.clientY, ink = +b.dataset.ink;
-    let ghost = null, over = null;
-    const partAt = ev => document.elementsFromPoint(ev.clientX, ev.clientY).map(n => n.closest && n.closest('#element-svg [data-part]')).find(Boolean) || null;
-    const mv = ev => {
-      if (!ghost) {
-        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return;
-        ghost = el('div', 'fvs-rail-ghost fvs-rail-ghost--ink'); ghost.style.setProperty('--sw', state.colors[ink]); document.body.append(ghost);   // outside the board: it is position: fixed
-        if (!rt.partEdit) enterElementEdit();
-      }
-      ghost.style.translate = `${ev.clientX - 12}px ${ev.clientY - 12}px`;
-      const p = partAt(ev);
-      if (p !== over) { if (over) over.classList.remove('is-drop'); over = p; if (p) p.classList.add('is-drop'); }
-    };
-    const up = ev => {
-      window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
-      if (!ghost) return;
-      ghost.remove(); swallowNextClick(frame);   // the drag's own click (if any) — never a flag left for the next real click
-      const p = partAt(ev);
-      if (over) over.classList.remove('is-drop');
-      if (!p) return;
-      const id = p.getAttribute('data-part'), sel = picked();
-      setInk(sel.has(id) ? sel : new Set([id]), ink);
-    };
-    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
-  });
 
-  // Every redraw of the Element (renderElementFrame): the tray, New element's Paper, the list kept current.
+  // Every redraw of the Element (renderElementFrame): New element's Paper, the list kept current.
   elementDrawn = () => {
-    renderTray();
     newBtn.style.setProperty('--fvs-board-paper', state.paperColor);   // the Element's Paper (content colour)
     later();
   };
@@ -406,7 +355,7 @@ function mountElementBoard() {
   // Double-click an Element = its single view: the classic Element page (Diego, Oct 11 — not a zoom on the board).
   // The same markup laid out as the step's own (Views, the Edit toolbar, the Element); Back to board / Esc return.
   const enterSingle = () => { if (B.single) return; setSingle(B, true); renderSeedPreview(); ctrl('btn-element-board-back').focus({ preventScroll: true }); };
-  const exitSingle = () => { if (!B.single) return; setSingle(B, false); renderSeedPreview(); placeInks(); };
+  const exitSingle = () => { if (!B.single) return; setSingle(B, false); renderSeedPreview() };
   ctrl('btn-element-board-back').addEventListener('click', exitSingle);
   // the second press of a double-click, not dblclick: in Edit the first click redraws the parts, and a dblclick whose
   // first target left the page never comes
@@ -435,8 +384,6 @@ function mountElementBoard() {
   });
   // Delete on picked parts: nothing to empty in an Element — left out on purpose (docs/FVS.md §13).
   B.fitFocus = () => B.fit([sheetId(active())]);
-  B.beforeFit = () => placeInks();
-  renderTray();
   requestAnimationFrame(syncClear);   // the board as it opens: nothing to clear on a fresh one
 }
 
