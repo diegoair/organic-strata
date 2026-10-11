@@ -193,9 +193,13 @@ async function elementBoard(mode) {
   if (hasInput) { await ev(() => { document.querySelector('#board-live-views .fvs-board-sheet__input').select(); }); await type('Test name'); await press('Enter', 'Enter', 13); }
   const nm = await ev(() => { const e = __t.F.state.elements.find(e => e.id === __t.F.state.activeElement); return { name: e.name, custom: e.custom, label: document.querySelector('#board-live-views > .fvs-board-sheet__label').textContent }; });
   C('double-click the name renames it', hasInput && nm.name === 'Test name' && nm.custom && nm.label.startsWith('Test name'), JSON.stringify(nm));
-  // Delete on the other (selected) group removes it
+  // Delete on the other (selected) group removes it — with the focus left on a panel slider first (Diego's case, Oct 11:
+  // the slider kept the keyboard and Delete / ⌘Z did nothing)
+  await ev(() => { const r = document.getElementById('rg-element-scale'); r.scrollIntoView({ block: 'center' }); });
+  await click(await ev(() => __t.box('#rg-element-scale')));
+  C('(the panel slider has the focus)', await ev(() => document.activeElement && document.activeElement.id === 'rg-element-scale'));
   await click(await ev(() => __t.box('.fvs-board-views-static .fvs-board-sheet__label, .fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label')));
-  await press('Delete', 'Delete', 46);
+  await press('Backspace', 'Backspace', 8);
   C('Delete removes a selected Element', await ev(() => __t.F.state.elements.length === 1 && !document.querySelector('.fvs-board-el')));
   await press('KeyZ', 'z', 90, META);
   const back = await ev(() => ({ n: __t.F.state.elements.length, statics: document.querySelectorAll('.fvs-board-el').length, name: document.querySelector('#board-live-views > .fvs-board-sheet__label').textContent }));

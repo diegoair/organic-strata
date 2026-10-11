@@ -42,6 +42,12 @@ export function makeBoard(tier) {
   const view = document.querySelector(`#canvas-wrap .tier-view[data-tier="${tier}"]`);
   const stage = view.querySelector('.fvs-board-stage'), board = stage.querySelector('.fvs-board'), hud = view.querySelector('.fvs-board-hud');
   Organica.nodeCanvas.chordShim(view);   // a mouse that reports a side button held sends no pointerdown — the whole step, its single view too
+  // A press on the board takes the keyboard from a panel field: a slider or a menu touched before kept the focus, and the
+  // board's own keys (Delete, ⌘Z, the arrows) read as typing in it and did nothing (Diego, Oct 11, 2026)
+  view.addEventListener('pointerdown', () => {
+    const a = document.activeElement;
+    if (a && a !== document.body && !view.contains(a) && fvsIsTypingTarget(a)) a.blur();
+  }, true);
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(VIEW_KEY(tier)) || localStorage.getItem(LEGACY_VIEW_KEY(tier))) || {}; } catch (err) {}
   const B = { tier, view, stage, board, hud, sheets: {}, selected: new Set(), saved, links: {} };   // links: sheets that move together (an Element and its Views)
@@ -69,7 +75,7 @@ export function makeBoard(tier) {
   // A click on the bare board clears the sheet selection (and closes an open dropdown).
   stage.addEventListener('pointerdown', e => {
     if (e.button !== 0 || isPanKey(e)) return;
-    if (e.target === stage || e.target === board) { selectSheets(B, []); document.dispatchEvent(new CustomEvent('organica:dropdown-open', { detail: stage })); }
+    if (e.target === stage || e.target === board) { stage.focus({ preventScroll: true }); selectSheets(B, []); document.dispatchEvent(new CustomEvent('organica:dropdown-open', { detail: stage })); }
   });
   B.fit = ids => fitSheets(B, ids);
   boards[tier] = B;
@@ -124,6 +130,7 @@ export function removeSheet(B, id, keepEl) {
 function dragSheet(B, s, lab, e) {
   if (e.button !== 0 || isPanKey(e)) return;
   e.preventDefault(); e.stopPropagation();
+  lab.focus({ preventScroll: true });   // the keys follow the sheet just pressed (preventDefault keeps the press from focusing it)
   const id = s.dataset.sheet;
   const add = e.metaKey || e.ctrlKey || e.shiftKey;
   selectSheets(B, add ? (B.selected.has(id) ? [...B.selected].filter(k => k !== id) : [...B.selected, id]) : (B.selected.has(id) ? [...B.selected] : [id]));
