@@ -33,8 +33,8 @@ import {
 import {
   applyElementSnapshot, layersChanged, selectLayer, setPartEdit
 } from './07-library.js';
-import { frameDims, syncPartLayers } from './engine/01-geometry.js';
-import { getGrid } from './engine/03-rules.js';
+import { cellShapeOf, frameDims, syncPartLayers } from './engine/01-geometry.js';
+import { GALLERY_THUMB, fitThumbBox, getGrid } from './engine/03-rules.js';
 import { componentCaption } from './engine/06-component-ui.js';
 import { hexKey, syncActiveLayer } from './engine/07-library.js';
 import {
@@ -578,7 +578,12 @@ function mountComponentBoard() {
     setTier('element');
     requestAnimationFrame(() => { if (elementBoard) elementBoard.fit(['vw-' + id, 'el-' + id], { centred: true }); ctrl('board-live-element').focus({ preventScroll: true }); });
   };
-  function staticHTML(e) {
+  // another Element's area is drawn on ITS cell shape (Diego, Oct 11: the cell shape belongs to the edited Element —
+  // changing it never redraws the others): the grid, the starter set and the thumbnail box all follow it
+  const onCellShapeOf = (e, fn) => { const prev = state.cellShape; state.cellShape = cellShapeOf(e.seed); try { return fn(); } finally { state.cellShape = prev; } };
+  const thumbBoxOf = e => onCellShapeOf(e, () => { const sz = frameDims(getGrid()); return fitThumbBox(sz.w, sz.h, Math.round(GALLERY_THUMB * rt.galleryZoom)); });
+  function staticHTML(e) { return onCellShapeOf(e, () => staticHTMLNow(e)); }
+  function staticHTMLNow(e) {
     const g = hasOwnSet(e) ? e.gallery : { components: starterComponents(), selectedId: null };   // never filled: the starter set (b)
     const grid = getGrid(), size = frameDims(grid);
     if (!g.components.length) return `<p class="hint fvs-board-gallery__empty">No generated components yet</p>`;
@@ -610,7 +615,7 @@ function mountComponentBoard() {
   }
   function syncSheets() {
     if (state.activeTier !== 'component' || state.componentEditMode) return;
-    const act = state.activeElement, grid = getGrid(), gkey = JSON.stringify([grid, rt.galleryZoom, state.cellShape]);
+    const act = state.activeElement;
     const tw = getComputedStyle(gal).getPropertyValue('--thumb-w'), th = getComputedStyle(gal).getPropertyValue('--thumb-h');
     // the edited Element's area: its label and thumbnail
     const ae = state.elements.find(e => e.id === act);
@@ -627,7 +632,7 @@ function mountComponentBoard() {
       if (e.id === act) return;
       keep.add(e.id);
       const rec = staticSheet(e);
-      const key = JSON.stringify([gkey, e.name, e.seed, e.app, e.palette, e.gallery]);
+      const key = JSON.stringify([onCellShapeOf(e, getGrid), rt.galleryZoom, e.name, e.seed, e.app, e.palette, e.gallery]);
       if (rec.key !== key) {
         rec.key = key;
         rec.grid.innerHTML = staticHTML(e);
@@ -635,7 +640,7 @@ function mountComponentBoard() {
         const lab = rec.sheet.querySelector(':scope > .fvs-board-sheet__label');
         if (lab) { lab.textContent = nameOf(e) + ' · Generated components'; lab.setAttribute('aria-label', nameOf(e) + ' · Generated components — drag to move'); }
       }
-      rec.body.style.setProperty('--thumb-w', tw); rec.body.style.setProperty('--thumb-h', th);
+      const bx = thumbBoxOf(e); rec.body.style.setProperty('--thumb-w', bx.w + 'px'); rec.body.style.setProperty('--thumb-h', bx.h + 'px');
     });
     [...statics.keys()].forEach(id => { if (!keep.has(id)) { removeSheet(B, statics.get(id).id); statics.delete(id); } });
     // one under the other, in the Element order

@@ -493,6 +493,14 @@ async function generatedPerElement(mode) {
   await step('component'); await sleep(1000);
   const ids2 = await ev(() => { const o = {}; __t.F.state.elements.forEach(e => { o[e.id] = e.id === __t.F.state.activeElement ? __t.F.state.components.map(c => c.id).join() : (e.gallery && e.gallery.components || []).map(c => c.id).join(); }); return o; });
   C('a reload keeps each Element\'s Components', JSON.stringify(ids) === JSON.stringify(ids2), JSON.stringify({ ids, ids2 }).slice(0, 300));
+  // the cell shape belongs to the edited Element: changing it redraws only its own area, never the others'
+  const other = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0]; return { id: s.dataset.sheet, html: s.querySelector('.fvs-board-gallery__grid').innerHTML.length + ':' + s.querySelectorAll('.fvs-thumb').length }; });
+  await ev(() => document.querySelector('#fb-cell-shape [data-cell="triangle"]').click()); await sleep(900);
+  const cs = await ev(id => { const s = document.querySelector(`[data-sheet="${id}"]`); return { html: s.querySelector('.fvs-board-gallery__grid').innerHTML.length + ':' + s.querySelectorAll('.fvs-thumb').length, live: __t.F.state.cellShape }; }, other.id);
+  C('a cell shape change redraws only the edited Element\'s Components', cs.live === 'triangle' && cs.html === other.html, JSON.stringify({ other, cs }));
+  await click(await ev(id => __t.box(document.querySelector(`[data-sheet="${id}"] button[data-k]`)), other.id)); await sleep(700);
+  const back = await ev(() => ({ shape: __t.F.state.cellShape, pressed: document.querySelector('#fb-cell-shape [aria-pressed="true"]') && document.querySelector('#fb-cell-shape [aria-pressed="true"]').dataset.cell }));
+  C('editing the other Element shows its own cell shape', back.shape === 'square' && back.pressed === 'square', JSON.stringify(back));
   // a double-click on an area's Element thumbnail: that Element, edited on the Element board
   const eb = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0]; return { ...__t.box(s.querySelector('.fvs-board-gallery__el-box')), el: s.dataset.sheet.slice(3) }; });
   await dblclick(eb); await sleep(800);

@@ -1076,7 +1076,9 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   the Element sits centred on its list, one thumbnail-width clear of it, captioned *Element* (the baseline — Diego, Oct 11); it
   lays its Components **4 across**, as many rows as needed, at 2× (`galleryZoomTo(2)`). One item is a **Component**
   (*candidate* only in code). The edited Element's area is the live `#board-gallery`; the others are drawn from their
-  Element's snapshot — its seed, appearance and Palette (`componentThumbMarkup`, `withPalette` / `withAppearance`).
+  Element's snapshot — its seed, appearance, Palette and **cell shape** (`componentThumbMarkup`, `withPalette` /
+  `withAppearance`, `onCellShapeOf`: the grid, starter set and thumbnail box on that Element's cell shape — the floatbar's
+  cell shape belongs to the edited Element and redraws only its own Components, Diego Oct 11).
   Each Element keeps its set as `gallery = {components, selectedId, explicit, auto, sig}` on its row in
   `fvs-elements`, so **a reload keeps them**; switching Element swaps the live `state.components`, so Generate,
   Component Edit, colourways, *Save all to library* (the edited Element's set only — Diego) and export act on the
