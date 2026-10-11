@@ -98,20 +98,20 @@
   /* Hovering an already-saved ✓ previews the delete it's about to do. */
   .fvs-thumb-quicksave.saved.delete-hover { border-color: var(--danger); background: var(--danger); color: var(--paper); }
   /* Hit area: the 20px circle keeps its size, the target grows to --hit-min (#hit-areas). */
-  .fvs-thumb-quicksave::before, .fvs-thumb-edit::before, .fvs-thumb-tile::before { content: ''; position: absolute; inset: calc((20px - var(--hit-min)) / 2); }
-  /* Edit-structure — same hover-reveal circle as quick-save, one slot to
+  .fvs-thumb-quicksave::before, .fvs-thumb-tile::before { content: ''; position: absolute; inset: calc((20px - var(--hit-min)) / 2); }
+  /* "Use as Paper tile" — same hover-reveal circle as quick-save, one slot to
      its left (4px + 20px + 3px gap), neutral --ink on hover rather than
      --tool's green so it reads as a distinct action from Save. */
-  .fvs-thumb-edit, .fvs-thumb-tile {
+  .fvs-thumb-tile {
     position: absolute; top: var(--space-1); right: calc(var(--space-1) + 20px + 3px); width: 20px; height: 20px;
     border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
     display: flex; align-items: center; justify-content: center;
     padding: 0; cursor: pointer;
     opacity: 0; transition: opacity var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
   }
-  .fvs-thumb-wrap:hover .fvs-thumb-edit, .fvs-thumb-edit:focus-visible, .fvs-thumb-tile:focus-visible { opacity: 1; }
+  .fvs-thumb-tile:focus-visible { opacity: 1; }
   .fvs-thumb-tile[aria-pressed="true"] { opacity: 1; border-color: var(--tool); background: var(--tool); color: var(--paper); }
-  .fvs-thumb-edit:hover, .fvs-thumb-tile:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .fvs-thumb-tile:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
   .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
 
@@ -137,10 +137,7 @@
   /* Element quick-save: the Component gallery's corner circle, on each strip tile and the big frame */
   .fvs-seed-tile__box { position: relative; width: 100%; }
   .fvs-seed-tile__box:hover :is(.fvs-thumb-quicksave, .fvs-thumb-tile), .fvs-element-frame:hover > :is(.fvs-thumb-quicksave, .fvs-thumb-tile) { opacity: 1; }
-  .fvs-element-frame > :is(.fvs-thumb-quicksave, .fvs-thumb-tile, .fvs-thumb-edit) { z-index: 1; }
-  .fvs-element-frame:hover > .fvs-thumb-edit { opacity: 1; }
-  .fvs-element-frame > .fvs-thumb-edit { right: calc(var(--space-1) + 2 * (20px + 3px)); }   /* Element Edit: one slot left of the Paper-tile circle */
-  .fvs-element-frame.is-editing > .fvs-thumb-edit { display: none; }
+  .fvs-element-frame > :is(.fvs-thumb-quicksave, .fvs-thumb-tile) { z-index: 1; }
   #part-method-picker { flex: 1; min-width: 0; }
   .fvs-seed-tile[data-view] { cursor: pointer; }
   @media (hover: hover) { .fvs-seed-tile[data-view]:hover .fvs-seed-tile__box > svg { border-color: var(--ink); } }
@@ -401,7 +398,7 @@
   .fvs-layer__swatch.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
   .fvs-layer__swatch:disabled { opacity: 0.25; cursor: default; }
   .fvs-layer__del { opacity: 0; }
-  @media (hover: none) { .fvs-thumb-quicksave, .fvs-thumb-edit, .fvs-thumb-tile, .fvs-layer__del { opacity: 1; } }   /* touch has no hover to reveal them */
+  @media (hover: none) { .fvs-thumb-quicksave, .fvs-thumb-tile, .fvs-layer__del { opacity: 1; } }   /* touch has no hover to reveal them */
   .org-layer-card:hover .fvs-layer__del, .org-layer-card.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
   .fvs-layer__place { display: flex; flex-direction: column; padding-top: 0; }
   .fvs-layer__place .ctrl-row { margin-bottom: 0; min-height: var(--space-7); gap: var(--space-2); }
@@ -581,7 +578,7 @@
     background: var(--fvs-board-paper, var(--paper)); color: var(--mid); outline: var(--sheet-line-w) solid var(--sheet-line); outline-offset: 0; box-shadow: var(--sheet-pile); }
   .fvs-board-new .ico { width: calc(var(--icon-xl) / var(--nc-zoom, 1)); height: calc(var(--icon-xl) / var(--nc-zoom, 1)); }
   @media (hover: hover) { .fvs-board-new:hover { color: var(--ink); outline-color: var(--ink); } }
-  .fvs-board-new:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .fvs-board-new:focus-visible, #board-live-element:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   /* Inks: the Palette as a tray (FVS's own inline ink swatches) */
   #element-svg .fvs-part.is-marquee-hit > path { stroke: var(--ink); stroke-width: 2px; vector-effect: non-scaling-stroke; }   /* as .is-sel */
   /* the Element's single view (double-click an Element): the classic step layout — the same markup, its board

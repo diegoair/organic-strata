@@ -237,6 +237,21 @@ async function elementBoard(mode) {
   C('Delete with every part picked keeps them (one part stays)', q3.layers === q0.layers, JSON.stringify(q3));
   C('no Inks tray on the board (Diego, Oct 11)', await ev(() => !document.getElementById('board-inks') && !__t.B('element').sheets.inks));
   C('no gesture state left (Element)', (await ev(() => __t.leftovers('element'))).length === 0, (await ev(() => __t.leftovers('element'))).join(', '));
+  // Element Edit by double-click (the hover pencil went, Diego Oct 11): leave Edit, then double-click the Element →
+  // its single view with Edit on; Esc leaves Edit, then the view. Then Enter on the focused Element does the same.
+  C('no Edit pencil on the Element or the Component thumbnails', await ev(() => !document.querySelector('.fvs-thumb-edit')));
+  await ev(() => document.getElementById('btn-element-edit-exit').click()); await sleep(300);
+  await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
+  const de = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), edit: !!__t.F.rt?.partEdit || !document.getElementById('element-edit-toolbar').hidden, focus: document.activeElement && document.activeElement.id }));
+  C('double-click opens the single view with Element Edit on (focus on Back)', de.single && de.edit && de.focus === 'btn-element-edit-exit', JSON.stringify(de));
+  await press('Escape', 'Escape', 27); await sleep(200); await press('Escape', 'Escape', 27); await sleep(300);
+  await ev(() => document.getElementById('board-live-element').focus());
+  await press('Enter', 'Enter', 13); await sleep(300);
+  const ke = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), edit: !document.getElementById('element-edit-toolbar').hidden }));
+  C('Enter on the focused Element opens Element Edit too (the keyboard path)', ke.single && ke.edit, JSON.stringify(ke));
+  // ...and double-click inside Edit, on the board, opens the single view (Edit stays on)
+  await press('Escape', 'Escape', 27); await sleep(200); await press('Escape', 'Escape', 27); await sleep(300);
+  await ev(() => { if (document.getElementById('element-edit-toolbar').hidden) __t.F.enterElementEdit(); }); await sleep(300);
   // the single view: double-click the Element; Esc leaves Edit first, then the view
   await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
   const sv = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), back: !!document.getElementById('btn-element-board-back').offsetParent }));
@@ -338,6 +353,13 @@ async function componentBoard(mode) {
   } else C('Component Edit has cells', false);
   await press('Escape', 'Escape', 27);
   C('Esc leaves Component Edit, back to the board', await ev(() => !__t.F.state.componentEditMode && !document.querySelector('.tier-view[data-tier="component"]').classList.contains('is-single')));
+  // the keyboard path into Component Edit (no pencil): Enter on the selected candidate
+  await click(await ev(() => __t.box('#gallery .fvs-thumb-wrap:nth-child(2) > button')));
+  await ev(() => document.querySelector('#gallery .fvs-thumb-wrap:nth-child(2) > button').focus());
+  await press('Enter', 'Enter', 13); await sleep(500);
+  const ke = await ev(() => ({ edit: !!__t.F.state.componentEditMode, label: document.querySelector('#gallery .fvs-thumb-wrap > button') && document.querySelector('#gallery .fvs-thumb-wrap > button').getAttribute('aria-label') }));
+  C('Enter on the selected candidate opens Component Edit (the keyboard path)', ke.edit, JSON.stringify(ke));
+  await press('Escape', 'Escape', 27); await sleep(400);
   C('no gesture state left (Component)', (await ev(() => __t.leftovers('component'))).length === 0, (await ev(() => __t.leftovers('component'))).join(', '));
   // Clear board (held), then ⌘Z
   await hold(await ev(() => __t.box('#btn-board-clear-component')));

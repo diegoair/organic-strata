@@ -173,7 +173,6 @@ export function renderElementFrame(seed) {
   if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
   ctrl('element-svg').innerHTML = svg;
   frame.classList.toggle('is-part-edit', editing);
-  frame.classList.toggle('is-editing', !!rt.partEdit);   // Element Edit: the pencil steps aside
   if (editing) {
     const L = state.layers, act = L.items[L.active];
     ctrl('element-svg').querySelectorAll('[data-part]').forEach(g => {
@@ -331,7 +330,7 @@ function renderGalleryNow() {
     const kept = galleryThumbs.get(comp);
     if (kept && kept.key === key) {
       if (kept.btn.className !== thumbClass) kept.btn.className = thumbClass;
-      kept.btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
+      kept.btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id} — double-click to edit`);
       if (kept.btn.title !== caption) { kept.btn.title = caption; kept.cap.textContent = caption; }
       if (kept.savedName !== (comp.savedName || null)) {   // the save circle carries the name in its label / its click
         const q = galleryQuickSave(comp);
@@ -343,7 +342,7 @@ function renderGalleryNow() {
     }
     const btn = document.createElement('button');
     btn.className = thumbClass;
-    btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id}`);
+    btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id} — double-click to edit`);
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; hooks.adoptLayerInks(comp); hooks.adoptColourway(comp); renderGallery(); });
     // Caption = the rule that made it + each cell's rotation (f = flipped),
@@ -361,21 +360,17 @@ function renderGalleryNow() {
     // content, since the label/title need to change too for a11y) — a
     // click then removes the saved entry instead of re-saving it.
     const quickSave = galleryQuickSave(comp);
-    // Hover-only edit — sits directly left of the save circle, same reveal
-    // behaviour. Jumps into Manual mode pre-loaded with THIS candidate's
-    // own per-cell rotation/flip/scale, so you can start from what's
-    // already there instead of building a new arrangement from scratch.
-    const editBtn = document.createElement('button');
-    editBtn.type = 'button';
-    editBtn.className = 'fvs-thumb-edit';
-    editBtn.setAttribute('aria-label', 'Edit component structure');
-    editBtn.title = 'Edit component structure';
-    editBtn.innerHTML = Organica.icons.get('pencil', { size: 'sm' });
-    editBtn.addEventListener('click', e => { e.stopPropagation(); hooks.enterComponentEditMode(comp.id); });
+    // Component Edit: a double-click on the thumbnail (18-step-boards.js), or Enter on the one already selected — the
+    // keyboard's way in since the hover pencil went (Oct 11, 2026)
+    const cid = comp.id;
+    btn.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || state.selectedId !== cid || !state.selectionExplicit) return;
+      e.preventDefault(); hooks.enterComponentEditMode(cid);
+    });
     const cap = document.createElement('span');
     cap.className = 'fvs-thumb-caption';
     cap.textContent = caption;
-    wrap.append(btn, editBtn, quickSave, cap);
+    wrap.append(btn, quickSave, cap);
     galleryThumbs.set(comp, { key, wrap, btn, cap, quickSave, savedName: comp.savedName || null });
     wraps.push(wrap);
   }

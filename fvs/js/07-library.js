@@ -523,7 +523,7 @@ window.addEventListener('pointercancel', () => { layerPress = null; layerDragFro
   renderGallery(); renderSeedPreview();
 }));
 // ── Divide into parts (Oct 10, 2026) ──────────────────────────────────
-// Element Edit (the pencil on the canvas): the Division menu — None first, each option drawn on the current shape —
+// Element Edit (a double-click on the Element): the Division menu — None first, each option drawn on the current shape —
 // divides the shape at once into one layer per primordial figure, each with its own ink, role, place and look, all
 // still driven by the shape's own controls. On the canvas: click a part to edit it, ⌘/Ctrl/Shift-click to pick several
 // (the ink chosen for one of them goes to all). Back to None joins the shape; the parts' settings are kept for the session.
@@ -687,7 +687,7 @@ ctrl('btn-part-ungroup').addEventListener('click', () => {
   setPartEdit(false);
   layersChanged();
 });
-// Element Edit: in from the pencil on the canvas, out with Back or Esc.
+// Element Edit: in by a double-click / Enter on the Element (18-step-boards.js), out with Back or Esc.
 export function setPartEdit(on) {
   rt.partEdit = !!on;
   if (!on) rt.partSel = new Set();

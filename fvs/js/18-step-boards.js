@@ -30,7 +30,7 @@ import {
   clearGallery, enterComponentEditMode, exitComponentEditMode, renderComponentEditCanvas, selectComponentEditCell
 } from './06-component-ui.js';
 import {
-  applyElementSnapshot, layersChanged, selectLayer, setPartEdit
+  applyElementSnapshot, enterElementEdit, layersChanged, selectLayer, setPartEdit
 } from './07-library.js';
 import { syncPartLayers } from './engine/01-geometry.js';
 import { hexKey, syncActiveLayer } from './engine/07-library.js';
@@ -146,7 +146,7 @@ function mountElementBoard() {
       sh.el.classList.toggle('is-active', on); B.sheets[viewsId(e.id)].el.classList.toggle('is-active', on);
       lab.textContent = e.name;
       lab.setAttribute('aria-label', e.name + (on ? ' · editing' : '') + ' — drag to move, double-click to rename');
-      if (on) lab.append(el('span', 'fvs-board-sheet__state', { textContent: ' · editing' }));
+      if (on) { lab.append(el('span', 'fvs-board-sheet__state', { textContent: ' · editing' })); liveEl.setAttribute('aria-label', e.name + (state.layers && !state.layers.parts ? ' — double-click or press Enter to open' : ' — double-click or press Enter to edit')); }
     });
   }
   const nameNow = () => { const e = find(active()); if (e && !e.custom) e.name = madeName(); };
@@ -399,15 +399,22 @@ function mountElementBoard() {
     later();
   };
 
-  // Double-click an Element = its single view: the classic Element page (Diego, Oct 11 — not a zoom on the board).
-  // The same markup laid out as the step's own (Views, the Edit toolbar, the Element); Back to board / Esc return.
+  // Double-click an Element (or Enter on it) = its single view, the classic Element page, and Element Edit in it — as a
+  // Component's double-click opens Component Edit (Diego, Oct 11, 2026: the hover pencil went). A stack of plain layers
+  // cannot be divided: its single view only. Back / Esc leave Edit first, then the single view.
   const enterSingle = () => { if (B.single) return; setSingle(B, true); renderSeedPreview(); ctrl('btn-element-board-back').focus({ preventScroll: true }); };
   const exitSingle = () => { if (!B.single) return; setSingle(B, false); renderSeedPreview() };
   ctrl('btn-element-board-back').addEventListener('click', exitSingle);
+  const openEdit = () => {
+    enterSingle();
+    if (rt.partEdit || (state.layers && !state.layers.parts)) return;
+    enterElementEdit();
+    ctrl('btn-element-edit-exit').focus({ preventScroll: true });
+  };
   // the second press of a double-click, not dblclick: in Edit the first click redraws the parts, and a dblclick whose
   // first target left the page never comes
-  frame.addEventListener('mousedown', e => { if (e.detail !== 2 || e.button !== 0 || B.single || e.target.closest('button')) return; e.preventDefault(); enterSingle(); });
-  liveEl.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === liveEl && !B.single) { e.preventDefault(); enterSingle(); } });
+  frame.addEventListener('mousedown', e => { if (e.detail !== 2 || e.button !== 0 || (B.single && rt.partEdit) || e.target.closest('button')) return; e.preventDefault(); openEdit(); });
+  liveEl.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === liveEl && !(B.single && rt.partEdit)) { e.preventDefault(); openEdit(); } });
   // Esc: leaves Edit first (FVS's own, 07-library.js), then the single view
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape' || !B.single || state.activeTier !== 'element' || rt.partEdit || fvsIsTypingTarget(e.target) || overlayOpen()) return;
@@ -458,7 +465,7 @@ function mountComponentBoard() {
   const gal = ctrl('gallery'), frame = ctrl('component-edit-frame');
   addSheet(B, 'gallery', 'Gallery', 0, 0, ctrl('board-gallery'));
   galleryZoomTo(2);   // the candidates at 2× on the board
-  // Double-click a candidate (or its pencil) = Component Edit in its single view: the classic page — toolbar, part
+  // Double-click a candidate (or Enter on the selected one, 05-render-component.js) = Component Edit in its single view: the classic page — toolbar, part
   // colours, the fixed sheet — with the board hidden, the same as an Element's (Diego, Oct 11). Back to board / Esc return.
   gal.addEventListener('dblclick', e => {
     const w = e.target.closest('.fvs-thumb-wrap');
