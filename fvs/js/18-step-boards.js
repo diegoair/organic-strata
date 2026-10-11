@@ -9,7 +9,7 @@
 // An ES module of fvs/js/main.js — docs/FVS.md §11, §13.
 import { rt } from './rt.js';
 import {
-  pv, state
+  DEFAULT_COLOR_RULE, pv, state
 } from './engine/00-core.js';
 import {
   SEED_ICONS, SYMBOL_SEED_DEFAULTS, seedForSnapshot
@@ -21,7 +21,7 @@ import {
   buildSeedPreviewSVG, seedPreviewStates
 } from './engine/05-render-component.js';
 import {
-  ctrl
+  buildPalette, ctrl, syncColorRuleUI
 } from './00-core.js';
 import {
   renderGallery, renderSeedPreview, setElementView
@@ -33,12 +33,12 @@ import {
   applyElementSnapshot, layersChanged, selectLayer, setPartEdit
 } from './07-library.js';
 import { syncPartLayers } from './engine/01-geometry.js';
-import { syncActiveLayer } from './engine/07-library.js';
+import { hexKey, syncActiveLayer } from './engine/07-library.js';
 import {
   openCellContentOverlay, renderTrackLabelsOverlay, syncContentFilter
 } from './11-symbol-ui.js';
 import {
-  fvsIsTypingTarget, galleryZoomTo, onAppearanceChange
+  fvsIsTypingTarget, galleryZoomTo, onAppearanceChange, setPaperUI
 } from './12-shell.js';
 import {
   railNotice, setRailTarget
@@ -52,13 +52,35 @@ import { provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   boardElementDrawn: () => elementDrawn, boardGalleryDrawn: () => galleryDrawn,
-  boardComponentEdit: () => componentEdit, boardTierShown: () => boardTierShown
+  boardComponentEdit: () => componentEdit, boardTierShown: () => boardTierShown,
+  elementPalettes: () => elementPalettes
 });
 
 const el = (tag, cls, attrs) => { const n = document.createElement(tag); if (cls) n.className = cls; if (attrs) Object.assign(n, attrs); return n; };
 const clone = o => JSON.parse(JSON.stringify(o));
 const overlayOpen = () => ctrl('symbol-content-overlay').style.display !== 'none';   // as 12-shell.js reads it
-let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {};
+let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {}, elementPalettes = () => [];
+
+// Each Element keeps its own Palette (O-67 c, Diego, Oct 11, 2026): inks + Colour by + Paper colour, on the Element as
+// `palette`. The live state.colors / colorRule / paperColor IS the edited Element's — everything downstream reads it.
+// A new Element (and the one Clear board leaves) starts black on white (O-68 a, b); the other Elements' Palettes are
+// offered in the Palette's "Pick from a palette" menu (opts.palettes, 00-core.js buildPalette).
+const DEFAULT_PALETTE = { colors: ['#000000'], colorRule: { ...DEFAULT_COLOR_RULE }, paperColor: '#ffffff' };
+const livePalette = () => clone({ colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor });
+function applyPalette(p) {
+  p = p || DEFAULT_PALETTE;
+  state.colors = p.colors.map(hexKey);
+  state.colorRule = { ...DEFAULT_COLOR_RULE, ...(p.colorRule || {}) };
+  syncColorRuleUI(); buildPalette();
+  setPaperUI(p.paperColor);
+}
+// draw with an Element's own Palette for the length of fn (its sheet and Views on the board)
+function withPalette(p, fn) {
+  p = p || DEFAULT_PALETTE;
+  const prev = { colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor };
+  state.colors = p.colors.map(hexKey); state.colorRule = { ...DEFAULT_COLOR_RULE, ...(p.colorRule || {}) }; state.paperColor = p.paperColor;
+  try { return fn(); } finally { Object.assign(state, prev); }
+}
 
 // ── The Element list: the user's work, in their account (Organica.store, signed out = this browser's cache) ────────
 // One row per Element ({name, custom, seed, app, n = its place}) + the row 'board' ({active}).
@@ -69,7 +91,7 @@ function readElements() {
   const obj = ELEMENTS.read() || {};
   // an Element without a shape (left by a half-done add) is dropped, never allowed to stop the whole board
   let items = Object.entries(obj).filter(([k, v]) => k !== BOARD_ROW && v && v.seed && v.seed.type)
-    .map(([id, v]) => ({ id, name: v.name, custom: !!v.custom, seed: v.seed, app: v.app, n: v.n || 0 })).sort((a, b) => a.n - b.n);
+    .map(([id, v]) => ({ id, name: v.name, custom: !!v.custom, seed: v.seed, app: v.app, ...(v.palette ? { palette: v.palette } : {}), n: v.n || 0 })).sort((a, b) => a.n - b.n);
   let active = obj[BOARD_ROW] && obj[BOARD_ROW].active;
   if (!items.length) {
     try { const s = JSON.parse(localStorage.getItem(LEGACY_ITEMS)); if (s && s.items) { items = s.items.filter(e => e && e.id && e.seed && e.seed.type).map(e => ({ id: e.id, name: e.name, custom: !!e.custom, seed: e.seed, app: e.app })); active = s.active; } } catch (err) {}
@@ -79,7 +101,7 @@ function readElements() {
 }
 function writeElements() {
   const obj = {};
-  state.elements.forEach((e, i) => { obj[e.id] = { name: e.name, custom: !!e.custom, seed: e.seed, app: e.app, n: i }; });
+  state.elements.forEach((e, i) => { obj[e.id] = { name: e.name, custom: !!e.custom, seed: e.seed, app: e.app, ...(e.palette ? { palette: e.palette } : {}), n: i }; });
   obj[BOARD_ROW] = { active: state.activeElement };
   try { ELEMENTS.write(obj); } catch (err) {}
 }
@@ -99,18 +121,18 @@ function mountElementBoard() {
     if (b.cellShape === undefined) delete b.cellShape;
     return { seed: { ...b, type: 'arc' }, app: clone(BOOT.app) };
   })();
-  const blankElement = () => ({ id: newId(), name: shapeName(BLANK.seed), custom: false, seed: clone(BLANK.seed), app: clone(BLANK.app) });
+  const blankElement = () => ({ id: newId(), name: shapeName(BLANK.seed), custom: false, seed: clone(BLANK.seed), app: clone(BLANK.app), palette: clone(DEFAULT_PALETTE) });
   const newId = () => 'e' + Date.now().toString(36) + Math.floor(Math.random() * 36 ** 3).toString(36);
   const find = id => state.elements.find(e => e.id === id);
   const active = () => state.activeElement;
   const sheetId = id => 'el-' + id, viewsId = id => 'vw-' + id;
   const save = () => writeElements();
   const idle = () => !state.componentEditMode && !state.preFigureSnapshot;   // the panel is the active Element (not a cell's scratch pad, not Figure's sandbox)
-  const snap = () => { const e = find(active()); if (e && idle()) { e.seed = clone(seedForSnapshot()); e.app = clone(getElementAppearance()); } };
-  const drawn = e => withAppearance(e.app, () => buildSeedPreviewSVG(e.seed, 0, false, false, 400, { outline: true }));
+  const snap = () => { const e = find(active()); if (e && idle()) { e.seed = clone(seedForSnapshot()); e.app = clone(getElementAppearance()); e.palette = livePalette(); } };
+  const drawn = e => withPalette(e.palette, () => withAppearance(e.app, () => buildSeedPreviewSVG(e.seed, 0, false, false, 400, { outline: true })));
   // each Element has its Views above it: the active one's is FVS's live strip, the others are drawn from their snapshot —
   // a click on one edits that Element at that view
-  const viewsOf = e => `<div class="fvs-seed-preview-wrap"><div class="fvs-seed-preview">${seedPreviewStates().map(([r, fh, fv, label], i) => `<div class="fvs-seed-tile" role="button" tabindex="0" data-view="${i}" aria-label="Show ${e.name} at ${label}"><div class="fvs-seed-tile__box">${withAppearance(e.app, () => buildSeedPreviewSVG(e.seed, r, fh, fv, 48, { outline: true }))}</div><span class="fvs-seed-tile__label">${label}</span></div>`).join('')}</div></div>`;
+  const viewsOf = e => `<div class="fvs-seed-preview-wrap"><div class="fvs-seed-preview">${seedPreviewStates().map(([r, fh, fv, label], i) => `<div class="fvs-seed-tile" role="button" tabindex="0" data-view="${i}" aria-label="Show ${e.name} at ${label}"><div class="fvs-seed-tile__box">${withPalette(e.palette, () => withAppearance(e.app, () => buildSeedPreviewSVG(e.seed, r, fh, fv, 48, { outline: true })))}</div><span class="fvs-seed-tile__label">${label}</span></div>`).join('')}</div></div>`;
   // The name sits above the Views (Diego, Oct 11): made by itself — the saved Element's name when this Element is in the
   // library, else its shape's — until it is renamed by hand (double-click the name); an empty name goes back to the made one.
   const shapeName = sd => { const nm = t => (SEED_ICONS[t] || {}).name || t; return sd.type === 'stack' ? (sd.parts ? nm(sd.parts.source.type) + ' · parts' : 'Stack') : nm(sd.type); };
@@ -200,6 +222,7 @@ function mountElementBoard() {
     placeLive(next, np.x, np.y);
     mountStatic(prev, pp.x, pp.y);
     applyElementSnapshot(next.seed, next.app);
+    applyPalette(next.palette);
     onAppearanceChange(); renderGallery(); renderSeedPreview();
     selectSheets(B, [sheetId(id)]);
     relabel(); save(); B.save();
@@ -271,6 +294,7 @@ function mountElementBoard() {
     state.activeElement = state.elements.some(e => e.id === list.active) ? list.active : state.elements[0].id;
     const cur = find(active());
     applyElementSnapshot(cur.seed, cur.app);
+    applyPalette(cur.palette);
     onAppearanceChange(); renderGallery(); renderSeedPreview();
     layout();
   }
@@ -278,7 +302,7 @@ function mountElementBoard() {
   const first = readElements();
   if (first.items.length) load(first);
   else {
-    state.elements = [{ id: newId(), name: shapeName(BOOT.seed), custom: false, seed: clone(BOOT.seed), app: clone(BOOT.app) }];
+    state.elements = [{ id: newId(), name: shapeName(BOOT.seed), custom: false, seed: clone(BOOT.seed), app: clone(BOOT.app), palette: livePalette() }];
     state.activeElement = state.elements[0].id;
     layout();
   }
@@ -327,7 +351,7 @@ function mountElementBoard() {
   const canon = v => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => { o[k] = canon(v[k]); return o; }, {}) : v);   // key order is not content
   const sameContent = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
   const asBlank = sd => Object.keys(BLANK.seed).every(k => sameContent(sd[k], BLANK.seed[k]));   // the fields a fresh Arc sets (the live snapshot adds derived ones)
-  const isClear = () => state.elements.length === 1 && asBlank(find(active()).seed) && sameContent(find(active()).app, BLANK.app);
+  const isClear = () => state.elements.length === 1 && asBlank(find(active()).seed) && sameContent(find(active()).app, BLANK.app) && sameContent(livePalette(), withPalette(DEFAULT_PALETTE, livePalette));
   function clearAll() {
     if (rt.partEdit) setPartEdit(false);
     selectSheets(B, []);
@@ -337,6 +361,7 @@ function mountElementBoard() {
     state.elements = [e]; state.activeElement = e.id;
     placeLive(e, 0, VH);
     applyElementSnapshot(clone(BLANK.seed), clone(BLANK.app));
+    applyPalette(DEFAULT_PALETTE);
     onAppearanceChange(); renderGallery(); renderSeedPreview();
     relabel(); save(); B.save();
     placeAdd();
@@ -345,6 +370,19 @@ function mountElementBoard() {
   const clearBtn = ctrl('btn-board-clear-element');
   const syncClear = () => { snap(); clearBtn.disabled = isClear(); };
   clearBtn.addEventListener('click', () => { pushUndo(); clearAll(); syncClear(); });
+  // the other Elements' Palettes, for the Palette's "Pick from a palette" menu — each by its Element's name, one
+  // entry per distinct set of inks, none equal to the live one
+  elementPalettes = () => {
+    const seen = new Set([JSON.stringify(state.colors)]), out = [];
+    state.elements.forEach(e => {
+      if (e.id === active() || !e.palette) return;
+      const cs = e.palette.colors.map(hexKey), k = JSON.stringify(cs);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push({ name: e.name, colors: cs.map(hex => ({ hex })) });
+    });
+    return out;
+  };
   B.afterMove = () => { placeAdd(); };   // New element under the lowest Element
 
   // the parts of a divided Element, and the ones picked (the marquee below)

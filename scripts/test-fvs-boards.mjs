@@ -369,6 +369,55 @@ async function symbolBoard(mode) {
   C('no gesture state left (Symbol)', (await ev(() => __t.leftovers('symbol'))).length === 0, (await ev(() => __t.leftovers('symbol'))).join(', '));
 }
 
+// A Palette per Element (O-67 c): each Element keeps its inks / Colour by / Paper; a new one is black on white; the
+// others' Palettes are in "Pick from a palette"; a reload keeps them; Clear board leaves the default.
+async function elementPalettes(mode) {
+  const C = (n, ok, d) => check(mode, 'Palette · ' + n, ok, d);
+  await step('element');
+  const setInk = hex => ev(h => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = h; i.dispatchEvent(new Event('input', { bubbles: true })); }, hex);
+  const live = () => ev(() => ({ colors: __t.F.state.colors.slice(), paper: __t.F.state.paperColor, active: __t.F.state.activeElement }));
+  await setInk('#d01c1c'); await sleep(600);
+  const e1 = await live();
+  await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); return __t.box(b); }));
+  await sleep(600);
+  const e2 = await live();
+  C('New element starts black on white', e2.active !== e1.active && e2.colors.length === 1 && e2.colors[0] === '#000000' && e2.paper === '#ffffff', JSON.stringify(e2));
+  await setInk('#1c3cd0'); await sleep(600);
+  const otherFill = await ev(() => document.querySelector('.fvs-board-el').innerHTML.toLowerCase().includes('#d01c1c'));
+  C('the other Element is drawn in its own Palette', otherFill && (await live()).colors[0] === '#1c3cd0');
+  // Pick from a palette lists the other Element's Palette
+  await ev(() => { const b = [...document.querySelectorAll('#fvs-palette button')].pop(); b.click(); });
+  await sleep(300);
+  const listed = await ev(() => [...document.querySelectorAll('.color-swatch')].some(c => getComputedStyle(c).backgroundColor === 'rgb(208, 28, 28)'));
+  C('Pick from a palette offers the other Element\'s Palette', listed);
+  await press('Escape', 'Escape', 27);
+  // back to the first Element: its Palette comes back
+  await click(await ev(() => __t.box('.fvs-board-el')));
+  await sleep(700);
+  const back = await live();
+  C('switching Element switches the Palette', back.active === e1.active && back.colors[0] === '#d01c1c', JSON.stringify(back));
+  // a reload keeps both
+  await sleep(600);
+  await cdp('Page.reload'); await sleep(800);
+  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
+  await sleep(600); await cdp('Runtime.evaluate', { expression: PAGE });
+  await step('element');
+  const rl = await ev(() => ({ colors: __t.F.state.colors.slice(), pals: __t.F.state.elements.map(e => e.palette && e.palette.colors[0]) }));
+  C('a reload keeps each Element\'s Palette', rl.colors[0] === '#d01c1c' && rl.pals.includes('#d01c1c') && rl.pals.includes('#1c3cd0'), JSON.stringify(rl));
+  // Clear board: the Element left is black on white
+  await hold(await ev(() => __t.box('#btn-board-clear-element')));
+  await sleep(500);
+  const cl = await live();
+  C('Clear board leaves the default Palette', cl.colors.length === 1 && cl.colors[0] === '#000000' && cl.paper === '#ffffff', JSON.stringify(cl));
+  // an Element saved before Phase B (no palette) loads black on white
+  const old = await ev(() => { const o = Organica.store('fvs-elements').read(); Object.values(o).forEach(v => { if (v && v.seed) delete v.palette; }); Organica.store('fvs-elements').write(o); return Object.keys(o).length; });
+  await cdp('Page.reload'); await sleep(800);
+  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
+  await sleep(600); await cdp('Runtime.evaluate', { expression: PAGE });
+  const ol = await ev(() => ({ colors: __t.F.state.colors.slice(), paper: __t.F.state.paperColor }));
+  C('an Element saved without a Palette loads black on white', old > 0 && ol.colors[0] === '#000000' && ol.paper === '#ffffff', JSON.stringify(ol));
+}
+
 for (const mode of ['clean', 'held']) {
   if (ONLY && ONLY !== mode) continue;
   held = false;
@@ -377,6 +426,7 @@ for (const mode of ['clean', 'held']) {
   try { await elementBoard(mode); } catch (e) { check(mode, 'Element board ran', false, e.message); }
   try { await componentBoard(mode); } catch (e) { check(mode, 'Component board ran', false, e.message); }
   try { await symbolBoard(mode); } catch (e) { check(mode, 'Symbol board ran', false, e.message); }
+  if (mode === 'clean') { await openFvs(); try { await elementPalettes(mode); } catch (e) { check(mode, 'Palette ran', false, e.message); } }
   check(mode, 'console clean', !consoleErrors.length, consoleErrors.slice(0, 4).join(' | '));
 }
 for (const r of results) console.log(`${r.ok ? '✓' : '✗'} [${r.mode}] ${r.name}${r.detail ? ' — ' + r.detail : ''}`);

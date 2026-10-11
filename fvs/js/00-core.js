@@ -74,6 +74,7 @@ export function buildPalette() {
     colors: state.colors,
     min: 1,
     max: PALETTE_MAX,
+    palettes: () => (hooks.elementPalettes ? hooks.elementPalettes() : []),   // the other Elements' Palettes (18-step-boards.js)
     onChange: (colors) => {
       state.colors = colors.map(hexKey);
       syncColorRuleUI();

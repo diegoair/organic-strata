@@ -1030,7 +1030,16 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   and `#seed-preview`, in `#board-live-element` / `#board-live-views`; the others are drawn from their snapshot
   `{seed, app}` (`seedForSnapshot` + `getElementAppearance`, what a saved Element keeps). A click on another
   Element stores the active one and opens the clicked one (`applyElementSnapshot`); a click on one of its Views
-  opens it at that view. Component and Symbol use the active one. The Palette is shared by all.
+  opens it at that view. Component and Symbol use the active one.
+- **A Palette per Element** (O-67 c, Diego, Oct 11, 2026): each Element keeps its own Palette — inks, Colour by,
+  Paper colour — as `palette` on its row in `fvs-elements` (the Paper pattern was already in `app.ground`). The live
+  `state.colors / colorRule / paperColor` is the edited Element's, so Component, Symbol, Figure, exports, Colourways and
+  Divide read it unchanged; switching Element applies the other's Palette (`applyPalette`), and the other Elements'
+  sheets and Views are drawn in their own (`withPalette`). Saved with the list, so a reload keeps them (before, the
+  Palette was never saved). A **New element** and the one **Clear board** leaves start black on white (O-68 a, b); an
+  Element saved before has no `palette` and loads black on white. The other Elements' Palettes are listed first in the
+  Palette's **Pick from a palette** menu, each by its Element's name (`opts.palettes` → `hooks.elementPalettes`), one
+  per distinct set of inks. A change on one Element never touches the others (O-68 c).
 - **Name**: made by itself — the saved Element's name when its drawing is in the library
   (`savedElementBySig(tileSig(orientedElementTile(0,…)))`), otherwise its shape's (`SEED_ICONS`; *· parts*,
   *Stack*). Double-click it (or F2) to rename; from then on it is kept; an empty name goes back to the made one.
