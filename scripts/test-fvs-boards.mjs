@@ -244,7 +244,7 @@ async function elementBoard(mode) {
   // the single view only (a view, Back to board at the top), Esc returns.
   C('no Edit pencil and no Edit Back', await ev(() => !document.querySelector('.fvs-thumb-edit') && !document.getElementById('btn-element-edit-exit')));
   const onb = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), division: !document.getElementById('parts-block').hidden, hint: !document.getElementById('element-edit-toolbar').hidden && document.getElementById('element-edit-hint').textContent }));
-  C('on the board: the Division section and the parts hint, no mode to enter', !onb.single && onb.division && /Click a part to select it/.test(onb.hint || ''), JSON.stringify(onb));
+  C('on the board: the Division section, no mode to enter, no parts hint', !onb.single && onb.division && !onb.hint, JSON.stringify(onb));
   // a click on a part picks it — and not the Element's group — so Delete takes the part; ⌘Z brings it back
   const pt = await ev(() => { const g = document.querySelector('#element-svg [data-part]'), r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, id: g.getAttribute('data-part') }; });
   const nb = await ev(() => __t.F.state.layers.items.filter(l => l.part).length);
