@@ -123,10 +123,10 @@ function check(mode, name, ok, detail = '') { results.push({ mode, name, ok, det
 async function openFvs() {
   await cdp('Page.enable'); await cdp('Runtime.enable');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-  await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/fvs/` });
-  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
+  // storage cleared from a page that is not FVS: leaving FVS saves its Element list (pagehide), after a clear made there
+  await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/vercel.json` }); await sleep(500);
   await ev(() => { try { localStorage.clear(); } catch {} });
-  await cdp('Page.reload'); await sleep(800);
+  await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/fvs/` }); await sleep(800);
   for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
   await ev(t => { document.documentElement.dataset.theme = t; }, THEME);
   await sleep(600);
@@ -197,6 +197,11 @@ async function elementBoard(mode) {
   await click(await ev(() => __t.box('.fvs-board-views-static .fvs-board-sheet__label, .fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label')));
   await press('Delete', 'Delete', 46);
   C('Delete removes a selected Element', await ev(() => __t.F.state.elements.length === 1 && !document.querySelector('.fvs-board-el')));
+  await press('KeyZ', 'z', 90, META);
+  const back = await ev(() => ({ n: __t.F.state.elements.length, statics: document.querySelectorAll('.fvs-board-el').length, name: document.querySelector('#board-live-views > .fvs-board-sheet__label').textContent }));
+  C('⌘Z brings a deleted Element back (the one edited keeps its name)', back.n === 2 && back.statics === 1 && back.name.startsWith('Test name'), JSON.stringify(back));
+  await click(await ev(() => __t.box('.fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label')));
+  await press('Delete', 'Delete', 46);
   // the list is the user's: in the store
   C('the list is kept in the store', await ev(() => { const o = Organica.store('fvs-elements').read(); return Object.keys(o).filter(k => k !== 'board').length === 1 && o.board && o.board.active === __t.F.state.activeElement; }));
   // parts: Edit, divide, marquee, an ink by click and by drag
@@ -244,6 +249,9 @@ async function elementBoard(mode) {
   await sleep(400);
   const after = await ev(() => ({ n: __t.F.state.elements.length, dis: document.getElementById('btn-board-clear-element').disabled }));
   C('Clear board (held) leaves one starting Element', before === 2 && after.n === 1, `${before} → ${after.n}, then disabled=${after.dis}`);
+  await click(await ev(() => __t.box('#btn-board-undo-element')));
+  const un = await ev(() => ({ n: __t.F.state.elements.length, dis: document.getElementById('btn-board-undo-element').disabled }));
+  C('Undo (floatbar) brings the cleared Elements back', un.n === 2, JSON.stringify(un));
 }
 
 async function componentBoard(mode) {

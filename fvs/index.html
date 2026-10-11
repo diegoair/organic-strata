@@ -49,9 +49,12 @@
     <button class="org-floatbar__btn" id="btn-reset-seed" aria-label="Reset Element — hold to confirm" data-hold="Reset Element — click again to confirm">
       <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
     </button>
-    <!-- Clear board: every Element goes, one starting Element is left (as Symbol's Clear — no undo). Hold to confirm. -->
+    <!-- Clear board: every Element goes, one starting Element is left. Hold to confirm; Undo (⌘Z) brings them back, as Component's. -->
     <button class="org-floatbar__btn" id="btn-board-clear-element" aria-label="Clear board — hold to confirm" data-hold="Clear board — click again to confirm">
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
+    </button>
+    <button class="org-floatbar__btn" id="btn-board-undo-element" aria-label="Undo (⌘Z)" disabled>
+      <svg class="ico" data-icon="undo" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6"/></svg>
     </button>
     <button class="org-floatbar__btn" id="btn-upload-seed" aria-label="Upload SVG">
       <svg class="ico" data-icon="upload" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 9.2V2M5.3 4.7 8 2l2.7 2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
@@ -1400,7 +1403,7 @@
 
       <div class="row-btns">
         <button class="mini-btn" id="btn-generate">Generate</button>
-        <button class="mini-btn" id="btn-clear-gallery">Clear</button>
+        <button class="mini-btn" id="btn-clear-gallery">Clear board</button>
       </div>
       <button class="mini-btn" id="btn-colourways" style="width:100%;margin-top:var(--space-1)" title="Colour variants of the selected component, from the palette and its shade scales — every ink readable on its paper (3:1) and distinct from the others">Colourways of the selection</button>
     </div>

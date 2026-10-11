@@ -1041,9 +1041,9 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   dragging an ink onto a part inks that part, or the whole selection when the part is in it (entering Edit if
   needed). Disabled until the Element is divided into parts.
 - **Parts**: in Edit, a marquee picks the parts whose outline it touches; ⌘-click as before. Delete on picked parts does nothing — an Element has nothing to empty.
-- **Delete** on a selected group removes that Element (not the active one, not the last one). There is no undo.
+- **Delete** on a selected group removes that Element (not the active one, not the last one). **Undo** (⌘Z, or the floatbar's Undo beside Clear board) brings it back — up to 20 steps for Delete and Clear board; ⌘Z stays the drawing's while the shape is Freehand; the Element being edited keeps what was done to it since (Diego, Oct 11, 2026).
 - **Clear board** (floatbar eraser, hold to confirm): every Element goes, one starting Element is left; disabled
-  when there is nothing to clear. No undo, as Symbol's Clear.
+  when there is nothing to clear. Undo brings them back, as Component's Clear board.
 - **Single view**: double-click the Element (the second press, not `dblclick` — in Edit the first click redraws
   the parts) → the classic Element page: *Back to board*, Views, the Edit toolbar, the sheet. While Edit is on
   only its own *Back* shows.
@@ -1079,7 +1079,5 @@ the single views and their Esc order, Component Edit's marquee / second click / 
 held on both boards (⌘Z on Component), the Symbol's variations and % labels. Pre-commit (FVS UI, node-canvas,
 core) and CI. `scripts/test-fvs-qa.sh` checks the three stages.
 
-**Open (Diego's)**: the Component area's label (*Gallery*, the glossary term, used instead of the prototype's
-*Candidates*); undo for the Element board's Delete / Clear board; the panel's *Clear* vs the floatbar's *Clear
-board*; the small sheets' pile (≥ 120 px pile, outline below — a visual test). Ledger: `docs/DESIGN-DECISIONS.md`.
+**Decided (Diego, Oct 11, 2026 — O-66)**: the Component area stays **Gallery**; the Element board has undo; the panel's button reads **Clear board**, as the floatbar's. Still open: the small sheets' pile (≥ 120 px pile, outline below — Diego's visual test). Ledger: `docs/DESIGN-DECISIONS.md`.
 

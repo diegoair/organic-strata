@@ -9,7 +9,7 @@
 // An ES module of fvs/js/main.js — docs/FVS.md §11, §13.
 import { rt } from './rt.js';
 import {
-  state
+  pv, state
 } from './engine/00-core.js';
 import {
   SEED_ICONS, SYMBOL_SEED_DEFAULTS, seedForSnapshot
@@ -207,6 +207,30 @@ function mountElementBoard() {
     placeAdd();
     requestAnimationFrame(() => B.fit());   // the whole board: the Views and Inks stay in sight
   }
+  // Undo (Diego, Oct 11, 2026): Delete and Clear board each keep a step — the list and the places as they were
+  const undoStack = [], UNDO_MAX = 20, undoBtn = ctrl('btn-board-undo-element');
+  const syncUndo = () => { undoBtn.disabled = !undoStack.length; };
+  function pushUndo() {
+    snap();
+    undoStack.push({ items: clone(state.elements), active: active(), pos: clone(B.pos) });
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
+    syncUndo();
+  }
+  function undo() {
+    const u = undoStack.pop();
+    if (!u) return;
+    snap();
+    const cur = find(active());   // the Element being edited keeps what was done to it since
+    Object.assign(B.pos, u.pos);
+    load({ items: u.items.map(e => (cur && e.id === cur.id ? cur : e)), active: u.active });
+    selectSheets(B, []); save(); B.save(); syncUndo(); syncClear();
+  }
+  undoBtn.addEventListener('click', undo);
+  document.addEventListener('keydown', e => {
+    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || state.activeTier !== 'element' || !undoStack.length) return;
+    if (fvsIsTypingTarget(e.target) || pv('sel-seed-type') === 'freehand') return;   // text fields keep their own undo; a drawing keeps ⌘Z (12-shell.js)
+    e.preventDefault(); undo();
+  });
   function remove(id) {
     if (id === active() || state.elements.length < 2) return;
     const i = state.elements.findIndex(e => e.id === id);
@@ -274,6 +298,7 @@ function mountElementBoard() {
     const ids = [...B.selected].filter(k => k.startsWith('el-')).map(k => k.slice(3)).filter(id => id !== active());
     if (!ids.length) return;
     ev.preventDefault();
+    pushUndo();
     ids.forEach(remove);
   });
   // Clear board: every Element goes, one starting Element is left (the boot Element, as FVS opens) — as Symbol's Clear
@@ -296,7 +321,7 @@ function mountElementBoard() {
   }
   const clearBtn = ctrl('btn-board-clear-element');
   const syncClear = () => { snap(); clearBtn.disabled = isClear(); };
-  clearBtn.addEventListener('click', () => { clearAll(); syncClear(); });
+  clearBtn.addEventListener('click', () => { pushUndo(); clearAll(); syncClear(); });
   B.afterMove = () => { placeInks(); placeAdd(); };   // Inks beside the Element being edited, New element under the lowest Element
 
   // Inks: the Palette as a tray — click puts an ink on the selected parts, drag it onto a part.
