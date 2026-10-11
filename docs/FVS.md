@@ -1073,6 +1073,7 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   Components: each Element, by its rules, generates a number of possible Components*). Labelled *‹Element name› ·
   Generated components* (the edited one *· editing*), one under the other in the Element board's order; each starts
   with a **thumbnail of its Element** (double-click / Enter / Space → that Element on the Element board, centred and focused) and
+  the Element sits centred on its list, one thumbnail-width clear of it, captioned *Element* (the baseline — Diego, Oct 11); it
   lays its Components **4 across**, as many rows as needed, at 2× (`galleryZoomTo(2)`). One item is a **Component**
   (*candidate* only in code). The edited Element's area is the live `#board-gallery`; the others are drawn from their
   Element's snapshot — its seed, appearance and Palette (`componentThumbMarkup`, `withPalette` / `withAppearance`).

@@ -571,7 +571,7 @@ function mountComponentBoard() {
   const elThumb = (e, live) => (live ? withAppearance(getElementAppearance(), () => buildSeedPreviewSVG(seedForSnapshot(), 0, false, false, 160, { outline: true }))
     : withPalette(e.palette, () => withAppearance(e.app, () => buildSeedPreviewSVG(e.seed, 0, false, false, 160, { outline: true }))));
   const elButton = (host, e, live) => {
-    host.innerHTML = `<div class="fvs-board-gallery__el-box" role="button" tabindex="0" aria-label="${escAttr(nameOf(e))} — double-click or press Enter to open it on the Element board">${elThumb(e, live)}</div>`;
+    host.innerHTML = `<div class="fvs-board-gallery__el-box" role="button" tabindex="0" aria-label="${escAttr(nameOf(e))} — double-click or press Enter to open it on the Element board">${elThumb(e, live)}</div><span class="fvs-thumb-caption fvs-board-gallery__el-cap">Element</span>`;   // the baseline the Components are made from (Diego, Oct 11)
   };
   const goToElement = id => {
     boardActivate(id);
