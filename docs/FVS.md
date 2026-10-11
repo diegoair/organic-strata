@@ -21,28 +21,26 @@ Vanilla HTML/CSS/JS, no build step: `fvs/index.html` (markup) + `fvs/fvs.css` + 
 
 ## 2. The four steps
 
-The step bar above the canvas moves along the chain; each step builds on the
-one before.
+The step buttons at the top of the left dock move along the chain; each step builds on
+the one before.
 
 | Step | What you make | Built from |
 |---|---|---|
-| **Element** | The Seed shape and how it is drawn | a Seed type, its extras, Look & place, Palette |
-| **Component** | A small cell arrangement (2×2, 3×3, 4×4 or an imported Loom grid) | the Element, placed by a **rule** |
-| **Symbol** | A larger grid whose every cell holds a Seed or a saved Component | a grid generated in the canvas, or a loaded JSON grid |
-| **Grid** | A Symbol, or a saved Component, tiled 2×2 / 3×3 / 4×4 / Loom | the previous step's output |
+| **Element** | The Seed shape and how it is drawn — several Elements side by side on its board | a Seed type, its extras, Look & place, Palette, layers, Divide into parts |
+| **Component** | A small cell arrangement (columns × rows, rectangular, or a cell shape) | the Element, placed by a **rule**; cells edited one by one in Component Edit |
+| **Symbol** | A larger grid inside a Canvas whose every cell holds a saved Component or Element | a grid generated in the canvas, or a loaded JSON grid; Suggest proposes variations |
+| **Figure** | A figure made of those, as a node graph | saved Elements, Components and Sets, rules, variations (§12) |
 
-**Tile in Grid** (Component step) tiles the selected Component directly in the
-Grid step without saving it first.
+(Until Oct 2026 the fourth step was **Grid**, tiling a Symbol; it became the Figure step, §12.)
 
 ---
 
-**Zoom** — only in **Symbol** and **Component** (not Element or Figure):
-- **Symbol** and **Component Edit**: mouse wheel or **⌘+ / ⌘− / ⌘0** zooms the view, the same
-  zoom as every other Organica tool, with a "142 % · reset" chip bottom-left. Pan with
-  **Space + drag**, **⌥ + drag** or the **middle button**; a plain click keeps doing what it
-  does (select cells, drag borders). Double-click or ⌘0 = 100%.
-- **Component gallery**: the wheel / ⌘+ / ⌘− make the **thumbnails bigger** (up to 5×); the
-  grid reflows and still scrolls with its scrollbar. ⌘0 or *reset* = normal size.
+**The boards** (Oct 2026, §13) — Element, Component and Symbol each sit on an infinite board, the
+way Figure does: the wheel zooms it, **Space / ⌥ + drag** or the **middle button** pans it,
+**Shift+1** fits everything, **Shift+2** the selection. A plain click keeps doing what it does
+(select cells, drag borders). **Component Edit** is the Component board's single view and keeps its
+own zoom (wheel, Space-drag, *reset*). ⌘+ / ⌘− / ⌘0 are the browser's (the old gallery zoom on them
+is gone); the candidates sit on the board at 2×.
 
 ## 3. Element
 
@@ -479,19 +477,15 @@ its cells.
   beam search (width 4) over Component × turn, cell by cell; a weighted mix with
   the same turn search. Ranked, exact duplicates dropped, up to 12, deterministic per
   seed. The first is put on the sheet at once.
-- **Variations (floatbar)** (Oct 5, 2026) — the icon next to Fill the grid (`variations`,
-  `#btn-sug-dock`), with the count in a small ink-on-paper circle at its top right (99+ cap;
-  accessible name *12 variations*). Always in the bar: with no variations it is disabled
-  (`aria-disabled`, tooltip *Variations — none yet*, no badge). It opens
-  a glass strip of 48px thumbnails anchored just above the floatbar and centred with it
-  (`#fvs-sug-panel`, a sibling of the bar; its bottom measured from the bar on open; scrolls
-  sideways, the wheel over it never zooms the sheet); the current one has the tool-colour border.
-  The score is in each thumbnail's tooltip and accessible name ("Use variation 3: Continuity
-  search · continuity 97% · colour 97%"). Click one to take it (the strip closes); **More like this** re-draws
-  8–20% of the cells of the current Symbol and re-turns them, and opens the strip (it applies
-  nothing by itself). Esc, another floatbar flyout, or leaving the step closes it; not remembered
-  between visits. Locked cells are always kept. (Until Oct 5 it was a pill top-centre over the
-  sheet.)
+- **Variations (on the board)** (Oct 2026, §13) — Suggest's variations are sheets beside the Symbol on
+  the Symbol board (`#board-variations`, `#fvs-sug-panel` inside it), three across at 260 board units,
+  always shown; with none yet the sheet is a dashed placeholder (*Fill the grid with Suggest to see
+  variations here*). The current one has the tool-colour outline. The score is in each variation's
+  tooltip and accessible name ("Use variation 3: Continuity search · continuity 97% · colour 97%").
+  Click one to take it; **More like this** re-draws 8–20% of the cells of the current Symbol and
+  re-turns them — what it found shows on the sheet (it applies nothing by itself). Locked cells are
+  always kept. (Oct 5 – Oct 11, 2026 a floatbar button, `#btn-sug-dock` with a count badge, opened them
+  as a glass strip above the floatbar; before Oct 5 a pill top-centre over the sheet.)
 - **Build a Figure from this Symbol — removed** (Oct 5, 2026, Diego). The floatbar button and
   its function are gone; a Figure whose first level is a Symbol adopted earlier still opens.
 - On a grid whose cells don't share borders (Circular) continuity doesn't apply
@@ -563,13 +557,14 @@ trapezoid; Triangle grid 4 → the finer lattice. Save each, then in Grid: **Tie
 (repeated), **Tier** + Rotate 90° + Mirror right edge (mirrored over one axis, a
 "bow tie"), **Tier** + Mirror bottom edge (a hexagon star).
 
-### The Figure tab and recipes (Sep 20, 2026)
+### Figure recipes (Sep 20, 2026)
+
+> The Figure **tab** this section and the next one described was retired in October 2026: the Figure step
+> is the node graph (§12). What stays is the **recipe** — the graph compiles to recipe v2 and the pure
+> `evalFigure` draws it (§12.1) — so its format is kept here.
 
 A **figure** is one pipeline that does not mention a particular Seed:
 **Seed → lattice → slot classes → rules (class → content + pose) → composition → transform.**
-The **Figure** step (step 4, after Grid; it was ★ until Oct 7, 2026) is one screen for all of it: pick a preset or set the
-five sections; every change redraws the figure, and the recipe JSON underneath can be
-pasted, copied or saved. It replaces the current Element, palette and Symbol/Grid state.
 
 - **Slot classes** a rule can address: `class` (`up`/`down` on triangular lattices), `row`,
   `col`, `index`, `parity` (`odd`/`even` of column + row). Rules run in order; the last
@@ -601,37 +596,11 @@ pasted, copied or saved. It replaces the current Element, palette and Symbol/Gri
   instead of the plain default shape.
 - **Limits**: the Figure form edits one or two grid levels (more are JSON-only); Grid
   lattices are square / triangle / tier (no hexagonal Grid yet).
-### Working on the figure (Figure tab, Sep 21, 2026)
+### Working on the figure (Figure tab, Sep 21, 2026) — retired
 
-The tab is a workspace, not a form:
-
-- **Pipeline** across the top — Element → Symbol/Component → Grid… → Mirror / Rotate, each card
-  showing that step's own output. Click a card to work on that step (it stays active while you edit);
-  `+ Grid` adds a level and selects it, `×` removes one, drag reorders. **New figure…** opens the
-  gallery of the 25 starting figures; Undo / Redo (⌘Z / ⇧⌘Z) walk the recipe history.
-- **Symbol step — paint the cells**: tools Toggle · Seed · Empty · Rotate · Flip H · Flip V (keys
-  1–6). Click or drag; **Shift = the whole class of the cell** (all down triangles, all odd cells, the
-  ring). Every gesture writes a **Rule**, shown as a chip in the right panel's **Rules** section (above
-  Palette, visible only on this tab) — switch off (●), reorder (↑ ↓), delete (×). A whole drag is one history step.
-- **Grid steps — handles on the figure**: click the right edge to Mirror over it, the bottom edge to
-  Mirror over it, the corner to Rotate 90° (keys `M`, `Shift+M`, `R`). The handles are always faintly
-  visible (⇔ / ⇕ / ⟳ icons, not only on hover) and a click switches the view to **Mirror / Rotate**
-  right away, so the result shows immediately rather than needing a separate click on that card. A
-  middle Grid keeps its own transform; the last one uses the recipe's.
-- **Right panel — the active step's few parameters**: Seed thumbnails, the Seed's two or three main
-  sliders (Star: Points / Inner radius; Arc: Thickness / Sweep…), Style/Ink/Paper; layout
-  thumbnails and a rows/rings slider; Grid types; Rotate/Mirror. Everything else (form, checks,
-  reference, JSON) is under **Advanced**.
-- **Play**: **Shuffle** (Space) changes one to three things at random, keeping what is locked;
-  **Variations** (V) shows up to nine nearby figures — one click adopts one, *More* gives others;
-  **Lock** Element / Symbol / Rules / Grid / Mirror-Rotate protects a group from both. `[` `]` change
-  the rows/rings.
-- **Symbol ⇄ Component**: the ⇄ on the first card swaps the Symbol for a Component block and back.
-  A figure that is only a Symbol opens on it, so its cells are paintable at once; on a triangular
-  lattice **Rotate** turns a cell by 180° (90° on a square one, 60° on a hexagonal one).
-- **Reach**: all twelve "Triangle Symbol" figures are rebuilt from a blank one with real UI events
-  in 1 to 6 actions each (Sierpinski 1–4, trapezoid 3–6, lattice 4 2–5) and draw exactly what the
-  preset recipes draw — checked by `ux12:*` in the regression suite.
+The workspace described here (the pipeline cards, painting cells with tools 1–6, handles on the figure,
+Shuffle / Variations / Lock, the Advanced form) was replaced by the Figure graph in October 2026
+(§12.3); the code is in git history before the graph's merge, its reach checks (`ux12:*`) with it.
 
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 
@@ -677,7 +646,7 @@ Under each tile: **Rename**, **Duplicate** (*‹name› copy*, *‹name› copy 
 (the thumbnail's own drawing, Paper included; PNG 2000 px on the long side — screen only, no
 Print), **Delete** (the rail's rules, below). Genesis seeds are read-only: SVG / PNG only. Thumbnails
 stay light in dark mode (a work surface). Esc or the close button returns to the step; changing step
-closes it. While it is open the rail and the variations dock are hidden. The rail stays for dragging
+closes it. While it is open the rail is hidden. The rail stays for dragging
 onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeLibview`,
 `libviewDownload`, `deleteSaved`.
 
@@ -1024,3 +993,93 @@ Diego, Oct 9, 2026 (plan *Figure rework*, phase C; ledger §2): “Figure is a c
 - **Export** — a Figure exports itself; a Variations node exports all its variations (*All variations · Pinned only · As set up only*, `withChildren`).
 - **Older graphs** — `variationsNodes()` (on load / open, after `chainRules()`): a Figure saved with Variations > 1 gets a Variations node with its settings, its children and the Exports that took its variations move to it; one notice for both migrations (*The Rules of one Figure are now a chain; one Figure’s variations are now a Variations node — drawing as before*).
 - **Tests** — `scripts/test-figure-graph.mjs`: *a Figure draws itself only*, the variations migration.
+
+## 13. Step boards (Oct 2026)
+
+Element, Component and Symbol each sit on an **infinite board**, the way Figure does — migrated from the
+prototype `fvs/_proto-board/` (branch `proto/step-boards`, Oct 10–11, 2026) in October 2026. The board is
+`fvs/js/16-board.js`; the three steps' own boards are `fvs/js/18-step-boards.js`; the markup is the tier
+views' own (`fvs/index.html`, `.fvs-board-stage` = node-canvas's `.nc-stage`, `.fvs-board` = `.nc-board`);
+the CSS is the *step boards* block at the end of `fvs/fvs.css`.
+
+**Every board**
+- `Organica.createZoomPan({infinite, panAlways})` on a size-0 board, as `Organica.nodeCanvas` does. The wheel
+  zooms around the cursor (captured before a sheet's content sees it); **Space / ⌥ + drag** or the
+  **middle button** pans; **Shift+1** fits everything, **Shift+2** the selection (or the step's main sheet).
+  The fit keeps clear of the left dock, the floatbar (both measured) and the HUD.
+- **Sheets**: a label above each (node-canvas's `.nc-frame__label`, a constant size on screen) — drag it to
+  move the sheet, click it to select (⌘ / Shift add), Enter / Space on it selects too, then the arrow keys
+  nudge it (Shift: by ten). **Linked sheets** are one group: selected and moved together, one ring
+  (`.fvs-board-ring`) round all of it. A click on the bare board clears the selection.
+- The view and the sheet positions are kept per step, per browser: `localStorage['organica.fvs.board.<step>']`
+  (the prototype's `organica.fvs.proto.board.<step>` is read forward when the new key is missing, and left).
+- **The HUD** (`.fvs-board-hud`) sits fixed above the board: the Edit toolbars, the empty notes.
+- **A single view** (double-click): the step's classic page — the same markup, laid out by
+  `.tier-view.is-single` (no DOM moved). *Back to board* or Esc return; Esc leaves an inner state first
+  (Choose content, then Edit, then the single view).
+- **Mouse**: `Organica.nodeCanvas.chordShim` (exported for this) on each step, the Library rail panel and the
+  floatbar — a mouse that reports a side button held sends no `pointerdown`.
+- **Symbol's cell grammar** for any set of cells (`cellEditor`): click is the step's own; a **marquee** (tested on
+  the real outline for Element parts, `shapeInRect`), ⌘ / Shift add; a **second click** on a picked cell =
+  choose. A drag's own click is eaten only within 100 ms and only inside the area where it ended
+  (`swallowNextClick`) — never a flag left for the next real click.
+
+**Element board**
+- **Several Elements**, one under the other. Each is a group: its **name**, its **Views** strip (the seven
+  orientations, the width of its sheet), its **sheet**. The one being edited is the live panel — `#element-frame`
+  and `#seed-preview`, in `#board-live-element` / `#board-live-views`; the others are drawn from their snapshot
+  `{seed, app}` (`seedForSnapshot` + `getElementAppearance`, what a saved Element keeps). A click on another
+  Element stores the active one and opens the clicked one (`applyElementSnapshot`); a click on one of its Views
+  opens it at that view. Component and Symbol use the active one. The Palette is shared by all.
+- **Name**: made by itself — the saved Element's name when its drawing is in the library
+  (`savedElementBySig(tileSig(orientedElementTile(0,…)))`), otherwise its shape's (`SEED_ICONS`; *· parts*,
+  *Stack*). Double-click it (or F2) to rename; from then on it is kept; an empty name goes back to the made one.
+  The active one reads *‹name› · editing*.
+- **New element**: an empty sheet of the pile (the Element's Paper, a + in the middle) under the lowest Element;
+  it adds an Element from the one the page opened with and edits it.
+- **Inks**: a tray beside the Element being edited (FVS's inline ink swatches). A click inks the picked parts;
+  dragging an ink onto a part inks that part, or the whole selection when the part is in it (entering Edit if
+  needed). Disabled until the Element is divided into parts.
+- **Parts**: in Edit, a marquee picks the parts whose outline it touches; ⌘-click as before. Delete on picked parts does nothing — an Element has nothing to empty.
+- **Delete** on a selected group removes that Element (not the active one, not the last one). There is no undo.
+- **Clear board** (floatbar eraser, hold to confirm): every Element goes, one starting Element is left; disabled
+  when there is nothing to clear. No undo, as Symbol's Clear.
+- **Single view**: double-click the Element (the second press, not `dblclick` — in Edit the first click redraws
+  the parts) → the classic Element page: *Back to board*, Views, the Edit toolbar, the sheet. While Edit is on
+  only its own *Back* shows.
+- **Where the list lives**: the user's account — `Organica.store('fvs-elements')`, one row per Element
+  (`{name, custom, seed, app, n}` keyed by its id) + the row `board` (`{active}`); signed out, that store's local
+  cache. Written a moment after each change (and on `pagehide`), `pull()` at boot, drawn again on `onSync` (the
+  Element being edited stays as it is here). The prototype's list (`organica.fvs.proto.board.element.items`) is
+  read forward when the store is empty, and left in place; an Element without a shape is dropped. The model is
+  `state.elements` + `state.activeElement` (engine).
+
+**Component board**
+- The gallery is one area (**Gallery**) on the board, its candidates at 2× (`galleryZoomTo(2)`).
+- **Double-click a candidate** (or its pencil) = **Component Edit** in its single view (toolbar, part colours,
+  sheet). On its sheet: cells by click, ⌘, marquee; a **second click** on a picked cell opens **Choose content**
+  with the Seeds only (`openCellContentOverlay({ seedsOnly, count, apply, done })` — an Element tile carries its
+  `seedParams`); a saved Element dragged from the rail onto a cell, or the selection (`setRailTarget({ apply,
+  cellSel })`); **Delete** returns the picked cells to the Component's own Element.
+- **Clear board**: FVS's `clearGallery`, so ⌘Z brings the candidates back.
+- A further Component model is to be reviewed after this migration (Diego, Oct 11, 2026).
+
+**Symbol board**
+- The Symbol sheet (`#symbol-frame` at 900 board units) with Suggest's variations as sheets beside it
+  (§6a, *Variations*); a click adopts one. Selection, marquee, rail drop and track drag work inside the zoomed
+  board; the % labels are placed again on every zoom (`renderTrackLabelsOverlay`, scaled by 1 / zoom).
+
+**Hooks** (earlier files → 18-step-boards.js): `boardElementDrawn` (end of `renderElementFrame`),
+`boardGalleryDrawn` (after `renderGallery`), `boardComponentEdit(on)` (enter / exit Component Edit),
+`boardTierShown(tier)` (end of `setTier` — the first visit restores the saved view or fits).
+
+**Tests**: `scripts/test-fvs-boards.sh` — real mouse and keyboard over CDP, a clean mouse and one with its side
+button held: pan, zoom, fit, group drag + ring, add / switch / rename / delete, parts marquee, ink click + drag,
+the single views and their Esc order, Component Edit's marquee / second click / rail drop / Delete, Clear board
+held on both boards (⌘Z on Component), the Symbol's variations and % labels. Pre-commit (FVS UI, node-canvas,
+core) and CI. `scripts/test-fvs-qa.sh` checks the three stages.
+
+**Open (Diego's)**: the Component area's label (*Gallery*, the glossary term, used instead of the prototype's
+*Candidates*); undo for the Element board's Delete / Clear board; the panel's *Clear* vs the floatbar's *Clear
+board*; the small sheets' pile (≥ 120 px pile, outline below — a visual test). Ledger: `docs/DESIGN-DECISIONS.md`.
+

@@ -273,6 +273,8 @@ consumer, the FVS Figure graph (`docs/FVS.md` §12), and fixed on the way. Class
 reference: `/design-system/#node-canvas` (both themes, self-checked); port colours `#color`.
 Consumers: FVS Figure graph (first), **Rhizome** (second, Oct 7, 2026 — its own canvas, model,
 engine and history were replaced; Rhizome’s port types map onto the `--port-*` types, below).
+Since Oct 11, 2026 FVS's Element, Component and Symbol step boards use the stage, board, section
+label, marquee and `chordShim` without the model (see *A board without nodes* below).
 
 **Model** — plain data, saved as is (`MODEL_VERSION` 2).
 
@@ -550,6 +552,24 @@ const menu = NC.graphMenu({
 CSS: `.nc-graph-btn` (`.is-unsaved`) · `__label` · `__chev` and `.nc-graph-pop` (18rem) in
 `shared/node-canvas.css`. Consumers: FVS Figure graph, Rhizome.
 
+**`chordShim(root)`** (public since Oct 11, 2026 — `Organica.nodeCanvas.chordShim`; `mount()`
+and `nodeBar()` always ran it on their own stage / panel since Oct 9): a mouse that reports a
+button already held (a stuck side button — `buttons` 8 / 16) sends a chorded `pointermove`
+instead of `pointerdown` and `pointerup`, so every pointer gesture under `root` stays dead. The
+shim rebuilds the press from the mouse events (a `pointerdown` on the pressed element,
+`pointermove`s, a `pointerup` at the release) and releases any pointer capture on the way in and
+out. Call it once per root that has its own pointer gestures and is not inside a mounted board.
+Consumers outside `mount()`: FVS's step boards (each step's view, `fvs/js/16-board.js`), the
+Library rail panel and the floatbar (its hold-to-confirm), `fvs/js/18-step-boards.js`. Test:
+`scripts/test-fvs-boards.mjs` (clean + side button held), `scripts/test-figure-board.sh`.
+
+**A board without nodes** (Oct 11, 2026 — FVS's step boards, `docs/FVS.md` §13): Element,
+Component and Symbol each sit on `.nc-stage` > `.nc-board` with `Organica.createZoomPan`
+(`infinite`, `panAlways`), their sheets labelled with `.nc-frame__label` (+ `.nc-frame__input`
+for a rename) and selected with `.nc-marquee` — the board's stage, pan / zoom cursors
+(`.nc-stage--pan`, `--dragging`, `--far`) and section label, **not** `mount()`, cards or wires.
+The FVS-only part (sheets, rings, the single view) is `.fvs-board-*` in `fvs/fvs.css`.
+
 ### `Organica.createZoomPan` — three opt-ins for a node board (Oct 2026)
 
 `shared/core.js`. Every existing caller is unchanged (the defaults are the old behaviour).
@@ -581,8 +601,10 @@ toggles and `inert` on the closed panel. One occupant per tool step — FVS: the
 attribute**: `.org-dock[hidden] { display: none; }` (Oct 7, 2026) — without that guard the
 `display: flex` above beats the UA `[hidden]` rule, and FVS's node bar stayed on every step, over
 the Library rail. Promoted from the Library
-rail at its second vertical occupant; the Suggest dock (`#fvs-sug-dock`, horizontal, top) is the
-same pattern turned sideways and stays FVS-local. Reference: `/design-system/#dock`.
+rail at its second vertical occupant. ~~The Suggest dock (`#btn-sug-dock` + `#fvs-sug-panel`,
+horizontal, above the floatbar), the same pattern turned sideways, FVS-local~~ — **removed Oct 11,
+2026**: the Symbol's variations are a sheet beside the Symbol on its board (`#board-variations`,
+ledger §2). Reference: `/design-system/#dock`.
 
 ---
 

@@ -119,6 +119,8 @@ organica.<tool>.<thing>
 | `organica.library.view` | Genesis Library | last `{ activeSetId, filter }` — restores which set + Type filter was showing. Optional, value-whitelisted on read, no migration; deliberately separate from `organica.library.forms` so a corrupt view blob can't endanger library data |
 | `organica.signin.visit` | `/sign-in/` | the same counter for the sign-in's field (`Organica.fvsField.visit`): odd = Arrival, even = Rules, palette `n % palettes` over the three built-ins. Per-browser, not synced, no migration, no URL pins |
 | `organica.404.visit` | `/404.html` | a visit counter (an integer as a string). Each visit shows the other motion of the FVS field (odd = Arrival, even = Rules) and the next of the three built-in palettes (`n % palettes`; the page loads `fvs-field.js` alone, so saved palettes are never read). A per-browser preference: plain `localStorage`, not synced, no migration; when storage is unavailable the page picks at random. `?p=a` / `?p=b` and `?pal=<n>` override it without writing |
+| `Organica.store('fvs-elements')` (cloud-synced — Supabase `presets`, `tool='fvs-elements'`; local cache `organica.fvs-elements.presets`) | Flexible Visual System — the Element board (`fvs/js/18-step-boards.js`, Oct 11, 2026) | the user's Elements on the board: **one row per Element**, keyed by its id (`{ name, custom, seed, app, n }` — `custom` = renamed by hand, `seed` + `app` = the snapshot a saved Element keeps, `n` = its place in the column) **+ one row `board`** (`{ active }` = the Element being edited). Real work, so the cloud store, not a per-browser key (Diego, Oct 11, 2026). A row without a shape is dropped on read, never fatal |
+| `organica.fvs.board.<step>` (`element` · `component` · `symbol`) | Flexible Visual System — the step boards (`fvs/js/16-board.js`) | `{ view: { zoom, panX, panY }, pos }` — that step's board view and its sheets' positions. A per-browser preference: plain `localStorage`, not synced |
 
 ### Legacy keys and migration
 
@@ -143,6 +145,8 @@ migration has been in production long enough.
 | `halide-presets` | `organica.halide.presets` |
 | `organica_komorebi_presets` | `organica.komorebi.presets` |
 | `organica_library` | `organica.library.forms` |
+| `organica.fvs.proto.board.<step>` (the step-boards prototype, Oct 10–11, 2026) | `organica.fvs.board.<step>` — read forward when the new key is empty, left in place |
+| `organica.fvs.proto.board.element.items` (the prototype's Element list, `{ items, active }`) | `Organica.store('fvs-elements')` rows + `board` — read once when the store has no Element, left in place |
 
 `organica.library.forms` is read and written by **one** file now — `genesis/index.html`
 (the unified tool). `genesis/library.html` / `creator.html` / `indicators.html` are thin

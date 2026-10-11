@@ -4,6 +4,8 @@
    edge (≥ 3:1 on the board in both themes), no shadow (not even lifted — a 40px blur repainted on every drag frame / zoom step, Oct 8, 2026; .is-lifted stays as a state hook, unstyled), a 2px --ink ring
    when selected (single or many), the shared focus ring for keyboard focus. Wires carry
    their source type's colour (--port-*), 1.5px at any zoom. Load AFTER shell.css (or the tool's own skeleton).
+   Also the stage of FVS's Element / Component / Symbol step boards (Oct 11, 2026): .nc-stage, .nc-board, .nc-frame__label,
+   .nc-marquee and the pan / drag cursors only — no cards or wires; their sheets are .fvs-board-* in fvs/fvs.css.
    ───────────────────────────────────────────────────────────── */
 .nc-stage {
   --node-w: 14rem;            /* a card's default width — component-local */
