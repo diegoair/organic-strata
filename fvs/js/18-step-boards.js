@@ -87,7 +87,16 @@ function mountElementBoard() {
   const W = 560, GAP = 160, VH = 116;   // board units: the Element's sheet, the room between Elements, its Views strip (~92) + 24 above it
   const frame = ctrl('element-frame'), liveViews = ctrl('board-live-views'), liveEl = ctrl('board-live-element');
   const liveName = liveViews.querySelector('.fvs-board-sheet__label');
-  const BOOT = { seed: clone(seedForSnapshot()), app: clone(getElementAppearance()) };   // what a new Element starts from
+  const BOOT = { seed: clone(seedForSnapshot()), app: clone(getElementAppearance()) };   // the Element the page opened with
+  // New element and Clear board start blank (Diego, O-67 b, Oct 11, 2026): an empty Freehand sheet — draw on it, or pick
+  // a shape in the panel. The opening Element's other shape settings stay underneath, so a picked shape opens on its defaults.
+  const BLANK = (() => {
+    const b = BOOT.seed.type === 'stack' ? { ...clone(BOOT.seed.layers[BOOT.seed.active | 0] || {}), cellShape: BOOT.seed.cellShape } : clone(BOOT.seed);
+    ['id', 'part', 'ink', 'name', 'layers', 'parts', 'active'].forEach(k => delete b[k]);
+    if (b.cellShape === undefined) delete b.cellShape;
+    return { seed: { ...b, type: 'freehand', customSeed: null, freehandData: null, freehandRaw: '' }, app: clone(BOOT.app) };
+  })();
+  const blankElement = () => ({ id: newId(), name: shapeName(BLANK.seed), custom: false, seed: clone(BLANK.seed), app: clone(BLANK.app) });
   const newId = () => 'e' + Date.now().toString(36) + Math.floor(Math.random() * 36 ** 3).toString(36);
   const find = id => state.elements.find(e => e.id === id);
   const active = () => state.activeElement;
@@ -199,7 +208,7 @@ function mountElementBoard() {
   }
   function add() {
     snap();
-    const e = { id: newId(), name: shapeName(BOOT.seed), custom: false, seed: clone(BOOT.seed), app: clone(BOOT.app) };
+    const e = blankElement();
     state.elements.push(e);
     const at = B.sheets['new-element'].p;   // where New element stood
     mountStatic(e, at.x, at.y);
@@ -301,19 +310,20 @@ function mountElementBoard() {
     pushUndo();
     ids.forEach(remove);
   });
-  // Clear board: every Element goes, one starting Element is left (the boot Element, as FVS opens) — as Symbol's Clear
+  // Clear board: every Element goes, one blank Element is left (O-67 b) — as Symbol's Clear
   const canon = v => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => { o[k] = canon(v[k]); return o; }, {}) : v);   // key order is not content
   const sameContent = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
-  const isClear = () => state.elements.length === 1 && sameContent(find(active()).seed, BOOT.seed) && sameContent(find(active()).app, BOOT.app);
+  const isBlank = sd => sd.type === 'freehand' && !sd.freehandRaw && !(sd.customSeed && sd.customSeed.d);   // an empty Freehand: nothing drawn yet
+  const isClear = () => state.elements.length === 1 && isBlank(find(active()).seed) && sameContent(find(active()).app, BLANK.app);
   function clearAll() {
     if (rt.partEdit) setPartEdit(false);
     selectSheets(B, []);
     state.elements.forEach(e => { dropGroup(e.id, e.id === active()); });
     state.elements.forEach(e => { delete B.pos[sheetId(e.id)]; delete B.pos[viewsId(e.id)]; });
-    const e = { id: newId(), name: shapeName(BOOT.seed), custom: false, seed: clone(BOOT.seed), app: clone(BOOT.app) };
+    const e = blankElement();
     state.elements = [e]; state.activeElement = e.id;
     placeLive(e, 0, VH);
-    applyElementSnapshot(clone(BOOT.seed), clone(BOOT.app));
+    applyElementSnapshot(clone(BLANK.seed), clone(BLANK.app));
     onAppearanceChange(); renderGallery(); renderSeedPreview();
     relabel(); save(); B.save();
     placeAdd(); placeInks();

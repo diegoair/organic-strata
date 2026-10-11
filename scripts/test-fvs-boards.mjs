@@ -177,6 +177,8 @@ async function elementBoard(mode) {
   await sleep(500);
   const s1 = await ev(() => ({ n: __t.F.state.elements.length, active: __t.F.state.activeElement, statics: document.querySelectorAll('.fvs-board-el').length }));
   C('New element adds an Element and edits it', s1.n === 2 && s1.active !== id0 && s1.statics === 1, JSON.stringify(s1));
+  const blank1 = await ev(() => ({ type: document.getElementById('sel-seed-type').value, d: (__t.F.state.freehand.raw || '') + ((__t.F.state.freehand.seed || {}).d || '') }));
+  C('New element is blank (an empty Freehand), not a copy of the opening Element', blank1.type === 'freehand' && !blank1.d, JSON.stringify(blank1));
   // change the new one's shape, then switch back by clicking the other Element
   await ev(() => { const s = document.getElementById('sel-seed-type'); const o = [...s.options].find(o => !o.disabled && o.value !== s.value && ['circle', 'square', 'triangle', 'star'].includes(o.value)); s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); });
   await sleep(700);
@@ -252,7 +254,8 @@ async function elementBoard(mode) {
   await hold(await ev(() => __t.box('#btn-board-clear-element')));
   await sleep(400);
   const after = await ev(() => ({ n: __t.F.state.elements.length, dis: document.getElementById('btn-board-clear-element').disabled }));
-  C('Clear board (held) leaves one starting Element', before === 2 && after.n === 1, `${before} → ${after.n}, then disabled=${after.dis}`);
+  const blank2 = await ev(() => document.getElementById('sel-seed-type').value);
+  C('Clear board (held) leaves one blank Element, and Clear board is then off', before === 2 && after.n === 1 && blank2 === 'freehand' && after.dis, `${before} → ${after.n}, ${blank2}, then disabled=${after.dis}`);
   await click(await ev(() => __t.box('#btn-board-undo-element')));
   const un = await ev(() => ({ n: __t.F.state.elements.length, dis: document.getElementById('btn-board-undo-element').disabled }));
   C('Undo (floatbar) brings the cleared Elements back', un.n === 2, JSON.stringify(un));
@@ -269,6 +272,9 @@ async function componentBoard(mode) {
   C('wheel zooms the board', (await ev(() => __t.view('component'))).zoom < v0.zoom * 0.95);
   await press('Digit1', '!', 49, SHIFT);
   // a saved Element in the library, for the rail drop
+  // (the Element in edit is the blank one New element made: give it a shape first — a blank Element has nothing to save)
+  await ev(() => { const s = document.getElementById('sel-seed-type'); if (s.value === 'freehand') { s.value = 'circle'; s.dispatchEvent(new Event('change', { bubbles: true })); } });
+  await sleep(500);
   const savedType = await ev(() => { const n = __t.F.saveElementVariant(0, false, false, '0°', 'Board test'); return n && __t.F.ELEMENT_LIB.read()[n].seed.type; });
   // double-click a candidate = Component Edit, in its single view
   await dblclick(await ev(() => __t.box('#gallery .fvs-thumb-wrap svg')));
