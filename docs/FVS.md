@@ -1069,8 +1069,10 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
 
 **Component board**
 - The gallery is one area (**Gallery**) on the board, its candidates at 2× (`galleryZoomTo(2)`).
-- **One Back** (Diego, Oct 11, 2026): Element Edit opened by a double-click leaves straight to the board — Edit's *Back* or Esc,
-  no second *Back to board*. The edit toolbars' outline buttons are filled `--paper` on the board (never an empty outline).
+- **One Back** (Diego, Oct 11, 2026): in the single view Element Edit shows one button, **Back to board**, at the top above
+  the Views (Edit's own *Back* is hidden there); it — or Esc — leaves Edit and the single view at once.
+- **Landing** (Diego, Oct 11, 2026): the first visit of the Element step in a page load zooms on the first Element only
+  (its sheet and Views, `B.firstFit`), not the whole board and not the last saved view; Shift+1 still fits everything. The edit toolbars' outline buttons are filled `--paper` on the board (never an empty outline).
 - **Double-click a candidate** (or **Enter** on the selected one; no pencil since Oct 11, 2026) = **Component Edit** in its single view (toolbar, part colours,
   sheet). On its sheet: cells by click, ⌘, marquee; a **second click** on a picked cell opens **Choose content**
   with the Seeds only (`openCellContentOverlay({ seedsOnly, count, apply, done })` — an Element tile carries its

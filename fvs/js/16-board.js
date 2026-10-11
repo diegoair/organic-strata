@@ -234,13 +234,14 @@ document.addEventListener('keydown', e => {
 const spaceOff = () => { spaceHeld = false; Object.values(boards).forEach(B => B.stage.classList.remove('nc-stage--pan')); };
 document.addEventListener('keyup', e => { if (e.code === 'Space') spaceOff(); });
 window.addEventListener('blur', spaceOff);
-// First visit of a step: its saved view, or fit everything (setTier → hooks.boardTierShown).
+// First visit of a step: the step's own first view (B.firstFit — Element: the first Element, Diego Oct 11), else its
+// saved view, else fit everything (setTier → hooks.boardTierShown).
 const shown = new Set();
 export function boardTierShown(tier) {
   const B = boards[tier];
   if (!B || shown.has(tier)) return;
   shown.add(tier);
-  requestAnimationFrame(() => { if (B.beforeFit) B.beforeFit(); if (B.saved.view) B.zp.setView(B.saved.view); else B.fit(); });
+  requestAnimationFrame(() => { if (B.beforeFit) B.beforeFit(); if (B.firstFit) B.firstFit(); else if (B.saved.view) B.zp.setView(B.saved.view); else B.fit(); });
 }
 
 // ── Symbol's cell grammar, for a set of cells on a sheet ──────────────────────────────────────────────────

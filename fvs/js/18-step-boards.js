@@ -403,13 +403,12 @@ function mountElementBoard() {
   // Component's double-click opens Component Edit (Diego, Oct 11, 2026: the hover pencil went). A stack of plain layers
   // cannot be divided: its single view only. Back / Esc leave Edit first, then the single view.
   const enterSingle = () => { if (B.single) return; setSingle(B, true); renderSeedPreview(); ctrl('btn-element-board-back').focus({ preventScroll: true }); };
-  const exitSingle = () => { if (!B.single) return; setSingle(B, false); renderSeedPreview() };
+  const exitSingle = () => { if (!B.single) return; if (rt.partEdit) { setPartEdit(false); layersChanged(); } setSingle(B, false); renderSeedPreview(); };   // Back to board leaves Edit too
   ctrl('btn-element-board-back').addEventListener('click', exitSingle);
   const openEdit = () => {
     enterSingle();
     if (rt.partEdit || (state.layers && !state.layers.parts)) return;
     enterElementEdit();
-    ctrl('btn-element-edit-exit').focus({ preventScroll: true });
   };
   // the second press of a double-click, not dblclick: in Edit the first click redraws the parts, and a dblclick whose
   // first target left the page never comes
@@ -422,7 +421,6 @@ function mountElementBoard() {
     if (rt.partEdit) { setTimeout(() => { if (!rt.partEdit) exitSingle(); }); return; }   // after 07-library.js's own Esc (a microtask would run before it)
     e.preventDefault(); exitSingle();
   }, true);
-  ctrl('btn-element-edit-exit').addEventListener('click', () => { if (B.single) exitSingle(); });   // after 07-library.js's own (Edit off)
   // Parts, the Symbol way: marquee + ⌘.
   cellEditor(B, {
     frame,
@@ -459,6 +457,8 @@ function mountElementBoard() {
     layersChanged(); syncUndo();
   });
   B.fitFocus = () => B.fit([sheetId(active())]);
+  // landing on the Element step: zoom on the first Element only, its sheet and Views (Diego, Oct 11, 2026)
+  B.firstFit = () => { const e = state.elements[0]; if (e) B.fit([viewsId(e.id), sheetId(e.id)]); else B.fit(); };
   requestAnimationFrame(syncClear);   // the board as it opens: nothing to clear on a fresh one
 }
 

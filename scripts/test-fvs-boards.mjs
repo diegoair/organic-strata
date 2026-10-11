@@ -137,6 +137,9 @@ const step = async t => { await click(await ev(t => __t.box(`#tier-tabs [data-ti
 async function elementBoard(mode) {
   const C = (n, ok, d) => check(mode, 'Element · ' + n, ok, d);
   await step('element');
+  // landing: zoom on the first Element only — its sheet fills most of the stage height (Diego, Oct 11)
+  const land = await ev(() => { const st = __t.B('element').stage.getBoundingClientRect(), el = document.querySelector('#board-live-element').getBoundingClientRect(); return { inside: el.top >= st.top - 1 && el.bottom <= st.bottom + 1, share: el.height / st.height }; });
+  C('landing on Element zooms on the first Element', land.inside && land.share > 0.5, JSON.stringify(land));
   // zoom: the wheel zooms around the cursor
   const e0 = await ev(() => __t.empty('element'));
   const v0 = await ev(() => __t.view('element'));
@@ -146,7 +149,7 @@ async function elementBoard(mode) {
   // fit: Shift+1
   await press('Digit1', '!', 49, SHIFT);
   const v2 = await ev(() => __t.view('element'));
-  C('Shift+1 fits the board', Math.abs(v2.zoom - v0.zoom) < 0.02, `zoom ${v2.zoom.toFixed(3)} (boot fit ${v0.zoom.toFixed(3)})`);
+  C('Shift+1 fits the whole board (wider than the landing zoom)', v2.zoom < v0.zoom - 0.05, `zoom ${v2.zoom.toFixed(3)} (landing ${v0.zoom.toFixed(3)})`);
   // pan: Space-drag, middle-button drag
   const e1 = await ev(() => __t.empty('element'));
   await cdp('Input.dispatchKeyEvent', { type: 'keyDown', code: 'Space', key: ' ', windowsVirtualKeyCode: 32 });
@@ -243,7 +246,7 @@ async function elementBoard(mode) {
   await ev(() => document.getElementById('btn-element-edit-exit').click()); await sleep(300);
   await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
   const de = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), edit: !!__t.F.rt?.partEdit || !document.getElementById('element-edit-toolbar').hidden, focus: document.activeElement && document.activeElement.id }));
-  C('double-click opens the single view with Element Edit on (focus on Back)', de.single && de.edit && de.focus === 'btn-element-edit-exit', JSON.stringify(de));
+  C('double-click opens the single view with Element Edit on (focus on Back to board)', de.single && de.edit && de.focus === 'btn-element-board-back', JSON.stringify(de));
   await press('Escape', 'Escape', 27); await sleep(200); await press('Escape', 'Escape', 27); await sleep(300);
   await ev(() => document.getElementById('board-live-element').focus());
   await press('Enter', 'Enter', 13); await sleep(300);
@@ -255,16 +258,18 @@ async function elementBoard(mode) {
   // the single view: double-click the Element; Esc leaves Edit first, then the view
   await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
   const sv = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), back: !!document.getElementById('btn-element-board-back').offsetParent }));
-  C('double-click opens the single view (one Back at a time: Edit\'s while it is on)', sv.single && !sv.back, JSON.stringify(sv));
+  C('double-click in Edit on the board opens the single view, Back to board shown', sv.single && sv.back, JSON.stringify(sv));
   await press('Escape', 'Escape', 27); await sleep(200);
   const e1s = await ev(() => ({ edit: !document.getElementById('element-edit-toolbar').hidden, single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single') }));
   C('Esc in Edit goes straight back to the board (one step)', !e1s.edit && !e1s.single, JSON.stringify(e1s));
   // Edit's Back: also one step to the board (Diego, Oct 11: no second Back)
   await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
-  await click(await ev(() => __t.box('#btn-element-edit-exit')));
+  const one = await ev(() => ({ board: !!document.getElementById('btn-element-board-back').offsetParent, edit: !!document.getElementById('btn-element-edit-exit').offsetParent, top: document.getElementById('btn-element-board-back').getBoundingClientRect().top < document.getElementById('seed-preview').getBoundingClientRect().top }));
+  C('one Back in Edit: Back to board, at the top (above the Views)', one.board && !one.edit && one.top, JSON.stringify(one));
+  await click(await ev(() => __t.box('#btn-element-board-back')));
   await sleep(300);
   const b1 = await ev(() => ({ edit: !document.getElementById('element-edit-toolbar').hidden, single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single') }));
-  C('Edit\'s Back goes straight back to the board (one step)', !b1.edit && !b1.single, JSON.stringify(b1));
+  C('Back to board leaves Edit and the single view (one step)', !b1.edit && !b1.single, JSON.stringify(b1));
   // Clear board (held): one starting Element is left
   await press('Digit1', '!', 49, SHIFT);
   await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); return __t.box(b); }));
@@ -404,6 +409,7 @@ async function elementPalettes(mode) {
   const live = () => ev(() => ({ colors: __t.F.state.colors.slice(), paper: __t.F.state.paperColor, active: __t.F.state.activeElement }));
   await setInk('#d01c1c'); await sleep(600);
   const e1 = await live();
+  await press('Digit1', '!', 49, SHIFT);   // the whole board: New element in sight
   await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); return __t.box(b); }));
   await sleep(600);
   const e2 = await live();
