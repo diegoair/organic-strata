@@ -1036,15 +1036,15 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   *Stack*). Double-click it (or F2) to rename; from then on it is kept; an empty name goes back to the made one.
   The active one reads *‹name› · editing*.
 - **New element**: an empty sheet of the pile (the Element's Paper, a + in the middle) under the lowest Element;
-  it adds a **blank** Element — an empty Freehand sheet: draw on it, or pick a shape in the panel — and edits it
-  (O-67 b, Diego, Oct 11, 2026; until then it copied the Element the page opened with).
+  it adds a **fresh Arc** (the opening shape settings, no layers or parts) and edits it. O-67 (b) asks for a blank
+  Element; Diego, Oct 11, 2026: an Arc until Freehand is improved (a blank Freehand was tried the same day).
 - **Inks**: a tray beside the Element being edited (FVS's inline ink swatches). A click inks the picked parts;
   dragging an ink onto a part inks that part, or the whole selection when the part is in it (entering Edit if
   needed). Disabled until the Element is divided into parts.
 - **Parts**: in Edit, a marquee picks the parts whose outline it touches; ⌘-click as before. Delete on picked parts does nothing — an Element has nothing to empty.
-- **Delete** on a selected group removes that Element (not the active one, not the last one). **Undo** (⌘Z, or the floatbar's Undo beside Clear board) brings it back — up to 20 steps for Delete and Clear board; ⌘Z stays the drawing's while the shape is Freehand; the Element being edited keeps what was done to it since (Diego, Oct 11, 2026).
-- **Clear board** (floatbar eraser, hold to confirm): every Element goes, one blank Element is left (O-67 b); disabled
-  when there is nothing to clear (one Element, nothing drawn on it). Undo brings them back, as Component's Clear board.
+- **Delete** on a selected group removes that Element — the one being edited too (editing moves to the nearest Element left; Diego, Oct 11, 2026) — never the last one. **Undo** (⌘Z, or the floatbar's Undo beside Clear board) brings it back — up to 20 steps for Delete and Clear board; ⌘Z stays the drawing's while a Freehand has points to undo (a blank one leaves it to the board); the Element being edited keeps what was done to it since (Diego, Oct 11, 2026).
+- **Clear board** (floatbar eraser, hold to confirm): every Element goes, one fresh Arc is left; disabled
+  when there is nothing to clear (one Element, a fresh Arc). Undo brings them back, as Component's Clear board.
 - **Single view**: double-click the Element (the second press, not `dblclick` — in Edit the first click redraws
   the parts) → the classic Element page: *Back to board*, Views, the Edit toolbar, the sheet. While Edit is on
   only its own *Back* shows.

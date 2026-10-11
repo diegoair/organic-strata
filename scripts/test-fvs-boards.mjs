@@ -178,7 +178,7 @@ async function elementBoard(mode) {
   const s1 = await ev(() => ({ n: __t.F.state.elements.length, active: __t.F.state.activeElement, statics: document.querySelectorAll('.fvs-board-el').length }));
   C('New element adds an Element and edits it', s1.n === 2 && s1.active !== id0 && s1.statics === 1, JSON.stringify(s1));
   const blank1 = await ev(() => ({ type: document.getElementById('sel-seed-type').value, d: (__t.F.state.freehand.raw || '') + ((__t.F.state.freehand.seed || {}).d || '') }));
-  C('New element is blank (an empty Freehand), not a copy of the opening Element', blank1.type === 'freehand' && !blank1.d, JSON.stringify(blank1));
+  C('New element is a fresh Arc (Freehand needs work first — Diego, Oct 11)', blank1.type === 'arc', JSON.stringify(blank1));
   // change the new one's shape, then switch back by clicking the other Element
   await ev(() => { const s = document.getElementById('sel-seed-type'); const o = [...s.options].find(o => !o.disabled && o.value !== s.value && ['circle', 'square', 'triangle', 'star'].includes(o.value)); s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); });
   await sleep(700);
@@ -255,21 +255,34 @@ async function elementBoard(mode) {
   await sleep(400);
   const after = await ev(() => ({ n: __t.F.state.elements.length, dis: document.getElementById('btn-board-clear-element').disabled }));
   const blank2 = await ev(() => document.getElementById('sel-seed-type').value);
-  C('Clear board (held) leaves one blank Element, and Clear board is then off', before === 2 && after.n === 1 && blank2 === 'freehand' && after.dis, `${before} → ${after.n}, ${blank2}, then disabled=${after.dis}`);
+  C('Clear board (held) leaves one fresh Arc, and Clear board is then off', before === 2 && after.n === 1 && blank2 === 'arc' && after.dis, `${before} → ${after.n}, ${blank2}, then disabled=${after.dis}`);
   await click(await ev(() => __t.box('#btn-board-undo-element')));
   const un = await ev(() => ({ n: __t.F.state.elements.length, dis: document.getElementById('btn-board-undo-element').disabled }));
   C('Undo (floatbar) brings the cleared Elements back', un.n === 2, JSON.stringify(un));
-  // the blank Element being edited (a Freehand with nothing drawn): ⌘Z is the board's, not the drawing's (Diego, Oct 11)
-  await ev(() => { const s = __t.F.state, e = s.elements.find(e => e.id !== s.activeElement); if (e && e.seed.type === 'freehand') document.querySelector('.fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label').click(); });
+  // a blank Freehand being edited (nothing drawn): ⌘Z is the board's, not the drawing's (Diego, Oct 11)
+  await ev(() => { const s = document.getElementById('sel-seed-type'); s.value = 'freehand'; s.dispatchEvent(new Event('change', { bubbles: true })); });
   await sleep(500);
   const bl = await ev(() => ({ type: document.getElementById('sel-seed-type').value, n: __t.F.state.elements.length }));
-  await press('Shift', 'Shift', 16);
   await click(await ev(() => __t.box('.fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label')));
   await press('Delete', 'Delete', 46);
   const del = await ev(() => __t.F.state.elements.length);
   await press('KeyZ', 'z', 90, META);
   const und = await ev(() => __t.F.state.elements.length);
-  C('with a blank Element in edit, Delete removes the other and ⌘Z brings it back', bl.type === 'freehand' && bl.n === 2 && del === 1 && und === 2, JSON.stringify(bl) + ` → ${del} → ${und}`);
+  C('with a blank Freehand in edit, Delete removes the other and ⌘Z brings it back', bl.type === 'freehand' && bl.n === 2 && del === 1 && und === 2, JSON.stringify(bl) + ` → ${del} → ${und}`);
+  // Delete on the Element being edited (Diego's case, Oct 11: a New element he didn't want): editing moves on
+  const ed0 = await ev(() => __t.F.state.activeElement);
+  await click(await ev(() => __t.box('#board-live-views > .fvs-board-sheet__label')));
+  await press('Delete', 'Delete', 46);
+  const ed1 = await ev(() => ({ n: __t.F.state.elements.length, active: __t.F.state.activeElement }));
+  await press('KeyZ', 'z', 90, META);
+  const ed2 = await ev(() => ({ n: __t.F.state.elements.length, active: __t.F.state.activeElement }));
+  C('Delete removes the Element being edited (editing moves on), ⌘Z brings it back', ed1.n === 1 && ed1.active !== ed0 && ed2.n === 2 && ed2.active === ed0, JSON.stringify({ ed0, ed1, ed2 }));
+  // the last Element stays
+  await click(await ev(() => __t.box('.fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label')));
+  await press('Delete', 'Delete', 46);
+  await click(await ev(() => __t.box('#board-live-views > .fvs-board-sheet__label')));
+  await press('Delete', 'Delete', 46);
+  C('the last Element cannot be deleted', await ev(() => __t.F.state.elements.length === 1));
 }
 
 async function componentBoard(mode) {

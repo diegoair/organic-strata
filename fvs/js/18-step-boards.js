@@ -89,13 +89,13 @@ function mountElementBoard() {
   const frame = ctrl('element-frame'), liveViews = ctrl('board-live-views'), liveEl = ctrl('board-live-element');
   const liveName = liveViews.querySelector('.fvs-board-sheet__label');
   const BOOT = { seed: clone(seedForSnapshot()), app: clone(getElementAppearance()) };   // the Element the page opened with
-  // New element and Clear board start blank (Diego, O-67 b, Oct 11, 2026): an empty Freehand sheet — draw on it, or pick
-  // a shape in the panel. The opening Element's other shape settings stay underneath, so a picked shape opens on its defaults.
+  // New element and Clear board start from a fresh Arc (Diego, Oct 11, 2026 — O-67 b said blank, but Freehand needs work
+  // first, so an Arc for now): the opening Element's shape settings, as an Arc, without its layers or parts.
   const BLANK = (() => {
     const b = BOOT.seed.type === 'stack' ? { ...clone(BOOT.seed.layers[BOOT.seed.active | 0] || {}), cellShape: BOOT.seed.cellShape } : clone(BOOT.seed);
-    ['id', 'part', 'ink', 'name', 'layers', 'parts', 'active'].forEach(k => delete b[k]);
+    ['id', 'part', 'ink', 'name', 'layers', 'parts', 'active', 'customSeed', 'freehandData', 'freehandRaw'].forEach(k => delete b[k]);
     if (b.cellShape === undefined) delete b.cellShape;
-    return { seed: { ...b, type: 'freehand', customSeed: null, freehandData: null, freehandRaw: '' }, app: clone(BOOT.app) };
+    return { seed: { ...b, type: 'arc' }, app: clone(BOOT.app) };
   })();
   const blankElement = () => ({ id: newId(), name: shapeName(BLANK.seed), custom: false, seed: clone(BLANK.seed), app: clone(BLANK.app) });
   const newId = () => 'e' + Date.now().toString(36) + Math.floor(Math.random() * 36 ** 3).toString(36);
@@ -302,20 +302,29 @@ function mountElementBoard() {
   window.addEventListener('pagehide', () => { snap(); save(); });
   // the selection: a click anywhere on the live group selects it
   [liveViews.querySelector('.fvs-board-sheet__body'), liveEl].forEach(n => n.addEventListener('pointerdown', ev => { if (ev.button === 0 && !isPanKey(ev) && !B.single) selectSheets(B, [sheetId(active())]); }));
-  // Delete on a selected Element group (not the one being edited) removes it from the board
+  // Delete on a selected Element group removes it from the board — the one being edited too (Diego, Oct 11, 2026: a
+  // blank New element you don't want must go): editing moves to the nearest Element left first. The last one stays.
   document.addEventListener('keydown', ev => {
     if (state.activeTier !== 'element' || B.single || (ev.key !== 'Delete' && ev.key !== 'Backspace') || fvsIsTypingTarget(ev.target) || rt.partEdit) return;
-    const ids = [...B.selected].filter(k => k.startsWith('el-')).map(k => k.slice(3)).filter(id => id !== active());
+    let ids = [...new Set([...B.selected].filter(k => k.startsWith('el-') || k.startsWith('vw-')).map(k => k.slice(3)))].filter(find);
     if (!ids.length) return;
     ev.preventDefault();
+    const left = state.elements.filter(e => !ids.includes(e.id));
+    if (!left.length) { ids = ids.filter(id => id !== active()); if (!ids.length) return; }
     pushUndo();
+    if (ids.includes(active())) {
+      const y = posOf(active()).y;
+      const next = state.elements.filter(e => !ids.includes(e.id)).reduce((a, b) => (Math.abs(posOf(b.id).y - y) < Math.abs(posOf(a.id).y - y) ? b : a));
+      activate(next.id);
+    }
     ids.forEach(remove);
+    selectSheets(B, []);
   });
-  // Clear board: every Element goes, one blank Element is left (O-67 b) — as Symbol's Clear
+  // Clear board: every Element goes, one fresh Arc is left — as Symbol's Clear
   const canon = v => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => { o[k] = canon(v[k]); return o; }, {}) : v);   // key order is not content
   const sameContent = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
-  const isBlank = sd => sd.type === 'freehand' && !sd.freehandRaw && !(sd.customSeed && sd.customSeed.d);   // an empty Freehand: nothing drawn yet
-  const isClear = () => state.elements.length === 1 && isBlank(find(active()).seed) && sameContent(find(active()).app, BLANK.app);
+  const asBlank = sd => Object.keys(BLANK.seed).every(k => sameContent(sd[k], BLANK.seed[k]));   // the fields a fresh Arc sets (the live snapshot adds derived ones)
+  const isClear = () => state.elements.length === 1 && asBlank(find(active()).seed) && sameContent(find(active()).app, BLANK.app);
   function clearAll() {
     if (rt.partEdit) setPartEdit(false);
     selectSheets(B, []);
