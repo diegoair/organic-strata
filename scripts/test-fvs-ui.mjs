@@ -141,10 +141,15 @@ const HELPERS = `(() => {
 async function load(theme = THEME) {
   await cdp('Page.enable'); await cdp('Runtime.enable'); await cdp('Log.enable');
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-  await cdp('Page.navigate', { url: `http://localhost:${port}/fvs/` });
-  for (let i = 0; i < 60; i++) { await sleep(250); const ok = await ev(() => !!(window.__fvs && window.__fvs.isReady) && typeof setTier === 'function' && typeof LIBRARY !== 'undefined' && document.readyState === 'complete').catch(() => false); if (ok) break; }
+  // storage cleared from a page that is NOT FVS, then FVS opened fresh: clearing under an open FVS page and reloading let
+  // its own save-on-leave (the Element board's pagehide) write the Element list back, so a group started on the last
+  // group's Element — after J1, a Paper made of Element tiles, a 6 MB Symbol SVG that V.001's answer never got through
+  // (Oct 11, 2026)
+  await cdp('Page.navigate', { url: `http://localhost:${port}/vercel.json` }); await sleep(300);
   await ev(() => { try { localStorage.clear(); } catch {} });
-  await cdp('Page.reload'); await sleep(1800);
+  await cdp('Page.navigate', { url: `http://localhost:${port}/fvs/` });
+  for (let i = 0; i < 120; i++) { await sleep(250); const ok = await ev(() => !!(window.__fvs && window.__fvs.isReady) && typeof setTier === 'function' && typeof LIBRARY !== 'undefined' && document.readyState === 'complete').catch(() => false); if (ok) break; }
+  await sleep(300);
   await cdp('Runtime.evaluate', { expression: `${FVS_SCOPE} ${HELPERS}` });
   await ev(t => { document.documentElement.dataset.theme = t; }, theme);
   await sleep(150);
