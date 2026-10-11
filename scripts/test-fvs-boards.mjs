@@ -259,6 +259,17 @@ async function elementBoard(mode) {
   await click(await ev(() => __t.box('#btn-board-undo-element')));
   const un = await ev(() => ({ n: __t.F.state.elements.length, dis: document.getElementById('btn-board-undo-element').disabled }));
   C('Undo (floatbar) brings the cleared Elements back', un.n === 2, JSON.stringify(un));
+  // the blank Element being edited (a Freehand with nothing drawn): ⌘Z is the board's, not the drawing's (Diego, Oct 11)
+  await ev(() => { const s = __t.F.state, e = s.elements.find(e => e.id !== s.activeElement); if (e && e.seed.type === 'freehand') document.querySelector('.fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label').click(); });
+  await sleep(500);
+  const bl = await ev(() => ({ type: document.getElementById('sel-seed-type').value, n: __t.F.state.elements.length }));
+  await press('Shift', 'Shift', 16);
+  await click(await ev(() => __t.box('.fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label')));
+  await press('Delete', 'Delete', 46);
+  const del = await ev(() => __t.F.state.elements.length);
+  await press('KeyZ', 'z', 90, META);
+  const und = await ev(() => __t.F.state.elements.length);
+  C('with a blank Element in edit, Delete removes the other and ⌘Z brings it back', bl.type === 'freehand' && bl.n === 2 && del === 1 && und === 2, JSON.stringify(bl) + ` → ${del} → ${und}`);
 }
 
 async function componentBoard(mode) {

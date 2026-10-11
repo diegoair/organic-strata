@@ -145,6 +145,9 @@ export function foldLegacySeed(seed, app) {
 // same bbox fit an uploaded SVG gets). One Paper editor per page.
 state.freehand = { data: null, raw: '', seed: null };
 export let fhEditor = null, fhSize = 0, fhSyncing = false;
+// ⌘Z belongs to the drawing only while it has something to undo — a blank Freehand (New element, Clear board) leaves
+// ⌘Z to the Element board's own undo (18-step-boards.js)
+export const fhCanUndo = () => !!fhEditor && (fhEditor.isMulti() || fhEditor.getSegmentCount() > 0);
 
 export function fhFittedSeed(d) {
   if (!d) return null;

@@ -41,7 +41,7 @@ import {
   setCellShape
 } from './01-geometry.js';
 import {
-  fhEditor, handleSeedUpload, syncCircleRows, syncCopiesRows, syncDependentRows, syncFreehandEditor
+  fhCanUndo, fhEditor, handleSeedUpload, syncCircleRows, syncCopiesRows, syncDependentRows, syncFreehandEditor
 } from './02-seed-ui.js';
 import {
   setGalleryThumbVars, syncComponentGridUI
@@ -637,7 +637,7 @@ ctrl('ck-fh-smooth').addEventListener('change', e => { if (fhEditor) fhEditor.se
 ctrl('btn-fh-undo').addEventListener('click', () => { if (fhEditor) fhEditor.undo(); });
 ctrl('btn-fh-clear').addEventListener('click', () => { if (fhEditor) fhEditor.clear(); });
 document.addEventListener('keydown', e => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && fhEditor && state.activeTier === 'element' && pv('sel-seed-type') === 'freehand') {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && fhCanUndo() && state.activeTier === 'element' && pv('sel-seed-type') === 'freehand') {
     e.preventDefault(); fhEditor.undo();
   }
 });

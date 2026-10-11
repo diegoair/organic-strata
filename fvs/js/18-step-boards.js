@@ -45,6 +45,7 @@ import {
   addSheet, boardTierShown, cellEditor, drawRings, isPanKey, makeBoard, placeSheet, removeSheet, selectSheets, setSingle,
   shapeInRect, swallowNextClick
 } from './16-board.js';
+import { fhCanUndo } from './02-seed-ui.js';
 import { provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
@@ -237,7 +238,7 @@ function mountElementBoard() {
   undoBtn.addEventListener('click', undo);
   document.addEventListener('keydown', e => {
     if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || state.activeTier !== 'element' || !undoStack.length) return;
-    if (fvsIsTypingTarget(e.target) || pv('sel-seed-type') === 'freehand') return;   // text fields keep their own undo; a drawing keeps ⌘Z (12-shell.js)
+    if (fvsIsTypingTarget(e.target) || (pv('sel-seed-type') === 'freehand' && fhCanUndo())) return;   // text fields keep their own undo; a drawing with points keeps ⌘Z (12-shell.js), a blank one leaves it here
     e.preventDefault(); undo();
   });
   function remove(id) {
