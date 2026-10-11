@@ -604,6 +604,7 @@ function divideNow(method, count) {
   const L = state.layers;
   if (L && L.parts) {   // another Division: re-divide in place (the layers follow by key, the gone ones are parked)
     syncActiveLayer();
+    if (L.parts.method !== method || L.parts.count !== count) delete L.parts.removed;   // another Division starts whole
     L.parts.method = method; L.parts.count = count;
     syncPartLayers(L);
     layersChanged();

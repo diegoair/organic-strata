@@ -717,7 +717,7 @@ for (const k of Object.keys(SEED_TYPES)) {
 }
 
 // ── Parts (Element › Divide into parts, Oct 10, 2026) ─────────────────
-// A divided Element is a stack whose `parts = { source, method, count }` holds the shape it came from;
+// A divided Element is a stack whose `parts = { source, method, count, removed? }` holds the shape it came from;
 // each part layer carries `part: '<key>'` and draws partsOf(source)[key] — live, so a slider on the
 // source re-divides it. Organica.shapes.partRegions gives the ideal construction; here each region
 // is cut to the REAL outline (rounding, curvature, irregularity, cut out) minus the parts before it,
@@ -902,7 +902,9 @@ export function partsOf(parts) {
 // settings, so turning a count down and up again gives the same colours. Returns true when the rows changed.
 export function syncPartLayers(L) {
   if (!L || !L.parts) return false;
-  const res = partsOf(L.parts), have = new Set(res.list.map(p => p.key));
+  // `removed`: the parts Delete took out in Element Edit (Diego, Oct 11, 2026) — parked like a part the source lost
+  const removed = new Set(L.parts.removed || []);
+  const res = partsOf(L.parts), have = new Set(res.list.filter(p => !removed.has(p.key)).map(p => p.key));
   if (res.reason) return false;   // drawn whole meanwhile (stackGeometry) — the rows wait for a division that applies
   const stash = L.parts.stash || (L.parts.stash = {});
   const activeItem = L.items[L.active];
@@ -917,7 +919,7 @@ export function syncPartLayers(L) {
   let at = kept.reduce((m, l, i) => (l.part ? i + 1 : m), -1);
   if (at < 0) at = kept.length;
   for (const p of res.list) {
-    if (present.has(p.key)) continue;
+    if (present.has(p.key) || removed.has(p.key)) continue;
     const l = stash[p.key] || newPartLayer(p);
     delete stash[p.key];
     l.partName = p.name;

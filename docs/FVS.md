@@ -1040,7 +1040,11 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   Element; Diego, Oct 11, 2026: an Arc until Freehand is improved (a blank Freehand was tried the same day).
 - *(Inks — a tray of the Palette's inks beside the Element being edited — was removed from the board, Diego, Oct 11,
   2026: parts are inked in the panel.)*
-- **Parts**: in Edit, a marquee picks the parts whose outline it touches; ⌘-click as before. Delete on picked parts does nothing — an Element has nothing to empty.
+- **Parts**: in Edit, a marquee picks the parts whose outline it touches; ⌘-click as before. **Delete** on picked parts
+  removes them from the Element (O-67 e, Diego, Oct 11, 2026 — not a join: *join* = Division back to *None*): their keys go on
+  `parts.removed`, so `syncPartLayers` parks them like a part the source lost; one part always stays (hint *One part stays —
+  choose None in Division to join the parts*); ⌘Z / Undo brings them back (the Element board's undo); another Division
+  or count starts whole again.
 - **Delete** on a selected group removes that Element — the one being edited too (editing moves to the nearest Element left; Diego, Oct 11, 2026) — never the last one. **Undo** (⌘Z, or the floatbar's Undo beside Clear board) brings it back — up to 20 steps for Delete and Clear board; ⌘Z stays the drawing's while a Freehand has points to undo (a blank one leaves it to the board); the Element being edited keeps what was done to it since (Diego, Oct 11, 2026).
 - **Clear board** (floatbar eraser, hold to confirm): every Element goes, one fresh Arc is left; disabled
   when there is nothing to clear (one Element, a fresh Arc). Undo brings them back, as Component's Clear board.

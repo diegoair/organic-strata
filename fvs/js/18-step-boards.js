@@ -32,6 +32,8 @@ import {
 import {
   applyElementSnapshot, layersChanged, selectLayer, setPartEdit
 } from './07-library.js';
+import { syncPartLayers } from './engine/01-geometry.js';
+import { syncActiveLayer } from './engine/07-library.js';
 import {
   openCellContentOverlay, renderTrackLabelsOverlay, syncContentFilter
 } from './11-symbol-ui.js';
@@ -224,6 +226,13 @@ function mountElementBoard() {
   function undo() {
     const u = undoStack.pop();
     if (!u) return;
+    if (u.kind === 'parts') {   // Delete on parts: the parts come back (on their Element, edited again if another is)
+      if (!find(u.el)) { syncUndo(); return; }
+      if (u.el !== active()) activate(u.el);
+      const L = state.layers;
+      if (L && L.parts) { L.parts.removed = u.removed; syncPartLayers(L); rt.partSel = new Set(); layersChanged(); }
+      syncUndo(); return;
+    }
     snap();
     const cur = find(active());   // the Element being edited keeps what was done to it since
     Object.assign(B.pos, u.pos);
@@ -382,7 +391,25 @@ function mountElementBoard() {
       if (i >= 0 && i !== L.active) selectLayer(i); else layersChanged();
     },
   });
-  // Delete on picked parts: nothing to empty in an Element — left out on purpose (docs/FVS.md §13).
+  // Delete on picked parts (Element Edit): those parts leave the Element (O-67 e, Diego, Oct 11, 2026 — not a join:
+  // join = Division back to None). One part always stays; ⌘Z / Undo brings them back; another Division starts whole.
+  document.addEventListener('keydown', ev => {
+    if (state.activeTier !== 'element' || !rt.partEdit || (ev.key !== 'Delete' && ev.key !== 'Backspace') || fvsIsTypingTarget(ev.target) || overlayOpen()) return;
+    const L = state.layers;
+    if (!L || !L.parts) return;
+    const ids = picked(), all = parts(), keys = all.filter(l => ids.has(l.id)).map(l => l.part);
+    if (!keys.length) return;
+    ev.preventDefault();
+    if (keys.length >= all.length) { ctrl('part-hint').textContent = 'One part stays — choose None in Division to join the parts'; return; }
+    syncActiveLayer();
+    const before = (L.parts.removed || []).slice();
+    undoStack.push({ kind: 'parts', el: active(), removed: before });
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
+    L.parts.removed = [...new Set([...before, ...keys])];
+    rt.partSel = new Set();
+    syncPartLayers(L);
+    layersChanged(); syncUndo();
+  });
   B.fitFocus = () => B.fit([sheetId(active())]);
   requestAnimationFrame(syncClear);   // the board as it opens: nothing to clear on a fresh one
 }

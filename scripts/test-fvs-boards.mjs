@@ -222,6 +222,19 @@ async function elementBoard(mode) {
   await gesture({ x: fr.l + 4, y: fr.t + 4 }, { x: fr.l + fr.w * 0.3, y: fr.t + fr.h * 0.3 });
   const picked = await ev(() => { const L = __t.F.state.layers, ids = new Set(__t.F.partSel); if (L.items[L.active] && L.items[L.active].part) ids.add(L.items[L.active].id); return [...ids]; });
   C('a marquee picks the parts it touches', nParts >= 2 && picked.length >= 1 && picked.length < nParts + 1, `${picked.length} of ${nParts} parts`);
+  // Delete on the picked parts: they leave the Element; ⌘Z brings them back; the last part stays (O-67 e)
+  const np = () => ev(() => ({ layers: __t.F.state.layers.items.filter(l => l.part).length, drawn: document.querySelectorAll('#element-svg [data-part]').length, removed: (__t.F.state.layers.parts.removed || []).length }));
+  const q0 = await np();
+  await press('Delete', 'Delete', 46); await sleep(300);
+  const q1 = await np();
+  C('Delete on picked parts removes them from the Element', q1.layers === q0.layers - picked.length && q1.drawn === q0.drawn - picked.length && q1.removed === picked.length, JSON.stringify({ q0, q1, picked: picked.length }));
+  await press('KeyZ', 'z', 90, META); await sleep(300);
+  const q2 = await np();
+  C('⌘Z brings the deleted parts back', q2.layers === q0.layers && q2.drawn === q0.drawn && q2.removed === 0, JSON.stringify(q2));
+  await gesture({ x: fr.l + 2, y: fr.t + 2 }, { x: fr.r - 2, y: fr.b - 2 });
+  await press('Backspace', 'Backspace', 8); await sleep(300);
+  const q3 = await np();
+  C('Delete with every part picked keeps them (one part stays)', q3.layers === q0.layers, JSON.stringify(q3));
   C('no Inks tray on the board (Diego, Oct 11)', await ev(() => !document.getElementById('board-inks') && !__t.B('element').sheets.inks));
   C('no gesture state left (Element)', (await ev(() => __t.leftovers('element'))).length === 0, (await ev(() => __t.leftovers('element'))).join(', '));
   // the single view: double-click the Element; Esc leaves Edit first, then the view
