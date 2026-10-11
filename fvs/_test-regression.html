@@ -875,8 +875,11 @@ async function battery() {
   }
 
   // 25b — layer-ink colour variants: every candidate × every Fill layer's ink choice
+  // (on the Component step: the list is drawn only there since Oct 11, 2026 — Generate and the thumbnails live there)
+  const tier25b = state.activeTier;
   try {
     reset();
+    state.activeTier = 'component';
     chg('sel-seed-type', 'triangle');
     state.colors = ['#111111', '#e8321e', '#1f5fd6']; buildPalette();
     chg('sel-rule', 'pinwheel'); generate();
@@ -903,7 +906,7 @@ async function battery() {
     // over the cap: 3 layers × Exhaustive → first 512 shown, the real total reported
     addLayer(); chg('sel-rule', 'exhaustive'); generate();
     put('layers:inks:cap', state.components.length + ':' + ctrl('gallery-status').textContent.startsWith('Showing 512 of'));
-  } finally { chg('sel-rule', 'identity'); reset(); }
+  } finally { chg('sel-rule', 'identity'); state.activeTier = tier25b; reset(); }
 
   // 24 — Component tier auto-default starter gallery
   try {

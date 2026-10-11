@@ -1069,6 +1069,7 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   `state.elements` + `state.activeElement` (engine).
 
 **Component board**
+- **Drawn only when shown** (Oct 11, 2026, Diego: *the Palette is very slow when I change the Paper colour on Symbol*): `renderGallery` draws the Component list only while the Component step shows (or Component Edit) — off it, every Palette / Paper / shape change used to rebuild the hidden list (33,280 nodes with layer colour variants + a Paper line pattern). `setTier` draws it when the step shows. Measured, 128 Components + a Paper pattern: 10 ms → 3.5 ms per Paper change on Symbol, 0 thumbnails rebuilt (was 128 per change).
 - **One *Generated components* area per Element** (O-67 d, Diego, Oct 11, 2026 — *it is not a gallery but the Generated
   Components: each Element, by its rules, generates a number of possible Components*). Labelled *‹Element name› ·
   Generated components* (the edited one *· editing*), one under the other in the Element board's order; each starts

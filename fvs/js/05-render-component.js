@@ -260,7 +260,10 @@ export function componentThumbMarkup(comp, grid, seed, size) {
   try { const its = buildComponentItems(comp, grid); return withCellRing(withGridWrapper(withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline), its); } finally { live.layerInkOverride = null; }
 }
 export function renderGallery() {
-  renderGalleryNow();
+  // Drawn only while the Component step shows (or Component Edit): off it the list is hidden, and every Palette / Paper /
+  // shape change redrew it all — 33k nodes with layer colour variants and a Paper pattern made a Paper drag on the
+  // Symbol step crawl (Diego, Oct 11, 2026). setTier redraws it when the step shows.
+  if (state.activeTier === 'component' || state.componentEditMode) renderGalleryNow();
   if (hooks.boardGalleryDrawn) hooks.boardGalleryDrawn();   // the Component board's Clear board (18-step-boards.js)
 }
 function renderGalleryNow() {
