@@ -1103,6 +1103,7 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
 - A further Component model is to be reviewed after this migration (Diego, Oct 11, 2026).
 
 **Symbol board**
+- **The working Symbol is kept across reloads** (Diego, Oct 11, 2026 — it lived in memory only): its grid and Canvas, cells, pool, Arrange and rule settings, clip and overlap, in the user's account (`Organica.store('fvs-symbol-work')`, row `current`; signed out = this browser's cache), saved 600 ms after a redraw and on `pagehide`, restored at boot (the account's copy after `pull()` while the page's Symbol is untouched). **Not** its colours, Paper or look — those are the edited Element's (O-67 c); a saved Symbol in the library still carries its own. The unsaved-work guard (`Organica.dirty 'fvs-symbol'`) is no longer set: a reload loses nothing.
 - The Symbol sheet (`#symbol-frame` at 900 board units) with Suggest's variations as sheets beside it
   (§6a, *Variations*); a click adopts one. Selection, marquee, rail drop and track drag work inside the zoomed
   board; the % labels are placed again on every zoom (`renderTrackLabelsOverlay`, scaled by 1 / zoom).

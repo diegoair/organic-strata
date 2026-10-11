@@ -393,7 +393,7 @@ export function railApply(kind, name, idx) {
   if (idx != null && !state.symbolSelection.has(idx)) {
     const cell = state.symbolCells[idx];
     if (!cell) return;
-    if (patchCell(cell, patch)) Organica.dirty.set('fvs-symbol', true);
+    patchCell(cell, patch);   // no unsaved-work guard: the working Symbol is kept across reloads (Oct 11, 2026)
     renderSymbolCanvasOnly();
   } else if (state.symbolSelection.size) {
     applyToSelection(patch);

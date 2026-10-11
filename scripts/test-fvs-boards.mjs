@@ -508,6 +508,28 @@ async function generatedPerElement(mode) {
   C('double-click on an area\'s Element thumbnail edits that Element on the Element board', ge.tier === 'element' && ge.active === eb.el, JSON.stringify(ge));
 }
 
+// The working Symbol is kept across reloads (Diego, Oct 11): grid, cells, pool, settings — not the colours (the edited
+// Element's Palette stays its own).
+async function symbolKept(mode) {
+  const C = (n, ok, d) => check(mode, 'Symbol kept · ' + n, ok, d);
+  await step('component'); await sleep(1200);
+  await ev(() => __t.F.saveAllComponentsToLibrary()); await sleep(600);
+  await step('symbol'); await sleep(800);
+  await ev(() => document.getElementById('btn-symbol-generate').click()); await sleep(4000);
+  const sig = () => ev(() => ({ cells: (__t.F.state.symbolCells || []).length, names: (__t.F.state.symbolCells || []).map(c => c.componentName || c.seedType || '').join(','), grid: JSON.stringify(__t.F.state.symbolGrid && __t.F.state.symbolGrid.canvas && __t.F.state.symbolGrid.canvas.fvsFrame || null) }));
+  const s0 = await sig();
+  await ev(() => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = '#2e86c1'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await sleep(900);
+  await cdp('Page.reload'); await sleep(800);
+  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
+  await sleep(600); await cdp('Runtime.evaluate', { expression: PAGE });
+  await step('symbol'); await sleep(1200);
+  const s1 = await sig();
+  C('a reload keeps the working Symbol (grid, cells)', s0.cells > 0 && s1.cells === s0.cells && s1.names === s0.names && s1.grid === s0.grid, JSON.stringify({ s0: s0.cells, s1: s1.cells, same: s1.names === s0.names }));
+  const ink = await ev(() => __t.F.state.colors[0]);
+  C('the Symbol does not bring colours back over the edited Element\'s Palette', ink === '#2e86c1', ink);
+  C('the Symbol is drawn after the reload', await ev(() => document.querySelectorAll('#symbol-frame svg *').length > 10));
+}
+
 for (const mode of ['clean', 'held']) {
   if (ONLY && ONLY !== mode) continue;
   held = false;
@@ -518,6 +540,7 @@ for (const mode of ['clean', 'held']) {
   try { await symbolBoard(mode); } catch (e) { check(mode, 'Symbol board ran', false, e.message); }
   if (mode === 'clean') { await openFvs(); try { await elementPalettes(mode); } catch (e) { check(mode, 'Palette ran', false, e.message); } }
   if (mode === 'clean') { await openFvs(); try { await generatedPerElement(mode); } catch (e) { check(mode, 'Generated ran', false, e.message); } }
+  if (mode === 'clean') { await openFvs(); try { await symbolKept(mode); } catch (e) { check(mode, 'Symbol kept ran', false, e.message); } }
   check(mode, 'console clean', !consoleErrors.length, consoleErrors.slice(0, 4).join(' | '));
 }
 for (const r of results) console.log(`${r.ok ? '✓' : '✗'} [${r.mode}] ${r.name}${r.detail ? ' — ' + r.detail : ''}`);

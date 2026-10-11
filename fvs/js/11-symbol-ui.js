@@ -157,6 +157,7 @@ export function renderSymbolCanvasOnly() {
   const F = symbolFrame(grid);
   frame.style.setProperty('--sym-ar', (F.w / F.h).toFixed(5));   // the sheet's box takes the canvas's proportions (see #symbol-frame svg)
   frame.innerHTML = svg;
+  if (hooks.boardSymbolDrawn) hooks.boardSymbolDrawn();   // the working Symbol kept (18-step-boards.js)
   renderTrackLabelsOverlay();
   // …and once more when this step's layout has settled. A render can run while
   // the Suggest strip above is momentarily empty: the frame is then taller, the
@@ -405,7 +406,7 @@ export function applyToSelection(patch) {
     if (!cell) return;
     if (patchCell(cell, patch)) changed = true;
   });
-  if (changed) Organica.dirty.set('fvs-symbol', true);   // hand-edited cells live only in memory until saved to the Symbol library
+  // (no unsaved-work guard since Oct 11, 2026: the working Symbol is kept across reloads — 18-step-boards.js)
   renderSymbolCanvasOnly();
 }
 
@@ -669,7 +670,7 @@ export function applyToAllCells(patch) {
     if (!cell) return;
     if (patchCell(cell, patch)) changed = true;
   });
-  if (changed) Organica.dirty.set('fvs-symbol', true);
+  // (no unsaved-work guard since Oct 11, 2026: the working Symbol is kept across reloads — 18-step-boards.js)
   renderSymbolCanvasOnly();
 }
 export function contentTarget() { return overlayTarget ? overlayTarget.apply : pc('chk-content-overlay-all') ? applyToAllCells : applyToSelection; }
