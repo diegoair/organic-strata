@@ -253,6 +253,12 @@ export const drawIdFree = svg => {
 // caption and the save circle, instead of re-creating and re-painting every SVG.
 // A kept SVG keeps its own ids, still unique on the page (the counter only goes up).
 const galleryThumbs = new WeakMap();   // comp → { key, wrap, btn, cap, quickSave, savedName }
+// One Component's thumbnail SVG — the edited Element's area and the other Elements' (18-step-boards.js, drawn with their
+// own Element / Palette / appearance) both draw through it.
+export function componentThumbMarkup(comp, grid, seed, size) {
+  live.layerInkOverride = comp.layerInks || null;
+  try { const its = buildComponentItems(comp, grid); return withCellRing(withGridWrapper(withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline), its); } finally { live.layerInkOverride = null; }
+}
 export function renderGallery() {
   renderGalleryNow();
   if (hooks.boardGalleryDrawn) hooks.boardGalleryDrawn();   // the Component board's Clear board (18-step-boards.js)
@@ -320,9 +326,7 @@ function renderGalleryNow() {
   syncSelectedColourway();
   const wraps = [];
   for (const comp of state.components) {
-    let svgStr;
-    live.layerInkOverride = comp.layerInks || null;
-    try { const its = buildComponentItems(comp, grid); svgStr = withCellRing(withGridWrapper(withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline), its); } finally { live.layerInkOverride = null; }
+    const svgStr = componentThumbMarkup(comp, grid, seed, size);
     const isSelected = comp.id === state.selectedId && state.selectionExplicit;
     const thumbClass = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
     const caption = componentCaption(comp);

@@ -593,10 +593,16 @@
   .tier-view[data-tier="element"].is-single #element-edit-toolbar { order: 3; }
   .tier-view[data-tier="element"].is-single #element-frame { order: 4; }
   /* Component: the gallery as one area; Component Edit is its single view */
-  #board-gallery { --frame-w: var(--fvs-board-gallery-w); }
-  .fvs-board-gallery { width: var(--fvs-board-gallery-w); }
-  .fvs-board-gallery > #gallery { justify-content: flex-start; gap: var(--space-7); }
-  .fvs-board-gallery > #gallery:not(:empty) { display: flex; }   /* stays on the board while a candidate is in Edit */
+  #board-gallery, .fvs-board-gallery-sheet { --frame-w: var(--fvs-board-gallery-w); }
+  /* One "Generated components" area per Element (Oct 11, 2026): the Element's thumbnail on the left, its Components
+     4 across, as many rows as they need */
+  .fvs-board-gallery { display: flex; align-items: flex-start; gap: var(--space-7); width: max-content; }
+  .fvs-board-gallery > #gallery, .fvs-board-gallery__grid { display: grid; grid-template-columns: repeat(4, var(--thumb-w, 96px)); gap: var(--space-7); justify-content: start; }
+  .fvs-board-gallery > #gallery:empty { display: none; }
+  .fvs-board-gallery__el-box { width: var(--thumb-w, 96px); aspect-ratio: 1; border: 1px solid var(--border); background: var(--paper); cursor: pointer; }
+  .fvs-board-gallery__el-box:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .fvs-board-gallery__el-box > svg { display: block; width: 100%; height: 100%; }
+  .fvs-board-gallery__empty { margin: 0; align-self: center; }
   .tier-view[data-tier="component"].is-single > :is(.fvs-board-stage, .fvs-board-hud) { display: none; }
   #component-edit-frame [data-cell-index].is-marquee-hit { fill: color-mix(in srgb, var(--ink) 8%, transparent); }
   /* Choose content for a Component cell: the Seeds only (a Component in a Component cell does not exist) */

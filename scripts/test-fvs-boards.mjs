@@ -450,6 +450,56 @@ async function elementPalettes(mode) {
   C('an Element saved without a Palette loads black on white', old > 0 && ol.colors[0] === '#000000' && ol.paper === '#ffffff', JSON.stringify(ol));
 }
 
+// One "Generated components" area per Element (O-67 d): each Element's Components, drawn with it; a click in another
+// area edits that Element and selects the Component; Generate only touches the edited one; Clear board clears all, ⌘Z
+// restores; a reload keeps them; a double-click on an area's Element thumbnail edits it on the Element board.
+async function generatedPerElement(mode) {
+  const C = (n, ok, d) => check(mode, 'Generated · ' + n, ok, d);
+  await step('element');
+  const setType = t => ev(async t => { const s = document.getElementById('sel-seed-type'); s.value = t; s.dispatchEvent(new Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 400)); }, t);
+  await setType('star');
+  for (const t of ['cross', 'drop']) { await press('Digit1', '!', 49, SHIFT); await click(await ev(() => __t.box('#btn-board-new-element'))); await sleep(500); await setType(t); }
+  await ev(() => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = '#c0392b'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await sleep(500);
+  await step('component'); await sleep(1200);
+  const areas = () => ev(() => [...document.querySelectorAll('#canvas-wrap .tier-view[data-tier="component"] [data-sheet]')].filter(s => s.dataset.sheet === 'gallery' || s.dataset.sheet.startsWith('gl-')).map(s => ({ id: s.dataset.sheet, label: (s.querySelector('.fvs-board-sheet__label') || {}).textContent, n: s.querySelectorAll('.fvs-thumb').length, red: s.querySelector('.fvs-thumb') ? s.querySelector('.fvs-thumb').innerHTML.toLowerCase().includes('#c0392b') : null, el: !!s.querySelector('.fvs-board-gallery__el-box svg') })));
+  const a0 = await areas();
+  C('one area per Element, each with its Element thumbnail and its Components', a0.length === 3 && a0.every(a => a.n > 0 && a.el && / · Generated components/.test(a.label)) && a0.filter(a => /editing/.test(a.label)).length === 1, JSON.stringify(a0));
+  C('each area is drawn in its own Element\'s Palette', a0.find(a => a.id === 'gallery').red === true && a0.filter(a => a.id !== 'gallery').every(a => a.red === false), JSON.stringify(a0.map(a => [a.id, a.red])));
+  // Generate on the edited Element: the others keep theirs
+  const before = await ev(() => JSON.stringify(__t.F.state.elements.filter(e => e.id !== __t.F.state.activeElement).map(e => e.gallery)));
+  await ev(() => { document.getElementById('sel-rule').value = 'random'; document.getElementById('sel-rule').dispatchEvent(new Event('change', { bubbles: true })); document.getElementById('btn-generate').click(); });
+  await sleep(800);
+  const after = await ev(() => JSON.stringify(__t.F.state.elements.filter(e => e.id !== __t.F.state.activeElement).map(e => e.gallery)));
+  C('Generate touches only the edited Element\'s Components', before === after);
+  // a click on a Component of another area: that Element is edited, that Component selected
+  const target = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0], b = s.querySelectorAll('button[data-k]')[2]; return { ...__t.box(b), el: s.dataset.sheet.slice(3) }; });
+  await click(target); await sleep(700);
+  const sw = await ev(() => ({ active: __t.F.state.activeElement, sel: __t.F.state.selectedId, third: __t.F.state.components[2] && __t.F.state.components[2].id, explicit: __t.F.state.selectionExplicit }));
+  C('a click in another area edits its Element and selects that Component', sw.active === target.el && sw.sel === sw.third && sw.explicit, JSON.stringify(sw));
+  // Clear board: every area; ⌘Z brings them all back
+  await hold(await ev(() => __t.box('#btn-board-clear-component'))); await sleep(600);
+  const cl = await areas();
+  C('Clear board clears every Element\'s Components', cl.every(a => a.n === 0), JSON.stringify(cl.map(a => a.n)));
+  await click(await ev(() => __t.empty('component')));
+  await press('KeyZ', 'z', 90, META); await sleep(800);
+  const un = await areas();
+  C('⌘Z brings every area back', un.length === 3 && un.every(a => a.n > 0), JSON.stringify(un.map(a => a.n)));
+  // a reload keeps each Element's set
+  const ids = await ev(() => { const o = {}; __t.F.state.elements.forEach(e => { o[e.id] = e.id === __t.F.state.activeElement ? __t.F.state.components.map(c => c.id).join() : (e.gallery && e.gallery.components || []).map(c => c.id).join(); }); return o; });
+  await sleep(800);
+  await cdp('Page.reload'); await sleep(800);
+  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
+  await sleep(600); await cdp('Runtime.evaluate', { expression: PAGE });
+  await step('component'); await sleep(1000);
+  const ids2 = await ev(() => { const o = {}; __t.F.state.elements.forEach(e => { o[e.id] = e.id === __t.F.state.activeElement ? __t.F.state.components.map(c => c.id).join() : (e.gallery && e.gallery.components || []).map(c => c.id).join(); }); return o; });
+  C('a reload keeps each Element\'s Components', JSON.stringify(ids) === JSON.stringify(ids2), JSON.stringify({ ids, ids2 }).slice(0, 300));
+  // a double-click on an area's Element thumbnail: that Element, edited on the Element board
+  const eb = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0]; return { ...__t.box(s.querySelector('.fvs-board-gallery__el-box')), el: s.dataset.sheet.slice(3) }; });
+  await dblclick(eb); await sleep(800);
+  const ge = await ev(() => ({ tier: __t.F.state.activeTier, active: __t.F.state.activeElement }));
+  C('double-click on an area\'s Element thumbnail edits that Element on the Element board', ge.tier === 'element' && ge.active === eb.el, JSON.stringify(ge));
+}
+
 for (const mode of ['clean', 'held']) {
   if (ONLY && ONLY !== mode) continue;
   held = false;
@@ -459,6 +509,7 @@ for (const mode of ['clean', 'held']) {
   try { await componentBoard(mode); } catch (e) { check(mode, 'Component board ran', false, e.message); }
   try { await symbolBoard(mode); } catch (e) { check(mode, 'Symbol board ran', false, e.message); }
   if (mode === 'clean') { await openFvs(); try { await elementPalettes(mode); } catch (e) { check(mode, 'Palette ran', false, e.message); } }
+  if (mode === 'clean') { await openFvs(); try { await generatedPerElement(mode); } catch (e) { check(mode, 'Generated ran', false, e.message); } }
   check(mode, 'console clean', !consoleErrors.length, consoleErrors.slice(0, 4).join(' | '));
 }
 for (const r of results) console.log(`${r.ok ? '✓' : '✗'} [${r.mode}] ${r.name}${r.detail ? ' — ' + r.detail : ''}`);

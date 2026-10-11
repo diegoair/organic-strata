@@ -1069,7 +1069,22 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   `state.elements` + `state.activeElement` (engine).
 
 **Component board**
-- The gallery is one area (**Gallery**) on the board, its candidates at 2× (`galleryZoomTo(2)`).
+- **One *Generated components* area per Element** (O-67 d, Diego, Oct 11, 2026 — *it is not a gallery but the Generated
+  Components: each Element, by its rules, generates a number of possible Components*). Labelled *‹Element name› ·
+  Generated components* (the edited one *· editing*), one under the other in the Element board's order; each starts
+  with a **thumbnail of its Element** (double-click / Enter / Space → that Element on the Element board, centred and focused) and
+  lays its Components **4 across**, as many rows as needed, at 2× (`galleryZoomTo(2)`). One item is a **Component**
+  (*candidate* only in code). The edited Element's area is the live `#board-gallery`; the others are drawn from their
+  Element's snapshot — its seed, appearance and Palette (`componentThumbMarkup`, `withPalette` / `withAppearance`).
+  Each Element keeps its set as `gallery = {components, selectedId, explicit, auto, sig}` on its row in
+  `fvs-elements`, so **a reload keeps them**; switching Element swaps the live `state.components`, so Generate,
+  Component Edit, colourways, *Save all to library* (the edited Element's set only — Diego) and export act on the
+  edited one. A click on another area's Component edits its Element and selects it; a double-click opens Component
+  Edit. An Element never filled shows the **starter set** (today's behaviour — Diego: *keep it for now*).
+  **Clear board** clears **every** Element's set (Diego: *keep Clear board (all)*), one ⌘Z step brings them all back;
+  a ⌘Z step taken on another Element's set edits that Element first. Measured (headless, 16 Components each):
+  10 Elements = 160 thumbnails, 30 = 480 — 60 fps pan / zoom, the step opens in ~240 ms, a switch ~45 ms,
+  Generate ~30 ms.
 - **No hints** (Diego, Oct 11, 2026): *Choose a Division to divide the shape* and then *Click a part to select it · drag to
   select several · ⌘-click adds or removes* were both removed; `#element-edit-toolbar` stays hidden.
 - **Landing** (Diego, Oct 11, 2026): the first visit of the Element step in a page load zooms on the first Element only
@@ -1098,5 +1113,5 @@ the single views and their Esc order, Component Edit's marquee / second click / 
 held on both boards (⌘Z on Component), the Symbol's variations and % labels. Pre-commit (FVS UI, node-canvas,
 core) and CI. `scripts/test-fvs-qa.sh` checks the three stages.
 
-**Decided (Diego, Oct 11, 2026 — O-66)**: the Component area stays **Gallery**; the Element board has undo; the panel's button reads **Clear board**, as the floatbar's. Still open: the small sheets' pile (≥ 120 px pile, outline below — Diego's visual test). Ledger: `docs/DESIGN-DECISIONS.md`.
+**Decided (Diego, Oct 11, 2026 — O-66)**: the Component area stays **Gallery** *(amended the same day: **Generated components**, one per Element — O-67 d)*; the Element board has undo; the panel's button reads **Clear board**, as the floatbar's. Still open: the small sheets' pile (≥ 120 px pile, outline below — Diego's visual test). Ledger: `docs/DESIGN-DECISIONS.md`.
 
