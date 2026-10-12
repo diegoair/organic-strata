@@ -584,6 +584,11 @@ async function colourGroups(mode) {
   await click(await rowBtn(0)); await sleep(200);
   C('Group is off with one layer selected', await ev(() => document.getElementById('btn-layer-group').getAttribute('aria-disabled') === 'true' && !document.getElementById('layer-group-hint').hidden));
   await click(await rowBtn(1), META); await sleep(150); await click(await rowBtn(2), META); await sleep(200);
+  // Shift-click = a range; then back to the ⌘ picks below
+  await click(await rowBtn(0)); await sleep(150); await click(await rowBtn(4), SHIFT); await sleep(200);
+  C('Shift-click selects the range of rows (5)', await ev(() => __t.F.partSel.size === 5), String(await ev(() => __t.F.partSel.size)));
+  await click(await rowBtn(0)); await sleep(150); await click(await rowBtn(1), META); await sleep(150); await click(await rowBtn(2), META); await sleep(200);
+  C('⌘-click picks rows one by one (3)', await ev(() => __t.F.partSel.size === 3), String(await ev(() => __t.F.partSel.size)));
   C('Group is on with three selected', await ev(() => document.getElementById('btn-layer-group').getAttribute('aria-disabled') === 'false'));
   await ev(() => document.getElementById('btn-layer-group').click()); await sleep(300);
   const g = await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups || {})[0], ms = L.items.filter(l => l.group === id); return { id, n: ms.length, inks: ms.map(l => l.ink), rule: L.groups[id].rule, chips: document.querySelectorAll('#layers-list .fvs-layer__group').length, block: !document.getElementById('layer-group-block').hidden, name: document.getElementById('inp-layer-group-name').value }; });

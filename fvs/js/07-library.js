@@ -535,11 +535,18 @@ ctrl('layers-list').addEventListener('click', e => {
   if (e.target.closest('#layer-place-block')) return;
   if (act === 'select') {
     const id = state.layers.items[i].id;
-    if (e.metaKey || e.ctrlKey || e.shiftKey) {   // the Compose / Symbol cell grammar: ⌘ / Shift-click adds or removes
+    // a list's grammar (Diego, Oct 12, 2026): Shift-click = the range from the last clicked row, ⌘-click = add or remove one
+    const anchor = rt.layerAnchor != null && state.layers.items[rt.layerAnchor] ? rt.layerAnchor : state.layers.active;
+    if (e.shiftKey) {
+      const lo = Math.min(anchor, i), hi = Math.max(anchor, i);
+      rt.partSel = new Set(state.layers.items.slice(lo, hi + 1).map(l => l.id));
+      if (i !== state.layers.active) selectLayer(i); else layersChanged();
+    } else if (e.metaKey || e.ctrlKey) {
       if (!rt.partSel.size) rt.partSel.add(state.layers.items[state.layers.active].id);
       if (rt.partSel.has(id) && rt.partSel.size > 1) rt.partSel.delete(id); else rt.partSel.add(id);
+      rt.layerAnchor = i;
       if (rt.partSel.has(id) && i !== state.layers.active) selectLayer(i); else layersChanged();
-    } else { rt.partSel = new Set([id]); if (i !== state.layers.active) selectLayer(i); else layersChanged(); }
+    } else { rt.partSel = new Set([id]); rt.layerAnchor = i; if (i !== state.layers.active) selectLayer(i); else layersChanged(); }
   }
   else if (act === 'eye') toggleLayerHidden(i);
   else if (act === 'role') cycleLayerRole(i);
