@@ -813,6 +813,8 @@ ctrl('chk-axis-scale').addEventListener('change', e => {
 });
 
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
+// Clip to cell (Component, Oct 12, 2026): each cell cut to its own frame — kept with the edited Element's Generated components
+ctrl('chk-component-clip').addEventListener('change', e => { state.componentClip = e.target.checked; renderGallery(); if (state.componentEditMode) renderComponentEditCanvas(); });
 ctrl('chk-layer-inks').addEventListener('change', e => {
   const L = state.layers;   // a divided Element keeps its own switch on its Division (saved with it)
   if (L && L.parts) { if (e.target.checked) L.parts.layerInks = true; else delete L.parts.layerInks; }

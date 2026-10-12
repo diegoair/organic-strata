@@ -409,9 +409,34 @@ export function withItemParts(it, g, fn) {
   }
   try { return fn(); } finally { [live.partInkOverride, live.partStep] = prev; }
 }
+// A Component drawn LAYER BY LAYER across its cells (Diego, Oct 12, 2026): every cell's lowest layer first, then the next
+// one… so a layer that reaches into the next cell stays under that cell's upper layers (drawn cell by cell, a pink
+// square moved up out of its cell covered half of the neighbour's hexagon — it looked like the layer order changing with
+// the turn). Only for a stack of plain Fill layers and cells without their own content; masks / subtract / a cell's own
+// shape keep the cell-by-cell drawing (they work inside one cell). Paper rect, transforms and inks are unchanged.
+export function layerPasses(geo, items) {
+  if (!geo || !geo.layers || geo.layers.length < 2 || items.some(it => it.content)) return null;
+  if (!geo.layers.every(l => (l.role || 'fill') === 'fill')) return null;
+  return geo.layers.map(l => ({ ...geo, layers: [l] }));
+}
+// Clip to cell (Component, Oct 12, 2026): each cell's drawing cut to its own frame, in the Component's coordinates
+export const cellClipShape = (it, halfX, halfY) => (it.poly
+  ? `<polygon points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`
+  : `<rect x="${(halfX + it.cx - it.cellSize / 2).toFixed(2)}" y="${(halfY + it.cy - it.cellSize / 2).toFixed(2)}" width="${it.cellSize.toFixed(2)}" height="${it.cellSize.toFixed(2)}"/>`);
+function clipCellCanvas(ctx, it, halfX, halfY) {
+  ctx.beginPath();
+  if (it.poly) { it.poly.forEach((p, k) => (k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); }
+  else ctx.rect(halfX + it.cx - it.cellSize / 2, halfY + it.cy - it.cellSize / 2, it.cellSize, it.cellSize);
+  ctx.clip();
+}
 export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply) {
   const halfX = boxW / 2, halfY = (boxH == null ? boxW : boxH) / 2;
   const overrideCache = new Map();   // seedType|params → {geo,path}, so several cells sharing one override don't re-tessellate
+  const passes = layerPasses(geo, itemsToDraw);
+  if (passes) { passes.forEach(pg => drawItemsPlainOnce(ctx, itemsToDraw, pg, path, halfX, halfY, multiply, overrideCache, geo)); return; }
+  drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply, overrideCache, geo);
+}
+function drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply, overrideCache, whole) {
   for (const it of itemsToDraw) {
     let itGeo = geo, itPath = path;
     if (it.content) {
@@ -423,6 +448,7 @@ export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply
     const drawOne = () => {
       ctx.save();
       if (multiply) ctx.globalCompositeOperation = 'multiply';   // Blend → Multiply: each cell's ink mixes with what is under it
+      if (state.componentClip) clipCellCanvas(ctx, it, halfX, halfY);
       ctx.translate(halfX + it.cx, halfY + it.cy);
       ctx.rotate(it.rotation * Math.PI / 180);
       const fit = it.cellSize / 100;
@@ -438,7 +464,7 @@ export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply
     // (Component Edit mode) — withAppearance makes every getElementAppearance()
     // read inside drawOne() (including applyElementStretchCanvas's own) see
     // that snapshot instead of the live/global panel, for this item only.
-    const drawIt = () => withItemParts(it, itGeo, drawOne);
+    const drawIt = () => withItemParts(it, it.content ? itGeo : whole, drawOne);   // the parts' inks count the whole stack (a pass paints one layer)
     if (it.content && it.content.appearance) withAppearance(it.content.appearance, drawIt);
     else drawIt();
   }
@@ -565,7 +591,8 @@ export function buildComponentSVGBody(items, seed, size) {
         + `<g mask="url(#${uid})"><rect width="${size2}" height="${size2}" fill="${state.paperColor}"/>${paperPatternSVG(size2, size2)}${underWrapped}</g>`;
     }
   } else {
-    for (const it of items) {
+    const passes = layerPasses(geo, items);
+    for (const pass of (passes || [null])) for (const it of items) {
       const fit = it.cellSize / 100;
       const sx = (it.flipH ? -1 : 1) * it.scale * fit;
       const sy = (it.flipV ? -1 : 1) * it.scale * fit;
@@ -576,10 +603,13 @@ export function buildComponentSVGBody(items, seed, size) {
       // reading whatever appearance is already in effect for this whole
       // call (the live panel normally, or componentEditDefaultAppearance
       // while renderComponentEditCanvas has it wrapped).
-      const itGeo = resolveItemGeo(it, geo), paint = () => withItemParts(it, itGeo, () => elementPathMarkup(itGeo, it.color));
+      // a pass paints ONE layer, but the parts' inks (Each part the next ink) count every part: they read the whole stack
+      const whole = resolveItemGeo(it, geo), itGeo = pass || whole, paint = () => withItemParts(it, whole, () => elementPathMarkup(itGeo, it.color));
       const markup = (it.content && it.content.appearance) ? withAppearance(it.content.appearance, paint) : paint();
-      body += `<g transform="translate(${(halfX + it.cx).toFixed(2)},${(halfY + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
+      const cell = `<g transform="translate(${(halfX + it.cx).toFixed(2)},${(halfY + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
         + markup + `</g>`;
+      if (state.componentClip) { const cid = 'cellcut-' + nextDrawId(); body += `<clipPath id="${cid}">${cellClipShape(it, halfX, halfY)}</clipPath><g clip-path="url(#${cid})">${cell}</g>`; }
+      else body += cell;
     }
   }
   // A cell-shape lattice: the canvas is the cells' own outline — Paper and cells clipped to it.

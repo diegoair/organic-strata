@@ -637,6 +637,34 @@ async function colourGroups(mode) {
   C('plain layers: the group is one unit (3 × (3+1) = 12, the members always together)', plain.count === 12 && plain.combos === 12 && plain.uniform, JSON.stringify(plain));
 }
 
+// Layer by layer + Clip to cell (Diego, Oct 12 — a square moved out of its cell covered the neighbour's upper layers).
+async function layerOrder(mode) {
+  const C = (n, ok, d) => check(mode, 'Layer order · ' + n, ok, d);
+  await step('element');
+  await ev(async () => {
+    const F = window.__fvs, sl = ms => new Promise(r => setTimeout(r, ms));
+    F.state.colors = ['#ff00aa', '#0033ff', '#00cc44']; F.buildPalette();
+    const s = document.getElementById('sel-seed-type'); s.value = 'roundedrect'; s.dispatchEvent(new Event('change', { bubbles: true })); await sl(200);
+    F.addLayer(); await sl(200);
+    const L = F.state.layers; L.items[0].ink = 0; L.items[0].place = { mx: 0, my: -64, scale: 0.6, rotate: 0 }; L.items[1].ink = 1;
+    F.layersChanged(); await sl(200);
+  });
+  await step('component'); await sleep(600);
+  const r = await ev(async () => {
+    const F = window.__fvs, sel = document.getElementById('sel-rule'); sel.value = 'pinwheel'; sel.dispatchEvent(new Event('change', { bubbles: true }));
+    const c = document.getElementById('chk-layer-inks'); if (c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }
+    document.getElementById('btn-generate').click(); await new Promise(r => setTimeout(r, 500));
+    const it = F.buildComponentItems(F.state.components[0], F.getGrid()), svg = F.buildComponentSVG(it, F.getSeed(), F.frameSize(F.getGrid()));
+    const lowLast = svg.lastIndexOf('#ff00aa'), highFirst = svg.indexOf('#0033ff');
+    return { lowLast, highFirst, ok: lowLast > 0 && highFirst > lowLast };
+  });
+  C('every cell\'s lower layer is drawn before any cell\'s upper layer', r.ok, JSON.stringify(r));
+  await ev(() => { const c = document.getElementById('chk-component-clip'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await sleep(300);
+  const k = await ev(() => { const F = window.__fvs, it = F.buildComponentItems(F.state.components[0], F.getGrid()), svg = F.buildComponentSVG(it, F.getSeed(), F.frameSize(F.getGrid())); const cv = document.createElement('canvas'); cv.width = cv.height = 400; let png = true; try { F.drawComponentCanvas(cv.getContext('2d'), it, F.getSeed(), F.frameSize(F.getGrid())); } catch (e) { png = String(e); } return { clips: (svg.match(/<clipPath id="cellcut-/g) || []).length, cells: it.length, png }; });
+  C('Clip to cell: every cell (and layer pass) cut to its frame, the PNG draws too', k.clips === k.cells * 2 && k.png === true, JSON.stringify(k));
+  C('Clip to cell is kept with the Element\'s Generated components', await ev(() => { const F = window.__fvs; F.state.elements.length; return document.getElementById('chk-component-clip').checked && F.state.componentClip === true; }));
+}
+
 for (const mode of ['clean', 'held']) {
   if (ONLY && ONLY !== mode) continue;
   held = false;
@@ -650,6 +678,7 @@ for (const mode of ['clean', 'held']) {
   if (mode === 'clean') { await openFvs(); try { await symbolKept(mode); } catch (e) { check(mode, 'Symbol kept ran', false, e.message); } }
   if (mode === 'clean') { await openFvs(); try { await partVariants(mode); } catch (e) { check(mode, 'Part variants ran', false, e.message); } }
   if (mode === 'clean') { await openFvs(); try { await colourGroups(mode); } catch (e) { check(mode, 'Colour group ran', false, e.message); } }
+  if (mode === 'clean') { await openFvs(); try { await layerOrder(mode); } catch (e) { check(mode, 'Layer order ran', false, e.message); } }
   check(mode, 'console clean', !consoleErrors.length, consoleErrors.slice(0, 4).join(' | '));
 }
 for (const r of results) console.log(`${r.ok ? '✓' : '✗'} [${r.mode}] ${r.name}${r.detail ? ' — ' + r.detail : ''}`);

@@ -18,6 +18,7 @@ export const state = {
   // The Element board (Oct 2026, docs/FVS.md §13): several Elements, each a snapshot {seed, app} as a saved Element keeps;
   // the active one is the live panel. [{id, name, custom (renamed by hand), seed, app}] — persisted by 18-step-boards.js.
   elements: [], activeElement: null,
+  componentClip: false,   // Clip to cell on the Component step (Oct 12, 2026): each cell cut to its frame
   componentEditMode: false,
   componentEditId: null,          // the component being edited FROM (read-only source, never mutated)
   componentEditCells: null,       // working copy of cells, edited in place while in this mode

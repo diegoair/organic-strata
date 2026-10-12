@@ -106,7 +106,8 @@ export function libraryEntryFromLive(comp) {
     component: { ruleSource: comp.ruleSource, cells: comp.cells },
     role: state.componentRole,
     underlyingComponentName: state.underlyingComponentName,
-    ...(state.componentBlend === 'multiply' ? { blend: 'multiply' } : {}),   // absent = Normal (every older Component)
+    ...(state.componentBlend === 'multiply' ? { blend: 'multiply' } : {}),
+    ...(state.componentClip ? { clip: true } : {}),   // Clip to cell (Oct 12, 2026)   // absent = Normal (every older Component)
     savedAt: new Date().toISOString(),
   };
 }

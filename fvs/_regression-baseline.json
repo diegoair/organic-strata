@@ -320,8 +320,8 @@
   "layers:inks:pinwheel": "128:128",
   "layers:inks:firstIsLive": "true",
   "layers:inks:distinct16": "16",
-  "layers:inks:thumb:first": "884f0720",
-  "layers:inks:thumb:last": "be272c28",
+  "layers:inks:thumb:first": "b6d84bc5",
+  "layers:inks:thumb:last": "c6c73d4d",
   "layers:inks:save": "true",
   "layers:inks:adopt": "true",
   "layers:inks:toggleOff": "8:true",
@@ -618,8 +618,8 @@
   "parts:segment:{\"segDashes\":4}:strips": "23256315",
   "parts:segment:{\"segDashes\":4}:strips:sum": "5,true",
   "parts:keys:5-7-5": "87e08ce0",
-  "parts:cell-inks": "ac3d1119",
-  "parts:step:index": "efbb65cb",
-  "parts:step:checker": "938cef71",
+  "parts:cell-inks": "5802a97f",
+  "parts:step:index": "113cb79d",
+  "parts:step:checker": "07ff4547",
   "parts:step:off-clean": "true"
 }
