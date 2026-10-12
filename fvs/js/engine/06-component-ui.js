@@ -215,11 +215,26 @@ export const COMPONENT_STARTER_RULES = [
 export function componentElementSignature() {
   return JSON.stringify({ seed: getSeed(), appearance: getElementAppearance(), cells: resolveGridCells(getGrid()).length });
 }
-export const layerInksOn = () => pc('chk-layer-inks');
+// A divided Element (Diego, Oct 12, 2026 — a Polygon in 8 parts × 6 inks gave 7⁸ = 5,764,801 combinations, the first
+// 512 shown): the switch is OFF by default and kept on its Division (`parts.layerInks`); ON, it gives ONE variant per
+// ink — every part's ink moved along the Palette by k (a part on the cell's colour stays) — not every combination.
+const dividedNow = () => !!(state.layers && state.layers.parts);
+export const layerInksOn = () => (dividedNow() ? !!state.layers.parts.layerInks : pc('chk-layer-inks'));
+function partInkTurns() {
+  const cur = currentLayerInks(), n = state.colors.length, out = [], seen = new Set();
+  for (let k = 0; k < n; k++) {
+    const c = {};
+    Object.entries(cur).forEach(([id, ink]) => { c[id] = typeof ink === 'number' ? (ink + k) % n : ink; });
+    const key = JSON.stringify(c);
+    if (!seen.has(key)) { seen.add(key); out.push(c); }
+  }
+  return out;
+}
 export function layerInkCombos() {
   if (!layerInksOn()) return [];
   const layers = fillLayers();
   if (!layers.length) return [];
+  if (dividedNow()) return partInkTurns();
   const opts = ['cell', ...state.colors.map((_, k) => k)];
   let combos = [{}];
   for (const l of layers) combos = combos.flatMap(c => opts.map(o => ({ ...c, [l.id]: o })));
@@ -230,6 +245,7 @@ export function layerInkCombos() {
 }
 export function layerInkComboCount() {
   const n = layerInksOn() ? fillLayers().length : 0;
+  if (n && dividedNow()) return partInkTurns().length;
   return n ? Math.pow(state.colors.length + 1, n) : 1;
 }
 // geometry × combos, geometry-major, capped at EXHAUSTIVE_CAP (the total is reported).

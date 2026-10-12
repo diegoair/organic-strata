@@ -813,7 +813,11 @@ ctrl('chk-axis-scale').addEventListener('change', e => {
 });
 
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
-ctrl('chk-layer-inks').addEventListener('change', () => { if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint(); });
+ctrl('chk-layer-inks').addEventListener('change', e => {
+  const L = state.layers;   // a divided Element keeps its own switch on its Division (saved with it)
+  if (L && L.parts) { if (e.target.checked) L.parts.layerInks = true; else delete L.parts.layerInks; }
+  if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint();
+});
 ctrl('btn-generate').addEventListener('click', generate);
 ctrl('btn-clear-gallery').addEventListener('click', clearGallery);
 ctrl('btn-colourways').addEventListener('click', generateColourways);

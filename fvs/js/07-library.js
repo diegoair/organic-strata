@@ -340,6 +340,7 @@ export function renderLayersUI() {
   place.style.display = L ? '' : 'none';
   ctrl('layers-section').appendChild(place);   // park it before the list is rebuilt
   ctrl('layer-inks-row').style.display = L ? '' : 'none';   // the colour-variants toggle only means something for a stack
+  if (L && L.parts) ctrl('chk-layer-inks').checked = !!L.parts.layerInks;   // a divided Element: its own switch, off by default (Oct 12, 2026)
   ctrl('element-wide-label').style.display = L ? '' : 'none';   // Appearance Scale / Move are Element-wide: say so once there are layers
   // the per-layer look lives in the layer's card; with a single shape it is back in Appearance
   if (L) place.appendChild(ctrl('element-look-block')); else ctrl('element-wide-label').before(ctrl('element-look-block'));

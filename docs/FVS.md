@@ -1069,6 +1069,7 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   `state.elements` + `state.activeElement` (engine).
 
 **Component board**
+- **Layer colour variants on a divided Element** (Diego, Oct 12, 2026 — a Polygon in 8 parts × 6 inks gave 7⁸ = 5,764,801 combinations, the first 512 shown, a jumble): **off by default** for a divided Element, kept on its Division (`parts.layerInks`, saved with it); **on**, it gives **one variant per ink** — every part's ink moved along the Palette by 1, 2, … (a part on the cell's colour stays), duplicates dropped — instead of every combination (`partInkTurns`, engine/06). Elements with plain layers keep every combination as before.
 - **Drawn only when shown** (Oct 11, 2026, Diego: *the Palette is very slow when I change the Paper colour on Symbol*): `renderGallery` draws the Component list only while the Component step shows (or Component Edit) — off it, every Palette / Paper / shape change used to rebuild the hidden list (33,280 nodes with layer colour variants + a Paper line pattern). `setTier` draws it when the step shows. Measured, 128 Components + a Paper pattern: 10 ms → 3.5 ms per Paper change on Symbol, 0 thumbnails rebuilt (was 128 per change).
 - **One *Generated components* area per Element** (O-67 d, Diego, Oct 11, 2026 — *it is not a gallery but the Generated
   Components: each Element, by its rules, generates a number of possible Components*). Labelled *‹Element name› ·

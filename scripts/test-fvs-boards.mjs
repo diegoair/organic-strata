@@ -530,6 +530,35 @@ async function symbolKept(mode) {
   C('the Symbol is drawn after the reload', await ev(() => document.querySelectorAll('#symbol-frame svg *').length > 10));
 }
 
+// Layer colour variants on a divided Element (Diego, Oct 12 — a Polygon in 8 parts × 6 inks gave millions of combinations):
+// off by default; on = one variant per ink (every part's ink moved along the Palette), not every combination.
+async function partVariants(mode) {
+  const C = (n, ok, d) => check(mode, 'Part variants · ' + n, ok, d);
+  await step('element');
+  await ev(async () => {
+    const F = window.__fvs, sl = ms => new Promise(r => setTimeout(r, ms));
+    const s = document.getElementById('sel-seed-type'); s.value = 'polygon'; s.dispatchEvent(new Event('change', { bubbles: true })); await sl(300);
+    F.state.colors = ['#4775e1', '#2b14d7', '#ffdbfc', '#f9dfe2', '#00e61b', '#888888']; F.buildPalette();
+    const m = document.getElementById('sel-part-method'); const o = [...m.options].find(o => o.value === 'fan') || [...m.options].find(o => !o.disabled && o.value !== 'none');
+    m.value = o.value; m.dispatchEvent(new Event('change', { bubbles: true })); await sl(400);
+    F.state.layers.items.forEach((l, i) => { if (l.part) l.ink = i % 6; }); F.layersChanged(); await sl(300);
+  });
+  await step('component'); await sleep(800);
+  const gen = () => ev(async () => { const r = document.getElementById('sel-rule'); r.value = 'pinwheel'; r.dispatchEvent(new Event('change', { bubbles: true })); document.getElementById('btn-generate').click(); await new Promise(r => setTimeout(r, 700)); return { n: __t.F.state.components.length, inks: __t.F.state.components.filter(c => c.layerInks).length, parts: __t.F.state.layers.items.filter(l => l.part).length, on: document.getElementById('chk-layer-inks').checked }; });
+  const off = await gen();
+  C('a divided Element: colour variants off by default (geometry only)', off.parts >= 6 && !off.on && off.inks === 0, JSON.stringify(off));
+  await ev(() => { const c = document.getElementById('chk-layer-inks'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); });
+  const on = await gen();
+  C('switched on: one variant per ink, not every combination', on.on && on.n === off.n * 6 && on.inks === on.n, JSON.stringify({ off: off.n, on: on.n }));
+  const turn = await ev(() => { const a = __t.F.state.components[0].layerInks, b = __t.F.state.components[1].layerInks; return Object.keys(a).every(k => typeof a[k] !== 'number' || b[k] === (a[k] + 1) % 6); });
+  C('each variant moves every part\'s ink along the Palette', turn);
+  C('the switch is kept on the Element\'s Division', await ev(() => !!__t.F.state.layers.parts.layerInks));
+  // an Element with plain layers keeps every combination
+  await step('element');
+  const plain = await ev(async () => { const F = window.__fvs, sl = ms => new Promise(r => setTimeout(r, ms)); const m = document.getElementById('sel-part-method'); m.value = 'none'; m.dispatchEvent(new Event('change', { bubbles: true })); await sl(300); F.state.layers = null; const s = document.getElementById('sel-seed-type'); s.value = 'triangle'; s.dispatchEvent(new Event('change', { bubbles: true })); await sl(200); F.state.colors = ['#111111', '#e8321e', '#1f5fd6']; F.buildPalette(); F.addLayer(); await sl(300); const c = document.getElementById('chk-layer-inks'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); return F.layerInkComboCount(); });
+  C('plain layers still give every combination ((3+1)² = 16)', plain === 16, String(plain));
+}
+
 for (const mode of ['clean', 'held']) {
   if (ONLY && ONLY !== mode) continue;
   held = false;
@@ -541,6 +570,7 @@ for (const mode of ['clean', 'held']) {
   if (mode === 'clean') { await openFvs(); try { await elementPalettes(mode); } catch (e) { check(mode, 'Palette ran', false, e.message); } }
   if (mode === 'clean') { await openFvs(); try { await generatedPerElement(mode); } catch (e) { check(mode, 'Generated ran', false, e.message); } }
   if (mode === 'clean') { await openFvs(); try { await symbolKept(mode); } catch (e) { check(mode, 'Symbol kept ran', false, e.message); } }
+  if (mode === 'clean') { await openFvs(); try { await partVariants(mode); } catch (e) { check(mode, 'Part variants ran', false, e.message); } }
   check(mode, 'console clean', !consoleErrors.length, consoleErrors.slice(0, 4).join(' | '));
 }
 for (const r of results) console.log(`${r.ok ? '✓' : '✗'} [${r.mode}] ${r.name}${r.detail ? ' — ' + r.detail : ''}`);
