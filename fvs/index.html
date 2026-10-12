@@ -434,7 +434,7 @@
       <div class="row-btns" id="part-actions-row"><button type="button" class="mini-btn" id="btn-part-inks">One ink per part</button><button type="button" class="mini-btn" id="btn-part-ungroup">Make plain layers</button></div>
     </div>
     <div class="panel-section" id="layers-section">
-      <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint">Add new layer</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg class="ico ico--sm" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button></span></h3>
+      <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint" aria-live="polite">Add new layer</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg class="ico ico--sm" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button></span></h3>
       <!-- Colour groups (Oct 12, 2026): layers that change colour together by one rule — colour only -->
       <div id="layer-group-row" hidden>
         <div class="row-btns"><button type="button" class="mini-btn" id="btn-layer-group" aria-disabled="true" aria-label="Group — the selected layers change colour together">Group</button><button type="button" class="mini-btn" id="btn-layer-ungroup" aria-label="Ungroup — the layers keep their colours">Ungroup</button></div>
@@ -442,7 +442,7 @@
         <div id="layer-group-block" hidden>
           <div class="ctrl-row"><div class="ctrl-label">Name</div><input type="text" class="panel-input" id="inp-layer-group-name" aria-label="Colour group name" autocomplete="off"></div>
           <div class="ctrl-row"><div class="ctrl-label">Rule</div><div id="layer-group-rule-picker" class="presets"></div><select class="panel-select" id="sel-layer-group-rule" aria-label="Colour group rule"><option value="same">Same ink</option><option value="tonal">Tonal</option><option value="shift">Shift together</option></select></div>
-          <div class="ctrl-row"><div class="ctrl-label">Ink</div><div class="fvs-ink-pop fvs-ink-pop--inline" id="layer-group-inks" role="group" aria-label="Colour group ink"></div></div>
+          <div class="fvs-group-ink"><div class="ctrl-label">Ink</div><div class="fvs-ink-pop fvs-ink-pop--inline" id="layer-group-inks" role="group" aria-label="Colour group ink"></div></div>
           <p class="panel-hint" id="layer-group-rule-hint"></p>
         </div>
       </div>

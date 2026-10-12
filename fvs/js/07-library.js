@@ -56,6 +56,25 @@ import {
 } from './06-component-ui.js';
 import { COLOUR_GROUP_RULES, applyColourGroup, groupMembers, pruneColourGroups } from './engine/06-component-ui.js';
 import { hooks, provide } from './hooks.js';
+// C: a group's chip — its ink as the fill, its number in --ink or --paper, whichever reads better on that ink
+function groupChip(L, gid, n, name) {
+  const g = L.groups[gid], ink = state.colors[((g.ink % state.colors.length) + state.colors.length) % state.colors.length] || '';
+  const cs = getComputedStyle(document.documentElement), a = cs.getPropertyValue('--ink').trim(), b = cs.getPropertyValue('--paper').trim();
+  let fg = 'var(--ink)';
+  try { fg = Organica.color.contrast(a, ink) >= Organica.color.contrast(b, ink) ? 'var(--ink)' : 'var(--paper)'; } catch (e) {}
+  return `<button type="button" class="fvs-layer__group" data-layer-act="group" style="--chip-ink:${ink};--chip-fg:${fg}" aria-label="Select ${name}">${n}</button>`;
+}
+// C: hover / focus on a chip lights its group — the rows and the parts on the board
+function lightGroup(gid) {
+  document.querySelectorAll('.is-group-hl').forEach(n => n.classList.remove('is-group-hl'));
+  const L = state.layers;
+  if (!gid || !L) return;
+  L.items.forEach((l, i) => { if (l.group !== gid) return; const row = ctrl('layers-list').querySelector(`.org-layer-card[data-layer="${i}"]`); if (row) row.classList.add('is-group-hl'); const p = document.querySelector(`#element-svg [data-part="${l.id}"]`); if (p) p.classList.add('is-group-hl'); });
+}
+['mouseover', 'focusin'].forEach(t => ctrl('layers-list').addEventListener(t, e => { const c = e.target.closest('.fvs-layer__group'); if (c) { const row = c.closest('[data-layer]'); lightGroup(state.layers && state.layers.items[+row.dataset.layer].group); } }));
+// the chip's number is picked against this theme's --ink / --paper: drawn again when the theme changes
+new MutationObserver(() => { if (state.layers) renderLayersUI(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+['mouseout', 'focusout'].forEach(t => ctrl('layers-list').addEventListener(t, e => { if (e.target.closest('.fvs-layer__group')) lightGroup(null); }));
 // a colour group's name, typed by the user, into markup
 const escGroup = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 // Names earlier files reach at run time (hooks.*) — live getters.
@@ -351,7 +370,7 @@ export function renderLayersUI() {
   if (L) ctrl('element-wide-label').before(ctrl('element-pattern-block'));
   else ctrl('element-style-row').after(ctrl('element-pattern-block'));
   if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint();
-  ctrl('layers-hint').textContent = L ? L.items.length + ' · top first' : 'Add new layer';
+  ctrl('layers-hint').textContent = L ? L.items.length + (rt.partSel && rt.partSel.size >= 2 ? ' · ' + rt.partSel.size + ' selected' : ' · top first') : 'Add new layer';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
   ctrl('split-layers-hint').style.display = L ? '' : 'none';   // Split takes the whole stack
   renderPartsUI();
@@ -374,7 +393,7 @@ export function renderLayersUI() {
     return open + `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}${picked ? ' is-picked' : ''}" data-layer="${i}" role="listitem" tabindex="-1">
       <div class="org-layer-card__head" title="Drag to reorder · ⌥↑ / ⌥↓">
       <span class="org-layer-card__grip" aria-hidden="true">${LAYER_ICONS.grip}</span>
-      <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on || picked}" aria-label="Edit layer ${i + 1}: ${layerName(l)}${gNum ? ' · ' + gName : ''}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span>${gNum ? `<span class="fvs-layer__group" aria-hidden="true">${gNum}</span>` : ''}<span class="org-layer-card__title">${layerName(l)}</span></button>
+      <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on || picked}" aria-label="Edit layer ${i + 1}: ${layerName(l)}${gNum ? ' · ' + gName : ''}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span><span class="org-layer-card__title">${layerName(l)}</span></button>${gNum ? groupChip(L, l.group, gNum, gName) : ''}
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="eye" aria-pressed="${!l.hidden}" aria-label="${l.hidden ? 'Show' : 'Hide'} layer" title="${l.hidden ? 'Hidden — click to show' : 'Hide this layer'}">${l.hidden ? LAYER_ICONS.eyeOff : LAYER_ICONS.eye}</button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : role === 'pattern' ? 'cuts its pattern out of the layers below' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % LAYER_ROLE_ORDER.length]]}">${LAYER_ICONS[role]}</button>
       <button type="button" class="fvs-layer__swatch${cell ? ' is-cell' : ''}" data-layer-act="ink" style="--sw:${isFill ? layerInkColor(l, colorAt(0)) : 'var(--border)'}" aria-label="Colour: ${cell ? 'follow cell colour' : 'Ink ' + (l.ink + 1)}" title="${isFill ? (cell ? 'Follows the cell colour' : 'Ink ' + (l.ink + 1)) + ' — click to change' : 'Mask layers have no colour'}"${isFill ? '' : ' disabled'}></button>
@@ -383,7 +402,10 @@ export function renderLayersUI() {
     </div>` + close;
   }).join('');
   const activeRow = list.querySelector(`.org-layer-card[data-layer="${L.active}"]`);
-  if (activeRow) activeRow.appendChild(place);   // Move / Size / Rotate live under the layer they edit
+  const many = rt.partSel && rt.partSel.size >= 2;   // D: several picked — the one-layer settings step aside
+  place.style.display = many ? 'none' : '';
+  if (activeRow) activeRow.appendChild(place);
+  if (activeRow && many) activeRow.appendChild(Object.assign(document.createElement('p'), { className: 'panel-hint fvs-layer-place-hint', textContent: 'Select one layer to place or style it' }));   // Move / Size / Rotate live under the layer they edit
   syncColourGroupUI();
   const pl = layerPlace(L.items[L.active]);
   [['mx', pl.mx], ['my', pl.my], ['scale', pl.scale], ['rotate', pl.rotate]].forEach(([k, v]) => { ctrl('rg-layer-' + k).value = v; ctrl('v-layer-' + k).textContent = v; });
@@ -443,6 +465,7 @@ export function syncColourGroupUI() {
   const key = JSON.stringify([id, g, L.items.map(l => [l.id, l.ink, l.tone, l.group]), state.colors]);
   if (key !== groupThumbKey) { groupThumbKey = key; groupRulePicker.invalidate(); }
   groupRulePicker.refresh();
+  if (g.ink >= state.colors.length) g.ink = g.ink % state.colors.length;   // F: the Palette shrank under the group's ink
   ctrl('layer-group-inks').innerHTML = state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-pressed="${g.ink === k}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"></button>`).join('');
   ctrl('layer-group-rule-hint').textContent = RULE_HINTS[g.rule] || '';
 }
@@ -533,6 +556,13 @@ ctrl('layers-list').addEventListener('click', e => {
   if (!row || !state.layers) return;
   const i = +row.dataset.layer, act = b ? b.dataset.layerAct : 'select';
   if (e.target.closest('#layer-place-block')) return;
+  if (act === 'group') {   // the chip: the whole group, picked (it replaces the selection)
+    const gid = state.layers.items[i].group, ms = groupMembers(state.layers, gid);
+    rt.partSel = new Set(ms.map(l => l.id)); rt.layerAnchor = i;
+    const top = state.layers.items.indexOf(ms[0]);
+    if (!ms.includes(state.layers.items[state.layers.active]) && top >= 0) selectLayer(top); else layersChanged();
+    return;
+  }
   if (act === 'select') {
     const id = state.layers.items[i].id;
     // a list's grammar (Diego, Oct 12, 2026): Shift-click = the range from the last clicked row, ⌘-click = add or remove one

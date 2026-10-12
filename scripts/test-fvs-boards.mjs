@@ -587,12 +587,23 @@ async function colourGroups(mode) {
   // Shift-click = a range; then back to the ⌘ picks below
   await click(await rowBtn(0)); await sleep(150); await click(await rowBtn(4), SHIFT); await sleep(200);
   C('Shift-click selects the range of rows (5)', await ev(() => __t.F.partSel.size === 5), String(await ev(() => __t.F.partSel.size)));
+  const ux = await ev(() => ({ hint: document.getElementById('layers-hint').textContent, place: getComputedStyle(document.getElementById('layer-place-block')).display, note: !!document.querySelector('.fvs-layer-place-hint'), tint: getComputedStyle(document.querySelector('#layers-list .org-layer-card.is-picked')).backgroundColor, sel: (() => { const p = document.querySelector('#element-svg .fvs-part.is-sel > path'); if (!p) return null; const cs = getComputedStyle(p); return { filter: cs.filter, w: cs.strokeWidth }; })() }));
+  C('5 picked: the header says "5 selected", the one-layer settings step aside, rows tinted', /6 · 5 selected/.test(ux.hint) && ux.place === 'none' && ux.note && ux.tint !== 'rgba(0, 0, 0, 0)', JSON.stringify(ux));
+  C('a picked part on the board: a crisp outline, no blurred halo', ux.sel && ux.sel.filter === 'none' && ux.sel.w === '2px', JSON.stringify(ux.sel));
   await click(await rowBtn(0)); await sleep(150); await click(await rowBtn(1), META); await sleep(150); await click(await rowBtn(2), META); await sleep(200);
   C('⌘-click picks rows one by one (3)', await ev(() => __t.F.partSel.size === 3), String(await ev(() => __t.F.partSel.size)));
   C('Group is on with three selected', await ev(() => document.getElementById('btn-layer-group').getAttribute('aria-disabled') === 'false'));
   await ev(() => document.getElementById('btn-layer-group').click()); await sleep(300);
   const g = await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups || {})[0], ms = L.items.filter(l => l.group === id); return { id, n: ms.length, inks: ms.map(l => l.ink), rule: L.groups[id].rule, chips: document.querySelectorAll('#layers-list .fvs-layer__group').length, block: !document.getElementById('layer-group-block').hidden, name: document.getElementById('inp-layer-group-name').value }; });
   C('Group makes a colour group (Same ink): one ink, a chip per member, the block shows', g.n === 3 && new Set(g.inks).size === 1 && g.rule === 'same' && g.chips === 3 && g.block && g.name === 'Colour group 1', JSON.stringify(g));
+  // the chip: hover lights the group (rows + parts), a click picks the whole group
+  await click(await rowBtn(5)); await sleep(200);
+  const chip = await ev(() => __t.box(document.querySelector('#layers-list .fvs-layer__group')));
+  await hover(chip.x, chip.y); await sleep(150);
+  const hl = await ev(() => ({ rows: document.querySelectorAll('#layers-list .org-layer-card.is-group-hl').length, parts: document.querySelectorAll('#element-svg .is-group-hl').length, label: document.querySelector('#layers-list .fvs-layer__group').getAttribute('aria-label') }));
+  C('hovering a group chip lights its members (rows + parts)', hl.rows === 3 && hl.parts === 3 && hl.label === 'Select Colour group 1', JSON.stringify(hl));
+  await click(chip); await sleep(250);
+  C('a click on the chip picks the whole group', await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; const ms = L.items.filter(l => l.group === id).map(l => l.id); return __t.F.partSel.size === ms.length && ms.every(m => __t.F.partSel.has(m)) && !document.getElementById('layer-group-block').hidden; }));
   // Tonal
   await ev(() => { const s = document.getElementById('sel-layer-group-rule'); s.value = 'tonal'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await sleep(300);
   const t = await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; const ms = L.items.map((l, i) => ({ l, i })).filter(x => x.l.group === id).sort((a, b) => b.i - a.i).map(x => x.l); return { tones: ms.map(l => l.tone), cols: ms.map(l => __t.F.layerInkColor(l, '#000')), inks: ms.map(l => l.ink) }; });
@@ -604,6 +615,9 @@ async function colourGroups(mode) {
   const before = await ev(() => JSON.stringify(__t.F.state.layers.items.filter(l => l.group).map(l => [l.ink, l.tone])));
   await ev(() => document.getElementById('btn-part-inks').click()); await sleep(300);
   C('One ink per part leaves the group alone', before === await ev(() => JSON.stringify(__t.F.state.layers.items.filter(l => l.group).map(l => [l.ink, l.tone]))));
+  // F: the Palette shrinks under the group's ink — its chip stays pressed
+  const f = await ev(async () => { const F = window.__fvs, keep = F.state.colors.slice(); F.state.colors = keep.slice(0, 3); F.buildPalette(); F.layersChanged(); await new Promise(r => setTimeout(r, 200)); const pressed = document.querySelectorAll('#layer-group-inks [aria-pressed="true"]').length; F.state.colors = keep; F.buildPalette(); F.layersChanged(); return pressed; });
+  C('a group ink past a shorter Palette: one chip still pressed', f === 1, String(f));
   // variants: every turn keeps the group one ink (Same ink)
   await ev(() => { const s = document.getElementById('sel-layer-group-rule'); s.value = 'same'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await sleep(200);
   await step('component'); await sleep(800);
