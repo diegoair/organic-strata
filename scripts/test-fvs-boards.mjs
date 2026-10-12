@@ -582,7 +582,8 @@ async function colourGroups(mode) {
   // details (the parts disclosure) open so the rows are clickable
   await ev(() => { const d = document.querySelector('#layers-list details'); if (d) d.open = true; });
   await click(await rowBtn(0)); await sleep(200);
-  C('Group is off with one layer selected', await ev(() => document.getElementById('btn-layer-group').getAttribute('aria-disabled') === 'true' && !document.getElementById('layer-group-hint').hidden));
+  C('Group is off with one layer selected, no hint (Diego, Oct 12)', await ev(() => document.getElementById('btn-layer-group').getAttribute('aria-disabled') === 'true' && document.getElementById('layer-group-hint').hidden));
+  C('the parts are rows of the list, no Division header', await ev(() => !document.querySelector('#layers-list details, #layers-list .org-disclosure') && document.querySelectorAll('#layers-list .org-layer-card').length >= 6));
   await click(await rowBtn(1), META); await sleep(150); await click(await rowBtn(2), META); await sleep(200);
   // Shift-click = a range; then back to the ⌘ picks below
   await click(await rowBtn(0)); await sleep(150); await click(await rowBtn(4), SHIFT); await sleep(200);

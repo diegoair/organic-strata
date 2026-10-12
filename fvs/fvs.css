@@ -383,8 +383,6 @@
   .fvs-layers .org-layer-card:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
   /* Divide into parts: the parts sit in one group in the list; on the canvas (Edit parts) a part under the
      pointer takes the tool tint, the edited / picked ones the selection outline with a paper halo (as .fg-cell.is-sel). */
-  .fvs-part-group > .org-disclosure__body { padding-top: var(--space-1); }
-  .fvs-part-group { margin-bottom: var(--space-1); }
   /* picked rows (A, Oct 12, 2026): selection is --tool everywhere — a tint + a bar, not the hover wash */
   .fvs-layers .org-layer-card.is-picked { background: color-mix(in srgb, var(--tool) 12%, var(--panel)); }
   .fvs-layers .org-layer-card.is-picked:not(.in-group) { box-shadow: inset 2px 0 0 var(--tool); }

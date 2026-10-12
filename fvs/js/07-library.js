@@ -381,24 +381,19 @@ export function renderLayersUI() {
   renderPartsUI();
   if (!L) { list.innerHTML = ''; ctrl('layer-group-row').hidden = true; syncColourGroupRules(); return; }
   pruneColourGroups(L);
-  // Top layer first, like every layer panel. The parts of a divided shape sit in one group (a disclosure, open
-  // while one of them is being edited or picked on the canvas).
-  const partIdx = L.items.map((l, i) => (l.part ? i : -1)).filter(i => i >= 0);
-  const topPart = partIdx.length ? Math.max(...partIdx) : -1, lowPart = partIdx.length ? Math.min(...partIdx) : -1;
+  // Top layer first, like every layer panel. The parts of a divided shape are rows like the others (Diego, Oct 12, 2026:
+  // the Division's header in the list went — the Division shows in Divide into parts).
   const src = L.parts && L.parts.source, srcIcon = src ? (SEED_ICONS[src.type] || SEED_ICONS.custom).icon : '';
-  const groupOpen = (L.items[L.active] && L.items[L.active].part) || rt.partEdit;
   list.innerHTML = L.items.map((l, i) => i).reverse().map(i => {
     const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill';
     const tint = isFill ? layerInkColor(l, colorAt(0)) : 'var(--mid)', cell = l.ink == null || l.ink === 'cell';
     const icon = l.part ? srcIcon : (SEED_ICONS[l.seed.type] || SEED_ICONS.custom).icon;
     const picked = rt.partSel && rt.partSel.has(l.id);
     const grp = l.group && L.groups && L.groups[l.group], gNum = grp ? (grp.n || Object.keys(L.groups).indexOf(l.group) + 1) : 0, gName = grp ? escGroup(grp.name) : '';
-    const open = i === topPart ? `<details class="org-disclosure fvs-part-group" role="listitem"${groupOpen ? ' open' : ''}><summary class="org-disclosure__head">${Organica.icons.get('chevron-right', { size: 'xs', cls: 'org-chev' })}<span class="org-disclosure__label">${partGroupName(L)}</span></summary><div class="org-disclosure__body" role="list" aria-label="${partGroupName(L)}">` : '';
-    const close = i === lowPart ? '</div></details>' : '';
     const below = L.items[i - 1], joins = grp && below && below.group === l.group && !!below.part === !!l.part;   // the row under it is in the same group
     const gCol = grp ? state.colors[((grp.ink % state.colors.length) + state.colors.length) % state.colors.length] : '';
     const gEdge = grp && lowOnPanel(gCol) ? ';--grp-edge:var(--border-strong)' : '';   // a pale / dark ink beside the panel: a hairline keeps the bar seen
-    return open + `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}${picked ? ' is-picked' : ''}${grp ? ' in-group' : ''}${joins ? ' group-joins' : ''}" data-layer="${i}" role="listitem" tabindex="-1"${grp ? ` style="--grp:${gCol}${gEdge}"` : ''}>
+    return `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}${picked ? ' is-picked' : ''}${grp ? ' in-group' : ''}${joins ? ' group-joins' : ''}" data-layer="${i}" role="listitem" tabindex="-1"${grp ? ` style="--grp:${gCol}${gEdge}"` : ''}>
       <div class="org-layer-card__head" title="Drag to reorder · ⌥↑ / ⌥↓">
       <span class="org-layer-card__grip" aria-hidden="true">${LAYER_ICONS.grip}</span>
       <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on || picked}" aria-label="Edit layer ${i + 1}: ${layerName(l)}${gNum ? ' · ' + gName : ''}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span><span class="org-layer-card__title">${layerName(l)}</span></button>${gNum ? groupChip(L, l.group, gNum, gName) : ''}
@@ -407,7 +402,7 @@ export function renderLayersUI() {
       <button type="button" class="fvs-layer__swatch${cell ? ' is-cell' : ''}" data-layer-act="ink" style="--sw:${isFill ? layerInkColor(l, colorAt(0)) : 'var(--border)'}" aria-label="Colour: ${cell ? 'follow cell colour' : 'Ink ' + (l.ink + 1)}" title="${isFill ? (cell ? 'Follows the cell colour' : 'Ink ' + (l.ink + 1)) + ' — click to change' : 'Mask layers have no colour'}"${isFill ? '' : ' disabled'}></button>
       ${l.part ? '' : `<button type="button" class="org-btn org-btn--sm org-btn--icon fvs-layer__del" data-layer-act="del" aria-label="Delete layer" title="Delete layer">${LAYER_ICONS.trash}</button>`}
       </div>
-    </div>` + close;
+    </div>`;
   }).join('');
   const activeRow = list.querySelector(`.org-layer-card[data-layer="${L.active}"]`);
   const many = rt.partSel && rt.partSel.size >= 2;   // D: several picked — the one-layer settings step aside
@@ -458,9 +453,10 @@ export function syncColourGroupUI() {
   const canGroup = sel.length >= 2 && kinds.size === 1;
   ctrl('btn-layer-group').setAttribute('aria-disabled', String(!canGroup));
   ctrl('btn-layer-ungroup').disabled = !sel.some(l => l.group);
-  const hint = ctrl('layer-group-hint');
-  hint.hidden = canGroup;
-  hint.textContent = sel.length >= 2 && kinds.size > 1 ? 'A colour group takes parts or layers, not both' : 'Select two or more layers to group them';
+  const hint = ctrl('layer-group-hint');   // Diego, Oct 12: no "Select two or more…" — said only when a selection cannot be grouped
+  const mixed = sel.length >= 2 && kinds.size > 1;
+  hint.hidden = !mixed;
+  hint.textContent = mixed ? 'A colour group takes parts or layers, not both' : '';
 }
 ctrl('btn-layer-group').addEventListener('click', () => {
   const L = state.layers, sel = selectedLayers();
