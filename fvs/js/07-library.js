@@ -3,7 +3,7 @@
 // Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
 import {
-  DEFAULT_COLOR_RULE, PALETTE_MAX, colorAt, entryInkAt, live, pv, state
+  DEFAULT_COLOR_RULE, PALETTE_MAX, colorAt, entryInkAt, live, pc, pv, state
 } from './engine/00-core.js';
 import {
   SEG_WEIGHT_DEF, SEED_TYPES, cellShapeOf, divideLayers, frameDims, partMethodsFor, partsOf, syncPartLayers
@@ -54,15 +54,20 @@ import {
 import {
   syncExhaustiveHint, syncRuleAvailability, syncSeedUI
 } from './06-component-ui.js';
-import { COLOUR_GROUP_RULES, applyColourGroup, groupMembers, pruneColourGroups } from './engine/06-component-ui.js';
+import { COLOUR_GROUP_RULES, applyColourGroup, groupMembers, layerInksOn, pruneColourGroups } from './engine/06-component-ui.js';
 import { hooks, provide } from './hooks.js';
 // C: a group's chip — its ink as the fill, its number in --ink or --paper, whichever reads better on that ink
-function groupChip(L, gid, n, name) {
+function groupChip(L, gid, n, name, still) {
   const g = L.groups[gid], ink = state.colors[((g.ink % state.colors.length) + state.colors.length) % state.colors.length] || '';
   const cs = getComputedStyle(document.documentElement), a = cs.getPropertyValue('--ink').trim(), b = cs.getPropertyValue('--paper').trim();
   let fg = 'var(--ink)';
   try { fg = Organica.color.contrast(a, ink) >= Organica.color.contrast(b, ink) ? 'var(--ink)' : 'var(--paper)'; } catch (e) {}
+  if (still) return `<span class="fvs-layer__group" aria-hidden="true" style="--chip-ink:${ink};--chip-fg:${fg}">${n}</span>`;
   return `<button type="button" class="fvs-layer__group" data-layer-act="group" style="--chip-ink:${ink};--chip-fg:${fg}" aria-label="Select ${name}">${n}</button>`;
+}
+// a colour group's bar: its ink under 3:1 against the panel (a pale ink in light, a dark one in dark) gets a hairline
+function lowOnPanel(ink) {
+  try { const panel = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim(); return Organica.color.contrast(ink, panel) < 3; } catch (e) { return false; }
 }
 // C: hover / focus on a chip lights its group — the rows and the parts on the board
 function lightGroup(gid) {
@@ -374,7 +379,7 @@ export function renderLayersUI() {
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
   ctrl('split-layers-hint').style.display = L ? '' : 'none';   // Split takes the whole stack
   renderPartsUI();
-  if (!L) { list.innerHTML = ''; ctrl('layer-group-row').hidden = true; return; }
+  if (!L) { list.innerHTML = ''; ctrl('layer-group-row').hidden = true; syncColourGroupRules(); return; }
   pruneColourGroups(L);
   // Top layer first, like every layer panel. The parts of a divided shape sit in one group (a disclosure, open
   // while one of them is being edited or picked on the canvas).
@@ -390,7 +395,10 @@ export function renderLayersUI() {
     const grp = l.group && L.groups && L.groups[l.group], gNum = grp ? (grp.n || Object.keys(L.groups).indexOf(l.group) + 1) : 0, gName = grp ? escGroup(grp.name) : '';
     const open = i === topPart ? `<details class="org-disclosure fvs-part-group" role="listitem"${groupOpen ? ' open' : ''}><summary class="org-disclosure__head">${Organica.icons.get('chevron-right', { size: 'xs', cls: 'org-chev' })}<span class="org-disclosure__label">${partGroupName(L)}</span></summary><div class="org-disclosure__body" role="list" aria-label="${partGroupName(L)}">` : '';
     const close = i === lowPart ? '</div></details>' : '';
-    return open + `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}${picked ? ' is-picked' : ''}" data-layer="${i}" role="listitem" tabindex="-1">
+    const below = L.items[i - 1], joins = grp && below && below.group === l.group && !!below.part === !!l.part;   // the row under it is in the same group
+    const gCol = grp ? state.colors[((grp.ink % state.colors.length) + state.colors.length) % state.colors.length] : '';
+    const gEdge = grp && lowOnPanel(gCol) ? ';--grp-edge:var(--border-strong)' : '';   // a pale / dark ink beside the panel: a hairline keeps the bar seen
+    return open + `<div class="org-layer-card org-layer-card--flush is-draggable ${l.hidden ? 'is-off' : 'is-on'}${on ? ' active' : ''}${picked ? ' is-picked' : ''}${grp ? ' in-group' : ''}${joins ? ' group-joins' : ''}" data-layer="${i}" role="listitem" tabindex="-1"${grp ? ` style="--grp:${gCol}${gEdge}"` : ''}>
       <div class="org-layer-card__head" title="Drag to reorder · ⌥↑ / ⌥↓">
       <span class="org-layer-card__grip" aria-hidden="true">${LAYER_ICONS.grip}</span>
       <button type="button" class="fvs-layer__main" data-layer-act="select" aria-pressed="${on || picked}" aria-label="Edit layer ${i + 1}: ${layerName(l)}${gNum ? ' · ' + gName : ''}"><span class="fvs-layer__icon" style="color:${tint}">${icon}</span><span class="org-layer-card__title">${layerName(l)}</span></button>${gNum ? groupChip(L, l.group, gNum, gName) : ''}
@@ -431,23 +439,20 @@ export function moveLayerTo(from, to) {
 // ── Colour groups (Oct 12, 2026): Group / Ungroup over the Layers list, the selected group's Name / Rule / Ink ──
 const selectedLayers = () => { const L = state.layers; if (!L) return []; const ids = rt.partSel && rt.partSel.size ? rt.partSel : new Set([L.items[L.active].id]); return L.items.filter(l => ids.has(l.id)); };
 const groupOfSelection = () => { const gs = new Set(selectedLayers().map(l => l.group).filter(Boolean)); const L = state.layers; return gs.size === 1 && L.groups && L.groups[[...gs][0]] ? [...gs][0] : null; };
-const groupRuleRegistry = {};
-function groupRuleThumb(rule) {
-  const L = state.layers, id = groupOfSelection();
-  if (!L || !id) return '';
-  const clone = JSON.parse(JSON.stringify(L));
-  clone.groups[id].rule = rule; clone.groups[id].from = clone.groups[id].ink;
-  applyColourGroup(clone, id, state.colors.length);
-  const seed = { ...seedForSnapshot(), layers: clone.items };
-  try { return buildSeedPreviewSVG(seed, 0, false, false, 120, { outline: false }); } catch (e) { return ''; }
+export function syncColourGroupRules() {
+  const host = ctrl('colour-group-rules'), L = state.layers, ids = L && L.groups ? Object.keys(L.groups) : [];
+  host.hidden = !ids.length;
+  if (!ids.length) { host.innerHTML = ''; return; }
+  const on = layerInksOn();   // the rules act on the colour variants: disabled, not hidden, while those are off (O-60)
+  host.innerHTML = `<p class="panel-hint">${on ? 'How each colour group changes in the colour variants' : 'Turn on Layer colour variants to use the colour group rules'}</p>` + ids.map(id => {
+    const g = L.groups[id], n = g.n || ids.indexOf(id) + 1;
+    return `<div class="ctrl-row"><div class="ctrl-label fvs-group-rule-label">${groupChip(L, id, n, escGroup(g.name), true)}${escGroup(g.name)}</div><select class="panel-select" data-group="${id}" aria-label="${escGroup(g.name)} rule"${on ? '' : ' disabled'}>${Object.entries(COLOUR_GROUP_RULES).map(([k, v]) => `<option value="${k}"${g.rule === k ? ' selected' : ''}>${v}</option>`).join('')}</select></div>`;
+  }).join('');
 }
-Object.entries(COLOUR_GROUP_RULES).forEach(([k, name]) => { groupRuleRegistry[k] = { name, thumb: () => groupRuleThumb(k) }; });
-const groupRulePicker = Organica.selectPicker(ctrl('sel-layer-group-rule'), ctrl('layer-group-rule-picker'), { registry: groupRuleRegistry, ariaLabel: 'Colour group rule', size: 'preview' });
-const RULE_HINTS = { same: 'Every layer of the group on one ink', tonal: 'The group’s ink, lighter to darker — the top layer lightest', shift: 'The layers keep their differences and move with the ink' };
-let groupThumbKey = '';
 export function syncColourGroupUI() {
   const L = state.layers, row = ctrl('layer-group-row');
   row.hidden = !(L && L.items.length >= 2);
+  syncColourGroupRules();
   if (row.hidden) return;
   const sel = selectedLayers(), kinds = new Set(sel.map(l => !!l.part));
   const canGroup = sel.length >= 2 && kinds.size === 1;
@@ -456,18 +461,6 @@ export function syncColourGroupUI() {
   const hint = ctrl('layer-group-hint');
   hint.hidden = canGroup;
   hint.textContent = sel.length >= 2 && kinds.size > 1 ? 'A colour group takes parts or layers, not both' : 'Select two or more layers to group them';
-  const id = groupOfSelection(), block = ctrl('layer-group-block');
-  block.hidden = !id;
-  if (!id) return;
-  const g = L.groups[id];
-  const name = ctrl('inp-layer-group-name'); if (document.activeElement !== name) name.value = g.name;
-  ctrl('sel-layer-group-rule').value = g.rule;
-  const key = JSON.stringify([id, g, L.items.map(l => [l.id, l.ink, l.tone, l.group]), state.colors]);
-  if (key !== groupThumbKey) { groupThumbKey = key; groupRulePicker.invalidate(); }
-  groupRulePicker.refresh();
-  if (g.ink >= state.colors.length) g.ink = g.ink % state.colors.length;   // F: the Palette shrank under the group's ink
-  ctrl('layer-group-inks').innerHTML = state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-pressed="${g.ink === k}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"></button>`).join('');
-  ctrl('layer-group-rule-hint').textContent = RULE_HINTS[g.rule] || '';
 }
 ctrl('btn-layer-group').addEventListener('click', () => {
   const L = state.layers, sel = selectedLayers();
@@ -481,9 +474,8 @@ ctrl('btn-layer-group').addEventListener('click', () => {
   const id = 'cg' + Date.now().toString(36);
   const top = sel.slice().sort((a, b) => L.items.indexOf(b) - L.items.indexOf(a))[0];
   const ink = typeof top.ink === 'number' ? top.ink : 0;
-  L.groups[id] = { name: 'Colour group ' + n, n, rule: 'same', ink };
-  sel.forEach(l => { l.group = id; });
-  applyColourGroup(L, id, state.colors.length);
+  L.groups[id] = { name: 'Colour group ' + n, n, rule: 'same', ink };   // the rule is chosen on the Component step
+  sel.forEach(l => { l.group = id; });   // the Element keeps its inks as they are
   layersChanged();
 });
 ctrl('btn-layer-ungroup').addEventListener('click', () => {
@@ -495,22 +487,12 @@ ctrl('btn-layer-ungroup').addEventListener('click', () => {
   pruneColourGroups(L);
   layersChanged();
 });
-ctrl('inp-layer-group-name').addEventListener('input', e => { const L = state.layers, id = groupOfSelection(); if (!L || !id) return; L.groups[id].name = e.target.value || L.groups[id].name; renderLayersUI(); e.target.focus(); });
-ctrl('sel-layer-group-rule').addEventListener('change', e => {
-  const L = state.layers, id = groupOfSelection();
-  if (!L || !id) return;
-  L.groups[id].rule = e.target.value; L.groups[id].from = L.groups[id].ink;
-  applyColourGroup(L, id, state.colors.length);
-  layersChanged();
-});
-ctrl('layer-group-inks').addEventListener('click', e => {
-  const b = e.target.closest('[data-ink]'), L = state.layers, id = groupOfSelection();
-  if (!b || !L || !id) return;
-  const g = L.groups[id];
-  if (g.from == null) g.from = g.ink;
-  g.ink = +b.dataset.ink;
-  applyColourGroup(L, id, state.colors.length);
-  layersChanged();
+// the rules, on the Component step: one select per colour group of the edited Element (Oct 12, 2026)
+ctrl('colour-group-rules').addEventListener('change', e => {
+  const sel = e.target.closest('select[data-group]'), L = state.layers;
+  if (!sel || !L || !L.groups || !L.groups[sel.dataset.group]) return;
+  L.groups[sel.dataset.group].rule = sel.value;
+  if (state.components.length && pc('chk-layer-inks') && hooks.generate) hooks.generate();   // the variants follow at once
 });
 
 // One shared colour panel (built on open, positioned under the clicked swatch).

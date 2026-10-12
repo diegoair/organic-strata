@@ -386,7 +386,12 @@
   .fvs-part-group > .org-disclosure__body { padding-top: var(--space-1); }
   .fvs-part-group { margin-bottom: var(--space-1); }
   /* picked rows (A, Oct 12, 2026): selection is --tool everywhere — a tint + a bar, not the hover wash */
-  .fvs-layers .org-layer-card.is-picked { background: color-mix(in srgb, var(--tool) 12%, var(--panel)); box-shadow: inset 2px 0 0 var(--tool); }
+  .fvs-layers .org-layer-card.is-picked { background: color-mix(in srgb, var(--tool) 12%, var(--panel)); }
+  .fvs-layers .org-layer-card.is-picked:not(.in-group) { box-shadow: inset 2px 0 0 var(--tool); }
+  /* a colour group's members: its colour as a bar on the left, joined across consecutive rows (Diego, Oct 12, 2026) */
+  .fvs-layers .org-layer-card.in-group { position: relative; box-shadow: inset var(--space-1) 0 0 var(--grp), inset calc(var(--space-1) + 1px) 0 0 var(--grp-edge, transparent); }
+  .fvs-layers .org-layer-card.group-joins::after { content: ''; position: absolute; left: -1px; top: 100%; width: calc(var(--space-1) + 1px); height: calc(var(--space-1) + 2px); background: var(--grp); }
+  .fvs-group-rule-label { display: inline-flex; align-items: center; gap: var(--space-1); }
   .fvs-layers .org-layer-card.is-group-hl { box-shadow: inset 2px 0 0 var(--tool); }
   .fvs-element-frame.is-part-edit .fvs-part { cursor: pointer; }
   .fvs-element-frame.is-part-edit .fvs-part > path { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; }

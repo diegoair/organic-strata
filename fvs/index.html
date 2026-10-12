@@ -439,12 +439,6 @@
       <div id="layer-group-row" hidden>
         <div class="row-btns"><button type="button" class="mini-btn" id="btn-layer-group" aria-disabled="true" aria-label="Group — the selected layers change colour together">Group</button><button type="button" class="mini-btn" id="btn-layer-ungroup" aria-label="Ungroup — the layers keep their colours">Ungroup</button></div>
         <p class="panel-hint" id="layer-group-hint">Select two or more layers to group them</p>
-        <div id="layer-group-block" hidden>
-          <div class="ctrl-row"><div class="ctrl-label">Name</div><input type="text" class="panel-input" id="inp-layer-group-name" aria-label="Colour group name" autocomplete="off"></div>
-          <div class="ctrl-row"><div class="ctrl-label">Rule</div><div id="layer-group-rule-picker" class="presets"></div><select class="panel-select" id="sel-layer-group-rule" aria-label="Colour group rule"><option value="same">Same ink</option><option value="tonal">Tonal</option><option value="shift">Shift together</option></select></div>
-          <div class="fvs-group-ink"><div class="ctrl-label">Ink</div><div class="fvs-ink-pop fvs-ink-pop--inline" id="layer-group-inks" role="group" aria-label="Colour group ink"></div></div>
-          <p class="panel-hint" id="layer-group-rule-hint"></p>
-        </div>
       </div>
       <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
       <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
@@ -1352,6 +1346,8 @@
       </div>
       <p class="org-panel__hint" id="rule-axis-note" style="display:none"></p>
       <label class="check-row org-switch" id="layer-inks-row" style="display:none"><input type="checkbox" id="chk-layer-inks" checked><span>Layer colour variants</span></label>
+      <!-- the colour groups' rules (Oct 12, 2026): how each group of the edited Element changes in the colour variants -->
+      <div id="colour-group-rules" hidden></div>
 
       <div id="rule-random-block">
         <div class="ctrl-row">

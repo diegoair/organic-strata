@@ -456,8 +456,10 @@ export function adoptLayerInks(comp) {
   if (!comp || !comp.layerInks || !state.layers) return;
   let changed = false;
   for (const l of state.layers.items) {
-    if (!(l.id in comp.layerInks) || l.ink === comp.layerInks[l.id]) continue;
-    l.ink = comp.layerInks[l.id]; changed = true;
+    if (!(l.id in comp.layerInks)) continue;
+    const v = comp.layerInks[l.id], ink = v && typeof v === 'object' ? v.ink : v, tone = v && typeof v === 'object' ? v.tone : undefined;
+    if (l.ink === ink && l.tone === tone) continue;
+    l.ink = ink; if (tone == null) delete l.tone; else l.tone = tone; changed = true;
   }
   if (changed) { hooks.renderLayersUI(); renderSeedPreview(); }
 }

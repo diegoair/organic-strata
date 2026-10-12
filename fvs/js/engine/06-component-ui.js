@@ -36,7 +36,7 @@ export function componentEditHitLayer(items, size, picked) {
 }
 export function componentCaption(comp) {
   const cells = comp.cells.slice(0, 6).map(c => c.rotation + ((c.flipH || c.flipV) ? 'f' : '')).join(' ');
-  const inks = comp.layerInks ? ' · inks ' + Object.values(comp.layerInks).map(v => v === 'cell' ? 'c' : v + 1).join('/') : '';
+  const inks = comp.layerInks ? ' · inks ' + Object.values(comp.layerInks).map(v => v === 'cell' ? 'c' : v && typeof v === 'object' ? (v.ink + 1) + '·' + v.tone : v + 1).join('/') : '';
   const cw = comp.colourway;
   const colour = cw ? ` · ${cw.label} · ${cw.minContrast.toFixed(1)}:1${cw.minDeltaE == null ? '' : ' · ΔE ' + Math.round(cw.minDeltaE)}` : '';
   return `${comp.ruleSource} · ${cells}${comp.cells.length > 6 ? ' …' : ''}${inks}${colour}`;
@@ -78,7 +78,7 @@ export function currentLayerInks() {
 export function seedWithLayerInks(seed, layerInks) {
   if (!layerInks || !seed || seed.type !== 'stack') return seed;
   const out = JSON.parse(JSON.stringify(seed));
-  out.layers.forEach(l => { if (l.id in layerInks) l.ink = layerInks[l.id]; });
+  out.layers.forEach(l => { if (!(l.id in layerInks)) return; const v = layerInks[l.id]; if (v && typeof v === 'object') { l.ink = v.ink; l.tone = v.tone; } else { l.ink = v; delete l.tone; } });
   return out;
 }
 // ── Colourways (Component) ───────────────────────────────────────────────
@@ -222,6 +222,15 @@ export function componentElementSignature() {
 // the top layer lightest — `l.tone`) · 'shift' (members keep their differences and move with the group's ink).
 // Colour only: geometry and transforms are untouched. A layer is in one group at most.
 export const COLOUR_GROUP_RULES = { same: 'Same ink', tonal: 'Tonal', shift: 'Shift together' };
+// Oct 12, 2026 (Diego): the rule is chosen on the Component step and acts on the colour variants; grouping on the Element
+// leaves its inks as they are. groupTone = a Tonal member's step (top lightest).
+export const groupTone = (j, count) => (count === 1 ? 5 : Math.round(2 + j * 6 / (count - 1)));
+// the value a group member takes when its group's ink is `base` (k = how far the base moved, for Shift together)
+export function groupMemberValue(g, l, j, count, base, k, n) {
+  if (g.rule === 'tonal') return { ink: base, tone: groupTone(j, count) };
+  if (g.rule === 'shift') return typeof l.ink === 'number' ? ((l.ink + k) % n + n) % n : l.ink;
+  return base;   // 'same'
+}
 export const groupMembers = (L, id) => L.items.map((l, i) => ({ l, i })).filter(x => x.l.group === id).sort((a, b) => b.i - a.i).map(x => x.l);   // top first
 export function applyColourGroup(L, id, nInks) {
   const g = L.groups && L.groups[id];
@@ -249,10 +258,16 @@ export function pruneColourGroups(L) {
 const dividedNow = () => !!(state.layers && state.layers.parts);
 export const layerInksOn = () => (dividedNow() ? !!state.layers.parts.layerInks : pc('chk-layer-inks'));
 function partInkTurns() {
-  const cur = currentLayerInks(), n = state.colors.length, out = [], seen = new Set();
+  const cur = currentLayerInks(), n = state.colors.length, out = [], seen = new Set(), L = state.layers, groups = (L && L.groups) || {};
+  const pos = {};   // a group member: its group, its place in it (top first), the group's size
+  Object.keys(groups).forEach(id => { const ms = groupMembers(L, id); ms.forEach((l, j) => { pos[l.id] = { g: groups[id], l, j, c: ms.length }; }); });
   for (let k = 0; k < n; k++) {
     const c = {};
-    Object.entries(cur).forEach(([id, ink]) => { c[id] = typeof ink === 'number' ? (ink + k) % n : ink; });
+    Object.entries(cur).forEach(([id, ink]) => {
+      const p = pos[id];
+      if (p) { const base = (((p.g.ink || 0) + k) % n + n) % n; c[id] = groupMemberValue(p.g, p.l, p.j, p.c, base, k, n); }
+      else c[id] = typeof ink === 'number' ? (ink + k) % n : ink;
+    });
     const key = JSON.stringify(c);
     if (!seen.has(key)) { seen.add(key); out.push(c); }
   }
@@ -267,10 +282,10 @@ export function layerInkCombos() {
   const n = state.colors.length, L = state.layers, units = [];
   const groups = (L && L.groups) || {};
   Object.keys(groups).forEach(id => {
-    const ms = layers.filter(l => l.group === id);
+    const ms = groupMembers(L, id).filter(l => layers.includes(l));
     if (!ms.length) return;
     const g = groups[id];
-    units.push(state.colors.map((_, k) => { const o = {}; ms.forEach(l => { o[l.id] = g.rule === 'shift' && typeof l.ink === 'number' ? ((l.ink + k - g.ink) % n + n) % n : k; }); return o; }));
+    units.push(state.colors.map((_, k) => { const o = {}; ms.forEach((l, j) => { o[l.id] = groupMemberValue(g, l, j, ms.length, k, k - (g.ink || 0), n); }); return o; }));
   });
   layers.filter(l => !l.group || !groups[l.group]).forEach(l => units.push(['cell', ...state.colors.map((_, k) => k)].map(o => ({ [l.id]: o }))));
   let combos = [{}];

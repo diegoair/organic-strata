@@ -593,9 +593,11 @@ async function colourGroups(mode) {
   await click(await rowBtn(0)); await sleep(150); await click(await rowBtn(1), META); await sleep(150); await click(await rowBtn(2), META); await sleep(200);
   C('⌘-click picks rows one by one (3)', await ev(() => __t.F.partSel.size === 3), String(await ev(() => __t.F.partSel.size)));
   C('Group is on with three selected', await ev(() => document.getElementById('btn-layer-group').getAttribute('aria-disabled') === 'false'));
+  const inks0 = await ev(() => JSON.stringify(__t.F.state.layers.items.map(l => l.ink)));
   await ev(() => document.getElementById('btn-layer-group').click()); await sleep(300);
-  const g = await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups || {})[0], ms = L.items.filter(l => l.group === id); return { id, n: ms.length, inks: ms.map(l => l.ink), rule: L.groups[id].rule, chips: document.querySelectorAll('#layers-list .fvs-layer__group').length, block: !document.getElementById('layer-group-block').hidden, name: document.getElementById('inp-layer-group-name').value }; });
-  C('Group makes a colour group (Same ink): one ink, a chip per member, the block shows', g.n === 3 && new Set(g.inks).size === 1 && g.rule === 'same' && g.chips === 3 && g.block && g.name === 'Colour group 1', JSON.stringify(g));
+  const g = await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups || {})[0], ms = L.items.filter(l => l.group === id); return { id, n: ms.length, chips: document.querySelectorAll('#layers-list .fvs-layer__group').length, rows: document.querySelectorAll('#layers-list .org-layer-card.in-group').length, joins: document.querySelectorAll('#layers-list .org-layer-card.group-joins').length, bar: getComputedStyle(document.querySelector('#layers-list .org-layer-card.in-group')).boxShadow, noBlock: !document.getElementById('layer-group-block') }; });
+  C('Group: a colour group, a chip and a coloured bar on each member, the bars joined', g.n === 3 && g.chips === 3 && g.rows === 3 && g.joins === 2 && /inset/.test(g.bar) && g.noBlock, JSON.stringify(g));
+  C('grouping leaves the Element\'s inks as they are', inks0 === await ev(() => JSON.stringify(__t.F.state.layers.items.map(l => l.ink))));
   // the chip: hover lights the group (rows + parts), a click picks the whole group
   await click(await rowBtn(5)); await sleep(200);
   const chip = await ev(() => __t.box(document.querySelector('#layers-list .fvs-layer__group')));
@@ -603,31 +605,30 @@ async function colourGroups(mode) {
   const hl = await ev(() => ({ rows: document.querySelectorAll('#layers-list .org-layer-card.is-group-hl').length, parts: document.querySelectorAll('#element-svg .is-group-hl').length, label: document.querySelector('#layers-list .fvs-layer__group').getAttribute('aria-label') }));
   C('hovering a group chip lights its members (rows + parts)', hl.rows === 3 && hl.parts === 3 && hl.label === 'Select Colour group 1', JSON.stringify(hl));
   await click(chip); await sleep(250);
-  C('a click on the chip picks the whole group', await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; const ms = L.items.filter(l => l.group === id).map(l => l.id); return __t.F.partSel.size === ms.length && ms.every(m => __t.F.partSel.has(m)) && !document.getElementById('layer-group-block').hidden; }));
-  // Tonal
-  await ev(() => { const s = document.getElementById('sel-layer-group-rule'); s.value = 'tonal'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await sleep(300);
-  const t = await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; const ms = L.items.map((l, i) => ({ l, i })).filter(x => x.l.group === id).sort((a, b) => b.i - a.i).map(x => x.l); return { tones: ms.map(l => l.tone), cols: ms.map(l => __t.F.layerInkColor(l, '#000')), inks: ms.map(l => l.ink) }; });
-  C('Tonal: one ink, the top layer lightest → darker', new Set(t.inks).size === 1 && t.tones[0] < t.tones[1] && t.tones[1] < t.tones[2] && new Set(t.cols).size === 3, JSON.stringify(t));
-  // a new ink: the members follow
-  await ev(() => document.querySelector('#layer-group-inks [data-ink="4"]').click()); await sleep(300);
-  C('a new group ink recolours every member', await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; return L.items.filter(l => l.group === id).every(l => l.ink === 4); }));
+  C('a click on the chip picks the whole group', await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; const ms = L.items.filter(l => l.group === id).map(l => l.id); return __t.F.partSel.size === ms.length && ms.every(m => __t.F.partSel.has(m)); }));
   // One ink per part skips the members
   const before = await ev(() => JSON.stringify(__t.F.state.layers.items.filter(l => l.group).map(l => [l.ink, l.tone])));
   await ev(() => document.getElementById('btn-part-inks').click()); await sleep(300);
   C('One ink per part leaves the group alone', before === await ev(() => JSON.stringify(__t.F.state.layers.items.filter(l => l.group).map(l => [l.ink, l.tone]))));
-  // F: the Palette shrinks under the group's ink — its chip stays pressed
-  const f = await ev(async () => { const F = window.__fvs, keep = F.state.colors.slice(); F.state.colors = keep.slice(0, 3); F.buildPalette(); F.layersChanged(); await new Promise(r => setTimeout(r, 200)); const pressed = document.querySelectorAll('#layer-group-inks [aria-pressed="true"]').length; F.state.colors = keep; F.buildPalette(); F.layersChanged(); return pressed; });
-  C('a group ink past a shorter Palette: one chip still pressed', f === 1, String(f));
-  // variants: every turn keeps the group one ink (Same ink)
-  await ev(() => { const s = document.getElementById('sel-layer-group-rule'); s.value = 'same'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await sleep(200);
+  // the rules live on the Component step and shape the colour variants
   await step('component'); await sleep(800);
-  const v = await ev(async () => { const c = document.getElementById('chk-layer-inks'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); const r = document.getElementById('sel-rule'); r.value = 'pinwheel'; r.dispatchEvent(new Event('change', { bubbles: true })); document.getElementById('btn-generate').click(); await new Promise(r => setTimeout(r, 700)); const L = __t.F.state.layers, id = Object.keys(L.groups)[0], ms = L.items.filter(l => l.group === id).map(l => l.id); return { n: __t.F.state.components.length, uniform: __t.F.state.components.every(c => new Set(ms.map(m => c.layerInks[m])).size === 1) }; });
-  C('Generate\'s colour variants keep the group one ink', v.n > 0 && v.uniform, JSON.stringify(v));
+  const rules = await ev(() => { const h = document.getElementById('colour-group-rules'); return { shown: !h.hidden, selects: h.querySelectorAll('select[data-group]').length, opts: [...(h.querySelector('select') || { options: [] }).options].map(o => o.textContent) }; });
+  const off = await ev(() => ({ dis: document.querySelector('#colour-group-rules select').disabled, hint: document.querySelector('#colour-group-rules .panel-hint').textContent }));
+  C('the rules are disabled (not hidden) while the colour variants are off', off.dis && /Turn on Layer colour variants/.test(off.hint), JSON.stringify(off));
+  C('Component: one rule per colour group (Same ink · Tonal · Shift together)', rules.shown && rules.selects === 1 && rules.opts.join() === 'Same ink,Tonal,Shift together', JSON.stringify(rules));
+  const gen = rule => ev(async rule => { const sel = document.querySelector('#colour-group-rules select'); sel.value = rule; sel.dispatchEvent(new Event('change', { bubbles: true })); const c = document.getElementById('chk-layer-inks'); if (!c.checked) { c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); } const r = document.getElementById('sel-rule'); r.value = 'pinwheel'; r.dispatchEvent(new Event('change', { bubbles: true })); document.getElementById('btn-generate').click(); await new Promise(r => setTimeout(r, 700)); const L = __t.F.state.layers, id = Object.keys(L.groups)[0], ms = L.items.map((l, i) => ({ l, i })).filter(x => x.l.group === id).sort((a, b) => b.i - a.i).map(x => x.l.id); return __t.F.state.components.map(c => ms.map(m => c.layerInks[m])); }, rule);
+  const same = await gen('same');
+  C('Same ink: every variant keeps the group one ink', same.length > 0 && same.every(v => new Set(v.map(x => JSON.stringify(x))).size === 1), JSON.stringify(same[0]));
+  const tonal = await gen('tonal');
+  C('Tonal: every variant gives the group one ink, top lightest → darker', tonal.length > 0 && tonal.every(v => v.every(x => x && typeof x === 'object') && new Set(v.map(x => x.ink)).size === 1 && v[0].tone < v[1].tone && v[1].tone < v[2].tone), JSON.stringify(tonal[0]));
+  const thumbsTonal = await ev(() => __t.F.state.components.length === document.querySelectorAll('#gallery .fvs-thumb').length);
+  C('the Tonal variants are drawn', thumbsTonal);
   // saved with the Element
   await step('element'); await sleep(400);
-  C('the group is saved with the Element', await ev(() => { const sd = __t.F.seedForSnapshot(); return !!(sd.groups && Object.keys(sd.groups).length === 1 && sd.layers.filter(l => l.group).length === 3); }));
+  C('the group (with its rule) is saved with the Element', await ev(() => { const sd = __t.F.seedForSnapshot(); const id = sd.groups && Object.keys(sd.groups)[0]; return !!(id && sd.groups[id].rule === 'tonal' && sd.layers.filter(l => l.group).length === 3); }));
   // Ungroup: the layers keep their colours
   const keep = await ev(() => JSON.stringify(__t.F.state.layers.items.map(l => [l.ink, l.tone])));
+  await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; __t.F.partSel = new Set(L.items.filter(l => l.group === id).map(l => l.id)); __t.F.layersChanged(); }); await sleep(200);
   await ev(() => document.getElementById('btn-layer-ungroup').click()); await sleep(300);
   C('Ungroup: no group left, every layer keeps its colour', await ev(k => !__t.F.state.layers.groups && !__t.F.state.layers.items.some(l => l.group) && JSON.stringify(__t.F.state.layers.items.map(l => [l.ink, l.tone])) === k, keep));
   // plain layers: a group is one unit in every combination

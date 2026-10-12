@@ -229,14 +229,17 @@ export function withEntryInks(colors, fn) {
   try { return fn(); } finally { live.inkPaletteOverride = prev; }
 }
 export function layerInkColor(l, cellColor) {
-  let ink = live.layerInkOverride && l.id in live.layerInkOverride ? live.layerInkOverride[l.id] : l.ink;
+  // a variant's value: an ink, or {ink, tone} (a Tonal colour group) — the variant decides the tone (Oct 12, 2026)
+  const ov = live.layerInkOverride && l.id in live.layerInkOverride ? live.layerInkOverride[l.id] : undefined;
+  let ink = ov === undefined ? l.ink : (ov && typeof ov === 'object' ? ov.ink : ov);
+  const tone = ov === undefined ? l.tone : (ov && typeof ov === 'object' ? ov.tone : undefined);
   if (l.part && live.partInkOverride && l.part in live.partInkOverride) ink = live.partInkOverride[l.part];   // the cell's own part colour
   if ((ink == null || ink === 'cell') && l.part && live.partStep && l.part in live.partStep.order) ink = live.partStep.base + live.partStep.order[l.part];   // parts step through the inks
   if (ink == null || ink === 'cell') return cellColor;
   const pal = live.inkPaletteOverride || state.colors;
   const hex = pal[((ink % pal.length) + pal.length) % pal.length];
   // a member of a Tonal colour group: a step of its ink's own scale (0 lightest … 9 darkest) — Oct 12, 2026
-  if (l.tone != null && hex && Organica.color && Organica.color.scale) { const sc = Organica.color.scale(hex); return sc[Math.max(0, Math.min(sc.length - 1, l.tone))].hex; }
+  if (tone != null && hex && Organica.color && Organica.color.scale) { const sc = Organica.color.scale(hex); return sc[Math.max(0, Math.min(sc.length - 1, tone))].hex; }
   return hex;
 }
 // The placed union of the FILL layers as one path (in the 0..100 space) via
