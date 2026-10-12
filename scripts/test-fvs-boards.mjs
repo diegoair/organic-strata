@@ -497,6 +497,12 @@ async function generatedPerElement(mode) {
   const other = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0]; return { id: s.dataset.sheet, html: s.querySelector('.fvs-board-gallery__grid').innerHTML.length + ':' + s.querySelectorAll('.fvs-thumb').length }; });
   await ev(() => document.querySelector('#fb-cell-shape [data-cell="triangle"]').click()); await sleep(900);
   const cs = await ev(id => { const s = document.querySelector(`[data-sheet="${id}"]`); return { html: s.querySelector('.fvs-board-gallery__grid').innerHTML.length + ':' + s.querySelectorAll('.fvs-thumb').length, live: __t.F.state.cellShape }; }, other.id);
+  // a shape changed and Component opened at once: the area's label follows the made name (Oct 12)
+  await step('element');
+  await ev(async () => { const s = document.getElementById('sel-seed-type'); s.value = 'lens'; s.dispatchEvent(new Event('change', { bubbles: true })); });
+  await step('component'); await sleep(900);
+  const lab = await ev(() => document.querySelector('#board-gallery > .fvs-board-sheet__label').textContent);
+  C('the area label follows a shape changed just before opening Component', /^Lens · Generated components/.test(lab), lab);
   C('a cell shape change redraws only the edited Element\'s Components', cs.live === 'triangle' && cs.html === other.html, JSON.stringify({ other, cs }));
   await click(await ev(id => __t.box(document.querySelector(`[data-sheet="${id}"] button[data-k]`)), other.id)); await sleep(700);
   const back = await ev(() => ({ shape: __t.F.state.cellShape, pressed: document.querySelector('#fb-cell-shape [aria-pressed="true"]') && document.querySelector('#fb-cell-shape [aria-pressed="true"]').dataset.cell }));

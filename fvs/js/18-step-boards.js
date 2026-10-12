@@ -352,7 +352,9 @@ function mountElementBoard() {
   wireName(liveName, active);
   // keep the active snapshot current (panel edits) — saved a moment after the last change, and when leaving
   let t = 0;
-  const later = () => { clearTimeout(t); t = setTimeout(() => { if (!idle()) return; snap(); nameNow(); relabel(); save(); syncClear(); }, 400); };
+  // …and the Component board's labels follow a made name that changed meanwhile (a shape changed, then Component opened
+  // within the delay: its area kept the old name — found Oct 12, 2026)
+  const later = () => { clearTimeout(t); t = setTimeout(() => { if (!idle()) return; snap(); const was = (find(active()) || {}).name; nameNow(); relabel(); save(); syncClear(); if (state.activeTier === 'component' && (find(active()) || {}).name !== was) galleryDrawn(); }, 400); };
   [frame, liveViews].forEach(n => n.addEventListener('click', later, true));   // a save to the library (the circles on the frame / Views) names it
   window.addEventListener('pagehide', () => { snap(); save(); });
   // the selection: a click anywhere on the live group selects it
