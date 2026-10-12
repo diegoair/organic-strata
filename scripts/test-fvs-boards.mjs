@@ -663,6 +663,25 @@ async function layerOrder(mode) {
   const k = await ev(() => { const F = window.__fvs, it = F.buildComponentItems(F.state.components[0], F.getGrid()), svg = F.buildComponentSVG(it, F.getSeed(), F.frameSize(F.getGrid())); const cv = document.createElement('canvas'); cv.width = cv.height = 400; let png = true; try { F.drawComponentCanvas(cv.getContext('2d'), it, F.getSeed(), F.frameSize(F.getGrid())); } catch (e) { png = String(e); } return { clips: (svg.match(/<clipPath id="cellcut-/g) || []).length, cells: it.length, png }; });
   C('Clip to cell: every cell (and layer pass) cut to its frame, the PNG draws too', k.clips === k.cells * 2 && k.png === true, JSON.stringify(k));
   C('Clip to cell is kept with the Element\'s Generated components', await ev(() => { const F = window.__fvs; F.state.elements.length; return document.getElementById('chk-component-clip').checked && F.state.componentClip === true; }));
+  // the Symbol draws a saved Component the same way: layer by layer across ALL its cells (no Overlap), SVG = PNG
+  await ev(() => { const c = document.getElementById('chk-component-clip'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); });
+  await ev(() => __t.F.saveAllComponentsToLibrary()); await sleep(500);
+  await step('symbol'); await sleep(800);
+  await ev(() => document.getElementById('btn-symbol-generate').click()); await sleep(4000);
+  const sy = await ev(async () => {
+    const F = window.__fvs, svg = F.buildSymbolSVG();
+    const lowLast = svg.lastIndexOf('#ff00aa'), highFirst = svg.indexOf('#0033ff');
+    const W = 300, img = new Image(); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); await img.decode();
+    const a = document.createElement('canvas'); a.width = a.height = W; a.getContext('2d').drawImage(img, 0, 0, W, W);
+    const grid = F.getSymbolGrid(), fr = F.symbolFrame(grid), b = document.createElement('canvas'); b.width = fr.w; b.height = fr.h; F.drawSymbolCanvas(b.getContext('2d'));
+    const c = document.createElement('canvas'); c.width = c.height = W; c.getContext('2d').drawImage(b, 0, 0, W, W);
+    const da = a.getContext('2d').getImageData(0, 0, W, W).data, db = c.getContext('2d').getImageData(0, 0, W, W).data;
+    let diff = 0; for (let k = 0; k < da.length; k += 4) if (Math.abs(da[k] - db[k]) + Math.abs(da[k + 1] - db[k + 1]) + Math.abs(da[k + 2] - db[k + 2]) > 60) diff++;
+    return { cells: (F.state.symbolCells || []).length, lowLast, highFirst, ok: lowLast > 0 && highFirst > lowLast, diffShare: +(diff / (W * W)).toFixed(4) };
+  });
+  C('Symbol: every cell\'s lower layer before any upper layer (no Overlap)', sy.cells > 0 && sy.ok, JSON.stringify(sy));
+  // the SVG and the canvas already differed by ~2.7 % of pixels before (anti-aliased edges, scaling) — checked by eye: the same picture
+  C('Symbol: the PNG (canvas) draws as the SVG (under 5 % of pixels differ — edges)', sy.diffShare < 0.05, JSON.stringify(sy));
 }
 
 for (const mode of ['clean', 'held']) {

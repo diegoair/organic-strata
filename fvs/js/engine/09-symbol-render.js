@@ -20,7 +20,7 @@ import {
 } from './04-appearance.js';
 import {
   applyElementStretchCanvas, clipToCellShapes, elementPathMarkup, latticeShapePath, nextDrawId,
-  paintGeoCanvas, withEntryInks
+  paintGeoCanvas, withEntryInks, cellClipShape, clipCellCanvas, layerPasses
 } from './05-render-component.js';
 import {
   LIBRARY, fillPaper, isPaperNone
@@ -373,7 +373,7 @@ export function buildSymbolItems() {
       return {
         type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: place.rotate != null ? place.rotate : cell.rotation,
         scaleX: place.scaleX * (!al && cell.flipH ? -1 : 1), scaleY: place.scaleY * (!al && cell.flipV ? -1 : 1), aligned: !!al,
-        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedBlend: entry.blend === 'multiply', nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(live.variantAppearance || {}), ...(cell.appearancePatch || {}) },
+        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedBlend: entry.blend === 'multiply', nestedClip: !!entry.clip, nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(live.variantAppearance || {}), ...(cell.appearancePatch || {}) },
       };
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
@@ -468,10 +468,12 @@ export function symbolSVGFromItems(items) {
   const bleed = state.symbolClipEnabled ? symbolBleed(F) : 0, centers = resolveGridCells(grid);
   const look = symbolLook(grid);   // Component grid with Overlap: Normal = each Component's Paper right under its own ink; Multiply = no Paper, inks multiply
   let defs = '';
+  let nClip = 0;
+  const upper = [];   // layer passes 1… of every Component cell, after every cell's first pass
   let papers = '';   // every nested Component's own paper, painted before any ink
   let body = '';
   for (const it of items) {
-    let cellMarkup, paperMarkup = '';
+    let cellMarkup, paperMarkup = '', later = null;
     if (it.type === 'missing') {
       cellMarkup = missingComponentMarkupSVG(it.cx, it.cy, it.cellW, it.cellH);
     } else if (it.type === 'seed') {
@@ -487,17 +489,25 @@ export function symbolSVGFromItems(items) {
       const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
       const nhx = it.nestedW / 2, nhy = it.nestedH / 2;
       const nBleed = nestedBleed(it, bleed);
-      let inner = '';
-      for (const ni of it.nestedItems) {
-        const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);   // the Component's own cells overlap too
-        const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1);   // kx/ky: a module stretched to its own block cell
-        // a cell the Component was edited in (Component Edit mode) carries its own Element + Appearance: draw that, not the Component's one shared Element
-        const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niApp = ni.content && ni.content.appearance ? ni.content.appearance : it.nestedAppearance;
-        const one = withEntryInks(it.nestedColors, () => withAppearance(niApp, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, niGeo, ni.color)));
-        inner += it.nestedBlend ? `<g style="mix-blend-mode:multiply">${one}</g>` : one;   // the Component's own Blend → Multiply
-      }
+      // As on the Component step (Oct 12, 2026): the Component's layers drawn layer by layer — and, with no Overlap look,
+      // across the whole Symbol (pass j of every cell before pass j+1) — and its own Clip to cell cutting each of its cells
+      const passes = !look ? layerPasses(geo, it.nestedItems) : null;
+      const innerFor = pass => {
+        let inner = '';
+        for (const ni of it.nestedItems) {
+          const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);   // the Component's own cells overlap too
+          const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1);   // kx/ky: a module stretched to its own block cell
+          // a cell the Component was edited in (Component Edit mode) carries its own Element + Appearance: draw that, not the Component's one shared Element
+          const niGeo = pass || (ni.content ? resolveItemGeo(ni, geo) : geo), niApp = ni.content && ni.content.appearance ? ni.content.appearance : it.nestedAppearance;
+          let one = withEntryInks(it.nestedColors, () => withAppearance(niApp, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, niGeo, ni.color)));
+          if (it.nestedClip) { const cid = 'ncut-' + it.index + '-' + drawId + '-' + (nClip++); one = `<clipPath id="${cid}">${cellClipShape(ni, nhx, nhy)}</clipPath><g clip-path="url(#${cid})">${one}</g>`; }
+          inner += it.nestedBlend ? `<g style="mix-blend-mode:multiply">${one}</g>` : one;   // the Component's own Blend → Multiply
+        }
+        return inner;
+      };
       const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
-      cellMarkup = `<g transform="${tf}">${inner}</g>`;
+      cellMarkup = `<g transform="${tf}">${innerFor(passes ? passes[0] : null)}</g>`;
+      if (passes) later = passes.slice(1).map(p => `<g transform="${tf}">${innerFor(p)}</g>`);
       // the nested Component's own Ground pattern sits on its paper, under all ink
       const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paperPatternSVG(it.nestedW, it.nestedH)));
       paperMarkup = `<g transform="${tf}">${clipToCellShapes(!it.region && it.nestedItems.length && it.nestedItems[0].poly ? it.nestedItems.map(ni => ni.poly) : null,
@@ -540,13 +550,16 @@ export function symbolSVGFromItems(items) {
       const wrap = m => `<g transform="translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${k.kx.toFixed(5)},${k.ky.toFixed(5)}) translate(${(-ox).toFixed(2)},${(-oy).toFixed(2)})">${m}</g>`;
       cellMarkup = wrap(cellMarkup);
       if (paperMarkup) paperMarkup = wrap(paperMarkup);
+      if (later) later = later.map(wrap);
     }
     const own = (it.type === 'component' || it.type === 'seed') && look;
     if (own && look.multiply) { paperMarkup = ''; cellMarkup = `<g style="mix-blend-mode:multiply">${cellMarkup}</g>`; }
     if (paperMarkup && own && look.interleave) body += `<g${clipAttr}>${paperMarkup}</g>`;
     else if (paperMarkup) papers += `<g${clipAttr}>${paperMarkup}</g>`;
     body += `<g data-cell-index="${it.index}"${clipAttr}>${hit}${cellMarkup}</g>`;
+    if (later) later.forEach((m, j) => { (upper[j] = upper[j] || []).push(`<g${clipAttr}>${m}</g>`); });
   }
+  body += upper.map(ms => ms.join('')).join('');   // the upper layers of every cell, pass by pass
   const meta = { tool: 'FVS-Symbol', cells: items.length, exportedAt: new Date().toISOString() };
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${F.w}" height="${F.h}" viewBox="0 0 ${F.w} ${F.h}">`
     + `<metadata>${JSON.stringify(meta)}</metadata>` + (defs ? `<defs>${defs}</defs>` : '')
@@ -608,6 +621,7 @@ export function drawSymbolCanvas(ctx) {
     ctx.restore();
   }
   // pass 2 — ink
+  const laterCanvas = [];   // Components drawn layer by layer: their passes 1…, after every cell's first pass
   for (const it of items) {
     enter(it);
     if (it.type === 'missing') {
@@ -667,15 +681,20 @@ export function drawSymbolCanvas(ctx) {
       const prevOverride = live.appearanceOverride, prevInks = live.inkPaletteOverride;
       live.appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
       if (it.nestedColors && it.nestedColors.length) live.inkPaletteOverride = it.nestedColors;
+      // layer by layer across the Symbol (no Overlap look), as the SVG: pass 0 here, passes 1… after every cell (Oct 12, 2026)
+      const passes = !look && !layer ? layerPasses(geo, it.nestedItems) : null;
+      if (passes) laterCanvas.push({ it, passes });
+      const pass = passes ? passes[0] : null;
       for (const ni of it.nestedItems) {
         g.save();
         if (it.nestedBlend) g.globalCompositeOperation = 'multiply';   // the Component's own Blend → Multiply
+        if (it.nestedClip) clipCellCanvas(g, ni, nhx, nhy);   // the saved Component's own Clip to cell
         g.translate(nhx + ni.cx, nhy + ni.cy);
         g.rotate(ni.rotation * Math.PI / 180);
         const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);
         g.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1));
         g.translate(-50, -50);
-        const niGeo = ni.content ? resolveItemGeo(ni, geo) : geo, niPath = ni.content ? new Path2D(niGeo.d) : path, keepApp = live.appearanceOverride;
+        const niGeo = pass || (ni.content ? resolveItemGeo(ni, geo) : geo), niPath = ni.content ? new Path2D(niGeo.d) : path, keepApp = live.appearanceOverride;
         if (ni.content && ni.content.appearance) live.appearanceOverride = { ...DEFAULT_APPEARANCE, ...ni.content.appearance };
         applyElementStretchCanvas(g);
         g.translate(niGeo.normTx * niGeo.normScale, niGeo.normTy * niGeo.normScale);
@@ -688,6 +707,36 @@ export function drawSymbolCanvas(ctx) {
       live.appearanceOverride = prevOverride; live.inkPaletteOverride = prevInks;
       ctx.restore();
     }
+    ctx.restore();
+  }
+  // the upper layers of every Component cell, pass by pass
+  const maxP = laterCanvas.reduce((m, x) => Math.max(m, x.passes.length), 0);
+  for (let j = 1; j < maxP; j++) for (const { it, passes } of laterCanvas) {
+    if (!passes[j]) continue;
+    enter(it);
+    ctx.save(); nestedFrame(it);
+    const nhx = it.nestedW / 2, nhy = it.nestedH / 2, nBleed = nestedBleed(it, bleed);
+    const prevOverride = live.appearanceOverride, prevInks = live.inkPaletteOverride;
+    live.appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
+    if (it.nestedColors && it.nestedColors.length) live.inkPaletteOverride = it.nestedColors;
+    for (const ni of it.nestedItems) {
+      ctx.save();
+      if (it.nestedBlend) ctx.globalCompositeOperation = 'multiply';
+      if (it.nestedClip) clipCellCanvas(ctx, ni, nhx, nhy);
+      ctx.translate(nhx + ni.cx, nhy + ni.cy);
+      ctx.rotate(ni.rotation * Math.PI / 180);
+      const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);
+      ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1));
+      ctx.translate(-50, -50);
+      applyElementStretchCanvas(ctx);
+      const pg = passes[j];
+      ctx.translate(pg.normTx * pg.normScale, pg.normTy * pg.normScale);
+      ctx.scale(pg.normScale, pg.normScale);
+      paintGeoCanvas(ctx, pg, new Path2D(pg.d || ''), ni.color);
+      ctx.restore();
+    }
+    live.appearanceOverride = prevOverride; live.inkPaletteOverride = prevInks;
+    ctx.restore();
     ctx.restore();
   }
 }

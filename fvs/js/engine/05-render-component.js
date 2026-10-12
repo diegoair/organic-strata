@@ -423,7 +423,7 @@ export function layerPasses(geo, items) {
 export const cellClipShape = (it, halfX, halfY) => (it.poly
   ? `<polygon points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`
   : `<rect x="${(halfX + it.cx - it.cellSize / 2).toFixed(2)}" y="${(halfY + it.cy - it.cellSize / 2).toFixed(2)}" width="${it.cellSize.toFixed(2)}" height="${it.cellSize.toFixed(2)}"/>`);
-function clipCellCanvas(ctx, it, halfX, halfY) {
+export function clipCellCanvas(ctx, it, halfX, halfY) {
   ctx.beginPath();
   if (it.poly) { it.poly.forEach((p, k) => (k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); }
   else ctx.rect(halfX + it.cx - it.cellSize / 2, halfY + it.cy - it.cellSize / 2, it.cellSize, it.cellSize);
