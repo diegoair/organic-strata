@@ -506,7 +506,7 @@
    above 0.4 so the label stays readable; no hover or pressed response (the hover rules above
    exclude it, so the old ":disabled:hover" reset rules are gone). */
 .org-btn:disabled, .org-btn[aria-disabled="true"],
-.mini-btn:disabled, .panel-btn:disabled, .upload-btn:disabled, .icon-btn:disabled, .hud-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.mini-btn:disabled, .mini-btn[aria-disabled="true"], .panel-btn:disabled, .upload-btn:disabled, .icon-btn:disabled, .hud-btn:disabled { opacity: 0.42; cursor: not-allowed; }
 
 /* .org-sep retired 2026-09-06 — 0 consumers, superseded by
    .org-floatbar__sep when the actions moved out of the header. */

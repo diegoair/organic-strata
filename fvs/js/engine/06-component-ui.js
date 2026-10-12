@@ -215,6 +215,34 @@ export const COMPONENT_STARTER_RULES = [
 export function componentElementSignature() {
   return JSON.stringify({ seed: getSeed(), appearance: getElementAppearance(), cells: resolveGridCells(getGrid()).length });
 }
+// ── Colour groups (Diego, Oct 12, 2026) ─────────────────────────────────────────────────────────────────────
+// A set of an Element's layers (plain layers, or the parts of a divided Element) that change colour TOGETHER by one
+// rule, so the form they make stays one form: `l.group = id` on the members, `layers.groups[id] = {name, rule, ink}`.
+// Rules: 'same' (every member on the group's ink) · 'tonal' (the group's ink, members spread on its scale light → dark,
+// the top layer lightest — `l.tone`) · 'shift' (members keep their differences and move with the group's ink).
+// Colour only: geometry and transforms are untouched. A layer is in one group at most.
+export const COLOUR_GROUP_RULES = { same: 'Same ink', tonal: 'Tonal', shift: 'Shift together' };
+export const groupMembers = (L, id) => L.items.map((l, i) => ({ l, i })).filter(x => x.l.group === id).sort((a, b) => b.i - a.i).map(x => x.l);   // top first
+export function applyColourGroup(L, id, nInks) {
+  const g = L.groups && L.groups[id];
+  if (!g) return;
+  const ms = groupMembers(L, id), n = Math.max(1, nInks);
+  if (g.rule === 'same') ms.forEach(l => { l.ink = g.ink; delete l.tone; });
+  else if (g.rule === 'tonal') ms.forEach((l, j) => { l.ink = g.ink; l.tone = ms.length === 1 ? 5 : Math.round(2 + j * 6 / (ms.length - 1)); });
+  else if (g.rule === 'shift') {   // the members' own inks, moved by how far the group's ink moved
+    const d = g.ink - (g.from == null ? g.ink : g.from);
+    ms.forEach(l => { if (typeof l.ink === 'number') l.ink = ((l.ink + d) % n + n) % n; delete l.tone; });
+    g.from = g.ink;
+  }
+}
+// drop the groups left with fewer than two members (a layer deleted, the Division changed)
+export function pruneColourGroups(L) {
+  if (!L || !L.groups) return;
+  Object.keys(L.groups).forEach(id => { const ms = groupMembers(L, id); if (ms.length < 2) { ms.forEach(l => { delete l.group; }); delete L.groups[id]; } });
+  L.items.forEach(l => { if (l.group && !L.groups[l.group]) delete l.group; });
+  if (!Object.keys(L.groups).length) delete L.groups;
+}
+
 // A divided Element (Diego, Oct 12, 2026 — a Polygon in 8 parts × 6 inks gave 7⁸ = 5,764,801 combinations, the first
 // 512 shown): the switch is OFF by default and kept on its Division (`parts.layerInks`); ON, it gives ONE variant per
 // ink — every part's ink moved along the Palette by k (a part on the cell's colour stays) — not every combination.
@@ -234,10 +262,19 @@ export function layerInkCombos() {
   if (!layerInksOn()) return [];
   const layers = fillLayers();
   if (!layers.length) return [];
-  if (dividedNow()) return partInkTurns();
-  const opts = ['cell', ...state.colors.map((_, k) => k)];
+  if (dividedNow()) return partInkTurns();   // a turn moves every ink by the same step: a group stays a group
+  // a colour group is ONE unit: its ink takes each Palette ink, its members follow its rule; the free layers vary alone
+  const n = state.colors.length, L = state.layers, units = [];
+  const groups = (L && L.groups) || {};
+  Object.keys(groups).forEach(id => {
+    const ms = layers.filter(l => l.group === id);
+    if (!ms.length) return;
+    const g = groups[id];
+    units.push(state.colors.map((_, k) => { const o = {}; ms.forEach(l => { o[l.id] = g.rule === 'shift' && typeof l.ink === 'number' ? ((l.ink + k - g.ink) % n + n) % n : k; }); return o; }));
+  });
+  layers.filter(l => !l.group || !groups[l.group]).forEach(l => units.push(['cell', ...state.colors.map((_, k) => k)].map(o => ({ [l.id]: o }))));
   let combos = [{}];
-  for (const l of layers) combos = combos.flatMap(c => opts.map(o => ({ ...c, [l.id]: o })));
+  for (const u of units) combos = combos.flatMap(c => u.map(o => ({ ...c, ...o })));
   const curKey = JSON.stringify(currentLayerInks());
   const cur = combos.findIndex(c => JSON.stringify(c) === curKey);
   if (cur > 0) combos.unshift(combos.splice(cur, 1)[0]);
@@ -246,7 +283,11 @@ export function layerInkCombos() {
 export function layerInkComboCount() {
   const n = layerInksOn() ? fillLayers().length : 0;
   if (n && dividedNow()) return partInkTurns().length;
-  return n ? Math.pow(state.colors.length + 1, n) : 1;
+  if (!n) return 1;
+  const L = state.layers, groups = (L && L.groups) || {}, layers = fillLayers();
+  const gUnits = Object.keys(groups).filter(id => layers.some(l => l.group === id)).length;
+  const free = layers.filter(l => !l.group || !groups[l.group]).length;
+  return Math.pow(state.colors.length, gUnits) * Math.pow(state.colors.length + 1, free);
 }
 // geometry × combos, geometry-major, capped at EXHAUSTIVE_CAP (the total is reported).
 export function expandLayerInks(list) {

@@ -411,6 +411,11 @@
   .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
   .fvs-ink-pop[hidden] { display: none; }
   /* the same swatches inline, in the Component Edit toolbar (Divide into parts, per cell) — a full hit target each */
+  /* a colour group's member: its group number on the row (Oct 12, 2026) */
+  .fvs-layer__group { flex-shrink: 0; min-width: var(--space-6); padding: 0 var(--space-1); border-radius: var(--radius-sm); background: var(--track-bg); color: var(--ink); font-size: var(--fs-micro); line-height: var(--space-6); text-align: center; }
+  #inp-layer-group-name { flex: 1; min-width: 0; }
+  #layer-group-row { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-3); }
+  #layer-group-row[hidden], #layer-group-block[hidden], #layer-group-hint[hidden] { display: none; }
   .fvs-ink-pop--inline { position: static; box-shadow: none; padding: 0; max-width: none; background: none; gap: var(--space-1); }
   .fvs-ink-pop.fvs-ink-pop--inline button { width: var(--hit-min); height: var(--hit-min); }
   .fvs-ink-pop button:disabled { opacity: 0.42; cursor: not-allowed; }   /* as header.css's disabled buttons — all: unset drops the native look */

@@ -234,7 +234,10 @@ export function layerInkColor(l, cellColor) {
   if ((ink == null || ink === 'cell') && l.part && live.partStep && l.part in live.partStep.order) ink = live.partStep.base + live.partStep.order[l.part];   // parts step through the inks
   if (ink == null || ink === 'cell') return cellColor;
   const pal = live.inkPaletteOverride || state.colors;
-  return pal[((ink % pal.length) + pal.length) % pal.length];
+  const hex = pal[((ink % pal.length) + pal.length) % pal.length];
+  // a member of a Tonal colour group: a step of its ink's own scale (0 lightest … 9 darkest) — Oct 12, 2026
+  if (l.tone != null && hex && Organica.color && Organica.color.scale) { const sc = Organica.color.scale(hex); return sc[Math.max(0, Math.min(sc.length - 1, l.tone))].hex; }
+  return hex;
 }
 // The placed union of the FILL layers as one path (in the 0..100 space) via
 // Paper.js — only feeds bbox measuring and Container/Mask boundaries.
