@@ -616,3 +616,7 @@ Typefaces (Sep 29, 2026) — **two families, split by role**:
 - **Segmented control, gated option** (Oct 6, 2026) — `.seg-btn[aria-disabled="true"]` looks like `.seg-btn:disabled` (opacity .42, `not-allowed`, no hover wash) but stays focusable; its `title` + `aria-description` give the reason ("Square needs circle or hexagon cells"), the handler ignores the click. `disabled` only when there is nothing to explain. `/design-system/#seg-ctrl`; ledger §2.
 - **Hover and pressed** — three tiers, one wash (`--track-bg`), border hover `--ink`, `:active` one grey step, every hover rule behind `@media (hover: hover)` and `:where(:not(:disabled))`. See `/design-system/#hover` and `docs/audit-2026-10/HOVER.md`.
 - **Shared behaviours (core.js, self-running):** `Organica.a11y` (ARIA mirrors of class state, keyboard on `[role=button]`), `Organica.modal` (focus management), one-dropdown-at-a-time, `Organica.armed`.
+
+## Favicon
+
+`/favicon.svg` — the header mark (the `--ink` disc), #0a0a0a in light and #ededed in dark (`prefers-color-scheme`); `/favicon.ico` (16/32/48) for browsers that do not read SVG. Every page links both after the viewport meta (`shared/_template.html` too). It follows the header mark: when the real mark replaces the placeholder disc, both files are redrawn from it. (Oct 12, 2026.)
