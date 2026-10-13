@@ -2,7 +2,7 @@
 
 > Organica · Flexible Visual System — Element → Component → Symbol → Grid
 > Live: [theorganicalanguage.vercel.app/fvs/](https://theorganicalanguage.vercel.app/fvs/)
-> Last updated: September 20, 2026
+> Last updated: October 13, 2026 (§5 Component rewritten and checked against the code; Split)
 
 ---
 
@@ -78,12 +78,28 @@ is gone); the candidates sit on the board at 2×.
   `FVS_SEED_ORDER`). The shared table keeps its labels for Genesis. Ids and saved keys are
   unchanged.
   **Split** sits right under the shape picker (its own section until Oct 4, 2026):
-  - One row: Split · All / TL / TR / BL / BR, then *Show cut grid*.
-  - **Save piece as Seed** shows only while a piece is cut.
-  - It is a real geometric cut whose result is a new shape: the picker turns Custom.
-  - It sits under the picker on purpose. Cutting hides the shape's own rows, which are below it, so the chips never move under the pointer. At the end of the section they jumped up ~256 px on the first cut.
-  - With layers it cuts the whole stack into one shape, and a hint says so.
-  - The status line is for problems only. The pressed chips say what is kept.
+  - *Split* is a sub-label; the buttons take the whole row under it, then *Show cut grid*. On a
+    **Square** cell: All · TL · TR · BL · BR (named *Top left quarter* …). On a **Circle /
+    Triangle / Hexagon** cell it is a **fan** from the cell's centre, one cut to each corner
+    (Circle 4 at 45°, Triangle 3, Hexagon 6), slices numbered clockwise from the top: All · 1 … n
+    (*Slice n*) — `splitPlan(cellShape)`, engine (`7ad35d5`, Oct 13, 2026). A cell-shape change with a
+    Split on puts the whole shape back.
+  - The cut is made on the shape **as drawn** (Scale / Move / Rotation / Width / Length applied), at
+    the **canvas** centre: the cut grid is the whole Element canvas (the 0–100 cell), not the
+    shape's box (`525dac6`).
+  - It is a real geometric cut: the piece is a custom shape internally, but the **Shape picker keeps
+    the name and icon of the shape it was cut from** (*Polygon*, never *Custom (uploaded)*) and the
+    custom row leaves the list meanwhile; picking the shape, or All, gives the whole shape back
+    (`d4ac8ad`, Diego, Oct 13, 2026). A piece keeps the whole shape's placement (`placed`), so a
+    non-square cell's fit never moves it again.
+  - **With layers, each layer is cut on its own**, in place, and keeps its ink, role and look (a
+    divided Element's part layers too); a layer with nothing in the kept pieces draws nothing; All
+    restores them exactly (`splitLayersApply`, `state.splitOriginalLayers` — `4a99398`, Diego, Oct 13,
+    2026; until then the stack was merged into one shape).
+  - **Save as Seed** (shown only while a piece is cut) saves the kept silhouette as one shape, named
+    in words — *Polygon · slice 6*, *… · top left quarter*. No message after saving.
+  - It sits under the picker on purpose. Cutting hides the shape's own rows, which are below it, so the buttons never move under the pointer. At the end of the section they jumped up ~256 px on the first cut.
+  - The status line is for problems only. The pressed button says what is kept.
 - **Segment** is a filled bar: *Length*, *Thickness* (% of the cell, default 8) and
   *Round ends* (off by default — square ends). It shows in Fill style like any other
   shape; picking it turns *Rounded caps* off (they only matter in Stroke, where the bar is
@@ -205,7 +221,7 @@ is gone); the candidates sit on the board at 2×.
 The cell the Element is drawn for. Four icon buttons in the floatbar, on the Element and Component steps (one setting, shown on both). **Square** is the original 0–100 box and changes nothing. The others:
 
 - **Element.** The canvas *is* the cell: Paper only inside its outline, transparent outside (big frame, turns strip, SVG/PNG export). The turns strip shows the shape's own turns — Triangle 0/120/240 + Mirror, Hexagon 60° steps + Flip H/V, Circle as Square. **Arc** on a triangle = a 60° slice pivoted on a corner, radius half a side (six close a circle); **Arc truchet** on a hexagon = bands around three alternate corners, centred on the edge midpoints (they run on into any neighbour). Every other shape — built-in, Genesis seed or uploaded SVG — is **fitted whole inside** the cell (Diego, Oct 6, 2026; it was cut to the outline, so a Circle on a triangle became a solid triangle and a seed lost its ends): its box centre on the cell's centre, the largest scale at which every outline point is inside (`fitGeoToCell` — the cells are convex, so it is exact, no search; cached). Measured: 24 shapes × circle / triangle / hexagon, 0 points outside, each whole against its square-cell drawing. No FVS sheet casts a shadow since Oct 8, 2026 (Diego: only the floatbar keeps one — the blurs made pan / zoom / drag slow; `16-cell-shadow.js` deleted). The turns-strip tiles and the Component gallery thumbnails: their **hover / selected / saved** marks follow the cell's (or the grid's) own outline, never a square box — the strip's outline polygon turns `--ink`, a Component thumbnail gets chained 1px `drop-shadow` rings (2 in `--ink` = selected, 3 in `--tool` = saved). Outlines + turns: `Organica.shapes.CELL_SHAPES` (each centred on 50,50 — the triangle's centroid, so it pokes above y 0).
-- **Component.** Columns/Rows give way to **Grid shape** (Hexagon · Triangle · Diamond · Square — only what the cell shape can fill; triangles can't make a square) and **Grid size** (1–4, cells along each side). Cell counts at sizes 1–4: triangle cells → Hexagon 6/24/54/96, Triangle 1/4/9/16, Diamond 2/8/18/32; hexagon and circle cells → Hexagon 1/7/19/37, Triangle 1/3/6/10, Diamond and Square 1/4/9/16 (hexagons: stepped edges, offset columns; circles: packed, Square = square packing, Paper in the gaps). The Component canvas is the grid's own outline. Rules: Identity, Radial (each cell turned towards the centre; on triangles the Arc's pivot corner goes to the nearest corner), Checkerboard (up/down on triangles; a true checkerboard on square-packed circles; on hex-packed cells — every hexagon grid, packed circles — alternating lines of cells, each differing from 4 of its 6 neighbours, since no two-state pattern can do better; by position since Oct 7, 2026 — it was the cell's number, `i % 2`), Random, Exhaustive — every turn a step of the shape's own; the others grey out ("… needs a square cell"). **Show grid** (floatbar, Component) draws each cell's outline and, on a cell-shape lattice, the **Grid shape that wraps the cells** as a dashed `--tool` guide — the triangle round three packed circles, the hexagon round seven, the diamond, the square — so the Component reads as one shape, the way it sits in a Symbol grid (`gridWrapper`: the tightest polygon of that shape, per edge the support of every cell point, the orientation of least area; measured on 44 cell × Grid shape × size cases: right side count, no cell outside, every edge touching). The gallery thumbnail grows its viewBox to take it in. Screen only, never exported. Changing Grid shape, Grid size, Columns or Rows after a Generate runs the current rule again on the new grid (Manual brings back the starter set). **Cell size** was removed from the panel (Oct 6, 2026): every view fits the Component to its box, so it changed nothing visible — the output size is set at export (×1/×2/×4, or Print).
+- **Component.** Columns/Rows give way to **Grid shape** (Hexagon · Triangle · Diamond · Square — only what the cell shape can fill; triangles can't make a square) and **Grid size** (1–4, cells along each side). Cell counts at sizes 1–4: triangle cells → Hexagon 6/24/54/96, Triangle 1/4/9/16, Diamond 2/8/18/32; hexagon and circle cells → Hexagon 1/7/19/37, Triangle 1/3/6/10, Diamond and Square 1/4/9/16 (hexagons: stepped edges, offset columns; circles: packed, Square = square packing, Paper in the gaps). The Component canvas is the grid's own outline. Rules: Identity, Radial (each cell turned towards the centre; on triangles the Arc's pivot corner goes to the nearest corner), Checkerboard (up/down on triangles; a true checkerboard on square-packed circles; on hex-packed cells — every hexagon grid, packed circles — alternating lines of cells, each differing from 4 of its 6 neighbours, since no two-state pattern can do better; by position since Oct 7, 2026 — it was the cell's number, `i % 2`), Random, Exhaustive — every turn a step of the shape's own; the others grey out ("… needs a square cell"). **Show grid** (floatbar, Component) draws each cell's outline and, on a cell-shape lattice, the **Grid shape that wraps the cells** as a dashed `--tool` guide — the triangle round three packed circles, the hexagon round seven, the diamond, the square — so the Component reads as one shape, the way it sits in a Symbol grid (`gridWrapper`: the tightest polygon of that shape, per edge the support of every cell point, the orientation of least area; measured on 44 cell × Grid shape × size cases: right side count, no cell outside, every edge touching). The gallery thumbnail grows its viewBox to take it in. Screen only, never exported. Changing Grid shape, Grid size, Columns or Rows after a Generate runs the current rule again on the new grid when the cell count changes (Manual brings back the starter set; §5.1). **Cell size** was removed from the panel (Oct 6, 2026): every view fits the Component to its box, so it changed nothing visible — the output size is set at export (×1/×2/×4, or Print).
 - **Symbol.** Fit **Match cell** (floatbar + Cell properties): an Element drawn for a cell shape is laid exactly onto a cell of that shape (centroid, corner to corner, turned to the cell's pose — down triangles, pointy-top hexagons); the cell's own turn snaps to the shape's step. Any other cell falls back to Contain.
 - **Cell-shape Components in any Symbol grid** (Oct 6, 2026; replaced the short-lived "Component" grid generator). A Component with a Grid shape set to **Match cell** sits on ONE small-cell lattice shared by every such Component of that cell shape in the Symbol — one small-cell size (the median of their Contain fits, grown by Overlap), its turn snapped to the lattice's symmetry (60°, square packing 90°; no flips), its position snapped so its small cells land on the lattice (origin = the frame centre). So neighbours line up exactly on any grid (Rectangular, Bento, Hexagonal, Voronoi…), lines run on, and Shared cells can tell whose cell is whose. Code: `alignedPlacements` (+ `latticeBasisOf`). Measured: 5 grids × 11 Grid-shape kinds × Overlap 0/40 % × turns — every small cell on the lattice. Arrange → Fit offers Match cell. Gallery tiles 16–23.
 - **Component → Blend** (Role section, Oct 6, 2026): **Normal** (default) · **Multiply** — where the cells' inks overlap (raise Scale in Look & place, or the Scale axis), they mix instead of the later covering the earlier; it multiplies with the Paper too. Saved as `entry.blend` only when Multiply (older Components = Normal), and carried into Symbols, Library thumbnails and exports (SVG `mix-blend-mode`, canvas `globalCompositeOperation`; measured PNG = SVG). Container / Mask draw as before.
@@ -267,8 +283,10 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   tiles per canvas (the spacing is raised, with a note). SVG: one `<path>` in `<defs>` + one `<use>`
   per tile. A saved Component / Symbol keeps a **snapshot** of the tile; the live Paper follows the
   Element.
-- **Colour by** decides which ink each cell gets: cell order, Checkerboard, By
-  row, By column, Diagonal bands, By quadrant; **Start at** picks the leading
+- **Colour by** decides which ink each cell gets: **Element's own colours** (the first
+  option and the default — a saved Element placed in a Symbol draws in its own palette, §7; every
+  other cell, Component cells included, by cell order), cell order,
+  Checkerboard, By row, By column, Diagonal bands, By quadrant; **Start at** picks the leading
   colour. *By quadrant* splits the grid at its middle — on a grid with an odd
   number of columns or rows the middle line runs through a cell, which joins the
   second half (the panel flags this).
@@ -278,59 +296,160 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
 
 ---
 
-## 5. Component rules
+## 5. Component — how Components are made and generated
 
-The Component is the small building block: a grid of **1–4 columns × 1–4 rows**
-(square or rectangular — 2×3, 3×4, 4×1…). Larger and irregular grids live in the
-Symbol (§6). A rectangular Component sits letterboxed in its square frame in the
-gallery/export; inside a Symbol it is placed by its own tight box. A Component
-saved on an imported Loom grid before this split still renders exactly as saved
-("legacy" hint in the Grid section); picking columns × rows replaces it. A 1×1
-Component is one Element on its own — the way to put a single shape in a Symbol;
-the pattern rules are greyed out there (use Exhaustive for its turns/flips).
+*Checked against the code on Oct 13, 2026. This section is the reference for the Component step;
+the other sections it points to keep their detail.*
 
-Generate produces a gallery of candidates; click one to select it.
+A **Component** is the small building block: one Element placed in every cell of a small grid,
+each cell with its own **state** — rotation, flip H / V, scale (+ optional per-cell content and
+part colours). A Component is made of three things: **the Element** (§3, with its layers, parts and
+colour groups), **the grid** (5.1), and **a rule** that decides each cell's state (5.3). Colour
+comes from the edited Element's Palette (§4) and, optionally, from **layer colour variants** (5.4).
 
-- **Named rules** — Identity, Pinwheel, Mirror, Diagonal, Checkerboard, Row
-  mirror, Column mirror, Radial, plus Lines, Oscillator, Random, Exhaustive and
-  Manual. Every named rule reads each cell's column/row, so they work on **any**
-  grid (2×2, 3×3, 4×4, Loom): Pinwheel steps rotation by `(col + 2·row) mod 4`,
-  Mirror flips by column/row parity, Diagonal alternates `R` / `90−R`,
-  Row/Column mirror flip by row/column parity. Beyond 2×2, **Mirror** also offers
-  the three whole-grid *book-matched* mirrors (left|right, top|bottom, both) and
-  **Radial** offers both one rosette on the whole grid and a *tiled* rosette per
-  2×2 block (four quarter-arcs → four circles on a 4×4). **Radial** needs an
-  even × even grid (its centre falls between cells), **Row mirror** needs ≥ 2 rows,
-  **Column mirror** ≥ 2 columns — greyed out otherwise. Only a real 2×2 (four
-  cells laid out TL, TR, BL, BR) uses the original four-cell tables; a 4-cell Loom
-  row or column is treated as the 4×1 / 1×4 it is.
-- **Polygon Loom grids** (e.g. Hexagonal) get their columns/rows from the
-  full-size cells only, with a hex lattice's offset ("doubled") rows folded back —
-  otherwise every full hexagon landed on the same parity and Checkerboard/Mirror/
-  Diagonal collapsed to Identity.
-- **Random / Exhaustive** draw from the same symmetry families on **any** grid
-  (never per-cell noise). Exhaustive is capped at 512 and refuses cleanly above it;
-  its count is the honest one after folding duplicates.
-- **Nothing hidden.** Picking a named rule shows its whole family: the axis the
-  rule needs (Flip for the mirrors, Rotation for Pinwheel/Diagonal/Radial) is
-  implied by the pick, so Mirror with Flip off still lists every mirror, not
-  Identity. Only Checkerboard, built entirely from the active axes, falls back to
-  Identity when every axis is off. Candidates that merely *paint* alike with this
-  Element (a Circle's 8 Pinwheels) are all listed. The only fold is the exact one:
-  flip H + flip V *is* a 180° turn, so that pair is never listed twice. Random keeps
-  drawing until it has the count you asked for, or the space runs out.
-- **Layer colours** (switch *Layer colour variants* under the Rule, on by default,
-  shown only for a multi-layer Element). When on, every candidate is repeated for
-  every combination of layer inks — each Fill layer takes *Follow cell colour* or
-  each palette ink ((inks + 1)^layers combinations; 2 layers × 3 inks = 16). The
-  Element's current inks come first. The caption ends with the inks (`inks c/2` =
-  bottom layer follows the cell, top layer Ink 2). Clicking a variant makes its inks
-  the Element's own; quick-saving one stores its own inks. Above 512 results the
-  first 512 are shown and the gallery says how many exist (Exhaustive's hint gives
-  the product too).
-- **Role** — a Component can be a *Container* or *Mask* over another saved one.
-- **Undo** (floatbar, ⌘Z) — the last 20 Generate / Add / Clear / Tile / recipe
-  steps of the gallery. It never touches the Seed.
+### 5.1 The grid
+
+- **Square cells** (the default cell shape): **Columns × Rows**, each **1–4** (square or
+  rectangular — 2×3, 4×1…), **Gap** 0–40, **Clip to cell** (each cell cut to its own frame —
+  `cellcut-*` clipPaths / a canvas clip; saved as `clip: true`, kept with the Element's Generated
+  components). *Cell size* is hidden (every view fits the Component; the output size is set at export).
+  Larger and irregular grids live in the Symbol (§6). A rectangular Component sits letterboxed in its
+  square frame in the board / export; inside a Symbol it is placed by its own tight box and takes a
+  block of cells (§7, *Rectangular Components take their block*).
+- **Circle / Triangle / Hexagon cells** (the cell shape of the edited Element, floatbar, §3a):
+  Columns / Rows give way to **Grid shape** (only what the cell can fill) and **Grid size** 1–4.
+- **1×1** = one Element on its own (the way to put a single shape in a Symbol); the pattern rules
+  grey out there — use Exhaustive for its turns / flips.
+- **Legacy**: a Component saved on an imported Loom grid (before Sep 2026) still renders exactly
+  as saved, with a hint; picking columns × rows replaces it. New Components never use a Loom grid
+  (`getGrid`, engine/03-rules.js).
+- **Changing the grid** after a Generate: if the **cell count** changes, the candidates that no
+  longer fit are dropped and, when none is left, the current rule runs again on the new grid (Manual
+  brings back the starter set); a change that keeps the count (2×3 → 3×2) keeps the candidates
+  (`05-render-component.js`, grid invalidation).
+
+### 5.2 The transform axes
+
+**Rotation** (0/90/180/270°, on by default) · **Flip** (none / H / V / both) · **Scale** (off by
+default; **Small / Medium / Large** %, 10–400, defaults 75 / 100 / 125). The axes are the **space a
+rule draws from**: Random and Exhaustive only use the families the active axes allow
+(`activeFamilies`), Identity / Checkerboard enumerate the active values. On a cell-shape lattice a
+rotation is a step of the cell's own (circle 90°, triangle 120°, hexagon 60°) and Flip uses the
+shape's own flips. Lines and Oscillator read only the Scale axis (their angle comes from their own
+controls).
+
+### 5.3 The rules
+
+The **Rule** select (default **Random seeded**). Every named rule reads each cell's column / row,
+so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the original four-cell tables.
+
+| Rule | What each cell gets | Available when | Own controls |
+|---|---|---|---|
+| **Identity** | the same state everywhere — one candidate per value of the active axes | always | — |
+| **Pinwheel** | rotation stepped by `(col + 2·row) mod 4` | ≥ 2 cells | — |
+| **Mirror (kaleidoscope)** | flips by column / row parity; beyond 2×2 also the three whole-grid *book-matched* mirrors (left\|right, top\|bottom, both) | ≥ 2 cells | — |
+| **Diagonal mirror** | alternates R / 90−R | ≥ 2 cells | — |
+| **Checkerboard** | two states alternating — every ordered pair of distinct states from the active axes | ≥ 2 cells, an axis on (else = Identity) | — |
+| **Row mirror** / **Column mirror** | flip by row / column parity | ≥ 2 rows / ≥ 2 columns | — |
+| **Radial** | a rosette — one on the whole grid, and beyond 2×2 also *tiled* per 2×2 block (four quarter-arcs → four circles on a 4×4); base 0/90/180/270 × both chiralities | even × even grid (its centre falls between cells) | — |
+| **Horizontal lines** / **Vertical lines** | rotation keyed on the row / column: **Alternate** (0 / Step) or **Ramp** (Step × index); with Scale on, the key also cycles Small/Medium/Large | ≥ 2 cells | **Mode** Alternate · Ramp, **Step** 0–270 by 90 |
+| **Oscillator (Truchet)** | rotation *Angle* on the cells where `(col + ⌊shift·row⌋) mod Period = Phase`, else 0 (same maths as the Symbol's Oscillator) | ≥ 2 cells | **Angle** 90° · 180°, **Row shift** 0–2, **Period** 2–6, **Phase** 0–5 |
+| **Random seeded** | draws a **family** (one of the named symmetries the axes allow), then one of its parameter sets — every result is a real symmetry, never per-cell noise | always | **Count** 1–256 (16), **Seed** + dice |
+| **Exhaustive** | every family × every parameter set, duplicates folded | always; **over 512 results Generate is disabled** and the hint gives the honest count (× layer colour variants) | — |
+| **Manual** | a per-cell editor: Rotation / Flip / Scale for each cell; **Add** puts it on the board | square cells | per-cell selects |
+
+- **On Circle / Triangle / Hexagon cells** only **Identity, Radial** (each cell turned towards the
+  centre; on triangles the Arc's pivot corner goes to the nearest corner), **Checkerboard** (by
+  position — up / down on triangles, alternating lines on hex-packed cells), **Random** and
+  **Exhaustive** remain (`LATTICE_RULES`); the others grey out (*… needs a square cell*). Here
+  **Random draws each cell's state independently** from the lattice's states (not from families),
+  and Exhaustive = Identity ∪ Radial ∪ Checkerboard. Container / Mask roles are off on these cells.
+- **Nothing hidden, nothing twice.** A named rule shows its whole family (the axis it needs is
+  implied by the pick — Mirror with Flip off still lists every mirror). Candidates that merely
+  *paint* alike with this Element (a Circle's 8 Pinwheels) are all listed; only exact structural
+  duplicates are folded (`dedupeComponents` / `canonicalState`: flip H + flip V *is* a 180° turn).
+  Random keeps drawing (up to Count × 40 tries) until it has Count distinct results or the space
+  runs out.
+- An unavailable rule is greyed out; a pick that becomes unavailable falls back to Identity
+  (`syncRuleAvailability`).
+
+### 5.4 Colour in the candidates
+
+- **The cells' inks** follow the Palette's **Colour by** (§4) — the default, *Element's own colours*,
+  colours a Component's cells by cell order (it differs only for saved Elements placed in a Symbol).
+  With a divided Element, **Each part the next ink** steps the part inks per cell (§3b).
+- **Layer colour variants** (switch under the Rule, shown for any Element with layers or parts).
+  Each candidate is repeated for each combination of layer inks; the Element's current inks come
+  first; the caption ends with the inks (`inks c/2` = bottom follows the cell, top = Ink 2). Clicking
+  a variant makes its inks the Element's own; saving one stores its own inks. Hidden layers do not
+  count.
+  - **Plain layers**: **on** by default; every Fill layer takes *Follow cell colour* or each ink →
+    (inks + 1)^layers.
+  - **Colour groups** (made on the Element, §13 *Colour groups*): a group is **one unit** whose
+    members follow its **rule**, set here, one per group — **Same ink** · **Tonal** (the group's ink
+    on its scale, the top layer lightest) · **Shift together** (the members keep their differences).
+    Count = inks^groups × (inks + 1)^free layers. Disabled (not hidden) while the switch is off; a
+    rule change runs Generate again.
+  - **A divided Element**: **off** by default (kept on its Division, `parts.layerInks`); **on**, one
+    variant per ink — every part's ink moved along the Palette by 1, 2, … (`partInkTurns`), not every
+    combination.
+  - Above 512 results the first 512 are shown and the board says how many exist.
+- **Colourways of the selection** (button under Generate): colour variants of the selected
+  Component from the palette and its shade scales — Roles · Tonal · Tint ground · Dark ground ·
+  Accent · Pair, each solved to 3:1 on its paper and ΔE ≥ 6 (`buildColourways`; detail in §6b).
+  They **replace** the Element's candidates (one per colourway); picking one makes it the live palette.
+
+### 5.5 Generate, the starter set, the board
+
+- **Generate** runs the rule and **replaces** the edited Element's set of candidates (Manual's
+  **Add** appends one instead). **Clear board** empties every Element's set. The candidates are drawn
+  on the Component board as **Generated components** — one area per Element, 4 across, at 2× (§13).
+  A click selects one; a click in another Element's area edits that Element and selects it.
+- **The starter set**: an Element never generated shows each starter rule's first 4 candidates —
+  square cells: Checkerboard, Pinwheel, Mirror, Radial (when eligible); other cells: Radial,
+  Checkerboard, Identity. It stays **live** (follows the Element and the grid) until an explicit
+  action — Generate, Add, Clear, a library load (`starterComponents`, `componentAutoGenerated`).
+- **Drawing**: a plain-Fill stack is drawn **layer by layer across the cells** (`layerPasses`), so a
+  layer reaching into the next cell stays under that cell's upper layers; masks and per-cell content
+  keep cell-by-cell drawing (§13 *Component board*).
+
+### 5.6 Component Edit
+
+Double-click a candidate (or Enter on the selected one) → **Component Edit**, the board's single
+view. Columns, rows and the rule are frozen while editing; the cell's shape and look stay bound to
+the Element panel.
+- **Cells**: click, ⌘ / Shift-click, marquee; a **second click** on a picked cell opens **Choose
+  content** (Seeds only); a saved Element dragged from the Library rail onto a cell (or the
+  selection); **Delete** returns the picked cells to the Component's own Element.
+- **Part colours** (divided Element): the strip under the toolbar — **Part**, the inks, **Clear part
+  colour** → `cell.partInks` (§3b R3).
+- **Save as new component** keeps the edit; *Back to board* / Esc discards the working copy.
+
+### 5.7 Role and Blend
+
+- **Blend** — **Normal** · **Multiply** (overlapping cell inks multiply, also with the Paper; saved as
+  `entry.blend` only when Multiply) — §3a.
+- **Role** — **Normal** · **Container** (this Component's silhouette **clips** a saved underlying
+  Component) · **Mask** (it **knocks it out**); *Pick underlying component…* / *Remove*. Square cells only.
+
+### 5.8 Saving and undo
+
+- **Quick save** (the circle on a candidate): saves it to the library as *‹rule› ‹time›* (no
+  message; its ✓ says it; a second click on the ✓ removes it). **Save all to library**: every
+  candidate of the **edited Element's** set, already-saved ones skipped, *Saved n Components*.
+  A saved Component keeps its Element, grid, cells, palette and rule, Paper + texture, layer inks,
+  part colours, blend, role and clip — so it draws the same inside Symbols and Figures (§7).
+- **Undo** (floatbar, ⌘Z on the Component step): the last **20** steps of Generate, Add, Clear /
+  Clear board (all Elements at once), Colourways and Save as new component; each step remembers its
+  Element, so undoing a step of another Element edits that Element first. It never touches the Element.
+
+### 5.9 Where the rest lives
+
+§3a cell shapes (lattices, Grid shape counts, Show grid, Blend, Match cell in the Symbol) · §3b parts
+and part colours · §4 Palette / Colour by · §6a layer roles · §6b Colourways and Recolour · §7 the
+library (save, rename, delete, double-click to edit) · §13 the Component board (Generated components,
+Component Edit gestures, layer-by-layer drawing, Clip to cell) and the Element board's colour groups.
+The Symbol has its **own** rules (§6 — including its own Oscillator); do not confuse them with these.
 
 ---
 
