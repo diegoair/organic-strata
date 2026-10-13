@@ -330,7 +330,7 @@ export function syncRuleUI() {
   ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
   ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';
   ctrl('rule-manual-block').style.display = mode === 'manual' ? '' : 'none';
-  ctrl('btn-generate').textContent = mode === 'manual' ? 'Add to gallery' : 'Generate';
+  ctrl('btn-generate').textContent = mode === 'manual' ? 'Add component' : 'Generate';
   syncRuleAxisNote();
   // Exhaustive-over-cap disables Generate; leaving that mode for any
   // other rule must re-enable it — previously only re-checked when

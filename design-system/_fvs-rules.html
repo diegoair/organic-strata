@@ -215,7 +215,7 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
   <div class="eyebrow">Organica · Flexible Visual System</div>
   <h1>Every generative rule, from Element to Figure</h1>
   <p class="lede">What each step can generate, what each rule <b>decides</b>, and the controls that shape it. Labels are the ones in the panel; the <code>key</code> is the stored value. The Component diagrams show the real turns FVS produced for each rule; the Symbol grids are Loom’s real outlines; the Colour‑by, Arrange and Symbol‑rule diagrams run the same formulas as the code.</p>
-  <div class="meta">Read from <code>fvs/js</code> + <code>fvs/index.html</code> · captured 7 Oct 2026, with the Snap to 90° and lattice Checkerboard fixes · default settings unless a diagram says otherwise</div>
+  <div class="meta">Read from <code>fvs/js</code> + <code>fvs/index.html</code> · captured 7 Oct 2026, with the Snap to 90° and lattice Checkerboard fixes · Component colour (layer colour variants, colour groups, parts) and grid notes updated 13 Oct 2026 · default settings unless a diagram says otherwise</div>
 
   <div class="pipe">
     <a href="#element"><div class="n">01</div><div class="t">Element</div><div class="d">One shape and how it is drawn.</div><div class="c">15 shapes · 4 cell shapes · 3 styles · 4 layer roles</div></a>
@@ -297,10 +297,10 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
 <!-- ====================== COMPONENT ====================== -->
 <section class="step" id="component">
   <h2><span class="num">02</span>Component</h2>
-  <p class="intro">The Element in a 1–4 × 1–4 grid (or a cell‑shape lattice). <b>Generate</b> runs the rule and lists every structurally distinct candidate; nothing is hidden except the exact duplicate “flip H + flip V = 180°”.</p>
+  <p class="intro">The Element in a 1–4 × 1–4 grid (or a cell‑shape lattice). <b>Generate</b> runs the rule and lists every structurally distinct candidate; nothing is hidden except the exact duplicate “flip H + flip V = 180°”. The results replace the edited Element’s <b>Generated components</b> — one area per Element on the Component board, 4 across.</p>
 
   <h3 id="co-grid">Grid</h3>
-  <p class="sub">Square cells: Columns 1–4, Rows 1–4, Gap 0–40. Other cell shapes: <b>Grid shape</b> + <b>Grid size</b> 1–4. Changing the grid after a Generate runs the current rule again on the new grid.</p>
+  <p class="sub">Square cells: Columns 1–4, Rows 1–4, Gap 0–40. Other cell shapes: <b>Grid shape</b> + <b>Grid size</b> 1–4. <b>Clip to cell</b> cuts each cell to its own frame (saved with the Component). Changing the grid after a Generate runs the current rule again only when the <b>cell count</b> changes (2×3 → 3×2 keeps the candidates).</p>
   <div class="tbl"><table><thead><tr><th>Cell shape</th><th>Grid shape → cells at size 1 / 2 / 3 / 4</th></tr></thead><tbody>
     <tr><td class="k">Square</td><td>Columns × Rows (1×1 … 4×4, rectangular allowed)</td></tr>
     <tr><td class="k">Triangle</td><td>Hexagon 6 / 24 / 54 / 96 · Triangle 1 / 4 / 9 / 16 · Diamond 2 / 8 / 18 / 32 · <span class="gate">Square — “Square needs circle or hexagon cells”</span></td></tr>
@@ -350,7 +350,13 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
   </div>
 
   <h3 id="co-inks">Layer colour variants</h3>
-  <p class="sub">Shown only for a layered Element, on by default. Every candidate is repeated for every combination of layer inks: each Fill layer takes <i>Follow cell colour</i> or one of the palette inks → (inks + 1)<sup>layers</sup> (2 layers × 3 inks = 16). Above 512 the first 512 are shown with a note. Picking a variant makes its inks the Element’s own.</p>
+  <p class="sub">Shown for an Element with layers or parts. Every candidate is repeated for each combination of layer inks; the Element’s current inks come first; hidden layers do not count. Above 512 the first 512 are shown with a note. Picking a variant makes its inks the Element’s own.</p>
+  <div class="tbl"><table><thead><tr><th>Element</th><th>Default</th><th>Variants</th></tr></thead><tbody>
+    <tr><td class="k">Plain layers</td><td>on</td><td>each Fill layer takes <i>Follow cell colour</i> or one of the inks → (inks + 1)<sup>layers</sup> (2 layers × 3 inks = 16)</td></tr>
+    <tr><td class="k">With colour groups</td><td>on</td><td>a group is one unit: its ink takes each Palette ink and its members follow the group’s rule — <b>Same ink</b> · <b>Tonal</b> (the group’s ink on its scale, the top layer lightest) · <b>Shift together</b> (the members keep their differences) → inks<sup>groups</sup> × (inks + 1)<sup>free layers</sup>. The rules are set here, one per group (disabled while the switch is off); a rule change runs Generate again</td></tr>
+    <tr><td class="k">Divided into parts</td><td><b>off</b> (kept on its Division)</td><td>one variant per ink — every part’s ink moved along the Palette by 1, 2, … (a part on the cell’s colour stays), not every combination (a Polygon in 8 parts × 6 inks would be 7<sup>8</sup>)</td></tr>
+  </tbody></table></div>
+  <p class="sub">Per cell, a divided Element’s parts can also take their own ink in <b>Component Edit</b> (strip: Part · inks · Clear part colour), and the Palette’s <b>Each part the next ink</b> steps part <i>k</i> to the cell’s ink + <i>k</i>.</p>
 
   <h3 id="co-colourways">Colourways of the selection</h3>
   <p class="sub">Colour variants of the selected Component from the palette’s mains and their 0–900 shade scales. Every result is <b>solved</b>: an ink under 3:1 on its paper moves along its own scale (hue kept) until it reaches 3:1; inks closer than ΔE 6 are pushed apart; a scheme that cannot be solved is dropped. Ranked by 0.5·contrast + 0.3·ΔE + 0.2·lightness spread; “Current” first, then up to 11.</p>
@@ -367,7 +373,7 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
   <div class="grid">
     <div class="entry"><h4>Blend <span class="key">sel-component-blend</span></h4><p class="how"><b>Normal</b> — the later cell covers the earlier. <b>Multiply</b> — where cells’ inks overlap (Scale &gt; 1) they mix, and multiply with the Paper too.</p></div>
     <div class="entry"><h4>Role <span class="key">sel-component-role</span></h4><p class="how"><b>Normal</b> · <b>Container</b> — another saved Component, clipped to this one’s cells · <b>Mask</b> — this one’s cells knocked out of the other and its paper. Square cells only; forces a square frame.</p></div>
-    <div class="entry"><h4>Starter gallery</h4><p class="how">Before any Generate: the first 4 of Checkerboard, Pinwheel, Mirror and Radial (if eligible) — 16 on a 2×2. On a lattice: Radial, Checkerboard, Identity. Rebuilt live while untouched.</p></div>
+    <div class="entry"><h4>Starter set</h4><p class="how">Before any Generate: the first 4 of Checkerboard, Pinwheel, Mirror and Radial (if eligible) — 16 on a 2×2. On a lattice: Radial, Checkerboard, Identity. Rebuilt live while untouched (until Generate, Add, Clear board or a library load).</p></div>
   </div>
 </section>
 
@@ -691,7 +697,7 @@ function patternBody(type, sp, w, ang, box, color) {
     const cnt = two && two.n != null ? `2×2: ${two.n} candidate${two.n === 1 ? '' : 's'}${four && four.n != null ? ` · 4×4: ${four.n}` : ''}` : '';
     return entry({ title: r.t, key: r.k, sheet, count: cnt, how: r.how, params: r.params, gate: r.gate });
   }).join('');
-  html += entry({ title: 'Manual', key: 'manual', how: 'One select per cell: Rotation 0/90/180/270, Flip None/H/V/Both, Scale S/M/L. The button reads <b>Add to gallery</b> and adds one Component per click.', gate: 'Square cells only.' });
+  html += entry({ title: 'Manual', key: 'manual', how: 'One select per cell: Rotation 0/90/180/270, Flip None/H/V/Both, Scale S/M/L. The button reads <b>Add component</b> and adds one Component per click.', gate: 'Square cells only.' });
   html += entry({ title: 'With Scale on', key: 'axis', sheet: (CELLS['2|pinwheel|S'].s.slice(0, 3).map(s => fig(compSVG(s, 2, 2, 26), s.split(' ')[0].replace(/^\d+/, '') || '@1')).join('')), count: `Pinwheel 2×2: ${CELLS['2|pinwheel|S'].n} candidates`, how: 'Every named rule is listed again at Small, Medium and Large.' });
   $('comprules').innerHTML = html;
 })();

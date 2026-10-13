@@ -52,7 +52,7 @@ export function getSelectedComponent() {
 export const RULE_TO_FAMILY = { pinwheel: 'pinwheel', mirror: 'mirror', diagonal: 'diagonal', checkerboard: 'checkerboard', rowmirror: 'rowmirror', columnmirror: 'columnmirror', radial: 'radial' };
 // Component-tier undo: a stack of the last 20 snapshots of the gallery (the
 // Components, which one is selected, and the Component the Grid tiles), taken
-// before Generate / Add to gallery / Clear / Tile / a recipe. The Seed and every
+// before Generate / Add component / Clear / Tile / a recipe. The Seed and every
 // other control are left alone.
 export const UNDO_MAX = 20;
 export const undoStack = [];
