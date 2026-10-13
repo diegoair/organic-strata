@@ -183,7 +183,12 @@ export const GRID_BUILD = {
   // flipped once shows the mirror image of that turned Element — the render flips first, then turns, so it takes −R;
   // flipped both ways = a 180° turn, R kept. line 'both' | 'lr' (flips left–right only) | 'tb' (top–bottom only).
   // seed = which corner of the 2 × 2 parity is plain (bit 0: column, bit 1: row). R 0 + 'both' = GRID_BUILD.mirror.
-  mirrorLine: (cr, seed, line, R, sc) => { const sx = seed % 2, sy = seed >> 1; return cr.map(c => { const fh = line !== 'tb' && (c.col + sx) % 2 === 1, fv = line !== 'lr' && (c.row + sy) % 2 === 1; return stateFrom(fh !== fv ? mod360(-R) : R, fh, fv, sc); }); },
+  // spread 'cell' = a mirror line between every pair of neighbours (A A′ A A′ …); 'pair' = every two cells
+  // (A A′ A′ A …, Oct 13, 2026 — phase 3). The plain corner shifts the pattern by one (cell) or two (pairs) cells.
+  mirrorLine: (cr, seed, line, R, sc, spread = 'cell') => {
+    const sx = seed % 2, sy = seed >> 1, odd = spread === 'pair' ? (k, s) => ((k + 2 * s + 1) >> 1) % 2 === 1 : (k, s) => (k + s) % 2 === 1;
+    return cr.map(c => { const fh = line !== 'tb' && odd(c.col, sx), fv = line !== 'lr' && odd(c.row, sy); return stateFrom(fh !== fv ? mod360(-R) : R, fh, fv, sc); });
+  },
   diagonal: (cr, r, sc) => cr.map(c => stateFrom((c.col + c.row) % 2 === 0 ? r : mod360(90 - r), false, false, sc)),
   checkerboard: (cr, a, b) => cr.map(c => ((c.col + c.row) % 2 === 0 ? a : b)),
   rowmirror: (cr, r, sc) => cr.map(c => stateFrom(r, false, c.row % 2 === 1, sc)),
@@ -205,7 +210,7 @@ export const GRID_BUILD = {
 export const crIsLarge = cr => { if (!cr) return false; const d = crDims(cr); return d.cols > 2 || d.rows > 2; };
 // ── Rules on a cell-shape lattice (test) — every turn is a step of the cell shape's own (90° circle, 120°
 // triangle, 60° hexagon), added to the cell's own pose (a down triangle sits at 60°). Square cells never reach here.
-export const LATTICE_RULES = new Set(['identity', 'pinwheel', 'radial', 'checkerboard', 'random', 'exhaustive']);
+export const LATTICE_RULES = new Set(['identity', 'pinwheel', 'mirror', 'radial', 'checkerboard', 'random', 'exhaustive']);
 export function latticeSteps() {
   const st = CELL_SHAPES[state.cellShape].step, out = [];
   for (let r = 0; r < 360; r += st) out.push(r);
@@ -294,20 +299,33 @@ export function familyRuleGallery(key) {
 export function rulePinwheel() { return familyRuleGallery('pinwheel'); }
 // The 2 × 2 as columns / rows, for the builders that read them (Mirror's Line on a canonical 2 × 2).
 export const CR_2X2 = [{ col: 0, row: 0 }, { col: 1, row: 0 }, { col: 0, row: 1 }, { col: 1, row: 1 }];
-// Which Mirror Lines this grid can run: Left–right needs two columns, Top–bottom two rows, Both either.
+// Which Mirror Lines this grid can run: Left–right needs two columns, Top–bottom two rows, Both either. On a cell-shape
+// lattice the mirror lines follow the lattice — only Both, except circles in square packing (they read as squares).
 export function mirrorLinesEligible() {
+  if (state.cellShape !== 'square') return latticeMirrorKind() === 'square' ? ['both', 'lr', 'tb'] : ['both'];
   const d = crDims(hooks.componentCellColRow(getGrid()));
   return ['both', 'lr', 'tb'].filter(l => (l === 'lr' ? d.cols > 1 : l === 'tb' ? d.rows > 1 : d.cols > 1 || d.rows > 1));
 }
+// How far apart the mirror lines are (phase 3): 'cell' every cell · 'pair' every two cells · 'grid' one line through
+// the whole grid (book-matched). Pairs and the whole grid need more than two cells along the Line; square cells only.
+export function mirrorSpreadsEligible(line) {
+  if (state.cellShape !== 'square') return ['cell'];
+  const d = crDims(hooks.componentCellColRow(getGrid())), long = line === 'lr' ? d.cols > 2 : line === 'tb' ? d.rows > 2 : d.cols > 2 || d.rows > 2;
+  return long ? ['cell', 'pair', 'grid'] : ['cell'];
+}
 export function ruleMirror() {
+  if (state.cellShape !== 'square') return latticeRule('mirror');
   const ok = mirrorLinesEligible(), line = ok.includes(state.mirrorLine) ? state.mirrorLine : 'both';
-  const av = axisValues(), cr = ruleCR(), fam = FAMILIES.mirror;
-  const gallery = fam.paramSpace(av, cr, [line]).map((p, i) => ({ id: `mirror-${i}`, ruleSource: 'mirror', cells: fam.build(p, cr) }));
-  // Beyond 2×2 the per-tile mirror is not the only reading: the whole-grid (book-matched) mirrors along the same Line.
-  const bm = FAMILIES.bookmatch;
-  if (bm.eligible()) {
-    const axes = line === 'lr' ? ['h'] : line === 'tb' ? ['v'] : ['h', 'v', 'hv'];
-    bm.paramSpace(av, cr, axes).forEach((p, i) => gallery.push({ id: `mirror-book-${i}`, ruleSource: 'mirror', cells: bm.build(p, cr) }));
+  const spreads = mirrorSpreadsEligible(line), spread = spreads.includes(state.mirrorSpread) ? state.mirrorSpread : 'cell';
+  const av = axisValues(), cr = ruleCR();
+  let gallery;
+  if (spread === 'grid') {   // book-matched: one mirror line through the whole grid, along the Line
+    const bm = FAMILIES.bookmatch, axes = line === 'lr' ? ['h'] : line === 'tb' ? ['v'] : ['h', 'v', 'hv'];
+    gallery = bm.paramSpace(av, cr, axes).map((p, i) => ({ id: `mirror-book-${i}`, ruleSource: 'mirror', cells: bm.build(p, cr) }));
+  } else {
+    const out = [];
+    for (const rotation of av.rotations) for (let seed = 0; seed < 4; seed++) for (const s of av.scales) out.push({ seed, line, spread, rotation, scale: s });
+    gallery = out.map((p, i) => ({ id: `mirror-${i}`, ruleSource: 'mirror', cells: FAMILIES.mirror.build(p, cr) }));
   }
   const kept = dedupeComponents(gallery);
   return kept.length ? kept : ruleIdentity();
@@ -417,14 +435,14 @@ export const FAMILIES = {
     // comes from the Rotation axis (0 only when it is off). Line × turn × plain corner × scale.
     paramSpace(av, cr, lines) {
       const out = [];
-      for (const line of lines || mirrorLinesEligible()) for (const rotation of av.rotations) for (let seed = 0; seed < 4; seed++) for (const s of av.scales) out.push({ seed, line, rotation, scale: s });
+      for (const line of lines || mirrorLinesEligible()) for (const spread of mirrorSpreadsEligible(line).filter(x => x !== 'grid')) for (const rotation of av.rotations) for (let seed = 0; seed < 4; seed++) for (const s of av.scales) out.push({ seed, line, spread, rotation, scale: s });
       return out;
     },
-    build(p, cr) { return GRID_BUILD.mirrorLine(cr || CR_2X2, p.seed, p.line || 'both', p.rotation || 0, p.scale); },
+    build(p, cr) { return GRID_BUILD.mirrorLine(cr || CR_2X2, p.seed, p.line || 'both', p.rotation || 0, p.scale, p.spread || 'cell'); },
   },
   bookmatch: {
     requiresAxis: 'flip',
-    eligible: () => !isCanonical2x2(),
+    eligible: () => state.cellShape === 'square' && mirrorSpreadsEligible('both').includes('grid'),
     paramSpace(av, cr, axes) {
       const out = [];
       for (const rotation of av.rotations) for (const axis of axes || ['h', 'v', 'hv']) for (const s of av.scales) out.push({ axis, rotation, scale: s });
@@ -606,6 +624,68 @@ export function latticeReadingRank(grid) {
   cells.forEach((c, k) => { rank[c.i] = k; });
   return rank;
 }
+// Mirror on a cell-shape lattice (Oct 13, 2026 — phase 4). 'kaleido': triangles — each cell the reflection of its
+// neighbour across their shared edge (a true kaleidoscope); 'lines': hexagons and hex-packed circles — every other line
+// of cells flipped (three cells meet at each corner, so not every neighbour can be a mirror); 'square': circles in
+// square packing — read as columns and rows, like square cells.
+export function latticeMirrorKind() {
+  if (state.cellShape === 'triangle') return 'kaleido';
+  const grid = getGrid(), P = resolveGridCells(grid).map(c => [c.cx, c.cy]);
+  if (P.length < 2) return 'lines';
+  let d = Infinity;
+  for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) d = Math.min(d, Math.hypot(P[j][0] - P[i][0], P[j][1] - P[i][1]));
+  const offAxis = a => Math.min(a % 90, 90 - (a % 90));
+  for (let i = 0; i < P.length; i++) for (let j = 0; j < P.length; j++) {
+    const dx = P[j][0] - P[i][0], dy = P[j][1] - P[i][1];
+    if (i !== j && Math.hypot(dx, dy) < d * 1.1 && offAxis(mod360(Math.atan2(dy, dx) * 180 / Math.PI) % 180) >= 5) return 'lines';
+  }
+  return 'square';
+}
+// The kaleidoscope's isometries: cell k's content = L_k · (the base cell's content). BFS over shared edges from the
+// cell nearest the centre; L = the product of the edge reflections on the way (a 2 × 2 linear part — translations
+// are carried by the cell centres). Returns [{ det, theta }] per cell.
+function kaleidoMaps(grid) {
+  const cells = grid.cells, key = p => p[0].toFixed(3) + ',' + p[1].toFixed(3);
+  const cx = cells.reduce((a, c) => a + c.centroid[0], 0) / cells.length, cy = cells.reduce((a, c) => a + c.centroid[1], 0) / cells.length;
+  let base = 0;
+  cells.forEach((c, i) => { if (Math.hypot(c.centroid[0] - cx, c.centroid[1] - cy) < Math.hypot(cells[base].centroid[0] - cx, cells[base].centroid[1] - cy) - 1e-6) base = i; });
+  const L = new Array(cells.length).fill(null), mul = (A, B) => [A[0] * B[0] + A[1] * B[2], A[0] * B[1] + A[1] * B[3], A[2] * B[0] + A[3] * B[2], A[2] * B[1] + A[3] * B[3]];
+  L[base] = [1, 0, 0, 1];
+  const queue = [base];
+  while (queue.length) {
+    const t = queue.shift(), tk = cells[t].points.map(key);
+    cells.forEach((n, k) => {
+      if (L[k]) return;
+      const shared = n.points.filter(p => tk.includes(key(p)));
+      if (shared.length < 2) return;
+      let ux = shared[1][0] - shared[0][0], uy = shared[1][1] - shared[0][1]; const l = Math.hypot(ux, uy); ux /= l; uy /= l;
+      L[k] = mul([ux * ux - uy * uy, 2 * ux * uy, 2 * ux * uy, uy * uy - ux * ux], L[t]);   // [a, b, c, d] row-major
+      queue.push(k);
+    });
+  }
+  return { base, maps: L.map(m => { if (!m) return { det: 1, theta: 0 }; const det = m[0] * m[3] - m[1] * m[2];
+    return det > 0 ? { det, theta: Math.atan2(m[2], m[0]) * 180 / Math.PI } : { det, theta: Math.atan2(-m[2], -m[0]) * 180 / Math.PI }; }) };
+}
+export function latticeMirrorCells(R, seed, scale) {
+  const grid = getGrid(), kind = latticeMirrorKind(), snap = r => mod360(Math.round(r));
+  if (kind === 'kaleido') {
+    const { base, maps } = kaleidoMaps(grid), b0 = grid.cells[base].baseRot || 0;
+    // det > 0: a turn θ → rot(θ + b0 + R); det < 0: rot(θ)·flipH·rot(b0 + R) = rot(θ − b0 − R)·flipH. Minus the cell's own pose.
+    return grid.cells.map((c, k) => { const m = maps[k], bk = c.baseRot || 0;
+      return m.det > 0 ? stateFrom(snap(m.theta + b0 + R - bk), false, false, scale) : stateFrom(snap(m.theta - b0 - R - bk), true, false, scale); });
+  }
+  const P = resolveGridCells(grid).map(c => [c.cx, c.cy]);
+  let d = Infinity;
+  for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) d = Math.min(d, Math.hypot(P[j][0] - P[i][0], P[j][1] - P[i][1]));
+  const [x0, y0] = P[0];
+  if (kind === 'square') {
+    const cr = P.map(([x, y]) => ({ col: Math.round((x - x0) / d), row: Math.round((y - y0) / d) })), m = Math.min(...cr.map(c => c.col)), n = Math.min(...cr.map(c => c.row));
+    return GRID_BUILD.mirrorLine(cr.map(c => ({ col: c.col - m, row: c.row - n })), seed, mirrorLinesEligible().includes(state.mirrorLine) ? state.mirrorLine : 'both', R, scale);
+  }
+  // lines: the latticeParity classes; hexagons stack in columns (flip left–right), packed circles in rows (top–bottom)
+  const par = latticeParity(), flipH = state.cellShape === 'hexagon';
+  return par.map(p => ((p + seed) % 2 === 1 ? stateFrom(snap(-R), flipH, !flipH, scale) : stateFrom(snap(R), false, false, scale)));
+}
 export function latticeRule(mode) {
   const n = getGrid().cells.length, scales = axisValues().scales;
   const pack = (key, list) => dedupeComponents(list.map((cells, i) => ({ id: `${key}-${i}`, ruleSource: key, cells })));
@@ -617,6 +697,11 @@ export function latticeRule(mode) {
     const st = CELL_SHAPES[state.cellShape].step, rank = latticeReadingRank(getGrid()), list = [];
     for (const start of latticeSteps()) for (const ch of [1, -1]) for (const s of scales) list.push(rank.map(k => stateFrom(mod360(start + ch * st * k), false, false, s)));
     return pack('pinwheel', list);
+  }
+  if (mode === 'mirror') {
+    const kind = latticeMirrorKind(), seeds = kind === 'square' ? [0, 1, 2, 3] : kind === 'lines' ? [0, 1] : [0], list = [];
+    for (const R of activeAxes().rotation ? latticeSteps() : [0]) for (const sd of seeds) for (const s of scales) list.push(latticeMirrorCells(R, sd, s));
+    return pack('mirror', list);
   }
   if (mode === 'checkerboard') {
     const par = latticeParity(), sts = latticeStates(), out = [];
@@ -633,7 +718,7 @@ export function latticeRule(mode) {
     }
     return out;
   }
-  if (mode === 'exhaustive') return dedupeComponents(['identity', 'pinwheel', 'radial', 'checkerboard'].flatMap(m => latticeRule(m)).map((c, i) => ({ ...c, id: `exhaustive-${i}`, ruleSource: 'exhaustive' })));
+  if (mode === 'exhaustive') return dedupeComponents(['identity', 'pinwheel', ...(activeAxes().flip ? ['mirror'] : []), 'radial', 'checkerboard'].flatMap(m => latticeRule(m)).map((c, i) => ({ ...c, id: `exhaustive-${i}`, ruleSource: 'exhaustive' })));
   return [];
 }
 export function readManualCells() {

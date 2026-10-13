@@ -13,7 +13,7 @@ import {
 } from './engine/02-seed-ui.js';
 import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
-  exhaustiveTotal, getGrid, isCanonical2x2, latticeRule, mirrorLinesEligible, radialEligible, readManualCells,
+  exhaustiveTotal, getGrid, isCanonical2x2, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
 } from './engine/03-rules.js';
@@ -312,23 +312,40 @@ export function syncRuleAvailability() {
   if (sel.value === 'exhaustive') syncExhaustiveHint();
 }
 
-// Mirror › Line (Oct 13, 2026): Both · Left–right · Top–bottom; a Line this grid cannot run is greyed with its reason
-// (aria-disabled + title + aria-description, the Grid shape seg's pattern) and the pick falls back to Both.
+// Mirror › Line (Both · Left–right · Top–bottom) and Span (Cell · Pair · Whole grid), Oct 13, 2026: an option this grid
+// or cell shape cannot run is greyed with its reason (aria-disabled + title + aria-description, the Grid shape seg's
+// pattern) and the pick falls back to Both / Cell.
 const MIRROR_LINE_WHY = { lr: 'Left–right needs 2 or more columns', tb: 'Top–bottom needs 2 or more rows' };
-export function syncMirrorLine() {
-  const ok = mirrorLinesEligible();
-  if (!ok.includes(state.mirrorLine)) state.mirrorLine = 'both';
-  ctrl('seg-mirror-line').querySelectorAll('.seg-btn').forEach(b => {
-    const can = b.dataset.line === 'both' || ok.includes(b.dataset.line), on = b.dataset.line === state.mirrorLine;
+function mirrorWhy(kind, v) {
+  if (state.cellShape !== 'square') return kind === 'line' ? `${v === 'lr' ? 'Left–right' : 'Top–bottom'} needs square cells` : `${v === 'pair' ? 'Pair' : 'Whole grid'} needs square cells`;
+  if (kind === 'line') return MIRROR_LINE_WHY[v];
+  return `${v === 'pair' ? 'Pair' : 'Whole grid'} needs 3 or more cells along the Line`;
+}
+function syncSeg(id, attr, ok, value, kind) {
+  ctrl(id).querySelectorAll('.seg-btn').forEach(b => {
+    const v = b.dataset[attr], can = ok.includes(v), on = v === value;
     b.setAttribute('aria-disabled', String(!can));
     if (can) { b.removeAttribute('title'); b.removeAttribute('aria-description'); }
-    else { b.title = MIRROR_LINE_WHY[b.dataset.line]; b.setAttribute('aria-description', MIRROR_LINE_WHY[b.dataset.line]); }
+    else { const why = mirrorWhy(kind, v); b.title = why; b.setAttribute('aria-description', why); }
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
   });
 }
+export function syncMirrorLine() {
+  const lines = mirrorLinesEligible();
+  if (!lines.includes(state.mirrorLine)) state.mirrorLine = 'both';
+  const spans = mirrorSpreadsEligible(state.mirrorLine);
+  if (!spans.includes(state.mirrorSpread)) state.mirrorSpread = 'cell';
+  syncSeg('seg-mirror-line', 'line', lines, state.mirrorLine, 'line');
+  syncSeg('seg-mirror-span', 'span', spans, state.mirrorSpread, 'span');
+}
 export function setMirrorLine(line) {
-  if (!mirrorLinesEligible().includes(line) && line !== 'both') return;
+  if (!mirrorLinesEligible().includes(line)) return;
   state.mirrorLine = line;
+  syncMirrorLine();
+}
+export function setMirrorSpan(span) {
+  if (!mirrorSpreadsEligible(state.mirrorLine).includes(span)) return;
+  state.mirrorSpread = span;
   syncMirrorLine();
 }
 
