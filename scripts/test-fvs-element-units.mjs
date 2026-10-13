@@ -91,6 +91,32 @@ async function padding() {
   }
   await step('element');
 }
+// Split's cut grid lines up with the drawn Element (Diego, Oct 13 — "Show cut grid … not anymore aligning"): its frame
+// = the ink's box under Scale / Move / Width, and a kept quadrant lands inside its tinted quarter.
+async function splitGrid() {
+  for (const c of [{}, { 'rg-element-scale': 0.6 }, { 'rg-element-mx': 20, 'rg-element-my': -10 }, { 'rg-element-w': 0.6 }, { layers: true, 'rg-element-scale': 0.6 }]) {
+    const r = await ev(async c => {
+      const F = window.__fvs, set = (id, v, e = 'input') => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event(e, { bubbles: true })); };
+      F.resetElement(); set('sel-seed-type', 'triangle', 'change');
+      if (c.layers) document.getElementById('btn-layer-add').click();
+      for (const [k, v] of Object.entries(c)) if (k !== 'layers') set(k, v);
+      const chk = document.getElementById('chk-split-grid'); chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 50));
+      const svg = document.querySelector('#element-svg > svg'), o = svg.querySelector('.fvs-split-grid rect[fill="none"]').getBoundingClientRect(), sr = svg.getBoundingClientRect(), k = 100 / sr.width;
+      const fr = [(o.left - sr.left) * k, (o.top - sr.top) * k, (o.right - sr.left) * k, (o.bottom - sr.top) * k];
+      const box = () => { const g = F.SEED_TYPES[F.getSeed().type].geometry(F.getSeed()), b = F.measureElementInk(g, { ...F.getElementAppearance(), fillMode: 'fill' }).bb; return [b.x, b.y, b.x + b.width, b.y + b.height]; };
+      const ink = box();
+      document.querySelector('#seg-split-quadrant [data-q="tl"]').click(); await new Promise(r => setTimeout(r, 80));
+      const tl = box();
+      document.querySelector('#seg-split-quadrant [data-q="whole"]').click(); await new Promise(r => setTimeout(r, 80));
+      chk.checked = false; chk.dispatchEvent(new Event('change', { bubbles: true }));
+      return { fr: fr.map(v => +v.toFixed(1)), ink: ink.map(v => +v.toFixed(1)), tl: tl.map(v => +v.toFixed(1)) };
+    }, c);
+    const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 0.6), mid = [(r.fr[0] + r.fr[2]) / 2, (r.fr[1] + r.fr[3]) / 2];
+    const inTL = r.tl[0] >= r.fr[0] - 0.6 && r.tl[1] >= r.fr[1] - 0.6 && r.tl[2] <= mid[0] + 0.6 && r.tl[3] <= mid[1] + 0.6;
+    check(`Split cut grid lines up with the Element ${JSON.stringify(c)}: frame = the ink's box, the TL piece inside its quarter`, near(r.fr, r.ink) && inTL, JSON.stringify(r));
+  }
+}
 // --shots DIR: screenshots of the Element canvas
 
 const which = n => { try { return execFileSync('which', [n], { encoding: 'utf8' }).trim(); } catch { return ''; } };
@@ -386,6 +412,7 @@ try { await fitToCanvas(); } catch (e) { check('Fit to canvas ran', false, e.mes
 try { await tileView(); } catch (e) { check('Show as tile ran', false, e.message); }
 try { await cellTurns(); } catch (e) { check('Cell turns ran', false, e.message); }
 try { await tileCells(); } catch (e) { check('Tile cells ran', false, e.message); }
+try { await splitGrid(); } catch (e) { check('Split grid ran', false, e.message); }
 try { await padding(); } catch (e) { check('Padding ran', false, e.message); }
 try { await snap(); } catch (e) { check('Snap ran', false, e.message); }
 try { await layerSnap(); } catch (e) { check('Layer snap ran', false, e.message); }

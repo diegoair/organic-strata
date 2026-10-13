@@ -15,7 +15,7 @@ import {
   getGrid
 } from './engine/03-rules.js';
 import {
-  buildComponentItems, getElementAppearance, withAppearance
+  appearanceIsIdentity, buildComponentItems, getElementAppearance, stretchOpts, withAppearance
 } from './engine/04-appearance.js';
 import {
   buildComponentSVG, buildComponentSVGBody, buildSeedPreviewSVG, buildSeedTileSVG, componentGridOutlineSVG,
@@ -107,8 +107,14 @@ export function renderSeedPreview() {
 // ORIGINAL (pre-split) shape's own bbox mapped through its own geometry
 // transform: transformed_x = (raw_x + normTx) * normScale, the same formula
 // elementPathMarkup's <g transform> applies — works for any Seed, centred or
-// not, without assuming fitToBox's usual centring.
-export function buildSplitGridOverlaySVG(size) {
+// not, without assuming fitToBox's usual centring. Built in the Element's 0..100
+// box and drawn through the SAME transforms as the shape: the Element's Scale /
+// Move / Rotation / Width / Length (Split cuts the shape's own geometry, so the
+// cuts move and turn with it — Oct 13, 2026: the frame used to stay on the plain
+// box and no longer lined up once Fit to canvas or a slider moved the shape), then
+// the canvas's own box → px (`T`: the plain canvas's scale and cell-shape fit, or
+// none on the tile view, already in box units).
+export function buildSplitGridOverlaySVG(size, T = '') {
   const chk = ctrl('chk-split-grid');
   if (!chk || !chk.checked) return '';
   const split = state.splitOriginal && state.customSeed === state.splitApplied;
@@ -118,28 +124,31 @@ export function buildSplitGridOverlaySVG(size) {
   if (!geo || !geo.d) return '';
   const bb = pathBBox(geo.d);
   if (!bb) return '';
-  const scale = size / 100;
-  const fx = (bb.x + geo.normTx) * geo.normScale * scale;
-  const fy = (bb.y + geo.normTy) * geo.normScale * scale;
-  const fw = bb.width * geo.normScale * scale, fh = bb.height * geo.normScale * scale;
+  const fx = (bb.x + geo.normTx) * geo.normScale, fy = (bb.y + geo.normTy) * geo.normScale;
+  const fw = bb.width * geo.normScale, fh = bb.height * geo.normScale;
   const cx = fx + fw / 2, cy = fy + fh / 2;
+  const a = getElementAppearance();
+  const appT = appearanceIsIdentity(a) ? '' : Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a));
+  // the labels keep about 10 px on screen whatever the transforms do (text has no non-scaling option)
+  const px = size / 100 * (a.scale || 1) * Math.min(a.w || 1, a.l || 1), fs = (10 / Math.max(0.05, px)).toFixed(3);
   const kept = state.splitKeep;
   const tint = (q, dx, dy) => {
     const on = kept.size === 0 || kept.has(q);
     const rx = dx < 0 ? fx : cx, ry = dy < 0 ? fy : cy;
-    return `<rect x="${rx.toFixed(2)}" y="${ry.toFixed(2)}" width="${(fw / 2).toFixed(2)}" height="${(fh / 2).toFixed(2)}" fill="${on ? 'var(--tool)' : 'var(--mid)'}" fill-opacity="${on ? 0.14 : 0.05}"/>`;
+    return `<rect x="${rx.toFixed(3)}" y="${ry.toFixed(3)}" width="${(fw / 2).toFixed(3)}" height="${(fh / 2).toFixed(3)}" fill="${on ? 'var(--tool)' : 'var(--mid)'}" fill-opacity="${on ? 0.14 : 0.05}"/>`;
   };
   const label = (dx, dy, text) => {
     const lx = (dx < 0 ? fx : cx) + fw * 0.06, ly = (dy < 0 ? fy : cy) + fh * 0.2;
-    return `<text x="${lx.toFixed(2)}" y="${ly.toFixed(2)}" font-size="10" fill="var(--mid)" font-family="var(--font)">${text}</text>`;
+    return `<text x="${lx.toFixed(3)}" y="${ly.toFixed(3)}" font-size="${fs}" fill="var(--mid)" font-family="var(--font)">${text}</text>`;
   };
-  return `<g pointer-events="none">`
+  const line = 'stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"';
+  return `<g pointer-events="none" class="fvs-split-grid"${T ? ` transform="${T}"` : ''}><g${appT ? ` transform="${appT}"` : ''}>`
     + tint('tl', -1, -1) + tint('tr', 1, -1) + tint('bl', -1, 1) + tint('br', 1, 1)
-    + `<rect x="${fx.toFixed(2)}" y="${fy.toFixed(2)}" width="${fw.toFixed(2)}" height="${fh.toFixed(2)}" fill="none" stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3"/>`
-    + `<line x1="${cx.toFixed(2)}" y1="${fy.toFixed(2)}" x2="${cx.toFixed(2)}" y2="${(fy + fh).toFixed(2)}" stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3"/>`
-    + `<line x1="${fx.toFixed(2)}" y1="${cy.toFixed(2)}" x2="${(fx + fw).toFixed(2)}" y2="${cy.toFixed(2)}" stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3"/>`
+    + `<rect x="${fx.toFixed(3)}" y="${fy.toFixed(3)}" width="${fw.toFixed(3)}" height="${fh.toFixed(3)}" fill="none" ${line}/>`
+    + `<line x1="${cx.toFixed(3)}" y1="${fy.toFixed(3)}" x2="${cx.toFixed(3)}" y2="${(fy + fh).toFixed(3)}" ${line}/>`
+    + `<line x1="${fx.toFixed(3)}" y1="${cy.toFixed(3)}" x2="${(fx + fw).toFixed(3)}" y2="${cy.toFixed(3)}" ${line}/>`
     + label(-1, -1, 'TL') + label(1, -1, 'TR') + label(-1, 1, 'BL') + label(1, 1, 'BR')
-    + `</g>`;
+    + `</g></g>`;
 }
 // Element tier's own big canvas — a single live preview of the current
 // Seed at 0°, on its own stage. Reuses buildSeedPreviewSVG (the same
@@ -327,9 +336,11 @@ export function renderElementFrame(seed) {
       : polyEdgeOverlaySVG(CELL_SHAPES[cs].poly, polyEdgeContacts(opts, CELL_SHAPES[cs].poly))) + '</svg>');
   }
   if (rt.snapGuide && (tiled || cellShapeOf(sd) === 'square')) svg = svg.replace('</svg>', snapGuideSVG(rt.snapGuide, v, tiled) + '</svg>');
-  const overlay = buildSplitGridOverlaySVG(400);
-  // the cut grid is drawn in the plain canvas's px (400 = the box); in the tile view the box is 100 units
-  if (overlay) svg = svg.replace('</svg>', (tiled ? `<g transform="scale(${100 / 400})">${overlay}</g>` : overlay) + '</svg>');
+  // the cut grid, through the canvas's own box → px: the plain canvas's (a triangle cell drawn at 50 / R, as
+  // buildSeedPreviewSVG does; the view is upright while it shows) or none on the tile view (box units already)
+  const ck = cellShapeOf(sd) === 'triangle' ? 50 / CELL_SHAPES.triangle.R : 1;
+  const overlay = buildSplitGridOverlaySVG(tiled ? 100 : 400 * ck, tiled ? '' : `translate(200,200) scale(${(4 * ck).toFixed(4)}) translate(-50,-50)`);
+  if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
   syncElementViewUI(sd);
   ctrl('element-svg').innerHTML = svg;
   frame.classList.toggle('is-part-edit', editing);
