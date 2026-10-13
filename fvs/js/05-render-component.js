@@ -182,7 +182,10 @@ export function syncElementViewUI(seed) {
   // its own lattice, so there they are off (aria-disabled, the reason in the name)
   const fly = ctrl('element-tile-flyout');
   const single = elementSingle();
-  btn.parentElement.hidden = !single;   // Show as tile and its layer: the single view only
+  // the whole View group (Show as tile + its layer, Snap) and its separator: the single view only (Diego, Oct 13)
+  const group = btn.closest('.org-floatbar__group');
+  group.hidden = !single;
+  if (group.nextElementSibling && group.nextElementSibling.classList.contains('org-floatbar__sep')) group.nextElementSibling.hidden = !single;
   if (fly) fly.dataset.open = String(!!rt.elementAids.tile && single && state.activeTier === 'element');
   const why = square ? '' : ' — needs square cells';
   document.querySelectorAll('#element-tile-flyout [data-tile-layout], #element-tile-flyout [data-tile-turn]').forEach(o => {
@@ -244,7 +247,7 @@ document.addEventListener('input', e => {
   if (snapDrag.pending) snapDrag = prepareSnap(snapDrag.pending) || { range: e.target, off: true };
   const range = e.target;
   rt.snapGuide = null;
-  if (snapDrag.off || !rt.elementAids.snap || snapMods) return;
+  if (snapDrag.off || !rt.elementAids.snap || snapMods || !elementSingle()) return;   // Snap works in the single view only
   const hit = snapAxis({ cands: snapDrag.cands, targets: snapDrag.targets, k: snapDrag.k, v: parseFloat(range.value), thr: snapDrag.thr });
   if (!hit) return;
   range.value = hit.v;   // the slider rounds to its step (0.1 — a 0.05-unit error at most)

@@ -669,7 +669,7 @@
 .fvs-flyout__tool--icon[data-on="true"] { color: var(--ink); }
 .fvs-flyout__tool--icon > svg { position: relative; z-index: 1; opacity: 0.6; transition: opacity var(--dur-slow) var(--ease-glide); }
 .fvs-flyout__tool--icon:is(:hover, :focus-visible, [data-on="true"]) > svg { opacity: 1; }
-#fb-element-actions .org-popover-wrap[hidden] { display: none; }
+#fb-element-actions :is(.org-floatbar__group, .org-floatbar__sep)[hidden] { display: none; }
 /* off: dimmed glyph, not the pad, as the floatbar's aria-disabled — so its tooltip (the reason) stays readable */
 .fvs-flyout__tool--icon[aria-disabled="true"] { cursor: not-allowed; }
 .fvs-flyout__tool--icon[aria-disabled="true"]:hover { background: transparent; }

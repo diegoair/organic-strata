@@ -225,7 +225,7 @@ async function tileView() {
     const out = {};
     F.resetElement();
     set('sel-seed-type', 'arc', 'change'); set('sel-element-fillmode', 'fill', 'change');
-    out.boardHidden = document.getElementById('btn-element-view-tile').parentElement.hidden;   // the board: no Show as tile
+    out.boardHidden = document.getElementById('btn-element-view-tile').closest('.org-floatbar__group').hidden && document.getElementById('btn-element-view-snap').getClientRects().length === 0;   // the board: no View group (Show as tile, Snap)
     F.setSingle(F.boards.element, true); F.renderSeedPreview();   // the single view (a double-click on the board)
     document.getElementById('btn-element-view-tile').click();
     await new Promise(r => setTimeout(r, 60));
@@ -266,7 +266,7 @@ async function tileView() {
   const t = r.truchet;
   check('Joins · arc truchet: its bands meet the edges symmetrically about the midpoints', t.top.length > 0 && t.bottom.length > 0 && Math.abs(t.top.reduce((s, c) => s + c.mid, 0) / t.top.length - 50) < 1.5, JSON.stringify(t));
   check('Show as tile · Brick: the row above is shifted by half a cell', JSON.stringify(r.brickXs) === JSON.stringify([0, 100]), JSON.stringify(r.brickXs));
-  check('Show as tile lives in the single view: hidden on the board, and the board draws the plain Element', r.boardHidden === true && r.boardPlain === true, JSON.stringify({ hidden: r.boardHidden, plain: r.boardPlain }));
+  check('The View group (Show as tile, Snap) lives in the single view: hidden on the board, and the board draws the plain Element', r.boardHidden === true && r.boardPlain === true, JSON.stringify({ hidden: r.boardHidden, plain: r.boardPlain }));
   check('Show as tile: its six options open as a second layer above it while it is on, and close with it', r.flyOn === 'true' && r.flyVisible && r.flyOff === 'false', JSON.stringify({ on: r.flyOn, vis: r.flyVisible, off: r.flyOff }));
   check('Show as tile · the 90° view turns the tiles', r.turned, String(r.turned));
   check('Show as tile: the export is the plain Element (no tile, no overlay); off again = the plain canvas', r.exportClean && r.offViewBox === '0 0 400 400', JSON.stringify({ exportClean: r.exportClean, off: r.offViewBox }));
@@ -291,6 +291,7 @@ async function snap() {
     const F = window.__fvs, set = (id, v, evName = 'input') => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event(evName, { bubbles: true })); };
     F.resetElement(); set('sel-seed-type', 'triangle', 'change'); set('sel-element-fillmode', 'fill', 'change'); set('rg-element-scale', 0.4);
     F.elementAids.snap = true; F.elementAids.tile = false;
+    F.setSingle(F.boards.element, true); F.renderSeedPreview();   // Snap lives in the single view
     const r = document.getElementById('rg-element-mx'); r.scrollIntoView({ block: 'center' });
     const b = r.getBoundingClientRect(), x = v => b.left + 8 + (v + 100) / 200 * (b.width - 16);
     return { y: b.top + b.height / 2, x0: x(0), x1: x(28.6), xFar: x(20) };
@@ -321,6 +322,10 @@ async function snap() {
   await ev(() => document.getElementById('btn-element-view-snap').click());
   const pressed = await ev(() => [window.__fvs.elementAids.snap, document.getElementById('btn-element-view-snap').getAttribute('aria-pressed')]);
   await ev(() => document.getElementById('btn-element-view-snap').click());
+  await ev(() => { window.__fvs.setSingle(window.__fvs.boards.element, false); window.__fvs.renderSeedPreview(); document.getElementById('rg-element-mx').scrollIntoView({ block: 'center' }); });
+  const d4 = await drag(at.x0, at.x1, 0, probe);
+  check('Snap · on the board (not the single view) a drag never snaps', d4.v !== 30 && !d4.guide, JSON.stringify(d4));
+  await ev(() => { window.__fvs.setSingle(window.__fvs.boards.element, true); window.__fvs.renderSeedPreview(); });
   check('Snap toggle: the button turns it off and says so', pressed[0] === false && pressed[1] === 'false', JSON.stringify(pressed));
 }
 
@@ -333,6 +338,7 @@ async function layerSnap() {
     document.getElementById('btn-layer-add').click();
     set('rg-element-rotate', rot);
     F.elementAids.snap = true;
+    F.setSingle(F.boards.element, true); F.renderSeedPreview();
     const r = document.getElementById('rg-layer-mx'); r.scrollIntoView({ block: 'center' });
     const b = r.getBoundingClientRect(), x = v => b.left + 8 + (v + 100) / 200 * (b.width - 16);
     return { layers: F.state.layers ? F.state.layers.items.length : 0, y: b.top + b.height / 2, x0: x(0), x1: x(18.6), w: b.width };
