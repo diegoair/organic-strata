@@ -1360,8 +1360,8 @@
           <option value="mirror">Mirror</option>
           <option value="diagonal" hidden>Diagonal mirror</option><!-- off the menu (Diego, Oct 13, 2026): its results are Checkerboard's (R / 90° − R); kept hidden so the engine, Random / Exhaustive and the regression suite run unchanged -->
           <option value="checkerboard">Checkerboard</option>
-          <option value="rowmirror">Row mirror</option>
-          <option value="columnmirror">Column mirror</option>
+          <option value="rowmirror" hidden>Row mirror</option>
+          <option value="columnmirror" hidden>Column mirror</option><!-- Row / Column mirror off the menu (Diego, Oct 13, 2026): Mirror › Line Top–bottom / Left–right; kept hidden for the engine and the regression suite -->
           <option value="radial">Radial</option>
           <option value="hlines">Horizontal lines</option>
           <option value="vlines">Vertical lines</option>
@@ -1391,6 +1391,14 @@
         </div>
       </div>
 
+      <div id="rule-mirror-block" style="display:none">
+        <div class="ctrl-row"><div class="ctrl-label" id="mirror-line-label">Line</div>
+          <div class="seg-ctrl" id="seg-mirror-line" role="group" aria-labelledby="mirror-line-label">
+            <button type="button" class="seg-btn active" data-line="both" aria-pressed="true">Both</button>
+            <button type="button" class="seg-btn" data-line="lr" aria-pressed="false">Left–right</button>
+            <button type="button" class="seg-btn" data-line="tb" aria-pressed="false">Top–bottom</button>
+          </div></div>
+      </div>
       <div id="rule-lines-block" style="display:none">
         <div class="ctrl-row">
           <div class="ctrl-label">Mode</div>

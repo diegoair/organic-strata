@@ -13,7 +13,7 @@ import {
 } from './engine/02-seed-ui.js';
 import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
-  exhaustiveTotal, getGrid, isCanonical2x2, latticeRule, radialEligible, readManualCells,
+  exhaustiveTotal, getGrid, isCanonical2x2, latticeRule, mirrorLinesEligible, radialEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
 } from './engine/03-rules.js';
@@ -305,10 +305,31 @@ export function syncRuleAvailability() {
     if (count !== 1 && !(v in gates)) { const opt = sel.querySelector(`option[value="${v}"]`); if (opt) { opt.disabled = false; opt.title = ''; } }
   });
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
+  syncMirrorLine();
   ctrl('grid-cellcount-hint').textContent = count + ' cell' + (count === 1 ? '' : 's');
   syncQuadrantHint();
   buildManualEditor();
   if (sel.value === 'exhaustive') syncExhaustiveHint();
+}
+
+// Mirror › Line (Oct 13, 2026): Both · Left–right · Top–bottom; a Line this grid cannot run is greyed with its reason
+// (aria-disabled + title + aria-description, the Grid shape seg's pattern) and the pick falls back to Both.
+const MIRROR_LINE_WHY = { lr: 'Left–right needs 2 or more columns', tb: 'Top–bottom needs 2 or more rows' };
+export function syncMirrorLine() {
+  const ok = mirrorLinesEligible();
+  if (!ok.includes(state.mirrorLine)) state.mirrorLine = 'both';
+  ctrl('seg-mirror-line').querySelectorAll('.seg-btn').forEach(b => {
+    const can = b.dataset.line === 'both' || ok.includes(b.dataset.line), on = b.dataset.line === state.mirrorLine;
+    b.setAttribute('aria-disabled', String(!can));
+    if (can) { b.removeAttribute('title'); b.removeAttribute('aria-description'); }
+    else { b.title = MIRROR_LINE_WHY[b.dataset.line]; b.setAttribute('aria-description', MIRROR_LINE_WHY[b.dataset.line]); }
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  });
+}
+export function setMirrorLine(line) {
+  if (!mirrorLinesEligible().includes(line) && line !== 'both') return;
+  state.mirrorLine = line;
+  syncMirrorLine();
 }
 
 export function syncRuleAxisNote() {
@@ -326,6 +347,7 @@ export function syncRuleAxisNote() {
 export function syncRuleUI() {
   const mode = pv('sel-rule');
   ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
+  ctrl('rule-mirror-block').style.display = mode === 'mirror' ? '' : 'none';
   ctrl('rule-lines-block').style.display = (mode === 'hlines' || mode === 'vlines') ? '' : 'none';
   ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
   ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';

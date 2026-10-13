@@ -32,6 +32,7 @@ export const state = {
   paperColor: '#ffffff',   // the ground every render/export paints against
   customSeed: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
   layers: null,       // null = a plain single-shape Element. Else {items:[{id,name,role:'fill'|'mask'|'container',ink:'cell'|slot,place:{mx,my,scale,rotate},seed}], active} — a stack, bottom→top; the Seed panel edits items[active]
+  mirrorLine: 'both',               // the Mirror rule's Line: 'both' | 'lr' (left–right) | 'tb' (top–bottom) — Oct 13, 2026
   componentRole: 'normal',           // 'normal' | 'container' | 'mask' — this Component's own silhouette used as a clip/knockout boundary for underlyingComponentName
   underlyingComponentName: null,     // another saved Component Library entry's name, or null
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported

@@ -178,7 +178,12 @@ export const GRID_BUILD = {
   mirror: (cr, seed, sc) => { const sx = seed % 2, sy = seed >> 1; return cr.map(c => stateFrom(0, (c.col + sx) % 2 === 1, (c.row + sy) % 2 === 1, sc)); },
   // one mirror axis through the WHOLE grid (book-matched halves) instead of
   // one per 2×2 tile — the same thing on 2×2, a different picture on anything larger
-  bookmatch: (cr, axis, sc) => { const d = crDims(cr); return cr.map(c => stateFrom(0, axis !== 'v' && c.col >= d.cols / 2, axis !== 'h' && c.row >= d.rows / 2, sc)); },
+  bookmatch: (cr, axis, sc, R = 0) => { const d = crDims(cr); return cr.map(c => { const fh = axis !== 'v' && c.col >= d.cols / 2, fv = axis !== 'h' && c.row >= d.rows / 2; return stateFrom(fh !== fv ? mod360(-R) : R, fh, fv, sc); }); },
+  // Mirror with a Line and a turn (Oct 13, 2026 — Row / Column mirror folded in): the plain cell turned by R; a cell
+  // flipped once shows the mirror image of that turned Element — the render flips first, then turns, so it takes −R;
+  // flipped both ways = a 180° turn, R kept. line 'both' | 'lr' (flips left–right only) | 'tb' (top–bottom only).
+  // seed = which corner of the 2 × 2 parity is plain (bit 0: column, bit 1: row). R 0 + 'both' = GRID_BUILD.mirror.
+  mirrorLine: (cr, seed, line, R, sc) => { const sx = seed % 2, sy = seed >> 1; return cr.map(c => { const fh = line !== 'tb' && (c.col + sx) % 2 === 1, fv = line !== 'lr' && (c.row + sy) % 2 === 1; return stateFrom(fh !== fv ? mod360(-R) : R, fh, fv, sc); }); },
   diagonal: (cr, r, sc) => cr.map(c => stateFrom((c.col + c.row) % 2 === 0 ? r : mod360(90 - r), false, false, sc)),
   checkerboard: (cr, a, b) => cr.map(c => ((c.col + c.row) % 2 === 0 ? a : b)),
   rowmirror: (cr, r, sc) => cr.map(c => stateFrom(r, false, c.row % 2 === 1, sc)),
@@ -200,7 +205,7 @@ export const GRID_BUILD = {
 export const crIsLarge = cr => { if (!cr) return false; const d = crDims(cr); return d.cols > 2 || d.rows > 2; };
 // ── Rules on a cell-shape lattice (test) — every turn is a step of the cell shape's own (90° circle, 120°
 // triangle, 60° hexagon), added to the cell's own pose (a down triangle sits at 60°). Square cells never reach here.
-export const LATTICE_RULES = new Set(['identity', 'radial', 'checkerboard', 'random', 'exhaustive']);
+export const LATTICE_RULES = new Set(['identity', 'pinwheel', 'radial', 'checkerboard', 'random', 'exhaustive']);
 export function latticeSteps() {
   const st = CELL_SHAPES[state.cellShape].step, out = [];
   for (let r = 0; r < 360; r += st) out.push(r);
@@ -287,18 +292,25 @@ export function familyRuleGallery(key) {
   return kept.length ? kept : ruleIdentity();
 }
 export function rulePinwheel() { return familyRuleGallery('pinwheel'); }
+// The 2 × 2 as columns / rows, for the builders that read them (Mirror's Line on a canonical 2 × 2).
+export const CR_2X2 = [{ col: 0, row: 0 }, { col: 1, row: 0 }, { col: 0, row: 1 }, { col: 1, row: 1 }];
+// Which Mirror Lines this grid can run: Left–right needs two columns, Top–bottom two rows, Both either.
+export function mirrorLinesEligible() {
+  const d = crDims(hooks.componentCellColRow(getGrid()));
+  return ['both', 'lr', 'tb'].filter(l => (l === 'lr' ? d.cols > 1 : l === 'tb' ? d.rows > 1 : d.cols > 1 || d.rows > 1));
+}
 export function ruleMirror() {
-  const gallery = familyRuleGallery('mirror');
-  // Beyond 2×2 the per-tile mirror above is not the only reading: add the
-  // whole-grid (book-matched) mirrors — left|right, top|bottom, and both —
-  // from their own FAMILIES entry, same axis-gating.
+  const ok = mirrorLinesEligible(), line = ok.includes(state.mirrorLine) ? state.mirrorLine : 'both';
+  const av = axisValues(), cr = ruleCR(), fam = FAMILIES.mirror;
+  const gallery = fam.paramSpace(av, cr, [line]).map((p, i) => ({ id: `mirror-${i}`, ruleSource: 'mirror', cells: fam.build(p, cr) }));
+  // Beyond 2×2 the per-tile mirror is not the only reading: the whole-grid (book-matched) mirrors along the same Line.
   const bm = FAMILIES.bookmatch;
   if (bm.eligible()) {
-    const av = axisValues();
-    const cr = ruleCR();
-    bm.paramSpace(av, cr).forEach((p, i) => gallery.push({ id: `mirror-book-${i}`, ruleSource: 'mirror', cells: bm.build(p, cr) }));
+    const axes = line === 'lr' ? ['h'] : line === 'tb' ? ['v'] : ['h', 'v', 'hv'];
+    bm.paramSpace(av, cr, axes).forEach((p, i) => gallery.push({ id: `mirror-book-${i}`, ruleSource: 'mirror', cells: bm.build(p, cr) }));
   }
-  return dedupeComponents(gallery);
+  const kept = dedupeComponents(gallery);
+  return kept.length ? kept : ruleIdentity();
 }
 export function ruleDiagonal() { return familyRuleGallery('diagonal'); }
 export function ruleCheckerboard() { return familyRuleGallery('checkerboard'); }
@@ -400,22 +412,25 @@ export const FAMILIES = {
   },
   mirror: {
     requiresAxis: 'flip',
-    paramSpace(av) {
+    eligible: () => mirrorLinesEligible().length > 0,   // a 1 × 1 has no line to mirror across (Random would draw from an empty space)
+    // lines: the Mirror rule passes its own Line; Random / Exhaustive take every Line the grid can run. The turn R
+    // comes from the Rotation axis (0 only when it is off). Line × turn × plain corner × scale.
+    paramSpace(av, cr, lines) {
       const out = [];
-      for (let seed = 0; seed < 4; seed++) for (const s of av.scales) out.push({ seed, scale: s });
+      for (const line of lines || mirrorLinesEligible()) for (const rotation of av.rotations) for (let seed = 0; seed < 4; seed++) for (const s of av.scales) out.push({ seed, line, rotation, scale: s });
       return out;
     },
-    build(p, cr) { return cr ? GRID_BUILD.mirror(cr, p.seed, p.scale) : buildMirrorCells(p.seed, p.scale); },
+    build(p, cr) { return GRID_BUILD.mirrorLine(cr || CR_2X2, p.seed, p.line || 'both', p.rotation || 0, p.scale); },
   },
   bookmatch: {
     requiresAxis: 'flip',
     eligible: () => !isCanonical2x2(),
-    paramSpace(av) {
+    paramSpace(av, cr, axes) {
       const out = [];
-      for (const axis of ['h', 'v', 'hv']) for (const s of av.scales) out.push({ axis, scale: s });
+      for (const rotation of av.rotations) for (const axis of axes || ['h', 'v', 'hv']) for (const s of av.scales) out.push({ axis, rotation, scale: s });
       return out;
     },
-    build(p, cr) { return GRID_BUILD.bookmatch(cr, p.axis, p.scale); },
+    build(p, cr) { return GRID_BUILD.bookmatch(cr, p.axis, p.scale, p.rotation || 0); },
   },
   diagonal: {
     requiresAxis: 'rotation',
@@ -437,7 +452,8 @@ export const FAMILIES = {
     },
     build(p, cr) { return cr ? GRID_BUILD.checkerboard(cr, p.a, p.b) : buildCheckerboardCells(p.a, p.b); },
   },
-  rowmirror: {
+  rowmirror: {   // off the Rule menu since Oct 13, 2026 (= Mirror › Line: Top–bottom); kept for a hidden pick, not drawn by Random / Exhaustive
+    retired: true,
     requiresAxis: 'flip',
     eligible: () => crDims(hooks.componentCellColRow(getGrid())).rows > 1,
     paramSpace(av) {
@@ -447,7 +463,8 @@ export const FAMILIES = {
     },
     build(p, cr) { return cr ? GRID_BUILD.rowmirror(cr, p.rotation, p.scale) : buildRowMirrorCells(p.rotation, p.scale); },
   },
-  columnmirror: {
+  columnmirror: {   // off the Rule menu since Oct 13, 2026 (= Mirror › Line: Left–right)
+    retired: true,
     requiresAxis: 'flip',
     eligible: () => crDims(hooks.componentCellColRow(getGrid())).cols > 1,
     paramSpace(av) {
@@ -473,6 +490,7 @@ export function activeFamilies() {
   const axes = activeAxes();
   return Object.keys(FAMILIES).filter(key => {
     const fam = FAMILIES[key];
+    if (fam.retired) return false;
     if (fam.eligible && !fam.eligible()) return false;
     const req = fam.requiresAxis;
     if (req === null) return true;
@@ -575,11 +593,31 @@ export function latticeParity() {
   const nx = -Math.sin(a), ny = Math.cos(a), gap = d * Math.sqrt(3) / 2;   // line spacing on a hex lattice
   return P.map(([x, y]) => Math.round(((x - x0) * nx + (y - y0) * ny) / gap) & 1);
 }
+// Reading order on a lattice: rows by the cells' top edge (an up and a down triangle of one strip share it), then
+// left to right — the same order Step turn reads on square cells (Diego, Oct 13, 2026). rank[i] = cell i's place.
+export function latticeReadingRank(grid) {
+  const cells = grid.cells.map((c, i) => ({ i, top: Math.min(...c.points.map(p => p[1])), x: c.centroid[0], h: Math.max(...c.points.map(p => p[1])) - Math.min(...c.points.map(p => p[1])) }));
+  const tol = Math.min(...cells.map(c => c.h)) * 0.25;
+  cells.sort((a, b) => a.top - b.top);
+  let row = 0, rowTop = cells.length ? cells[0].top : 0;
+  cells.forEach(c => { if (c.top - rowTop > tol) { row++; rowTop = c.top; } c.row = row; });
+  cells.sort((a, b) => a.row - b.row || a.x - b.x);
+  const rank = new Array(cells.length);
+  cells.forEach((c, k) => { rank[c.i] = k; });
+  return rank;
+}
 export function latticeRule(mode) {
   const n = getGrid().cells.length, scales = axisValues().scales;
   const pack = (key, list) => dedupeComponents(list.map((cells, i) => ({ id: `${key}-${i}`, ruleSource: key, cells })));
   if (mode === 'identity') return pack('identity', latticeStates().map(s => Array.from({ length: n }, () => ({ ...s }))));
   if (mode === 'radial') return pack('radial', latticeSteps().flatMap(e => scales.map(s => latticeRadialCells(e, s))));
+  // Step turn: each cell one step of the cell shape's own (hexagon 60°, triangle 120°, circle 90°) more than the one
+  // before it in reading order; start × direction × scales (Oct 13, 2026).
+  if (mode === 'pinwheel') {
+    const st = CELL_SHAPES[state.cellShape].step, rank = latticeReadingRank(getGrid()), list = [];
+    for (const start of latticeSteps()) for (const ch of [1, -1]) for (const s of scales) list.push(rank.map(k => stateFrom(mod360(start + ch * st * k), false, false, s)));
+    return pack('pinwheel', list);
+  }
   if (mode === 'checkerboard') {
     const par = latticeParity(), sts = latticeStates(), out = [];
     for (const a of sts) for (const b of sts) if (a !== b) out.push(par.map(p => ({ ...(p ? b : a) })));
@@ -595,7 +633,7 @@ export function latticeRule(mode) {
     }
     return out;
   }
-  if (mode === 'exhaustive') return dedupeComponents(['identity', 'radial', 'checkerboard'].flatMap(m => latticeRule(m)).map((c, i) => ({ ...c, id: `exhaustive-${i}`, ruleSource: 'exhaustive' })));
+  if (mode === 'exhaustive') return dedupeComponents(['identity', 'pinwheel', 'radial', 'checkerboard'].flatMap(m => latticeRule(m)).map((c, i) => ({ ...c, id: `exhaustive-${i}`, ruleSource: 'exhaustive' })));
   return [];
 }
 export function readManualCells() {

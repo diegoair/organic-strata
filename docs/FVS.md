@@ -335,7 +335,7 @@ default; **Small / Medium / Large** %, 10–400, defaults 75 / 100 / 125). The a
 rule draws from**: Random and Exhaustive only use the families the active axes allow
 (`activeFamilies`), Checkerboard enumerates the active values; Uniform ignores them on square cells. On a cell-shape lattice a
 rotation is a step of the cell's own (circle 90°, triangle 120°, hexagon 60°) and Flip uses the
-shape's own flips. Lines and Oscillator read only the Scale axis (their angle comes from their own
+shape's own flips. Mirror reads Rotation as its **turn** (the plain Element turned before it is mirrored). Lines and Oscillator read only the Scale axis (their angle comes from their own
 controls).
 
 ### 5.3 The rules
@@ -345,12 +345,11 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
 
 | Rule | What each cell gets | Available when | Own controls |
 |---|---|---|---|
-| **Uniform** (*Identity* until Oct 13, 2026; key `identity`) | the same Element, unchanged, in every cell — a plain repeat, the baseline: 0°, no flip, scale 1, **one candidate**, whatever the axes (on Circle / Triangle / Hexagon cells: one uniform candidate per state of the active axes — see below) | always | — |
-| **Step turn** (*Pinwheel* until Oct 13, 2026; key `pinwheel`) | each cell turns one quarter more than the cell before it, in reading order (2×2: 0° 90° / 180° 270°) — **not** a turn around the centre (that is Radial); start × direction = 8 results; bigger grids: step `(col + 2·row) mod 4` — each column +90°, each row +180°, a diagonal drift; one column only alternates 0° / 180° | ≥ 2 cells | — |
-| **Mirror** (*Mirror (kaleidoscope)* until Oct 13, 2026) | neighbouring cells are mirror images — the Element reflected, never turned (every cell 0°, even with Rotation on): on a 2×2 the seed cell plain, its side neighbour flipped H, the one below flipped V, the diagonal both (4 results, the seed in each corner); on bigger grids flips by column / row parity (the tile repeated, 4); beyond 2×2 also the three whole-grid *book-matched* mirrors (left\|right, top\|bottom, both) | ≥ 2 cells | — |
-| **Diagonal mirror** — *off the menu since Oct 13, 2026* (hidden option, key `diagonal`) | alternates R / 90 − R — only turns; its results are Checkerboard's, so it left the menu (Diego). Random / Exhaustive still draw it | — | — |
+| **Uniform** (key `identity`) | the same Element, unchanged, in every cell — a plain repeat, the baseline: 0°, no flip, scale 1, **one candidate**, whatever the axes (on Circle / Triangle / Hexagon cells: one uniform candidate per state of the active axes — see below) | always | — |
+| **Step turn** (key `pinwheel`) | each cell turns one quarter more than the cell before it, in reading order (2×2: 0° 90° / 180° 270°) — **not** a turn around the centre (that is Radial); start × direction = 8 results; bigger grids: step `(col + 2·row) mod 4` — each column +90°, each row +180°, a diagonal drift; one column only alternates 0° / 180°. **On circle / triangle / hexagon cells** the step is the cell's own — hexagon 60° (12 results), triangle 120° (6), circle 90° (8) — in reading order (rows by their top edge, then left to right; `latticeReadingRank`) | ≥ 2 cells | — |
+| **Mirror** (key `mirror`) | neighbouring cells are mirror images: one cell plain, across the mirror line its neighbour flipped. **Line** — **Both** (the side neighbour flipped left–right, the one below top–bottom, the diagonal both: one tile across both centre lines) · **Left–right** (every other column flips — was *Column mirror*) · **Top–bottom** (every other row flips — was *Row mirror*). **Turn** — with the Rotation axis on, the plain Element is first turned 0 / 90 / 180 / 270 and each once-flipped cell takes −R (the render flips, then turns), so it shows the mirror image of the turned Element. Results: Line × turn × plain corner — 16 on a 2×2 with Both (4 with Rotation off, today's 4 first); beyond 2×2 also the *book-matched* mirrors along the same Line (`GRID_BUILD.mirrorLine`, `mirrorLinesEligible`; Oct 13, 2026) | ≥ 2 cells; Left–right ≥ 2 columns, Top–bottom ≥ 2 rows (greyed with the reason) | **Line** Both · Left–right · Top–bottom |
+| — | *Diagonal mirror, Row mirror and Column mirror left the menu on Oct 13, 2026* (hidden options, keys kept for the engine and the regression suite): Diagonal mirror's results are Checkerboard's; Row / Column mirror are Mirror › Line Top–bottom / Left–right. Random / Exhaustive draw Diagonal (not Row / Column mirror, `retired`) | — | — |
 | **Checkerboard** | two states alternating — every ordered pair of distinct states from the active axes (includes the former Diagonal mirror, R / 90 − R) | ≥ 2 cells, an axis on (else = Uniform) | — |
-| **Row mirror** / **Column mirror** | flip by row / column parity | ≥ 2 rows / ≥ 2 columns | — |
 | **Radial** | a rosette, the turn around the centre (on a 2×2 the classic pinwheel: TL 0°, TR 90°, BR 180°, BL 270°) — one on the whole grid, and beyond 2×2 also *tiled* per 2×2 block (four quarter-arcs → four circles on a 4×4); base 0/90/180/270 × both chiralities | even × even grid (its centre falls between cells) | — |
 | **Horizontal lines** / **Vertical lines** | rotation keyed on the row / column: **Alternate** (0 / Step) or **Ramp** (Step × index); with Scale on, the key also cycles Small/Medium/Large | ≥ 2 cells | **Mode** Alternate · Ramp, **Step** 0–270 by 90 |
 | **Oscillator (Truchet)** | rotation *Angle* on the cells where `(col + ⌊shift·row⌋) mod Period = Phase`, else 0 (same maths as the Symbol's Oscillator) | ≥ 2 cells | **Angle** 90° · 180°, **Row shift** 0–2, **Period** 2–6, **Phase** 0–5 |
@@ -358,12 +357,12 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
 | **Exhaustive** | every family × every parameter set, duplicates folded | always; **over 512 results Generate is disabled** and the hint gives the honest count (× layer colour variants) | — |
 | **Manual** | a per-cell editor: Rotation / Flip / Scale for each cell; **Add** puts it on the board | square cells | per-cell selects |
 
-- **On Circle / Triangle / Hexagon cells** only **Uniform, Radial** (each cell turned towards the
+- **On Circle / Triangle / Hexagon cells** only **Uniform, Step turn, Radial** (each cell turned towards the
   centre; on triangles the Arc's pivot corner goes to the nearest corner), **Checkerboard** (by
   position — up / down on triangles, alternating lines on hex-packed cells), **Random** and
   **Exhaustive** remain (`LATTICE_RULES`); the others grey out (*… needs a square cell*). Here
   **Random draws each cell's state independently** from the lattice's states (not from families),
-  and Exhaustive = Uniform ∪ Radial ∪ Checkerboard. Container / Mask roles are off on these cells.
+  and Exhaustive = Uniform ∪ Step turn ∪ Radial ∪ Checkerboard. Container / Mask roles are off on these cells.
 - **Nothing hidden, nothing twice.** A named rule shows its whole family (the axis it needs is
   implied by the pick — Mirror with Flip off still lists every mirror). Candidates that merely
   *paint* alike with this Element (a Circle's 8 Step turns) are all listed; only exact structural
@@ -434,7 +433,7 @@ the Element panel.
 
 ### 5.8 Saving and undo
 
-- **Quick save** (the circle on a candidate): saves it to the library as *‹rule name› ‹time›* — the menu's word, *Uniform 14:02*, *Column mirror 14:02* (`ruleLabel`, engine/03-rules.js; until Oct 13, 2026 the code key, *identity 14:02*; names already saved are kept) (no
+- **Quick save** (the circle on a candidate): saves it to the library as *‹rule name› ‹time›* — the menu's word, *Uniform 14:02*, *Step turn 14:02* (`ruleLabel`, engine/03-rules.js; until Oct 13, 2026 the code key, *identity 14:02*; names already saved are kept) (no
   message; its ✓ says it; a second click on the ✓ removes it). **Save all to library**: every
   candidate of the **edited Element's** set, already-saved ones skipped, *Saved n Components*.
   A saved Component keeps its Element, grid, cells, palette and rule, Paper + texture, layer inks,
