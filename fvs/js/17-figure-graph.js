@@ -64,7 +64,7 @@ const CURRENT = '__current';   // the graph being edited, autosaved (not a saved
 let graphName = '';             // the saved graph the autosaved one was opened from / saved as, read at boot ('' = not saved yet); then graphMenu.name()
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'node-rule', Output: 'node-output' };
-const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Step turn', mirror: 'Mirror (kaleidoscope)', checkerboard: 'Checkerboard' };   // the Component step's own names
+const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Step turn', mirror: 'Mirror', checkerboard: 'Checkerboard' };   // the Component step's own names
 let ctl = null;
 const varyOpen = new Set();   // the Vary rows open in the Variations panel (node id + ':' + input), kept across re-renders
 
