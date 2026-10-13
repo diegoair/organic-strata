@@ -117,6 +117,37 @@ async function splitGrid() {
     check(`Split cut grid ${JSON.stringify(c)}: the whole Element canvas, the TL piece in its top-left quarter`, near(r.fr, [0, 0, 100, 100]) && inTL, JSON.stringify(r));
   }
 }
+// Split on a Circle / Triangle / Hexagon cell = a fan from the centre, one cut per corner (Diego, Oct 13), numbered
+// 1…n clockwise from the top; the kept slice's ink stays inside its wedge, also with the Element turned.
+async function splitFan() {
+  for (const [cell, n, extra] of [['circle', 4, {}], ['triangle', 3, {}], ['hexagon', 6, {}], ['hexagon', 6, { 'rg-element-rotate': 21 }], ['triangle', 3, { 'rg-element-scale': 0.7, 'rg-element-mx': 8 }]]) {
+    const r = await ev(async (cell, extra) => {
+      const F = window.__fvs, set = (id, v, e = 'input') => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event(e, { bubbles: true })); };
+      F.resetElement();
+      document.querySelector(`#fb-cell-shape [data-cell="${cell}"]`).click();
+      set('sel-seed-type', 'polygon', 'change');
+      for (const [k, v] of Object.entries(extra)) set(k, v);
+      const chk = document.getElementById('chk-split-grid'); chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 60));
+      const plan = F.splitPlan(cell), btns = [...document.querySelectorAll('#seg-split-quadrant .seg-btn')].map(b => b.textContent);
+      const fan = document.querySelector('#element-svg .fvs-split-grid'), fanN = fan && +fan.dataset.fan;
+      const p1 = plan.pieces[0], up = ((p1.a <= 270 && 270 < p1.b) || (p1.a - 360 <= 270 && 270 < p1.b - 360));
+      // keep slice 2, measure its ink's angles about the centre (as drawn)
+      document.querySelector('#seg-split-quadrant [data-q="f2"]').click(); await new Promise(r => setTimeout(r, 120));
+      const g = F.SEED_TYPES[F.getSeed().type].geometry(F.getSeed()), pts = F.measureElementInk(g, { ...F.getElementAppearance(), fillMode: 'fill' }).pts;
+      const p2 = plan.pieces[1], within = pts.every(q => { if (Math.hypot(q.x - 50, q.y - 50) < 0.5) return true; let a = (Math.atan2(q.y - 50, q.x - 50) * 180 / Math.PI + 360) % 360; if (a < p2.a - 1) a += 360; return a >= p2.a - 1 && a <= p2.b + 1; });
+      const status = document.getElementById('split-status').textContent;
+      document.querySelector('#seg-split-quadrant [data-q="whole"]').click(); await new Promise(r => setTimeout(r, 80));
+      const back = F.getSeed().type;
+      chk.checked = false; chk.dispatchEvent(new Event('change', { bubbles: true }));
+      document.querySelector('#fb-cell-shape [data-cell="square"]').click();
+      const sq = [...document.querySelectorAll('#seg-split-quadrant .seg-btn')].map(b => b.textContent).join(' ');
+      return { n: plan.pieces.length, btns: btns.join(' '), fanN, up, within, pts: pts.length, status, back, sq, a2: [p2.a, p2.b] };
+    }, cell, extra);
+    check(`Split fan · ${cell} ${JSON.stringify(extra)}: ${n} slices numbered from the top, the grid draws them, slice 2 stays in its wedge, All restores`,
+      r.n === n && r.btns === ['All', ...Array.from({ length: n }, (_, i) => String(i + 1))].join(' ') && r.fanN === n && r.up && r.within && r.pts > 0 && r.back === 'polygon' && r.sq === 'All TL TR BL BR', JSON.stringify(r));
+  }
+}
 // --shots DIR: screenshots of the Element canvas
 
 const which = n => { try { return execFileSync('which', [n], { encoding: 'utf8' }).trim(); } catch { return ''; } };
@@ -413,6 +444,7 @@ try { await tileView(); } catch (e) { check('Show as tile ran', false, e.message
 try { await cellTurns(); } catch (e) { check('Cell turns ran', false, e.message); }
 try { await tileCells(); } catch (e) { check('Tile cells ran', false, e.message); }
 try { await splitGrid(); } catch (e) { check('Split grid ran', false, e.message); }
+try { await splitFan(); } catch (e) { check('Split fan ran', false, e.message); }
 try { await padding(); } catch (e) { check('Padding ran', false, e.message); }
 try { await snap(); } catch (e) { check('Snap ran', false, e.message); }
 try { await layerSnap(); } catch (e) { check('Layer snap ran', false, e.message); }

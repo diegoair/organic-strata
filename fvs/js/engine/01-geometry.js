@@ -621,6 +621,22 @@ export function splitPaperScope() {
   _splitScope.setup(canvas);
   return _splitScope;
 }
+// How Split cuts an Element on its cell shape (Diego, Oct 13, 2026): a Square cell in quadrants (TL · TR · BL · BR, the
+// cuts crossing at the canvas centre); a Circle / Triangle / Hexagon cell as a FAN from the cell's centre (50, 50 — the
+// centroid of every cell shape), one cut to each corner (Triangle 3, Hexagon 6; Circle 4 at 45°), so each slice holds
+// one edge. Slices are numbered 1…n clockwise from the top (slice 1 = the one starting at or spanning straight up).
+// { kind: 'quad', pieces: [{id, label}] } | { kind: 'fan', pieces: [{id, label, a, b}] } — a / b in degrees, y down,
+// b > a. Pure.
+export function splitPlan(shape) {
+  if (!CELL_SHAPES[shape] || shape === 'square') return { kind: 'quad', pieces: SPLIT_QUADRANTS.map(q => ({ id: q.id, label: q.id.toUpperCase() })) };
+  const deg = ([x, y]) => ((Math.atan2(y - 50, x - 50) * 180 / Math.PI) % 360 + 360) % 360;
+  const rays = (shape === 'circle' ? [45, 135, 225, 315] : CELL_SHAPES[shape].poly.map(deg)).map(a => Math.round(a * 1000) / 1000).sort((p, q) => p - q);
+  const n = rays.length;
+  const slices = rays.map((a, i) => { const b = rays[(i + 1) % n]; return { a, b: b > a ? b : b + 360 }; });
+  const up = a => (a <= 270 ? a : a - 360);   // slice 1 starts at or spans 270° (straight up)
+  const s0 = slices.findIndex(t => (up(t.a) <= 270 && 270 < up(t.a) + (t.b - t.a)) || (t.a <= 270 && 270 < t.b) || (t.a - 360 <= 270 && 270 < t.b - 360));
+  return { kind: 'fan', pieces: slices.map((t, i) => slices[(i + Math.max(0, s0)) % n]).map((t, i) => ({ id: 'f' + (i + 1), label: String(i + 1), a: t.a, b: t.b })) };
+}
 export const SPLIT_QUADRANTS = [
   { id: 'tl', dx: -1, dy: -1 }, { id: 'tr', dx: 1, dy: -1 },
   { id: 'bl', dx: -1, dy: 1 }, { id: 'br', dx: 1, dy: 1 },

@@ -28,6 +28,8 @@ Object.entries(SEED_TYPES).forEach(([type, t]) => {
     if (type === 'arc' && cs === 'triangle') return Organica.shapes.triangleArcGeometry(p.thickness);
     if (type === 'arctruchet' && cs === 'hexagon') return Organica.shapes.hexTruchetGeometry(p.arcCount, p.arcRatio);
     if (type === 'stack' || type === 'freehandraw') return base(p);
+    // a Split piece already sits where the cell put the whole shape (Oct 13, 2026): fitting it again moved it off its slice
+    if (type === 'custom' && ((p && p.customSeed) || state.customSeed || {}).placed) return base(p);
     return fitGeoToCell(base(p), cs);
   };
 });
@@ -38,6 +40,7 @@ export function setCellShape(shape, opts = {}) {
   ctrl('fb-cell-shape').querySelectorAll('[data-cell]').forEach(b => { const on = b.dataset.cell === shape; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
   if (changed) rt.elementView = { r: 0, fh: false, fv: false };
   hooks.syncComponentGridUI();
+  if (changed && hooks.syncSplitUI) hooks.syncSplitUI();   // Split's pieces follow the cell shape (quadrants / fan)
   // A loaded Element (silent): its caller fills the gallery, but the Rule menu must follow the new shape now.
   if (opts.silent) { if (changed) hooks.syncRuleAvailability(); return; }
   // Components built for the old cell shape turn in the wrong step (90° on hexagons…) even when the cell
@@ -119,7 +122,7 @@ export function strokeToShapeD(d, widthUnits, opts) {
 // the canvas shows (the geometry's norm layer, then the Element's Scale / Move / Rotation / Width / Length). The cuts
 // are made THERE — vertical + horizontal through the centre of the Element's canvas, so TL is the top-left quarter of
 // the canvas — and each piece is carried back to the raw space, so it draws in its place under the same transforms.
-export function splitElementGeometry(d, fillRule, view) {
+export function splitElementGeometry(d, fillRule, view, plan) {
   const scope = splitPaperScope();
   const bb0 = pathBBox(d);
   if (!bb0) return [];
@@ -150,9 +153,15 @@ export function splitElementGeometry(d, fillRule, view) {
   // intersect() return a degenerate near-zero sliver instead of a clean cut.
   const pad = Math.max(vb.width, vb.height, 100) + Math.max(Math.abs(vb.x - 50), Math.abs(vb.y - 50)) + 10;
   const out = [];
-  for (const q of SPLIT_QUADRANTS) {
-    const rx = q.dx < 0 ? cx - pad : cx, ry = q.dy < 0 ? cy - pad : cy;
-    const rect = new scope.Path.Rectangle(new scope.Rectangle(rx, ry, pad, pad));
+  // a fan (Circle / Triangle / Hexagon cell — splitPlan): each slice a wedge from the centre, far past the shape
+  const fan = plan && plan.kind === 'fan', R = pad * 2 + 200;
+  const cutters = fan ? plan.pieces.map(p => {
+    const pts = [[cx, cy]], steps = Math.max(2, Math.ceil((p.b - p.a) / 5));
+    for (let k = 0; k <= steps; k++) { const t = (p.a + (p.b - p.a) * k / steps) * Math.PI / 180; pts.push([cx + R * Math.cos(t), cy + R * Math.sin(t)]); }
+    return { id: p.id, make: () => new scope.Path({ segments: pts, closed: true, insert: false }) };
+  }) : SPLIT_QUADRANTS.map(q => ({ id: q.id, make: () => new scope.Path.Rectangle(new scope.Rectangle(q.dx < 0 ? cx - pad : cx, q.dy < 0 ? cy - pad : cy, pad, pad)) }));
+  for (const q of cutters) {
+    const rect = q.make();
     let piece = null;
     try { piece = shape.intersect(rect, { insert: false }); } catch (e) { piece = null; }
     rect.remove();

@@ -6,7 +6,7 @@ import {
   colorAt, live, pv, state, val
 } from './engine/00-core.js';
 import {
-  INNER_APEX, INNER_UNSUPPORTED, SEED_TYPES, fitPathToSeed, frameDims, splitPaperScope
+  INNER_APEX, INNER_UNSUPPORTED, SEED_TYPES, fitPathToSeed, frameDims, splitPaperScope, splitPlan
 } from './engine/01-geometry.js';
 import {
   getSeed, seedForSnapshot
@@ -53,7 +53,7 @@ provide({
   adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks,
   enterComponentEditMode: () => enterComponentEditMode, generate: () => generate,
   populateComponentStarterGallery: () => populateComponentStarterGallery,
-  syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI
+  syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI, syncSplitUI: () => syncSplitUI
 });
 // ── Component Edit mode ──────────────────────────────────────────────────
 // A big single-component view (state.componentEditMode) where every cell is
@@ -560,7 +560,23 @@ export function clearGallery() {
 // shape never restores stale data. state.splitKeep is the live multi-select
 // set (empty = whole shape); state.splitCache memoises splitElementGeometry's
 // Paper.js work per pre-split seed so toggling chips is cheap.
+// The piece buttons follow the cell shape (splitPlan): All · TL · TR · BL · BR on a Square, All · 1 … n on a fan.
+// Rebuilt only when the set changes; a cell shape change while a Split is on puts the whole shape back first.
+let splitPlanKey = 'quad';
+export function currentSplitPlan() { return splitPlan(state.cellShape); }
+function syncSplitButtons() {
+  const plan = currentSplitPlan(), key = plan.pieces.map(p => p.id).join(',');
+  if (key === splitPlanKey) return;
+  const wasFan = splitPlanKey !== 'quad' && splitPlanKey !== 'tl,tr,bl,br';
+  splitPlanKey = key;
+  const seg = ctrl('seg-split-quadrant');
+  seg.setAttribute('aria-label', plan.kind === 'fan' ? 'Keep one or more slices of the Element' : 'Keep one or more quadrants of the Element');
+  seg.innerHTML = `<button type="button" class="seg-btn" data-q="whole" aria-pressed="false" title="Restore the whole shape">All</button>`
+    + plan.pieces.map(p => `<button type="button" class="seg-btn" data-q="${p.id}" aria-pressed="false"${plan.kind === 'fan' ? ` aria-label="Slice ${p.label}"` : ''}>${p.label}</button>`).join('');
+  if ((wasFan || plan.kind === 'fan') && state.splitKeep.size) splitElementReset();
+}
 export function syncSplitUI() {
+  syncSplitButtons();
   ctrl('seg-split-quadrant').querySelectorAll('.seg-btn').forEach(b => {
     const q = b.dataset.q;
     const on = q === 'whole' ? state.splitKeep.size === 0 : state.splitKeep.has(q);
@@ -582,7 +598,7 @@ export function splitElementReset() {
 }
 export function toggleSplitQuadrant(q) {
   if (state.splitKeep.has(q)) state.splitKeep.delete(q); else state.splitKeep.add(q);
-  if (state.splitKeep.size === 0 || state.splitKeep.size === 4) { splitElementReset(); return; }
+  if (state.splitKeep.size === 0 || state.splitKeep.size === currentSplitPlan().pieces.length) { splitElementReset(); return; }
   splitElementApply();
 }
 // raw `d` → the Element's 0..100 box as drawn: the geometry's norm layer, then Scale / Move / Rotation / Width / Length
@@ -597,21 +613,25 @@ export function splitElementApply() {
   const geo = SEED_TYPES[original.type].geometry(original);
   if (!geo || !geo.d) { status.textContent = 'This Element has no visible shape to split.'; state.splitKeep.clear(); syncSplitUI(); return; }
   // cut on what the canvas shows: the norm layer, then the Element's appearance (splitViewMatrix)
-  const view = splitViewMatrix(geo);
-  const key = JSON.stringify([original, view.toString()]);
+  const view = splitViewMatrix(geo), plan = currentSplitPlan();
+  const key = JSON.stringify([original, view.toString(), plan.pieces.map(p => p.id)]);
   if (!state.splitCache || state.splitCache.key !== key) {
-    state.splitCache = { key, pieces: splitElementGeometry(geo.d, geo.fillRule, view) };
+    state.splitCache = { key, pieces: splitElementGeometry(geo.d, geo.fillRule, view, plan) };
   }
   const pieces = state.splitCache.pieces;
-  const kept = ['tl', 'tr', 'bl', 'br'].filter(q => state.splitKeep.has(q)).map(q => pieces.find(p => p.id === q)).filter(Boolean);
-  if (!kept.length) { status.textContent = 'Those quadrants are empty — the shape has no material there.'; syncSplitUI(); return; }
+  const kept = plan.pieces.map(p => p.id).filter(q => state.splitKeep.has(q)).map(q => pieces.find(p => p.id === q)).filter(Boolean);
+  if (!kept.length) { status.textContent = plan.kind === 'fan' ? 'Those slices are empty — the shape has no material there.' : 'Those quadrants are empty — the shape has no material there.'; syncSplitUI(); return; }
   // Each kept piece's seed.d is its RAW (unfitted) pathData (fitPathToSeed's
   // `d` field is the input unchanged) — concatenating them and fitting the
   // whole against the shared frameBB keeps every piece at its original place
   // and size, so several kept quadrants reassemble exactly like the original.
   const combinedRaw = kept.map(p => p.seed.d).join(' ');
-  const fitted = fitPathToSeed(combinedRaw, kept[0].frameBB);
-  if (!fitted) { status.textContent = 'Could not combine the kept quadrants.'; return; }
+  // The pieces are in the shape's raw space: they take the whole shape's own placement (its norm layer, as the cell
+  // fitted it) and are marked `placed`, so a non-square cell does not fit them a second time (Oct 13, 2026 — a fan
+  // slice was moved off its wedge). A Segment's stroke ribbon keeps the frame fit it always had.
+  const fitted = kept[0].strokeConv ? fitPathToSeed(combinedRaw, kept[0].frameBB)
+    : { d: combinedRaw, normTx: geo.normTx || 0, normTy: geo.normTy || 0, normScale: geo.normScale || 1, ...(geo.fillRule ? { fillRule: geo.fillRule } : {}), placed: true };
+  if (!fitted) { status.textContent = 'Could not combine the kept pieces.'; return; }
   if (!stillOurs) state.splitOriginalStyle = pv('sel-element-fillmode');
   state.splitOriginal = JSON.parse(JSON.stringify(original));
   state.splitCombinedRaw = combinedRaw;
@@ -640,7 +660,8 @@ export function savePieceAsSeed() {
   const d = src.pathData;
   src.remove();
   const typeLabel = (SEED_TYPES[state.splitOriginal ? state.splitOriginal.type : getSeed().type] || {}).label || 'Element';
-  const pieceLabel = ['tl', 'tr', 'bl', 'br'].filter(q => state.splitKeep.has(q)).map(q => q.toUpperCase()).join('+') || 'piece';
+  const plan = currentSplitPlan();
+  const pieceLabel = plan.pieces.filter(p => state.splitKeep.has(p.id)).map(p => p.label).join('+') || 'piece';
   const name = typeLabel + ' · ' + pieceLabel + ' piece';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><path d="${d}" fill="var(--ink)"/></svg>`;
   const lib = Organica.store.library.read();

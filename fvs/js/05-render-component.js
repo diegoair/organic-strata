@@ -6,7 +6,7 @@ import {
   live, pc, pv, state
 } from './engine/00-core.js';
 import {
-  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameDims, pathBBox, resolveGridCells, snapAxis, snapCandidates
+  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameDims, pathBBox, resolveGridCells, snapAxis, snapCandidates, splitPlan
 } from './engine/01-geometry.js';
 import {
   getSeed, seedForSnapshot
@@ -125,6 +125,35 @@ export function buildSplitGridOverlaySVG(size, T = '') {
   const cx = fx + fw / 2, cy = fy + fh / 2;
   const fs = (10 * 100 / size).toFixed(3);   // labels about 10 px on screen
   const kept = state.splitKeep;
+  const line = 'stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"';
+  const plan = splitPlan(cellShapeOf(srcSeed));
+  if (plan.kind === 'fan') {
+    // a Circle / Triangle / Hexagon cell: the cell's outline, the fan's cuts from its centre to each corner, each slice
+    // tinted (kept or not) and numbered — 1 … n clockwise from the top, as the buttons (splitPlan)
+    const cs = cellShapeOf(srcSeed), poly = CELL_SHAPES[cs].poly, r3 = v => v.toFixed(3);
+    const reach = a => {   // where a cut from the centre leaves the cell (the circle's radius, or the polygon's edge)
+      const t = a * Math.PI / 180, dx = Math.cos(t), dy = Math.sin(t);
+      if (cs === 'circle') return [50 + 50 * dx, 50 + 50 * dy];
+      let best = Infinity;
+      for (let k = 0; k < poly.length; k++) {
+        const [ax, ay] = poly[k], [bx, by] = poly[(k + 1) % poly.length], ex = bx - ax, ey = by - ay, den = dx * ey - dy * ex;
+        if (Math.abs(den) < 1e-9) continue;
+        const u = ((ax - 50) * ey - (ay - 50) * ex) / den, v = ((ax - 50) * dy - (ay - 50) * dx) / den;
+        if (u > 1e-6 && v >= -1e-6 && v <= 1 + 1e-6) best = Math.min(best, u);
+      }
+      return [50 + best * dx, 50 + best * dy];
+    };
+    const slices = plan.pieces.map(p => {
+      const steps = cs === 'circle' ? Math.ceil((p.b - p.a) / 5) : 1, pts = [[50, 50]];
+      for (let k = 0; k <= steps; k++) pts.push(reach(p.a + (p.b - p.a) * k / steps));
+      const on = kept.size === 0 || kept.has(p.id), [lx, ly] = reach((p.a + p.b) / 2), L = [50 + (lx - 50) * 0.62, 50 + (ly - 50) * 0.62];
+      return `<polygon points="${pts.map(q => q.map(r3).join(',')).join(' ')}" fill="${on ? 'var(--tool)' : 'var(--mid)'}" fill-opacity="${on ? 0.14 : 0.05}"/>`
+        + `<text x="${r3(L[0])}" y="${r3(L[1])}" font-size="${(10 * 100 / size).toFixed(3)}" text-anchor="middle" dominant-baseline="middle" fill="var(--mid)" font-family="var(--font)">${p.label}</text>`;
+    }).join('');
+    const cuts = plan.pieces.map(p => { const [x, y] = reach(p.a); return `<line x1="50" y1="50" x2="${r3(x)}" y2="${r3(y)}" ${line}/>`; }).join('');
+    return `<g pointer-events="none" class="fvs-split-grid" data-fan="${plan.pieces.length}"${T ? ` transform="${T}"` : ''}>`
+      + slices + `<polygon points="${poly.map(q => q.map(r3).join(',')).join(' ')}" fill="none" ${line}/>` + cuts + `</g>`;
+  }
   const tint = (q, dx, dy) => {
     const on = kept.size === 0 || kept.has(q);
     const rx = dx < 0 ? fx : cx, ry = dy < 0 ? fy : cy;
@@ -134,7 +163,6 @@ export function buildSplitGridOverlaySVG(size, T = '') {
     const lx = (dx < 0 ? fx : cx) + fw * 0.06, ly = (dy < 0 ? fy : cy) + fh * 0.2;
     return `<text x="${lx.toFixed(3)}" y="${ly.toFixed(3)}" font-size="${fs}" fill="var(--mid)" font-family="var(--font)">${text}</text>`;
   };
-  const line = 'stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"';
   return `<g pointer-events="none" class="fvs-split-grid"${T ? ` transform="${T}"` : ''}><g>`
     + tint('tl', -1, -1) + tint('tr', 1, -1) + tint('bl', -1, 1) + tint('br', 1, 1)
     + `<rect x="${fx.toFixed(3)}" y="${fy.toFixed(3)}" width="${fw.toFixed(3)}" height="${fh.toFixed(3)}" fill="none" ${line}/>`
