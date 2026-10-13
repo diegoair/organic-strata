@@ -492,10 +492,17 @@ export function cellPropsHTML(pre, opts = {}) {
             <span class="ctrl-val" style="color:var(--tool);text-align:left;flex:1">● Overrides the palette</span>
             <button class="mini-btn" id="${I('btn-cellprop-color-reset')}">Reset</button>
           </div>
-          <div class="ctrl-row">
-            <div class="ctrl-label" title="Space around the content, as a share of the cell: 40% leaves 20% on each side.">Padding</div>
-            <input type="range" id="${I('rg-cellprop-padding')}" min="0" max="40" step="1" value="0">
-            <span class="ctrl-val" id="${I('v-cellprop-padding')}">0</span>
+          <!-- Padding as Figma has it (Diego, Oct 13, 2026): Horizontal · Vertical, or — Padding per side — Left · Top /
+               Right · Bottom; each value a share of the cell on that side -->
+          <div class="sub-label">Padding %</div>
+          <div class="fvs-pad" id="${I('cellprop-pad')}" data-split="false">
+            <label class="fvs-pad-box" data-k="h">${Organica.icons.get('pad-horizontal', { size: 'md' })}<input type="number" class="panel-input" data-k="h" min="0" max="45" step="1" aria-label="Horizontal padding"></label>
+            <label class="fvs-pad-box" data-k="v">${Organica.icons.get('pad-vertical', { size: 'md' })}<input type="number" class="panel-input" data-k="v" min="0" max="45" step="1" aria-label="Vertical padding"></label>
+            <button type="button" class="org-btn org-btn--icon" id="${I('btn-cellprop-pad-sides')}" aria-pressed="false" aria-label="Padding per side">${Organica.icons.get('pad-sides', { size: 'md' })}</button>
+            <label class="fvs-pad-box" data-k="l">${Organica.icons.get('pad-left', { size: 'md' })}<input type="number" class="panel-input" data-k="l" min="0" max="45" step="1" aria-label="Left padding"></label>
+            <label class="fvs-pad-box" data-k="t">${Organica.icons.get('pad-top', { size: 'md' })}<input type="number" class="panel-input" data-k="t" min="0" max="45" step="1" aria-label="Top padding"></label>
+            <label class="fvs-pad-box" data-k="r">${Organica.icons.get('pad-right', { size: 'md' })}<input type="number" class="panel-input" data-k="r" min="0" max="45" step="1" aria-label="Right padding"></label>
+            <label class="fvs-pad-box" data-k="b">${Organica.icons.get('pad-bottom', { size: 'md' })}<input type="number" class="panel-input" data-k="b" min="0" max="45" step="1" aria-label="Bottom padding"></label>
           </div>
           ${opts.lock === false ? '' : `<label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="${I('chk-cellprop-lock')}"><span>Lock cell (rule skips it)</span></label>`}`;
 }
@@ -586,11 +593,24 @@ export function syncCellProps(pre, t) {
   syncCellColourUI(first, isComponent, pre, t.colors());
   c('row-cellprop-seedparams').style.display = (isComponent || first.source === 'empty') ? 'none' : '';
   c('symbol-cellprop-seedparams-label').textContent = first.seedParams ? 'Element settings' : 'Default';
-  c('rg-cellprop-padding').value = Math.round((first.padding || 0) * 100);
-  c('v-cellprop-padding').textContent = c('rg-cellprop-padding').value;
+  syncCellPad(c, first);
   if (t.lock) c('chk-cellprop-lock').checked = !!first.locked;
 
   c('row-cellprop-overflow').style.display = t.overflow && t.overflow() ? '' : 'none';
+}
+// Padding fields from the shown cell: Horizontal / Vertical when the sides pair up (else empty, "Mixed"), the four sides
+// when Padding per side is on — on by itself when the cell's sides differ (Figma opens its four fields the same way).
+const padSplit = {};
+export function syncCellPad(c, cell) {
+  const P = Organica.shapes.cellPads(cell || {}), pc = k => Math.round(P[k] * 100);
+  const wrap = c('cellprop-pad'), uneven = pc('l') !== pc('r') || pc('t') !== pc('b');
+  const pre = wrap.id.slice(0, -'cellprop-pad'.length);
+  const split = padSplit[pre] != null ? padSplit[pre] || uneven : uneven;
+  wrap.dataset.split = String(split);
+  c('btn-cellprop-pad-sides').setAttribute('aria-pressed', String(split));
+  const set = (k, v) => { const inp = wrap.querySelector(`input[data-k="${k}"]`); if (document.activeElement !== inp) { inp.value = v == null ? '' : v; inp.placeholder = v == null ? 'Mixed' : ''; } };
+  set('h', pc('l') === pc('r') ? pc('l') : null); set('v', pc('t') === pc('b') ? pc('t') : null);
+  ['l', 't', 'r', 'b'].forEach(k => set(k, pc(k)));
 }
 export function bindCellProps(pre, t) {
   const c = b => ctrl(pre + b);
@@ -613,9 +633,20 @@ export function bindCellProps(pre, t) {
     c('v-cellprop-fixedsize').textContent = e.target.value;
     t.apply({ fixedSize: parseInt(e.target.value, 10) });
   });
-  c('rg-cellprop-padding').addEventListener('input', e => {
-    c('v-cellprop-padding').textContent = e.target.value;
-    t.apply({ padding: parseInt(e.target.value, 10) / 100 });
+  // Padding: a field writes its side(s) on every selected cell, keeping that cell's other sides (pad wins over the
+  // older single `padding`); values clamped to 0–45 % a side, so the box never closes
+  const padWrap = c('cellprop-pad');
+  padWrap.addEventListener('input', e => {
+    const k = e.target.dataset && e.target.dataset.k;
+    if (!k || e.target.value === '') return;
+    const v = Math.min(45, Math.max(0, Math.round(+e.target.value || 0))) / 100;
+    const sides = { h: ['l', 'r'], v: ['t', 'b'] }[k] || [k];
+    t.apply(cell => { const P = { ...Organica.shapes.cellPads(cell) }; sides.forEach(s => { P[s] = v; }); return { pad: P }; });
+  });
+  padWrap.addEventListener('change', () => t.refresh());
+  c('btn-cellprop-pad-sides').addEventListener('click', () => {
+    padSplit[pre] = c('cellprop-pad').dataset.split !== 'true';
+    syncCellPad(c, t.first());
   });
   c('sel-cellprop-color').addEventListener('change', e => {
     const v = e.target.value;
@@ -713,7 +744,7 @@ export function renderCellContentOverlayTiles() {
   emptyBtn.setAttribute('aria-label', 'Use Empty (blank cell)');
   emptyBtn.innerHTML = '<svg viewBox="0 0 72 72" aria-hidden="true"><rect x="10" y="10" width="52" height="52" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 4"/></svg>';
   emptyBtn.addEventListener('click', () => {
-    contentTarget()(() => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
+    contentTarget()(() => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0 }));
     pickDone();
   });
   elWrap.appendChild(emptyBtn);
@@ -728,7 +759,7 @@ export function renderCellContentOverlayTiles() {
       contentTarget()(cell => ({
         source: 'seed', seedType: type, color: cell.color || null,
         rotation: 0, flipH: false, flipV: false,
-        fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+        fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0,
       }));
       pickDone();
     });
@@ -761,7 +792,7 @@ export function renderCellContentOverlayTiles() {
       contentTarget()({
         source: 'component', componentName: name, span: true, colourway: null,   // a rectangular Component takes its block where it fits
         rotation: 0, flipH: false, flipV: false,
-        fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+        fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0,
       });
       pickDone();
     });
@@ -795,7 +826,7 @@ export function renderCellContentOverlayTiles() {
         contentTarget()(cell => ({
           source: 'seed', seedType: sp.type, seedParams: JSON.parse(JSON.stringify(sp)), color: cell.color || null, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null,
           rotation: r, flipH: fh, flipV: fv,
-          fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0,
+          fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0,
         }));
         pickDone();
       });

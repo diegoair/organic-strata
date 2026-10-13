@@ -1527,7 +1527,8 @@ function cellRuleText(d, inks) {   // a Cell properties rule, in the panel's own
   if (c.fixedSize != null) out.push(`Size ${c.fixedSize}`);
   if (d.scale != null) out.push(`Scale ${Math.round(d.scale * 100)}`);
   if (d.ink != null) out.push('Ink ' + (d.ink + 1)); else if (d.color) { const k = inks ? inks.indexOf(d.color) : -1; out.push(k >= 0 ? 'Ink ' + (k + 1) : 'Colour ' + d.color); }
-  if (c.padding != null) out.push(`Padding ${Math.round(c.padding * 100)}`);
+  if (c.pad) { const q = k => Math.round((c.pad[k] || 0) * 100), [l, t, r, b] = ['l', 't', 'r', 'b'].map(q); out.push('Padding ' + (l === r && t === b ? (l === t ? l : `${l} · ${t}`) : `${l} · ${t} · ${r} · ${b}`)); }
+  else if (c.padding != null) out.push(`Padding ${Math.round(c.padding * 50)}`);   // an older total, shown per side as the panel does
   if (c.anchorX != null || c.anchorY != null) { const x = c.anchorX || 0, y = c.anchorY || 0; out.push(`Anchor ${x < 0 ? 'left' : x > 0 ? 'right' : 'centre'} ${y < 0 ? 'top' : y > 0 ? 'bottom' : 'middle'}`); }
   if ('seedParams' in c) out.push(c.seedParams ? 'Shape: Element settings' : 'Shape: Default');
   return out.join(' · ') || 'No change';

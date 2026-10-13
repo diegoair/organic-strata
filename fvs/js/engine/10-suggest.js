@@ -163,7 +163,7 @@ export function choiceBits(G, i, ch, pts, fit, anByName) {
 export function choiceBitsRaw(G, i, ch, pts, fit, anByName) {
   const an = anByName[ch.name];
   const c = G.cells[i];
-  const place = resolveCellPlacement(c.w, c.h, an.natural, { fitMode: fit, scale: 1, padding: 0, anchorX: 0, anchorY: 0, fixedSize: 100 });
+  const place = resolveCellPlacement(c.w, c.h, an.natural, { fitMode: fit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0, fixedSize: 100 });
   const hw = (an.natural.w || an.natural) / 2 * place.scaleX, hh = (an.natural.h || an.natural) / 2 * place.scaleY;
   const rad = ch.r * Math.PI / 180, cs = Math.cos(rad), sn = Math.sin(rad), fx = ch.fh ? -1 : 1;
   return pts.map(([x, y]) => {
@@ -370,7 +370,7 @@ export function arrangeCells(grid, cells, pal, ruleId, seed, fit) {
     const pick = rule.cls ? pal[((rule.cls(ctx, k) % k) + k) % k] : weightedPick(pal, rng);
     if (pick.kind === 'element') {
       const el = hooks.railPatch('element', pick.name);
-      if (el) return { ...el, rotation: (el.rotation || 0) + (ctx.orient === 'down' ? 180 : 0), fitMode: fit, fixedSize: 100, scale: 1, padding: 0, anchorX: 0, anchorY: 0, locked: false };
+      if (el) return { ...el, rotation: (el.rotation || 0) + (ctx.orient === 'down' ? 180 : 0), fitMode: fit, fixedSize: 100, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0, locked: false };
     }
     const rotation = ctx.orient === 'down' ? 180 : 0;
     let span = false;

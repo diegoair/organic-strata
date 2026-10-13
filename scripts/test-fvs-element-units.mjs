@@ -51,6 +51,46 @@ async function cellTurns() {
   });
   check('O-71 · every hexagon / triangle lattice cell turns by less than one step (all outlines, 1–4 rings, 4 sizes)', r.n === 0 && r.edge === 0, JSON.stringify(r));
 }
+// Padding as Figma has it (Diego, Oct 13): per side, a share of the cell; an older total reads as half a side.
+async function padding() {
+  const m = await ev(() => {
+    const S = Organica.shapes, place = cell => S.resolveCellPlacement(200, 100, 100, { fitMode: 'fill', scale: 1, ...cell });
+    const legacy = place({ padding: 0.2 }), even = place({ pad: { t: 0.1, r: 0.1, b: 0.1, l: 0.1 } }), left = place({ pad: { t: 0, r: 0, b: 0, l: 0.2 } });
+    return { legacy: S.cellPads({ padding: 0.2 }), same: JSON.stringify(legacy) === JSON.stringify(even), left };
+  });
+  check('Padding · an older total reads as half on each side, and draws exactly as the equal sides', m.legacy.l === 0.1 && m.legacy.t === 0.1 && m.same, JSON.stringify(m));
+  check('Padding · Left 20: the box loses 20 % of the width and its centre moves right by 10 %', Math.abs(m.left.scaleX - 1.6) < 1e-9 && Math.abs(m.left.offsetX - 20) < 1e-9 && m.left.offsetY === 0, JSON.stringify(m.left));
+  // the panel: Symbol step, a cell selected, typing into the fields
+  const step = async t => { await ev(t => document.querySelector(`#tier-tabs [data-tier="${t}"]`).click(), t); await sleep(700); };
+  await step('symbol');
+  const typeIn = async (sel, v) => { await ev((sel, v) => { const i = document.querySelector(sel); i.focus(); i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); i.blur(); }, sel, v); await sleep(120); };
+  const ui = async () => ev(() => { const F = window.__fvs, w = document.getElementById('cellprop-pad'); return { split: w.dataset.split, pressed: document.getElementById('btn-cellprop-pad-sides').getAttribute('aria-pressed'), h: w.querySelector('input[data-k="h"]').value, hPh: w.querySelector('input[data-k="h"]').placeholder, pad: F.state.symbolCells[0] && F.state.symbolCells[0].pad, vis: [...w.querySelectorAll('.fvs-pad-box')].filter(b => getComputedStyle(b).display !== 'none').map(b => b.dataset.k).join('') }; });
+  const ok = await ev(() => { const F = window.__fvs; if (!F.state.symbolCells || !F.state.symbolCells.length) F.generateSymbolCells(); F.state.symbolSelection = new Set([0]); F.renderCellPropertiesPanel(); return !!document.getElementById('cellprop-pad'); });
+  if (!ok) { check('Padding panel opened', false, 'no #cellprop-pad'); return; }
+  const u0 = await ui();
+  await typeIn('#cellprop-pad input[data-k="h"]', '12');
+  const u1 = await ui();
+  check('Padding panel · Horizontal · Vertical first; Horizontal 12 sets Left and Right to 12 %', u0.split === 'false' && u0.vis === 'hv' && u1.pad && u1.pad.l === 0.12 && u1.pad.r === 0.12 && u1.pad.t === 0 && u1.pad.b === 0, JSON.stringify({ u0, u1 }));
+  await ev(() => document.getElementById('btn-cellprop-pad-sides').click()); await sleep(80);
+  const u2 = await ui();
+  await typeIn('#cellprop-pad input[data-k="l"]', '30');
+  await ev(() => document.getElementById('btn-cellprop-pad-sides').click()); await sleep(80);
+  const u3 = await ui();
+  check('Padding per side · four fields (Left · Top / Right · Bottom); unequal sides keep them open, Horizontal reads Mixed', u2.split === 'true' && u2.pressed === 'true' && u2.vis === 'ltrb' && u3.pad.l === 0.3 && u3.pad.r === 0.12 && u3.split === 'true', JSON.stringify({ u2, u3 }));
+  await typeIn('#cellprop-pad input[data-k="r"]', '30');
+  const u4 = await ui();
+  check('Padding per side closes by itself once the sides pair up again (it was switched off): Horizontal shows 30', u4.split === 'false' && u4.h === '30' && u4.hPh === '', JSON.stringify(u4));
+  const big = await ev(() => { const i = document.querySelector('#cellprop-pad input[data-k="h"]'); i.value = '80'; i.dispatchEvent(new Event('input', { bubbles: true })); return window.__fvs.state.symbolCells[0].pad.l; });
+  check('Padding · a side is capped at 45 %', big === 0.45, String(big));
+  if (SHOTS) for (const split of [false, true]) {
+    await ev(sp => { const F = window.__fvs; F.state.symbolCells[0].pad = sp ? { l: 0.3, t: 0.05, r: 0.12, b: 0 } : { l: 0.12, r: 0.12, t: 0.05, b: 0.05 }; F.renderCellPropertiesPanel(); document.getElementById('cellprop-pad').scrollIntoView({ block: 'center' }); }, split);
+    await sleep(200);
+    const b = await ev(() => { const r = document.getElementById('cellprop-pad').getBoundingClientRect(); return { x: r.x - 12, y: r.y - 28, w: r.width + 24, h: r.height + 40 }; });
+    const r = await cdp('Page.captureScreenshot', { format: 'png', clip: { x: b.x, y: b.y, width: b.w, height: b.h, scale: 2 } });
+    fs.mkdirSync(SHOTS, { recursive: true }); fs.writeFileSync(path.join(SHOTS, `padding-${split ? 'sides' : 'pair'}-${THEME}.png`), Buffer.from(r.result.data, 'base64'));
+  }
+  await step('element');
+}
 // --shots DIR: screenshots of the Element canvas
 
 const which = n => { try { return execFileSync('which', [n], { encoding: 'utf8' }).trim(); } catch { return ''; } };
@@ -340,6 +380,7 @@ try { await fitToCanvas(); } catch (e) { check('Fit to canvas ran', false, e.mes
 try { await tileView(); } catch (e) { check('Show as tile ran', false, e.message); }
 try { await cellTurns(); } catch (e) { check('Cell turns ran', false, e.message); }
 try { await tileCells(); } catch (e) { check('Tile cells ran', false, e.message); }
+try { await padding(); } catch (e) { check('Padding ran', false, e.message); }
 try { await snap(); } catch (e) { check('Snap ran', false, e.message); }
 try { await layerSnap(); } catch (e) { check('Layer snap ran', false, e.message); }
 if (SHOTS) await visuals();

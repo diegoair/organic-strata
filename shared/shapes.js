@@ -1276,10 +1276,19 @@
   // the defaults (fitMode:'contain', anchorX/Y:0, padding:0, scale:1).
   // `natural` may also be {w, h} — a non-square nested item (a rectangular
   // FVS Component) fills/contains by its own proportions instead of a square box.
+  // Padding per side (FVS, Oct 13, 2026 — "copy as Figma does"): `cell.pad` = {t, r, b, l}, each a share of the
+  // cell on that side; an older cell's `padding` p is a TOTAL, read as p / 2 on every side. Equal sides draw exactly
+  // as the single value did (effW = cellW · (1 − p), no shift); unequal ones shrink the box and move its centre.
+  function cellPads(cell) {
+    const p = cell.pad;
+    if (p) return { t: +p.t || 0, r: +p.r || 0, b: +p.b || 0, l: +p.l || 0 };
+    const h = (cell.padding || 0) / 2;
+    return { t: h, r: h, b: h, l: h };
+  }
   function resolveCellPlacement(cellW, cellH, natural, cell) {
+    const P = cellPads(cell), shiftX = (P.l - P.r) / 2 * cellW, shiftY = (P.t - P.b) / 2 * cellH;
     if (natural && typeof natural === 'object') {
-      const pad = 1 - (cell.padding || 0);
-      const effW = cellW * pad, effH = cellH * pad;
+      const effW = cellW * (1 - P.l - P.r), effH = cellH * (1 - P.t - P.b);
       const scale = cell.scale == null ? 1 : cell.scale;
       let scaleX, scaleY;
       if (cell.fitMode === 'fill') { scaleX = (effW / natural.w) * scale; scaleY = (effH / natural.h) * scale; }
@@ -1291,10 +1300,9 @@
       else scaleX = scaleY = Math.min(effW / natural.w, effH / natural.h) * scale;
       const itemW = natural.w * scaleX, itemH = natural.h * scaleY;
       const ax = cell.anchorX || 0, ay = cell.anchorY || 0;
-      return { scaleX, scaleY, offsetX: ax * (effW - itemW) / 2, offsetY: ay * (effH - itemH) / 2 };
+      return { scaleX, scaleY, offsetX: ax * (effW - itemW) / 2 + shiftX, offsetY: ay * (effH - itemH) / 2 + shiftY };
     }
-    const pad = 1 - (cell.padding || 0);
-    const effW = cellW * pad, effH = cellH * pad;
+    const effW = cellW * (1 - P.l - P.r), effH = cellH * (1 - P.t - P.b);
     const scale = cell.scale == null ? 1 : cell.scale;
     let scaleX, scaleY;
     if (cell.fitMode === 'fill') {
@@ -1312,8 +1320,8 @@
     const ax = cell.anchorX || 0, ay = cell.anchorY || 0;
     return {
       scaleX, scaleY,
-      offsetX: ax * (effW - itemW) / 2,
-      offsetY: ay * (effH - itemH) / 2,
+      offsetX: ax * (effW - itemW) / 2 + shiftX,
+      offsetY: ay * (effH - itemH) / 2 + shiftY,
     };
   }
 
@@ -1810,7 +1818,7 @@
     roundedRectGeometry, roundedRectPathD, chevronGeometry, chevronPathD,
     crossGeometry, crossPathD, lensGeometry, lensPathD,
     EXTRAS, starExtrasActive, rrExtrasActive, chevronExtrasActive, crossExtrasActive, lensExtrasActive, segmentExtrasActive, dropExtrasActive, blobExtrasActive,
-    resolveGridCells, resolveCellPlacement, cellColRow, frameSize, frameDims, median,
+    resolveGridCells, resolveCellPlacement, cellPads, cellColRow, frameSize, frameDims, median,
     PART_METHODS, PART_GENERIC, PART_MAX, partMethods, partRegions,
   };
 })(window);

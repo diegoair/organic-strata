@@ -154,7 +154,7 @@ export function renderVariant(v, transparent) {
 export function railPatch(kind, name) {
   if (kind === 'component') {
     if (!LIBRARY.peek()[name]) return null;
-    return { source: 'component', componentName: name, span: true, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null, rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
+    return { source: 'component', componentName: name, span: true, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null, rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0 };
   }
   const entry = ELEMENT_LIB.read()[name];
   if (!entry || !entry.seed) return null;
@@ -165,7 +165,7 @@ export function railPatch(kind, name) {
   // layer's ink for a stack (drawn like a Component's own palette). Any other rule colours
   // the cell like the rest. An entry saved without colours follows the rule.
   const own = entry.colors && entry.colors.length ? entry.colors.slice() : null;
-  return { source: 'seed', seedType: sp.type, seedParams: sp, color: null, ownColors: own, ownPaper: entry.paperColor || null, ownAppearance: entry.appearance || null, colourway: null, rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV, fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 };
+  return { source: 'seed', seedType: sp.type, seedParams: sp, color: null, ownColors: own, ownPaper: entry.paperColor || null, ownAppearance: entry.appearance || null, colourway: null, rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV, fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0 };
 }
 export function elementInLivePaper(name) { return !!(live.paperPatternOn && pv('sel-ground-tile') === 'saved:' + name); }
 export function libviewItems(kind) {

@@ -193,7 +193,7 @@ document.addEventListener('keydown', e => {
   if (state.activeTier !== 'symbol' || !state.symbolSelection.size) return;
   if (fvsIsTypingTarget(e.target) || (e.target.closest && e.target.closest('.org-modal, #symbol-content-overlay'))) return;
   e.preventDefault();   // Backspace must not navigate back
-  applyToSelection(cell => (cell.locked ? {} : { source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, anchorX: 0, anchorY: 0 }));
+  applyToSelection(cell => (cell.locked ? {} : { source: 'empty', rotation: 0, flipH: false, flipV: false, fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0 }));
   renderCellPropertiesPanel();
 });
 export var fvsIsTypingTarget = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);

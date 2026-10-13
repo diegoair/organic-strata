@@ -50,7 +50,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 // A saved Element / Component (with a copy of its entry) → the patch a Symbol cell takes (the Library rail's railPatch,
 // from the copy). Used by the Figure graph's content and by Composition rules that drop content into cells.
 export function contentPatch(c, fit) {
-  const base = { rotation: 0, flipH: false, flipV: false, fitMode: fit || 'contain', scale: 1, padding: 0, anchorX: 0, anchorY: 0, colourway: null };
+  const base = { rotation: 0, flipH: false, flipV: false, fitMode: fit || 'contain', scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0, colourway: null };
   if (c.kind === 'component') return { ...base, source: 'component', componentName: c.name, span: true, ownColors: null, ownPaper: null, ownAppearance: null };
   const e = c.entry || {};
   const sp = clone(e.seed), o = e.orientation || {};
@@ -146,8 +146,8 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
 // Compose (Oct 8, 2026 — the Symbol step's Cell properties over region rules) adds: cell {fitMode, coverAxis,
 // fixedSize, padding, seedParams} — the Cell properties fields a rotate / flip / scale / colour rule does not carry,
 // copied onto the cell as Symbol's patchCell does (seedParams only on a Seed cell; null = back to the default shape).
-const CELL_KEYS = ['fitMode', 'coverAxis', 'fixedSize', 'padding', 'seedParams', 'anchorX', 'anchorY'];
-const COMPOSE_CELL_FIELDS = ['source', 'seedType', 'componentName', 'colourway', 'rotation', 'flipH', 'flipV', 'fitMode', 'coverAxis', 'scale', 'fixedSize', 'color', 'padding', 'seedParams', 'anchorX', 'anchorY'];
+const CELL_KEYS = ['fitMode', 'coverAxis', 'fixedSize', 'padding', 'pad', 'seedParams', 'anchorX', 'anchorY'];   // pad = padding per side (Oct 13, 2026)
+const COMPOSE_CELL_FIELDS = ['source', 'seedType', 'componentName', 'colourway', 'rotation', 'flipH', 'flipV', 'fitMode', 'coverAxis', 'scale', 'fixedSize', 'color', 'padding', 'pad', 'seedParams', 'anchorX', 'anchorY'];
 function applyRulesToContent(rules, cw) {   // cw: the Palette's colourway, given to every Component a rule puts in a cell
   const own = state.symbolCells.map(c => clone(c)), G = getSymbolGrid(), ctxs = slotClassContext(G), sctx = symbolCellContext(G);
   const rngs = rules.map(r => { const d = r.do || {}, sd = (d.symbolRule && d.symbolRule.seed) || (d.arrange && d.arrange.seed) || 0; return mulberry32(sd >>> 0); });

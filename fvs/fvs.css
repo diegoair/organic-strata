@@ -680,3 +680,18 @@
   white-space: nowrap; background: var(--ink); color: var(--paper); font-size: var(--fs-small); font-weight: var(--w-regular); line-height: 1;
   padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); pointer-events: none;
 }
+
+/* Padding as Figma has it (Oct 13, 2026): icon-prefixed number boxes (Loom's margin boxes, instance 2 — a third use
+   promotes them to panel.css), Horizontal · Vertical · the Padding per side toggle; per side = Left · Top / Right · Bottom */
+.fvs-pad { display: grid; grid-template-columns: 1fr 1fr auto; grid-template-areas: "h v btn"; gap: var(--space-2); align-items: center; margin-bottom: var(--space-3); }
+.fvs-pad[data-split="true"] { grid-template-areas: "l t btn" "r b ."; }
+.fvs-pad > [data-k="h"] { grid-area: h; } .fvs-pad > [data-k="v"] { grid-area: v; }
+.fvs-pad > [data-k="l"] { grid-area: l; } .fvs-pad > [data-k="t"] { grid-area: t; }
+.fvs-pad > [data-k="r"] { grid-area: r; } .fvs-pad > [data-k="b"] { grid-area: b; }
+.fvs-pad > .org-btn { grid-area: btn; }
+.fvs-pad[data-split="false"] > :is([data-k="l"], [data-k="t"], [data-k="r"], [data-k="b"]),
+.fvs-pad[data-split="true"] > :is([data-k="h"], [data-k="v"]) { display: none; }
+.fvs-pad-box { display: flex; align-items: center; gap: var(--space-2); min-width: 0; background: var(--panel); border: 1px solid var(--border-strong, var(--border)); border-radius: var(--radius-sm); padding: 0 var(--space-2); min-height: var(--row-h); color: var(--mid); cursor: text; }
+.fvs-pad-box:focus-within { border-color: var(--ink); }
+.fvs-pad-box .panel-input { border: none; background: transparent; min-height: auto; padding: 0; width: 100%; min-width: 0; text-align: left; color: var(--ink); }
+.fvs-pad-box .panel-input:focus { border: none; }
