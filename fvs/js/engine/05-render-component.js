@@ -668,11 +668,9 @@ export function buildSeedTileSVG(seed, view, tile, size) {
     // a Circle / Triangle / Hexagon cell tiles in its own lattice, as the Component lays it out (cellLatticeCells at
     // one cell = the 0..100 box): each neighbour turned to its cell's pose (baseRot), the centre one an upright cell
     // moved onto the Element's own (its centroid is 50,50 for every cell shape). Layout / Turn are the square's.
-    // a turn of a whole `step` is the cell's own symmetry: polygonCellTurn can round 59.9999 up to 60 (an average
-    // centroid a hair off), which would turn the content — taken back into [0, step) here
-    const step = 360 / CELL_SHAPES[cs].poly.length, rot = c => { const r = Math.round(c.baseRot || 0); return cs === 'circle' ? 0 : ((r % step) + step) % step; };
+    const rot = c => c.baseRot || 0;
     const cells = cellLatticeCells(cs, 3, 100, 'hexagon');
-    const up = cells.filter(c => rot(c) === 0).sort((a, b) => Math.hypot(...a.centroid) - Math.hypot(...b.centroid))[0];
+    const up = cells.filter(c => Math.abs(rot(c)) < 1e-6).sort((a, b) => Math.hypot(...a.centroid) - Math.hypot(...b.centroid))[0];
     const ox = 50 - up.centroid[0], oy = 50 - up.centroid[1];
     for (const c of cells) {
       if (c === up) continue;

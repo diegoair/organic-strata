@@ -122,7 +122,11 @@ export function polygonCellTurn(shape, pts, cx, cy) {
   const ref = Math.atan2(ly - 50, lx - 50) * 180 / Math.PI;
   const a = Math.atan2(pts[0][1] - cy, pts[0][0] - cx) * 180 / Math.PI;
   const k = 360 / pts.length;   // the cell's own corner spacing (120 / 60)
-  return Math.round((((a - ref) % k) + k) % k * 1000) / 1000;
+  // rounded THEN wrapped: a centroid averaged a hair off gave 59.9999…, which rounded up to a whole step (60 on a
+  // hexagon, 120 on a triangle) and turned that cell's content by it (6 of 25 hexagon lattice cells — O-71, fixed
+  // everywhere, Diego, Oct 13, 2026)
+  const t = Math.round((((a - ref) % k) + k) % k * 1000) / 1000;
+  return t >= k ? t - k : t;
 }
 // Component lattices on a non-square cell shape: [{points, centroid, baseRot, ring}], polygon cells, each sized
 // so the cell shape's outline fills it. `w` = a cell's width (the Cell size slider), `n` = rings (1–4):

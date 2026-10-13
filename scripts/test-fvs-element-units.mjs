@@ -32,6 +32,24 @@ async function tileCells() {
     check(`Show as tile · ${cell} cell: its own lattice (${min}+ neighbours), the cell outlined, Layout / Turn off`, r.vb === '-50 -50 200 200' && r.ghosts >= min && r.guide && r.opts === 'true' && r.tile !== 'true', JSON.stringify(r));
   }
 }
+// O-71 (Diego, Oct 13 — "fix the hexagon bug everywhere"): every polygon cell's turn lies in [0, step) — a cell of
+// the lattice is never turned by a whole step (which turned its content: 6 of 25 hexagon cells before the fix).
+async function cellTurns() {
+  const r = await ev(() => {
+    const F = window.__fvs, bad = [], seen = {};
+    for (const [shape, step] of [['hexagon', 60], ['triangle', 120]]) for (const outline of ['hexagon', 'triangle', 'diamond', 'square']) for (let n = 1; n <= 4; n++) for (const w of [37, 60, 100, 160]) {
+      for (const c of F.cellLatticeCells(shape, n, w, outline)) {
+        const t = c.baseRot; seen[shape + ' ' + t] = 1;
+        if (!(t >= 0 && t < step - 1e-6)) bad.push([shape, outline, n, w, t]);
+      }
+    }
+    // the cases the bug hit: a hexagon whose first corner sits a hair below its centroid
+    const hex = [0, 1, 2, 3, 4, 5].map(k => [10 + 50 * Math.cos(k * Math.PI / 3), 20 + 50 * Math.sin(k * Math.PI / 3)]);
+    const edge = F.polygonCellTurn('hexagon', hex, 10, 20 + 1e-12);
+    return { bad: bad.slice(0, 5), n: bad.length, turns: Object.keys(seen).sort(), edge };
+  });
+  check('O-71 · every hexagon / triangle lattice cell turns by less than one step (all outlines, 1–4 rings, 4 sizes)', r.n === 0 && r.edge === 0, JSON.stringify(r));
+}
 // --shots DIR: screenshots of the Element canvas
 
 const which = n => { try { return execFileSync('which', [n], { encoding: 'utf8' }).trim(); } catch { return ''; } };
@@ -302,6 +320,7 @@ async function visuals() {
 await openFvs();
 try { await fitToCanvas(); } catch (e) { check('Fit to canvas ran', false, e.message); }
 try { await tileView(); } catch (e) { check('Show as tile ran', false, e.message); }
+try { await cellTurns(); } catch (e) { check('Cell turns ran', false, e.message); }
 try { await tileCells(); } catch (e) { check('Tile cells ran', false, e.message); }
 try { await snap(); } catch (e) { check('Snap ran', false, e.message); }
 try { await layerSnap(); } catch (e) { check('Layer snap ran', false, e.message); }
