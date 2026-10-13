@@ -9,7 +9,7 @@ import {
   INNER_APEX, INNER_UNSUPPORTED, SEED_TYPES, fitPathToSeed, frameDims, splitPaperScope, splitPlan
 } from './engine/01-geometry.js';
 import {
-  getSeed, seedForSnapshot
+  SEED_ICONS, getSeed, seedForSnapshot
 } from './engine/02-seed-ui.js';
 import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
@@ -570,9 +570,9 @@ function syncSplitButtons() {
   const wasFan = splitPlanKey !== 'quad' && splitPlanKey !== 'tl,tr,bl,br';
   splitPlanKey = key;
   const seg = ctrl('seg-split-quadrant');
-  seg.setAttribute('aria-label', plan.kind === 'fan' ? 'Keep one or more slices of the Element' : 'Keep one or more quadrants of the Element');
+  const QUARTER = { tl: 'Top left quarter', tr: 'Top right quarter', bl: 'Bottom left quarter', br: 'Bottom right quarter' };
   seg.innerHTML = `<button type="button" class="seg-btn" data-q="whole" aria-pressed="false" title="Restore the whole shape">All</button>`
-    + plan.pieces.map(p => `<button type="button" class="seg-btn" data-q="${p.id}" aria-pressed="false"${plan.kind === 'fan' ? ` aria-label="Slice ${p.label}"` : ''}>${p.label}</button>`).join('');
+    + plan.pieces.map(p => `<button type="button" class="seg-btn" data-q="${p.id}" aria-pressed="false" aria-label="${plan.kind === 'fan' ? 'Slice ' + p.label : QUARTER[p.id]}">${p.label}</button>`).join('');
   if ((wasFan || plan.kind === 'fan') && state.splitKeep.size) splitElementReset();
 }
 export function syncSplitUI() {
@@ -582,7 +582,7 @@ export function syncSplitUI() {
     const on = q === 'whole' ? state.splitKeep.size === 0 : state.splitKeep.has(q);
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
   });
-  ctrl('btn-split-save').style.display = state.splitKeep.size === 0 ? 'none' : '';   // below the chips: appearing never moves them
+  ctrl('btn-split-save').hidden = state.splitKeep.size === 0;   // below the chips: appearing never moves them
 }
 export function splitElementReset() {
   const status = ctrl('split-status');
@@ -659,10 +659,15 @@ export function savePieceAsSeed() {
   src.position = new scope.Point(100, 100);
   const d = src.pathData;
   src.remove();
-  const typeLabel = (SEED_TYPES[state.splitOriginal ? state.splitOriginal.type : getSeed().type] || {}).label || 'Element';
-  const plan = currentSplitPlan();
-  const pieceLabel = plan.pieces.filter(p => state.splitKeep.has(p.id)).map(p => p.label).join('+') || 'piece';
-  const name = typeLabel + ' · ' + pieceLabel + ' piece';
+  // the saved Seed's name: the shape's own name (never the engine's "Custom (uploaded)") + what was kept, in words —
+  // "Polygon · slice 6", "Polygon · slices 1, 2, 4", "Square · top left quarter" (design-system audit, Oct 13, 2026)
+  const srcType = state.splitOriginal ? state.splitOriginal.type : getSeed().type;
+  const typeLabel = srcType === 'custom' || !SEED_TYPES[srcType] ? 'Element' : ((SEED_ICONS[srcType] || {}).name || SEED_TYPES[srcType].label);
+  const plan = currentSplitPlan(), keptP = plan.pieces.filter(p => state.splitKeep.has(p.id));
+  const QW = { tl: 'top left', tr: 'top right', bl: 'bottom left', br: 'bottom right' };
+  const what = plan.kind === 'fan' ? (keptP.length === 1 ? 'slice ' : 'slices ') + keptP.map(p => p.label).join(', ')
+    : keptP.length === 1 ? QW[keptP[0].id] + ' quarter' : 'quarters ' + keptP.map(p => QW[p.id]).join(', ');
+  const name = typeLabel + ' · ' + what;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><path d="${d}" fill="var(--ink)"/></svg>`;
   const lib = Organica.store.library.read();
   lib.forms = lib.forms || []; lib.sets = lib.sets || [];
@@ -678,7 +683,7 @@ export function savePieceAsSeed() {
   state.splitOriginal = null; state.splitApplied = null; state.splitOriginalStyle = null;
   state.splitCache = null; state.splitCombinedRaw = null; state.splitKeep.clear();
   syncSplitUI();
-  status.textContent = "Saved '" + name + "' to your Seeds and set it as the Element.";
+  status.textContent = '';   // no message (Diego, Oct 13, 2026): the Element on the canvas is the saved piece
 }
 
 // ── Export ──

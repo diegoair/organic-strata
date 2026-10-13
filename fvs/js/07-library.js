@@ -377,7 +377,7 @@ export function renderLayersUI() {
   if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint();
   ctrl('layers-hint').textContent = L ? L.items.length + (rt.partSel && rt.partSel.size >= 2 ? ' · ' + rt.partSel.size + ' selected' : ' · top first') : 'Add new layer';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
-  ctrl('split-layers-hint').style.display = L ? '' : 'none';   // Split takes the whole stack
+  ctrl('split-layers-hint').hidden = !L;   // Split takes the whole stack
   renderPartsUI();
   if (!L) { list.innerHTML = ''; ctrl('layer-group-row').hidden = true; syncColourGroupRules(); return; }
   pruneColourGroups(L);

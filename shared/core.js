@@ -1325,6 +1325,8 @@
 
     const tick = t => {
       const dt = prev ? clamp((t - prev) / 1000, 0, 0.032) : 0.016;
+      // two frames at the same timestamp gave dt 0 → vel 0/0 = NaN, which never settled (Oct 13, 2026): skip the frame
+      if (!(dt > 0)) { raf = requestAnimationFrame(tick); return; }
       prev = t;
       const f0 = f;
       if (!held) {                                     // a finger owns it while held
@@ -1436,6 +1438,7 @@
     let p = input.checked ? 1 : 0, v = 0, target = p, ev = 0, ew = 0, sw = 1, swv = 0, hot = false, raf = 0, prev = 0;
     const PREVIEW = 0.4;             // hovering an unchecked box springs the tick 40% of the way in
     const paint = () => {
+      if (![p, ev, sw].every(Number.isFinite)) { p = target; v = ev = ew = swv = 0; sw = 1; }   // never paint a NaN
       const len = 1 + Math.min(0.4, Math.abs(ev * CROSSING) / 600) * (clamp(stretch, 0, 100) / 100);
       input.style.setProperty('--hw', sw.toFixed(4));            // the box's own swell
       input.style.setProperty('--cx', Math.max(0, p).toFixed(4));
@@ -1446,6 +1449,8 @@
       Math.abs(ew) < 0.001 && Math.abs(sw - (hot ? LIQUID_HOVER : 1)) < 0.0005 && Math.abs(swv) < 0.001;
     const tick = t => {
       const dt = prev ? clamp((t - prev) / 1000, 0, 0.032) : 0.016;
+      // two frames at the same timestamp gave dt 0 → vel 0/0 = NaN (--csx: NaN, a tick that never settled — Oct 13, 2026)
+      if (!(dt > 0)) { raf = requestAnimationFrame(tick); return; }
       prev = t;
       const p0 = p;
       const a = (K * (target - p) - C * v) / M;
