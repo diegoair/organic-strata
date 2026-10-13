@@ -680,6 +680,9 @@ async function layerOrder(mode) {
     return { cells: (F.state.symbolCells || []).length, lowLast, highFirst, ok: lowLast > 0 && highFirst > lowLast, diffShare: +(diff / (W * W)).toFixed(4) };
   });
   C('Symbol: every cell\'s lower layer before any upper layer (no Overlap)', sy.cells > 0 && sy.ok, JSON.stringify(sy));
+  // Blend Normal (interleave — Diego's Symbol): each Component still drawn layer by layer inside itself
+  const il = await ev(() => { const F = window.__fvs; F.state.symbolOverlap = { ...F.state.symbolOverlap, blend: 'normal' }; const svg = F.buildSymbolSVG(); const cells = [...svg.matchAll(/<g data-cell-index="\d+"[^>]*>([\s\S]*?)(?=<g data-cell-index=|<\/svg>)/g)].map(m => m[1]).filter(m => m.includes('#ff00aa') && m.includes('#0033ff')); const ok = cells.length > 0 && cells.every(m => m.lastIndexOf('#ff00aa') < m.indexOf('#0033ff')); const cv = document.createElement('canvas'); const fr = F.symbolFrame(F.getSymbolGrid()); cv.width = fr.w; cv.height = fr.h; let png = true; try { F.drawSymbolCanvas(cv.getContext('2d')); } catch (e) { png = String(e); } F.state.symbolOverlap = { ...F.state.symbolOverlap, blend: 'under' }; return { cells: cells.length, ok, png }; });
+  C('Symbol, Blend Normal (interleave): each Component layer by layer inside itself, the PNG draws', il.ok && il.png === true, JSON.stringify(il));
   // the SVG and the canvas already differed by ~2.7 % of pixels before (anti-aliased edges, scaling) — checked by eye: the same picture
   C('Symbol: the PNG (canvas) draws as the SVG (under 5 % of pixels differ — edges)', sy.diffShare < 0.05, JSON.stringify(sy));
 }

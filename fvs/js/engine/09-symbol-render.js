@@ -491,7 +491,9 @@ export function symbolSVGFromItems(items) {
       const nBleed = nestedBleed(it, bleed);
       // As on the Component step (Oct 12, 2026): the Component's layers drawn layer by layer — and, with no Overlap look,
       // across the whole Symbol (pass j of every cell before pass j+1) — and its own Clip to cell cutting each of its cells
-      const passes = !look ? layerPasses(geo, it.nestedItems) : null;
+      // within the Component: always (it looks as on its own step); across the Symbol's cells only with no Overlap look —
+      // interleave (each Component's Paper right under its own ink) / Multiply keep the cell-by-cell order (Oct 13, 2026)
+      const passes = layerPasses(geo, it.nestedItems), across = passes && !look;
       const innerFor = pass => {
         let inner = '';
         for (const ni of it.nestedItems) {
@@ -506,8 +508,8 @@ export function symbolSVGFromItems(items) {
         return inner;
       };
       const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
-      cellMarkup = `<g transform="${tf}">${innerFor(passes ? passes[0] : null)}</g>`;
-      if (passes) later = passes.slice(1).map(p => `<g transform="${tf}">${innerFor(p)}</g>`);
+      cellMarkup = `<g transform="${tf}">${passes && !across ? passes.map(innerFor).join('') : innerFor(passes ? passes[0] : null)}</g>`;
+      if (across) later = passes.slice(1).map(p => `<g transform="${tf}">${innerFor(p)}</g>`);
       // the nested Component's own Ground pattern sits on its paper, under all ink
       const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paperPatternSVG(it.nestedW, it.nestedH)));
       paperMarkup = `<g transform="${tf}">${clipToCellShapes(!it.region && it.nestedItems.length && it.nestedItems[0].poly ? it.nestedItems.map(ni => ni.poly) : null,
@@ -682,10 +684,9 @@ export function drawSymbolCanvas(ctx) {
       live.appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
       if (it.nestedColors && it.nestedColors.length) live.inkPaletteOverride = it.nestedColors;
       // layer by layer across the Symbol (no Overlap look), as the SVG: pass 0 here, passes 1… after every cell (Oct 12, 2026)
-      const passes = !look && !layer ? layerPasses(geo, it.nestedItems) : null;
-      if (passes) laterCanvas.push({ it, passes });
-      const pass = passes ? passes[0] : null;
-      for (const ni of it.nestedItems) {
+      const passes = layerPasses(geo, it.nestedItems), across = passes && !look && !layer;
+      if (across) laterCanvas.push({ it, passes });
+      for (const pass of (passes && !across ? passes : [passes ? passes[0] : null])) for (const ni of it.nestedItems) {
         g.save();
         if (it.nestedBlend) g.globalCompositeOperation = 'multiply';   // the Component's own Blend → Multiply
         if (it.nestedClip) clipCellCanvas(g, ni, nhx, nhy);   // the saved Component's own Clip to cell
