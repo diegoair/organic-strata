@@ -48,29 +48,22 @@
   <!-- Element-tier actions — hidden on the other tiers by setTier(). display:contents keeps the buttons direct flex items of the floatbar. -->
   <div id="fb-element-actions" class="fvs-fb-group">
     <!-- View (Oct 13, 2026): Show as tile = the Element with its neighbours, where it meets the next cell (its Layout /
-         Turn in the popover beside it); Snap = Move X / Y and a layer's X / Y catch the box's edges, centre and the
+         Turn as a second layer of icons above it while it is on); Snap = Move X / Y and a layer's X / Y catch the box's edges, centre and the
          other layers while dragged (⌘ / Ctrl held = no snap). Screen only, kept per browser. -->
     <span class="org-floatbar__group" role="group" aria-label="View">
-    <button class="org-floatbar__btn" id="btn-element-view-tile" aria-pressed="false" aria-label="Show as tile">
-      <svg class="ico" data-icon="fvs-tile" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="5" height="5"/><path d="M1.5 5.5h2.5M1.5 10.5h2.5M12 5.5h2.5M12 10.5h2.5M5.5 1.5V4M10.5 1.5V4M5.5 12v2.5M10.5 12v2.5"/></svg>
-    </button>
     <div class="org-popover-wrap">
-      <button class="org-floatbar__btn" id="btn-element-tile-options" aria-label="Tile layout and turn">
-        <svg class="ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+      <button class="org-floatbar__btn" id="btn-element-view-tile" aria-pressed="false" aria-label="Show as tile">
+      <svg class="ico" data-icon="fvs-tile" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="5" height="5"/><path d="M1.5 5.5h2.5M1.5 10.5h2.5M12 5.5h2.5M12 10.5h2.5M5.5 1.5V4M10.5 1.5V4M5.5 12v2.5M10.5 12v2.5"/></svg>
       </button>
-      <div class="org-popover" id="element-tile-popover" aria-label="Tile layout and turn">
-        <div class="org-popover__title">Layout</div>
-        <div class="seg-ctrl" role="group" aria-label="Tile layout">
-          <button type="button" class="seg-btn" data-tile-layout="grid" aria-pressed="true">Grid</button>
-          <button type="button" class="seg-btn" data-tile-layout="brick" aria-pressed="false">Brick</button>
-          <button type="button" class="seg-btn" data-tile-layout="halfdrop" aria-pressed="false">Half-drop</button>
-        </div>
-        <div class="org-popover__title">Turn</div>
-        <div class="seg-ctrl" role="group" aria-label="Tile turn">
-          <button type="button" class="seg-btn" data-tile-turn="none" aria-pressed="true">None</button>
-          <button type="button" class="seg-btn" data-tile-turn="alternate" aria-pressed="false">Alternate</button>
-          <button type="button" class="seg-btn" data-tile-turn="quarter" aria-pressed="false">Quarter</button>
-        </div>
+      <!-- the second layer (Diego, Oct 13): while Show as tile is on, its six options sit above it as icons —
+           Layout on the first row, Turn on the second (the Paper tile's own words, as the icons' names) -->
+      <div class="fvs-flyout" id="element-tile-flyout" role="group" aria-label="Tile layout and turn">
+        <button type="button" class="fvs-flyout__tool fvs-flyout__tool--icon" data-on="false" data-tile-layout="grid" aria-label="Layout: Grid"><svg class="ico" data-icon="fvs-tile-grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="5.5" height="5.5"/><rect x="8.5" y="2" width="5.5" height="5.5"/><rect x="2" y="8.5" width="5.5" height="5.5"/><rect x="8.5" y="8.5" width="5.5" height="5.5"/></svg></button>
+        <button type="button" class="fvs-flyout__tool fvs-flyout__tool--icon" data-on="false" data-tile-layout="brick" aria-label="Layout: Brick"><svg class="ico" data-icon="fvs-tile-brick" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="5.5" height="5.5"/><rect x="8.5" y="2" width="5.5" height="5.5"/><rect x="5.25" y="8.5" width="5.5" height="5.5"/><path d="M1 8.5h3.25v5.5H1M15 8.5h-3.25v5.5H15"/></svg></button>
+        <button type="button" class="fvs-flyout__tool fvs-flyout__tool--icon" data-on="false" data-tile-layout="halfdrop" aria-label="Layout: Half-drop"><svg class="ico" data-icon="fvs-tile-halfdrop" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="5.5" height="5.5"/><rect x="2" y="8.5" width="5.5" height="5.5"/><rect x="8.5" y="5.25" width="5.5" height="5.5"/><path d="M8.5 1v3.25H14V1M8.5 15v-3.25H14V15"/></svg></button>
+        <button type="button" class="fvs-flyout__tool fvs-flyout__tool--icon" data-on="false" data-tile-turn="none" aria-label="Turn: None"><svg class="ico" data-icon="fvs-turn-none" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.25 7.25A5 5 0 0 1 7.25 2.25M8.75 7.25A5 5 0 0 1 13.75 2.25M2.25 13.75A5 5 0 0 1 7.25 8.75M8.75 13.75A5 5 0 0 1 13.75 8.75"/></svg></button>
+        <button type="button" class="fvs-flyout__tool fvs-flyout__tool--icon" data-on="false" data-tile-turn="alternate" aria-label="Turn: Alternate"><svg class="ico" data-icon="fvs-turn-alternate" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.25 7.25A5 5 0 0 1 7.25 2.25M13.75 2.25A5 5 0 0 1 8.75 7.25M7.25 8.75A5 5 0 0 1 2.25 13.75M8.75 13.75A5 5 0 0 1 13.75 8.75"/></svg></button>
+        <button type="button" class="fvs-flyout__tool fvs-flyout__tool--icon" data-on="false" data-tile-turn="quarter" aria-label="Turn: Quarter"><svg class="ico" data-icon="fvs-turn-quarter" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.25 7.25A5 5 0 0 1 7.25 2.25M8.75 2.25A5 5 0 0 1 13.75 7.25M7.25 13.75A5 5 0 0 1 2.25 8.75M13.75 8.75A5 5 0 0 1 8.75 13.75"/></svg></button>
       </div>
     </div>
     <button class="org-floatbar__btn" id="btn-element-view-snap" aria-pressed="false" aria-label="Snap">

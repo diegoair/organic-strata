@@ -24,12 +24,12 @@ async function tileCells() {
       await new Promise(r => setTimeout(r, 60));
       const svg = document.querySelector('#element-svg > svg');
       const out = { vb: svg.getAttribute('viewBox'), ghosts: svg.querySelectorAll('.fvs-tile-ghost > use').length, guide: !!svg.querySelector('polygon.fvs-guide'),
-        ticks: svg.querySelectorAll('.fvs-tile-tick').length, opts: document.getElementById('btn-element-tile-options').getAttribute('aria-disabled'),
+        ticks: svg.querySelectorAll('.fvs-tile-tick').length, opts: document.querySelector('#element-tile-flyout [data-tile-layout="brick"]').getAttribute('aria-disabled'), fly: document.getElementById('element-tile-flyout').dataset.open,
         tile: document.getElementById('btn-element-view-tile').getAttribute('aria-disabled') };
       document.querySelector('#fb-cell-shape [data-cell="square"]').click();
       return out;
     }, cell);
-    check(`Show as tile · ${cell} cell: its own lattice (${min}+ neighbours), the cell outlined, Layout / Turn off`, r.vb === '-50 -50 200 200' && r.ghosts >= min && r.guide && r.opts === 'true' && r.tile !== 'true', JSON.stringify(r));
+    check(`Show as tile · ${cell} cell: its own lattice (${min}+ neighbours), the cell outlined, Layout / Turn off`, r.vb === '-50 -50 200 200' && r.ghosts >= min && r.guide && r.opts === 'true' && r.fly === 'true' && r.tile !== 'true', JSON.stringify(r));
   }
 }
 // O-71 (Diego, Oct 13 — "fix the hexagon bug everywhere"): every polygon cell's turn lies in [0, step) — a cell of
@@ -188,6 +188,8 @@ async function tileView() {
     await new Promise(r => setTimeout(r, 60));
     const svg = document.querySelector('#element-svg > svg');
     out.pressed = document.getElementById('btn-element-view-tile').getAttribute('aria-pressed');
+    out.flyOn = document.getElementById('element-tile-flyout').dataset.open;
+    out.flyVisible = getComputedStyle(document.getElementById('element-tile-flyout')).display !== 'none';
     out.viewBox = svg && svg.getAttribute('viewBox');
     out.ghosts = svg ? svg.querySelectorAll('.fvs-tile-ghost > use').length : 0;
     out.ticks = svg ? svg.querySelectorAll('.fvs-tile-tick').length : 0;
@@ -195,11 +197,11 @@ async function tileView() {
     set('sel-seed-type', 'arctruchet', 'change');
     out.truchet = F.edgeContacts(F.measureElementInk(F.SEED_TYPES.arctruchet.geometry(F.getSeed())).pts);
     // Brick: row ±1 shifted by half a cell
-    document.querySelector('#element-tile-popover [data-tile-layout="brick"]').click();
+    document.querySelector('#element-tile-flyout [data-tile-layout="brick"]').click();
     await new Promise(r => setTimeout(r, 60));
     out.brickXs = [...document.querySelectorAll('#element-svg .fvs-tile-ghost > use')].map(u => u.getAttribute('transform').match(/translate\(([-\d.]+),([-\d.]+)\)/)).filter(m => +m[2] === -50).map(m => +m[1]).sort((a, b) => a - b);
     // a non-square cell: the toggle says why it is off, the plain canvas comes back
-    document.querySelector('#element-tile-popover [data-tile-layout="grid"]').click();
+    document.querySelector('#element-tile-flyout [data-tile-layout="grid"]').click();
     out.exportClean = !F.buildSeedPreviewSVG(F.getSeed(), 0, false, false, 400).includes('fvs-tile');
     F.setElementView(1);   // the 90° view: the tile view turns with it (and the Element's own view state is not clobbered)
     const t90 = document.querySelector('#element-svg > svg').outerHTML;
@@ -207,6 +209,7 @@ async function tileView() {
     F.setElementView(0);
     document.getElementById('btn-element-view-tile').click();   // off again
     out.offViewBox = document.querySelector('#element-svg > svg').getAttribute('viewBox');
+    out.flyOff = document.getElementById('element-tile-flyout').dataset.open;
     return out;
   });
   check('Show as tile: the canvas shows the −50…150 view, 8 neighbours, the joins ticked', r.pressed === 'true' && r.viewBox === '-50 -50 200 200' && r.ghosts === 8 && r.ticks > 0, JSON.stringify({ ...r, arc: undefined, truchet: undefined }));
@@ -216,6 +219,7 @@ async function tileView() {
   const t = r.truchet;
   check('Joins · arc truchet: its bands meet the edges symmetrically about the midpoints', t.top.length > 0 && t.bottom.length > 0 && Math.abs(t.top.reduce((s, c) => s + c.mid, 0) / t.top.length - 50) < 1.5, JSON.stringify(t));
   check('Show as tile · Brick: the row above is shifted by half a cell', JSON.stringify(r.brickXs) === JSON.stringify([0, 100]), JSON.stringify(r.brickXs));
+  check('Show as tile: its six options open as a second layer above it while it is on, and close with it', r.flyOn === 'true' && r.flyVisible && r.flyOff === 'false', JSON.stringify({ on: r.flyOn, vis: r.flyVisible, off: r.flyOff }));
   check('Show as tile · the 90° view turns the tiles', r.turned, String(r.turned));
   check('Show as tile: the export is the plain Element (no tile, no overlay); off again = the plain canvas', r.exportClean && r.offViewBox === '0 0 400 400', JSON.stringify({ exportClean: r.exportClean, off: r.offViewBox }));
 }
@@ -315,6 +319,12 @@ async function visuals() {
     'drop-overflow': { type: 'drop', set: { 'rg-element-mx': 30 } },
     'hexagon-arc': { type: 'arc', cell: 'hexagon' }, 'triangle-arc': { type: 'arc', cell: 'triangle' }, 'circle-arc': { type: 'arc', cell: 'circle' },
   })) { await setup(o); await sleep(150); await shot(name); }
+  // the floatbar with the second layer open
+  await ev(() => { const s = document.querySelector('#element-svg > svg'); if (s) s.removeAttribute('style'); });
+  await setup({ type: 'arc', layout: 'brick', turn: 'quarter' }); await ev(() => { const s = document.querySelector('#element-svg > svg'); s.removeAttribute('style'); });
+  await sleep(500);
+  if (SHOTS) { const b = await ev(() => { const f = document.getElementById('element-tile-flyout').getBoundingClientRect(), bar = document.querySelector('.org-floatbar').getBoundingClientRect(); return { x: bar.left, y: f.top - 8, w: bar.width, h: bar.bottom - f.top + 16 }; });
+    const r = await cdp('Page.captureScreenshot', { format: 'png', clip: { x: b.x, y: b.y, width: b.w, height: b.h, scale: 2 } }); fs.writeFileSync(path.join(SHOTS, 'floatbar.png'), Buffer.from(r.result.data, 'base64')); }
 }
 
 await openFvs();

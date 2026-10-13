@@ -651,10 +651,23 @@
 /* Show as tile (Oct 13, 2026): the Element with its neighbours, on the Element canvas only — never exported. The
    neighbours fade to the guides' ghost value; the centre cell's box is the guides' dashed line, its edge midpoints and
    corners faint dots, and a solid tick marks every span where the ink meets the box edge (a join). */
-#element-svg { --fvs-ghost-opacity: 0.35; }
+:root { --fvs-ghost-opacity: 0.35; }   /* the guides' ghost value: tile neighbours, the box, an option that does not apply */
 .fvs-tile-ghost { opacity: var(--fvs-ghost-opacity); }
 .fvs-guide { fill: none; stroke: var(--track-accent); stroke-opacity: var(--fvs-ghost-opacity); stroke-dasharray: 6 5; stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .fvs-tile-dot { fill: var(--track-accent); fill-opacity: var(--fvs-ghost-opacity); }
 .fvs-tile-tick { stroke: var(--track-accent); stroke-width: 3px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 /* Snap: the line the Element (or a layer) has caught, drawn only while it is caught — solid, apart from the dashed box */
 .fvs-snap-guide { stroke: var(--track-accent); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+/* Show as tile's second layer (Diego, Oct 13): the Anchor flyout's pads, each holding an icon instead of a dot — open
+   while the tile view is on (data-open set by syncElementViewUI), not a dropdown; off pads on a non-square cell */
+.fvs-flyout__tool--icon > .ico { position: relative; z-index: 1; }
+/* off: dimmed glyph, not the pad, as the floatbar's aria-disabled — so its tooltip (the reason) stays readable */
+.fvs-flyout__tool--icon[aria-disabled="true"] { cursor: not-allowed; }
+.fvs-flyout__tool--icon[aria-disabled="true"]:hover { background: transparent; }
+.fvs-flyout__tool--icon[aria-disabled="true"] > .ico { opacity: 0.21; }
+/* each pad's name as the floatbar buttons' tooltip (the turn icons need it most) */
+.fvs-flyout__tool--icon:is(:hover, :focus-visible)::after {
+  content: attr(aria-label); position: absolute; bottom: calc(100% + var(--space-3)); left: 50%; transform: translateX(-50%); z-index: 2;
+  white-space: nowrap; background: var(--ink); color: var(--paper); font-size: var(--fs-small); font-weight: var(--w-regular); line-height: 1;
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); pointer-events: none;
+}

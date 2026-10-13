@@ -169,20 +169,24 @@ try { Object.assign(rt.elementAids, JSON.parse(localStorage.getItem(ELEMENT_VIEW
 export function saveElementView() { try { localStorage.setItem(ELEMENT_VIEW_KEY, JSON.stringify(rt.elementAids)); } catch (e) { /* private mode */ } }
 // Every cell shape tiles: a square on the Layout / Turn lattice, a Circle / Triangle / Hexagon in its own (Diego, Oct 13).
 export const elementTileOn = () => !!rt.elementAids.tile;
+const TILE_OPTION_NAMES = { grid: 'Layout: Grid', brick: 'Layout: Brick', halfdrop: 'Layout: Half-drop', none: 'Turn: None', alternate: 'Turn: Alternate', quarter: 'Turn: Quarter' };
 export function syncElementViewUI(seed) {
   const btn = ctrl('btn-element-view-tile');
   if (!btn) return;
   const square = cellShapeOf(seed || getSeed()) === 'square';
   btn.setAttribute('aria-pressed', String(!!rt.elementAids.tile));
-  // Layout / Turn arrange square tiles; another cell shape tiles in its own lattice
-  const opts = ctrl('btn-element-tile-options');
-  if (opts) {
-    opts.setAttribute('aria-disabled', String(!square));
-    opts.setAttribute('aria-label', square ? 'Tile layout and turn' : 'Tile layout and turn — needs square cells');
-  }
+  // the second layer: open while Show as tile is on. Layout / Turn arrange square tiles; another cell shape tiles in
+  // its own lattice, so there they are off (aria-disabled, the reason in the name)
+  const fly = ctrl('element-tile-flyout');
+  if (fly) fly.dataset.open = String(!!rt.elementAids.tile && state.activeTier === 'element');
+  const why = square ? '' : ' — needs square cells';
+  document.querySelectorAll('#element-tile-flyout [data-tile-layout], #element-tile-flyout [data-tile-turn]').forEach(o => {
+    const on = o.dataset.tileLayout ? o.dataset.tileLayout === rt.elementAids.layout : o.dataset.tileTurn === rt.elementAids.turn;
+    o.dataset.on = String(on && square); o.setAttribute('aria-pressed', String(on));
+    o.setAttribute('aria-disabled', String(!square));
+    o.setAttribute('aria-label', TILE_OPTION_NAMES[o.dataset.tileLayout || o.dataset.tileTurn] + why);
+  });
   ctrl('btn-element-view-snap').setAttribute('aria-pressed', String(!!rt.elementAids.snap));
-  document.querySelectorAll('#element-tile-popover [data-tile-layout]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tileLayout === rt.elementAids.layout)));
-  document.querySelectorAll('#element-tile-popover [data-tile-turn]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tileTurn === rt.elementAids.turn)));
 }
 
 // ── Snap (Oct 13, 2026): while Move X / Y or a layer's X / Y is DRAGGED (a pointer on the slider — arrow keys and a

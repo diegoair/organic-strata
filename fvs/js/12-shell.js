@@ -568,14 +568,10 @@ ctrl('btn-element-view-tile').addEventListener('click', e => {
   rt.elementAids.tile = !rt.elementAids.tile; saveElementView(); renderSeedPreview();
 });
 ctrl('btn-element-view-snap').addEventListener('click', () => { rt.elementAids.snap = !rt.elementAids.snap; saveElementView(); syncElementViewUI(); });
-// the chevron is aria-disabled (still focusable, its label says why) on a non-square cell: its click opens nothing
-ctrl('btn-element-tile-options').addEventListener('click', e => { if (e.currentTarget.getAttribute('aria-disabled') === 'true') e.stopImmediatePropagation(); }, true);
-Organica.popover(ctrl('btn-element-tile-options'), ctrl('element-tile-popover'));
-ctrl('element-tile-popover').addEventListener('click', e => {
+ctrl('element-tile-flyout').addEventListener('click', e => {
   const b = e.target.closest('[data-tile-layout], [data-tile-turn]');
-  if (!b) return;
+  if (!b || b.getAttribute('aria-disabled') === 'true') return;
   if (b.dataset.tileLayout) rt.elementAids.layout = b.dataset.tileLayout; else rt.elementAids.turn = b.dataset.tileTurn;
-  rt.elementAids.tile = true;   // picking a layout shows it
   saveElementView(); renderSeedPreview();
 });
 ctrl('sel-arc-pivot').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
