@@ -148,6 +148,20 @@ async function splitFan() {
       r.n === n && r.btns === ['All', ...Array.from({ length: n }, (_, i) => String(i + 1))].join(' ') && r.fanN === n && r.up && r.within && r.pts > 0 && r.back === 'polygon' && r.sq === 'All TL TR BL BR', JSON.stringify(r));
   }
 }
+// While a Split is on the Shape picker shows the shape it was cut from, never "Custom (uploaded)" (Diego, Oct 13: "no custom").
+async function splitPicker() {
+  const r = await ev(async () => {
+    const F = window.__fvs, set = (id, v, e = 'input') => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event(e, { bubbles: true })); };
+    F.resetElement(); set('sel-seed-type', 'polygon', 'change');
+    document.querySelector('#seg-split-quadrant [data-q="tl"]').click(); await new Promise(r => setTimeout(r, 120));
+    const trig = () => document.getElementById('seedtype-picker').textContent.replace(/\s+/g, ' ').trim();
+    const during = { label: trig(), type: F.getSeed().type, customDisabled: document.querySelector('#sel-seed-type option[value="custom"]').disabled };
+    document.querySelector('#seg-split-quadrant [data-q="whole"]').click(); await new Promise(r => setTimeout(r, 120));
+    const after = { label: trig(), type: F.getSeed().type };
+    return { during, after };
+  });
+  check('Split · the Shape picker shows the shape it was cut from (Polygon), the custom row out of the list; All gives Polygon back', /Polygon/.test(r.during.label) && !/Custom/.test(r.during.label) && r.during.type === 'custom' && r.during.customDisabled && /Polygon/.test(r.after.label) && r.after.type === 'polygon', JSON.stringify(r));
+}
 // --shots DIR: screenshots of the Element canvas
 
 const which = n => { try { return execFileSync('which', [n], { encoding: 'utf8' }).trim(); } catch { return ''; } };
@@ -445,6 +459,7 @@ try { await cellTurns(); } catch (e) { check('Cell turns ran', false, e.message)
 try { await tileCells(); } catch (e) { check('Tile cells ran', false, e.message); }
 try { await splitGrid(); } catch (e) { check('Split grid ran', false, e.message); }
 try { await splitFan(); } catch (e) { check('Split fan ran', false, e.message); }
+try { await splitPicker(); } catch (e) { check('Split picker ran', false, e.message); }
 try { await padding(); } catch (e) { check('Padding ran', false, e.message); }
 try { await snap(); } catch (e) { check('Snap ran', false, e.message); }
 try { await layerSnap(); } catch (e) { check('Layer snap ran', false, e.message); }

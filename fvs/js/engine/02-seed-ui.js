@@ -57,8 +57,16 @@ export const SEED_ICONS = {
   star: { name: 'Star', icon: SI('<polygon points="13,3 15.8,10.2 23,10.8 17.5,15.5 19.2,22.5 13,18.7 6.8,22.5 8.5,15.5 3,10.8 10.2,10.2"/>') },
   triangle: { name: 'Triangle', icon: SI('<polygon points="13,4 23,22 3,22"/>') },
   wedge: { name: 'Wedge', icon: SI('<path d="M13 22 L4.5 8 A11 11 0 0 1 21.5 8 Z"/>') },
-  custom: { name: 'Custom (uploaded)', icon: SI('<rect x="4" y="4" width="18" height="18" stroke-dasharray="2.5 2.5"/><path d="M13 17 V9 M9.5 12 L13 8.5 L16.5 12"/>', 'stroke') },
 };
+// "Custom": an uploaded / picked shape. While a Split is on, the Element is a custom piece of the shape it was cut from,
+// so the Shape picker (and every label read from here) shows THAT shape — Polygon, not "Custom (uploaded)" (Diego,
+// Oct 13, 2026: "no custom"); Split's own buttons say it is cut.
+const CUSTOM_ICON = { name: 'Custom (uploaded)', icon: SI('<rect x="4" y="4" width="18" height="18" stroke-dasharray="2.5 2.5"/><path d="M13 17 V9 M9.5 12 L13 8.5 L16.5 12"/>', 'stroke') };
+export const splitIsOn = () => !!(state.splitOriginal && state.customSeed && state.customSeed === state.splitApplied);
+Object.defineProperty(SEED_ICONS, 'custom', {
+  enumerable: true, configurable: true,
+  get: () => { const t = splitIsOn() && state.splitOriginal.type; return (t && t !== 'custom' && SEED_ICONS[t]) || CUSTOM_ICON; },
+});
 // Circle modifiers: [getSeed key, control id suffix, default]. One table
 // drives getSeed(), the snapshot restore and the input listeners.
 export const CIRCLE_PARAMS = [

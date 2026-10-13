@@ -9,7 +9,7 @@ import {
   INNER_APEX, INNER_UNSUPPORTED, SEED_TYPES, fitPathToSeed, frameDims, splitPaperScope, splitPlan
 } from './engine/01-geometry.js';
 import {
-  SEED_ICONS, getSeed, seedForSnapshot
+  SEED_ICONS, getSeed, seedForSnapshot, splitIsOn
 } from './engine/02-seed-ui.js';
 import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
@@ -577,6 +577,11 @@ function syncSplitButtons() {
 }
 export function syncSplitUI() {
   syncSplitButtons();
+  // the Shape picker shows the shape a Split was cut from (SEED_ICONS.custom follows it); the "custom" row leaves the
+  // list meanwhile, so the menu never holds that shape twice — picking it (or All) gives the whole shape back
+  const customOpt = ctrl('sel-seed-type').querySelector('option[value="custom"]');
+  if (customOpt) customOpt.disabled = splitIsOn();
+  seedPicker.invalidate('custom');
   ctrl('seg-split-quadrant').querySelectorAll('.seg-btn').forEach(b => {
     const q = b.dataset.q;
     const on = q === 'whole' ? state.splitKeep.size === 0 : state.splitKeep.has(q);
