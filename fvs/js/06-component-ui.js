@@ -318,7 +318,7 @@ export function syncRuleAxisNote() {
   // Only Checkerboard still depends on the axes (see familyRuleGallery).
   const satisfied = !fam || fam.requiresAxis !== 'any' || axisSatisfied('any', activeAxes());
   if (satisfied) { note.style.display = 'none'; return; }
-  note.textContent = 'Checkerboard needs an axis active in Transform axes (above) — showing Identity until then.';
+  note.textContent = 'Checkerboard needs an axis active in Transform axes (above) — showing Uniform until then.';
   note.style.display = '';
 }
 

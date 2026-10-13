@@ -342,11 +342,11 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
   <h3 id="co-lattice">Rules on non‑square cells</h3>
   <p class="sub">Only five rules run on a circle / triangle / hexagon lattice; the others grey out (“… needs a square cell”). Every turn is a multiple of the shape’s step, added to each cell’s own pose.</p>
   <div class="grid">
-    <div class="entry"><h4>Identity</h4><p class="how">One uniform candidate per state (steps × the shape’s flips × scales).</p></div>
+    <div class="entry"><h4>Uniform</h4><p class="how">Every cell the same — one candidate per state the axes allow (the shape’s steps × its flips × scales), each turn added to the cell’s own pose.</p></div>
     <div class="entry"><h4>Radial</h4><p class="how">Each cell turned towards the lattice centre; on triangles the Arc’s pivot corner goes to the nearest corner. One candidate per extra step × scales.</p></div>
     <div class="entry"><h4>Checkerboard</h4><p class="how">States A / B by where the cell sits: up / down on triangles; a true checkerboard on square‑packed circles; on hex‑packed cells (every hexagon grid, packed circles) alternating lines of cells — no 2‑state pattern can make all six neighbours differ, so each cell differs from 4 of its 6.</p></div>
     <div class="entry"><h4>Random</h4><p class="how">Each cell picks a state on its own — per‑cell noise here, unlike square cells.</p></div>
-    <div class="entry"><h4>Exhaustive</h4><p class="how">Identity ∪ Radial ∪ Checkerboard, deduplicated.</p></div>
+    <div class="entry"><h4>Exhaustive</h4><p class="how">Uniform ∪ Radial ∪ Checkerboard, deduplicated.</p></div>
   </div>
 
   <h3 id="co-inks">Layer colour variants</h3>
@@ -373,7 +373,7 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
   <div class="grid">
     <div class="entry"><h4>Blend <span class="key">sel-component-blend</span></h4><p class="how"><b>Normal</b> — the later cell covers the earlier. <b>Multiply</b> — where cells’ inks overlap (Scale &gt; 1) they mix, and multiply with the Paper too.</p></div>
     <div class="entry"><h4>Role <span class="key">sel-component-role</span></h4><p class="how"><b>Normal</b> · <b>Container</b> — another saved Component, clipped to this one’s cells · <b>Mask</b> — this one’s cells knocked out of the other and its paper. Square cells only; forces a square frame.</p></div>
-    <div class="entry"><h4>Starter set</h4><p class="how">Before any Generate: the first 4 of Checkerboard, Pinwheel, Mirror and Radial (if eligible) — 16 on a 2×2. On a lattice: Radial, Checkerboard, Identity. Rebuilt live while untouched (until Generate, Add, Clear board or a library load).</p></div>
+    <div class="entry"><h4>Starter set</h4><p class="how">Before any Generate: the first 4 of Checkerboard, Pinwheel, Mirror and Radial (if eligible) — 16 on a 2×2. On a lattice: Radial, Checkerboard, Uniform. Rebuilt live while untouched (until Generate, Add, Clear board or a library load).</p></div>
   </div>
 </section>
 
@@ -674,11 +674,11 @@ function patternBody(type, sp, w, ang, box, color) {
 /* ---------- Component rules ---------- */
 (function () {
   const R = [
-    { k: 'identity', t: 'Identity', how: 'Every cell 0°, no flip, scale 1.', count: c => c['2|identity'].n },
+    { k: 'identity', t: 'Uniform', how: 'The same Element, unchanged, in every cell — a plain repeat, the baseline the other rules are read against. Every cell 0°, no flip, scale 1: always <b>one</b> candidate on square cells, whatever the axes (Colour by and Layer colour variants can still vary it). On circle / triangle / hexagon cells it lists one candidate per uniform state of the axes instead. Was called <i>Identity</i> until 13 Oct 2026.', count: c => c['2|identity'].n },
     { k: 'pinwheel', t: 'Pinwheel', how: 'Rotation steps one quarter per cell: base + chirality·k·90°. On a 2×2, k = reading order; on bigger grids k = (col + 2·row) mod 4.', gate: 'Not on 1×1. Square cells only. Rotation implied.' },
     { k: 'mirror', t: 'Mirror (kaleidoscope)', how: 'A seed cell is plain; its side neighbour flips H, the one below flips V, the diagonal both. Beyond 2×2 it also lists the three whole‑grid <b>book‑matched</b> mirrors (left|right, top|bottom, both).', gate: 'Not on 1×1. Flip implied even with Flip off.', extra: '4|mirror|F' },
     { k: 'diagonal', t: 'Diagonal mirror', how: 'Cells with col + row even take R, odd take 90° − R.', gate: 'Not on 1×1.' },
-    { k: 'checkerboard', t: 'Checkerboard', how: 'Two states A and B alternate by (col + row) parity. A and B are every ordered pair of distinct states from the active axes — 12 with Rotation only, 136 with Rotation + Flip.', gate: 'Needs at least one axis on, else falls back to Identity (with a note).' },
+    { k: 'checkerboard', t: 'Checkerboard', how: 'Two states A and B alternate by (col + row) parity. A and B are every ordered pair of distinct states from the active axes — 12 with Rotation only, 136 with Rotation + Flip.', gate: 'Needs at least one axis on, else falls back to Uniform (with a note).' },
     { k: 'rowmirror', t: 'Row mirror', how: 'Rotation R everywhere; every odd row flips V.', gate: 'Needs ≥ 2 rows.' },
     { k: 'columnmirror', t: 'Column mirror', how: 'Rotation R everywhere; every other column flips H.', gate: 'Needs ≥ 2 columns.' },
     { k: 'radial', t: 'Radial', how: 'A clockwise walk TL → TR → BR → BL, one 90° step each, so four quarter‑arcs close a circle. On larger even grids: one rosette on the whole grid, and a <b>tiled</b> rosette per 2×2 block.', gate: 'Even × even grids only (its centre falls between cells).' },
@@ -707,7 +707,7 @@ function patternBody(type, sp, w, ang, box, color) {
 (function () {
   const order = ['1x1', '2x1', '4x1', '1x4', '2x2', '3x2', '3x3', '2x4', '4x4'];
   const label = s => s.replace('x', '×');
-  const names = { identity: 'Identity', pinwheel: 'Pinwheel', mirror: 'Mirror', diagonal: 'Diagonal mirror', checkerboard: 'Checkerboard', rowmirror: 'Row mirror', columnmirror: 'Column mirror', radial: 'Radial', hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Oscillator', random: 'Random', exhaustive: 'Exhaustive' };
+  const names = { identity: 'Uniform', pinwheel: 'Pinwheel', mirror: 'Mirror', diagonal: 'Diagonal mirror', checkerboard: 'Checkerboard', rowmirror: 'Row mirror', columnmirror: 'Column mirror', radial: 'Radial', hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Oscillator', random: 'Random', exhaustive: 'Exhaustive' };
   const from2 = k => CELLS['2|' + k], from4 = k => CELLS['4|' + k];
   const RF2 = { checkerboard: 136, exhaustive: 172 }, RF4 = { checkerboard: 136 };
   const cell = (size, k) => {
@@ -723,9 +723,9 @@ function patternBody(type, sp, w, ang, box, color) {
   $('sizetable').innerHTML = h;
   const ex = (size, k, n) => { const [c, r] = size.split('x').map(Number), v = SIZES[size][k]; return v[1].slice(0, n).map(s => fig(compSVG(s, c, r, c * r > 4 ? 18 : 24), label(size))).join(''); };
   const notes = [
-    { title: '1×4 — one column, four rows', sheet: ex('1x4', 'pinwheel', 2) + ex('1x4', 'mirror', 2) + ex('1x4', 'hlines', 1), how: '<b>Pinwheel</b> only alternates 0° / 180° (its step k = col + 2·row skips two quarters per row) — 4 candidates, chirality no longer matters. <b>Mirror</b> flips V down the strip (6 with book‑match). <b>Horizontal lines</b> alternate; <b>Vertical lines</b> = Identity. <b>Column mirror</b> and <b>Radial</b> are greyed out.' },
-    { title: '4×1 — four columns, one row', sheet: ex('4x1', 'pinwheel', 1) + ex('4x1', 'mirror', 2) + ex('4x1', 'vlines', 1), how: '<b>Pinwheel</b> walks the full 0 / 90 / 180 / 270 along the row (8 candidates). <b>Mirror</b> flips H along it. <b>Vertical lines</b> alternate; <b>Horizontal lines</b> = Identity. <b>Row mirror</b> and <b>Radial</b> are greyed out.' },
-    { title: '1×1 — a single cell', how: 'Every pattern rule is greyed out (“A 1×1 Component has no pattern — use Exhaustive for its rotations/flips”). Identity, Random, Exhaustive and Manual remain: Exhaustive lists the cell’s 4 turns (12 with Flip). The way to put one Element in a Symbol.' },
+    { title: '1×4 — one column, four rows', sheet: ex('1x4', 'pinwheel', 2) + ex('1x4', 'mirror', 2) + ex('1x4', 'hlines', 1), how: '<b>Pinwheel</b> only alternates 0° / 180° (its step k = col + 2·row skips two quarters per row) — 4 candidates, chirality no longer matters. <b>Mirror</b> flips V down the strip (6 with book‑match). <b>Horizontal lines</b> alternate; <b>Vertical lines</b> = Uniform. <b>Column mirror</b> and <b>Radial</b> are greyed out.' },
+    { title: '4×1 — four columns, one row', sheet: ex('4x1', 'pinwheel', 1) + ex('4x1', 'mirror', 2) + ex('4x1', 'vlines', 1), how: '<b>Pinwheel</b> walks the full 0 / 90 / 180 / 270 along the row (8 candidates). <b>Mirror</b> flips H along it. <b>Vertical lines</b> alternate; <b>Horizontal lines</b> = Uniform. <b>Row mirror</b> and <b>Radial</b> are greyed out.' },
+    { title: '1×1 — a single cell', how: 'Every pattern rule is greyed out (“A 1×1 Component has no pattern — use Exhaustive for its rotations/flips”). Uniform, Random, Exhaustive and Manual remain: Exhaustive lists the cell’s 4 turns (12 with Flip). The way to put one Element in a Symbol.' },
     { title: '2×1 — two cells side by side', sheet: ex('2x1', 'mirror', 2) + ex('2x1', 'pinwheel', 2), how: 'Mirror gives 5 (the seed’s H‑neighbour flips H; V‑flips only via book‑match). Pinwheel steps one quarter between the two cells. Row mirror and Radial greyed out.' },
     { title: '3×3 and 3×2 — odd sides', sheet: ex('3x3', 'pinwheel', 1) + ex('3x3', 'rowmirror', 1) + ex('3x2', 'oscillator', 1), how: '<b>Radial</b> is greyed out (its centre would fall in a cell). Every other rule runs; Pinwheel’s (col + 2·row) mod 4 step makes a diagonal drift instead of closed pinwheels; Mirror gains the 3 book‑matched mirrors (7).' },
     { title: '2×4 and 4×4 — even sides', sheet: ex('2x4', 'radial', 2), how: '<b>Radial</b> returns: one rosette on the whole grid plus a <b>tiled</b> rosette per 2×2 block (16 candidates). On 2×4 the tiles stack vertically.' },
@@ -929,9 +929,9 @@ function ctx6(N) {
         ['cell', 'grid', 'f', 'square cells: Columns × Rows; other shapes: Grid shape + Grid size'],
         ['cell', 'gshape', 'f', 'triangle cells can’t make a Square grid'],
         ['cell', 'step', 'f', 'the turn step: 90° square and circle, 120° triangle, 60° hexagon'],
-        ['cell', 'gate', 'f', 'non‑square cells run only Identity, Radial, Checkerboard, Random, Exhaustive; Manual needs square cells'],
+        ['cell', 'gate', 'f', 'non‑square cells run only Uniform, Radial, Checkerboard, Random, Exhaustive; Manual needs square cells'],
         ['grid', 'gate', 'f', '1×1 greys out the pattern rules; Radial needs even × even; Row / Column mirror need ≥ 2 rows / columns'],
-        ['rule', 'gate', 'f', 'the Rule menu greys out what this grid and cell can’t run (it falls back to Identity)'],
+        ['rule', 'gate', 'f', 'the Rule menu greys out what this grid and cell can’t run (it falls back to Uniform)'],
         ['rule', 'fam', 'f', 'a named rule is its own family; picking a mirror implies Flip even when Flip is off'],
         ['rot', 'fam', 'f', 'Pinwheel, Diagonal and Radial need Rotation; Checkerboard needs at least one axis'],
         ['flip', 'fam', 'f', 'Mirror, Book‑match, Row and Column mirror need Flip'],
