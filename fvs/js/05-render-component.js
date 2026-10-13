@@ -107,10 +107,9 @@ export function renderSeedPreview() {
 // ORIGINAL (pre-split) shape's own bbox mapped through its own geometry
 // transform: transformed_x = (raw_x + normTx) * normScale, the same formula
 // elementPathMarkup's <g transform> applies — works for any Seed, centred or
-// not, without assuming fitToBox's usual centring. Oct 13, 2026: the frame used to
-// sit on the plain box, apart from a shape moved by Fit to canvas or a slider; now
-// it is the VISIBLE shape's upright box, where Split cuts, drawn through the
-// canvas's own box → px (`T`: the plain canvas's scale and cell-shape fit, or none
+// not, without assuming fitToBox's usual centring. Oct 13, 2026: the frame is the
+// Element's whole canvas (Diego), the cross at its centre where Split cuts the shape
+// as drawn, through the canvas's own box → px (`T`: the plain canvas's scale and cell-shape fit, or none
 // on the tile view, already in box units).
 export function buildSplitGridOverlaySVG(size, T = '') {
   const chk = ctrl('chk-split-grid');
@@ -120,11 +119,9 @@ export function buildSplitGridOverlaySVG(size, T = '') {
   if (!srcSeed || !SEED_TYPES[srcSeed.type]) return '';
   const geo = SEED_TYPES[srcSeed.type].geometry(srcSeed);
   if (!geo || !geo.d) return '';
-  // the frame = the visible shape's box (its outline as drawn: Scale / Move / Rotation / Width / Length applied), upright —
-  // Split cuts there (splitElementGeometry's `view`), vertical + horizontal through its centre
-  const ink = measureElementInk(geo, { ...getElementAppearance(), fillMode: 'fill' }).bb;
-  if (!ink) return '';
-  const fx = ink.x, fy = ink.y, fw = ink.width, fh = ink.height;
+  // the frame = the Element's whole canvas (its 0..100 box, the cell), the cross at its centre — where Split cuts
+  // (splitElementGeometry's `view`: the shape as drawn, cut at 50 / 50)
+  const fx = 0, fy = 0, fw = 100, fh = 100;
   const cx = fx + fw / 2, cy = fy + fh / 2;
   const fs = (10 * 100 / size).toFixed(3);   // labels about 10 px on screen
   const kept = state.splitKeep;

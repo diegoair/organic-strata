@@ -112,9 +112,9 @@ async function splitGrid() {
       chk.checked = false; chk.dispatchEvent(new Event('change', { bubbles: true }));
       return { fr: fr.map(v => +v.toFixed(1)), ink: ink.map(v => +v.toFixed(1)), tl: tl.map(v => +v.toFixed(1)) };
     }, c);
-    const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 0.6), mid = [(r.fr[0] + r.fr[2]) / 2, (r.fr[1] + r.fr[3]) / 2];
-    const inTL = r.tl[0] >= r.fr[0] - 0.6 && r.tl[1] >= r.fr[1] - 0.6 && r.tl[2] <= mid[0] + 0.6 && r.tl[3] <= mid[1] + 0.6;
-    check(`Split cut grid lines up with the Element ${JSON.stringify(c)}: frame = the visible ink's upright box, the TL piece inside its quarter`, near(r.fr, r.ink) && inTL, JSON.stringify(r));
+    const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 0.6);
+    const inTL = r.tl[2] <= 50.6 && r.tl[3] <= 50.6;   // the kept piece: left of and above the canvas centre
+    check(`Split cut grid ${JSON.stringify(c)}: the whole Element canvas, the TL piece in its top-left quarter`, near(r.fr, [0, 0, 100, 100]) && inTL, JSON.stringify(r));
   }
 }
 // --shots DIR: screenshots of the Element canvas

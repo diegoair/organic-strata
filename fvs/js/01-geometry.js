@@ -117,8 +117,8 @@ export function strokeToShapeD(d, widthUnits, opts) {
 // re-applied on top of an already-filled ribbon piece would double-outline it.
 // `view` (Oct 13, 2026 — Diego: the cut grid was "wrong" on a turned Element): a DOMMatrix from the raw `d` to what
 // the canvas shows (the geometry's norm layer, then the Element's Scale / Move / Rotation / Width / Length). The cuts
-// are made THERE — vertical + horizontal through the centre of the visible shape, so TL is the top-left of what you
-// see — and each piece is carried back to the raw space, so it draws in its place under the same transforms.
+// are made THERE — vertical + horizontal through the centre of the Element's canvas, so TL is the top-left quarter of
+// the canvas — and each piece is carried back to the raw space, so it draws in its place under the same transforms.
 export function splitElementGeometry(d, fillRule, view) {
   const scope = splitPaperScope();
   const bb0 = pathBBox(d);
@@ -141,12 +141,14 @@ export function splitElementGeometry(d, fillRule, view) {
   try { shape = importAsPaperShape(scope, dd, fr); } catch (e) { return []; }
   const M = view ? new scope.Matrix(view.a, view.b, view.c, view.d, view.e, view.f) : null, Mi = M && M.inverted();
   if (M && Mi) shape.transform(M);
+  // with a view: the cuts cross at the centre of the Element's canvas (its 0..100 box, the cell — Diego, Oct 13:
+  // "the cut grid must take the entire element canvas, not the shape size"); without one, the shape's own centre
   const vb = shape.bounds;
-  const cx = vb.x + vb.width / 2, cy = vb.y + vb.height / 2;
+  const cx = M ? 50 : vb.x + vb.width / 2, cy = M ? 50 : vb.y + vb.height / 2;
   // A margin well past the shape's own extent keeps a quadrant rectangle's
   // inner edges off any coincident shape boundary — an exact-touch can make
   // intersect() return a degenerate near-zero sliver instead of a clean cut.
-  const pad = Math.max(vb.width, vb.height) + 10;
+  const pad = Math.max(vb.width, vb.height, 100) + Math.max(Math.abs(vb.x - 50), Math.abs(vb.y - 50)) + 10;
   const out = [];
   for (const q of SPLIT_QUADRANTS) {
     const rx = q.dx < 0 ? cx - pad : cx, ry = q.dy < 0 ? cy - pad : cy;
