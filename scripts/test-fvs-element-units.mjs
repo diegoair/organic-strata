@@ -13,7 +13,26 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
-const THEME = arg('theme', 'light'), SHOTS = arg('shots', '');   // --shots DIR: screenshots of the Element canvas
+const THEME = arg('theme', 'light'), SHOTS = arg('shots', '');   // Show as tile on a Circle / Triangle / Hexagon cell: its own lattice (Diego, Oct 13 — "tile them"); Layout / Turn off.
+async function tileCells() {
+  for (const [cell, min] of [['hexagon', 6], ['triangle', 9], ['circle', 6]]) {
+    const r = await ev(async cell => {
+      const F = window.__fvs, set = (id, v, evName = 'input') => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event(evName, { bubbles: true })); };
+      F.resetElement(); set('sel-seed-type', 'arc', 'change');
+      document.querySelector(`#fb-cell-shape [data-cell="${cell}"]`).click();
+      Object.assign(F.elementAids, { tile: true }); F.renderSeedPreview();
+      await new Promise(r => setTimeout(r, 60));
+      const svg = document.querySelector('#element-svg > svg');
+      const out = { vb: svg.getAttribute('viewBox'), ghosts: svg.querySelectorAll('.fvs-tile-ghost > use').length, guide: !!svg.querySelector('polygon.fvs-guide'),
+        ticks: svg.querySelectorAll('.fvs-tile-tick').length, opts: document.getElementById('btn-element-tile-options').getAttribute('aria-disabled'),
+        tile: document.getElementById('btn-element-view-tile').getAttribute('aria-disabled') };
+      document.querySelector('#fb-cell-shape [data-cell="square"]').click();
+      return out;
+    }, cell);
+    check(`Show as tile · ${cell} cell: its own lattice (${min}+ neighbours), the cell outlined, Layout / Turn off`, r.vb === '-50 -50 200 200' && r.ghosts >= min && r.guide && r.opts === 'true' && r.tile !== 'true', JSON.stringify(r));
+  }
+}
+// --shots DIR: screenshots of the Element canvas
 
 const which = n => { try { return execFileSync('which', [n], { encoding: 'utf8' }).trim(); } catch { return ''; } };
 const CHROME = [process.env.CHROME, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -265,7 +284,7 @@ async function layerSnap() {
 async function visuals() {
   const setup = async (o) => ev(async o => {
     const F = window.__fvs, set = (id, v, evName = 'input') => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event(evName, { bubbles: true })); };
-    F.resetElement(); set('sel-seed-type', o.type, 'change'); set('sel-element-fillmode', o.fill || 'fill', 'change');
+    F.resetElement(); document.querySelector(`#fb-cell-shape [data-cell="${o.cell || 'square'}"]`).click(); set('sel-seed-type', o.type, 'change'); set('sel-element-fillmode', o.fill || 'fill', 'change');
     if (o.sw) set('rg-element-strokew', o.sw);
     for (const [id, v] of Object.entries(o.set || {})) set(id, v);
     Object.assign(F.elementAids, { layout: o.layout || "grid", turn: o.turn || "none", tile: true });
@@ -276,12 +295,14 @@ async function visuals() {
     'arc-stroke': { type: 'arc', fill: 'stroke', sw: 8 }, 'arc-quarter': { type: 'arc', turn: 'quarter' },
     'truchet': { type: 'arctruchet' }, 'triangle-brick': { type: 'triangle', layout: 'brick' },
     'drop-overflow': { type: 'drop', set: { 'rg-element-mx': 30 } },
+    'hexagon-arc': { type: 'arc', cell: 'hexagon' }, 'triangle-arc': { type: 'arc', cell: 'triangle' }, 'circle-arc': { type: 'arc', cell: 'circle' },
   })) { await setup(o); await sleep(150); await shot(name); }
 }
 
 await openFvs();
 try { await fitToCanvas(); } catch (e) { check('Fit to canvas ran', false, e.message); }
 try { await tileView(); } catch (e) { check('Show as tile ran', false, e.message); }
+try { await tileCells(); } catch (e) { check('Tile cells ran', false, e.message); }
 try { await snap(); } catch (e) { check('Snap ran', false, e.message); }
 try { await layerSnap(); } catch (e) { check('Layer snap ran', false, e.message); }
 if (SHOTS) await visuals();

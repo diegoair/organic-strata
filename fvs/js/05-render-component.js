@@ -6,7 +6,7 @@ import {
   live, pc, pv, state
 } from './engine/00-core.js';
 import {
-  SEED_TYPES, cellShapeOf, frameDims, pathBBox, resolveGridCells, snapAxis, snapCandidates
+  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameDims, pathBBox, resolveGridCells, snapAxis, snapCandidates
 } from './engine/01-geometry.js';
 import {
   getSeed, seedForSnapshot
@@ -19,7 +19,7 @@ import {
 } from './engine/04-appearance.js';
 import {
   buildComponentSVG, buildComponentSVGBody, buildSeedPreviewSVG, buildSeedTileSVG, componentGridOutlineSVG,
-  edgeContacts, elementPathMarkup, layerPlace, orientInkPoint, r2, tileEdgeOverlaySVG,
+  edgeContacts, elementPathMarkup, layerPlace, orientInkPoint, polyEdgeContacts, polyEdgeOverlaySVG, r2, tileEdgeOverlaySVG,
   seedPreviewStates, withGridWrapper
 } from './engine/05-render-component.js';
 import {
@@ -164,20 +164,22 @@ export function setElementView(i) {
 // for the session and kept in localStorage — a view aid, never part of the Element or an export.
 const ELEMENT_VIEW_KEY = 'organica.fvs.element-view';
 let inkCache = null;   // the tile overlay's last ink measurement: { key, ink }
-rt.elementAids = { tile: false, layout: 'grid', turn: 'none', snap: true };
+rt.elementAids = { tile: false, layout: 'grid', turn: 'none', snap: false };   // Snap is opt-in (Diego, Oct 13)
 try { Object.assign(rt.elementAids, JSON.parse(localStorage.getItem(ELEMENT_VIEW_KEY) || 'null') || {}); } catch (e) { /* private mode */ }
 export function saveElementView() { try { localStorage.setItem(ELEMENT_VIEW_KEY, JSON.stringify(rt.elementAids)); } catch (e) { /* private mode */ } }
-// The tile view needs a square cell — a Circle / Triangle / Hexagon cell does not tile on a square lattice.
-export const elementTileOn = seed => !!rt.elementAids.tile && cellShapeOf(seed || getSeed()) === 'square';
+// Every cell shape tiles: a square on the Layout / Turn lattice, a Circle / Triangle / Hexagon in its own (Diego, Oct 13).
+export const elementTileOn = () => !!rt.elementAids.tile;
 export function syncElementViewUI(seed) {
   const btn = ctrl('btn-element-view-tile');
   if (!btn) return;
   const square = cellShapeOf(seed || getSeed()) === 'square';
-  btn.setAttribute('aria-pressed', String(!!rt.elementAids.tile && square));
-  btn.setAttribute('aria-disabled', String(!square));
-  btn.setAttribute('aria-label', square ? 'Show as tile' : 'Show as tile — needs square cells');
+  btn.setAttribute('aria-pressed', String(!!rt.elementAids.tile));
+  // Layout / Turn arrange square tiles; another cell shape tiles in its own lattice
   const opts = ctrl('btn-element-tile-options');
-  if (opts) opts.setAttribute('aria-disabled', String(!square));
+  if (opts) {
+    opts.setAttribute('aria-disabled', String(!square));
+    opts.setAttribute('aria-label', square ? 'Tile layout and turn' : 'Tile layout and turn — needs square cells');
+  }
   ctrl('btn-element-view-snap').setAttribute('aria-pressed', String(!!rt.elementAids.snap));
   document.querySelectorAll('#element-tile-popover [data-tile-layout]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tileLayout === rt.elementAids.layout)));
   document.querySelectorAll('#element-tile-popover [data-tile-turn]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tileTurn === rt.elementAids.turn)));
@@ -308,9 +310,11 @@ export function renderElementFrame(seed) {
     const geo = SEED_TYPES[drawn.type].geometry(drawn), key = geo && geo.d ? JSON.stringify([drawn, getElementAppearance()]) : '';
     if (!inkCache || inkCache.key !== key) inkCache = { key, ink: key ? measureElementInk(geo) : { pts: [] } };
     const ink = inkCache.ink;
-    svg = svg.replace('</svg>', tileEdgeOverlaySVG(edgeContacts(ink.pts.map(q => orientInkPoint(q, v)))) + '</svg>');
+    const opts = ink.pts.map(q => orientInkPoint(q, v)), cs = cellShapeOf(sd);
+    svg = svg.replace('</svg>', (cs === 'square' ? tileEdgeOverlaySVG(edgeContacts(opts))
+      : polyEdgeOverlaySVG(CELL_SHAPES[cs].poly, polyEdgeContacts(opts, CELL_SHAPES[cs].poly))) + '</svg>');
   }
-  if (rt.snapGuide && cellShapeOf(sd) === 'square') svg = svg.replace('</svg>', snapGuideSVG(rt.snapGuide, v, tiled) + '</svg>');
+  if (rt.snapGuide && (tiled || cellShapeOf(sd) === 'square')) svg = svg.replace('</svg>', snapGuideSVG(rt.snapGuide, v, tiled) + '</svg>');
   const overlay = buildSplitGridOverlaySVG(400);
   // the cut grid is drawn in the plain canvas's px (400 = the box); in the tile view the box is 100 units
   if (overlay) svg = svg.replace('</svg>', (tiled ? `<g transform="scale(${100 / 400})">${overlay}</g>` : overlay) + '</svg>');

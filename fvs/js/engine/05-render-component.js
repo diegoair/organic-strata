@@ -5,7 +5,7 @@ import {
   colorAt, live, state
 } from './00-core.js';
 import {
-  CELL_SHAPES, SEED_TYPES, cellShapeOf, cellShapeStates, importAsPaperShape, partsOf, splitPaperScope
+  CELL_SHAPES, SEED_TYPES, cellLatticeCells, cellShapeOf, cellShapeStates, importAsPaperShape, partsOf, splitPaperScope
 } from './01-geometry.js';
 import {
   componentRoleActive, resolvedComponentDims
@@ -662,9 +662,25 @@ export function buildSeedTileSVG(seed, view, tile, size) {
   live.tagParts = false;
   let def;
   try { def = elementPathMarkup(geo, colorAt(0)); } finally { live.tagParts = tag; }
-  const lo = TILE_VIEW.x, hi = TILE_VIEW.x + TILE_VIEW.w;
+  const lo = TILE_VIEW.x, hi = TILE_VIEW.x + TILE_VIEW.w, cs = cellShapeOf(seed);
   let ghosts = '';
-  for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) {
+  if (cs !== 'square') {
+    // a Circle / Triangle / Hexagon cell tiles in its own lattice, as the Component lays it out (cellLatticeCells at
+    // one cell = the 0..100 box): each neighbour turned to its cell's pose (baseRot), the centre one an upright cell
+    // moved onto the Element's own (its centroid is 50,50 for every cell shape). Layout / Turn are the square's.
+    // a turn of a whole `step` is the cell's own symmetry: polygonCellTurn can round 59.9999 up to 60 (an average
+    // centroid a hair off), which would turn the content — taken back into [0, step) here
+    const step = 360 / CELL_SHAPES[cs].poly.length, rot = c => { const r = Math.round(c.baseRot || 0); return cs === 'circle' ? 0 : ((r % step) + step) % step; };
+    const cells = cellLatticeCells(cs, 3, 100, 'hexagon');
+    const up = cells.filter(c => rot(c) === 0).sort((a, b) => Math.hypot(...a.centroid) - Math.hypot(...b.centroid))[0];
+    const ox = 50 - up.centroid[0], oy = 50 - up.centroid[1];
+    for (const c of cells) {
+      if (c === up) continue;
+      const cx = c.centroid[0] + ox, cy = c.centroid[1] + oy;
+      if (cx + 60 <= lo || cx - 60 >= hi || cy + 60 <= lo || cy - 60 >= hi) continue;
+      ghosts += `<use href="#${id}" transform="translate(${cx.toFixed(3)},${cy.toFixed(3)}) ${orient(rot(c))} translate(-50,-50)"/>`;
+    }
+  } else for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) {
     if (!i && !j) continue;
     const p = tileAt(i, j, 100, t.layout, t.turn), cx = 50 + p.gx, cy = 50 + p.gy;
     if (cx + 50 <= lo || cx - 50 >= hi || cy + 50 <= lo || cy - 50 >= hi) continue;
@@ -705,6 +721,38 @@ export function orientInkPoint(q, view) {
   const dx = (q.x - 50) * (v.fh ? -1 : 1), dy = (q.y - 50) * (v.fv ? -1 : 1);
   const quarter = Math.abs(Math.round(Math.sin(a))) === 1;
   return { x: 50 + dx * c - dy * s, y: 50 + dx * s + dy * c, px: quarter ? q.py : q.px, py: quarter ? q.px : q.py };
+}
+// The same joins on a polygon cell (Circle / Triangle / Hexagon, the cell's outline in the 0..100 box): for every edge,
+// the stretch of it the ink reaches (within `tol`, at its closest — as edgeContacts), as a segment [x1, y1, x2, y2].
+// A point counts for an edge when it lies beyond (or within tol of) that edge's line, inside the edge's own span.
+export function polyEdgeContacts(pts, poly, tol = 0.5) {
+  const out = [], n = poly.length;
+  const cx = poly.reduce((a, p) => a + p[0], 0) / n, cy = poly.reduce((a, p) => a + p[1], 0) / n;
+  for (let k = 0; k < n; k++) {
+    const [ax, ay] = poly[k], [bx, by] = poly[(k + 1) % n], L = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / L, uy = (by - ay) / L;
+    let nx = -uy, ny = ux;
+    if ((ax - cx) * nx + (ay - cy) * ny < 0) { nx = -nx; ny = -ny; }   // the outward normal
+    const rows = pts.map(q => {
+      const reach = Math.abs(nx) * q.px + Math.abs(ny) * q.py, t = (q.x - ax) * ux + (q.y - ay) * uy;
+      return [-((q.x - ax) * nx + (q.y - ay) * ny + reach), t];
+    }).filter(([, t]) => t >= -tol && t <= L + tol);
+    if (!rows.length) continue;
+    const dmin = rows.reduce((m, r) => Math.min(m, r[0]), Infinity);
+    if (!(dmin <= tol)) continue;
+    const ts = rows.filter(r => r[0] <= Math.max(dmin, 0) + 0.05).map(r => Math.min(L, Math.max(0, r[1]))).sort((a, b) => a - b);
+    let s0 = ts[0], s1 = ts[0];
+    const push = () => { const m = (s0 + s1) / 2, h = Math.max((s1 - s0) / 2, 0.75); out.push([ax + ux * (m - h), ay + uy * (m - h), ax + ux * (m + h), ay + uy * (m + h)]); };
+    for (const t of ts.slice(1)) { if (t <= s1 + 1) s1 = t; else { push(); s0 = s1 = t; } }
+    push();
+  }
+  return out;
+}
+export function polyEdgeOverlaySVG(poly, segs) {
+  const n = poly.length, pts = poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ');
+  const dots = n > 12 ? '' : poly.flatMap((p, k) => { const q = poly[(k + 1) % n]; return [p, [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]]; })
+    .map(([x, y]) => `<circle class="fvs-tile-dot" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="1.2"/>`).join('');
+  const ticks = segs.map(([x1, y1, x2, y2]) => `<line class="fvs-tile-tick" x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`).join('');
+  return `<g class="fvs-tile-overlay" pointer-events="none"><polygon class="fvs-guide" points="${pts}"/>${dots}${ticks}</g>`;
 }
 // The overlay over the centre cell: its box (dashed, the guides' look), the edge midpoints + corners (faint dots) and
 // a solid tick along every span where the ink meets an edge.
