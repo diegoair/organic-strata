@@ -703,8 +703,8 @@ function patternBody(type, sp, w, ang, box, color) {
 /* ---------- Component rules ---------- */
 (function () {
   const R = [
-    { k: 'identity', t: 'Uniform', how: 'The same Element, unchanged, in every cell — a plain repeat, the baseline the other rules are read against. Every cell 0°, no flip, scale 1: always <b>one</b> candidate on square cells, whatever the axes (Colour by and Layer colour variants can still vary it). On circle / triangle / hexagon cells it lists one candidate per uniform state of the axes instead. Was called <i>Identity</i> until 13 Oct 2026.', count: c => c['2|identity'].n },
-    { k: 'pinwheel', t: 'Step turn', how: 'Each cell turns <b>one quarter (90°) more than the cell before it</b>, in reading order — left to right, then down. On a 2×2: 0° and 90° on the top row, 180° and 270° on the bottom. It is <b>not</b> a turn around the centre — that is <b>Radial</b>. Results: start 0 / 90 / 180 / 270 × direction (clockwise / counter‑clockwise) = 8. On bigger grids each column adds 90° and each row 180° (step = (col + 2·row) mod 4), so the turns drift diagonally; on a single column it only alternates 0° / 180°. Was called <i>Pinwheel</i> until 13 Oct 2026.', gate: 'Not on 1×1. Square cells only. Rotation implied.' },
+    { k: 'identity', t: 'Uniform', big: true, how: 'The same Element, unchanged, in every cell — a plain repeat, the baseline the other rules are read against. Every cell 0°, no flip, scale 1: always <b>one</b> candidate on square cells, whatever the axes (Colour by and Layer colour variants can still vary it). On circle / triangle / hexagon cells it lists one candidate per uniform state of the axes instead. Was called <i>Identity</i> until 13 Oct 2026.', count: c => c['2|identity'].n },
+    { k: 'pinwheel', t: 'Step turn', big: true, how: 'Each cell turns <b>one quarter (90°) more than the cell before it</b>, in reading order — left to right, then down. On a 2×2: 0° and 90° on the top row, 180° and 270° on the bottom. It is <b>not</b> a turn around the centre — that is <b>Radial</b>. Results: start 0 / 90 / 180 / 270 × direction (clockwise / counter‑clockwise) = 8. On bigger grids each column adds 90° and each row 180° (step = (col + 2·row) mod 4), so the turns drift diagonally; on a single column it only alternates 0° / 180°. Was called <i>Pinwheel</i> until 13 Oct 2026.', gate: 'Not on 1×1. Square cells only. Rotation implied.' },
     { k: 'mirror', t: 'Mirror (kaleidoscope)', how: 'A seed cell is plain; its side neighbour flips H, the one below flips V, the diagonal both. Beyond 2×2 it also lists the three whole‑grid <b>book‑matched</b> mirrors (left|right, top|bottom, both).', gate: 'Not on 1×1. Flip implied even with Flip off.', extra: '4|mirror|F' },
     { k: 'diagonal', t: 'Diagonal mirror', how: 'Cells with col + row even take R, odd take 90° − R.', gate: 'Not on 1×1.' },
     { k: 'checkerboard', t: 'Checkerboard', how: 'Two states A and B alternate by (col + row) parity. A and B are every ordered pair of distinct states from the active axes — 12 with Rotation only, 136 with Rotation + Flip.', gate: 'Needs at least one axis on, else falls back to Uniform (with a note).' },
@@ -720,8 +720,9 @@ function patternBody(type, sp, w, ang, box, color) {
   let html = R.map(r => {
     const two = CELLS['2|' + r.k], four = CELLS['4|' + r.k];
     let sheet = '';
-    if (two && two.s) sheet += two.s.map(s => fig(compSVG(s, 2, 2, 26), s)).join('');
-    if (four && four.s) sheet += fig(compSVG(four.s[0], 4, 4, 15), '4×4');
+    const c2 = r.big ? 46 : 26, c4 = r.big ? 26 : 15;   // big: larger example thumbs (Uniform, Step turn — Diego, 13 Oct 2026)
+    if (two && two.s) sheet += two.s.map(s => fig(compSVG(s, 2, 2, c2), s)).join('');
+    if (four && four.s) sheet += fig(compSVG(four.s[0], 4, 4, c4), '4×4');
     if (r.extra && CELLS[r.extra]) { const e = CELLS[r.extra]; sheet += e.s.slice(r.k === 'mirror' ? 4 : 0, r.k === 'mirror' ? 7 : 1).map(s => fig(compSVG(s, 4, 4, 15), r.extraCap || 'book‑match')).join(''); }
     const cnt = two && two.n != null ? `2×2: ${two.n} candidate${two.n === 1 ? '' : 's'}${four && four.n != null ? ` · 4×4: ${four.n}` : ''}` : '';
     return entry({ title: r.t, key: r.k, sheet, count: cnt, how: r.how, params: r.params, gate: r.gate });
