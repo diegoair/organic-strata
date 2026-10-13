@@ -9,7 +9,7 @@ import {
   INNER_APEX, INNER_UNSUPPORTED, SEED_TYPES, fitPathToSeed, frameDims, splitPaperScope, splitPlan
 } from './engine/01-geometry.js';
 import {
-  SEED_ICONS, getSeed, seedForSnapshot, splitIsOn
+  SEED_ICONS, getSeed, seedForSnapshot, splitIsOn, splitLayersOn
 } from './engine/02-seed-ui.js';
 import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
@@ -18,10 +18,10 @@ import {
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
 } from './engine/03-rules.js';
 import {
-  appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, withAppearance
+  appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, stretchOpts, withAppearance
 } from './engine/04-appearance.js';
 import {
-  buildComponentSVG, buildComponentSVGBody, componentGridOutlineSVG, drawComponentCanvas, gridWrapper
+  buildComponentSVG, buildComponentSVGBody, componentGridOutlineSVG, drawComponentCanvas, gridWrapper, layerTransformAttr
 } from './engine/05-render-component.js';
 import {
   COMPONENT_STARTER_RULES, RULE_TO_FAMILY, STARTER_VARIANTS_PER_RULE, UNDO_MAX, buildColourways,
@@ -591,6 +591,13 @@ export function syncSplitUI() {
 }
 export function splitElementReset() {
   const status = ctrl('split-status');
+  if (splitLayersOn()) {   // a layered Element: its layers as they were before the cut
+    state.layers = JSON.parse(JSON.stringify(state.splitOriginalLayers));
+    const L = state.layers, act = L.items[L.active];
+    if (act) hooks.applyPanelSeedRaw(hooks.layerPanelSeed(L, act));
+    hooks.renderLayersUI();
+  }
+  state.splitOriginalLayers = null; state.splitLayersApplied = null;
   if (state.splitOriginal && state.customSeed === state.splitApplied) {
     hooks.applySeedToPanel(state.splitOriginal);
     if (state.splitOriginalStyle) hooks.fireChange('sel-element-fillmode', state.splitOriginalStyle);
@@ -611,8 +618,54 @@ export function splitViewMatrix(geo) {
   const ns = geo.normScale || 1;
   return appearanceMatrix(getElementAppearance()).translate((geo.normTx || 0) * ns, (geo.normTy || 0) * ns).scale(ns);
 }
+// A layered Element (Diego, Oct 13, 2026: "keep the layers and their colours"): each layer is cut on its own, in
+// place — the kept slices / quarters of ITS shape, as drawn (its place + look, then the Element's appearance), cut at
+// the same canvas centre as every other layer — and becomes a custom piece in its own raw space with its own norm, so
+// it draws exactly where it was, with its ink, role and look. A divided Element's part layers are cut the same way.
+// All gives the layers back (state.splitOriginalLayers). A layer with nothing in the kept pieces draws nothing.
+function layerViewMatrix(l, geo) {
+  const a = getElementAppearance(), probe = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  const appT = appearanceIsIdentity(a) ? '' : Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a));
+  probe.setAttribute('transform', (appT + ' ' + layerTransformAttr(l, geo)).trim());
+  const m = probe.transform.baseVal.consolidate();
+  return m ? m.matrix : new DOMMatrix();
+}
+function splitLayersApply() {
+  const status = ctrl('split-status');
+  if (!splitLayersOn()) { hooks.syncActiveLayer(); state.splitOriginalLayers = JSON.parse(JSON.stringify(state.layers)); }
+  const orig = JSON.parse(JSON.stringify(state.splitOriginalLayers)), plan = currentSplitPlan();
+  const stack = SEED_TYPES.stack.geometry({ type: 'stack', active: orig.active, layers: orig.items, ...(orig.parts ? { parts: orig.parts } : {}), ...(state.cellShape !== 'square' ? { cellShape: state.cellShape } : {}) });
+  const keep = plan.pieces.map(p => p.id).filter(q => state.splitKeep.has(q)), viewDs = [];
+  let any = false;
+  const items = orig.items.map(item => {
+    const r = (stack.layers || []).find(x => x.id === item.id), g = r && r.geo;
+    if (!r || !g || !g.d || item.role === 'pattern') return item;
+    const M = layerViewMatrix(r, g), pieces = splitElementGeometry(g.d, g.fillRule, M, plan);
+    const kept = keep.map(q => pieces.find(p => p.id === q)).filter(Boolean), d = kept.map(p => p.seed.d).join(' ');
+    if (d) {
+      any = true;
+      try { const scope = splitPaperScope(), cp = new scope.CompoundPath(d); cp.transform(new scope.Matrix(M.a, M.b, M.c, M.d, M.e, M.f)); viewDs.push(cp.pathData); cp.remove(); } catch (e) { /* the Seed save only */ }
+    }
+    const from = item.part && orig.parts ? orig.parts.source.type : item.seed && item.seed.type;
+    const out = { ...item, seed: { ...(item.seed || (orig.parts && orig.parts.source) || {}), type: 'custom', splitFrom: from, innerCount: 0, irregular: 0,
+      customSeed: { d, normTx: g.normTx || 0, normTy: g.normTy || 0, normScale: g.normScale || 1, ...(g.fillRule ? { fillRule: g.fillRule } : {}), placed: true } } };
+    delete out.part;
+    return out;
+  });
+  if (!any) { status.textContent = plan.kind === 'fan' ? 'Those slices are empty — the shape has no material there.' : 'Those quadrants are empty — the shape has no material there.'; syncSplitUI(); return; }
+  state.layers = { ...orig, items };
+  state.splitLayersApplied = state.layers;
+  state.splitCombinedRaw = viewDs.join(' ');
+  const act = state.layers.items[state.layers.active];
+  if (act) hooks.applyPanelSeedRaw(act.seed);
+  hooks.renderLayersUI();
+  renderGallery(); renderSeedPreview();
+  syncSplitUI();
+  status.textContent = '';
+}
 export function splitElementApply() {
   const status = ctrl('split-status');
+  if (state.layers || splitLayersOn()) { splitLayersApply(); return; }
   const { stillOurs, original } = splitCurrentOriginal();
   if (!stillOurs && elementIsEmpty()) { status.textContent = 'Draw or pick a Seed first — nothing to split.'; state.splitKeep.clear(); syncSplitUI(); return; }
   const geo = SEED_TYPES[original.type].geometry(original);

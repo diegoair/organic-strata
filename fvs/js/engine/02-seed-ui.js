@@ -62,10 +62,20 @@ export const SEED_ICONS = {
 // so the Shape picker (and every label read from here) shows THAT shape — Polygon, not "Custom (uploaded)" (Diego,
 // Oct 13, 2026: "no custom"); Split's own buttons say it is cut.
 const CUSTOM_ICON = { name: 'Custom (uploaded)', icon: SI('<rect x="4" y="4" width="18" height="18" stroke-dasharray="2.5 2.5"/><path d="M13 17 V9 M9.5 12 L13 8.5 L16.5 12"/>', 'stroke') };
-export const splitIsOn = () => !!(state.splitOriginal && state.customSeed && state.customSeed === state.splitApplied);
+// a layered Element is split layer by layer (state.splitOriginalLayers = the layers before the cut, state.splitLayersApplied
+// = the cut set while it is the live one); a single shape as one custom piece (state.splitOriginal)
+export const splitLayersOn = () => !!(state.splitOriginalLayers && state.layers && state.layers === state.splitLayersApplied);
+export const splitIsOn = () => splitLayersOn() || !!(state.splitOriginal && state.customSeed && state.customSeed === state.splitApplied);
+function splitSourceType() {
+  if (splitLayersOn()) {
+    const L = state.splitOriginalLayers, l = L.items[state.layers.active] || L.items[L.active];
+    return l && (l.part && L.parts ? L.parts.source.type : l.seed && l.seed.type);
+  }
+  return splitIsOn() && state.splitOriginal.type;
+}
 Object.defineProperty(SEED_ICONS, 'custom', {
   enumerable: true, configurable: true,
-  get: () => { const t = splitIsOn() && state.splitOriginal.type; return (t && t !== 'custom' && SEED_ICONS[t]) || CUSTOM_ICON; },
+  get: () => { const t = splitSourceType(); return (t && t !== 'custom' && SEED_ICONS[t]) || CUSTOM_ICON; },
 });
 // Circle modifiers: [getSeed key, control id suffix, default]. One table
 // drives getSeed(), the snapshot restore and the input listeners.

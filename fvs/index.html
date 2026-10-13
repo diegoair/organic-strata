@@ -498,7 +498,7 @@
       </div>
       <!-- Split (its own section until Oct 4, 2026): a real geometric cut whose result IS a new shape (the picker turns
            Custom; "Save piece as Seed" keeps it). Right under the picker on purpose: cutting hides the shape's own rows,
-           which sit BELOW it, so the chips never move under the pointer. With layers it cuts the whole stack into one shape. -->
+           which sit BELOW it, so the chips never move under the pointer. With layers it cuts each layer in place, each keeping its colour. -->
       <!-- the label above, the buttons the full row (Oct 13, 2026): a fan cell has up to seven (All · 1 … 6) and they did
            not fit beside a label — "All" was cut to "A…" -->
       <div class="sub-label" id="split-label" title="A real geometric cut: keep one or more quarters (a Square cell) or slices (a Circle, Triangle or Hexagon cell) of the shape. All gives the original back.">Split</div>
@@ -511,7 +511,6 @@
           <button type="button" class="seg-btn" data-q="br" aria-pressed="false" aria-label="Bottom right quarter">BR</button>
         </div>
       </div>
-      <p class="org-panel__hint" id="split-layers-hint" hidden>Split cuts all layers into one shape.</p>
       <label class="check-row"><input type="checkbox" id="chk-split-grid"><span>Show cut grid</span></label>
       <button class="org-btn org-btn--block" id="btn-split-save" hidden>Save as Seed</button>
       <p class="org-panel__hint" id="split-status"></p>

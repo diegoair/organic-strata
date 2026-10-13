@@ -162,6 +162,33 @@ async function splitPicker() {
   });
   check('Split · the Shape picker shows the shape it was cut from (Polygon), the custom row out of the list; All gives Polygon back', /Polygon/.test(r.during.label) && !/Custom/.test(r.during.label) && r.during.type === 'custom' && r.during.customDisabled && /Polygon/.test(r.after.label) && r.after.type === 'polygon', JSON.stringify(r));
 }
+// Split on a layered Element keeps the layers and their colours (Diego, Oct 13): each layer cut in place.
+async function splitLayers() {
+  for (const [cell, q] of [['square', 'tl'], ['hexagon', 'f2']]) {
+    const r = await ev(async (cell, q) => {
+      const F = window.__fvs, set = (id, v, e = 'input') => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event(e, { bubbles: true })); };
+      F.resetElement(); document.querySelector(`#fb-cell-shape [data-cell="${cell}"]`).click(); set('sel-seed-type', 'polygon', 'change');
+      document.getElementById('btn-layer-add').click(); set('rg-element-rotate', 15);
+      F.syncActiveLayer();
+      const before = JSON.stringify(F.state.layers), inks0 = F.state.layers.items.map(l => l.ink);
+      document.querySelector(`#seg-split-quadrant [data-q="${q}"]`).click(); await new Promise(r => setTimeout(r, 200));
+      const L = F.state.layers, plan = F.splitPlan(cell), p = plan.pieces.find(x => x.id === q);
+      const geo = F.SEED_TYPES.stack.geometry(F.getSeed());
+      // every layer's ink, as drawn, inside the kept piece
+      const inside = geo.layers.every(l => { if (!l.geo.d) return true; const ink = F.measureElementInk({ ...geo, layers: [l] }, { ...F.getElementAppearance(), fillMode: 'fill' }).pts;
+        return ink.every(pt => { if (plan.kind === 'quad') return pt.x <= 50.6 && pt.y <= 50.6; if (Math.hypot(pt.x - 50, pt.y - 50) < 0.6) return true; let a = (Math.atan2(pt.y - 50, pt.x - 50) * 180 / Math.PI + 360) % 360; if (a < p.a - 1) a += 360; return a >= p.a - 1 && a <= p.b + 1; }); });
+      const out = { n: L.items.length, inks: L.items.map(l => l.ink), drawn: geo.layers.filter(l => l.geo.d).length, inside,
+        picker: document.getElementById('seedtype-picker').textContent.replace(/\s+/g, ' ').trim() };
+      document.querySelector('#seg-split-quadrant [data-q="whole"]').click(); await new Promise(r => setTimeout(r, 150));
+      F.syncActiveLayer();
+      out.restored = JSON.stringify(F.state.layers) === before; out.inks0 = inks0;
+      document.querySelector('#fb-cell-shape [data-cell="square"]').click();
+      return out;
+    }, cell, q);
+    check(`Split with layers (${cell}, ${q}): the layers stay (2, same inks), each cut in place inside the kept piece; All restores them exactly`,
+      r.n === 2 && JSON.stringify(r.inks) === JSON.stringify(r.inks0) && r.drawn === 2 && r.inside && r.restored && !/Custom/.test(r.picker), JSON.stringify(r));
+  }
+}
 // --shots DIR: screenshots of the Element canvas
 
 const which = n => { try { return execFileSync('which', [n], { encoding: 'utf8' }).trim(); } catch { return ''; } };
@@ -460,6 +487,7 @@ try { await tileCells(); } catch (e) { check('Tile cells ran', false, e.message)
 try { await splitGrid(); } catch (e) { check('Split grid ran', false, e.message); }
 try { await splitFan(); } catch (e) { check('Split fan ran', false, e.message); }
 try { await splitPicker(); } catch (e) { check('Split picker ran', false, e.message); }
+try { await splitLayers(); } catch (e) { check('Split layers ran', false, e.message); }
 try { await padding(); } catch (e) { check('Padding ran', false, e.message); }
 try { await snap(); } catch (e) { check('Snap ran', false, e.message); }
 try { await layerSnap(); } catch (e) { check('Layer snap ran', false, e.message); }

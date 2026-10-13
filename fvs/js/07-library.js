@@ -84,10 +84,10 @@ new MutationObserver(() => { if (state.layers) renderLayersUI(); }).observe(docu
 const escGroup = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  applyElementSnapshot: () => applyElementSnapshot, applySeedToPanel: () => applySeedToPanel, enterElementEdit: () => enterElementEdit,
+  applyElementSnapshot: () => applyElementSnapshot, applyPanelSeedRaw: () => applyPanelSeedRaw, applySeedToPanel: () => applySeedToPanel, enterElementEdit: () => enterElementEdit,
   deleteQuickSavedComponent: () => deleteQuickSavedComponent,
   quickSaveComponentToLibrary: () => quickSaveComponentToLibrary, renderLayersUI: () => renderLayersUI,
-  showLayerStyle: () => showLayerStyle, syncComponentRoleUI: () => syncComponentRoleUI
+  layerPanelSeed: () => layerPanelSeed, showLayerStyle: () => showLayerStyle, syncComponentRoleUI: () => syncComponentRoleUI
 });
 
 
@@ -377,7 +377,6 @@ export function renderLayersUI() {
   if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint();
   ctrl('layers-hint').textContent = L ? L.items.length + (rt.partSel && rt.partSel.size >= 2 ? ' · ' + rt.partSel.size + ' selected' : ' · top first') : 'Add new layer';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
-  ctrl('split-layers-hint').hidden = !L;   // Split takes the whole stack
   renderPartsUI();
   if (!L) { list.innerHTML = ''; ctrl('layer-group-row').hidden = true; syncColourGroupRules(); return; }
   pruneColourGroups(L);
@@ -387,7 +386,7 @@ export function renderLayersUI() {
   list.innerHTML = L.items.map((l, i) => i).reverse().map(i => {
     const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill';
     const tint = isFill ? layerInkColor(l, colorAt(0)) : 'var(--mid)', cell = l.ink == null || l.ink === 'cell';
-    const icon = l.part ? srcIcon : (SEED_ICONS[l.seed.type] || SEED_ICONS.custom).icon;
+    const icon = l.part ? srcIcon : (SEED_ICONS[l.seed.type === 'custom' && l.seed.splitFrom ? l.seed.splitFrom : l.seed.type] || SEED_ICONS.custom).icon;   // a Split layer: the shape it was cut from
     const picked = rt.partSel && rt.partSel.has(l.id);
     const grp = l.group && L.groups && L.groups[l.group], gNum = grp ? (grp.n || Object.keys(L.groups).indexOf(l.group) + 1) : 0, gName = grp ? escGroup(grp.name) : '';
     const below = L.items[i - 1], joins = grp && below && below.group === l.group && !!below.part === !!l.part;   // the row under it is in the same group

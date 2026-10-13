@@ -41,6 +41,7 @@ export const state = {
   splitKeep: new Set(),       // Split: which of tl/tr/bl/br are currently kept (empty = whole shape)
   splitCache: null,           // {key, pieces} — splitElementGeometry() result for the current pre-split seed, so toggling chips doesn't re-run Paper
   splitCombinedRaw: null,     // the raw (unfitted) concatenated `d` of the currently-kept quadrants — reused by "Save piece as Seed"
+  splitOriginalLayers: null, splitLayersApplied: null,   // a layered Element's Split: the layers before the cut, and the cut set while live (Oct 13, 2026)
   preFigureSnapshot: null,   // Element+Component state captured right before entering Figure — see setTier()
   // The Grid tier's own page is gone — buildFvsGridSVG()/getFvsGrid() are kept as
   // page-less helpers (Figure recipes and the regression suite's v1 recipe
