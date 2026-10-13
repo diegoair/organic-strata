@@ -15,10 +15,10 @@ import {
   GALLERY_ZOOM_MAX, getGrid
 } from './engine/03-rules.js';
 import {
-  DEFAULT_APPEARANCE, PATTERN_DEFAULTS, getElementAppearance, withAppearance
+  DEFAULT_APPEARANCE, PATTERN_DEFAULTS, getElementAppearance
 } from './engine/04-appearance.js';
 import {
-  elementPathMarkup, layerPlace
+  layerPlace
 } from './engine/05-render-component.js';
 import {
   LIBRARY, PAPER_NONE, hexKey, isPaperNone, libraryNames, readLookControls, snapshotComponentElementState
@@ -50,7 +50,7 @@ import {
   showPatternControls, syncGroundBlock, syncGroundInkOptions, syncGroundTileNote, syncLookBlocks
 } from './04-appearance.js';
 import {
-  exportElement, renderGallery, renderSeedPreview, setElementView
+  exportElement, measureElementInk, renderGallery, renderSeedPreview, saveElementView, setElementView, syncElementViewUI
 } from './05-render-component.js';
 import {
   clearGallery, exitComponentEditMode, exportSelected, generate, generateColourways,
@@ -541,35 +541,43 @@ export function resetElement() {
 ctrl('btn-reset-seed').addEventListener('click', resetElement);
 
 // ⤢ Fit to canvas (one-shot, same maths as Genesis's Fit to grid): measure the
-// Seed as drawn at Scale 1 / Move 0 (Width/Length kept), then write the Scale +
-// Move sliders so its bbox fills the cell, centred. Goes stale if the shape's
+// Seed's ink as drawn at Scale 1 / Move 0 (Width/Length, Rotation and the stroke
+// kept — measureElementInk), then write the Scale + Move sliders so it fills the
+// cell edge to edge, centred, never past it. Goes stale if the shape's
 // own parameters change afterwards — press it again.
 export function fitSeedToCanvas() {
   const seed = getSeed();
   const geo = SEED_TYPES[seed.type].geometry(seed);
   if (!geo || !geo.d) return;
   const a = getElementAppearance();
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('viewBox', '0 0 100 100');
-  svg.setAttribute('style', 'position:absolute;width:0;height:0;visibility:hidden');
-  svg.innerHTML = '<g>' + withAppearance({ ...a, scale: 1, mx: 0, my: 0 }, () => elementPathMarkup(geo, '#000', true)) + '</g>';
-  document.body.appendChild(svg);
-  let bb = null;
-  try { const b = svg.firstChild.getBBox(); bb = { x: b.x, y: b.y, width: b.width, height: b.height }; } catch (e) { /* nothing drawn */ }
-  document.body.removeChild(svg);
+  const bb = measureElementInk(geo, { ...a, scale: 1, mx: 0, my: 0 }).bb;
   // A Segment is a zero-height line — only bail when BOTH dimensions are ~0.
   if (!bb || (bb.width < 0.01 && bb.height < 0.01)) return;
   const setCtl = (k, v) => { ctrl('rg-element-' + k).value = v; ctrl('v-element-' + k).textContent = val('rg-element-' + k); };
-  // getBBox() excludes the stroke, and the stroke scales with the shape (a Stroke-style seed
-  // painted S·(bbox + strokeW) wide, so it was cut at the cell edge) — reserve it.
-  const pad = a.fillMode === 'stroke' ? a.strokeW : 0;
-  setCtl('scale', Math.round(100 / (Math.max(bb.width, bb.height) + pad) * 100) / 100);
+  // Floored to the slider's step, never rounded up — a rounded-up Scale pushed the shape past the edge.
+  setCtl('scale', Math.floor(100 / Math.max(bb.width, bb.height) * 1000) / 1000);
   const S = val('rg-element-scale');   // the slider may clamp — centre with the scale it actually holds
-  setCtl('mx', Math.round(S * (50 - (bb.x + bb.width / 2))));
-  setCtl('my', Math.round(S * (50 - (bb.y + bb.height / 2))));
+  setCtl('mx', Math.round(S * (50 - (bb.x + bb.width / 2)) * 10) / 10);
+  setCtl('my', Math.round(S * (50 - (bb.y + bb.height / 2)) * 10) / 10);
   onAppearanceChange();
 }
 ctrl('btn-fit-seed').addEventListener('click', fitSeedToCanvas);
+// The Element canvas's View: Show as tile (+ Layout / Turn) and Snap (05-render-component.js keeps the state).
+ctrl('btn-element-view-tile').addEventListener('click', e => {
+  if (e.currentTarget.getAttribute('aria-disabled') === 'true') return;
+  rt.elementAids.tile = !rt.elementAids.tile; saveElementView(); renderSeedPreview();
+});
+ctrl('btn-element-view-snap').addEventListener('click', () => { rt.elementAids.snap = !rt.elementAids.snap; saveElementView(); syncElementViewUI(); });
+// the chevron is aria-disabled (still focusable, its label says why) on a non-square cell: its click opens nothing
+ctrl('btn-element-tile-options').addEventListener('click', e => { if (e.currentTarget.getAttribute('aria-disabled') === 'true') e.stopImmediatePropagation(); }, true);
+Organica.popover(ctrl('btn-element-tile-options'), ctrl('element-tile-popover'));
+ctrl('element-tile-popover').addEventListener('click', e => {
+  const b = e.target.closest('[data-tile-layout], [data-tile-turn]');
+  if (!b) return;
+  if (b.dataset.tileLayout) rt.elementAids.layout = b.dataset.tileLayout; else rt.elementAids.turn = b.dataset.tileTurn;
+  rt.elementAids.tile = true;   // picking a layout shows it
+  saveElementView(); renderSeedPreview();
+});
 ctrl('sel-arc-pivot').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
 ctrl('sel-inner-anchor').addEventListener('change', () => { renderGallery(); renderSeedPreview(); });
 

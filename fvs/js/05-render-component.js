@@ -6,7 +6,7 @@ import {
   live, pc, pv, state
 } from './engine/00-core.js';
 import {
-  SEED_TYPES, frameDims, pathBBox, resolveGridCells
+  SEED_TYPES, cellShapeOf, frameDims, pathBBox, resolveGridCells, snapAxis, snapCandidates
 } from './engine/01-geometry.js';
 import {
   getSeed, seedForSnapshot
@@ -15,10 +15,11 @@ import {
   getGrid
 } from './engine/03-rules.js';
 import {
-  buildComponentItems
+  buildComponentItems, getElementAppearance, withAppearance
 } from './engine/04-appearance.js';
 import {
-  buildComponentSVG, buildComponentSVGBody, buildSeedPreviewSVG, componentGridOutlineSVG, r2,
+  buildComponentSVG, buildComponentSVGBody, buildSeedPreviewSVG, buildSeedTileSVG, componentGridOutlineSVG,
+  edgeContacts, elementPathMarkup, layerPlace, orientInkPoint, r2, tileEdgeOverlaySVG,
   seedPreviewStates, withGridWrapper
 } from './engine/05-render-component.js';
 import {
@@ -159,6 +160,137 @@ export function setElementView(i) {
   rt.elementView = { r: st[0], fh: st[1], fv: st[2] };
   renderSeedPreview();
 }
+// ── The Element canvas's View (Oct 13, 2026): Show as tile + its Layout / Turn, and Snap. Per browser, in memory
+// for the session and kept in localStorage — a view aid, never part of the Element or an export.
+const ELEMENT_VIEW_KEY = 'organica.fvs.element-view';
+let inkCache = null;   // the tile overlay's last ink measurement: { key, ink }
+rt.elementAids = { tile: false, layout: 'grid', turn: 'none', snap: true };
+try { Object.assign(rt.elementAids, JSON.parse(localStorage.getItem(ELEMENT_VIEW_KEY) || 'null') || {}); } catch (e) { /* private mode */ }
+export function saveElementView() { try { localStorage.setItem(ELEMENT_VIEW_KEY, JSON.stringify(rt.elementAids)); } catch (e) { /* private mode */ } }
+// The tile view needs a square cell — a Circle / Triangle / Hexagon cell does not tile on a square lattice.
+export const elementTileOn = seed => !!rt.elementAids.tile && cellShapeOf(seed || getSeed()) === 'square';
+export function syncElementViewUI(seed) {
+  const btn = ctrl('btn-element-view-tile');
+  if (!btn) return;
+  const square = cellShapeOf(seed || getSeed()) === 'square';
+  btn.setAttribute('aria-pressed', String(!!rt.elementAids.tile && square));
+  btn.setAttribute('aria-disabled', String(!square));
+  btn.setAttribute('aria-label', square ? 'Show as tile' : 'Show as tile — needs square cells');
+  const opts = ctrl('btn-element-tile-options');
+  if (opts) opts.setAttribute('aria-disabled', String(!square));
+  ctrl('btn-element-view-snap').setAttribute('aria-pressed', String(!!rt.elementAids.snap));
+  document.querySelectorAll('#element-tile-popover [data-tile-layout]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tileLayout === rt.elementAids.layout)));
+  document.querySelectorAll('#element-tile-popover [data-tile-turn]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tileTurn === rt.elementAids.turn)));
+}
+
+// ── Snap (Oct 13, 2026): while Move X / Y or a layer's X / Y is DRAGGED (a pointer on the slider — arrow keys and a
+// typed readout never snap), the ink's edges / centre / tips catch the box's 0 · 50 · 100 and the other layers'
+// edges and centres within 4 px of the slider's travel (≥ 1 box unit — a 94 px layer slider is 2.5 units a pixel,
+// so a fixed 2 units would be under one pixel); ⌘ / Ctrl held = no snap. The ink is measured once at the press (the shape
+// does not change while you drag); the caught line shows as a guide until the release.
+rt.snapGuide = null;
+const SNAP_SLIDERS = { 'rg-element-mx': ['element', 'x'], 'rg-element-my': ['element', 'y'], 'rg-layer-mx': ['layer', 'x'], 'rg-layer-my': ['layer', 'y'] };
+const SNAP_PX = 4;
+// the threshold in box units: SNAP_PX of this slider's travel, times how far one unit of it moves the ink (k)
+const snapThr = (range, k) => { const w = range.getBoundingClientRect().width || 100, span = (+range.max - +range.min) || 200; return Math.max(1, SNAP_PX * span / w * Math.abs(k || 1)); };
+let snapDrag = null, snapMods = false;
+function prepareSnap(range) {
+  const [who, axis] = SNAP_SLIDERS[range.id], seed = getSeed(), geo = SEED_TYPES[seed.type].geometry(seed), a = getElementAppearance();
+  if (!geo || !geo.d) return null;
+  const targets = [0, 50, 100];
+  if (who === 'element') {
+    const ink = measureElementInk(geo, { ...a, [axis === 'x' ? 'mx' : 'my']: 0 });
+    return { range, axis, k: 1, thr: snapThr(range, 1), cands: snapCandidates(ink, axis), targets };
+  }
+  if (!state.layers || !geo.layers) return null;
+  const item = state.layers.items[state.layers.active], me = item && geo.layers.find(l => l.id === item.id);
+  if (!me) return null;
+  // a layer's X / Y moves its ink by Scale × the Element's turn: snap only when that is along one box axis
+  const r = (a.rotate || 0) * Math.PI / 180, S = a.scale || 1;
+  const dir = axis === 'x' ? [Math.cos(r) * a.w * S, Math.sin(r) * a.w * S] : [-Math.sin(r) * a.l * S, Math.cos(r) * a.l * S];
+  const len = Math.hypot(dir[0], dir[1]), boxAxis = Math.abs(dir[0]) > 0.999 * len ? 'x' : Math.abs(dir[1]) > 0.999 * len ? 'y' : null;
+  if (!boxAxis) return null;
+  const solo = l => ({ ...geo, layers: [{ ...l, role: 'fill' }] });
+  const ink = measureElementInk(solo({ ...me, place: { ...layerPlace(me), [axis === 'x' ? 'mx' : 'my']: 0 } }), a);
+  geo.layers.filter(l => l !== me && l.geo && l.geo.d).forEach(l => {
+    const b = measureElementInk(solo(l), a).bb;
+    if (b) { const [lo, w] = boxAxis === 'x' ? [b.x, b.width] : [b.y, b.height]; targets.push(lo, lo + w / 2, lo + w); }
+  });
+  const k = boxAxis === 'x' ? dir[0] : dir[1];
+  return { range, axis: boxAxis, k, thr: snapThr(range, k), cands: snapCandidates(ink, boxAxis), targets };
+}
+document.addEventListener('pointerdown', e => {
+  snapMods = e.metaKey || e.ctrlKey;
+  snapDrag = SNAP_SLIDERS[e.target.id] ? { pending: e.target } : null;
+}, true);
+document.addEventListener('pointermove', e => { snapMods = e.metaKey || e.ctrlKey; }, true);
+const endSnap = () => { snapDrag = null; if (rt.snapGuide) { rt.snapGuide = null; renderElementFrame(); } };
+document.addEventListener('pointerup', endSnap, true);
+document.addEventListener('pointercancel', endSnap, true);
+// Capture phase: runs before the slider's own input listener, which then reads the snapped value.
+document.addEventListener('input', e => {
+  if (!snapDrag || (snapDrag.pending || snapDrag.range) !== e.target) return;
+  if (snapDrag.pending) snapDrag = prepareSnap(snapDrag.pending) || { range: e.target, off: true };
+  const range = e.target;
+  rt.snapGuide = null;
+  if (snapDrag.off || !rt.elementAids.snap || snapMods) return;
+  const hit = snapAxis({ cands: snapDrag.cands, targets: snapDrag.targets, k: snapDrag.k, v: parseFloat(range.value), thr: snapDrag.thr });
+  if (!hit) return;
+  range.value = hit.v;   // the slider rounds to its step (0.1 — a 0.05-unit error at most)
+  rt.snapGuide = { axis: snapDrag.axis, at: hit.at };
+}, true);
+// The caught line, across the whole canvas, in the box's units through the view's orientation.
+function snapGuideSVG(g, v, tiled) {
+  const [x1, y1, x2, y2] = g.axis === 'x' ? [g.at, -100, g.at, 200] : [-100, g.at, 200, g.at];
+  const T = `translate(${tiled ? 50 : 200},${tiled ? 50 : 200}) rotate(${v.r || 0}) scale(${(v.fh ? -1 : 1) * (tiled ? 1 : 4)},${(v.fv ? -1 : 1) * (tiled ? 1 : 4)}) translate(-50,-50)`;
+  return `<g transform="${T}" pointer-events="none"><line class="fvs-snap-guide" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/></g>`;
+}
+
+// Where the Element's ink actually is, in its 0..100 box (the box = one cell): its outlines sampled through their own
+// transforms, the way it paints under `appearance` (stroke kept; Pattern measured on the shape, its clip). getBBox()
+// on a <g> unions each child's box — loose under a rotation (a turned circle measured as its turned square) — and
+// leaves the stroke out (Chrome ignores {stroke:true}). The stroke is drawn INSIDE the norm layer, so its painted
+// half width is strokeW / 2 × normScale × the stretch: each point carries that circle's x / y extent under the
+// path's matrix (px, py). Returns { bb, pts:[{x, y, px, py}] } — bb null when nothing is drawn.
+export function measureElementInk(geo, appearance) {
+  const a = appearance || getElementAppearance();
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  // 100 × 100 px so the viewBox maps 1:1 (a 0-size viewport makes getCTM() singular); off-screen, never painted.
+  svg.setAttribute('style', 'position:absolute;left:-9999px;top:0;width:100px;height:100px;visibility:hidden');
+  svg.innerHTML = '<g>' + withAppearance(a, () => elementPathMarkup(geo, '#000', a.fillMode === 'pattern')) + '</g>';
+  document.body.appendChild(svg);
+  const pts = [];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  try {
+    const g = svg.firstChild, inv = g.getCTM().inverse();
+    g.querySelectorAll('path').forEach(el => {
+      if (el.closest('clipPath, mask, defs')) return;
+      const L = el.getTotalLength(), m = inv.multiply(el.getCTM());
+      const st = getComputedStyle(el), hw = st.stroke !== 'none' ? (parseFloat(st.strokeWidth) || 0) / 2 : 0;
+      const px = hw * Math.hypot(m.a, m.c), py = hw * Math.hypot(m.b, m.d);
+      const n = Math.min(4000, Math.max(200, Math.ceil(L * 2)));
+      for (let i = 0; i <= n; i++) {
+        const q = el.getPointAtLength(L * i / n), x = m.a * q.x + m.c * q.y + m.e, y = m.b * q.x + m.d * q.y + m.f;
+        pts.push({ x, y, px, py });
+        if (x - px < x0) x0 = x - px; if (x + px > x1) x1 = x + px;
+        if (y - py < y0) y0 = y - py; if (y + py > y1) y1 = y + py;
+      }
+      // samples by length can fall either side of a corner: unturned or on a quarter turn, the path's own box mapped
+      // through its matrix is exact (corners included)
+      const e = 1e-9;
+      if ((Math.abs(m.b) < e && Math.abs(m.c) < e) || (Math.abs(m.a) < e && Math.abs(m.d) < e)) {
+        const b = el.getBBox(), cs = [[b.x, b.y], [b.x + b.width, b.y], [b.x, b.y + b.height], [b.x + b.width, b.y + b.height]]
+          .map(([u, w]) => [m.a * u + m.c * w + m.e, m.b * u + m.d * w + m.f]);
+        x0 = Math.min(x0, ...cs.map(c => c[0] - px)); x1 = Math.max(x1, ...cs.map(c => c[0] + px));
+        y0 = Math.min(y0, ...cs.map(c => c[1] - py)); y1 = Math.max(y1, ...cs.map(c => c[1] + py));
+      }
+    });
+  } catch (e) { /* nothing drawn */ }
+  document.body.removeChild(svg);
+  return { bb: x1 >= x0 ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } : null, pts };
+}
+
 export function renderElementFrame(seed) {
   const frame = ctrl('element-frame');
   if (!frame) return;
@@ -167,10 +299,22 @@ export function renderElementFrame(seed) {
   const editing = !!(rt.partEdit && state.layers && state.layers.parts);
   live.tagParts = editing;
   let svg;
-  try { svg = buildSeedPreviewSVG(sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, v.r, v.fh, v.fv, 400, { outline: true }); }
+  const drawn = sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, tiled = elementTileOn(sd);
+  try { svg = tiled ? buildSeedTileSVG(drawn, v, rt.elementAids, 400) : buildSeedPreviewSVG(drawn, v.r, v.fh, v.fv, 400, { outline: true }); }
   finally { live.tagParts = false; }
+  if (tiled) {
+    // the joins, measured on the ink as it paints (stroke included), in the view's orientation
+    // measured once per shape + look (a drag of an unrelated slider redraws without re-sampling the outline)
+    const geo = SEED_TYPES[drawn.type].geometry(drawn), key = geo && geo.d ? JSON.stringify([drawn, getElementAppearance()]) : '';
+    if (!inkCache || inkCache.key !== key) inkCache = { key, ink: key ? measureElementInk(geo) : { pts: [] } };
+    const ink = inkCache.ink;
+    svg = svg.replace('</svg>', tileEdgeOverlaySVG(edgeContacts(ink.pts.map(q => orientInkPoint(q, v)))) + '</svg>');
+  }
+  if (rt.snapGuide && cellShapeOf(sd) === 'square') svg = svg.replace('</svg>', snapGuideSVG(rt.snapGuide, v, tiled) + '</svg>');
   const overlay = buildSplitGridOverlaySVG(400);
-  if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
+  // the cut grid is drawn in the plain canvas's px (400 = the box); in the tile view the box is 100 units
+  if (overlay) svg = svg.replace('</svg>', (tiled ? `<g transform="scale(${100 / 400})">${overlay}</g>` : overlay) + '</svg>');
+  syncElementViewUI(sd);
   ctrl('element-svg').innerHTML = svg;
   frame.classList.toggle('is-part-edit', editing);
   if (editing) {

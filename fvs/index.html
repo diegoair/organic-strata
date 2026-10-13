@@ -47,6 +47,37 @@
   </div>
   <!-- Element-tier actions — hidden on the other tiers by setTier(). display:contents keeps the buttons direct flex items of the floatbar. -->
   <div id="fb-element-actions" class="fvs-fb-group">
+    <!-- View (Oct 13, 2026): Show as tile = the Element with its neighbours, where it meets the next cell (its Layout /
+         Turn in the popover beside it); Snap = Move X / Y and a layer's X / Y catch the box's edges, centre and the
+         other layers while dragged (⌘ / Ctrl held = no snap). Screen only, kept per browser. -->
+    <span class="org-floatbar__group" role="group" aria-label="View">
+    <button class="org-floatbar__btn" id="btn-element-view-tile" aria-pressed="false" aria-label="Show as tile">
+      <svg class="ico" data-icon="fvs-tile" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="5" height="5"/><path d="M1.5 5.5h2.5M1.5 10.5h2.5M12 5.5h2.5M12 10.5h2.5M5.5 1.5V4M10.5 1.5V4M5.5 12v2.5M10.5 12v2.5"/></svg>
+    </button>
+    <div class="org-popover-wrap">
+      <button class="org-floatbar__btn" id="btn-element-tile-options" aria-label="Tile layout and turn">
+        <svg class="ico" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+      </button>
+      <div class="org-popover" id="element-tile-popover" aria-label="Tile layout and turn">
+        <div class="org-popover__title">Layout</div>
+        <div class="seg-ctrl" role="group" aria-label="Tile layout">
+          <button type="button" class="seg-btn" data-tile-layout="grid" aria-pressed="true">Grid</button>
+          <button type="button" class="seg-btn" data-tile-layout="brick" aria-pressed="false">Brick</button>
+          <button type="button" class="seg-btn" data-tile-layout="halfdrop" aria-pressed="false">Half-drop</button>
+        </div>
+        <div class="org-popover__title">Turn</div>
+        <div class="seg-ctrl" role="group" aria-label="Tile turn">
+          <button type="button" class="seg-btn" data-tile-turn="none" aria-pressed="true">None</button>
+          <button type="button" class="seg-btn" data-tile-turn="alternate" aria-pressed="false">Alternate</button>
+          <button type="button" class="seg-btn" data-tile-turn="quarter" aria-pressed="false">Quarter</button>
+        </div>
+      </div>
+    </div>
+    <button class="org-floatbar__btn" id="btn-element-view-snap" aria-pressed="true" aria-label="Snap">
+      <svg class="ico" data-icon="fvs-snap" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h3v6a1.5 1.5 0 0 0 3 0v-6h3v6a4.5 4.5 0 0 1-9 0z"/><path d="M3.5 5.5h3M9.5 5.5h3"/></svg>
+    </button>
+    </span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
     <!-- Reset: the whole Element back to how FVS opens (shape, look, layers, palette, Paper). Hold to confirm (data-hold). -->
     <button class="org-floatbar__btn" id="btn-reset-seed" aria-label="Reset Element — hold to confirm" data-hold="Reset Element — click again to confirm">
       <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
@@ -443,10 +474,10 @@
       <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
       <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
       <div id="layer-place-block" class="org-layer-card__content fvs-layer__place" style="display:none">
-        <div class="ctrl-row"><div class="ctrl-label" title="Move X — shifts this layer inside the Element; 100 is a full cell.">X</div><input type="range" id="rg-layer-mx" min="-100" max="100" step="1" value="0" aria-label="Move X"><span class="ctrl-val" id="v-layer-mx">0</span></div>
-        <div class="ctrl-row"><div class="ctrl-label" title="Move Y">Y</div><input type="range" id="rg-layer-my" min="-100" max="100" step="1" value="0" aria-label="Move Y"><span class="ctrl-val" id="v-layer-my">0</span></div>
-        <div class="ctrl-row"><div class="ctrl-label" title="Size">Size</div><input type="range" id="rg-layer-scale" min="0.1" max="2" step="0.01" value="1" aria-label="Size"><span class="ctrl-val" id="v-layer-scale">1</span></div>
-        <div class="ctrl-row"><div class="ctrl-label" title="Rotation, in degrees">Rotation</div><input type="range" id="rg-layer-rotate" min="-180" max="180" step="1" value="0" aria-label="Rotation"><span class="ctrl-val" id="v-layer-rotate">0</span></div>
+        <div class="ctrl-row"><div class="ctrl-label" title="Move X — shifts this layer inside the Element, as a share of the cell.">X</div><input type="range" id="rg-layer-mx" min="-100" max="100" step="0.1" value="0" aria-label="Move X"><span class="ctrl-val" id="v-layer-mx" data-unit="%">0</span></div>
+        <div class="ctrl-row"><div class="ctrl-label" title="Move Y">Y</div><input type="range" id="rg-layer-my" min="-100" max="100" step="0.1" value="0" aria-label="Move Y"><span class="ctrl-val" id="v-layer-my" data-unit="%">0</span></div>
+        <div class="ctrl-row"><div class="ctrl-label" title="Size">Size</div><input type="range" id="rg-layer-scale" min="0.1" max="2" step="0.01" value="1" aria-label="Size"><span class="ctrl-val" id="v-layer-scale" data-unit-before="×">1</span></div>
+        <div class="ctrl-row"><div class="ctrl-label" title="Rotation, in degrees">Rotation</div><input type="range" id="rg-layer-rotate" min="-180" max="180" step="1" value="0" aria-label="Rotation"><span class="ctrl-val" id="v-layer-rotate" data-unit="°">0</span></div>
       </div>
       <div id="layer-ink-pop" class="fvs-ink-pop" role="dialog" aria-label="Layer colour" hidden></div>
     </div>
@@ -1075,12 +1106,12 @@
       <div class="ctrl-row">
         <div class="ctrl-label" title="Stretches the shape itself horizontally, before it is placed in any cell — the per-cell Scale in Component/Symbol stays uniform.">Width</div>
         <input type="range" id="rg-element-w" min="0.25" max="2" step="0.05" value="1">
-        <span class="ctrl-val" id="v-element-w">1</span>
+        <span class="ctrl-val" id="v-element-w" data-unit-before="×">1</span>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Stretches the shape itself vertically, before it is placed in any cell.">Length</div>
         <input type="range" id="rg-element-l" min="0.25" max="2" step="0.05" value="1">
-        <span class="ctrl-val" id="v-element-l">1</span>
+        <span class="ctrl-val" id="v-element-l" data-unit-before="×">1</span>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Makes the outline irregular — 0 keeps it clean. Same seed, same shape.">Irregularity</div>
@@ -1120,7 +1151,7 @@
       <div class="ctrl-row">
         <div class="ctrl-label" id="lbl-inner-ratio" title="Each copy’s size as a % of the previous one (70 → 70%, 49%, 34%…).">Ratio</div>
         <input type="range" id="rg-inner-ratio" min="10" max="95" step="1" value="70">
-        <span class="ctrl-val" id="v-inner-ratio">70</span>
+        <span class="ctrl-val" id="v-inner-ratio" data-unit="%">70</span>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Where the copies are centred. Centroid keeps the rings evenly spaced on shapes whose bounding-box centre is off-centre (Triangle, Drop, Chevron). Inner centre = the centre of the largest circle that fits inside the shape (the evenest gaps). Apex (Arc, Wedge only) centres them on the pivot / tip, so the copies stay concentric with the shape.">Anchor</div>
@@ -1157,29 +1188,29 @@
         <div class="ctrl-row" id="element-patangle-row">
           <div class="ctrl-label" title="Direction of the lines, or rotation of the dot grid.">Angle</div>
           <input type="range" id="rg-element-patangle" min="-90" max="90" step="1" value="45">
-          <span class="ctrl-val" id="v-element-patangle">45</span>
+          <span class="ctrl-val" id="v-element-patangle" data-unit="°">45</span>
         </div>
       </div>
       <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move, Rotation and Fit act on the whole Element. One layer’s own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Uniform size of the shape itself, before it is placed in any cell.">Scale</div>
-        <input type="range" id="rg-element-scale" min="0.1" max="5" step="0.01" value="1">
-        <span class="ctrl-val" id="v-element-scale">1</span>
+        <input type="range" id="rg-element-scale" min="0.1" max="5" step="0.001" value="1">
+        <span class="ctrl-val" id="v-element-scale" data-unit-before="×">1</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Shifts the shape inside its cell — 100 is a full cell width.">Move X</div>
-        <input type="range" id="rg-element-mx" min="-100" max="100" step="1" value="0">
-        <span class="ctrl-val" id="v-element-mx">0</span>
+        <div class="ctrl-label" title="Shifts the shape inside its cell, as a share of the cell’s width.">Move X</div>
+        <input type="range" id="rg-element-mx" min="-100" max="100" step="0.1" value="0">
+        <span class="ctrl-val" id="v-element-mx" data-unit="%">0</span>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="Shifts the shape inside its cell — 100 is a full cell height.">Move Y</div>
-        <input type="range" id="rg-element-my" min="-100" max="100" step="1" value="0">
-        <span class="ctrl-val" id="v-element-my">0</span>
+        <div class="ctrl-label" title="Shifts the shape inside its cell, as a share of the cell’s height.">Move Y</div>
+        <input type="range" id="rg-element-my" min="-100" max="100" step="0.1" value="0">
+        <span class="ctrl-val" id="v-element-my" data-unit="%">0</span>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Turns the whole Element about its centre, in degrees (after Width / Length).">Rotation</div>
         <input type="range" id="rg-element-rotate" min="-180" max="180" step="1" value="0">
-        <span class="ctrl-val" id="v-element-rotate">0</span>
+        <span class="ctrl-val" id="v-element-rotate" data-unit="°">0</span>
       </div>
       <button class="mini-btn" id="btn-fit-seed" style="width:100%" title="Measures the shape once and sets Scale + Move so it fills the cell, centred.">Fit to canvas</button>
     </div>
@@ -1308,19 +1339,19 @@
       <label class="check-row"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
       <div id="scale-values-block" style="display:none">
         <div class="ctrl-row">
-          <div class="ctrl-label">Small %</div>
+          <div class="ctrl-label">Small</div>
           <input type="range" id="rg-scale-small" min="10" max="400" step="1" value="75">
-          <span class="ctrl-val" id="v-scale-small">75</span>
+          <span class="ctrl-val" id="v-scale-small" data-unit="%">75</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Medium %</div>
+          <div class="ctrl-label">Medium</div>
           <input type="range" id="rg-scale-medium" min="10" max="400" step="1" value="100">
-          <span class="ctrl-val" id="v-scale-medium">100</span>
+          <span class="ctrl-val" id="v-scale-medium" data-unit="%">100</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Large %</div>
+          <div class="ctrl-label">Large</div>
           <input type="range" id="rg-scale-large" min="10" max="400" step="1" value="125">
-          <span class="ctrl-val" id="v-scale-large">125</span>
+          <span class="ctrl-val" id="v-scale-large" data-unit="%">125</span>
         </div>
       </div>
     </div>
@@ -1492,7 +1523,7 @@
           <div class="ctrl-row">
             <div class="ctrl-label" title="The tile’s size, in % of the spacing.">Size</div>
             <input type="range" id="rg-ground-patsize" min="10" max="100" step="1" value="70">
-            <span class="ctrl-val" id="v-ground-patsize">70</span>
+            <span class="ctrl-val" id="v-ground-patsize" data-unit="%">70</span>
           </div>
           <p class="org-panel__hint" id="ground-tile-note" hidden></p>
         </div>

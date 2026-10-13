@@ -37,6 +37,34 @@ export const CELL_SHAPES = Organica.shapes.CELL_SHAPES;
 // Which outlines each cell shape can fill; a reason for the ones it can't.
 export const CELL_OUTLINES = { circle: ['hexagon', 'triangle', 'diamond', 'square'], hexagon: ['hexagon', 'triangle', 'diamond', 'square'], triangle: ['hexagon', 'triangle', 'diamond'] };
 export const OUTLINE_GATE = { triangle: { square: 'Square needs circle or hexagon cells' } };
+// Snap (Oct 13, 2026) — one position slider being dragged. Its value v moves every candidate along one box axis by
+// k per unit (k = 1 for the Element's Move; ±Scale for a layer's X / Y under a quarter-turned Element). `cands` = the
+// candidates' positions at v = 0 (the ink's two edges, its centre, where it touches the other sides), `targets` = the
+// lines they may catch (the box's 0 / 50 / 100, the other layers' edges and centres). The nearest pair within `thr`
+// box units wins: { v (the slider value that lands it), at (the line), cand }, or null. Pure.
+export function snapAxis({ cands, targets, k = 1, v, thr = 2 }) {
+  if (!k) return null;
+  let best = null;
+  for (const c of cands) for (const t of targets) {
+    const d = t - (c + k * v);
+    if (Math.abs(d) <= thr && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, at: t, cand: c };
+  }
+  return best && { v: v + best.d / k, at: best.at, cand: best.cand };
+}
+// The candidates along one box axis ('x' | 'y') from a measured ink ({bb, pts}): its two edges, its centre, and where
+// it reaches the other axis's two extremes (a tip touching the top edge has an x worth snapping to the midpoint).
+export function snapCandidates(ink, axis) {
+  const b = ink && ink.bb;
+  if (!b) return [];
+  const [lo, len] = axis === 'x' ? [b.x, b.width] : [b.y, b.height];
+  const out = [lo, lo + len / 2, lo + len];
+  const along = q => axis === 'x' ? q.x : q.y, across = [q => (axis === 'x' ? q.y - q.py : q.x - q.px), q => -(axis === 'x' ? q.y + q.py : q.x + q.px)];
+  for (const f of across) {
+    const m = ink.pts.reduce((mm, q) => Math.min(mm, f(q)), Infinity), at = ink.pts.filter(q => f(q) <= m + 0.05);
+    if (at.length) { const lo2 = Math.min(...at.map(along)), hi2 = Math.max(...at.map(along)); if (hi2 - lo2 < 2) out.push((lo2 + hi2) / 2); }
+  }
+  return out;
+}
 export const cellShapeOf = seed => (seed && seed.cellShape && CELL_SHAPES[seed.cellShape]) ? seed.cellShape : 'square';
 export const withCellShape = seed => (state.cellShape === 'square' || !seed) ? seed : { ...seed, cellShape: state.cellShape };
 // A shape on a non-square cell is fitted WHOLE inside it (Diego, Oct 6, 2026 — it used to be cut to the

@@ -13,7 +13,7 @@ import {
 import {
   appearanceIsIdentity, appearanceMatrix, componentBoundaryClipContent, getElementAppearance,
   paintPaperPatternCanvas, paperPatternSVG, patternOf, resolveItemGeo, resolveUnderlyingComponent,
-  stretchOpts, withAppearance
+  stretchOpts, tileAt, withAppearance
 } from './04-appearance.js';
 import { hooks, provide } from '../hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
@@ -648,6 +648,76 @@ export function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {
   return `<svg xmlns="http://www.w3.org/2000/svg" class="is-cell" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
     + `<clipPath id="${id}"><polygon transform="${T}" points="${pts}"/></clipPath>`
     + `<g clip-path="url(#${id})"><rect width="${size}" height="${size}" fill="${state.paperColor}"/>${paperPatternSVG(size, size)}${body}</g>${edge}</svg>`;
+}
+// Show as tile (Oct 13, 2026) — the Element on the canvas with its neighbours, so you see where it meets the next
+// cell: the box −50…150 (the Element at half size, half of each neighbour — where the joins are), one tile per cell of
+// the Paper tile's own lattice (tileAt: Grid / Brick / Half-drop, Turn), at spacing 100 = one cell edge to edge. The
+// centre is drawn as on the plain canvas (its parts tagged in Edit parts); the neighbours are <use> copies of an
+// untagged drawing, faded by CSS (.fvs-tile-ghost). Screen only — never an export. Square cells only.
+export const TILE_VIEW = { x: -50, w: 200 };
+export function buildSeedTileSVG(seed, view, tile, size) {
+  const geo = SEED_TYPES[seed.type].geometry(seed), v = view || {}, t = tile || {};
+  const orient = turn => `rotate(${(v.r || 0) + turn}) scale(${v.fh ? -1 : 1},${v.fv ? -1 : 1})`;
+  const id = 'tile-' + nextDrawId(), tag = live.tagParts;
+  live.tagParts = false;
+  let def;
+  try { def = elementPathMarkup(geo, colorAt(0)); } finally { live.tagParts = tag; }
+  const lo = TILE_VIEW.x, hi = TILE_VIEW.x + TILE_VIEW.w;
+  let ghosts = '';
+  for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) {
+    if (!i && !j) continue;
+    const p = tileAt(i, j, 100, t.layout, t.turn), cx = 50 + p.gx, cy = 50 + p.gy;
+    if (cx + 50 <= lo || cx - 50 >= hi || cy + 50 <= lo || cy - 50 >= hi) continue;
+    ghosts += `<use href="#${id}" transform="translate(${cx},${cy}) ${orient(p.turn)} translate(-50,-50)"/>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="fvs-tile-view" width="${size}" height="${size}" viewBox="${lo} ${lo} ${TILE_VIEW.w} ${TILE_VIEW.w}">`
+    + `<defs><g id="${id}">${def}</g></defs>`
+    + `<rect x="${lo}" y="${lo}" width="${TILE_VIEW.w}" height="${TILE_VIEW.w}" fill="${state.paperColor}"/>`
+    + `<g class="fvs-tile-ghost">${ghosts}</g>`
+    + `<g transform="translate(50,50) ${orient(0)} translate(-50,-50)">${elementPathMarkup(geo, colorAt(0))}</g>`
+    + `</svg>`;
+}
+// Where the ink meets the box edge — the joins: per side, the spans (along that side, 0..100) where the ink reaches
+// the edge, merged. A side counts when the ink comes within `tol` of it; the span is the ink at its closest (within
+// 0.05 of that, or everything past the edge when it crosses it) — so a tangent curve marks its one point, not the
+// stretch that runs near the edge. `pts` = measureElementInk's samples ({x, y, px, py}: a point and its stroke's
+// half extent), already in the view's orientation. Pure, for the tile overlay, Snap and the tests.
+export function edgeContacts(pts, tol = 0.5) {
+  const sides = {
+    top: q => [q.y - q.py, q.x - q.px, q.x + q.px], right: q => [100 - (q.x + q.px), q.y - q.py, q.y + q.py],
+    bottom: q => [100 - (q.y + q.py), q.x - q.px, q.x + q.px], left: q => [q.x - q.px, q.y - q.py, q.y + q.py],
+  };
+  const out = {};
+  for (const k in sides) {
+    const rows = pts.map(sides[k]), dmin = rows.reduce((m, r) => Math.min(m, r[0]), Infinity);
+    if (!(dmin <= tol)) { out[k] = []; continue; }
+    const lim = Math.max(dmin, 0) + 0.05;
+    const a = rows.filter(r => r[0] <= lim).map(([, u, w]) => [Math.max(0, u), Math.min(100, w)]).filter(([u, w]) => w >= u).sort((m, n) => m[0] - n[0]), merged = [];
+    for (const r of a) { const last = merged[merged.length - 1]; if (last && r[0] <= last[1] + 1) last[1] = Math.max(last[1], r[1]); else merged.push([r[0], r[1]]); }
+    out[k] = merged.map(([u, w]) => ({ from: +u.toFixed(2), to: +w.toFixed(2), mid: +((u + w) / 2).toFixed(2) }));
+  }
+  return out;
+}
+// A point of the plain (0°) Element in a view's orientation: turned / flipped about the box centre, its stroke's
+// half extent swapped on a quarter turn.
+export function orientInkPoint(q, view) {
+  const v = view || {}, a = (v.r || 0) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+  const dx = (q.x - 50) * (v.fh ? -1 : 1), dy = (q.y - 50) * (v.fv ? -1 : 1);
+  const quarter = Math.abs(Math.round(Math.sin(a))) === 1;
+  return { x: 50 + dx * c - dy * s, y: 50 + dx * s + dy * c, px: quarter ? q.py : q.px, py: quarter ? q.px : q.py };
+}
+// The overlay over the centre cell: its box (dashed, the guides' look), the edge midpoints + corners (faint dots) and
+// a solid tick along every span where the ink meets an edge.
+export function tileEdgeOverlaySVG(contacts) {
+  const dots = [[50, 0], [100, 50], [50, 100], [0, 50], [0, 0], [100, 0], [100, 100], [0, 100]]
+    .map(([x, y]) => `<circle class="fvs-tile-dot" cx="${x}" cy="${y}" r="1.2"/>`).join('');
+  const seg = (k, u, w) => k === 'top' ? [u, 0, w, 0] : k === 'bottom' ? [u, 100, w, 100] : k === 'left' ? [0, u, 0, w] : [100, u, 100, w];
+  const ticks = Object.keys(contacts || {}).flatMap(k => contacts[k].map(c => {
+    const [a, b] = c.to - c.from < 1.5 ? [c.mid - 0.75, c.mid + 0.75] : [c.from, c.to];
+    const [x1, y1, x2, y2] = seg(k, a, b);
+    return `<line class="fvs-tile-tick" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  })).join('');
+  return `<g class="fvs-tile-overlay" pointer-events="none"><rect class="fvs-guide" x="0" y="0" width="100" height="100"/>${dots}${ticks}</g>`;
 }
 // A saved Element drawn from its entry alone — its own inks, Paper and appearance, its orientation. For a copy that
 // carries no cached thumbnail (a Figure graph's content node keeps the entry without it): drawing it from the outline

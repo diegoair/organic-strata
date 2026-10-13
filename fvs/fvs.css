@@ -413,7 +413,7 @@
   .fvs-layer__place input[type=range] { --control-bg: var(--track-bg); }
   .fvs-layer__place .ctrl-label { min-width: 0; width: auto; flex: 0 0 calc(var(--space-7) * 2); }   /* wide enough for "Stroke W", so every slider of the card lines up */
   .fvs-layer__place .check-row { margin: 0 0 var(--space-1); }
-  .fvs-layer__place .ctrl-val { flex: 0 0 22px; }
+  .fvs-layer__place .ctrl-val { flex: 0 0 auto; min-width: calc(var(--space-7) * 1.5); }   /* room for a unit: -12.5%, ×0.85, -180° */
   .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
   .fvs-ink-pop[hidden] { display: none; }
   /* the same swatches inline, in the Component Edit toolbar (Divide into parts, per cell) — a full hit target each */
@@ -648,3 +648,21 @@
   #board-variations.is-empty .fvs-board-variations__empty { display: block; margin: 0; font-size: calc(var(--fs-small) / var(--nc-zoom, 1)); }
   #board-variations.is-empty .fvs-board-variations { display: none; }
 
+
+/* A readout's unit (Oct 13, 2026): `data-unit` after the number (%, °), `data-unit-before` in front (× — a multiplier,
+   as N6 Resolution ×1 · ×2 · ×4). Drawn by CSS, so the text stays the stored number every writer puts there and the
+   readout editor (core.js organicaBeginValueEdit) reads; hidden while typing. */
+#panel .ctrl-row > .ctrl-val { min-width: calc(var(--space-7) * 1.75); }   /* room for -87.5%, so every slider of the panel ends on one line */
+.ctrl-val[data-unit]:not(.editing)::after { content: attr(data-unit); }
+.ctrl-val[data-unit-before]:not(.editing)::before { content: attr(data-unit-before); }
+
+/* Show as tile (Oct 13, 2026): the Element with its neighbours, on the Element canvas only — never exported. The
+   neighbours fade to the guides' ghost value; the centre cell's box is the guides' dashed line, its edge midpoints and
+   corners faint dots, and a solid tick marks every span where the ink meets the box edge (a join). */
+#element-svg { --fvs-ghost-opacity: 0.35; }
+.fvs-tile-ghost { opacity: var(--fvs-ghost-opacity); }
+.fvs-guide { fill: none; stroke: var(--track-accent); stroke-opacity: var(--fvs-ghost-opacity); stroke-dasharray: 6 5; stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.fvs-tile-dot { fill: var(--track-accent); fill-opacity: var(--fvs-ghost-opacity); }
+.fvs-tile-tick { stroke: var(--track-accent); stroke-width: 3px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+/* Snap: the line the Element (or a layer) has caught, drawn only while it is caught — solid, apart from the dashed box */
+.fvs-snap-guide { stroke: var(--track-accent); stroke-width: 1px; vector-effect: non-scaling-stroke; }

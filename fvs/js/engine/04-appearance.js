@@ -291,6 +291,18 @@ export function tileIconSVG(t) {
   return `<svg viewBox="-6 -6 112 112" aria-hidden="true"><g transform="${tileNormAttr(g)}"><path d="${g.d}" ${attrs}${g.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${g.fillRule}"` : ''}/></g></svg>`;
 }
 export const libraryNamesAll = all => Object.keys(all || {});
+// Tile (i, j) of a lattice of spacing s: its offset from tile (0, 0) and its turn — Brick shifts odd rows by half a
+// tile, Half-drop odd columns; Turn Alternate = a half turn on a checkerboard, Quarter = the 2 × 2 pinwheel. One rule
+// for the Paper tile and the Element's Show as tile.
+const TILE_PIN = [[0, 90], [270, 180]];
+export function tileAt(i, j, s, layout, turn) {
+  const odd = v => ((v % 2) + 2) % 2;
+  return {
+    gx: i * s + (layout === 'brick' && odd(j) ? s / 2 : 0),
+    gy: j * s + (layout === 'halfdrop' && odd(i) ? s / 2 : 0),
+    turn: turn === 'alternate' ? odd(i + j) * 180 : turn === 'quarter' ? TILE_PIN[odd(j)][odd(i)] : 0,
+  };
+}
 // The tiles across a w×h canvas, in the canvas's 1/100-of-short-side units (k):
 // a lattice rotated by Angle about the centre, Brick / Half-drop offsets, Turn.
 export function elementTileLayout(g, w, h) {
@@ -299,14 +311,11 @@ export function elementTileLayout(g, w, h) {
   const est = Math.pow(2 * r / s + 2, 2);
   if (est > TILE_CAP) { s *= Math.sqrt(est / TILE_CAP); capped = true; }
   const a = (+g.patAngle || 0) * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
-  const n = Math.ceil(r / s) + 1, tiles = [], odd = v => ((v % 2) + 2) % 2;
-  const PIN = [[0, 90], [270, 180]];
+  const n = Math.ceil(r / s) + 1, tiles = [];
   for (let j = -n; j <= n; j++) {
     for (let i = -n; i <= n; i++) {
-      const gx = i * s + (g.layout === 'brick' && odd(j) ? s / 2 : 0);
-      const gy = j * s + (g.layout === 'halfdrop' && odd(i) ? s / 2 : 0);
+      const { gx, gy, turn } = tileAt(i, j, s, g.layout, g.turn);
       if (gx * gx + gy * gy > (r + s) * (r + s)) continue;
-      const turn = g.turn === 'alternate' ? odd(i + j) * 180 : g.turn === 'quarter' ? PIN[odd(j)][odd(i)] : 0;
       tiles.push({ x: cx + gx * ca - gy * sa, y: cy + gx * sa + gy * ca, rot: (+g.patAngle || 0) + turn });
     }
   }

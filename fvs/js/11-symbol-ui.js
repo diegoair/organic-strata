@@ -476,7 +476,7 @@ export function cellPropsHTML(pre, opts = {}) {
           <div class="ctrl-row" id="${I('row-cellprop-scale')}">
             <div class="ctrl-label">Scale</div>
             <input type="range" id="${I('rg-cellprop-scale')}" min="10" max="400" step="1" value="100">
-            <span class="ctrl-val" id="${I('v-cellprop-scale')}">100</span>
+            <span class="ctrl-val" id="${I('v-cellprop-scale')}" data-unit="%">100</span>
           </div>
           <div class="ctrl-row" id="${I('row-cellprop-fixedsize')}" style="display:none">
             <div class="ctrl-label">Size</div>
@@ -493,9 +493,9 @@ export function cellPropsHTML(pre, opts = {}) {
             <button class="mini-btn" id="${I('btn-cellprop-color-reset')}">Reset</button>
           </div>
           <div class="ctrl-row">
-            <div class="ctrl-label">Padding</div>
+            <div class="ctrl-label" title="Space around the content, as a share of the cell: 40% leaves 20% on each side.">Padding</div>
             <input type="range" id="${I('rg-cellprop-padding')}" min="0" max="40" step="1" value="0">
-            <span class="ctrl-val" id="${I('v-cellprop-padding')}">0</span>
+            <span class="ctrl-val" id="${I('v-cellprop-padding')}" data-unit="%">0</span>
           </div>
           ${opts.lock === false ? '' : `<label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="${I('chk-cellprop-lock')}"><span>Lock cell (rule skips it)</span></label>`}`;
 }
