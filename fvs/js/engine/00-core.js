@@ -33,6 +33,7 @@ export const state = {
   customSeed: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
   layers: null,       // null = a plain single-shape Element. Else {items:[{id,name,role:'fill'|'mask'|'container',ink:'cell'|slot,place:{mx,my,scale,rotate},seed}], active} — a stack, bottom→top; the Seed panel edits items[active]
   mirrorLine: 'both',               // the Mirror rule's Line: 'both' | 'lr' (left–right) | 'tb' (top–bottom) — Oct 13, 2026
+  checkerStart: 0,                  // the Checkerboard rule's start: which state of each set sits on the first cell (0 A · 1 B · 2 C) — Oct 13, 2026
   mirrorSpread: 'cell',             // the Mirror rule's Span: 'cell' | 'pair' | 'grid' (book-matched) — Oct 13, 2026
   componentRole: 'normal',           // 'normal' | 'container' | 'mask' — this Component's own silhouette used as a clip/knockout boundary for underlyingComponentName
   underlyingComponentName: null,     // another saved Component Library entry's name, or null

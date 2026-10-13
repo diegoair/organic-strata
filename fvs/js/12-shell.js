@@ -54,7 +54,7 @@ import {
 } from './05-render-component.js';
 import {
   clearGallery, exitComponentEditMode, exportSelected, generate, generateColourways,
-  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, setMirrorLine, setMirrorSpan, splitElementReset,
+  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, setCheckerStart, setMirrorLine, setMirrorSpan, splitElementReset,
   syncExhaustiveHint, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant
 } from './06-component-ui.js';
 import {
@@ -818,6 +818,7 @@ ctrl('chk-axis-scale').addEventListener('change', e => {
 
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
 ctrl('seg-mirror-line').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorLine(b.dataset.line); });
+ctrl('seg-checker-start').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) setCheckerStart(+b.dataset.start); });
 ctrl('seg-mirror-span').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorSpan(b.dataset.span); });
 // Clip to cell (Component, Oct 12, 2026): each cell cut to its own frame — kept with the edited Element's Generated components
 ctrl('chk-component-clip').addEventListener('change', e => { state.componentClip = e.target.checked; renderGallery(); if (state.componentEditMode) renderComponentEditCanvas(); });

@@ -71,7 +71,7 @@ const CAPTURE = async () => {
   const base = { 'chk-axis-rotation': true, 'chk-axis-flip': false, 'chk-axis-scale': false, 'sel-lines-mode': 'alternate', 'rg-lines-step': 90, 'sel-osc-angle': '90', 'rg-osc-shift': 1, 'rg-osc-period': 3, 'rg-osc-phase': 1, 'rg-random-count': 16, 'num-seed': 1 };
   const fmt = c => `${c.rotation}${c.flipH ? 'h' : ''}${c.flipV ? 'v' : ''}${c.scale !== 1 ? '@' + c.scale : ''}`;
   const row = cells => cells.map(fmt).join(' ');
-  st.cellShape = 'square'; st.mirrorLine = 'both'; st.mirrorSpread = 'cell';
+  st.cellShape = 'square'; st.mirrorLine = 'both'; st.mirrorSpread = 'cell'; st.checkerStart = 0;
   const grid = (n, o = {}, m = n) => { set({ ...base, 'rg-grid-cols': n, 'rg-grid-rows': m, ...o }); return R.ruleCR(); };
   const fns = { identity: () => R.ruleIdentity(), pinwheel: () => R.rulePinwheel(), mirror: () => R.ruleMirror(), checkerboard: () => R.ruleCheckerboard(), radial: () => R.ruleRadial(), hlines: () => R.ruleLines('row'), vlines: () => R.ruleLines('col'), oscillator: () => R.ruleOscillator(), random: () => R.ruleRandom(), exhaustive: () => R.ruleExhaustive() };
   const run = (k, n) => { const r = fns[k](); return { n: r.length, s: r.slice(0, n).map(x => row(x.cells)) }; };
@@ -120,11 +120,12 @@ const CAPTURE = async () => {
   G.mirror.push(g('Span Pair · on a 4×4', 'a mirror line every two cells — F F′ F′ F (Line Both · Left–right · Top–bottom, turn 0°); needs 3 or more cells along the Line', 4, ['both', 'lr', 'tb'].map(l => M(cr4, { seed: 0, line: l, rotation: 0, spread: 'pair' }))));
   G.mirror.push(g('Span Whole grid · on a 4×4', 'one mirror line through the middle of the grid, like an open book: left | right · top | bottom · both (turn 0°; with Rotation on, × the 4 turns)', 4, ['h', 'v', 'hv'].map(a => B(cr4, 'bookmatch', { axis: a, rotation: 0, scale: 1 }))));
   cr = grid(2);
-  const S4 = [0, 90, 180, 270].map(r => R.stateFrom(r, false, false, 1));
-  G.checkerboard = S4.map(a => g(`A = ${a.rotation}°`, `A on the cells where column + row is even, B on the others: B = ${S4.filter(b => b !== a).map(b => b.rotation + '°').join(' · ')}`, 2, S4.filter(b => b !== a).map(b => B(cr, 'checkerboard', { a, b }))));
+  const chk = start => { st.checkerStart = start; return R.ruleCheckerboard().map(x => row(x.cells)); };
+  G.checkerboard = [g('Start at A', 'each pair of states once — A on the cells where column + row is even (the top‑left one), B on the others: 0°/90° · 0°/180° · 0°/270° · 90°/180° · 90°/270° · 180°/270°', 2, chk(0)),
+    g('Start at B', 'the same six pairs, B on the top‑left cell — the same board started on the other square', 2, chk(1))];
   grid(2, { 'chk-axis-flip': true });
-  const rf = R.ruleCheckerboard();
-  G.checkerboard.push(g('With Flip on', `every ordered pair of the 16 states (4 turns × 4 flips) — ${rf.length} results; the first 8 shown`, 2, rf.slice(0, 8).map(x => row(x.cells))));
+  const rf = chk(0); st.checkerStart = 0;
+  G.checkerboard.push(g('With Flip on', `each pair of the 12 distinct states (4 turns × none / left–right / top–bottom; both flips = a 180° turn) — ${rf.length} pairs; the first 8 shown`, 2, rf.slice(0, 8)));
   cr = grid(2);
   G.checkerboard.push(g('Diagonal mirror pattern', 'A = R, B = 90° − R: 0° / 90°, 90° / 0°, 180° / 270°, 270° / 180° — four of the twelve above', 2, [0, 90, 180, 270].map(r => B(cr, 'diagonal', { rotation: r, scale: 1 }))));
   G.radial = [g('Clockwise', 'a walk TL → TR → BR → BL, +90° each: four quarter‑arcs close a circle; start 0° · 90° · 180° · 270°', 2, [0, 90, 180, 270].map(b => B(cr, 'radial', { base: b, chirality: 1, scale: 1, tiled: false }))),
@@ -156,8 +157,10 @@ const CAPTURE = async () => {
     st.cellShape = shape; st.cellLattice[shape] = rings; st.cellOutline[shape] = outline; set({ ...base });
     const gr = R.getGrid();
     const cells = gr.cells.map(c => ({ pts: c.points.map(p => [+p[0].toFixed(2), +p[1].toFixed(2)]), c: [+c.centroid[0].toFixed(2), +c.centroid[1].toFixed(2)], b: c.baseRot || 0 }));
+    st.checkerStart = 0;
     const step = R.latticeRule('pinwheel')[0].cells.map(fmt), mirror = R.latticeRule('mirror').slice(0, 2).map(x => x.cells.map(fmt));
-    L[key] = { shape, kind: R.latticeMirrorKind(), cells, step, mirror, nStep: R.latticeRule('pinwheel').length, nMirror: R.latticeRule('mirror').length };
+    const chkL = R.latticeRule('checkerboard'), checker = chkL[0].cells.map(fmt), nStates = R.latticeCheckerClasses().n;
+    L[key] = { shape, kind: R.latticeMirrorKind(), cells, step, mirror, checker, nStates, nStep: R.latticeRule('pinwheel').length, nMirror: R.latticeRule('mirror').length, nChecker: chkL.length };
   };
   lat('hexagon', 'hexagon', 2, 'hexagon'); lat('triangle', 'triangle', 2, 'hexagon'); lat('circleHex', 'circle', 2, 'hexagon'); lat('circleSquare', 'circle', 3, 'square');
   st.cellShape = keep.shape; Object.assign(st.cellLattice, keep.lattice); Object.assign(st.cellOutline, keep.outline);

@@ -13,7 +13,7 @@ import {
 } from './engine/02-seed-ui.js';
 import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
-  exhaustiveTotal, getGrid, isCanonical2x2, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, readManualCells,
+  exhaustiveTotal, getGrid, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
 } from './engine/03-rules.js';
@@ -306,6 +306,7 @@ export function syncRuleAvailability() {
   });
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
   syncMirrorLine();
+  syncCheckerStart();
   ctrl('grid-cellcount-hint').textContent = count + ' cell' + (count === 1 ? '' : 's');
   syncQuadrantHint();
   buildManualEditor();
@@ -343,6 +344,18 @@ export function setMirrorLine(line) {
   state.mirrorLine = line;
   syncMirrorLine();
 }
+// Checkerboard › Start at (Oct 13, 2026): which state of each set sits on the first cell — A · B, and C where the cell
+// shape gives three states (hexagons, hex-packed circles); the C button only exists there (display, not greyed).
+export function syncCheckerStart() {
+  const n = state.cellShape !== 'square' && latticeMirrorKind() === 'lines' ? 3 : 2;
+  if (state.checkerStart >= n) state.checkerStart = 0;
+  ctrl('seg-checker-start').querySelectorAll('.seg-btn').forEach(b => {
+    const v = +b.dataset.start, on = v === state.checkerStart;
+    b.style.display = v < n ? '' : 'none';
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  });
+}
+export function setCheckerStart(v) { state.checkerStart = v; syncCheckerStart(); }
 export function setMirrorSpan(span) {
   if (!mirrorSpreadsEligible(state.mirrorLine).includes(span)) return;
   state.mirrorSpread = span;
@@ -365,6 +378,7 @@ export function syncRuleUI() {
   const mode = pv('sel-rule');
   ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
   ctrl('rule-mirror-block').style.display = mode === 'mirror' ? '' : 'none';
+  ctrl('rule-checker-block').style.display = mode === 'checkerboard' ? '' : 'none';
   ctrl('rule-lines-block').style.display = (mode === 'hlines' || mode === 'vlines') ? '' : 'none';
   ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
   ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';

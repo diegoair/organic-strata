@@ -331,7 +331,26 @@ export function ruleMirror() {
   return kept.length ? kept : ruleIdentity();
 }
 export function ruleDiagonal() { return familyRuleGallery('diagonal'); }
-export function ruleCheckerboard() { return familyRuleGallery('checkerboard'); }
+// Checkerboard (Oct 13, 2026, Diego): each pair of states once — {A, B}, not also {B, A}, the same board started on the
+// other square — and state.checkerStart picks which of the two sits on the first cell (top left, the even cells).
+// Random / Exhaustive keep every ordered pair (FAMILIES.checkerboard). Fewer than two states → Uniform.
+export function checkerStates(list) {
+  const seen = new Set(), out = [];
+  for (const st of list) { const k = canonicalState(st); if (!seen.has(k)) { seen.add(k); out.push(st); } }
+  return out;
+}
+export function ruleCheckerboard() {
+  if (state.cellShape !== 'square') return latticeRule('checkerboard');
+  const av = axisValues(), cr = ruleCR(), S = [];
+  for (const r of av.rotations) for (const f of av.flips) for (const sc of av.scales) S.push(stateFrom(r, f.h, f.v, sc));
+  const states = checkerStates(S), start = state.checkerStart === 1 ? 1 : 0, out = [];
+  for (let i = 0; i < states.length; i++) for (let j = i + 1; j < states.length; j++) {
+    const [a, b] = start ? [states[j], states[i]] : [states[i], states[j]];
+    out.push({ id: `checkerboard-${out.length}`, ruleSource: 'checkerboard', cells: cr ? GRID_BUILD.checkerboard(cr, a, b) : buildCheckerboardCells(a, b) });
+  }
+  const kept = dedupeComponents(out);
+  return kept.length ? kept : ruleIdentity();
+}
 export function ruleRowMirror() { return familyRuleGallery('rowmirror'); }
 export function ruleColumnMirror() { return familyRuleGallery('columnmirror'); }
 // Radial needs a centre that falls between cells: an even × even grid (the
@@ -686,7 +705,29 @@ export function latticeMirrorCells(R, seed, scale) {
   const par = latticeParity(), flipH = state.cellShape === 'hexagon';
   return par.map(p => ((p + seed) % 2 === 1 ? stateFrom(snap(-R), flipH, !flipH, scale) : stateFrom(snap(R), false, false, scale)));
 }
-export function latticeRule(mode) {
+// Checkerboard on a lattice. Triangles and square-packed circles: two states by where the cell sits (latticeParity).
+// Hexagons and hex-packed circles: THREE states (Oct 13, 2026 — Diego: "improve it as we have more complex geometry") —
+// the centres form a triangular lattice, and (i + 2j) mod 3 on its basis gives every neighbour a different state, which
+// no two-state pattern can. Each set of states once; state.checkerStart turns which state sits on the first class
+// (the class of the cell the lattice is read from); allStarts lists every turn (Exhaustive).
+export function latticeThreeClasses() {
+  const P = resolveGridCells(getGrid()).map(c => [c.cx, c.cy]);
+  if (P.length < 2) return P.map(() => 0);
+  let d = Infinity, v1 = null;
+  for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { const e = Math.hypot(P[j][0] - P[i][0], P[j][1] - P[i][1]); if (e < d - 1e-6) { d = e; v1 = [P[j][0] - P[i][0], P[j][1] - P[i][1]]; } }
+  const a = Math.atan2(v1[1], v1[0]) + Math.PI / 3, v2 = [d * Math.cos(a), d * Math.sin(a)], det = v1[0] * v2[1] - v1[1] * v2[0], [x0, y0] = P[0];
+  return P.map(([x, y]) => { const dx = x - x0, dy = y - y0, i = Math.round((dx * v2[1] - dy * v2[0]) / det), j = Math.round((v1[0] * dy - v1[1] * dx) / det); return ((i + 2 * j) % 3 + 3) % 3; });
+}
+export function latticeCheckerClasses() { return latticeMirrorKind() === 'lines' ? { n: 3, cls: latticeThreeClasses() } : { n: 2, cls: latticeParity() }; }
+export function latticeCheckerboards(allStarts) {
+  const { n, cls } = latticeCheckerClasses(), S = checkerStates(latticeStates()), out = [];
+  const starts = allStarts ? [...Array(n).keys()] : [Math.min(state.checkerStart || 0, n - 1)];
+  const sets = [];
+  for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) { if (n === 2) sets.push([S[i], S[j]]); else for (let k = j + 1; k < S.length; k++) sets.push([S[i], S[j], S[k]]); }
+  for (const set of sets) for (const st of starts) out.push(cls.map(c => ({ ...set[(c + st) % n] })));
+  return out;
+}
+export function latticeRule(mode, opts) {
   const n = getGrid().cells.length, scales = axisValues().scales;
   const pack = (key, list) => dedupeComponents(list.map((cells, i) => ({ id: `${key}-${i}`, ruleSource: key, cells })));
   if (mode === 'identity') return pack('identity', latticeStates().map(s => Array.from({ length: n }, () => ({ ...s }))));
@@ -703,11 +744,7 @@ export function latticeRule(mode) {
     for (const R of activeAxes().rotation ? latticeSteps() : [0]) for (const sd of seeds) for (const s of scales) list.push(latticeMirrorCells(R, sd, s));
     return pack('mirror', list);
   }
-  if (mode === 'checkerboard') {
-    const par = latticeParity(), sts = latticeStates(), out = [];
-    for (const a of sts) for (const b of sts) if (a !== b) out.push(par.map(p => ({ ...(p ? b : a) })));
-    return pack('checkerboard', out);
-  }
+  if (mode === 'checkerboard') return pack('checkerboard', latticeCheckerboards(opts && opts.allStarts));
   if (mode === 'random') {
     const count = Math.round(val('rg-random-count')), seed = Math.round(val('num-seed')), rng = mulberry32(seed), sts = latticeStates();
     const out = [], seen = new Set();
@@ -718,7 +755,7 @@ export function latticeRule(mode) {
     }
     return out;
   }
-  if (mode === 'exhaustive') return dedupeComponents(['identity', 'pinwheel', ...(activeAxes().flip ? ['mirror'] : []), 'radial', 'checkerboard'].flatMap(m => latticeRule(m)).map((c, i) => ({ ...c, id: `exhaustive-${i}`, ruleSource: 'exhaustive' })));
+  if (mode === 'exhaustive') return dedupeComponents(['identity', 'pinwheel', ...(activeAxes().flip ? ['mirror'] : []), 'radial', 'checkerboard'].flatMap(m => latticeRule(m, { allStarts: true })).map((c, i) => ({ ...c, id: `exhaustive-${i}`, ruleSource: 'exhaustive' })));
   return [];
 }
 export function readManualCells() {
