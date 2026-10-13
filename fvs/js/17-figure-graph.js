@@ -824,7 +824,9 @@ function renderInspectorBody(box, ids) {
       rows.push(selectRow('Starting rotation', 'fgi-cseed', [[0, '0°'], [1, '90°'], [2, '180°'], [3, '270°']], q.seed || 0, v => { q.seed = +v; edited(node, true); }));
     } else if (p.rule === 'checkerboard') {
       rows.push(selectRow('Cells A', 'fgi-ca', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], degOf(q.a), v => { q.a = +v; edited(node, true); }));
-      rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-cswap"${q.swap ? ' checked' : ''}><span>Swap A and B (start on B)</span></label>`, bind: () => ctrl('fgi-cswap').addEventListener('change', e => { q.swap = e.target.checked; edited(node, true); }) });
+      // Start at A · B (Oct 13, 2026 — Diego: the Component step's word); stored as q.swap as before (B = swap)
+      rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label" id="fgi-cstart-label">Start at</div><div class="seg-ctrl" role="group" aria-labelledby="fgi-cstart-label">${[[false, 'A'], [true, 'B']].map(([v, l]) => `<button type="button" class="seg-btn${!!q.swap === v ? ' active' : ''}" data-cstart="${v ? 1 : 0}" aria-pressed="${!!q.swap === v}" aria-label="State ${l}">${l}</button>`).join('')}</div></div>`,
+        bind: () => document.querySelectorAll('[data-cstart]').forEach(b => b.addEventListener('click', () => { const v = b.dataset.cstart === '1'; if (!!q.swap === v) return; q.swap = v; edited(node, true); renderInspector(ids); })) });
       if (!q.flip) rows.push(selectRow('Cells B', 'fgi-cb', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], degOf(q.b), v => { q.b = +v; edited(node, true); }));
       rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-cflip"${q.flip ? ' checked' : ''}><span>Flip B instead of rotate</span></label>`, bind: () => ctrl('fgi-cflip').addEventListener('change', e => { q.flip = e.target.checked; edited(node, true); renderInspector(ids); }) });
     }
