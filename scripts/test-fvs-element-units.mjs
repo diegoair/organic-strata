@@ -20,13 +20,14 @@ async function tileCells() {
       const F = window.__fvs, set = (id, v, evName = 'input') => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event(evName, { bubbles: true })); };
       F.resetElement(); set('sel-seed-type', 'arc', 'change');
       document.querySelector(`#fb-cell-shape [data-cell="${cell}"]`).click();
-      Object.assign(F.elementAids, { tile: true }); F.renderSeedPreview();
+      F.setSingle(F.boards.element, true); Object.assign(F.elementAids, { tile: true }); F.renderSeedPreview();
       await new Promise(r => setTimeout(r, 60));
       const svg = document.querySelector('#element-svg > svg');
       const out = { vb: svg.getAttribute('viewBox'), ghosts: svg.querySelectorAll('.fvs-tile-ghost > use').length, guide: !!svg.querySelector('polygon.fvs-guide'),
         ticks: svg.querySelectorAll('.fvs-tile-tick').length, opts: document.querySelector('#element-tile-flyout [data-tile-layout="brick"]').getAttribute('aria-disabled'), fly: document.getElementById('element-tile-flyout').dataset.open,
         tile: document.getElementById('btn-element-view-tile').getAttribute('aria-disabled') };
       document.querySelector('#fb-cell-shape [data-cell="square"]').click();
+      F.setSingle(F.boards.element, false); F.elementAids.tile = false; F.renderSeedPreview();
       return out;
     }, cell);
     check(`Show as tile · ${cell} cell: its own lattice (${min}+ neighbours), the cell outlined, Layout / Turn off`, r.vb === '-50 -50 200 200' && r.ghosts >= min && r.guide && r.opts === 'true' && r.fly === 'true' && r.tile !== 'true', JSON.stringify(r));
@@ -184,6 +185,8 @@ async function tileView() {
     const out = {};
     F.resetElement();
     set('sel-seed-type', 'arc', 'change'); set('sel-element-fillmode', 'fill', 'change');
+    out.boardHidden = document.getElementById('btn-element-view-tile').parentElement.hidden;   // the board: no Show as tile
+    F.setSingle(F.boards.element, true); F.renderSeedPreview();   // the single view (a double-click on the board)
     document.getElementById('btn-element-view-tile').click();
     await new Promise(r => setTimeout(r, 60));
     const svg = document.querySelector('#element-svg > svg');
@@ -210,6 +213,10 @@ async function tileView() {
     document.getElementById('btn-element-view-tile').click();   // off again
     out.offViewBox = document.querySelector('#element-svg > svg').getAttribute('viewBox');
     out.flyOff = document.getElementById('element-tile-flyout').dataset.open;
+    document.getElementById('btn-element-view-tile').click();   // on again, then back to the board: the board stays plain
+    F.setSingle(F.boards.element, false); F.renderSeedPreview();
+    out.boardPlain = document.querySelector('#element-svg > svg').getAttribute('viewBox') === '0 0 400 400' && document.getElementById('element-tile-flyout').dataset.open === 'false';
+    F.elementAids.tile = false;
     return out;
   });
   check('Show as tile: the canvas shows the −50…150 view, 8 neighbours, the joins ticked', r.pressed === 'true' && r.viewBox === '-50 -50 200 200' && r.ghosts === 8 && r.ticks > 0, JSON.stringify({ ...r, arc: undefined, truchet: undefined }));
@@ -219,6 +226,7 @@ async function tileView() {
   const t = r.truchet;
   check('Joins · arc truchet: its bands meet the edges symmetrically about the midpoints', t.top.length > 0 && t.bottom.length > 0 && Math.abs(t.top.reduce((s, c) => s + c.mid, 0) / t.top.length - 50) < 1.5, JSON.stringify(t));
   check('Show as tile · Brick: the row above is shifted by half a cell', JSON.stringify(r.brickXs) === JSON.stringify([0, 100]), JSON.stringify(r.brickXs));
+  check('Show as tile lives in the single view: hidden on the board, and the board draws the plain Element', r.boardHidden === true && r.boardPlain === true, JSON.stringify({ hidden: r.boardHidden, plain: r.boardPlain }));
   check('Show as tile: its six options open as a second layer above it while it is on, and close with it', r.flyOn === 'true' && r.flyVisible && r.flyOff === 'false', JSON.stringify({ on: r.flyOn, vis: r.flyVisible, off: r.flyOff }));
   check('Show as tile · the 90° view turns the tiles', r.turned, String(r.turned));
   check('Show as tile: the export is the plain Element (no tile, no overlay); off again = the plain canvas', r.exportClean && r.offViewBox === '0 0 400 400', JSON.stringify({ exportClean: r.exportClean, off: r.offViewBox }));
@@ -309,7 +317,7 @@ async function visuals() {
     F.resetElement(); document.querySelector(`#fb-cell-shape [data-cell="${o.cell || 'square'}"]`).click(); set('sel-seed-type', o.type, 'change'); set('sel-element-fillmode', o.fill || 'fill', 'change');
     if (o.sw) set('rg-element-strokew', o.sw);
     for (const [id, v] of Object.entries(o.set || {})) set(id, v);
-    Object.assign(F.elementAids, { layout: o.layout || "grid", turn: o.turn || "none", tile: true });
+    F.setSingle(F.boards.element, true); Object.assign(F.elementAids, { layout: o.layout || "grid", turn: o.turn || "none", tile: true });
     F.renderSeedPreview();
     const svg = document.querySelector('#element-svg > svg'); svg.style.position = 'fixed'; svg.style.left = '20px'; svg.style.top = '20px'; svg.style.width = svg.style.height = '400px'; svg.style.zIndex = 99999;
   }, o);

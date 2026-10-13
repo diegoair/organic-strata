@@ -168,7 +168,10 @@ rt.elementAids = { tile: false, layout: 'grid', turn: 'none', snap: false };   /
 try { Object.assign(rt.elementAids, JSON.parse(localStorage.getItem(ELEMENT_VIEW_KEY) || 'null') || {}); } catch (e) { /* private mode */ }
 export function saveElementView() { try { localStorage.setItem(ELEMENT_VIEW_KEY, JSON.stringify(rt.elementAids)); } catch (e) { /* private mode */ } }
 // Every cell shape tiles: a square on the Layout / Turn lattice, a Circle / Triangle / Hexagon in its own (Diego, Oct 13).
-export const elementTileOn = () => !!rt.elementAids.tile;
+// The tile view lives in the Element's single view only (double-click on the board — Diego, Oct 13: "only in the
+// single view"); the board draws the plain Element.
+const elementSingle = () => { const v = document.querySelector('.tier-view[data-tier="element"]'); return !!(v && v.classList.contains('is-single')); };
+export const elementTileOn = () => !!rt.elementAids.tile && elementSingle();
 const TILE_OPTION_NAMES = { grid: 'Layout: Grid', brick: 'Layout: Brick', halfdrop: 'Layout: Half-drop', none: 'Turn: None', alternate: 'Turn: Alternate', quarter: 'Turn: Quarter' };
 export function syncElementViewUI(seed) {
   const btn = ctrl('btn-element-view-tile');
@@ -178,7 +181,9 @@ export function syncElementViewUI(seed) {
   // the second layer: open while Show as tile is on. Layout / Turn arrange square tiles; another cell shape tiles in
   // its own lattice, so there they are off (aria-disabled, the reason in the name)
   const fly = ctrl('element-tile-flyout');
-  if (fly) fly.dataset.open = String(!!rt.elementAids.tile && state.activeTier === 'element');
+  const single = elementSingle();
+  btn.parentElement.hidden = !single;   // Show as tile and its layer: the single view only
+  if (fly) fly.dataset.open = String(!!rt.elementAids.tile && single && state.activeTier === 'element');
   const why = square ? '' : ' — needs square cells';
   document.querySelectorAll('#element-tile-flyout [data-tile-layout], #element-tile-flyout [data-tile-turn]').forEach(o => {
     const on = o.dataset.tileLayout ? o.dataset.tileLayout === rt.elementAids.layout : o.dataset.tileTurn === rt.elementAids.turn;

@@ -660,11 +660,20 @@
 .fvs-snap-guide { stroke: var(--track-accent); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 /* Show as tile's second layer (Diego, Oct 13): the Anchor flyout's pads, each holding an icon instead of a dot — open
    while the tile view is on (data-open set by syncElementViewUI), not a dropdown; off pads on a non-square cell */
-.fvs-flyout__tool--icon > .ico { position: relative; z-index: 1; }
+/* Icon pads follow the floatbar's icon rules (DS Icons + floatbar.css): --ink glyph at 0.6 at rest, full on hover /
+   focus / picked; the picked pad is the pressed toggle's --pane-thumb wash (not --tool with an inverted glyph); pads
+   are the bar's slot size with the bar's gap between them. */
+#element-tile-flyout { grid-template-columns: repeat(3, var(--space-8)); gap: var(--space-3); padding: var(--space-3); }
+.fvs-flyout__tool--icon { width: var(--space-8); height: var(--space-8); border-radius: 50%; color: var(--ink); }
+.fvs-flyout__tool--icon::before { background: var(--pane-thumb); }
+.fvs-flyout__tool--icon[data-on="true"] { color: var(--ink); }
+.fvs-flyout__tool--icon > svg { position: relative; z-index: 1; opacity: 0.6; transition: opacity var(--dur-slow) var(--ease-glide); }
+.fvs-flyout__tool--icon:is(:hover, :focus-visible, [data-on="true"]) > svg { opacity: 1; }
+.org-popover-wrap[hidden] { display: none; }
 /* off: dimmed glyph, not the pad, as the floatbar's aria-disabled — so its tooltip (the reason) stays readable */
 .fvs-flyout__tool--icon[aria-disabled="true"] { cursor: not-allowed; }
 .fvs-flyout__tool--icon[aria-disabled="true"]:hover { background: transparent; }
-.fvs-flyout__tool--icon[aria-disabled="true"] > .ico { opacity: 0.21; }
+.fvs-flyout__tool--icon[aria-disabled="true"] > svg, .fvs-flyout__tool--icon[aria-disabled="true"]:is(:hover, :focus-visible) > svg { opacity: 0.21; }
 /* each pad's name as the floatbar buttons' tooltip (the turn icons need it most) */
 .fvs-flyout__tool--icon:is(:hover, :focus-visible)::after {
   content: attr(aria-label); position: absolute; bottom: calc(100% + var(--space-3)); left: 50%; transform: translateX(-50%); z-index: 2;
