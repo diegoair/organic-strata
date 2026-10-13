@@ -333,7 +333,7 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 **Rotation** (0/90/180/270°, on by default) · **Flip** (none / H / V / both) · **Scale** (off by
 default; **Small / Medium / Large** %, 10–400, defaults 75 / 100 / 125). The axes are the **space a
 rule draws from**: Random and Exhaustive only use the families the active axes allow
-(`activeFamilies`), Identity / Checkerboard enumerate the active values. On a cell-shape lattice a
+(`activeFamilies`), Checkerboard enumerates the active values; Identity ignores them on square cells. On a cell-shape lattice a
 rotation is a step of the cell's own (circle 90°, triangle 120°, hexagon 60°) and Flip uses the
 shape's own flips. Lines and Oscillator read only the Scale axis (their angle comes from their own
 controls).
@@ -345,7 +345,7 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
 
 | Rule | What each cell gets | Available when | Own controls |
 |---|---|---|---|
-| **Identity** | the same state everywhere — one candidate per value of the active axes | always | — |
+| **Identity** | every cell as drawn — 0°, no flip, scale 1: **one candidate**, whatever the axes (on Circle / Triangle / Hexagon cells: one uniform candidate per state of the active axes — see below) | always | — |
 | **Pinwheel** | rotation stepped by `(col + 2·row) mod 4` | ≥ 2 cells | — |
 | **Mirror (kaleidoscope)** | flips by column / row parity; beyond 2×2 also the three whole-grid *book-matched* mirrors (left\|right, top\|bottom, both) | ≥ 2 cells | — |
 | **Diagonal mirror** | alternates R / 90−R | ≥ 2 cells | — |
