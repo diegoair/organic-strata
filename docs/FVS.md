@@ -434,7 +434,7 @@ the Element panel.
 
 ### 5.8 Saving and undo
 
-- **Quick save** (the circle on a candidate): saves it to the library as *‹rule› ‹time›* (no
+- **Quick save** (the circle on a candidate): saves it to the library as *‹rule name› ‹time›* — the menu's word, *Uniform 14:02*, *Column mirror 14:02* (`ruleLabel`, engine/03-rules.js; until Oct 13, 2026 the code key, *identity 14:02*; names already saved are kept) (no
   message; its ✓ says it; a second click on the ✓ removes it). **Save all to library**: every
   candidate of the **edited Element's** set, already-saved ones skipped, *Saved n Components*.
   A saved Component keeps its Element, grid, cells, palette and rule, Paper + texture, layer inks,

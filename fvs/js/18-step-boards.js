@@ -34,7 +34,7 @@ import {
   applyElementSnapshot, layersChanged, selectLayer, setPartEdit
 } from './07-library.js';
 import { cellShapeOf, frameDims, syncPartLayers } from './engine/01-geometry.js';
-import { GALLERY_THUMB, fitThumbBox, getGrid } from './engine/03-rules.js';
+import { GALLERY_THUMB, fitThumbBox, getGrid, ruleLabel } from './engine/03-rules.js';
 import { componentCaption } from './engine/06-component-ui.js';
 import { hexKey, syncActiveLayer } from './engine/07-library.js';
 import {
@@ -597,7 +597,7 @@ function mountComponentBoard() {
     const grid = getGrid(), size = frameDims(grid);
     if (!g.components.length) return `<p class="hint fvs-board-gallery__empty">No generated components yet</p>`;
     return withPalette(e.palette, () => withAppearance(e.app, () => g.components.map((c, k) =>
-      `<div class="fvs-thumb-wrap"><button type="button" class="fvs-thumb" data-k="${k}" aria-label="Component ${escAttr(c.ruleSource)} ${escAttr(c.id)} of ${escAttr(nameOf(e))} — double-click to edit">${componentThumbMarkup(c, grid, e.seed, size)}</button><span class="fvs-thumb-caption">${escAttr(componentCaption(c))}</span></div>`).join('')));
+      `<div class="fvs-thumb-wrap"><button type="button" class="fvs-thumb" data-k="${k}" aria-label="Component ${escAttr(ruleLabel(c.ruleSource))} ${escAttr(c.id)} of ${escAttr(nameOf(e))} — double-click to edit">${componentThumbMarkup(c, grid, e.seed, size)}</button><span class="fvs-thumb-caption">${escAttr(componentCaption(c))}</span></div>`).join('')));
   }
   function staticSheet(e) {
     const id = 'gl-' + e.id;

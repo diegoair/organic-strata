@@ -36,6 +36,15 @@ export function fitThumbBox(w, h, maxSide) {
   const scale = maxSide / Math.max(w, h);
   return { w: Math.max(1, Math.round(w * scale)), h: Math.max(1, Math.round(h * scale)) };
 }
+// The rule's name as people read it (the Rule menu's words, short) — for saved names and accessible names.
+// `ruleSource` stays the code key (saved Components, the regression suite). Diego, Oct 13, 2026.
+export const RULE_LABELS = {
+  identity: 'Uniform', pinwheel: 'Pinwheel', mirror: 'Mirror', bookmatch: 'Mirror', diagonal: 'Diagonal mirror',
+  checkerboard: 'Checkerboard', rowmirror: 'Row mirror', columnmirror: 'Column mirror', radial: 'Radial',
+  hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Oscillator', random: 'Random',
+  exhaustive: 'Exhaustive', manual: 'Manual', edited: 'Edited', recipe: 'Recipe',
+};
+export const ruleLabel = key => RULE_LABELS[key] || (key ? key[0].toUpperCase() + key.slice(1) : 'Component');
 // ── Transform axes — the full vocabulary. ──
 export const ROTATIONS = [0, 90, 180, 270];
 export const FLIPS = [{ h: false, v: false }, { h: true, v: false }, { h: false, v: true }, { h: true, v: true }];

@@ -12,7 +12,7 @@ import {
   getSeed, seedForSnapshot
 } from './engine/02-seed-ui.js';
 import {
-  getGrid
+  getGrid, ruleLabel
 } from './engine/03-rules.js';
 import {
   buildComponentItems, getElementAppearance, withAppearance
@@ -529,7 +529,7 @@ function renderGalleryNow() {
     const kept = galleryThumbs.get(comp);
     if (kept && kept.key === key) {
       if (kept.btn.className !== thumbClass) kept.btn.className = thumbClass;
-      kept.btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id} — double-click to edit`);
+      kept.btn.setAttribute('aria-label', `Component ${ruleLabel(comp.ruleSource)} ${comp.id} — double-click to edit`);
       if (kept.btn.title !== caption) { kept.btn.title = caption; kept.cap.textContent = caption; }
       if (kept.savedName !== (comp.savedName || null)) {   // the save circle carries the name in its label / its click
         const q = galleryQuickSave(comp);
@@ -541,7 +541,7 @@ function renderGalleryNow() {
     }
     const btn = document.createElement('button');
     btn.className = thumbClass;
-    btn.setAttribute('aria-label', `Component ${comp.ruleSource} ${comp.id} — double-click to edit`);
+    btn.setAttribute('aria-label', `Component ${ruleLabel(comp.ruleSource)} ${comp.id} — double-click to edit`);
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; hooks.adoptLayerInks(comp); hooks.adoptColourway(comp); renderGallery(); });
     // Caption = the rule that made it + each cell's rotation (f = flipped),

@@ -12,7 +12,7 @@ import {
   CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, panelSeedSnapshot, seedForSnapshot, xrId
 } from './engine/02-seed-ui.js';
 import {
-  fitThumbBox
+  fitThumbBox, ruleLabel
 } from './engine/03-rules.js';
 import {
   buildComponentItems
@@ -108,7 +108,7 @@ export function quickSaveComponentToLibrary(compId, chosen) {
   const comp = state.components.find(c => c.id === compId);
   const entry = buildLibraryEntryFor(comp);
   if (!entry) return;
-  const name = uniqueLibraryName(chosen || comp.ruleSource + ' ' + new Date().toLocaleTimeString());
+  const name = uniqueLibraryName(chosen || ruleLabel(comp.ruleSource) + ' ' + new Date().toLocaleTimeString());
   const all = LIBRARY.read();
   all[name] = entry;
   if (!LIBRARY.write(all)) return;   // storage full: the store showed the notice — no ✓ for a save that did not happen
@@ -132,7 +132,7 @@ export function saveAllComponentsToLibrary() {
     if (comp.savedName && all[comp.savedName]) return;
     const entry = buildLibraryEntryFor(comp);
     if (!entry) return;
-    const base = comp.ruleSource + ' ' + time;
+    const base = ruleLabel(comp.ruleSource) + ' ' + time;
     let name = base, i = 2;
     while (all[name]) name = `${base} (${i++})`;
     all[name] = entry;
