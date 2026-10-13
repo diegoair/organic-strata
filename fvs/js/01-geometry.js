@@ -115,7 +115,11 @@ export function strokeToShapeD(d, widthUnits, opts) {
 // (Segment and its variants) and was converted to a filled ribbon first —
 // the caller uses it to force the Element into Fill style, since a stroke
 // re-applied on top of an already-filled ribbon piece would double-outline it.
-export function splitElementGeometry(d, fillRule) {
+// `view` (Oct 13, 2026 — Diego: the cut grid was "wrong" on a turned Element): a DOMMatrix from the raw `d` to what
+// the canvas shows (the geometry's norm layer, then the Element's Scale / Move / Rotation / Width / Length). The cuts
+// are made THERE — vertical + horizontal through the centre of the visible shape, so TL is the top-left of what you
+// see — and each piece is carried back to the raw space, so it draws in its place under the same transforms.
+export function splitElementGeometry(d, fillRule, view) {
   const scope = splitPaperScope();
   const bb0 = pathBBox(d);
   if (!bb0) return [];
@@ -135,11 +139,14 @@ export function splitElementGeometry(d, fillRule) {
   if (!bb || bb.width <= 0 || bb.height <= 0) return [];
   let shape;
   try { shape = importAsPaperShape(scope, dd, fr); } catch (e) { return []; }
-  const cx = bb.x + bb.width / 2, cy = bb.y + bb.height / 2;
+  const M = view ? new scope.Matrix(view.a, view.b, view.c, view.d, view.e, view.f) : null, Mi = M && M.inverted();
+  if (M && Mi) shape.transform(M);
+  const vb = shape.bounds;
+  const cx = vb.x + vb.width / 2, cy = vb.y + vb.height / 2;
   // A margin well past the shape's own extent keeps a quadrant rectangle's
   // inner edges off any coincident shape boundary — an exact-touch can make
   // intersect() return a degenerate near-zero sliver instead of a clean cut.
-  const pad = Math.max(bb.width, bb.height) + 10;
+  const pad = Math.max(vb.width, vb.height) + 10;
   const out = [];
   for (const q of SPLIT_QUADRANTS) {
     const rx = q.dx < 0 ? cx - pad : cx, ry = q.dy < 0 ? cy - pad : cy;
@@ -148,6 +155,7 @@ export function splitElementGeometry(d, fillRule) {
     try { piece = shape.intersect(rect, { insert: false }); } catch (e) { piece = null; }
     rect.remove();
     if (piece) {
+      if (M && Mi) piece.transform(Mi);   // back to the raw space the Element draws from
       if (Math.abs(piece.area) > 0.01) {
         const seed = fitPathToSeed(piece.pathData, bb);
         if (seed) out.push({ id: q.id, seed, strokeConv, frameBB: bb });

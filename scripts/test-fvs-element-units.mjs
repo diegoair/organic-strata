@@ -94,12 +94,12 @@ async function padding() {
 // Split's cut grid lines up with the drawn Element (Diego, Oct 13 — "Show cut grid … not anymore aligning"): its frame
 // = the ink's box under Scale / Move / Width, and a kept quadrant lands inside its tinted quarter.
 async function splitGrid() {
-  for (const c of [{}, { 'rg-element-scale': 0.6 }, { 'rg-element-mx': 20, 'rg-element-my': -10 }, { 'rg-element-w': 0.6 }, { layers: true, 'rg-element-scale': 0.6 }]) {
+  for (const c of [{}, { 'rg-element-scale': 0.6 }, { 'rg-element-mx': 20, 'rg-element-my': -10 }, { 'rg-element-w': 0.6 }, { layers: true, 'rg-element-scale': 0.6 }, { 'rg-element-rotate': 30 }, { layers: true, 'rg-element-rotate': 21, type: 'polygon' }]) {
     const r = await ev(async c => {
       const F = window.__fvs, set = (id, v, e = 'input') => { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event(e, { bubbles: true })); };
-      F.resetElement(); set('sel-seed-type', 'triangle', 'change');
+      F.resetElement(); set('sel-seed-type', c.type || 'triangle', 'change');
       if (c.layers) document.getElementById('btn-layer-add').click();
-      for (const [k, v] of Object.entries(c)) if (k !== 'layers') set(k, v);
+      for (const [k, v] of Object.entries(c)) if (k !== 'layers' && k !== 'type') set(k, v);
       const chk = document.getElementById('chk-split-grid'); chk.checked = true; chk.dispatchEvent(new Event('change', { bubbles: true }));
       await new Promise(r => setTimeout(r, 50));
       const svg = document.querySelector('#element-svg > svg'), o = svg.querySelector('.fvs-split-grid rect[fill="none"]').getBoundingClientRect(), sr = svg.getBoundingClientRect(), k = 100 / sr.width;
@@ -114,7 +114,7 @@ async function splitGrid() {
     }, c);
     const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) <= 0.6), mid = [(r.fr[0] + r.fr[2]) / 2, (r.fr[1] + r.fr[3]) / 2];
     const inTL = r.tl[0] >= r.fr[0] - 0.6 && r.tl[1] >= r.fr[1] - 0.6 && r.tl[2] <= mid[0] + 0.6 && r.tl[3] <= mid[1] + 0.6;
-    check(`Split cut grid lines up with the Element ${JSON.stringify(c)}: frame = the ink's box, the TL piece inside its quarter`, near(r.fr, r.ink) && inTL, JSON.stringify(r));
+    check(`Split cut grid lines up with the Element ${JSON.stringify(c)}: frame = the visible ink's upright box, the TL piece inside its quarter`, near(r.fr, r.ink) && inTL, JSON.stringify(r));
   }
 }
 // --shots DIR: screenshots of the Element canvas

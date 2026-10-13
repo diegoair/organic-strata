@@ -15,7 +15,7 @@ import {
   getGrid
 } from './engine/03-rules.js';
 import {
-  appearanceIsIdentity, buildComponentItems, getElementAppearance, stretchOpts, withAppearance
+  buildComponentItems, getElementAppearance, withAppearance
 } from './engine/04-appearance.js';
 import {
   buildComponentSVG, buildComponentSVGBody, buildSeedPreviewSVG, buildSeedTileSVG, componentGridOutlineSVG,
@@ -107,13 +107,11 @@ export function renderSeedPreview() {
 // ORIGINAL (pre-split) shape's own bbox mapped through its own geometry
 // transform: transformed_x = (raw_x + normTx) * normScale, the same formula
 // elementPathMarkup's <g transform> applies — works for any Seed, centred or
-// not, without assuming fitToBox's usual centring. Built in the Element's 0..100
-// box and drawn through the SAME transforms as the shape: the Element's Scale /
-// Move / Rotation / Width / Length (Split cuts the shape's own geometry, so the
-// cuts move and turn with it — Oct 13, 2026: the frame used to stay on the plain
-// box and no longer lined up once Fit to canvas or a slider moved the shape), then
-// the canvas's own box → px (`T`: the plain canvas's scale and cell-shape fit, or
-// none on the tile view, already in box units).
+// not, without assuming fitToBox's usual centring. Oct 13, 2026: the frame used to
+// sit on the plain box, apart from a shape moved by Fit to canvas or a slider; now
+// it is the VISIBLE shape's upright box, where Split cuts, drawn through the
+// canvas's own box → px (`T`: the plain canvas's scale and cell-shape fit, or none
+// on the tile view, already in box units).
 export function buildSplitGridOverlaySVG(size, T = '') {
   const chk = ctrl('chk-split-grid');
   if (!chk || !chk.checked) return '';
@@ -122,15 +120,13 @@ export function buildSplitGridOverlaySVG(size, T = '') {
   if (!srcSeed || !SEED_TYPES[srcSeed.type]) return '';
   const geo = SEED_TYPES[srcSeed.type].geometry(srcSeed);
   if (!geo || !geo.d) return '';
-  const bb = pathBBox(geo.d);
-  if (!bb) return '';
-  const fx = (bb.x + geo.normTx) * geo.normScale, fy = (bb.y + geo.normTy) * geo.normScale;
-  const fw = bb.width * geo.normScale, fh = bb.height * geo.normScale;
+  // the frame = the visible shape's box (its outline as drawn: Scale / Move / Rotation / Width / Length applied), upright —
+  // Split cuts there (splitElementGeometry's `view`), vertical + horizontal through its centre
+  const ink = measureElementInk(geo, { ...getElementAppearance(), fillMode: 'fill' }).bb;
+  if (!ink) return '';
+  const fx = ink.x, fy = ink.y, fw = ink.width, fh = ink.height;
   const cx = fx + fw / 2, cy = fy + fh / 2;
-  const a = getElementAppearance();
-  const appT = appearanceIsIdentity(a) ? '' : Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a));
-  // the labels keep about 10 px on screen whatever the transforms do (text has no non-scaling option)
-  const px = size / 100 * (a.scale || 1) * Math.min(a.w || 1, a.l || 1), fs = (10 / Math.max(0.05, px)).toFixed(3);
+  const fs = (10 * 100 / size).toFixed(3);   // labels about 10 px on screen
   const kept = state.splitKeep;
   const tint = (q, dx, dy) => {
     const on = kept.size === 0 || kept.has(q);
@@ -142,7 +138,7 @@ export function buildSplitGridOverlaySVG(size, T = '') {
     return `<text x="${lx.toFixed(3)}" y="${ly.toFixed(3)}" font-size="${fs}" fill="var(--mid)" font-family="var(--font)">${text}</text>`;
   };
   const line = 'stroke="var(--tool)" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"';
-  return `<g pointer-events="none" class="fvs-split-grid"${T ? ` transform="${T}"` : ''}><g${appT ? ` transform="${appT}"` : ''}>`
+  return `<g pointer-events="none" class="fvs-split-grid"${T ? ` transform="${T}"` : ''}><g>`
     + tint('tl', -1, -1) + tint('tr', 1, -1) + tint('bl', -1, 1) + tint('br', 1, 1)
     + `<rect x="${fx.toFixed(3)}" y="${fy.toFixed(3)}" width="${fw.toFixed(3)}" height="${fh.toFixed(3)}" fill="none" ${line}/>`
     + `<line x1="${cx.toFixed(3)}" y1="${fy.toFixed(3)}" x2="${cx.toFixed(3)}" y2="${(fy + fh).toFixed(3)}" ${line}/>`

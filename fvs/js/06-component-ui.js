@@ -18,7 +18,7 @@ import {
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
 } from './engine/03-rules.js';
 import {
-  buildComponentItems, componentCellColRow, getElementAppearance, withAppearance
+  appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, withAppearance
 } from './engine/04-appearance.js';
 import {
   buildComponentSVG, buildComponentSVGBody, componentGridOutlineSVG, drawComponentCanvas, gridWrapper
@@ -585,15 +585,22 @@ export function toggleSplitQuadrant(q) {
   if (state.splitKeep.size === 0 || state.splitKeep.size === 4) { splitElementReset(); return; }
   splitElementApply();
 }
+// raw `d` → the Element's 0..100 box as drawn: the geometry's norm layer, then Scale / Move / Rotation / Width / Length
+export function splitViewMatrix(geo) {
+  const ns = geo.normScale || 1;
+  return appearanceMatrix(getElementAppearance()).translate((geo.normTx || 0) * ns, (geo.normTy || 0) * ns).scale(ns);
+}
 export function splitElementApply() {
   const status = ctrl('split-status');
   const { stillOurs, original } = splitCurrentOriginal();
   if (!stillOurs && elementIsEmpty()) { status.textContent = 'Draw or pick a Seed first — nothing to split.'; state.splitKeep.clear(); syncSplitUI(); return; }
   const geo = SEED_TYPES[original.type].geometry(original);
   if (!geo || !geo.d) { status.textContent = 'This Element has no visible shape to split.'; state.splitKeep.clear(); syncSplitUI(); return; }
-  const key = JSON.stringify(original);
+  // cut on what the canvas shows: the norm layer, then the Element's appearance (splitViewMatrix)
+  const view = splitViewMatrix(geo);
+  const key = JSON.stringify([original, view.toString()]);
   if (!state.splitCache || state.splitCache.key !== key) {
-    state.splitCache = { key, pieces: splitElementGeometry(geo.d, geo.fillRule) };
+    state.splitCache = { key, pieces: splitElementGeometry(geo.d, geo.fillRule, view) };
   }
   const pieces = state.splitCache.pieces;
   const kept = ['tl', 'tr', 'bl', 'br'].filter(q => state.splitKeep.has(q)).map(q => pieces.find(p => p.id === q)).filter(Boolean);
