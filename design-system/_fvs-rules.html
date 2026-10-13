@@ -71,6 +71,11 @@ h1 { font-family: var(--font-display); font-weight: var(--w-bold); font-size: va
 .legend { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; margin-top: var(--space-7); font-size: var(--fs-small); color: var(--mid); }
 .legend figure { margin: 0; display: grid; justify-items: center; gap: var(--space-1); }
 .legend .note { max-width: 46ch; }
+/* Mark switch (13 Oct 2026, Diego: "use letters" — try the letter F against the arc) */
+.mark-switch { display: flex; align-items: center; gap: var(--space-2); }
+.mark-switch button { font: inherit; font-size: var(--fs-small); color: var(--ink); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-1) var(--space-3); cursor: pointer; }
+.mark-switch button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.mark-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
 section.step { padding-top: calc(var(--space-8) * 1.75); }
 section.step > h2 { font-family: var(--font-display); font-weight: var(--w-bold); font-size: var(--fs-4xl); line-height: var(--lh-tight); margin: 0; display: flex; gap: var(--space-5); align-items: baseline; }
 section.step > h2 .num { font-family: var(--font-mono); font-weight: var(--w-medium); font-size: var(--fs-medium); color: var(--mid); }
@@ -225,6 +230,7 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
   </div>
   <div class="everywhere"><b>Everywhere</b> — the <a href="#palette">Palette &amp; Paper</a> section sits outside the steps: the inks, <i>Colour by</i>, the Paper colour and its texture apply to every step and every export.</div>
 
+  <svg class="mark-defs" aria-hidden="true" focusable="false"><defs><g id="atlas-mark"></g></defs></svg>
   <div class="legend" id="legend"></div>
 </header>
 
@@ -373,7 +379,7 @@ ul.flags { padding-left: var(--space-6); margin: var(--space-3) 0 0; font-size: 
   <div class="grid">
     <div class="entry"><h4>Blend <span class="key">sel-component-blend</span></h4><p class="how"><b>Normal</b> — the later cell covers the earlier. <b>Multiply</b> — where cells’ inks overlap (Scale &gt; 1) they mix, and multiply with the Paper too.</p></div>
     <div class="entry"><h4>Role <span class="key">sel-component-role</span></h4><p class="how"><b>Normal</b> · <b>Container</b> — another saved Component, clipped to this one’s cells · <b>Mask</b> — this one’s cells knocked out of the other and its paper. Square cells only; forces a square frame.</p></div>
-    <div class="entry"><h4>Starter set</h4><p class="how">Before any Generate: the first 4 of Checkerboard, Pinwheel, Mirror and Radial (if eligible) — 16 on a 2×2. On a lattice: Radial, Checkerboard, Uniform. Rebuilt live while untouched (until Generate, Add, Clear board or a library load).</p></div>
+    <div class="entry"><h4>Starter set</h4><p class="how">Before any Generate: the first 4 of Checkerboard, Step turn, Mirror and Radial (if eligible) — 16 on a 2×2. On a lattice: Radial, Checkerboard, Uniform. Rebuilt live while untouched (until Generate, Add, Clear board or a library load).</p></div>
   </div>
 </section>
 
@@ -515,7 +521,27 @@ const SIZES = {"1x1":{"identity":[1,["0"]],"pinwheel":"A 1×1 Component has no p
 /* ---------- drawing primitives (the light "sheet": fixed colours, like the FVS stage) ---------- */
 const INK = '#111111', ACC = '#3fa876', GRID = '#d9d3c6', WASH = '#f4f2ed';
 const PAL = ['#5f238d', '#74c476', '#d40039'];
-const MARK = `<path d="M0 0H100A100 100 0 0 1 0 100Z" fill="${INK}"/><circle cx="66" cy="19" r="10" fill="${ACC}"/>`;
+// The mark every cell diagram draws — one <use> of #atlas-mark, so the switch in the legend swaps it everywhere.
+// Letter F: no turn or flip of it looks like another (13 Oct 2026, a test against the Arc).
+const MARKS = {
+  letter: `<path d="M24 8H82V27H45V41H74V59H45V92H24Z" fill="${INK}"/>`,
+  arc: `<path d="M0 0H100A100 100 0 0 1 0 100Z" fill="${INK}"/><circle cx="66" cy="19" r="10" fill="${ACC}"/>`,
+};
+const MARK_KEY = 'organica.ds.atlas.mark';
+let markKind = 'letter';
+try { if (localStorage.getItem(MARK_KEY) === 'arc') markKind = 'arc'; } catch (e) {}
+const MARK = '<use href="#atlas-mark"/>';
+function setMark(kind) {
+  markKind = kind;
+  document.getElementById('atlas-mark').innerHTML = MARKS[kind];
+  document.querySelectorAll('.mark-switch button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mark === kind)));
+  const note = document.getElementById('mark-note');
+  if (note) note.innerHTML = kind === 'letter'
+    ? 'The mark used in every cell diagram: the letter <b>F</b> — no turn or flip of it looks like another, so you read each cell’s state at a glance. Captions write a cell as <code>90</code>, <code>0h</code> (flip H), <code>0v</code>, <code>0hv</code>, <code>@0.75</code> (scale), in reading order.'
+    : 'The mark used in every cell diagram: a quarter disc (FVS’s default Arc) with a green dot, so a turn and a flip never look alike — and four of them can close a circle, as in the tool. Captions write a cell as <code>90</code>, <code>0h</code> (flip H), <code>0v</code>, <code>0hv</code>, <code>@0.75</code> (scale), in reading order.';
+  try { localStorage.setItem(MARK_KEY, kind); } catch (e) {}
+}
+document.getElementById('atlas-mark').innerHTML = MARKS[markKind];
 const svg = (w, h, body, label) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${label || ''}">${body}</svg>`;
 function parseCell(s) { const m = /^(\d+)(h?)(v?)(?:@([\d.]+))?$/.exec(s); return { r: +m[1], h: !!m[2], v: !!m[3], s: m[4] ? +m[4] : 1 }; }
 function markAt(cx, cy, size, c) {
@@ -542,7 +568,10 @@ const snap90 = d => ((Math.round(d / 90) * 90) % 360 + 360) % 360;
 (function () {
   const states = [['0°', '0'], ['90°', '90'], ['180°', '180'], ['270°', '270'], ['Flip H', '0h'], ['Flip V', '0v']];
   $('legend').innerHTML = states.map(([cap, s]) => fig(svg(40, 40, `<rect width="40" height="40" fill="#fff" stroke="${GRID}"/>` + markAt(20, 20, 34, parseCell(s)), cap), cap)).join('') +
-    `<div class="note">The mark used in every diagram: a quarter disc (FVS’s default Arc) with a green dot, so a turn and a flip never look alike. Captions write a cell as <code>90</code>, <code>0h</code> (flip H), <code>0v</code>, <code>0hv</code>, <code>@0.75</code> (scale), in reading order.</div>`;
+    `<div class="mark-switch" role="group" aria-label="Mark in the diagrams">Mark <button type="button" data-mark="letter" aria-pressed="false">Letter F</button><button type="button" data-mark="arc" aria-pressed="false">Arc</button></div>` +
+    `<div class="note" id="mark-note"></div>`;
+  document.querySelectorAll('.mark-switch button').forEach(b => b.addEventListener('click', () => setMark(b.dataset.mark)));
+  setMark(markKind);
 })();
 
 /* ---------- Element: cell shapes ---------- */
@@ -675,13 +704,13 @@ function patternBody(type, sp, w, ang, box, color) {
 (function () {
   const R = [
     { k: 'identity', t: 'Uniform', how: 'The same Element, unchanged, in every cell — a plain repeat, the baseline the other rules are read against. Every cell 0°, no flip, scale 1: always <b>one</b> candidate on square cells, whatever the axes (Colour by and Layer colour variants can still vary it). On circle / triangle / hexagon cells it lists one candidate per uniform state of the axes instead. Was called <i>Identity</i> until 13 Oct 2026.', count: c => c['2|identity'].n },
-    { k: 'pinwheel', t: 'Pinwheel', how: 'Rotation steps one quarter per cell: base + chirality·k·90°. On a 2×2, k = reading order; on bigger grids k = (col + 2·row) mod 4.', gate: 'Not on 1×1. Square cells only. Rotation implied.' },
+    { k: 'pinwheel', t: 'Step turn', how: 'Each cell turns <b>one quarter (90°) more than the cell before it</b>, in reading order — left to right, then down. On a 2×2: 0° and 90° on the top row, 180° and 270° on the bottom. It is <b>not</b> a turn around the centre — that is <b>Radial</b>. Results: start 0 / 90 / 180 / 270 × direction (clockwise / counter‑clockwise) = 8. On bigger grids each column adds 90° and each row 180° (step = (col + 2·row) mod 4), so the turns drift diagonally; on a single column it only alternates 0° / 180°. Was called <i>Pinwheel</i> until 13 Oct 2026.', gate: 'Not on 1×1. Square cells only. Rotation implied.' },
     { k: 'mirror', t: 'Mirror (kaleidoscope)', how: 'A seed cell is plain; its side neighbour flips H, the one below flips V, the diagonal both. Beyond 2×2 it also lists the three whole‑grid <b>book‑matched</b> mirrors (left|right, top|bottom, both).', gate: 'Not on 1×1. Flip implied even with Flip off.', extra: '4|mirror|F' },
     { k: 'diagonal', t: 'Diagonal mirror', how: 'Cells with col + row even take R, odd take 90° − R.', gate: 'Not on 1×1.' },
     { k: 'checkerboard', t: 'Checkerboard', how: 'Two states A and B alternate by (col + row) parity. A and B are every ordered pair of distinct states from the active axes — 12 with Rotation only, 136 with Rotation + Flip.', gate: 'Needs at least one axis on, else falls back to Uniform (with a note).' },
     { k: 'rowmirror', t: 'Row mirror', how: 'Rotation R everywhere; every odd row flips V.', gate: 'Needs ≥ 2 rows.' },
     { k: 'columnmirror', t: 'Column mirror', how: 'Rotation R everywhere; every other column flips H.', gate: 'Needs ≥ 2 columns.' },
-    { k: 'radial', t: 'Radial', how: 'A clockwise walk TL → TR → BR → BL, one 90° step each, so four quarter‑arcs close a circle. On larger even grids: one rosette on the whole grid, and a <b>tiled</b> rosette per 2×2 block.', gate: 'Even × even grids only (its centre falls between cells).' },
+    { k: 'radial', t: 'Radial', how: 'A clockwise walk TL → TR → BR → BL, one 90° step each, so four quarter‑arcs close a circle — on a 2×2 this is the classic <b>pinwheel</b>, a turn around the centre (<b>Step turn</b> steps in reading order instead). On larger even grids: one rosette on the whole grid, and a <b>tiled</b> rosette per 2×2 block.', gate: 'Even × even grids only (its centre falls between cells).' },
     { k: 'hlines', t: 'Horizontal lines', how: 'Keyed on the row. <b>Alternate</b>: odd rows take Step. <b>Ramp</b>: row · Step. With Scale on, rows also cycle Small / Large (Alternate) or S / M / L (Ramp).', params: [['Mode', 'Alternate / Ramp'], ['Step', '0–270 · 90']], extra: '4|hlines|ramp', extraCap: 'Ramp' },
     { k: 'vlines', t: 'Vertical lines', how: 'The same, keyed on the column.', params: [['Mode', 'Alternate / Ramp'], ['Step', '0–270 · 90']], extra: '4|vlines|ramp', extraCap: 'Ramp' },
     { k: 'oscillator', t: 'Oscillator (Truchet)', how: 'A cell takes the Angle step when (col + ⌊Row shift · row⌋) mod Period = Phase, else 0°. The bookofshapes concentric‑arc truchet.', params: [['Angle', '90° / 180°'], ['Row shift', '0–2 · 1'], ['Period', '2–6 · 3'], ['Phase', '0–5 · 1']], extra: '4|osc|p4s0', extraCap: 'Period 4, shift 0' },
@@ -698,7 +727,7 @@ function patternBody(type, sp, w, ang, box, color) {
     return entry({ title: r.t, key: r.k, sheet, count: cnt, how: r.how, params: r.params, gate: r.gate });
   }).join('');
   html += entry({ title: 'Manual', key: 'manual', how: 'One select per cell: Rotation 0/90/180/270, Flip None/H/V/Both, Scale S/M/L. The button reads <b>Add component</b> and adds one Component per click.', gate: 'Square cells only.' });
-  html += entry({ title: 'With Scale on', key: 'axis', sheet: (CELLS['2|pinwheel|S'].s.slice(0, 3).map(s => fig(compSVG(s, 2, 2, 26), s.split(' ')[0].replace(/^\d+/, '') || '@1')).join('')), count: `Pinwheel 2×2: ${CELLS['2|pinwheel|S'].n} candidates`, how: 'Every named rule is listed again at Small, Medium and Large.' });
+  html += entry({ title: 'With Scale on', key: 'axis', sheet: (CELLS['2|pinwheel|S'].s.slice(0, 3).map(s => fig(compSVG(s, 2, 2, 26), s.split(' ')[0].replace(/^\d+/, '') || '@1')).join('')), count: `Step turn 2×2: ${CELLS['2|pinwheel|S'].n} candidates`, how: 'Every named rule is listed again at Small, Medium and Large.' });
   $('comprules').innerHTML = html;
 })();
 
@@ -707,7 +736,7 @@ function patternBody(type, sp, w, ang, box, color) {
 (function () {
   const order = ['1x1', '2x1', '4x1', '1x4', '2x2', '3x2', '3x3', '2x4', '4x4'];
   const label = s => s.replace('x', '×');
-  const names = { identity: 'Uniform', pinwheel: 'Pinwheel', mirror: 'Mirror', diagonal: 'Diagonal mirror', checkerboard: 'Checkerboard', rowmirror: 'Row mirror', columnmirror: 'Column mirror', radial: 'Radial', hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Oscillator', random: 'Random', exhaustive: 'Exhaustive' };
+  const names = { identity: 'Uniform', pinwheel: 'Step turn', mirror: 'Mirror', diagonal: 'Diagonal mirror', checkerboard: 'Checkerboard', rowmirror: 'Row mirror', columnmirror: 'Column mirror', radial: 'Radial', hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Oscillator', random: 'Random', exhaustive: 'Exhaustive' };
   const from2 = k => CELLS['2|' + k], from4 = k => CELLS['4|' + k];
   const RF2 = { checkerboard: 136, exhaustive: 172 }, RF4 = { checkerboard: 136 };
   const cell = (size, k) => {
@@ -723,11 +752,11 @@ function patternBody(type, sp, w, ang, box, color) {
   $('sizetable').innerHTML = h;
   const ex = (size, k, n) => { const [c, r] = size.split('x').map(Number), v = SIZES[size][k]; return v[1].slice(0, n).map(s => fig(compSVG(s, c, r, c * r > 4 ? 18 : 24), label(size))).join(''); };
   const notes = [
-    { title: '1×4 — one column, four rows', sheet: ex('1x4', 'pinwheel', 2) + ex('1x4', 'mirror', 2) + ex('1x4', 'hlines', 1), how: '<b>Pinwheel</b> only alternates 0° / 180° (its step k = col + 2·row skips two quarters per row) — 4 candidates, chirality no longer matters. <b>Mirror</b> flips V down the strip (6 with book‑match). <b>Horizontal lines</b> alternate; <b>Vertical lines</b> = Uniform. <b>Column mirror</b> and <b>Radial</b> are greyed out.' },
-    { title: '4×1 — four columns, one row', sheet: ex('4x1', 'pinwheel', 1) + ex('4x1', 'mirror', 2) + ex('4x1', 'vlines', 1), how: '<b>Pinwheel</b> walks the full 0 / 90 / 180 / 270 along the row (8 candidates). <b>Mirror</b> flips H along it. <b>Vertical lines</b> alternate; <b>Horizontal lines</b> = Uniform. <b>Row mirror</b> and <b>Radial</b> are greyed out.' },
+    { title: '1×4 — one column, four rows', sheet: ex('1x4', 'pinwheel', 2) + ex('1x4', 'mirror', 2) + ex('1x4', 'hlines', 1), how: '<b>Step turn</b> only alternates 0° / 180° (its step k = col + 2·row skips two quarters per row) — 4 candidates, chirality no longer matters. <b>Mirror</b> flips V down the strip (6 with book‑match). <b>Horizontal lines</b> alternate; <b>Vertical lines</b> = Uniform. <b>Column mirror</b> and <b>Radial</b> are greyed out.' },
+    { title: '4×1 — four columns, one row', sheet: ex('4x1', 'pinwheel', 1) + ex('4x1', 'mirror', 2) + ex('4x1', 'vlines', 1), how: '<b>Step turn</b> walks the full 0 / 90 / 180 / 270 along the row (8 candidates). <b>Mirror</b> flips H along it. <b>Vertical lines</b> alternate; <b>Horizontal lines</b> = Uniform. <b>Row mirror</b> and <b>Radial</b> are greyed out.' },
     { title: '1×1 — a single cell', how: 'Every pattern rule is greyed out (“A 1×1 Component has no pattern — use Exhaustive for its rotations/flips”). Uniform, Random, Exhaustive and Manual remain: Exhaustive lists the cell’s 4 turns (12 with Flip). The way to put one Element in a Symbol.' },
-    { title: '2×1 — two cells side by side', sheet: ex('2x1', 'mirror', 2) + ex('2x1', 'pinwheel', 2), how: 'Mirror gives 5 (the seed’s H‑neighbour flips H; V‑flips only via book‑match). Pinwheel steps one quarter between the two cells. Row mirror and Radial greyed out.' },
-    { title: '3×3 and 3×2 — odd sides', sheet: ex('3x3', 'pinwheel', 1) + ex('3x3', 'rowmirror', 1) + ex('3x2', 'oscillator', 1), how: '<b>Radial</b> is greyed out (its centre would fall in a cell). Every other rule runs; Pinwheel’s (col + 2·row) mod 4 step makes a diagonal drift instead of closed pinwheels; Mirror gains the 3 book‑matched mirrors (7).' },
+    { title: '2×1 — two cells side by side', sheet: ex('2x1', 'mirror', 2) + ex('2x1', 'pinwheel', 2), how: 'Mirror gives 5 (the seed’s H‑neighbour flips H; V‑flips only via book‑match). Step turn steps one quarter between the two cells. Row mirror and Radial greyed out.' },
+    { title: '3×3 and 3×2 — odd sides', sheet: ex('3x3', 'pinwheel', 1) + ex('3x3', 'rowmirror', 1) + ex('3x2', 'oscillator', 1), how: '<b>Radial</b> is greyed out (its centre would fall in a cell). Every other rule runs; Step turn’s (col + 2·row) mod 4 step makes a diagonal drift instead of closed pinwheels; Mirror gains the 3 book‑matched mirrors (7).' },
     { title: '2×4 and 4×4 — even sides', sheet: ex('2x4', 'radial', 2), how: '<b>Radial</b> returns: one rosette on the whole grid plus a <b>tiled</b> rosette per 2×2 block (16 candidates). On 2×4 the tiles stack vertically.' },
   ];
   $('sizenotes').innerHTML = notes.map(entry).join('');
@@ -933,7 +962,7 @@ function ctx6(N) {
         ['grid', 'gate', 'f', '1×1 greys out the pattern rules; Radial needs even × even; Row / Column mirror need ≥ 2 rows / columns'],
         ['rule', 'gate', 'f', 'the Rule menu greys out what this grid and cell can’t run (it falls back to Uniform)'],
         ['rule', 'fam', 'f', 'a named rule is its own family; picking a mirror implies Flip even when Flip is off'],
-        ['rot', 'fam', 'f', 'Pinwheel, Diagonal and Radial need Rotation; Checkerboard needs at least one axis'],
+        ['rot', 'fam', 'f', 'Step turn, Diagonal and Radial need Rotation; Checkerboard needs at least one axis'],
         ['flip', 'fam', 'f', 'Mirror, Book‑match, Row and Column mirror need Flip'],
         ['scale', 'fam', 's', 'every family listed again at Small, Medium, Large (×3)'],
         ['gate', 'fam', 's', 'only rules that can run reach the families'],
@@ -943,7 +972,7 @@ function ctx6(N) {
         ['step', 'cand', 's', 'every turn is a step of the cell’s own'],
         ['gshape', 'cand', 's', 'Grid shape + Grid size set the cells of a lattice'],
         ['seed', 'cand', 'a', 'the same Seed gives the same Random draw'],
-        ['starter', 'cand', 's', 'until you Generate: the first 4 of Checkerboard, Pinwheel, Mirror, Radial'],
+        ['starter', 'cand', 's', 'until you Generate: the first 4 of Checkerboard, Step turn, Mirror, Radial'],
         ['grid', 'cand', 's', 'changing the grid after Generate runs the rule again'],
         ['role', 'frame', 'f', 'Container and Mask need square cells and force a square frame'],
         ['cell', 'frame', 'f', 'on circle, triangle, hexagon cells Container and Mask are off'],
@@ -951,8 +980,8 @@ function ctx6(N) {
         ['blend', 'draw', 's', 'Multiply mixes inks where cells overlap'],
         ['scale', 'draw', 's', 'Scale > 1 makes cells overlap'],
       ],
-      ex: { title: 'A 1×4 grid with Pinwheel', path: [['cell', 'gate'], ['grid', 'gate'], ['rule', 'gate'], ['gate', 'fam'], ['fam', 'cap'], ['cap', 'cand']],
-        stages: { cell: ['Square', 'coCell'], grid: ['1 column × 4 rows', 'coGrid'], rule: ['Pinwheel', 'coRule'], gate: ['Radial · Column mirror greyed', 'coGate'], fam: ['k = col + 2·row → 0°, 180°', 'coFam'], cap: ['4 ≤ 512', null], cand: ['4 candidates (8 on a 2×2)', 'coCand', 1] } } },
+      ex: { title: 'A 1×4 grid with Step turn', path: [['cell', 'gate'], ['grid', 'gate'], ['rule', 'gate'], ['gate', 'fam'], ['fam', 'cap'], ['cap', 'cand']],
+        stages: { cell: ['Square', 'coCell'], grid: ['1 column × 4 rows', 'coGrid'], rule: ['Step turn', 'coRule'], gate: ['Radial · Column mirror greyed', 'coGate'], fam: ['k = col + 2·row → 0°, 180°', 'coFam'], cap: ['4 ≤ 512', null], cand: ['4 candidates (8 on a 2×2)', 'coCand', 1] } } },
     { id: 'rel-symbol', title: 'Symbol', sub: 'Grid first, content second: the grid is built empty, then filled by Suggest, Arrange, a Rule or by hand.', cols: ['You set', 'FVS decides', 'You get'],
       nodes: [['canvas', 'Canvas & margin', 0], ['gen', 'Grid generator', 0], ['pool', 'Pool', 0], ['arr', 'Arrange rule', 0], ['rule', 'Rule mode', 0], ['vary', 'Vary', 0], ['snap', 'Snap to 90°', 0], ['sug', 'Suggest weights', 0], ['seed', 'Seed', 0], ['lock', 'Lock', 0], ['overlap', 'Overlap', 0], ['blend', 'Blend', 0], ['fit', 'Fit', 0],
         ['ctype', 'Cell type', 1], ['fill', 'Fill the grid', 1], ['score', 'Suggest score', 1], ['clip', 'Clip to cell', 1], ['match', 'Shared‑cells gate', 1], ['cells', 'Cell contents', 2], ['look', 'Drawing', 2]],
@@ -1043,7 +1072,7 @@ function ctx6(N) {
     coCell: () => svg(40, 40, `<rect x="4" y="4" width="32" height="32" fill="#fff" stroke="#111" stroke-width="1.5"/>`, 'square cell'),
     coGrid: () => svg(22, 84, [0, 1, 2, 3].map(i => `<rect x="1" y="${1 + i * 20.5}" width="20" height="20" fill="#fff" stroke="#111"/>`).join(''), '1×4 grid'),
     coRule: () => compSVG('0 90 180 270', 2, 2, 22),
-    coGate: () => svg(118, 52, `${lab(4, 12, '✓ Pinwheel', '#1b1b1b', 9).replace('text-anchor="middle"', 'text-anchor="start"')}${lab(4, 28, 'Radial', '#9b9486', 9).replace('text-anchor="middle"', 'text-anchor="start"')}<line x1="4" y1="25" x2="42" y2="25" stroke="#d23a2b"/>${lab(4, 44, 'Column mirror', '#9b9486', 9).replace('text-anchor="middle"', 'text-anchor="start"')}<line x1="4" y1="41" x2="82" y2="41" stroke="#d23a2b"/>`, 'rules that can run'),
+    coGate: () => svg(118, 52, `${lab(4, 12, '✓ Step turn', '#1b1b1b', 9).replace('text-anchor="middle"', 'text-anchor="start"')}${lab(4, 28, 'Radial', '#9b9486', 9).replace('text-anchor="middle"', 'text-anchor="start"')}<line x1="4" y1="25" x2="42" y2="25" stroke="#d23a2b"/>${lab(4, 44, 'Column mirror', '#9b9486', 9).replace('text-anchor="middle"', 'text-anchor="start"')}<line x1="4" y1="41" x2="82" y2="41" stroke="#d23a2b"/>`, 'rules that can run'),
     coFam: () => { let b = ''; [0, 2, 0, 2].forEach((k, i) => { b += `<rect x="1" y="${1 + i * 21}" width="20" height="20" fill="#fff" stroke="#b9b1a2"/>${lab(11, i * 21 + 14, 'k' + k, '#1b1b1b', 7.5)}${lab(44, i * 21 + 14, k ? '180°' : '0°', '#1f5fd6', 8)}`; }); return svg(64, 86, b, 'step per cell'); },
     coCand: () => { const c = ['0 180 0 180', '90 270 90 270', '180 0 180 0', '270 90 270 90']; return svg(4 * 30, 84, c.map((s, i) => `<g transform="translate(${i * 30} 0)">${compSVG(s, 1, 4, 21)}</g>`).join(''), '4 candidates'); },
     syPool: () => svg(102, 44, [['0 90 270 180', 0], ['0 90 180 270', 1], ['0 90 90 0', 2]].map(([s, i]) => `<g transform="translate(${i * 36} 0)">${compSVG(s, 2, 2, 14)}</g><rect x="${i * 36}" y="30" width="28" height="13" fill="${INKS[i]}"/>${lab(i * 36 + 14, 40, LT[i])}`).join(''), 'pool'),

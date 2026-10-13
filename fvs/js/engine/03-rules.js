@@ -39,7 +39,7 @@ export function fitThumbBox(w, h, maxSide) {
 // The rule's name as people read it (the Rule menu's words, short) — for saved names and accessible names.
 // `ruleSource` stays the code key (saved Components, the regression suite). Diego, Oct 13, 2026.
 export const RULE_LABELS = {
-  identity: 'Uniform', pinwheel: 'Pinwheel', mirror: 'Mirror', bookmatch: 'Mirror', diagonal: 'Diagonal mirror',
+  identity: 'Uniform', pinwheel: 'Step turn', mirror: 'Mirror', bookmatch: 'Mirror', diagonal: 'Diagonal mirror',
   checkerboard: 'Checkerboard', rowmirror: 'Row mirror', columnmirror: 'Column mirror', radial: 'Radial',
   hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Oscillator', random: 'Random',
   exhaustive: 'Exhaustive', manual: 'Manual', edited: 'Edited', recipe: 'Recipe',
