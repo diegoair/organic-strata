@@ -13,6 +13,7 @@ Fast, no dependencies beyond python3 + node. Exits 1 on any failure.
   5. icons         — every <svg data-icon> equals its shared/icons.js drawing; no new bare 16-grid <svg>
   6. css-lint      — scripts/css-lint.py must be clean
   7. session log   — docs/SESSION-LOG.md is append-only: never fewer notes than at HEAD
+  8. docs          — CLAUDE.md stays small (size budget, ≤ 3 inline session notes); doc paths that do not resolve are reported
 """
 import json, os, re, subprocess, sys, tempfile
 
@@ -291,6 +292,43 @@ try:
         ok(f"{_notes(_now)} notes, none lost")
 except OSError as e:
     fail(f"docs/SESSION-LOG.md: {e}")
+
+# 8. docs: CLAUDE.md is read at the start of every session — on Oct 14, 2026 it had grown to 122 KB (~30k tokens): the
+#    full Tools table and Repo Structure now live in docs/TOOLS.md / docs/REPO-STRUCTURE.md, older notes in the log.
+#    Over budget = move detail to the tool's manual or docs/TOOLS.md; a 4th inline note = migrate the oldest to the log.
+#    Backticked repo paths and relative links in the docs that do not resolve are listed (a report, not a failure:
+#    a plan names files still to come, a history names files since removed).
+print("docs")
+CLAUDE_MD_BUDGET = 60_000
+try:
+    _cm = open("CLAUDE.md", encoding="utf-8").read()
+    _size = len(_cm.encode("utf-8"))
+    _sn = _cm.find("## Session Notes")
+    _inline = sum(1 for l in _cm[_sn:].split("\n") if l.startswith("- **")) if _sn >= 0 else 0
+    if _size > CLAUDE_MD_BUDGET:
+        fail(f"CLAUDE.md is {_size // 1000} KB (budget {CLAUDE_MD_BUDGET // 1000} KB): move detail to docs/TOOLS.md, docs/REPO-STRUCTURE.md or the tool's manual")
+    elif _inline > 3:
+        fail(f"CLAUDE.md has {_inline} inline session notes (keep 3): append the oldest to docs/SESSION-LOG.md and remove it here")
+    else:
+        ok(f"CLAUDE.md {_size // 1000} KB of {CLAUDE_MD_BUDGET // 1000} KB, {_inline} inline session notes")
+    _dead = []
+    _path_re = re.compile(r"`((?:scripts|shared|fvs|docs|design-system|genesis|loom|rhizome)/[\w./-]+\.(?:js|mjs|sh|py|css|html|json|md))`")
+    _link_re = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
+    for _f in ["CLAUDE.md", "README.md"] + sorted(f for f in tracked(".md") if f.startswith("docs/") and "SESSION-LOG" not in f):
+        _t = open(_f, encoding="utf-8").read()
+        for _p in set(_path_re.findall(_t)):
+            if not os.path.exists(_p): _dead.append(f"{_f}: {_p}")
+        for _p in set(_link_re.findall(_t)):
+            if _p.startswith(("http", "mailto")): continue
+            if not (os.path.exists(os.path.normpath(os.path.join(os.path.dirname(_f), _p))) or os.path.exists(_p.lstrip("/"))):
+                _dead.append(f"{_f}: link {_p}")
+    if _dead:
+        print(f"  · {len(_dead)} doc path(s) that do not resolve — report only (planned or removed files are fine)" +
+              (":" if "--docs" in sys.argv else "; list them: python3 scripts/check.py --docs"))
+        if "--docs" in sys.argv:
+            for _d in sorted(_dead): print("      " + _d)
+except OSError as e:
+    fail(f"docs: {e}")
 
 print()
 if fails:
