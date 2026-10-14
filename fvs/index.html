@@ -93,6 +93,10 @@
     <button class="org-floatbar__btn" id="btn-component-view-outline" aria-pressed="false" aria-label="Show grid">
       <svg class="ico" data-icon="fvs-grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11"/></svg>
     </button>
+    <!-- Show guides (Component Edit only): the track borders and their % — Symbol's toggle, the same icon -->
+    <button class="org-floatbar__btn" id="btn-component-view-guides" aria-pressed="true" aria-label="Show guides" style="display:none">
+      <svg class="ico" data-icon="fvs-guides" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/></svg>
+    </button>
     <!-- Clear board: every candidate goes (clearGallery keeps an undo step, so ⌘Z brings them back). Hold to confirm. -->
     <button class="org-floatbar__btn" id="btn-board-clear-component" aria-label="Clear board — hold to confirm" data-hold="Clear board — click again to confirm">
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
@@ -1310,10 +1314,10 @@
     <div class="panel-section" id="ce-grid-section" hidden>
       <h3>Grid <span class="hint" id="ce-grid-count">4 cells</span></h3>
       <div class="ctrl-row"><div class="ctrl-label">Columns</div>
-        <input type="range" id="rg-ce-cols" min="1" max="8" step="1" value="2" aria-label="Columns"><span class="ctrl-val" id="v-ce-cols">2</span>
+        <input type="range" id="rg-ce-cols" min="2" max="8" step="1" value="2" aria-label="Columns"><span class="ctrl-val" id="v-ce-cols">2</span>
       </div>
       <div class="ctrl-row"><div class="ctrl-label">Rows</div>
-        <input type="range" id="rg-ce-rows" min="1" max="8" step="1" value="2" aria-label="Rows"><span class="ctrl-val" id="v-ce-rows">2</span>
+        <input type="range" id="rg-ce-rows" min="2" max="8" step="1" value="2" aria-label="Rows"><span class="ctrl-val" id="v-ce-rows">2</span>
       </div>
       <div class="row-btns">
         <button type="button" class="mini-btn" id="btn-ce-even-tracks">Even tracks</button>

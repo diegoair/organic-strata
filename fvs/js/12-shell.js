@@ -693,6 +693,11 @@ export function syncSymbolViewUI() {
     b.setAttribute('aria-pressed', String(k === 'clip' ? state.symbolClipEnabled : state.symbolView[k]));
   });
 }
+ctrl('btn-component-view-guides').addEventListener('click', e => {
+  state.componentGuides = !state.componentGuides;
+  e.currentTarget.setAttribute('aria-pressed', String(state.componentGuides));
+  renderComponentEditCanvas();
+});
 ctrl('btn-component-view-outline').addEventListener('click', e => {
   state.componentGridOutline = !state.componentGridOutline;
   e.currentTarget.setAttribute('aria-pressed', String(state.componentGridOutline));

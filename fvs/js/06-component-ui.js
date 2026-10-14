@@ -182,6 +182,7 @@ function continueCells(ruleSource, oldGrid, oldCells, g) {
 }
 export function ceSetGrid(cols, rows) {
   if (!ceSquare()) return;
+  cols = Math.max(2, Math.min(8, cols)); rows = Math.max(2, Math.min(8, rows));   // a Component's grid starts at 2 × 2 (Diego, Oct 14)
   const old = state.componentEditGrid;
   if (cols === old.cols && rows === old.rows) return;
   ceSnapshot();
@@ -262,7 +263,7 @@ function ceTrackGeometry(items, size) {
   return { d, xs, ys };
 }
 function ceTrackHandles(items, size) {
-  if (!ceSquare() || items.length !== state.componentEditGrid.cols * state.componentEditGrid.rows) return '';
+  if (!ceSquare() || !state.componentGuides || items.length !== state.componentEditGrid.cols * state.componentEditGrid.rows) return '';
   const { d, xs, ys } = ceTrackGeometry(items, size), M = Math.max(d.w, d.h);
   const hitW = Math.max(6, 0.012 * M), lw = Math.max(1, 0.002 * M), y0 = ys[0][0], y1 = ys[ys.length - 1][1], x0 = xs[0][0], x1 = xs[xs.length - 1][1];
   const on = (axis, i) => (ceTrackDrag && ceTrackDrag.axis === axis && ceTrackDrag.i === i ? ' is-dragging' : '');
@@ -281,7 +282,7 @@ function ceTrackHandles(items, size) {
 function ceTrackLabels(size) {
   const frame = ctrl('component-edit-frame'), old = frame.querySelector('.sym-track-labels');
   if (old) old.remove();
-  if (!ceSquare()) return;
+  if (!ceSquare() || !state.componentGuides) return;
   const svg = frame.querySelector('svg');
   if (!svg) return;
   const items = buildComponentItems({ cells: state.componentEditCells }, state.componentEditGrid);

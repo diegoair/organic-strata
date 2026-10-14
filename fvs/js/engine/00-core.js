@@ -35,6 +35,7 @@ export const state = {
   mirrorLine: 'both',               // the Mirror rule's Line: 'both' | 'lr' (left–right) | 'tb' (top–bottom) — Oct 13, 2026
   radialReading: 'quadrants',       // the Radial rule's reading: 'quadrants' | 'blocks' (per 2 × 2) | 'centre' (each cell's own angle) — Oct 13, 2026
   checkerStart: 0,                  // the Checkerboard rule's start: which state of each set sits on the first cell (0 A · 1 B · 2 C) — Oct 13, 2026
+  componentGuides: true,            // Component Edit's Show guides: the track borders + their % (Symbol's guides) — Oct 14, 2026
   gridOverride: null,               // getGrid()'s answer while a rule runs on another grid (withGrid) — Oct 14, 2026
   gridWeights: null,                // the step's track sizes { colWeights, rowWeights } (Component Edit › Apply grid to all) — Oct 14, 2026
   rhythm: { mode: 'beat', beat: [0, 90, 0], combine: 'add' },   // the Rhythm rule (was Oscillator): mode 'beat' | 'beats' | 'wave' | 'connect', the Beat's turns, Two beats' Combine 'add' | 'one' | 'both' — Oct 14, 2026

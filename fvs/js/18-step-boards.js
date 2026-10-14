@@ -796,6 +796,7 @@ export function syncCeCellProps() {
   if (on && (!ceShown || pick !== ceLastPick)) ctrl('panel').scrollTop = 0;   // the section is the panel's first: a panel scrolled down hid it under the header (Diego, Oct 14)
   ceShown = on; ceLastPick = pick;
   ctrl('fb-ce-place').style.display = on ? '' : 'none';
+  ctrl('btn-component-view-guides').style.display = on && state.cellShape === 'square' ? '' : 'none';   // the track borders exist on square cells
   if (!on) return;
   ctrl('ce-cell-empty').hidden = n > 0;
   ctrl('ce-cell-props').hidden = n === 0;
