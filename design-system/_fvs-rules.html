@@ -831,7 +831,7 @@ function ctx6(N) {
   $('arrange').innerHTML = html;
 
   const RU = [
-    ['Oscillator (Truchet)', 'oscillator', c => (((c.col + Math.floor(1 * c.row)) % 3 + 3) % 3 === 1 ? 90 : 0), 'Angle when (col + ⌊shift·row⌋) mod Period = Phase, else 0°.', [['Angle', '90° / 180°'], ['Row shift', '0–2 · 1'], ['Period', '2–6 · 3'], ['Phase', '0–5 · 1']]],
+    ['Rhythm', 'oscillator', c => (((c.col + Math.floor(1 * c.row)) % 3 + 3) % 3 === 1 ? 90 : 0), 'Angle when (col + ⌊shift·row⌋) mod Period = Phase, else 0°.', [['Angle', '90° / 180°'], ['Row shift', '0–2 · 1'], ['Period', '2–6 · 3'], ['Phase', '0–5 · 1']]],
     ['Checkerboard', 'checkerboard', c => ((c.col + c.row) % 2 ? 90 : 0), '(col + row) even → Rotate A, odd → Rotate B, or Flip H instead with <i>Flip B</i>. <i>Swap</i> starts on B.', [['Rotate A', '0°'], ['Rotate B', '90°']]],
     ['Rows', 'rows', c => 90 * (c.row % 2), '<b>Alternate</b>: Step · (row mod 2). <b>Ramp</b>: Step · row.', [['Step', '0–270 · 90'], ['Mode', 'Alternate / Ramp']]],
     ['Columns', 'columns', c => 90 * (c.col % 2), 'The same, keyed on the column.', [['Step', '0–270 · 90'], ['Mode', 'Alternate / Ramp']]],

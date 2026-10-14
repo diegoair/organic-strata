@@ -1492,7 +1492,7 @@ function addComposeRule(d, when, quiet) {
   ctl.touch(comp.id); ctl.commit('compose'); save(); renderComposeInspector();
 }
 // Region rule kinds (Phase 5b) — labels as the Symbol step says them (fvs/index.html #sel-symbol-rule) and Arrange's own.
-const SYMBOL_RULE_LABELS = { oscillator: 'Oscillator (Truchet)', checkerboard: 'Checkerboard', rows: 'Rows', columns: 'Columns', radial: 'Radial', wave: 'Wave', orientation: 'Orientation (up / down triangles)', random: 'Random (transforms only)' };
+const SYMBOL_RULE_LABELS = { oscillator: 'Rhythm', checkerboard: 'Checkerboard', rows: 'Rows', columns: 'Columns', radial: 'Radial', wave: 'Wave', orientation: 'Orientation (up / down triangles)', random: 'Random (transforms only)' };
 const PATTERN_LABELS = { lines: 'Lines', crosshatch: 'Crosshatch', dots: 'Dots', concentric: 'Concentric' };
 // The Palette node's Paper pattern (O-45): the Paper pattern section's controls and ranges (fvs/index.html #paper-pattern-block),
 // minus Element (tile) — a Figure's texture is a pattern, its content is the Elements.

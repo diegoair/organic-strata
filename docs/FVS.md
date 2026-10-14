@@ -448,7 +448,7 @@ the Element panel.
 and part colours · §4 Palette / Colour by · §6a layer roles · §6b Colourways and Recolour · §7 the
 library (save, rename, delete, double-click to edit) · §13 the Component board (Generated components,
 Component Edit gestures, layer-by-layer drawing, Clip to cell) and the Element board's colour groups.
-The Symbol has its **own** rules (§6 — including its own Oscillator); do not confuse them with these.
+The Symbol has its **own** rules (§6 — including its own Rhythm, the Component’s Beat only: Angle on step Phase of Period); do not confuse them with these.
 
 ---
 
@@ -533,7 +533,7 @@ its cells.
     Checkerboard (first two), Rows, Columns, Diagonal bands, 2×2 blocks, Rings,
     Sectors, Wave bands, Up/down (triangles). The n-th class takes the n-th
     Component. Fit: Stretch or Contain. Locked cells stay.
-  - **Rule** — transforms only (Oscillator, Checkerboard, Rows, Columns, Radial,
+  - **Rule** — transforms only (Rhythm, Checkerboard, Rows, Columns, Radial,
     Wave, Orientation, Random), lock-aware, with Reset & apply to all. Each rule snaps its own angle: Radial and Wave by their **Snap to 90°** box (on by default), the others are 90° steps by construction. Since Oct 7, 2026 the applier keeps the rule's angle (folded into 0–360°) — before, it always snapped to 90°, so Snap off did nothing. A free angle shows in Cell properties → Rotation as its own option ("Set by the rule").
   - **Manual** — click a cell to select it; drag to select several; ⌘-click (Ctrl-click on
     Windows; Shift also works) adds or removes a cell. A click only selects: **click a
