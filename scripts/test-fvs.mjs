@@ -24,6 +24,8 @@ const JOBS = {
   'boards-extra':       node('test-fvs-boards.mjs', '--only', 'extra'),
   'figure-board-clean': node('test-figure-board.mjs', '--only', 'clean'),
   'figure-board-held':  node('test-figure-board.mjs', '--only', 'held'),
+  'figure-board-dark-clean': node('test-figure-board.mjs', '--only', 'clean', '--theme', 'dark'),
+  'figure-board-dark-held':  node('test-figure-board.mjs', '--only', 'held', '--theme', 'dark'),
   'element-units':      node('test-fvs-element-units.mjs'),
   'qa':                 node('test-fvs-qa.mjs'),
   'figure-graph':       node('test-figure-graph.mjs'),
@@ -34,6 +36,7 @@ const JOBS = {
 };
 // groups, so a caller can name a suite rather than its jobs
 const GROUPS = { boards: ['boards-clean', 'boards-held', 'boards-extra'], 'figure-board': ['figure-board-clean', 'figure-board-held'],
+  'figure-board-dark': ['figure-board-dark-clean', 'figure-board-dark-held'],
   ui: ['ui-journeys', 'ui-v0', 'ui-v1', 'ui-v2', 'ui-v3', 'ui-design'] };
 
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
@@ -46,7 +49,7 @@ const names = only.length ? Object.keys(JOBS).filter(n => only.includes(n)) : Ob
 const LIMIT = Math.max(1, +arg('jobs', 0) || Math.min(6, Math.floor(os.cpus().length / 2)));
 
 const t0 = Date.now(), results = [], queue = [...names];
-const pad = (s, n) => (s + ' '.repeat(n)).slice(0, n);
+const pad = (s, n) => (s + ' '.repeat(n)).slice(0, Math.max(n, s.length));
 function runOne(name) {
   const [cmd, args] = JOBS[name], start = Date.now();
   return new Promise(resolve => {

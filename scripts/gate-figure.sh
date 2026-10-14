@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Figure closing gate — the automated half (docs/FIGURE-GATE.md is the whole gate, with the manual pass).
-# Runs every check that covers the FVS Figure graph, one after the other, and keeps going when one fails, so a
-# single run reports everything. Logs go to a temp dir (printed at the end); nothing in the repo is written.
+# Runs every check that covers the FVS Figure graph and keeps going when one fails, so a single run reports
+# everything. The headless suites run side by side in one scripts/test-fvs.sh call (was: one after another, ~13.5 min
+# → ~5 min, Oct 14, 2026); perf runs alone after them (it measures timing). Logs go to a temp dir (printed at the end);
+# nothing in the repo is written.
 # Usage: scripts/gate-figure.sh [BASE]   — BASE = the commit the day's work started from (default: 7a358d1, Oct 9, 2026)
 cd "$(dirname "$0")/.." || exit 2
 BASE="${1:-7a358d1}"
@@ -23,14 +25,11 @@ echo "Figure closing gate — $(git log --oneline "$BASE"..HEAD | wc -l | tr -d 
 
 step "repo checks"                 python3 scripts/check.py
 step "design-system diff"          python3 scripts/ds-audit.py --diff "$BASE"
-step "figure graph engine"         scripts/test-figure-graph.sh
-step "figure evaluation"           scripts/test-figure-eval.sh
-step "figure board light"          scripts/test-figure-board.sh --theme light
-step "figure board dark"           scripts/test-figure-board.sh --theme dark
-step "fvs regression"              scripts/regression.sh
-step "fvs qa"                      scripts/test-fvs-qa.sh
-step "fvs ui"                      scripts/test-fvs-ui.sh --out "$LOGS/fvs-ui"
-step "rhizome (shared node canvas)" scripts/test-rhizome.sh
+# the Figure graph + eval, the Figure board (light + dark, clean mouse + held side button), regression, QA, the UI
+# runner (journeys + variant shards + design), Rhizome (the other node-canvas consumer), the rule atlas
+step "headless suites (parallel)"  scripts/test-fvs.sh --verbose --only figure-graph,figure-eval,figure-board,figure-board-dark,regression,qa,ui,rhizome,atlas
+# one summary line per job of the parallel run (its full log is the step's own)
+while IFS= read -r l; do summary+=("      $l"); done < <(grep -E '^(✓|✗) ' "$LOGS/headless_suites_(parallel).log" 2>/dev/null)
 step "fvs perf"                    scripts/test-fvs-perf.sh
 
 echo; printf '%s\n' "${summary[@]}"; echo

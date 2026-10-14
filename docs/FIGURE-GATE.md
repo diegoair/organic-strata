@@ -23,7 +23,10 @@ scripts/gate-figure.sh 7a358d1
 ```
 
 `BASE` is the commit the day started from (for Oct 9, `7a358d1`, the Oct 8 session note). The script runs every
-check below, keeps going after a failure, and prints one summary plus a log folder:
+check below, keeps going after a failure, and prints one summary (one line per step, and one per job of the parallel
+run) plus a log folder. Since Oct 14, 2026 the headless suites run side by side in one `scripts/test-fvs.sh` call — the
+UI runner split into its journeys, four variant shards and design — and perf runs alone after them, since it measures
+timing: ~6.5 min (was ~13.5 min, one suite after another).
 
 | Step | What it proves |
 |---|---|
@@ -35,6 +38,7 @@ check below, keeps going after a failure, and prints one summary plus a log fold
 | `regression` | The 346 FVS cases match the baseline |
 | `test-fvs-qa`, `test-fvs-ui` | FVS end-to-end journeys (Element → Component → Symbol), console errors, screenshots |
 | `test-rhizome` | The other consumer of `shared/node-canvas.js` (the chord shim, Space pan and cursors changed today) |
+| `atlas` | The rule atlas (`design-system/_fvs-rules.html`) still equals the engine's rules |
 | `test-fvs-perf` | Save and draw times stay in budget |
 
 **Pass** = every line PASS. A failure is fixed and the whole script run again. Do not start the manual half on a red run.
@@ -108,6 +112,20 @@ keep going.
 - [ ] Save the graph, reload the page, open it: everything above comes back (chain order, Variations settings, pins, edits, Mode).
 - [ ] Console (Cmd+Opt+J): no errors after the whole pass.
 - [ ] `/design-system/_dark-audit.html` → Run: no new failures.
+
+### 3.8 Oct 13 – 14, 2026 — the Component rule node follows the Component step (`82588b0`, `084a546`, `0931134`)
+
+The Component rules were renamed and extended on the Component step on both days (Uniform, Step turn, Mirror,
+Checkerboard *Start at*, Radial *Turn by*, Rhythm). The Figure reads the same engine, so check the node and Compose
+show the same words and draw the same result.
+
+- [ ] Add a **Component rule** node: its Rule menu reads Radial · Step turn · Mirror · Checkerboard · Rhythm (no Pinwheel, Kaleidoscope, Oscillator). ◐
+- [ ] Checkerboard on the node: **Start at · A · B** (no "Swap A and B" checkbox); B swaps which state takes the top-left cell.
+- [ ] Rhythm on the node: the four modes **Beat · Two beats · Wave · Connect** with the Component step's controls (Wave's Period starts at 4; Connect's *Tile seamlessly* on) — each mode redraws the Figure.
+- Not on the node (on the Component step only, Oct 14): Radial's *Turn by*. Nothing to tick — say if the Figure should get it.
+- [ ] Compose (double-click a Figure) → a region rule Checkerboard: *Start at · A · B* there too.
+- [ ] A Figure saved before Oct 13 with the old rule names (Pinwheel / Oscillator) opens and draws as before.
+- [ ] Console: no errors after these.
 
 ## 4. Record
 
