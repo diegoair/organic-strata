@@ -370,6 +370,14 @@
   #component-edit-frame { container-type: size; position: relative; }
   /* Component Edit's own grid (Tropism Phase 0): the step's Grid / Transform axes / Rule hide while it shows */
   .tier-block.is-ce-editing .ce-hide { display: none; }
+  /* Component Edit › Edit shape… (Diego, Oct 14, 2026): the cells' shape only — what is inside the layers (the layer, its
+     place and look, the shape's own controls). Cuts (Split, Divide into parts), colours, layers added / removed / their
+     role and the Element-wide place stay the Element step's: a bigger change = edit the Element, or make a new one. */
+  .tier-block.is-ce-shaping :is(#parts-block, #split-label, .ctrl-row:has(> #seg-split-quadrant), #btn-split-save,
+    #layer-group-row, #layer-ink-pop, #btn-layer-add, #element-wide-label, #element-wide-label ~ *) { display: none; }
+  .tier-block.is-ce-shaping :is([data-layer-act="ink"], [data-layer-act="del"], [data-layer-act="role"], .check-row:has(> #chk-split-grid),
+    .panel-section:has(> #element-wide-label):not(:has(#element-look-block))) { display: none; }   /* Look & place once its look moved into the layers */
+  #panel:has(.tier-block.is-ce-shaping) .panel-section:has(> #fvs-palette) { display: none; }   /* the Palette (colours) — shared by every step, outside the blocks */
   #component-edit-frame svg { width: min(100cqw, 100cqh * var(--comp-ar, 1)); height: min(100cqh, 100cqw / var(--comp-ar, 1)); display: block; }
   #component-edit-frame [data-cell-index] { cursor: pointer; }
   #component-edit-frame [data-cell-index]:hover { fill: color-mix(in srgb, var(--tool) 8%, transparent); }

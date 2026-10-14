@@ -434,7 +434,10 @@ cells are made by hand the Symbol way:
   the cell's turn, an Element tile sets it); a saved Element dragged from the Library rail onto a cell
   (or the selection); **Delete** empties the picked cells (`cell.empty` — nothing drawn, still selectable).
 - **Cell properties** (after Grid, shown only in Edit — trimmed Oct 14, 2026 by Diego): **Edit shape…** (opens the
-  Element panel, every edit there goes to the picked cells; a click on a cell comes back) · **Default** (the
+  Element panel limited to what is inside the layers — each layer, its place and look, the Shape picker and the
+  shape's own controls; no Split / Divide into parts, no colours or Palette, no layer added / removed / role, no
+  Element-wide place: those are the Element step's, or a new Element — Diego, Oct 14, 2026; `.is-ce-shaping` in
+  fvs.css; every edit goes to the picked cells; a click on a cell comes back) · **Default** (the
   Component's own Element) · **Rotation** (a slider, −180…180°, as the Element's) · **Flip** (two toggles: horizontal,
   vertical) · **Scale** (always — it scales a Fixed size too) · **Size** (Fixed size) · **Cover axis** (Cover) ·
   **Padding %** (Horizontal · Vertical or per side → `cell.pad`) · **Lock cell (edits skip it)** → `cell.locked`.

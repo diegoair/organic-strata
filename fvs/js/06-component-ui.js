@@ -131,7 +131,7 @@ export function exitComponentEditMode() {
   const compBlock = document.querySelector('.tier-block[data-tier="component"]');
   const elBlock = document.querySelector('.tier-block[data-tier="element"]');
   if (compBlock) compBlock.classList.add('active');
-  if (elBlock) elBlock.classList.remove('active');
+  if (elBlock) elBlock.classList.remove('active', 'is-ce-shaping');
   renderGallery();
   renderSeedPreview();
   syncUndoUI();
@@ -460,7 +460,7 @@ export const ceShaping = () => !!(state.componentEditMode && ceTierBlock('elemen
 function showCeBlock(tier) {
   const comp = ceTierBlock('component'), el = ceTierBlock('element');
   if (comp) comp.classList.toggle('active', tier === 'component');
-  if (el) el.classList.toggle('active', tier === 'element');
+  if (el) { el.classList.toggle('active', tier === 'element'); el.classList.toggle('is-ce-shaping', tier === 'element'); }   // only what is inside the layers (fvs.css)
 }
 export function selectComponentEditCell(i) {
   if (!state.componentEditMode) return;
