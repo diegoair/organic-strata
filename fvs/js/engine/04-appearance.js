@@ -59,7 +59,8 @@ function withCellPlace(item, cell) {
   if (cell.color) item.color = cell.color;
   if (cell.empty) item.empty = true;
   if (!cellHasPlacement(cell)) return item;
-  const fit = item.cellSize / 100, p = Organica.shapes.resolveCellPlacement(itemW(item), itemH(item), 100, cell);
+  const placed = cell.fitMode === 'fixed' && cell.scale != null && cell.scale !== 1 ? { ...cell, fixedSize: (cell.fixedSize || 100) * cell.scale } : cell;   // Scale scales a Fixed size too
+  const fit = item.cellSize / 100, p = Organica.shapes.resolveCellPlacement(itemW(item), itemH(item), 100, placed);
   item.scale = 1; item.kx = p.scaleX / fit; item.ky = p.scaleY / fit; item.dx = p.offsetX; item.dy = p.offsetY;
   return item;
 }

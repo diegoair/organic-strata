@@ -433,13 +433,15 @@ cells are made by hand the Symbol way:
   opens **Choose content** (Seeds and the Element's states; **Empty** = an empty cell; a plain Seed keeps
   the cell's turn, an Element tile sets it); a saved Element dragged from the Library rail onto a cell
   (or the selection); **Delete** empties the picked cells (`cell.empty` — nothing drawn, still selectable).
-- **Cell properties** (the panel's first section, shown only in Edit): Symbol's block (`cellPropsHTML('ce-',
-  { component: true })`, 11-symbol-ui.js) on the picked cells — Content (*Choose…*), **Shape** (*Element* /
-  *Own shape*: **Edit shape…** opens the Element panel, every edit there goes to the picked cells; a click
-  on a cell comes back; **Default** = the Component's own Element), **Rotation**, **Flip**, **Fit**
-  (Contain · Stretch · Cover · Fixed size — no Match cell), **Scale**, **Colour** (*Follow palette* / an
-  ink / Custom → `cell.color`), **Padding %** (Horizontal · Vertical or per side → `cell.pad`), **Lock cell
-  (edits skip it)** → `cell.locked`.
+- **Cell properties** (after Grid, shown only in Edit — trimmed Oct 14, 2026 by Diego): **Edit shape…** (opens the
+  Element panel, every edit there goes to the picked cells; a click on a cell comes back) · **Default** (the
+  Component's own Element) · **Rotation** (a slider, −180…180°, as the Element's) · **Flip** (two toggles: horizontal,
+  vertical) · **Scale** (always — it scales a Fixed size too) · **Size** (Fixed size) · **Cover axis** (Cover) ·
+  **Padding %** (Horizontal · Vertical or per side → `cell.pad`) · **Lock cell (edits skip it)** → `cell.locked`.
+  Fit is the floatbar's only; no Selected / Content / Colour rows (`cellPropsHTML('ce-', { component: true })` →
+  `componentCellPropsHTML`, 11-symbol-ui.js). `cell.color` stays drawn when a Component carries it.
+- **Floatbar in Edit**: Show grid · **Clip to cell** (Symbol's toggle — the panel's switch) · **Show guides** · Fit
+  (Contain · Stretch · Cover · Fixed size) · Anchor · Undo.
 - **Fit / Anchor** on the floatbar (Symbol's group: Contain · Stretch · Cover · Fixed size + the 9-point
   Anchor) — on the picked cells, on every cell when none is picked.
 - The fields are drawn by `withCellPlace` (engine/04-appearance.js — Symbol's `Organica.shapes.

@@ -430,6 +430,56 @@ export function applyToSelection(patch) {
 // what used to risk drifting (a dropdown AND an overlay both able to set
 // the same fields). The docked panel just reflects the result: a plain
 // text readout plus the Choose… button that reopens the overlay.
+// Component Edit's variant (Oct 14, 2026 — Diego): the cell's shape (Edit shape… / Default), Rotation a slider (the
+// Element's −180…180), Flip two toggles, Scale (always — it scales a Fixed size too), Size (Fixed size), Cover axis (Cover),
+// Padding, Lock. No Selected / Content / Colour rows; Fit is the floatbar's. The rows it shares keep their ids, so
+// syncCellProps / bindCellProps drive them (a row it leaves out reads / writes a stand-in).
+function componentCellPropsHTML(I) {
+  const pad = k => Organica.icons.get('pad-' + k, { size: 'md' });
+  return `<div class="row-btns" id="${I('row-cellprop-seedparams')}">
+            <button type="button" class="mini-btn" id="${I('btn-cellprop-editshape')}" title="Give the selected cells their own shape in the Element panel">Edit shape…</button>
+            <button type="button" class="mini-btn" id="${I('btn-cellprop-defseed')}" title="Back to the Component’s own Element">Default</button>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-rotation')}"><div class="ctrl-label">Rotation</div>
+            <input type="range" id="${I('rg-cellprop-rotdeg')}" min="-180" max="180" step="1" value="0" aria-label="Rotation">
+            <span class="ctrl-val" id="${I('v-cellprop-rotdeg')}">0</span>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-flip')}"><div class="ctrl-label">Flip</div>
+            <div class="seg-ctrl" role="group" aria-label="Flip">
+              <button type="button" class="seg-btn" id="${I('btn-cellprop-fliph')}" aria-pressed="false" aria-label="Flip horizontal">${Organica.icons.get('mirror', { size: 'md' })}</button>
+              <button type="button" class="seg-btn" id="${I('btn-cellprop-flipv')}" aria-pressed="false" aria-label="Flip vertical">${Organica.icons.get('mirror-vertical', { size: 'md' })}</button>
+            </div>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-scale')}">
+            <div class="ctrl-label">Scale</div>
+            <input type="range" id="${I('rg-cellprop-scale')}" min="10" max="400" step="1" value="100">
+            <span class="ctrl-val" id="${I('v-cellprop-scale')}">100</span>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-fixedsize')}" style="display:none">
+            <div class="ctrl-label">Size</div>
+            <input type="range" id="${I('rg-cellprop-fixedsize')}" min="5" max="300" step="1" value="100">
+            <span class="ctrl-val" id="${I('v-cellprop-fixedsize')}">100</span>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-coveraxis')}" style="display:none">
+            <div class="ctrl-label">Cover axis</div>
+            <select class="panel-select" id="${I('sel-cellprop-coveraxis')}">
+              <option value="auto">Auto (no gaps)</option>
+              <option value="x">Lock to width</option>
+              <option value="y">Lock to height</option>
+            </select>
+          </div>
+          <div class="sub-label">Padding %</div>
+          <div class="fvs-pad" id="${I('cellprop-pad')}" data-split="false">
+            <label class="fvs-pad-box" data-k="h">${pad('horizontal')}<input type="number" class="panel-input" data-k="h" min="0" max="45" step="1" aria-label="Horizontal padding"></label>
+            <label class="fvs-pad-box" data-k="v">${pad('vertical')}<input type="number" class="panel-input" data-k="v" min="0" max="45" step="1" aria-label="Vertical padding"></label>
+            <button type="button" class="org-btn org-btn--icon" id="${I('btn-cellprop-pad-sides')}" aria-pressed="false" aria-label="Padding per side">${pad('sides')}</button>
+            <label class="fvs-pad-box" data-k="l">${pad('left')}<input type="number" class="panel-input" data-k="l" min="0" max="45" step="1" aria-label="Left padding"></label>
+            <label class="fvs-pad-box" data-k="t">${pad('top')}<input type="number" class="panel-input" data-k="t" min="0" max="45" step="1" aria-label="Top padding"></label>
+            <label class="fvs-pad-box" data-k="r">${pad('right')}<input type="number" class="panel-input" data-k="r" min="0" max="45" step="1" aria-label="Right padding"></label>
+            <label class="fvs-pad-box" data-k="b">${pad('bottom')}<input type="number" class="panel-input" data-k="b" min="0" max="45" step="1" aria-label="Bottom padding"></label>
+          </div>
+          <label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="${I('chk-cellprop-lock')}"><span>Lock cell (edits skip it)</span></label>`;
+}
 // Colour: "Follow palette" (color null) or an explicit override — a palette
 // colour or a free one. Only Seed cells carry a colour (a nested Component
 // keeps its own inks).
@@ -440,6 +490,7 @@ export function applyToSelection(patch) {
 // Symbol mounts it with prefix '' — its ids (sel-cellprop-rot …) are unchanged; Compose with 'fgc-'.
 export function cellPropsHTML(pre, opts = {}) {
   const I = b => pre + b;
+  if (opts.component) return componentCellPropsHTML(I);
   return `<div class="ctrl-row"><div class="ctrl-label">Selected</div>
             <span class="ctrl-val" id="${I('symbol-cellprop-count')}" style="flex:1;text-align:left"></span>
           </div>
@@ -523,7 +574,7 @@ export function cellPropsHTML(pre, opts = {}) {
 // colour or a free one. Only Seed cells carry a colour (a nested Component
 // keeps its own inks).
 export function syncCellColourUI(cell, isComponent, pre = '', colors = state.colors) {
-  const c = b => ctrl(pre + b);
+  const c = b => ctrl(pre + b) || standIn();
   c('row-cellprop-color').style.display = isComponent ? 'none' : '';
   if (isComponent) { c('row-cellprop-color-override').style.display = 'none'; return; }
   const sel = c('sel-cellprop-color');
@@ -564,8 +615,9 @@ export function renderCellPropertiesPanel() {
   if (!hasSelection) return;
   syncCellProps('', SYMBOL_CELLS);
 }
+const standIn = () => document.createElement('select');   // a row a variant leaves out: read / written harmlessly
 export function syncCellProps(pre, t) {
-  const c = b => ctrl(pre + b), n = t.count();
+  const c = b => ctrl(pre + b) || standIn(), n = t.count();
   c('symbol-cellprop-count').textContent = `${n} cell${n === 1 ? '' : 's'}`;
 
   const first = t.first();
@@ -626,7 +678,7 @@ export function syncCellPad(c, cell) {
   ['l', 't', 'r', 'b'].forEach(k => set(k, pc(k)));
 }
 export function bindCellProps(pre, t) {
-  const c = b => ctrl(pre + b);
+  const c = b => ctrl(pre + b) || standIn();
   c('btn-cellprop-choose').addEventListener('click', () => t.choose());
   c('sel-cellprop-rot').addEventListener('change', e => t.apply({ rotation: snapPose(parseInt(e.target.value, 10)) }));
   c('sel-cellprop-flip').addEventListener('change', e => {
@@ -672,7 +724,17 @@ export function bindCellProps(pre, t) {
   c('in-cellprop-color').addEventListener('input', e => t.apply({ color: hexKey(e.target.value) }));
   c('btn-cellprop-color-reset').addEventListener('click', () => { t.apply({ color: null }); t.refresh(); });
   if (t.editShape) c('btn-cellprop-editshape').addEventListener('click', () => t.editShape());
-  if (c('btn-cellprop-useseed')) c('btn-cellprop-useseed').addEventListener('click', () => {
+  // the Component variant's Rotation slider and Flip toggles
+  if (ctrl(pre + 'rg-cellprop-rotdeg')) c('rg-cellprop-rotdeg').addEventListener('input', e => {
+    c('v-cellprop-rotdeg').textContent = e.target.value;
+    t.apply({ rotation: ((+e.target.value % 360) + 360) % 360 });
+  });
+  ['h', 'v'].forEach(k => { if (ctrl(pre + 'btn-cellprop-flip' + k)) c('btn-cellprop-flip' + k).addEventListener('click', e => {
+    const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+    e.currentTarget.setAttribute('aria-pressed', String(on));
+    t.apply({ [k === 'h' ? 'flipH' : 'flipV']: on });
+  }); });
+  if (ctrl(pre + 'btn-cellprop-useseed')) c('btn-cellprop-useseed').addEventListener('click', () => {
     const sp = seedForSnapshot();
     t.apply(cell => ({ seedParams: cell.source === 'seed' ? JSON.parse(JSON.stringify(sp)) : undefined, seedType: cell.source === 'seed' ? sp.type : cell.seedType }));
     t.refresh();

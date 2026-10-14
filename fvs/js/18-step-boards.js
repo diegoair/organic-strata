@@ -797,13 +797,19 @@ export function syncCeCellProps() {
   ceShown = on; ceLastPick = pick;
   ctrl('fb-ce-place').style.display = on ? '' : 'none';
   ctrl('btn-component-view-guides').style.display = on && state.cellShape === 'square' ? '' : 'none';   // the track borders exist on square cells
+  ctrl('btn-component-view-clip').style.display = on ? '' : 'none';
+  ctrl('btn-component-view-clip').setAttribute('aria-pressed', String(!!state.componentClip));
   if (!on) return;
   ctrl('ce-cell-empty').hidden = n > 0;
   ctrl('ce-cell-props').hidden = n === 0;
   if (n) {
     syncCellProps('ce-', CE_CELLS);
-    const f = ceCells()[Math.min(...cePicked())];
-    ctrl('ce-symbol-cellprop-seedparams-label').textContent = f.content ? 'Own shape' : 'Element';
+    const f = ceCells()[Math.min(...cePicked())], deg = ((Math.round(f.rotation || 0) + 180) % 360 + 360) % 360 - 180;
+    ctrl('ce-rg-cellprop-rotdeg').value = deg; ctrl('ce-v-cellprop-rotdeg').textContent = deg;
+    ctrl('ce-btn-cellprop-fliph').setAttribute('aria-pressed', String(!!f.flipH));
+    ctrl('ce-btn-cellprop-flipv').setAttribute('aria-pressed', String(!!f.flipV));
+    ctrl('ce-row-cellprop-scale').style.display = '';   // Scale always: it scales a Fixed size too (withCellPlace)
+    ctrl('ce-row-cellprop-seedparams').style.display = f.empty ? 'none' : '';
   }
   syncCeFitAnchor();
 }

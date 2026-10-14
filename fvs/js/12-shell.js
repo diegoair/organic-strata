@@ -840,7 +840,8 @@ ctrl('btn-rhythm-beat-add').addEventListener('click', () => resizeRhythmBeat(1))
 ctrl('seg-checker-start').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) setCheckerStart(+b.dataset.start); });
 ctrl('seg-mirror-span').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorSpan(b.dataset.span); });
 // Clip to cell (Component, Oct 12, 2026): each cell cut to its own frame — kept with the edited Element's Generated components
-ctrl('chk-component-clip').addEventListener('change', e => { state.componentClip = e.target.checked; renderGallery(); if (state.componentEditMode) renderComponentEditCanvas(); });
+ctrl('chk-component-clip').addEventListener('change', e => { state.componentClip = e.target.checked; ctrl('btn-component-view-clip').setAttribute('aria-pressed', String(state.componentClip)); renderGallery(); if (state.componentEditMode) renderComponentEditCanvas(); });
+ctrl('btn-component-view-clip').addEventListener('click', () => { const c = ctrl('chk-component-clip'); c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); });
 ctrl('chk-layer-inks').addEventListener('change', e => {
   const L = state.layers;   // a divided Element keeps its own switch on its Division (saved with it)
   if (L && L.parts) { if (e.target.checked) L.parts.layerInks = true; else delete L.parts.layerInks; }

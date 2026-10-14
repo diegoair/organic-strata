@@ -293,7 +293,8 @@ function ceTrackLabels(size) {
   const wrap = document.createElement('div');
   wrap.className = 'sym-track-labels';
   const label = (cls, x, y, pct) => { const el = document.createElement('div'); el.className = 'sym-track-label ' + cls; el.style.left = x.toFixed(1) + 'px'; el.style.top = y.toFixed(1) + 'px'; el.textContent = pct + '%'; wrap.appendChild(el); };
-  xs.forEach(([a, b]) => label('sym-track-label--col', sr.left - fr.left + (a + b) / 2 * k, sr.top - fr.top - gap, Math.round((b - a) / tw * 100)));
+  // the columns' % under the sheet (the Edit toolbar sits above it — Symbol's place for them would cover it)
+  xs.forEach(([a, b]) => label('sym-track-label--col sym-track-label--below', sr.left - fr.left + (a + b) / 2 * k, sr.bottom - fr.top + gap, Math.round((b - a) / tw * 100)));
   ys.forEach(([a, b]) => label('sym-track-label--row', sr.left - fr.left - gap, sr.top - fr.top + (a + b) / 2 * k, Math.round((b - a) / th * 100)));
   frame.appendChild(wrap);
 }
