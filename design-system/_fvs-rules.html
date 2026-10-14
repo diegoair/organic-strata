@@ -338,15 +338,15 @@ table.sizes td.note { font-weight: var(--w-semibold); }
   <div class="grid wide" id="sizenotes" style="margin-top:var(--space-5)"></div>
 
   <h3 id="co-families">Families (what Random and Exhaustive draw from)</h3>
-  <p class="sub">Random picks a family, then one of its parameter sets, until it has <b>Count</b> distinct candidates (never per‑cell noise). Exhaustive lists every set of every active family, deduplicated; above <b>512</b> Generate is disabled and the hint gives the exact count.</p>
+  <p class="sub">Random picks a family, then one of its parameter sets, until it has <b>Count</b> distinct candidates (never per‑cell noise). Exhaustive lists every set of every active family, deduplicated; above <b>512</b> Generate is disabled and the hint gives the exact count. <b>Rhythm</b> and <b>Horizontal / Vertical lines</b> are not families: neither Random nor Exhaustive draws them.</p>
   <div class="tbl"><table><thead><tr><th>Family</th><th>Needs axis</th><th>Grid gate</th><th>Parameter space</th></tr></thead><tbody>
     <tr><td class="k">identity</td><td>—</td><td>—</td><td>rotations × flips × scales, every cell the same</td></tr>
     <tr><td class="k">pinwheel</td><td>Rotation</td><td>—</td><td>base 0/90/180/270 × chirality ±1 × scales</td></tr>
     <tr><td class="k">mirror</td><td>Flip</td><td>Left–right: columns ≥ 2 · Top–bottom: rows ≥ 2</td><td>Line (Both / Left–right / Top–bottom) × Span (Cell / Pair) × turn (the Rotation axis) × plain corner 0–3 × scales</td></tr>
-    <tr><td class="k">bookmatch</td><td>Flip</td><td>not a 2×2</td><td>axis H / V / both through the whole grid × turn × scales (Mirror › Span Whole grid, along its Line)</td></tr>
+    <tr><td class="k">bookmatch</td><td>Flip</td><td>3 or more columns or rows</td><td>axis H / V / both through the whole grid × turn × scales (Mirror › Span Whole grid, along its Line)</td></tr>
     <tr><td class="k">diagonal</td><td>Rotation</td><td>—</td><td>R 0/90/180/270 × scales — A = R, B = 90° − R; not in the Rule menu (Checkerboard lists the same)</td></tr>
     <tr><td class="k">checkerboard</td><td>any axis</td><td>—</td><td>every ordered pair of distinct states A ≠ B</td></tr>
-    <tr><td class="k">radial</td><td>Rotation</td><td>even × even</td><td>base × chirality × scales × (one rosette, or tiled per 2×2 when bigger than 2×2)</td></tr>
+    <tr><td class="k">radial</td><td>Rotation</td><td>2 or more cells (Quadrant / Each 2×2: even × even)</td><td>every Turn by the grid can run (Quadrant · Each 2×2 · Cell) × base 0/90/180/270 × chirality ±1 × scales</td></tr>
   </tbody></table></div>
 
   <h3 id="co-lattice">Rules on non‑square cells</h3>
@@ -707,8 +707,8 @@ function patternBody(type, sp, w, ang, box, color) {
     { k: 'hlines', t: 'Horizontal lines', how: 'Keyed on the row. <b>Alternate</b>: odd rows take Step. <b>Ramp</b>: row · Step. With Scale on, rows also cycle Small / Large (Alternate) or S / M / L (Ramp).', params: [['Mode', 'Alternate / Ramp'], ['Step', '0–270 · 90']], extra: '4|hlines|ramp', extraCap: 'Ramp' },
     { k: 'vlines', t: 'Vertical lines', how: 'The same, keyed on the column.', params: [['Mode', 'Alternate / Ramp'], ['Step', '0–270 · 90']], extra: '4|vlines|ramp', extraCap: 'Ramp' },
     { k: 'oscillator', t: 'Rhythm', how: 'Turns only, laid out as a rhythm along each row (Row shift slides the next row along). <b>Beat</b>: the turns written as a beat of 1–8 steps, repeated. <b>Two beats</b>: a beat every Across cells and every Down rows, combined (Add · One only · Both). <b>Wave</b>: the turn follows a sine, snapped to quarter turns. <b>Connect</b>: each cell turned (and flipped, with Flip on) so its ink meets its neighbours’ ink on the shared edge; <b>Tile seamlessly</b> wraps the grid round so the Component repeats without a seam — it reads the Element, so it is not drawn here; up to 16 results. With Scale on, Beat sizes by the step, Two beats by the beats met, Wave by its level.', params: [['Mode', 'Beat / Two beats / Wave / Connect'], ['Beat', '1–8 steps · 0° 90° 0°'], ['Across · Down', '2–8 · 3 · 4'], ['Combine', 'Add / One only / Both'], ['Angle', '90° / 180° / 270°'], ['Amplitude', '90° / 180°'], ['Period', '2–12 · 4'], ['Row shift', '0–2 · 1'], ['Tile seamlessly', 'Connect · on']], extra: '4|osc|ramp', extraCap: 'Beat 0° · 90° · 180° · 270°' },
-    { k: 'random', t: 'Random seeded', how: 'Draws a family, then one of its parameter sets, until it has Count distinct candidates — every result is a real symmetry.', params: [['Count', '1–256 · 16'], ['Seed', '0–999999 · 1']] },
-    { k: 'exhaustive', t: 'Exhaustive', how: 'Every parameter set of every active family, duplicates folded (the count is the honest one). 2×2 with Rotation + Flip: 172.', gate: 'Over 512, Generate is disabled and the hint gives the exact count.' },
+    { k: 'random', t: 'Random seeded', how: 'Draws a family, then one of its parameter sets, until it has Count distinct candidates (or the families run out) — every result is a real symmetry. The families are listed under <i>Families</i>; Rhythm and Horizontal / Vertical lines are not among them.', params: [['Count', '1–256 · 16'], ['Seed', '0–999999 · 1']] },
+    { k: 'exhaustive', t: 'Exhaustive', how: `Every parameter set of every active family, duplicates folded (the count is the honest one). 2×2: ${CELLS['2|exhaustive'].n} with Rotation, ${CELLS['2|exhaustive|RF'].n} with Rotation + Flip. Rhythm and Horizontal / Vertical lines are not included.`, gate: 'Over 512, Generate is disabled and the hint gives the exact count.' },
   ];
   let html = R.map(r => {
     const two = CELLS['2|' + r.k], four = CELLS['4|' + r.k];
