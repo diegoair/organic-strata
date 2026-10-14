@@ -785,7 +785,7 @@ export function renderCellContentOverlayTiles() {
   ctrl('symbol-content-overlay__components-empty').style.display = libNames.length ? 'none' : '';
   const compWrap = ctrl('symbol-content-overlay__components');
   compWrap.innerHTML = '';
-  compWrap.appendChild(emptyBtn);
+  if (!(overlayTarget && overlayTarget.seedsOnly)) compWrap.appendChild(emptyBtn);   // one button, one place: with the Seeds when they show
   for (const name of libNames) {
     const entry = library[name];
     const size = frameDims(entry.grid);
@@ -852,8 +852,10 @@ export function renderCellContentOverlayTiles() {
       elTiles.appendChild(item);
     });
   }
-  // The plain default Seeds are not Symbol content any more: that list and the filter stay hidden.
-  ctrl('content-sec-seeds').style.display = 'none';
+  // The plain default Seeds are not Symbol content any more: that list and the filter stay hidden — except for a target
+  // that asks for Seeds (Component Edit's cells): there they are the content, with Empty (Oct 14, 2026 — Empty was
+  // offered nowhere, the Components section that also carries it is hidden for them).
+  ctrl('content-sec-seeds').style.display = overlayTarget && overlayTarget.seedsOnly ? '' : 'none';
   ctrl('seg-content-filter').style.display = 'none';
   Organica.autoLabelPanel(ctrl('symbol-content-overlay'));
 }

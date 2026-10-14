@@ -792,9 +792,14 @@ const CE_CELLS = {
 };
 ctrl('ce-cell-props').innerHTML = cellPropsHTML('ce-', { component: true });
 bindCellProps('ce-', CE_CELLS);
+let ceShown = false;   // the section was showing: the panel is brought to its top only when it appears or a pick changes
+let ceLastPick = '';
 export function syncCeCellProps() {
   const on = !!state.componentEditMode, n = on ? cePicked().length : 0;
   ctrl('ce-cell-section').hidden = !on;
+  const pick = cePicked().join(',');
+  if (on && (!ceShown || pick !== ceLastPick)) ctrl('panel').scrollTop = 0;   // the section is the panel's first: a panel scrolled down hid it under the header (Diego, Oct 14)
+  ceShown = on; ceLastPick = pick;
   ctrl('fb-ce-place').style.display = on ? '' : 'none';
   if (!on) return;
   ctrl('ce-cell-empty').hidden = n > 0;
