@@ -355,7 +355,7 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
 | **Rhythm** (was Oscillator, Oct 14, 2026) | turns laid out as a rhythm along each row, k = col + ⌊Row shift · row⌋. **Beat**: the turns written as a beat (1–8 steps, each a quarter turn; the panel shows each step as the letter F turned), repeated along k; the old Oscillator = a beat of Period steps with Angle on step Phase (its default = 0° · 90° · 0°). **Two beats**: a beat every *Across* cells along k and every *Down* rows, *Combine* Add (each turns by Angle, twice where they meet) · One only · Both. **Wave**: turn = Amplitude · sin(2π(col + shift·row)/Period), snapped to quarter turns. **Connect**: each cell turned (and flipped, with Flip on) so its ink meets every neighbour already placed on the shared edge (the ink sampled per side, `elementSideCover`), in reading order; **Tile seamlessly** (on by default) wraps the grid round — the last column meets the first, the last row the first, so the Component repeats without a seam (on 3 or more cells along that line); ties drawn from 16 seeds, duplicates folded; a note shows when the Element reaches no edge. Scale: Beat by step, Two beats by beats met, Wave by level | ≥ 2 cells, square cells | **Mode** Beat · Two beats · Wave · Connect, **Beat**, **Across** / **Down** 2–8, **Combine** Add · One only · Both, **Angle** 90 · 180 · 270, **Amplitude** 90 · 180, **Period** 2–12 · 4, **Row shift** 0–2, **Tile seamlessly** (Connect) |
 | **Random seeded** | draws a **family** (one of the named symmetries the axes allow), then one of its parameter sets — every result is a real symmetry, never per-cell noise | always | **Count** 1–256 (16), **Seed** + dice |
 | **Exhaustive** | every family × every parameter set, duplicates folded | always; **over 512 results Generate is disabled** and the hint gives the honest count (× layer colour variants) | — |
-| **Manual** *(off the menu since Oct 14, 2026 — Component Edit's Cell properties and New component replace it, §5.6)* | a per-cell editor: Rotation / Flip / Scale for each cell; **Add** puts it on the board | square cells | per-cell selects |
+| **Manual** *(off the menu since Oct 14, 2026 — Component Edit's Cell properties replace it, §5.6)* | a per-cell editor: Rotation / Flip / Scale for each cell; **Add** puts it on the board | square cells | per-cell selects |
 
 - **On Circle / Triangle / Hexagon cells** only **Uniform, Step turn, Mirror** (see its row), **Radial** (each cell turned towards the
   centre; on triangles the Arc's pivot corner goes to the nearest corner), **Checkerboard** (by
@@ -439,12 +439,9 @@ cells are made by hand the Symbol way:
   drag is one step, every other edit its own.
 - **Part colours** (divided Element): the strip under the toolbar — **Part**, the inks, **Clear part
   colour** → `cell.partInks` (§3b R3).
-- **New component** (a sheet left of the gallery on the Component board): a Component on the current grid
-  with every cell empty (`ruleSource: 'manual'`, `blank` until saved), opened in Edit; *Save as new
-  component* keeps it in place, *Back to board* without Save removes it.
 - **Save as new component** keeps the edit; *Back to board* / Esc discards the working copy.
 - The **Manual** rule left the Rule menu (hidden, kept for the engine and saved Components) — Component
-  Edit and New component replace it.
+  Edit replaces it.
 
 ### 5.7 Role and Blend
 

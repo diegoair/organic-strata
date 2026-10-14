@@ -387,11 +387,6 @@
             <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="Generated components — drag to move">Generated components</button>
             <div class="fvs-board-sheet__body fvs-board-gallery"><div id="gallery"></div></div>
           </div>
-          <!-- New component: a Component with every cell empty, opened in Edit to make by hand (Tropism Phase 0) -->
-          <div class="fvs-board-sheet" id="board-new-component">
-            <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="New component — drag to move">New component</button>
-            <div class="fvs-board-sheet__body"><button type="button" class="fvs-board-new" id="btn-board-new-component" aria-label="New component" data-theme="light" data-icon-slot></button></div>
-          </div>
         </div>
       </div>
       <div class="fvs-board-hud">
@@ -1400,7 +1395,7 @@
           <option value="oscillator">Rhythm</option>
           <option value="random" selected>Random seeded</option>
           <option value="exhaustive">Exhaustive</option>
-          <option value="manual" hidden>Manual</option><!-- off the menu (Diego, Oct 14, 2026 — Tropism Phase 0): cells are made by hand in Component Edit (Cell properties) and New component; kept hidden for the engine and the tests -->
+          <option value="manual" hidden>Manual</option><!-- off the menu (Diego, Oct 14, 2026 — Tropism Phase 0): cells are made by hand in Component Edit (Cell properties); kept hidden for the engine and the tests -->
         </select>
       </div>
       <p class="org-panel__hint" id="rule-axis-note" style="display:none"></p>

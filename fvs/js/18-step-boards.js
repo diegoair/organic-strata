@@ -27,7 +27,7 @@ import {
   componentThumbMarkup, renderGallery, renderSeedPreview, setElementView
 } from './05-render-component.js';
 import {
-  ceSnapshot, editCellShape, enterComponentEditMode, exitComponentEditMode, newBlankComponent, populateComponentStarterGallery,
+  ceSnapshot, editCellShape, enterComponentEditMode, exitComponentEditMode, populateComponentStarterGallery,
   pushUndoEntry, renderComponentEditCanvas, selectComponentEditCell, starterComponents
 } from './06-component-ui.js';
 import {
@@ -508,12 +508,6 @@ function mountComponentBoard() {
   const B = makeBoard('component');
   const gal = ctrl('gallery'), frame = ctrl('component-edit-frame');
   addSheet(B, 'gallery', 'Generated components', 0, 0, ctrl('board-gallery'));
-  // New component (Tropism Phase 0): an empty sheet left of the gallery — a Component with every cell empty, opened in Edit
-  const newW = parseFloat(getComputedStyle(ctrl('board-new-component')).getPropertyValue('--frame-w')) || 360;
-  addSheet(B, 'new-component', 'New component', -(newW + 120), 0, ctrl('board-new-component'));
-  const newCompBtn = ctrl('btn-board-new-component');
-  newCompBtn.innerHTML = Organica.icons.get('plus', { size: 'xl' });
-  newCompBtn.addEventListener('click', () => newBlankComponent());
   galleryZoomTo(2);   // the candidates at 2× on the board
   // Double-click a candidate (or Enter on the selected one, 05-render-component.js) = Component Edit in its single view: the classic page — toolbar, part
   // colours, the fixed sheet — with the board hidden, the same as an Element's (Diego, Oct 11). Back to board / Esc return.
@@ -543,7 +537,7 @@ function mountComponentBoard() {
   componentEdit = on => {
     setSingle(B, on);
     if (on) setRailTarget(CE_RAIL);
-    else { if (rt.railTarget === CE_RAIL) setRailTarget(null); requestAnimationFrame(() => B.fit(['new-component', 'gallery'])); }
+    else { if (rt.railTarget === CE_RAIL) setRailTarget(null); requestAnimationFrame(() => B.fit(['gallery'])); }
   };
   // Component cells, the Symbol way.
   let lastPicked = new Set();
@@ -577,7 +571,7 @@ function mountComponentBoard() {
     }
     if (e.key === 'Escape' && !e.defaultPrevented && !overlayOpen()) { e.preventDefault(); exitComponentEditMode(); }
   });
-  B.fitFocus = () => B.fit(['new-component', 'gallery']);
+  B.fitFocus = () => B.fit(['gallery']);
 
   // One "Generated components" area per Element (O-67 d, Diego, Oct 11, 2026), in the Element board's order, one under
   // the other: the edited Element's is the live #board-gallery; the others are drawn from their Element's snapshot
