@@ -441,9 +441,11 @@ export function ruleLines(axis) {
 //              they meet) · One only (cells on exactly one) · Both (only where they meet).
 //   Wave     — the turn follows a sine along k (no floor, so a fraction of Row shift tilts the wave front), snapped
 //              to quarter turns: Amplitude 90° gives 0 · 90 · 270, 180° adds 180.
-//   Connect  — each cell turned (and flipped, with Flip on) so the ink meets its left and top neighbours' ink on the
-//              shared edge (hooks.elementSideCover: per side, which points along it the ink reaches), in reading
-//              order; ties drawn from a seed, eight seeds listed.
+//   Connect  — each cell turned (and flipped, with Flip on) so the ink meets its neighbours' ink on the shared edge
+//              (hooks.elementSideCover: per side, which points along it the ink reaches), in reading order, against
+//              every neighbour already placed; *Tile seamlessly* wraps the grid round (the last column meets the
+//              first, the last row the first), so the Component repeats without a seam. Ties drawn from a seed,
+//              16 seeds, duplicates folded.
 // Scale (on): Beat by the beat step, Two beats by the beats met (0 · 1 · 2), Wave by the wave's level.
 export const RHYTHM_MODES = ['beat', 'beats', 'wave', 'connect'];
 const rmod = (a, n) => ((a % n) + n) % n;
@@ -469,27 +471,36 @@ export function rhythmWaveCells(ctxs, amplitude, period, shift, sv) {
   });
 }
 // Connect: `views` = the orientations a cell may take ({r, fh, fv}), `cover[i]` = view i's sides ({top, right,
-// bottom, left}: 101 flags along that side, left → right / top → bottom). A cell's cost = the points where its
-// left / top side and its neighbour's right / bottom side disagree (ink on one side, none on the other).
-export function rhythmConnectCells(ctxs, views, cover, seed) {
+// bottom, left}: 101 flags along that side, left → right / top → bottom). A cell's cost = the points where one of
+// its sides and the facing side of a neighbour already placed disagree (ink on one side, none on the other);
+// `wrap` = the neighbours past the grid's edge are the cells on the opposite edge.
+export function rhythmConnectCells(ctxs, views, cover, seed, wrap) {
   const rng = mulberry32(seed), at = new Map(), chosen = new Array(ctxs.length);
   ctxs.forEach((c, i) => at.set(c.col + ',' + c.row, i));
+  const cols = Math.max(...ctxs.map(c => c.col)) + 1, rows = Math.max(...ctxs.map(c => c.row)) + 1;
   const miss = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++; return n; };
+  // [dx, dy, my side, its side]; wrapping needs 3 or more cells along that line (on 2 the neighbour is the same cell both ways)
+  const DIRS = [[-1, 0, 'left', 'right'], [1, 0, 'right', 'left'], [0, -1, 'top', 'bottom'], [0, 1, 'bottom', 'top']];
+  const near = (col, row, dx, dy) => {
+    let c = col + dx, r = row + dy;
+    if (wrap) { if (cols > 2 || !dx) c = (c + cols) % cols; if (rows > 2 || !dy) r = (r + rows) % rows; }
+    return at.get(c + ',' + r);
+  };
   const order = ctxs.map((c, i) => i).sort((i, j) => ctxs[i].row - ctxs[j].row || ctxs[i].col - ctxs[j].col);
   for (const i of order) {
-    const { col, row } = ctxs[i], L = at.get((col - 1) + ',' + row), T = at.get(col + ',' + (row - 1));
+    const { col, row } = ctxs[i];
+    const placed = DIRS.map(([dx, dy, mine, its]) => [near(col, row, dx, dy), mine, its]).filter(([n]) => n !== undefined && n !== i && chosen[n] !== undefined);
     let best = Infinity, ties = [];
     views.forEach((v, k) => {
       let cost = 0;
-      if (L !== undefined && chosen[L] !== undefined) cost += miss(cover[chosen[L]].right, cover[k].left);
-      if (T !== undefined && chosen[T] !== undefined) cost += miss(cover[chosen[T]].bottom, cover[k].top);
+      for (const [n, mine, its] of placed) cost += miss(cover[k][mine], cover[chosen[n]][its]);
       if (cost < best) { best = cost; ties = [k]; } else if (cost === best) ties.push(k);
     });
     chosen[i] = ties[Math.floor(rng() * ties.length)];
   }
   return chosen.map(k => stateFrom(views[k].r, views[k].fh, views[k].fv, 1.0));
 }
-export const RHYTHM_CONNECT_SEEDS = 8;
+export const RHYTHM_CONNECT_SEEDS = 16;
 export function ruleOscillator() {
   const grid = getGrid();
   const ctxs = hooks.componentCellColRow(grid);
@@ -499,8 +510,8 @@ export function ruleOscillator() {
     const views = [];
     for (const rot of ROTATIONS) for (const f of (pc('chk-axis-flip') ? FLIPS.slice(0, 3) : [FLIPS[0]])) views.push({ r: rot, fh: f.h, fv: f.v });
     const cover = views.map(v => hooks.elementSideCover(v));
-    const out = [];
-    for (let k = 1; k <= RHYTHM_CONNECT_SEEDS; k++) out.push({ id: `rhythm-connect-${views.length}-${k}`, ruleSource: 'oscillator', cells: rhythmConnectCells(ctxs, views, cover, k) });
+    const out = [], wrap = pc('chk-rhythm-wrap');
+    for (let k = 1; k <= RHYTHM_CONNECT_SEEDS; k++) out.push({ id: `rhythm-connect-${views.length}-${wrap ? 'w' : ''}${k}`, ruleSource: 'oscillator', cells: rhythmConnectCells(ctxs, views, cover, k, wrap) });
     return dedupeComponents(out);
   }
   if (r.mode === 'beats') {

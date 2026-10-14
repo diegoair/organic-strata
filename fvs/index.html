@@ -1475,12 +1475,13 @@
             <select class="panel-select" id="sel-rhythm-amp"><option value="90" selected>90°</option><option value="180">180°</option></select>
           </div>
           <div class="ctrl-row"><div class="ctrl-label">Period</div>
-            <input type="range" id="rg-rhythm-period" min="2" max="12" step="1" value="6"><span class="ctrl-val" id="v-rhythm-period">6</span>
+            <input type="range" id="rg-rhythm-period" min="2" max="12" step="1" value="4"><span class="ctrl-val" id="v-rhythm-period">4</span>
           </div>
         </div>
         <div class="ctrl-row" id="rhythm-shift-row"><div class="ctrl-label">Row shift</div>
           <input type="range" id="rg-rhythm-shift" min="0" max="2" step="0.05" value="1"><span class="ctrl-val" id="v-rhythm-shift">1</span>
         </div>
+        <label class="check-row org-switch" id="rhythm-wrap-row" style="display:none"><input type="checkbox" id="chk-rhythm-wrap" checked><span>Tile seamlessly</span></label>
         <p class="org-panel__hint" id="rhythm-connect-hint" style="display:none">This Element doesn’t reach the edges of its cell, so there is nothing to join: the turns come out at random.</p>
       </div>
 

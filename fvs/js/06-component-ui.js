@@ -368,6 +368,7 @@ export function syncRhythm() {
   ctrl('rhythm-beats-block').style.display = m === 'beats' ? '' : 'none';
   ctrl('rhythm-wave-block').style.display = m === 'wave' ? '' : 'none';
   ctrl('rhythm-shift-row').style.display = m === 'connect' ? 'none' : '';
+  ctrl('rhythm-wrap-row').style.display = m === 'connect' ? '' : 'none';
   ctrl('rhythm-beat').innerHTML = r.beat.map((t, i) => `<button type="button" class="seg-btn" data-step="${i}" aria-label="Step ${i + 1}: ${t}°"><span class="fvs-beat__mark" style="--beat-turn:${t}deg" aria-hidden="true">F</span></button>`).join('');
   ctrl('v-rhythm-beat').textContent = r.beat.length + (r.beat.length === 1 ? ' step' : ' steps');
   ctrl('btn-rhythm-beat-remove').disabled = r.beat.length <= 1;

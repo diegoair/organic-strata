@@ -68,7 +68,7 @@ const CAPTURE = async () => {
   const st = window.__fvs.state, $ = id => document.getElementById(id), F = R.FAMILIES;
   const ids = ['rg-grid-cols', 'rg-grid-rows', 'chk-axis-rotation', 'chk-axis-flip', 'chk-axis-scale', 'sel-lines-mode', 'rg-lines-step', 'sel-rhythm-angle', 'rg-rhythm-shift', 'rg-rhythm-across', 'rg-rhythm-down', 'sel-rhythm-amp', 'rg-rhythm-period', 'rg-random-count', 'num-seed'];
   const set = o => { for (const [k, v] of Object.entries(o)) { const e = $(k); if (e.type === 'checkbox') e.checked = v; else e.value = v; } };
-  const base = { 'chk-axis-rotation': true, 'chk-axis-flip': false, 'chk-axis-scale': false, 'sel-lines-mode': 'alternate', 'rg-lines-step': 90, 'sel-rhythm-angle': '90', 'rg-rhythm-shift': 1, 'rg-rhythm-across': 3, 'rg-rhythm-down': 4, 'sel-rhythm-amp': '90', 'rg-rhythm-period': 6, 'rg-random-count': 16, 'num-seed': 1 };
+  const base = { 'chk-axis-rotation': true, 'chk-axis-flip': false, 'chk-axis-scale': false, 'sel-lines-mode': 'alternate', 'rg-lines-step': 90, 'sel-rhythm-angle': '90', 'rg-rhythm-shift': 1, 'rg-rhythm-across': 3, 'rg-rhythm-down': 4, 'sel-rhythm-amp': '90', 'rg-rhythm-period': 4, 'rg-random-count': 16, 'num-seed': 1 };
   const fmt = c => `${c.rotation}${c.flipH ? 'h' : ''}${c.flipV ? 'v' : ''}${c.scale !== 1 ? '@' + c.scale : ''}`;
   const row = cells => cells.map(fmt).join(' ');
   st.cellShape = 'square'; st.mirrorLine = 'both'; st.mirrorSpread = 'cell'; st.checkerStart = 0; st.radialReading = 'quadrants';
