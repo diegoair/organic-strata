@@ -11,7 +11,7 @@ import {
   getSeed
 } from './02-seed-ui.js';
 import {
-  GRID_BUILD, buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, getGrid, rhythmCells, stateFrom
+  GRID_BUILD, buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, getGrid, gridOf, rhythmCells, stateFrom
 } from './03-rules.js';
 import {
   buildComponentItems
@@ -272,6 +272,6 @@ export function figureSVGOf(tier) {
   const comp = getSelectedComponent();
   if (!comp) return '';
   state.selectedRuleSource = comp.ruleSource;
-  const grid = getGrid();
+  const grid = gridOf(comp);
   return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameDims(grid));
 }

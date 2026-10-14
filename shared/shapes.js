@@ -1244,6 +1244,22 @@
     const totalH = grid.rows * grid.cellSize + (grid.rows - 1) * grid.gap;
     const originX = -totalW / 2, originY = -totalH / 2;
     const centers = [];
+    // Track sizes (FVS Component Edit, Oct 14, 2026): colWeights / rowWeights share the same total among the columns /
+    // rows (uneven cells — the frame keeps its size). Absent (or the wrong length) = even tracks, exactly as before.
+    const cw = trackSizes(grid.colWeights, grid.cols, grid.cellSize), rw = trackSizes(grid.rowWeights, grid.rows, grid.cellSize);
+    if (cw || rw) {
+      const cs = cw || Array(grid.cols).fill(grid.cellSize), rs = rw || Array(grid.rows).fill(grid.cellSize);
+      let y = originY;
+      for (let r = 0; r < grid.rows; r++) {
+        let x = originX;
+        for (let c = 0; c < grid.cols; c++) {
+          centers.push({ cx: x + cs[c] / 2, cy: y + rs[r] / 2, cellSize: Math.min(cs[c], rs[r]), cellW: cs[c], cellH: rs[r] });
+          x += cs[c] + grid.gap;
+        }
+        y += rs[r] + grid.gap;
+      }
+      return centers;
+    }
     for (let r = 0; r < grid.rows; r++) {
       for (let c = 0; c < grid.cols; c++) {
         centers.push({
@@ -1254,6 +1270,14 @@
       }
     }
     return centers;   // square grids: row-major, e.g. 2×2 = [TL, TR, BL, BR]
+  }
+
+  // A track list's sizes from its weights: the n tracks share n × cellSize. null = even (no weights, or not n of them).
+  function trackSizes(weights, n, cellSize) {
+    if (!Array.isArray(weights) || weights.length !== n || n < 2) return null;
+    const w = weights.map(v => Math.max(0.01, +v || 0)), sum = w.reduce((a, b) => a + b, 0);
+    if (w.every(v => Math.abs(v - w[0]) < 1e-9)) return null;
+    return w.map(v => n * cellSize * v / sum);
   }
 
   // The grid's own drawn extent. frameSize is the square frame every caller

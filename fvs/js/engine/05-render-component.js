@@ -12,7 +12,7 @@ import {
 } from './03-rules.js';
 import {
   appearanceIsIdentity, appearanceMatrix, componentBoundaryClipContent, getElementAppearance,
-  paintPaperPatternCanvas, paperPatternSVG, patternOf, resolveItemGeo, resolveUnderlyingComponent,
+  itemH, itemW, paintPaperPatternCanvas, paperPatternSVG, patternOf, resolveItemGeo, resolveUnderlyingComponent,
   stretchOpts, tileAt, withAppearance
 } from './04-appearance.js';
 import { hooks, provide } from '../hooks.js';
@@ -151,7 +151,7 @@ export function componentGridOutlineSVG(items, size) {
   const d = resolvedComponentDims(size), hx = d.w / 2, hy = d.h / 2;
   return `<g fill="none" stroke="var(--tool)" stroke-width="1" vector-effect="non-scaling-stroke" pointer-events="none">` + items.map(it => it.poly
     ? `<polygon vector-effect="non-scaling-stroke" points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`
-    : `<rect vector-effect="non-scaling-stroke" x="${(hx + it.cx - it.cellSize / 2).toFixed(2)}" y="${(hy + it.cy - it.cellSize / 2).toFixed(2)}" width="${it.cellSize.toFixed(2)}" height="${it.cellSize.toFixed(2)}"/>`).join('') + `</g>`;
+    : `<rect vector-effect="non-scaling-stroke" x="${(hx + it.cx - itemW(it) / 2).toFixed(2)}" y="${(hy + it.cy - itemH(it) / 2).toFixed(2)}" width="${itemW(it).toFixed(2)}" height="${itemH(it).toFixed(2)}"/>`).join('') + `</g>`;
 }
 // Show grid, on a cell-shape lattice: the Grid shape that wraps the cells (the triangle round three packed
 // circles, the hexagon round seven…) as a dashed guide — what the Component is as a whole, so its fit in a
@@ -422,11 +422,11 @@ export function layerPasses(geo, items) {
 // Clip to cell (Component, Oct 12, 2026): each cell's drawing cut to its own frame, in the Component's coordinates
 export const cellClipShape = (it, halfX, halfY) => (it.poly
   ? `<polygon points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`
-  : `<rect x="${(halfX + it.cx - it.cellSize / 2).toFixed(2)}" y="${(halfY + it.cy - it.cellSize / 2).toFixed(2)}" width="${it.cellSize.toFixed(2)}" height="${it.cellSize.toFixed(2)}"/>`);
+  : `<rect x="${(halfX + it.cx - itemW(it) / 2).toFixed(2)}" y="${(halfY + it.cy - itemH(it) / 2).toFixed(2)}" width="${itemW(it).toFixed(2)}" height="${itemH(it).toFixed(2)}"/>`);
 export function clipCellCanvas(ctx, it, halfX, halfY) {
   ctx.beginPath();
   if (it.poly) { it.poly.forEach((p, k) => (k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); }
-  else ctx.rect(halfX + it.cx - it.cellSize / 2, halfY + it.cy - it.cellSize / 2, it.cellSize, it.cellSize);
+  else ctx.rect(halfX + it.cx - itemW(it) / 2, halfY + it.cy - itemH(it) / 2, itemW(it), itemH(it));
   ctx.clip();
 }
 export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply) {

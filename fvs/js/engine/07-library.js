@@ -11,7 +11,7 @@ import {
   SEED_ICONS, panelSeedSnapshot, seedForSnapshot
 } from './02-seed-ui.js';
 import {
-  getGrid
+  gridOf
 } from './03-rules.js';
 import {
   appearanceSnapshot
@@ -99,7 +99,7 @@ export function libraryEntryFromLive(comp) {
   return {
     seed: seedWithLayerInks(seedForSnapshot(), comp.layerInks),
     appearance: appearanceSnapshot(),
-    grid: getGrid(),
+    grid: gridOf(comp),
     colors: state.colors.slice(),
     colorRule: { ...state.colorRule },
     paperColor: state.paperColor,

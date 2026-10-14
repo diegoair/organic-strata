@@ -248,11 +248,11 @@
   #symbol-frame svg { width: min(100cqw, 100cqh * var(--sym-ar, 1)); height: min(100cqh, 100cqw / var(--sym-ar, 1)); display: block; }
   #symbol-frame svg [data-cell-index] { cursor: pointer; }
   /* Column / row borders of a rectangular grid — drag to resize (preview only, never exported). */
-  #symbol-frame svg .sym-track__hit { fill: transparent; }
-  #symbol-frame svg .sym-track__line { stroke: var(--track-accent); stroke-opacity: 0.35; stroke-dasharray: 6 5; pointer-events: none; }
-  #symbol-frame svg .sym-track:hover .sym-track__line, #symbol-frame svg .sym-track.is-dragging .sym-track__line { stroke-opacity: 1; stroke-dasharray: none; }
-  #symbol-frame svg .sym-track[data-axis="cols"] { cursor: col-resize; }
-  #symbol-frame svg .sym-track[data-axis="rows"] { cursor: row-resize; }
+  :is(#symbol-frame, #component-edit-frame) svg .sym-track__hit { fill: transparent; }
+  :is(#symbol-frame, #component-edit-frame) svg .sym-track__line { stroke: var(--track-accent); stroke-opacity: 0.35; stroke-dasharray: 6 5; pointer-events: none; }
+  :is(#symbol-frame, #component-edit-frame) svg .sym-track:hover .sym-track__line, :is(#symbol-frame, #component-edit-frame) svg .sym-track.is-dragging .sym-track__line { stroke-opacity: 1; stroke-dasharray: none; }
+  :is(#symbol-frame, #component-edit-frame) svg .sym-track[data-axis="cols"] { cursor: col-resize; }
+  :is(#symbol-frame, #component-edit-frame) svg .sym-track[data-axis="rows"] { cursor: row-resize; }
   #symbol-frame.is-resizing-cols, #symbol-frame.is-resizing-cols * { cursor: col-resize !important; }
   #symbol-frame.is-resizing-rows, #symbol-frame.is-resizing-rows * { cursor: row-resize !important; }
   /* Live % share of each column/row track, positioned in real screen px
@@ -366,7 +366,9 @@
      the component's own proportions (--comp-ar, set by renderComponentEditCanvas),
      fitted in the square frame — a 4×2 component is a 2:1 sheet, not a square
      one with the dotted page showing above and below its paper. */
-  #component-edit-frame { container-type: size; }
+  #component-edit-frame { container-type: size; position: relative; }
+  /* Component Edit's own grid (Tropism Phase 0): the step's Grid / Transform axes / Rule hide while it shows */
+  .tier-block.is-ce-editing .ce-hide { display: none; }
   #component-edit-frame svg { width: min(100cqw, 100cqh * var(--comp-ar, 1)); height: min(100cqh, 100cqw / var(--comp-ar, 1)); display: block; }
   #component-edit-frame [data-cell-index] { cursor: pointer; }
   #component-edit-frame [data-cell-index]:hover { fill: color-mix(in srgb, var(--tool) 8%, transparent); }

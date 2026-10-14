@@ -31,12 +31,12 @@ export function buildComponentItems(component, grid) {
         cellSize: 100 * cellR / localR, color: ruleInk(i, cr), content: t.content || null, poly: c.points }, t, i, cr), t);   // poly: the cell in frame coords — the canvas is the lattice's outline
     });
   }
-  return component.cells.map((t, i) => withCellPlace(withPartInks({
+  return component.cells.map((t, i) => withCellPlace(withCellBox(withPartInks({
     cx: centers[i].cx, cy: centers[i].cy,
     rotation: t.rotation, flipH: t.flipH, flipV: t.flipV, scale: t.scale,
     cellSize: centers[i].cellSize, color: ruleInk(i, cr),
     content: t.content || null,
-  }, t, i, cr), t));
+  }, t, i, cr), centers[i]), t));
 }
 // A cell made by hand (Component Edit, Tropism Phase 0 — Oct 14, 2026): Symbol's cell fields on a Component cell. Its own
 // colour (`color`), an empty cell (`empty` — nothing drawn, the cell stays selectable) and Symbol's placement — padding
@@ -48,11 +48,18 @@ const PLACE_KEYS = ['pad', 'padding', 'anchorX', 'anchorY', 'fixedSize'];
 export function cellHasPlacement(cell) {
   return (cell.fitMode && cell.fitMode !== 'contain') || PLACE_KEYS.some(k => cell[k] != null && cell[k] !== 0);
 }
+// A cell of uneven tracks is a rectangle: its box (cellW × cellH) rides on the item — the clip, the hit area, the outline
+// and Stretch / Cover read it; the Element is placed in the square of its shorter side (cellSize) as before.
+function withCellBox(item, c) {
+  if (c.cellW != null && (c.cellW !== c.cellSize || c.cellH !== c.cellSize)) { item.cellW = c.cellW; item.cellH = c.cellH; }
+  return item;
+}
+export const itemW = it => it.cellW || it.cellSize, itemH = it => it.cellH || it.cellSize;
 function withCellPlace(item, cell) {
   if (cell.color) item.color = cell.color;
   if (cell.empty) item.empty = true;
   if (!cellHasPlacement(cell)) return item;
-  const fit = item.cellSize / 100, p = Organica.shapes.resolveCellPlacement(item.cellSize, item.cellSize, 100, cell);
+  const fit = item.cellSize / 100, p = Organica.shapes.resolveCellPlacement(itemW(item), itemH(item), 100, cell);
   item.scale = 1; item.kx = p.scaleX / fit; item.ky = p.scaleY / fit; item.dx = p.offsetX; item.dy = p.offsetY;
   return item;
 }

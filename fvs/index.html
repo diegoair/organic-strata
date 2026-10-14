@@ -1305,13 +1305,28 @@
     <input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Load JSON grid" class="org-file-input">
 
     <div class="tier-block" data-tier="component">
+    <!-- Component Edit — this Component's own grid (Tropism Phase 0, Oct 14, 2026): Columns × Rows, the track borders dragged
+         on the canvas (Symbol's grid). Square cells. Shown only in Edit; the step's Grid / Transform axes / Rule hide meanwhile. -->
+    <div class="panel-section" id="ce-grid-section" hidden>
+      <h3>Grid <span class="hint" id="ce-grid-count">4 cells</span></h3>
+      <div class="ctrl-row"><div class="ctrl-label">Columns</div>
+        <input type="range" id="rg-ce-cols" min="1" max="8" step="1" value="2" aria-label="Columns"><span class="ctrl-val" id="v-ce-cols">2</span>
+      </div>
+      <div class="ctrl-row"><div class="ctrl-label">Rows</div>
+        <input type="range" id="rg-ce-rows" min="1" max="8" step="1" value="2" aria-label="Rows"><span class="ctrl-val" id="v-ce-rows">2</span>
+      </div>
+      <div class="row-btns">
+        <button type="button" class="mini-btn" id="btn-ce-even-tracks">Even tracks</button>
+        <button type="button" class="mini-btn" id="btn-ce-apply-grid" data-armed="Regenerate the others — click again">Apply grid to all</button>
+      </div>
+    </div>
     <!-- Component Edit — the picked cells' properties, Symbol's own block (Tropism Phase 0, Oct 14, 2026). Shown only in Edit. -->
     <div class="panel-section" id="ce-cell-section" hidden>
       <h3>Cell properties</h3>
       <div id="ce-cell-empty" class="org-empty">No cell selected.</div>
       <div id="ce-cell-props" hidden><!-- filled by cellPropsHTML('ce-', { component: true }) (fvs/js/18-step-boards.js) --></div>
     </div>
-    <div class="panel-section">
+    <div class="panel-section ce-hide">
       <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
       <div class="ctrl-row" id="grid-outline-row" style="display:none"><div class="ctrl-label" id="grid-outline-label" title="The shape the cells are grouped into">Grid shape</div>
         <div class="seg-ctrl" id="seg-grid-outline" role="group" aria-label="Grid shape">
@@ -1327,12 +1342,12 @@
       </div>
       <div class="ctrl-row" id="grid-cols-row">
         <div class="ctrl-label">Columns</div>
-        <input type="range" id="rg-grid-cols" min="1" max="4" step="1" value="2" aria-label="Component grid columns">
+        <input type="range" id="rg-grid-cols" min="1" max="8" step="1" value="2" aria-label="Component grid columns">
         <span class="ctrl-val" id="v-grid-cols">2</span>
       </div>
       <div class="ctrl-row" id="grid-rows-row">
         <div class="ctrl-label">Rows</div>
-        <input type="range" id="rg-grid-rows" min="1" max="4" step="1" value="2" aria-label="Component grid rows">
+        <input type="range" id="rg-grid-rows" min="1" max="8" step="1" value="2" aria-label="Component grid rows">
         <span class="ctrl-val" id="v-grid-rows">2</span>
       </div>
       <p class="org-panel__hint" id="grid-legacy-hint" style="display:none">This Component was saved on an imported Loom grid (legacy). It renders as saved; pick columns × rows to start a new grid. Larger and irregular grids now live in the Symbol.</p>
@@ -1354,7 +1369,7 @@
       </div>
     </div>
 
-    <div class="panel-section">
+    <div class="panel-section ce-hide">
       <h3>Transform axes <span class="hint">also affects the fixed-pattern Rules below</span></h3>
       <label class="check-row"><input type="checkbox" id="chk-axis-rotation" checked><span>Rotation (0/90/180/270°)</span></label>
       <label class="check-row"><input type="checkbox" id="chk-axis-flip"><span>Flip (none/H/V/both)</span></label>
@@ -1378,7 +1393,7 @@
       </div>
     </div>
 
-    <div class="panel-section">
+    <div class="panel-section ce-hide">
       <h3>Rule</h3>
       <div class="ctrl-row">
         <select class="panel-select" id="sel-rule" aria-label="Rule mode">

@@ -13,12 +13,13 @@ import {
 } from './engine/02-seed-ui.js';
 import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
-  exhaustiveTotal, getGrid, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
+  canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
-  ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
+  ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid
 } from './engine/03-rules.js';
 import {
-  appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, stretchOpts, withAppearance
+  appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, stretchOpts,
+  withAppearance
 } from './engine/04-appearance.js';
 import {
   buildComponentSVG, buildComponentSVGBody, componentGridOutlineSVG, drawComponentCanvas, gridWrapper, layerTransformAttr
@@ -77,7 +78,7 @@ export function enterComponentEditMode(compId) {
   // whichever other index shares its object. map(c => ({...c})) guarantees
   // every slot is its own independent object regardless.
   state.componentEditCells = comp.cells.map(c => ({ ...c }));
-  state.componentEditGrid = structuredClone(getGrid());
+  state.componentEditGrid = structuredClone(gridOf(comp));
   state.componentEditSelectedCell = null;
   rt.cePicked = new Set();
   // Frozen once, at entry — every non-overridden cell's DEFAULT shape must
@@ -101,6 +102,7 @@ export function enterComponentEditMode(compId) {
   if (hooks.boardComponentEdit) hooks.boardComponentEdit(true);   // Edit is the Component board's single view (18-step-boards.js)
   renderComponentEditCanvas();
   syncUndoUI();
+  syncCeGridUI();
   if (hooks.syncCeCellProps) hooks.syncCeCellProps();
   hooks.syncFvsZoomHud();   // gallery ⇄ Edit: the zoom chip follows
 }
@@ -133,9 +135,209 @@ export function exitComponentEditMode() {
   renderGallery();
   renderSeedPreview();
   syncUndoUI();
+  syncCeGridUI();
   if (hooks.syncCeCellProps) hooks.syncCeCellProps();
   hooks.syncFvsZoomHud();   // gallery ⇄ Edit: the zoom chip follows
 }
+
+// ── Component Edit — this Component's own grid (Tropism Phase 0, Oct 14, 2026 — Diego: "each component can have a different
+// grid type"; Symbol's grid: Columns × Rows, track borders dragged on the canvas). Square cells (a cell-shape lattice keeps
+// the step's grid). The grid lives on state.componentEditGrid while editing; Save gives the new Component its own `grid`
+// when it differs from the step's. Added cells continue the rule that made the Component (its candidates on the new grid,
+// the one that agrees with the cells kept); a hand-made or random one repeats its own cells. Cells kept are untouched.
+const ceSquare = () => state.componentEditMode && state.componentEditGrid && state.componentEditGrid.kind === 'square' && state.cellShape === 'square';
+const CE_RULES = {
+  identity: () => ruleIdentity(), pinwheel: () => rulePinwheel(), mirror: () => ruleMirror(), diagonal: () => ruleDiagonal(),
+  checkerboard: () => ruleCheckerboard(), rowmirror: () => ruleRowMirror(), columnmirror: () => ruleColumnMirror(), radial: () => ruleRadial(),
+  hlines: () => ruleLines('row'), vlines: () => ruleLines('col'), oscillator: () => ruleOscillator(),
+};
+const evenOrNull = w => (w && w.some(v => Math.abs(v - w[0]) > 1e-6) ? w : null);
+function resizeWeights(w, n) {
+  if (!w) return null;
+  const mean = w.reduce((a, b) => a + b, 0) / w.length;
+  return evenOrNull(Array.from({ length: n }, (_, i) => (i < w.length ? w[i] : mean)));
+}
+function continueCells(ruleSource, oldGrid, oldCells, g) {
+  const oc = oldGrid.cols, or = oldGrid.rows, n = g.cols * g.rows;
+  const at = (c, r) => (c < oc && r < or ? oldCells[r * oc + c] : null);
+  let fill = null;
+  if (CE_RULES[ruleSource]) {
+    let cands = [];
+    try { cands = withGrid(g, CE_RULES[ruleSource]) || []; } catch (e) { cands = []; }
+    let best = null, bestScore = -1, total = 0;
+    for (let r = 0; r < Math.min(or, g.rows); r++) for (let c = 0; c < Math.min(oc, g.cols); c++) total++;
+    for (const cand of cands) {
+      if (!cand || !cand.cells || cand.cells.length !== n) continue;
+      let sc = 0;
+      for (let r = 0; r < Math.min(or, g.rows); r++) for (let c = 0; c < Math.min(oc, g.cols); c++) if (canonicalState(cand.cells[r * g.cols + c]) === canonicalState(at(c, r))) sc++;
+      if (sc > bestScore) { bestScore = sc; best = cand; }
+    }
+    if (best && bestScore * 2 >= total) fill = best.cells;
+  }
+  return Array.from({ length: n }, (_, i) => {
+    const c = i % g.cols, r = Math.floor(i / g.cols), kept = at(c, r);
+    if (kept) return kept;
+    return { ...(fill ? fill[i] : oldCells[(r % or) * oc + (c % oc)]) };
+  });
+}
+export function ceSetGrid(cols, rows) {
+  if (!ceSquare()) return;
+  const old = state.componentEditGrid;
+  if (cols === old.cols && rows === old.rows) return;
+  ceSnapshot();
+  const g = { ...old, cols, rows };
+  delete g.colWeights; delete g.rowWeights;
+  const cw = resizeWeights(old.colWeights, cols), rw = resizeWeights(old.rowWeights, rows);
+  if (cw) g.colWeights = cw;
+  if (rw) g.rowWeights = rw;
+  const src = state.components.find(c => c.id === state.componentEditId);
+  state.componentEditCells = continueCells(src ? src.ruleSource : '', old, state.componentEditCells, g);
+  state.componentEditGrid = g;
+  rt.cePicked = new Set([...rt.cePicked].filter(i => i < cols * rows));
+  if (state.componentEditSelectedCell != null && state.componentEditSelectedCell >= cols * rows) state.componentEditSelectedCell = null;
+  renderComponentEditCanvas();
+  syncCeGridUI();
+  if (hooks.syncCeCellProps) hooks.syncCeCellProps();
+}
+export function ceEvenTracks() {
+  if (!ceSquare()) return;
+  const g = state.componentEditGrid;
+  if (!g.colWeights && !g.rowWeights) return;
+  ceSnapshot();
+  state.componentEditGrid = { ...g }; delete state.componentEditGrid.colWeights; delete state.componentEditGrid.rowWeights;
+  renderComponentEditCanvas(); syncCeGridUI();
+}
+// The grid the new Component keeps: only what differs from the step's (null = it follows the step's, as before)
+export function ceOwnGrid() {
+  const g = state.componentEditGrid, s = getGrid();
+  if (!g || g.kind !== 'square' || s.kind !== 'square') return null;
+  const same = (a, b) => JSON.stringify(a || null) === JSON.stringify(b || null);
+  if (g.cols === s.cols && g.rows === s.rows && same(g.colWeights, s.colWeights) && same(g.rowWeights, s.rowWeights)) return null;
+  return { cols: g.cols, rows: g.rows, ...(g.colWeights ? { colWeights: g.colWeights.slice() } : {}), ...(g.rowWeights ? { rowWeights: g.rowWeights.slice() } : {}) };
+}
+// Apply grid to all: the step takes this grid (columns, rows, tracks); the other Components are made again on it when
+// Edit closes (the gallery's grid-change path) — a Component with its own grid keeps it.
+export function ceApplyGridToAll() {
+  if (!ceSquare()) return;
+  const g = state.componentEditGrid, before = getGrid();
+  // the Component being edited keeps the grid it was made on (it becomes unique), as every Component with its own grid
+  const src = state.components.find(c => c.id === state.componentEditId);
+  if (src && !src.grid && (before.cols !== g.cols || before.rows !== g.rows)) src.grid = { cols: before.cols, rows: before.rows, ...(before.colWeights ? { colWeights: before.colWeights.slice() } : {}), ...(before.rowWeights ? { rowWeights: before.rowWeights.slice() } : {}) };
+  const keep = state.components.filter(c => c.grid);
+  state.loomGrid = null;
+  ctrl('rg-grid-cols').value = g.cols; ctrl('v-grid-cols').textContent = g.cols;
+  ctrl('rg-grid-rows').value = g.rows; ctrl('v-grid-rows').textContent = g.rows;
+  state.gridWeights = g.colWeights || g.rowWeights ? { colWeights: g.colWeights ? g.colWeights.slice() : null, rowWeights: g.rowWeights ? g.rowWeights.slice() : null } : null;
+  hooks.syncComponentGridUI(); syncRuleAvailability();
+  // the others: the step's rule again, on the new grid (their hand edits go — the two-click button says so)
+  if (pv('sel-rule') !== 'manual' && !ctrl('sel-rule').selectedOptions[0].disabled) generate();
+  keep.forEach(c => { if (!state.components.includes(c)) state.components.push(c); });
+  state.componentAutoGenerated = false;
+  syncCeGridUI();
+}
+export function syncCeGridUI() {
+  const on = ceSquare();
+  ctrl('ce-grid-section').hidden = !on;
+  if (!on) return;
+  const g = state.componentEditGrid;
+  ctrl('rg-ce-cols').value = g.cols; ctrl('v-ce-cols').textContent = g.cols;
+  ctrl('rg-ce-rows').value = g.rows; ctrl('v-ce-rows').textContent = g.rows;
+  ctrl('ce-grid-count').textContent = `${g.cols * g.rows} cell${g.cols * g.rows === 1 ? '' : 's'}`;
+  ctrl('btn-ce-even-tracks').disabled = !g.colWeights && !g.rowWeights;
+  ctrl('btn-ce-apply-grid').disabled = !ceOwnGrid();
+}
+['cols', 'rows'].forEach(k => ctrl('rg-ce-' + k).addEventListener('input', e => {
+  ctrl('v-ce-' + k).textContent = e.target.value;
+  const g = state.componentEditGrid;
+  ceSetGrid(k === 'cols' ? +e.target.value : g.cols, k === 'rows' ? +e.target.value : g.rows);
+}));
+ctrl('btn-ce-even-tracks').addEventListener('click', ceEvenTracks);
+ctrl('btn-ce-apply-grid').addEventListener('click', ceApplyGridToAll);
+// The track borders on the canvas: Symbol's handles (.sym-track — a dashed line, solid on hover / drag) and its % labels.
+let ceTrackDrag = null;   // { axis, i } while a border is dragged
+function ceTrackGeometry(items, size) {
+  const g = state.componentEditGrid, d = resolvedComponentDims(size), hx = d.w / 2, hy = d.h / 2;
+  const col = Array.from({ length: g.cols }, (_, c) => items[c]), row = Array.from({ length: g.rows }, (_, r) => items[r * g.cols]);
+  const xs = col.map(it => [hx + it.cx - itemW(it) / 2, hx + it.cx + itemW(it) / 2]), ys = row.map(it => [hy + it.cy - itemH(it) / 2, hy + it.cy + itemH(it) / 2]);
+  return { d, xs, ys };
+}
+function ceTrackHandles(items, size) {
+  if (!ceSquare() || items.length !== state.componentEditGrid.cols * state.componentEditGrid.rows) return '';
+  const { d, xs, ys } = ceTrackGeometry(items, size), M = Math.max(d.w, d.h);
+  const hitW = Math.max(6, 0.012 * M), lw = Math.max(1, 0.002 * M), y0 = ys[0][0], y1 = ys[ys.length - 1][1], x0 = xs[0][0], x1 = xs[xs.length - 1][1];
+  const on = (axis, i) => (ceTrackDrag && ceTrackDrag.axis === axis && ceTrackDrag.i === i ? ' is-dragging' : '');
+  let s = '';
+  for (let i = 0; i < xs.length - 1; i++) {
+    const x = (xs[i][1] + xs[i + 1][0]) / 2;
+    s += `<g class="sym-track${on('cols', i)}" data-axis="cols" data-track="${i}"><rect class="sym-track__hit" x="${(x - hitW / 2).toFixed(2)}" y="${y0.toFixed(2)}" width="${hitW.toFixed(2)}" height="${(y1 - y0).toFixed(2)}"/><line class="sym-track__line" x1="${x.toFixed(2)}" y1="${y0.toFixed(2)}" x2="${x.toFixed(2)}" y2="${y1.toFixed(2)}" stroke-width="${lw}"/></g>`;
+  }
+  for (let i = 0; i < ys.length - 1; i++) {
+    const y = (ys[i][1] + ys[i + 1][0]) / 2;
+    s += `<g class="sym-track${on('rows', i)}" data-axis="rows" data-track="${i}"><rect class="sym-track__hit" x="${x0.toFixed(2)}" y="${(y - hitW / 2).toFixed(2)}" width="${(x1 - x0).toFixed(2)}" height="${hitW.toFixed(2)}"/><line class="sym-track__line" x1="${x0.toFixed(2)}" y1="${y.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y.toFixed(2)}" stroke-width="${lw}"/></g>`;
+  }
+  return s;
+}
+// % of the width / height each column / row takes, outside the sheet — HTML, placed from the SVG's rendered box (Symbol's way)
+function ceTrackLabels(size) {
+  const frame = ctrl('component-edit-frame'), old = frame.querySelector('.sym-track-labels');
+  if (old) old.remove();
+  if (!ceSquare()) return;
+  const svg = frame.querySelector('svg');
+  if (!svg) return;
+  const items = buildComponentItems({ cells: state.componentEditCells }, state.componentEditGrid);
+  const { d, xs, ys } = ceTrackGeometry(items, size);
+  const sr = svg.getBoundingClientRect(), fr = frame.getBoundingClientRect(), k = sr.width / d.w || 1;
+  const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-4')) || 10;
+  const tw = xs[xs.length - 1][1] - xs[0][0], th = ys[ys.length - 1][1] - ys[0][0];
+  const wrap = document.createElement('div');
+  wrap.className = 'sym-track-labels';
+  const label = (cls, x, y, pct) => { const el = document.createElement('div'); el.className = 'sym-track-label ' + cls; el.style.left = x.toFixed(1) + 'px'; el.style.top = y.toFixed(1) + 'px'; el.textContent = pct + '%'; wrap.appendChild(el); };
+  xs.forEach(([a, b]) => label('sym-track-label--col', sr.left - fr.left + (a + b) / 2 * k, sr.top - fr.top - gap, Math.round((b - a) / tw * 100)));
+  ys.forEach(([a, b]) => label('sym-track-label--row', sr.left - fr.left - gap, sr.top - fr.top + (a + b) / 2 * k, Math.round((b - a) / th * 100)));
+  frame.appendChild(wrap);
+}
+function ceSvgPoint(e) {
+  const svg = ctrl('component-edit-frame').querySelector('svg');
+  if (!svg) return null;
+  const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+// a border drag moves only the two tracks beside it (their sum stays); each keeps at least a tenth of the pair
+function ceMoveTrack(axis, i, pos) {
+  const g = state.componentEditGrid, size = frameDims(g), items = buildComponentItems({ cells: state.componentEditCells }, g);
+  const { xs, ys } = ceTrackGeometry(items, size), spans = axis === 'cols' ? xs : ys;
+  const sizes = spans.map(([a, b]) => b - a), start = spans[i][0], pair = sizes[i] + sizes[i + 1], gap = g.gap || 0, min = pair * 0.1;
+  const a = Math.min(pair - min, Math.max(min, pos - start - gap / 2));
+  sizes[i] = a; sizes[i + 1] = pair - a;
+  const mean = sizes.reduce((x, y) => x + y, 0) / sizes.length, w = sizes.map(v => Math.round(v / mean * 1000) / 1000);
+  const key = axis === 'cols' ? 'colWeights' : 'rowWeights', next = { ...g };
+  if (evenOrNull(w)) next[key] = w; else delete next[key];
+  state.componentEditGrid = next;
+}
+ctrl('component-edit-frame').addEventListener('pointerdown', e => {
+  const h = e.button === 0 && e.target.closest && e.target.closest('.sym-track');
+  if (!h || !ceSquare()) return;
+  e.preventDefault(); e.stopPropagation();
+  ceSnapshot();
+  ceTrackDrag = { axis: h.dataset.axis, i: +h.dataset.track };
+  renderComponentEditCanvas();
+}, true);
+window.addEventListener('pointermove', e => {
+  if (!ceTrackDrag) return;
+  const pt = ceSvgPoint(e);
+  if (!pt) return;
+  ceMoveTrack(ceTrackDrag.axis, ceTrackDrag.i, ceTrackDrag.axis === 'cols' ? pt.x : pt.y);
+  renderComponentEditCanvas();
+}, true);   // capture: the board's own pointer handling stops the event before it bubbles to window
+window.addEventListener('pointerup', () => {
+  if (!ceTrackDrag) return;
+  ceTrackDrag = null;
+  const frame = ctrl('component-edit-frame');
+  const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };   // the release is not a cell click
+  frame.addEventListener('click', swallow, true);
+  setTimeout(() => frame.removeEventListener('click', swallow, true), 0);
+  renderComponentEditCanvas(); syncCeGridUI();
+}, true);
 
 // Undo inside Component Edit (Tropism Phase 0, Oct 14, 2026): each change to the cells is a step. A drag of a slider or
 // typing a value (a run of `input` events) is ONE step — a new one only when the last edit is more than 600 ms old;
@@ -148,13 +350,15 @@ export function ceSnapshot() {
   const fresh = !dragging || now - ceUndoAt > 600;
   ceUndoAt = now;
   if (!fresh || !state.componentEditCells) return;
-  ceUndo.push(structuredClone(state.componentEditCells));
+  ceUndo.push(structuredClone({ cells: state.componentEditCells, grid: state.componentEditGrid }));
   if (ceUndo.length > UNDO_MAX) ceUndo.shift();
   syncUndoUI();
 }
 export function ceUndoStep() {
   if (!state.componentEditMode || !ceUndo.length) return;
-  state.componentEditCells = ceUndo.pop();
+  const step = ceUndo.pop();
+  state.componentEditCells = step.cells; state.componentEditGrid = step.grid;
+  rt.cePicked = new Set([...rt.cePicked].filter(i => i < step.cells.length));
   ceUndoAt = 0;
   renderComponentEditCanvas();
   if (hooks.syncCeCellProps) hooks.syncCeCellProps();
@@ -166,6 +370,8 @@ export function ceUndoStep() {
 export function saveComponentEditAsNew() {
   if (!state.componentEditMode) return;
   const newComp = { id: `edit-${Date.now()}`, ruleSource: 'edited', cells: structuredClone(state.componentEditCells) };
+  const own = ceOwnGrid();
+  if (own) newComp.grid = own;
   pushUndo();
   state.components.push(newComp);
   state.selectedId = newComp.id;
@@ -191,6 +397,7 @@ export function renderComponentEditCanvas() {
   const hit = componentEditHitLayer(items, size, rt.cePicked);
   const dims = resolvedComponentDims(size);
   ctrl('component-edit-frame').style.setProperty('--comp-ar', (dims.w / dims.h).toFixed(5));   // the sheet's box takes the component's proportions
+  const tracks = ceTrackHandles(items, size);
   ctrl('component-edit-frame').innerHTML =
     `<svg xmlns="http://www.w3.org/2000/svg"${items.length && items[0].poly ? ' class="is-cell"' : ''} viewBox="0 0 ${dims.w} ${dims.h}">${body}${componentGridOutlineSVG(items, size)}${(gridWrapper(items, grid.lattice && grid.lattice.outline) || {}).svg || ''}${hit}</svg>`;
   const cell = state.componentEditSelectedCell;
@@ -199,6 +406,8 @@ export function renderComponentEditCanvas() {
     ? (seed.parts ? 'Click cells — ⌘-click adds — then a part and an ink' : 'Click a cell — ⌘-click or drag to pick several')
     : shaping ? `Shape of ${n} cell${n === 1 ? '' : 's'} — click a cell to go back to its properties`
     : `${n} cell${n === 1 ? '' : 's'} selected`;
+  if (tracks) { const svg = ctrl('component-edit-frame').querySelector('svg'); if (svg) svg.insertAdjacentHTML('beforeend', tracks); }
+  ceTrackLabels(size);
   renderComponentEditParts();
 }
 // ── Divide into parts, per cell (R3) ── the picked cells' own colour for one part of the divided Element
@@ -627,7 +836,7 @@ export function generateColourways() {
   // (a hand-edited one — Custom — is a new starting palette).
   const base = comp.colourway && comp.colourway.scheme !== 'custom' && state.colourwayBase ? state.colourwayBase : { colors: state.colors.slice(), paper: state.paperColor, colorRule: { ...state.colorRule } };
   state.colourwayBase = base;
-  const list = buildColourways(base, getGrid(), comp.cells.length);
+  const list = buildColourways(base, gridOf(comp), comp.cells.length);
   pushUndo();
   const root = String(comp.id).replace(/-cw\d+$/, '');
   state.components = list.map((cw, j) => ({ ...comp, id: `${root}-cw${j}`, savedName: null, colourway: cw }));
@@ -896,7 +1105,7 @@ export function exportSelected(format) {
   const comp = getSelectedComponent();
   if (!comp) return;
   state.selectedRuleSource = comp.ruleSource;
-  const grid = getGrid();
+  const grid = gridOf(comp);
   const seed = getSeed();
   const items = buildComponentItems(comp, grid);
   const baseDims = frameDims(grid);

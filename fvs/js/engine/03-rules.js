@@ -249,11 +249,35 @@ export const EXHAUSTIVE_CAP = 512;
 // (state.loomGrid, "legacy") and renders exactly as saved; picking columns ×
 // rows replaces it.
 export function getGrid() {
+  if (state.gridOverride) return state.gridOverride;   // a rule run on another grid (Component Edit's Columns × Rows)
   if (state.cellShape !== 'square') return cellLatticeGrid();
   if (state.loomGrid) {
     return { kind: 'loom', cellShape: state.loomGrid.cellShape, cells: state.loomGrid.cells, width: state.loomGrid.inner.width, height: state.loomGrid.inner.height };
   }
-  return { kind: 'square', cols: +pv('rg-grid-cols'), rows: +pv('rg-grid-rows'), cellSize: val('rg-cellsize'), gap: val('rg-gap') };
+  const g = { kind: 'square', cols: +pv('rg-grid-cols'), rows: +pv('rg-grid-rows'), cellSize: val('rg-cellsize'), gap: val('rg-gap') };
+  // the step's own track sizes ("Apply grid to all" from Component Edit) — only while they fit its columns / rows
+  const w = state.gridWeights;
+  if (w && w.colWeights && w.colWeights.length === g.cols) g.colWeights = w.colWeights.slice();
+  if (w && w.rowWeights && w.rowWeights.length === g.rows) g.rowWeights = w.rowWeights.slice();
+  return g;
+}
+// A Component's own grid (Tropism Phase 0 — Diego, Oct 14, 2026: "each component can have a different grid"): set when its
+// grid was changed in Component Edit — { cols, rows, colWeights?, rowWeights? }; the step's Cell size and Gap still apply.
+// Square cells only. Absent = the step's grid (every Component before; the rules and Generate always use that one).
+export function gridOf(comp) {
+  const g = getGrid();
+  if (!comp || !comp.grid || g.kind !== 'square') return g;
+  const own = { ...g, cols: comp.grid.cols, rows: comp.grid.rows };
+  delete own.colWeights; delete own.rowWeights;
+  if (comp.grid.colWeights) own.colWeights = comp.grid.colWeights.slice();
+  if (comp.grid.rowWeights) own.rowWeights = comp.grid.rowWeights.slice();
+  return own;
+}
+// Run `fn` with getGrid() answering `grid` (the rules read it) — then back.
+export function withGrid(grid, fn) {
+  const keep = state.gridOverride;
+  state.gridOverride = grid;
+  try { return fn(); } finally { state.gridOverride = keep; }
 }
 export function scaleValues() {
   return [val('rg-scale-small') / 100, val('rg-scale-medium') / 100, val('rg-scale-large') / 100];

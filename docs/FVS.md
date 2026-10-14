@@ -418,6 +418,17 @@ Double-click a candidate (or Enter on the selected one) → **Component Edit**, 
 view. Columns, rows and the rule are frozen while editing. Since **Tropism Phase 0** (Oct 14, 2026 —
 Diego: *create unique components manually; the Symbol workflow is one of the best for doing so*) the
 cells are made by hand the Symbol way:
+- **Grid** (the panel's first section in Edit, square cells — Oct 14, 2026, Diego: *each component can have a different
+  grid*): **Columns** · **Rows** 1–8, the track borders dragged on the canvas (Symbol's dashed handles + the % of each
+  column / row outside the sheet), **Even tracks**, **Apply grid to all** (two clicks: the step takes this grid and the
+  other Components are made again on it; one with its own grid keeps it). Added cells continue the rule that made the
+  Component (its candidates on the new grid — the one agreeing with the cells kept), else repeat the Component's cells;
+  kept cells are untouched. The step's Grid, Transform axes and Rule hide while Edit shows. *Save as new component*
+  gives it its own `grid` ({cols, rows, colWeights?, rowWeights?}) when it differs from the step's (`gridOf(comp)` —
+  every drawer reads it; the step's Cell size and Gap still apply); the gallery keeps it whatever the step's grid.
+  Uneven tracks: `colWeights` / `rowWeights` in `Organica.shapes.resolveGridCells` (shared), a rectangular cell
+  (`cellW × cellH` on the item; the Element contained in its shorter side, Stretch / Cover fill the rectangle). The step's
+  Columns / Rows go to 8 too.
 - **Cells**: click, ⌘ / Shift-click, marquee, **⌘A** = every cell; a **second click** on a picked cell
   opens **Choose content** (Seeds and the Element's states; **Empty** = an empty cell; a plain Seed keeps
   the cell's turn, an Element tile sets it); a saved Element dragged from the Library rail onto a cell

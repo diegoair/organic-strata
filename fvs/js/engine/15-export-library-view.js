@@ -11,7 +11,7 @@ import {
   getSeed
 } from './02-seed-ui.js';
 import {
-  getGrid
+  getGrid, gridOf
 } from './03-rules.js';
 import {
   ELEMENT_LIB, buildComponentItems, genesisTileForms, getElementAppearance, savedElementThumb,
@@ -131,7 +131,7 @@ export function tierSVG() {
   const comp = getSelectedComponent();
   if (!comp) return '';
   state.selectedRuleSource = comp.ruleSource;
-  const grid = getGrid();
+  const grid = gridOf(comp);
   return buildComponentSVG(buildComponentItems(comp, grid), getSeed(), frameDims(grid));
 }
 export function renderVariant(v, transparent) {

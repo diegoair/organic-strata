@@ -12,7 +12,7 @@ import {
   getSeed, seedForSnapshot
 } from './engine/02-seed-ui.js';
 import {
-  getGrid, ruleLabel
+  getGrid, gridOf, ruleLabel
 } from './engine/03-rules.js';
 import {
   buildComponentItems, getElementAppearance, withAppearance
@@ -507,8 +507,8 @@ function renderGalleryNow() {
   // the new, smaller cell count). A grid change invalidates the gallery the
   // same way clearGallery() does; drop anything that no longer fits.
   const cellCount = resolveGridCells(grid).length;
-  if (state.components.some(c => c.cells.length !== cellCount)) {
-    state.components = state.components.filter(c => c.cells.length === cellCount);
+  if (state.components.some(c => !c.grid && c.cells.length !== cellCount)) {   // a Component with its own grid keeps it
+    state.components = state.components.filter(c => c.grid || c.cells.length === cellCount);
     if (!state.components.find(c => c.id === state.selectedId)) {
       state.selectedId = state.components.length ? state.components[0].id : null;
     }
@@ -550,7 +550,7 @@ function renderGalleryNow() {
   syncSelectedColourway();
   const wraps = [];
   for (const comp of state.components) {
-    const svgStr = componentThumbMarkup(comp, grid, seed, size);
+    const cg = gridOf(comp), svgStr = componentThumbMarkup(comp, cg, seed, comp.grid ? frameDims(cg) : size);   // a Component with its own grid (Edit) draws on it
     const isSelected = comp.id === state.selectedId && state.selectionExplicit;
     const thumbClass = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
     const caption = componentCaption(comp);
