@@ -6,7 +6,7 @@ import {
   live, pc, pv, state
 } from './engine/00-core.js';
 import {
-  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameDims, pathBBox, resolveGridCells, snapAxis, snapCandidates, splitPlan
+  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameDims, resolveGridCells, snapAxis, snapCandidates, splitPlan
 } from './engine/01-geometry.js';
 import {
   getSeed, seedForSnapshot
@@ -372,7 +372,7 @@ export function renderElementFrame(seed) {
   const editing = !!(rt.partEdit && state.layers && state.layers.parts);
   live.tagParts = editing;
   let svg;
-  const drawn = sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, tiled = elementTileOn(sd);
+  const drawn = sd.type === 'freehand' ? { ...sd, type: 'freehandraw' } : sd, tiled = elementTileOn();
   try { svg = tiled ? buildSeedTileSVG(drawn, v, rt.elementAids, 400) : buildSeedPreviewSVG(drawn, v.r, v.fh, v.fv, 400, { outline: true }); }
   finally { live.tagParts = false; }
   if (tiled) {
@@ -463,11 +463,16 @@ export function withCellRing(svgStr, items) {
 // Two drawings of the same thing differ only in their time stamp (<metadata> exportedAt) and per-drawing ids
 // (nextDrawId: clip paths, patterns…): this text leaves the metadata out and reads the ids as their order, so
 // "same drawing" is a string compare. Used by the gallery below and the Library rail (15-export-library-view.js).
+// One pass over the text (was: three split/join passes per id — quadratic, ~15 s on a patterned Paper's Symbol in the rail).
 export const drawIdFree = svg => {
-  let out = String(svg).replace(/<metadata>[\s\S]*?<\/metadata>/g, '');
-  const ids = [...new Set([...out.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]))];
-  ids.forEach((id, i) => { out = out.split('"' + id + '"').join('"#' + i + '"').split('#' + id + ')').join('#' + i + ')').split('"#' + id + '"').join('"##' + i + '"'); });
-  return out;
+  const out = String(svg).replace(/<metadata>[\s\S]*?<\/metadata>/g, '');
+  const order = new Map();
+  for (const m of out.matchAll(/\bid="([^"]+)"/g)) if (!order.has(m[1])) order.set(m[1], order.size);
+  if (!order.size) return out;
+  const alt = [...order.keys()].sort((a, b) => b.length - a.length).map(id => id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  // "id" → "#n", #id) → #n) (a url() reference), "#id" → "##n" (an href)
+  return out.replace(new RegExp(`"(#?)(${alt})"|#(${alt})\\)`, 'g'), (m, hash, q, u) =>
+    q != null ? `"${hash ? '##' : '#'}${order.get(q)}"` : `#${order.get(u)})`);
 };
 // The gallery keeps each thumbnail whose drawing is unchanged (keyed by the Component object, so a new candidate
 // list = new thumbnails): a save, a selection or a redraw that changes nothing visible only updates classes, the

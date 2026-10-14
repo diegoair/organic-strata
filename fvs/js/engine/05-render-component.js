@@ -37,7 +37,6 @@ export const layerPlace = l => ({ mx: 0, my: 0, scale: 1, rotate: 0, ...(l.place
 // own place). A layer saved before this has no `look`: it follows the Element's
 // Style, and its Width/Length ride on the Element-wide stretch as they did then.
 // An Export "Variants" row (variantAppearance) still overrides Style/Stroke W.
-export const LOOK_KEYS = ['fillMode', 'strokeW', 'rounded', 'w', 'l'];
 export const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${lk.l})` : '');
 export const _stackFlatCache = new Map();
 // ── Pattern fill (test) ──────────────────────────────────────────────

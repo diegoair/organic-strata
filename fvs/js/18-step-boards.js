@@ -634,7 +634,7 @@ function mountComponentBoard() {
   function syncSheets() {
     if (state.activeTier !== 'component' || state.componentEditMode) return;
     const act = state.activeElement;
-    const tw = getComputedStyle(gal).getPropertyValue('--thumb-w'), th = getComputedStyle(gal).getPropertyValue('--thumb-h');
+    const tw = getComputedStyle(gal).getPropertyValue('--thumb-w');
     // the edited Element's area: its label and thumbnail
     const ae = state.elements.find(e => e.id === act);
     if (ae) {

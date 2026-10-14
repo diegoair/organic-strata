@@ -4,7 +4,9 @@
 // button held the whole time (the Figure board's chordShim case, scripts/test-figure-board.mjs).
 // Pan, zoom, fit, sheet and group drag, the group ring; add / switch / rename / delete an Element; parts marquee; the single views and their Esc order; Component Edit's cell marquee, second click → Choose content,
 // a rail drop, Delete; Clear board (held) on both boards; the Symbol's variations on the board.
-// Usage: scripts/test-fvs-boards.sh [--only clean|held] [--theme light|dark]
+// Usage: scripts/test-fvs-boards.sh [--only clean|held|extra] [--theme light|dark]
+// (clean / held = the three boards with that mouse; extra = the clean-mouse feature checks after them — Palette,
+// Generated, Symbol kept, Part variants, Colour group, Layer order. No --only = all three, as before.)
 // No dependencies: serves the repo on 127.0.0.1, headless Chrome over CDP, never writes to the repo.
 import http from 'node:http';
 import fs from 'node:fs';
@@ -12,6 +14,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { QUIET, quietPage } from './lib/chrome-page.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
@@ -68,6 +71,9 @@ async function ev(fn, ...args) {
   return r.result?.result?.value;
 }
 
+// wait for the page to be done reacting (two frames, no short timer pending) — see scripts/lib/chrome-page.mjs
+const settle = () => cdp('Runtime.evaluate', { expression: QUIET, awaitPromise: true });
+
 // ── the mouse: `held` = the side button reported down for the whole mode (bit 8 in every event) ──
 let held = false;
 const BIT = { left: 1, right: 2, middle: 4, back: 8 };
@@ -83,22 +89,23 @@ async function gesture(from, to, { button = 'left', steps = 8, mid } = {}) {
     await raw('mouseMoved', x, y, button, BIT[button]); await sleep(12);
     if (mid && i === Math.ceil(steps / 2)) probe = await ev(mid, { x, y });
   }
-  await raw('mouseReleased', to.x, to.y, button, 0); await sleep(150);
+  await raw('mouseReleased', to.x, to.y, button, 0);
+  await sleep(110); await settle();   // a board swallows any click within 100 ms of a drag's end (16-board.js swallowNextClick)
   return probe;
 }
-const click = async (p, mods = 0) => { await hover(p.x, p.y); await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1 | (held ? 8 : 0), clickCount: 1, modifiers: mods }); await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: held ? 8 : 0, clickCount: 1, modifiers: mods }); await sleep(120); };
+const click = async (p, mods = 0) => { await hover(p.x, p.y); await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1 | (held ? 8 : 0), clickCount: 1, modifiers: mods }); await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: held ? 8 : 0, clickCount: 1, modifiers: mods }); await settle(); };
 const key = async (type, code, keyName, vk) => cdp('Input.dispatchKeyEvent', { type, code, key: keyName, windowsVirtualKeyCode: vk });
 
 const dblclick = async p => {
   await hover(p.x, p.y);
   for (const n of [1, 2]) { await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1 | (held ? 8 : 0), clickCount: n }); await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: held ? 8 : 0, clickCount: n }); }
-  await sleep(200);
+  await settle();
 };
-const wheel = async (p, dy) => { await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x: p.x, y: p.y, deltaX: 0, deltaY: dy }); await sleep(120); };
+const wheel = async (p, dy) => { await cdp('Input.dispatchMouseEvent', { type: 'mouseWheel', x: p.x, y: p.y, deltaX: 0, deltaY: dy }); await settle(); };
 // a press held for `ms` (Clear board's hold to confirm), then released on the spot
-const hold = async (p, ms = 1200) => { await hover(p.x, p.y); await raw('mousePressed', p.x, p.y, 'left', 1); await sleep(ms); await raw('mouseReleased', p.x, p.y, 'left', 0); await sleep(250); };
-const press = async (code, keyName, vk, mods = 0) => { await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', code, key: keyName, windowsVirtualKeyCode: vk, modifiers: mods }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code, key: keyName, windowsVirtualKeyCode: vk, modifiers: mods }); await sleep(150); };
-const type = async text => { await cdp('Input.insertText', { text }); await sleep(80); };
+const hold = async (p, ms = 1200) => { await hover(p.x, p.y); await raw('mousePressed', p.x, p.y, 'left', 1); await sleep(ms); await raw('mouseReleased', p.x, p.y, 'left', 0); await settle(); };
+const press = async (code, keyName, vk, mods = 0) => { await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', code, key: keyName, windowsVirtualKeyCode: vk, modifiers: mods }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code, key: keyName, windowsVirtualKeyCode: vk, modifiers: mods }); await settle(); };
+const type = async text => { await cdp('Input.insertText', { text }); await settle(); };
 const SHIFT = 8, META = 4;
 
 // ── in-page probes ──
@@ -119,20 +126,28 @@ let failures = 0, passes = 0;
 const results = [];
 function check(mode, name, ok, detail = '') { results.push({ mode, name, ok, detail }); if (ok) passes++; else failures++; }
 
+let quietOn = false;
+async function untilReady() {
+  for (let i = 0; i < 160; i++) { await settle(); if (await ev(() => !window.__leaving && !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
+  await settle();
+}
 async function openFvs() {
   await cdp('Page.enable'); await cdp('Runtime.enable');
+  if (!quietOn) { await quietPage(cdp); quietOn = true; }
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   // storage cleared from a page that is not FVS: leaving FVS saves its Element list (pagehide), after a clear made there
-  await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/vercel.json` }); await sleep(500);
+  await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/vercel.json` });
+  for (let i = 0; i < 50; i++) { await sleep(50); if (await ev(() => location.pathname === '/vercel.json' && document.readyState === 'complete').catch(() => false)) break; }
   await ev(() => { try { localStorage.clear(); } catch {} });
-  await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/fvs/` }); await sleep(800);
-  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
+  await cdp('Page.navigate', { url: `http://127.0.0.1:${port}/fvs/` });
+  await untilReady();
   await ev(t => { document.documentElement.dataset.theme = t; }, THEME);
-  await sleep(600);
+  await settle();
   await cdp('Runtime.evaluate', { expression: PAGE });
   consoleErrors = [];
 }
-const step = async t => { await click(await ev(t => __t.box(`#tier-tabs [data-tier="${t}"]`), t)); await sleep(700); };
+async function reloadFvs() { await ev(() => { window.__leaving = true; }); await cdp('Page.reload'); await untilReady(); await cdp('Runtime.evaluate', { expression: PAGE }); }
+const step = async t => { await click(await ev(t => __t.box(`#tier-tabs [data-tier="${t}"]`), t)); };
 
 async function elementBoard(mode) {
   const C = (n, ok, d) => check(mode, 'Element · ' + n, ok, d);
@@ -154,7 +169,7 @@ async function elementBoard(mode) {
   const e1 = await ev(() => __t.empty('element'));
   await cdp('Input.dispatchKeyEvent', { type: 'keyDown', code: 'Space', key: ' ', windowsVirtualKeyCode: 32 });
   const cur = await gesture(e1, { x: e1.x - 120, y: e1.y - 80 }, { mid: () => getComputedStyle(document.elementFromPoint(innerWidth / 2, innerHeight / 2)).cursor });
-  await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code: 'Space', key: ' ', windowsVirtualKeyCode: 32 }); await sleep(100);
+  await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code: 'Space', key: ' ', windowsVirtualKeyCode: 32 }); await settle();
   const v3 = await ev(() => __t.view('element'));
   C('Space+drag pans', Math.abs(v3.x - v2.x + 120) < 3 && Math.abs(v3.y - v2.y + 80) < 3, `pan Δ ${(v3.x - v2.x).toFixed(0)},${(v3.y - v2.y).toFixed(0)} · cursor mid-pan ${cur}`);
   await gesture(e1, { x: e1.x + 120, y: e1.y + 80 }, { button: 'middle' });
@@ -176,19 +191,18 @@ async function elementBoard(mode) {
   C('a click on the board clears the selection', await ev(() => !document.querySelector('.fvs-board-ring') && __t.B('element').selected.size === 0));
   // New element: a second Element, edited at once
   await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); b.scrollIntoView(); return __t.box(b); }));
-  await sleep(500);
+  await settle();
   const s1 = await ev(() => ({ n: __t.F.state.elements.length, active: __t.F.state.activeElement, statics: document.querySelectorAll('.fvs-board-el').length }));
   C('New element adds an Element and edits it', s1.n === 2 && s1.active !== id0 && s1.statics === 1, JSON.stringify(s1));
   const blank1 = await ev(() => ({ type: document.getElementById('sel-seed-type').value, d: (__t.F.state.freehand.raw || '') + ((__t.F.state.freehand.seed || {}).d || '') }));
   C('New element is a fresh Arc (Freehand needs work first — Diego, Oct 11)', blank1.type === 'arc', JSON.stringify(blank1));
   // change the new one's shape, then switch back by clicking the other Element
   await ev(() => { const s = document.getElementById('sel-seed-type'); const o = [...s.options].find(o => !o.disabled && o.value !== s.value && ['circle', 'square', 'triangle', 'star'].includes(o.value)); s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); });
-  await sleep(700);
+  await settle();
   const typeNew = await ev(() => document.getElementById('sel-seed-type').value);
   await ev(() => document.querySelector('.fvs-board-el').scrollIntoView());
   await press('Digit1', '!', 49, SHIFT);
   await click(await ev(() => __t.box('.fvs-board-el')));
-  await sleep(700);
   const s2 = await ev(() => ({ active: __t.F.state.activeElement, type: document.getElementById('sel-seed-type').value, other: __t.F.state.elements.find(e => e.id !== __t.F.state.activeElement).seed.type }));
   C('a click on another Element edits it', s2.active === id0 && s2.type !== typeNew && s2.other === typeNew, JSON.stringify(s2) + ' new=' + typeNew);
   // rename: double-click the name, type, Enter; empty = made again
@@ -214,11 +228,11 @@ async function elementBoard(mode) {
   C('the list is kept in the store', await ev(() => { const o = Organica.store('fvs-elements').read(); return Object.keys(o).filter(k => k !== 'board').length === 1 && o.board && o.board.active === __t.F.state.activeElement; }));
   // parts: Edit, divide, marquee
   await ev(() => { const s = document.getElementById('sel-seed-type'); s.value = 'roundedrect'; s.dispatchEvent(new Event('change', { bubbles: true })); });
-  await sleep(400);
+  await settle();
   await ev(() => { __t.F.enterElementEdit(); const s = document.getElementById('sel-part-method'); const o = [...s.options].find(o => !o.disabled && o.value !== 'none'); s.value = o.value; s.dispatchEvent(new Event('change', { bubbles: true })); });
-  await sleep(400);
+  await settle();
   await ev(() => document.getElementById('btn-part-inks').click());
-  await sleep(400);
+  await settle();
   await press('Digit2', '@', 50, SHIFT);
   const fr = await ev(() => __t.box('#element-svg svg'));
   const nParts = await ev(() => document.querySelectorAll('#element-svg [data-part]').length);
@@ -228,14 +242,14 @@ async function elementBoard(mode) {
   // Delete on the picked parts: they leave the Element; ⌘Z brings them back; the last part stays (O-67 e)
   const np = () => ev(() => ({ layers: __t.F.state.layers.items.filter(l => l.part).length, drawn: document.querySelectorAll('#element-svg [data-part]').length, removed: (__t.F.state.layers.parts.removed || []).length }));
   const q0 = await np();
-  await press('Delete', 'Delete', 46); await sleep(300);
+  await press('Delete', 'Delete', 46);
   const q1 = await np();
   C('Delete on picked parts removes them from the Element', q1.layers === q0.layers - picked.length && q1.drawn === q0.drawn - picked.length && q1.removed === picked.length, JSON.stringify({ q0, q1, picked: picked.length }));
-  await press('KeyZ', 'z', 90, META); await sleep(300);
+  await press('KeyZ', 'z', 90, META);
   const q2 = await np();
   C('⌘Z brings the deleted parts back', q2.layers === q0.layers && q2.drawn === q0.drawn && q2.removed === 0, JSON.stringify(q2));
   await gesture({ x: fr.l + 2, y: fr.t + 2 }, { x: fr.r - 2, y: fr.b - 2 });
-  await press('Backspace', 'Backspace', 8); await sleep(300);
+  await press('Backspace', 'Backspace', 8);
   const q3 = await np();
   C('Delete with every part picked keeps them (one part stays)', q3.layers === q0.layers, JSON.stringify(q3));
   C('no Inks tray on the board (Diego, Oct 11)', await ev(() => !document.getElementById('board-inks') && !__t.B('element').sheets.inks));
@@ -251,32 +265,30 @@ async function elementBoard(mode) {
   await click(pt);
   const pk = await ev(() => ({ sel: [...__t.F.partSel], board: [...__t.B('element').selected] }));
   C('a click on a part picks the part, not the Element group', pk.sel.length === 1 && pk.sel[0] === pt.id && pk.board.length === 0, JSON.stringify(pk));
-  await press('Delete', 'Delete', 46); await sleep(300);
+  await press('Delete', 'Delete', 46);
   const na = await ev(() => ({ parts: __t.F.state.layers.items.filter(l => l.part).length, els: __t.F.state.elements.length }));
-  await press('KeyZ', 'z', 90, META); await sleep(300);
+  await press('KeyZ', 'z', 90, META);
   const nz = await ev(() => __t.F.state.layers.items.filter(l => l.part).length);
   C('Delete after a part click deletes the part (not the Element); ⌘Z restores', na.parts === nb - 1 && nz === nb, JSON.stringify({ nb, na, nz }));
   // the single view: double-click; Back to board at the top; Esc returns
   await dblclick(await ev(() => { const r = __t.box('#element-frame'); return { x: r.l + 10, y: r.t + 10 }; }));
   const sv = await ev(() => ({ single: document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'), back: !!document.getElementById('btn-element-board-back').offsetParent, top: document.getElementById('btn-element-board-back').getBoundingClientRect().top < document.getElementById('seed-preview').getBoundingClientRect().top, focus: document.activeElement && document.activeElement.id }));
   C('double-click opens the single view: Back to board at the top, focused', sv.single && sv.back && sv.top && sv.focus === 'btn-element-board-back', JSON.stringify(sv));
-  await press('Escape', 'Escape', 27); await sleep(300);
+  await press('Escape', 'Escape', 27);
   C('Esc goes back to the board', await ev(() => !document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single')));
   await ev(() => document.getElementById('board-live-element').focus());
-  await press('Enter', 'Enter', 13); await sleep(300);
+  await press('Enter', 'Enter', 13);
   const ke = await ev(() => document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'));
   C('Enter on the focused Element opens the single view (the keyboard path)', ke);
   await click(await ev(() => __t.box('#btn-element-board-back')));
-  await sleep(300);
   const b1 = await ev(() => document.querySelector('.tier-view[data-tier="element"]').classList.contains('is-single'));
   C('Back to board returns to the board', !b1);
   // Clear board (held): one starting Element is left
   await press('Digit1', '!', 49, SHIFT);
   await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); return __t.box(b); }));
-  await sleep(400);
+  await settle();
   const before = await ev(() => __t.F.state.elements.length);
   await hold(await ev(() => __t.box('#btn-board-clear-element')));
-  await sleep(400);
   const after = await ev(() => ({ n: __t.F.state.elements.length, dis: document.getElementById('btn-board-clear-element').disabled }));
   const blank2 = await ev(() => document.getElementById('sel-seed-type').value);
   C('Clear board (held) leaves one fresh Arc, and Clear board is then off', before === 2 && after.n === 1 && blank2 === 'arc' && after.dis, `${before} → ${after.n}, ${blank2}, then disabled=${after.dis}`);
@@ -285,7 +297,7 @@ async function elementBoard(mode) {
   C('Undo (floatbar) brings the cleared Elements back', un.n === 2, JSON.stringify(un));
   // a blank Freehand being edited (nothing drawn): ⌘Z is the board's, not the drawing's (Diego, Oct 11)
   await ev(() => { const s = document.getElementById('sel-seed-type'); s.value = 'freehand'; s.dispatchEvent(new Event('change', { bubbles: true })); });
-  await sleep(500);
+  await settle();
   const bl = await ev(() => ({ type: document.getElementById('sel-seed-type').value, n: __t.F.state.elements.length }));
   await click(await ev(() => __t.box('.fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label')));
   await press('Delete', 'Delete', 46);
@@ -312,7 +324,6 @@ async function elementBoard(mode) {
 async function componentBoard(mode) {
   const C = (n, ok, d) => check(mode, 'Component · ' + n, ok, d);
   await step('component');
-  await sleep(600);
   const n0 = await ev(() => __t.F.state.components.length);
   C('the gallery sits on the board', n0 > 0 && await ev(() => !!document.querySelector('#board-gallery #gallery .fvs-thumb-wrap')), n0 + ' candidates');
   const v0 = await ev(() => __t.view('component'));
@@ -322,11 +333,10 @@ async function componentBoard(mode) {
   // a saved Element in the library, for the rail drop
   // (the Element in edit is the blank one New element made: give it a shape first — a blank Element has nothing to save)
   await ev(() => { const s = document.getElementById('sel-seed-type'); if (s.value === 'freehand') { s.value = 'circle'; s.dispatchEvent(new Event('change', { bubbles: true })); } });
-  await sleep(500);
+  await settle();
   const savedType = await ev(() => { const n = __t.F.saveElementVariant(0, false, false, '0°', 'Board test'); return n && __t.F.ELEMENT_LIB.read()[n].seed.type; });
   // double-click a candidate = Component Edit, in its single view
   await dblclick(await ev(() => __t.box('#gallery .fvs-thumb-wrap svg')));
-  await sleep(500);
   const ed = await ev(() => ({ edit: __t.F.state.componentEditMode, single: document.querySelector('.tier-view[data-tier="component"]').classList.contains('is-single'), back: document.getElementById('btn-component-edit-exit').textContent.trim() }));
   C('double-click a candidate opens Component Edit', ed.edit && ed.single && ed.back === 'Back to board', JSON.stringify(ed));
   // marquee over two cells
@@ -345,7 +355,7 @@ async function componentBoard(mode) {
     C('Esc closes Choose content first', !after.ov && after.edit, JSON.stringify(after));
     // a saved Element dragged from the rail onto a cell
     await ev(() => { if (!__t.F.railIsOpen()) document.getElementById('btn-rail').click(); });
-    await sleep(500);
+    await settle();
     const tile = await ev(() => { const t = document.querySelector('#fvs-rail-panel .fvs-library-item[data-rail-kind="element"][data-rail-name="Board test"]'); return t ? __t.box(t) : null; });
     const free = await ev(() => { const c = [...document.querySelectorAll('#component-edit-frame [data-cell-index]')].find(c => !__t.F.cePicked.has(+c.dataset.cellIndex)); return c ? { ...__t.box(c), i: +c.dataset.cellIndex } : null; });
     if (tile && free) {
@@ -358,17 +368,17 @@ async function componentBoard(mode) {
       C('Delete returns a cell to the Component\'s Element', await ev(i => !__t.F.state.componentEditCells[i].content, free.i));
     } else C('a rail Element dropped on a cell fills it', false, 'tile ' + !!tile + ' cell ' + !!free);
     await ev(() => { if (__t.F.railIsOpen()) document.getElementById('btn-rail').click(); });
-    await sleep(300);
+    await settle();
   } else C('Component Edit has cells', false);
   await press('Escape', 'Escape', 27);
   C('Esc leaves Component Edit, back to the board', await ev(() => !__t.F.state.componentEditMode && !document.querySelector('.tier-view[data-tier="component"]').classList.contains('is-single')));
   // the keyboard path into Component Edit (no pencil): Enter on the selected candidate
   await click(await ev(() => __t.box('#gallery .fvs-thumb-wrap:nth-child(2) > button')));
   await ev(() => document.querySelector('#gallery .fvs-thumb-wrap:nth-child(2) > button').focus());
-  await press('Enter', 'Enter', 13); await sleep(500);
+  await press('Enter', 'Enter', 13);
   const ke = await ev(() => ({ edit: !!__t.F.state.componentEditMode, label: document.querySelector('#gallery .fvs-thumb-wrap > button') && document.querySelector('#gallery .fvs-thumb-wrap > button').getAttribute('aria-label') }));
   C('Enter on the selected candidate opens Component Edit (the keyboard path)', ke.edit, JSON.stringify(ke));
-  await press('Escape', 'Escape', 27); await sleep(400);
+  await press('Escape', 'Escape', 27);
   C('no gesture state left (Component)', (await ev(() => __t.leftovers('component'))).length === 0, (await ev(() => __t.leftovers('component'))).join(', '));
   // Clear board (held), then ⌘Z
   await hold(await ev(() => __t.box('#btn-board-clear-component')));
@@ -381,7 +391,6 @@ async function componentBoard(mode) {
 async function symbolBoard(mode) {
   const C = (n, ok, d) => check(mode, 'Symbol · ' + n, ok, d);
   await step('symbol');
-  await sleep(500);
   C('the Symbol sheet and an empty Variations sheet', await ev(() => !!document.querySelector('#board-symbol #symbol-frame svg') && document.getElementById('board-variations').classList.contains('is-empty')));
   C('no Variations button in the floatbar', await ev(() => !document.getElementById('btn-sug-dock')));
   // variations: shown as sheets, a click puts one on the Symbol
@@ -394,7 +403,6 @@ async function symbolBoard(mode) {
   // the % labels: placed again after a zoom, at the same size on screen
   await ev(() => { __t.F.state.symbolView.guides = true; __t.F.renderSymbol(); });
   await wheel(await ev(() => __t.empty('symbol')), -240);
-  await sleep(200);
   const lb = await ev(() => { const w = document.getElementById('sym-track-labels'), z = __t.view('symbol').zoom; if (!w) return null; const m = new DOMMatrix(getComputedStyle(w).transform); const l = w.querySelector('.sym-track-label--col'), svg = document.querySelector('#symbol-frame svg').getBoundingClientRect(); return { scale: m.a, inv: 1 / z, above: l ? l.getBoundingClientRect().bottom <= svg.top + 1 : false }; });
   C('the % labels follow the zoom', lb && Math.abs(lb.scale - lb.inv) < 0.01 && lb.above, JSON.stringify(lb));
   C('no gesture state left (Symbol)', (await ev(() => __t.leftovers('symbol'))).length === 0, (await ev(() => __t.leftovers('symbol'))).join(', '));
@@ -407,45 +415,39 @@ async function elementPalettes(mode) {
   await step('element');
   const setInk = hex => ev(h => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = h; i.dispatchEvent(new Event('input', { bubbles: true })); }, hex);
   const live = () => ev(() => ({ colors: __t.F.state.colors.slice(), paper: __t.F.state.paperColor, active: __t.F.state.activeElement }));
-  await setInk('#d01c1c'); await sleep(600);
+  await setInk('#d01c1c'); await settle();
   const e1 = await live();
   await press('Digit1', '!', 49, SHIFT);   // the whole board: New element in sight
   await click(await ev(() => { const b = document.getElementById('btn-board-new-element'); return __t.box(b); }));
-  await sleep(600);
+  await settle();
   const e2 = await live();
   C('New element starts black on white', e2.active !== e1.active && e2.colors.length === 1 && e2.colors[0] === '#000000' && e2.paper === '#ffffff', JSON.stringify(e2));
-  await setInk('#1c3cd0'); await sleep(600);
+  await setInk('#1c3cd0'); await settle();
   const otherFill = await ev(() => document.querySelector('.fvs-board-el').innerHTML.toLowerCase().includes('#d01c1c'));
   C('the other Element is drawn in its own Palette', otherFill && (await live()).colors[0] === '#1c3cd0');
   // Pick from a palette lists the other Element's Palette
   await ev(() => { const b = [...document.querySelectorAll('#fvs-palette button')].pop(); b.click(); });
-  await sleep(300);
+  await settle();
   const listed = await ev(() => [...document.querySelectorAll('.color-swatch')].some(c => getComputedStyle(c).backgroundColor === 'rgb(208, 28, 28)'));
   C('Pick from a palette offers the other Element\'s Palette', listed);
   await press('Escape', 'Escape', 27);
   // back to the first Element: its Palette comes back
   await click(await ev(() => __t.box('.fvs-board-el')));
-  await sleep(700);
   const back = await live();
   C('switching Element switches the Palette', back.active === e1.active && back.colors[0] === '#d01c1c', JSON.stringify(back));
   // a reload keeps both
-  await sleep(600);
-  await cdp('Page.reload'); await sleep(800);
-  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
-  await sleep(600); await cdp('Runtime.evaluate', { expression: PAGE });
+  await settle();
+  await reloadFvs();
   await step('element');
   const rl = await ev(() => ({ colors: __t.F.state.colors.slice(), pals: __t.F.state.elements.map(e => e.palette && e.palette.colors[0]) }));
   C('a reload keeps each Element\'s Palette', rl.colors[0] === '#d01c1c' && rl.pals.includes('#d01c1c') && rl.pals.includes('#1c3cd0'), JSON.stringify(rl));
   // Clear board: the Element left is black on white
   await hold(await ev(() => __t.box('#btn-board-clear-element')));
-  await sleep(500);
   const cl = await live();
   C('Clear board leaves the default Palette', cl.colors.length === 1 && cl.colors[0] === '#000000' && cl.paper === '#ffffff', JSON.stringify(cl));
   // an Element saved before Phase B (no palette) loads black on white
   const old = await ev(() => { const o = Organica.store('fvs-elements').read(); Object.values(o).forEach(v => { if (v && v.seed) delete v.palette; }); Organica.store('fvs-elements').write(o); return Object.keys(o).length; });
-  await cdp('Page.reload'); await sleep(800);
-  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
-  await sleep(600); await cdp('Runtime.evaluate', { expression: PAGE });
+  await reloadFvs();
   const ol = await ev(() => ({ colors: __t.F.state.colors.slice(), paper: __t.F.state.paperColor }));
   C('an Element saved without a Palette loads black on white', old > 0 && ol.colors[0] === '#000000' && ol.paper === '#ffffff', JSON.stringify(ol));
 }
@@ -458,9 +460,9 @@ async function generatedPerElement(mode) {
   await step('element');
   const setType = t => ev(async t => { const s = document.getElementById('sel-seed-type'); s.value = t; s.dispatchEvent(new Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 400)); }, t);
   await setType('star');
-  for (const t of ['cross', 'drop']) { await press('Digit1', '!', 49, SHIFT); await click(await ev(() => __t.box('#btn-board-new-element'))); await sleep(500); await setType(t); }
-  await ev(() => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = '#c0392b'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await sleep(500);
-  await step('component'); await sleep(1200);
+  for (const t of ['cross', 'drop']) { await press('Digit1', '!', 49, SHIFT); await click(await ev(() => __t.box('#btn-board-new-element'))); await setType(t); }
+  await ev(() => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = '#c0392b'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await settle();
+  await step('component');
   const areas = () => ev(() => [...document.querySelectorAll('#canvas-wrap .tier-view[data-tier="component"] [data-sheet]')].filter(s => s.dataset.sheet === 'gallery' || s.dataset.sheet.startsWith('gl-')).map(s => ({ id: s.dataset.sheet, label: (s.querySelector('.fvs-board-sheet__label') || {}).textContent, n: s.querySelectorAll('.fvs-thumb').length, red: s.querySelector('.fvs-thumb') ? s.querySelector('.fvs-thumb').innerHTML.toLowerCase().includes('#c0392b') : null, el: !!s.querySelector('.fvs-board-gallery__el-box svg') })));
   const a0 = await areas();
   C('one area per Element, each with its Element thumbnail and its Components', a0.length === 3 && a0.every(a => a.n > 0 && a.el && / · Generated components/.test(a.label)) && a0.filter(a => /editing/.test(a.label)).length === 1, JSON.stringify(a0));
@@ -468,48 +470,46 @@ async function generatedPerElement(mode) {
   // Generate on the edited Element: the others keep theirs
   const before = await ev(() => JSON.stringify(__t.F.state.elements.filter(e => e.id !== __t.F.state.activeElement).map(e => e.gallery)));
   await ev(() => { document.getElementById('sel-rule').value = 'random'; document.getElementById('sel-rule').dispatchEvent(new Event('change', { bubbles: true })); document.getElementById('btn-generate').click(); });
-  await sleep(800);
+  await settle();
   const after = await ev(() => JSON.stringify(__t.F.state.elements.filter(e => e.id !== __t.F.state.activeElement).map(e => e.gallery)));
   C('Generate touches only the edited Element\'s Components', before === after);
   // a click on a Component of another area: that Element is edited, that Component selected
   const target = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0], b = s.querySelectorAll('button[data-k]')[2]; return { ...__t.box(b), el: s.dataset.sheet.slice(3) }; });
-  await click(target); await sleep(700);
+  await click(target);
   const sw = await ev(() => ({ active: __t.F.state.activeElement, sel: __t.F.state.selectedId, third: __t.F.state.components[2] && __t.F.state.components[2].id, explicit: __t.F.state.selectionExplicit }));
   C('a click in another area edits its Element and selects that Component', sw.active === target.el && sw.sel === sw.third && sw.explicit, JSON.stringify(sw));
   // Clear board: every area; ⌘Z brings them all back
-  await hold(await ev(() => __t.box('#btn-board-clear-component'))); await sleep(600);
+  await hold(await ev(() => __t.box('#btn-board-clear-component')));
   const cl = await areas();
   C('Clear board clears every Element\'s Components', cl.every(a => a.n === 0), JSON.stringify(cl.map(a => a.n)));
   await click(await ev(() => __t.empty('component')));
-  await press('KeyZ', 'z', 90, META); await sleep(800);
+  await press('KeyZ', 'z', 90, META);
   const un = await areas();
   C('⌘Z brings every area back', un.length === 3 && un.every(a => a.n > 0), JSON.stringify(un.map(a => a.n)));
   // a reload keeps each Element's set
   const ids = await ev(() => { const o = {}; __t.F.state.elements.forEach(e => { o[e.id] = e.id === __t.F.state.activeElement ? __t.F.state.components.map(c => c.id).join() : (e.gallery && e.gallery.components || []).map(c => c.id).join(); }); return o; });
-  await sleep(800);
-  await cdp('Page.reload'); await sleep(800);
-  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
-  await sleep(600); await cdp('Runtime.evaluate', { expression: PAGE });
-  await step('component'); await sleep(1000);
+  await settle();
+  await reloadFvs();
+  await step('component');
   const ids2 = await ev(() => { const o = {}; __t.F.state.elements.forEach(e => { o[e.id] = e.id === __t.F.state.activeElement ? __t.F.state.components.map(c => c.id).join() : (e.gallery && e.gallery.components || []).map(c => c.id).join(); }); return o; });
   C('a reload keeps each Element\'s Components', JSON.stringify(ids) === JSON.stringify(ids2), JSON.stringify({ ids, ids2 }).slice(0, 300));
   // the cell shape belongs to the edited Element: changing it redraws only its own area, never the others'
   const other = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0]; return { id: s.dataset.sheet, html: s.querySelector('.fvs-board-gallery__grid').innerHTML.length + ':' + s.querySelectorAll('.fvs-thumb').length }; });
-  await ev(() => document.querySelector('#fb-cell-shape [data-cell="triangle"]').click()); await sleep(900);
+  await ev(() => document.querySelector('#fb-cell-shape [data-cell="triangle"]').click()); await settle();
   const cs = await ev(id => { const s = document.querySelector(`[data-sheet="${id}"]`); return { html: s.querySelector('.fvs-board-gallery__grid').innerHTML.length + ':' + s.querySelectorAll('.fvs-thumb').length, live: __t.F.state.cellShape }; }, other.id);
   // a shape changed and Component opened at once: the area's label follows the made name (Oct 12)
   await step('element');
   await ev(async () => { const s = document.getElementById('sel-seed-type'); s.value = 'lens'; s.dispatchEvent(new Event('change', { bubbles: true })); });
-  await step('component'); await sleep(900);
+  await step('component');
   const lab = await ev(() => document.querySelector('#board-gallery > .fvs-board-sheet__label').textContent);
   C('the area label follows a shape changed just before opening Component', /^Lens · Generated components/.test(lab), lab);
   C('a cell shape change redraws only the edited Element\'s Components', cs.live === 'triangle' && cs.html === other.html, JSON.stringify({ other, cs }));
-  await click(await ev(id => __t.box(document.querySelector(`[data-sheet="${id}"] button[data-k]`)), other.id)); await sleep(700);
+  await click(await ev(id => __t.box(document.querySelector(`[data-sheet="${id}"] button[data-k]`)), other.id));
   const back = await ev(() => ({ shape: __t.F.state.cellShape, pressed: document.querySelector('#fb-cell-shape [aria-pressed="true"]') && document.querySelector('#fb-cell-shape [aria-pressed="true"]').dataset.cell }));
   C('editing the other Element shows its own cell shape', back.shape === 'square' && back.pressed === 'square', JSON.stringify(back));
   // a double-click on an area's Element thumbnail: that Element, edited on the Element board
   const eb = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0]; return { ...__t.box(s.querySelector('.fvs-board-gallery__el-box')), el: s.dataset.sheet.slice(3) }; });
-  await dblclick(eb); await sleep(800);
+  await dblclick(eb);
   const ge = await ev(() => ({ tier: __t.F.state.activeTier, active: __t.F.state.activeElement }));
   C('double-click on an area\'s Element thumbnail edits that Element on the Element board', ge.tier === 'element' && ge.active === eb.el, JSON.stringify(ge));
 }
@@ -518,17 +518,15 @@ async function generatedPerElement(mode) {
 // Element's Palette stays its own).
 async function symbolKept(mode) {
   const C = (n, ok, d) => check(mode, 'Symbol kept · ' + n, ok, d);
-  await step('component'); await sleep(1200);
-  await ev(() => __t.F.saveAllComponentsToLibrary()); await sleep(600);
-  await step('symbol'); await sleep(800);
-  await ev(() => document.getElementById('btn-symbol-generate').click()); await sleep(4000);
+  await step('component');
+  await ev(() => __t.F.saveAllComponentsToLibrary()); await settle();
+  await step('symbol');
+  await ev(() => document.getElementById('btn-symbol-generate').click()); await settle();
   const sig = () => ev(() => ({ cells: (__t.F.state.symbolCells || []).length, names: (__t.F.state.symbolCells || []).map(c => c.componentName || c.seedType || '').join(','), grid: JSON.stringify(__t.F.state.symbolGrid && __t.F.state.symbolGrid.canvas && __t.F.state.symbolGrid.canvas.fvsFrame || null) }));
   const s0 = await sig();
-  await ev(() => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = '#2e86c1'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await sleep(900);
-  await cdp('Page.reload'); await sleep(800);
-  for (let i = 0; i < 80; i++) { await sleep(250); if (await ev(() => !!(window.__fvs && window.__fvs.isReady)).catch(() => false)) break; }
-  await sleep(600); await cdp('Runtime.evaluate', { expression: PAGE });
-  await step('symbol'); await sleep(1200);
+  await ev(() => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = '#2e86c1'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await settle();
+  await reloadFvs();
+  await step('symbol');
   const s1 = await sig();
   C('a reload keeps the working Symbol (grid, cells)', s0.cells > 0 && s1.cells === s0.cells && s1.names === s0.names && s1.grid === s0.grid, JSON.stringify({ s0: s0.cells, s1: s1.cells, same: s1.names === s0.names }));
   const ink = await ev(() => __t.F.state.colors[0]);
@@ -549,7 +547,7 @@ async function partVariants(mode) {
     m.value = o.value; m.dispatchEvent(new Event('change', { bubbles: true })); await sl(400);
     F.state.layers.items.forEach((l, i) => { if (l.part) l.ink = i % 6; }); F.layersChanged(); await sl(300);
   });
-  await step('component'); await sleep(800);
+  await step('component');
   const gen = () => ev(async () => { const r = document.getElementById('sel-rule'); r.value = 'pinwheel'; r.dispatchEvent(new Event('change', { bubbles: true })); document.getElementById('btn-generate').click(); await new Promise(r => setTimeout(r, 700)); return { n: __t.F.state.components.length, inks: __t.F.state.components.filter(c => c.layerInks).length, parts: __t.F.state.layers.items.filter(l => l.part).length, on: document.getElementById('chk-layer-inks').checked }; });
   const off = await gen();
   C('a divided Element: colour variants off by default (geometry only)', off.parts >= 6 && !off.on && off.inks === 0, JSON.stringify(off));
@@ -581,38 +579,38 @@ async function colourGroups(mode) {
   const rowBtn = k => ev(k => __t.box(document.querySelectorAll('#layers-list .fvs-layer__main')[k]), k);
   // details (the parts disclosure) open so the rows are clickable
   await ev(() => { const d = document.querySelector('#layers-list details'); if (d) d.open = true; });
-  await click(await rowBtn(0)); await sleep(200);
+  await click(await rowBtn(0));
   C('Group is off with one layer selected, no hint (Diego, Oct 12)', await ev(() => document.getElementById('btn-layer-group').getAttribute('aria-disabled') === 'true' && document.getElementById('layer-group-hint').hidden));
   C('the parts are rows of the list, no Division header', await ev(() => !document.querySelector('#layers-list details, #layers-list .org-disclosure') && document.querySelectorAll('#layers-list .org-layer-card').length >= 6));
-  await click(await rowBtn(1), META); await sleep(150); await click(await rowBtn(2), META); await sleep(200);
+  await click(await rowBtn(1), META); await click(await rowBtn(2), META);
   // Shift-click = a range; then back to the ⌘ picks below
-  await click(await rowBtn(0)); await sleep(150); await click(await rowBtn(4), SHIFT); await sleep(200);
+  await click(await rowBtn(0)); await click(await rowBtn(4), SHIFT);
   C('Shift-click selects the range of rows (5)', await ev(() => __t.F.partSel.size === 5), String(await ev(() => __t.F.partSel.size)));
   const ux = await ev(() => ({ hint: document.getElementById('layers-hint').textContent, place: getComputedStyle(document.getElementById('layer-place-block')).display, note: !!document.querySelector('.fvs-layer-place-hint'), tint: getComputedStyle(document.querySelector('#layers-list .org-layer-card.is-picked')).backgroundColor, sel: (() => { const p = document.querySelector('#element-svg .fvs-part.is-sel > path'); if (!p) return null; const cs = getComputedStyle(p); return { filter: cs.filter, w: cs.strokeWidth }; })() }));
   C('5 picked: the header says "5 selected", the one-layer settings step aside, rows tinted', /6 · 5 selected/.test(ux.hint) && ux.place === 'none' && ux.note && ux.tint !== 'rgba(0, 0, 0, 0)', JSON.stringify(ux));
   C('a picked part on the board: a crisp outline, no blurred halo', ux.sel && ux.sel.filter === 'none' && ux.sel.w === '2px', JSON.stringify(ux.sel));
-  await click(await rowBtn(0)); await sleep(150); await click(await rowBtn(1), META); await sleep(150); await click(await rowBtn(2), META); await sleep(200);
+  await click(await rowBtn(0)); await click(await rowBtn(1), META); await click(await rowBtn(2), META);
   C('⌘-click picks rows one by one (3)', await ev(() => __t.F.partSel.size === 3), String(await ev(() => __t.F.partSel.size)));
   C('Group is on with three selected', await ev(() => document.getElementById('btn-layer-group').getAttribute('aria-disabled') === 'false'));
   const inks0 = await ev(() => JSON.stringify(__t.F.state.layers.items.map(l => l.ink)));
-  await ev(() => document.getElementById('btn-layer-group').click()); await sleep(300);
+  await ev(() => document.getElementById('btn-layer-group').click()); await settle();
   const g = await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups || {})[0], ms = L.items.filter(l => l.group === id); return { id, n: ms.length, chips: document.querySelectorAll('#layers-list .fvs-layer__group').length, rows: document.querySelectorAll('#layers-list .org-layer-card.in-group').length, joins: document.querySelectorAll('#layers-list .org-layer-card.group-joins').length, bar: getComputedStyle(document.querySelector('#layers-list .org-layer-card.in-group')).boxShadow, noBlock: !document.getElementById('layer-group-block') }; });
   C('Group: a colour group, a chip and a coloured bar on each member, the bars joined', g.n === 3 && g.chips === 3 && g.rows === 3 && g.joins === 2 && /inset/.test(g.bar) && g.noBlock, JSON.stringify(g));
   C('grouping leaves the Element\'s inks as they are', inks0 === await ev(() => JSON.stringify(__t.F.state.layers.items.map(l => l.ink))));
   // the chip: hover lights the group (rows + parts), a click picks the whole group
-  await click(await rowBtn(5)); await sleep(200);
+  await click(await rowBtn(5));
   const chip = await ev(() => __t.box(document.querySelector('#layers-list .fvs-layer__group')));
-  await hover(chip.x, chip.y); await sleep(150);
+  await hover(chip.x, chip.y); await settle();
   const hl = await ev(() => ({ rows: document.querySelectorAll('#layers-list .org-layer-card.is-group-hl').length, parts: document.querySelectorAll('#element-svg .is-group-hl').length, label: document.querySelector('#layers-list .fvs-layer__group').getAttribute('aria-label') }));
   C('hovering a group chip lights its members (rows + parts)', hl.rows === 3 && hl.parts === 3 && hl.label === 'Select Colour group 1', JSON.stringify(hl));
-  await click(chip); await sleep(250);
+  await click(chip);
   C('a click on the chip picks the whole group', await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; const ms = L.items.filter(l => l.group === id).map(l => l.id); return __t.F.partSel.size === ms.length && ms.every(m => __t.F.partSel.has(m)); }));
   // One ink per part skips the members
   const before = await ev(() => JSON.stringify(__t.F.state.layers.items.filter(l => l.group).map(l => [l.ink, l.tone])));
-  await ev(() => document.getElementById('btn-part-inks').click()); await sleep(300);
+  await ev(() => document.getElementById('btn-part-inks').click()); await settle();
   C('One ink per part leaves the group alone', before === await ev(() => JSON.stringify(__t.F.state.layers.items.filter(l => l.group).map(l => [l.ink, l.tone]))));
   // the rules live on the Component step and shape the colour variants
-  await step('component'); await sleep(800);
+  await step('component');
   const rules = await ev(() => { const h = document.getElementById('colour-group-rules'); return { shown: !h.hidden, selects: h.querySelectorAll('select[data-group]').length, opts: [...(h.querySelector('select') || { options: [] }).options].map(o => o.textContent) }; });
   const off = await ev(() => ({ dis: document.querySelector('#colour-group-rules select').disabled, hint: document.querySelector('#colour-group-rules .panel-hint').textContent }));
   C('the rules are disabled (not hidden) while the colour variants are off', off.dis && /Turn on Layer colour variants/.test(off.hint), JSON.stringify(off));
@@ -625,12 +623,12 @@ async function colourGroups(mode) {
   const thumbsTonal = await ev(() => __t.F.state.components.length === document.querySelectorAll('#gallery .fvs-thumb').length);
   C('the Tonal variants are drawn', thumbsTonal);
   // saved with the Element
-  await step('element'); await sleep(400);
+  await step('element');
   C('the group (with its rule) is saved with the Element', await ev(() => { const sd = __t.F.seedForSnapshot(); const id = sd.groups && Object.keys(sd.groups)[0]; return !!(id && sd.groups[id].rule === 'tonal' && sd.layers.filter(l => l.group).length === 3); }));
   // Ungroup: the layers keep their colours
   const keep = await ev(() => JSON.stringify(__t.F.state.layers.items.map(l => [l.ink, l.tone])));
-  await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; __t.F.partSel = new Set(L.items.filter(l => l.group === id).map(l => l.id)); __t.F.layersChanged(); }); await sleep(200);
-  await ev(() => document.getElementById('btn-layer-ungroup').click()); await sleep(300);
+  await ev(() => { const L = __t.F.state.layers, id = Object.keys(L.groups)[0]; __t.F.partSel = new Set(L.items.filter(l => l.group === id).map(l => l.id)); __t.F.layersChanged(); }); await settle();
+  await ev(() => document.getElementById('btn-layer-ungroup').click()); await settle();
   C('Ungroup: no group left, every layer keeps its colour', await ev(k => !__t.F.state.layers.groups && !__t.F.state.layers.items.some(l => l.group) && JSON.stringify(__t.F.state.layers.items.map(l => [l.ink, l.tone])) === k, keep));
   // plain layers: a group is one unit in every combination
   const plain = await ev(async () => { const F = window.__fvs, sl = ms => new Promise(r => setTimeout(r, ms)); const m = document.getElementById('sel-part-method'); m.value = 'none'; m.dispatchEvent(new Event('change', { bubbles: true })); await sl(300); F.state.layers = null; const s = document.getElementById('sel-seed-type'); s.value = 'triangle'; s.dispatchEvent(new Event('change', { bubbles: true })); await sl(200); F.state.colors = ['#111111', '#e8321e', '#1f5fd6']; F.buildPalette(); F.addLayer(); await sl(200); F.addLayer(); await sl(200); const L = F.state.layers; L.groups = { gx: { name: 'Colour group 1', rule: 'same', ink: 1 } }; L.items[1].group = 'gx'; L.items[2].group = 'gx'; F.applyColourGroup(L, 'gx', 3); const c = document.getElementById('chk-layer-inks'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); const combos = F.layerInkCombos(); return { count: F.layerInkComboCount(), combos: combos.length, uniform: combos.every(c => c[L.items[1].id] === c[L.items[2].id]) }; });
@@ -649,7 +647,7 @@ async function layerOrder(mode) {
     const L = F.state.layers; L.items[0].ink = 0; L.items[0].place = { mx: 0, my: -64, scale: 0.6, rotate: 0 }; L.items[1].ink = 1;
     F.layersChanged(); await sl(200);
   });
-  await step('component'); await sleep(600);
+  await step('component');
   const r = await ev(async () => {
     const F = window.__fvs, sel = document.getElementById('sel-rule'); sel.value = 'pinwheel'; sel.dispatchEvent(new Event('change', { bubbles: true }));
     const c = document.getElementById('chk-layer-inks'); if (c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }
@@ -659,15 +657,15 @@ async function layerOrder(mode) {
     return { lowLast, highFirst, ok: lowLast > 0 && highFirst > lowLast };
   });
   C('every cell\'s lower layer is drawn before any cell\'s upper layer', r.ok, JSON.stringify(r));
-  await ev(() => { const c = document.getElementById('chk-component-clip'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await sleep(300);
+  await ev(() => { const c = document.getElementById('chk-component-clip'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await settle();
   const k = await ev(() => { const F = window.__fvs, it = F.buildComponentItems(F.state.components[0], F.getGrid()), svg = F.buildComponentSVG(it, F.getSeed(), F.frameSize(F.getGrid())); const cv = document.createElement('canvas'); cv.width = cv.height = 400; let png = true; try { F.drawComponentCanvas(cv.getContext('2d'), it, F.getSeed(), F.frameSize(F.getGrid())); } catch (e) { png = String(e); } return { clips: (svg.match(/<clipPath id="cellcut-/g) || []).length, cells: it.length, png }; });
   C('Clip to cell: every cell (and layer pass) cut to its frame, the PNG draws too', k.clips === k.cells * 2 && k.png === true, JSON.stringify(k));
   C('Clip to cell is kept with the Element\'s Generated components', await ev(() => { const F = window.__fvs; F.state.elements.length; return document.getElementById('chk-component-clip').checked && F.state.componentClip === true; }));
   // the Symbol draws a saved Component the same way: layer by layer across ALL its cells (no Overlap), SVG = PNG
   await ev(() => { const c = document.getElementById('chk-component-clip'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); });
-  await ev(() => __t.F.saveAllComponentsToLibrary()); await sleep(500);
-  await step('symbol'); await sleep(800);
-  await ev(() => document.getElementById('btn-symbol-generate').click()); await sleep(4000);
+  await ev(() => __t.F.saveAllComponentsToLibrary()); await settle();
+  await step('symbol');
+  await ev(() => document.getElementById('btn-symbol-generate').click()); await settle();
   const sy = await ev(async () => {
     const F = window.__fvs, svg = F.buildSymbolSVG();
     const lowLast = svg.lastIndexOf('#ff00aa'), highFirst = svg.indexOf('#0033ff');
@@ -687,20 +685,27 @@ async function layerOrder(mode) {
   C('Symbol: the PNG (canvas) draws as the SVG (under 5 % of pixels differ — edges)', sy.diffShare < 0.05, JSON.stringify(sy));
 }
 
-for (const mode of ['clean', 'held']) {
+const EXTRA = [['Palette', elementPalettes], ['Generated', generatedPerElement], ['Symbol kept', symbolKept],
+  ['Part variants', partVariants], ['Colour group', colourGroups], ['Layer order', layerOrder]];
+for (const mode of ['clean', 'held', 'extra']) {
   if (ONLY && ONLY !== mode) continue;
+  if (mode === 'extra') {
+    // each on a fresh page, a clean mouse; reported as [clean] like before the split
+    held = false;
+    // (openFvs() empties the console list: each suite's own errors are checked right after it)
+    for (const [name, fn] of EXTRA) {
+      await openFvs();
+      try { await fn('clean'); } catch (e) { check('clean', name + ' ran', false, e.message); }
+      check('clean', name + ' · console clean', !consoleErrors.length, consoleErrors.slice(0, 4).join(' | '));
+    }
+    continue;
+  }
   held = false;
   await openFvs();
   held = mode === 'held';
   try { await elementBoard(mode); } catch (e) { check(mode, 'Element board ran', false, e.message); }
   try { await componentBoard(mode); } catch (e) { check(mode, 'Component board ran', false, e.message); }
   try { await symbolBoard(mode); } catch (e) { check(mode, 'Symbol board ran', false, e.message); }
-  if (mode === 'clean') { await openFvs(); try { await elementPalettes(mode); } catch (e) { check(mode, 'Palette ran', false, e.message); } }
-  if (mode === 'clean') { await openFvs(); try { await generatedPerElement(mode); } catch (e) { check(mode, 'Generated ran', false, e.message); } }
-  if (mode === 'clean') { await openFvs(); try { await symbolKept(mode); } catch (e) { check(mode, 'Symbol kept ran', false, e.message); } }
-  if (mode === 'clean') { await openFvs(); try { await partVariants(mode); } catch (e) { check(mode, 'Part variants ran', false, e.message); } }
-  if (mode === 'clean') { await openFvs(); try { await colourGroups(mode); } catch (e) { check(mode, 'Colour group ran', false, e.message); } }
-  if (mode === 'clean') { await openFvs(); try { await layerOrder(mode); } catch (e) { check(mode, 'Layer order ran', false, e.message); } }
   check(mode, 'console clean', !consoleErrors.length, consoleErrors.slice(0, 4).join(' | '));
 }
 for (const r of results) console.log(`${r.ok ? '✓' : '✗'} [${r.mode}] ${r.name}${r.detail ? ' — ' + r.detail : ''}`);

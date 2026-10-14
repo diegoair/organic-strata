@@ -358,14 +358,6 @@ export function latticeBasisOf(entry) {
   const S = cR * SQ3;
   return { e1: [S, 0], e2: [S / 2, S * SQ3 / 2], O: c0.points[0], kind: 'vertex', R: cR };
 }
-export function latticeKeyer(B) {
-  const det = B.e1[0] * B.e2[1] - B.e1[1] * B.e2[0];
-  const toLat = ([x, y]) => { const dx = x - B.O[0], dy = y - B.O[1]; return [(dx * B.e2[1] - dy * B.e2[0]) / det, (B.e1[0] * dy - B.e1[1] * dx) / det]; };
-  return B.kind === 'centre'
-    ? c => { const [a, b] = toLat(c); return Math.round(a) + ',' + Math.round(b); }
-    : c => { const [a, b] = toLat(c), fa = Math.floor(a + 1e-6), fb = Math.floor(b + 1e-6); return fa + ',' + fb + ',' + ((a - fa) + (b - fb) < 1 ? 0 : 1); };
-}
-export const latCart = (B, [a, b]) => [a * B.e1[0] + b * B.e2[0], a * B.e1[1] + b * B.e2[1]];
 // The section: Overlap in % (each content grows past its cell; Components on the shared small-cell lattice grow
 // that lattice instead, so they stay aligned). Shared cells needs aligned Components (Match cell + a Grid shape).
 export function symbolHasAlignedComponents() {

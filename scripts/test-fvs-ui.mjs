@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // FVS usability + coherence runner — Element → Component → Symbol, the library rail, drag and drop.
-// Usage: scripts/test-fvs-ui.sh [--only J1,J3,V] [--variants 120] [--seed 1] [--theme light|dark] [--out DIR]
+// Usage: scripts/test-fvs-ui.sh [--only J1,J3,V] [--variants 120] [--seed 1] [--shard i/n] [--theme light|dark] [--out DIR]
+// --shard i/n runs only variants V.k with (k − 1) % n = i (the same variants as an unsharded run, split over n
+// processes — scripts/test-fvs.sh runs V as 4 shards beside J and D).
 //
 // Like scripts/regression.mjs (no dependencies; serves the repo, drives headless Chrome over CDP) but it
 // opens /fvs/ itself with a clean profile and adds what the regression suite lacks: REAL mouse input
@@ -17,6 +19,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
 const ONLY = (arg('only', '') || '').split(',').filter(Boolean);
 const VARIANTS = +arg('variants', 120), SEED = +arg('seed', 1), THEME = arg('theme', 'light');
+const [SHARD_I, SHARD_N] = (arg('shard', '0/1')).split('/').map(Number);
 const OUT = arg('out', fs.mkdtempSync(path.join(os.tmpdir(), 'fvs-ui-')));
 fs.mkdirSync(path.join(OUT, 'shots'), { recursive: true });
 const want = k => !ONLY.length || ONLY.includes(k);
@@ -404,7 +407,11 @@ if (want('J2')) {
     const r = await ev(async () => {
       const wait = __t.wait; setTier('element'); __t.chg('sel-seed-type', 'arc'); await wait(150); setTier('component'); await wait(300);
       __t.chg('rg-grid-cols', 2); __t.chg('rg-grid-rows', 2); __t.chg('sel-rule', 'identity'); document.getElementById('btn-generate').click(); await wait(350);
-      const base = state.components[0]; enterComponentEditMode(base.id); await wait(250); selectComponentEditCell(0); await wait(150); __t.chg('sel-seed-type', 'star'); await wait(250);
+      const base = state.components[0]; enterComponentEditMode(base.id); await wait(250); selectComponentEditCell(0); await wait(150);
+      // a cell's own shape is made in Edit shape… (Cell properties, Oct 14, 2026): the Element panel is then the picked cells' scratch pad
+      cePicked.clear(); cePicked.add(0); syncCeCellProps && syncCeCellProps(); await wait(100);   // picked, as a click on the cell does
+      const es = [...document.querySelectorAll('button[id$="btn-cellprop-editshape"]')].find(b => b.offsetParent); if (!es) return { err: 'no Edit shape… button for the picked cell' };
+      es.click(); await wait(200); __t.chg('sel-seed-type', 'star'); await wait(250);
       saveComponentEditAsNew(); await wait(300);
       const edited = state.components.find(x => x.ruleSource === 'edited'); if (!edited) return { err: 'edit did not produce a Component' };
       quickSaveComponentToLibrary(edited.id, 'T edited'); quickSaveComponentToLibrary(base.id, 'T base'); await wait(150);
@@ -579,6 +586,8 @@ if (want('V')) {
   let n = 0;
   while (n < VARIANTS) {
     const cfg = { seed: pick(SEEDS), style: pick(STYLES), cols: 1 + Math.floor(rng() * 4), rows: 1 + Math.floor(rng() * 4), rule: pick(RULES), inks: 1 + Math.floor(rng() * 3), preset: pick(PRESETS), gen: pick(GENS), fill: pick(FILLS), arr: pick(ARR), fit: pick(['fill', 'contain', 'cover']), mode: rng() < 0.2 ? 'print' : 'screen' };
+    const idx = n;
+    if (idx % SHARD_N !== SHARD_I) { n++; continue; }   // another shard's variant (its cfg drawn all the same: the sequence stays the unsharded one)
     await test(`V.${String(n + 1).padStart(3, '0')}`, `${cfg.seed}/${cfg.style} ${cfg.cols}×${cfg.rows} ${cfg.rule} → ${cfg.gen} ${cfg.preset} ${cfg.fill}/${cfg.arr}${cfg.mode === 'print' ? ' print' : ''}`, async c => {
       const r = await ev(async cfg => {
         const out = { cfg, steps: [] };
@@ -619,10 +628,9 @@ if (want('V')) {
       if (r.genError) c.notes.push('generator message: ' + r.genError.slice(0, 120));
       if (r.inv && r.inv.length) { c.ok = false; c.notes.push('invariants: ' + r.inv.join('; ')); }
       contact.push({ id: c.id, title: c.title, ok: c.ok, svg: r.svg });
-      n++;
     });
     if (results.length > VARIANTS * 3) break;   // runaway guard
-    n = Math.max(n, results.filter(r => r.id.startsWith('V.')).length);
+    n = idx + 1;   // one cfg per index, whether the test passed, failed or threw
   }
 }
 

@@ -1,33 +1,26 @@
 #!/usr/bin/env bash
-# Runs scripts/check.py before every commit, plus the headless FVS regression when FVS (or a shared
-# module it uses) is staged, and the headless Rhizome test when Rhizome or the shared node canvas is. Bypass in an emergency: git commit --no-verify
+# Runs scripts/check.py before every commit, plus the headless suites (FVS regression, step boards, Figure board, Rhizome)
+# that the staged paths touch, in parallel. Bypass in an emergency: git commit --no-verify
 # Enable once per clone:  scripts/install-hooks.sh
 root="$(git rev-parse --show-toplevel)"
 python3 "$root/scripts/check.py" || { echo; echo "Commit blocked by pre-commit checks."; exit 1; }
 staged="$(git diff --cached --name-only)"
-if echo "$staged" | grep -qE '^(fvs/|shared/(shapes|palette|print-size|plate-export)\.)'; then
+# The headless suites the staged paths need, run side by side in one call (scripts/test-fvs.sh — each brings its own
+# server + Chrome). Was: one after another, ~3–4 min for an FVS commit.
+jobs=""
+add() { jobs="${jobs:+$jobs,}$1"; }
+echo "$staged" | grep -qE '^(fvs/|shared/(shapes|palette|print-size|plate-export)\.)' && add regression
+echo "$staged" | grep -qE '^(rhizome/|shared/node-canvas\.|scripts/test-rhizome)' && add rhizome
+echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/js/17-figure|scripts/test-figure-board)' && add figure-board
+echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/index\.html|fvs/fvs\.css|fvs/js/(0[5-9]|1[0-8])-|scripts/test-fvs-boards|scripts/lib/)' && add boards
+if [ -n "$jobs" ]; then
   echo
-  echo "FVS (or a shared module it uses) changed — running the headless regression…"
-  if ! "$root/scripts/regression.sh"; then
+  echo "Running the headless suites for what is staged ($jobs)…"
+  if ! "$root/scripts/test-fvs.sh" --only "$jobs"; then
     echo
-    echo "Commit blocked: FVS regression failed. If the change is intended, re-record fvs/_regression-baseline.json"
-    echo "(open fvs/_test-regression.html, Run, 'Show JSON to record') and stage it in the same commit."
+    echo "Commit blocked: a headless suite failed (output above). For an intended FVS regression change, re-record"
+    echo "fvs/_regression-baseline.json (scripts/regression.sh --record, review the diff) and stage it in the same commit."
     exit 1
   fi
-fi
-if echo "$staged" | grep -qE '^(rhizome/|shared/node-canvas\.|scripts/test-rhizome)'; then
-  echo
-  echo "Rhizome (or the shared node canvas) changed — running the headless Rhizome test…"
-  "$root/scripts/test-rhizome.sh" || { echo; echo "Commit blocked: the Rhizome test failed."; exit 1; }
-fi
-if echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/js/17-figure|scripts/test-figure-board)'; then
-  echo
-  echo "The node board changed — running the Figure board gestures (clean mouse + held side button)…"
-  "$root/scripts/test-figure-board.sh" || { echo; echo "Commit blocked: the Figure board test failed."; exit 1; }
-fi
-if echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/index\.html|fvs/fvs\.css|fvs/js/(0[5-9]|1[0-8])-|scripts/test-fvs-boards)'; then
-  echo
-  echo "The step boards changed — running the Element / Component / Symbol board gestures (clean mouse + held side button)…"
-  "$root/scripts/test-fvs-boards.sh" || { echo; echo "Commit blocked: the step boards test failed."; exit 1; }
 fi
 exit 0

@@ -9,7 +9,7 @@ import {
   BASE_GEOMETRY, SEED_TYPES, frameDims, shapeHasCorners
 } from './engine/01-geometry.js';
 import {
-  CIRCLE_PARAMS, SEED_EXTRAS, getPanelSeed, getSeed, seedForSnapshot, xrId
+  CIRCLE_PARAMS, SEED_EXTRAS, getPanelSeed, getSeed, xrId
 } from './engine/02-seed-ui.js';
 import {
   GALLERY_ZOOM_MAX, getGrid
@@ -23,9 +23,6 @@ import {
 import {
   LIBRARY, PAPER_NONE, hexKey, isPaperNone, libraryNames, readLookControls, snapshotComponentElementState
 } from './engine/07-library.js';
-import {
-  snapPose
-} from './engine/08-symbol-grid.js';
 import {
   elementPool
 } from './engine/10-suggest.js';
@@ -68,7 +65,7 @@ import {
 } from './10-suggest.js';
 import {
   applySymbolRule, applyToSelection, bindSymbolCanvasSelection, bindSymbolTrackDrag,
-  closeCellContentOverlay, exportSymbol, openCellContentOverlay, openCellContentOverlayForAll,
+  closeCellContentOverlay, exportSymbol, openCellContentOverlayForAll,
   SYMBOL_CELLS, bindCellProps, renderCellPropertiesPanel, renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary,
   renderTrackLabelsOverlay, syncContentFilter, syncManualBlock, syncStartSegs, syncSymbolRuleUI
 } from './11-symbol-ui.js';

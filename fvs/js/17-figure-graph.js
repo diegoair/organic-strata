@@ -47,7 +47,7 @@ import {
   plateSVG
 } from './engine/15-export-library-view.js';
 import {
-  CHANGE_OF, isOptIn, seriesAxes, seriesCount, sweepableOf, FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  CHANGE_OF, isOptIn, seriesAxes, seriesCount, FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridPreviewModel, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
@@ -678,10 +678,6 @@ function rangeRow(label, id, min, max, step, value, onInput, unit = '') {
 }
 function selectRow(label, id, options, value, onChange) {
   return { html: `<div class="ctrl-row"><div class="ctrl-label">${esc(label)}</div><select class="panel-select" id="${id}" aria-label="${esc(label)}">${options.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(value) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`,
-    bind: () => { ctrl(id).addEventListener('change', e => onChange(e.target.value)); } };
-}
-function numberRow(label, id, value, onChange, attrs) {
-  return { html: `<div class="ctrl-row"><div class="ctrl-label">${esc(label)}</div><input type="number" class="panel-input" id="${id}" value="${esc(value)}" aria-label="${esc(label)}" ${attrs || ''}></div>`,
     bind: () => { ctrl(id).addEventListener('change', e => onChange(e.target.value)); } };
 }
 // A rebuild keeps the focused control (by id, else by its data-* attributes) — as Compose's panel does.
@@ -1347,7 +1343,7 @@ function drawCompose() {
   const f = figureValue(composing.fig), stage = ctrl('fg-compose-stage');
   const fig = NC.findNode(ctl.model, composing.fig), n = fig ? (+fig.params.variations || 1) : 1;
   const par = fig && fig.type === 'figure-var' ? parentNode(fig) : null;
-  ctrl('fg-compose-note').textContent = par ? `Variation ${variationNo(fig, par)} of ${nodeLabel(par)}` : `Applies to all ${n} ${n === 1 ? 'variation' : 'variations'} of ${fig ? nodeLabel(fig) : 'the Figure'}`;
+  ctrl('fg-compose-note').textContent = par ? `Variation ${variationNo(fig)} of ${nodeLabel(par)}` : `Applies to all ${n} ${n === 1 ? 'variation' : 'variations'} of ${fig ? nodeLabel(fig) : 'the Figure'}`;
   if (!fig) { exitCompose(); return; }   // undone away, or deleted
   if (!f) { const e = ctl.engine.get(composing.fig), bad = e && /error|waiting|upstream/.test(e.state); stage.innerHTML = `<p class="fg-compose__empty">${bad ? esc(e.message || 'This Figure can’t be drawn') : 'Updating…'}</p>`; return; }
   if (!f.compose || !f.base) { stage.innerHTML = '<p class="fg-compose__empty">This Figure has no cells to compose — a Component rule lays out its own.</p>'; return; }

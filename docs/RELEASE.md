@@ -18,8 +18,14 @@ Local first, preview second, production last. Nothing reaches `main` without an 
 - Flexible Visual System also has `scripts/test-fvs-qa.sh` (~1 min: boot health, every view in light + dark, export
   parity against `fvs/_qa-baseline.json`, the `/fvs/` files and the lazy Figure tier) and `scripts/test-fvs-ui.sh`
   (~25 min: real mouse journeys). Its code is ES modules in `fvs/js/` — see docs/FVS.md §11 before adding any.
+- **Every FVS headless suite at once:** `scripts/test-fvs.sh` (~3.5 min on this Mac; was ~17 min one after another) —
+  regression, QA, UI (journeys + the 120 variants in 4 shards + design), step boards (clean / held / extra), Figure
+  board (clean / held), Figure graph + eval, element units, Rhizome, each its own server + Chrome, 6 at a time. One line
+  per job with its time; the full output of a failed job. `--only boards,regression` (jobs or groups, `--list`),
+  `--jobs N`, `--verbose`. The board tests wait for the page to settle (`QUIET_INIT` in `scripts/lib/chrome-page.mjs`:
+  two frames and no short timer pending, reduced motion on) instead of fixed sleeps. Perf stays separate (timing).
 - FVS speed: `scripts/test-fvs-perf.sh` (~2–3 min; `--quick` ~30 s) — real clicks on the save circle, click → painted
-  frame: 12 saves in a row (circle, grid 1), every cell shape × grid shape × size on a ~300-Component library, and a
+  frame: up to 12 saves in a row (circle, grid 1 — 10 since Oct 14), every cell shape × grid shape × size on a ~300-Component library, and a
   traced hover sweep per cell shape at 2× density (GPU / paint work). Fails on a save over 500 ms or a save not stored.
   Before/after: `git worktree add /tmp/old <commit>` then `--root /tmp/old`; try a CSS change with `--css '…'`.
 
@@ -39,8 +45,9 @@ scripts/check.sh             # what the hook runs on every commit
 - a `/shared/…` or `/genesis/…` reference to a file that does not exist
 - `scripts/css-lint.py` findings
 
-When Flexible Visual System or a shared module it uses is staged, the hook also runs `scripts/regression.sh` (headless Chrome via
-the DevTools protocol; names the changed cases on failure) and blocks the commit if any case differs.
+When Flexible Visual System, Rhizome, the node canvas or a shared module they use is staged, the hook also runs the headless
+suites those paths need — regression, Rhizome, Figure board, step boards — in one `scripts/test-fvs.sh --only …` call, side by
+side, and blocks the commit if one fails (its output is printed).
 Emergency bypass: `git commit --no-verify`.
 
 Fill in the release checklist from `.gitmessage` in the commit body (changed / affects / checks /

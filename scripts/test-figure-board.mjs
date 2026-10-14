@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { QUIET, quietPage } from './lib/chrome-page.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (n, d) => { const i = process.argv.indexOf('--' + n); return i > 0 ? process.argv[i + 1] : d; };
@@ -67,6 +68,9 @@ async function ev(fn, ...args) {
   return r.result?.result?.value;
 }
 
+// wait for the page to be done reacting (two frames, no short timer pending) — see scripts/lib/chrome-page.mjs
+const quiet = () => cdp('Runtime.evaluate', { expression: QUIET, awaitPromise: true });
+
 // ── the mouse: `held` = the side button reported down for the whole mode (bit 8 in every event) ──
 let held = false;
 const BIT = { left: 1, right: 2, middle: 4, back: 8 };
@@ -82,10 +86,11 @@ async function gesture(from, to, { button = 'left', steps = 8, mid } = {}) {
     await raw('mouseMoved', x, y, button, BIT[button]); await sleep(12);
     if (mid && i === Math.ceil(steps / 2)) probe = await ev(mid, { x, y });
   }
-  await raw('mouseReleased', to.x, to.y, button, 0); await sleep(150);
+  await raw('mouseReleased', to.x, to.y, button, 0);
+  await sleep(110); await quiet();   // a board swallows any click within 100 ms of a drag's end
   return probe;
 }
-const click = async (p, mods = 0) => { await hover(p.x, p.y); await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1 | (held ? 8 : 0), clickCount: 1, modifiers: mods }); await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: held ? 8 : 0, clickCount: 1, modifiers: mods }); await sleep(120); };
+const click = async (p, mods = 0) => { await hover(p.x, p.y); await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: p.x, y: p.y, button: 'left', buttons: 1 | (held ? 8 : 0), clickCount: 1, modifiers: mods }); await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p.x, y: p.y, button: 'left', buttons: held ? 8 : 0, clickCount: 1, modifiers: mods }); await quiet(); };
 const key = async (type, code, keyName, vk) => cdp('Input.dispatchKeyEvent', { type, code, key: keyName, windowsVirtualKeyCode: vk });
 
 // ── in-page probes ──
@@ -104,19 +109,22 @@ const PAGE = `(() => {
   w.__b = { st, board, nodes, byKind, box, grip, cursorAt, sel, empty, leftovers };
 })()`;
 
+let quietOn = false;
 async function openFigure() {
   await cdp('Page.enable'); await cdp('Runtime.enable');
+  if (!quietOn) { await quietPage(cdp); quietOn = true; }
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await cdp('Page.navigate', { url: `http://localhost:${port}/fvs/` });
-  for (let i = 0; i < 60; i++) { await sleep(250); if (await ev(() => !!document.querySelector('button[aria-label="Figure"]') && document.readyState === 'complete').catch(() => false)) break; }
-  await ev(() => { try { localStorage.clear(); } catch {} });
-  await cdp('Page.reload'); await sleep(1500);
-  for (let i = 0; i < 40; i++) { await sleep(200); if (await ev(() => !!document.querySelector('button[aria-label="Figure"]')).catch(() => false)) break; }
+  for (let i = 0; i < 150; i++) { await sleep(100); if (await ev(() => !!document.querySelector('button[aria-label="Figure"]') && document.readyState === 'complete').catch(() => false)) break; }
+  await ev(() => { try { localStorage.clear(); } catch {} window.__leaving = true; });
+  await cdp('Page.reload');
+  for (let i = 0; i < 150; i++) { await sleep(100); if (await ev(() => !window.__leaving && !!(window.__fvs && window.__fvs.isReady) && !!document.querySelector('button[aria-label="Figure"]')).catch(() => false)) break; }
+  await quiet();
   await ev(t => { document.documentElement.dataset.theme = t; }, THEME);
   const b = await ev(() => { const r = document.querySelector('button[aria-label="Figure"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   await click(b);   // the real dock click: the button keeps the focus (Space must still pan)
-  for (let i = 0; i < 40; i++) { await sleep(200); if (await ev(() => document.querySelectorAll('.nc-node').length > 3).catch(() => false)) break; }
-  await sleep(500);
+  for (let i = 0; i < 80; i++) { await sleep(100); if (await ev(() => document.querySelectorAll('.nc-node').length > 3).catch(() => false)) break; }
+  await quiet();
   await cdp('Runtime.evaluate', { expression: PAGE });
 }
 
@@ -224,33 +232,33 @@ async function run(mode) {
 
   await test(`${P} node bar`, 'a tile dragged from the node bar onto the board adds a node', async c => {
     const btn = await ev(() => { const b = document.querySelector('button[aria-label="Content nodes"]'); const r = b.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
-    await click(btn); await sleep(350);
+    await click(btn);
     const s = await ev(() => { const t = [...document.querySelectorAll('.nc-nodebar__item')].find(i => i.offsetParent); if (!t) return null; const r = t.getBoundingClientRect(); return { from: { x: r.x + r.width / 2, y: r.y + r.height / 2 }, n: document.querySelectorAll('.nc-node').length, to: __b.empty() }; });
     expect(c, !!s, 'no node-bar tile visible');
     if (!s) return;
     await gesture(s.from, s.to, { steps: 12 });
     const n = await ev(() => document.querySelectorAll('.nc-node').length);
     expect(c, n === s.n + 1, 'nodes ' + s.n + ' → ' + n);
-    await click(btn); await sleep(250);
+    await click(btn);
   });
 
   if (!held) await test(`${P} rotate panel`, 'Rotate & mirror on the cells: every control redraws the Figure; the pill says what is set', async c => {
     // a built-in Figure (it brings its own Element, Grid, Palette): New Figure… → the first built-in; it arrives selected
-    await click(await ev(() => __b.box(document.getElementById('btn-fg-new')))); await sleep(400);
-    await click(await ev(() => __b.box(document.querySelector('.fg-new__item')))); await sleep(1500);
+    await click(await ev(() => __b.box(document.getElementById('btn-fg-new'))));
+    await click(await ev(() => __b.box(document.querySelector('.fg-new__item'))));
     const figId = await ev(() => { const n = __b.nodes().find(x => x.classList.contains('is-selected') && x.classList.contains('nc-node--capped')); return n && n.dataset.nodeId; });
     expect(c, !!figId, 'New Figure… did not select a new Figure'); if (!figId) return;
     const figDrawing = () => ev(async id => { const f = document.querySelector('[data-node-id="' + id + '"]'); const img = f && f.querySelector('img'); if (!img || !img.src) return ''; try { return await (await fetch(img.src)).text(); } catch { return img.src; } }, figId);
-    const settle = async before => { for (let i = 0; i < 40; i++) { await sleep(150); const d = await figDrawing(); if (d && d !== before) return d; } return await figDrawing(); };
+    const settle = async before => { for (let i = 0; i < 40; i++) { await quiet(); const d = await figDrawing(); if (d && d !== before) return d; } return await figDrawing(); };
     const dotOf = re => ev(src => { const n = __b.nodes().find(x => new RegExp(src).test(x.innerText)); const d = n && n.querySelector('.nc-port__dot[data-dir="out"]'); if (!d) return null; const r = d.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, re);
     const figAt = () => ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), figId);
     let d0 = await settle('');
     expect(c, d0.length > 100, 'the built-in Figure did not draw');
     // add Rotate & mirror from the node bar, wire it into the Figure's Rules
     const bar = await ev(() => __b.box(document.querySelector('button[aria-label="Rule nodes"]')));
-    await click(bar); await sleep(300);
+    await click(bar);
     const tile = await ev(() => { const t = [...document.querySelectorAll('.nc-nodebar__item')].find(i => i.offsetParent && /Rotate/.test(i.textContent)); return t && __b.box(t); });
-    await click(tile); await sleep(500); await click(bar); await sleep(250);
+    await click(tile); await click(bar);
     const rotDot = await dotOf('^Rotate');
     expect(c, !!rotDot && await ev(p => p.x > 0 && p.y > 0 && p.x < innerWidth && p.y < innerHeight, rotDot), 'a click in the node bar added Rotate & mirror out of sight: ' + JSON.stringify(rotDot));
     // onto the Figure's Rules port: the built-in already has a Cell rules there, the new rule slots into the chain
@@ -258,7 +266,7 @@ async function run(mode) {
     await gesture(rotDot, rulesPort, { steps: 10 });
     d0 = await settle('') || d0;
     const pill = () => ev(() => { const n = __b.nodes().find(x => /^Rotate/.test(x.innerText)); return n ? n.querySelector('.nc-node__body').innerText.trim() : ''; });
-    const select = async () => { const g = await ev(() => __b.grip(__b.nodes().find(x => /^Rotate/.test(x.innerText)))); await click(g); await sleep(250); };
+    const select = async () => { const g = await ev(() => __b.grip(__b.nodes().find(x => /^Rotate/.test(x.innerText)))); await click(g); };
     await select();
     const panelHas = await ev(() => ({ slider: !!document.getElementById('fgi-trot'), hints: [...document.querySelectorAll('#fg-inspector .org-panel__hint')].map(h => h.textContent) }));
     expect(c, panelHas.slider && !panelHas.hints.length, 'panel: slider ' + panelHas.slider + ', hint text ' + JSON.stringify(panelHas.hints));
@@ -286,24 +294,24 @@ async function run(mode) {
     const fig = await ev(() => { const n = __b.byKind('capped').find(x => !/variation/i.test(x.innerText) && x.querySelector('img')); return n && n.dataset.nodeId; });
     expect(c, !!fig, 'no Figure with a drawing'); if (!fig) return;
     const drawingOf = id => ev(async id => { const f = document.querySelector('[data-node-id="' + id + '"]'); const img = f && f.querySelector('img'); return img && img.src ? await (await fetch(img.src)).text() : ''; }, id);
-    await click(await ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), fig)); await sleep(300);
-    await click(await ev(() => __b.box(document.getElementById('fgi-addvar')))); await sleep(600);
+    await click(await ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), fig));
+    await click(await ev(() => __b.box(document.getElementById('fgi-addvar'))));
     // the board draws what is on screen: bring the new Variations and its children in view — click the empty board, Shift+2 (fit selection) after selecting the Variations node is fiddly; Shift+1 fits everything
     await hover(...Object.values(await ev(() => __b.empty())));
-    await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: '!', code: 'Digit1', windowsVirtualKeyCode: 49, modifiers: 8 }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: '!', code: 'Digit1', windowsVirtualKeyCode: 49, modifiers: 8 }); await sleep(800);
-    let child = null; for (let i = 0; i < 40 && !child; i++) { await sleep(200); child = await ev(() => { const n = __b.nodes().find(x => x.querySelector('[data-act="use"]')); return n && n.dataset.nodeId; }); }
+    await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: '!', code: 'Digit1', windowsVirtualKeyCode: 49, modifiers: 8 }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: '!', code: 'Digit1', windowsVirtualKeyCode: 49, modifiers: 8 }); await quiet();
+    let child = null; for (let i = 0; i < 40 && !child; i++) { await quiet(); child = await ev(() => { const n = __b.nodes().find(x => x.querySelector('[data-act="use"]')); return n && n.dataset.nodeId; }); }
     expect(c, !!child, 'Add Variations made no variation with a Use button'); if (!child) return;
     const before = norm(await drawingOf(fig)), want = norm(await drawingOf(child));
     expect(c, want && want !== before, 'the variation draws the same as its Figure');
     await ev(id => document.querySelector('[data-node-id="' + id + '"]').scrollIntoView({ block: 'center', inline: 'center' }), child);
     const use = await ev(id => __b.box(document.querySelector('[data-node-id="' + id + '"] [data-act="use"]')), child);
     await click(use);
-    let after = ''; for (let i = 0; i < 40; i++) { await sleep(200); after = norm(await drawingOf(fig)); if (after && after !== before) break; }
+    let after = ''; for (let i = 0; i < 40; i++) { await quiet(); after = norm(await drawingOf(fig)); if (after && after !== before) break; }
     expect(c, after === want, 'after Use this the Figure does not draw the variation');
     const note = await ev(() => { const n = document.querySelector('.org-notice, [class*="notice"]'); return n ? n.textContent : ''; });
     c.notes.push('notice: ' + note.slice(0, 120));
     await key('rawKeyDown', 'KeyZ', 'z', 90); await cdp('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 4 }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 4 });
-    let back = ''; for (let i = 0; i < 30; i++) { await sleep(200); back = norm(await drawingOf(fig)); if (back === before) break; }
+    let back = ''; for (let i = 0; i < 30; i++) { await quiet(); back = norm(await drawingOf(fig)); if (back === before) break; }
     expect(c, back === before, 'undo did not bring the Figure back');
   });
 
@@ -312,24 +320,24 @@ async function run(mode) {
     expect(c, !!fig, 'no Figure with a drawing'); if (!fig) return;
     // the Figure's Variations node (the use-variation case left one; else Add Variations makes it) — selected, its panel shows
     const vn = await ev(() => { const n = __b.byKind('pill').find(x => /^Variations\b/.test(x.innerText.trim())); return n && n.dataset.nodeId; });
-    if (vn) { await ev(id => document.querySelector('[data-node-id="' + id + '"]').scrollIntoView({ block: 'center', inline: 'center' }), vn); await click(await ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), vn)); await sleep(400); }
-    else { await click(await ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), fig)); await sleep(300); await click(await ev(() => __b.box(document.getElementById('fgi-addvar')))); await sleep(800); }
+    if (vn) { await ev(id => document.querySelector('[data-node-id="' + id + '"]').scrollIntoView({ block: 'center', inline: 'center' }), vn); await click(await ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), vn)); }
+    else { await click(await ev(id => __b.grip(document.querySelector('[data-node-id="' + id + '"]')), fig)); await click(await ev(() => __b.box(document.getElementById('fgi-addvar')))); }
     const modes = await ev(() => [...document.querySelectorAll('#fg-inspector [data-vmode]')].map(b => b.textContent));
     expect(c, modes.join('|') === 'Random|Series|Table', 'Mode seg: ' + modes.join('|'));
     const captions = () => ev(() => [...document.querySelectorAll('.nc-node .fg-var__label')].map(l => l.textContent).filter(t => !/As set up/.test(t)));
     const kids = () => ev(() => [...document.querySelectorAll('.nc-node')].filter(n => /variation/i.test(n.innerText) && n.querySelector('.fg-var__label')).map(n => { const m = /translate\(([-\d.]+)px,\s*([-\d.]+)px/.exec(n.style.transform) || []; return { x: Math.round(+m[1]), y: Math.round(+m[2]) }; }));
-    await click(await ev(() => __b.box(document.querySelector('#fg-inspector [data-vmode="series"]')))); await sleep(1500);
+    await click(await ev(() => __b.box(document.querySelector('#fg-inspector [data-vmode="series"]'))));
     const sp = await ev(() => ({ count: document.getElementById('fgi-vcount') && document.getElementById('fgi-vcount').value, param: !!document.getElementById('fgi-axis-param'), groups: document.getElementById('fgi-axis-param') ? document.getElementById('fgi-axis-param').querySelectorAll('optgroup').length : 0, from: document.getElementById('fgi-axis-from') && document.getElementById('fgi-axis-from').value, to: document.getElementById('fgi-axis-to') && document.getElementById('fgi-axis-to').value, amount: !!document.getElementById('fgi-amount'), title: document.querySelector('#fg-inspector h3') && document.querySelector('#fg-inspector h3').textContent }));
     expect(c, sp.param && sp.groups >= 1 && sp.from != null && sp.to != null && !sp.amount, 'Series rows: ' + JSON.stringify(sp));
     expect(c, /Series: /.test(sp.title || ''), 'the title says the series: ' + sp.title);
-    let caps = []; for (let i = 0; i < 30 && caps.length < +sp.count; i++) { await sleep(300); caps = await captions(); }
+    let caps = []; for (let i = 0; i < 30 && caps.length < +sp.count; i++) { await quiet(); caps = await captions(); }
     expect(c, caps.length === +sp.count && caps.every(t => /^(Grid|Palette|Cell rules|Rotate & mirror): .+ -?\d/.test(t)), 'Series children: ' + caps.join(' | ') + ' (count ' + sp.count + ')');
-    await click(await ev(() => __b.box(document.querySelector('#fg-inspector [data-vmode="table"]')))); await sleep(2000);
+    await click(await ev(() => __b.box(document.querySelector('#fg-inspector [data-vmode="table"]'))));
     const tp = await ev(() => ({ across: !!document.getElementById('fgi-across-param'), down: !!document.getElementById('fgi-down-param'), values: document.querySelectorAll('#fg-inspector [data-values]').length, pressed: [...document.querySelectorAll('#fg-inspector [data-values][aria-pressed="true"]')].map(b => b.textContent).join('x'), count: !!document.getElementById('fgi-vcount'), title: document.querySelector('#fg-inspector h3') && document.querySelector('#fg-inspector h3').textContent }));
     expect(c, tp.across && tp.down && tp.values === 6 && tp.pressed === '3x3' && !tp.count && /Table: .+ × /.test(tp.title || ''), 'Table rows: ' + JSON.stringify(tp));
-    let caps2 = []; for (let i = 0; i < 40 && caps2.length < 9; i++) { await sleep(300); caps2 = await captions(); }
+    let caps2 = []; for (let i = 0; i < 40 && caps2.length < 9; i++) { await quiet(); caps2 = await captions(); }
     expect(c, caps2.length === 9 && caps2.every(t => / · /.test(t)), 'Table children: ' + caps2.length + ' — ' + caps2.slice(0, 3).join(' | '));
-    await sleep(500); const pos = await kids(), xs = new Set(pos.map(q => q.x)), ys = new Set(pos.map(q => q.y));
+    await quiet(); const pos = await kids(), xs = new Set(pos.map(q => q.x)), ys = new Set(pos.map(q => q.y));
     expect(c, pos.length === 9 && xs.size === 3 && ys.size === 3, 'Table layout 3 × 3 (x ' + xs.size + ', y ' + ys.size + ' of ' + pos.length + ')');
     c.notes.push('series: ' + caps.slice(0, 4).join(' | ') + ' · table: ' + caps2.slice(0, 2).join(' | '));
   });

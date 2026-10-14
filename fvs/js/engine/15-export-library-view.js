@@ -11,7 +11,7 @@ import {
   getSeed
 } from './02-seed-ui.js';
 import {
-  getGrid, gridOf
+  gridOf
 } from './03-rules.js';
 import {
   ELEMENT_LIB, buildComponentItems, genesisTileForms, getElementAppearance, savedElementThumb,

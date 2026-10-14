@@ -108,13 +108,6 @@ export function addSheet(B, id, label, x, y, content) {
   }
   return s;
 }
-// Rename a sheet's id (the live Element's sheets take the id of the Element being edited).
-export function rekeySheet(B, from, to) {
-  const sh = B.sheets[from];
-  if (!sh || from === to) return;
-  delete B.sheets[from]; B.sheets[to] = sh; sh.el.dataset.sheet = to;
-  if (B.selected.delete(from)) B.selected.add(to);
-}
 export function placeSheet(B, id, x, y) {
   const sh = B.sheets[id];
   if (!sh) return;

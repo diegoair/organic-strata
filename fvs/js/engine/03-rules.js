@@ -227,8 +227,6 @@ export const GRID_BUILD = {
     });
   },
 };
-// A grid bigger than one 2×2 block — where the global and the tiled readings differ.
-export const crIsLarge = cr => { if (!cr) return false; const d = crDims(cr); return d.cols > 2 || d.rows > 2; };
 // ── Rules on a cell-shape lattice (test) — every turn is a step of the cell shape's own (90° circle, 120°
 // triangle, 60° hexagon), added to the cell's own pose (a down triangle sits at 60°). Square cells never reach here.
 export const LATTICE_RULES = new Set(['identity', 'pinwheel', 'mirror', 'radial', 'checkerboard', 'random', 'exhaustive']);
@@ -479,7 +477,6 @@ export function ruleLines(axis) {
 //              first, the last row the first), so the Component repeats without a seam. Ties drawn from a seed,
 //              16 seeds, duplicates folded.
 // Scale (on): Beat by the beat step, Two beats by the beats met (0 · 1 · 2), Wave by the wave's level.
-export const RHYTHM_MODES = ['beat', 'beats', 'wave', 'connect'];
 const rmod = (a, n) => ((a % n) + n) % n;
 export function rhythmBeatCells(ctxs, beat, shift, sv) {
   const b = beat && beat.length ? beat : [0];

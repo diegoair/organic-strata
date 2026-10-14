@@ -15,7 +15,6 @@ export const STEP_EXPORT_HINTS = {
   figure: 'Exports the figure as drawn (SVG: real vector geometry, one path per shape; PNG: the same drawing rasterised).',
 };
 export function fvsSurfaceLive(sf) { return state.activeTier === sf.tier && (!sf.ready || sf.ready()); }
-export function fvsGalleryLive() { return state.activeTier === 'component' && !state.componentEditMode; }
 // ── Wiring ──
 // Triangle Type is a derived shortcut, not stored state: picking one writes
 // Base/Height/Apex X; any hand edit of those three flips it back to Custom.

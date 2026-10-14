@@ -577,7 +577,6 @@ export function suggestSymbols(opts = {}) {
   const grid = getSymbolGrid();
   const out = [];
   const add = (cand, label) => out.push({ cand, label });
-  const rng = mulberry32(seed * 7919 + 13);
   if (opts.base) {
     // "More like this": 8–20% of the free cells re-drawn, then turns refined.
     for (let v = 0; v < 11; v++) {

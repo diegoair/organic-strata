@@ -402,7 +402,6 @@ export function renderComponentEditCanvas() {
   const tracks = ceTrackHandles(items, size);
   ctrl('component-edit-frame').innerHTML =
     `<svg xmlns="http://www.w3.org/2000/svg"${items.length && items[0].poly ? ' class="is-cell"' : ''} viewBox="0 0 ${dims.w} ${dims.h}">${body}${componentGridOutlineSVG(items, size)}${(gridWrapper(items, grid.lattice && grid.lattice.outline) || {}).svg || ''}${hit}</svg>`;
-  const cell = state.componentEditSelectedCell;
   const n = rt.cePicked.size, shaping = ceShaping();
   ctrl('component-edit-hint').textContent = !n
     ? (seed.parts ? 'Click cells — ⌘-click adds — then a part and an ink' : 'Click a cell — ⌘-click or drag to pick several')

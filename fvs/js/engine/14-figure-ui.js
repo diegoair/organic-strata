@@ -3,13 +3,10 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  COLOR_RULES, DEFAULT_COLOR_RULE, offscreenCanvas, pc, pv, state
+  state
 } from './00-core.js';
 import {
-  mulberry32
-} from './03-rules.js';
-import {
-  CW_MIN_CONTRAST, buildColourways, cwMetrics, cwSolve, getSelectedComponent
+  CW_MIN_CONTRAST, cwMetrics, getSelectedComponent
 } from './06-component-ui.js';
 import {
   hexKey
@@ -18,8 +15,7 @@ import {
   buildSymbolSVG
 } from './09-symbol-render.js';
 import {
-  FIGURE_RECIPES_V1_AS_V2, hexFigureRecipes, isSealedSymbol, recursiveFigureRecipes, triangleFigureRecipes,
-  validateFigureRecipe
+  FIGURE_RECIPES_V1_AS_V2, hexFigureRecipes, isSealedSymbol, recursiveFigureRecipes, triangleFigureRecipes
 } from './13-figure-engine.js';
 // ── Figure tier: the form, the recipe JSON, the checks, the reference overlay ──
 export const FIGURE_CLASSIC_LABELS = { circle: 'Circle from four arcs', 'leaf-block': 'Leaf block 2×2', 'leaf-wave': 'Leaf wave (tiled 2×2)', 'leaf-wave-outline': 'Leaf wave, outline', 'leaf-two-ink': 'Leaf wave, two inks (4×4)', pinwheel: 'Triangle pinwheels (3×3)', kaleidoscope: 'Arc kaleidoscope' };

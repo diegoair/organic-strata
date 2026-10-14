@@ -9,7 +9,7 @@ import {
   SEG_WEIGHT_DEF, SEED_TYPES, cellShapeOf, divideLayers, frameDims, partMethodsFor, partsOf, syncPartLayers
 } from './engine/01-geometry.js';
 import {
-  CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, panelSeedSnapshot, seedForSnapshot, xrId
+  CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, panelSeedSnapshot, xrId
 } from './engine/02-seed-ui.js';
 import {
   fitThumbBox, ruleLabel
@@ -18,7 +18,7 @@ import {
   buildComponentItems
 } from './engine/04-appearance.js';
 import {
-  LAYER_ROLES, buildSeedPreviewSVG, layerInkColor, layerPlace, withEntryInks
+  LAYER_ROLES, layerInkColor, layerPlace, withEntryInks
 } from './engine/05-render-component.js';
 import {
   LAYER_NEW_INKS, LAYER_ROLE_ORDER, LIBRARY, buildComponentSVGWithPaper, buildLibraryEntryFor, hexKey,
@@ -54,7 +54,7 @@ import {
 import {
   syncExhaustiveHint, syncRuleAvailability, syncSeedUI
 } from './06-component-ui.js';
-import { COLOUR_GROUP_RULES, applyColourGroup, groupMembers, layerInksOn, pruneColourGroups } from './engine/06-component-ui.js';
+import { COLOUR_GROUP_RULES, groupMembers, layerInksOn, pruneColourGroups } from './engine/06-component-ui.js';
 import { hooks, provide } from './hooks.js';
 // C: a group's chip — its ink as the fill, its number in --ink or --paper, whichever reads better on that ink
 function groupChip(L, gid, n, name, still) {
@@ -432,7 +432,6 @@ export function moveLayerTo(from, to) {
 }
 // ── Colour groups (Oct 12, 2026): Group / Ungroup over the Layers list, the selected group's Name / Rule / Ink ──
 const selectedLayers = () => { const L = state.layers; if (!L) return []; const ids = rt.partSel && rt.partSel.size ? rt.partSel : new Set([L.items[L.active].id]); return L.items.filter(l => ids.has(l.id)); };
-const groupOfSelection = () => { const gs = new Set(selectedLayers().map(l => l.group).filter(Boolean)); const L = state.layers; return gs.size === 1 && L.groups && L.groups[[...gs][0]] ? [...gs][0] : null; };
 export function syncColourGroupRules() {
   const host = ctrl('colour-group-rules'), L = state.layers, ids = L && L.groups ? Object.keys(L.groups) : [];
   host.hidden = !ids.length;
@@ -640,11 +639,6 @@ window.addEventListener('pointercancel', () => { layerPress = null; layerDragFro
 // still driven by the shape's own controls. On the canvas: click a part to edit it, ⌘/Ctrl/Shift-click to pick several
 // (the ink chosen for one of them goes to all). Back to None joins the shape; the parts' settings are kept for the session.
 const partSource = () => (state.layers && state.layers.parts ? state.layers.parts.source : (state.layers ? null : panelSeedSnapshot()));
-export function partGroupName(L) {
-  const src = L.parts.source, m = partMethodsFor(src).find(x => x.id === L.parts.method);
-  const n = L.items.filter(l => l.part).length;
-  return `${(SEED_ICONS[src.type] || {}).name || (SEED_TYPES[src.type] || {}).label || src.type} · ${m ? m.label : L.parts.method} · ${n}`;
-}
 // The greyed options, said once: a reason several share is listed with all their names ("Rhombi, Centre square: …").
 // Pieces greyed = a one-piece shape — too common to say.
 function partReasonsHint(off) {

@@ -8,7 +8,7 @@
 // hidden: it throttles timers to one per second.)
 //
 // Two parts:
-//   1. sequence — circle cells, grid size 1, an empty library, 12 saves in a row. Catches a save that gets slower with
+//   1. sequence — circle cells, grid size 1, an empty library, up to 12 saves in a row (what the gallery offers, ≥ 8). Catches a save that gets slower with
 //      every saved thumbnail (Oct 6, 2026: 13 CSS filter passes per saved cell-shape thumbnail → ~2 s by the 12th).
 //   2. matrix — every cell shape × grid shape × grid size (+ square 2×2 / 3×3 / 4×4 / 4×2), N saves each, on top of a
 //      library pre-filled with ~P saved Components, the Library rail open. Catches a save that gets slower with the
@@ -169,14 +169,19 @@ const judge = (where, t) => {
 console.log(`FVS perf — ${path.relative(process.cwd(), ROOT) || '.'}, Library rail ${RAIL ? 'open' : 'closed'}, budget ${MAX_MS} ms per save`);
 if (ONLY.includes('sequence')) {
 await setGrid({ shape: 'circle', outline: 'hexagon', rings: 1 });
-for (let i = 0; i < 12; i++) {
-  const t = await save(PROFILE && 'sequence'.startsWith(PROFILE) && i === 11);
+// as many saves as the gallery offers, up to 12 (a circle / size-1 grid has 10 candidates since the Oct 14, 2026 rule
+// changes — the 11th and 12th saves found nothing to click and failed the run)
+const offered = await ev(`document.querySelectorAll('#gallery .fvs-thumb-quicksave:not(.saved)').length`);
+const N = Math.min(12, offered);
+if (N < 8) fails.push(`sequence: only ${offered} unsaved thumbnails to save (need 8)`);
+for (let i = 0; i < N; i++) {
+  const t = await save(PROFILE && 'sequence'.startsWith(PROFILE) && i === N - 1);
   results.sequence.push(t); judge(`sequence save ${i + 1}`, t);
 }
-console.log('sequence  circle / grid size 1, 12 saves:  ' + results.sequence.join(', ') + ' ms');
+console.log(`sequence  circle / grid size 1, ${N} saves:  ` + results.sequence.join(', ') + ' ms');
 const seq = results.sequence.filter(t => typeof t === 'number');
-if (seq.length === 12) {
-  const head = (seq[1] + seq[2]) / 2, tail = (seq[10] + seq[11]) / 2;
+if (seq.length === N && N >= 8) {
+  const head = (seq[1] + seq[2]) / 2, tail = (seq[N - 2] + seq[N - 1]) / 2;
   if (tail > 150 && tail > 3 * head) fails.push(`sequence: saves grow with each saved thumbnail (${Math.round(head)} → ${Math.round(tail)} ms)`);
 }
 }

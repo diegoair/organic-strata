@@ -19,8 +19,8 @@ import {
   LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames
 } from './engine/07-library.js';
 import {
-  GEN_ARRIVE, PX_PER_MM, SYMCANVAS_PRESETS, SYMGRID_GENS, buildFvsGridSVG, cellNaturalSize, loomRegistry, symbolGridModel,
-  clampWeightTrackCount, defaultSymbolCells, emptySymbolCell, fitPatch, fitTargetIndices, getFvsGrid,
+  GEN_ARRIVE, PX_PER_MM, SYMCANVAS_PRESETS, SYMGRID_GENS, buildFvsGridSVG, cellNaturalSize, symbolGridModel,
+  defaultSymbolCells, emptySymbolCell, fitPatch, fitTargetIndices, getFvsGrid,
   getSymbolGrid, readSymgridParams, samePlacement, symbolGenerateBlock, symbolHasAlignedComponents,
   symbolHasContent
 } from './engine/08-symbol-grid.js';

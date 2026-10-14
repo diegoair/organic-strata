@@ -70,3 +70,30 @@ export async function openChrome({ timeoutMs = 600000, width = 1440, height = 90
   }
   return { ORIGIN, cdp, ev, goto, sleep, errors, close };
 }
+
+// ── settling instead of sleeping ──
+// QUIET_INIT goes in before the page's own scripts (Page.addScriptToEvaluateOnNewDocument): it counts the page's
+// short timers (≤ 1 s — debounced saves, re-renders, "later" passes; longer ones are notes / tooltips) so a test can
+// wait for the page to be done reacting instead of sleeping a fixed time: `await ev(QUIET)` resolves after two
+// animation frames with no short timer pending (or 4 s at most). Pair it with prefers-reduced-motion (the motion
+// tokens collapse to 1 ms, the Symbol arrival is skipped), see `quietPage()`.
+export const QUIET_INIT = `(() => {
+  if (window.__quiet) return;
+  const pend = new Set(), st = window.setTimeout.bind(window), ct = window.clearTimeout.bind(window);
+  window.setTimeout = function (fn, ms, ...a) {
+    if (typeof fn !== 'function' || (+ms || 0) > 1000) return st(fn, ms, ...a);
+    const id = st(() => { pend.delete(id); fn(...a); }, ms); pend.add(id); return id;
+  };
+  window.clearTimeout = id => { pend.delete(id); return ct(id); };
+  window.__quiet = () => new Promise(res => {
+    const t0 = performance.now();
+    const loop = () => requestAnimationFrame(() => requestAnimationFrame(() => (!pend.size || performance.now() - t0 > 4000) ? res(pend.size) : st(loop, 16)));
+    loop();
+  });
+})()`;
+export const QUIET = 'window.__quiet ? window.__quiet() : 0';
+// install the detector + reduced motion on a CDP session (call once, before the first navigation)
+export async function quietPage(cdp) {
+  await cdp('Page.addScriptToEvaluateOnNewDocument', { source: QUIET_INIT });
+  await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+}

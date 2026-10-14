@@ -15,19 +15,7 @@ jobs:
         with: { node-version: 20 }
       - name: Static checks (vercel.json schema, JSON, JS syntax, local refs, css-lint)
         run: python3 scripts/check.py
-      - name: FVS regression (headless Chrome)
+      - name: Headless suites — FVS regression, Rhizome, Figure board, step boards (clean mouse + held side button), side by side
         run: |
           export CHROME="$(which google-chrome || which chromium || which chromium-browser)"
-          scripts/regression.sh
-      - name: Rhizome on the shared node canvas (headless Chrome)
-        run: |
-          export CHROME="$(which google-chrome || which chromium || which chromium-browser)"
-          scripts/test-rhizome.sh
-      - name: Figure board gestures (headless Chrome, clean mouse + held side button)
-        run: |
-          export CHROME="$(which google-chrome || which chromium || which chromium-browser)"
-          scripts/test-figure-board.sh
-      - name: FVS step boards (headless Chrome, clean mouse + held side button)
-        run: |
-          export CHROME="$(which google-chrome || which chromium || which chromium-browser)"
-          scripts/test-fvs-boards.sh
+          scripts/test-fvs.sh --only regression,rhizome,figure-board,boards

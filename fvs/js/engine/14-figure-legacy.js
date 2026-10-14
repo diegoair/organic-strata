@@ -3,27 +3,23 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  COLOR_RULES, DEFAULT_COLOR_RULE, offscreenCanvas, pc, pv, state
+  COLOR_RULES, DEFAULT_COLOR_RULE, offscreenCanvas, state
 } from './00-core.js';
 import {
   mulberry32
 } from './03-rules.js';
 import {
-  CW_MIN_CONTRAST, buildColourways, cwMetrics, cwSolve, getSelectedComponent
+  buildColourways, cwSolve
 } from './06-component-ui.js';
 import {
   hexKey
 } from './07-library.js';
 import {
-  buildSymbolSVG
-} from './09-symbol-render.js';
-import {
-  FIGURE_RECIPES_V1_AS_V2, hexFigureRecipes, isSealedSymbol, recursiveFigureRecipes, triangleFigureRecipes,
-  validateFigureRecipe
+  isSealedSymbol, validateFigureRecipe
 } from './13-figure-engine.js';
 // ── Figure tier: the form, the recipe JSON, the checks, the reference overlay ──
 import {
-  FG_HUE_TURNS, describeRule
+  FG_HUE_TURNS
 } from './14-figure-ui.js';
 export const FG_LATTICE_OF = v => /^tier(\d)$/.test(v) ? { type: 'tier', stack: +v[4] } : /^tri(\d)$/.test(v) ? { type: 'triangle', rows: +v[3] } : { type: 'square', n: +v.match(/^square(\d+)/)[1] };
 export const FG_STR_OF = l => l.type === 'tier' ? 'tier' + l.stack : l.type === 'triangle' ? 'tri' + l.rows : `square${l.n}x${l.n}`;

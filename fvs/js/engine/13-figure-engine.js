@@ -11,7 +11,7 @@ import {
   getSeed
 } from './02-seed-ui.js';
 import {
-  GRID_BUILD, buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, getGrid, gridOf, rhythmCells, stateFrom
+  GRID_BUILD, buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, gridOf, rhythmCells, stateFrom
 } from './03-rules.js';
 import {
   buildComponentItems

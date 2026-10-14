@@ -35,7 +35,7 @@ import {
   SYMBOL_ARRANGE, symbolCellContext
 } from './10-suggest.js';
 import {
-  SYMBOL_RULES, snap90, symbolPastePlan
+  SYMBOL_RULES, symbolPastePlan
 } from './11-symbol-ui.js';
 import {
   figureChecks

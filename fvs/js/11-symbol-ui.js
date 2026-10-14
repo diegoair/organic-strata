@@ -410,11 +410,9 @@ export function bindSymbolCanvasSelection() {
 }
 
 export function applyToSelection(patch) {
-  let changed = false;
   state.symbolSelection.forEach(i => {
     const cell = state.symbolCells[i];
-    if (!cell) return;
-    if (patchCell(cell, patch)) changed = true;
+    if (cell) patchCell(cell, patch);
   });
   // (no unsaved-work guard since Oct 11, 2026: the working Symbol is kept across reloads — 18-step-boards.js)
   renderSymbolCanvasOnly();
@@ -772,11 +770,7 @@ export function openCellContentOverlayForAll() {
 // Write a content patch to every cell (used when "Apply to all cells" is
 // armed) — the sibling of applyToSelection().
 export function applyToAllCells(patch) {
-  let changed = false;
-  state.symbolCells.forEach(cell => {
-    if (!cell) return;
-    if (patchCell(cell, patch)) changed = true;
-  });
+  state.symbolCells.forEach(cell => { if (cell) patchCell(cell, patch); });
   // (no unsaved-work guard since Oct 11, 2026: the working Symbol is kept across reloads — 18-step-boards.js)
   renderSymbolCanvasOnly();
 }
