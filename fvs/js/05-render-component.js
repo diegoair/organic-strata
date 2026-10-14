@@ -37,7 +37,7 @@ import {
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  currentElementView: () => currentElementView, elementViewIndex: () => elementViewIndex,
+  currentElementView: () => currentElementView, elementViewIndex: () => elementViewIndex, elementSideCover: () => elementSideCover,
   renderGallery: () => renderGallery, renderSeedPreview: () => renderSeedPreview
 });
 
@@ -333,6 +333,33 @@ export function measureElementInk(geo, appearance) {
   } catch (e) { /* nothing drawn */ }
   document.body.removeChild(svg);
   return { bb: x1 >= x0 ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } : null, pts };
+}
+
+// The Rhythm rule's Connect (Oct 14, 2026): for the Element as the Component draws it, turned / flipped by `view`,
+// which of 101 points along each side of its cell the ink reaches (edgeContacts' spans as flags; a tangent point
+// marks its one point). The ink is measured once per shape + look.
+let sideInk = null;
+export function elementSideCover(view) {
+  const seed = getSeed(), a = getElementAppearance(), key = JSON.stringify([seed, a]);
+  if (!sideInk || sideInk.key !== key) {
+    const geo = SEED_TYPES[seed.type].geometry(seed);
+    sideInk = { key, pts: geo && geo.d ? measureElementInk(geo, a).pts : [] };
+  }
+  const sides = edgeContacts(sideInk.pts.map(q => orientInkPoint(q, view))), out = {};
+  for (const k of ['top', 'right', 'bottom', 'left']) {
+    const f = new Uint8Array(101);
+    for (const sp of sides[k]) {
+      const u = Math.ceil(sp.from), w = Math.floor(sp.to);
+      if (w < u) f[Math.round(sp.mid)] = 1; else for (let i = u; i <= w; i++) f[i] = 1;
+    }
+    out[k] = f;
+  }
+  return out;
+}
+// Whether the Element reaches any side of its cell — Connect has nothing to join otherwise.
+export function elementReachesEdge() {
+  const c = elementSideCover({ r: 0 });
+  return ['top', 'right', 'bottom', 'left'].some(k => c[k].some(Boolean));
 }
 
 export function renderElementFrame(seed) {

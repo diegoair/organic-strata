@@ -54,7 +54,7 @@ import {
 } from './05-render-component.js';
 import {
   clearGallery, exitComponentEditMode, exportSelected, generate, generateColourways,
-  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, setCheckerStart, setMirrorLine, setMirrorSpan, setRadialTurnBy, splitElementReset,
+  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setCheckerStart, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
   syncExhaustiveHint, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant
 } from './06-component-ui.js';
 import {
@@ -397,7 +397,7 @@ ctrl('rg-cellsize').addEventListener('input', e => { ctrl('v-cellsize').textCont
 ctrl('rg-gap').addEventListener('input', e => { ctrl('v-gap').textContent = e.target.value; renderGallery(); });
 ctrl('rg-random-count').addEventListener('input', e => { ctrl('v-random-count').textContent = e.target.value; });
 ctrl('rg-lines-step').addEventListener('input', e => { ctrl('v-lines-step').textContent = e.target.value; });
-[['rg-osc-shift', 'v-osc-shift'], ['rg-osc-period', 'v-osc-period'], ['rg-osc-phase', 'v-osc-phase']].forEach(([rangeId, valId]) => {
+[['rg-rhythm-shift', 'v-rhythm-shift'], ['rg-rhythm-across', 'v-rhythm-across'], ['rg-rhythm-down', 'v-rhythm-down'], ['rg-rhythm-period', 'v-rhythm-period']].forEach(([rangeId, valId]) => {
   ctrl(rangeId).addEventListener('input', e => { ctrl(valId).textContent = e.target.value; });
 });
 
@@ -827,6 +827,11 @@ ctrl('chk-axis-scale').addEventListener('change', e => {
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
 ctrl('seg-mirror-line').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorLine(b.dataset.line); });
 ctrl('seg-radial-turnby').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setRadialTurnBy(b.dataset.radial); });
+ctrl('sel-rhythm-mode').addEventListener('change', e => setRhythmMode(e.target.value));
+ctrl('sel-rhythm-combine').addEventListener('change', e => setRhythmCombine(e.target.value));
+ctrl('rhythm-beat').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) turnRhythmStep(+b.dataset.step); });
+ctrl('btn-rhythm-beat-remove').addEventListener('click', () => resizeRhythmBeat(-1));
+ctrl('btn-rhythm-beat-add').addEventListener('click', () => resizeRhythmBeat(1));
 ctrl('seg-checker-start').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) setCheckerStart(+b.dataset.start); });
 ctrl('seg-mirror-span').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorSpan(b.dataset.span); });
 // Clip to cell (Component, Oct 12, 2026): each cell cut to its own frame — kept with the edited Element's Generated components

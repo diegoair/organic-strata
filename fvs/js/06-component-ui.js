@@ -45,7 +45,7 @@ import {
   applyAppearanceToUI
 } from './04-appearance.js';
 import {
-  buildPrintComponentSVG, printComponentDims, renderGallery, renderSeedPreview
+  buildPrintComponentSVG, elementReachesEdge, printComponentDims, renderGallery, renderSeedPreview
 } from './05-render-component.js';
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
@@ -357,6 +357,32 @@ export function syncCheckerStart() {
   });
 }
 export function setCheckerStart(v) { state.checkerStart = v; syncCheckerStart(); }
+// Rhythm (Oct 14, 2026): Mode Beat · Two beats · Wave · Connect, each with its own rows; Row shift for all but
+// Connect. The Beat is a row of steps, a click turns one a quarter; − / + remove / add the last (1–8 steps).
+export const RHYTHM_BEAT_MAX = 8;
+export function syncRhythm() {
+  const r = state.rhythm, m = r.mode;
+  ctrl('sel-rhythm-mode').value = m;
+  ctrl('sel-rhythm-combine').value = r.combine;
+  ctrl('rhythm-beat-block').style.display = m === 'beat' ? '' : 'none';
+  ctrl('rhythm-beats-block').style.display = m === 'beats' ? '' : 'none';
+  ctrl('rhythm-wave-block').style.display = m === 'wave' ? '' : 'none';
+  ctrl('rhythm-shift-row').style.display = m === 'connect' ? 'none' : '';
+  ctrl('rhythm-beat').innerHTML = r.beat.map((t, i) => `<button type="button" class="seg-btn" data-step="${i}" aria-label="Step ${i + 1}: ${t}°"><span class="fvs-beat__mark" style="--beat-turn:${t}deg" aria-hidden="true">F</span></button>`).join('');
+  ctrl('v-rhythm-beat').textContent = r.beat.length + (r.beat.length === 1 ? ' step' : ' steps');
+  ctrl('btn-rhythm-beat-remove').disabled = r.beat.length <= 1;
+  ctrl('btn-rhythm-beat-add').disabled = r.beat.length >= RHYTHM_BEAT_MAX;
+  ctrl('rhythm-connect-hint').style.display = m === 'connect' && !elementReachesEdge() ? '' : 'none';
+}
+export function setRhythmMode(m) { state.rhythm.mode = m; syncRhythm(); }
+export function setRhythmCombine(c) { state.rhythm.combine = c; syncRhythm(); }
+export function turnRhythmStep(i) { const b = state.rhythm.beat; if (i in b) { b[i] = (b[i] + 90) % 360; syncRhythm(); } }
+export function resizeRhythmBeat(d) {
+  const b = state.rhythm.beat;
+  if (d > 0 && b.length < RHYTHM_BEAT_MAX) b.push(0);
+  else if (d < 0 && b.length > 1) b.pop();
+  syncRhythm();
+}
 // Radial › Turn by (Oct 14, 2026): Quadrant · Each 2×2 · Cell; an option this grid or cell shape cannot run is greyed
 // with its reason and the pick falls back to the first that can.
 const RADIAL_NAME = { quadrants: 'Quadrant', blocks: 'Each 2×2', centre: 'Cell' };
@@ -398,6 +424,7 @@ export function syncRuleUI() {
   ctrl('rule-radial-block').style.display = mode === 'radial' ? '' : 'none';
   ctrl('rule-lines-block').style.display = (mode === 'hlines' || mode === 'vlines') ? '' : 'none';
   ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
+  if (mode === 'oscillator') syncRhythm();
   ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';
   ctrl('rule-manual-block').style.display = mode === 'manual' ? '' : 'none';
   ctrl('btn-generate').textContent = mode === 'manual' ? 'Add component' : 'Generate';

@@ -695,3 +695,7 @@
 .fvs-pad-box:focus-within { border-color: var(--ink); }
 .fvs-pad-box .panel-input { border: none; background: transparent; min-height: auto; padding: 0; width: 100%; min-width: 0; text-align: left; color: var(--ink); }
 .fvs-pad-box .panel-input:focus { border: none; }
+/* Rhythm › Beat: one step per button, the letter F turned by the step (the rule atlas's mark) */
+.fvs-beat { margin-bottom: var(--space-2); }
+.fvs-beat .seg-btn { padding: 0; }
+.fvs-beat__mark { display: inline-block; font-family: var(--font-display); font-weight: var(--t-control-weight); transform: rotate(var(--beat-turn, 0deg)); transition: transform var(--dur-fast) var(--ease-standard); }

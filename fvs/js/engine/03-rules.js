@@ -41,7 +41,7 @@ export function fitThumbBox(w, h, maxSide) {
 export const RULE_LABELS = {
   identity: 'Uniform', pinwheel: 'Step turn', mirror: 'Mirror', bookmatch: 'Mirror', diagonal: 'Diagonal mirror',
   checkerboard: 'Checkerboard', rowmirror: 'Row mirror', columnmirror: 'Column mirror', radial: 'Radial',
-  hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Oscillator', random: 'Random',
+  hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Rhythm', random: 'Random',
   exhaustive: 'Exhaustive', manual: 'Manual', edited: 'Edited', recipe: 'Recipe',
 };
 export const ruleLabel = key => RULE_LABELS[key] || (key ? key[0].toUpperCase() + key.slice(1) : 'Component');
@@ -433,32 +433,85 @@ export function ruleLines(axis) {
   const ruleSource = axis === 'row' ? 'hlines' : 'vlines';
   return [{ id: `${ruleSource}-${mode}-${step}-${scaleOn ? 's' : ''}`, ruleSource, cells }];
 }
-// Oscillator (Truchet) — byte-identical math to the Symbols tier's own
-// SYMBOL_RULES.oscillator.fn (bookofshapes concentric_arc_truchet_3:
-// "rotation 0/90 from (col + rowShift·row) parity"), ported here reading
-// Components' own controls + componentCellColRow instead of Symbols'
-// cellColRow/state.symbolCells — N×M-general like ruleLines above, not
-// tied to a fixed Loom Bento import. Pair with SEED_TYPES.arctruchet
-// (step 01) for the reference look. Scale axis, same idea as ruleLines: the
-// phase-position key already driving rotation on/off also indexes into
-// Small/Medium/Large — off, scale stays 1.0 everywhere (byte-identical).
+// Rhythm (was Oscillator; Diego, Oct 14, 2026 — "go with all the 4, Rhythm is ok"). Turns only, one result per mode
+// (Connect lists a few). The count k = col + ⌊Row shift × row⌋ walks each row; Row shift slides the next row along.
+//   Beat     — the turns written as a beat, repeated along k (the old Oscillator = a beat of Period steps with Angle
+//              on step Phase: its default, Period 3 · Phase 1 · 90°, is the beat 0° · 90° · 0°).
+//   Two beats — a beat every Across cells along k and every Down rows; Combine: Add (each turns by Angle, twice where
+//              they meet) · One only (cells on exactly one) · Both (only where they meet).
+//   Wave     — the turn follows a sine along k (no floor, so a fraction of Row shift tilts the wave front), snapped
+//              to quarter turns: Amplitude 90° gives 0 · 90 · 270, 180° adds 180.
+//   Connect  — each cell turned (and flipped, with Flip on) so the ink meets its left and top neighbours' ink on the
+//              shared edge (hooks.elementSideCover: per side, which points along it the ink reaches), in reading
+//              order; ties drawn from a seed, eight seeds listed.
+// Scale (on): Beat by the beat step, Two beats by the beats met (0 · 1 · 2), Wave by the wave's level.
+export const RHYTHM_MODES = ['beat', 'beats', 'wave', 'connect'];
+const rmod = (a, n) => ((a % n) + n) % n;
+export function rhythmBeatCells(ctxs, beat, shift, sv) {
+  const b = beat && beat.length ? beat : [0];
+  return ctxs.map(ctx => {
+    const p = rmod(ctx.col + Math.floor(shift * ctx.row), b.length);
+    return stateFrom(rmod(b[p], 360), false, false, sv ? sv[p % sv.length] : 1.0);
+  });
+}
+export function rhythmBeatsCells(ctxs, across, down, angle, combine, shift, sv) {
+  return ctxs.map(ctx => {
+    const hits = (rmod(ctx.col + Math.floor(shift * ctx.row), across) === 0 ? 1 : 0) + (rmod(ctx.row, down) === 0 ? 1 : 0);
+    const turn = combine === 'one' ? (hits === 1 ? angle : 0) : combine === 'both' ? (hits === 2 ? angle : 0) : angle * hits;
+    return stateFrom(rmod(turn, 360), false, false, sv ? sv[hits] : 1.0);
+  });
+}
+export function rhythmWaveCells(ctxs, amplitude, period, shift, sv) {
+  return ctxs.map(ctx => {
+    const w = Math.sin(2 * Math.PI * (ctx.col + shift * ctx.row) / period);
+    const turn = Math.round(amplitude * w / 90) * 90;
+    return stateFrom(rmod(turn, 360) || 0, false, false, sv ? sv[Math.round(w + 1)] : 1.0);
+  });
+}
+// Connect: `views` = the orientations a cell may take ({r, fh, fv}), `cover[i]` = view i's sides ({top, right,
+// bottom, left}: 101 flags along that side, left → right / top → bottom). A cell's cost = the points where its
+// left / top side and its neighbour's right / bottom side disagree (ink on one side, none on the other).
+export function rhythmConnectCells(ctxs, views, cover, seed) {
+  const rng = mulberry32(seed), at = new Map(), chosen = new Array(ctxs.length);
+  ctxs.forEach((c, i) => at.set(c.col + ',' + c.row, i));
+  const miss = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++; return n; };
+  const order = ctxs.map((c, i) => i).sort((i, j) => ctxs[i].row - ctxs[j].row || ctxs[i].col - ctxs[j].col);
+  for (const i of order) {
+    const { col, row } = ctxs[i], L = at.get((col - 1) + ',' + row), T = at.get(col + ',' + (row - 1));
+    let best = Infinity, ties = [];
+    views.forEach((v, k) => {
+      let cost = 0;
+      if (L !== undefined && chosen[L] !== undefined) cost += miss(cover[chosen[L]].right, cover[k].left);
+      if (T !== undefined && chosen[T] !== undefined) cost += miss(cover[chosen[T]].bottom, cover[k].top);
+      if (cost < best) { best = cost; ties = [k]; } else if (cost === best) ties.push(k);
+    });
+    chosen[i] = ties[Math.floor(rng() * ties.length)];
+  }
+  return chosen.map(k => stateFrom(views[k].r, views[k].fh, views[k].fv, 1.0));
+}
+export const RHYTHM_CONNECT_SEEDS = 8;
 export function ruleOscillator() {
   const grid = getGrid();
   const ctxs = hooks.componentCellColRow(grid);
-  const angle = parseInt(pv('sel-osc-angle'), 10);
-  const shift = parseFloat(pv('rg-osc-shift'));
-  const period = parseInt(pv('rg-osc-period'), 10) || 1;
-  const phase = parseInt(pv('rg-osc-phase'), 10);
-  const scaleOn = pc('chk-axis-scale');
-  const sv = scaleValues();
-  const cells = ctxs.map(ctx => {
-    const raw = ctx.col + Math.floor(shift * ctx.row);
-    const mod = ((raw % period) + period) % period;
-    const phaseMod = ((phase % period) + period) % period;
-    const scale = scaleOn ? sv[mod % sv.length] : 1.0;
-    return stateFrom(mod === phaseMod ? angle : 0, false, false, scale);
-  });
-  return [{ id: `oscillator-${angle}-${shift}-${period}-${phase}-${scaleOn ? 's' : ''}`, ruleSource: 'oscillator', cells }];
+  const r = state.rhythm, shift = parseFloat(pv('rg-rhythm-shift')) || 0;
+  const sv = pc('chk-axis-scale') ? scaleValues() : null, s = sv ? '-s' : '';
+  if (r.mode === 'connect') {
+    const views = [];
+    for (const rot of ROTATIONS) for (const f of (pc('chk-axis-flip') ? FLIPS.slice(0, 3) : [FLIPS[0]])) views.push({ r: rot, fh: f.h, fv: f.v });
+    const cover = views.map(v => hooks.elementSideCover(v));
+    const out = [];
+    for (let k = 1; k <= RHYTHM_CONNECT_SEEDS; k++) out.push({ id: `rhythm-connect-${views.length}-${k}`, ruleSource: 'oscillator', cells: rhythmConnectCells(ctxs, views, cover, k) });
+    return dedupeComponents(out);
+  }
+  if (r.mode === 'beats') {
+    const across = parseInt(pv('rg-rhythm-across'), 10) || 2, down = parseInt(pv('rg-rhythm-down'), 10) || 2, angle = parseInt(pv('sel-rhythm-angle'), 10) || 90;
+    return [{ id: `rhythm-beats-${across}-${down}-${angle}-${r.combine}-${shift}${s}`, ruleSource: 'oscillator', cells: rhythmBeatsCells(ctxs, across, down, angle, r.combine, shift, sv) }];
+  }
+  if (r.mode === 'wave') {
+    const amp = parseInt(pv('sel-rhythm-amp'), 10) || 90, period = parseInt(pv('rg-rhythm-period'), 10) || 4;
+    return [{ id: `rhythm-wave-${amp}-${period}-${shift}${s}`, ruleSource: 'oscillator', cells: rhythmWaveCells(ctxs, amp, period, shift, sv) }];
+  }
+  return [{ id: `rhythm-beat-${r.beat.join('.')}-${shift}${s}`, ruleSource: 'oscillator', cells: rhythmBeatCells(ctxs, r.beat, shift, sv) }];
 }
 // ── Family registry — Random/Exhaustive draw from here, on ANY grid (every
 // family builds through GRID_BUILD's col/row form; a canonical 2×2 keeps the
