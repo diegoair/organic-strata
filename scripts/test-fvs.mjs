@@ -30,6 +30,7 @@ const JOBS = {
   'figure-eval':        node('test-figure-eval.mjs'),
   'regression':         node('regression.mjs'),
   'rhizome':            node('test-rhizome.mjs'),   // the other node-canvas consumer
+  'atlas':              node('capture-fvs-atlas.mjs', '--check'),   // design-system/_fvs-rules.html = the engine's rules
 };
 // groups, so a caller can name a suite rather than its jobs
 const GROUPS = { boards: ['boards-clean', 'boards-held', 'boards-extra'], 'figure-board': ['figure-board-clean', 'figure-board-held'],

@@ -179,7 +179,7 @@ These 6 originated as Genesis's hand-typed CSS `@keyframes`. **Pulsar** maps 4 o
 
 Full detail: [`docs/RELEASE.md`](docs/RELEASE.md). In short: **local first, preview second, prod last.**
 
-1. Build + test locally (no-store dev server, browser pane). Every FVS headless suite at once: `scripts/test-fvs.sh` (~3.5 min, side by side; `--only regression,boards`, `--list`). The pre-commit hook runs the suites the staged paths need — regression, Rhizome, Figure board, step boards — in one parallel call.
+1. Build + test locally (no-store dev server, browser pane). Every FVS headless suite at once: `scripts/test-fvs.sh` (~3.5 min, side by side; `--only regression,boards`, `--list`). The pre-commit hook runs the suites the staged paths need — regression, Rhizome, Figure board, step boards, the rule atlas — in one parallel call. For FVS rules and UI, the rule atlas (`/design-system/_fvs-rules.html`, `--only atlas` keeps it equal to the engine) and the design system are the reference; when a doc and the code disagree, fix the doc in the same change.
 2. **UI changed?** `python3 scripts/ds-audit.py --diff` (no new raw values) and the design-system agent's REVIEW — see the Critical Rule.
 3. **Local commit only** when a release is ready to test — never push at this stage. The tracked pre-commit hook runs `scripts/check.py` (`vercel.json` schema guard, JSON, JS syntax, local refs, icons registry, page templates, css-lint, copy apostrophes). Enable once per clone: `scripts/install-hooks.sh`.
 4. Preview gate: push to `staging`, run `python3 scripts/smoke.py <preview-url>`.

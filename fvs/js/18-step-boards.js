@@ -558,7 +558,7 @@ function mountComponentBoard() {
   frame.addEventListener('pointerdown', () => { lastPicked = new Set(rt.cePicked); }, true);
   document.addEventListener('keydown', e => {
     if (!state.componentEditMode || state.activeTier !== 'component' || fvsIsTypingTarget(e.target)) return;
-    if ((e.key === 'Delete' || e.key === 'Backspace') && rt.cePicked.size && !overlayOpen()) {   // the picked cells back to the Component's own Element
+    if ((e.key === 'Delete' || e.key === 'Backspace') && rt.cePicked.size && !overlayOpen()) {   // the picked cells emptied (cell.empty: nothing drawn, still selectable — Oct 14, 2026)
       e.preventDefault();
       ceSnapshot();
       rt.cePicked.forEach(i => { const c = state.componentEditCells[i]; if (c && !c.locked) { c.empty = true; delete c.content; delete c.partInks; } });

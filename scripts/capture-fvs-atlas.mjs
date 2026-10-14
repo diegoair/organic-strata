@@ -8,6 +8,7 @@
 //   GROUPS  — every case of each rule, grouped by what changes, with the group's description
 //   LATTICE — Step turn and Mirror on circle / triangle / hexagon cells: the cells' outlines + each cell's state
 // Run it in the commit that changes a rule (the atlas's own rule: "re-capture when a rule changes"). Oct 13, 2026.
+// --check: write nothing, exit 1 if the atlas is out of date with the engine (scripts/test-fvs.sh runs it as "atlas").
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -181,6 +182,12 @@ for (const name of ['CELLS', 'SIZES', 'GROUPS', 'LATTICE']) {
   if (re.test(html)) html = html.replace(re, () => line);
   else if (name === 'LATTICE') html = html.replace(/^const SIZES = /m, () => `${line}\nconst SIZES = `);
   else { console.log(`Atlas capture: ERROR — no "const ${name} =" line in the atlas`); done(1); }
+}
+if (process.argv.includes('--check')) {
+  const same = html === fs.readFileSync(ATLAS, 'utf8');
+  console.log(same ? 'Atlas check: PASS — design-system/_fvs-rules.html matches the engine'
+    : 'Atlas check: FAIL — the rule atlas is out of date: node --experimental-websocket scripts/capture-fvs-atlas.mjs, review the diff, commit it');
+  done(same ? 0 : 1);
 }
 fs.writeFileSync(ATLAS, html);
 console.log(`Atlas capture: OK — ${Object.keys(data.GROUPS).length} rules, ${Object.values(data.GROUPS).flat().length} groups, ${Object.keys(data.LATTICE).length} lattices → design-system/_fvs-rules.html`);

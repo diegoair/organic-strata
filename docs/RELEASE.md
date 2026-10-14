@@ -20,7 +20,8 @@ Local first, preview second, production last. Nothing reaches `main` without an 
   (~25 min: real mouse journeys). Its code is ES modules in `fvs/js/` — see docs/FVS.md §11 before adding any.
 - **Every FVS headless suite at once:** `scripts/test-fvs.sh` (~3.5 min on this Mac; was ~17 min one after another) —
   regression, QA, UI (journeys + the 120 variants in 4 shards + design), step boards (clean / held / extra), Figure
-  board (clean / held), Figure graph + eval, element units, Rhizome, each its own server + Chrome, 6 at a time. One line
+  board (clean / held), Figure graph + eval, element units, Rhizome, the rule atlas (`atlas`: `design-system/_fvs-rules.html`
+  still equals the engine — re-capture with `scripts/capture-fvs-atlas.mjs`), each its own server + Chrome, 6 at a time. One line
   per job with its time; the full output of a failed job. `--only boards,regression` (jobs or groups, `--list`),
   `--jobs N`, `--verbose`. The board tests wait for the page to settle (`QUIET_INIT` in `scripts/lib/chrome-page.mjs`:
   two frames and no short timer pending, reduced motion on) instead of fixed sleeps. Perf stays separate (timing).
@@ -46,7 +47,7 @@ scripts/check.sh             # what the hook runs on every commit
 - `scripts/css-lint.py` findings
 
 When Flexible Visual System, Rhizome, the node canvas or a shared module they use is staged, the hook also runs the headless
-suites those paths need — regression, Rhizome, Figure board, step boards — in one `scripts/test-fvs.sh --only …` call, side by
+suites those paths need — regression, Rhizome, Figure board, step boards, the rule atlas — in one `scripts/test-fvs.sh --only …` call, side by
 side, and blocks the commit if one fails (its output is printed).
 Emergency bypass: `git commit --no-verify`.
 

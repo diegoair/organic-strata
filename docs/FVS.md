@@ -1283,9 +1283,9 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   mirrored on the other side), not the whole board and not the last saved view; Shift+1 still fits everything. The edit toolbars' outline buttons are filled `--paper` on the board (never an empty outline).
 - **Double-click a candidate** (or **Enter** on the selected one; no pencil since Oct 11, 2026) = **Component Edit** in its single view (toolbar, part colours,
   sheet). On its sheet: cells by click, ⌘, marquee; a **second click** on a picked cell opens **Choose content**
-  with the Seeds only (`openCellContentOverlay({ seedsOnly, count, apply, done })` — an Element tile carries its
-  `seedParams`); a saved Element dragged from the rail onto a cell, or the selection (`setRailTarget({ apply,
-  cellSel })`); **Delete** returns the picked cells to the Component's own Element.
+  with the Seeds and **Empty** (`openCellContentOverlay({ seedsOnly, count, apply, done })` — an Element tile carries its
+  `seedParams`; Empty since Oct 14, 2026); a saved Element dragged from the rail onto a cell, or the selection (`setRailTarget({ apply,
+  cellSel })`); **Delete** empties the picked cells (`cell.empty` — nothing drawn, still selectable; Tropism Phase 0, Oct 14, 2026).
 - **Clear board**: FVS's `clearGallery`, so ⌘Z brings the candidates back.
 - A further Component model is to be reviewed after this migration (Diego, Oct 11, 2026).
 
