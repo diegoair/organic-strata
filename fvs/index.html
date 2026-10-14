@@ -477,15 +477,6 @@
   <div id="panel">
 
     <div class="tier-block active" data-tier="element">
-    <!-- Divide into parts (Oct 10, 2026): shown for the edited Element while it can be divided (on the board since Oct 11, 2026). The shape becomes one layer per primordial figure,
-         still driven by the shape's own controls (layers.parts.source). Filled by renderPartsUI. -->
-    <div class="panel-section fvs-parts" id="parts-block" hidden>
-      <h3>Divide into parts</h3>
-      <div class="ctrl-row"><div class="ctrl-label">Division</div><div id="part-method-picker" class="presets"></div><select class="panel-select" id="sel-part-method" aria-label="Division"></select></div>
-      <div class="ctrl-row" id="part-count-row"><div class="ctrl-label" title="How many parts">Parts</div><input type="range" id="rg-part-count" min="1" max="8" step="1" value="3" aria-label="Parts"><span class="ctrl-val" id="v-part-count">3</span></div>
-      <p class="org-panel__hint" id="part-hint"></p>
-      <div class="row-btns" id="part-actions-row"><button type="button" class="mini-btn" id="btn-part-inks">One ink per part</button><button type="button" class="mini-btn" id="btn-part-ungroup">Make plain layers</button></div>
-    </div>
     <div class="panel-section" id="layers-section">
       <h3>Layers <span class="fvs-layers-head"><span class="hint" id="layers-hint" aria-live="polite">Add new layer</span><button type="button" class="icon-btn" id="btn-layer-add" aria-label="Add layer" title="Add a layer on top"><svg class="ico ico--sm" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button></span></h3>
       <!-- Colour groups (Oct 12, 2026): layers that change colour together by one rule — colour only -->
@@ -524,6 +515,15 @@
           <option value="triangle">Triangle</option>
           <option value="wedge">Wedge</option>
         </select>
+      </div>
+      <!-- Division (Oct 10, 2026; in Shape, under the picker, since Oct 14, 2026 — no section title): shown for the edited Element while it can
+           be divided. The shape becomes one layer per primordial figure, still driven by the shape's own controls (layers.parts.source).
+           Filled by renderPartsUI. -->
+      <div class="fvs-parts" id="parts-block" hidden>
+        <div class="ctrl-row"><div class="ctrl-label">Division</div><div id="part-method-picker" class="presets"></div><select class="panel-select" id="sel-part-method" aria-label="Division"></select></div>
+        <div class="ctrl-row" id="part-count-row"><div class="ctrl-label" title="How many parts">Parts</div><input type="range" id="rg-part-count" min="1" max="8" step="1" value="3" aria-label="Parts"><span class="ctrl-val" id="v-part-count">3</span></div>
+        <p class="org-panel__hint" id="part-hint"></p>
+        <div class="row-btns" id="part-actions-row"><button type="button" class="mini-btn" id="btn-part-inks">One ink per part</button><button type="button" class="mini-btn" id="btn-part-ungroup">Make plain layers</button></div>
       </div>
       <!-- Split (its own section until Oct 4, 2026): a real geometric cut whose result IS a new shape (the picker turns
            Custom; "Save piece as Seed" keeps it). Right under the picker on purpose: cutting hides the shape's own rows,

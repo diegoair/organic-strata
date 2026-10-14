@@ -381,7 +381,7 @@ export function renderLayersUI() {
   if (!L) { list.innerHTML = ''; ctrl('layer-group-row').hidden = true; syncColourGroupRules(); return; }
   pruneColourGroups(L);
   // Top layer first, like every layer panel. The parts of a divided shape are rows like the others (Diego, Oct 12, 2026:
-  // the Division's header in the list went — the Division shows in Divide into parts).
+  // the Division's header in the list went — the Division shows in the Shape section, under the picker).
   const src = L.parts && L.parts.source, srcIcon = src ? (SEED_ICONS[src.type] || SEED_ICONS.custom).icon : '';
   list.innerHTML = L.items.map((l, i) => i).reverse().map(i => {
     const l = L.items[i], on = i === L.active, role = l.role || 'fill', isFill = role === 'fill';
