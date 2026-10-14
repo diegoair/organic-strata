@@ -13,7 +13,7 @@ import {
 } from './engine/02-seed-ui.js';
 import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
-  exhaustiveTotal, getGrid, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, readManualCells,
+  exhaustiveTotal, getGrid, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror
 } from './engine/03-rules.js';
@@ -281,7 +281,7 @@ export function syncRuleAvailability() {
   // nothing to mirror — every candidate was Identity in disguise.
   const d = crDims(componentCellColRow(getGrid()));
   const gates = {
-    radial: [radialEligible(), 'Radial needs a grid with an even number of columns and rows (2×2, 4×4, …)'],
+    radial: [radialEligible(), 'A single cell has no centre to turn towards'],
     rowmirror: [d.rows > 1, 'Row mirror needs at least two rows'],
     columnmirror: [d.cols > 1, 'Column mirror needs at least two columns'],
   };
@@ -291,8 +291,8 @@ export function syncRuleAvailability() {
   // A non-square cell shape: only the rules that turn in its own step apply.
   if (state.cellShape !== 'square') {
     gates.radial = [count > 1, 'A single cell has no centre to turn towards'];
-    [...sel.options].forEach(o => { if (!LATTICE_RULES.has(o.value) && o.value !== 'manual') gates[o.value] = [false, `${o.textContent.replace(/ \(.*\)$/, '')} needs a square cell`]; });
-    gates.manual = [false, 'Manual needs a square cell'];
+    [...sel.options].forEach(o => { if (!LATTICE_RULES.has(o.value) && o.value !== 'manual') gates[o.value] = [false, `${o.textContent.replace(/ \(.*\)$/, '')} needs square cells`]; });
+    gates.manual = [false, 'Manual needs square cells'];
     if (count === 1) gates.checkerboard = [false, 'A single cell has no pattern'];
   } else if (!('manual' in gates)) gates.manual = [true, ''];
   Object.entries(gates).forEach(([v, [eligible, why]]) => {
@@ -307,6 +307,7 @@ export function syncRuleAvailability() {
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
   syncMirrorLine();
   syncCheckerStart();
+  syncRadialTurnBy();
   ctrl('grid-cellcount-hint').textContent = count + ' cell' + (count === 1 ? '' : 's');
   syncQuadrantHint();
   buildManualEditor();
@@ -356,6 +357,21 @@ export function syncCheckerStart() {
   });
 }
 export function setCheckerStart(v) { state.checkerStart = v; syncCheckerStart(); }
+// Radial › Turn by (Oct 14, 2026): Quadrant · Each 2×2 · Cell; an option this grid or cell shape cannot run is greyed
+// with its reason and the pick falls back to the first that can.
+const RADIAL_NAME = { quadrants: 'Quadrant', blocks: 'Each 2×2', centre: 'Cell' };
+export function syncRadialTurnBy() {
+  const ok = radialReadingsEligible();
+  if (ok.length && !ok.includes(state.radialReading)) state.radialReading = ok[0];
+  ctrl('seg-radial-turnby').querySelectorAll('.seg-btn').forEach(b => {
+    const v = b.dataset.radial, can = ok.includes(v), on = v === state.radialReading;
+    const why = can ? '' : state.cellShape !== 'square' ? `${RADIAL_NAME[v]} needs square cells` : `${RADIAL_NAME[v]} needs an even number of columns and rows`;
+    b.setAttribute('aria-disabled', String(!can));
+    if (can) { b.removeAttribute('title'); b.removeAttribute('aria-description'); } else { b.title = why; b.setAttribute('aria-description', why); }
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  });
+}
+export function setRadialTurnBy(v) { if (!radialReadingsEligible().includes(v)) return; state.radialReading = v; syncRadialTurnBy(); }
 export function setMirrorSpan(span) {
   if (!mirrorSpreadsEligible(state.mirrorLine).includes(span)) return;
   state.mirrorSpread = span;
@@ -379,6 +395,7 @@ export function syncRuleUI() {
   ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
   ctrl('rule-mirror-block').style.display = mode === 'mirror' ? '' : 'none';
   ctrl('rule-checker-block').style.display = mode === 'checkerboard' ? '' : 'none';
+  ctrl('rule-radial-block').style.display = mode === 'radial' ? '' : 'none';
   ctrl('rule-lines-block').style.display = (mode === 'hlines' || mode === 'vlines') ? '' : 'none';
   ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
   ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';

@@ -55,7 +55,7 @@ export function syncComponentGridUI() {
   // Container / Mask fit the underlying Component in a square frame — square cells only.
   ['container', 'mask'].forEach(v => {
     const o = ctrl('sel-component-role').querySelector(`option[value="${v}"]`);
-    o.disabled = lattice; o.title = lattice ? `${o.textContent} needs a square cell` : '';
+    o.disabled = lattice; o.title = lattice ? `${o.textContent} needs square cells` : '';
   });
   if (lattice && state.componentRole !== 'normal') {
     state.componentRole = 'normal'; ctrl('sel-component-role').value = 'normal';

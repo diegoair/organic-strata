@@ -71,7 +71,7 @@ const CAPTURE = async () => {
   const base = { 'chk-axis-rotation': true, 'chk-axis-flip': false, 'chk-axis-scale': false, 'sel-lines-mode': 'alternate', 'rg-lines-step': 90, 'sel-osc-angle': '90', 'rg-osc-shift': 1, 'rg-osc-period': 3, 'rg-osc-phase': 1, 'rg-random-count': 16, 'num-seed': 1 };
   const fmt = c => `${c.rotation}${c.flipH ? 'h' : ''}${c.flipV ? 'v' : ''}${c.scale !== 1 ? '@' + c.scale : ''}`;
   const row = cells => cells.map(fmt).join(' ');
-  st.cellShape = 'square'; st.mirrorLine = 'both'; st.mirrorSpread = 'cell'; st.checkerStart = 0;
+  st.cellShape = 'square'; st.mirrorLine = 'both'; st.mirrorSpread = 'cell'; st.checkerStart = 0; st.radialReading = 'quadrants';
   const grid = (n, o = {}, m = n) => { set({ ...base, 'rg-grid-cols': n, 'rg-grid-rows': m, ...o }); return R.ruleCR(); };
   const fns = { identity: () => R.ruleIdentity(), pinwheel: () => R.rulePinwheel(), mirror: () => R.ruleMirror(), checkerboard: () => R.ruleCheckerboard(), radial: () => R.ruleRadial(), hlines: () => R.ruleLines('row'), vlines: () => R.ruleLines('col'), oscillator: () => R.ruleOscillator(), random: () => R.ruleRandom(), exhaustive: () => R.ruleExhaustive() };
   const run = (k, n) => { const r = fns[k](); return { n: r.length, s: r.slice(0, n).map(x => row(x.cells)) }; };
@@ -128,11 +128,14 @@ const CAPTURE = async () => {
   G.checkerboard.push(g('With Flip on', `each pair of the 12 distinct states (4 turns × none / left–right / top–bottom; both flips = a 180° turn) — ${rf.length} pairs; the first 8 shown`, 2, rf.slice(0, 8)));
   cr = grid(2);
   G.checkerboard.push(g('Diagonal mirror pattern', 'A = R, B = 90° − R: 0° / 90°, 90° / 0°, 180° / 270°, 270° / 180° — four of the twelve above', 2, [0, 90, 180, 270].map(r => B(cr, 'diagonal', { rotation: r, scale: 1 }))));
-  G.radial = [g('Clockwise', 'a walk TL → TR → BR → BL, +90° each: four quarter‑arcs close a circle; start 0° · 90° · 180° · 270°', 2, [0, 90, 180, 270].map(b => B(cr, 'radial', { base: b, chirality: 1, scale: 1, tiled: false }))),
-    g('Counter‑clockwise', 'the same walk, −90° each', 2, [0, 90, 180, 270].map(b => B(cr, 'radial', { base: b, chirality: -1, scale: 1, tiled: false })))];
-  cr4 = grid(4);
-  G.radial.push(g('On a 4×4 · one rosette', 'the four quadrants take one step each — one rosette on the whole grid (start 0° · 90°, clockwise)', 4, [0, 90].map(b => B(cr4, 'radial', { base: b, chirality: 1, scale: 1, tiled: false }))));
-  G.radial.push(g('On a 4×4 · tiled', 'every 2×2 block takes the walk — a rosette per block (start 0° · 90°, clockwise)', 4, [0, 90].map(b => B(cr4, 'radial', { base: b, chirality: 1, scale: 1, tiled: true }))));
+  const rad = (n, m, reading, ch) => { grid(n, {}, m); st.radialReading = reading; return R.ruleRadial().filter((x, k) => (ch > 0 ? k % 2 === 0 : k % 2 === 1)).map(x => row(x.cells)); };
+  G.radial = [g('Turn by Quadrant · clockwise', 'a walk TL → TR → BR → BL, +90° each — four quarter‑arcs close a circle; start 0° · 90° · 180° · 270°', 2, rad(2, 2, 'quadrants', 1)),
+    g('Turn by Quadrant · counter‑clockwise', 'the same walk, −90° each', 2, rad(2, 2, 'quadrants', -1)),
+    g('Turn by Quadrant · on a 4×4', 'the grid cut into 4 quadrants, each quadrant one step of the walk — one rosette of blocks (start 0° · 90° · 180° · 270°, clockwise)', 4, rad(4, 4, 'quadrants', 1)),
+    g('Turn by Each 2×2 · on a 4×4', 'every 2×2 block takes the walk — a rosette per block (start 0° · 90° · 180° · 270°, clockwise)', 4, rad(4, 4, 'blocks', 1)),
+    g('Turn by Cell · on a 4×4', 'each cell turned by its own angle around the centre, not snapped — a true rosette (start 0° · 90° · 180° · 270°, clockwise)', 4, rad(4, 4, 'centre', 1)),
+    g('Turn by Cell · on a 3×3', 'odd grids too: the middle cell stays at the start, the mid‑line cells land on 45° steps (start 0° · 90° · 180° · 270°, clockwise)', 3, rad(3, 3, 'centre', 1))];
+  st.radialReading = 'quadrants';
   const lines = (axis, mode) => [90, 180, 270].map(stp => { grid(4, { 'sel-lines-mode': mode, 'rg-lines-step': stp }); return row(R.ruleLines(axis)[0].cells); });
   G.hlines = [g('Alternate', 'odd rows take Step: Step 90° · 180° · 270°', 4, lines('row', 'alternate')), g('Ramp', 'each row turns Step more than the row above: Step 90° · 180° · 270°', 4, lines('row', 'ramp'))];
   G.vlines = [g('Alternate', 'odd columns take Step: Step 90° · 180° · 270°', 4, lines('col', 'alternate')), g('Ramp', 'each column turns Step more than the one before: Step 90° · 180° · 270°', 4, lines('col', 'ramp'))];

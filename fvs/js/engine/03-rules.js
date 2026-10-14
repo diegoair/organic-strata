@@ -205,6 +205,19 @@ export const GRID_BUILD = {
       return stateFrom(mod360(base + ch * k * 90), false, false, sc);
     });
   },
+  // Turn by › Cell (Oct 14, 2026): each cell turned by its OWN angle around the grid's centre — counted from the
+  // top-left diagonal in the walk's direction, not snapped (snapped to a quarter it would equal the quadrants on every
+  // even grid: each quadrant spans exactly 90° of angle). On a 2 × 2 = the classic walk; an odd grid's mid-line cells
+  // land on exact quarters and its centre cell stays at the start.
+  radialCentre: (cr, base, ch, sc) => {
+    const d = crDims(cr);
+    return cr.map(c => {
+      const x = c.col - (d.cols - 1) / 2, y = c.row - (d.rows - 1) / 2;
+      if (Math.abs(x) < 1e-9 && Math.abs(y) < 1e-9) return stateFrom(mod360(base), false, false, sc);
+      const t = Math.atan2(y, x) * 180 / Math.PI, k = mod360(ch > 0 ? t - 225 : 225 - t);
+      return stateFrom(Math.round(mod360(base + k) * 10) / 10 % 360, false, false, sc);
+    });
+  },
 };
 // A grid bigger than one 2×2 block — where the global and the tiled readings differ.
 export const crIsLarge = cr => { if (!cr) return false; const d = crDims(cr); return d.cols > 2 || d.rows > 2; };
@@ -355,14 +368,42 @@ export function ruleRowMirror() { return familyRuleGallery('rowmirror'); }
 export function ruleColumnMirror() { return familyRuleGallery('columnmirror'); }
 // Radial needs a centre that falls between cells: an even × even grid (the
 // four quadrants each take one step of the clockwise walk TL,TR,BR,BL).
-export function radialEligible() {
+export function radialQuadrantsEligible() {
   if (isCanonical2x2()) return true;
   const cr = hooks.componentCellColRow(getGrid());
   if (!cr.length) return false;
   const d = crDims(cr);
   return d.cols % 2 === 0 && d.rows % 2 === 0 && d.cols * d.rows === cr.length;
 }
-export function ruleRadial() { return familyRuleGallery('radial'); }
+// Radial › Turn by (Oct 14, 2026 — Diego): 'quadrants' (Quadrant: the grid in 4 quadrants, each one step of the walk) and
+// 'blocks' (Each 2×2: a walk per 2 × 2 block) need an even × even grid; 'centre' (Cell: each cell by its own angle
+// around the centre) runs on any grid of 2 or more cells, odd ones too — on a 2 × 2 the three draw the same.
+// On circle / triangle / hexagon cells only 'centre' (the lattice already turns each cell towards the centre).
+export function radialReadingsEligible() {
+  if (state.cellShape !== 'square') return ['centre'];
+  const cr = hooks.componentCellColRow(getGrid());
+  if (cr.length < 2) return [];
+  const even = radialQuadrantsEligible();   // on a 2 × 2 the three readings draw the same — all left on (design-system CONSULT)
+  return [...(even ? ['quadrants', 'blocks'] : []), 'centre'];
+}
+export function radialEligible() { return radialReadingsEligible().length > 0; }
+export function radialReading() {
+  const ok = radialReadingsEligible();
+  return ok.includes(state.radialReading) ? state.radialReading : ok[0];
+}
+export function ruleRadial() {
+  if (state.cellShape !== 'square') return latticeRule('radial');
+  const reading = radialReading();
+  if (!reading) return ruleIdentity();
+  const av = axisValues(), cr = ruleCR(), out = [];
+  for (const base of [0, 90, 180, 270]) for (const ch of [1, -1]) for (const s of av.scales) {
+    const cells = reading === 'centre' ? GRID_BUILD.radialCentre(cr || CR_2X2, base, ch, s)
+      : cr ? GRID_BUILD.radial(cr, base, ch, s, reading === 'blocks') : buildRadialCells(base, ch, s);
+    out.push({ id: `radial-${out.length}`, ruleSource: 'radial', cells });
+  }
+  const kept = dedupeComponents(out);
+  return kept.length ? kept : ruleIdentity();
+}
 // Horizontal/vertical lines — unlike the 8 named rules above (all
 // hand-derived for exactly 4 cells, TL/TR/BL/BR), this reads N×M-general
 // row/col context off componentCellColRow (added for Motion's stagger
@@ -514,13 +555,12 @@ export const FAMILIES = {
   radial: {
     requiresAxis: 'rotation',
     eligible: () => radialEligible(),
-    paramSpace(av, cr) {
-      const out = [];
-      for (const tiled of crIsLarge(cr) ? [false, true] : [false])
-        for (const base of [0, 90, 180, 270]) for (const chirality of [1, -1]) for (const s of av.scales) out.push({ base, chirality, scale: s, tiled });
+    paramSpace(av, cr) {   // every reading this grid can run (Random / Exhaustive)
+      const out = [], ok = radialReadingsEligible();
+      for (const reading of ok) for (const base of [0, 90, 180, 270]) for (const chirality of [1, -1]) for (const s of av.scales) out.push({ base, chirality, scale: s, tiled: reading === 'blocks', centre: reading === 'centre' });
       return out;
     },
-    build(p, cr) { return cr ? GRID_BUILD.radial(cr, p.base, p.chirality, p.scale, p.tiled) : buildRadialCells(p.base, p.chirality, p.scale); },
+    build(p, cr) { return p.centre ? GRID_BUILD.radialCentre(cr || CR_2X2, p.base, p.chirality, p.scale) : cr ? GRID_BUILD.radial(cr, p.base, p.chirality, p.scale, p.tiled) : buildRadialCells(p.base, p.chirality, p.scale); },
   },
 };
 export function activeFamilies() {
