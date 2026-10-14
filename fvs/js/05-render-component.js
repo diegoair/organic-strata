@@ -485,6 +485,9 @@ export function renderGallery() {
   // shape change redrew it all — 33k nodes with layer colour variants and a Paper pattern made a Paper drag on the
   // Symbol step crawl (Diego, Oct 11, 2026). setTier redraws it when the step shows.
   if (state.activeTier === 'component' || state.componentEditMode) renderGalleryNow();
+  // Component Edit shows its own canvas (the gallery skips drawing meanwhile): a Paper, ink or Colour by change redraws it
+  // there (Diego, Oct 14, 2026 — a Paper colour changed in Edit did not show)
+  if (state.componentEditMode && hooks.renderComponentEditCanvas) hooks.renderComponentEditCanvas();
   if (hooks.boardGalleryDrawn) hooks.boardGalleryDrawn();   // the Component board's Clear board (18-step-boards.js)
 }
 function renderGalleryNow() {

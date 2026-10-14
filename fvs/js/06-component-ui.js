@@ -53,7 +53,7 @@ import { hooks, provide } from './hooks.js';
 provide({
   adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks,
   enterComponentEditMode: () => enterComponentEditMode, generate: () => generate,
-  populateComponentStarterGallery: () => populateComponentStarterGallery,
+  populateComponentStarterGallery: () => populateComponentStarterGallery, renderComponentEditCanvas: () => renderComponentEditCanvas,
   syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI, syncSplitUI: () => syncSplitUI
 });
 // ── Component Edit mode ──────────────────────────────────────────────────
