@@ -60,7 +60,15 @@ export function canonicalState(c) {
   const both = c.flipH && c.flipV;
   return (both ? (c.rotation + 180) % 360 : c.rotation) + (both ? '' : (c.flipH ? 'h' : '') + (c.flipV ? 'v' : '')) + '@' + c.scale;
 }
-export function componentKey(cells) { return cells.map(canonicalState).join(','); }
+// A cell made by hand (Component Edit) carries Symbol's cell fields: they count in a Component's key — two Components
+// that differ only in a cell's colour, padding, anchor, fit or emptiness are not the same one. Absent on every generated
+// cell → '' (unchanged keys). Not in canonicalState: a Symbol cell always carries its placement, and its keys stay as they are.
+const EXTRA_CELL_KEYS = ['empty', 'color', 'fitMode', 'coverAxis', 'fixedSize', 'pad', 'padding', 'anchorX', 'anchorY'];
+function cellExtraKey(c) {
+  const x = EXTRA_CELL_KEYS.filter(k => c[k] != null && c[k] !== false && c[k] !== 0).map(k => k + '=' + JSON.stringify(c[k]));
+  return x.length ? '|' + x.join('|') : '';
+}
+export function componentKey(cells) { return cells.map(c => canonicalState(c) + cellExtraKey(c)).join(','); }
 export function dedupeComponents(list) {
   const seen = new Set();
   const out = [];

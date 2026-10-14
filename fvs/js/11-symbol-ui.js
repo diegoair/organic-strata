@@ -450,8 +450,11 @@ export function cellPropsHTML(pre, opts = {}) {
           <div class="ctrl-row fvs-cellprop-shape" id="${I('row-cellprop-seedparams')}">
             <div class="ctrl-label">Shape</div>
             <span class="ctrl-val" id="${I('symbol-cellprop-seedparams-label')}" style="flex:1;text-align:left">Default</span>
-            <button class="mini-btn" id="${I('btn-cellprop-useseed')}" title="Copy the Element step’s current settings (extras, thickness…) into the selected cells">Use Element</button>
-            <button class="mini-btn" id="${I('btn-cellprop-defseed')}" title="Back to the plain default shape">Default</button>
+            ${opts.component
+              ? `<button class="mini-btn" id="${I('btn-cellprop-editshape')}" title="Give the selected cells their own shape in the Element panel">Edit shape…</button>
+            <button class="mini-btn" id="${I('btn-cellprop-defseed')}" title="Back to the Component’s own Element">Default</button>`
+              : `<button class="mini-btn" id="${I('btn-cellprop-useseed')}" title="Copy the Element step’s current settings (extras, thickness…) into the selected cells">Use Element</button>
+            <button class="mini-btn" id="${I('btn-cellprop-defseed')}" title="Back to the plain default shape">Default</button>`}
           </div>
           <div class="ctrl-row" id="${I('row-cellprop-rotation')}"><div class="ctrl-label">Rotation</div>
             <select class="panel-select" id="${I('sel-cellprop-rot')}">
@@ -469,7 +472,7 @@ export function cellPropsHTML(pre, opts = {}) {
               <option value="fill">Stretch</option>
               <option value="cover">Cover (no gaps)</option>
               <option value="fixed">Fixed size</option>
-              <option value="match">Match cell</option>
+              ${opts.component ? '' : '<option value="match">Match cell</option>'}
             </select>
           </div>
           <div class="ctrl-row" id="${I('row-cellprop-coveraxis')}" style="display:none">
@@ -514,7 +517,7 @@ export function cellPropsHTML(pre, opts = {}) {
             <label class="fvs-pad-box" data-k="r">${Organica.icons.get('pad-right', { size: 'md' })}<input type="number" class="panel-input" data-k="r" min="0" max="45" step="1" aria-label="Right padding"></label>
             <label class="fvs-pad-box" data-k="b">${Organica.icons.get('pad-bottom', { size: 'md' })}<input type="number" class="panel-input" data-k="b" min="0" max="45" step="1" aria-label="Bottom padding"></label>
           </div>
-          ${opts.lock === false ? '' : `<label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="${I('chk-cellprop-lock')}"><span>Lock cell (rule skips it)</span></label>`}`;
+          ${opts.lock === false ? '' : `<label class="check-row" style="margin-top:var(--space-2)"><input type="checkbox" id="${I('chk-cellprop-lock')}"><span>${opts.component ? 'Lock cell (edits skip it)' : 'Lock cell (rule skips it)'}</span></label>`}`;
 }
 // Colour: "Follow palette" (color null) or an explicit override — a palette
 // colour or a free one. Only Seed cells carry a colour (a nested Component
@@ -668,7 +671,8 @@ export function bindCellProps(pre, t) {
   });
   c('in-cellprop-color').addEventListener('input', e => t.apply({ color: hexKey(e.target.value) }));
   c('btn-cellprop-color-reset').addEventListener('click', () => { t.apply({ color: null }); t.refresh(); });
-  c('btn-cellprop-useseed').addEventListener('click', () => {
+  if (t.editShape) c('btn-cellprop-editshape').addEventListener('click', () => t.editShape());
+  if (c('btn-cellprop-useseed')) c('btn-cellprop-useseed').addEventListener('click', () => {
     const sp = seedForSnapshot();
     t.apply(cell => ({ seedParams: cell.source === 'seed' ? JSON.parse(JSON.stringify(sp)) : undefined, seedType: cell.source === 'seed' ? sp.type : cell.seedType }));
     t.refresh();

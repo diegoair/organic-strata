@@ -27,16 +27,34 @@ export function buildComponentItems(component, grid) {
     const localR = CELL_SHAPES[grid.lattice.shape].R;
     return component.cells.map((t, i) => {
       const c = grid.cells[i], cellR = Math.max(...c.points.map(p => Math.hypot(p[0] - c.centroid[0], p[1] - c.centroid[1])));
-      return withPartInks({ cx: centers[i].cx, cy: centers[i].cy, rotation: mod360((c.baseRot || 0) + t.rotation), flipH: t.flipH, flipV: t.flipV, scale: t.scale,
-        cellSize: 100 * cellR / localR, color: ruleInk(i, cr), content: t.content || null, poly: c.points }, t, i, cr);   // poly: the cell in frame coords — the canvas is the lattice's outline
+      return withCellPlace(withPartInks({ cx: centers[i].cx, cy: centers[i].cy, rotation: mod360((c.baseRot || 0) + t.rotation), flipH: t.flipH, flipV: t.flipV, scale: t.scale,
+        cellSize: 100 * cellR / localR, color: ruleInk(i, cr), content: t.content || null, poly: c.points }, t, i, cr), t);   // poly: the cell in frame coords — the canvas is the lattice's outline
     });
   }
-  return component.cells.map((t, i) => withPartInks({
+  return component.cells.map((t, i) => withCellPlace(withPartInks({
     cx: centers[i].cx, cy: centers[i].cy,
     rotation: t.rotation, flipH: t.flipH, flipV: t.flipV, scale: t.scale,
     cellSize: centers[i].cellSize, color: ruleInk(i, cr),
     content: t.content || null,
-  }, t, i, cr));
+  }, t, i, cr), t));
+}
+// A cell made by hand (Component Edit, Tropism Phase 0 — Oct 14, 2026): Symbol's cell fields on a Component cell. Its own
+// colour (`color`), an empty cell (`empty` — nothing drawn, the cell stays selectable) and Symbol's placement — padding
+// (`pad` / `padding`), anchor (`anchorX/Y`), fit (`fitMode`: contain · fill · cover · fixed, `coverAxis`, `fixedSize`) — through
+// the same Organica.shapes.resolveCellPlacement in the cell's square box. The placement lands on the item as `kx/ky` (scale
+// along x / y, with `scale` = 1) and `dx/dy` (the shift, unturned) — every drawer multiplies / adds them. Only when the
+// cell carries one of them: every other item is the same object as before (byte-identical drawings).
+const PLACE_KEYS = ['pad', 'padding', 'anchorX', 'anchorY', 'fixedSize'];
+export function cellHasPlacement(cell) {
+  return (cell.fitMode && cell.fitMode !== 'contain') || PLACE_KEYS.some(k => cell[k] != null && cell[k] !== 0);
+}
+function withCellPlace(item, cell) {
+  if (cell.color) item.color = cell.color;
+  if (cell.empty) item.empty = true;
+  if (!cellHasPlacement(cell)) return item;
+  const fit = item.cellSize / 100, p = Organica.shapes.resolveCellPlacement(item.cellSize, item.cellSize, 100, cell);
+  item.scale = 1; item.kx = p.scaleX / fit; item.ky = p.scaleY / fit; item.dx = p.offsetX; item.dy = p.offsetY;
+  return item;
 }
 // Divide into parts, per cell (R3): a cell's own part colours, and the cell's palette slot when the parts step
 // through the inks. Only added when used — every other item is the same object as before.
@@ -354,10 +372,10 @@ export function resolveItemGeo(item, defaultGeo) {
 export function componentBoundaryClipContent(items, geo, half) {
   const a = getElementAppearance();
   const stretch = Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a));
-  return items.map(it => {
+  return items.filter(it => !it.empty).map(it => {
     const fit = it.cellSize / 100;
-    const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
-    const tf = `translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50) ${stretch} translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
+    const sx = (it.flipH ? -1 : 1) * it.scale * fit * (it.kx || 1), sy = (it.flipV ? -1 : 1) * it.scale * fit * (it.ky || 1);
+    const tf = `translate(${(half + it.cx + (it.dx || 0)).toFixed(2)},${(half + it.cy + (it.dy || 0)).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50) ${stretch} translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
     return `<path transform="${tf}" d="${geo.d}"/>`;
   }).join('');
 }

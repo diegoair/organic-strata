@@ -183,7 +183,7 @@ export function setTier(tier) {
  ['Space (hold)', 'Pan the board', 'View'], ['Shift+1', 'Fit the board', 'View'], ['Shift+2', 'Fit the selection', 'View'],
  ['Space', 'Figure: shuffle', 'Figure'], ['V', 'Figure: variations', 'Figure'], ['[ / ]', 'Figure: nudge size', 'Figure'],
  ['1–6', 'Figure: pick a paint tool', 'Figure'], ['R / m / M', 'Figure: rotate / mirror V / mirror H the handle target', 'Figure'],
- ['Delete / ⌫', 'Symbol: empty the selected cells', 'Edit'],
+ ['Delete / ⌫', 'Symbol, Component Edit: empty the selected cells', 'Edit'], ['⌘A', 'Component Edit: select every cell', 'Edit'],
  ['Esc', 'Close gallery / overlay', 'General']
 ].forEach(([keys, label, group]) => Organica.shortcuts.add({ keys, label, group }));
 export var fvsPanKey = false;

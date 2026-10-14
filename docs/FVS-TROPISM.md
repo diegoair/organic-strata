@@ -1,6 +1,6 @@
 # Tropism — FVS axes, levels and new rules
 
-> Codename **Tropism** (Diego, Oct 14, 2026): cells turn in response to a signal — a rule, a field, a photo. Status: **planned, nothing built**. Open decisions: ledger O-73. Plan written Oct 14, 2026 from the rule review (`design-system/_fvs-rules.html`).
+> Codename **Tropism** (Diego, Oct 14, 2026): cells turn in response to a signal — a rule, a field, a photo. Status: **Phase 0 built Oct 14, 2026** (Components made by hand, the Symbol way — docs/FVS.md §5.6); Phase 1 next. Open decisions: ledger O-73. Plan written Oct 14, 2026 from the rule review (`design-system/_fvs-rules.html`).
 
 
 ## Context

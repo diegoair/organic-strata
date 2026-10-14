@@ -97,6 +97,27 @@
     <button class="org-floatbar__btn" id="btn-board-clear-component" aria-label="Clear board — hold to confirm" data-hold="Clear board — click again to confirm">
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
     </button>
+    <!-- Component Edit: Fit and Anchor on the picked cells (all cells when none is picked) — Symbol's floatbar group. -->
+    <span class="org-floatbar__group" id="fb-ce-place" role="group" aria-label="Fit in cell" style="display:none">
+      <button class="org-floatbar__btn" id="btn-ce-fit-contain" data-fit="contain" data-fit-name="Contain" aria-pressed="false" aria-label="Contain · all cells">
+        <svg class="ico" data-icon="fvs-contain" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><circle cx="8" cy="8" r="2.6"/></svg>
+      </button>
+      <button class="org-floatbar__btn" id="btn-ce-fit-fill" data-fit="fill" data-fit-name="Stretch" aria-pressed="false" aria-label="Stretch · all cells">
+        <svg class="ico" data-icon="fvs-fill" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><ellipse cx="8" cy="8" rx="4.4" ry="2.6"/></svg>
+      </button>
+      <button class="org-floatbar__btn" id="btn-ce-fit-cover" data-fit="cover" data-fit-name="Cover" aria-pressed="false" aria-label="Cover · all cells">
+        <svg class="ico" data-icon="fvs-cover" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><path d="M4.67 3.5A5.6 5.6 0 0 0 4.67 12.5M11.33 3.5A5.6 5.6 0 0 1 11.33 12.5"/></svg>
+      </button>
+      <button class="org-floatbar__btn" id="btn-ce-fit-fixed" data-fit="fixed" data-fit-name="Fixed size" aria-pressed="false" aria-label="Fixed size · all cells">
+        <svg class="ico" data-icon="fvs-fixed" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke-dasharray="2 2.1"/><circle cx="8" cy="8" r="2"/></svg>
+      </button>
+      <div class="org-popover-wrap">
+        <button class="org-floatbar__btn" id="btn-ce-anchor" aria-label="Anchor · all cells">
+          <svg class="ico" id="ico-ce-anchor" data-icon-slot viewBox="0 0 16 16" fill="none" aria-hidden="true"></svg>
+        </button>
+        <div class="fvs-flyout" id="ce-anchor-popover" aria-label="Anchor position"><span id="ce-anchor-grid" style="display:contents"></span></div>
+      </div>
+    </span>
     <button class="org-floatbar__btn" id="btn-undo-components" aria-label="Undo (⌘Z)" disabled>
       <svg class="ico" data-icon="undo" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6"/></svg>
     </button>
@@ -365,6 +386,11 @@
           <div class="fvs-board-sheet" id="board-gallery">
             <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="Generated components — drag to move">Generated components</button>
             <div class="fvs-board-sheet__body fvs-board-gallery"><div id="gallery"></div></div>
+          </div>
+          <!-- New component: a Component with every cell empty, opened in Edit to make by hand (Tropism Phase 0) -->
+          <div class="fvs-board-sheet" id="board-new-component">
+            <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="New component — drag to move">New component</button>
+            <div class="fvs-board-sheet__body"><button type="button" class="fvs-board-new" id="btn-board-new-component" aria-label="New component" data-theme="light" data-icon-slot></button></div>
           </div>
         </div>
       </div>
@@ -1284,6 +1310,12 @@
     <input type="file" id="file-loom-grid" accept=".json,application/json" aria-label="Load JSON grid" class="org-file-input">
 
     <div class="tier-block" data-tier="component">
+    <!-- Component Edit — the picked cells' properties, Symbol's own block (Tropism Phase 0, Oct 14, 2026). Shown only in Edit. -->
+    <div class="panel-section" id="ce-cell-section" hidden>
+      <h3>Cell properties</h3>
+      <div id="ce-cell-empty" class="org-empty">No cell selected.</div>
+      <div id="ce-cell-props" hidden><!-- filled by cellPropsHTML('ce-', { component: true }) (fvs/js/18-step-boards.js) --></div>
+    </div>
     <div class="panel-section">
       <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
       <div class="ctrl-row" id="grid-outline-row" style="display:none"><div class="ctrl-label" id="grid-outline-label" title="The shape the cells are grouped into">Grid shape</div>
@@ -1368,7 +1400,7 @@
           <option value="oscillator">Rhythm</option>
           <option value="random" selected>Random seeded</option>
           <option value="exhaustive">Exhaustive</option>
-          <option value="manual">Manual</option>
+          <option value="manual" hidden>Manual</option><!-- off the menu (Diego, Oct 14, 2026 — Tropism Phase 0): cells are made by hand in Component Edit (Cell properties) and New component; kept hidden for the engine and the tests -->
         </select>
       </div>
       <p class="org-panel__hint" id="rule-axis-note" style="display:none"></p>

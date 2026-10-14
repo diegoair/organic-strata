@@ -75,7 +75,7 @@ export function modulesToBlockCells(items, W, H, reg, cell) {
   return items.map(it => {
     const mx = remap((it.cx + W / 2) / W, px), my = remap((it.cy + H / 2) / H, py);
     const nr = ((it.rotation || 0) % 360 + 360) % 360, nswap = nr === 90 || nr === 270;   // a turned module: its own x is the frame's y
-    return { ...it, cx: mx.u * W - W / 2, cy: my.u * H - H / 2, kx: nswap ? my.k : mx.k, ky: nswap ? mx.k : my.k };
+    return { ...it, cx: mx.u * W - W / 2, cy: my.u * H - H / 2, kx: (it.kx || 1) * (nswap ? my.k : mx.k), ky: (it.ky || 1) * (nswap ? mx.k : my.k) };
   });
 }
 // resolveCellPlacement in a box that may be a spanning block: Fixed size scales by the block's length
@@ -497,11 +497,12 @@ export function symbolSVGFromItems(items) {
       const innerFor = pass => {
         let inner = '';
         for (const ni of it.nestedItems) {
+          if (ni.empty) continue;
           const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);   // the Component's own cells overlap too
           const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1);   // kx/ky: a module stretched to its own block cell
           // a cell the Component was edited in (Component Edit mode) carries its own Element + Appearance: draw that, not the Component's one shared Element
           const niGeo = pass || (ni.content ? resolveItemGeo(ni, geo) : geo), niApp = ni.content && ni.content.appearance ? ni.content.appearance : it.nestedAppearance;
-          let one = withEntryInks(it.nestedColors, () => withAppearance(niApp, () => seedMarkupSVG(nhx + ni.cx, nhy + ni.cy, ni.rotation, nsx, nsy, niGeo, ni.color)));
+          let one = withEntryInks(it.nestedColors, () => withAppearance(niApp, () => seedMarkupSVG(nhx + ni.cx + (ni.dx || 0), nhy + ni.cy + (ni.dy || 0), ni.rotation, nsx, nsy, niGeo, ni.color)));
           if (it.nestedClip) { const cid = 'ncut-' + it.index + '-' + drawId + '-' + (nClip++); one = `<clipPath id="${cid}">${cellClipShape(ni, nhx, nhy)}</clipPath><g clip-path="url(#${cid})">${one}</g>`; }
           inner += it.nestedBlend ? `<g style="mix-blend-mode:multiply">${one}</g>` : one;   // the Component's own Blend → Multiply
         }
@@ -687,10 +688,11 @@ export function drawSymbolCanvas(ctx) {
       const passes = layerPasses(geo, it.nestedItems), across = passes && !look && !layer;
       if (across) laterCanvas.push({ it, passes });
       for (const pass of (passes && !across ? passes : [passes ? passes[0] : null])) for (const ni of it.nestedItems) {
+        if (ni.empty) continue;
         g.save();
         if (it.nestedBlend) g.globalCompositeOperation = 'multiply';   // the Component's own Blend → Multiply
         if (it.nestedClip) clipCellCanvas(g, ni, nhx, nhy);   // the saved Component's own Clip to cell
-        g.translate(nhx + ni.cx, nhy + ni.cy);
+        g.translate(nhx + ni.cx + (ni.dx || 0), nhy + ni.cy + (ni.dy || 0));
         g.rotate(ni.rotation * Math.PI / 180);
         const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);
         g.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1));
@@ -721,10 +723,11 @@ export function drawSymbolCanvas(ctx) {
     live.appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };
     if (it.nestedColors && it.nestedColors.length) live.inkPaletteOverride = it.nestedColors;
     for (const ni of it.nestedItems) {
+      if (ni.empty) continue;
       ctx.save();
       if (it.nestedBlend) ctx.globalCompositeOperation = 'multiply';
       if (it.nestedClip) clipCellCanvas(ctx, ni, nhx, nhy);
-      ctx.translate(nhx + ni.cx, nhy + ni.cy);
+      ctx.translate(nhx + ni.cx + (ni.dx || 0), nhy + ni.cy + (ni.dy || 0));
       ctx.rotate(ni.rotation * Math.PI / 180);
       const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);
       ctx.scale((ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1));

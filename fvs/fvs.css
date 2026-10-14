@@ -587,7 +587,7 @@
   .tier-view.is-single:has(> .fvs-board-stage) { position: relative; }
 
   /* Element: each its name + Views (one row the width of its Element) and its sheet */
-  .fvs-board-views, .fvs-board-element, #board-new-element { --frame-w: var(--fvs-board-element-w); }
+  .fvs-board-views, .fvs-board-element, #board-new-element, #board-new-component { --frame-w: var(--fvs-board-element-w); }
   .tier-view:not(.is-single) .fvs-board #element-frame, .fvs-board-el, .fvs-board-new { width: var(--fvs-board-element-w); height: var(--fvs-board-element-w); }
   .tier-view:not(.is-single) .fvs-board .fvs-seed-preview-wrap { width: var(--fvs-board-element-w); }
   .fvs-board-el > svg { width: 100%; height: 100%; display: block; cursor: pointer; }

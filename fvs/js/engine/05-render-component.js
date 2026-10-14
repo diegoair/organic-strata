@@ -389,10 +389,10 @@ export function applyElementStretchCanvas(ctx) {
 // KNOCKOUT reads black-on-white as the erased region, so the boundary
 // shapes ARE painted black on a white base, exactly the hole we want).
 export function componentBoundaryMaskContent(items, geo, half) {
-  return items.map(it => {
+  return items.filter(it => !it.empty).map(it => {
     const fit = it.cellSize / 100;
-    const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
-    return `<g transform="translate(${(half + it.cx).toFixed(2)},${(half + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+    const sx = (it.flipH ? -1 : 1) * it.scale * fit * (it.kx || 1), sy = (it.flipV ? -1 : 1) * it.scale * fit * (it.ky || 1);
+    return `<g transform="translate(${(half + it.cx + (it.dx || 0)).toFixed(2)},${(half + it.cy + (it.dy || 0)).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
       + elementPathMarkup(geo, '#000', true) + `</g>`;
   }).join('');
 }
@@ -438,6 +438,7 @@ export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply
 }
 function drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply, overrideCache, whole) {
   for (const it of itemsToDraw) {
+    if (it.empty) continue;
     let itGeo = geo, itPath = path;
     if (it.content) {
       const key = it.content.seedType + '|' + JSON.stringify(it.content.seedParams || null);
@@ -449,10 +450,10 @@ function drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply,
       ctx.save();
       if (multiply) ctx.globalCompositeOperation = 'multiply';   // Blend → Multiply: each cell's ink mixes with what is under it
       if (state.componentClip) clipCellCanvas(ctx, it, halfX, halfY);
-      ctx.translate(halfX + it.cx, halfY + it.cy);
+      ctx.translate(halfX + it.cx + (it.dx || 0), halfY + it.cy + (it.dy || 0));
       ctx.rotate(it.rotation * Math.PI / 180);
       const fit = it.cellSize / 100;
-      ctx.scale((it.flipH ? -1 : 1) * it.scale * fit, (it.flipV ? -1 : 1) * it.scale * fit);
+      ctx.scale((it.flipH ? -1 : 1) * it.scale * fit * (it.kx || 1), (it.flipV ? -1 : 1) * it.scale * fit * (it.ky || 1));
       ctx.translate(-50, -50);
       applyElementStretchCanvas(ctx);   // reads getElementAppearance() itself — must run inside the withAppearance below too
       ctx.translate(itGeo.normTx * itGeo.normScale, itGeo.normTy * itGeo.normScale);
@@ -500,10 +501,11 @@ export function drawComponentCanvas(ctx, items, seed, size) {
   const boundaryPath = new Path2D();
   const boundaryApp = getElementAppearance();
   for (const it of items) {
+    if (it.empty) continue;
     const fit = it.cellSize / 100;
-    const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
+    const sx = (it.flipH ? -1 : 1) * it.scale * fit * (it.kx || 1), sy = (it.flipV ? -1 : 1) * it.scale * fit * (it.ky || 1);
     const m = new DOMMatrix()
-      .translate(half + it.cx, half + it.cy).rotate(it.rotation).scale(sx, sy).translate(-50, -50)
+      .translate(half + it.cx + (it.dx || 0), half + it.cy + (it.dy || 0)).rotate(it.rotation).scale(sx, sy).translate(-50, -50)
       .multiply(appearanceMatrix(boundaryApp))
       .translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale, geo.normScale);
     boundaryPath.addPath(path, m);
@@ -571,9 +573,10 @@ export function buildComponentSVGBody(items, seed, size) {
     const fitScale = size2 / under.size;
     let underBody = `<rect width="${under.size}" height="${under.size}" fill="${under.paperColor}"/>` + withEntryInks(under.colors, () => withAppearance(under.appearance, () => paperPatternSVG(under.size, under.size)));
     for (const it of under.items) {
+      if (it.empty) continue;
       const fit = it.cellSize / 100;
-      const sx = (it.flipH ? -1 : 1) * it.scale * fit, sy = (it.flipV ? -1 : 1) * it.scale * fit;
-      underBody += `<g transform="translate(${(under.size / 2 + it.cx).toFixed(2)},${(under.size / 2 + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
+      const sx = (it.flipH ? -1 : 1) * it.scale * fit * (it.kx || 1), sy = (it.flipV ? -1 : 1) * it.scale * fit * (it.ky || 1);
+      underBody += `<g transform="translate(${(under.size / 2 + it.cx + (it.dx || 0)).toFixed(2)},${(under.size / 2 + it.cy + (it.dy || 0)).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)">`
         + withEntryInks(under.colors, () => withAppearance(under.appearance, () => elementPathMarkup(resolveItemGeo(it, underGeo), it.color))) + `</g>`;
     }
     // fitScale maps the underlying Component's own frame exactly onto this
@@ -593,9 +596,10 @@ export function buildComponentSVGBody(items, seed, size) {
   } else {
     const passes = layerPasses(geo, items);
     for (const pass of (passes || [null])) for (const it of items) {
+      if (it.empty) continue;
       const fit = it.cellSize / 100;
-      const sx = (it.flipH ? -1 : 1) * it.scale * fit;
-      const sy = (it.flipV ? -1 : 1) * it.scale * fit;
+      const sx = (it.flipH ? -1 : 1) * it.scale * fit * (it.kx || 1);
+      const sy = (it.flipV ? -1 : 1) * it.scale * fit * (it.ky || 1);
       // A cell with its own content carries its own Appearance snapshot too
       // (Component Edit mode) — withAppearance makes elementPathMarkup's own
       // getElementAppearance() read see that snapshot instead of the live/
@@ -606,7 +610,7 @@ export function buildComponentSVGBody(items, seed, size) {
       // a pass paints ONE layer, but the parts' inks (Each part the next ink) count every part: they read the whole stack
       const whole = resolveItemGeo(it, geo), itGeo = pass || whole, paint = () => withItemParts(it, whole, () => elementPathMarkup(itGeo, it.color));
       const markup = (it.content && it.content.appearance) ? withAppearance(it.content.appearance, paint) : paint();
-      const cell = `<g transform="translate(${(halfX + it.cx).toFixed(2)},${(halfY + it.cy).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
+      const cell = `<g transform="translate(${(halfX + it.cx + (it.dx || 0)).toFixed(2)},${(halfY + it.cy + (it.dy || 0)).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
         + markup + `</g>`;
       if (state.componentClip) { const cid = 'cellcut-' + nextDrawId(); body += `<clipPath id="${cid}">${cellClipShape(it, halfX, halfY)}</clipPath><g clip-path="url(#${cid})">${cell}</g>`; }
       else body += cell;

@@ -15,7 +15,7 @@ import {
   SEED_ICONS, SYMBOL_SEED_DEFAULTS, seedForSnapshot
 } from './engine/02-seed-ui.js';
 import {
-  ELEMENT_LIB, getElementAppearance, orientedElementTile, savedElementBySig, tileSig, withAppearance
+  ELEMENT_LIB, buildComponentItems, getElementAppearance, orientedElementTile, savedElementBySig, tileSig, withAppearance
 } from './engine/04-appearance.js';
 import {
   buildSeedPreviewSVG, seedPreviewStates
@@ -27,8 +27,8 @@ import {
   componentThumbMarkup, renderGallery, renderSeedPreview, setElementView
 } from './05-render-component.js';
 import {
-  enterComponentEditMode, exitComponentEditMode, populateComponentStarterGallery, pushUndoEntry, renderComponentEditCanvas,
-  selectComponentEditCell, starterComponents
+  ceSnapshot, editCellShape, enterComponentEditMode, exitComponentEditMode, newBlankComponent, populateComponentStarterGallery,
+  pushUndoEntry, renderComponentEditCanvas, selectComponentEditCell, starterComponents
 } from './06-component-ui.js';
 import {
   applyElementSnapshot, layersChanged, selectLayer, setPartEdit
@@ -38,9 +38,10 @@ import { GALLERY_THUMB, fitThumbBox, getGrid, ruleLabel } from './engine/03-rule
 import { componentCaption } from './engine/06-component-ui.js';
 import { hexKey, syncActiveLayer } from './engine/07-library.js';
 import {
-  applyRuleState, openCellContentOverlay, renderSymbol, renderTrackLabelsOverlay, syncContentFilter
+  applyRuleState, bindCellProps, cellPropsHTML, openCellContentOverlay, renderSymbol, renderTrackLabelsOverlay,
+  syncCellProps, syncContentFilter
 } from './11-symbol-ui.js';
-import { buildSymbolLibraryEntry } from './engine/11-symbol-ui.js';
+import { ANCHOR_POSITIONS, buildSymbolLibraryEntry } from './engine/11-symbol-ui.js';
 import { symbolCanvasOf, withPlacementDefaults } from './engine/08-symbol-grid.js';
 import { applySymbolCanvasToUI, syncOverlapSection } from './08-symbol-grid.js';
 import { renderSymbolPool } from './10-suggest.js';
@@ -61,7 +62,8 @@ provide({
   boardElementDrawn: () => elementDrawn, boardGalleryDrawn: () => galleryDrawn,
   boardComponentEdit: () => componentEdit, boardTierShown: () => boardTierShown,
   elementPalettes: () => elementPalettes, boardSymbolDrawn: () => symbolDrawn,
-  boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries
+  boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries,
+  syncCeCellProps: () => syncCeCellProps
 });
 
 const escAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -506,6 +508,12 @@ function mountComponentBoard() {
   const B = makeBoard('component');
   const gal = ctrl('gallery'), frame = ctrl('component-edit-frame');
   addSheet(B, 'gallery', 'Generated components', 0, 0, ctrl('board-gallery'));
+  // New component (Tropism Phase 0): an empty sheet left of the gallery — a Component with every cell empty, opened in Edit
+  const newW = parseFloat(getComputedStyle(ctrl('board-new-component')).getPropertyValue('--frame-w')) || 360;
+  addSheet(B, 'new-component', 'New component', -(newW + 120), 0, ctrl('board-new-component'));
+  const newCompBtn = ctrl('btn-board-new-component');
+  newCompBtn.innerHTML = Organica.icons.get('plus', { size: 'xl' });
+  newCompBtn.addEventListener('click', () => newBlankComponent());
   galleryZoomTo(2);   // the candidates at 2× on the board
   // Double-click a candidate (or Enter on the selected one, 05-render-component.js) = Component Edit in its single view: the classic page — toolbar, part
   // colours, the fixed sheet — with the board hidden, the same as an Element's (Diego, Oct 11). Back to board / Esc return.
@@ -527,14 +535,15 @@ function mountComponentBoard() {
       if (!e || !e.seed) { railNotice('This Element was saved without its settings'); return; }
       const content = { source: 'seed', seedType: e.seed.type, seedParams: clone(e.seed), appearance: e.appearance || state.componentEditDefaultAppearance };
       const targets = idx != null && !rt.cePicked.has(idx) ? [idx] : [...rt.cePicked];
-      targets.forEach(i => { const c = state.componentEditCells[i]; if (c) c.content = clone(content); });
-      renderComponentEditCanvas();
+      ceSnapshot();
+      targets.forEach(i => { const c = state.componentEditCells[i]; if (c && !c.locked) { c.content = clone(content); delete c.empty; } });
+      renderComponentEditCanvas(); syncCeCellProps();
     },
   };
   componentEdit = on => {
     setSingle(B, on);
     if (on) setRailTarget(CE_RAIL);
-    else { if (rt.railTarget === CE_RAIL) setRailTarget(null); requestAnimationFrame(() => B.fit(['gallery'])); }
+    else { if (rt.railTarget === CE_RAIL) setRailTarget(null); requestAnimationFrame(() => B.fit(['new-component', 'gallery'])); }
   };
   // Component cells, the Symbol way.
   let lastPicked = new Set();
@@ -557,12 +566,18 @@ function mountComponentBoard() {
     if (!state.componentEditMode || state.activeTier !== 'component' || fvsIsTypingTarget(e.target)) return;
     if ((e.key === 'Delete' || e.key === 'Backspace') && rt.cePicked.size && !overlayOpen()) {   // the picked cells back to the Component's own Element
       e.preventDefault();
-      rt.cePicked.forEach(i => { const c = state.componentEditCells[i]; if (c) { delete c.content; delete c.partInks; } });
-      renderComponentEditCanvas();
+      ceSnapshot();
+      rt.cePicked.forEach(i => { const c = state.componentEditCells[i]; if (c && !c.locked) { c.empty = true; delete c.content; delete c.partInks; } });
+      renderComponentEditCanvas(); syncCeCellProps();
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a' && !overlayOpen()) {   // every cell (Tropism Phase 0)
+      e.preventDefault();
+      rt.cePicked = new Set(state.componentEditCells.map((_, i) => i));
+      selectComponentEditCell(0);
     }
     if (e.key === 'Escape' && !e.defaultPrevented && !overlayOpen()) { e.preventDefault(); exitComponentEditMode(); }
   });
-  B.fitFocus = () => B.fit(['gallery']);
+  B.fitFocus = () => B.fit(['new-component', 'gallery']);
 
   // One "Generated components" area per Element (O-67 d, Diego, Oct 11, 2026), in the Element board's order, one under
   // the other: the edited Element's is the live #board-gallery; the others are drawn from their Element's snapshot
@@ -712,25 +727,121 @@ function openChooseForCells() {
     seedsOnly: true,
     count: () => rt.cePicked.size,
     apply(patch) {
+      ceSnapshot();
       rt.cePicked.forEach(i => {
         const c = state.componentEditCells[i];
-        if (!c) return;
+        if (!c || c.locked) return;
         const p = typeof patch === 'function' ? patch(c) : patch;
-        if (p.source === 'empty') { delete c.content; return; }
+        if (p.source === 'empty') { c.empty = true; delete c.content; delete c.partInks; return; }
+        delete c.empty;
         if (p.source === 'seed') {   // an Element tile carries its settings; a plain Seed type takes the defaults
           const seedParams = p.seedParams ? clone(p.seedParams) : { ...state.componentEditDefaultSeed, ...SYMBOL_SEED_DEFAULTS, type: p.seedType };
           if (!p.seedParams) { delete seedParams.parts; delete seedParams.layers; }
           c.content = { source: 'seed', seedType: p.seedType, seedParams, appearance: state.componentEditDefaultAppearance };
         }
-        if ('rotation' in p) c.rotation = p.rotation || 0;
-        if ('flipH' in p) c.flipH = !!p.flipH;
-        if ('flipV' in p) c.flipV = !!p.flipV;
+        // a plain Seed tile keeps the cell's turn (the rule's, or the one set by hand); an Element tile is a state of it
+        if (p.seedParams) {
+          if ('rotation' in p) c.rotation = p.rotation || 0;
+          if ('flipH' in p) c.flipH = !!p.flipH;
+          if ('flipV' in p) c.flipV = !!p.flipV;
+        }
       });
-      renderComponentEditCanvas();
+      renderComponentEditCanvas(); syncCeCellProps();
     },
     done() {},
   });
 }
+
+// ── Component Edit — the cells by hand, Symbol's way (Tropism Phase 0, Oct 14, 2026) ──────────────────────────────────
+// Symbol's Cell properties block (11-symbol-ui.js cellPropsHTML / syncCellProps / bindCellProps) on the picked cells of
+// the edited Component; its Fit / Anchor floatbar group on the picked cells, or every cell when none is picked. A locked
+// cell is skipped by every edit but its own Lock. The fields land on the Component's cells (engine/04-appearance.js
+// withCellPlace draws them; absent = as before).
+const ceCells = () => state.componentEditCells || [];
+const cePicked = () => [...rt.cePicked].filter(i => ceCells()[i]);
+const ceTargets = () => (rt.cePicked.size ? cePicked() : ceCells().map((_, i) => i));
+// what the Symbol block reads, from a Component cell
+function ceView(c) {
+  const sd = state.componentEditDefaultSeed || {};
+  return { ...c, source: c.empty ? 'empty' : 'seed', seedType: c.content ? c.content.seedType : sd.type, seedParams: c.content ? c.content.seedParams : undefined };
+}
+function cePatch(c, patch) {
+  const p = typeof patch === 'function' ? patch(ceView(c)) : patch;
+  for (const [k, v] of Object.entries(p)) {
+    if (k === 'seedType' || k === 'source') continue;
+    if (k === 'seedParams') { if (v === undefined) { delete c.content; delete c.empty; } continue; }   // Default = the Component's own Element
+    if (v == null || (v === false && k === 'locked')) delete c[k]; else c[k] = v;
+  }
+}
+function ceWrite(indices, patch) {
+  ceSnapshot();
+  const lockOnly = patch && typeof patch === 'object' && 'locked' in patch;
+  indices.forEach(i => { const c = ceCells()[i]; if (c && (!c.locked || lockOnly)) cePatch(c, patch); });
+  renderComponentEditCanvas();
+}
+const CE_CELLS = {
+  count: () => rt.cePicked.size,
+  first: () => ceView(ceCells()[Math.min(...cePicked())]),
+  colors: () => state.colors,
+  apply: patch => ceWrite(cePicked(), patch),
+  refresh: () => syncCeCellProps(),
+  overflow: () => false,
+  choose: () => openChooseForCells(),
+  editShape: () => editCellShape(),
+  lock: true,
+};
+ctrl('ce-cell-props').innerHTML = cellPropsHTML('ce-', { component: true });
+bindCellProps('ce-', CE_CELLS);
+export function syncCeCellProps() {
+  const on = !!state.componentEditMode, n = on ? cePicked().length : 0;
+  ctrl('ce-cell-section').hidden = !on;
+  ctrl('fb-ce-place').style.display = on ? '' : 'none';
+  if (!on) return;
+  ctrl('ce-cell-empty').hidden = n > 0;
+  ctrl('ce-cell-props').hidden = n === 0;
+  if (n) {
+    syncCellProps('ce-', CE_CELLS);
+    const f = ceCells()[Math.min(...cePicked())];
+    ctrl('ce-symbol-cellprop-seedparams-label').textContent = f.content ? 'Own shape' : 'Element';
+  }
+  syncCeFitAnchor();
+}
+// Fit and Anchor (the floatbar): the shared value of the target cells pressed / shown, the label names the target
+const CE_FITS = ['contain', 'fill', 'cover', 'fixed'];
+function syncCeFitAnchor() {
+  const t = ceTargets().map(i => ceCells()[i]).filter(c => !c.empty), n = rt.cePicked.size;
+  const who = n ? `${n} selected cell${n === 1 ? '' : 's'}` : 'all cells', none = !t.length;
+  const shared = fn => (t.length && t.every(c => fn(c) === fn(t[0])) ? fn(t[0]) : null);
+  const fit = shared(c => c.fitMode || 'contain'), ax = shared(c => c.anchorX || 0), ay = shared(c => c.anchorY || 0);
+  CE_FITS.forEach(f => {
+    const b = ctrl('btn-ce-fit-' + f);
+    b.setAttribute('aria-pressed', String(fit === f));
+    b.setAttribute('aria-label', b.dataset.fitName + ' · ' + who + (none ? ' — nothing to fit (empty)' : ''));
+    b.disabled = none;
+  });
+  ctrl('btn-ce-anchor').setAttribute('aria-label', 'Anchor · ' + who);
+  ctrl('btn-ce-anchor').disabled = none;
+  ctrl('ce-anchor-grid').querySelectorAll('.fvs-flyout__tool').forEach(b => { b.dataset.on = String(ax != null && ay != null && +b.dataset.ax === ax && +b.dataset.ay === ay); });
+  const mark = ax != null && ay != null ? `<circle cx="${8 + ax * 3}" cy="${8 + ay * 3}" r="1.5" fill="currentColor"/>` : '<path d="M6 8h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>';
+  ctrl('ico-ce-anchor').innerHTML = '<rect x="2.5" y="2.5" width="11" height="11" rx="1" stroke="currentColor" stroke-width="1.3"/>' + mark;
+}
+CE_FITS.forEach(f => ctrl('btn-ce-fit-' + f).addEventListener('click', () => {
+  // Fixed starts at the size the cell is now: the median cell's size of the edited grid
+  const sizes = buildComponentItems({ cells: ceCells() }, state.componentEditGrid).map(it => it.cellSize).sort((a, b) => a - b);
+  const patch = { fitMode: f };
+  if (f === 'fixed') patch.fixedSize = Math.round(sizes[sizes.length >> 1] || 100);
+  if (f === 'cover') patch.coverAxis = 'auto';
+  ceWrite(ceTargets(), patch);
+  syncCeCellProps();
+}));
+const ceAnchorPop = Organica.popover(ctrl('btn-ce-anchor'), ctrl('ce-anchor-popover'));
+ctrl('ce-anchor-grid').innerHTML = ANCHOR_POSITIONS.map(([ax, ay]) =>
+  `<button type="button" class="fvs-flyout__tool" data-on="false" data-ax="${ax}" data-ay="${ay}" aria-label="Anchor ${ax < 0 ? 'left' : ax > 0 ? 'right' : 'centre'} ${ay < 0 ? 'top' : ay > 0 ? 'bottom' : 'middle'}"><span></span></button>`).join('');
+ctrl('ce-anchor-grid').querySelectorAll('.fvs-flyout__tool').forEach(btn => btn.addEventListener('click', () => {
+  ceWrite(ceTargets(), { anchorX: +btn.dataset.ax, anchorY: +btn.dataset.ay });
+  syncCeCellProps();
+  setTimeout(() => { ceAnchorPop.close(); ctrl('btn-ce-anchor').focus(); }, 220);
+}));
 
 // ── Symbol board ────────────────────────────────────────────────────────────────────────────────────────
 function mountSymbolBoard() {
