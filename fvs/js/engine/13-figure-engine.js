@@ -11,7 +11,7 @@ import {
   getSeed
 } from './02-seed-ui.js';
 import {
-  GRID_BUILD, buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, getGrid, stateFrom
+  GRID_BUILD, buildCheckerboardCells, buildMirrorCells, buildPinwheelCells, buildRadialCells, getGrid, rhythmCells, stateFrom
 } from './03-rules.js';
 import {
   buildComponentItems
@@ -131,8 +131,10 @@ export function applyClassRules(rules, seedType) {
 // The poses a Component rule gives the cells. Without `cr`: the four of a 2 × 2 (row-major). With `cr` (each cell's
 // {col, row}, row-major): any Square lattice, through the Component step's own any-grid builders (GRID_BUILD — the same
 // four on a 2 × 2). Checkerboard: p.swap = start on B, p.flip = B is flipped instead of rotated (the Symbol step's pair).
-export function componentCellsFromRule(rule, p, cr) {
+// Rhythm (key `oscillator`, Oct 14, 2026): its own params (RHYTHM_DEFAULTS); Connect needs `cover` (measured by the compile).
+export function componentCellsFromRule(rule, p, cr, cover) {
   p = p || {};
+  if (rule === 'oscillator') return rhythmCells(p, cr || squareCR(2, 2), cover || null);
   const chkA = () => stateFrom(p.a || 0, false, false, 1), chkB = () => (p.flip ? stateFrom(0, true, false, 1) : stateFrom(p.b || 0, false, false, 1));
   if (cr) {
     // Radial: each cell takes its quarter of the grid; an odd count puts the middle column / row in the right / lower half

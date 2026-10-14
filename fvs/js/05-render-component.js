@@ -337,15 +337,17 @@ export function measureElementInk(geo, appearance) {
 
 // The Rhythm rule's Connect (Oct 14, 2026): for the Element as the Component draws it, turned / flipped by `view`,
 // which of 101 points along each side of its cell the ink reaches (edgeContacts' spans as flags; a tangent point
-// marks its one point). The ink is measured once per shape + look.
+// marks its one point). The ink is measured once per shape + look. `seed` / `app` = another Element (the Figure's
+// Component rule node reads the Figure's own), `pre` = that Element's own orientation, applied before the cell's;
+// default = the panel's Element, upright.
 let sideInk = null;
-export function elementSideCover(view) {
-  const seed = getSeed(), a = getElementAppearance(), key = JSON.stringify([seed, a]);
+export function elementSideCover(view, seed0, app0, pre) {
+  const seed = seed0 || getSeed(), a = app0 || getElementAppearance(), key = JSON.stringify([seed, a]);
   if (!sideInk || sideInk.key !== key) {
     const geo = SEED_TYPES[seed.type].geometry(seed);
     sideInk = { key, pts: geo && geo.d ? measureElementInk(geo, a).pts : [] };
   }
-  const sides = edgeContacts(sideInk.pts.map(q => orientInkPoint(q, view))), out = {};
+  const sides = edgeContacts(sideInk.pts.map(q => orientInkPoint(pre ? orientInkPoint(q, pre) : q, view))), out = {};
   for (const k of ['top', 'right', 'bottom', 'left']) {
     const f = new Uint8Array(101);
     for (const sp of sides[k]) {

@@ -9,6 +9,7 @@ import { provide } from './hooks.js';
 import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps, syncStartSegs } from './11-symbol-ui.js';
 import { placeStepNav, syncExportButton } from './12-shell.js';
 import { syncRailTier } from './15-export-library-view.js';
+import { RHYTHM_DEFAULTS } from './engine/03-rules.js';
 import {
   COLOR_RULES, live, pc, pv, state
 } from './engine/00-core.js';
@@ -64,7 +65,7 @@ const CURRENT = '__current';   // the graph being edited, autosaved (not a saved
 let graphName = '';             // the saved graph the autosaved one was opened from / saved as, read at boot ('' = not saved yet); then graphMenu.name()
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'node-rule', Output: 'node-output' };
-const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Step turn', mirror: 'Mirror', checkerboard: 'Checkerboard' };   // the Component step's own names
+const COMPONENT_RULES = { radial: 'Radial', pinwheel: 'Step turn', mirror: 'Mirror', checkerboard: 'Checkerboard', oscillator: 'Rhythm' };   // the Component step's own names
 let ctl = null;
 const varyOpen = new Set();   // the Vary rows open in the Variations panel (node id + ':' + input), kept across re-renders
 
@@ -638,6 +639,39 @@ function edited(node, commit) {
     setTimeout(() => ctl.pulse(figs), 60);
   }
 }
+// Component rule › Rhythm (Oct 14, 2026): the Component step's controls (Mode · Beat · Two beats · Wave · Connect), on
+// the node's params; Connect's Flip and Seed are the node's own (the step reads its Flip axis and lists 16 seeds).
+const DEG4 = [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']];
+function rhythmRows(node, q, rows, ids) {
+  const v = { ...RHYTHM_DEFAULTS, ...q }, set = (k, val, commit = true, redraw = false) => { q[k] = val; edited(node, commit); if (redraw) renderInspector(ids); };
+  rows.push(selectRow('Mode', 'fgi-rmode', [['beat', 'Beat'], ['beats', 'Two beats'], ['wave', 'Wave'], ['connect', 'Connect']], v.mode, m => set('mode', m, true, true)));
+  if (v.mode === 'beat') {
+    const beat = (Array.isArray(q.beat) && q.beat.length ? q.beat : RHYTHM_DEFAULTS.beat).slice();
+    const put = b => { q.beat = b; edited(node, true); renderInspector(ids); };
+    rows.push({ html: `<div class="ctrl-row"><div class="ctrl-label" id="fgi-rbeat-label">Beat</div><span class="ctrl-val">${beat.length} step${beat.length === 1 ? '' : 's'}</span>`
+        + `<button type="button" class="icon-btn" id="fgi-rbeat-remove" aria-label="Remove a step"${beat.length <= 1 ? ' disabled' : ''}>${Organica.icons.get('minus', { size: 'sm' })}</button>`
+        + `<button type="button" class="icon-btn" id="fgi-rbeat-add" aria-label="Add a step"${beat.length >= 8 ? ' disabled' : ''}>${Organica.icons.get('plus', { size: 'sm' })}</button></div>`
+        + `<div class="seg-ctrl fvs-beat" id="fgi-rbeat" role="group" aria-labelledby="fgi-rbeat-label">${beat.map((t, i) => `<button type="button" class="seg-btn" data-step="${i}" aria-label="Step ${i + 1}: ${t}°"><span class="fvs-beat__mark" style="--beat-turn:${t}deg" aria-hidden="true">F</span></button>`).join('')}</div>`,
+      bind: () => {
+        ctrl('fgi-rbeat').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (!b) return; const nb = beat.slice(); nb[+b.dataset.step] = (nb[+b.dataset.step] + 90) % 360; put(nb); });
+        ctrl('fgi-rbeat-remove').addEventListener('click', () => { if (beat.length > 1) put(beat.slice(0, -1)); });
+        ctrl('fgi-rbeat-add').addEventListener('click', () => { if (beat.length < 8) put(beat.concat(0)); });
+      } });
+  } else if (v.mode === 'beats') {
+    rows.push(rangeRow('Across', 'fgi-racross', 2, 8, 1, v.across, (x, c) => set('across', x, c)));
+    rows.push(rangeRow('Down', 'fgi-rdown', 2, 8, 1, v.down, (x, c) => set('down', x, c)));
+    rows.push(selectRow('Combine', 'fgi-rcombine', [['add', 'Add'], ['one', 'One only'], ['both', 'Both']], v.combine, x => set('combine', x)));
+    rows.push(selectRow('Angle', 'fgi-rangle', DEG4.slice(1), v.angle, x => set('angle', +x)));
+  } else if (v.mode === 'wave') {
+    rows.push(selectRow('Amplitude', 'fgi-ramp', [[90, '90°'], [180, '180°']], v.amp, x => set('amp', +x)));
+    rows.push(rangeRow('Period', 'fgi-rperiod', 2, 12, 1, v.period, (x, c) => set('period', x, c)));
+  }
+  if (v.mode === 'connect') {
+    rows.push({ html: `<label class="check-row org-switch"><input type="checkbox" id="fgi-rwrap"${v.wrap ? ' checked' : ''}><span>Tile seamlessly</span></label>`, bind: () => ctrl('fgi-rwrap').addEventListener('change', e => set('wrap', e.target.checked)) });
+    rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-rflip"${v.flip ? ' checked' : ''}><span>Flip too</span></label>`, bind: () => ctrl('fgi-rflip').addEventListener('change', e => set('flip', e.target.checked)) });
+    rows.push(rangeRow('Seed', 'fgi-rseed', 1, 16, 1, v.seed, (x, c) => set('seed', x, c)));
+  } else rows.push(rangeRow('Row shift', 'fgi-rshift', 0, 2, 0.05, v.shift, (x, c) => set('shift', x, c)));
+}
 function rangeRow(label, id, min, max, step, value, onInput, unit = '') {
   return { html: `<div class="ctrl-row"><div class="ctrl-label">${esc(label)}</div><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${value}" aria-label="${esc(label)}"><span class="ctrl-val" id="v-${id}">${value}${unit}</span></div>`,
     bind: () => { const r = ctrl(id); r.addEventListener('input', () => { ctrl('v-' + id).textContent = r.value + unit; onInput(+r.value, false); }); r.addEventListener('change', () => onInput(+r.value, true)); } };
@@ -830,6 +864,7 @@ function renderInspectorBody(box, ids) {
       if (!q.flip) rows.push(selectRow('Cells B', 'fgi-cb', [[0, '0°'], [90, '90°'], [180, '180°'], [270, '270°']], degOf(q.b), v => { q.b = +v; edited(node, true); }));
       rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-cflip"${q.flip ? ' checked' : ''}><span>Flip B instead of rotate</span></label>`, bind: () => ctrl('fgi-cflip').addEventListener('change', e => { q.flip = e.target.checked; edited(node, true); renderInspector(ids); }) });
     }
+    else if (p.rule === 'oscillator') rhythmRows(node, q, rows, ids);
     rows.push({ html: '<p class="org-panel__hint">Poses every cell by its place: on a Square lattice by column and row, on any other Grid by where the cell sits. A later rule in the chain wins.</p>' });
   } else if (node.type === 'repeat') {
     const L = REPEAT_LATTICES[p.lattice] || REPEAT_LATTICES.square;

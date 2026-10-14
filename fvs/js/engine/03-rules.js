@@ -501,14 +501,31 @@ export function rhythmConnectCells(ctxs, views, cover, seed, wrap) {
   return chosen.map(k => stateFrom(views[k].r, views[k].fh, views[k].fv, 1.0));
 }
 export const RHYTHM_CONNECT_SEEDS = 16;
+// The Figure's Component rule node (Oct 14, 2026): Rhythm from its own params, pure. `ctxs` = each cell's {col, row};
+// `cover` = { views, sides } measured for Connect (rhythmConnectViews + hooks.elementSideCover), else null.
+export const RHYTHM_DEFAULTS = { mode: 'beat', beat: [0, 90, 0], shift: 1, across: 3, down: 4, combine: 'add', angle: 90, amp: 90, period: 4, wrap: true, flip: false, seed: 1 };
+export function rhythmConnectViews(flip) {
+  const views = [];
+  for (const rot of ROTATIONS) for (const f of (flip ? FLIPS.slice(0, 3) : [FLIPS[0]])) views.push({ r: rot, fh: f.h, fv: f.v });
+  return views;
+}
+export function rhythmCells(params, ctxs, cover) {
+  const p = { ...RHYTHM_DEFAULTS, ...(params || {}) }, shift = +p.shift || 0;
+  if (p.mode === 'beats') return rhythmBeatsCells(ctxs, +p.across || 2, +p.down || 2, +p.angle || 90, p.combine, shift, null);
+  if (p.mode === 'wave') return rhythmWaveCells(ctxs, +p.amp || 90, +p.period || 4, shift, null);
+  if (p.mode === 'connect') {
+    if (!cover) throw new Error('Rhythm › Connect reads an Element: wire a saved Element to the Figure');
+    return rhythmConnectCells(ctxs, cover.views, cover.sides, Math.max(1, +p.seed || 1), p.wrap !== false);
+  }
+  return rhythmBeatCells(ctxs, Array.isArray(p.beat) && p.beat.length ? p.beat : RHYTHM_DEFAULTS.beat, shift, null);
+}
 export function ruleOscillator() {
   const grid = getGrid();
   const ctxs = hooks.componentCellColRow(grid);
   const r = state.rhythm, shift = parseFloat(pv('rg-rhythm-shift')) || 0;
   const sv = pc('chk-axis-scale') ? scaleValues() : null, s = sv ? '-s' : '';
   if (r.mode === 'connect') {
-    const views = [];
-    for (const rot of ROTATIONS) for (const f of (pc('chk-axis-flip') ? FLIPS.slice(0, 3) : [FLIPS[0]])) views.push({ r: rot, fh: f.h, fv: f.v });
+    const views = rhythmConnectViews(pc('chk-axis-flip'));
     const cover = views.map(v => hooks.elementSideCover(v));
     const out = [], wrap = pc('chk-rhythm-wrap');
     for (let k = 1; k <= RHYTHM_CONNECT_SEEDS; k++) out.push({ id: `rhythm-connect-${views.length}-${wrap ? 'w' : ''}${k}`, ruleSource: 'oscillator', cells: rhythmConnectCells(ctxs, views, cover, k, wrap) });

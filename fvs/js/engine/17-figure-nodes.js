@@ -27,7 +27,7 @@ import {
   PX_PER_MM, SYMCANVAS_PRESETS, SYMGRID_GENS, hexLoomModel, squareLoomModel, symbolGridModel, triangleLoomModel
 } from './08-symbol-grid.js';
 import {
-  mulberry32
+  mulberry32, rhythmConnectViews
 } from './03-rules.js';
 import {
   buildColourways, cwSolve
@@ -35,6 +35,7 @@ import {
 import {
   componentCellsFromRule, ruleMatches, squareCR
 } from './13-figure-engine.js';
+import { hooks } from '../hooks.js';
 import {
   FG_HUE_TURNS, describeRule
 } from './14-figure-ui.js';
@@ -307,7 +308,8 @@ export async function compileFigure(inputs, params, opts) {
   const lattice = isLattice(grid.gen);
   let element, first;
   const compSmall = l => l.type === 'square' && l.cols <= 4 && l.rows <= 4;   // a built-in's Component level: up to 4 × 4
-  if (lattice && imported && !(compRule && cellRules.length) && !(compRule && !compSmall(latticeOf(grid))) && !composeRules.length) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
+  const connect = compRule && compRule.rule === 'oscillator' && (compRule.params || {}).mode === 'connect';   // Rhythm › Connect reads the Element's ink: measured here, so it takes the general path
+  if (lattice && imported && !(compRule && cellRules.length) && !(compRule && !compSmall(latticeOf(grid))) && !composeRules.length && !connect) {   // a built-in's own pieces: compile back to its exact recipe (Cell rules + a Component rule take the general path below)
     element = { ...clone(imported), colors: colors && !params.keepOwn ? colors : clone(imported.colors || ['#000000']), paper };
     if (pal && pal.ground) element.ground = clone(pal.ground);
     if (pal && !params.keepOwn) element.colorRule = colorRule; else delete element.colorRule;
@@ -334,7 +336,14 @@ export async function compileFigure(inputs, params, opts) {
       // grid (Diego, Oct 9, 2026: "the most creative and surprising way") the place each cell's centre has in the space
       const l = lattice ? latticeOf(grid) : null;
       const cr = l && l.type === 'square' ? squareCR(l.cols, l.rows || l.cols) : spatialCR(Organica.loadLoomGrid(clone(model)).cells, compRule.rule);
-      const posed = componentCellsFromRule(compRule.rule, compRule.params, cr);
+      let cover = null;
+      if (connect) {
+        if (!firstEl) throw new Error('Rhythm › Connect reads an Element: wire a saved Element to the Figure');
+        const views = rhythmConnectViews(!!compRule.params.flip);
+        const o = firstEl.entry.orientation || {}, pre = { r: +o.rotation || 0, fh: !!o.flipH, fv: !!o.flipV };
+        cover = { views, sides: views.map(v => hooks.elementSideCover(v, firstEl.entry.seed, firstEl.entry.appearance, pre)) };
+      }
+      const posed = componentCellsFromRule(compRule.rule, compRule.params, cr, cover);
       cells = cells.map((c, i) => { const q = posed[i] || {}; return { ...c, rotation: q.rotation || 0, flipH: !!q.flipH, flipV: !!q.flipV }; });
     }
     const componentEntries = {};
