@@ -6,7 +6,7 @@
 // Fit all / Fit selection. Words: docs/UI-COPY.md §2 "Figure graph".
 import { rt } from './rt.js';
 import { provide } from './hooks.js';
-import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps } from './11-symbol-ui.js';
+import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps, syncStartSegs } from './11-symbol-ui.js';
 import { placeStepNav, syncExportButton } from './12-shell.js';
 import { syncRailTier } from './15-export-library-view.js';
 import {
@@ -1398,6 +1398,7 @@ function mountComposeFill(host, kind, comp) {
         const out = ctrl('fgc-' + f.id.replace(/^rg-/, 'v-')); if (out && el.type === 'range') out.textContent = el.value;
         el.addEventListener(el.type === 'range' ? 'input' : 'change', () => { draft.params[f.key] = fieldVal(el, f); if (out && el.type === 'range') out.textContent = el.value; push(); });
       });
+      syncStartSegs(box);   // Checkerboard's Start at · A · B shows the draft's swap
     }
     ctrl('fgc-rule').addEventListener('change', e => { draft.name = e.target.value; draft.params = SYMBOL_RULES[draft.name].read(); push(); renderComposeInspector('#fgc-rule'); });
     host.querySelectorAll('[data-vary]').forEach(c => c.addEventListener('change', () => { draft.vary = { ...(draft.vary || {}), [c.dataset.vary]: c.checked }; push(); }));

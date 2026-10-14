@@ -70,7 +70,7 @@ import {
   applySymbolRule, applyToSelection, bindSymbolCanvasSelection, bindSymbolTrackDrag,
   closeCellContentOverlay, exportSymbol, openCellContentOverlay, openCellContentOverlayForAll,
   SYMBOL_CELLS, bindCellProps, renderCellPropertiesPanel, renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary,
-  renderTrackLabelsOverlay, syncContentFilter, syncManualBlock, syncSymbolRuleUI
+  renderTrackLabelsOverlay, syncContentFilter, syncManualBlock, syncStartSegs, syncSymbolRuleUI
 } from './11-symbol-ui.js';
 import { hooks, provide } from './hooks.js';
 import { isFigureLoaded, loadFigureTier } from './lazy.js';
@@ -740,6 +740,14 @@ ctrl('symbol-rule-block').addEventListener('input', e => {
   scheduleRuleApply();
 });
 ctrl('symbol-rule-block').addEventListener('change', scheduleRuleApply);
+// Start at · A · B → the hidden swap checkbox of its rule block (the Symbol step and the Figure's Compose copy alike)
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-start-seg] .seg-btn'); if (!b) return;
+  const chk = b.closest('.rule-params') && b.closest('.rule-params').querySelector('[data-start-check]'); if (!chk) return;
+  const v = b.dataset.start === '1'; if (chk.checked === v) return;
+  chk.checked = v; chk.dispatchEvent(new Event('change', { bubbles: true }));
+  syncStartSegs(b.closest('.rule-params'));
+});
 
 // ── Cell properties panel — one shared editor for whatever is currently
 // selected (state.symbolSelection), written via applyToSelection(). ──

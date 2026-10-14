@@ -1619,10 +1619,17 @@
           <div class="ctrl-row"><div class="ctrl-label">Cells A</div>
             <select class="panel-select" id="sel-rule-chk-rota"><option value="0" selected>0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
           </div>
-          <label class="check-row"><input type="checkbox" id="chk-rule-chk-swap"><span>Swap A and B (start on B)</span></label>
           <div class="ctrl-row"><div class="ctrl-label">Cells B</div>
             <select class="panel-select" id="sel-rule-chk-rot"><option value="0">0°</option><option value="90" selected>90°</option><option value="180">180°</option><option value="270">270°</option></select>
           </div>
+          <!-- Start at · A · B (Diego, Oct 13, 2026 — the Component step's word): drives the hidden checkbox, which stays the stored value (swap) -->
+          <div class="ctrl-row"><div class="ctrl-label">Start at</div>
+            <div class="seg-ctrl" role="group" aria-label="Start at" data-start-seg>
+              <button type="button" class="seg-btn active" data-start="0" aria-pressed="true" aria-label="State A">A</button>
+              <button type="button" class="seg-btn" data-start="1" aria-pressed="false" aria-label="State B">B</button>
+            </div>
+          </div>
+          <input type="checkbox" id="chk-rule-chk-swap" data-start-check hidden>
           <label class="check-row"><input type="checkbox" id="chk-rule-chk-flip"><span>Flip B instead of rotate</span></label>
         </div>
 

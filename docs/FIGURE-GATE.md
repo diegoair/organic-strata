@@ -61,7 +61,7 @@ keep going.
 - [ ] The Figure panel lists the chain in that order.
 - [ ] Open an **older saved graph** (from before today) → it draws as it did, with a notice that the rules were chained.
 - [ ] Component rule on a Square grid of any size (also odd, e.g. 5×5 with Radial) draws. On a Loom grid it is refused with a reason on the card.
-- [ ] Checkerboard: *Swap A and B* and *Flip B* both change the drawing.
+- [ ] Checkerboard: *Start at* A · B and *Flip B* both change the drawing.
 
 ### 3.3 Rotate & mirror (`0659329` … `f6aba9a`)
 

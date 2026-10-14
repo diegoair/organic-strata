@@ -114,7 +114,17 @@ export function applySymbolRule(opts) {
   renderSymbol();
 }
 
+// Checkerboard › Start at · A · B in front of the hidden swap checkbox (Oct 13, 2026): the buttons show / set it, in the
+// Symbol step and in the Figure's Compose copy of these controls.
+export function syncStartSegs(root = document) {
+  root.querySelectorAll('[data-start-seg]').forEach(seg => {
+    const chk = seg.closest('.rule-params') && seg.closest('.rule-params').querySelector('[data-start-check]');
+    if (!chk) return;
+    seg.querySelectorAll('.seg-btn').forEach(b => { const on = (b.dataset.start === '1') === chk.checked; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+  });
+}
 export function syncSymbolRuleUI() {
+  syncStartSegs(ctrl('symbol-rule-block'));
   const name = pv('sel-symbol-rule');
   document.querySelectorAll('#symbol-rule-block .rule-params').forEach(el => {
     el.style.display = el.id === 'rp-' + name ? '' : 'none';
