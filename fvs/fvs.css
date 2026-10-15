@@ -370,6 +370,7 @@
   #component-edit-frame { container-type: size; position: relative; }
   /* Component Edit's own grid (Tropism Phase 0): the step's Grid / Transform axes / Rule hide while it shows */
   .tier-block.is-ce-editing .ce-hide { display: none; }
+  .tier-block:not(.is-ce-editing) .ce-only { display: none; }   /* Role: Component Edit only (Oct 15, 2026) */
   /* Component Edit › Edit shape… (Diego, Oct 14, 2026): the cells' shape only — what is inside the layers (the layer, its
      place and look, the shape's own controls). Cuts (Split, Divide into parts), colours, layers added / removed / their
      role and the Element-wide place stay the Element step's: a bigger change = edit the Element, or make a new one. */

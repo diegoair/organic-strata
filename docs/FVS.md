@@ -471,6 +471,8 @@ cells are made by hand the Symbol way:
 
 ### 5.7 Role and Blend
 
+The **Role** section (Blend · Role) shows only in **Component Edit** (Diego, Oct 15, 2026): it sets how the edited Component draws and behaves in a Symbol, not what Generate makes.
+
 - **Blend** — **Normal** · **Multiply** (overlapping cell inks multiply, also with the Paper; saved as
   `entry.blend` only when Multiply) — §3a.
 - **Role** — **Normal** · **Container** (this Component's silhouette **clips** a saved underlying

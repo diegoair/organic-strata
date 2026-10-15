@@ -1563,7 +1563,9 @@
       <button class="mini-btn" id="btn-colourways" style="width:100%;margin-top:var(--space-1)" title="Colour variants of the selected component, from the palette and its shade scales — every ink readable on its paper (3:1) and distinct from the others">Colourways of the selection</button>
     </div>
 
-    <div class="panel-section">
+    <!-- Role (Blend · Role) shows only in Component Edit (Diego, Oct 15, 2026: "lo spostiamo solo sull'edit del component"):
+         it says how the one Component draws and behaves later, not what Generate makes -->
+    <div class="panel-section ce-only">
       <h3>Role</h3>
       <div class="ctrl-row"><div class="ctrl-label" title="How the cells’ inks draw where they overlap (raise Scale to make them overlap)">Blend</div>
         <select class="panel-select" id="sel-component-blend" aria-label="Blend"><option value="normal">Normal</option><option value="multiply">Multiply</option></select></div>
