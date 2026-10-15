@@ -326,6 +326,32 @@ input[type=range]:focus-visible::-moz-range-track {
   box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent);
 }
 
+/* Two-handle slider — Organica.dualRange (shared/dual-range.js, Oct 15, 2026): a From–To span on one track. The
+   same track and droplet knob as the one-handle slider above; the filled part is the span; detents (the values a
+   knob catches) are dots, white on the fill, ink on the empty track. */
+.org-dual {
+  position: relative; flex: 1 1 auto; min-width: 0;
+  height: var(--slo-h); border-radius: var(--slo-r);
+  background: var(--control-bg); cursor: pointer; touch-action: none;
+}
+.org-dual.is-dragging { cursor: grabbing; }
+.org-dual__fill { position: absolute; top: 0; bottom: 0; background: var(--ink); border-radius: var(--slo-r); }
+.org-dual__ticks { position: absolute; inset: 0; pointer-events: none; }
+.org-dual__tick {
+  position: absolute; top: 50%; width: 2px; height: 2px; margin: -1px 0 0 -1px; border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+.org-dual__tick.is-in { background: rgba(255, 255, 255, 0.6); }   /* white in both themes, as the slider's dots */
+.org-dual__knob {
+  position: absolute; top: 50%;
+  width: var(--knob-size); height: var(--knob-size); margin: calc(var(--knob-size) / -2) 0 0 calc(var(--knob-size) / -2);
+  box-sizing: border-box; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--paper);
+  box-shadow: 0 0 var(--space-3) rgba(0, 0, 0, 0.4); cursor: grab; outline: none;
+}
+.org-dual__knob:focus-visible { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent); }
+/* the rail: half a knob in from each end, as the one-handle slider's handle travel — fill, dots and knobs share it */
+.org-dual__rail { position: absolute; top: 0; bottom: 0; left: calc(var(--knob-size) / 2); right: calc(var(--knob-size) / 2); }
+
 /* ═══════════════════════════════════════════════════════════
    CONTROLS
    ═══════════════════════════════════════════════════════════ */
@@ -574,6 +600,12 @@ input[type=range]:focus-visible::-moz-range-track {
   .seg-btn:is(.active, [aria-pressed="true"]):hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-hover); border-color: var(--accent-hover); }
 }
 .seg-btn:active:not(:disabled):not(.active):not([aria-pressed="true"]) { background: var(--gray-200); }
+/* .seg-ctrl--multi — a set of independent toggles (Oct 15, 2026, FVS Rule › Turns): each .seg-btn carries its own
+   aria-pressed, the group has role="group"; spaced, not joined, so it never reads as a one-of-many tab row.
+   [data-locked] = pressed and fixed (the set's base), not dimmed. */
+.seg-ctrl--multi { flex-wrap: wrap; gap: var(--space-1); }
+.seg-ctrl--multi .seg-btn { flex: 1 1 0; padding: 0; text-overflow: clip; margin-left: 0; border-radius: var(--radius-sm); font-variant-numeric: tabular-nums; }
+.seg-ctrl--multi .seg-btn[data-locked] { cursor: default; }
 .seg-btn.active,
 .seg-btn[aria-pressed="true"] {
   background: var(--ink);

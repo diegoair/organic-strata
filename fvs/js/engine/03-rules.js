@@ -277,9 +277,52 @@ export function withGrid(grid, fn) {
   state.gridOverride = grid;
   try { return fn(); } finally { state.gridOverride = keep; }
 }
-export function scaleValues() {
-  return [val('rg-scale-small') / 100, val('rg-scale-medium') / 100, val('rg-scale-large') / 100];
+// ── Axis values (Tropism Phase 1, Oct 15, 2026 — Rule › Axes): which angles and sizes a rule may use ──
+// Turns: the set of angles a rule may use, one set per cell shape in #rot-set ({square: [0, 90], hexagon: […]}), always
+// on the shape's own steps (0/90/180/270 square, latticeSteps() on lattices) and always holding 0°; nothing saved for a
+// shape = all of its steps, so every rule draws as before by default. Square cells only: Free angles (#rot-free) =
+// From · To · Step in degrees, for angles that don't tile.
+export const rotationStepOf = shape => (CELL_SHAPES[shape] && CELL_SHAPES[shape].step) || 90;
+export function rotationDefaults(shape = state.cellShape) { const st = rotationStepOf(shape); return { from: 0, to: 360 - st, step: st }; }
+export function rotationSteps(shape = state.cellShape) { const st = rotationStepOf(shape), out = []; for (let a = 0; a < 360; a += st) out.push(a); return out; }
+export function rotationSet(shape = state.cellShape) {
+  const steps = rotationSteps(shape);
+  let saved = null;
+  try { saved = (JSON.parse(pv('rot-set') || '{}') || {})[shape]; } catch (e) { saved = null; }
+  if (!Array.isArray(saved)) return steps;
+  return steps.filter(a => a === 0 || saved.includes(a));
 }
+export const rotationFree = () => state.cellShape === 'square' && pv('rot-free') === '1';
+export function rotationValues() {
+  if (!rotationFree()) return rotationSet();
+  const from = val('rg-rot-from'), to = val('rg-rot-to'), st = val('rg-rot-step');
+  if (!(st > 0) || !(to >= from)) return ROTATIONS;
+  const out = [];
+  for (let a = from; a <= to + 1e-9 && out.length < 72; a += st) { const r = mod360(a); if (!out.includes(r)) out.push(r); }
+  return out;
+}
+// Scale: From · To % and How many, evenly spaced (75 · 100 · 125 by default = the old Small · Medium · Large).
+export function scaleValues() {
+  const from = val('rg-scale-from'), to = val('rg-scale-to'), n = Math.max(2, Math.round(val('rg-scale-count')) || 3);
+  if (!(from > 0) || !(to > 0)) return [0.75, 1.0, 1.25];
+  return Array.from({ length: n }, (_, i) => Math.round(from + (to - from) * i / (n - 1)) / 100);
+}
+// Which axes each rule reads — what Rule › Axes shows (measured on fvs/_axes-baseline.json, Oct 15, 2026: Step turn and
+// Radial draw the same with Rotation on or off — their turns are their own; Uniform on square cells reads none;
+// Rhythm › Connect reads Flip, not Scale). rotation: 'values' | 'own' (a note, no control) | null. One table for the
+// step's panel and, at the end of Tropism, the Figure's Component rule node.
+export function ruleAxes(mode, { lattice = false, rhythm = 'beat' } = {}) {
+  const all = { rotation: 'values', flip: true, scale: true };
+  switch (mode) {
+    case 'identity': return lattice ? all : { rotation: null, flip: false, scale: false };
+    case 'pinwheel': case 'radial': return { rotation: 'own', flip: false, scale: true };
+    case 'hlines': case 'vlines': return { rotation: null, flip: false, scale: true };
+    case 'oscillator': return rhythm === 'connect' ? { rotation: null, flip: true, scale: false } : { rotation: null, flip: false, scale: true };
+    default: return all;   // Mirror, Checkerboard, Random, Exhaustive (and the hidden legacy rules)
+  }
+}
+// N sizes picked by a level that runs 0…2 (Rhythm's beats met, a wave's level + 1): the same three as before when N = 3.
+const sizeAt = (sv, l3) => sv[Math.round(l3 / 2 * (sv.length - 1))];
 export function activeAxes() {
   return {
     rotation: pc('chk-axis-rotation'),
@@ -290,7 +333,7 @@ export function activeAxes() {
 export function axisValues() {
   const axes = activeAxes();
   return {
-    rotations: axes.rotation ? ROTATIONS : [0],
+    rotations: axes.rotation ? rotationValues() : [0],
     flips: axes.flip ? FLIPS : [{ h: false, v: false }],
     scales: axes.scale ? scaleValues() : [1.0],
   };
@@ -457,7 +500,7 @@ export function ruleLines(axis) {
   const cells = ctxs.map(ctx => {
     const key = axis === 'row' ? ctx.row : ctx.col;
     const rot = mode === 'ramp' ? hooks.snap90(step * key) : (key % 2 ? step : 0);
-    const scale = !scaleOn ? 1.0 : (mode === 'ramp' ? sv[key % sv.length] : sv[key % 2 ? 2 : 0]);
+    const scale = !scaleOn ? 1.0 : (mode === 'ramp' ? sv[key % sv.length] : sv[key % 2 ? sv.length - 1 : 0]);
     return stateFrom(((rot % 360) + 360) % 360, false, false, scale);
   });
   const ruleSource = axis === 'row' ? 'hlines' : 'vlines';
@@ -489,14 +532,14 @@ export function rhythmBeatsCells(ctxs, across, down, angle, combine, shift, sv) 
   return ctxs.map(ctx => {
     const hits = (rmod(ctx.col + Math.floor(shift * ctx.row), across) === 0 ? 1 : 0) + (rmod(ctx.row, down) === 0 ? 1 : 0);
     const turn = combine === 'one' ? (hits === 1 ? angle : 0) : combine === 'both' ? (hits === 2 ? angle : 0) : angle * hits;
-    return stateFrom(rmod(turn, 360), false, false, sv ? sv[hits] : 1.0);
+    return stateFrom(rmod(turn, 360), false, false, sv ? sizeAt(sv, hits) : 1.0);
   });
 }
 export function rhythmWaveCells(ctxs, amplitude, period, shift, sv) {
   return ctxs.map(ctx => {
     const w = Math.sin(2 * Math.PI * (ctx.col + shift * ctx.row) / period);
     const turn = Math.round(amplitude * w / 90) * 90;
-    return stateFrom(rmod(turn, 360) || 0, false, false, sv ? sv[Math.round(w + 1)] : 1.0);
+    return stateFrom(rmod(turn, 360) || 0, false, false, sv ? sizeAt(sv, w + 1) : 1.0);
   });
 }
 // Connect: `views` = the orientations a cell may take ({r, fh, fv}), `cover[i]` = view i's sides ({top, right,
@@ -731,7 +774,7 @@ export function exhaustiveTotal() { return state.cellShape !== 'square' ? lattic
 export function latticeStates() {
   const ax = activeAxes(), out = [];
   const flips = ax.flip ? [{ h: false, v: false }, ...CELL_SHAPES[state.cellShape].flips.map(f => ({ h: f === 'h', v: f === 'v' }))] : [{ h: false, v: false }];
-  for (const r of ax.rotation ? latticeSteps() : [0]) for (const f of flips) for (const s of axisValues().scales) out.push(stateFrom(r, f.h, f.v, s));
+  for (const r of ax.rotation ? rotationValues() : [0]) for (const f of flips) for (const s of axisValues().scales) out.push(stateFrom(r, f.h, f.v, s));
   return out;
 }
 // Radial: each cell turned towards the lattice centre. On triangles the Arc's pivot corner (the outline's
@@ -891,7 +934,7 @@ export function latticeRule(mode, opts) {
   }
   if (mode === 'mirror') {
     const kind = latticeMirrorKind(), seeds = kind === 'square' ? [0, 1, 2, 3] : kind === 'lines' ? [0, 1] : [0], list = [];
-    for (const R of activeAxes().rotation ? latticeSteps() : [0]) for (const sd of seeds) for (const s of scales) list.push(latticeMirrorCells(R, sd, s));
+    for (const R of activeAxes().rotation ? rotationValues() : [0]) for (const sd of seeds) for (const s of scales) list.push(latticeMirrorCells(R, sd, s));
     return pack('mirror', list);
   }
   if (mode === 'checkerboard') return pack('checkerboard', latticeCheckerboards(opts && opts.allStarts));

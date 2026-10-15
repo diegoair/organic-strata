@@ -577,6 +577,7 @@
       <a href="#palette-chips">Palette — RMX chip strip</a>
       <a href="#select-picker">Picker</a>
       <a href="#seg-ctrl">Segmented control</a>
+      <a href="#dual-range">Two-handle slider</a>
       <a href="#seeds-panel">Seeds panel</a>
     </div>
     <div class="ds-nav__group">
@@ -1677,6 +1678,36 @@ picker.invalidate('oak');   <span class="attr">/* after the preset is re-saved *
         <span class="attr">aria-disabled</span>=<span class="str">"true"</span> <span class="attr">title</span>=<span class="str">"Square needs circle or hexagon cells"</span>
         <span class="attr">aria-description</span>=<span class="str">"Square needs circle or hexagon cells"</span>&gt;…&lt;/<span class="tag">button</span>&gt;
 <span class="attr">/* panel.css */</span> .seg-btn:disabled, .seg-btn[aria-disabled="true"] { opacity: .42; cursor: not-allowed; }  <span class="attr">/* and excluded from both hover rules */</span></pre>
+      <h3 class="ds-sub">Several on at once — <code>.seg-ctrl--multi</code></h3>
+      <p class="ds-desc">A set of <strong>independent toggles</strong>, not one-of-many: each <code>.seg-btn</code> carries its own <code>aria-pressed</code>, the group is <code>role="group"</code> named by its label (<code>aria-labelledby</code>). The buttons are spaced (<code>--space-1</code>) with their own <code>--radius-sm</code> corners, equal widths, and wrap — so the row never reads as a tab strip. <code>[data-locked]</code> = pressed and fixed (the set’s base: no pointer, no toggle; say why in <code>aria-description</code>). The tool owns <code>aria-pressed</code> here, so give each button <code>data-aria-own</code> (<code>Organica.a11y</code> then never re-derives it from a class). Decided by Diego, Oct 15, 2026; first consumer: FVS Rule › Axes › <strong>Turns</strong> (the angles a cell shape tiles with, 0° locked).</p>
+      <div class="ds-example" style="max-width:280px">
+        <div class="ctrl-row" style="flex:1;flex-direction:column;align-items:stretch;gap:var(--space-1)"><div class="ctrl-label" id="ds-segm-label">Turns</div>
+          <div class="seg-ctrl seg-ctrl--multi" id="ds-segm" role="group" aria-labelledby="ds-segm-label">
+            <button type="button" class="seg-btn" data-aria-own aria-pressed="true" data-locked aria-description="Always on: the Element as drawn">0°</button>
+            <button type="button" class="seg-btn" data-aria-own aria-pressed="false">60°</button>
+            <button type="button" class="seg-btn" data-aria-own aria-pressed="true">120°</button>
+            <button type="button" class="seg-btn" data-aria-own aria-pressed="false">180°</button>
+            <button type="button" class="seg-btn" data-aria-own aria-pressed="true">240°</button>
+            <button type="button" class="seg-btn" data-aria-own aria-pressed="false">300°</button>
+          </div></div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"seg-ctrl seg-ctrl--multi"</span> <span class="attr">role</span>=<span class="str">"group"</span> <span class="attr">aria-labelledby</span>=<span class="str">"turns-label"</span>&gt;
+  &lt;<span class="tag">button</span> <span class="attr">type</span>=<span class="str">"button"</span> <span class="attr">class</span>=<span class="str">"seg-btn"</span> <span class="attr">data-aria-own</span> <span class="attr">aria-pressed</span>=<span class="str">"true"</span> <span class="attr">data-locked</span> <span class="attr">aria-description</span>=<span class="str">"Always on: the Element as drawn"</span>&gt;0°&lt;/<span class="tag">button</span>&gt;
+  &lt;<span class="tag">button</span> <span class="attr">type</span>=<span class="str">"button"</span> <span class="attr">class</span>=<span class="str">"seg-btn"</span> <span class="attr">data-aria-own</span> <span class="attr">aria-pressed</span>=<span class="str">"false"</span>&gt;90°&lt;/<span class="tag">button</span>&gt;
+&lt;/<span class="tag">div</span>&gt;
+<span class="attr">/* panel.css */</span> .seg-ctrl--multi { flex-wrap: wrap; gap: var(--space-1); }  .seg-ctrl--multi .seg-btn { flex: 1 1 0; padding: 0; margin-left: 0; border-radius: var(--radius-sm); }</pre>
+    </section>
+
+    <section class="ds-entry" id="dual-range">
+      <h2>Two-handle slider</h2>
+      <p class="ds-desc">A <strong>From–To span on one track</strong>: the one-handle slider’s well and droplet knob, twice; the filled part is the span. <strong>Detents</strong> (the values a knob catches within <code>catchBy</code>) are dots — white on the fill, ink on the empty track. Two knobs, <code>role="slider"</code> with <code>aria-valuemin/max/now/text</code>, named <em>&lt;label&gt; from</em> / <em>&lt;label&gt; to</em>; they never cross. Pointer: press anywhere and the nearer knob jumps there and follows; keys ←/→ by step, Shift ×10, Home / End. The readout beside it is read-only (two numbers — not click-to-type). Decided by Diego on the Tropism mockup, Oct 15, 2026 (<em>nuovo slider a due maniglie</em>).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css (.org-dual)</span><strong>JS</strong><span>Organica.dualRange(host, { min, max, from, to, step, detents, catchBy, label, fmt, onInput, onChange }) — shared/dual-range.js · r.get() · r.set(from, to, silent) · r.setDetents(list) · r.setBounds(min, max, step)</span><strong>Used in</strong><span>Flexible Visual System (Rule › Axes: Turns › Free angles › Angles; Scale › Sizes)</span></div>
+      <div class="ds-example ds-example--column" style="max-width:280px">
+        <div class="ctrl-row"><span class="ctrl-label">Sizes</span><div id="ds-dual-host"></div><span class="ctrl-val" id="ds-dual-val" style="cursor:default">75–125%</span></div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-row"</span>&gt;&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"ctrl-label"</span>&gt;Sizes&lt;/<span class="tag">div</span>&gt;&lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"dual-sizes"</span>&gt;&lt;/<span class="tag">div</span>&gt;&lt;<span class="tag">span</span>&gt;75–125%&lt;/<span class="tag">span</span>&gt;&lt;/<span class="tag">div</span>&gt;
+Organica.dualRange(host, { min: 10, max: 400, from: 75, to: 125, step: 1, detents: [50, 100, 150, 200], catchBy: 6,
+  label: 'Sizes', fmt: v =&gt; v + '%', onInput: (a, b) =&gt; { … } });</pre>
     </section>
 
     <section class="ds-entry" id="seeds-panel">
@@ -2567,6 +2598,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 <script src="/shared/core.js"></script>
 <script src="/shared/icons.js"></script>
 <script src="/shared/select-picker.js"></script>
+<script src="/shared/dual-range.js"></script>
 <!-- fvs-field.js is standalone; color → palette are loaded only so the #fvs-field demo's palette picker shows the live library -->
 <script src="/shared/color.js"></script>
 <script src="/shared/palette.js"></script>
@@ -2730,6 +2762,8 @@ document.querySelectorAll('.ds-group-title').forEach(h => {
   h.dataset.count = n + (n === 1 ? ' entry' : ' entries');
 });
 Organica.enhanceSliders(document);
+// Two-handle slider demo: the real Organica.dualRange (shared/dual-range.js)
+if (Organica.dualRange) { const dv = document.getElementById('ds-dual-val'); Organica.dualRange(document.getElementById('ds-dual-host'), { min: 10, max: 400, from: 75, to: 125, step: 1, detents: [50, 100, 150, 200, 250, 300, 350], catchBy: 6, label: 'Sizes', fmt: v => v + '%', onInput: (a, b) => { dv.textContent = a + '–' + b + '%'; } }); }
 // Notice demo: the real component, centred on this page's canvas-less layout
 document.getElementById('ds-notice-error')?.addEventListener('click', () => Organica.notice('Could not read that image', { kind: 'error' }));
 document.getElementById('ds-notice-busy')?.addEventListener('click', () => Organica.notice('Recording 6s…', { kind: 'busy' }));
@@ -2880,6 +2914,9 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   }
   assert('#ds-fvsf-demo', { position: 'relative', pointerEvents: 'none' });   // the boxed demo still never takes the pointer
   assert('.ctrl-row',   { minHeight: '26px' });                       // --row-h
+  assert('#ds-segm', { flexWrap: 'wrap', columnGap: '4px' });                  // .seg-ctrl--multi: spaced, wraps (--space-1)
+  assert('#ds-segm > .seg-btn:nth-child(3)', { marginLeft: '0px', borderTopLeftRadius: '2px', paddingLeft: '0px' });   // own corners (--radius-sm), not joined
+  assert('#ds-dual-host .org-dual__knob', { position: 'absolute' });   // Organica.dualRange mounted
   // panel dividers (panel.css): a line under every section, dropped only where it really ends something
   assert('#ds-pd-a', { borderBottomWidth: '1px' });
   assert('#ds-pd-b', { borderBottomWidth: '1px' });     // last of its wrapper, but another section follows

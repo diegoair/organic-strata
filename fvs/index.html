@@ -1378,30 +1378,6 @@
     </div>
 
     <div class="panel-section ce-hide">
-      <h3>Transform axes <span class="hint">also affects the fixed-pattern Rules below</span></h3>
-      <label class="check-row"><input type="checkbox" id="chk-axis-rotation" checked><span>Rotation (0/90/180/270°)</span></label>
-      <label class="check-row"><input type="checkbox" id="chk-axis-flip"><span>Flip (none/H/V/both)</span></label>
-      <label class="check-row"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
-      <div id="scale-values-block" style="display:none">
-        <div class="ctrl-row">
-          <div class="ctrl-label">Small %</div>
-          <input type="range" id="rg-scale-small" min="10" max="400" step="1" value="75">
-          <span class="ctrl-val" id="v-scale-small">75</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Medium %</div>
-          <input type="range" id="rg-scale-medium" min="10" max="400" step="1" value="100">
-          <span class="ctrl-val" id="v-scale-medium">100</span>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Large %</div>
-          <input type="range" id="rg-scale-large" min="10" max="400" step="1" value="125">
-          <span class="ctrl-val" id="v-scale-large">125</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel-section ce-hide">
       <h3>Rule</h3>
       <div class="ctrl-row">
         <select class="panel-select" id="sel-rule" aria-label="Rule mode">
@@ -1541,6 +1517,43 @@
 
       <div id="rule-manual-block" style="display:none">
         <!-- 4 cell groups injected by JS -->
+      </div>
+
+      <!-- Axes (Tropism Phase 1, Oct 15, 2026 — Diego: the Transform axes inside Rule): only the axes the chosen rule
+           reads (ruleAxes, engine/03-rules.js); a hidden axis keeps its setting. Free angles and Scale's Sizes are
+           Organica.dualRange (shared/dual-range.js) writing the hidden From / To inputs the engine reads. -->
+      <div class="sub-label" id="rule-axes-label">Axes</div>
+      <p class="panel-hint" id="rule-axes-none" hidden></p>
+      <!-- Turns (Oct 15, 2026 — Diego, after the design-system + usability review): one toggle per angle the cell shape
+           tiles with (.seg-ctrl--multi); 0° is the base and stays on; one angle only = the axis off (#chk-axis-rotation,
+           kept hidden and derived, is what the engine and the tests read). Square cells: Free angles = the From–To · Step
+           range for angles that don't tile. The set is kept per cell shape in #rot-set. -->
+      <div class="fvs-axis" data-axis="rotation">
+        <div class="ctrl-row fvs-axis__turns"><div class="ctrl-label" id="turns-label">Turns</div>
+          <div class="seg-ctrl seg-ctrl--multi" id="turns-chips" role="group" aria-labelledby="turns-label"></div></div>
+        <input type="checkbox" id="chk-axis-rotation" checked hidden><input type="hidden" id="rot-set" value=""><input type="hidden" id="rot-free" value="0">
+        <details class="org-disclosure" id="turns-free">
+          <summary class="org-disclosure__head"><i data-icon="chevron-right" data-size="xs" class="org-chev"></i><span class="org-disclosure__label">Free angles</span></summary>
+          <div class="org-disclosure__body fvs-axis__values" id="rot-values-block">
+            <div class="ctrl-row"><div class="ctrl-label" id="rot-angles-label">Angles</div><div id="dual-rot-angles"></div><span class="fvs-axis__readout" id="v-rot-angles">0–270°</span></div>
+            <div class="ctrl-row"><div class="ctrl-label">Step</div><input type="range" id="rg-rot-step" min="15" max="180" step="15" value="90" aria-label="Step between angles"><span class="ctrl-val" id="v-rot-step">90</span></div>
+            <p class="panel-hint" id="rot-values-list"></p>
+            <input type="hidden" id="rg-rot-from" value="0"><input type="hidden" id="rg-rot-to" value="270">
+          </div>
+        </details>
+      </div>
+      <p class="panel-hint" id="rot-own-note" hidden>This rule makes its own turns.</p>
+      <div class="fvs-axis" data-axis="flip">
+        <label class="check-row org-switch"><input type="checkbox" id="chk-axis-flip"><span>Flip</span></label>
+      </div>
+      <div class="fvs-axis" data-axis="scale">
+        <label class="check-row org-switch"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
+        <div class="fvs-axis__values" id="scale-values-block" hidden>
+          <div class="ctrl-row"><div class="ctrl-label" id="scale-sizes-label">Sizes</div><div id="dual-scale-sizes"></div><span class="fvs-axis__readout" id="v-scale-sizes">75–125%</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">How many</div><input type="range" id="rg-scale-count" min="2" max="7" step="1" value="3" aria-label="How many sizes"><span class="ctrl-val" id="v-scale-count">3</span></div>
+          <p class="panel-hint" id="scale-values-list"></p>
+          <input type="hidden" id="rg-scale-from" value="75"><input type="hidden" id="rg-scale-to" value="125">
+        </div>
       </div>
 
       <div class="row-btns">
@@ -1911,6 +1924,7 @@
 <script src="/shared/shapes.js"></script>
 <script src="/shared/shape-appearance.js"></script>
 <script src="/shared/select-picker.js"></script>
+<script src="/shared/dual-range.js"></script>
 <script src="/shared/vendor/paper-full.min.js"></script>
 <script src="/genesis/forms.js"></script><!-- the 13 Base Seeds, as data — Paper tile sources -->
 <script src="/shared/vendor/kiwi.min.js"></script>

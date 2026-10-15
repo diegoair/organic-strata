@@ -1,6 +1,6 @@
 # Tropism — FVS axes, levels and new rules
 
-> Codename **Tropism** (Diego, Oct 14, 2026): cells turn in response to a signal — a rule, a field, a photo. Status: **Phase 0 built Oct 14, 2026** (Components made by hand, the Symbol way — docs/FVS.md §5.6); Phase 1 next. Open decisions: ledger O-73. Plan written Oct 14, 2026 from the rule review (`design-system/_fvs-rules.html`).
+> Codename **Tropism** (Diego, Oct 14, 2026): cells turn in response to a signal — a rule, a field, a photo. Status: **Phase 0 built Oct 14, 2026** (Components made by hand, the Symbol way — docs/FVS.md §5.6); Phase 1 started Oct 15, 2026. Decisions D1–D7: the recommended answers, accepted by Diego Oct 15, 2026 (ledger §2). Plan written Oct 14, 2026 from the rule review (`design-system/_fvs-rules.html`).
 
 
 ## Context
@@ -90,15 +90,15 @@ Remove Manual **as a rule**, keep the capability, and move it onto the canvas.
   - Add `AXES` (rotation, flip, scale), each with `values`, `fromLevel(level, kind)`, `defaultValues()`.
   - Add `ruleLevels(mode)`, which returns per-cell levels for every rule. Rhythm and Lines already compute keys; Checkerboard returns its class; Radial its step; Mirror its flip class.
   - Keep each `rule*()` returning today's cells; assert in the test that `fromLevel` reproduces them.
-- **Rotation values:** a row of chips (0 · 90 · 180 · 270, plus *Step* 30/45/60/90 or *Free*). On circle / triangle / hexagon cells the chips are the shape's steps (`latticeSteps`).
-- **Scale values:** S/M/L as now, plus a *Range* mode (min–max %) for unit levels.
+- **Turns** (built Oct 15, 2026; the axis was *Rotation* — Diego the same day: *Rotation* stays for single-angle controls): a row of angle toggles, the shared `.seg-ctrl--multi` (Diego: shared, not FVS-local), one per step of the cell shape (`rotationSteps`), 0° locked on, a set per shape (`#rot-set`); one angle = the axis off. Square cells only: a **Free angles** disclosure holding the From–To two-handle slider (`Organica.dualRange`) + *Step* — open, it decides. An axis the rule doesn't read stays hidden, not greyed (`ruleAxes`). Built: `fvs/index.html` Rule › Axes, `fvs/js/06-component-ui.js` `buildTurnsChips` / `toggleTurn` / `setTurnsFree`, `engine/03-rules.js` `rotationSet` / `rotationFree` / `rotationValues`.
+- **Scale values** (built Oct 15, 2026): *Sizes*, a From–To two-handle slider (10–400 %, catching every 50 %) + *How many* (2–7); default 75–125, 3 = the old S/M/L.
 - **Test:** new `scripts/test-fvs-axes.sh`. Every rule × axis combination at defaults gives the same cells as `rule*()`. Regression stays 629/629.
 
 ### Phase 2 — Driven by, per axis
 - **UI:** the Transform axes section becomes one row per axis: switch · values · *Driven by* (`Rule` | Uniform · Step turn · Checkerboard · Lines · Rhythm › Beat/Wave · Radial · Random). The driver's own settings fold out beneath it, reusing that rule's existing panel block markup where possible.
 - **Engine:** `composeAxes(cellsFromRule, overrides)` replaces only the overridden fields. Overridden components are deduped on the full state.
 - **Lines and Rhythm:** their "cycle S/M/L when Scale is on" becomes "Scale driven by Rule" — same cells.
-- **Random / Exhaustive:** draw a family per overridden axis. **Exhaustive** gets a combination counter in its hint and the existing 512 cap, plus *Sample 512* as a later option.
+- **Random / Exhaustive:** draw a family per overridden axis. **Exhaustive** gets a combination counter in its hint and the existing cap (2,048 since Oct 15, 2026), plus *Sample* as a later option.
 - **Figure:** the Component rule node gets the same per-axis Driven by (`fvs/js/17-figure-graph.js` `rhythmRows` pattern). `componentCellsFromRule` accepts the overrides.
 - **Saved:** the Component entry still stores only cells (unchanged). Optionally store `axes` for re-editing (decision D2).
 

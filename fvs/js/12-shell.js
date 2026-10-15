@@ -52,7 +52,7 @@ import {
 import {
   clearGallery, exitComponentEditMode, exportSelected, generate, generateColourways,
   populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setCheckerStart, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
-  syncExhaustiveHint, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant
+  syncExhaustiveHint, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, toggleTurn, setTurnsFree
 } from './06-component-ui.js';
 import {
   renderLayersUI, renderLibrary, restoreComponentElementState, syncColourGroupRules
@@ -815,16 +815,18 @@ ctrl('btn-paper-clear').addEventListener('click', () => {
 });
 syncPaperClearUI();
 
-ctrl('chk-axis-rotation').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
+// Rule › Axes (Tropism Phase 1): Turns = the angle toggles + Free angles (06-component-ui.js); Step and How many are
+// plain sliders; Angles and Sizes are the two-handle sliders built in syncAxisValuesUI. #chk-axis-rotation is hidden —
+// set from the chips, or by a script / test (its change redraws the chips).
+ctrl('chk-axis-rotation').addEventListener('change', () => { syncAxisValuesUI(); syncRuleAxesUI(); syncExhaustiveHint(); syncRuleAxisNote(); });
+ctrl('turns-chips').addEventListener('click', e => { const b = e.target.closest('.seg-btn[data-angle]'); if (b) toggleTurn(+b.dataset.angle); });
+ctrl('turns-free').addEventListener('toggle', () => setTurnsFree(ctrl('turns-free').open));
 ctrl('chk-axis-flip').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
-ctrl('chk-axis-scale').addEventListener('change', e => {
-  ctrl('scale-values-block').style.display = e.target.checked ? '' : 'none';
-  syncExhaustiveHint();
-  syncRuleAxisNote();
-});
-[['rg-scale-small', 'v-scale-small'], ['rg-scale-medium', 'v-scale-medium'], ['rg-scale-large', 'v-scale-large']].forEach(([rangeId, valId]) => {
-  ctrl(rangeId).addEventListener('input', e => { ctrl(valId).textContent = e.target.value; syncExhaustiveHint(); });
-});
+ctrl('chk-axis-scale').addEventListener('change', () => { syncRuleAxesUI(); syncExhaustiveHint(); syncRuleAxisNote(); });
+ctrl('rg-rot-step').addEventListener('input', () => { setTurnsFree(true); });
+ctrl('rg-scale-count').addEventListener('input', () => { syncAxisValuesUI(); syncExhaustiveHint(); });
+syncAxisValuesUI(true);
+syncRuleAxesUI();
 
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
 ctrl('seg-mirror-line').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorLine(b.dataset.line); });

@@ -3,7 +3,7 @@
 // Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
 import {
-  colorAt, live, pv, state, val
+  colorAt, live, pc, pv, state, val
 } from './engine/00-core.js';
 import {
   INNER_APEX, INNER_UNSUPPORTED, SEED_TYPES, fitPathToSeed, frameDims, splitPaperScope, splitPlan
@@ -15,7 +15,8 @@ import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
-  ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid
+  ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
+  ruleAxes, rotationSet, rotationSteps, rotationFree, rotationValues, scaleValues
 } from './engine/03-rules.js';
 import {
   appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, stretchOpts,
@@ -54,7 +55,8 @@ provide({
   adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks,
   enterComponentEditMode: () => enterComponentEditMode, generate: () => generate,
   populateComponentStarterGallery: () => populateComponentStarterGallery, renderComponentEditCanvas: () => renderComponentEditCanvas,
-  syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI, syncSplitUI: () => syncSplitUI
+  syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI, syncSplitUI: () => syncSplitUI,
+  syncAxisValuesUI: () => syncAxisValuesUI, syncRuleAxesUI: () => syncRuleAxesUI
 });
 // ── Component Edit mode ──────────────────────────────────────────────────
 // A big single-component view (state.componentEditMode) where every cell is
@@ -632,6 +634,7 @@ export function syncRhythm() {
   ctrl('btn-rhythm-beat-remove').disabled = r.beat.length <= 1;
   ctrl('btn-rhythm-beat-add').disabled = r.beat.length >= RHYTHM_BEAT_MAX;
   ctrl('rhythm-connect-hint').style.display = m === 'connect' && !elementReachesEdge() ? '' : 'none';
+  syncRuleAxesUI();   // Connect reads Flip, the other modes Scale
 }
 export function setRhythmMode(m) { state.rhythm.mode = m; syncRhythm(); }
 export function setRhythmCombine(c) { state.rhythm.combine = c; syncRhythm(); }
@@ -671,13 +674,94 @@ export function syncRuleAxisNote() {
   const ax = activeAxes();
   // Random with no axis on draws the one uniform Component, however many it is asked for (Oct 14, 2026)
   if (pv('sel-rule') === 'random' && !ax.rotation && !ax.flip && !ax.scale) {
-    note.textContent = 'Random needs an axis active in Transform axes (above) — every Component is the same until then.';
+    note.textContent = 'Random needs an axis on — under Axes (below), pick a second angle in Turns or turn on Flip or Scale; every Component is the same until then.';
     note.style.display = ''; return;
   }
   const satisfied = !fam || fam.requiresAxis !== 'any' || axisSatisfied('any', ax);
   if (satisfied) { note.style.display = 'none'; return; }
-  note.textContent = 'Checkerboard needs an axis active in Transform axes (above) — showing Uniform until then.';
+  note.textContent = 'Checkerboard needs an axis on under Axes (below) — showing Uniform until then.';
   note.style.display = '';
+}
+
+// ── Rule › Axes (Tropism Phase 1, Oct 15, 2026 — Diego: the Transform axes inside Rule) ──
+// Only the axes the chosen rule reads show (ruleAxes, engine/03-rules.js); a hidden axis keeps its setting.
+// Turns (Oct 15, 2026 — Diego, after the design-system + usability review: "chips + Free angles", the axis named Turns):
+// one .seg-btn[aria-pressed] per angle the cell shape tiles with, 0° locked on; the pressed set goes in #rot-set for
+// this shape, and #chk-axis-rotation (hidden) follows it — on with two angles or more. Square cells only: Free angles
+// (a disclosure) = the From–To two-handle slider + Step on 0–360°, catching on 90°; open, it decides and the chips show
+// what it gives. Sizes (From–To on 10–400 %, catching every 50 %) + How many write #rg-scale-from / -to / -count.
+// The defaults draw every rule exactly as before (scripts/test-fvs-axes.sh).
+let rotDual = null, sizeDual = null, chipsShape = null;
+const degList = v => v.map(a => a + '°').join(' · ');
+function readRotSet() { try { return JSON.parse(pv('rot-set') || '{}') || {}; } catch (e) { return {}; } }
+const FREE_REASON = 'Free angles decides the turns — close it to pick them here.';
+function syncTurnsChips() {
+  const values = pc('chk-axis-rotation') ? rotationValues() : [0], free = rotationFree();
+  ctrl('turns-chips').querySelectorAll('.seg-btn').forEach(b => {
+    const a = +b.dataset.angle;
+    b.setAttribute('aria-pressed', String(values.includes(a)));
+    if (free) { b.setAttribute('aria-disabled', 'true'); b.title = FREE_REASON; b.setAttribute('aria-description', FREE_REASON); }
+    else { b.removeAttribute('aria-disabled'); b.removeAttribute('title'); if (a === 0) b.setAttribute('aria-description', 'Always on: the Element as drawn'); else b.removeAttribute('aria-description'); }
+  });
+}
+// the hidden switch the engine reads follows the set: on with two angles or more
+const syncTurnsAxis = () => { ctrl('chk-axis-rotation').checked = rotationValues().length > 1; };
+function buildTurnsChips() {
+  const shape = state.cellShape, box = ctrl('turns-chips');
+  box.innerHTML = rotationSteps(shape).map(a =>
+    `<button type="button" class="seg-btn" data-aria-own data-angle="${a}"${a === 0 ? ' data-locked aria-description="Always on: the Element as drawn"' : ''}>${a}°</button>`).join('');
+  chipsShape = shape;
+  ctrl('turns-free').hidden = shape !== 'square';
+}
+function axesReadout() {
+  ctrl('v-rot-angles').textContent = `${pv('rg-rot-from')}–${pv('rg-rot-to')}°`;
+  ctrl('v-rot-step').textContent = pv('rg-rot-step');
+  const rv = rotationValues();
+  ctrl('rot-values-list').textContent = `${rv.length} angle${rv.length === 1 ? '' : 's'}: ${degList(rv)}`;
+  ctrl('v-scale-sizes').textContent = `${pv('rg-scale-from')}–${pv('rg-scale-to')}%`;
+  ctrl('v-scale-count').textContent = pv('rg-scale-count');
+  ctrl('scale-values-list').textContent = scaleValues().map(x => Math.round(x * 100)).join(' · ') + ' %';
+  syncTurnsChips();
+}
+function axesChanged() { axesReadout(); syncExhaustiveHint(); syncRuleAxisNote(); }
+// a Turns chip pressed: that angle in or out of this shape's set (0° stays)
+export function toggleTurn(angle) {
+  if (angle === 0 || rotationFree()) return;
+  // with the axis switched off from outside (a script, a test) the chips show 0° only: start from that, not the saved set
+  const all = readRotSet(), shape = state.cellShape, cur = pc('chk-axis-rotation') ? rotationSet(shape) : [0];
+  all[shape] = cur.includes(angle) ? cur.filter(a => a !== angle) : [...cur, angle].sort((x, y) => x - y);
+  ctrl('rot-set').value = JSON.stringify(all);
+  syncTurnsAxis(); axesChanged();
+}
+export function setTurnsFree(open) {
+  ctrl('rot-free').value = open ? '1' : '0';
+  if (ctrl('turns-free').open !== !!open) ctrl('turns-free').open = !!open;
+  syncTurnsAxis(); axesChanged();
+}
+export function syncAxisValuesUI() {
+  if (!rotDual) rotDual = Organica.dualRange(ctrl('dual-rot-angles'), {
+    min: 0, max: 360, from: +pv('rg-rot-from'), to: +pv('rg-rot-to'), step: 1, detents: [0, 90, 180, 270, 360], catchBy: 8, label: 'Angles', fmt: v => v + '°',
+    onInput: (a, b) => { ctrl('rg-rot-from').value = a; ctrl('rg-rot-to').value = b; syncTurnsAxis(); axesChanged(); },
+  });
+  if (!sizeDual) sizeDual = Organica.dualRange(ctrl('dual-scale-sizes'), {
+    min: 10, max: 400, from: +pv('rg-scale-from'), to: +pv('rg-scale-to'), step: 1, detents: [50, 100, 150, 200, 250, 300, 350], catchBy: 6, label: 'Sizes', fmt: v => v + '%',
+    onInput: (a, b) => { ctrl('rg-scale-from').value = a; ctrl('rg-scale-to').value = b; axesChanged(); },
+  });
+  // the chips are the shape's own steps; each shape keeps its own set (#rot-set), so changing shape loses nothing
+  if (chipsShape !== state.cellShape) { const first = chipsShape === null; buildTurnsChips(); if (!first) syncTurnsAxis(); }
+  axesReadout();
+}
+export function syncRuleAxesUI() {
+  const ax = ruleAxes(pv('sel-rule'), { lattice: state.cellShape !== 'square', rhythm: state.rhythm && state.rhythm.mode });
+  const row = a => document.querySelector(`#panel .fvs-axis[data-axis="${a}"]`);
+  row('rotation').hidden = ax.rotation !== 'values';
+  ctrl('rot-own-note').hidden = ax.rotation !== 'own';
+  row('flip').hidden = !ax.flip;
+  row('scale').hidden = !ax.scale;
+  const none = !ax.rotation && !ax.flip && !ax.scale;
+  ctrl('rule-axes-none').hidden = !none;
+  if (none) ctrl('rule-axes-none').textContent = 'Every cell the same on square cells — no axis changes this rule.';
+  ctrl('scale-values-block').hidden = !pc('chk-axis-scale');
 }
 
 // ── Rule UI wiring ──
@@ -693,6 +777,7 @@ export function syncRuleUI() {
   ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';
   ctrl('rule-manual-block').style.display = mode === 'manual' ? '' : 'none';
   ctrl('btn-generate').textContent = mode === 'manual' ? 'Add component' : 'Generate';
+  syncRuleAxesUI();
   syncRuleAxisNote();
   // Exhaustive-over-cap disables Generate; leaving that mode for any
   // other rule must re-enable it — previously only re-checked when
@@ -714,7 +799,7 @@ export function syncExhaustiveHint() {
     // no axis on = the one uniform Component (Diego, Oct 14, 2026: "it says one component only, it seems very strange") —
     // say why, in Checkerboard's words (syncRuleAxisNote)
     hint.textContent = !ax.rotation && !ax.flip && !ax.scale && k <= 1
-      ? '1 possible component — no axis is active. Turn on Rotation, Flip or Scale in Transform axes (above) for more.'
+      ? '1 possible component — no axis is on. Under Axes, pick a second angle in Turns or turn on Flip or Scale for more.'
       : k > 1
       ? `${total.toLocaleString()} possible component${total === 1 ? '' : 's'} × ${k} layer-colour combinations = ${(total * k).toLocaleString()}${total * k > EXHAUSTIVE_CAP ? ` (first ${EXHAUSTIVE_CAP} shown)` : ''}.`
       : `${total.toLocaleString()} possible component${total === 1 ? '' : 's'}.`;
@@ -859,28 +944,33 @@ export function generateColourways() {
   renderGallery();
 }
 
+// The cells a rule produces for the current panel (no gallery, no undo, no cap) — Generate's own dispatch, also what
+// scripts/test-fvs-axes.mjs reads (Tropism Phase 1, Oct 15, 2026). null for Manual, which builds from its own editor.
+export function produceRule(mode) {
+  if (state.cellShape !== 'square' && LATTICE_RULES.has(mode)) return latticeRule(mode);
+  switch (mode) {
+    case 'identity': return ruleIdentity();
+    case 'pinwheel': return rulePinwheel();
+    case 'mirror': return ruleMirror();
+    case 'diagonal': return ruleDiagonal();
+    case 'checkerboard': return ruleCheckerboard();
+    case 'rowmirror': return ruleRowMirror();
+    case 'columnmirror': return ruleColumnMirror();
+    case 'radial': return ruleRadial();
+    case 'hlines': return ruleLines('row');
+    case 'vlines': return ruleLines('col');
+    case 'oscillator': return ruleOscillator();
+    case 'random': return ruleRandom();
+    case 'exhaustive': return ruleExhaustive();
+    default: return null;
+  }
+}
 export function generate() {
   rt.galleryGenerated = true;   // the Component board frames a list that a Generate resized (18-step-boards.js fitIfRegrown)
   const mode = pv('sel-rule');
-  let produced = state.cellShape !== 'square' && LATTICE_RULES.has(mode) ? latticeRule(mode) : null;
-  if (produced && mode === 'exhaustive' && produced.length > EXHAUSTIVE_CAP) return;
+  let produced = produceRule(mode);
+  if (mode === 'exhaustive' && produced && produced.length > EXHAUSTIVE_CAP) return;
   if (!produced) switch (mode) {
-    case 'identity': produced = ruleIdentity(); break;
-    case 'pinwheel': produced = rulePinwheel(); break;
-    case 'mirror': produced = ruleMirror(); break;
-    case 'diagonal': produced = ruleDiagonal(); break;
-    case 'checkerboard': produced = ruleCheckerboard(); break;
-    case 'rowmirror': produced = ruleRowMirror(); break;
-    case 'columnmirror': produced = ruleColumnMirror(); break;
-    case 'radial': produced = ruleRadial(); break;
-    case 'hlines': produced = ruleLines('row'); break;
-    case 'vlines': produced = ruleLines('col'); break;
-    case 'oscillator': produced = ruleOscillator(); break;
-    case 'random': produced = ruleRandom(); break;
-    case 'exhaustive':
-      produced = ruleExhaustive();
-      if (produced.length > EXHAUSTIVE_CAP) return;
-      break;
     case 'manual': {
       pushUndo();
       const comp = { id: `manual-${Date.now()}`, ruleSource: 'manual', cells: readManualCells() };
