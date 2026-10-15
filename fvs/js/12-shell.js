@@ -50,7 +50,7 @@ import {
   exportElement, measureElementInk, renderGallery, renderSeedPreview, saveElementView, setElementView, syncElementViewUI
 } from './05-render-component.js';
 import {
-  clearGallery, exitComponentEditMode, exportSelected, generate, generateColourways,
+  exitComponentEditMode, exportSelected, generate, generateColourways,
   populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setCheckerStart, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
   syncExhaustiveHint, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, toggleTurn, setTurnsFree
 } from './06-component-ui.js';
@@ -848,7 +848,6 @@ ctrl('chk-layer-inks').addEventListener('change', e => {
   if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint();
 });
 ctrl('btn-generate').addEventListener('click', generate);
-ctrl('btn-clear-gallery').addEventListener('click', clearGallery);
 ctrl('btn-colourways').addEventListener('click', generateColourways);
 ctrl('seg-split-quadrant').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b) return;

@@ -411,7 +411,7 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
 ### 5.5 Generate, the starter set, the board
 
 - **Generate** runs the rule and **replaces** the edited Element's set of candidates (Manual's
-  button reads **Add component** and appends one instead). **Clear board** empties every Element's set. The candidates are drawn
+  button reads **Add component** and appends one instead). **Clear board** (the floatbar eraser, hold to confirm — the panel's own button went Oct 15, 2026; one Component goes with Select + Delete) empties every Element's set. The candidates are drawn
   on the Component board as **Generated components** — one area per Element, 4 across, at 2× (§13).
   A click selects one; a click in another Element's area edits that Element and selects it.
 - **The starter set**: an Element never generated shows each starter rule's first 4 candidates —
