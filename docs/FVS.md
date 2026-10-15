@@ -387,7 +387,7 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
   colours*, leaves every cell as the Element; *Palette in order* colours a Component's cells by cell
   order (it differs from By cell order only for saved Elements placed in a Symbol).
   With a divided Element, **Each part the next ink** steps the part inks per cell (§3b).
-- **Layer colour variants** (switch under the Rule, shown for any Element with layers or parts).
+- **Layer colour variants** (switch under the Rule, shown for any Element with layers or parts; **off by default** since Oct 15, 2026 — Diego).
   Each candidate is repeated for each combination of layer inks; the Element's current inks come
   first; the caption ends with the inks (`inks c/2` = bottom follows the cell, top = Ink 2). Clicking
   a variant makes its inks the Element's own; saving one stores its own inks. Hidden layers do not

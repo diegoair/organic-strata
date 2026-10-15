@@ -880,6 +880,7 @@ async function battery() {
   try {
     reset();
     state.activeTier = 'component';
+    ctrl('chk-layer-inks').checked = true;   // this section tests the variants: on (the panel's default is off since Oct 15, 2026)
     chg('sel-seed-type', 'triangle');
     state.colors = ['#111111', '#e8321e', '#1f5fd6']; buildPalette();
     chg('sel-rule', 'pinwheel'); generate();
