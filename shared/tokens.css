@@ -546,6 +546,9 @@ html {
      theme can re-point it. */
   --border-strong: #958462;
   --danger: #a03828;       /* see --danger's note above (moved here with the themes) */
+  /* --active: a green for an ACTIVE state that waits on the user — the floatbar's out-of-date dot (.is-stale, Diego,
+     Oct 15, 2026: "un token verde nuovo per gli stati attivi"). Non-text: 4.37:1 on --paper, 3.94:1 on --panel. */
+  --active: #1e8a4f;
   --canvas-dot: #a8dff0;   /* light cyan blue */
   /* Node-graph port types (Organica.nodeCanvas) — the NODE palette, used only by the node board (Diego, Oct 8, 2026):
      the cover of "Essential Color Combinations That Just Work" (Em Sans), sampled pixel-exact and used AS IS — no step
@@ -611,6 +614,7 @@ html {
   --border-strong: #7d725e;   /* 3.97:1 */
   --accent-hover: #bdb8ae;    /* the hover under an ink-filled button: dropped off --ink, the mirror of light's lift */
   --danger: #e0735f;          /* 6.1:1 — light's #a03828 is 2.8:1 here */
+  --active: #3dbb6f;          /* non-text: 7.6:1 on --paper, 6.9:1 on --panel — light's #1e8a4f is 3.6:1 here */
   --accent-warm: #d8642a;     /* non-text accent: 5.2:1 on --paper, 4.6:1 on --panel, 3.0:1 against --ink (a light thumb) — light's #c2551b is 3.7:1 on this --panel (Oct 8, 2026) */
   --canvas-dot: #2e4a55;      /* the cyan dot, dimmed to the same quietness on black */
   --port-canvas: #f1e1c8;   /* the node palette in dark: the cover's cream stands in for its black (black is invisible here); the rest as sampled */

@@ -199,12 +199,12 @@
    pressed button stacks the two — a darker pressed-hover, never the state flickering off. */
 .org-floatbar__btn[aria-pressed="true"] { background: var(--pane-thumb); }
 /* .is-stale — "clicking makes something new": the settings changed since this action last ran (FVS's Generate
-   components, Oct 15, 2026 — O-74). A dot on the top-right corner (::before — ::after is the tooltip), in --accent;
+   components, Oct 15, 2026 — O-74). A dot on the top-right corner (::before — ::after is the tooltip), in --active (green);
    the accessible name says it too ("… — the rule changed"). It fades in at --dur-fast (1 ms under reduced motion). */
 .org-floatbar__btn::before {
   content: ''; position: absolute; top: var(--space-1); right: var(--space-1);
   width: var(--space-2); height: var(--space-2); border-radius: 50%;
-  background: var(--accent); opacity: 0; pointer-events: none;
+  background: var(--active); opacity: 0; pointer-events: none;   /* the active-state green (Diego, Oct 15, 2026) — ≥ 3:1 on --panel / --paper in both themes */
   transition: opacity var(--dur-fast) var(--ease-standard);
 }
 .org-floatbar__btn.is-stale::before { opacity: 1; }
