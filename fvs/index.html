@@ -89,6 +89,16 @@
   </div>
   <!-- Component-tier action — undo the last Generate / Clear / Add / Tile. Shown only on that tier by setTier(). -->
   <div id="fb-component-actions" class="fvs-fb-group" style="display:none">
+    <!-- Generate components (Oct 15, 2026 — Diego: Symbol's Fill the grid icon, behaviour and arrival): runs the rule and
+         replaces the edited Element's Components (Manual: "Add component"). aria-disabled + the reason in its label when it
+         can't run; .is-stale (a dot) + "— the rule changed" when Grid / Rule / Axes changed since the last run. Hidden in
+         Component Edit. -->
+    <span class="org-floatbar__group" id="fb-component-generate" role="group" aria-label="Component">
+      <button class="org-floatbar__btn" id="btn-generate" aria-label="Generate components">
+        <svg class="ico" data-icon="generate" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M8 2.5v11M2.5 8h11"/><rect x="4" y="4" width="2.5" height="2.5" rx=".4" fill="currentColor" stroke="none"/><rect x="9.5" y="9.5" width="2.5" height="2.5" rx=".4" fill="currentColor" stroke="none"/></svg>
+      </button>
+    </span>
+    <span class="org-floatbar__sep" id="fb-component-generate-sep" aria-hidden="true"></span>
     <!-- Show grid: the cells' outlines over every Component — a preview aid, never exported. -->
     <button class="org-floatbar__btn" id="btn-component-view-outline" aria-pressed="false" aria-label="Show grid">
       <svg class="ico" data-icon="fvs-grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11"/></svg>
@@ -399,7 +409,7 @@
       </div>
       <div class="fvs-board-hud">
         <div id="gallery-empty">
-          <p>No generated components yet — choose rules in the panel and press Generate</p>
+          <p>No generated components yet — choose a rule in the panel and press Generate components in the bar below</p>
         </div>
         <div id="gallery-status"></div>
       </div>
@@ -1556,9 +1566,6 @@
         </div>
       </div>
 
-      <div class="row-btns">
-        <button class="mini-btn" id="btn-generate">Generate</button>
-      </div>
       <button class="mini-btn" id="btn-colourways" style="width:100%;margin-top:var(--space-1)" title="Colour variants of the selected component, from the palette and its shade scales — every ink readable on its paper (3:1) and distinct from the others">Colourways of the selection</button>
     </div>
 

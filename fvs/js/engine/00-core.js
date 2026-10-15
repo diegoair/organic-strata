@@ -40,6 +40,7 @@ export const state = {
   gridWeights: null,                // the step's track sizes { colWeights, rowWeights } (Component Edit › Apply grid to all) — Oct 14, 2026
   rhythm: { mode: 'beat', beat: [0, 90, 0], combine: 'add' },   // the Rhythm rule (was Oscillator): mode 'beat' | 'beats' | 'wave' | 'connect', the Beat's turns, Two beats' Combine 'add' | 'one' | 'both' — Oct 14, 2026
   mirrorSpread: 'cell',             // the Mirror rule's Span: 'cell' | 'pair' | 'grid' (book-matched) — Oct 13, 2026
+  componentGenSig: null,             // Generate components: what the Grid / Rule / Axes were at the last run (06-component-ui.js generateInputsSig)
   componentRole: 'normal',           // 'normal' | 'container' | 'mask' — this Component's own silhouette used as a clip/knockout boundary for underlyingComponentName
   underlyingComponentName: null,     // another saved Component Library entry's name, or null
   loomGrid: null,   // {cellShape, cells, inner:{width,height}} from Organica.loadLoomGrid, or null until a file is imported

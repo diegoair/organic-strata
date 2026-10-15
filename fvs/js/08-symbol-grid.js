@@ -281,12 +281,30 @@ ctrl('btn-symbol-clear').addEventListener('click', () => {
 export let genArrivalStop = null;
 export function runSymbolArrival() {
   if (genArrivalStop) genArrivalStop();
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const svg = ctrl('symbol-frame').querySelector('svg');
   if (!svg) return;
-  const groups = [...svg.querySelectorAll('g[data-cell-index]')].sort((a, b) => a.dataset.cellIndex - b.dataset.cellIndex);
-  const n = groups.length;
+  genArrivalStop = arrive(svg, [...svg.querySelectorAll('g[data-cell-index]')].sort((a, b) => a.dataset.cellIndex - b.dataset.cellIndex));
+}
+// Generate components (Oct 15, 2026 — Diego: Symbol's Fill the grid "stesso behaviour e animazione"): the same arrival on
+// the edited Element's new Components, each one a pane (its whole sheet), in a scattered order. Only the first
+// COMP_ARRIVE_MAX — the rest are sharp at once (a 2,048 list would be 2,048 filters).
+let compArrivalStops = [];
+const COMP_ARRIVE_MAX = 32;
+export function runComponentArrival() {
+  compArrivalStops.forEach(stop => stop && stop()); compArrivalStops = [];
+  const svgs = [...ctrl('gallery').querySelectorAll('.fvs-thumb > svg')].slice(0, COMP_ARRIVE_MAX), n = svgs.length;
   if (!n) return;
+  const ranks = svgs.map((_, i) => i);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ranks[i], ranks[j]] = [ranks[j], ranks[i]]; }
+  const step = Math.min(GEN_ARRIVE.stepMax * 2, Math.max(GEN_ARRIVE.stepMin, GEN_ARRIVE.sweep / n));
+  compArrivalStops = svgs.map((svg, i) => arrive(svg, [svg], { delay: ranks[i] * step }));
+}
+// The arrival on `groups` of `svg` (each a cell group whose first child is its hit shape — or `svg` itself: the whole
+// sheet, boxed by its viewBox), `delay` ms before the first starts. Returns its stop (null when there is nothing to run).
+function arrive(svg, groups, { delay = 0 } = {}) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
+  const n = groups.length;
+  if (!n) return null;
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), mix = (a, b, t) => a + (b - a) * t;
   const smooth = (a, b, v) => { const u = clamp((v - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); };
   const px = 1 / (svg.getScreenCTM().a || 1);   // one screen pixel, in user units
@@ -302,10 +320,11 @@ export function runSymbolArrival() {
   const src = mk('g', { id: uid + '-src' }, defs);
   [...svg.children].forEach(c => { if (c !== layer && c.tagName !== 'metadata' && !c.classList.contains('sym-track') && !c.classList.contains('symbol-marquee')) src.appendChild(c.cloneNode(true)); });
   const cells = groups.map((g, i) => {
-    const hit = g.firstElementChild, bb = hit.getBBox();
+    const whole = g === svg, vb = whole ? svg.viewBox.baseVal : null;
+    const hit = whole ? null : g.firstElementChild, bb = whole ? { x: vb.x, y: vb.y, width: vb.width, height: vb.height } : hit.getBBox();
     // the cell's own outline: its clip (which carries the overdraw past the edge) when "Clip to cell" is on, else its hit shape
-    let clip = g.getAttribute('clip-path');
-    if (!clip) { const cp = mk('clipPath', { id: `${uid}-c${i}` }, defs); cp.appendChild(hit.cloneNode(false)); clip = `url(#${uid}-c${i})`; }
+    let clip = whole ? null : g.getAttribute('clip-path');
+    if (!clip) { const cp = mk('clipPath', { id: `${uid}-c${i}` }, defs); if (whole) mk('rect', { x: bb.x, y: bb.y, width: bb.width, height: bb.height }, cp); else cp.appendChild(hit.cloneNode(false)); clip = `url(#${uid}-c${i})`; }
     const f = mk('filter', { id: `${uid}-f${i}`, filterUnits: 'userSpaceOnUse', 'color-interpolation-filters': 'sRGB' }, defs);
     const turb = mk('feTurbulence', { type: 'fractalNoise', numOctaves: '2', seed: String(7 + i), result: 'n' }, f);
     const disp = mk('feDisplacementMap', { in: 'SourceGraphic', in2: 'n', xChannelSelector: 'R', yChannelSelector: 'G', result: 'd' }, f);
@@ -316,7 +335,7 @@ export function runSymbolArrival() {
     if (paper) mk('rect', { x: bb.x - 2 * px, y: bb.y - 2 * px, width: bb.width + 4 * px, height: bb.height + 4 * px, fill: paper }, pane);
     // nothing to cover the finished cell with: it waits, hidden, for its pane — and so does its own ground, a
     // sibling group that carries the same clip (the only thing that says whose it is)
-    const own = paper ? [] : [g, ...(g.getAttribute('clip-path') ? [...svg.children].filter(c => c !== g && c.tagName === 'g' && c.getAttribute('clip-path') === g.getAttribute('clip-path')) : [])];
+    const own = paper ? [] : whole ? [...svg.children].filter(c => c !== layer && c.tagName !== 'metadata') : [g, ...(g.getAttribute('clip-path') ? [...svg.children].filter(c => c !== g && c.tagName === 'g' && c.getAttribute('clip-path') === g.getAttribute('clip-path')) : [])];
     own.forEach(el => { el.style.opacity = '0'; });
     const pic = mk('g', { opacity: '0' }, pane);
     mk('use', { href: `#${uid}-src` }, mk('g', { filter: `url(#${uid}-f${i})` }, pic));
@@ -328,13 +347,14 @@ export function runSymbolArrival() {
   const step = clamp(GEN_ARRIVE.sweep / n, GEN_ARRIVE.stepMin, GEN_ARRIVE.stepMax);
   let raf = 0, t0 = 0, left = n;
   const land = c => { if (c.done) return; c.done = true; left--; c.pane.remove(); c.f.remove(); c.own.forEach(el => { el.style.opacity = ''; }); };
-  const stop = () => { cancelAnimationFrame(raf); cells.forEach(land); layer.remove(); genArrivalStop = null; };
+  let stopped = false;
+  const stop = () => { if (stopped) return; stopped = true; cancelAnimationFrame(raf); cells.forEach(land); layer.remove(); if (genArrivalStop === stop) genArrivalStop = null; };
   const tick = now => {
     if (!t0) t0 = now;
     if (!svg.isConnected) return stop();   // the preview was redrawn under the run: it is sharp already
     cells.forEach(c => {
       if (c.done) return;
-      const t = (now - t0 - c.rank * step) / GEN_ARRIVE.cell;
+      const t = (now - t0 - delay - c.rank * step) / GEN_ARRIVE.cell;
       if (t <= 0) return;
       if (t >= 1) return land(c);
       // one long rise, no pulse: a picture that dims and brightens before it has started reads as hesitating
@@ -357,8 +377,8 @@ export function runSymbolArrival() {
     });
     if (left > 0) raf = requestAnimationFrame(tick); else stop();
   };
-  genArrivalStop = stop;
   raf = requestAnimationFrame(tick);
+  return stop;
 }
 // The first grid, from the middle of the page: the same run as the panel's
 // button (canvas, generator and its parameters are read from the panel), with

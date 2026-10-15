@@ -410,8 +410,13 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
 
 ### 5.5 Generate, the starter set, the board
 
-- **Generate** runs the rule and **replaces** the edited Element's set of candidates (Manual's
-  button reads **Add component** and appends one instead). **Clear board** (the floatbar eraser, hold to confirm — the panel's own button went Oct 15, 2026; one Component goes with Select + Delete) empties every Element's set. The candidates are drawn
+- **Generate components** (the floatbar's first group, *Component*, icon `generate` — the panel's Generate button went
+  Oct 15, 2026, one source) runs the rule and **replaces** the edited Element's set of candidates, then plays Symbol's
+  arrival on the first 32 new sheets (`runComponentArrival`, 08-symbol-grid.js); Manual's reads **Add component** and appends
+  one instead. Hidden in Component Edit. **The dot** (`.is-stale`, O-74): lit when the Grid or Rule sections (Axes included)
+  or the cell shape differ from the last run (`generateInputsSig` vs `state.componentGenSig`, kept per Element); Palette does
+  not light it; cleared by Generate, Undo, or going back to the last run's settings; the name reads *… — the rule changed*.
+  An over-cap Exhaustive makes it `aria-disabled` with the reason in its name, shown as a notice on click. **Clear board** (the floatbar eraser, hold to confirm — the panel's own button went Oct 15, 2026; one Component goes with Select + Delete) empties every Element's set. The candidates are drawn
   on the Component board as **Generated components** — one area per Element, 4 across, at 2× (§13).
   A click selects one; a click in another Element's area edits that Element and selects it.
 - **The starter set**: an Element never generated shows each starter rule's first 4 candidates —

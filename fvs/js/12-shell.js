@@ -52,13 +52,13 @@ import {
 import {
   exitComponentEditMode, exportSelected, generate, generateColourways,
   populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setCheckerStart, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
-  syncExhaustiveHint, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, toggleTurn, setTurnsFree
+  syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, toggleTurn, setTurnsFree
 } from './06-component-ui.js';
 import {
   renderLayersUI, renderLibrary, restoreComponentElementState, syncColourGroupRules
 } from './07-library.js';
 import {
-  buildEmptySymbolGrid, buildFitAllAnchorGrid, exportFvsGrid, handleSymbolGridUpload, syncFitAnchorUI
+  buildEmptySymbolGrid, buildFitAllAnchorGrid, exportFvsGrid, handleSymbolGridUpload, runComponentArrival, syncFitAnchorUI
 } from './08-symbol-grid.js';
 import {
   generateSymbolCells, renderSymbolPool
@@ -847,7 +847,22 @@ ctrl('chk-layer-inks').addEventListener('change', e => {
   syncColourGroupRules();   // the colour group rules are on only with the variants
   if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint();
 });
-ctrl('btn-generate').addEventListener('click', generate);
+// Generate components (floatbar): blocked = a notice with the reason, as Symbol's Fill the grid; a change in the Grid /
+// Rule sections (Axes included) or the cell shape lights its dot (syncGenerateButton, after the section's own handlers)
+ctrl('btn-generate').addEventListener('click', () => {
+  const why = generateBlock();
+  if (why) { Organica.notice(why.replace(/^./, c => c.toUpperCase()), { kind: 'info' }); return; }
+  generate();
+  if (pv('sel-rule') !== 'manual') runComponentArrival();   // Symbol's arrival on the new Components — the button's, as Fill the grid's (08-symbol-grid.js)
+});
+{
+  let genSyncRaf = 0;
+  const later = () => { cancelAnimationFrame(genSyncRaf); genSyncRaf = requestAnimationFrame(syncGenerateButton); };
+  const block = document.querySelector('.tier-block[data-tier="component"]');
+  ['pointerdown', 'keydown'].forEach(ev => block.addEventListener(ev, noteGenerateReference, true));   // before any change lands
+  ['input', 'change', 'click'].forEach(ev => block.addEventListener(ev, later));
+}
+syncGenerateButton();
 ctrl('btn-colourways').addEventListener('click', generateColourways);
 ctrl('seg-split-quadrant').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b) return;

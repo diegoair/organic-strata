@@ -49,7 +49,7 @@ const PAGE = `(() => { if (window.__g) return;
       selectedId: s.selectedId, selMarks: sel,
       capNote: s.galleryCapNote ? s.galleryCapNote.text : null,
       hint: (document.getElementById('rule-total-hint') || {}).textContent || '',
-      genDisabled: document.getElementById('btn-generate').disabled,
+      genDisabled: document.getElementById('btn-generate').getAttribute('aria-disabled') === 'true',
       cols: g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0,
       onScreen: !!(st && gr && gr.bottom > st.top && gr.top < st.bottom && gr.right > st.left && gr.left < st.right),
     };
