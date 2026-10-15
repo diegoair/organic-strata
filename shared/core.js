@@ -1298,6 +1298,12 @@
      tick; the whole label row counts as hovering because the label is the
      click target. */
   const LIQUID_HOVER = 1.1;
+  /* The springs are integrated in steps of at most 8 ms. In one frame step they diverge past ~30 ms (the hover swell:
+     k/m 867, c/m 57; the velocity follower: 533 / 67) — a frame that long (FVS busy generating, a slow machine) sent
+     --lsx to 1e66 and the thumb went giant, flipped sides and never came to rest (Diego, Oct 15, 2026: "a tratti si
+     modifica da solo e diventa gigante"). */
+  const LIQUID_STEP = 0.008;
+  const liquidSteps = dt => { const n = Math.max(1, Math.ceil(dt / LIQUID_STEP)); return [n, dt / n]; };
   Organica.liquidSwitch = function (input) {
     if (input.__liquid) return input.__liquid;
     const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -1328,16 +1334,19 @@
       // two frames at the same timestamp gave dt 0 → vel 0/0 = NaN, which never settled (Oct 13, 2026): skip the frame
       if (!(dt > 0)) { raf = requestAnimationFrame(tick); return; }
       prev = t;
-      const f0 = f;
-      if (!held) {                                     // a finger owns it while held
+      const f0 = f, [n, h] = liquidSteps(dt);
+      if (!held) for (let i = 0; i < n; i++) {         // a finger owns it while held
         const a = (K * (target - f) - C * v) / M;
-        v += a * dt; f += v * dt;
+        v += a * h; f += v * h;
       }
       const vel = (f - f0) / dt;                       // fractions / s, either driver
-      const ea = (320 * (vel - ev) - 40 * ew) / 0.6;   // the velocity-following spring
-      ew += ea * dt; ev += ew * dt;
-      const sa = (520 * ((hot ? LIQUID_HOVER : 1) - sw) - 34 * swv) / 0.6;
-      swv += sa * dt; sw += swv * dt;
+      for (let i = 0; i < n; i++) {
+        const ea = (320 * (vel - ev) - 40 * ew) / 0.6;   // the velocity-following spring
+        ew += ea * h; ev += ew * h;
+        const sa = (520 * ((hot ? LIQUID_HOVER : 1) - sw) - 34 * swv) / 0.6;
+        swv += sa * h; sw += swv * h;
+      }
+      if (![f, v, ev, ew, sw, swv].every(Number.isFinite)) { f = target; v = ev = ew = swv = 0; sw = hot ? LIQUID_HOVER : 1; }
       paint();
       if (rest()) {
         f = target; v = ev = ew = 0; sw = hot ? LIQUID_HOVER : 1; swv = 0;
@@ -1452,12 +1461,14 @@
       // two frames at the same timestamp gave dt 0 → vel 0/0 = NaN (--csx: NaN, a tick that never settled — Oct 13, 2026)
       if (!(dt > 0)) { raf = requestAnimationFrame(tick); return; }
       prev = t;
-      const p0 = p;
-      const a = (K * (target - p) - C * v) / M;
-      v += a * dt; p += v * dt;
+      const p0 = p, [n, h] = liquidSteps(dt);   // ≤ 8 ms steps: see LIQUID_STEP
+      for (let i = 0; i < n; i++) { const a = (K * (target - p) - C * v) / M; v += a * h; p += v * h; }
       const vel = (p - p0) / dt;
-      ew += ((320 * (vel - ev) - 40 * ew) / 0.6) * dt; ev += ew * dt;
-      swv += ((520 * ((hot ? LIQUID_HOVER : 1) - sw) - 34 * swv) / 0.6) * dt; sw += swv * dt;
+      for (let i = 0; i < n; i++) {
+        ew += ((320 * (vel - ev) - 40 * ew) / 0.6) * h; ev += ew * h;
+        swv += ((520 * ((hot ? LIQUID_HOVER : 1) - sw) - 34 * swv) / 0.6) * h; sw += swv * h;
+      }
+      if (![p, v, ev, ew, sw, swv].every(Number.isFinite)) { p = target; v = ev = ew = swv = 0; sw = hot ? LIQUID_HOVER : 1; }
       paint();
       if (rest()) {
         p = target; v = ev = ew = 0; sw = hot ? LIQUID_HOVER : 1; swv = 0;
