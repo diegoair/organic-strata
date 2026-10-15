@@ -307,7 +307,7 @@ export function layerInkComboCount() {
 // geometry × combos, geometry-major, capped at EXHAUSTIVE_CAP (the total is reported).
 export function expandLayerInks(list) {
   const combos = layerInkCombos();
-  if (!combos.length) return { list, total: list.length };
+  if (!combos.length) return { list: list.slice(0, EXHAUSTIVE_CAP), total: list.length };   // every rule stops at the cap, not only Exhaustive (Checkerboard reached 816 — Diego, Oct 15, 2026)
   const out = [];
   for (const comp of list) {
     for (let j = 0; j < combos.length && out.length < EXHAUSTIVE_CAP; j++) out.push({ ...comp, id: `${comp.id}-k${j}`, layerInks: combos[j] });

@@ -27,6 +27,7 @@ const JOBS = {
   'figure-board-dark-clean': node('test-figure-board.mjs', '--only', 'clean', '--theme', 'dark'),
   'figure-board-dark-held':  node('test-figure-board.mjs', '--only', 'held', '--theme', 'dark'),
   'element-units':      node('test-fvs-element-units.mjs'),
+  'generate':           node('test-fvs-generate.mjs'),   // Component: one Generate after another = a fresh one
   'qa':                 node('test-fvs-qa.mjs'),
   'figure-graph':       node('test-figure-graph.mjs'),
   'figure-eval':        node('test-figure-eval.mjs'),

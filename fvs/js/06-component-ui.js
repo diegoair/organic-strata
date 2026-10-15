@@ -899,7 +899,9 @@ export function generate() {
   const expanded = expandLayerInks(produced);
   produced = expanded.list;
   state.galleryCapNote = expanded.total > expanded.list.length
-    ? { list: produced, text: `Showing ${expanded.list.length} of ${expanded.total.toLocaleString()} (geometry × layer colours) — reduce inks, layers or axes to see all.` }
+    ? { list: produced, text: layerInkComboCount() > 1
+      ? `Showing ${expanded.list.length} of ${expanded.total.toLocaleString()} (geometry × layer colours) — reduce inks, layers or axes to see all.`
+      : `Showing ${expanded.list.length} of ${expanded.total.toLocaleString()} — reduce the axes or the grid to see all.` }
     : null;
   state.components = produced;
   state.selectedId = produced.length ? produced[0].id : null;

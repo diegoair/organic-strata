@@ -237,7 +237,23 @@ export function boardTierShown(tier) {
   const B = boards[tier];
   if (!B || shown.has(tier)) return;
   shown.add(tier);
-  requestAnimationFrame(() => { if (B.beforeFit) B.beforeFit(); if (B.firstFit) B.firstFit(); else if (B.saved.view) B.zp.setView(B.saved.view); else B.fit(); });
+  requestAnimationFrame(() => {
+    if (B.beforeFit) B.beforeFit();
+    if (B.firstFit) B.firstFit();
+    else if (B.saved.view) { B.zp.setView(B.saved.view); if (!sheetInView(B)) B.fit(); }
+    else B.fit();
+  });
+}
+// A saved view can frame nothing: the sheets it was saved on are gone (Elements deleted, the board cleared, a sheet
+// retired) — the step opened on an empty board with its Components far off screen (Diego, Oct 15, 2026: "I have
+// problem to generate"). Then fit, as Shift+1 does.
+function sheetInView(B) {
+  const r = B.stage.getBoundingClientRect();
+  return Object.values(B.sheets).some(sh => {
+    if (!sh.el.offsetParent) return false;
+    const q = sh.el.getBoundingClientRect();
+    return q.right > r.left && q.left < r.right && q.bottom > r.top && q.top < r.bottom;
+  });
 }
 
 // ── Symbol's cell grammar, for a set of cells on a sheet ──────────────────────────────────────────────────

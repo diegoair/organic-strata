@@ -20,7 +20,9 @@ Local first, preview second, production last. Nothing reaches `main` without an 
   (~25 min: real mouse journeys). Its code is ES modules in `fvs/js/` — see docs/FVS.md §11 before adding any.
 - **Every FVS headless suite at once:** `scripts/test-fvs.sh` (~3.5 min on this Mac; was ~17 min one after another) —
   regression, QA, UI (journeys + the 120 variants in 4 shards + design), step boards (clean / held / extra), Figure
-  board (clean / held), Figure graph + eval, element units, Rhizome, the rule atlas (`atlas`: `design-system/_fvs-rules.html`
+  board (clean / held), Figure graph + eval, element units, Component generate transitions (`generate`: every rule
+  generated after Exhaustive / another rule = the same rule on a fresh page — Components, drawings, selection, nothing left
+  behind; `scripts/test-fvs-generate.sh`), Rhizome, the rule atlas (`atlas`: `design-system/_fvs-rules.html`
   still equals the engine — re-capture with `scripts/capture-fvs-atlas.mjs`), each its own server + Chrome, 6 at a time. One line
   per job with its time; the full output of a failed job. `--only boards,regression` (jobs or groups, `--list`),
   `--jobs N`, `--verbose`. The board tests wait for the page to settle (`QUIET_INIT` in `scripts/lib/chrome-page.mjs`:

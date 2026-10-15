@@ -11,6 +11,7 @@ jobs=""
 add() { jobs="${jobs:+$jobs,}$1"; }
 echo "$staged" | grep -qE '^(fvs/|shared/(shapes|palette|print-size|plate-export)\.)' && add regression
 echo "$staged" | grep -qE '^(fvs/js/engine/0[0-3]-|shared/shapes\.|design-system/_fvs-rules\.html|scripts/capture-fvs-atlas)' && add atlas
+echo "$staged" | grep -qE '^(fvs/js/(engine/)?0[3-6]-|scripts/test-fvs-generate)' && add generate
 echo "$staged" | grep -qE '^(rhizome/|shared/node-canvas\.|scripts/test-rhizome)' && add rhizome
 echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/js/17-figure|scripts/test-figure-board)' && add figure-board
 echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/index\.html|fvs/fvs\.css|fvs/js/(0[5-9]|1[0-8])-|scripts/test-fvs-boards|scripts/lib/)' && add boards
