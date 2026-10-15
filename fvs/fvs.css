@@ -625,9 +625,9 @@
   /* Component: the gallery as one area; Component Edit is its single view */
   #board-gallery, .fvs-board-gallery-sheet { --frame-w: var(--fvs-board-gallery-w); }
   /* One "Generated components" area per Element (Oct 11, 2026): the Element's thumbnail on the left, its Components
-     4 across, as many rows as they need */
+     4 across up to 32, then more columns as the count grows (--gal-cols, galleryCols in 05-render-component.js) */
   .fvs-board-gallery { display: flex; align-items: flex-start; gap: var(--space-7); width: max-content; }
-  .fvs-board-gallery > #gallery, .fvs-board-gallery__grid { display: grid; grid-template-columns: repeat(4, var(--thumb-w, 96px)); gap: var(--space-7); justify-content: start; }
+  .fvs-board-gallery > #gallery, .fvs-board-gallery__grid { display: grid; grid-template-columns: repeat(var(--gal-cols, 4), var(--thumb-w, 96px)); gap: var(--space-7); justify-content: start; }
   .fvs-board-gallery > #gallery:empty { display: none; }
   /* the Element — the baseline its Components are made from: centred on the list, one thumbnail-width clear of it (Diego, Oct 11) */
   .fvs-board-gallery__el { align-self: center; display: flex; flex-direction: column; gap: var(--space-1); margin-right: calc(var(--thumb-w, 96px) - var(--space-7)); }

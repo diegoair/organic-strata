@@ -331,7 +331,7 @@
   "layers:inks:save": "true",
   "layers:inks:adopt": "true",
   "layers:inks:toggleOff": "8:true",
-  "layers:inks:cap": "512:true",
+  "layers:inks:cap": "2048:true",
   "auto:populates-on-entry": "16,true",
   "auto:rulesRun": "checkerboard,mirror,pinwheel,radial",
   "auto:regeneratesOnElementChange": "true,true",

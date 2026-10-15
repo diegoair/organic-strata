@@ -5,7 +5,7 @@
 // rule, layer inks), the gallery drawing exactly those (one thumbnail per Component, in order, each drawing what a fresh
 // run draws), the first one selected, nothing of A left behind (no thumbnail, no selection, no cap note), the
 // Exhaustive hint matching what it made, the gallery on screen, the console clean. A is Exhaustive and then every rule
-// in turn (a chain through the whole menu), plus B → Exhaustive back. An Exhaustive over the 512 cap must leave the
+// in turn (a chain through the whole menu), plus B → Exhaustive back. An Exhaustive over the 2,048 cap must leave the
 // gallery as it was with Generate disabled. (Diego, Oct 15, 2026: "test what changes between one generation and
 // another, start with Exhaustive and finish with another, and see if it is correct".)
 // Four set-ups: a 2×2 square grid (Rotation + Flip), a size-2 hexagon lattice (the seven lattice rules), a 3-layer
@@ -50,6 +50,7 @@ const PAGE = `(() => { if (window.__g) return;
       capNote: s.galleryCapNote ? s.galleryCapNote.text : null,
       hint: (document.getElementById('rule-total-hint') || {}).textContent || '',
       genDisabled: document.getElementById('btn-generate').disabled,
+      cols: g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0,
       onScreen: !!(st && gr && gr.bottom > st.top && gr.top < st.bottom && gr.right > st.left && gr.left < st.right),
     };
   };
@@ -72,7 +73,7 @@ const SETUPS = [
   { name: 'grid', axes: [true, true, false] },
   { name: 'lattice', axes: [true, true, false] },
   { name: 'layers', axes: [true, false, false] },
-  { name: 'grid', label: 'overcap', axes: [true, true, true] },   // Exhaustive 1,440 > 512: refused, the gallery kept
+  { name: 'lattice', label: 'overcap', axes: [true, true, true] },   // hexagons + Scale: Exhaustive 74,556 > 2,048 refused, the gallery kept; Checkerboard cut at 2,048
 ].map(x => ({ ...x, label: x.label || x.name })).filter(x => !ONLY.length || ONLY.includes(x.label));
 
 let pass = 0, fail = 0;
@@ -92,12 +93,13 @@ for (const setup of SETUPS) {
     check(where, 'one thumbnail per Component, in order', JSON.stringify(got.thumbIds) === JSON.stringify(got.ids), `${got.thumbIds.length} thumbs vs ${got.n}`);
     check(where, 'the first Component selected, one selection mark', got.selectedId === (got.ids[0] ?? null) && got.selMarks === (got.n ? 1 : 0), `selected ${got.selectedId}, marks ${got.selMarks}`);
     check(where, 'the gallery on screen', got.n === 0 || got.onScreen);
-    check(where, 'never more than 512 (every rule capped — Oct 15, 2026)', got.n <= 512, `${got.n}`);
+    check(where, 'never more than 2,048 (every rule capped — Oct 15, 2026)', got.n <= 2048, `${got.n}`);
+    check(where, 'the area\'s columns follow the count', got.cols === (got.n <= 32 ? 4 : Math.ceil(Math.sqrt(got.n * 1.5) / 4) * 4), `${got.cols} columns for ${got.n}`);
     if (r === 'exhaustive' && !got.genDisabled) {
-      // "N possible components." = N made · "N possible … × k layer-colour combinations = T" = min(T, 512) made
+      // "N possible components." = N made · "N possible … × k layer-colour combinations = T" = min(T, 2,048) made
       const num = t => +t.replace(/,/g, '');
       const m = got.hint.match(/^([\d,]+) possible/), t = got.hint.match(/= ([\d,]+)/);
-      const want = t ? Math.min(num(t[1]), 512) : m && num(m[1]);
+      const want = t ? Math.min(num(t[1]), 2048) : m && num(m[1]);
       check(where, 'Exhaustive hint = what it made', want === got.n, got.hint + ' / made ' + got.n);
     }
   };

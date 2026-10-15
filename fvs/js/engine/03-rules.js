@@ -235,7 +235,7 @@ export function latticeSteps() {
   for (let r = 0; r < 360; r += st) out.push(r);
   return out;
 }
-export const EXHAUSTIVE_CAP = 512;
+export const EXHAUSTIVE_CAP = 2048;   // every rule's list stops here, Exhaustive refuses above (was 512 — raised by Diego, Oct 15, 2026: ~0.4 s to draw 2,048 thumbnails)
 // ── Grid — either a plain square NxN (cellSize/gap-driven) or an
 // imported Loom grid (rect or polygon cellShape, arbitrary cell count
 // and layout, read via Organica.loadLoomGrid). Cell centres are always

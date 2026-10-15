@@ -485,6 +485,10 @@ export function componentThumbMarkup(comp, grid, seed, size) {
   live.layerInkOverride = comp.layerInks || null;
   try { const its = buildComponentItems(comp, grid); return withCellRing(withGridWrapper(withComponentColours(comp, () => buildComponentSVG(its, seed, size)).replace(/<\/svg>$/, componentGridOutlineSVG(its, size) + '</svg>'), its, grid.lattice && grid.lattice.outline), its); } finally { live.layerInkOverride = null; }
 }
+// The Generated components area's columns follow its count (Diego, Oct 15, 2026: four columns up to a range, then more,
+// so 2,048 Components are not one endless column): up to 32 → 4 across; above, the area stays about 3 : 2 wide —
+// columns in steps of 4 (33 → 8 · 128 → 16 · 512 → 28 · 2,048 → 56). One rule for the live area and the others.
+export const galleryCols = n => (n <= 32 ? 4 : Math.ceil(Math.sqrt(n * 1.5) / 4) * 4);
 export function renderGallery() {
   // Drawn only while the Component step shows (or Component Edit): off it the list is hidden, and every Palette / Paper /
   // shape change redrew it all — 33k nodes with layer colour variants and a Paper pattern made a Paper drag on the
@@ -508,6 +512,7 @@ function renderGalleryNow() {
   // Every thumbnail in this gallery shares the same grid, so one box fits
   // them all — set once as CSS vars rather than per-button inline styles.
   setGalleryThumbVars(size);
+  gallery.style.setProperty('--gal-cols', galleryCols(state.components.length));
 
   // The grid size can change (columns × rows, a legacy Loom entry) without
   // a fresh Generate — gallery candidates built for the PREVIOUS cell count

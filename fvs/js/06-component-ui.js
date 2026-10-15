@@ -860,6 +860,7 @@ export function generateColourways() {
 }
 
 export function generate() {
+  rt.galleryGenerated = true;   // the Component board frames a list that a Generate resized (18-step-boards.js fitIfRegrown)
   const mode = pv('sel-rule');
   let produced = state.cellShape !== 'square' && LATTICE_RULES.has(mode) ? latticeRule(mode) : null;
   if (produced && mode === 'exhaustive' && produced.length > EXHAUSTIVE_CAP) return;
@@ -900,8 +901,8 @@ export function generate() {
   produced = expanded.list;
   state.galleryCapNote = expanded.total > expanded.list.length
     ? { list: produced, text: layerInkComboCount() > 1
-      ? `Showing ${expanded.list.length} of ${expanded.total.toLocaleString()} (geometry × layer colours) — reduce inks, layers or axes to see all.`
-      : `Showing ${expanded.list.length} of ${expanded.total.toLocaleString()} — reduce the axes or the grid to see all.` }
+      ? `Showing ${expanded.list.length.toLocaleString()} of ${expanded.total.toLocaleString()} (geometry × layer colours) — reduce inks, layers or axes to see all.`
+      : `Showing ${expanded.list.length.toLocaleString()} of ${expanded.total.toLocaleString()} — reduce the axes or the grid to see all.` }
     : null;
   state.components = produced;
   state.selectedId = produced.length ? produced[0].id : null;

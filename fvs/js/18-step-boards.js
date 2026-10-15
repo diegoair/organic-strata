@@ -24,7 +24,7 @@ import {
   buildPalette, ctrl, syncColorRuleUI
 } from './00-core.js';
 import {
-  componentThumbMarkup, renderGallery, renderSeedPreview, setElementView
+  componentThumbMarkup, renderGallery, renderSeedPreview, setElementView, galleryCols
 } from './05-render-component.js';
 import {
   ceSnapshot, editCellShape, enterComponentEditMode, exitComponentEditMode, populateComponentStarterGallery,
@@ -654,6 +654,7 @@ function mountComponentBoard() {
       if (rec.key !== key) {
         rec.key = key;
         rec.grid.innerHTML = staticHTML(e);
+        rec.grid.style.setProperty('--gal-cols', galleryCols(hasOwnSet(e) ? e.gallery.components.length : rec.grid.children.length));
         elButton(rec.elHost, e, false);
         const lab = rec.sheet.querySelector(':scope > .fvs-board-sheet__label');
         if (lab) { lab.textContent = nameOf(e) + ' · Generated components'; lab.setAttribute('aria-label', nameOf(e) + ' · Generated components — drag to move'); }
@@ -671,7 +672,22 @@ function mountComponentBoard() {
         y += sh.el.offsetHeight + GAL_GAP;
       });
       drawRings(B);
+      fitIfRegrown();
     });
+  }
+  // After a Generate that changes the count a lot, the board frames the new list (Diego, Oct 15, 2026: "fai il fit
+  // automatico" — 2,048 Components no longer fit the old view). Only when the count changed and the area grew or
+  // shrank past 1.25× in width or height: a Palette edit, a selection or a save never moves the view.
+  let lastGal = null;
+  function fitIfRegrown() {
+    const sh = B.sheets.gallery;
+    if (!sh || !sh.el.offsetParent || B.single) return;
+    const now = { n: state.components.length, w: sh.el.offsetWidth, h: sh.el.offsetHeight };
+    const prev = lastGal, generated = rt.galleryGenerated; lastGal = now; rt.galleryGenerated = false;
+    // only after a Generate: switching the edited Element swaps the live list too, and the view must stay under the click
+    if (!generated || !prev || prev.n === now.n || !now.n) return;
+    const far = (a, b) => Math.max(a, b) / Math.max(1, Math.min(a, b)) > 1.25;
+    if (far(prev.w, now.w) || far(prev.h, now.h)) B.fitFocus();
   }
   // the Element thumbnails: a double-click (or Enter) edits that Element on the Element board
   B.board.addEventListener('mousedown', ev => {

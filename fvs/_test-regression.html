@@ -903,9 +903,10 @@ async function battery() {
     ctrl('chk-layer-inks').checked = false; generate();
     put('layers:inks:toggleOff', state.components.length + ':' + state.components.every(c => !c.layerInks));
     ctrl('chk-layer-inks').checked = true;
-    // over the cap: 3 layers × Exhaustive → first 512 shown, the real total reported
-    addLayer(); chg('sel-rule', 'exhaustive'); generate();
-    put('layers:inks:cap', state.components.length + ':' + ctrl('gallery-status').textContent.startsWith('Showing 512 of'));
+    // over the cap: Exhaustive × layer inks past EXHAUSTIVE_CAP → the first EXHAUSTIVE_CAP shown, the real total reported.
+    // (512 until Oct 15, 2026, with 3 layers; at 2,048 three layers give exactly 32 × 64 = 2,048 — nothing hidden — so a 4th layer: 32 × 256)
+    addLayer(); addLayer(); chg('sel-rule', 'exhaustive'); generate();
+    put('layers:inks:cap', state.components.length + ':' + ctrl('gallery-status').textContent.startsWith('Showing ' + EXHAUSTIVE_CAP.toLocaleString() + ' of'));
   } finally { chg('sel-rule', 'identity'); state.activeTier = tier25b; reset(); }
 
   // 24 — Component tier auto-default starter gallery
