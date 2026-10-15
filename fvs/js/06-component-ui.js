@@ -668,7 +668,13 @@ export function syncRuleAxisNote() {
   const famKey = RULE_TO_FAMILY[pv('sel-rule')];
   const fam = famKey && FAMILIES[famKey];
   // Only Checkerboard still depends on the axes (see familyRuleGallery).
-  const satisfied = !fam || fam.requiresAxis !== 'any' || axisSatisfied('any', activeAxes());
+  const ax = activeAxes();
+  // Random with no axis on draws the one uniform Component, however many it is asked for (Oct 14, 2026)
+  if (pv('sel-rule') === 'random' && !ax.rotation && !ax.flip && !ax.scale) {
+    note.textContent = 'Random needs an axis active in Transform axes (above) — every Component is the same until then.';
+    note.style.display = ''; return;
+  }
+  const satisfied = !fam || fam.requiresAxis !== 'any' || axisSatisfied('any', ax);
   if (satisfied) { note.style.display = 'none'; return; }
   note.textContent = 'Checkerboard needs an axis active in Transform axes (above) — showing Uniform until then.';
   note.style.display = '';
@@ -704,8 +710,12 @@ export function syncExhaustiveHint() {
     hint.classList.add('over-cap');
     ctrl('btn-generate').disabled = pv('sel-rule') === 'exhaustive';
   } else {
-    const k = layerInkComboCount();
-    hint.textContent = k > 1
+    const k = layerInkComboCount(), ax = activeAxes();
+    // no axis on = the one uniform Component (Diego, Oct 14, 2026: "it says one component only, it seems very strange") —
+    // say why, in Checkerboard's words (syncRuleAxisNote)
+    hint.textContent = !ax.rotation && !ax.flip && !ax.scale && k <= 1
+      ? '1 possible component — no axis is active. Turn on Rotation, Flip or Scale in Transform axes (above) for more.'
+      : k > 1
       ? `${total.toLocaleString()} possible component${total === 1 ? '' : 's'} × ${k} layer-colour combinations = ${(total * k).toLocaleString()}${total * k > EXHAUSTIVE_CAP ? ` (first ${EXHAUSTIVE_CAP} shown)` : ''}.`
       : `${total.toLocaleString()} possible component${total === 1 ? '' : 's'}.`;
     hint.classList.remove('over-cap');
