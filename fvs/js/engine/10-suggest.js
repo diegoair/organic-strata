@@ -60,7 +60,7 @@ export function poolEntries() {
 }
 // With no saved Component, a Symbol is built from the saved Elements instead: the
 // latest 8, weight ×1, each placed as it would be from the library rail (its own
-// palette, used under Colour by → Element's own colours). Components win when any exist.
+// palette, used under Colour by → Palette in order, `own`). Components win when any exist.
 export function elementPool() {
   const all = ELEMENT_LIB.read();
   return Object.keys(all || {}).filter(n => all[n] && all[n].seed && !all[n].hidden)

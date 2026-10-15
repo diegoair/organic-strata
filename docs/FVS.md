@@ -284,9 +284,11 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   tiles per canvas (the spacing is raised, with a note). SVG: one `<path>` in `<defs>` + one `<use>`
   per tile. A saved Component / Symbol keeps a **snapshot** of the tile; the live Paper follows the
   Element.
-- **Colour by** decides which ink each cell gets: **Element's own colours** (the first
-  option and the default — a saved Element placed in a Symbol draws in its own palette, §7; every
-  other cell, Component cells included, by cell order), cell order,
+- **Colour by** decides which ink each cell gets: **Element's colours** (Oct 15, 2026 — every cell
+  exactly as the Element step draws it, palette slot 0, no **Start at**; the default of a new
+  Element's Palette), **Palette in order** (was *Element's own colours*, `own` — the default of
+  anything saved before Oct 15, 2026: a saved Element placed in a Symbol draws in its own palette, §7;
+  every other cell, Component cells included, by cell order), By cell order,
   Checkerboard, By row, By column, Diagonal bands, By quadrant; **Start at** picks the leading
   colour. *By quadrant* splits the grid at its middle — on a grid with an odd
   number of columns or rows the middle line runs through a cell, which joins the
@@ -381,8 +383,9 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
 
 ### 5.4 Colour in the candidates
 
-- **The cells' inks** follow the Palette's **Colour by** (§4) — the default, *Element's own colours*,
-  colours a Component's cells by cell order (it differs only for saved Elements placed in a Symbol).
+- **The cells' inks** follow the Palette's **Colour by** (§4) — a new Element's default, *Element's
+  colours*, leaves every cell as the Element; *Palette in order* colours a Component's cells by cell
+  order (it differs from By cell order only for saved Elements placed in a Symbol).
   With a divided Element, **Each part the next ink** steps the part inks per cell (§3b).
 - **Layer colour variants** (switch under the Rule, shown for any Element with layers or parts).
   Each candidate is repeated for each combination of layer inks; the Element's current inks come
@@ -922,7 +925,7 @@ onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeL
   Component is saved, the pool is the Components again.
 - **Saved Elements in a Symbol keep their colours** (Oct 4, 2026). A saved Element placed
   from the library rail carries the palette it was saved with (`cell.ownColors`). With
-  **Colour by → Element's own colours** — the first option and the default — the cell draws
+  **Colour by → Palette in order** (`own`, *Element's own colours* until Oct 15, 2026) — the cell draws
   in it: its first ink for the shape, every layer's ink for a stack (through `withEntryInks`,
   like a Component's own palette). Pick any other rule (By cell order, Checkerboard…) and every
   cell, saved Elements included, follows that rule on the current palette. Under the default the cell also

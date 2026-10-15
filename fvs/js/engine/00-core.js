@@ -84,11 +84,15 @@ export function colorAt(i) { return state.colors[i % state.colors.length]; }
 // behaviour (cell i → colour i, wrapping); the others read the cell's grid
 // position so a multi-ink pattern follows the structure (checker parity,
 // rows, columns, diagonals, quadrants) instead of the row-major order.
-// `own` (the default, Oct 4, 2026): a saved Element placed in a Symbol cell keeps the
-// palette it was saved with (cell.ownColors); every other cell — and every Component
-// cell — is coloured by cell order.
+// `element` (Oct 15, 2026 — Diego: "a Colour by that changes no colour"): every cell takes the
+// Element's own colours, palette slot 0 as the Element step draws it (colorAt(0)); Start at
+// doesn't apply. The default of a new Element's Palette (NEW_COLOR_RULE).
+// `own` (the default of anything saved before, Oct 4, 2026 — shown as "Palette in order" since
+// Oct 15): a saved Element placed in a Symbol cell keeps the palette it was saved with
+// (cell.ownColors); every other cell — and every Component cell — is coloured by cell order.
 export const COLOR_RULES = {
-  own:      { label: "Element’s own colours", fn: (i) => i },
+  element:  { label: "Element’s colours", fn: () => 0 },
+  own:      { label: 'Palette in order', fn: (i) => i },
   index:    { label: 'By cell order',  fn: (i) => i },
   checker:  { label: 'Checkerboard',   fn: (i, c) => c.col + c.row },
   rows:     { label: 'By row',         fn: (i, c) => c.row },
@@ -96,13 +100,17 @@ export const COLOR_RULES = {
   diagonal: { label: 'Diagonal bands', fn: (i, c) => c.col + c.row },
   quadrant: { label: 'By quadrant',    fn: (i, c) => (c.col * 2 >= c.cols ? 1 : 0) + (c.row * 2 >= c.rows ? 2 : 0) },
 };
+// DEFAULT_COLOR_RULE fills a saved Palette with no Colour by (kept 'own', so nothing saved changes look);
+// NEW_COLOR_RULE is a new Element's.
 export const DEFAULT_COLOR_RULE = { mode: 'own', offset: 0 };
+export const NEW_COLOR_RULE = { mode: 'element', offset: 0 };
 // `checker` alternates between two neighbours only, whatever the palette size.
 export function paletteInk(colors, rule, i, cr) { return colors[paletteSlot(colors, rule, i, cr)]; }
 // Which palette slot cell i takes (paletteInk's index) — the base the parts step from (colorRule.parts 'step').
 export function paletteSlot(colors, rule, i, cr) {
   const r = rule || DEFAULT_COLOR_RULE;
   const def = COLOR_RULES[r.mode] || COLOR_RULES.index;
+  if (r.mode === 'element') return 0;
   let k = def.fn(i, cr ? cr[i] : { col: i, row: 0, cols: 1, rows: 1 }) + (r.offset || 0);
   if (r.mode === 'checker') k = ((k % 2) + 2) % 2;
   const n = colors.length;
@@ -111,7 +119,7 @@ export function paletteSlot(colors, rule, i, cr) {
 // col/row of every cell of a Component/Symbol grid (binning fallback, so it
 // works for square and Loom grids alike). Null when the rule needs no position.
 export function colorRuleCR(grid, rule) {
-  if (!grid || !rule || rule.mode === 'index' || rule.mode === 'own') return null;
+  if (!grid || !rule || rule.mode === 'index' || rule.mode === 'own' || rule.mode === 'element') return null;
   try { return Organica.shapes.cellColRow(grid, null, null); } catch (e) { return null; }
 }
 // Ink of cell i under the LIVE palette + rule.
@@ -132,7 +140,7 @@ export function entryItemInk(entry) {
     return o;
   };
 }
-// "Element's own colours": the cell's saved Element palette, when it has one.
+// `own` (Palette in order): the cell's saved Element palette, when it has one.
 export const cellOwnInks = cell => (state.colorRule.mode === 'own' && cell.ownColors && cell.ownColors.length) ? cell.ownColors : null;
 // ── The panel reader (Oct 2026). The engine (fvs/js/engine/) reads a control through pv / pc / val, never the
 // page: panelSource says where the values come from — today the controls themselves (setPanelSource, below);
@@ -182,7 +190,7 @@ export function offscreenCanvas(width, height) { return Object.assign(document.c
 // recolours those cells too; any other stored colour is a real override.
 export function symbolCR() {
   const g = state.symbolGrid, r = state.colorRule.mode;
-  if (live._symCR.key !== g || live._symCR.rule !== r) live._symCR = { key: g, rule: r, cr: (r === 'index' || r === 'own') ? null : colorRuleCR(hooks.getSymbolGrid(), state.colorRule) };
+  if (live._symCR.key !== g || live._symCR.rule !== r) live._symCR = { key: g, rule: r, cr: (r === 'index' || r === 'own' || r === 'element') ? null : colorRuleCR(hooks.getSymbolGrid(), state.colorRule) };
   return live._symCR.cr;
 }
 export function cellInk(cell, i) {

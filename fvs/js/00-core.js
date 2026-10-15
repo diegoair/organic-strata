@@ -4,7 +4,7 @@
 import { rt } from './rt.js';
 import { hooks } from './hooks.js';
 import {
-  COLOR_RULES, DEFAULT_COLOR_RULE, PALETTE_MAX, pv, setFigurePristine, setPanelSource, state
+  COLOR_RULES, DEFAULT_COLOR_RULE, NEW_COLOR_RULE, PALETTE_MAX, pv, setFigurePristine, setPanelSource, state
 } from './engine/00-core.js';
 import {
   getGrid
@@ -67,7 +67,7 @@ export const printSizePanel = Organica.printSizePanel(document.getElementById('p
 rt.tilePicker = null;
 
 
-state.colorRule = { ...DEFAULT_COLOR_RULE };
+state.colorRule = { ...NEW_COLOR_RULE };
 
 export function buildPalette() {
   Organica.palette.swatch(ctrl('fvs-palette'), {
@@ -98,7 +98,7 @@ export function syncColorRuleUI() {
   for (let i = 0; i < n; i++) off.add(new Option('Colour ' + (i + 1), i));
   sel.value = state.colorRule.mode;
   off.value = String(Math.min(state.colorRule.offset || 0, n - 1));
-  ctrl('row-color-offset').style.display = n < 2 ? 'none' : '';
+  ctrl('row-color-offset').style.display = n < 2 || state.colorRule.mode === 'element' ? 'none' : '';   // Element's colours: every cell slot 0, no start
   ctrl('chk-color-parts').checked = state.colorRule.parts === 'step';
   syncColorPartsRow();
   syncQuadrantHint();

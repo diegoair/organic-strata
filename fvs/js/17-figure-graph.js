@@ -815,7 +815,7 @@ function renderInspectorBody(box, ids) {
       } });
     const shownMode = (p.rule || {}).mode === 'own' ? 'index' : ((p.rule || {}).mode || 'index');   // a built-in's stored 'own' draws like By cell order (kept as stored: byte-identical)
     const syncStartAt = () => { const off = ctrl('fgi-roff'), n = (p.colors || []).length; if (!off) return; off.innerHTML = p.colors.map((c, i) => `<option value="${i}">Colour ${i + 1}</option>`).join(''); off.value = String(Math.min((p.rule || {}).offset || 0, Math.max(0, n - 1))); ctrl('fgi-roff-row').hidden = n < 2; };
-    rows.push(selectRow('Colour by', 'fgi-rule', Object.entries(COLOR_RULES).filter(([k]) => k !== 'own').map(([k, r]) => [k, r.label]), shownMode, v => { p.rule = { ...(p.rule || {}), mode: v }; edited(node, true); }));   // "own colours" is Keep own colours on the Figure
+    rows.push(selectRow('Colour by', 'fgi-rule', Object.entries(COLOR_RULES).filter(([k]) => k !== 'own' && k !== 'element').map(([k, r]) => [k, r.label]), shownMode, v => { p.rule = { ...(p.rule || {}), mode: v }; edited(node, true); }));   // "own colours" is Keep own colours on the Figure
     rows.push({ html: `<div class="ctrl-row" id="fgi-roff-row"${(p.colors || []).length > 1 ? '' : ' hidden'}><div class="ctrl-label">Start at</div><select class="panel-select" id="fgi-roff" aria-label="Start at"></select></div>`,   // as the Palette section
       bind: () => { syncStartAt(); ctrl('fgi-roff').addEventListener('change', e => { p.rule = { ...(p.rule || {}), offset: +e.target.value }; edited(node, true); }); } });
   } else if (node.type === 'element' || node.type === 'component') {

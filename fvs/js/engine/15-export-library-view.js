@@ -161,7 +161,7 @@ export function railPatch(kind, name) {
   const sp = JSON.parse(JSON.stringify(entry.seed)), o = entry.orientation || {};
   if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
   // The cell carries the palette the Element was saved with (ownColors). It is used while
-  // Colour by is "Element's own colours" (the default): its first ink for the shape, every
+  // Colour by is `own` (Palette in order): its first ink for the shape, every
   // layer's ink for a stack (drawn like a Component's own palette). Any other rule colours
   // the cell like the rest. An entry saved without colours follows the rule.
   const own = entry.colors && entry.colors.length ? entry.colors.slice() : null;

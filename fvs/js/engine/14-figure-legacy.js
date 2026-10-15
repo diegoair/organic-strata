@@ -93,7 +93,7 @@ export const FIGURE_MUTATIONS = [
   { group: 'element', name: 'Other colour rule', fn: (d, rng) => {
       const b = fgBaseColours(d);
       if (b.colors.length < 2) return false;
-      d.element.colorRule = { mode: fgPick(Object.keys(COLOR_RULES).filter(m => m !== b.colorRule.mode && m !== 'own'), rng), offset: b.colorRule.offset || 0 }; return true; } },
+      d.element.colorRule = { mode: fgPick(Object.keys(COLOR_RULES).filter(m => m !== b.colorRule.mode && m !== 'own' && m !== 'element'), rng), offset: b.colorRule.offset || 0 }; return true; } },
   { group: 'element', name: 'Fill ↔ Stroke', fn: d => { if (d.element.style === 'stroke') { d.element.style = 'fill'; delete d.element.strokeW; } else { d.element.style = 'stroke'; d.element.strokeW = 4; } return true; } },
   { group: 'symbol', name: 'Bigger / smaller layout', fn: (d, rng) => { const s2 = fgSymbol(d); if (!s2) return false; const l = s2.lattice, key = l.type === 'triangle' ? 'rows' : l.type === 'hexagon' ? 'rings' : 'cols', lo = l.type === 'hexagon' ? 1 : 2, hi = l.type === 'hexagon' ? 3 : l.type === 'triangle' ? 5 : 4; const v = l[key] + (rng() < 0.5 ? -1 : 1); if (v < lo || v > hi) return false; l[key] = v; if (l.type === 'square') l.rows = v; return true; } },
   { group: 'rules', name: 'Toggle a class', fn: (d, rng) => { const s2 = fgSymbol(d); if (!s2) return false; s2.rules = s2.rules || []; const l = s2.lattice;

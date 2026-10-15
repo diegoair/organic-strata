@@ -9,7 +9,7 @@
 // An ES module of fvs/js/main.js — docs/FVS.md §11, §13.
 import { rt } from './rt.js';
 import {
-  DEFAULT_COLOR_RULE, pv, state
+  DEFAULT_COLOR_RULE, NEW_COLOR_RULE, pv, state
 } from './engine/00-core.js';
 import {
   SEED_ICONS, SYMBOL_SEED_DEFAULTS, seedForSnapshot
@@ -96,7 +96,8 @@ function applyGallery(g) {
 // `palette`. The live state.colors / colorRule / paperColor IS the edited Element's — everything downstream reads it.
 // A new Element (and the one Clear board leaves) starts black on white (O-68 a, b); the other Elements' Palettes are
 // offered in the Palette's "Pick from a palette" menu (opts.palettes, 00-core.js buildPalette).
-const DEFAULT_PALETTE = { colors: ['#000000'], colorRule: { ...DEFAULT_COLOR_RULE }, paperColor: '#ffffff' };
+const DEFAULT_PALETTE = { colors: ['#000000'], colorRule: { ...DEFAULT_COLOR_RULE }, paperColor: '#ffffff' };   // an Element saved with no Palette
+const NEW_PALETTE = { ...DEFAULT_PALETTE, colorRule: { ...NEW_COLOR_RULE } };   // a new Element's (Element's colours, Oct 15, 2026)
 const livePalette = () => clone({ colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor });
 function applyPalette(p) {
   p = p || DEFAULT_PALETTE;
@@ -152,7 +153,7 @@ function mountElementBoard() {
     if (b.cellShape === undefined) delete b.cellShape;
     return { seed: { ...b, type: 'arc' }, app: clone(BOOT.app) };
   })();
-  const blankElement = () => ({ id: newId(), name: shapeName(BLANK.seed), custom: false, seed: clone(BLANK.seed), app: clone(BLANK.app), palette: clone(DEFAULT_PALETTE) });
+  const blankElement = () => ({ id: newId(), name: shapeName(BLANK.seed), custom: false, seed: clone(BLANK.seed), app: clone(BLANK.app), palette: clone(NEW_PALETTE) });
   const newId = () => 'e' + Date.now().toString(36) + Math.floor(Math.random() * 36 ** 3).toString(36);
   const find = id => state.elements.find(e => e.id === id);
   const active = () => state.activeElement;
@@ -393,7 +394,7 @@ function mountElementBoard() {
   const canon = v => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => { o[k] = canon(v[k]); return o; }, {}) : v);   // key order is not content
   const sameContent = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
   const asBlank = sd => Object.keys(BLANK.seed).every(k => sameContent(sd[k], BLANK.seed[k]));   // the fields a fresh Arc sets (the live snapshot adds derived ones)
-  const isClear = () => state.elements.length === 1 && asBlank(find(active()).seed) && sameContent(find(active()).app, BLANK.app) && sameContent(livePalette(), withPalette(DEFAULT_PALETTE, livePalette));
+  const isClear = () => state.elements.length === 1 && asBlank(find(active()).seed) && sameContent(find(active()).app, BLANK.app) && sameContent(livePalette(), withPalette(NEW_PALETTE, livePalette));
   function clearAll() {
     if (rt.partEdit) setPartEdit(false);
     selectSheets(B, []);
@@ -403,7 +404,7 @@ function mountElementBoard() {
     state.elements = [e]; state.activeElement = e.id;
     placeLive(e, 0, VH);
     applyElementSnapshot(clone(BLANK.seed), clone(BLANK.app));
-    applyPalette(DEFAULT_PALETTE);
+    applyPalette(NEW_PALETTE);
     applyGallery(null);
     onAppearanceChange(); renderGallery(); renderSeedPreview();
     relabel(); save(); B.save();

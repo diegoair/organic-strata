@@ -789,8 +789,8 @@ export function syncRuleAxesUI() {
   row('flip').hidden = !ax.flip;
   row('scale').hidden = !ax.scale;
   const none = !ax.rotation && !ax.flip && !ax.scale;
-  ctrl('rule-axes-none').hidden = !none;
-  if (none) ctrl('rule-axes-none').textContent = 'Every cell the same on square cells — no axis changes this rule.';
+  // no axis this rule reads (Uniform on square cells): no Axes heading, no note (Diego, Oct 15, 2026 — "togli il testo")
+  ctrl('rule-axes-label').hidden = none;
   ctrl('scale-values-block').hidden = !pc('chk-axis-scale');
 }
 

@@ -139,7 +139,7 @@ export const COLOUR_SCHEMES = {
     if (m.length < 2 || ctx.count < 2) return [];
     const base = m[0], acc = m[m.length >= 3 ? 2 : 1], want = Organica.color.roleShares(3)[2] / 100;
     let best = null;
-    [[base, acc], [base, base, acc], [base, base, base, acc]].forEach(colors => Object.keys(COLOR_RULES).filter(m => m !== 'own').forEach(mode => {
+    [[base, acc], [base, base, acc], [base, base, base, acc]].forEach(colors => Object.keys(COLOR_RULES).filter(m => m !== 'own' && m !== 'element').forEach(mode => {
       for (let offset = 0; offset < colors.length; offset++) {
         const rule = { mode, offset }, cr = colorRuleCR(ctx.grid, rule);
         let hit = 0;
