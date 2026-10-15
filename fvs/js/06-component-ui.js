@@ -96,7 +96,7 @@ export function enterComponentEditMode(compId) {
   // Grid is fixed for the duration of the edit (a resize could invalidate
   // cells mid-edit) — disable the controls that would change it.
   ctrl('rg-grid-cols').disabled = true; ctrl('rg-grid-rows').disabled = true;
-  ctrl('sel-rule').disabled = true;
+  ctrl('sel-rule').disabled = true; rulePicker.refresh();
   ctrl('gallery').classList.remove('visible');
   ctrl('gallery-empty').style.display = 'none';
   ctrl('gallery-status').textContent = '';
@@ -127,7 +127,7 @@ export function exitComponentEditMode() {
   ceUndo.length = 0;
   ctrl('component-edit-parts').hidden = true;
   ctrl('rg-grid-cols').disabled = false; ctrl('rg-grid-rows').disabled = false;
-  ctrl('sel-rule').disabled = false;
+  ctrl('sel-rule').disabled = false; rulePicker.refresh();
   ctrl('component-edit-view').style.display = 'none';
   if (hooks.boardComponentEdit) hooks.boardComponentEdit(false);
   const compBlock = document.querySelector('.tier-block[data-tier="component"]');
@@ -565,6 +565,7 @@ export function syncRuleAvailability() {
     if (count !== 1 && !(v in gates)) { const opt = sel.querySelector(`option[value="${v}"]`); if (opt) { opt.disabled = false; opt.title = ''; } }
   });
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
+  rulePicker.refresh();
   syncMirrorLine();
   syncCheckerStart();
   syncRadialTurnBy();
@@ -665,6 +666,35 @@ export function setMirrorSpan(span) {
   state.mirrorSpread = span;
   syncMirrorLine();
 }
+
+// ── Rule picker (Oct 15, 2026 — Diego: "thumbs that simulate the behaviour"): Organica.selectPicker in front of
+// #sel-rule, one pictogram per rule — a 4×4 Component of the letter F (the rule atlas's mark: no turn or flip of it
+// looks like another), each cell as the rule turns / flips it on a square grid (the atlas's own cases,
+// design-system/_fvs-rules.html CELLS). Exhaustive = four 2×2 candidates. currentColor, so --ink in both themes.
+// A rule this grid can't run stays in the menu greyed, with its reason (showDisabled, syncRuleAvailability's title).
+const RULE_F = 'M24 8H82V27H45V41H74V59H45V92H24Z';
+function ruleCells(str, cols, x0, y0, cell) {
+  return str.split(' ').map((c, i) => {
+    const m = /^(\d+)(h?)(v?)$/.exec(c), cx = x0 + (i % cols + 0.5) * cell, cy = y0 + (Math.floor(i / cols) + 0.5) * cell, k = cell * 0.84 / 100;
+    return `<path d="${RULE_F}" transform="translate(${cx} ${cy}) rotate(${m[1]}) scale(${(m[2] ? -k : k).toFixed(4)} ${(m[3] ? -k : k).toFixed(4)}) translate(-50 -50)"/>`;
+  }).join('');
+}
+const ruleIcon = body => `<svg viewBox="0 0 40 40" fill="currentColor" aria-hidden="true">${body}</svg>`;
+const ruleGrid = str => ruleIcon(ruleCells(str, 4, 0, 0, 10));
+const RULE_ICONS = {
+  identity: { name: 'Uniform', icon: ruleGrid('0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0') },
+  pinwheel: { name: 'Step turn', icon: ruleGrid('0 90 180 270 180 270 0 90 0 90 180 270 180 270 0 90') },
+  mirror: { name: 'Mirror', icon: ruleGrid('0 0h 0 0h 0v 0hv 0v 0hv 0 0h 0 0h 0v 0hv 0v 0hv') },
+  checkerboard: { name: 'Checkerboard', icon: ruleGrid('0 90 0 90 90 0 90 0 0 90 0 90 90 0 90 0') },
+  radial: { name: 'Radial', icon: ruleGrid('0 0 90 90 0 0 90 90 270 270 180 180 270 270 180 180') },
+  hlines: { name: 'Horizontal lines', icon: ruleGrid('0 0 0 0 90 90 90 90 0 0 0 0 90 90 90 90') },
+  vlines: { name: 'Vertical lines', icon: ruleGrid('0 90 0 90 0 90 0 90 0 90 0 90 0 90 0 90') },
+  oscillator: { name: 'Rhythm', icon: ruleGrid('0 90 0 0 90 0 0 90 0 0 90 0 0 90 0 0') },
+  random: { name: 'Random seeded', icon: ruleGrid('90 0 270 180 180 270 0 90 0 0 180 270 270 90 90 0') },
+  exhaustive: { name: 'Exhaustive', icon: ruleIcon(['0 0 0 0', '0 90 270 180', '0 0h 0v 0hv', '90 90 90 90']
+    .map((c, i) => ruleCells(c, 2, (i % 2) * 22, Math.floor(i / 2) * 22, 9)).join('')) },
+};
+export const rulePicker = Organica.selectPicker(ctrl('sel-rule'), ctrl('rule-picker'), { registry: RULE_ICONS, ariaLabel: 'Rule', showDisabled: true });
 
 export function syncRuleAxisNote() {
   const note = ctrl('rule-axis-note');
@@ -767,6 +797,7 @@ export function syncRuleAxesUI() {
 // ── Rule UI wiring ──
 export function syncRuleUI() {
   const mode = pv('sel-rule');
+  rulePicker.refresh();
   ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
   ctrl('rule-mirror-block').style.display = mode === 'mirror' ? '' : 'none';
   ctrl('rule-checker-block').style.display = mode === 'checkerboard' ? '' : 'none';

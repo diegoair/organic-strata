@@ -40,7 +40,10 @@
  * Options with an empty value ("Presets…", "Load a grid…") are placeholders:
  * never a row; when current, the trigger shows their text and no thumbnail.
  * A disabled option is never a row either; if nothing is pickable, the menu
- * shows the first disabled option's text as its empty-state hint.
+ * shows the first disabled option's text as its empty-state hint — unless
+ * `showDisabled: true`: then it is a greyed row (aria-disabled) that says why,
+ * from the option's own title (FVS's Rule, Oct 15, 2026). A hidden option is
+ * never a row (as in a native <select>). A disabled <select> disables the trigger.
  * Options missing from the registry still get a row, with a generic icon and
  * the option's own text. Host needs class "presets" (position:relative).
  *
@@ -114,9 +117,10 @@
       icoEl.hidden = placeholder && !empty;
       icoEl.innerHTML = placeholder ? empty : iconOf(sel.value);
       nameEl.innerHTML = labelOf(sel.value);
+      trigger.disabled = sel.disabled;
     }
     function keys() {
-      const present = [...sel.options].filter(o => o.value !== '' && !o.disabled).map(o => o.value);
+      const present = [...sel.options].filter(o => o.value !== '' && !o.hidden && (opts.showDisabled || !o.disabled)).map(o => o.value);
       const ordered = Object.keys(registry).filter(k => present.includes(k));
       return ordered.concat(present.filter(k => !ordered.includes(k)));
     }
@@ -140,7 +144,12 @@
         const ico = row.querySelector('.pi-ico');
         ico.dataset.key = key;
         ico.innerHTML = iconOf(key);
+        if (opt && opt.disabled) {   // showDisabled: greyed, with the option's own reason
+          row.setAttribute('aria-disabled', 'true');
+          if (opt.title) { row.title = opt.title; row.setAttribute('aria-description', opt.title); }
+        }
         row.addEventListener('click', () => {
+          if (row.getAttribute('aria-disabled') === 'true') return;
           sel.value = key;
           sel.dispatchEvent(new Event('change', { bubbles: true }));
           refresh();

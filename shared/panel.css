@@ -901,6 +901,10 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 .preset-item:focus-visible { background: var(--track-bg); }
 .preset-item { transition: background-color var(--dur-instant); }
 .preset-item.on { border-color: var(--ink); }   /* selection = border, hover = fill: they never collide */
+/* a greyed row (Organica.selectPicker showDisabled) says why in its title; a disabled <select> greys the trigger —
+   the same 0.42 as .seg-btn:disabled */
+.preset-item[aria-disabled="true"], .preset-trigger:disabled { opacity: 0.42; cursor: not-allowed; }
+@media (hover: hover) { .preset-item[aria-disabled="true"]:hover { background: none; } }
 .pi-name { flex: 1; line-height: 1.2; }
 .pi-group { font-size: var(--fs-micro); color: var(--mid); padding: var(--space-2) var(--space-2) 0; }
 

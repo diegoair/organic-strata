@@ -347,7 +347,7 @@ controls).
 
 ### 5.3 The rules
 
-The **Rule** select (default **Random seeded**). Every named rule reads each cell's column / row,
+The **Rule** select (default **Random seeded**). It is a thumbnail picker (`Organica.selectPicker`, Oct 15, 2026 — Diego: *thumbs that simulate the behaviour*): each rule's pictogram is a 4×4 Component of the letter **F** (the atlas's mark), each cell as that rule turns / flips it on a square grid (the atlas's own cases; Exhaustive = four 2×2 candidates). A rule this grid can't run stays in the menu greyed, with its reason (`showDisabled`). Every named rule reads each cell's column / row,
 so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the original four-cell tables.
 
 | Rule | What each cell gets | Available when | Own controls |
