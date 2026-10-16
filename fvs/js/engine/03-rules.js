@@ -301,11 +301,9 @@ export function rotationValues() {
   for (let a = from; a <= to + 1e-9 && out.length < 72; a += st) { const r = mod360(a); if (!out.includes(r)) out.push(r); }
   return out;
 }
-// Scale: From · To % and How many, evenly spaced (75 · 100 · 125 by default = the old Small · Medium · Large).
+// Scale: Small · Medium · Large % (back from Sizes + How many — Diego, Oct 16, 2026: the Transform axes "as before").
 export function scaleValues() {
-  const from = val('rg-scale-from'), to = val('rg-scale-to'), n = Math.max(2, Math.round(val('rg-scale-count')) || 3);
-  if (!(from > 0) || !(to > 0)) return [0.75, 1.0, 1.25];
-  return Array.from({ length: n }, (_, i) => Math.round(from + (to - from) * i / (n - 1)) / 100);
+  return [val('rg-scale-small') / 100, val('rg-scale-medium') / 100, val('rg-scale-large') / 100];
 }
 // Which axes each rule reads — what Rule › Axes shows (measured on fvs/_axes-baseline.json, Oct 15, 2026: Step turn and
 // Radial draw the same with Rotation on or off — their turns are their own; Uniform on square cells reads none;

@@ -331,7 +331,9 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
   brings back the starter set); a change that keeps the count (2×3 → 3×2) keeps the candidates
   (`05-render-component.js`, grid invalidation).
 
-### 5.2 The axes (Rule › Axes)
+### 5.2 The axes (Transform axes)
+
+**Since Oct 16, 2026 (Diego: *I want it back as before but … below the Rule module*):** the axes are their own section again, **Transform axes**, right **after Rule**, and **every axis is always shown**. **Turns** (chips + Free angles) stays; **Flip (none/H/V/both)** and **Scale** are the old checkboxes; Scale shows **Small % · Medium % · Large %** (10–400, default 75 · 100 · 125). The Oct 15 text below — inside Rule, only the axes the rule reads, Sizes + How many — is history.
 
 **Since Oct 15, 2026 (Tropism Phase 1, Diego):** the axes are inside the **Rule** section, under the sub-heading **Axes**,
 after the rule's own settings — and only the axes the chosen rule reads show (`ruleAxes`, `engine/03-rules.js`): Uniform on square

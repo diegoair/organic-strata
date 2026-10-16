@@ -714,7 +714,7 @@
 
 /* ── Rule › Axes (Tropism Phase 1, Oct 15, 2026): one block per axis — switch, then its values (Angles / Sizes are the
    two-handle Organica.dualRange); only the axes the rule reads show (ruleAxes) ── */
-.fvs-axis + .fvs-axis, #rot-own-note + .fvs-axis { margin-top: var(--space-1); }
+.fvs-axis + .check-row { margin-top: var(--space-1); }
 .fvs-axis__values { padding-bottom: var(--space-2); }
 /* Turns: the label above, the angle toggles across the full width (six on hexagon cells, equal widths) */
 .fvs-axis__turns { flex-direction: column; align-items: stretch; gap: var(--space-1); }

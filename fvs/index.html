@@ -1530,10 +1530,14 @@
         <!-- 4 cell groups injected by JS -->
       </div>
 
-      <!-- Axes (Tropism Phase 1, Oct 15, 2026 — Diego: the Transform axes inside Rule): only the axes the chosen rule
-           reads (ruleAxes, engine/03-rules.js); a hidden axis keeps its setting. Free angles and Scale's Sizes are
-           Organica.dualRange (shared/dual-range.js) writing the hidden From / To inputs the engine reads. -->
-      <div class="sub-label" id="rule-axes-label">Axes</div>
+      <button class="mini-btn" id="btn-colourways" style="width:100%;margin-top:var(--space-1)" title="Colour variants of the selected component, from the palette and its shade scales — every ink readable on its paper (3:1) and distinct from the others">Colourways of the selection</button>
+    </div>
+
+    <!-- Transform axes (Diego, Oct 16, 2026: "I want it back as before but … below the Rule module"): its own section again,
+         after Rule, every axis always shown — Tropism Phase 1 had moved it into Rule as "Axes" with the axes the rule reads.
+         Rotation keeps the Turns chips (Oct 15); Flip and Scale are the old checkboxes, Scale's Small · Medium · Large. -->
+    <div class="panel-section ce-hide">
+      <h3>Transform axes <span class="hint">also affects the fixed-pattern Rules above</span></h3>
       <!-- Turns (Oct 15, 2026 — Diego, after the design-system + usability review): one toggle per angle the cell shape
            tiles with (.seg-ctrl--multi); 0° is the base and stays on; one angle only = the axis off (#chk-axis-rotation,
            kept hidden and derived, is what the engine and the tests read). Square cells: Free angles = the From–To · Step
@@ -1552,21 +1556,25 @@
           </div>
         </details>
       </div>
-      <p class="panel-hint" id="rot-own-note" hidden>This rule makes its own turns.</p>
-      <div class="fvs-axis" data-axis="flip">
-        <label class="check-row org-switch"><input type="checkbox" id="chk-axis-flip"><span>Flip</span></label>
-      </div>
-      <div class="fvs-axis" data-axis="scale">
-        <label class="check-row org-switch"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
-        <div class="fvs-axis__values" id="scale-values-block" hidden>
-          <div class="ctrl-row"><div class="ctrl-label" id="scale-sizes-label">Sizes</div><div id="dual-scale-sizes"></div><span class="fvs-axis__readout" id="v-scale-sizes">75–125%</span></div>
-          <div class="ctrl-row"><div class="ctrl-label">How many</div><input type="range" id="rg-scale-count" min="2" max="7" step="1" value="3" aria-label="How many sizes"><span class="ctrl-val" id="v-scale-count">3</span></div>
-          <p class="panel-hint" id="scale-values-list"></p>
-          <input type="hidden" id="rg-scale-from" value="75"><input type="hidden" id="rg-scale-to" value="125">
+      <label class="check-row"><input type="checkbox" id="chk-axis-flip"><span>Flip (none/H/V/both)</span></label>
+      <label class="check-row"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
+      <div id="scale-values-block" style="display:none">
+        <div class="ctrl-row">
+          <div class="ctrl-label">Small %</div>
+          <input type="range" id="rg-scale-small" min="10" max="400" step="1" value="75">
+          <span class="ctrl-val" id="v-scale-small">75</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Medium %</div>
+          <input type="range" id="rg-scale-medium" min="10" max="400" step="1" value="100">
+          <span class="ctrl-val" id="v-scale-medium">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Large %</div>
+          <input type="range" id="rg-scale-large" min="10" max="400" step="1" value="125">
+          <span class="ctrl-val" id="v-scale-large">125</span>
         </div>
       </div>
-
-      <button class="mini-btn" id="btn-colourways" style="width:100%;margin-top:var(--space-1)" title="Colour variants of the selected component, from the palette and its shade scales — every ink readable on its paper (3:1) and distinct from the others">Colourways of the selection</button>
     </div>
 
     <!-- Role (Blend · Role) shows only in Component Edit (Diego, Oct 15, 2026: "lo spostiamo solo sull'edit del component"):

@@ -822,9 +822,14 @@ ctrl('chk-axis-rotation').addEventListener('change', () => { syncAxisValuesUI();
 ctrl('turns-chips').addEventListener('click', e => { const b = e.target.closest('.seg-btn[data-angle]'); if (b) toggleTurn(+b.dataset.angle); });
 ctrl('turns-free').addEventListener('toggle', () => setTurnsFree(ctrl('turns-free').open));
 ctrl('chk-axis-flip').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
-ctrl('chk-axis-scale').addEventListener('change', () => { syncRuleAxesUI(); syncExhaustiveHint(); syncRuleAxisNote(); });
+ctrl('chk-axis-scale').addEventListener('change', e => {
+  ctrl('scale-values-block').style.display = e.target.checked ? '' : 'none';
+  syncExhaustiveHint(); syncRuleAxisNote();
+});
+[['rg-scale-small', 'v-scale-small'], ['rg-scale-medium', 'v-scale-medium'], ['rg-scale-large', 'v-scale-large']].forEach(([rangeId, valId]) => {
+  ctrl(rangeId).addEventListener('input', e => { ctrl(valId).textContent = e.target.value; syncExhaustiveHint(); });
+});
 ctrl('rg-rot-step').addEventListener('input', () => { setTurnsFree(true); });
-ctrl('rg-scale-count').addEventListener('input', () => { syncAxisValuesUI(); syncExhaustiveHint(); });
 syncAxisValuesUI(true);
 syncRuleAxesUI();
 

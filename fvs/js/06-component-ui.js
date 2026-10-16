@@ -16,7 +16,7 @@ import {
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
-  ruleAxes, rotationSet, rotationSteps, rotationFree, rotationValues, scaleValues
+  rotationSet, rotationSteps, rotationFree, rotationValues
 } from './engine/03-rules.js';
 import {
   appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, stretchOpts,
@@ -704,24 +704,23 @@ export function syncRuleAxisNote() {
   const ax = activeAxes();
   // Random with no axis on draws the one uniform Component, however many it is asked for (Oct 14, 2026)
   if (pv('sel-rule') === 'random' && !ax.rotation && !ax.flip && !ax.scale) {
-    note.textContent = 'Random needs an axis on — under Axes (below), pick a second angle in Turns or turn on Flip or Scale; every Component is the same until then.';
+    note.textContent = 'Random needs an axis on — under Transform axes (below), pick a second angle in Turns or turn on Flip or Scale; every Component is the same until then.';
     note.style.display = ''; return;
   }
   const satisfied = !fam || fam.requiresAxis !== 'any' || axisSatisfied('any', ax);
   if (satisfied) { note.style.display = 'none'; return; }
-  note.textContent = 'Checkerboard needs an axis on under Axes (below) — showing Uniform until then.';
+  note.textContent = 'Checkerboard needs an axis on under Transform axes (below) — showing Uniform until then.';
   note.style.display = '';
 }
 
-// ── Rule › Axes (Tropism Phase 1, Oct 15, 2026 — Diego: the Transform axes inside Rule) ──
-// Only the axes the chosen rule reads show (ruleAxes, engine/03-rules.js); a hidden axis keeps its setting.
+// ── Transform axes (their own section below Rule again, every axis shown — Diego, Oct 16, 2026) ──
 // Turns (Oct 15, 2026 — Diego, after the design-system + usability review: "chips + Free angles", the axis named Turns):
 // one .seg-btn[aria-pressed] per angle the cell shape tiles with, 0° locked on; the pressed set goes in #rot-set for
 // this shape, and #chk-axis-rotation (hidden) follows it — on with two angles or more. Square cells only: Free angles
 // (a disclosure) = the From–To two-handle slider + Step on 0–360°, catching on 90°; open, it decides and the chips show
-// what it gives. Sizes (From–To on 10–400 %, catching every 50 %) + How many write #rg-scale-from / -to / -count.
+// what it gives. Scale is Small · Medium · Large again (12-shell.js).
 // The defaults draw every rule exactly as before (scripts/test-fvs-axes.sh).
-let rotDual = null, sizeDual = null, chipsShape = null;
+let rotDual = null, chipsShape = null;
 const degList = v => v.map(a => a + '°').join(' · ');
 function readRotSet() { try { return JSON.parse(pv('rot-set') || '{}') || {}; } catch (e) { return {}; } }
 const FREE_REASON = 'Free angles decides the turns — close it to pick them here.';
@@ -748,9 +747,6 @@ function axesReadout() {
   ctrl('v-rot-step').textContent = pv('rg-rot-step');
   const rv = rotationValues();
   ctrl('rot-values-list').textContent = `${rv.length} angle${rv.length === 1 ? '' : 's'}: ${degList(rv)}`;
-  ctrl('v-scale-sizes').textContent = `${pv('rg-scale-from')}–${pv('rg-scale-to')}%`;
-  ctrl('v-scale-count').textContent = pv('rg-scale-count');
-  ctrl('scale-values-list').textContent = scaleValues().map(x => Math.round(x * 100)).join(' · ') + ' %';
   syncTurnsChips();
 }
 function axesChanged() { axesReadout(); syncExhaustiveHint(); syncRuleAxisNote(); }
@@ -773,26 +769,13 @@ export function syncAxisValuesUI() {
     min: 0, max: 360, from: +pv('rg-rot-from'), to: +pv('rg-rot-to'), step: 1, detents: [0, 90, 180, 270, 360], catchBy: 8, label: 'Angles', fmt: v => v + '°',
     onInput: (a, b) => { ctrl('rg-rot-from').value = a; ctrl('rg-rot-to').value = b; syncTurnsAxis(); axesChanged(); },
   });
-  if (!sizeDual) sizeDual = Organica.dualRange(ctrl('dual-scale-sizes'), {
-    min: 10, max: 400, from: +pv('rg-scale-from'), to: +pv('rg-scale-to'), step: 1, detents: [50, 100, 150, 200, 250, 300, 350], catchBy: 6, label: 'Sizes', fmt: v => v + '%',
-    onInput: (a, b) => { ctrl('rg-scale-from').value = a; ctrl('rg-scale-to').value = b; axesChanged(); },
-  });
   // the chips are the shape's own steps; each shape keeps its own set (#rot-set), so changing shape loses nothing
   if (chipsShape !== state.cellShape) { const first = chipsShape === null; buildTurnsChips(); if (!first) syncTurnsAxis(); }
   axesReadout();
 }
-export function syncRuleAxesUI() {
-  const ax = ruleAxes(pv('sel-rule'), { lattice: state.cellShape !== 'square', rhythm: state.rhythm && state.rhythm.mode });
-  const row = a => document.querySelector(`#panel .fvs-axis[data-axis="${a}"]`);
-  row('rotation').hidden = ax.rotation !== 'values';
-  ctrl('rot-own-note').hidden = ax.rotation !== 'own';
-  row('flip').hidden = !ax.flip;
-  row('scale').hidden = !ax.scale;
-  const none = !ax.rotation && !ax.flip && !ax.scale;
-  // no axis this rule reads (Uniform on square cells): no Axes heading, no note (Diego, Oct 15, 2026 — "togli il testo")
-  ctrl('rule-axes-label').hidden = none;
-  ctrl('scale-values-block').hidden = !pc('chk-axis-scale');
-}
+// The Transform axes are their own section again, every axis always shown (Diego, Oct 16, 2026 — "as before"); kept as
+// the one place a rule or grid change re-syncs them.
+export function syncRuleAxesUI() { syncTurnsChips(); }
 
 // ── Rule UI wiring ──
 export function syncRuleUI() {
@@ -857,7 +840,7 @@ export function syncExhaustiveHint() {
     // no axis on = the one uniform Component (Diego, Oct 14, 2026: "it says one component only, it seems very strange") —
     // say why, in Checkerboard's words (syncRuleAxisNote)
     hint.textContent = !ax.rotation && !ax.flip && !ax.scale && k <= 1
-      ? '1 possible component — no axis is on. Under Axes, pick a second angle in Turns or turn on Flip or Scale for more.'
+      ? '1 possible component — no axis is on. Under Transform axes, pick a second angle in Turns or turn on Flip or Scale for more.'
       : k > 1
       ? `${total.toLocaleString()} possible component${total === 1 ? '' : 's'} × ${k} layer-colour combinations = ${(total * k).toLocaleString()}${total * k > EXHAUSTIVE_CAP ? ` (first ${EXHAUSTIVE_CAP} shown)` : ''}.`
       : `${total.toLocaleString()} possible component${total === 1 ? '' : 's'}.`;
