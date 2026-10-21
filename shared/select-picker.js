@@ -46,7 +46,8 @@
  * never a row (as in a native <select>). A disabled <select> disables the trigger.
  * opts.display: () => ({ name, icon, aria } | null) — the trigger shows that instead of the selected option while it
  * returns one (FVS's Rule shows "Custom" over its base rule, Oct 21, 2026); the option stays selected underneath.
- * opts.onPick(key): called when the user picks a row (not on a change made in code), before the change event.
+ * opts.onPick(key): called when the user picks a row (not on a change made in code), before the change event; returning
+ * false means the tool handled the pick itself (no value set, no change event).
  * Options missing from the registry still get a row, with a generic icon and
  * the option's own text. Host needs class "presets" (position:relative).
  *
@@ -155,7 +156,7 @@
         }
         row.addEventListener('click', () => {
           if (row.getAttribute('aria-disabled') === 'true') return;
-          if (opts.onPick) opts.onPick(key);
+          if (opts.onPick && opts.onPick(key) === false) { refresh(); closeMenu(true); return; }   // the tool handled it (FVS's saved rules)
           sel.value = key;
           sel.dispatchEvent(new Event('change', { bubbles: true }));
           refresh();
@@ -166,6 +167,7 @@
           const wrap = document.createElement('div'); wrap.className = 'preset-row';
           const del = document.createElement('button');
           del.type = 'button'; del.className = 'pi-del'; del.setAttribute('aria-label', 'Delete ' + (optOf(key) ? optOf(key).textContent : key));
+          del.setAttribute('data-armed', 'Delete — click again to confirm');   // destructive: two clicks (Organica.armed, Oct 21, 2026 — Diego: every tool)
           del.innerHTML = '<svg class="ico ico--xs" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
           del.addEventListener('click', e => { e.stopPropagation(); opts.onRemove(key); });
           wrap.append(row, del); menu.appendChild(wrap);

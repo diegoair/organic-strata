@@ -3,7 +3,7 @@
 > Diego, Oct 21, 2026. *The Rule decides, the transformation transforms.* Rules are simple presets that guide the
 > creation; a transformation (Turn first, then Flip and Scale) is applied **after** the rule, on every cell of its result.
 > A rule that gets a transformation becomes **Custom** in the Rule menu, and can be **saved as your own rule** (a preset,
-> as in Living Path / Sinew / Apostate). Status: **phases 1–2 built Oct 21, 2026** (local); phases 3–6 planned.
+> as in Living Path / Sinew / Apostate). Status: **phases 1–3 built Oct 21, 2026** (local); phases 4–6 planned.
 
 ## Decisions (Diego, Oct 21, 2026)
 
@@ -46,7 +46,8 @@ fold (§5.2a) still removes what draws the same.
 2. **Custom.** — *Built Oct 21, 2026*: with Turns on (two turns or more) Uniform, Mirror, Checkerboard, Lines and Rhythm show **Custom** with a new icon (`fvs-rule-custom`, Diego's pick over the base rule's pictogram), name *Rule: Custom, from ‹rule›*; any pick from the menu (the same rule too) turns Turns off; Random and Exhaustive never Custom and show **no** extra line (Diego). Shared: `Organica.selectPicker` gains `display()` and `onPick()`.
    Was: A transformation on a system rule → the Rule menu shows **Custom** (base rule kept underneath); picking a
    system rule resets the transformations. Exhaustive / Random: a line that lists the transformations applied.
-3. **Your rules.** The Rule menu on `Organica.presetPicker`: system rules (with their pictograms) + **Yours** (saved rules,
+3. **Your rules.** — *Built Oct 21, 2026*: the Rule menu stays `Organica.selectPicker` on `#sel-rule` (presetPicker would replace the select the engine reads) with a group **Yours** (values `mine:<name>`), each row with its base rule's pictogram and an armed delete; **Save rule…** under the picker while the rule is Custom and not saved as it stands (`Organica.prompt` *Save rule* · *Rule name*; a built-in name refused; a used name asks *Replace the saved rule “…”?*); toasts *Rule saved* / *Rule deleted*; a saved rule unchanged shows its own name, edited shows *Custom* (*from ‹name›*); a saved rule follows its base rule's availability. Stored in `Organica.store('fvs-rules')`: base, its block's controls, the segmented settings on state, Turns. Shared: every picker's row delete (`.pi-del`) is now armed (two clicks) — Living Path, Sinew, Apostate too (Diego).
+   Was: The Rule menu on `Organica.presetPicker`: system rules (with their pictograms) + **Yours** (saved rules,
    delete button), stored with `Organica.store('fvs-rules')` (cloud-synced). *Save rule…* names it. A saved rule restores
    its base rule, its controls and its transformations.
 4. **Checkerboard's own controls.** Cells A · Cells B · Start at in the Component step, as the Symbol's (`sel-rule-chk-rota`,

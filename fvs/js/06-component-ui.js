@@ -551,7 +551,7 @@ export function syncRuleAvailability() {
   // A non-square cell shape: only the rules that turn in its own step apply.
   if (state.cellShape !== 'square') {
     gates.radial = [count > 1, 'A single cell has no centre to turn towards'];
-    [...sel.options].forEach(o => { if (!LATTICE_RULES.has(o.value) && o.value !== 'manual') gates[o.value] = [false, `${o.textContent.replace(/ \(.*\)$/, '')} needs square cells`]; });
+    [...sel.options].forEach(o => { if (!LATTICE_RULES.has(o.value) && o.value !== 'manual' && !o.value.startsWith('mine:')) gates[o.value] = [false, `${o.textContent.replace(/ \(.*\)$/, '')} needs square cells`]; });
     gates.manual = [false, 'Manual needs square cells'];
     if (count === 1) gates.checkerboard = [false, 'A single cell has no pattern'];
   } else if (!('manual' in gates)) gates.manual = [true, ''];
@@ -564,6 +564,9 @@ export function syncRuleAvailability() {
   ['pinwheel', 'mirror', 'diagonal', 'checkerboard', 'hlines', 'vlines', 'oscillator'].forEach(v => {
     if (count !== 1 && !(v in gates)) { const opt = sel.querySelector(`option[value="${v}"]`); if (opt) { opt.disabled = false; opt.title = ''; } }
   });
+  // a saved rule (Yours) follows its base rule: unavailable, with the same reason, where its base is
+  const saved = RULES.read();
+  sel.querySelectorAll('option[value^="mine:"]').forEach(o => { const b = saved[o.value.slice(5)], bo = b && sel.querySelector(`option[value="${b.base}"]`); o.disabled = !bo || bo.disabled; o.title = bo && bo.disabled ? bo.title : ''; });
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
   rulePicker.refresh();
   syncMirrorLine();
@@ -694,16 +697,97 @@ const RULE_ICONS = {
   exhaustive: { name: 'Exhaustive', icon: ruleIcon(['0 0 0 0', '0 90 270 180', '0 0h 0v 0hv', '90 90 90 90']
     .map((c, i) => ruleCells(c, 2, (i % 2) * 22, Math.floor(i / 2) * 22, 9)).join('')) },
 };
+// ── Your rules (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 3): a rule as it stands — the base rule, its own
+// controls (the inputs of its block + the segmented settings kept on state) and its transformations (Turns) — saved by
+// name in the user's store, restored whole. Not the Grid, not the Palette (Diego).
+export const RULES = Organica.store('fvs-rules');
+const RULE_BLOCK = { random: 'rule-random-block', mirror: 'rule-mirror-block', checkerboard: 'rule-checker-block', radial: 'rule-radial-block',
+  hlines: 'rule-lines-block', vlines: 'rule-lines-block', oscillator: 'rule-oscillator-block' };
+const TRANSFORM_IDS = ['chk-axis-rotation', 'rg-turn-upto', 'rg-turn-every'];
+const readCtl = id => { const e = ctrl(id); return e.type === 'checkbox' ? e.checked : e.value; };
+export function ruleSnapshot() {
+  const base = pv('sel-rule'), blk = RULE_BLOCK[base], controls = {};
+  if (blk) ctrl(blk).querySelectorAll('input[id], select[id]').forEach(e => { if (e.type !== 'hidden' || e.id.startsWith('chk-')) controls[e.id] = readCtl(e.id); });
+  return { base, controls, state: structuredClone({ mirrorLine: state.mirrorLine, mirrorSpread: state.mirrorSpread, radialReading: state.radialReading, checkerStart: state.checkerStart, rhythm: state.rhythm }),
+    transforms: Object.fromEntries(TRANSFORM_IDS.map(id => [id, readCtl(id)])) };
+}
+export function applyRuleSnapshot(snap) {
+  const set = (id, v) => { const e = ctrl(id); if (!e) return; if (e.type === 'checkbox') e.checked = !!v; else e.value = v; e.dispatchEvent(new Event(e.type === 'checkbox' || e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); };
+  set('sel-rule', snap.base);
+  Object.assign(state, structuredClone(snap.state || {}));
+  syncMirrorLine(); syncCheckerStart(); syncRadialTurnBy(); if (snap.base === 'oscillator') syncRhythm();
+  Object.entries(snap.controls || {}).forEach(([id, v]) => set(id, v));
+  ['rg-turn-upto', 'rg-turn-every', 'chk-axis-rotation'].forEach(id => { if (snap.transforms && id in snap.transforms) set(id, snap.transforms[id]); });
+}
+const ruleSig = snap => JSON.stringify([snap.base, snap.controls, snap.state, snap.transforms]);
+// the saved rule now on the panel, when nothing has changed since it was saved / picked
+export function activeSavedRule() {
+  const all = RULES.peek ? RULES.peek() : RULES.read(), now = ruleSig(ruleSnapshot());
+  return Object.keys(all).find(n => ruleSig(all[n]) === now) || null;
+}
+
 // Custom (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 2): a rule that Turns transforms (after it) shows as Custom,
 // the base rule kept underneath (its own controls stay); Random and Exhaustive never do — the turns are their material.
 // Picking any rule from the menu starts clean: Turns off (Diego: a re-pick of the same rule too).
 const CUSTOMIZABLE = new Set(['identity', 'mirror', 'checkerboard', 'hlines', 'vlines', 'oscillator']);
 export const ruleIsCustom = () => CUSTOMIZABLE.has(pv('sel-rule')) && pc('chk-axis-rotation') && rotationValues().length > 1;
+let lastSavedRule = null;   // the saved rule last picked or saved — named in Custom's accessible name once it is edited
+const ruleName = key => (RULE_ICONS[key] || {}).name || key;
 export const rulePicker = Organica.selectPicker(ctrl('sel-rule'), ctrl('rule-picker'), {
   registry: RULE_ICONS, ariaLabel: 'Rule', showDisabled: true,
-  display: () => ruleIsCustom() ? { name: 'Custom', icon: Organica.icons.get('fvs-rule-custom'), aria: `Rule: Custom, from ${(RULE_ICONS[pv('sel-rule')] || {}).name || pv('sel-rule')}` } : null,
-  onPick: () => { const c = ctrl('chk-axis-rotation'); if (c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); } },
+  display: () => {
+    const base = pv('sel-rule'), saved = activeSavedRule();
+    if (saved) return { name: saved, icon: (RULE_ICONS[base] || {}).icon || '', aria: `Rule: ${saved}` };
+    if (!ruleIsCustom()) return null;
+    const from = lastSavedRule && RULES.read()[lastSavedRule] && RULES.read()[lastSavedRule].base === base ? lastSavedRule : ruleName(base);
+    return { name: 'Custom', icon: Organica.icons.get('fvs-rule-custom'), aria: `Rule: Custom, from ${from}` };
+  },
+  onPick: key => {
+    const c = ctrl('chk-axis-rotation'); if (c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }
+    if (!String(key).startsWith('mine:')) { lastSavedRule = null; return; }
+    const name = key.slice(5), snap = RULES.read()[name];
+    if (snap) { applyRuleSnapshot(snap); lastSavedRule = name; }
+    syncRuleSaveUI();
+    return false;   // the saved rule set #sel-rule to its base itself
+  },
+  onRemove: key => {
+    const name = String(key).slice(5), all = RULES.read();
+    delete all[name]; RULES.write(all);
+    if (lastSavedRule === name) lastSavedRule = null;
+    Organica.notice('Rule deleted', { kind: 'info' });
+    syncUserRules();
+  },
 });
+// "Yours" — the saved rules as a group of the Rule menu (values mine:<name>, never a rule key), each with its base rule's
+// pictogram and a delete (armed, two clicks)
+export function syncUserRules() {
+  const sel = ctrl('sel-rule'), old = sel.querySelector('optgroup[data-yours]');
+  if (old) old.remove();
+  Object.keys(RULE_ICONS).filter(k => k.startsWith('mine:')).forEach(k => delete RULE_ICONS[k]);
+  const all = RULES.read(), names = Object.keys(all).sort((x, y) => x.localeCompare(y));
+  if (names.length) {
+    const g = document.createElement('optgroup'); g.label = 'Yours'; g.dataset.yours = '';
+    names.forEach(n => { const o = document.createElement('option'); o.value = 'mine:' + n; o.textContent = n; g.appendChild(o);
+      RULE_ICONS['mine:' + n] = { name: n, icon: (RULE_ICONS[all[n].base] || {}).icon || '', removable: true }; });
+    sel.appendChild(g);
+  }
+  rulePicker.refresh(); syncRuleSaveUI();
+}
+// Save rule… shows while the rule is Custom and not already saved as it stands
+export function syncRuleSaveUI() { ctrl('rule-save-row').hidden = !(ruleIsCustom() && !activeSavedRule()); }
+export async function saveRule() {
+  const base = pv('sel-rule');
+  let name = await Organica.prompt({ title: 'Save rule', label: 'Rule name', value: lastSavedRule || ruleName(base), ok: 'Save' });
+  name = (name || '').trim();
+  if (!name) return;
+  if (Object.keys(RULE_ICONS).some(k => !k.startsWith('mine:') && ruleName(k).toLowerCase() === name.toLowerCase())) { Organica.notice(`${name} is a built-in rule — choose another name`, { kind: 'info' }); return; }
+  const all = RULES.read();
+  if (all[name] && Organica.confirm && !(await Organica.confirm({ title: `Replace the saved rule “${name}”?`, message: 'It gets this rule’s settings.', ok: 'Replace' }))) return;
+  all[name] = { ...ruleSnapshot(), savedAt: new Date().toISOString() };
+  if (RULES.write(all) !== false) Organica.notice('Rule saved', { kind: 'info' });
+  lastSavedRule = name;
+  syncUserRules();
+}
 
 export function syncRuleAxisNote() {
   const note = ctrl('rule-axis-note');
@@ -734,7 +818,7 @@ function axesReadout() {
   ctrl('turns-count').textContent = `${n} turn${n === 1 ? '' : 's'}`;
   ctrl('turns-values-block').hidden = !pc('chk-axis-rotation');
 }
-function axesChanged() { axesReadout(); syncExhaustiveHint(); syncRuleAxisNote(); rulePicker.refresh(); }
+function axesChanged() { axesReadout(); syncExhaustiveHint(); syncRuleAxisNote(); rulePicker.refresh(); syncRuleSaveUI(); }
 export function syncAxisValuesUI() {
   if (turnsShape !== state.cellShape) {   // a new cell shape: its own steps
     const st = rotationStepOf(state.cellShape), up = ctrl('rg-turn-upto'), ev = ctrl('rg-turn-every');

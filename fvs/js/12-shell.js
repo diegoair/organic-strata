@@ -52,7 +52,7 @@ import {
 import {
   exitComponentEditMode, exportSelected, generate,
   populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setCheckerStart, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
-  syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
+  syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, rulePicker, syncRuleSaveUI, saveRule, syncUserRules, RULES, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
 } from './06-component-ui.js';
 import {
   renderLayersUI, renderLibrary, restoreComponentElementState, syncColourGroupRules
@@ -860,12 +860,16 @@ ctrl('btn-generate').addEventListener('click', () => {
 });
 {
   let genSyncRaf = 0;
-  const later = () => { cancelAnimationFrame(genSyncRaf); genSyncRaf = requestAnimationFrame(syncGenerateButton); };
+  const later = () => { cancelAnimationFrame(genSyncRaf); genSyncRaf = requestAnimationFrame(() => { syncGenerateButton(); rulePicker.refresh(); syncRuleSaveUI(); }); };   // a rule control changed: Custom / a saved rule's name
   const block = document.querySelector('.tier-block[data-tier="component"]');
   ['pointerdown', 'keydown'].forEach(ev => block.addEventListener(ev, noteGenerateReference, true));   // before any change lands
   ['input', 'change', 'click'].forEach(ev => block.addEventListener(ev, later));
 }
 syncGenerateButton();
+ctrl('btn-save-rule').addEventListener('click', saveRule);
+syncUserRules();
+RULES.pull && RULES.pull().then(syncUserRules).catch(() => {});
+RULES.onSync && RULES.onSync(syncUserRules);
 ctrl('seg-split-quadrant').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b) return;
   if (b.dataset.q === 'whole') splitElementReset(); else toggleSplitQuadrant(b.dataset.q);
