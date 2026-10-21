@@ -313,7 +313,9 @@ export function flipScaleAfter(list) {
   const F = pc('chk-axis-flip') ? FLIPS : [FLIPS[0]], S = pc('chk-axis-scale') ? scaleValues() : [1];
   if (!list || (F.length === 1 && S.length === 1 && S[0] === 1)) return list;
   const out = [];
-  for (const f of F) for (const sc of S) for (const c of list) out.push({ ...c, id: `${c.id}${f.h ? 'h' : ''}${f.v ? 'v' : ''}${sc !== 1 ? '@' + sc : ''}`,
+  // in the board's group order (a section per size, then turn, then the rule's variant, then its mirrored versions)
+  for (const sc of S) for (const c of list) for (const f of F) out.push({ ...c, id: `${c.id}${f.h ? 'h' : ''}${f.v ? 'v' : ''}${sc !== 1 ? '@' + sc : ''}`, base: c.base || c.id,
+    xf: { ...(c.xf || {}), f: (f.h ? 'h' : '') + (f.v ? 'v' : ''), s: sc },
     cells: c.cells.map(x => ({ ...x, flipH: !!x.flipH !== f.h, flipV: !!x.flipV !== f.v, scale: (x.scale || 1) * sc })) });
   return dedupeComponents(out);
 }
@@ -323,7 +325,8 @@ export function turnAfter(list) {
   const T = pc('chk-axis-rotation') ? rotationValues() : [0];
   if (!list || (T.length === 1 && T[0] === 0)) return list;
   const out = [];
-  for (const t of T) for (const c of list) out.push({ ...c, id: t ? `${c.id}-t${t}` : c.id, cells: c.cells.map(x => ({ ...x, rotation: mod360(x.rotation + t) })) });
+  // xf: what transformed it (the board groups by it — Oct 21, 2026); base: the rule's own Component it came from
+  for (const t of T) for (const c of list) out.push({ ...c, id: t ? `${c.id}-t${t}` : c.id, base: c.base || c.id, xf: { ...(c.xf || {}), t }, cells: c.cells.map(x => ({ ...x, rotation: mod360(x.rotation + t) })) });
   return dedupeComponents(out);
 }
 // Scale: Small · Medium · Large % (back from Sizes + How many — Diego, Oct 16, 2026: the Transform axes "as before").

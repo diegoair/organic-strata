@@ -571,7 +571,7 @@ function renderGalleryNow() {
     const kept = galleryThumbs.get(comp);
     if (kept && kept.key === key) {
       if (kept.btn.className !== thumbClass) kept.btn.className = thumbClass;
-      kept.btn.setAttribute('aria-label', `Component ${ruleLabel(comp.ruleSource)} ${comp.id} — double-click to edit`);
+      kept.btn.setAttribute('aria-label', `Component ${ruleLabel(comp.ruleSource)} ${comp.id}${xfLabel(comp)} — double-click to edit`);
       if (kept.btn.title !== caption) { kept.btn.title = caption; kept.cap.textContent = caption; }
       if (kept.savedName !== (comp.savedName || null)) {   // the save circle carries the name in its label / its click
         const q = galleryQuickSave(comp);
@@ -583,7 +583,7 @@ function renderGalleryNow() {
     }
     const btn = document.createElement('button');
     btn.className = thumbClass;
-    btn.setAttribute('aria-label', `Component ${ruleLabel(comp.ruleSource)} ${comp.id} — double-click to edit`);
+    btn.setAttribute('aria-label', `Component ${ruleLabel(comp.ruleSource)} ${comp.id}${xfLabel(comp)} — double-click to edit`);
     btn.innerHTML = svgStr;
     btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; hooks.adoptLayerInks(comp); hooks.adoptColourway(comp); renderGallery(); });
     // Caption = the rule that made it + each cell's rotation (f = flipped),
@@ -618,6 +618,47 @@ function renderGalleryNow() {
   // in order, moving only what moved; thumbnails of candidates no longer listed go
   wraps.forEach((w, i) => { if (gallery.children[i] !== w) gallery.insertBefore(w, gallery.children[i] || null); });
   while (gallery.children.length > wraps.length) gallery.lastElementChild.remove();
+  layoutGalleryGroups(gallery, state.components, wraps);
+}
+// Grouped by transformation (Oct 21, 2026 — Diego: "can they be grouped visually?"): when Turns / Flip / Scale made copies
+// after the rule (each carries xf {t, f, s} and its base), a section per size, a row per turn, the rule's own variants (and
+// their mirrored versions) across — by explicit grid placement, so every child stays one Component (the board maps children
+// by index); the labels are the first wraps' ::before (turn) / ::after (size), from data-row-label / data-section-label.
+// the turn and size a Component was given after its rule, for its accessible name: " · 45° · 125%"
+const xfLabel = c => !c.xf ? '' : (c.xf.t ? ` · ${c.xf.t}°` : '') + (c.xf.f ? ` · flip ${c.xf.f.toUpperCase()}` : '') + (c.xf.s && c.xf.s !== 1 ? ` · ${Math.round(c.xf.s * 100)}%` : '');
+const GROUP_MAX_COLS = 16;
+export function galleryGroups(list) {
+  if (!list.some(c => c.xf)) return null;
+  const xs = list.map(c => c.xf || {});
+  const turns = [...new Set(xs.map(x => x.t || 0))].sort((a, b) => a - b), sizes = [...new Set(xs.map(x => x.s || 1))].sort((a, b) => a - b);
+  const flips = ['', 'h', 'v', 'hv'].filter(f => xs.some(x => (x.f || '') === f));
+  if (turns.length < 2 && sizes.length < 2) return null;   // only when there is more than one turn or size (design-system CONSULT)
+  // a column = the rule's variant × its mirrored version × its layer inks × its colourway: never two Components in one place
+  const colKey = c => JSON.stringify([c.base || c.id, (c.xf && c.xf.f) || '', c.layerInks || null, c.colourway ? c.colourway.scheme + (c.colourway.label || '') : null]);
+  const keys = [...new Set(list.map(colKey))];
+  if (keys.length > GROUP_MAX_COLS) return null;   // Exhaustive / Random with Turns: hundreds of variants a row — the flat grid reads better
+  return {
+    cols: keys.length, turns, sizes,
+    col: c => keys.indexOf(colKey(c)),
+    row: c => sizes.indexOf((c.xf && c.xf.s) || 1) * (turns.length + (sizes.length > 1 ? 1 : 0)) + (sizes.length > 1 ? 1 : 0) + turns.indexOf((c.xf && c.xf.t) || 0),
+  };
+}
+function layoutGalleryGroups(gallery, list, wraps) {
+  const G = galleryGroups(list);
+  gallery.classList.toggle('is-grouped', !!G);
+  if (G) gallery.style.setProperty('--gal-cols', G.cols);
+  const firstInRow = new Set(), firstInSection = new Set();
+  wraps.forEach((w, i) => {
+    const c = list[i];
+    delete w.dataset.rowLabel; delete w.dataset.sectionLabel;
+    if (!G) { w.style.gridColumn = ''; w.style.gridRow = ''; return; }
+    const col = G.col(c), row = G.row(c), t = (c.xf && c.xf.t) || 0, s = (c.xf && c.xf.s) || 1;
+    w.style.gridColumn = String(col + 1); w.style.gridRow = String(row + 1);
+    if (G.turns.length > 1 && !firstInRow.has(row)) { firstInRow.add(row); w.dataset.rowLabel = t + '°'; }
+    if (G.sizes.length > 1 && !firstInSection.has(s)) { firstInSection.add(s); w.dataset.sectionLabel = Math.round(s * 100) + '%'; }
+  });
+  // the first wrap of a row / section may not sit in the first column: the label goes on the one that does, else stays
+  if (G) wraps.forEach((w, i) => { if (w.dataset.rowLabel && G.col(list[i]) !== 0) { const mate = wraps.find((x, j) => G.row(list[j]) === G.row(list[i]) && G.col(list[j]) === 0); if (mate) { mate.dataset.rowLabel = w.dataset.rowLabel; delete w.dataset.rowLabel; } } });
 }
 // The thumbnail's save circle — rebuilt (alone) when the candidate's saved name changes.
 function galleryQuickSave(comp) {

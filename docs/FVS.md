@@ -333,6 +333,14 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 
 ### 5.2 The axes (Transform axes)
 
+**Generated components grouped by transformation (Oct 21, 2026 — Diego: *can they be grouped visually?*).** When Turns / Flip /
+Scale add copies after the rule (each Component carries `xf {t, f, s}` and its `base`), the board's list is a table: **a section
+per size** (label *75%* above it), **a row per turn** (label *45°* left of it), and across each row the rule's own variants ×
+their mirrored versions × layer inks × colourways — explicit grid placement, one child per Component (`galleryGroups`,
+`layoutGalleryGroups` in `05-render-component.js`); the order of the list follows the groups (keyboard order). Only with more
+than one turn or size, and at most 16 columns (Exhaustive / Random with Turns stay a flat grid); other Elements' areas stay
+flat. Each thumb's accessible name adds its turn / flip / size.
+
 **Flip and Scale since Oct 21, 2026** (plan phase 5): applied **after** the rule like Turns for Uniform, Mirror, Checkerboard,
 Lines, Rhythm, Step turn and Radial — every Component again mirrored (none · H · V · both) and at each size (Small · Medium ·
 Large), one per value (`FS_AFTER`, `flipScaleAfter`); Random and Exhaustive keep them as their material. Lines and Rhythm own

@@ -629,6 +629,10 @@
      4 across up to 32, then more columns as the count grows (--gal-cols, galleryCols in 05-render-component.js) */
   .fvs-board-gallery { display: flex; align-items: flex-start; gap: var(--space-7); width: max-content; }
   .fvs-board-gallery > #gallery, .fvs-board-gallery__grid { display: grid; grid-template-columns: repeat(var(--gal-cols, 4), var(--thumb-w, 96px)); gap: var(--space-7); justify-content: start; }
+  /* grouped by transformation (Oct 21, 2026): a row per turn (label left of the row), a section per size (label above it) */
+  .fvs-board-gallery > #gallery.is-grouped { padding-left: var(--space-8); }
+  #gallery.is-grouped .fvs-thumb-wrap[data-row-label]::before { content: attr(data-row-label); position: absolute; right: calc(100% + var(--space-3)); top: 0; font-family: var(--font-display); font-size: var(--t-label-size); color: var(--mid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  #gallery.is-grouped .fvs-thumb-wrap[data-section-label]::after { content: attr(data-section-label); position: absolute; left: 0; bottom: calc(100% + var(--space-3)); font-family: var(--font-display); font-size: var(--t-section-size); color: var(--ink); white-space: nowrap; }
   .fvs-board-gallery > #gallery:empty { display: none; }
   /* the Element — the baseline its Components are made from: centred on the list, one thumbnail-width clear of it (Diego, Oct 11) */
   .fvs-board-gallery__el { align-self: center; display: flex; flex-direction: column; gap: var(--space-1); margin-right: calc(var(--thumb-w, 96px) - var(--space-7)); }
