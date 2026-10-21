@@ -1409,9 +1409,6 @@
         </select>
       </div>
       <p class="org-panel__hint" id="rule-axis-note" style="display:none"></p>
-      <label class="check-row org-switch" id="layer-inks-row" style="display:none"><input type="checkbox" id="chk-layer-inks"><span>Layer colour variants</span></label>
-      <!-- the colour groups' rules (Oct 12, 2026): how each group of the edited Element changes in the colour variants -->
-      <div id="colour-group-rules" hidden></div>
 
       <div id="rule-random-block">
         <div class="ctrl-row">
@@ -1530,7 +1527,6 @@
         <!-- 4 cell groups injected by JS -->
       </div>
 
-      <button class="mini-btn" id="btn-colourways" style="width:100%;margin-top:var(--space-1)" title="Colour variants of the selected component, from the palette and its shade scales — every ink readable on its paper (3:1) and distinct from the others">Colourways of the selection</button>
     </div>
 
     <!-- Transform axes (Diego, Oct 16, 2026: "I want it back as before but … below the Rule module"): its own section again,
@@ -1575,6 +1571,18 @@
           <span class="ctrl-val" id="v-scale-large">125</span>
         </div>
       </div>
+    </div>
+
+    <!-- Colourways (Oct 21, 2026 — Diego: "move it to the bottom of the component, make it a toggle", with Layer colour variants;
+         design-system + content CONSULT the same day): two switches that make Generate multiply the Components by colour —
+         by the layers' inks, and by the palette's colourways. A change lights Generate's dot (it is in the step block). -->
+    <div class="panel-section ce-hide">
+      <h3>Colourways</h3>
+      <label class="check-row org-switch" id="layer-inks-row" style="display:none"><input type="checkbox" id="chk-layer-inks"><span>Layer colour variants</span></label>
+      <!-- the colour groups' rules (Oct 12, 2026): how each group of the edited Element changes in the colour variants -->
+      <div id="colour-group-rules" hidden></div>
+      <label class="check-row org-switch"><input type="checkbox" id="chk-colourways"><span>Each component in its colourways</span></label>
+      <p class="panel-hint">Each colourway keeps every ink readable on its paper (3:1) and distinct from the others.</p>
     </div>
 
     <!-- Role (Blend · Role) shows only in Component Edit (Diego, Oct 15, 2026: "lo spostiamo solo sull'edit del component"):

@@ -447,10 +447,13 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
     variant per ink — every part's ink moved along the Palette by 1, 2, … (`partInkTurns`), not every
     combination.
   - Above 2,048 results the first 2,048 are shown and the board says how many exist (512 until Oct 15, 2026).
-- **Colourways of the selection** (button under Generate): colour variants of the selected
-  Component from the palette and its shade scales — Roles · Tonal · Tint ground · Dark ground ·
-  Accent · Pair, each solved to 3:1 on its paper and ΔE ≥ 6 (`buildColourways`; detail in §6b).
-  They **replace** the Element's candidates (one per colourway); picking one makes it the live palette.
+- **Colourways** — a section at the bottom of the Component step (after Transform axes; Oct 21, 2026 — Diego: *move it to
+  the bottom, make it a toggle*), holding **Layer colour variants** (moved from Rule) and the switch **Each component in its
+  colourways** (was the button *Colourways of the selection*, which replaced the list with the selected Component's
+  colourways). On, **Generate makes every Component once per colourway** of the live palette — the first is the palette as
+  it is, then Roles · Tonal · Tint ground · Dark ground · Accent · Pair, each solved to 3:1 on its paper and ΔE ≥ 6
+  (`buildColourways`; detail in §6b) — after the layer-ink variants, up to 2,048 (a note says how many were left out).
+  Turning it on or off lights Generate's dot; picking one makes its colourway the live palette.
 
 ### 5.5 Generate, the starter set, the board
 
@@ -749,8 +752,9 @@ The order of the palette is the role (Base, Secondary, Accent…), as in TuneSut
   scores the ink areas: a clear hierarchy (largest first, against the role shares
   51 / 31 / 18…), each ink spread over the page, neighbouring inks distinct. A variation's
   tooltip shows `continuity N% · colour N%`. With one ink in the pool nothing changes.
-- **Colourways** (Component → Rule → *Colourways of the selection*). Colour variants of the
-  selected Component from the palette's main colours and their shade scales, by named
+- **Colourways** (Component → Colourways → *Each component in its colourways*, since Oct 21, 2026; was the Rule section's
+  button *Colourways of the selection*). Colour variants of every generated
+  Component from the palette's main colours and their shade scales, by named
   schemes: **Roles** (and its turns), **Tonal** (steps of one colour on its step 100),
   **Tint ground** (paper = Base 100), **Dark ground** (paper = Base 900), **Accent** (Base
   everywhere, the Accent on the share of cells nearest its role share), **Pair** (the two

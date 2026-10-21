@@ -1072,8 +1072,19 @@ export function generate() {
   // A multi-layer Element multiplies each one by every layer-ink combination.
   const expanded = expandLayerInks(produced);
   produced = expanded.list;
-  state.galleryCapNote = expanded.total > expanded.list.length
-    ? { list: produced, text: layerInkComboCount() > 1
+  // Each component in its colourways (Oct 21, 2026 — the old Colourways button, now a switch in the Colourways section):
+  // every Component again in each colourway of the live palette (buildColourways — the first is the palette as it is).
+  if (pc('chk-colourways') && produced.length) {
+    const cws = buildColourways({ colors: state.colors.slice(), paper: state.paperColor, colorRule: { ...state.colorRule } }, gridOf(produced[0]), produced[0].cells.length);
+    const total = produced.length * cws.length, out = [];
+    for (const comp of produced) { for (let j = 0; j < cws.length && out.length < EXHAUSTIVE_CAP; j++) out.push({ ...comp, id: `${comp.id}-cw${j}`, colourway: cws[j] }); }
+    if (total > out.length) { expanded.total = total; expanded.list = out; }
+    produced = out;
+  }
+  state.galleryCapNote = expanded.total > produced.length
+    ? { list: produced, text: pc('chk-colourways')
+      ? `Showing ${produced.length.toLocaleString()} of ${expanded.total.toLocaleString()} (each in its colourways) — reduce the axes, or turn colourways off, to see all.`
+      : layerInkComboCount() > 1
       ? `Showing ${expanded.list.length.toLocaleString()} of ${expanded.total.toLocaleString()} (geometry × layer colours) — reduce inks, layers or axes to see all.`
       : `Showing ${expanded.list.length.toLocaleString()} of ${expanded.total.toLocaleString()} — reduce the axes or the grid to see all.` }
     : null;

@@ -50,7 +50,7 @@ import {
   exportElement, measureElementInk, renderGallery, renderSeedPreview, saveElementView, setElementView, syncElementViewUI
 } from './05-render-component.js';
 import {
-  exitComponentEditMode, exportSelected, generate, generateColourways,
+  exitComponentEditMode, exportSelected, generate,
   populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setCheckerStart, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
   syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, toggleTurn, setTurnsFree
 } from './06-component-ui.js';
@@ -868,7 +868,6 @@ ctrl('btn-generate').addEventListener('click', () => {
   ['input', 'change', 'click'].forEach(ev => block.addEventListener(ev, later));
 }
 syncGenerateButton();
-ctrl('btn-colourways').addEventListener('click', generateColourways);
 ctrl('seg-split-quadrant').addEventListener('click', e => {
   const b = e.target.closest('.seg-btn'); if (!b) return;
   if (b.dataset.q === 'whole') splitElementReset(); else toggleSplitQuadrant(b.dataset.q);
