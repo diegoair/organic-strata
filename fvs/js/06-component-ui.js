@@ -779,7 +779,7 @@ export function syncUserRules() {
   rulePicker.refresh(); syncRuleSaveUI();
 }
 // Save rule… shows while the rule is Custom and not already saved as it stands
-export function syncRuleSaveUI() { ctrl('rule-save-row').hidden = !(ruleIsCustom() && !activeSavedRule()); }
+export function syncRuleSaveUI() { ctrl('rule-save-row').style.display = ruleIsCustom() && !activeSavedRule() ? '' : 'none'; }   // .row-btns is flex: [hidden] would not hide it
 export async function saveRule() {
   const base = pv('sel-rule');
   let name = await Organica.prompt({ title: 'Save rule', label: 'Rule name', value: lastSavedRule || ruleName(base), ok: 'Save' });
