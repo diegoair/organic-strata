@@ -159,6 +159,8 @@ export const live = {
   _symCR: { key: null, rule: null, cr: null },
   _symLattice: { key: null, lat: null },
   appearanceOverride: null,
+  cellKey: null,            // a cell's key while Generate folds the Element's look-alikes (06-component-ui.js withLookAlikeFold); else canonicalState
+  lookAlikeFoldOff: false,  // the regression page's switch: Generate as before Oct 21, 2026
   contentOverlayFit: 'fill',
   inkPaletteOverride: null,   // set while rendering a saved entry with ITS palette (withEntryInks)
   lastFigureMeta: { size: 0, box: null },   // the frame and drawn box of the last Grid figure built

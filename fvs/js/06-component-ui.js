@@ -16,7 +16,7 @@ import {
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
-  rotationSet, rotationSteps, rotationFree, rotationValues
+  rotationSet, rotationSteps, rotationFree, rotationValues, rotationStepOf, mod360
 } from './engine/03-rules.js';
 import {
   appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, stretchOpts,
@@ -28,7 +28,7 @@ import {
 import {
   COMPONENT_STARTER_RULES, RULE_TO_FAMILY, STARTER_VARIANTS_PER_RULE, UNDO_MAX, buildColourways,
   componentEditHitLayer, componentElementSignature, currentLayerInks, cwColourKey, elementIsEmpty,
-  expandLayerInks, getSelectedComponent, layerInkComboCount, liveColourKey, splitCurrentOriginal,
+  expandLayerInks, fillLayers, getSelectedComponent, layerInkComboCount, liveColourKey, splitCurrentOriginal,
   undoStack
 } from './engine/06-component-ui.js';
 import {
@@ -829,7 +829,7 @@ export function syncGenerateButton() {
 }
 
 export function syncExhaustiveHint() {
-  const total = exhaustiveTotal();
+  const total = withLookAlikeFold(exhaustiveTotal);
   const hint = ctrl('rule-total-hint');
   if (total > EXHAUSTIVE_CAP) {
     hint.textContent = `${total.toLocaleString()} possible — exceeds the ${EXHAUSTIVE_CAP} cap. Narrow active axes or use Random instead.`;
@@ -924,10 +924,52 @@ export function starterComponents() {
   }
   return picks;
 }
+// ── Look-alikes (Oct 21, 2026 — Diego: remove the Components that look the same for THIS Element; always on, identical
+// drawings only, colours included). The Element is drawn alone under every turn of the cell shape × mirrored or not, each
+// fill layer in its own probe colour (so a symmetry that swaps two layers never folds — variants keep their colours); the
+// transforms that draw identically share a class. While Generate runs, live.cellKey keys each cell by that class, so
+// dedupeComponents / Random's draw fold them. Cached per Element (componentElementSignature + shape + layers).
+const PROBE_INKS = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#008080', '#9a6324', '#800000', '#808000', '#000075', '#808080', '#ffe119', '#000000'];
+const symCache = new Map();
+export function elementLookAlikeClasses() {
+  const layers = fillLayers();
+  const sig = JSON.stringify([componentElementSignature(), state.cellShape, layers.map(l => l.id)]);
+  if (symCache.has(sig)) return symCache.get(sig);
+  const st = rotationStepOf(state.cellShape), T = [];
+  for (let r = 0; r < 360; r += st) for (const m of [false, true]) T.push({ r, m });
+  const S = 96, W = S * 3, imgs = [];   // a 3-cell canvas: what spills past the cell counts too
+  const prev = [live.layerInkOverride, live.inkPaletteOverride];
+  live.layerInkOverride = Object.fromEntries(layers.map((l, i) => [l.id, (i + 1) % PROBE_INKS.length]));
+  live.inkPaletteOverride = PROBE_INKS;
+  try {
+    for (const t of T) {
+      const cv = document.createElement('canvas'); cv.width = cv.height = W;
+      const ctx = cv.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, W);
+      ctx.translate(S, S); ctx.scale(S / 100, S / 100);
+      drawComponentCanvas(ctx, [{ cx: 50, cy: 50, rotation: t.r, flipH: t.m, flipV: false, scale: 1, cellSize: 100, color: PROBE_INKS[0] }], getSeed(), { w: 100, h: 100 });
+      imgs.push(ctx.getImageData(0, 0, W, W).data);
+    }
+  } finally { [live.layerInkOverride, live.inkPaletteOverride] = prev; }
+  // identical = no pixel off by more than antialiasing noise (a handful along the edges of a 60° turn)
+  const same = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 48 && ++n > a.length / 4 * 0.0005) return false; return true; };
+  const cls = {}, reps = [];
+  T.forEach((t, i) => { let j = reps.findIndex(k => same(imgs[k], imgs[i])); if (j < 0) { reps.push(i); j = reps.length - 1; } cls[t.r + (t.m ? 'h' : '')] = 'e' + j; });
+  if (symCache.size > 32) symCache.clear();
+  symCache.set(sig, cls);
+  return cls;
+}
+export function withLookAlikeFold(fn) {
+  if (live.cellKey || live.lookAlikeFoldOff) return fn();
+  const cls = elementLookAlikeClasses();
+  // a cell = a turn + mirrored or not (flip V = flip H turned 180°, H + V = 180°), then its look-alike class
+  live.cellKey = c => { const v = !!c.flipV, r = mod360(c.rotation + (v ? 180 : 0)), k = r + (!!c.flipH !== v ? 'h' : ''); return (cls[k] || k) + '@' + c.scale; };
+  try { return fn(); } finally { live.cellKey = null; }
+}
+
 export function populateComponentStarterGallery() {
-  // Runs automatically the moment you land on the Component step, nothing filtered for looking alike (Generate
-  // doesn't filter either).
-  const picks = starterComponents();
+  // Runs automatically the moment you land on the Component step; what looks the same for this Element is folded, as
+  // Generate does (withLookAlikeFold, Oct 21, 2026).
+  const picks = withLookAlikeFold(starterComponents);
   state.components = picks;
   // selectedId still defaults to the first candidate — Save/Tile/Export etc.
   // all read getSelectedComponent() and several other tests/recipes rely on
@@ -1009,7 +1051,7 @@ export function produceRule(mode) {
 export function generate() {
   rt.galleryGenerated = true;   // the Component board frames a list that a Generate resized (18-step-boards.js fitIfRegrown)
   const mode = pv('sel-rule');
-  let produced = produceRule(mode);
+  let produced = withLookAlikeFold(() => produceRule(mode));
   if (mode === 'exhaustive' && produced && produced.length > EXHAUSTIVE_CAP) return;
   if (!produced) switch (mode) {
     case 'manual': {
@@ -1025,8 +1067,8 @@ export function generate() {
     }
   }
   pushUndo();
-  // Nothing is hidden: every structurally distinct candidate is listed, even
-  // when this Element paints two of them alike (a Circle's 8 Pinwheels).
+  // Every candidate that draws differently is listed; those that only look the same for this Element are folded
+  // (withLookAlikeFold — a Circle's 8 Step turns are 1; Oct 21, 2026, Diego).
   // A multi-layer Element multiplies each one by every layer-ink combination.
   const expanded = expandLayerInks(produced);
   produced = expanded.list;

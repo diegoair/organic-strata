@@ -3,7 +3,7 @@
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import { hooks } from '../hooks.js';
 import {
-  pc, pv, state, val
+  live, pc, pv, state, val
 } from './00-core.js';
 import {
   CELL_SHAPES, cellLatticeGrid, resolveGridCells
@@ -72,7 +72,9 @@ function cellExtraKey(c) {
   const x = EXTRA_CELL_KEYS.filter(k => c[k] != null && c[k] !== false && c[k] !== 0).map(k => k + '=' + JSON.stringify(c[k]));
   return x.length ? '|' + x.join('|') : '';
 }
-export function componentKey(cells) { return cells.map(c => canonicalState(c) + cellExtraKey(c)).join(','); }
+// While Generate runs, live.cellKey folds the cells that only LOOK the same for this Element (its own symmetry — Oct 21,
+// 2026, docs/FVS.md §5.2a case 2); anywhere else (Figure, Symbol, the tests' direct calls) the canonical state.
+export function componentKey(cells) { const k = live.cellKey || canonicalState; return cells.map(c => k(c) + cellExtraKey(c)).join(','); }
 export function dedupeComponents(list) {
   const seen = new Set();
   const out = [];

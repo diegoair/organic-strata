@@ -372,15 +372,24 @@ about the cell centre. Measured effect (`fvs/_axes-baseline.json`, 56 of 768 cas
 What this means for the **Flip axis**: with Turns holding 0° and 180°, *Vertical* and *Both* add nothing that *Horizontal*
 does not (they fold onto it); they still add something with Turns off (only 0°).
 
-**2. The Element's own symmetry — tracked, not removed.** A symmetric Element draws the same under different transforms, so
+**2. The Element's own symmetry — removed too, since Oct 21, 2026** (Diego: *always on · nothing in the panel · identical only ·
+colours too*). A symmetric Element draws the same under different transforms, so
 different cells *look* alike for this Element only. Measured on each shape's defaults (how many of the 8 transforms draw
 differently): Blob 8 · Arc, Star, Triangle, Drop, Chevron, Wedge 4 · Lens, Polygon, Segment, Arc truchet 2 · Circle, Cross,
 Rounded rect 1 (a blank Freehand 1). It changes with every parameter (a Polygon's sides, a Star's points, a Wedge's angle),
-so removing these means measuring the Element's symmetry at Generate (raster or geometry) and folding by it — a decision for
-Diego (until now every structurally distinct candidate is listed, §5.5). Open cases:
-- **2a** Component lists that repeat for a symmetric Element (Step turn on a Circle: 8 Components, all the same picture).
-- **2b** Turns chips that add nothing for this Element (a Lens: 90° = 270°, 0° = 180°).
-- **2c** Flip that adds nothing for a mirror-symmetric Element (Chevron, Drop, Star, Triangle, Wedge: mirrored = itself).
+so it is measured at Generate. **How**: `elementLookAlikeClasses` (`fvs/js/06-component-ui.js`, the UI side — it draws on a
+canvas) draws the Element alone under every turn of the cell shape × mirrored or not, each fill layer in its own probe colour
+(a symmetry that swaps two layers never folds, so Layer colour variants keep their meaning), on a 3-cell canvas (what spills
+past the cell counts); the transforms that draw **identically** (antialiasing noise only) share a class, cached per Element.
+`withLookAlikeFold` sets `live.cellKey` for the length of Generate, the starter set and the Exhaustive count only —
+`componentKey` keys each cell by its class, so `dedupeComponents` and Random's draw fold them; the Figure, the Symbol and any
+direct engine call keep `canonicalState`. A moved or stretched Element is simply less symmetric — the drawing says so.
+Measured (`scripts/test-fvs-lookalikes.sh`, 2×2, 126 cases: every folded Component has an identical twin kept, none identical
+left, the asymmetric Blob loses nothing): Circle / Cross — every rule 1 Component (3 with Scale, one per size); Lens — Step
+turn 8 → 2, Exhaustive + Scale 192 → 42; Arc — Mirror 8 → 4, Exhaustive + Flip 104 → 40; Star — Checkerboard + Flip 28 → 10.
+The cases: **2a** repeated Components — removed; **2b** Turns chips that add nothing for this Element and **2c** Flip for a
+mirror-symmetric Element — nothing in the panel (Diego), the fold takes care of the result. The regression battery runs with
+the fold off (`live.lookAlikeFoldOff`) so it keeps pinning the rules themselves.
 
 ### 5.3 The rules
 
@@ -408,8 +417,8 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
   **Random draws each cell's state independently** from the lattice's states (not from families),
   and Exhaustive = Uniform ∪ Step turn ∪ Mirror (with Flip on) ∪ Radial ∪ Checkerboard. Container / Mask roles are off on these cells.
 - **Nothing hidden, nothing twice.** A named rule shows its whole family (the axis it needs is
-  implied by the pick — Mirror with Flip off still lists every mirror). Candidates that merely
-  *paint* alike with this Element (a Circle's 8 Step turns) are all listed; only exact structural
+  implied by the pick — Mirror with Flip off still lists every mirror). Candidates that only
+  *paint* alike with this Element (a Circle's 8 Step turns) are folded since Oct 21, 2026 (§5.2a case 2); exact structural
   duplicates are folded (`dedupeComponents` / `canonicalState`: flip H + flip V *is* a 180° turn, and since Oct 21, 2026 flip V alone *is* flip H turned 180° — see §5.2a).
   Random keeps drawing (up to Count × 40 tries) until it has Count distinct results or the space
   runs out.
