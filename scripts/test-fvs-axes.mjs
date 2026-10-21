@@ -62,7 +62,7 @@ const turns = await P.ev(`
   setv('chk-axis-rotation', false); setv('sel-rule', 'identity');
   eq('off by default after reset → values block hidden', q('turns-values-block').hidden, true);
   setv('chk-axis-rotation', true); eq('on → block shown', q('turns-values-block').hidden, false);
-  eq('square default 270 / 90', F.rotationValues(), [0, 90, 180, 270]); eq('count', q('turns-count').textContent, '4 turns');
+  eq('square default 270 / 90', F.rotationValues(), [0, 90, 180, 270]);
   setv('rg-turn-upto', 180); eq('up to 180', F.rotationValues(), [0, 90, 180]);
   setv('rg-turn-every', 45); setv('rg-turn-upto', 90); eq('every 45 up to 90', F.rotationValues(), [0, 45, 90]);
   setv('rg-turn-upto', 270); setv('rg-turn-every', 90);

@@ -1546,7 +1546,7 @@
 
     <!-- Transform axes (Diego, Oct 16, 2026: "I want it back as before but … below the Rule module"): its own section again,
          after Rule, every axis always shown — Tropism Phase 1 had moved it into Rule as "Axes" with the axes the rule reads.
-         Rotation keeps the Turns chips (Oct 15); Flip and Scale are the old checkboxes, Scale's Small · Medium · Large. -->
+         Rotation keeps the Turns chips (Oct 15); Flip and Scale switches (Oct 21), Scale's Small · Medium · Large. -->
     <div class="panel-section ce-hide">
       <h3>Transform axes</h3>
       <!-- Turns (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 1, Diego: "Up to" and "Every"; design-system CONSULT): off by
@@ -1557,11 +1557,11 @@
         <div id="turns-values-block" hidden>
           <div class="ctrl-row"><div class="ctrl-label">Up to</div><input type="range" id="rg-turn-upto" min="0" max="355" step="5" value="270" aria-label="Turns up to"><span class="ctrl-val" id="v-turn-upto">270°</span></div>
           <div class="ctrl-row"><div class="ctrl-label">Every</div><input type="range" id="rg-turn-every" min="5" max="180" step="5" value="90" aria-label="Turn every"><span class="ctrl-val" id="v-turn-every">90°</span></div>
-          <p class="panel-hint" id="turns-count">4 turns</p>
         </div>
       </div>
-      <label class="check-row"><input type="checkbox" id="chk-axis-flip"><span>Flip (none/H/V/both)</span></label>
-      <label class="check-row"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
+      <!-- Flip and Scale: switches like Turns (Diego, Oct 21: "rendi scale e flip un toggle") -->
+      <label class="check-row org-switch"><input type="checkbox" id="chk-axis-flip"><span>Flip</span></label>
+      <label class="check-row org-switch"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
       <div id="scale-values-block" style="display:none">
         <div class="ctrl-row">
           <div class="ctrl-label">Small %</div>

@@ -721,4 +721,3 @@
 
 /* ── Transform axes: Turns' switch and its Up to / Every rows (Oct 21, 2026), then Flip and Scale ── */
 .fvs-axis + .check-row { margin-top: var(--space-1); }
-#turns-count { margin: 0 0 var(--space-2); font-variant-numeric: tabular-nums; }

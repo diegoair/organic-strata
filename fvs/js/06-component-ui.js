@@ -813,14 +813,12 @@ export function syncRuleAxisNote() {
 
 // ── Transform axes (their own section below Rule — Diego, Oct 16, 2026) ──
 // Turns (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 1): a switch, off by default; on, Up to and Every (5° steps)
-// and a short count. The cell shape sets their defaults (square 270 / 90, hexagon 300 / 60, triangle 240 / 120) when it
+// (no count line — Diego, Oct 21). The cell shape sets their defaults (square 270 / 90, hexagon 300 / 60, triangle 240 / 120) when it
 // changes. Removed on Step turn and Radial (ruleAxes: their turns are their own). Scale is Small · Medium · Large.
 let turnsShape = null;
 function axesReadout() {
   ctrl('v-turn-upto').textContent = pv('rg-turn-upto') + '°';
   ctrl('v-turn-every').textContent = pv('rg-turn-every') + '°';
-  const n = rotationValues().length;
-  ctrl('turns-count').textContent = `${n} turn${n === 1 ? '' : 's'}`;
   ctrl('turns-values-block').hidden = !pc('chk-axis-rotation');
 }
 function axesChanged() { axesReadout(); syncExhaustiveHint(); syncRuleAxisNote(); rulePicker.refresh(); syncRuleSaveUI(); }
