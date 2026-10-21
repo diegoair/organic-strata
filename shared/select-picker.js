@@ -44,6 +44,9 @@
  * `showDisabled: true`: then it is a greyed row (aria-disabled) that says why,
  * from the option's own title (FVS's Rule, Oct 15, 2026). A hidden option is
  * never a row (as in a native <select>). A disabled <select> disables the trigger.
+ * opts.display: () => ({ name, icon, aria } | null) — the trigger shows that instead of the selected option while it
+ * returns one (FVS's Rule shows "Custom" over its base rule, Oct 21, 2026); the option stays selected underneath.
+ * opts.onPick(key): called when the user picks a row (not on a change made in code), before the change event.
  * Options missing from the registry still get a row, with a generic icon and
  * the option's own text. Host needs class "presets" (position:relative).
  *
@@ -115,8 +118,10 @@
       const placeholder = !sel.value;
       const empty = placeholder && opts.emptyIcon ? opts.emptyIcon() : '';   // a tool may draw the placeholder (Living Path's live "Custom" stack)
       icoEl.hidden = placeholder && !empty;
-      icoEl.innerHTML = placeholder ? empty : iconOf(sel.value);
-      nameEl.innerHTML = labelOf(sel.value);
+      const shown = !placeholder && opts.display ? opts.display() : null;
+      icoEl.innerHTML = shown ? shown.icon : placeholder ? empty : iconOf(sel.value);
+      nameEl.innerHTML = shown ? esc(shown.name) : labelOf(sel.value);
+      trigger.setAttribute('aria-label', shown && shown.aria ? shown.aria : (opts.ariaLabel || 'Choose'));
       trigger.disabled = sel.disabled;
     }
     function keys() {
@@ -150,6 +155,7 @@
         }
         row.addEventListener('click', () => {
           if (row.getAttribute('aria-disabled') === 'true') return;
+          if (opts.onPick) opts.onPick(key);
           sel.value = key;
           sel.dispatchEvent(new Event('change', { bubbles: true }));
           refresh();
@@ -264,7 +270,7 @@
       sel.value = o.current() || '';
     }
     fill();
-    picker = Organica.selectPicker(sel, o.host, { registry, ariaLabel: o.ariaLabel || 'Preset', emptyIcon: o.emptyThumb,
+    picker = Organica.selectPicker(sel, o.host, { registry, ariaLabel: o.ariaLabel || 'Preset', emptyIcon: o.emptyThumb, display: o.display,
       onRemove: name => { o.onRemove(name); api.rebuild(); } });
     sel.addEventListener('change', () => { if (sel.value) o.onPick(sel.value); });
     const api = {

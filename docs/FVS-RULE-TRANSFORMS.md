@@ -3,7 +3,7 @@
 > Diego, Oct 21, 2026. *The Rule decides, the transformation transforms.* Rules are simple presets that guide the
 > creation; a transformation (Turn first, then Flip and Scale) is applied **after** the rule, on every cell of its result.
 > A rule that gets a transformation becomes **Custom** in the Rule menu, and can be **saved as your own rule** (a preset,
-> as in Living Path / Sinew / Apostate). Status: **phase 1 built Oct 21, 2026** (local); phases 2–6 planned.
+> as in Living Path / Sinew / Apostate). Status: **phases 1–2 built Oct 21, 2026** (local); phases 3–6 planned.
 
 ## Decisions (Diego, Oct 21, 2026)
 
@@ -43,7 +43,8 @@ fold (§5.2a) still removes what draws the same.
    every cell after the rule; remove the row on Step turn and Radial. Design-system CONSULT first (words, the row, the
    count line). Re-record the baselines where the old Turns wiring drew (Mirror's turn, Checkerboard's pairs, Uniform on
    lattices) — reviewed case by case.
-2. **Custom.** A transformation on a system rule → the Rule menu shows **Custom** (base rule kept underneath); picking a
+2. **Custom.** — *Built Oct 21, 2026*: with Turns on (two turns or more) Uniform, Mirror, Checkerboard, Lines and Rhythm show **Custom** with a new icon (`fvs-rule-custom`, Diego's pick over the base rule's pictogram), name *Rule: Custom, from ‹rule›*; any pick from the menu (the same rule too) turns Turns off; Random and Exhaustive never Custom and show **no** extra line (Diego). Shared: `Organica.selectPicker` gains `display()` and `onPick()`.
+   Was: A transformation on a system rule → the Rule menu shows **Custom** (base rule kept underneath); picking a
    system rule resets the transformations. Exhaustive / Random: a line that lists the transformations applied.
 3. **Your rules.** The Rule menu on `Organica.presetPicker`: system rules (with their pictograms) + **Yours** (saved rules,
    delete button), stored with `Organica.store('fvs-rules')` (cloud-synced). *Save rule…* names it. A saved rule restores

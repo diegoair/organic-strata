@@ -129,6 +129,7 @@
     'fvs-crop':      '<rect x="4" y="5" width="8" height="6" rx="1"/><circle cx="8" cy="8" r="6.2" stroke-dasharray="2 2.05"/>',
     'fvs-guides':    '<path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/>',
     'fvs-tile':      '<rect x="5.5" y="5.5" width="5" height="5"/><path d="M1.5 5.5h2.5M1.5 10.5h2.5M12 5.5h2.5M12 10.5h2.5M5.5 1.5V4M10.5 1.5V4M5.5 12v2.5M10.5 12v2.5"/>',
+    'fvs-rule-custom': '<rect x="2.5" y="2.5" width="8.5" height="8.5" rx="1"/><path d="M6.75 2.5V11M2.5 6.75H11"/><path d="M13.5 9a4.5 4.5 0 0 1-4.5 4.5"/><path d="M10.75 11.75 9 13.5l1.75 1.75"/>',   // a rule with a transformation added — FVS Rule menu "Custom" (Oct 21, 2026)
     'fvs-snap':      '<path d="M3.5 2.5h3v6a1.5 1.5 0 0 0 3 0v-6h3v6a4.5 4.5 0 0 1-9 0z"/><path d="M3.5 5.5h3M9.5 5.5h3"/>',
     'fvs-tile-grid': '<rect x="2" y="2" width="5.5" height="5.5"/><rect x="8.5" y="2" width="5.5" height="5.5"/><rect x="2" y="8.5" width="5.5" height="5.5"/><rect x="8.5" y="8.5" width="5.5" height="5.5"/>',
     'fvs-tile-brick': '<rect x="2" y="2" width="5.5" height="5.5"/><rect x="8.5" y="2" width="5.5" height="5.5"/><rect x="5.25" y="8.5" width="5.5" height="5.5"/><path d="M1 8.5h3.25v5.5H1M15 8.5h-3.25v5.5H15"/>',

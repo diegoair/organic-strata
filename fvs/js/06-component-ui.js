@@ -694,7 +694,16 @@ const RULE_ICONS = {
   exhaustive: { name: 'Exhaustive', icon: ruleIcon(['0 0 0 0', '0 90 270 180', '0 0h 0v 0hv', '90 90 90 90']
     .map((c, i) => ruleCells(c, 2, (i % 2) * 22, Math.floor(i / 2) * 22, 9)).join('')) },
 };
-export const rulePicker = Organica.selectPicker(ctrl('sel-rule'), ctrl('rule-picker'), { registry: RULE_ICONS, ariaLabel: 'Rule', showDisabled: true });
+// Custom (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 2): a rule that Turns transforms (after it) shows as Custom,
+// the base rule kept underneath (its own controls stay); Random and Exhaustive never do — the turns are their material.
+// Picking any rule from the menu starts clean: Turns off (Diego: a re-pick of the same rule too).
+const CUSTOMIZABLE = new Set(['identity', 'mirror', 'checkerboard', 'hlines', 'vlines', 'oscillator']);
+export const ruleIsCustom = () => CUSTOMIZABLE.has(pv('sel-rule')) && pc('chk-axis-rotation') && rotationValues().length > 1;
+export const rulePicker = Organica.selectPicker(ctrl('sel-rule'), ctrl('rule-picker'), {
+  registry: RULE_ICONS, ariaLabel: 'Rule', showDisabled: true,
+  display: () => ruleIsCustom() ? { name: 'Custom', icon: Organica.icons.get('fvs-rule-custom'), aria: `Rule: Custom, from ${(RULE_ICONS[pv('sel-rule')] || {}).name || pv('sel-rule')}` } : null,
+  onPick: () => { const c = ctrl('chk-axis-rotation'); if (c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); } },
+});
 
 export function syncRuleAxisNote() {
   const note = ctrl('rule-axis-note');
@@ -725,7 +734,7 @@ function axesReadout() {
   ctrl('turns-count').textContent = `${n} turn${n === 1 ? '' : 's'}`;
   ctrl('turns-values-block').hidden = !pc('chk-axis-rotation');
 }
-function axesChanged() { axesReadout(); syncExhaustiveHint(); syncRuleAxisNote(); }
+function axesChanged() { axesReadout(); syncExhaustiveHint(); syncRuleAxisNote(); rulePicker.refresh(); }
 export function syncAxisValuesUI() {
   if (turnsShape !== state.cellShape) {   // a new cell shape: its own steps
     const st = rotationStepOf(state.cellShape), up = ctrl('rg-turn-upto'), ev = ctrl('rg-turn-every');
