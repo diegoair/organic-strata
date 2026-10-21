@@ -640,7 +640,8 @@ export function galleryGroups(list) {
   return {
     cols: keys.length, turns, sizes,
     col: c => keys.indexOf(colKey(c)),
-    row: c => sizes.indexOf((c.xf && c.xf.s) || 1) * (turns.length + (sizes.length > 1 ? 1 : 0)) + (sizes.length > 1 ? 1 : 0) + turns.indexOf((c.xf && c.xf.t) || 0),
+    // two empty rows open each section (its title and rule sit in them)
+    row: c => sizes.indexOf((c.xf && c.xf.s) || 1) * (turns.length + (sizes.length > 1 ? 2 : 0)) + (sizes.length > 1 ? 2 : 0) + turns.indexOf((c.xf && c.xf.t) || 0),
   };
 }
 function layoutGalleryGroups(gallery, list, wraps) {
