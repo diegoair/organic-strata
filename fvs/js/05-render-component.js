@@ -631,9 +631,11 @@ const GROUP_MAX_COLS = 16, GROUP_MAX_SECTIONS = 64;
 // the rule and its number — for Random / Exhaustive also what the variant holds, size and mirrored, since there Flip and
 // Scale are the rule's material), a row per turn added after it, a column per flip × size added after it (labelled above
 // the section's first row), × layer inks × colourways. Explicit grid placement, one child per Component.
-const pct = s => Math.round(s * 100) + '%';
+// every label names its transformation (Diego, Oct 21: "scrivi di cosa"): Scale 125% · Flip H · Turn 90°
+const pct = s => 'Scale ' + Math.round(s * 100) + '%';
 const flipName = f => f ? 'Flip ' + f.toUpperCase().split('').join('+') : '';
-const variantHolds = c => { const z = [...new Set(c.cells.map(x => x.scale))]; return [z.length === 1 ? pct(z[0]) : 'Mixed sizes', c.cells.some(x => !!x.flipH !== !!x.flipV) ? 'Mirrored' : 'Not mirrored'].join(' · '); };
+const turnName = t => 'Turn ' + t + '°';
+const variantHolds = c => { const z = [...new Set(c.cells.map(x => x.scale))]; return [z.length === 1 ? pct(z[0]) : 'Mixed scales', c.cells.some(x => !!x.flipH !== !!x.flipV) ? 'Flipped' : 'No flip'].join(' · '); };
 export function galleryGroups(list) {
   if (!list.some(c => c.xf)) return null;
   const xs = list.map(c => c.xf || {});
@@ -646,13 +648,13 @@ export function galleryGroups(list) {
   if (keys.length > GROUP_MAX_COLS || bases.length > GROUP_MAX_SECTIONS) return null;
   // only turns added (one column): the turns go ACROSS — a section is one row (Random, Exhaustive, Lines… with Turns)
   const across = keys.length === 1 && turns.length > 1;
-  const per = (across ? 1 : turns.length) + 2;   // two empty rows open each section: its title, then the column labels
+  const per = (across ? 1 : turns.length) + 3;   // three empty rows open each section: space, its title, the column labels
   const tOf = c => turns.indexOf((c.xf && c.xf.t) || 0);
   return {
     cols: across ? turns.length : keys.length, turns, sizes, flips, bases, keys, across, per,
     col: c => across ? tOf(c) : keys.indexOf(colOf(c)),
-    row: c => bases.indexOf(c.base || c.id) * per + 2 + (across ? 0 : tOf(c)),
-    colLabel: (k, c) => { if (across) return ((c.xf && c.xf.t) || 0) + '°'; const [f, sz] = JSON.parse(k); return [flipName(f), sizes.length > 1 || sz !== 1 ? pct(sz) : ''].filter(Boolean).join(' · '); },
+    row: c => bases.indexOf(c.base || c.id) * per + 3 + (across ? 0 : tOf(c)),
+    colLabel: (k, c) => { if (across) return turnName((c.xf && c.xf.t) || 0); const [f, sz] = JSON.parse(k); return [flipName(f), sizes.length > 1 || sz !== 1 ? pct(sz) : ''].filter(Boolean).join(' · '); },
   };
 }
 function layoutGalleryGroups(gallery, list, wraps) {
@@ -669,7 +671,7 @@ function layoutGalleryGroups(gallery, list, wraps) {
     const col = G.col(c), row = G.row(c), base = c.base || c.id, sec = G.bases.indexOf(base);
     w.style.gridColumn = String(col + 1); w.style.gridRow = String(row + 1);
     w.style.setProperty('--gcol', col);   // the labels on any wrap of a row / section shift back to the first column
-    if (!G.across && G.turns.length > 1 && !rowDone.has(row)) { rowDone.add(row); w.dataset.rowLabel = ((c.xf && c.xf.t) || 0) + '°'; }
+    if (!G.across && G.turns.length > 1 && !rowDone.has(row)) { rowDone.add(row); w.dataset.rowLabel = turnName((c.xf && c.xf.t) || 0); }
     if (!secDone.has(sec)) {
       secDone.add(sec);
       const b = byId[base] || c, own = c.ruleSource === 'random' || c.ruleSource === 'exhaustive';
@@ -677,7 +679,7 @@ function layoutGalleryGroups(gallery, list, wraps) {
     }
     const lab = G.colLabel(JSON.stringify([(c.xf && c.xf.f) || '', (c.xf && c.xf.s) || 1, c.layerInks || null, c.colourway ? c.colourway.scheme + (c.colourway.label || '') : null]), c);
     const ck = sec + ':' + col;
-    if (cap && lab && G.cols > 1 && !colDone.has(ck) && row === sec * G.per + 2) { colDone.add(ck); cap.dataset.colLabel = lab; }   // on the caption: attr() reads its own element
+    if (cap && lab && G.cols > 1 && !colDone.has(ck) && row === sec * G.per + 3) { colDone.add(ck); cap.dataset.colLabel = lab; }   // on the caption: attr() reads its own element
   });
 }
 // The thumbnail's save circle — rebuilt (alone) when the candidate's saved name changes.

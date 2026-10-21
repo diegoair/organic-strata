@@ -335,9 +335,9 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 
 **Generated components grouped — the rule first, then the transformations (Oct 21, 2026, Diego).** When Turns / Flip / Scale
 add copies after the rule (each Component carries `xf {t, f, s}` and its `base`), the board's list is grouped: **a section per
-variant of the rule** (title *Mirror 1*, *Random 5 · 125% · Mirrored* — for Random / Exhaustive the title also says what the
+variant of the rule** (title *Mirror 1*, *Random 5 · Scale 125% · Flipped* — for Random / Exhaustive the title also says what the
 variant holds, since there Flip and Scale are the rule's material — with a rule across the section), **a row per turn** (label
-left) and **a column per flip × size** (labels above the section's first row, *Flip H · 125%*), × layer inks × colourways. With
+left, *Turn 90°*) and **a column per flip × size** (labels above the section's first row, *Flip H · Scale 125%* — every label names its transformation), × layer inks × colourways. With
 only turns added (one column) the turns go **across** and each variant is one row. Explicit grid placement, one child per
 Component (`galleryGroups`, `layoutGalleryGroups`); up to 16 columns and 64 sections, else a flat grid; other Elements' areas
 stay flat; a missing cell = a copy identical to another variant, folded. Each thumb's name adds its turn / flip / size.
