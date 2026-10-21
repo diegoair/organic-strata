@@ -349,6 +349,39 @@ rotation is a step of the cell's own (circle 90°, triangle 120°, hexagon 60°)
 shape's own flips. Mirror reads Rotation as its **turn** (the plain Element turned before it is mirrored). Lines and Rhythm read only the Scale axis (Rhythm › Connect also reads Flip) (their angle comes from their own
 controls).
 
+### 5.2a Transforms that look the same — the cases (Oct 21, 2026)
+
+Diego: *remove all the combinations that look the same … only those that create nothing new; track the cases to simplify the
+axes.* Two kinds, tracked here; only the first is removed.
+
+**1. The same transform written twice — removed** (`canonicalState`, `fvs/js/engine/03-rules.js`). A cell is a turn + a
+mirror; any flip combination is one of those: **flip H + V = a 180° turn** (since Oct 4) and **flip V = flip H + 180°**
+(Oct 21). On square cells that leaves **8** transforms, not 16. Pixel-checked: 15 Element shapes × 4 turns × 3 sizes × both
+identities, 360 pairs, **0 pixels differ** — exact for any Element, layered or moved, since both sides are the same linear map
+about the cell centre. Measured effect (`fvs/_axes-baseline.json`, 56 of 768 cases changed):
+
+| Rule | Before → after | Why |
+|---|---|---|
+| Mirror | 16 → **8** (× sizes: 48 → 24) | a turned start corner = another start corner |
+| Checkerboard, Turns + Flip | 66 → **28** pairs (square); 816 → 220 (hexagon) | 16 states were 8 |
+| Exhaustive, Turns + Flip | about half (2×2: 192 → 104; 3×3: 236 → 140) | the same cells counted twice |
+| Uniform on circles / hexagons, Turns + Flip | 12 → 8 · 18 → 12 | — |
+| Rhythm › Connect | 15 → 13 | — |
+| Step turn · Radial · Lines · Random | unchanged | they never write flip V |
+
+What this means for the **Flip axis**: with Turns holding 0° and 180°, *Vertical* and *Both* add nothing that *Horizontal*
+does not (they fold onto it); they still add something with Turns off (only 0°).
+
+**2. The Element's own symmetry — tracked, not removed.** A symmetric Element draws the same under different transforms, so
+different cells *look* alike for this Element only. Measured on each shape's defaults (how many of the 8 transforms draw
+differently): Blob 8 · Arc, Star, Triangle, Drop, Chevron, Wedge 4 · Lens, Polygon, Segment, Arc truchet 2 · Circle, Cross,
+Rounded rect 1 (a blank Freehand 1). It changes with every parameter (a Polygon's sides, a Star's points, a Wedge's angle),
+so removing these means measuring the Element's symmetry at Generate (raster or geometry) and folding by it — a decision for
+Diego (until now every structurally distinct candidate is listed, §5.5). Open cases:
+- **2a** Component lists that repeat for a symmetric Element (Step turn on a Circle: 8 Components, all the same picture).
+- **2b** Turns chips that add nothing for this Element (a Lens: 90° = 270°, 0° = 180°).
+- **2c** Flip that adds nothing for a mirror-symmetric Element (Chevron, Drop, Star, Triangle, Wedge: mirrored = itself).
+
 ### 5.3 The rules
 
 The **Rule** select (default **Random seeded**). It is a thumbnail picker (`Organica.selectPicker`, Oct 15, 2026 — Diego: *thumbs that simulate the behaviour*): each rule's pictogram is a 4×4 Component of the letter **F** (the atlas's mark), each cell as that rule turns / flips it on a square grid (the atlas's own cases; Exhaustive = four 2×2 candidates). A rule this grid can't run stays in the menu greyed, with its reason (`showDisabled`). Every named rule reads each cell's column / row,
@@ -377,7 +410,7 @@ so it works on any grid size; only a real 2×2 (TL, TR, BL, BR) uses the origina
 - **Nothing hidden, nothing twice.** A named rule shows its whole family (the axis it needs is
   implied by the pick — Mirror with Flip off still lists every mirror). Candidates that merely
   *paint* alike with this Element (a Circle's 8 Step turns) are all listed; only exact structural
-  duplicates are folded (`dedupeComponents` / `canonicalState`: flip H + flip V *is* a 180° turn).
+  duplicates are folded (`dedupeComponents` / `canonicalState`: flip H + flip V *is* a 180° turn, and since Oct 21, 2026 flip V alone *is* flip H turned 180° — see §5.2a).
   Random keeps drawing (up to Count × 40 tries) until it has Count distinct results or the space
   runs out.
 - An unavailable rule is greyed out; a pick that becomes unavailable falls back to Uniform
