@@ -3,7 +3,7 @@
 > Diego, Oct 21, 2026. *The Rule decides, the transformation transforms.* Rules are simple presets that guide the
 > creation; a transformation (Turn first, then Flip and Scale) is applied **after** the rule, on every cell of its result.
 > A rule that gets a transformation becomes **Custom** in the Rule menu, and can be **saved as your own rule** (a preset,
-> as in Living Path / Sinew / Apostate). Status: **phases 1–3 built Oct 21, 2026** (local); phases 4–6 planned.
+> as in Living Path / Sinew / Apostate). Status: **phases 1–4 built Oct 21, 2026** (local); phases 5–6 planned.
 
 ## Decisions (Diego, Oct 21, 2026)
 
@@ -50,7 +50,8 @@ fold (§5.2a) still removes what draws the same.
    Was: The Rule menu on `Organica.presetPicker`: system rules (with their pictograms) + **Yours** (saved rules,
    delete button), stored with `Organica.store('fvs-rules')` (cloud-synced). *Save rule…* names it. A saved rule restores
    its base rule, its controls and its transformations.
-4. **Checkerboard's own controls.** Cells A · Cells B · Start at in the Component step, as the Symbol's (`sel-rule-chk-rota`,
+4. **Checkerboard's own controls.** — *Built Oct 21, 2026*: **Cells A** · **Cells B** (*Any* · 0° · 90° · 180° · 270°, default Any = every pair of the rule's own turns, as before — 6 on a square 2×2; A = 0° → 3; A = 0°, B = 90° → 1) and **Flip B instead of rotate** (each A with itself mirrored; Cells B hides), before *Start at*. Square cells only — the lattices keep their A · B · C. Saved with your rules.
+   Was: Cells A · Cells B · Start at in the Component step, as the Symbol's (`sel-rule-chk-rota`,
    `sel-rule-chk-rot`, `chk-rule-chk-swap`, Flip B); Checkerboard stops deriving pairs from the axes.
 5. **Flip and Scale** on the same model (after the rule), once Turn is right.
 6. **Rule by rule tests with Diego**, then the rule atlas, `docs/FVS.md` §5, UI-COPY and the ledger.

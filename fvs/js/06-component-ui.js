@@ -619,6 +619,8 @@ export function syncCheckerStart() {
     b.style.display = v < n ? '' : 'none';
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
   });
+  ctrl('checker-cells-rows').hidden = state.cellShape !== 'square';   // Cells A · B: square cells (lattices: A · B · C)
+  ctrl('checker-b-row').style.display = pc('chk-checker-flipb') ? 'none' : '';   // Flip B: B is A mirrored (a .ctrl-row: flex beats [hidden])
 }
 export function setCheckerStart(v) { state.checkerStart = v; syncCheckerStart(); }
 // Rhythm (Oct 14, 2026): Mode Beat · Two beats · Wave · Connect, each with its own rows; Row shift for all but

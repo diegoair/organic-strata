@@ -439,8 +439,18 @@ export function ruleCheckerboard() {
   const av = axisValues(), cr = ruleCR(), S = [];
   for (const r of av.rotations) for (const f of av.flips) for (const sc of av.scales) S.push(stateFrom(r, f.h, f.v, sc));
   const states = checkerStates(S), start = state.checkerStart === 1 ? 1 : 0, out = [];
-  for (let i = 0; i < states.length; i++) for (let j = i + 1; j < states.length; j++) {
-    const [a, b] = start ? [states[j], states[i]] : [states[i], states[j]];
+  // Cells A · Cells B · Flip B (Oct 21, 2026 — plan phase 4): Any = every pair, as before; a turn keeps the pairs whose A
+  // (or B) cells hold it; Flip B pairs each A with itself mirrored instead of another turn
+  const A = pv('sel-checker-a'), B = pv('sel-checker-b'), flipB = pc('chk-checker-flipb');
+  const fits = (s, v) => !v || v === 'any' || s.rotation === +v;
+  const pairs = [];
+  if (flipB) states.forEach(s => { if (fits(s, A)) pairs.push([s, stateFrom(s.rotation, !s.flipH, s.flipV, s.scale)]); });
+  else for (let i = 0; i < states.length; i++) for (let j = i + 1; j < states.length; j++) {
+    const x = states[i], y = states[j];
+    if (fits(x, A) && fits(y, B)) pairs.push([x, y]); else if (fits(y, A) && fits(x, B)) pairs.push([y, x]);
+  }
+  for (const [p, q] of pairs) {
+    const [a, b] = start ? [q, p] : [p, q];
     out.push({ id: `checkerboard-${out.length}`, ruleSource: 'checkerboard', cells: cr ? GRID_BUILD.checkerboard(cr, a, b) : buildCheckerboardCells(a, b) });
   }
   const kept = dedupeComponents(out);

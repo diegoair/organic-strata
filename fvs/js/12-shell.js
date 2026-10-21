@@ -52,7 +52,7 @@ import {
 import {
   exitComponentEditMode, exportSelected, generate,
   populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setCheckerStart, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
-  syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, rulePicker, syncRuleSaveUI, saveRule, syncUserRules, RULES, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
+  syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, syncCheckerStart, rulePicker, syncRuleSaveUI, saveRule, syncUserRules, RULES, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
 } from './06-component-ui.js';
 import {
   renderLayersUI, renderLibrary, restoreComponentElementState, syncColourGroupRules
@@ -832,6 +832,7 @@ syncAxisValuesUI(true);
 syncRuleAxesUI();
 
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
+ctrl('chk-checker-flipb').addEventListener('change', syncCheckerStart);   // Cells B hides while Flip B is on
 ctrl('seg-mirror-line').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorLine(b.dataset.line); });
 ctrl('seg-radial-turnby').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setRadialTurnBy(b.dataset.radial); });
 ctrl('sel-rhythm-mode').addEventListener('change', e => setRhythmMode(e.target.value));

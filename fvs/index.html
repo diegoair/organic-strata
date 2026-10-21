@@ -1436,6 +1436,15 @@
           </div></div>
       </div>
       <div id="rule-checker-block" style="display:none">
+        <!-- Cells A · Cells B · Flip B (Oct 21, 2026 — plan phase 4, the Symbol step's Checkerboard words): Any = every pair of
+             the rule's own turns (as before); a turn narrows to the pairs that hold it. Square cells (lattices keep A · B · C). -->
+        <div id="checker-cells-rows">
+          <div class="ctrl-row"><div class="ctrl-label">Cells A</div>
+            <select class="panel-select" id="sel-checker-a" aria-label="Cells A"><option value="any" selected>Any</option><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
+          <div class="ctrl-row" id="checker-b-row"><div class="ctrl-label">Cells B</div>
+            <select class="panel-select" id="sel-checker-b" aria-label="Cells B"><option value="any" selected>Any</option><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
+          <label class="check-row org-switch"><input type="checkbox" id="chk-checker-flipb"><span>Flip B instead of rotate</span></label>
+        </div>
         <div class="ctrl-row"><div class="ctrl-label" id="checker-start-label">Start at</div>
           <div class="seg-ctrl" id="seg-checker-start" role="group" aria-labelledby="checker-start-label">
             <button type="button" class="seg-btn active" data-start="0" aria-pressed="true" aria-label="State A">A</button>
