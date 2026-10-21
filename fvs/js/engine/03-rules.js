@@ -313,8 +313,9 @@ export function flipScaleAfter(list) {
   const F = pc('chk-axis-flip') ? FLIPS : [FLIPS[0]], S = pc('chk-axis-scale') ? scaleValues() : [1];
   if (!list || (F.length === 1 && S.length === 1 && S[0] === 1)) return list;
   const out = [];
-  // in the board's group order (a section per size, then turn, then the rule's variant, then its mirrored versions)
-  for (const sc of S) for (const c of list) for (const f of F) out.push({ ...c, id: `${c.id}${f.h ? 'h' : ''}${f.v ? 'v' : ''}${sc !== 1 ? '@' + sc : ''}`, base: c.base || c.id,
+  // every unflipped Component before any flipped one, so the look-alike fold keeps the simplest of twins (a plain 180°
+  // start, not 0° + Flip H+V — Step turn test, Oct 21, 2026); the board groups by xf, not by list order
+  for (const sc of S) for (const f of F) for (const c of list) out.push({ ...c, id: `${c.id}${f.h ? 'h' : ''}${f.v ? 'v' : ''}${sc !== 1 ? '@' + sc : ''}`, base: c.base || c.id,
     xf: { ...(c.xf || {}), f: (f.h ? 'h' : '') + (f.v ? 'v' : ''), s: sc },
     cells: c.cells.map(x => ({ ...x, flipH: !!x.flipH !== f.h, flipV: !!x.flipV !== f.v, scale: (x.scale || 1) * sc })) });
   return dedupeComponents(out);
