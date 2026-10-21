@@ -474,9 +474,12 @@ async function generatedPerElement(mode) {
   const after = await ev(() => JSON.stringify(__t.F.state.elements.filter(e => e.id !== __t.F.state.activeElement).map(e => e.gallery)));
   C('Generate touches only the edited Element\'s Components', before === after);
   // a click on a Component of another area: that Element is edited, that Component selected
-  const target = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0], b = s.querySelectorAll('button[data-k]')[2]; return { ...__t.box(b), el: s.dataset.sheet.slice(3) }; });
+  // Generate re-framed the board on a list that changed size: frame every area again (Shift+1) before clicking one
+  await press('Digit1', '!', 49, SHIFT); await settle();
+  // the third Component, or the last when the area holds fewer (a symmetric Element's starter set folds — Oct 21, 2026)
+  const target = await ev(() => { const s = [...document.querySelectorAll('[data-sheet^="gl-"]')][0], bs = s.querySelectorAll('button[data-k]'), k = Math.min(2, bs.length - 1); return { ...__t.box(bs[k]), el: s.dataset.sheet.slice(3), k }; });
   await click(target);
-  const sw = await ev(() => ({ active: __t.F.state.activeElement, sel: __t.F.state.selectedId, third: __t.F.state.components[2] && __t.F.state.components[2].id, explicit: __t.F.state.selectionExplicit }));
+  const sw = await ev(k => ({ active: __t.F.state.activeElement, sel: __t.F.state.selectedId, third: __t.F.state.components[k] && __t.F.state.components[k].id, explicit: __t.F.state.selectionExplicit }), target.k);
   C('a click in another area edits its Element and selects that Component', sw.active === target.el && sw.sel === sw.third && sw.explicit, JSON.stringify(sw));
   // Clear board: every area; ⌘Z brings them all back
   await hold(await ev(() => __t.box('#btn-board-clear-component')));

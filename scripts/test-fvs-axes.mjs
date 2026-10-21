@@ -50,31 +50,33 @@ const got = await P.ev(`
   }
   return out;`);
 
-// Turns (the angle toggles, Oct 15, 2026): what a click gives, per cell shape, and that a shape change keeps each set
+// Turns (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 1): a switch + Up to + Every; the cell shape sets the
+// defaults; removed on Step turn and Radial; Uniform / Mirror / Lines / Rhythm draw first, then turn every cell
 const turns = await P.ev(`
-  const F = window.__fvs, s = F.state, q = id => document.getElementById(id), fails = [];
-  const chips = () => [...q('turns-chips').querySelectorAll('.seg-btn')];
-  const pressed = () => chips().filter(b => b.getAttribute('aria-pressed') === 'true').map(b => +b.dataset.angle);
-  const click = a => chips().find(b => +b.dataset.angle === a).click();
+  const F = window.__fvs, q = id => document.getElementById(id), fails = [];
   const eq = (name, a, b) => { if (JSON.stringify(a) !== JSON.stringify(b)) fails.push(name + ': ' + JSON.stringify(a) + ' ≠ ' + JSON.stringify(b)); };
-  F.setTier('component'); q('rot-set').value = ''; F.setTurnsFree(false);
-  F.setCellShape('square'); q('chk-axis-rotation').checked = true; q('chk-axis-rotation').dispatchEvent(new Event('change'));
-  eq('square chips', chips().map(b => +b.dataset.angle), [0, 90, 180, 270]);
-  eq('square default', F.rotationValues(), [0, 90, 180, 270]);
-  click(90); click(270); eq('square {0,180}', F.rotationValues(), [0, 180]); eq('pressed {0,180}', pressed(), [0, 180]);
-  click(0); eq('0° stays', F.rotationValues(), [0, 180]);
-  click(180); eq('only 0° → axis off', q('chk-axis-rotation').checked, false); eq('off pressed', pressed(), [0]);
-  click(180); eq('back on', q('chk-axis-rotation').checked, true);
-  F.setCellShape('hexagon'); eq('hexagon chips', chips().map(b => +b.dataset.angle), [0, 60, 120, 180, 240, 300]);
-  eq('hexagon default', F.rotationValues(), [0, 60, 120, 180, 240, 300]); eq('free hidden off square', q('turns-free').hidden, true);
-  click(60); click(180); click(300); eq('hexagon {0,120,240}', F.rotationValues(), [0, 120, 240]);
-  F.setCellShape('triangle'); eq('triangle', F.rotationValues(), [0, 120, 240]);
-  F.setCellShape('square'); eq('square kept', F.rotationValues(), [0, 180]);
-  F.setCellShape('hexagon'); eq('hexagon kept', F.rotationValues(), [0, 120, 240]);
-  F.setCellShape('square'); q('rg-rot-from').value = 0; q('rg-rot-to').value = 135; q('rg-rot-step').value = 45; F.setTurnsFree(true);
-  eq('free 0–135 by 45', F.rotationValues(), [0, 45, 90, 135]); eq('chips disabled', chips().every(b => b.getAttribute('aria-disabled') === 'true'), true);
-  F.setTurnsFree(false); eq('free closed → chips', F.rotationValues(), [0, 180]);
-  q('rot-set').value = ''; q('rg-rot-from').value = 0; q('rg-rot-to').value = 270; q('rg-rot-step').value = 90; F.syncAxisValuesUI();
+  const setv = (id, v) => { const e = q(id); if (e.type === 'checkbox') e.checked = v; else e.value = v; e.dispatchEvent(new Event(e.type === 'checkbox' || e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); };
+  const row = () => document.querySelector('#panel .fvs-axis[data-axis="rotation"]');
+  F.setTier('component'); F.setCellShape('square'); setv('rg-grid-cols', 2); setv('rg-grid-rows', 2);
+  setv('chk-axis-rotation', false); setv('sel-rule', 'identity');
+  eq('off by default after reset → values block hidden', q('turns-values-block').hidden, true);
+  setv('chk-axis-rotation', true); eq('on → block shown', q('turns-values-block').hidden, false);
+  eq('square default 270 / 90', F.rotationValues(), [0, 90, 180, 270]); eq('count', q('turns-count').textContent, '4 turns');
+  setv('rg-turn-upto', 180); eq('up to 180', F.rotationValues(), [0, 90, 180]);
+  setv('rg-turn-every', 45); setv('rg-turn-upto', 90); eq('every 45 up to 90', F.rotationValues(), [0, 45, 90]);
+  setv('rg-turn-upto', 270); setv('rg-turn-every', 90);
+  eq('Uniform: one Component per turn', F.produceRule('identity').map(c => c.cells[0].rotation), [0, 90, 180, 270]);
+  const mOff = (() => { setv('chk-axis-rotation', false); const n = F.produceRule('mirror').length; setv('chk-axis-rotation', true); return n; })();
+  const mOn = F.produceRule('mirror');
+  if (!(mOn.length > mOff)) fails.push('Mirror with Turns adds Components: ' + mOff + ' → ' + mOn.length);
+  eq('Mirror turned after: every cell + t', mOn.every(c => c.cells.every(x => [0, 90, 180, 270].includes(x.rotation))), true);
+  setv('sel-rule', 'pinwheel'); eq('Step turn: no Turns', row().hidden, true);
+  setv('sel-rule', 'radial'); eq('Radial: no Turns', row().hidden, true);
+  setv('sel-rule', 'mirror'); eq('Mirror: Turns shown', row().hidden, false);
+  F.setCellShape('hexagon'); eq('hexagon defaults', F.rotationValues(), [0, 60, 120, 180, 240, 300]);
+  F.setCellShape('triangle'); eq('triangle defaults', F.rotationValues(), [0, 120, 240]);
+  F.setCellShape('square'); eq('back to square', F.rotationValues(), [0, 90, 180, 270]);
+  setv('chk-axis-rotation', true); setv('sel-rule', 'random');
   return fails;`);
 for (const f of turns) console.log('✗ turns ' + f);
 const keys = Object.keys(got).sort();

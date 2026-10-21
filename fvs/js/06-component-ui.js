@@ -16,7 +16,7 @@ import {
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
-  rotationSet, rotationSteps, rotationFree, rotationValues, rotationStepOf, mod360
+  rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, turnAfter, withTurnsOff, withOwnTurns, ruleAxes
 } from './engine/03-rules.js';
 import {
   appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, stretchOpts,
@@ -701,7 +701,7 @@ export function syncRuleAxisNote() {
   const famKey = RULE_TO_FAMILY[pv('sel-rule')];
   const fam = famKey && FAMILIES[famKey];
   // Only Checkerboard still depends on the axes (see familyRuleGallery).
-  const ax = activeAxes();
+  const ax = OWN_TURNS.has(pv('sel-rule')) ? withOwnTurns(activeAxes) : activeAxes();
   // Random with no axis on draws the one uniform Component, however many it is asked for (Oct 14, 2026)
   if (pv('sel-rule') === 'random' && !ax.rotation && !ax.flip && !ax.scale) {
     note.textContent = 'Random needs an axis on — under Transform axes (below), pick a second angle in Turns or turn on Flip or Scale; every Component is the same until then.';
@@ -713,69 +713,33 @@ export function syncRuleAxisNote() {
   note.style.display = '';
 }
 
-// ── Transform axes (their own section below Rule again, every axis shown — Diego, Oct 16, 2026) ──
-// Turns (Oct 15, 2026 — Diego, after the design-system + usability review: "chips + Free angles", the axis named Turns):
-// one .seg-btn[aria-pressed] per angle the cell shape tiles with, 0° locked on; the pressed set goes in #rot-set for
-// this shape, and #chk-axis-rotation (hidden) follows it — on with two angles or more. Square cells only: Free angles
-// (a disclosure) = the From–To two-handle slider + Step on 0–360°, catching on 90°; open, it decides and the chips show
-// what it gives. Scale is Small · Medium · Large again (12-shell.js).
-// The defaults draw every rule exactly as before (scripts/test-fvs-axes.sh).
-let rotDual = null, chipsShape = null;
-const degList = v => v.map(a => a + '°').join(' · ');
-function readRotSet() { try { return JSON.parse(pv('rot-set') || '{}') || {}; } catch (e) { return {}; } }
-const FREE_REASON = 'Free angles decides the turns — close it to pick them here.';
-function syncTurnsChips() {
-  const values = pc('chk-axis-rotation') ? rotationValues() : [0], free = rotationFree();
-  ctrl('turns-chips').querySelectorAll('.seg-btn').forEach(b => {
-    const a = +b.dataset.angle;
-    b.setAttribute('aria-pressed', String(values.includes(a)));
-    if (free) { b.setAttribute('aria-disabled', 'true'); b.title = FREE_REASON; b.setAttribute('aria-description', FREE_REASON); }
-    else { b.removeAttribute('aria-disabled'); b.removeAttribute('title'); if (a === 0) b.setAttribute('aria-description', 'Always on: the Element as drawn'); else b.removeAttribute('aria-description'); }
-  });
-}
-// the hidden switch the engine reads follows the set: on with two angles or more
-const syncTurnsAxis = () => { ctrl('chk-axis-rotation').checked = rotationValues().length > 1; };
-function buildTurnsChips() {
-  const shape = state.cellShape, box = ctrl('turns-chips');
-  box.innerHTML = rotationSteps(shape).map(a =>
-    `<button type="button" class="seg-btn" data-aria-own data-angle="${a}"${a === 0 ? ' data-locked aria-description="Always on: the Element as drawn"' : ''}>${a}°</button>`).join('');
-  chipsShape = shape;
-  ctrl('turns-free').hidden = shape !== 'square';
-}
+// ── Transform axes (their own section below Rule — Diego, Oct 16, 2026) ──
+// Turns (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 1): a switch, off by default; on, Up to and Every (5° steps)
+// and a short count. The cell shape sets their defaults (square 270 / 90, hexagon 300 / 60, triangle 240 / 120) when it
+// changes. Removed on Step turn and Radial (ruleAxes: their turns are their own). Scale is Small · Medium · Large.
+let turnsShape = null;
 function axesReadout() {
-  ctrl('v-rot-angles').textContent = `${pv('rg-rot-from')}–${pv('rg-rot-to')}°`;
-  ctrl('v-rot-step').textContent = pv('rg-rot-step');
-  const rv = rotationValues();
-  ctrl('rot-values-list').textContent = `${rv.length} angle${rv.length === 1 ? '' : 's'}: ${degList(rv)}`;
-  syncTurnsChips();
+  ctrl('v-turn-upto').textContent = pv('rg-turn-upto') + '°';
+  ctrl('v-turn-every').textContent = pv('rg-turn-every') + '°';
+  const n = rotationValues().length;
+  ctrl('turns-count').textContent = `${n} turn${n === 1 ? '' : 's'}`;
+  ctrl('turns-values-block').hidden = !pc('chk-axis-rotation');
 }
 function axesChanged() { axesReadout(); syncExhaustiveHint(); syncRuleAxisNote(); }
-// a Turns chip pressed: that angle in or out of this shape's set (0° stays)
-export function toggleTurn(angle) {
-  if (angle === 0 || rotationFree()) return;
-  // with the axis switched off from outside (a script, a test) the chips show 0° only: start from that, not the saved set
-  const all = readRotSet(), shape = state.cellShape, cur = pc('chk-axis-rotation') ? rotationSet(shape) : [0];
-  all[shape] = cur.includes(angle) ? cur.filter(a => a !== angle) : [...cur, angle].sort((x, y) => x - y);
-  ctrl('rot-set').value = JSON.stringify(all);
-  syncTurnsAxis(); axesChanged();
-}
-export function setTurnsFree(open) {
-  ctrl('rot-free').value = open ? '1' : '0';
-  if (ctrl('turns-free').open !== !!open) ctrl('turns-free').open = !!open;
-  syncTurnsAxis(); axesChanged();
-}
 export function syncAxisValuesUI() {
-  if (!rotDual) rotDual = Organica.dualRange(ctrl('dual-rot-angles'), {
-    min: 0, max: 360, from: +pv('rg-rot-from'), to: +pv('rg-rot-to'), step: 1, detents: [0, 90, 180, 270, 360], catchBy: 8, label: 'Angles', fmt: v => v + '°',
-    onInput: (a, b) => { ctrl('rg-rot-from').value = a; ctrl('rg-rot-to').value = b; syncTurnsAxis(); axesChanged(); },
-  });
-  // the chips are the shape's own steps; each shape keeps its own set (#rot-set), so changing shape loses nothing
-  if (chipsShape !== state.cellShape) { const first = chipsShape === null; buildTurnsChips(); if (!first) syncTurnsAxis(); }
+  if (turnsShape !== state.cellShape) {   // a new cell shape: its own steps
+    const st = rotationStepOf(state.cellShape), up = ctrl('rg-turn-upto'), ev = ctrl('rg-turn-every');
+    if (turnsShape !== null || st !== 90) { up.value = 360 - st; ev.value = st; }
+    turnsShape = state.cellShape;
+  }
   axesReadout();
 }
-// The Transform axes are their own section again, every axis always shown (Diego, Oct 16, 2026 — "as before"); kept as
-// the one place a rule or grid change re-syncs them.
-export function syncRuleAxesUI() { syncTurnsChips(); }
+export const turnsChanged = () => axesChanged();
+export function syncRuleAxesUI() {
+  const own = ruleAxes(pv('sel-rule'), { lattice: state.cellShape !== 'square', rhythm: state.rhythm && state.rhythm.mode }).rotation === 'own';
+  document.querySelector('#panel .fvs-axis[data-axis="rotation"]').hidden = own;   // Step turn, Radial: no Turns at all
+  axesReadout();
+}
 
 // ── Rule UI wiring ──
 export function syncRuleUI() {
@@ -829,14 +793,14 @@ export function syncGenerateButton() {
 }
 
 export function syncExhaustiveHint() {
-  const total = withLookAlikeFold(exhaustiveTotal);
+  const total = withLookAlikeFold(() => (produceRule('exhaustive') || []).length);   // Exhaustive as Generate makes it (own turns, then Turns)
   const hint = ctrl('rule-total-hint');
   if (total > EXHAUSTIVE_CAP) {
     hint.textContent = `${total.toLocaleString()} possible — exceeds the ${EXHAUSTIVE_CAP} cap. Narrow active axes or use Random instead.`;
     hint.classList.add('over-cap');
     setGenerateBlock(pv('sel-rule') === 'exhaustive' ? `too many to list (${total.toLocaleString()}) — narrow the axes or use Random` : '');
   } else {
-    const k = layerInkComboCount(), ax = activeAxes();
+    const k = layerInkComboCount(), ax = OWN_TURNS.has(pv('sel-rule')) ? withOwnTurns(activeAxes) : activeAxes();
     // no axis on = the one uniform Component (Diego, Oct 14, 2026: "it says one component only, it seems very strange") —
     // say why, in Checkerboard's words (syncRuleAxisNote)
     hint.textContent = !ax.rotation && !ax.flip && !ax.scale && k <= 1
@@ -918,7 +882,7 @@ export function starterComponents() {
     : COMPONENT_STARTER_RULES;
   for (const r of starters) {
     if (r.eligible && !r.eligible()) continue;
-    const out = r.fn();
+    const out = produceRule(r.name);   // as Generate makes it: Checkerboard with its own turns, Turns after (Oct 21, 2026)
     if (!out || !out.length) continue;
     for (const comp of out.slice(0, STARTER_VARIANTS_PER_RULE)) picks.push(comp);
   }
@@ -1029,7 +993,12 @@ export function generateColourways() {
 
 // The cells a rule produces for the current panel (no gallery, no undo, no cap) — Generate's own dispatch, also what
 // scripts/test-fvs-axes.mjs reads (Tropism Phase 1, Oct 15, 2026). null for Manual, which builds from its own editor.
+// Turn after the rule (Oct 21, 2026): a TURN_AFTER rule draws with Turns off, then turnAfter adds each turn.
 export function produceRule(mode) {
+  if (!TURN_AFTER.has(mode)) return produceRuleBase(mode);
+  return turnAfter(OWN_TURNS.has(mode) ? withOwnTurns(() => produceRuleBase(mode)) : withTurnsOff(() => produceRuleBase(mode)));
+}
+function produceRuleBase(mode) {
   if (state.cellShape !== 'square' && LATTICE_RULES.has(mode)) return latticeRule(mode);
   switch (mode) {
     case 'identity': return ruleIdentity();

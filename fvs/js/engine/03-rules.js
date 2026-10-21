@@ -283,29 +283,34 @@ export function withGrid(grid, fn) {
   state.gridOverride = grid;
   try { return fn(); } finally { state.gridOverride = keep; }
 }
-// ── Axis values (Tropism Phase 1, Oct 15, 2026 — Rule › Axes): which angles and sizes a rule may use ──
-// Turns: the set of angles a rule may use, one set per cell shape in #rot-set ({square: [0, 90], hexagon: […]}), always
-// on the shape's own steps (0/90/180/270 square, latticeSteps() on lattices) and always holding 0°; nothing saved for a
-// shape = all of its steps, so every rule draws as before by default. Square cells only: Free angles (#rot-free) =
-// From · To · Step in degrees, for angles that don't tile.
+// ── Axis values: which turns and sizes a rule may use (Transform axes) ──
 export const rotationStepOf = shape => (CELL_SHAPES[shape] && CELL_SHAPES[shape].step) || 90;
 export function rotationDefaults(shape = state.cellShape) { const st = rotationStepOf(shape); return { from: 0, to: 360 - st, step: st }; }
 export function rotationSteps(shape = state.cellShape) { const st = rotationStepOf(shape), out = []; for (let a = 0; a < 360; a += st) out.push(a); return out; }
-export function rotationSet(shape = state.cellShape) {
-  const steps = rotationSteps(shape);
-  let saved = null;
-  try { saved = (JSON.parse(pv('rot-set') || '{}') || {})[shape]; } catch (e) { saved = null; }
-  if (!Array.isArray(saved)) return steps;
-  return steps.filter(a => a === 0 || saved.includes(a));
-}
-export const rotationFree = () => state.cellShape === 'square' && pv('rot-free') === '1';
+// Turns (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 1): 0, Every, 2 × Every … up to Up to (#rg-turn-upto /
+// #rg-turn-every); a free step is allowed (the cells may clip). Nothing set = the cell shape's own steps.
 export function rotationValues() {
-  if (!rotationFree()) return rotationSet();
-  const from = val('rg-rot-from'), to = val('rg-rot-to'), st = val('rg-rot-step');
-  if (!(st > 0) || !(to >= from)) return ROTATIONS;
+  if (live.ownTurns) return rotationSteps();   // Checkerboard · Random · Exhaustive: the turns are part of the rule
+  const up = val('rg-turn-upto'), ev = val('rg-turn-every');
+  if (!(ev > 0) || !(up >= 0)) return rotationSteps();
   const out = [];
-  for (let a = from; a <= to + 1e-9 && out.length < 72; a += st) { const r = mod360(a); if (!out.includes(r)) out.push(r); }
+  for (let a = 0; a <= up + 1e-9 && out.length < 72; a += ev) { const r = mod360(a); if (!out.includes(r)) out.push(r); }
   return out;
+}
+// The Rule decides, Turn transforms (Diego, Oct 21, 2026): these rules draw without Turns, then every cell of every
+// Component turns by each value — one Component per turn (TURN_AFTER). Step turn and Radial make their own turns (no
+// Turns row). Checkerboard, Random and Exhaustive include the cell shape's own turns in the rule, whatever Turns says
+// (OWN_TURNS — Diego, Oct 21: "the turns are their material, in the rule; they don't touch Turns"); Turns adds after.
+export const TURN_AFTER = new Set(['identity', 'mirror', 'hlines', 'vlines', 'oscillator', 'checkerboard', 'random', 'exhaustive']);
+export const OWN_TURNS = new Set(['checkerboard', 'random', 'exhaustive']);
+export function withTurnsOff(fn) { const k = live.turnsOff; live.turnsOff = true; try { return fn(); } finally { live.turnsOff = k; } }
+export function withOwnTurns(fn) { const k = live.ownTurns; live.ownTurns = true; try { return fn(); } finally { live.ownTurns = k; } }
+export function turnAfter(list) {
+  const T = pc('chk-axis-rotation') ? rotationValues() : [0];
+  if (!list || (T.length === 1 && T[0] === 0)) return list;
+  const out = [];
+  for (const t of T) for (const c of list) out.push({ ...c, id: t ? `${c.id}-t${t}` : c.id, cells: c.cells.map(x => ({ ...x, rotation: mod360(x.rotation + t) })) });
+  return dedupeComponents(out);
 }
 // Scale: Small · Medium · Large % (back from Sizes + How many — Diego, Oct 16, 2026: the Transform axes "as before").
 export function scaleValues() {
@@ -329,7 +334,7 @@ export function ruleAxes(mode, { lattice = false, rhythm = 'beat' } = {}) {
 const sizeAt = (sv, l3) => sv[Math.round(l3 / 2 * (sv.length - 1))];
 export function activeAxes() {
   return {
-    rotation: pc('chk-axis-rotation'),
+    rotation: live.ownTurns || (pc('chk-axis-rotation') && !live.turnsOff),   // ownTurns: the rule's own; turnsOff: before Turn
     flip: pc('chk-axis-flip'),
     scale: pc('chk-axis-scale'),
   };

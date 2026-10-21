@@ -52,7 +52,7 @@ import {
 import {
   exitComponentEditMode, exportSelected, generate,
   populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setCheckerStart, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
-  syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, toggleTurn, setTurnsFree
+  syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
 } from './06-component-ui.js';
 import {
   renderLayersUI, renderLibrary, restoreComponentElementState, syncColourGroupRules
@@ -818,9 +818,8 @@ syncPaperClearUI();
 // Rule › Axes (Tropism Phase 1): Turns = the angle toggles + Free angles (06-component-ui.js); Step and How many are
 // plain sliders; Angles and Sizes are the two-handle sliders built in syncAxisValuesUI. #chk-axis-rotation is hidden —
 // set from the chips, or by a script / test (its change redraws the chips).
-ctrl('chk-axis-rotation').addEventListener('change', () => { syncAxisValuesUI(); syncRuleAxesUI(); syncExhaustiveHint(); syncRuleAxisNote(); });
-ctrl('turns-chips').addEventListener('click', e => { const b = e.target.closest('.seg-btn[data-angle]'); if (b) toggleTurn(+b.dataset.angle); });
-ctrl('turns-free').addEventListener('toggle', () => setTurnsFree(ctrl('turns-free').open));
+ctrl('chk-axis-rotation').addEventListener('change', () => { turnsChanged(); });
+['rg-turn-upto', 'rg-turn-every'].forEach(id => ctrl(id).addEventListener('input', () => turnsChanged()));
 ctrl('chk-axis-flip').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
 ctrl('chk-axis-scale').addEventListener('change', e => {
   ctrl('scale-values-block').style.display = e.target.checked ? '' : 'none';
@@ -829,7 +828,6 @@ ctrl('chk-axis-scale').addEventListener('change', e => {
 [['rg-scale-small', 'v-scale-small'], ['rg-scale-medium', 'v-scale-medium'], ['rg-scale-large', 'v-scale-large']].forEach(([rangeId, valId]) => {
   ctrl(rangeId).addEventListener('input', e => { ctrl(valId).textContent = e.target.value; syncExhaustiveHint(); });
 });
-ctrl('rg-rot-step').addEventListener('input', () => { setTurnsFree(true); });
 syncAxisValuesUI(true);
 syncRuleAxesUI();
 

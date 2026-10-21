@@ -333,6 +333,14 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 
 ### 5.2 The axes (Transform axes)
 
+**Turns since Oct 21, 2026** (docs/FVS-RULE-TRANSFORMS.md phase 1 — *the Rule decides, Turn transforms*): a switch **Turns**,
+**off** by default; on, **Up to** (0–355°) and **Every** (5–180°, 5° steps; a free step may clip on square cells) give
+0, Every, 2 × Every … ≤ Up to, with a count (*4 turns*). It is applied **after** the rule: every cell of every Component
+turns by each value, one Component per turn (`TURN_AFTER`, `turnAfter`). Checkerboard, Random and Exhaustive keep the cell
+shape's own turns inside the rule (`OWN_TURNS`), whatever the switch says, and Turns adds after them. Step turn and Radial
+have no Turns row (their turns are their own). The chips and *Free angles* (Oct 15) are gone. Flip and Scale are unchanged
+(phase 5).
+
 **Since Oct 16, 2026 (Diego: *I want it back as before but … below the Rule module*):** the axes are their own section again, **Transform axes**, right **after Rule**, and **every axis is always shown**. **Turns** (chips + Free angles) stays; **Flip (none/H/V/both)** and **Scale** are the old checkboxes; Scale shows **Small % · Medium % · Large %** (10–400, default 75 · 100 · 125). The Oct 15 text below — inside Rule, only the axes the rule reads, Sizes + How many — is history.
 
 **Since Oct 15, 2026 (Tropism Phase 1, Diego):** the axes are inside the **Rule** section, under the sub-heading **Axes**,

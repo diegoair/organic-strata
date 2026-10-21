@@ -3,7 +3,7 @@
 > Diego, Oct 21, 2026. *The Rule decides, the transformation transforms.* Rules are simple presets that guide the
 > creation; a transformation (Turn first, then Flip and Scale) is applied **after** the rule, on every cell of its result.
 > A rule that gets a transformation becomes **Custom** in the Rule menu, and can be **saved as your own rule** (a preset,
-> as in Living Path / Sinew / Apostate). Status: planned, nothing built.
+> as in Living Path / Sinew / Apostate). Status: **phase 1 built Oct 21, 2026** (local); phases 2–6 planned.
 
 ## Decisions (Diego, Oct 21, 2026)
 
@@ -38,7 +38,8 @@ fold (§5.2a) still removes what draws the same.
 
 ## Phases
 
-1. **Turn after the rule.** Replace the Turns chips + Free angles with a switch (off) + **Up to** + **Every**; apply +t to
+1. **Turn after the rule.** — *Built Oct 21, 2026.* Checkerboard, Random and Exhaustive keep the cell shape's own turns **inside the rule** whatever Turns says (Diego: *the turns are their material, in the rule; their numbers must not drop*), and Turns adds after them too. Mirror no longer turns inside (4 Components, not 8, until Turns adds). Every 5°–180° in 5° steps, Up to 0–355°; defaults per cell shape (square 270 / 90, hexagon 300 / 60, triangle 240 / 120); a count *4 turns*.
+   Was: Replace the Turns chips + Free angles with a switch (off) + **Up to** + **Every**; apply +t to
    every cell after the rule; remove the row on Step turn and Radial. Design-system CONSULT first (words, the row, the
    count line). Re-record the baselines where the old Turns wiring drew (Mirror's turn, Checkerboard's pairs, Uniform on
    lattices) — reviewed case by case.
