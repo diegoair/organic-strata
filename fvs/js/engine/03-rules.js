@@ -303,6 +303,20 @@ export function rotationValues() {
 // (OWN_TURNS — Diego, Oct 21: "the turns are their material, in the rule; they don't touch Turns"); Turns adds after.
 export const TURN_AFTER = new Set(['identity', 'mirror', 'hlines', 'vlines', 'oscillator', 'checkerboard', 'random', 'exhaustive']);
 export const OWN_TURNS = new Set(['checkerboard', 'random', 'exhaustive']);
+// Flip and Scale after the rule too (Oct 21, 2026 — plan phase 5): these rules draw without them, then every Component
+// comes again mirrored / at each size. Random and Exhaustive keep Flip and Scale as their material (Diego); Lines and
+// Rhythm own their row-by-row sizes (Sizes) and Connect its mirrored pieces (Flips) — OWN_SIZES.
+export const FS_AFTER = new Set(['identity', 'mirror', 'checkerboard', 'hlines', 'vlines', 'oscillator', 'pinwheel', 'radial']);
+export const OWN_SIZES = [0.75, 1.0, 1.25];
+export function withFlipScaleOff(fn) { const k = live.flipScaleOff; live.flipScaleOff = true; try { return fn(); } finally { live.flipScaleOff = k; } }
+export function flipScaleAfter(list) {
+  const F = pc('chk-axis-flip') ? FLIPS : [FLIPS[0]], S = pc('chk-axis-scale') ? scaleValues() : [1];
+  if (!list || (F.length === 1 && S.length === 1 && S[0] === 1)) return list;
+  const out = [];
+  for (const f of F) for (const sc of S) for (const c of list) out.push({ ...c, id: `${c.id}${f.h ? 'h' : ''}${f.v ? 'v' : ''}${sc !== 1 ? '@' + sc : ''}`,
+    cells: c.cells.map(x => ({ ...x, flipH: !!x.flipH !== f.h, flipV: !!x.flipV !== f.v, scale: (x.scale || 1) * sc })) });
+  return dedupeComponents(out);
+}
 export function withTurnsOff(fn) { const k = live.turnsOff; live.turnsOff = true; try { return fn(); } finally { live.turnsOff = k; } }
 export function withOwnTurns(fn) { const k = live.ownTurns; live.ownTurns = true; try { return fn(); } finally { live.ownTurns = k; } }
 export function turnAfter(list) {
@@ -335,8 +349,8 @@ const sizeAt = (sv, l3) => sv[Math.round(l3 / 2 * (sv.length - 1))];
 export function activeAxes() {
   return {
     rotation: live.ownTurns || (pc('chk-axis-rotation') && !live.turnsOff),   // ownTurns: the rule's own; turnsOff: before Turn
-    flip: pc('chk-axis-flip'),
-    scale: pc('chk-axis-scale'),
+    flip: pc('chk-axis-flip') && !live.flipScaleOff,     // flipScaleOff: an FS_AFTER rule drawing before Flip / Scale
+    scale: pc('chk-axis-scale') && !live.flipScaleOff,
   };
 }
 export function axisValues() {
@@ -441,13 +455,19 @@ export function ruleCheckerboard() {
   const states = checkerStates(S), start = state.checkerStart === 1 ? 1 : 0, out = [];
   // Cells A · Cells B · Flip B (Oct 21, 2026 — plan phase 4): Any = every pair, as before; a turn keeps the pairs whose A
   // (or B) cells hold it; Flip B pairs each A with itself mirrored instead of another turn
+  // + a size each (phase 5): 100 % by default, Any = 75 · 100 · 125 — the mixed-size pairs are the rule's own
   const A = pv('sel-checker-a'), B = pv('sel-checker-b'), flipB = pc('chk-checker-flipb');
+  const As = pv('sel-checker-a-size') || '100', Bs = pv('sel-checker-b-size') || '100';
+  const sized = (list, v) => v === 'any' ? list.flatMap(s => OWN_SIZES.map(z => stateFrom(s.rotation, s.flipH, s.flipV, s.scale * z))) : list.map(s => stateFrom(s.rotation, s.flipH, s.flipV, s.scale * (+v / 100)));
   const fits = (s, v) => !v || v === 'any' || s.rotation === +v;
-  const pairs = [];
-  if (flipB) states.forEach(s => { if (fits(s, A)) pairs.push([s, stateFrom(s.rotation, !s.flipH, s.flipV, s.scale)]); });
-  else for (let i = 0; i < states.length; i++) for (let j = i + 1; j < states.length; j++) {
-    const x = states[i], y = states[j];
-    if (fits(x, A) && fits(y, B)) pairs.push([x, y]); else if (fits(y, A) && fits(x, B)) pairs.push([y, x]);
+  const pairs = [], SA = sized(states, As), SB = sized(states, Bs), seen = new Set(), key = (x, y) => JSON.stringify([x, y]);
+  if (flipB) SA.forEach(s => { if (fits(s, A)) { const z = Bs === 'any' || Bs === As ? s.scale : s.scale / (As === 'any' ? 1 : +As / 100) * (+Bs / 100); pairs.push([s, stateFrom(s.rotation, !s.flipH, s.flipV, z)]); } });
+  else for (const x of SA) for (const y of SB) {
+    if (x.rotation === y.rotation && x.flipH === y.flipH && x.flipV === y.flipV && x.scale === y.scale) continue;
+    if (!fits(x, A) || !fits(y, B)) continue;
+    // each unordered pair once, as before (Start at swaps it), unless A / B fix which side is which
+    const k = A === 'any' && B === 'any' && As === Bs ? [key(x, y), key(y, x)].sort()[0] : key(x, y);
+    if (seen.has(k)) continue; seen.add(k); pairs.push([x, y]);
   }
   for (const [p, q] of pairs) {
     const [a, b] = start ? [q, p] : [p, q];
@@ -514,8 +534,8 @@ export function ruleLines(axis) {
   const ctxs = hooks.componentCellColRow(grid);
   const mode = pv('sel-lines-mode');
   const step = parseInt(pv('rg-lines-step'), 10) || 0;
-  const scaleOn = pc('chk-axis-scale');
-  const sv = scaleValues();
+  const scaleOn = pc('chk-lines-sizes');   // Lines' own row-by-row sizes (Oct 21, 2026)
+  const sv = OWN_SIZES;
   const cells = ctxs.map(ctx => {
     const key = axis === 'row' ? ctx.row : ctx.col;
     const rot = mode === 'ramp' ? hooks.snap90(step * key) : (key % 2 ? step : 0);
@@ -614,9 +634,9 @@ export function ruleOscillator() {
   const grid = getGrid();
   const ctxs = hooks.componentCellColRow(grid);
   const r = state.rhythm, shift = parseFloat(pv('rg-rhythm-shift')) || 0;
-  const sv = pc('chk-axis-scale') ? scaleValues() : null, s = sv ? '-s' : '';
+  const sv = pc('chk-rhythm-sizes') ? OWN_SIZES : null, s = sv ? '-s' : '';   // Rhythm's own sizes (Oct 21, 2026)
   if (r.mode === 'connect') {
-    const views = rhythmConnectViews(pc('chk-axis-flip'));
+    const views = rhythmConnectViews(pc('chk-rhythm-flips'));   // Connect's own mirrored pieces (Oct 21, 2026)
     const cover = views.map(v => hooks.elementSideCover(v));
     const out = [], wrap = pc('chk-rhythm-wrap');
     for (let k = 1; k <= RHYTHM_CONNECT_SEEDS; k++) out.push({ id: `rhythm-connect-${views.length}-${wrap ? 'w' : ''}${k}`, ruleSource: 'oscillator', cells: rhythmConnectCells(ctxs, views, cover, k, wrap) });

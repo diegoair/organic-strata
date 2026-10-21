@@ -16,7 +16,7 @@ import {
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
-  rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, turnAfter, withTurnsOff, withOwnTurns, ruleAxes
+  rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, FS_AFTER, turnAfter, flipScaleAfter, withTurnsOff, withOwnTurns, withFlipScaleOff, ruleAxes
 } from './engine/03-rules.js';
 import {
   appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, stretchOpts,
@@ -635,6 +635,8 @@ export function syncRhythm() {
   ctrl('rhythm-wave-block').style.display = m === 'wave' ? '' : 'none';
   ctrl('rhythm-shift-row').style.display = m === 'connect' ? 'none' : '';
   ctrl('rhythm-wrap-row').style.display = m === 'connect' ? '' : 'none';
+  ctrl('rhythm-sizes-row').style.display = m === 'connect' ? 'none' : '';   // its own sizes (Beat · Two beats · Wave)
+  ctrl('rhythm-flips-row').style.display = m === 'connect' ? '' : 'none';   // Connect: mirrored pieces too
   ctrl('rhythm-beat').innerHTML = r.beat.map((t, i) => `<button type="button" class="seg-btn" data-step="${i}" aria-label="Step ${i + 1}: ${t}°"><span class="fvs-beat__mark" style="--beat-turn:${t}deg" aria-hidden="true">F</span></button>`).join('');
   ctrl('v-rhythm-beat').textContent = r.beat.length + (r.beat.length === 1 ? ' step' : ' steps');
   ctrl('btn-rhythm-beat-remove').disabled = r.beat.length <= 1;
@@ -705,7 +707,7 @@ const RULE_ICONS = {
 export const RULES = Organica.store('fvs-rules');
 const RULE_BLOCK = { random: 'rule-random-block', mirror: 'rule-mirror-block', checkerboard: 'rule-checker-block', radial: 'rule-radial-block',
   hlines: 'rule-lines-block', vlines: 'rule-lines-block', oscillator: 'rule-oscillator-block' };
-const TRANSFORM_IDS = ['chk-axis-rotation', 'rg-turn-upto', 'rg-turn-every'];
+const TRANSFORM_IDS = ['chk-axis-rotation', 'rg-turn-upto', 'rg-turn-every', 'chk-axis-flip', 'chk-axis-scale', 'rg-scale-small', 'rg-scale-medium', 'rg-scale-large'];
 const readCtl = id => { const e = ctrl(id); return e.type === 'checkbox' ? e.checked : e.value; };
 export function ruleSnapshot() {
   const base = pv('sel-rule'), blk = RULE_BLOCK[base], controls = {};
@@ -719,7 +721,7 @@ export function applyRuleSnapshot(snap) {
   Object.assign(state, structuredClone(snap.state || {}));
   syncMirrorLine(); syncCheckerStart(); syncRadialTurnBy(); if (snap.base === 'oscillator') syncRhythm();
   Object.entries(snap.controls || {}).forEach(([id, v]) => set(id, v));
-  ['rg-turn-upto', 'rg-turn-every', 'chk-axis-rotation'].forEach(id => { if (snap.transforms && id in snap.transforms) set(id, snap.transforms[id]); });
+  ['rg-turn-upto', 'rg-turn-every', 'chk-axis-rotation', 'rg-scale-small', 'rg-scale-medium', 'rg-scale-large', 'chk-axis-flip', 'chk-axis-scale'].forEach(id => { if (snap.transforms && id in snap.transforms) set(id, snap.transforms[id]); });
 }
 const ruleSig = snap => JSON.stringify([snap.base, snap.controls, snap.state, snap.transforms]);
 // the saved rule now on the panel, when nothing has changed since it was saved / picked
@@ -731,8 +733,9 @@ export function activeSavedRule() {
 // Custom (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 2): a rule that Turns transforms (after it) shows as Custom,
 // the base rule kept underneath (its own controls stay); Random and Exhaustive never do — the turns are their material.
 // Picking any rule from the menu starts clean: Turns off (Diego: a re-pick of the same rule too).
-const CUSTOMIZABLE = new Set(['identity', 'mirror', 'checkerboard', 'hlines', 'vlines', 'oscillator']);
-export const ruleIsCustom = () => CUSTOMIZABLE.has(pv('sel-rule')) && pc('chk-axis-rotation') && rotationValues().length > 1;
+const CUSTOMIZABLE = new Set(['identity', 'mirror', 'checkerboard', 'hlines', 'vlines', 'oscillator', 'pinwheel', 'radial']);
+// Custom: Turns (two or more) on a rule it transforms after, or Flip / Scale on an FS_AFTER rule (phase 5)
+export const ruleIsCustom = () => { const m = pv('sel-rule'); return CUSTOMIZABLE.has(m) && ((TURN_AFTER.has(m) && pc('chk-axis-rotation') && rotationValues().length > 1) || (FS_AFTER.has(m) && (pc('chk-axis-flip') || pc('chk-axis-scale')))); };
 let lastSavedRule = null;   // the saved rule last picked or saved — named in Custom's accessible name once it is edited
 const ruleName = key => (RULE_ICONS[key] || {}).name || key;
 export const rulePicker = Organica.selectPicker(ctrl('sel-rule'), ctrl('rule-picker'), {
@@ -745,7 +748,7 @@ export const rulePicker = Organica.selectPicker(ctrl('sel-rule'), ctrl('rule-pic
     return { name: 'Custom', icon: Organica.icons.get('fvs-rule-custom'), aria: `Rule: Custom, from ${from}` };
   },
   onPick: key => {
-    const c = ctrl('chk-axis-rotation'); if (c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }
+    ['chk-axis-rotation', 'chk-axis-flip', 'chk-axis-scale'].forEach(id => { const c = ctrl(id); if (c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); } });   // a pick starts clean
     if (!String(key).startsWith('mine:')) { lastSavedRule = null; return; }
     const name = key.slice(5), snap = RULES.read()[name];
     if (snap) { applyRuleSnapshot(snap); lastSavedRule = name; }
@@ -1090,8 +1093,14 @@ export function generateColourways() {
 // scripts/test-fvs-axes.mjs reads (Tropism Phase 1, Oct 15, 2026). null for Manual, which builds from its own editor.
 // Turn after the rule (Oct 21, 2026): a TURN_AFTER rule draws with Turns off, then turnAfter adds each turn.
 export function produceRule(mode) {
-  if (!TURN_AFTER.has(mode)) return produceRuleBase(mode);
-  return turnAfter(OWN_TURNS.has(mode) ? withOwnTurns(() => produceRuleBase(mode)) : withTurnsOff(() => produceRuleBase(mode)));
+  // the rule alone (its own turns, or none; no Flip / Scale for an FS_AFTER rule), then Turns, then Flip and Scale
+  let draw = () => produceRuleBase(mode);
+  if (FS_AFTER.has(mode)) { const d = draw; draw = () => withFlipScaleOff(d); }
+  if (OWN_TURNS.has(mode)) { const d = draw; draw = () => withOwnTurns(d); } else if (TURN_AFTER.has(mode)) { const d = draw; draw = () => withTurnsOff(d); }
+  let list = draw();
+  if (TURN_AFTER.has(mode)) list = turnAfter(list);
+  if (FS_AFTER.has(mode)) list = flipScaleAfter(list);
+  return list;
 }
 function produceRuleBase(mode) {
   if (state.cellShape !== 'square' && LATTICE_RULES.has(mode)) return latticeRule(mode);

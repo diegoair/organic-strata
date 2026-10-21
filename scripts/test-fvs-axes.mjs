@@ -58,6 +58,7 @@ const turns = await P.ev(`
   const setv = (id, v) => { const e = q(id); if (e.type === 'checkbox') e.checked = v; else e.value = v; e.dispatchEvent(new Event(e.type === 'checkbox' || e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); };
   const row = () => document.querySelector('#panel .fvs-axis[data-axis="rotation"]');
   F.setTier('component'); F.setCellShape('square'); setv('rg-grid-cols', 2); setv('rg-grid-rows', 2);
+  setv('chk-axis-flip', false); setv('chk-axis-scale', false);   // the baseline loop left them on
   setv('chk-axis-rotation', false); setv('sel-rule', 'identity');
   eq('off by default after reset → values block hidden', q('turns-values-block').hidden, true);
   setv('chk-axis-rotation', true); eq('on → block shown', q('turns-values-block').hidden, false);

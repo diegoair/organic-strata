@@ -160,7 +160,8 @@ export const live = {
   _symLattice: { key: null, lat: null },
   appearanceOverride: null,
   turnsOff: false,
-  ownTurns: false,          // while Checkerboard / Random / Exhaustive draw with the cell shape's own turns (OWN_TURNS)          // while a TURN_AFTER rule draws, before Turn transforms it (engine/03-rules.js turnAfter)
+  ownTurns: false,
+  flipScaleOff: false,      // while an FS_AFTER rule draws, before Flip / Scale transform it (plan phase 5)          // while Checkerboard / Random / Exhaustive draw with the cell shape's own turns (OWN_TURNS)          // while a TURN_AFTER rule draws, before Turn transforms it (engine/03-rules.js turnAfter)
   cellKey: null,            // a cell's key while Generate folds the Element's look-alikes (06-component-ui.js withLookAlikeFold); else canonicalState
   lookAlikeFoldOff: false,  // the regression page's switch: Generate as before Oct 21, 2026
   contentOverlayFit: 'fill',

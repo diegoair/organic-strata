@@ -333,6 +333,12 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 
 ### 5.2 The axes (Transform axes)
 
+**Flip and Scale since Oct 21, 2026** (plan phase 5): applied **after** the rule like Turns for Uniform, Mirror, Checkerboard,
+Lines, Rhythm, Step turn and Radial — every Component again mirrored (none · H · V · both) and at each size (Small · Medium ·
+Large), one per value (`FS_AFTER`, `flipScaleAfter`); Random and Exhaustive keep them as their material. Lines and Rhythm own
+their sizes (switch **Sizes**, 75 · 100 · 125 %) and Rhythm › Connect its mirrored pieces (**Flips**). Checkerboard's Cells A
+and Cells B each take a size (100 % default, *Any*).
+
 **Turns since Oct 21, 2026** (docs/FVS-RULE-TRANSFORMS.md phase 1 — *the Rule decides, Turn transforms*): a switch **Turns**,
 **off** by default; on, **Up to** (0–355°) and **Every** (5–180°, 5° steps; a free step may clip on square cells) give
 0, Every, 2 × Every … ≤ Up to, with a count (*4 turns*). It is applied **after** the rule: every cell of every Component
