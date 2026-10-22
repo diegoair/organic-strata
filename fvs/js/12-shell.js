@@ -51,8 +51,8 @@ import {
 } from './05-render-component.js';
 import {
   exitComponentEditMode, exportSelected, generate,
-  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setCheckerStart, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
-  syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, syncCheckerStart, rulePicker, syncRuleSaveUI, saveRule, syncUserRules, RULES, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
+  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
+  syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, rulePicker, syncRuleSaveUI, saveRule, syncUserRules, RULES, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
 } from './06-component-ui.js';
 import {
   renderLayersUI, renderLibrary, restoreComponentElementState, syncColourGroupRules
@@ -821,8 +821,6 @@ syncPaperClearUI();
 ctrl('chk-axis-rotation').addEventListener('change', () => { turnsChanged(); });
 ['rg-turn-upto', 'rg-turn-every'].forEach(id => ctrl(id).addEventListener('input', () => turnsChanged()));
 ctrl('chk-axis-flip').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
-// Checkerboard's Cells B hides A's own turn only while the poses are plain turns (no Flip, no Scale) — Oct 22, 2026
-['sel-checker-a', 'chk-axis-flip', 'chk-axis-scale'].forEach(id => ctrl(id).addEventListener('change', syncCheckerStart));
 ctrl('chk-axis-scale').addEventListener('change', e => {
   ctrl('scale-values-block').style.display = e.target.checked ? '' : 'none';
   syncExhaustiveHint(); syncRuleAxisNote();
@@ -841,7 +839,6 @@ ctrl('sel-rhythm-combine').addEventListener('change', e => setRhythmCombine(e.ta
 ctrl('rhythm-beat').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) turnRhythmStep(+b.dataset.step); });
 ctrl('btn-rhythm-beat-remove').addEventListener('click', () => resizeRhythmBeat(-1));
 ctrl('btn-rhythm-beat-add').addEventListener('click', () => resizeRhythmBeat(1));
-ctrl('seg-checker-start').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) setCheckerStart(+b.dataset.start); });
 ctrl('seg-mirror-span').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorSpan(b.dataset.span); });
 // Clip to cell (Component, Oct 12, 2026): each cell cut to its own frame — kept with the edited Element's Generated components
 ctrl('chk-component-clip').addEventListener('change', e => { state.componentClip = e.target.checked; ctrl('btn-component-view-clip').setAttribute('aria-pressed', String(state.componentClip)); renderGallery(); if (state.componentEditMode) renderComponentEditCanvas(); });

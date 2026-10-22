@@ -570,7 +570,6 @@ export function syncRuleAvailability() {
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
   rulePicker.refresh();
   syncMirrorLine();
-  syncCheckerStart();
   syncRadialTurnBy();
   ctrl('grid-cellcount-hint').textContent = count + ' cell' + (count === 1 ? '' : 's');
   syncQuadrantHint();
@@ -611,23 +610,6 @@ export function setMirrorLine(line) {
   state.mirrorLine = line;
   syncMirrorLine();
 }
-// Checkerboard › Start at (Oct 13, 2026): which state of each set sits on the first cell — A · B, and C where the cell
-// shape gives three states (hexagons, hex-packed circles); the C button only exists there (display, not greyed).
-export function syncCheckerStart() {
-  const n = state.cellShape !== 'square' && latticeMirrorKind() === 'lines' ? 3 : 2;
-  if (state.checkerStart >= n) state.checkerStart = 0;
-  ctrl('seg-checker-start').querySelectorAll('.seg-btn').forEach(b => {
-    const v = +b.dataset.start, on = v === state.checkerStart;
-    b.hidden = v >= n;   // [hidden], so the seg's rounded ends follow the visible buttons (shared/panel.css)
-    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
-  });
-  ctrl('checker-cells-rows').hidden = state.cellShape !== 'square';   // Cells A · B: square cells (lattices: A · B · C)
-  // Cells B never offers A's own turn while every pose is a plain turn (no Flip, no Scale): that pair is a Uniform (Oct 22, 2026)
-  const a = pv('sel-checker-a'), only = !pc('chk-axis-flip') && !pc('chk-axis-scale'), selB = ctrl('sel-checker-b');
-  [...selB.options].forEach(o => { o.hidden = only && a !== 'any' && o.value === a; });
-  if (selB.selectedOptions[0] && selB.selectedOptions[0].hidden) { selB.value = 'any'; selB.dispatchEvent(new Event('change', { bubbles: true })); }
-}
-export function setCheckerStart(v) { state.checkerStart = v; syncCheckerStart(); }
 // Rhythm (Oct 14, 2026): Mode Beat · Two beats · Wave · Connect, each with its own rows; Row shift for all but
 // Connect. The Beat is a row of steps, a click turns one a quarter; − / + remove / add the last (1–8 steps).
 export const RHYTHM_BEAT_MAX = 8;
@@ -710,7 +692,7 @@ const RULE_ICONS = {
 // controls (the inputs of its block + the segmented settings kept on state) and its transformations (Turns) — saved by
 // name in the user's store, restored whole. Not the Grid, not the Palette (Diego).
 export const RULES = Organica.store('fvs-rules');
-const RULE_BLOCK = { random: 'rule-random-block', mirror: 'rule-mirror-block', checkerboard: 'rule-checker-block', radial: 'rule-radial-block',
+const RULE_BLOCK = { random: 'rule-random-block', mirror: 'rule-mirror-block', radial: 'rule-radial-block',
   hlines: 'rule-lines-block', vlines: 'rule-lines-block', oscillator: 'rule-oscillator-block' };
 const TRANSFORM_IDS = ['chk-axis-rotation', 'rg-turn-upto', 'rg-turn-every', 'chk-axis-flip', 'chk-axis-scale', 'rg-scale-small', 'rg-scale-medium', 'rg-scale-large'];
 const readCtl = id => { const e = ctrl(id); return e.type === 'checkbox' ? e.checked : e.value; };
@@ -724,7 +706,7 @@ export function applyRuleSnapshot(snap) {
   const set = (id, v) => { const e = ctrl(id); if (!e) return; if (e.type === 'checkbox') e.checked = !!v; else e.value = v; e.dispatchEvent(new Event(e.type === 'checkbox' || e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); };
   set('sel-rule', snap.base);
   Object.assign(state, structuredClone(snap.state || {}));
-  syncMirrorLine(); syncCheckerStart(); syncRadialTurnBy(); if (snap.base === 'oscillator') syncRhythm();
+  syncMirrorLine(); syncRadialTurnBy(); if (snap.base === 'oscillator') syncRhythm();
   Object.entries(snap.controls || {}).forEach(([id, v]) => set(id, v));
   ['rg-turn-upto', 'rg-turn-every', 'chk-axis-rotation', 'rg-scale-small', 'rg-scale-medium', 'rg-scale-large', 'chk-axis-flip', 'chk-axis-scale'].forEach(id => { if (snap.transforms && id in snap.transforms) set(id, snap.transforms[id]); });
 }
@@ -861,7 +843,6 @@ export function syncRuleUI() {
   rulePicker.refresh();
   ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
   ctrl('rule-mirror-block').style.display = mode === 'mirror' ? '' : 'none';
-  ctrl('rule-checker-block').style.display = mode === 'checkerboard' ? '' : 'none';
   ctrl('rule-radial-block').style.display = mode === 'radial' ? '' : 'none';
   ctrl('rule-lines-block').style.display = (mode === 'hlines' || mode === 'vlines') ? '' : 'none';
   ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
@@ -992,7 +973,7 @@ document.addEventListener('keydown', e => {
 export function starterComponents() {
   const picks = [];
   const starters = state.cellShape !== 'square'
-    ? ['radial', 'checkerboard', 'identity'].map(m => ({ name: m, fn: () => latticeRule(m) }))
+    ? ['radial', 'checkerboard', 'identity'].map(m => ({ name: m, fn: () => latticeRule(m, m === 'checkerboard' ? { allStarts: true } : undefined) }))
     : COMPONENT_STARTER_RULES;
   for (const r of starters) {
     if (r.eligible && !r.eligible()) continue;
@@ -1120,7 +1101,7 @@ export function produceRule(mode, { after = true } = {}) {
   return list;
 }
 function produceRuleBase(mode) {
-  if (state.cellShape !== 'square' && LATTICE_RULES.has(mode)) return latticeRule(mode);
+  if (state.cellShape !== 'square' && LATTICE_RULES.has(mode)) return latticeRule(mode, mode === 'checkerboard' ? { allStarts: true } : undefined);   // Checkerboard: every start (Oct 22, 2026)
   switch (mode) {
     case 'identity': return ruleIdentity();
     case 'pinwheel': return rulePinwheel();

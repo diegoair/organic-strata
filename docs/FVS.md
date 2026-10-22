@@ -347,10 +347,11 @@ Lines, Rhythm, Step turn and Radial — every Component again mirrored (none · 
 Large), one per value (`FS_AFTER`, `flipScaleAfter`); Random and Exhaustive keep them as their material. Lines and Rhythm own
 their sizes (switch **Sizes**, 75 · 100 · 125 %) and Rhythm › Connect its mirrored pieces (**Flips**). **Checkerboard since Oct 22, 2026** (Diego: *nella complessità si è persa la potenzialità*): Flip and Scale are its
 **material** again, as for Random and Exhaustive — a **pose** = the cell shape's turn × flipped or not (V = H turned 180°, both = 180°) ×
-size; Generate lists every pair of distinct poses once (2×2: 6 plain · 28 with Flip · 66 with Scale · 276 with both, before the
-look-alike fold) and drops a pair whose A and B draw the same for the Element (a Uniform). **Cells A / Cells B** (*Any* · 0° ·
-90° · 180° · 270°) keep the pairs whose A / B cells hold that turn; Cells B hides A's turn while there is no Flip and no Scale.
-*Flip B instead of rotate* and the size per side are gone (Flip covers them); Turns is not shown (its turns are its own,
+size; Generate lists **the whole package** — every ordered pair of distinct poses, so each board once with A and once with B
+on the first cell (2×2: 12 plain · 56 with Flip · 132 with Scale · 552 with both, before the look-alike fold; hexagons every
+start of each set of three, 60) — and drops a pair whose A and B draw the same for the Element (a Uniform). **Nothing to pick**
+(Diego, Oct 22, 2026: *le combinazioni cella A, cella B e start at devono essere tutte scritte nell'algoritmo*): Cells A /
+Cells B, Start at, *Flip B instead of rotate* and the size per side are all gone (the Symbol step keeps its own); Turns is not shown (its turns are its own,
 `ruleAxes` rotation `'own'`; a whole-board turn only gave Start at's swapped boards) and the menu never says *Custom*.
 
 **Turns since Oct 21, 2026** (docs/FVS-RULE-TRANSFORMS.md phase 1 — *the Rule decides, Turn transforms*): a switch **Turns**,

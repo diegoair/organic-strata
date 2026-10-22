@@ -1433,23 +1433,7 @@
             <button type="button" class="seg-btn" data-radial="centre" aria-pressed="false">Cell</button>
           </div></div>
       </div>
-      <div id="rule-checker-block" class="fvs-rule-opts" style="display:none">
-        <!-- Cells A · Cells B (Oct 21, 2026 — the Symbol step's Checkerboard words): Any = every pair of poses; a turn keeps the
-             pairs whose A (or B) cells hold it. Since Oct 22, 2026 (Diego) a pose = turn × Flip × Scale from Transform axes —
-             Flip B and the size per side are gone. Square cells (lattices keep A · B · C). -->
-        <div id="checker-cells-rows">
-          <div class="ctrl-row"><div class="ctrl-label">Cells A</div>
-            <select class="panel-select" id="sel-checker-a" aria-label="Cells A"><option value="any" selected>Any</option><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
-          <div class="ctrl-row" id="checker-b-row"><div class="ctrl-label">Cells B</div>
-            <select class="panel-select" id="sel-checker-b" aria-label="Cells B"><option value="any" selected>Any</option><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
-        </div>
-        <div class="ctrl-row"><div class="ctrl-label" id="checker-start-label">Start at</div>
-          <div class="seg-ctrl" id="seg-checker-start" role="group" aria-labelledby="checker-start-label">
-            <button type="button" class="seg-btn active" data-start="0" aria-pressed="true" aria-label="State A">A</button>
-            <button type="button" class="seg-btn" data-start="1" aria-pressed="false" aria-label="State B">B</button>
-            <button type="button" class="seg-btn" data-start="2" aria-pressed="false" aria-label="State C" hidden>C</button>
-          </div></div>
-      </div>
+      <!-- Checkerboard has no controls of its own since Oct 22, 2026 (Diego): every pair of poses, both starts, is the package -->
       <div id="rule-mirror-block" class="fvs-rule-opts" style="display:none">
         <!-- Mirror (was Line) · Pattern (was Span) as icons, an option the grid cannot run hidden, a row with one option
              left hidden (Diego, Oct 22, 2026; design-system CONSULT the same day). data-line / data-span keep the engine's keys. -->

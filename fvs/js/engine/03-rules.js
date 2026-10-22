@@ -458,26 +458,17 @@ export function checkerStates(list) {
   return out;
 }
 export function ruleCheckerboard() {
-  if (state.cellShape !== 'square') return latticeRule('checkerboard');
+  // the whole package, nothing to pick (Diego, Oct 22, 2026: "le combinazioni cella A, cella B e start at devono essere
+  // tutte scritte nell'algoritmo"): every ordered pair of distinct poses — so each board with A and with B on the first cell
+  if (state.cellShape !== 'square') return latticeRule('checkerboard', { allStarts: true });
   const av = axisValues(), cr = ruleCR(), S = [];
-  // one spelling per pose: flip V = flip H turned 180°, both = 180° (so Cells A 0° never catches 0° + V, which is 180° + H)
+  // a pose = the cell shape's turn × flipped or not × size (Flip / Scale are the material — Oct 22, 2026); one spelling
+  // per pose: flip V = flip H turned 180°, both = 180°
   for (const r of av.rotations) for (const f of av.flips) for (const sc of av.scales) S.push(f.v ? stateFrom(mod360(r + 180), !f.h, false, sc) : stateFrom(r, f.h, false, sc));
-  const states = checkerStates(S), start = state.checkerStart === 1 ? 1 : 0, out = [];
-  // A pose = turn × flip × size: the cell shape's own turns, and Flip / Scale from Transform axes as material (Oct 22,
-  // 2026 — Diego: "nella complessità si è persa la potenzialità"; was Flip / Scale after the rule + Flip B + a size each).
-  // Every pair of distinct poses once (Start at swaps it); Cells A / Cells B keep the pairs whose A (or B) cells hold that
-  // turn — then each side is fixed, so (A, B) and (B, A) both count.
-  const A = pv('sel-checker-a'), B = pv('sel-checker-b');
-  const fits = (s, v) => !v || v === 'any' || s.rotation === +v;
-  const pairs = [], seen = new Set(), key = (x, y) => JSON.stringify([x, y]);
-  for (const x of states) for (const y of states) {
-    if (x === y || !fits(x, A) || !fits(y, B)) continue;
-    if (live.cellKey && live.cellKey(x) === live.cellKey(y)) continue;   // A and B look the same for this Element: a Uniform, not a pair
-    const k = A === 'any' && B === 'any' ? [key(x, y), key(y, x)].sort()[0] : key(x, y);
-    if (seen.has(k)) continue; seen.add(k); pairs.push([x, y]);
-  }
-  for (const [p, q] of pairs) {
-    const [a, b] = start ? [q, p] : [p, q];
+  const states = checkerStates(S), out = [];
+  for (const a of states) for (const b of states) {
+    if (a === b) continue;
+    if (live.cellKey && live.cellKey(a) === live.cellKey(b)) continue;   // A and B look the same for this Element: a Uniform, not a pair
     out.push({ id: `checkerboard-${out.length}`, ruleSource: 'checkerboard', cells: cr ? GRID_BUILD.checkerboard(cr, a, b) : buildCheckerboardCells(a, b) });
   }
   const kept = dedupeComponents(out);
