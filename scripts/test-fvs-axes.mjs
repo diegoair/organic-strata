@@ -37,7 +37,7 @@ const got = await P.ev(`
       const ak = (R ? 'R' : '-') + (Fl ? 'F' : '-') + (S ? 'S' : '-');
       for (const r of rules) {
         const variants = r === 'oscillator' ? opts('sel-rhythm-mode').map(v => ['sel-rhythm-mode', v])
-          : (r === 'hlines' || r === 'vlines') ? opts('sel-lines-mode').map(v => ['sel-lines-mode', v]) : [[null, '']];
+          : [[null, '']];   // Lines: one package since Oct 22, 2026 (no Mode)
         for (const [ctl, v] of variants) {
           if (ctl) set(ctl, v);
           set('sel-rule', r);

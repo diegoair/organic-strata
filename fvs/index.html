@@ -1400,8 +1400,8 @@
           <option value="rowmirror" hidden>Row mirror</option>
           <option value="columnmirror" hidden>Column mirror</option><!-- Row / Column mirror off the menu (Diego, Oct 13, 2026): Mirror › Line Top–bottom / Left–right; kept hidden for the engine and the regression suite -->
           <option value="radial">Radial</option>
-          <option value="hlines">Horizontal lines</option>
-          <option value="vlines">Vertical lines</option>
+          <option value="hlines">Lines</option>
+          <option value="vlines" hidden>Vertical lines</option><!-- one Lines rule since Oct 22, 2026 (Diego); kept hidden for saved settings -->
           <option value="oscillator">Rhythm</option>
           <option value="random" selected>Random seeded</option>
           <option value="exhaustive">Exhaustive</option>
@@ -1443,23 +1443,7 @@
             <button type="button" class="seg-btn" data-span="grid" aria-pressed="false" aria-label="Book" data-icon-slot></button>
           </div></div>
       </div>
-      <div id="rule-lines-block" class="fvs-rule-opts" style="display:none">
-        <div class="ctrl-row">
-          <div class="ctrl-label">Mode</div>
-          <select class="panel-select" id="sel-lines-mode">
-            <option value="alternate" selected>Alternate</option>
-            <option value="ramp">Ramp</option>
-          </select>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Step</div>
-          <input type="range" id="rg-lines-step" min="0" max="270" step="90" value="90">
-          <span class="ctrl-val" id="v-lines-step">90</span>
-        </div>
-        <!-- Sizes (Oct 21, 2026 — plan phase 5): the lines' own size per row / column, 75 · 100 · 125 % (the Scale axis now adds sized copies after the rule) -->
-        <label class="check-row org-switch"><input type="checkbox" id="chk-lines-sizes"><span>Sizes</span></label>
-        <p class="org-panel__hint">Every cell in the same row (Horizontal lines) or column (Vertical lines) gets the same rotation, reading as bands across the grid. Alternate flips the rotation on odd rows/columns only; Ramp increases it by Step each row/column. Works at any grid size.</p>
-      </div>
+      <!-- Lines has no controls of its own since Oct 22, 2026 (Diego): both directions × Alternate / Ramp × Step is the package -->
 
       <div id="rule-oscillator-block" class="fvs-rule-opts" style="display:none">
         <div class="ctrl-row"><div class="ctrl-label">Mode</div>

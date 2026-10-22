@@ -41,7 +41,7 @@ export function fitThumbBox(w, h, maxSide) {
 export const RULE_LABELS = {
   identity: 'Uniform', pinwheel: 'Step turn', mirror: 'Mirror', bookmatch: 'Mirror', diagonal: 'Diagonal mirror',
   checkerboard: 'Checkerboard', rowmirror: 'Row mirror', columnmirror: 'Column mirror', radial: 'Radial',
-  hlines: 'Horizontal lines', vlines: 'Vertical lines', oscillator: 'Rhythm', random: 'Random',
+  hlines: 'Lines', vlines: 'Lines', oscillator: 'Rhythm', random: 'Random',
   exhaustive: 'Exhaustive', manual: 'Manual', edited: 'Edited', recipe: 'Recipe',
 };
 export const ruleLabel = key => RULE_LABELS[key] || (key ? key[0].toUpperCase() + key.slice(1) : 'Component');
@@ -295,7 +295,7 @@ export function rotationValues() {
   if (live.ownTurns) return live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : rotationSteps();
   return panelTurns();
 }
-export const TURNS_REPLACE = new Set(['checkerboard', 'pinwheel', 'radial']);   // Radial too (Diego, Oct 22: "in Radial, bring back turns")
+export const TURNS_REPLACE = new Set(['checkerboard', 'pinwheel', 'radial', 'hlines', 'vlines']);   // Radial too (Diego, Oct 22: "in Radial, bring back turns")
 export function withTurnsReplace(fn) { const k = live.turnsReplace; live.turnsReplace = true; try { return fn(); } finally { live.turnsReplace = k; } }
 // Step turn's step and starts: the cell shape's, or Every and 0 … Up to when Turns is on (TURNS_REPLACE)
 export function stepTurnSpace() {
@@ -315,7 +315,7 @@ function panelTurns() {
 // Turns row). Checkerboard, Random and Exhaustive include the cell shape's own turns in the rule, whatever Turns says
 // (OWN_TURNS — Diego, Oct 21: "the turns are their material, in the rule; they don't touch Turns"); Turns adds after.
 // Checkerboard left it Oct 22, 2026: a whole-board turn of its pairs only gave the swapped boards Start at already gives
-export const TURN_AFTER = new Set(['identity', 'mirror', 'hlines', 'vlines', 'oscillator', 'random', 'exhaustive']);
+export const TURN_AFTER = new Set(['identity', 'mirror', 'oscillator', 'random', 'exhaustive']);
 export const OWN_TURNS = new Set(['checkerboard', 'random', 'exhaustive']);
 // Flip and Scale after the rule too (Oct 21, 2026 — plan phase 5): these rules draw without them, then every Component
 // comes again mirrored / at each size. Random and Exhaustive keep Flip and Scale as their material (Diego); Lines and
@@ -324,8 +324,8 @@ export const OWN_TURNS = new Set(['checkerboard', 'random', 'exhaustive']);
 export const FS_AFTER = new Set(['identity', 'mirror', 'hlines', 'vlines', 'oscillator', 'pinwheel', 'radial']);
 export const OWN_SIZES = [0.75, 1.0, 1.25];
 export function withFlipScaleOff(fn) { const k = live.flipScaleOff; live.flipScaleOff = true; try { return fn(); } finally { live.flipScaleOff = k; } }
-export function flipScaleAfter(list) {
-  const F = pc('chk-axis-flip') ? FLIPS : [FLIPS[0]], S = pc('chk-axis-scale') ? scaleValues() : [1];
+export function flipScaleAfter(list, { scale = true } = {}) {   // scale false: the rule's material (Lines, Oct 22, 2026)
+  const F = pc('chk-axis-flip') ? FLIPS : [FLIPS[0]], S = scale && pc('chk-axis-scale') ? scaleValues() : [1];
   if (!list || (F.length === 1 && S.length === 1 && S[0] === 1)) return list;
   const out = [];
   // every unflipped Component before any flipped one, so the look-alike fold keeps the simplest of twins (a plain 180°
@@ -359,7 +359,7 @@ export function ruleAxes(mode, { lattice = false, rhythm = 'beat' } = {}) {
     case 'identity': return lattice ? all : { rotation: null, flip: false, scale: false };
     case 'radial': return { rotation: 'values', flip: false, scale: true };   // Turns on = the starts (Oct 22, 2026)
     case 'pinwheel': return { rotation: 'values', flip: false, scale: true };   // Turns on = Every is the step, 0 … Up to the starts (Oct 22, 2026)
-    case 'hlines': case 'vlines': return { rotation: null, flip: false, scale: true };
+    case 'hlines': case 'vlines': return { rotation: 'values', flip: false, scale: true };   // Turns on = the steps (Oct 22, 2026)
     case 'oscillator': return rhythm === 'connect' ? { rotation: null, flip: true, scale: false } : { rotation: null, flip: false, scale: true };
     default: return all;   // Mirror, Checkerboard, Random, Exhaustive (and the hidden legacy rules)
   }
@@ -544,21 +544,33 @@ export function ruleRadial() {
 // every cell stays at the untouched scale 1.0 (byte-identical to before this
 // axis existed). Rotation/Flip have no hook here (the angle is already
 // governed by Mode/Step, not by the axis checkboxes).
-export function ruleLines(axis) {
-  const grid = getGrid();
-  const ctxs = hooks.componentCellColRow(grid);
-  const mode = pv('sel-lines-mode');
-  const step = parseInt(pv('rg-lines-step'), 10) || 0;
-  const scaleOn = pc('chk-lines-sizes');   // Lines' own row-by-row sizes (Oct 21, 2026)
-  const sv = OWN_SIZES;
+// One Lines pattern: every cell in a row (axis 'row') or column ('col') takes the same turn — Alternate: odd lines take
+// Step; Ramp: each line Step more; sizes: the lines' own sizes (Small · Medium · Large, cycling). A pure builder since
+// Oct 22, 2026 (atlas + tests call it with options).
+export function ruleLines(axis, { mode = 'alternate', step = 90, sizes = null } = {}) {
+  const ctxs = hooks.componentCellColRow(getGrid());
   const cells = ctxs.map(ctx => {
     const key = axis === 'row' ? ctx.row : ctx.col;
-    const rot = mode === 'ramp' ? hooks.snap90(step * key) : (key % 2 ? step : 0);
-    const scale = !scaleOn ? 1.0 : (mode === 'ramp' ? sv[key % sv.length] : sv[key % 2 ? sv.length - 1 : 0]);
-    return stateFrom(((rot % 360) + 360) % 360, false, false, scale);
+    const rot = mode === 'ramp' ? step * key : (key % 2 ? step : 0);
+    const scale = !sizes ? 1.0 : (mode === 'ramp' ? sizes[key % sizes.length] : sizes[key % 2 ? sizes.length - 1 : 0]);
+    return stateFrom(mod360(rot), false, false, scale);
   });
   const ruleSource = axis === 'row' ? 'hlines' : 'vlines';
-  return [{ id: `${ruleSource}-${mode}-${step}-${scaleOn ? 's' : ''}`, ruleSource, cells }];
+  return [{ id: `${ruleSource}-${mode}-${step}-${sizes ? 's' : ''}`, ruleSource, cells }];
+}
+// Lines — the whole package (Diego, Oct 22, 2026: one rule, both directions, nothing to pick): Horizontal and Vertical ×
+// Alternate and Ramp × Step 90° · 180° · 270° (Turns on: 0 … Up to by Every, the steps) × with and without the lines' own
+// sizes (Scale on: Small · Medium · Large — the material, no Sizes switch). Grouped a section per direction · mode, a
+// column per step.
+export function ruleLinesAll() {
+  const steps = (live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : [90, 180, 270]).filter(t => mod360(t) !== 0);
+  const sized = pc('chk-axis-scale') ? [null, scaleValues()] : [null], out = [];
+  for (const axis of ['row', 'col']) for (const mode of ['alternate', 'ramp']) for (const sizes of sized) for (const step of steps) {
+    const [c] = ruleLines(axis, { mode, step, sizes });
+    out.push({ ...c, rv: { rule: 'Lines', sec: [axis === 'row' ? 'Horizontal' : 'Vertical', mode === 'ramp' ? 'Ramp' : 'Alternate', sizes ? 'Sizes' : ''].filter(Boolean).join(' · '), col: 'Step ' + step + '°' } });
+  }
+  const kept = dedupeComponents(out);
+  return kept.length ? kept : ruleIdentity();
 }
 // Rhythm (was Oscillator; Diego, Oct 14, 2026 — "go with all the 4, Rhythm is ok"). Turns only, one result per mode
 // (Connect lists a few). The count k = col + ⌊Row shift × row⌋ walks each row; Row shift slides the next row along.

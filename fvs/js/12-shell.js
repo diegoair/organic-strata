@@ -393,7 +393,6 @@ ctrl('rg-lens-width').addEventListener('input', e => { ctrl('v-lens-width').text
 ctrl('rg-cellsize').addEventListener('input', e => { ctrl('v-cellsize').textContent = e.target.value; renderGallery(); });
 ctrl('rg-gap').addEventListener('input', e => { ctrl('v-gap').textContent = e.target.value; renderGallery(); });
 ctrl('rg-random-count').addEventListener('input', e => { ctrl('v-random-count').textContent = e.target.value; });
-ctrl('rg-lines-step').addEventListener('input', e => { ctrl('v-lines-step').textContent = e.target.value; });
 [['rg-rhythm-shift', 'v-rhythm-shift'], ['rg-rhythm-across', 'v-rhythm-across'], ['rg-rhythm-down', 'v-rhythm-down'], ['rg-rhythm-period', 'v-rhythm-period']].forEach(([rangeId, valId]) => {
   ctrl(rangeId).addEventListener('input', e => { ctrl(valId).textContent = e.target.value; });
 });

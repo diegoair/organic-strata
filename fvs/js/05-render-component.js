@@ -658,7 +658,7 @@ export function galleryGroups(list) {
     row: c => bases.indexOf(c.base || c.id) * per + 3 + (across ? 0 : tOf(c)),
     rowLabel: c => !across && turns.length > 1 ? turnName((c.xf && c.xf.t) || 0) : null,
     sectionLabel: c => { const b = byId[c.base || c.id] || c, own = c.ruleSource === 'random' || c.ruleSource === 'exhaustive';
-      if (b.rv) return [ruleLabel(c.ruleSource), b.rv.sec, b.rv.col].filter(Boolean).join(' · ');   // the rule's variant by name (Oct 22, 2026)
+      if (b.rv) return [b.rv.rule || ruleLabel(c.ruleSource), b.rv.sec, b.rv.col].filter(Boolean).join(' · ');   // the rule's variant by name (Oct 22, 2026)
       return `${ruleLabel(c.ruleSource)} ${bases.indexOf(c.base || c.id) + 1}${own ? ' · ' + variantHolds(b) : ''}`; },
     colLabel: c => { if (across) return turnName((c.xf && c.xf.t) || 0); const [f, sz] = JSON.parse(colOf(c)); return [flipName(f), sizes.length > 1 || sz !== 1 ? pct(sz) : ''].filter(Boolean).join(' · '); },
   };
@@ -676,7 +676,7 @@ function variantGroups(list) {
     col: c => cols.indexOf(c.rv.col || ''),
     row: c => sec(c) * per + 3,
     rowLabel: () => null,
-    sectionLabel: c => [ruleLabel(c.ruleSource), c.rv.sec].filter(Boolean).join(' · '),
+    sectionLabel: c => [c.rv.rule || ruleLabel(c.ruleSource), c.rv.sec].filter(Boolean).join(' · '),
     colLabel: c => c.rv.col || null,
   };
 }

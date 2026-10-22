@@ -15,7 +15,7 @@ import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
-  ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
+  ruleLines, ruleLinesAll, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
   rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, FS_AFTER, turnAfter, flipScaleAfter, withTurnsOff, withOwnTurns, withFlipScaleOff, ruleAxes, dedupeComponents, TURNS_REPLACE, withTurnsReplace
 } from './engine/03-rules.js';
 import {
@@ -151,7 +151,7 @@ const ceSquare = () => state.componentEditMode && state.componentEditGrid && sta
 const CE_RULES = {
   identity: () => ruleIdentity(), pinwheel: () => rulePinwheel(), mirror: () => ruleMirror(), diagonal: () => ruleDiagonal(),
   checkerboard: () => ruleCheckerboard(), rowmirror: () => ruleRowMirror(), columnmirror: () => ruleColumnMirror(), radial: () => ruleRadial(),
-  hlines: () => ruleLines('row'), vlines: () => ruleLines('col'), oscillator: () => ruleOscillator(),
+  hlines: () => ruleLinesAll(), vlines: () => ruleLinesAll(), oscillator: () => ruleOscillator(),
 };
 const evenOrNull = w => (w && w.some(v => Math.abs(v - w[0]) > 1e-6) ? w : null);
 function resizeWeights(w, n) {
@@ -668,7 +668,7 @@ const RULE_ICONS = {
   mirror: { name: 'Mirror', icon: ruleGrid('0 0h 0 0h 0v 0hv 0v 0hv 0 0h 0 0h 0v 0hv 0v 0hv') },
   checkerboard: { name: 'Checkerboard', icon: ruleGrid('0 90 0 90 90 0 90 0 0 90 0 90 90 0 90 0') },
   radial: { name: 'Radial', icon: ruleGrid('0 0 90 90 0 0 90 90 270 270 180 180 270 270 180 180') },
-  hlines: { name: 'Horizontal lines', icon: ruleGrid('0 0 0 0 90 90 90 90 0 0 0 0 90 90 90 90') },
+  hlines: { name: 'Lines', icon: ruleGrid('0 0 0 0 90 90 90 90 0 0 0 0 90 90 90 90') },
   vlines: { name: 'Vertical lines', icon: ruleGrid('0 90 0 90 0 90 0 90 0 90 0 90 0 90 0 90') },
   oscillator: { name: 'Rhythm', icon: ruleGrid('0 90 0 0 90 0 0 90 0 0 90 0 0 90 0 0') },
   random: { name: 'Random seeded', icon: ruleGrid('90 0 270 180 180 270 0 90 0 0 180 270 270 90 90 0') },
@@ -680,7 +680,7 @@ const RULE_ICONS = {
 // name in the user's store, restored whole. Not the Grid, not the Palette (Diego).
 export const RULES = Organica.store('fvs-rules');
 const RULE_BLOCK = { random: 'rule-random-block', mirror: 'rule-mirror-block',
-  hlines: 'rule-lines-block', vlines: 'rule-lines-block', oscillator: 'rule-oscillator-block' };
+  oscillator: 'rule-oscillator-block' };
 const TRANSFORM_IDS = ['chk-axis-rotation', 'rg-turn-upto', 'rg-turn-every', 'chk-axis-flip', 'chk-axis-scale', 'rg-scale-small', 'rg-scale-medium', 'rg-scale-large'];
 const readCtl = id => { const e = ctrl(id); return e.type === 'checkbox' ? e.checked : e.value; };
 export function ruleSnapshot() {
@@ -830,7 +830,6 @@ export function syncRuleUI() {
   rulePicker.refresh();
   ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
   ctrl('rule-mirror-block').style.display = mode === 'mirror' ? '' : 'none';
-  ctrl('rule-lines-block').style.display = (mode === 'hlines' || mode === 'vlines') ? '' : 'none';
   ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
   if (mode === 'oscillator') syncRhythm();
   ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';
@@ -1084,7 +1083,7 @@ export function produceRule(mode, { after = true } = {}) {
   let list = draw();
   if (!after) return list && dedupeComponents(list);   // the rule alone, folded as Generate folds (ruleIsCustom compares)
   if (TURN_AFTER.has(mode)) list = turnAfter(list);
-  if (FS_AFTER.has(mode)) list = flipScaleAfter(list);
+  if (FS_AFTER.has(mode)) list = flipScaleAfter(list, { scale: mode !== 'hlines' && mode !== 'vlines' });
   return list;
 }
 function produceRuleBase(mode) {
@@ -1098,8 +1097,7 @@ function produceRuleBase(mode) {
     case 'rowmirror': return ruleRowMirror();
     case 'columnmirror': return ruleColumnMirror();
     case 'radial': return ruleRadial();
-    case 'hlines': return ruleLines('row');
-    case 'vlines': return ruleLines('col');
+    case 'hlines': case 'vlines': return ruleLinesAll();   // one Lines rule, both directions (Oct 22, 2026)
     case 'oscillator': return ruleOscillator();
     case 'random': return ruleRandom();
     case 'exhaustive': return ruleExhaustive();

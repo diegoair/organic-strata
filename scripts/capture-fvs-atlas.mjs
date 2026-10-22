@@ -67,9 +67,9 @@ await sleep(400);
 const CAPTURE = async () => {
   const R = await import('/fvs/js/engine/03-rules.js'), UI = await import('/fvs/js/06-component-ui.js');
   const st = window.__fvs.state, $ = id => document.getElementById(id), F = R.FAMILIES;
-  const ids = ['rg-grid-cols', 'rg-grid-rows', 'chk-axis-rotation', 'chk-axis-flip', 'chk-axis-scale', 'sel-lines-mode', 'rg-lines-step', 'sel-rhythm-angle', 'rg-rhythm-shift', 'rg-rhythm-across', 'rg-rhythm-down', 'sel-rhythm-amp', 'rg-rhythm-period', 'rg-random-count', 'num-seed'];
+  const ids = ['rg-grid-cols', 'rg-grid-rows', 'chk-axis-rotation', 'chk-axis-flip', 'chk-axis-scale', 'sel-rhythm-angle', 'rg-rhythm-shift', 'rg-rhythm-across', 'rg-rhythm-down', 'sel-rhythm-amp', 'rg-rhythm-period', 'rg-random-count', 'num-seed'];
   const set = o => { for (const [k, v] of Object.entries(o)) { const e = $(k); if (e.type === 'checkbox') e.checked = v; else e.value = v; } };
-  const base = { 'chk-axis-rotation': true, 'chk-axis-flip': false, 'chk-axis-scale': false, 'sel-lines-mode': 'alternate', 'rg-lines-step': 90, 'sel-rhythm-angle': '90', 'rg-rhythm-shift': 1, 'rg-rhythm-across': 3, 'rg-rhythm-down': 4, 'sel-rhythm-amp': '90', 'rg-rhythm-period': 4, 'rg-random-count': 16, 'num-seed': 1 };
+  const base = { 'chk-axis-rotation': true, 'chk-axis-flip': false, 'chk-axis-scale': false, 'sel-rhythm-angle': '90', 'rg-rhythm-shift': 1, 'rg-rhythm-across': 3, 'rg-rhythm-down': 4, 'sel-rhythm-amp': '90', 'rg-rhythm-period': 4, 'rg-random-count': 16, 'num-seed': 1 };
   const fmt = c => `${c.rotation}${c.flipH ? 'h' : ''}${c.flipV ? 'v' : ''}${c.scale !== 1 ? '@' + c.scale : ''}`;
   const row = cells => cells.map(fmt).join(' ');
   st.cellShape = 'square'; st.mirrorLine = 'both'; st.mirrorSpread = 'cell'; st.checkerStart = 0; st.radialReading = 'quadrants';
@@ -84,7 +84,6 @@ const CAPTURE = async () => {
   const extra = (key, sz, over, k, n) => { grid(sz, over); const r = run(k, n); CELLS[key] = { n: r.n, c: sz, r: sz, s: r.s }; };
   extra('2|checkerboard|RF', 2, { 'chk-axis-flip': true }, 'checkerboard', 6);
   extra('2|exhaustive|RF', 2, { 'chk-axis-flip': true }, 'exhaustive', 1);
-  extra('4|hlines|ramp', 4, { 'sel-lines-mode': 'ramp' }, 'hlines', 1); extra('4|vlines|ramp', 4, { 'sel-lines-mode': 'ramp' }, 'vlines', 1);
   st.rhythm.beat = [0, 90, 180, 270]; extra('4|osc|ramp', 4, { 'rg-rhythm-shift': 1 }, 'oscillator', 1); st.rhythm.beat = [0, 90, 0];
   extra('2|pinwheel|S', 2, { 'chk-axis-scale': true }, 'pinwheel', 6);
   extra('4|random|RFS', 4, { 'chk-axis-flip': true, 'chk-axis-scale': true }, 'random', 6);
@@ -137,7 +136,7 @@ const CAPTURE = async () => {
     g('Turn by Each 2×2 · on a 4×4', 'every 2×2 block takes the walk — a rosette per block (start 0° · 90° · 180° · 270°, clockwise)', 4, rad(4, 4, 'blocks', 1)),
     g('Turn by Cell · on a 4×4', 'each cell turned by its own angle around the centre, not snapped — a true rosette (start 0° · 90° · 180° · 270°, clockwise)', 4, rad(4, 4, 'centre', 1)),
     g('Turn by Cell · on a 3×3', 'odd grids too: the middle cell stays at the start, the mid‑line cells land on 45° steps (start 0° · 90° · 180° · 270°, clockwise)', 3, rad(3, 3, 'centre', 1))];
-  const lines = (axis, mode) => [90, 180, 270].map(stp => { grid(4, { 'sel-lines-mode': mode, 'rg-lines-step': stp }); return row(R.ruleLines(axis)[0].cells); });
+  const lines = (axis, mode) => [90, 180, 270].map(stp => { grid(4); return row(R.ruleLines(axis, { mode, step: stp })[0].cells); });
   G.hlines = [g('Alternate', 'odd rows take Step: Step 90° · 180° · 270°', 4, lines('row', 'alternate')), g('Ramp', 'each row turns Step more than the row above: Step 90° · 180° · 270°', 4, lines('row', 'ramp'))];
   G.vlines = [g('Alternate', 'odd columns take Step: Step 90° · 180° · 270°', 4, lines('col', 'alternate')), g('Ramp', 'each column turns Step more than the one before: Step 90° · 180° · 270°', 4, lines('col', 'ramp'))];
   const osc = (mode, list) => list.map(([o, rh]) => { st.rhythm = { mode, beat: [0, 90, 0], combine: 'add', ...rh }; grid(4, o); return row(R.ruleOscillator()[0].cells); });
