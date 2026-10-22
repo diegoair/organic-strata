@@ -721,3 +721,7 @@
 
 /* ── Transform axes: Turns' switch and its Up to / Every rows (Oct 21, 2026), then Flip and Scale ── */
 .fvs-axis + .check-row { margin-top: var(--space-1); }
+
+/* the rule's own options open with a gap below the Rule picker: --space-3 + the row's --space-2 = 14px, a sub-group's
+   opening (.sub-label) — Diego, Oct 22, 2026: "dai maggior spazio tra la dropdown e le icone" (design-system CONSULT) */
+.fvs-rule-opts { margin-top: var(--space-3); }

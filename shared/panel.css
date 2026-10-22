@@ -596,6 +596,17 @@ input[type=range]:focus-visible::-moz-range-track {
    Start at C — Oct 22, 2026), and a hidden last child would leave the visible end square; :where() keeps the old (0,1,0) weight so
    .seg-ctrl--multi's own rounded chips still win */
 .seg-btn[hidden] { display: none; }
+/* Icon-only seg buttons (data-icon-slot: Grid shape, FVS Mirror · Pattern) get the floatbar's instant tooltip from their
+   aria-label — the app's browser shows no native title (Diego, Oct 22, 2026; design-system CONSULT). The ends anchor to
+   their own edge so #panel's scroll box does not clip them; a gated button keeps its reason in title instead. */
+.seg-btn[data-icon-slot] { position: relative; overflow: visible; }
+.seg-btn[data-icon-slot][aria-label]:not([aria-disabled="true"]):is(:hover, :focus-visible)::after {
+  content: attr(aria-label); position: absolute; bottom: calc(100% + var(--space-3)); left: 50%; transform: translateX(-50%); z-index: 2;
+  white-space: nowrap; background: var(--ink); color: var(--paper); font-size: var(--fs-small); font-weight: var(--w-regular); line-height: 1;
+  padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); pointer-events: none;
+}
+.seg-btn[data-icon-slot][aria-label]:not([aria-disabled="true"]):is(:hover, :focus-visible):where(:nth-child(1 of :not([hidden])))::after { left: 0; transform: none; }
+.seg-btn[data-icon-slot][aria-label]:not([aria-disabled="true"]):is(:hover, :focus-visible):where(:nth-last-child(1 of :not([hidden])))::after { left: auto; right: 0; transform: none; }
 .seg-btn:where(:nth-child(1 of :not([hidden]))) { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .seg-btn:where(:nth-last-child(1 of :not([hidden]))) { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .seg-btn:where(:nth-child(1 of :not([hidden])):nth-last-child(1 of :not([hidden]))) { border-radius: var(--radius-sm); }

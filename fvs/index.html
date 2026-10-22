@@ -1410,7 +1410,7 @@
       </div>
       <p class="org-panel__hint" id="rule-axis-note" style="display:none"></p>
 
-      <div id="rule-random-block">
+      <div id="rule-random-block" class="fvs-rule-opts">
         <div class="ctrl-row">
           <div class="ctrl-label">Count</div>
           <input type="range" id="rg-random-count" min="1" max="256" step="1" value="16">
@@ -1425,7 +1425,7 @@
         </div>
       </div>
 
-      <div id="rule-radial-block" style="display:none">
+      <div id="rule-radial-block" class="fvs-rule-opts" style="display:none">
         <div class="ctrl-row"><div class="ctrl-label" id="radial-turnby-label">Turn by</div>
           <div class="seg-ctrl" id="seg-radial-turnby" role="group" aria-labelledby="radial-turnby-label">
             <button type="button" class="seg-btn active" data-radial="quadrants" aria-pressed="true">Quadrant</button>
@@ -1433,7 +1433,7 @@
             <button type="button" class="seg-btn" data-radial="centre" aria-pressed="false">Cell</button>
           </div></div>
       </div>
-      <div id="rule-checker-block" style="display:none">
+      <div id="rule-checker-block" class="fvs-rule-opts" style="display:none">
         <!-- Cells A · Cells B · Flip B (Oct 21, 2026 — plan phase 4, the Symbol step's Checkerboard words; a size each since phase 5,
              100 % by default, Any = all three — mixed-size pairs are Checkerboard's own): Any = every pair of
              the rule's own turns (as before); a turn narrows to the pairs that hold it. Square cells (lattices keep A · B · C). -->
@@ -1451,23 +1451,23 @@
             <button type="button" class="seg-btn" data-start="2" aria-pressed="false" aria-label="State C" hidden>C</button>
           </div></div>
       </div>
-      <div id="rule-mirror-block" style="display:none">
+      <div id="rule-mirror-block" class="fvs-rule-opts" style="display:none">
         <!-- Mirror (was Line) · Pattern (was Span) as icons, an option the grid cannot run hidden, a row with one option
              left hidden (Diego, Oct 22, 2026; design-system CONSULT the same day). data-line / data-span keep the engine's keys. -->
         <div class="ctrl-row"><div class="ctrl-label" id="mirror-line-label">Mirror</div>
           <div class="seg-ctrl" id="seg-mirror-line" role="group" aria-labelledby="mirror-line-label">
-            <button type="button" class="seg-btn" data-line="lr" aria-pressed="false" aria-label="Side by side" title="Side by side" data-icon-slot></button>
-            <button type="button" class="seg-btn" data-line="tb" aria-pressed="false" aria-label="Above and below" title="Above and below" data-icon-slot></button>
-            <button type="button" class="seg-btn active" data-line="both" aria-pressed="true" aria-label="All around" title="All around" data-icon-slot></button>
+            <button type="button" class="seg-btn" data-line="lr" aria-pressed="false" aria-label="Side by side" data-icon-slot></button>
+            <button type="button" class="seg-btn" data-line="tb" aria-pressed="false" aria-label="Above and below" data-icon-slot></button>
+            <button type="button" class="seg-btn active" data-line="both" aria-pressed="true" aria-label="All around" data-icon-slot></button>
           </div></div>
         <div class="ctrl-row"><div class="ctrl-label" id="mirror-span-label">Pattern</div>
           <div class="seg-ctrl" id="seg-mirror-span" role="group" aria-labelledby="mirror-span-label">
-            <button type="button" class="seg-btn active" data-span="cell" aria-pressed="true" aria-label="Alternate" title="Alternate" data-icon-slot></button>
-            <button type="button" class="seg-btn" data-span="pair" aria-pressed="false" aria-label="In pairs" title="In pairs" data-icon-slot></button>
-            <button type="button" class="seg-btn" data-span="grid" aria-pressed="false" aria-label="Book" title="Book" data-icon-slot></button>
+            <button type="button" class="seg-btn active" data-span="cell" aria-pressed="true" aria-label="Alternate" data-icon-slot></button>
+            <button type="button" class="seg-btn" data-span="pair" aria-pressed="false" aria-label="In pairs" data-icon-slot></button>
+            <button type="button" class="seg-btn" data-span="grid" aria-pressed="false" aria-label="Book" data-icon-slot></button>
           </div></div>
       </div>
-      <div id="rule-lines-block" style="display:none">
+      <div id="rule-lines-block" class="fvs-rule-opts" style="display:none">
         <div class="ctrl-row">
           <div class="ctrl-label">Mode</div>
           <select class="panel-select" id="sel-lines-mode">
@@ -1485,7 +1485,7 @@
         <p class="org-panel__hint">Every cell in the same row (Horizontal lines) or column (Vertical lines) gets the same rotation, reading as bands across the grid. Alternate flips the rotation on odd rows/columns only; Ramp increases it by Step each row/column. Works at any grid size.</p>
       </div>
 
-      <div id="rule-oscillator-block" style="display:none">
+      <div id="rule-oscillator-block" class="fvs-rule-opts" style="display:none">
         <div class="ctrl-row"><div class="ctrl-label">Mode</div>
           <select class="panel-select" id="sel-rhythm-mode">
             <option value="beat" selected>Beat</option>
@@ -1536,11 +1536,11 @@
         <p class="org-panel__hint" id="rhythm-connect-hint" style="display:none">This Element doesn’t reach the edges of its cell, so there is nothing to join: the turns come out at random.</p>
       </div>
 
-      <div id="rule-exhaustive-block" style="display:none">
+      <div id="rule-exhaustive-block" class="fvs-rule-opts" style="display:none">
         <p id="rule-total-hint"></p>
       </div>
 
-      <div id="rule-manual-block" style="display:none">
+      <div id="rule-manual-block" class="fvs-rule-opts" style="display:none">
         <!-- 4 cell groups injected by JS -->
       </div>
 
