@@ -417,7 +417,8 @@ export const CR_2X2 = [{ col: 0, row: 0 }, { col: 1, row: 0 }, { col: 0, row: 1 
 export function mirrorLinesEligible() {
   if (state.cellShape !== 'square') return latticeMirrorKind() === 'square' ? ['both', 'lr', 'tb'] : ['both'];
   const d = crDims(hooks.componentCellColRow(getGrid()));
-  return ['both', 'lr', 'tb'].filter(l => (l === 'lr' ? d.cols > 1 : l === 'tb' ? d.rows > 1 : d.cols > 1 || d.rows > 1));
+  // Both needs 2 columns AND 2 rows (Diego, Oct 22, 2026): on one row it was only Left–right with a top–bottom flip
+  return ['both', 'lr', 'tb'].filter(l => (l === 'lr' ? d.cols > 1 : l === 'tb' ? d.rows > 1 : d.cols > 1 && d.rows > 1));
 }
 // How far apart the mirror lines are (phase 3): 'cell' every cell · 'pair' every two cells · 'grid' one line through
 // the whole grid (book-matched). Pairs and the whole grid need more than two cells along the Line; square cells only.
@@ -428,12 +429,13 @@ export function mirrorSpreadsEligible(line) {
 }
 export function ruleMirror() {
   if (state.cellShape !== 'square') return latticeRule('mirror');
-  const ok = mirrorLinesEligible(), line = ok.includes(state.mirrorLine) ? state.mirrorLine : 'both';
+  const ok = mirrorLinesEligible(), line = ok.includes(state.mirrorLine) ? state.mirrorLine : (ok[0] || 'both');
   const spreads = mirrorSpreadsEligible(line), spread = spreads.includes(state.mirrorSpread) ? state.mirrorSpread : 'cell';
   const av = axisValues(), cr = ruleCR();
   let gallery;
   if (spread === 'grid') {   // book-matched: one mirror line through the whole grid, along the Line
-    const bm = FAMILIES.bookmatch, axes = line === 'lr' ? ['h'] : line === 'tb' ? ['v'] : ['h', 'v', 'hv'];
+    // Both = the book mirrored both ways only (Diego, Oct 22, 2026): left | right and top | bottom are their own Lines
+    const bm = FAMILIES.bookmatch, axes = line === 'lr' ? ['h'] : line === 'tb' ? ['v'] : ['hv'];
     gallery = bm.paramSpace(av, cr, axes).map((p, i) => ({ id: `mirror-book-${i}`, ruleSource: 'mirror', cells: bm.build(p, cr) }));
   } else {
     const out = [];
@@ -935,7 +937,7 @@ export function latticeMirrorCells(R, seed, scale) {
   const [x0, y0] = P[0];
   if (kind === 'square') {
     const cr = P.map(([x, y]) => ({ col: Math.round((x - x0) / d), row: Math.round((y - y0) / d) })), m = Math.min(...cr.map(c => c.col)), n = Math.min(...cr.map(c => c.row));
-    return GRID_BUILD.mirrorLine(cr.map(c => ({ col: c.col - m, row: c.row - n })), seed, mirrorLinesEligible().includes(state.mirrorLine) ? state.mirrorLine : 'both', R, scale);
+    return GRID_BUILD.mirrorLine(cr.map(c => ({ col: c.col - m, row: c.row - n })), seed, mirrorLinesEligible().includes(state.mirrorLine) ? state.mirrorLine : (mirrorLinesEligible()[0] || 'both'), R, scale);
   }
   // lines: the latticeParity classes; hexagons stack in columns (flip left–right), packed circles in rows (top–bottom)
   const par = latticeParity(), flipH = state.cellShape === 'hexagon';

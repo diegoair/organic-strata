@@ -581,7 +581,7 @@ export function syncRuleAvailability() {
 // Mirror › Line (Both · Left–right · Top–bottom) and Span (Cell · Pair · Whole grid), Oct 13, 2026: an option this grid
 // or cell shape cannot run is greyed with its reason (aria-disabled + title + aria-description, the Grid shape seg's
 // pattern) and the pick falls back to Both / Cell.
-const MIRROR_LINE_WHY = { lr: 'Left–right needs 2 or more columns', tb: 'Top–bottom needs 2 or more rows' };
+const MIRROR_LINE_WHY = { both: 'Both needs 2 or more columns and rows', lr: 'Left–right needs 2 or more columns', tb: 'Top–bottom needs 2 or more rows' };
 function mirrorWhy(kind, v) {
   if (state.cellShape !== 'square') return kind === 'line' ? `${v === 'lr' ? 'Left–right' : 'Top–bottom'} needs square cells` : `${v === 'pair' ? 'Pair' : 'Whole grid'} needs square cells`;
   if (kind === 'line') return MIRROR_LINE_WHY[v];
@@ -598,7 +598,10 @@ function syncSeg(id, attr, ok, value, kind) {
 }
 export function syncMirrorLine() {
   const lines = mirrorLinesEligible();
-  if (!lines.includes(state.mirrorLine)) state.mirrorLine = 'both';
+  if (!lines.includes(state.mirrorLine)) state.mirrorLine = lines[0] || 'both';
+  // hexagon / triangle cells (and hex-packed circles) have one mirror of their own: Line and Span hidden (Diego, Oct 22, 2026)
+  const own = state.cellShape !== 'square' && latticeMirrorKind() !== 'square';
+  ['seg-mirror-line', 'seg-mirror-span'].forEach(id => { ctrl(id).closest('.ctrl-row').style.display = own ? 'none' : ''; });   // .ctrl-row is flex
   const spans = mirrorSpreadsEligible(state.mirrorLine);
   if (!spans.includes(state.mirrorSpread)) state.mirrorSpread = 'cell';
   syncSeg('seg-mirror-line', 'line', lines, state.mirrorLine, 'line');
