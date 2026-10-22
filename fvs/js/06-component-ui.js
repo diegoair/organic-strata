@@ -570,7 +570,6 @@ export function syncRuleAvailability() {
   if (currentInvalid) { sel.value = 'identity'; syncRuleUI(); }
   rulePicker.refresh();
   syncMirrorLine();
-  syncRadialTurnBy();
   ctrl('grid-cellcount-hint').textContent = count + ' cell' + (count === 1 ? '' : 's');
   syncQuadrantHint();
   buildManualEditor();
@@ -643,18 +642,6 @@ export function resizeRhythmBeat(d) {
 // Radial › Turn by (Oct 14, 2026): Quadrant · Each 2×2 · Cell; an option this grid or cell shape cannot run is greyed
 // with its reason and the pick falls back to the first that can.
 const RADIAL_NAME = { quadrants: 'Quadrant', blocks: 'Each 2×2', centre: 'Cell' };
-export function syncRadialTurnBy() {
-  const ok = radialReadingsEligible();
-  if (ok.length && !ok.includes(state.radialReading)) state.radialReading = ok[0];
-  ctrl('seg-radial-turnby').querySelectorAll('.seg-btn').forEach(b => {
-    const v = b.dataset.radial, can = ok.includes(v), on = v === state.radialReading;
-    const why = can ? '' : state.cellShape !== 'square' ? `${RADIAL_NAME[v]} needs square cells` : `${RADIAL_NAME[v]} needs an even number of columns and rows`;
-    b.setAttribute('aria-disabled', String(!can));
-    if (can) { b.removeAttribute('title'); b.removeAttribute('aria-description'); } else { b.title = why; b.setAttribute('aria-description', why); }
-    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
-  });
-}
-export function setRadialTurnBy(v) { if (!radialReadingsEligible().includes(v)) return; state.radialReading = v; syncRadialTurnBy(); }
 export function setMirrorSpan(span) {
   if (!mirrorSpreadsEligible(state.mirrorLine).includes(span)) return;
   state.mirrorSpread = span;
@@ -692,7 +679,7 @@ const RULE_ICONS = {
 // controls (the inputs of its block + the segmented settings kept on state) and its transformations (Turns) — saved by
 // name in the user's store, restored whole. Not the Grid, not the Palette (Diego).
 export const RULES = Organica.store('fvs-rules');
-const RULE_BLOCK = { random: 'rule-random-block', mirror: 'rule-mirror-block', radial: 'rule-radial-block',
+const RULE_BLOCK = { random: 'rule-random-block', mirror: 'rule-mirror-block',
   hlines: 'rule-lines-block', vlines: 'rule-lines-block', oscillator: 'rule-oscillator-block' };
 const TRANSFORM_IDS = ['chk-axis-rotation', 'rg-turn-upto', 'rg-turn-every', 'chk-axis-flip', 'chk-axis-scale', 'rg-scale-small', 'rg-scale-medium', 'rg-scale-large'];
 const readCtl = id => { const e = ctrl(id); return e.type === 'checkbox' ? e.checked : e.value; };
@@ -706,7 +693,7 @@ export function applyRuleSnapshot(snap) {
   const set = (id, v) => { const e = ctrl(id); if (!e) return; if (e.type === 'checkbox') e.checked = !!v; else e.value = v; e.dispatchEvent(new Event(e.type === 'checkbox' || e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); };
   set('sel-rule', snap.base);
   Object.assign(state, structuredClone(snap.state || {}));
-  syncMirrorLine(); syncRadialTurnBy(); if (snap.base === 'oscillator') syncRhythm();
+  syncMirrorLine(); if (snap.base === 'oscillator') syncRhythm();
   Object.entries(snap.controls || {}).forEach(([id, v]) => set(id, v));
   ['rg-turn-upto', 'rg-turn-every', 'chk-axis-rotation', 'rg-scale-small', 'rg-scale-medium', 'rg-scale-large', 'chk-axis-flip', 'chk-axis-scale'].forEach(id => { if (snap.transforms && id in snap.transforms) set(id, snap.transforms[id]); });
 }
@@ -843,7 +830,6 @@ export function syncRuleUI() {
   rulePicker.refresh();
   ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
   ctrl('rule-mirror-block').style.display = mode === 'mirror' ? '' : 'none';
-  ctrl('rule-radial-block').style.display = mode === 'radial' ? '' : 'none';
   ctrl('rule-lines-block').style.display = (mode === 'hlines' || mode === 'vlines') ? '' : 'none';
   ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
   if (mode === 'oscillator') syncRhythm();

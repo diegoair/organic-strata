@@ -51,7 +51,7 @@ import {
 } from './05-render-component.js';
 import {
   exitComponentEditMode, exportSelected, generate,
-  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, setRadialTurnBy, splitElementReset,
+  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, splitElementReset,
   syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, rulePicker, syncRuleSaveUI, saveRule, syncUserRules, RULES, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
 } from './06-component-ui.js';
 import {
@@ -833,7 +833,6 @@ syncRuleAxesUI();
 
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
 ctrl('seg-mirror-line').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorLine(b.dataset.line); });
-ctrl('seg-radial-turnby').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setRadialTurnBy(b.dataset.radial); });
 ctrl('sel-rhythm-mode').addEventListener('change', e => setRhythmMode(e.target.value));
 ctrl('sel-rhythm-combine').addEventListener('change', e => setRhythmCombine(e.target.value));
 ctrl('rhythm-beat').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) turnRhythmStep(+b.dataset.step); });

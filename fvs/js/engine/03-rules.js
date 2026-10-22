@@ -499,19 +499,20 @@ export function radialReadingsEligible() {
   return [...(even ? ['quadrants', 'blocks'] : []), 'centre'];
 }
 export function radialEligible() { return radialReadingsEligible().length > 0; }
-export function radialReading() {
-  const ok = radialReadingsEligible();
-  return ok.includes(state.radialReading) ? state.radialReading : ok[0];
-}
+// The whole package (Diego, Oct 22, 2026 — as Checkerboard): every reading the grid can run — By quadrant · By 2×2 block ·
+// By cell — × direction × start, nothing to pick. On a 2 × 2 the three readings draw the same: one.
+export const RADIAL_READING_NAME = { quadrants: 'By quadrant', blocks: 'By 2×2 block', centre: 'By cell' };
 export function ruleRadial() {
   if (state.cellShape !== 'square') return latticeRule('radial');
-  const reading = radialReading();
-  if (!reading) return ruleIdentity();
-  const av = axisValues(), cr = ruleCR(), out = [];
-  for (const base of [0, 90, 180, 270]) for (const ch of [1, -1]) for (const s of av.scales) {
+  let readings = radialReadingsEligible();
+  if (!readings.length) return ruleIdentity();
+  const av = axisValues(), cr = ruleCR(), out = [], d = cr ? crDims(cr) : { cols: 2, rows: 2 };
+  if (d.cols === 2 && d.rows === 2) readings = readings.slice(0, 1);
+  for (const reading of readings) for (const ch of [1, -1]) for (const base of [0, 90, 180, 270]) for (const s of av.scales) {
     const cells = reading === 'centre' ? GRID_BUILD.radialCentre(cr || CR_2X2, base, ch, s)
       : cr ? GRID_BUILD.radial(cr, base, ch, s, reading === 'blocks') : buildRadialCells(base, ch, s);
-    out.push({ id: `radial-${out.length}`, ruleSource: 'radial', rv: { sec: ch > 0 ? 'Clockwise' : 'Counter-clockwise', col: 'Start ' + base + '°' }, cells });
+    const dir = ch > 0 ? 'Clockwise' : 'Counter-clockwise';
+    out.push({ id: `radial-${out.length}`, ruleSource: 'radial', rv: { sec: readings.length > 1 ? RADIAL_READING_NAME[reading] + ' · ' + dir : dir, col: 'Start ' + base + '°' }, cells });
   }
   const kept = dedupeComponents(out);
   return kept.length ? kept : ruleIdentity();
