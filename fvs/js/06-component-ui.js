@@ -16,7 +16,7 @@ import {
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
-  rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, FS_AFTER, turnAfter, flipScaleAfter, withTurnsOff, withOwnTurns, withFlipScaleOff, ruleAxes
+  rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, FS_AFTER, turnAfter, flipScaleAfter, withTurnsOff, withOwnTurns, withFlipScaleOff, ruleAxes, dedupeComponents
 } from './engine/03-rules.js';
 import {
   appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, stretchOpts,
@@ -734,8 +734,21 @@ export function activeSavedRule() {
 // the base rule kept underneath (its own controls stay); Random and Exhaustive never do — the turns are their material.
 // Picking any rule from the menu starts clean: Turns off (Diego: a re-pick of the same rule too).
 const CUSTOMIZABLE = new Set(['identity', 'mirror', 'checkerboard', 'hlines', 'vlines', 'oscillator', 'pinwheel', 'radial']);
-// Custom: Turns (two or more) on a rule it transforms after, or Flip / Scale on an FS_AFTER rule (phase 5)
-export const ruleIsCustom = () => { const m = pv('sel-rule'); return CUSTOMIZABLE.has(m) && ((TURN_AFTER.has(m) && pc('chk-axis-rotation') && rotationValues().length > 1) || (FS_AFTER.has(m) && (pc('chk-axis-flip') || pc('chk-axis-scale')))); };
+// Custom: Turns (two or more) on a rule it transforms after, or Flip / Scale on an FS_AFTER rule (phase 5) — and only when
+// the transformation adds a Component the rule alone does not draw, after the look-alike fold (Diego, Oct 22, 2026: "se
+// Flip o Scale non aggiungono nessun component nuovo, non mostrare Custom" — e.g. Flip on Step turn with an Arc). The
+// answer is kept for the current task only: the picker, Save rule… and the gallery ask it several times per change.
+let customMemo = null;
+export const ruleIsCustom = () => {
+  const m = pv('sel-rule');
+  if (!CUSTOMIZABLE.has(m) || !((TURN_AFTER.has(m) && pc('chk-axis-rotation') && rotationValues().length > 1) || (FS_AFTER.has(m) && (pc('chk-axis-flip') || pc('chk-axis-scale'))))) return false;
+  if (customMemo === null) {
+    queueMicrotask(() => { customMemo = null; });
+    const n = l => (l ? l.length : 0);
+    customMemo = withLookAlikeFold(() => n(produceRule(m)) > n(produceRule(m, { after: false })));
+  }
+  return customMemo;
+};
 let lastSavedRule = null;   // the saved rule last picked or saved — named in Custom's accessible name once it is edited
 const ruleName = key => (RULE_ICONS[key] || {}).name || key;
 export const rulePicker = Organica.selectPicker(ctrl('sel-rule'), ctrl('rule-picker'), {
@@ -1090,12 +1103,13 @@ export function generateColourways() {
 // The cells a rule produces for the current panel (no gallery, no undo, no cap) — Generate's own dispatch, also what
 // scripts/test-fvs-axes.mjs reads (Tropism Phase 1, Oct 15, 2026). null for Manual, which builds from its own editor.
 // Turn after the rule (Oct 21, 2026): a TURN_AFTER rule draws with Turns off, then turnAfter adds each turn.
-export function produceRule(mode) {
+export function produceRule(mode, { after = true } = {}) {
   // the rule alone (its own turns, or none; no Flip / Scale for an FS_AFTER rule), then Turns, then Flip and Scale
   let draw = () => produceRuleBase(mode);
   if (FS_AFTER.has(mode)) { const d = draw; draw = () => withFlipScaleOff(d); }
   if (OWN_TURNS.has(mode)) { const d = draw; draw = () => withOwnTurns(d); } else if (TURN_AFTER.has(mode)) { const d = draw; draw = () => withTurnsOff(d); }
   let list = draw();
+  if (!after) return list && dedupeComponents(list);   // the rule alone, folded as Generate folds (ruleIsCustom compares)
   if (TURN_AFTER.has(mode)) list = turnAfter(list);
   if (FS_AFTER.has(mode)) list = flipScaleAfter(list);
   return list;
