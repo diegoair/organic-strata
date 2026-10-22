@@ -333,6 +333,8 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 
 ### 5.2 The axes (Transform axes)
 
+**Checkerboard grouped (Oct 22, 2026, Diego: *qui non c'è il raggruppamento*):** each Component carries its pair `ck {a, b}` (pose = `{r, f, s}`); the board shows **a section per A pose** (*A · Turn 0° · No flip · Scale 75%*), **a row per B's turn** (*B Turn 90°*) and **a column per B's flip × size** (*B · Flip H · Scale 125%*); with plain turns only, one row per A and B's turns across (a 4 × 4 table with its diagonal empty — A = B is not a pair). A section's title and a column's label sit on its topmost thumb (a folded pair can empty a row). `checkerGroups` in `fvs/js/05-render-component.js`; not with Layer colour variants / colourways (flat).
+
 **Generated components grouped — the rule first, then the transformations (Oct 21, 2026, Diego).** When Turns / Flip / Scale
 add copies after the rule (each Component carries `xf {t, f, s}` and its `base`), the board's list is grouped: **a section per
 variant of the rule** (title *Mirror 1*, *Random 5 · Scale 125% · Flipped* — for Random / Exhaustive the title also says what the

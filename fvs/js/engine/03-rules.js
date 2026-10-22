@@ -469,7 +469,8 @@ export function ruleCheckerboard() {
   for (const a of states) for (const b of states) {
     if (a === b) continue;
     if (live.cellKey && live.cellKey(a) === live.cellKey(b)) continue;   // A and B look the same for this Element: a Uniform, not a pair
-    out.push({ id: `checkerboard-${out.length}`, ruleSource: 'checkerboard', cells: cr ? GRID_BUILD.checkerboard(cr, a, b) : buildCheckerboardCells(a, b) });
+    const pose = x => ({ r: x.rotation, f: !!x.flipH, s: x.scale });   // ck: the pair, for the board's grouping (Oct 22, 2026)
+    out.push({ id: `checkerboard-${out.length}`, ruleSource: 'checkerboard', ck: { a: pose(a), b: pose(b) }, cells: cr ? GRID_BUILD.checkerboard(cr, a, b) : buildCheckerboardCells(a, b) });
   }
   const kept = dedupeComponents(out);
   return kept.length ? kept : ruleIdentity();

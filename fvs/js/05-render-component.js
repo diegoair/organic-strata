@@ -637,6 +637,7 @@ const flipName = f => f ? 'Flip ' + f.toUpperCase().split('').join('+') : '';
 const turnName = t => 'Turn ' + t + '°';
 const variantHolds = c => { const z = [...new Set(c.cells.map(x => x.scale))]; return [z.length === 1 ? pct(z[0]) : 'Mixed scales', c.cells.some(x => !!x.flipH !== !!x.flipV) ? 'Flipped' : 'No flip'].join(' · '); };
 export function galleryGroups(list) {
+  if (list.some(c => c.ck) && list.every(c => c.ck && !c.layerInks && !c.colourway)) return checkerGroups(list);
   if (!list.some(c => c.xf)) return null;
   const xs = list.map(c => c.xf || {});
   const turns = [...new Set(xs.map(x => x.t || 0))].sort((a, b) => a - b), sizes = [...new Set(xs.map(x => x.s || 1))].sort((a, b) => a - b);
@@ -649,37 +650,61 @@ export function galleryGroups(list) {
   // only turns added (one column): the turns go ACROSS — a section is one row (Random, Exhaustive, Lines… with Turns)
   const across = keys.length === 1 && turns.length > 1;
   const per = (across ? 1 : turns.length) + 3;   // three empty rows open each section: space, its title, the column labels
-  const tOf = c => turns.indexOf((c.xf && c.xf.t) || 0);
+  const tOf = c => turns.indexOf((c.xf && c.xf.t) || 0), byId = Object.fromEntries(list.map(c => [c.id, c]));
   return {
-    cols: across ? turns.length : keys.length, turns, sizes, flips, bases, keys, across, per,
+    cols: across ? turns.length : keys.length, per,
+    sec: c => bases.indexOf(c.base || c.id),
     col: c => across ? tOf(c) : keys.indexOf(colOf(c)),
     row: c => bases.indexOf(c.base || c.id) * per + 3 + (across ? 0 : tOf(c)),
-    colLabel: (k, c) => { if (across) return turnName((c.xf && c.xf.t) || 0); const [f, sz] = JSON.parse(k); return [flipName(f), sizes.length > 1 || sz !== 1 ? pct(sz) : ''].filter(Boolean).join(' · '); },
+    rowLabel: c => !across && turns.length > 1 ? turnName((c.xf && c.xf.t) || 0) : null,
+    sectionLabel: c => { const b = byId[c.base || c.id] || c, own = c.ruleSource === 'random' || c.ruleSource === 'exhaustive'; return `${ruleLabel(c.ruleSource)} ${bases.indexOf(c.base || c.id) + 1}${own ? ' · ' + variantHolds(b) : ''}`; },
+    colLabel: c => { if (across) return turnName((c.xf && c.xf.t) || 0); const [f, sz] = JSON.parse(colOf(c)); return [flipName(f), sizes.length > 1 || sz !== 1 ? pct(sz) : ''].filter(Boolean).join(' · '); },
+  };
+}
+// Checkerboard grouped the same way (Diego, Oct 22, 2026: "qui non c'è il raggruppamento"): a section per A pose, a row per
+// B's turn, a column per B's flip × size — with turns only, one row per A and B's turns across. ck = {a, b}: {r, f, s}.
+function checkerGroups(list) {
+  const P = list.map(c => c.ck), key = x => JSON.stringify([x.s, x.f ? 1 : 0, x.r]);
+  const As = [...new Set(P.map(p => key(p.a)))].sort((x, y) => { const a = JSON.parse(x), b = JSON.parse(y); return a[1] - b[1] || a[0] - b[0] || a[2] - b[2]; });
+  const turns = [...new Set(P.map(p => p.b.r))].sort((a, b) => a - b);
+  const anyFlip = P.some(p => p.a.f || p.b.f), sizes = [...new Set(P.flatMap(p => [p.a.s, p.b.s]))];
+  const colOf = p => JSON.stringify([p.b.f ? 1 : 0, p.b.s]);
+  const keys = [...new Set(P.map(colOf))].sort((x, y) => { const a = JSON.parse(x), b = JSON.parse(y); return a[0] - b[0] || a[1] - b[1]; });
+  if (keys.length > GROUP_MAX_COLS || As.length > GROUP_MAX_SECTIONS) return null;
+  const across = keys.length === 1, per = (across ? 1 : turns.length) + 3;
+  const pose = x => [turnName(x.r), anyFlip ? (x.f ? 'Flip H' : 'No flip') : '', sizes.length > 1 ? pct(x.s) : ''].filter(Boolean).join(' · ');
+  const sec = c => As.indexOf(key(c.ck.a));
+  return {
+    cols: across ? turns.length : keys.length, per, sec,
+    col: c => across ? turns.indexOf(c.ck.b.r) : keys.indexOf(colOf(c.ck)),
+    row: c => sec(c) * per + 3 + (across ? 0 : turns.indexOf(c.ck.b.r)),
+    rowLabel: c => across ? null : 'B ' + turnName(c.ck.b.r),
+    sectionLabel: c => 'A · ' + pose(c.ck.a),
+    colLabel: c => across ? 'B · ' + turnName(c.ck.b.r) : 'B · ' + [anyFlip ? (c.ck.b.f ? 'Flip H' : 'No flip') : '', sizes.length > 1 ? pct(c.ck.b.s) : ''].filter(Boolean).join(' · '),
   };
 }
 function layoutGalleryGroups(gallery, list, wraps) {
   const G = galleryGroups(list);
   gallery.classList.toggle('is-grouped', !!G);
   if (G) gallery.style.setProperty('--gal-cols', G.cols);
-  const byId = Object.fromEntries(list.map(c => [c.id, c]));
-  const rowDone = new Set(), secDone = new Set(), colDone = new Set();
+  const rowDone = new Set(), secDone = new Set(), colDone = new Set(), top = {};
+  const first = {};   // a section's title sits on its topmost, then leftmost thumb (a folded pair can empty the first row)
+  if (G) list.forEach((c, i) => { const k = G.sec(c) + ':' + G.col(c), r = G.row(c), sc = G.sec(c), f = first[sc];
+    if (!(k in top) || r < top[k]) top[k] = r;   // a column's label sits on its topmost thumb
+    if (!f || r < f.r || (r === f.r && G.col(c) < f.c)) first[sc] = { r, c: G.col(c), i }; });
   wraps.forEach((w, i) => {
     const c = list[i];
     const cap = w.querySelector('.fvs-thumb-caption');
     delete w.dataset.rowLabel; delete w.dataset.sectionLabel; if (cap) delete cap.dataset.colLabel; w.style.removeProperty('--gcol');
     if (!G) { w.style.gridColumn = ''; w.style.gridRow = ''; return; }
-    const col = G.col(c), row = G.row(c), base = c.base || c.id, sec = G.bases.indexOf(base);
+    const col = G.col(c), row = G.row(c), sec = G.sec(c);
     w.style.gridColumn = String(col + 1); w.style.gridRow = String(row + 1);
     w.style.setProperty('--gcol', col);   // the labels on any wrap of a row / section shift back to the first column
-    if (!G.across && G.turns.length > 1 && !rowDone.has(row)) { rowDone.add(row); w.dataset.rowLabel = turnName((c.xf && c.xf.t) || 0); }
-    if (!secDone.has(sec)) {
-      secDone.add(sec);
-      const b = byId[base] || c, own = c.ruleSource === 'random' || c.ruleSource === 'exhaustive';
-      w.dataset.sectionLabel = `${ruleLabel(c.ruleSource)} ${sec + 1}${own ? ' · ' + variantHolds(b) : ''}`;
-    }
-    const lab = G.colLabel(JSON.stringify([(c.xf && c.xf.f) || '', (c.xf && c.xf.s) || 1, c.layerInks || null, c.colourway ? c.colourway.scheme + (c.colourway.label || '') : null]), c);
-    const ck = sec + ':' + col;
-    if (cap && lab && G.cols > 1 && !colDone.has(ck) && row === sec * G.per + 3) { colDone.add(ck); cap.dataset.colLabel = lab; }   // on the caption: attr() reads its own element
+    const rl = G.rowLabel(c);
+    if (rl && !rowDone.has(row)) { rowDone.add(row); w.dataset.rowLabel = rl; }
+    if (!secDone.has(sec) && first[sec].i === i) { secDone.add(sec); w.dataset.sectionLabel = G.sectionLabel(c); }
+    const lab = G.colLabel(c), ck = sec + ':' + col;
+    if (cap && lab && G.cols > 1 && !colDone.has(ck) && row === top[ck]) { colDone.add(ck); cap.dataset.colLabel = lab; }   // on the caption: attr() reads its own element
   });
 }
 // The thumbnail's save circle — rebuilt (alone) when the candidate's saved name changes.
