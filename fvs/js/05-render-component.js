@@ -638,7 +638,7 @@ const turnName = t => 'Turn ' + t + '°';
 const variantHolds = c => { const z = [...new Set(c.cells.map(x => x.scale))]; return [z.length === 1 ? pct(z[0]) : 'Mixed scales', c.cells.some(x => !!x.flipH !== !!x.flipV) ? 'Flipped' : 'No flip'].join(' · '); };
 export function galleryGroups(list) {
   if (list.some(c => c.ck) && list.every(c => c.ck && !c.layerInks && !c.colourway)) return checkerGroups(list);
-  if (!list.some(c => c.xf)) return null;
+  if (!list.some(c => c.xf)) return list.some(c => c.rv) && list.every(c => c.rv && !c.layerInks && !c.colourway) ? variantGroups(list) : null;
   const xs = list.map(c => c.xf || {});
   const turns = [...new Set(xs.map(x => x.t || 0))].sort((a, b) => a - b), sizes = [...new Set(xs.map(x => x.s || 1))].sort((a, b) => a - b);
   const flips = ['', 'h', 'v', 'hv'].filter(f => xs.some(x => (x.f || '') === f));
@@ -657,8 +657,27 @@ export function galleryGroups(list) {
     col: c => across ? tOf(c) : keys.indexOf(colOf(c)),
     row: c => bases.indexOf(c.base || c.id) * per + 3 + (across ? 0 : tOf(c)),
     rowLabel: c => !across && turns.length > 1 ? turnName((c.xf && c.xf.t) || 0) : null,
-    sectionLabel: c => { const b = byId[c.base || c.id] || c, own = c.ruleSource === 'random' || c.ruleSource === 'exhaustive'; return `${ruleLabel(c.ruleSource)} ${bases.indexOf(c.base || c.id) + 1}${own ? ' · ' + variantHolds(b) : ''}`; },
+    sectionLabel: c => { const b = byId[c.base || c.id] || c, own = c.ruleSource === 'random' || c.ruleSource === 'exhaustive';
+      if (b.rv) return [ruleLabel(c.ruleSource), b.rv.sec, b.rv.col].filter(Boolean).join(' · ');   // the rule's variant by name (Oct 22, 2026)
+      return `${ruleLabel(c.ruleSource)} ${bases.indexOf(c.base || c.id) + 1}${own ? ' · ' + variantHolds(b) : ''}`; },
     colLabel: c => { if (across) return turnName((c.xf && c.xf.t) || 0); const [f, sz] = JSON.parse(colOf(c)); return [flipName(f), sizes.length > 1 || sz !== 1 ? pct(sz) : ''].filter(Boolean).join(' · '); },
+  };
+}
+// The rule's own variants, grouped even with nothing applied after it (Diego, Oct 22, 2026: "il raggruppamento deve essere
+// fatto sempre per le regole con trasformazioni"): rv = {sec, col} — e.g. Step turn / Radial: a section per direction, a
+// column per start. One row per section.
+function variantGroups(list) {
+  const secs = [...new Set(list.map(c => c.rv.sec || ''))], cols = [...new Set(list.map(c => c.rv.col || ''))];
+  if (secs.length < 2 && cols.length < 2) return null;
+  if (cols.length > GROUP_MAX_COLS || secs.length > GROUP_MAX_SECTIONS) return null;
+  const per = 4, sec = c => secs.indexOf(c.rv.sec || '');
+  return {
+    cols: cols.length, per, sec,
+    col: c => cols.indexOf(c.rv.col || ''),
+    row: c => sec(c) * per + 3,
+    rowLabel: () => null,
+    sectionLabel: c => [ruleLabel(c.ruleSource), c.rv.sec].filter(Boolean).join(' · '),
+    colLabel: c => c.rv.col || null,
   };
 }
 // Checkerboard grouped the same way (Diego, Oct 22, 2026: "qui non c'è il raggruppamento"): a section per A pose, a row per

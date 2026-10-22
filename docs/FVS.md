@@ -333,6 +333,8 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 
 ### 5.2 The axes (Transform axes)
 
+**Every rule's own variants grouped (Oct 22, 2026, Diego: *il raggruppamento deve essere fatto sempre per le regole con trasformazioni*):** a rule names each Component's variant `rv {sec, col}` — Step turn and Radial (square cells and lattices): *Clockwise* / *Counter-clockwise* × *Start 0°…* — and the board groups by it even with nothing applied after the rule (`variantGroups`: a section per `sec`, a column per `col`); with Turns / Flip / Scale after it, each section is titled by the variant's name (*Radial · Clockwise · Start 90°*) instead of a number. The other rules get their `rv` as they are tested.
+
 **Checkerboard grouped (Oct 22, 2026, Diego: *qui non c'è il raggruppamento*):** each Component carries its pair `ck {a, b}` (pose = `{r, f, s}`); the board shows **a section per A pose** (*A · Turn 0° · No flip · Scale 75%*), **a row per B's turn** (*B Turn 90°*) and **a column per B's flip × size** (*B · Flip H · Scale 125%*); with plain turns only, one row per A and B's turns across (a 4 × 4 table with its diagonal empty — A = B is not a pair). A section's title and a column's label sit on its topmost thumb (a folded pair can empty a row). `checkerGroups` in `fvs/js/05-render-component.js`; not with Layer colour variants / colourways (flat).
 
 **Generated components grouped — the rule first, then the transformations (Oct 21, 2026, Diego).** When Turns / Flip / Scale

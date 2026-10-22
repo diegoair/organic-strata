@@ -408,7 +408,8 @@ export function familyRuleGallery(key) {
   if (fam.eligible && !fam.eligible()) return ruleIdentity();
   const av = axisValues();
   const cr = ruleCR();
-  const out = fam.paramSpace(av, cr).map((p, i) => ({ id: `${key}-${i}`, ruleSource: key, cells: fam.build(p, cr) }));
+  // rv: the rule's own variant, named — the board groups by it (Diego, Oct 22, 2026: "il raggruppamento deve essere fatto sempre")
+  const out = fam.paramSpace(av, cr).map((p, i) => ({ id: `${key}-${i}`, ruleSource: key, ...(fam.variant ? { rv: fam.variant(p) } : {}), cells: fam.build(p, cr) }));
   const kept = dedupeComponents(out);
   return kept.length ? kept : ruleIdentity();
 }
@@ -510,7 +511,7 @@ export function ruleRadial() {
   for (const base of [0, 90, 180, 270]) for (const ch of [1, -1]) for (const s of av.scales) {
     const cells = reading === 'centre' ? GRID_BUILD.radialCentre(cr || CR_2X2, base, ch, s)
       : cr ? GRID_BUILD.radial(cr, base, ch, s, reading === 'blocks') : buildRadialCells(base, ch, s);
-    out.push({ id: `radial-${out.length}`, ruleSource: 'radial', cells });
+    out.push({ id: `radial-${out.length}`, ruleSource: 'radial', rv: { sec: ch > 0 ? 'Clockwise' : 'Counter-clockwise', col: 'Start ' + base + '°' }, cells });
   }
   const kept = dedupeComponents(out);
   return kept.length ? kept : ruleIdentity();
@@ -678,6 +679,7 @@ export const FAMILIES = {
       return out;
     },
     build(p, cr) { return cr ? GRID_BUILD.pinwheel(cr, p.base, p.chirality, p.scale) : buildPinwheelCells(p.base, p.chirality, p.scale); },
+    variant: p => ({ sec: p.chirality > 0 ? 'Clockwise' : 'Counter-clockwise', col: 'Start ' + p.base + '°' }),
   },
   mirror: {
     requiresAxis: 'flip',
@@ -962,13 +964,14 @@ export function latticeRule(mode, opts) {
   const n = getGrid().cells.length, scales = axisValues().scales;
   const pack = (key, list) => dedupeComponents(list.map((cells, i) => ({ id: `${key}-${i}`, ruleSource: key, cells })));
   if (mode === 'identity') return pack('identity', latticeStates().map(s => Array.from({ length: n }, () => ({ ...s }))));
-  if (mode === 'radial') return pack('radial', latticeSteps().flatMap(e => scales.map(s => latticeRadialCells(e, s))));
+  if (mode === 'radial') return dedupeComponents(latticeSteps().flatMap(e => scales.map(s => ({ cells: latticeRadialCells(e, s), rv: { sec: '', col: 'Start ' + e + '°' } }))).map((c, i) => ({ id: `radial-${i}`, ruleSource: 'radial', rv: c.rv, cells: c.cells })));
   // Step turn: each cell one step of the cell shape's own (hexagon 60°, triangle 120°, circle 90°) more than the one
   // before it in reading order; start × direction × scales (Oct 13, 2026).
   if (mode === 'pinwheel') {
     const st = CELL_SHAPES[state.cellShape].step, rank = latticeReadingRank(getGrid()), list = [];
-    for (const start of latticeSteps()) for (const ch of [1, -1]) for (const s of scales) list.push(rank.map(k => stateFrom(mod360(start + ch * st * k), false, false, s)));
-    return pack('pinwheel', list);
+    const rvs = [];
+    for (const start of latticeSteps()) for (const ch of [1, -1]) for (const s of scales) { list.push(rank.map(k => stateFrom(mod360(start + ch * st * k), false, false, s))); rvs.push({ sec: ch > 0 ? 'Clockwise' : 'Counter-clockwise', col: 'Start ' + start + '°' }); }
+    return dedupeComponents(list.map((cells, i) => ({ id: `pinwheel-${i}`, ruleSource: 'pinwheel', rv: rvs[i], cells })));
   }
   if (mode === 'mirror') {
     const kind = latticeMirrorKind(), seeds = kind === 'square' ? [0, 1, 2, 3] : kind === 'lines' ? [0, 1] : [0], list = [];
