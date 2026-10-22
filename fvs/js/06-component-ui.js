@@ -578,34 +578,33 @@ export function syncRuleAvailability() {
   if (sel.value === 'exhaustive') syncExhaustiveHint();
 }
 
-// Mirror › Line (Both · Left–right · Top–bottom) and Span (Cell · Pair · Whole grid), Oct 13, 2026: an option this grid
-// or cell shape cannot run is greyed with its reason (aria-disabled + title + aria-description, the Grid shape seg's
-// pattern) and the pick falls back to Both / Cell.
-const MIRROR_LINE_WHY = { both: 'Both needs 2 or more columns and rows', lr: 'Left–right needs 2 or more columns', tb: 'Top–bottom needs 2 or more rows' };
-function mirrorWhy(kind, v) {
-  if (state.cellShape !== 'square') return kind === 'line' ? `${v === 'lr' ? 'Left–right' : 'Top–bottom'} needs square cells` : `${v === 'pair' ? 'Pair' : 'Whole grid'} needs square cells`;
-  if (kind === 'line') return MIRROR_LINE_WHY[v];
-  return `${v === 'pair' ? 'Pair' : 'Whole grid'} needs 3 or more cells along the Line`;
-}
-function syncSeg(id, attr, ok, value, kind) {
-  ctrl(id).querySelectorAll('.seg-btn').forEach(b => {
-    const v = b.dataset[attr], can = ok.includes(v), on = v === value;
-    b.setAttribute('aria-disabled', String(!can));
-    if (can) { b.removeAttribute('title'); b.removeAttribute('aria-description'); }
-    else { const why = mirrorWhy(kind, v); b.title = why; b.setAttribute('aria-description', why); }
+// Mirror (Line: All around · Side by side · Above and below) and Pattern (Span: Alternate · In pairs · Book), icons since
+// Oct 22, 2026 (Diego): an option this grid or cell shape cannot run is HIDDEN (was greyed with its reason), and a row
+// with one option left is hidden too; the pick falls back to the first one left.
+const MIRROR_ICONS = { line: { both: 'fvs-mirror-around', lr: 'fvs-mirror-side', tb: 'fvs-mirror-above' }, span: { cell: 'fvs-pattern-alternate', pair: 'fvs-pattern-pairs', grid: 'fvs-pattern-book' } };
+['line', 'span'].forEach(k => ctrl('seg-mirror-' + k).querySelectorAll('.seg-btn').forEach(b => { b.innerHTML = Organica.icons.get(MIRROR_ICONS[k][b.dataset[k]]); }));
+function syncSeg(id, attr, ok, value) {
+  const seg = ctrl(id), had = seg.contains(document.activeElement);
+  seg.querySelectorAll('.seg-btn').forEach(b => {
+    const v = b.dataset[attr], on = v === value;
+    b.hidden = !ok.includes(v);
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
   });
+  if (had && document.activeElement && document.activeElement.hidden) { const a = seg.querySelector('.seg-btn.active'); if (a) a.focus(); }   // never leave focus on a hidden button
+  return ok.length > 1;
 }
 export function syncMirrorLine() {
   const lines = mirrorLinesEligible();
   if (!lines.includes(state.mirrorLine)) state.mirrorLine = lines[0] || 'both';
   // hexagon / triangle cells (and hex-packed circles) have one mirror of their own: Line and Span hidden (Diego, Oct 22, 2026)
   const own = state.cellShape !== 'square' && latticeMirrorKind() !== 'square';
-  ['seg-mirror-line', 'seg-mirror-span'].forEach(id => { ctrl(id).closest('.ctrl-row').style.display = own ? 'none' : ''; });   // .ctrl-row is flex
   const spans = mirrorSpreadsEligible(state.mirrorLine);
   if (!spans.includes(state.mirrorSpread)) state.mirrorSpread = 'cell';
-  syncSeg('seg-mirror-line', 'line', lines, state.mirrorLine, 'line');
-  syncSeg('seg-mirror-span', 'span', spans, state.mirrorSpread, 'span');
+  const show = {
+    'seg-mirror-line': syncSeg('seg-mirror-line', 'line', lines, state.mirrorLine),
+    'seg-mirror-span': syncSeg('seg-mirror-span', 'span', spans, state.mirrorSpread),
+  };
+  Object.keys(show).forEach(id => { ctrl(id).closest('.ctrl-row').style.display = own || !show[id] ? 'none' : ''; });   // .ctrl-row is flex
 }
 export function setMirrorLine(line) {
   if (!mirrorLinesEligible().includes(line)) return;
@@ -619,7 +618,7 @@ export function syncCheckerStart() {
   if (state.checkerStart >= n) state.checkerStart = 0;
   ctrl('seg-checker-start').querySelectorAll('.seg-btn').forEach(b => {
     const v = +b.dataset.start, on = v === state.checkerStart;
-    b.style.display = v < n ? '' : 'none';
+    b.hidden = v >= n;   // [hidden], so the seg's rounded ends follow the visible buttons (shared/panel.css)
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
   });
   ctrl('checker-cells-rows').hidden = state.cellShape !== 'square';   // Cells A · B: square cells (lattices: A · B · C)

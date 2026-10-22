@@ -1448,21 +1448,23 @@
           <div class="seg-ctrl" id="seg-checker-start" role="group" aria-labelledby="checker-start-label">
             <button type="button" class="seg-btn active" data-start="0" aria-pressed="true" aria-label="State A">A</button>
             <button type="button" class="seg-btn" data-start="1" aria-pressed="false" aria-label="State B">B</button>
-            <button type="button" class="seg-btn" data-start="2" aria-pressed="false" aria-label="State C" style="display:none">C</button>
+            <button type="button" class="seg-btn" data-start="2" aria-pressed="false" aria-label="State C" hidden>C</button>
           </div></div>
       </div>
       <div id="rule-mirror-block" style="display:none">
-        <div class="ctrl-row"><div class="ctrl-label" id="mirror-line-label">Line</div>
+        <!-- Mirror (was Line) · Pattern (was Span) as icons, an option the grid cannot run hidden, a row with one option
+             left hidden (Diego, Oct 22, 2026; design-system CONSULT the same day). data-line / data-span keep the engine's keys. -->
+        <div class="ctrl-row"><div class="ctrl-label" id="mirror-line-label">Mirror</div>
           <div class="seg-ctrl" id="seg-mirror-line" role="group" aria-labelledby="mirror-line-label">
-            <button type="button" class="seg-btn active" data-line="both" aria-pressed="true">Both</button>
-            <button type="button" class="seg-btn" data-line="lr" aria-pressed="false">Left–right</button>
-            <button type="button" class="seg-btn" data-line="tb" aria-pressed="false">Top–bottom</button>
+            <button type="button" class="seg-btn" data-line="lr" aria-pressed="false" aria-label="Side by side" title="Side by side" data-icon-slot></button>
+            <button type="button" class="seg-btn" data-line="tb" aria-pressed="false" aria-label="Above and below" title="Above and below" data-icon-slot></button>
+            <button type="button" class="seg-btn active" data-line="both" aria-pressed="true" aria-label="All around" title="All around" data-icon-slot></button>
           </div></div>
-        <div class="ctrl-row"><div class="ctrl-label" id="mirror-span-label">Span</div>
+        <div class="ctrl-row"><div class="ctrl-label" id="mirror-span-label">Pattern</div>
           <div class="seg-ctrl" id="seg-mirror-span" role="group" aria-labelledby="mirror-span-label">
-            <button type="button" class="seg-btn active" data-span="cell" aria-pressed="true">Cell</button>
-            <button type="button" class="seg-btn" data-span="pair" aria-pressed="false">Pair</button>
-            <button type="button" class="seg-btn" data-span="grid" aria-pressed="false">Whole grid</button>
+            <button type="button" class="seg-btn active" data-span="cell" aria-pressed="true" aria-label="Alternate" title="Alternate" data-icon-slot></button>
+            <button type="button" class="seg-btn" data-span="pair" aria-pressed="false" aria-label="In pairs" title="In pairs" data-icon-slot></button>
+            <button type="button" class="seg-btn" data-span="grid" aria-pressed="false" aria-label="Book" title="Book" data-icon-slot></button>
           </div></div>
       </div>
       <div id="rule-lines-block" style="display:none">

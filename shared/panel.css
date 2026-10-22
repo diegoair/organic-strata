@@ -592,8 +592,13 @@ input[type=range]:focus-visible::-moz-range-track {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.seg-btn:first-child { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
-.seg-btn:last-child  { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+/* the ends are the first / last VISIBLE buttons: a seg may hide an option it cannot run (FVS Mirror, Checkerboard's
+   Start at C — Oct 22, 2026), and a hidden last child would leave the visible end square; :where() keeps the old (0,1,0) weight so
+   .seg-ctrl--multi's own rounded chips still win */
+.seg-btn[hidden] { display: none; }
+.seg-btn:where(:nth-child(1 of :not([hidden]))) { margin-left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.seg-btn:where(:nth-last-child(1 of :not([hidden]))) { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.seg-btn:where(:nth-child(1 of :not([hidden])):nth-last-child(1 of :not([hidden]))) { border-radius: var(--radius-sm); }
 .seg-btn:disabled, .seg-btn[aria-disabled="true"] { opacity: 0.42; cursor: not-allowed; }
 @media (hover: hover) {
   .seg-btn:hover:not(:disabled):not([aria-disabled="true"]):not(.active):not([aria-pressed="true"]) { background: var(--track-bg); color: var(--ink); }
