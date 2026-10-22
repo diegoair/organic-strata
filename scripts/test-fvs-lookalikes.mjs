@@ -24,7 +24,10 @@ const res = await P.ev(`
         set('sel-rule', rule);
         const all = run(true), kept = run(false);
         const ki = kept.map(img), ai = all.map(img);
-        const lost = ai.filter(a => !ki.some(k => same(a, k))).length;
+        // Checkerboard also drops a pair whose A and B draw the same for this Element (a Uniform, not a pair — Oct 22, 2026):
+        // such a loss is fine when the Component draws exactly as every cell in its A pose
+        const asUniform = c => { const p = c.cells[0]; return { ...c, cells: c.cells.map(x => ({ ...x, rotation: p.rotation, flipH: p.flipH, flipV: p.flipV, scale: p.scale })) }; };
+        const lost = ai.filter((a, i) => !ki.some(k => same(a, k)) && !(rule === 'checkerboard' && same(a, img(asUniform(all[i]))))).length;
         let dupes = 0; for (let i = 0; i < ki.length && i < 120; i++) for (let j = i + 1; j < ki.length && j < 120; j++) if (same(ki[i], ki[j])) dupes++;
         const tag = shape + ' ' + (ax[1] ? 'RF' : ax[2] ? 'RS' : 'R') + ' ' + rule;
         rows.push(tag + ': ' + all.length + ' → ' + kept.length);

@@ -622,7 +622,10 @@ export function syncCheckerStart() {
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
   });
   ctrl('checker-cells-rows').hidden = state.cellShape !== 'square';   // Cells A · B: square cells (lattices: A · B · C)
-  ctrl('checker-b-row').style.display = pc('chk-checker-flipb') ? 'none' : '';   // Flip B: B is A mirrored (a .ctrl-row: flex beats [hidden])
+  // Cells B never offers A's own turn while every pose is a plain turn (no Flip, no Scale): that pair is a Uniform (Oct 22, 2026)
+  const a = pv('sel-checker-a'), only = !pc('chk-axis-flip') && !pc('chk-axis-scale'), selB = ctrl('sel-checker-b');
+  [...selB.options].forEach(o => { o.hidden = only && a !== 'any' && o.value === a; });
+  if (selB.selectedOptions[0] && selB.selectedOptions[0].hidden) { selB.value = 'any'; selB.dispatchEvent(new Event('change', { bubbles: true })); }
 }
 export function setCheckerStart(v) { state.checkerStart = v; syncCheckerStart(); }
 // Rhythm (Oct 14, 2026): Mode Beat · Two beats · Wave · Connect, each with its own rows; Row shift for all but
@@ -735,7 +738,7 @@ export function activeSavedRule() {
 // Custom (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 2): a rule that Turns transforms (after it) shows as Custom,
 // the base rule kept underneath (its own controls stay); Random and Exhaustive never do — the turns are their material.
 // Picking any rule from the menu starts clean: Turns off (Diego: a re-pick of the same rule too).
-const CUSTOMIZABLE = new Set(['identity', 'mirror', 'checkerboard', 'hlines', 'vlines', 'oscillator', 'pinwheel', 'radial']);
+const CUSTOMIZABLE = new Set(['identity', 'mirror', 'hlines', 'vlines', 'oscillator', 'pinwheel', 'radial']);
 // Custom: Turns (two or more) on a rule it transforms after, or Flip / Scale on an FS_AFTER rule (phase 5) — and only when
 // the transformation adds a Component the rule alone does not draw, after the look-alike fold (Diego, Oct 22, 2026: "se
 // Flip o Scale non aggiungono nessun component nuovo, non mostrare Custom" — e.g. Flip on Step turn with an Arc). The

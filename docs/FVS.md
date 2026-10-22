@@ -342,11 +342,16 @@ only turns added (one column) the turns go **across** and each variant is one ro
 Component (`galleryGroups`, `layoutGalleryGroups`); up to 16 columns and 64 sections, else a flat grid; other Elements' areas
 stay flat; a missing cell = a copy identical to another variant, folded. Each thumb's name adds its turn / flip / size.
 
-**Flip and Scale since Oct 21, 2026** (plan phase 5): applied **after** the rule like Turns for Uniform, Mirror, Checkerboard,
+**Flip and Scale since Oct 21, 2026** (plan phase 5): applied **after** the rule like Turns for Uniform, Mirror,
 Lines, Rhythm, Step turn and Radial — every Component again mirrored (none · H · V · both) and at each size (Small · Medium ·
 Large), one per value (`FS_AFTER`, `flipScaleAfter`); Random and Exhaustive keep them as their material. Lines and Rhythm own
-their sizes (switch **Sizes**, 75 · 100 · 125 %) and Rhythm › Connect its mirrored pieces (**Flips**). Checkerboard's Cells A
-and Cells B each take a size (100 % default, *Any*).
+their sizes (switch **Sizes**, 75 · 100 · 125 %) and Rhythm › Connect its mirrored pieces (**Flips**). **Checkerboard since Oct 22, 2026** (Diego: *nella complessità si è persa la potenzialità*): Flip and Scale are its
+**material** again, as for Random and Exhaustive — a **pose** = the cell shape's turn × flipped or not (V = H turned 180°, both = 180°) ×
+size; Generate lists every pair of distinct poses once (2×2: 6 plain · 28 with Flip · 66 with Scale · 276 with both, before the
+look-alike fold) and drops a pair whose A and B draw the same for the Element (a Uniform). **Cells A / Cells B** (*Any* · 0° ·
+90° · 180° · 270°) keep the pairs whose A / B cells hold that turn; Cells B hides A's turn while there is no Flip and no Scale.
+*Flip B instead of rotate* and the size per side are gone (Flip covers them); Turns is not shown (its turns are its own,
+`ruleAxes` rotation `'own'`; a whole-board turn only gave Start at's swapped boards) and the menu never says *Custom*.
 
 **Turns since Oct 21, 2026** (docs/FVS-RULE-TRANSFORMS.md phase 1 — *the Rule decides, Turn transforms*): a switch **Turns**,
 **off** by default; on, **Up to** (0–355°) and **Every** (5–180°, 5° steps; a free step may clip on square cells) give

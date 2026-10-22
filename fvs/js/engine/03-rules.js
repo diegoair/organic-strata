@@ -301,12 +301,14 @@ export function rotationValues() {
 // Component turns by each value — one Component per turn (TURN_AFTER). Step turn and Radial make their own turns (no
 // Turns row). Checkerboard, Random and Exhaustive include the cell shape's own turns in the rule, whatever Turns says
 // (OWN_TURNS — Diego, Oct 21: "the turns are their material, in the rule; they don't touch Turns"); Turns adds after.
-export const TURN_AFTER = new Set(['identity', 'mirror', 'hlines', 'vlines', 'oscillator', 'checkerboard', 'random', 'exhaustive']);
+// Checkerboard left it Oct 22, 2026: a whole-board turn of its pairs only gave the swapped boards Start at already gives
+export const TURN_AFTER = new Set(['identity', 'mirror', 'hlines', 'vlines', 'oscillator', 'random', 'exhaustive']);
 export const OWN_TURNS = new Set(['checkerboard', 'random', 'exhaustive']);
 // Flip and Scale after the rule too (Oct 21, 2026 — plan phase 5): these rules draw without them, then every Component
 // comes again mirrored / at each size. Random and Exhaustive keep Flip and Scale as their material (Diego); Lines and
-// Rhythm own their row-by-row sizes (Sizes) and Connect its mirrored pieces (Flips) — OWN_SIZES.
-export const FS_AFTER = new Set(['identity', 'mirror', 'checkerboard', 'hlines', 'vlines', 'oscillator', 'pinwheel', 'radial']);
+// Rhythm own their row-by-row sizes (Sizes) and Connect its mirrored pieces (Flips) — OWN_SIZES. Checkerboard too keeps
+// them as material since Oct 22, 2026 (Diego, "proviamo"): its A / B difference IS the rule — a pose = turn × flip × size.
+export const FS_AFTER = new Set(['identity', 'mirror', 'hlines', 'vlines', 'oscillator', 'pinwheel', 'radial']);
 export const OWN_SIZES = [0.75, 1.0, 1.25];
 export function withFlipScaleOff(fn) { const k = live.flipScaleOff; live.flipScaleOff = true; try { return fn(); } finally { live.flipScaleOff = k; } }
 export function flipScaleAfter(list) {
@@ -343,6 +345,7 @@ export function ruleAxes(mode, { lattice = false, rhythm = 'beat' } = {}) {
   switch (mode) {
     case 'identity': return lattice ? all : { rotation: null, flip: false, scale: false };
     case 'pinwheel': case 'radial': return { rotation: 'own', flip: false, scale: true };
+    case 'checkerboard': return lattice ? all : { rotation: 'own', flip: true, scale: true };   // its turns are the cell shape's (Oct 22, 2026)
     case 'hlines': case 'vlines': return { rotation: null, flip: false, scale: true };
     case 'oscillator': return rhythm === 'connect' ? { rotation: null, flip: true, scale: false } : { rotation: null, flip: false, scale: true };
     default: return all;   // Mirror, Checkerboard, Random, Exhaustive (and the hidden legacy rules)
@@ -457,22 +460,20 @@ export function checkerStates(list) {
 export function ruleCheckerboard() {
   if (state.cellShape !== 'square') return latticeRule('checkerboard');
   const av = axisValues(), cr = ruleCR(), S = [];
-  for (const r of av.rotations) for (const f of av.flips) for (const sc of av.scales) S.push(stateFrom(r, f.h, f.v, sc));
+  // one spelling per pose: flip V = flip H turned 180°, both = 180° (so Cells A 0° never catches 0° + V, which is 180° + H)
+  for (const r of av.rotations) for (const f of av.flips) for (const sc of av.scales) S.push(f.v ? stateFrom(mod360(r + 180), !f.h, false, sc) : stateFrom(r, f.h, false, sc));
   const states = checkerStates(S), start = state.checkerStart === 1 ? 1 : 0, out = [];
-  // Cells A · Cells B · Flip B (Oct 21, 2026 — plan phase 4): Any = every pair, as before; a turn keeps the pairs whose A
-  // (or B) cells hold it; Flip B pairs each A with itself mirrored instead of another turn
-  // + a size each (phase 5): 100 % by default, Any = 75 · 100 · 125 — the mixed-size pairs are the rule's own
-  const A = pv('sel-checker-a'), B = pv('sel-checker-b'), flipB = pc('chk-checker-flipb');
-  const As = pv('sel-checker-a-size') || '100', Bs = pv('sel-checker-b-size') || '100';
-  const sized = (list, v) => v === 'any' ? list.flatMap(s => OWN_SIZES.map(z => stateFrom(s.rotation, s.flipH, s.flipV, s.scale * z))) : list.map(s => stateFrom(s.rotation, s.flipH, s.flipV, s.scale * (+v / 100)));
+  // A pose = turn × flip × size: the cell shape's own turns, and Flip / Scale from Transform axes as material (Oct 22,
+  // 2026 — Diego: "nella complessità si è persa la potenzialità"; was Flip / Scale after the rule + Flip B + a size each).
+  // Every pair of distinct poses once (Start at swaps it); Cells A / Cells B keep the pairs whose A (or B) cells hold that
+  // turn — then each side is fixed, so (A, B) and (B, A) both count.
+  const A = pv('sel-checker-a'), B = pv('sel-checker-b');
   const fits = (s, v) => !v || v === 'any' || s.rotation === +v;
-  const pairs = [], SA = sized(states, As), SB = sized(states, Bs), seen = new Set(), key = (x, y) => JSON.stringify([x, y]);
-  if (flipB) SA.forEach(s => { if (fits(s, A)) { const z = Bs === 'any' || Bs === As ? s.scale : s.scale / (As === 'any' ? 1 : +As / 100) * (+Bs / 100); pairs.push([s, stateFrom(s.rotation, !s.flipH, s.flipV, z)]); } });
-  else for (const x of SA) for (const y of SB) {
-    if (x.rotation === y.rotation && x.flipH === y.flipH && x.flipV === y.flipV && x.scale === y.scale) continue;
-    if (!fits(x, A) || !fits(y, B)) continue;
-    // each unordered pair once, as before (Start at swaps it), unless A / B fix which side is which
-    const k = A === 'any' && B === 'any' && As === Bs ? [key(x, y), key(y, x)].sort()[0] : key(x, y);
+  const pairs = [], seen = new Set(), key = (x, y) => JSON.stringify([x, y]);
+  for (const x of states) for (const y of states) {
+    if (x === y || !fits(x, A) || !fits(y, B)) continue;
+    if (live.cellKey && live.cellKey(x) === live.cellKey(y)) continue;   // A and B look the same for this Element: a Uniform, not a pair
+    const k = A === 'any' && B === 'any' ? [key(x, y), key(y, x)].sort()[0] : key(x, y);
     if (seen.has(k)) continue; seen.add(k); pairs.push([x, y]);
   }
   for (const [p, q] of pairs) {

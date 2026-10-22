@@ -127,9 +127,9 @@ const CAPTURE = async () => {
     g('Start at B', 'the same six pairs, B on the top‑left cell — the same board started on the other square', 2, chk(1))];
   grid(2, { 'chk-axis-flip': true });
   const rf = chk(0); st.checkerStart = 0;
-  G.checkerboard.push(g('With Flip on', `each pair of the 12 distinct states (4 turns × none / left–right / top–bottom; both flips = a 180° turn) — ${rf.length} pairs; the first 8 shown`, 2, rf.slice(0, 8)));
+  G.checkerboard.push(g('With Flip on', `a pose = turn × flipped or not (top–bottom = left–right turned 180°, both = 180°): 8 poses, each pair once — ${rf.length} pairs; the first 8 shown. With Scale on, × the three sizes too`, 2, rf.slice(0, 8)));
   cr = grid(2);
-  G.checkerboard.push(g('Diagonal mirror pattern', 'A = R, B = 90° − R: 0° / 90°, 90° / 0°, 180° / 270°, 270° / 180° — four of the twelve above', 2, [0, 90, 180, 270].map(r => B(cr, 'diagonal', { rotation: r, scale: 1 }))));
+  G.checkerboard.push(g('Diagonal mirror pattern', 'A = R, B = 90° − R: 0° / 90°, 90° / 0°, 180° / 270°, 270° / 180° — the plain-turn pairs, with Start at', 2, [0, 90, 180, 270].map(r => B(cr, 'diagonal', { rotation: r, scale: 1 }))));
   const rad = (n, m, reading, ch) => { grid(n, {}, m); st.radialReading = reading; return R.ruleRadial().filter((x, k) => (ch > 0 ? k % 2 === 0 : k % 2 === 1)).map(x => row(x.cells)); };
   G.radial = [g('Turn by Quadrant · clockwise', 'a walk TL → TR → BR → BL, +90° each — four quarter‑arcs close a circle; start 0° · 90° · 180° · 270°', 2, rad(2, 2, 'quadrants', 1)),
     g('Turn by Quadrant · counter‑clockwise', 'the same walk, −90° each', 2, rad(2, 2, 'quadrants', -1)),
