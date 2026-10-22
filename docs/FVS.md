@@ -333,6 +333,8 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 
 ### 5.2 The axes (Transform axes)
 
+**Turns on Checkerboard and Step turn (Oct 22, 2026, Diego: *in checkerboard anyway turns should be visible · lo stesso in step turn*):** the Turns row shows on both; **off** = the cell shape's own turns, as before; **on** = Up to / Every **replace** them (`TURNS_REPLACE`, `withTurnsReplace`, `stepTurnSpace`): Checkerboard draws its poses from 0 … Up to by Every (Every 45° → 8 turns, 56 boards on a 2×2), Step turn takes Every as the step between neighbouring cells and 0 … Up to as its starts (Every 45° → 16). Neither becomes *Custom*. Radial keeps no Turns.
+
 **Radial — the whole package (Oct 22, 2026, Diego):** no *Turn by* row any more; Generate makes every reading the grid can run — **By quadrant · By 2×2 block · By cell** (*Quadrant · Each 2×2 · Cell* before) — × direction × start (4×4: 24; a 2×2, where the three draw the same, 8; odd grids By cell only), grouped a section per reading · direction, a column per start (`RADIAL_READING_NAME`).
 
 **Every rule's own variants grouped (Oct 22, 2026, Diego: *il raggruppamento deve essere fatto sempre per le regole con trasformazioni*):** a rule names each Component's variant `rv {sec, col}` — Step turn and Radial (square cells and lattices): *Clockwise* / *Counter-clockwise* × *Start 0°…* — and the board groups by it even with nothing applied after the rule (`variantGroups`: a section per `sec`, a column per `col`); with Turns / Flip / Scale after it, each section is titled by the variant's name (*Radial · Clockwise · Start 90°*) instead of a number. The other rules get their `rv` as they are tested.

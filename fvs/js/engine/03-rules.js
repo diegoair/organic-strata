@@ -91,9 +91,9 @@ export function buildIdentityCells(rotation, flipH, flipV, scale, count) {
   const c = stateFrom(rotation, flipH, flipV, scale);
   return new Array(count).fill(c);
 }
-export function buildPinwheelCells(base, chirality, scale) {
+export function buildPinwheelCells(base, chirality, scale, step = 90) {
   return [0, 1, 2, 3].map(i => {
-    const rot = (((base + chirality * i * 90) % 360) + 360) % 360;
+    const rot = (((base + chirality * i * step) % 360) + 360) % 360;
     return stateFrom(rot, false, false, scale);
   });
 }
@@ -187,7 +187,7 @@ export const crDims = cr => ({ cols: Math.max(...cr.map(c => c.col)) + 1, rows: 
 // componentCellColRow(grid). On 2×2 each is identical to its literal builder.
 export const GRID_BUILD = {
   // step by (col + 2·row) mod 4 — on 2×2 that is exactly the row-major index
-  pinwheel: (cr, base, ch, sc) => cr.map(c => stateFrom(mod360(base + ch * ((c.col + 2 * c.row) % 4) * 90), false, false, sc)),
+  pinwheel: (cr, base, ch, sc, step = 90) => cr.map(c => stateFrom(mod360(base + ch * (step === 90 ? (c.col + 2 * c.row) % 4 : c.col + 2 * c.row) * step), false, false, sc)),
   // the seed cell sits at (seed % 2, seed >> 1); flips follow column/row parity from it
   mirror: (cr, seed, sc) => { const sx = seed % 2, sy = seed >> 1; return cr.map(c => stateFrom(0, (c.col + sx) % 2 === 1, (c.row + sy) % 2 === 1, sc)); },
   // one mirror axis through the WHOLE grid (book-matched halves) instead of
@@ -290,7 +290,20 @@ export function rotationSteps(shape = state.cellShape) { const st = rotationStep
 // Turns (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 1): 0, Every, 2 × Every … up to Up to (#rg-turn-upto /
 // #rg-turn-every); a free step is allowed (the cells may clip). Nothing set = the cell shape's own steps.
 export function rotationValues() {
-  if (live.ownTurns) return rotationSteps();   // Checkerboard · Random · Exhaustive: the turns are part of the rule
+  // Checkerboard · Random · Exhaustive: the turns are part of the rule — the cell shape's steps, or for Checkerboard and Step
+  // turn (TURNS_REPLACE) Up to / Every when Turns is on (Diego, Oct 22, 2026: "in checkerboard turns should be visible")
+  if (live.ownTurns) return live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : rotationSteps();
+  return panelTurns();
+}
+export const TURNS_REPLACE = new Set(['checkerboard', 'pinwheel']);
+export function withTurnsReplace(fn) { const k = live.turnsReplace; live.turnsReplace = true; try { return fn(); } finally { live.turnsReplace = k; } }
+// Step turn's step and starts: the cell shape's, or Every and 0 … Up to when Turns is on (TURNS_REPLACE)
+export function stepTurnSpace() {
+  const st = rotationStepOf(state.cellShape);
+  if (live.turnsReplace && pc('chk-axis-rotation')) { const ev = val('rg-turn-every'); return { step: ev > 0 ? ev : st, starts: panelTurns() }; }
+  return { step: st, starts: rotationSteps() };
+}
+function panelTurns() {
   const up = val('rg-turn-upto'), ev = val('rg-turn-every');
   if (!(ev > 0) || !(up >= 0)) return rotationSteps();
   const out = [];
@@ -344,8 +357,8 @@ export function ruleAxes(mode, { lattice = false, rhythm = 'beat' } = {}) {
   const all = { rotation: 'values', flip: true, scale: true };
   switch (mode) {
     case 'identity': return lattice ? all : { rotation: null, flip: false, scale: false };
-    case 'pinwheel': case 'radial': return { rotation: 'own', flip: false, scale: true };
-    case 'checkerboard': return lattice ? all : { rotation: 'own', flip: true, scale: true };   // its turns are the cell shape's (Oct 22, 2026)
+    case 'radial': return { rotation: 'own', flip: false, scale: true };
+    case 'pinwheel': return { rotation: 'values', flip: false, scale: true };   // Turns on = Every is the step, 0 … Up to the starts (Oct 22, 2026)
     case 'hlines': case 'vlines': return { rotation: null, flip: false, scale: true };
     case 'oscillator': return rhythm === 'connect' ? { rotation: null, flip: true, scale: false } : { rotation: null, flip: false, scale: true };
     default: return all;   // Mirror, Checkerboard, Random, Exhaustive (and the hidden legacy rules)
@@ -675,11 +688,11 @@ export const FAMILIES = {
   pinwheel: {
     requiresAxis: 'rotation',
     paramSpace(av) {
-      const out = [];
-      for (const base of [0, 90, 180, 270]) for (const chirality of [1, -1]) for (const s of av.scales) out.push({ base, chirality, scale: s });
+      const out = [], { step, starts } = live.turnsReplace ? stepTurnSpace() : { step: 90, starts: [0, 90, 180, 270] };
+      for (const base of starts) for (const chirality of [1, -1]) for (const s of av.scales) out.push({ base, chirality, scale: s, step });
       return out;
     },
-    build(p, cr) { return cr ? GRID_BUILD.pinwheel(cr, p.base, p.chirality, p.scale) : buildPinwheelCells(p.base, p.chirality, p.scale); },
+    build(p, cr) { return cr ? GRID_BUILD.pinwheel(cr, p.base, p.chirality, p.scale, p.step || 90) : buildPinwheelCells(p.base, p.chirality, p.scale, p.step || 90); },
     variant: p => ({ sec: p.chirality > 0 ? 'Clockwise' : 'Counter-clockwise', col: 'Start ' + p.base + '°' }),
   },
   mirror: {
@@ -969,9 +982,9 @@ export function latticeRule(mode, opts) {
   // Step turn: each cell one step of the cell shape's own (hexagon 60°, triangle 120°, circle 90°) more than the one
   // before it in reading order; start × direction × scales (Oct 13, 2026).
   if (mode === 'pinwheel') {
-    const st = CELL_SHAPES[state.cellShape].step, rank = latticeReadingRank(getGrid()), list = [];
+    const { step: st, starts } = live.turnsReplace ? stepTurnSpace() : { step: CELL_SHAPES[state.cellShape].step, starts: latticeSteps() }, rank = latticeReadingRank(getGrid()), list = [];
     const rvs = [];
-    for (const start of latticeSteps()) for (const ch of [1, -1]) for (const s of scales) { list.push(rank.map(k => stateFrom(mod360(start + ch * st * k), false, false, s))); rvs.push({ sec: ch > 0 ? 'Clockwise' : 'Counter-clockwise', col: 'Start ' + start + '°' }); }
+    for (const start of starts) for (const ch of [1, -1]) for (const s of scales) { list.push(rank.map(k => stateFrom(mod360(start + ch * st * k), false, false, s))); rvs.push({ sec: ch > 0 ? 'Clockwise' : 'Counter-clockwise', col: 'Start ' + start + '°' }); }
     return dedupeComponents(list.map((cells, i) => ({ id: `pinwheel-${i}`, ruleSource: 'pinwheel', rv: rvs[i], cells })));
   }
   if (mode === 'mirror') {

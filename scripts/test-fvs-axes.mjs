@@ -71,7 +71,8 @@ const turns = await P.ev(`
   const mOn = F.produceRule('mirror');
   if (!(mOn.length > mOff)) fails.push('Mirror with Turns adds Components: ' + mOff + ' → ' + mOn.length);
   eq('Mirror turned after: every cell + t', mOn.every(c => c.cells.every(x => [0, 90, 180, 270].includes(x.rotation))), true);
-  setv('sel-rule', 'pinwheel'); eq('Step turn: no Turns', row().hidden, true);
+  setv('sel-rule', 'pinwheel'); eq('Step turn: Turns shown (Oct 22, 2026 — on = Every is the step)', row().hidden, false);
+  setv('sel-rule', 'checkerboard'); eq('Checkerboard: Turns shown', row().hidden, false);
   setv('sel-rule', 'radial'); eq('Radial: no Turns', row().hidden, true);
   setv('sel-rule', 'mirror'); eq('Mirror: Turns shown', row().hidden, false);
   F.setCellShape('hexagon'); eq('hexagon defaults', F.rotationValues(), [0, 60, 120, 180, 240, 300]);

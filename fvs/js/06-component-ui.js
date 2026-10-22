@@ -16,7 +16,7 @@ import {
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
   ruleLines, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
-  rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, FS_AFTER, turnAfter, flipScaleAfter, withTurnsOff, withOwnTurns, withFlipScaleOff, ruleAxes, dedupeComponents
+  rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, FS_AFTER, turnAfter, flipScaleAfter, withTurnsOff, withOwnTurns, withFlipScaleOff, ruleAxes, dedupeComponents, TURNS_REPLACE, withTurnsReplace
 } from './engine/03-rules.js';
 import {
   appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, stretchOpts,
@@ -1080,6 +1080,7 @@ export function produceRule(mode, { after = true } = {}) {
   let draw = () => produceRuleBase(mode);
   if (FS_AFTER.has(mode)) { const d = draw; draw = () => withFlipScaleOff(d); }
   if (OWN_TURNS.has(mode)) { const d = draw; draw = () => withOwnTurns(d); } else if (TURN_AFTER.has(mode)) { const d = draw; draw = () => withTurnsOff(d); }
+  if (TURNS_REPLACE.has(mode)) { const d = draw; draw = () => withTurnsReplace(d); }   // Checkerboard, Step turn: Turns on replaces the cell's steps
   let list = draw();
   if (!after) return list && dedupeComponents(list);   // the rule alone, folded as Generate folds (ruleIsCustom compares)
   if (TURN_AFTER.has(mode)) list = turnAfter(list);
