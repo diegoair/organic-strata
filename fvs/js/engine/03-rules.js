@@ -295,7 +295,7 @@ export function rotationValues() {
   if (live.ownTurns) return live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : rotationSteps();
   return panelTurns();
 }
-export const TURNS_REPLACE = new Set(['checkerboard', 'pinwheel']);
+export const TURNS_REPLACE = new Set(['checkerboard', 'pinwheel', 'radial']);   // Radial too (Diego, Oct 22: "in Radial, bring back turns")
 export function withTurnsReplace(fn) { const k = live.turnsReplace; live.turnsReplace = true; try { return fn(); } finally { live.turnsReplace = k; } }
 // Step turn's step and starts: the cell shape's, or Every and 0 … Up to when Turns is on (TURNS_REPLACE)
 export function stepTurnSpace() {
@@ -357,7 +357,7 @@ export function ruleAxes(mode, { lattice = false, rhythm = 'beat' } = {}) {
   const all = { rotation: 'values', flip: true, scale: true };
   switch (mode) {
     case 'identity': return lattice ? all : { rotation: null, flip: false, scale: false };
-    case 'radial': return { rotation: 'own', flip: false, scale: true };
+    case 'radial': return { rotation: 'values', flip: false, scale: true };   // Turns on = the starts (Oct 22, 2026)
     case 'pinwheel': return { rotation: 'values', flip: false, scale: true };   // Turns on = Every is the step, 0 … Up to the starts (Oct 22, 2026)
     case 'hlines': case 'vlines': return { rotation: null, flip: false, scale: true };
     case 'oscillator': return rhythm === 'connect' ? { rotation: null, flip: true, scale: false } : { rotation: null, flip: false, scale: true };
@@ -521,7 +521,8 @@ export function ruleRadial() {
   if (!readings.length) return ruleIdentity();
   const av = axisValues(), cr = ruleCR(), out = [], d = cr ? crDims(cr) : { cols: 2, rows: 2 };
   if (d.cols === 2 && d.rows === 2) readings = readings.slice(0, 1);
-  for (const reading of readings) for (const ch of [1, -1]) for (const base of [0, 90, 180, 270]) for (const s of av.scales) {
+  const bases = live.turnsReplace && pc('chk-axis-rotation') ? stepTurnSpace().starts : [0, 90, 180, 270];   // Turns on: the starts
+  for (const reading of readings) for (const ch of [1, -1]) for (const base of bases) for (const s of av.scales) {
     const cells = reading === 'centre' ? GRID_BUILD.radialCentre(cr || CR_2X2, base, ch, s)
       : cr ? GRID_BUILD.radial(cr, base, ch, s, reading === 'blocks') : buildRadialCells(base, ch, s);
     const dir = ch > 0 ? 'Clockwise' : 'Counter-clockwise';
@@ -978,7 +979,7 @@ export function latticeRule(mode, opts) {
   const n = getGrid().cells.length, scales = axisValues().scales;
   const pack = (key, list) => dedupeComponents(list.map((cells, i) => ({ id: `${key}-${i}`, ruleSource: key, cells })));
   if (mode === 'identity') return pack('identity', latticeStates().map(s => Array.from({ length: n }, () => ({ ...s }))));
-  if (mode === 'radial') return dedupeComponents(latticeSteps().flatMap(e => scales.map(s => ({ cells: latticeRadialCells(e, s), rv: { sec: '', col: 'Start ' + e + '°' } }))).map((c, i) => ({ id: `radial-${i}`, ruleSource: 'radial', rv: c.rv, cells: c.cells })));
+  if (mode === 'radial') return dedupeComponents((live.turnsReplace && pc('chk-axis-rotation') ? stepTurnSpace().starts : latticeSteps()).flatMap(e => scales.map(s => ({ cells: latticeRadialCells(e, s), rv: { sec: '', col: 'Start ' + e + '°' } }))).map((c, i) => ({ id: `radial-${i}`, ruleSource: 'radial', rv: c.rv, cells: c.cells })));
   // Step turn: each cell one step of the cell shape's own (hexagon 60°, triangle 120°, circle 90°) more than the one
   // before it in reading order; start × direction × scales (Oct 13, 2026).
   if (mode === 'pinwheel') {
