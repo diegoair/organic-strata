@@ -1653,7 +1653,7 @@ picker.invalidate('oak');   <span class="attr">/* after the preset is re-saved *
     <section class="ds-entry" id="seg-ctrl">
       <h2>Segmented control</h2>
       <p class="ds-desc">A tab row inside the panel or header — mode switches, algorithm choices. Reads <code>aria-pressed</code> where a tool has converted to it; <code>.active</code> is kept for tools not yet migrated.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Used in</strong><span>Halide (F–S/Atkinson/Bayer/Flat)</span><span>Living Path (Vector/Raster)</span><span>Flexible Visual System (Grid shape — icon-only, a gated option)</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/panel.css</span><strong>Used in</strong><span>Halide (F–S/Atkinson/Bayer/Flat)</span><span>Living Path (Vector/Raster)</span><span>Flexible Visual System (Grid shape — icon-only, a gated option; Rule › Mirror · Pattern — icon-only, hidden options)</span></div>
       <div class="ds-example" style="max-width:280px">
         <div class="seg-ctrl">
           <button class="seg-btn active">A</button>
@@ -1669,16 +1669,31 @@ picker.invalidate('oak');   <span class="attr">/* after the preset is re-saved *
       <p class="ds-desc">When an option is impossible <em>for a reason the user can fix</em>, mark it <code>aria-disabled="true"</code>, not <code>disabled</code>: it looks the same (opacity .42, <code>not-allowed</code>, no hover wash), but it stays focusable and its <code>title</code> + <code>aria-description</code> say why. The handler ignores the click. Plain <code>disabled</code> is for an option with nothing to explain. First consumer: FVS Grid shape (Oct 6, 2026) — icon-only, the name on <code>aria-label</code>.</p>
       <div class="ds-example" style="max-width:280px">
         <div class="seg-ctrl" id="ds-seg-gated" role="group" aria-label="Grid shape">
-          <button type="button" class="seg-btn" aria-pressed="true" aria-label="Hexagon"><i data-icon="fvs-cell-hexagon"></i></button>
-          <button type="button" class="seg-btn" aria-pressed="false" aria-label="Triangle"><i data-icon="fvs-cell-triangle"></i></button>
-          <button type="button" class="seg-btn" aria-pressed="false" aria-label="Diamond"><i data-icon="fvs-diamond"></i></button>
-          <button type="button" class="seg-btn" id="ds-seg-gated-off" aria-pressed="false" aria-label="Square" aria-disabled="true" title="Square needs circle or hexagon cells" aria-description="Square needs circle or hexagon cells"><i data-icon="fvs-cell-square"></i></button>
+          <button type="button" class="seg-btn" aria-pressed="true" aria-label="Hexagon" data-icon-slot><i data-icon="fvs-cell-hexagon"></i></button>
+          <button type="button" class="seg-btn" aria-pressed="false" aria-label="Triangle" data-icon-slot><i data-icon="fvs-cell-triangle"></i></button>
+          <button type="button" class="seg-btn" aria-pressed="false" aria-label="Diamond" data-icon-slot><i data-icon="fvs-diamond"></i></button>
+          <button type="button" class="seg-btn" id="ds-seg-gated-off" aria-pressed="false" aria-label="Square" aria-disabled="true" title="Square needs circle or hexagon cells" aria-description="Square needs circle or hexagon cells" data-icon-slot><i data-icon="fvs-cell-square"></i></button>
         </div>
       </div>
       <pre class="ds-code">&lt;<span class="tag">button</span> <span class="attr">type</span>=<span class="str">"button"</span> <span class="attr">class</span>=<span class="str">"seg-btn"</span> <span class="attr">aria-label</span>=<span class="str">"Square"</span>
         <span class="attr">aria-disabled</span>=<span class="str">"true"</span> <span class="attr">title</span>=<span class="str">"Square needs circle or hexagon cells"</span>
         <span class="attr">aria-description</span>=<span class="str">"Square needs circle or hexagon cells"</span>&gt;…&lt;/<span class="tag">button</span>&gt;
 <span class="attr">/* panel.css */</span> .seg-btn:disabled, .seg-btn[aria-disabled="true"] { opacity: .42; cursor: not-allowed; }  <span class="attr">/* and excluded from both hover rules */</span></pre>
+      <h3 class="ds-sub">Icon-only, with hidden options — <code>[data-icon-slot]</code> · <code>[hidden]</code></h3>
+      <p class="ds-desc">An <strong>icon-only</strong> button carries its name on <code>aria-label</code> and <code>data-icon-slot</code>, and <strong>no <code>title</code></strong>: hovering or focusing it shows the floatbar’s instant tooltip, drawn by <code>::after</code> from <code>attr(aria-label)</code> (<code>--ink</code> on <code>--paper</code>, <code>--fs-small</code>, <code>--space-1</code> / <code>--space-2</code>, <code>--radius-sm</code>, <code>--space-3</code> above the button). The end buttons anchor the tip to their own edge so <code>#panel</code>'s scroll box does not clip it; a gated button (<code>aria-disabled</code>, above) shows no tip and keeps its reason in <code>title</code>. Why: the app’s browser shows no native <code>title</code> (Diego, Oct 22, 2026). An option the current settings <strong>cannot run</strong> may be <strong>hidden</strong> (<code>hidden</code>) instead of gated, when there is nothing for the user to fix there; the rounded ends follow the first and last <em>visible</em> buttons, and a lone visible button is rounded on both ends. A row left with one option is hidden by the tool. First consumers: FVS Rule › Mirror › <strong>Mirror</strong> · <strong>Pattern</strong> (Oct 22, 2026) — in this demo <em>Book</em> is hidden, so <em>In pairs</em> is the end.</p>
+      <div class="ds-example" style="max-width:280px">
+        <div class="ctrl-row" style="flex:1"><div class="ctrl-label" id="ds-seg-icon-label">Pattern</div>
+          <div class="seg-ctrl" id="ds-seg-icon" role="group" aria-labelledby="ds-seg-icon-label">
+            <button type="button" class="seg-btn" aria-pressed="true" aria-label="Alternate" data-icon-slot><i data-icon="fvs-pattern-alternate"></i></button>
+            <button type="button" class="seg-btn" id="ds-seg-icon-end" aria-pressed="false" aria-label="In pairs" data-icon-slot><i data-icon="fvs-pattern-pairs"></i></button>
+            <button type="button" class="seg-btn" id="ds-seg-icon-hidden" aria-pressed="false" aria-label="Book" data-icon-slot hidden><i data-icon="fvs-pattern-book"></i></button>
+          </div></div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">button</span> <span class="attr">type</span>=<span class="str">"button"</span> <span class="attr">class</span>=<span class="str">"seg-btn"</span> <span class="attr">aria-label</span>=<span class="str">"Book"</span> <span class="attr">data-icon-slot</span> <span class="attr">hidden</span>&gt;…&lt;/<span class="tag">button</span>&gt;
+<span class="attr">/* panel.css */</span> .seg-btn[hidden] { display: none; }
+.seg-btn:where(:nth-child(1 of :not([hidden]))) { … left corners }  .seg-btn:where(:nth-last-child(1 of :not([hidden]))) { … right corners }
+.seg-btn[data-icon-slot][aria-label]:not([aria-disabled="true"]):is(:hover, :focus-visible)::after { content: attr(aria-label); … }
+<span class="attr">/* :where() keeps (0,1,0), so .seg-ctrl--multi's own rounded chips still win */</span></pre>
       <h3 class="ds-sub">Several on at once — <code>.seg-ctrl--multi</code></h3>
       <p class="ds-desc">A set of <strong>independent toggles</strong>, not one-of-many: each <code>.seg-btn</code> carries its own <code>aria-pressed</code>, the group is <code>role="group"</code> named by its label (<code>aria-labelledby</code>). The buttons are spaced (<code>--space-1</code>) with their own <code>--radius-sm</code> corners, equal widths, and wrap — so the row never reads as a tab strip. <code>[data-locked]</code> = pressed and fixed (the set’s base: no pointer, no toggle; say why in <code>aria-description</code>). The tool owns <code>aria-pressed</code> here, so give each button <code>data-aria-own</code> (<code>Organica.a11y</code> then never re-derives it from a class). Decided by Diego, Oct 15, 2026; first consumer: FVS Rule › Axes › <strong>Turns</strong> (the angles a cell shape tiles with, 0° locked).</p>
       <div class="ds-example" style="max-width:280px">
@@ -2923,6 +2938,18 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   assert('#ds-fvsf-demo', { position: 'relative', pointerEvents: 'none' });   // the boxed demo still never takes the pointer
   assert('.ctrl-row',   { minHeight: '26px' });                       // --row-h
   assert('#ds-segm', { flexWrap: 'wrap', columnGap: '4px' });                  // .seg-ctrl--multi: spaced, wraps (--space-1)
+  assert('#ds-seg-icon-hidden', { display: 'none' });                                   // .seg-btn[hidden]
+  assert('#ds-seg-icon-end', { borderTopRightRadius: '2px', borderBottomRightRadius: '2px' });   // the last VISIBLE button is the end (--radius-sm)
+  /* the icon-only tooltip only draws on :hover / :focus-visible, so check the rule itself: content = attr(aria-label), never a title */
+  {
+    let tip = null;
+    for (const sh of document.styleSheets) { let rules; try { rules = sh.cssRules; } catch (e) { continue; }
+      for (const r of rules) if (r.selectorText && r.selectorText.includes('.seg-btn[data-icon-slot]') && r.selectorText.includes('::after') && r.style.content) { tip = r; break; }
+      if (tip) break; }
+    if (!tip) bad('no .seg-btn[data-icon-slot]::after tooltip rule loaded (panel.css)');
+    else if (!/attr\(aria-label\)/.test(tip.style.content)) bad('.seg-btn[data-icon-slot]::after { content: ' + tip.style.content + ' } — documented as attr(aria-label)');
+    document.querySelectorAll('#ds-seg-icon .seg-btn[data-icon-slot]').forEach(b => { if (b.hasAttribute('title')) bad('#ds-seg-icon: an icon-only seg button carries a title (' + b.getAttribute('aria-label') + ')'); });
+  }
   assert('#ds-segm > .seg-btn:nth-child(3)', { marginLeft: '0px', borderTopLeftRadius: '2px', paddingLeft: '0px' });   // own corners (--radius-sm), not joined
   assert('#ds-dual-host .org-dual__knob', { position: 'absolute' });   // Organica.dualRange mounted
   // panel dividers (panel.css): a line under every section, dropped only where it really ends something
