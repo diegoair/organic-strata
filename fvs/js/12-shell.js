@@ -6,7 +6,7 @@ import {
   DEFAULT_COLOR_RULE, live, pv, state, val
 } from './engine/00-core.js';
 import {
-  BASE_GEOMETRY, SEED_TYPES, frameDims, shapeHasCorners
+  BASE_GEOMETRY, CELL_SHAPES, SEED_TYPES, frameDims, shapeHasCorners
 } from './engine/01-geometry.js';
 import {
   CIRCLE_PARAMS, SEED_EXTRAS, getPanelSeed, getSeed, xrId
@@ -572,20 +572,41 @@ function inkAspect() {
   return Math.abs(a - 1) <= 0.02 ? 1 : +a.toFixed(4);
 }
 export function syncProportionsUI() {
-  ctrl('element-proportions-row').style.display = state.cellShape === 'square' ? '' : 'none';   // .ctrl-row is flex
-  const on = state.cellAspect !== 1;
+  // every cell shape (Oct 23, 2026): Cell shape fits any cell; Drawing (a Rectangle box) is a square cell's only
+  ctrl('seg-element-proportions').querySelector('[data-prop="drawing"]').hidden = state.cellShape !== 'square';
+  const on = state.cellAspect !== 1 && state.cellShape === 'square';
   ctrl('seg-element-proportions').querySelectorAll('.seg-btn').forEach(b => { const v = b.dataset.prop === (on ? 'drawing' : 'square'); b.classList.toggle('active', v); b.setAttribute('aria-pressed', String(v)); });
   ctrl('seg-element-proportions').querySelector('[data-prop="drawing"]').setAttribute('aria-label', on ? 'Drawing, ' + ratioText(state.cellAspect) : 'Drawing');
 }
+// Cell shape (Diego, Oct 23, 2026: "change Square to Cell shape and, based on the cell shape, fit it to the cell and
+// stretch it"): the box is the cell's own again and the drawing is stretched to fill the cell's bounds — Width / Length
+// set from the ink as drawn (Scale 1), centred; a circle / triangle / hexagon cell then fits it whole inside (fitGeoToCell)
+function stretchToCell() {
+  const seed = getSeed(), geo = SEED_TYPES[seed.type].geometry(seed);
+  if (!geo || !geo.d) return onAppearanceChange();
+  const app = getElementAppearance(), bb = measureElementInk(geo, { ...app, scale: 1, mx: 0, my: 0 }).bb;
+  if (!bb || bb.width < 0.01 || bb.height < 0.01) return onAppearanceChange();   // a line: nothing to stretch across
+  const poly = state.cellShape === 'square' ? [[0, 0], [100, 100]] : CELL_SHAPES[state.cellShape].poly;
+  const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const clamp = v => Math.max(0.25, Math.min(2, v)), w0 = app.w || 1, l0 = app.l || 1;
+  const w = Math.round(clamp(w0 * (x1 - x0) / bb.width) * 100) / 100, l = Math.round(clamp(l0 * (y1 - y0) / bb.height) * 100) / 100;
+  const setCtl = (k, v) => { ctrl('rg-element-' + k).value = v; ctrl('v-element-' + k).textContent = val('rg-element-' + k); };
+  setCtl('w', w); setCtl('l', l); setCtl('scale', 1);
+  const sx = val('rg-element-w') / w0, sy = val('rg-element-l') / l0;   // the ink's new centre, then moved onto the cell's
+  setCtl('mx', Math.round(((x0 + x1) / 2 - 50 - sx * (bb.x + bb.width / 2 - 50)) * 10) / 10);
+  setCtl('my', Math.round(((y0 + y1) / 2 - 50 - sy * (bb.y + bb.height / 2 - 50)) * 10) / 10);
+  onAppearanceChange();
+}
 function setProportions(mode) {
   state.cellAspect = mode === 'drawing' ? inkAspect() : 1;
-  if (mode === 'drawing') fitSeedToCanvas(); else onAppearanceChange();
+  if (mode === 'drawing') fitSeedToCanvas(); else stretchToCell();
   syncRuleAvailability(); syncAxisValuesUI(); syncProportionsUI(); syncGenerateButton();
 }
 export function autoProportions() {   // an upload: a drawing that is not square keeps its own proportions
   if (state.cellShape !== 'square') return;
   const a = inkAspect();
-  setProportions(a === 1 ? 'square' : 'drawing');
+  if (a === 1) { state.cellAspect = 1; onAppearanceChange(); syncProportionsUI(); return; }   // a square drawing: left as drawn, no stretch
+  setProportions('drawing');
   if (a !== 1) Organica.notice('Proportions set from the drawing — ' + ratioText(a), { kind: 'info' });
 }
 ctrl('seg-element-proportions').addEventListener('click', e => {
