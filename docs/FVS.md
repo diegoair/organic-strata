@@ -239,7 +239,7 @@ Plan `~/.claude/plans` (Diego, Oct 23, 2026, after uploading the Carhartt logo):
 - **Component.** The grid passes `aspect`; `Organica.shapes.resolveGridCells` / `frameDims` scale every cell's width by `min(1, a)` and height by `min(1, 1/a)` while `cellSize` stays the Element's draw size — so the box fills the cell exactly and a grid of the mark meets edge to edge (track weights multiply on top). A hand-made cell's Stretch / Cover / Fixed read the box (`withCellPlace`).
 - **Symbol / Figure.** An Element is placed by its box (`placeInBox` natural `{w, h}`) — Contain fills the matching side, Stretch / Cover / Fixed read it; Match cell stays for the square box.
 - **Board.** Each Element keeps its own (the other Elements' areas draw with theirs — `onCellShapeOf`).
-- Tests: `scripts/test-fvs-aspect.sh` (frame 0.6 : 1, ink to both edges, half turns only, Radial gated, square again). Words open for Diego: ledger O-75.
+- Tests: `scripts/test-fvs-aspect.sh` (frame 0.6 : 1, ink to both edges, half turns only, Radial gated, square again). Words decided by Diego the same day (O-75 closed).
 
 ### 3b. Divide into parts (Oct 10, 2026 — R1)
 
