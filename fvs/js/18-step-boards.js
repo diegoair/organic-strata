@@ -134,7 +134,7 @@ function readElements() {
   const obj = ELEMENTS.read() || {};
   // an Element without a shape (left by a half-done add) is dropped, never allowed to stop the whole board
   let items = Object.entries(obj).filter(([k, v]) => k !== BOARD_ROW && v && v.seed && v.seed.type)
-    .map(([id, v]) => ({ id, name: v.name, custom: !!v.custom, seed: v.seed, app: v.app, ...(v.palette ? { palette: v.palette } : {}), ...(v.gallery ? { gallery: v.gallery } : {}), n: v.n || 0 })).sort((a, b) => a.n - b.n);
+    .map(([id, v]) => ({ id, name: v.name, custom: !!v.custom, seed: v.seed, app: v.app, ...(v.palette ? { palette: v.palette } : {}), ...(v.gallery ? { gallery: v.gallery } : {}), ...(v.galPos ? { galPos: v.galPos } : {}), n: v.n || 0 })).sort((a, b) => a.n - b.n);
   let active = obj[BOARD_ROW] && obj[BOARD_ROW].active;
   if (!items.length) {
     try { const s = JSON.parse(localStorage.getItem(LEGACY_ITEMS)); if (s && s.items) { items = s.items.filter(e => e && e.id && e.seed && e.seed.type).map(e => ({ id: e.id, name: e.name, custom: !!e.custom, seed: e.seed, app: e.app })); active = s.active; } } catch (err) {}
@@ -144,7 +144,7 @@ function readElements() {
 }
 function writeElements() {
   const obj = {};
-  state.elements.forEach((e, i) => { obj[e.id] = { name: e.name, custom: !!e.custom, seed: e.seed, app: e.app, ...(e.palette ? { palette: e.palette } : {}), ...(e.gallery ? { gallery: e.gallery } : {}), n: i }; });
+  state.elements.forEach((e, i) => { obj[e.id] = { name: e.name, custom: !!e.custom, seed: e.seed, app: e.app, ...(e.palette ? { palette: e.palette } : {}), ...(e.gallery ? { gallery: e.gallery } : {}), ...(e.galPos ? { galPos: e.galPos } : {}), n: i }; });
   obj[BOARD_ROW] = { active: state.activeElement };
   try { ELEMENTS.write(obj); } catch (err) {}
 }
@@ -520,6 +520,8 @@ function mountComponentBoard() {
   const B = makeBoard('component');
   const gal = ctrl('gallery'), frame = ctrl('component-edit-frame');
   addSheet(B, 'gallery', 'Generated components', 0, 0, ctrl('board-gallery'));
+  // an area moved by hand (drag or arrows) keeps its place, on its Element (saved with it)
+  B.afterMove = ids => { (ids || []).forEach(sid => { const e = state.elements.find(x => (sid === 'gallery' ? x.id === state.activeElement : 'gl-' + x.id === sid)); const sh = B.sheets[sid]; if (e && sh) e.galPos = { x: sh.p.x, y: sh.p.y }; }); writeElements(); };
   galleryZoomTo(2);   // the candidates at 2× on the board
   // Double-click a candidate (or Enter on the selected one, 05-render-component.js) = Component Edit in its single view: the classic page — toolbar, part
   // colours, the fixed sheet — with the board hidden, the same as an Element's (Diego, Oct 11). Back to board / Esc return.
@@ -629,6 +631,9 @@ function mountComponentBoard() {
       body.append(elHost, grid);
       const sheet = addSheet(B, id, '', 0, 0, body);
       sheet.classList.add('fvs-board-gallery-sheet');
+      // a click on its label (not a drag) makes its Element the edited one — the selection and the edited Element agree
+      // (Diego, Oct 23, 2026: "it generated a different element than the selected one")
+      sheet.addEventListener('click', ev => { const lab = ev.target.closest('.fvs-board-sheet__label'); if (!lab || lab.parentElement !== sheet) return; const eid = [...statics.entries()].find(([, r]) => r.sheet === sheet); if (eid) boardActivate(eid[0]); });
       rec = { key: '', sheet, body, elHost, grid, id };
       statics.set(e.id, rec);
       // a click on a Component: its Element becomes the edited one, then that Component is selected (the live click)
@@ -677,14 +682,16 @@ function mountComponentBoard() {
       const bx = thumbBoxOf(e); rec.body.style.setProperty('--thumb-w', bx.w + 'px'); rec.body.style.setProperty('--thumb-h', bx.h + 'px');
     });
     [...statics.keys()].forEach(id => { if (!keep.has(id)) { removeSheet(B, statics.get(id).id); statics.delete(id); } });
-    // one under the other, in the Element order
+    // one under the other, in the Element order — an area you moved stays where you put it (Diego, Oct 23, 2026: "when I
+    // regenerate one of the two their position changes and they are close again"); the others stack under what is above
     requestAnimationFrame(() => {
       let y = 0;
       state.elements.forEach(e => {
         const sid = e.id === act ? 'gallery' : 'gl-' + e.id, sh = B.sheets[sid];
         if (!sh) return;
-        placeSheet(B, sid, 0, y);
-        y += sh.el.offsetHeight + GAL_GAP;
+        const at = e.galPos || { x: 0, y };
+        placeSheet(B, sid, at.x, at.y);
+        y = Math.max(y, at.y + sh.el.offsetHeight + GAL_GAP);
       });
       drawRings(B);
       fitIfRegrown();

@@ -142,7 +142,7 @@ function dragSheet(B, s, lab, e) {
   const up = () => {
     lab.removeEventListener('pointermove', mv); lab.removeEventListener('pointerup', up); lab.removeEventListener('pointercancel', up);
     B.stage.classList.remove('nc-stage--dragging');
-    if (moved) { starts.forEach(([sh]) => { B.pos[sh.el.dataset.sheet] = sh.p; }); B.save(); if (B.afterMove) B.afterMove(); }
+    if (moved) { swallowNextClick(lab); starts.forEach(([sh]) => { B.pos[sh.el.dataset.sheet] = sh.p; }); B.save(); if (B.afterMove) B.afterMove(starts.map(([sh]) => sh.el.dataset.sheet)); }   // the moved sheets' ids; the click that ends a drag is not a click
   };
   lab.addEventListener('pointermove', mv); lab.addEventListener('pointerup', up); lab.addEventListener('pointercancel', up);
 }
@@ -224,7 +224,7 @@ document.addEventListener('keydown', e => {
     const step = e.shiftKey ? 10 : 1, moving = new Set(B.selected);
     [...moving].forEach(k => (B.links[k] || []).forEach(l => moving.add(l)));
     moving.forEach(k => { const sh = B.sheets[k]; if (sh) { placeSheet(B, k, sh.p.x + arrow[0] * step, sh.p.y + arrow[1] * step); B.pos[k] = sh.p; } });
-    drawRings(B); B.save(); if (B.afterMove) B.afterMove();
+    drawRings(B); B.save(); if (B.afterMove) B.afterMove([...moving]);
   }
 }, true);
 const spaceOff = () => { spaceHeld = false; Object.values(boards).forEach(B => B.stage.classList.remove('nc-stage--pan')); };
