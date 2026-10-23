@@ -6,7 +6,7 @@ import {
   live, pc, pv, state
 } from './engine/00-core.js';
 import {
-  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameDims, resolveGridCells, snapAxis, snapCandidates, splitPlan
+  CELL_SHAPES, SEED_TYPES, cellPolyOf, cellShapeOf, frameDims, resolveGridCells, snapAxis, snapCandidates, splitPlan
 } from './engine/01-geometry.js';
 import {
   getSeed, seedForSnapshot
@@ -381,9 +381,9 @@ export function renderElementFrame(seed) {
     const geo = SEED_TYPES[drawn.type].geometry(drawn), key = geo && geo.d ? JSON.stringify([drawn, getElementAppearance()]) : '';
     if (!inkCache || inkCache.key !== key) inkCache = { key, ink: key ? measureElementInk(geo) : { pts: [] } };
     const ink = inkCache.ink;
-    const opts = ink.pts.map(q => orientInkPoint(q, v)), cs = cellShapeOf(sd);
-    svg = svg.replace('</svg>', (cs === 'square' ? tileEdgeOverlaySVG(edgeContacts(opts))
-      : polyEdgeOverlaySVG(CELL_SHAPES[cs].poly, polyEdgeContacts(opts, CELL_SHAPES[cs].poly))) + '</svg>');
+    const opts = ink.pts.map(q => orientInkPoint(q, v)), poly = cellPolyOf(sd);   // a Rectangle: its box (Oct 23, 2026)
+    svg = svg.replace('</svg>', (!poly ? tileEdgeOverlaySVG(edgeContacts(opts))
+      : polyEdgeOverlaySVG(poly, polyEdgeContacts(opts, poly))) + '</svg>');
   }
   if (rt.snapGuide && (tiled || cellShapeOf(sd) === 'square')) svg = svg.replace('</svg>', snapGuideSVG(rt.snapGuide, v, tiled) + '</svg>');
   // the cut grid, through the canvas's own box → px: the plain canvas's (a triangle cell drawn at 50 / R, as

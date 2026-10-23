@@ -247,6 +247,7 @@ export function handleSeedUpload(file) {
   reader.onload = () => {
     try {
       useSvgAsSeed(reader.result);
+      if (hooks.autoProportions) hooks.autoProportions();   // a drawing that is not square keeps its own proportions (Oct 23, 2026)
     } catch (e) {
       ctrl('seed-upload-error').textContent = e.message;
       ctrl('seed-upload-error').style.display = '';

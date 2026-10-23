@@ -74,6 +74,15 @@ export const withCellShape = seed => {
 // The Element's box (Oct 23, 2026): width / height, 1 = square (every Element before). Only on square cells.
 export const cellAspectOf = seed => (seed && cellShapeOf(seed) === 'square' && seed.cellAspect > 0) ? seed.cellAspect : 1;
 // the box inside the 0..100 square, centred: the longer side 100
+// the Element's cell outline in its 0..100 box: a lattice cell's polygon, a Rectangle's box, or null for the square
+export const cellPolyOf = seed => {
+  const cs = cellShapeOf(seed);
+  if (cs !== 'square') return CELL_SHAPES[cs].poly;
+  const a = cellAspectOf(seed);
+  if (a === 1) return null;
+  const b = elementBox(a);
+  return [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]];
+};
 export const elementBox = (a = state.cellAspect) => { const w = 100 * Math.min(1, a), h = 100 * Math.min(1, 1 / a); return { x: (100 - w) / 2, y: (100 - h) / 2, w, h }; };
 // A shape on a non-square cell is fitted WHOLE inside it (Diego, Oct 6, 2026 — it used to be cut to the
 // outline, so a Circle on a triangle became a solid triangle and a seed lost its ends). Its box centre goes on
@@ -120,6 +129,7 @@ export function fitGeoToCell(geo, shape) {
 export function cellShapeStates(shape) {
   if (shape === 'triangle') return [[0, false, false, '0°'], [120, false, false, '120°'], [240, false, false, '240°'], [0, true, false, 'Mirror']];
   if (shape === 'hexagon') return [0, 60, 120, 180, 240, 300].map(r => [r, false, false, r + '°']).concat([[0, true, false, 'Flip H'], [0, false, true, 'Flip V']]);
+  if (shape === 'square' && state.cellAspect !== 1) return hooks.SEED_PREVIEW_STATES_SQUARE.filter(v => v[0] % 180 === 0);   // a Rectangle: half turns (Oct 23, 2026)
   return hooks.SEED_PREVIEW_STATES_SQUARE;
 }
 // The rotation a polygon cell sits at, relative to the cell shape drawn upright: the turn (in [0, step)) that

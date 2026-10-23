@@ -5,7 +5,7 @@ import {
   colorAt, live, state
 } from './00-core.js';
 import {
-  CELL_SHAPES, SEED_TYPES, cellLatticeCells, cellShapeOf, cellShapeStates, importAsPaperShape, partsOf, splitPaperScope
+  CELL_SHAPES, SEED_TYPES, cellAspectOf, cellLatticeCells, cellPolyOf, cellShapeOf, cellShapeStates, elementBox, importAsPaperShape, partsOf, splitPaperScope
 } from './01-geometry.js';
 import {
   componentRoleActive, resolvedComponentDims
@@ -641,11 +641,12 @@ export function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {
   const sx = (flipH ? -1 : 1) * (size / 100) * k, sy = (flipV ? -1 : 1) * (size / 100) * k;
   const T = `translate(${half},${half}) rotate(${rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)`;
   const body = `<g transform="${T}">` + elementPathMarkup(geo, colorAt(0)) + `</g>`;
-  if (cs === 'square') {
+  const poly = cellPolyOf(seed);   // a Rectangle Element's box is its canvas too (Oct 23, 2026)
+  if (!poly) {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
       + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${paperPatternSVG(size, size)}${body}</svg>`;
   }
-  const pts = CELL_SHAPES[cs].poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ');
+  const pts = poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ');
   const id = 'cellclip-' + nextDrawId();
   const edge = opts.outline ? `<polygon class="cell-edge" transform="${T}" points="${pts}" fill="none" stroke="var(--border-strong)" stroke-width="1" vector-effect="non-scaling-stroke"/>` : '';
   return `<svg xmlns="http://www.w3.org/2000/svg" class="is-cell" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`
@@ -683,7 +684,8 @@ export function buildSeedTileSVG(seed, view, tile, size) {
     }
   } else for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) {
     if (!i && !j) continue;
-    const p = tileAt(i, j, 100, t.layout, t.turn), cx = 50 + p.gx, cy = 50 + p.gy;
+    const bx = elementBox(cellAspectOf(seed));   // a Rectangle Element tiles W × H (Oct 23, 2026); square: 100 × 100
+    const p = tileAt(i, j, 100, t.layout, t.turn), cx = 50 + p.gx * bx.w / 100, cy = 50 + p.gy * bx.h / 100;
     if (cx + 50 <= lo || cx - 50 >= hi || cy + 50 <= lo || cy - 50 >= hi) continue;
     ghosts += `<use href="#${id}" transform="translate(${cx},${cy}) ${orient(p.turn)} translate(-50,-50)"/>`;
   }

@@ -1147,6 +1147,16 @@
         <input type="range" id="rg-element-l" min="0.25" max="2" step="0.05" value="1">
         <span class="ctrl-val" id="v-element-l">1</span>
       </div>
+      <!-- Proportions (Oct 23, 2026 — Diego: a non-square Element keeps its own box; design-system CONSULT the same day):
+           Square, or the Drawing's own (its ink, cropped) — the Component's cells take them, the rules turn by half turns.
+           Square cells only (hidden on circle / triangle / hexagon). The ratio is in Drawing's accessible name and the upload
+           notice — a readout column left the buttons too narrow (212 px row). -->
+      <div class="ctrl-row" id="element-proportions-row"><div class="ctrl-label" id="element-proportions-label">Proportions</div>
+        <div class="seg-ctrl" id="seg-element-proportions" role="group" aria-labelledby="element-proportions-label">
+          <button type="button" class="seg-btn active" data-prop="square" aria-pressed="true">Square</button>
+          <button type="button" class="seg-btn" data-prop="drawing" aria-pressed="false" aria-label="Drawing">Drawing</button>
+        </div>
+      </div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Makes the outline irregular — 0 keeps it clean. Same seed, same shape.">Irregularity</div>
         <input type="range" id="rg-element-irregular" min="0" max="100" step="1" value="0">

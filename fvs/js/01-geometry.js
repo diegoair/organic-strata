@@ -40,6 +40,7 @@ export function setCellShape(shape, opts = {}) {
   ctrl('fb-cell-shape').querySelectorAll('[data-cell]').forEach(b => { const on = b.dataset.cell === shape; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
   if (changed) rt.elementView = { r: 0, fh: false, fv: false };
   hooks.syncComponentGridUI();
+  if (hooks.syncProportionsUI) hooks.syncProportionsUI();   // Proportions: square cells only (Oct 23, 2026)
   if (changed && hooks.syncAxisValuesUI) { hooks.syncAxisValuesUI(true); hooks.syncRuleAxesUI(); }   // Rule › Axes: the angles are the new shape's own steps
   if (changed && hooks.syncSplitUI) hooks.syncSplitUI();   // Split's pieces follow the cell shape (quadrants / fan)
   // A loaded Element (silent): its caller fills the gallery, but the Rule menu must follow the new shape now.

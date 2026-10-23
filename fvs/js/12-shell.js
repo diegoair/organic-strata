@@ -73,6 +73,7 @@ import { hooks, provide } from './hooks.js';
 import { isFigureLoaded, loadFigureTier } from './lazy.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
+  autoProportions: () => autoProportions, syncProportionsUI: () => syncProportionsUI,
   fireChange: () => fireChange, onAppearanceChange: () => onAppearanceChange,
   paperSwatch: () => paperSwatch, setPaperUI: () => setPaperUI, syncArcType: () => syncArcType,
   syncExtrasTypes: () => syncExtrasTypes, syncFvsZoomHud: () => syncFvsZoomHud,
@@ -558,6 +559,38 @@ export function fitSeedToCanvas() {
   onAppearanceChange();
 }
 ctrl('btn-fit-seed').addEventListener('click', fitSeedToCanvas);
+// Proportions (Oct 23, 2026 — Diego): Square, or the Drawing's own (its ink as drawn, cropped: Width / Length count,
+// Scale / Move don't). A box within 2 % of square is square. The Component's cells take it, the rules turn by half
+// turns (rotationStepOf), and the ink is fitted to fill it (Fit to canvas).
+const ratioText = a => a === 1 ? '1:1' : a < 1 ? `1:${+(1 / a).toFixed(2)}` : `${+a.toFixed(2)}:1`;
+function inkAspect() {
+  const seed = getSeed(), geo = SEED_TYPES[seed.type].geometry(seed);
+  if (!geo || !geo.d) return 1;
+  const bb = measureElementInk(geo, { ...getElementAppearance(), scale: 1, mx: 0, my: 0 }).bb;
+  if (!bb || bb.width < 0.01 || bb.height < 0.01) return 1;
+  const a = Math.max(0.2, Math.min(5, bb.width / bb.height));
+  return Math.abs(a - 1) <= 0.02 ? 1 : +a.toFixed(4);
+}
+export function syncProportionsUI() {
+  ctrl('element-proportions-row').style.display = state.cellShape === 'square' ? '' : 'none';   // .ctrl-row is flex
+  const on = state.cellAspect !== 1;
+  ctrl('seg-element-proportions').querySelectorAll('.seg-btn').forEach(b => { const v = b.dataset.prop === (on ? 'drawing' : 'square'); b.classList.toggle('active', v); b.setAttribute('aria-pressed', String(v)); });
+  ctrl('seg-element-proportions').querySelector('[data-prop="drawing"]').setAttribute('aria-label', on ? 'Drawing, ' + ratioText(state.cellAspect) : 'Drawing');
+}
+function setProportions(mode) {
+  state.cellAspect = mode === 'drawing' ? inkAspect() : 1;
+  if (mode === 'drawing') fitSeedToCanvas(); else onAppearanceChange();
+  syncRuleAvailability(); syncAxisValuesUI(); syncProportionsUI(); syncGenerateButton();
+}
+export function autoProportions() {   // an upload: a drawing that is not square keeps its own proportions
+  if (state.cellShape !== 'square') return;
+  const a = inkAspect();
+  setProportions(a === 1 ? 'square' : 'drawing');
+  if (a !== 1) Organica.notice('Proportions set from the drawing — ' + ratioText(a), { kind: 'info' });
+}
+ctrl('seg-element-proportions').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) setProportions(b.dataset.prop); });
+['rg-element-w', 'rg-element-l'].forEach(id => ctrl(id).addEventListener('change', () => { if (state.cellAspect !== 1) setProportions('drawing'); }));   // a stretch changes the drawing's proportions
+
 // The Element canvas's View: Show as tile (+ Layout / Turn) and Snap (05-render-component.js keeps the state).
 ctrl('btn-element-view-tile').addEventListener('click', e => {
   if (e.currentTarget.getAttribute('aria-disabled') === 'true') return;

@@ -132,7 +132,7 @@
   .fvs-error { color: var(--danger); }
   .fvs-seed-preview-wrap { width: min(60vh, 70vw); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
   .fvs-seed-preview { display: flex; justify-content: center; align-items: flex-start; gap: var(--space-2); width: 100%; }
-  .fvs-seed-tile { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); flex: 1 1 0; min-width: 0; }
+  .fvs-seed-tile { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); flex: 0 1 calc(100% / 7); min-width: 0; }   /* never wider than a seventh: fewer views (a Rectangle's 5, a triangle's 4) keep the strip's height (Oct 23, 2026) */
   .fvs-seed-tile__box > svg { width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--border); display: block; }   /* height:auto: the SVG's own height="…" attribute would otherwise pin it, and aspect-ratio only fills in a dimension left auto */
   /* Element quick-save: the Component gallery's corner circle, on each strip tile and the big frame */
   .fvs-seed-tile__box { position: relative; width: 100%; }

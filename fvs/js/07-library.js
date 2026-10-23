@@ -181,6 +181,7 @@ export function applyElementSnapshot(seed, app) {
 export function applySeedToPanel(seed) {
   state.cellAspect = cellAspectOf(seed);   // its box (Oct 23, 2026) — before the cell shape, which reads the turn step
   setCellShape(cellShapeOf(seed), { silent: true });
+  if (hooks.syncProportionsUI) hooks.syncProportionsUI();
   if (seed && seed.type === 'stack' && Array.isArray(seed.layers) && seed.layers.length) {
     const items = seed.layers.map(l => JSON.parse(JSON.stringify(l)));
     const active = Math.max(0, Math.min(items.length - 1, seed.active | 0));
