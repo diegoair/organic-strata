@@ -19,7 +19,7 @@ import {
   rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, FS_AFTER, turnAfter, flipScaleAfter, withTurnsOff, withOwnTurns, withFlipScaleOff, ruleAxes, dedupeComponents, TURNS_REPLACE, withTurnsReplace
 } from './engine/03-rules.js';
 import {
-  appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, stretchOpts,
+  appearanceIsIdentity, appearanceMatrix, buildComponentItems, componentCellColRow, getElementAppearance, itemH, itemW, photoPlan, stretchOpts,
   withAppearance
 } from './engine/04-appearance.js';
 import {
@@ -44,7 +44,7 @@ import {
   seedPicker, syncDependentRows, syncFreehandEditor, useSvgAsSeed
 } from './02-seed-ui.js';
 import {
-  applyAppearanceToUI
+  applyAppearanceToUI, exportablePhotoSVG
 } from './04-appearance.js';
 import {
   buildPrintComponentSVG, elementReachesEdge, printComponentDims, renderGallery, renderSeedPreview
@@ -989,6 +989,7 @@ export function elementLookAlikeClasses() {
 }
 export function withLookAlikeFold(fn) {
   if (live.cellKey || live.lookAlikeFoldOff) return fn();
+  { const a = getElementAppearance(); if (a.photoId && !photoPlan(a)) return fn(); }   // a photo still loading would draw nothing — every turn alike
   const cls = elementLookAlikeClasses();
   // a cell = a turn + mirrored or not (flip V = flip H turned 180°, H + V = 180°), then its look-alike class
   live.cellKey = c => { const v = !!c.flipV, r = mod360(c.rotation + (v ? 180 : 0)), k = r + (!!c.flipH !== v ? 'h' : ''); return (cls[k] || k) + '@' + c.scale; };
@@ -1374,7 +1375,7 @@ export function exportSelected(format) {
 
   if (format === 'svg') {
     const svg = isPrint ? buildPrintComponentSVG(items, seed, baseDims.w, baseDims.h) : buildComponentSVG(items, seed, baseDims);
-    Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp('fvs', 'svg'));
+    Organica.download(new Blob([exportablePhotoSVG(svg)], { type: 'image/svg+xml' }), Organica.stamp('fvs', 'svg'));
     return;
   }
 

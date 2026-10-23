@@ -726,3 +726,9 @@
 /* the rule's own options open with a gap below the Rule picker: --space-3 + the row's --space-2 = 14px, a sub-group's
    opening (.sub-label) — Diego, Oct 22, 2026: "dai maggior spazio tra la dropdown e le icone" (design-system CONSULT) */
 .fvs-rule-opts { margin-top: var(--space-3); }
+
+/* Element › Style = Photo (Oct 23, 2026 — Tropism T2): the chosen photo, Replace, Remove. The thumbnail is a work
+   surface (light in both themes). */
+.fvs-photo-row { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); }
+.fvs-photo-thumb { width: var(--space-8); height: var(--space-8); object-fit: cover; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); flex: none; }
+.fvs-photo-row .org-btn:not(.org-btn--icon) { flex: 1 1 auto; }

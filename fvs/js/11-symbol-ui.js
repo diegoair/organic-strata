@@ -42,7 +42,7 @@ import {
   buildPalette, ctrl, setStatus, syncColorRuleUI
 } from './00-core.js';
 import {
-  applyAppearanceToUI
+  applyAppearanceToUI, exportablePhotoSVG
 } from './04-appearance.js';
 import {
   applySymbolCanvasToUI, syncFitAnchorUI, syncOverlapSection, syncSymbolStart
@@ -989,7 +989,7 @@ export function exportSymbol(format) {
   const cv = symbolCanvasOf(state.symbolGrid);
   if (cv && cv.mode === 'print') { exportSymbolPrint(format, F, cv); return; }
   if (format === 'svg') {
-    Organica.download(new Blob([buildSymbolSVG()], { type: 'image/svg+xml' }), Organica.stamp('fvs-symbol', 'svg'));
+    Organica.download(new Blob([exportablePhotoSVG(buildSymbolSVG())], { type: 'image/svg+xml' }), Organica.stamp('fvs-symbol', 'svg'));
     return;
   }
   const scale = parseInt(pv('sel-export-scale'), 10);
@@ -1005,7 +1005,7 @@ export function exportSymbol(format) {
 
 export function exportSymbolPrint(format, F, cv) {
   if (format === 'svg') {
-    Organica.download(new Blob([buildSymbolPrintSVG(F, cv)], { type: 'image/svg+xml' }), Organica.stamp('fvs-symbol', 'svg'));
+    Organica.download(new Blob([exportablePhotoSVG(buildSymbolPrintSVG(F, cv))], { type: 'image/svg+xml' }), Organica.stamp('fvs-symbol', 'svg'));
     return;
   }
   const d = symbolPrintDims(F, cv);

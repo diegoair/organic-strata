@@ -5,7 +5,7 @@ import {
   pc, pv, state, val
 } from './00-core.js';
 import {
-  readPatternControls
+  readPatternControls, readPhotoControls
 } from './04-appearance.js';
 // ── Components ↔ Symbols tab switch ──
 export const STEP_EXPORT_HINTS = {
@@ -62,5 +62,5 @@ export function truState() { const o = { fans: +pv('sel-tru-fans') }; Object.key
 export function readShapeLook() {
   return { fillMode: pv('sel-element-fillmode'), strokeW: val('rg-element-strokew'), rounded: pc('ck-element-rounded'), w: val('rg-element-w'), l: val('rg-element-l'),
     scale: val('rg-element-scale'), mx: val('rg-element-mx'), my: val('rg-element-my'), rotate: val('rg-element-rotate'), cutOut: val('rg-element-cutout'),
-    irregular: val('rg-element-irregular'), irrMode: pv('sel-element-irrmode'), irrWaves: val('rg-element-irrwaves'), irrSeed: val('rg-element-irrseed'), ...readPatternControls() };
+    irregular: val('rg-element-irregular'), irrMode: pv('sel-element-irrmode'), irrWaves: val('rg-element-irrwaves'), irrSeed: val('rg-element-irrseed'), ...readPatternControls(), ...readPhotoControls() };
 }

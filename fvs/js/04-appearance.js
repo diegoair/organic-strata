@@ -11,7 +11,7 @@ import {
 import {
   DEFAULT_APPEARANCE, ELEMENT_LIB, TILE_CAP, defaultElementName, elementTileLayout, elementVariantSVG,
   genesisTileForms, getElementAppearance, libraryNamesAll, liveElementTile, orientedElementTile, patternOf,
-  readGroundControls, resolveTile, savedElementBySig, tileIconSVG, tileSig
+  PHOTO_DEFAULTS, photoOf, photoSelfContained, primePhoto, readGroundControls, resolveTile, savedElementBySig, tileIconSVG, tileSig
 } from './engine/04-appearance.js';
 import {
   seedPreviewStates
@@ -30,6 +30,94 @@ import { hooks, provide } from './hooks.js';
 provide({
   syncGroundInkOptions: () => syncGroundInkOptions
 });
+
+// ── Photo (Style = Photo — Tropism T2, Oct 23, 2026) ──
+// Each photo once, in its own store (by id, synced like every store); an appearance carries only its id, so a saved
+// Component / Symbol never copies the picture. Stored as a JPEG of at most 1024 px on its longer side.
+export const PHOTO_STORE = Organica.store('fvs-photo');
+const PHOTO_MAX = 1024;
+live.photoSource = id => { const e = PHOTO_STORE.peek()[id]; return e && e.data ? e.data : null; };
+let _photoRedraw = 0;
+live.onPhotoReady = () => {   // a photo decoded after a drawing asked for it: draw everything again, once per frame
+  if (_photoRedraw) return;
+  _photoRedraw = requestAnimationFrame(() => { _photoRedraw = 0; hooks.onAppearanceChange(); });
+};
+export function showPhotoControls(lk) {
+  const p = { ...PHOTO_DEFAULTS, ...photoOf(lk) };
+  ctrl('in-element-photo').value = p.photoId;
+  ctrl('in-element-photolook').value = p.photoLook;
+  ctrl('sel-element-photoalg').value = p.photoAlg;
+  [['photodot', p.photoDot], ['photocontrast', p.photoContrast], ['photosize', p.photoSize], ['photomx', p.photoMx], ['photomy', p.photoMy]]
+    .forEach(([k, v]) => { ctrl('rg-element-' + k).value = v; ctrl('v-element-' + k).textContent = v; });
+  syncPhotoBlock();
+}
+// What the photo block shows: Open photo… or the photo with Replace / Remove; Algorithm and Dot size for Dither,
+// Contrast for Tone and Dither.
+export function syncPhotoBlock() {
+  const id = pv('in-element-photo'), look = pv('in-element-photolook') || 'normal';
+  ctrl('element-photo-open-row').style.display = id ? 'none' : '';   // .ctrl-row is flex: style.display, not hidden
+  ctrl('element-photo-has-row').style.display = id ? '' : 'none';
+  if (id) { const src = live.photoSource(id); if (src && ctrl('img-element-photo').getAttribute('src') !== src) ctrl('img-element-photo').src = src; }
+  ctrl('seg-element-photolook').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.look === look; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+  ctrl('element-photoalg-row').style.display = ctrl('element-photodot-row').style.display = look === 'dither' ? '' : 'none';
+  ctrl('element-photocontrast-row').style.display = look === 'normal' ? 'none' : '';
+}
+// A file → a JPEG ≤ 1024 px in the store → this Element's photo (Style = Photo).
+export function usePhotoFile(file) {
+  if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) { Organica.notice('That file is not a photo — choose a JPEG, PNG or WebP image', { kind: 'info' }); return; }
+  const url = URL.createObjectURL(file), img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const k = Math.min(1, PHOTO_MAX / Math.max(img.naturalWidth, img.naturalHeight));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(img.naturalWidth * k)); cv.height = Math.max(1, Math.round(img.naturalHeight * k));
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, cv.width, cv.height);   // a JPEG has no alpha: transparent reads as white
+    cx.imageSmoothingQuality = 'high';
+    cx.drawImage(img, 0, 0, cv.width, cv.height);
+    const data = cv.toDataURL('image/jpeg', 0.85);
+    const id = 'photo-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const all = PHOTO_STORE.read();
+    all[id] = { data, name: file.name, w: cv.width, h: cv.height, savedAt: new Date().toISOString() };
+    if (!PHOTO_STORE.write(all)) return;   // storage full: the store showed the notice
+    const dec = new Image();
+    dec.onload = () => {
+      primePhoto(id, dec);
+      ctrl('in-element-photo').value = id;
+      ctrl('sel-element-fillmode').value = 'photo';
+      syncPhotoBlock();
+      hooks.onAppearanceChange();
+    };
+    dec.src = data;
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); Organica.notice('This photo could not be read', { kind: 'info' }); };
+  img.src = url;
+}
+// Files can't reach the screen's photos: every export runs its SVG through this (and says so when a raster went in).
+export function exportablePhotoSVG(svg, quiet) {
+  const r = photoSelfContained(svg);
+  if (r.raster && !quiet) Organica.notice('This export contains a photo (raster) — choose Dither for vector plates', { kind: 'info' });
+  return r.svg;
+}
+['btn-element-photo-open', 'btn-element-photo-replace'].forEach(id => ctrl(id).addEventListener('click', () => ctrl('file-element-photo').click()));
+ctrl('file-element-photo').addEventListener('change', e => { const f = e.target.files[0]; if (f) usePhotoFile(f); e.target.value = ''; });
+ctrl('btn-element-photo-remove').addEventListener('click', () => {   // the photo leaves this Element (the store keeps it — saved work may use it)
+  ctrl('in-element-photo').value = '';
+  if (pv('sel-element-fillmode') === 'photo') ctrl('sel-element-fillmode').value = 'fill';
+  syncPhotoBlock();
+  hooks.onAppearanceChange();
+});
+ctrl('seg-element-photolook').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn[data-look]');
+  if (!b) return;
+  ctrl('in-element-photolook').value = b.dataset.look;
+  syncPhotoBlock();
+  hooks.onAppearanceChange();
+});
+ctrl('sel-element-photoalg').addEventListener('change', () => hooks.onAppearanceChange());
+['photodot', 'photocontrast', 'photosize', 'photomx', 'photomy'].forEach(k => ctrl('rg-element-' + k).addEventListener('input', e => {
+  ctrl('v-element-' + k).textContent = e.target.value; hooks.onAppearanceChange();
+}));
 
 
 
@@ -53,6 +141,9 @@ export function syncLookBlocks() {
   const usesPattern = L ? L.items.some((l, i) => (l.role || 'fill') === 'pattern' || (i === L.active ? fm : (l.look && l.look.fillMode)) === 'pattern') : fm === 'pattern';
   ctrl('element-pattern-block').style.display = usesPattern ? '' : 'none';
   ctrl('element-patangle-row').style.display = pv('sel-element-pattern') === 'concentric' ? 'none' : '';
+  const usesPhoto = L ? L.items.some((l, i) => (l.role || 'fill') === 'fill' && (i === L.active ? fm : (l.look && l.look.fillMode)) === 'photo') : fm === 'photo';
+  ctrl('element-photo-block').hidden = !usesPhoto || patRole;
+  if (usesPhoto) syncPhotoBlock();
 }
 export function syncGroundInkOptions(selected) {
   const sel = ctrl('sel-ground-ink'), cur = selected != null ? String(selected) : sel.value;
@@ -206,6 +297,7 @@ export function applyAppearanceToUI(app) {
   ctrl('rg-element-l').value = a.l; ctrl('v-element-l').textContent = a.l;
   ['scale', 'mx', 'my', 'rotate'].forEach(k => { ctrl('rg-element-' + k).value = a[k]; ctrl('v-element-' + k).textContent = a[k]; });
   showPatternControls(a);
+  showPhotoControls(a);
   showGroundControls(a.ground);
   syncLookBlocks();
   // A loaded stack whose layers predate per-layer looks: they take this appearance

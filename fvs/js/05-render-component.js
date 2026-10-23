@@ -32,7 +32,7 @@ import {
   setGalleryThumbVars
 } from './03-rules.js';
 import {
-  mountElementQuickSaves, quickSaveButton
+  mountElementQuickSaves, quickSaveButton, exportablePhotoSVG
 } from './04-appearance.js';
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
@@ -408,12 +408,12 @@ export function renderElementFrame(seed) {
 export function exportElement(format) {
   const seed = getSeed(), v = currentElementView();   // the view on the canvas, as shown
   if (format === 'svg') {
-    Organica.download(new Blob([buildSeedPreviewSVG(seed, v.r, v.fh, v.fv, 400)], { type: 'image/svg+xml' }), Organica.stamp('fvs-element', 'svg'));
+    Organica.download(new Blob([exportablePhotoSVG(buildSeedPreviewSVG(seed, v.r, v.fh, v.fv, 400))], { type: 'image/svg+xml' }), Organica.stamp('fvs-element', 'svg'));
     return;
   }
   const scale = parseInt(pv('sel-export-scale'), 10);
   const size = 400 * scale;
-  const svgStr = buildSeedPreviewSVG(seed, v.r, v.fh, v.fv, size);
+  const svgStr = exportablePhotoSVG(buildSeedPreviewSVG(seed, v.r, v.fh, v.fv, size));
   const svgBlob = new Blob([svgStr], { type: 'image/svg+xml' });
   const url = URL.createObjectURL(svgBlob);
   const img = new Image();

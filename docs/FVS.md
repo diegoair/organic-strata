@@ -125,7 +125,7 @@ is gone); the candidates sit on the board at 2×.
   layer's card, not in Look & place. Look & place then keeps only what acts on the **whole
   Element** (Scale, Move, Rotate, Fit), under a "Whole Element — all layers" label. With a single
   shape everything is in Look & place, as before.
-- **Look & place** (was *Appearance*, renamed Oct 4, 2026) — Style **Fill / Stroke / Pattern**, Width / Length, **Scale, Move X/Y,
+- **Look & place** (was *Appearance*, renamed Oct 4, 2026) — Style **Fill / Stroke / Pattern / Photo**, Width / Length, **Scale, Move X/Y,
   Rotate** and **⤢ Fit to canvas** (one-shot; measures the ink *with* its stroke since Oct 13, 2026 — §3c). Rotate turns the Element about its centre,
   after Width / Length (a stretched shape turns as a whole — the same order as a layer's
   own Rot). **Cut out** (0–95, beside Width / Length — remembered per shape type like them, and
@@ -197,6 +197,27 @@ is gone); the candidates sit on the board at 2×.
   layers, each layer picks its own Style, but the pattern's settings (Pattern / Spacing /
   Weight / Angle) are **one set for the whole Element**, always here in Look & place — never in
   the layer's card. They show whenever any layer uses Pattern (Style or role).
+- **Photo** (Style, Oct 23, 2026 — Tropism T2, `docs/FVS-TROPISM.md`; O-76) — the shape is a mask and an uploaded
+  photo shows through it. **Open photo…** stores it **once** in its own store (`Organica.store('fvs-photo')`, a JPEG of at
+  most 1024 px on its longer side, keyed `photo-…`) and sets Style = Photo; the appearance carries only **`photoId`** (+ the
+  keys below), and no photo key exists until a photo is chosen — every Element, Component and baseline saved without one is
+  byte-identical. **Remove photo** leaves the Element (Style back to Fill); the store keeps the photo (saved work may use it).
+  The photo is laid out in the Element's own box (**Cover**, then **Photo size** 100–400 % and **Move X / Y** −50…50), in the
+  shape's place without its stretch (a uniform cover of the longer side — Width / Length never distort it), so it turns,
+  flips and scales with every cell in Component, Symbol and Figure. **Look**, every one from the Palette (the live inks and
+  Paper; a saved Component its own): **Normal** — the photo as it is (raster) · **Tone** — a gradient map, darkest → Ink 1,
+  then the other inks in order, lightest → Paper (raster; transparent Paper = transparent) · **Dither** — every dot the
+  nearest of the inks + Paper by tone (`Organica.dither.levels`, `shared/core.js` — multi-level Floyd–Steinberg ·
+  Atkinson · Bayer 4×4 · Threshold; two levels = the 1-bit dither), **Paper empty**, **Dot size** 0.5–10 in the 0–100 box
+  (default 1 = 100 dots across). **Contrast** −100…100 for Tone and Dither. Like the Pattern, one set for the whole Element
+  (a layer only picks its Style). **How it draws** (`photoPlan`, engine/04-appearance.js — one processed raster per photo ×
+  look × layout × inks, cached, never stored): on screen a short `blob:` URL in an `<image data-ph>` (Dither the same dots,
+  pixelated), on a canvas `drawImage`. **Files** (every SVG / PNG / plates / Variants / Figma / Library / Figure export,
+  and the Figure board's `<img>` thumbnails) go through `exportablePhotoSVG` → `photoSelfContained`: each photo once in
+  `<defs>` and a `<use>` per drawing — Normal / Tone the embedded raster (notice *This export contains a photo (raster) —
+  choose Dither for vector plates*), Dither its **vector paths, one per ink** (fill = the ink's hex, so Plates split it).
+  A photo still loading draws nothing and redraws when it arrives (`live.onPhotoReady`); Generate's look-alike fold is off
+  until it has. Tests: `scripts/test-fvs-photo.sh`. Later: *Across the Component*, Stipple, Bands.
 - **Reset Element** (floatbar, `reset` icon; was *Reset seed shape*) — since Oct 5, 2026 a **total
   reset** (Diego): the Element as FVS opens it — the picker's first shape, every shape's own parameters
   (not only the open one's) and their remembered Look & place, no layers, the default palette (one black

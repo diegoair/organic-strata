@@ -9,6 +9,7 @@ import { provide } from './hooks.js';
 import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps, syncStartSegs } from './11-symbol-ui.js';
 import { placeStepNav, syncExportButton } from './12-shell.js';
 import { syncRailTier } from './15-export-library-view.js';
+import { exportablePhotoSVG } from './04-appearance.js';
 import { RHYTHM_DEFAULTS } from './engine/03-rules.js';
 import {
   COLOR_RULES, live, pc, pv, state
@@ -118,7 +119,7 @@ const urls = new Map();
 function figureImg(id, svg) {
   const old = urls.get(id); if (old && old.svg === svg) return old.url;
   if (old) URL.revokeObjectURL(old.url);
-  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })); urls.set(id, { url, svg }); return url;
+  const url = URL.createObjectURL(new Blob([exportablePhotoSVG(svg, true)], { type: 'image/svg+xml' })); urls.set(id, { url, svg }); return url;   // an <img> cannot reach the screen's photos
 }
 function renderBody(node, entry, el) {
   const p = node.params || {}, v = entry && entry.value;
@@ -447,7 +448,8 @@ function printWrap(svg, cv, paper, plate) {   // a Print Canvas: its own size in
 }
 export async function encodeFile(f) {   // exported for scripts/test-figure-graph.sh
   const noPaper = s => s.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${f.figPaper}"/>`, 'i'), '');
-  let svg = f.plate != null ? plateSVG(f.svg, f.colors, f.plate, f.figPaper) : f.paper === 'none' ? noPaper(f.svg) : f.svg;
+  const own = exportablePhotoSVG(f.svg, true);
+  let svg = f.plate != null ? plateSVG(own, f.colors, f.plate, f.figPaper) : f.paper === 'none' ? noPaper(own) : own;
   const doc = f.print ? printWrap(svg, f.canvas, f.plate != null ? 'none' : f.paper, f.plate != null) : svg;
   if (f.format === 'svg') return new Blob([doc], { type: 'image/svg+xml' });
   const m = svg.match(/^<svg[^>]*\swidth="([\d.]+)"[^>]*\sheight="([\d.]+)"/), W = m ? +m[1] : 1000, H = m ? +m[2] : 1000;
@@ -838,7 +840,7 @@ function renderInspectorBody(box, ids) {
         box.querySelectorAll('[data-scale]').forEach(c => c.addEventListener('change', () => { const k = +c.dataset.scale; p.scales = c.checked ? [...new Set([...(p.scales || []), k])] : (p.scales || []).filter(x => x !== k); edited(node, true); renderInspector(ids); }));
         ctrl('fgi-ex-transparent').addEventListener('change', e => { p.transparent = e.target.checked; edited(node, true); });
         ctrl('fgi-ex-run').addEventListener('click', () => runExport(node.id));
-        ctrl('fgi-ex-figma').addEventListener('click', () => { const f = exportFiles(node).find(x => x.plate == null); if (f && Organica.sendToFigma) Organica.sendToFigma(f.svg); });
+        ctrl('fgi-ex-figma').addEventListener('click', () => { const f = exportFiles(node).find(x => x.plate == null); if (f && Organica.sendToFigma) Organica.sendToFigma(exportablePhotoSVG(f.svg)); });
       } });
   } else if (node.type === 'set') {
     rows.push(setEditor(node, ids));

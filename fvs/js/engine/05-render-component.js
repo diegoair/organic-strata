@@ -13,6 +13,7 @@ import {
 import {
   appearanceIsIdentity, appearanceMatrix, componentBoundaryClipContent, getElementAppearance,
   itemH, itemW, paintPaperPatternCanvas, paperPatternSVG, patternOf, resolveItemGeo, resolveUnderlyingComponent,
+  paintPhotoCanvas, photoFrameAttr, photoFrameMatrix, photoImageTag, photoOf, photoPlan,
   stretchOpts, tileAt, withAppearance
 } from './04-appearance.js';
 import { hooks, provide } from '../hooks.js';
@@ -131,6 +132,9 @@ export function paintStackCanvas(ctx, geo, color) {
       tc.clip(path, g.fillRule || 'nonzero');
       tc.setTransform(box);
       paintPatternCanvas(tc, patternGeometry(lk, placedExt(pl.mx, pl.my, pl.scale, lk.w, lk.l)), layerInkColor(l, color));
+    } else if (role === 'fill' && lk.fillMode === 'photo' && lk.photoId) {   // nothing while the photo loads
+      const plan = photoPlan(lk);
+      if (plan) { tc.clip(path, g.fillRule || 'nonzero'); tc.setTransform(box.multiply(photoFrameMatrix(pl.mx, pl.my, pl.rotate, pl.scale, lk.w, lk.l))); paintPhotoCanvas(tc, plan); }
     } else if (role === 'fill') {
       const op = Organica.shapeAppearance.applyCanvasStyle(tc, { fillMode: lk.fillMode, color: layerInkColor(l, color), strokeW: lk.strokeW, rounded: lk.rounded });
       paintPath(tc, op, path, g);
@@ -212,7 +216,7 @@ export const seedPreviewStates = () => cellShapeStates(state.cellShape);
 // The pattern's settings are Element-wide (Appearance), never a layer's own: a look
 // saved with pattern keys (Oct 3 test build) is overridden by the Element's.
 export function layerLook(l, a) {
-  return { fillMode: a.fillMode, strokeW: a.strokeW, rounded: a.rounded, w: 1, l: 1, ...(l.look || {}), ...patternOf(a), ...(live.variantAppearance || {}) };
+  return { fillMode: a.fillMode, strokeW: a.strokeW, rounded: a.rounded, w: 1, l: 1, ...(l.look || {}), ...patternOf(a), ...photoOf(a), ...(live.variantAppearance || {}) };
 }
 // place → norm-fit, as ONE transform string (a <clipPath>/<mask> child must be a bare <path>, no <g>).
 export function layerTransformAttr(l, g) {
@@ -327,6 +331,11 @@ export function stackPathMarkup(geo, color, forceFill) {
         out += `<clipPath id="${id}p"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id}p)"${live.tagParts && l.part ? ` data-part="${l.id}"` : ''}><path d="${pg.d}" ${patternAttrs(pg, ink)}/></g>`;
         return;
       }
+      if (fm === 'photo' && lk.photoId) {   // the photo through the layer's shape; nothing while it loads
+        const plan = photoPlan(lk), pl = layerPlace(l);
+        if (plan) out += `<clipPath id="${id}p"><path d="${g.d}" transform="${t}"${g.fillRule ? ` clip-rule="${g.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id}p)"${live.tagParts && l.part ? ` data-part="${l.id}"` : ''}><g transform="${photoFrameAttr(pl.mx, pl.my, pl.rotate, pl.scale, lk.w, lk.l)}">${photoImageTag(plan)}</g></g>`;
+        return;
+      }
       const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: fm, color: ink, strokeW: lk.strokeW, rounded: lk.rounded });
       const tag = live.tagParts && l.part ? ` data-part="${l.id}"` : '';   // the Element canvas in Edit parts only — never an export
       out += `<g transform="${t}"${tag}><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
@@ -352,6 +361,18 @@ export function paintGeoCanvas(ctx, geo, path, color) {
     ctx.restore();
     return;
   }
+  if (a.fillMode === 'photo' && a.photoId) {   // the same box as the pattern's, the photo in its own frame; nothing while it loads
+    const plan = photoPlan(a);
+    if (!plan) return;
+    ctx.save();
+    ctx.clip(path, (geo && geo.fillRule) || 'nonzero');
+    let box = ctx.getTransform().multiply(new DOMMatrix().translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale).inverse());
+    if (!appearanceIsIdentity(a)) box = box.multiply(appearanceMatrix(a).inverse());
+    ctx.setTransform(box.multiply(photoFrameMatrix(a.mx, a.my, a.rotate, a.scale, a.w, a.l)));
+    paintPhotoCanvas(ctx, plan);
+    ctx.restore();
+    return;
+  }
   paintPath(ctx, Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded }), path, geo);
 }
 // The inner half of every per-cell/preview <g>: stretch layer (identity, and
@@ -367,6 +388,14 @@ export function elementPathMarkup(geo, color, forceFill) {
     const t = appearanceIsIdentity(a) ? normT : `${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))} ${normT}`;
     const id = 'pat' + nextDrawId(), pg = patternGeometry(a, placedExt(a.mx, a.my, a.scale, a.w, a.l));
     return `<clipPath id="${id}"><path d="${geo.d}" transform="${t}"${geo.fillRule ? ` clip-rule="${geo.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id})"><path d="${pg.d}" ${patternAttrs(pg, color)}/></g>`;
+  }
+  if (a.fillMode === 'photo' && a.photoId && !forceFill) {   // the photo through the shape (its own frame, never stretched); nothing while it loads
+    const plan = photoPlan(a);
+    if (!plan) return '';
+    const normT = `translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
+    const t = appearanceIsIdentity(a) ? normT : `${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))} ${normT}`;
+    const id = 'pho' + nextDrawId();
+    return `<clipPath id="${id}"><path d="${geo.d}" transform="${t}"${geo.fillRule ? ` clip-rule="${geo.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id})"><g transform="${photoFrameAttr(a.mx, a.my, a.rotate, a.scale, a.w, a.l)}">${photoImageTag(plan)}</g></g>`;
   }
   const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded });
   const norm = `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`

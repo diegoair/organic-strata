@@ -1127,6 +1127,7 @@
           <option value="fill" selected>Fill</option>
           <option value="stroke">Stroke</option>
           <option value="pattern">Pattern</option>
+          <option value="photo">Photo</option>
         </select>
       </div>
       <div id="element-stroke-block" style="display:none">
@@ -1233,6 +1234,62 @@
           <div class="ctrl-label" title="Direction of the lines, or rotation of the dot grid.">Angle</div>
           <input type="range" id="rg-element-patangle" min="-90" max="90" step="1" value="45">
           <span class="ctrl-val" id="v-element-patangle">45</span>
+        </div>
+      </div>
+      <!-- The Element's photo (Style = Photo on any layer — Tropism T2, Oct 23, 2026; design-system CONSULT the same day):
+           ONE set for the whole Element, like the pattern. The photo itself is in the fvs-photo store; #in-element-photo holds its id. -->
+      <div id="element-photo-block" hidden>
+        <input type="hidden" id="in-element-photo" value="">
+        <input type="hidden" id="in-element-photolook" value="normal">
+        <input type="file" id="file-element-photo" accept="image/jpeg,image/png,image/webp" aria-label="Open photo" class="org-file-input">
+        <div class="ctrl-row" id="element-photo-open-row">
+          <button type="button" class="org-btn org-btn--sm" id="btn-element-photo-open"><svg class="ico" data-icon="upload" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 9.2V2M5.3 4.7 8 2l2.7 2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>Open photo…</button>
+        </div>
+        <div class="fvs-photo-row" id="element-photo-has-row" style="display:none">
+          <img class="fvs-photo-thumb" id="img-element-photo" alt="The Element’s photo" data-theme="light">
+          <button type="button" class="org-btn org-btn--sm" id="btn-element-photo-replace">Replace photo…</button>
+          <button type="button" class="org-btn org-btn--sm org-btn--icon" id="btn-element-photo-remove" aria-label="Remove photo"><svg class="ico" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+        </div>
+        <div class="ctrl-row"><div class="ctrl-label" id="element-photolook-label">Look</div>
+          <div class="seg-ctrl" id="seg-element-photolook" role="group" aria-labelledby="element-photolook-label">
+            <button type="button" class="seg-btn active" data-look="normal" aria-pressed="true">Normal</button>
+            <button type="button" class="seg-btn" data-look="tone" aria-pressed="false">Tone</button>
+            <button type="button" class="seg-btn" data-look="dither" aria-pressed="false">Dither</button>
+          </div>
+        </div>
+        <div class="ctrl-row" id="element-photoalg-row">
+          <div class="ctrl-label" id="element-photoalg-label">Algorithm</div>
+          <select class="panel-select" id="sel-element-photoalg" aria-labelledby="element-photoalg-label">
+            <option value="fs" selected>Floyd–Steinberg</option>
+            <option value="atkinson">Atkinson</option>
+            <option value="bayer">Bayer</option>
+            <option value="threshold">Threshold</option>
+          </select>
+        </div>
+        <div class="ctrl-row" id="element-photodot-row">
+          <div class="ctrl-label" title="The size of one dot, in the Element’s 0–100 box — small is fine, large is coarse.">Dot size</div>
+          <input type="range" id="rg-element-photodot" min="0.5" max="10" step="0.5" value="1">
+          <span class="ctrl-val" id="v-element-photodot">1</span>
+        </div>
+        <div class="ctrl-row" id="element-photocontrast-row">
+          <div class="ctrl-label" title="Pushes the photo’s tones apart (higher) or together (lower) before they take the Palette’s inks.">Contrast</div>
+          <input type="range" id="rg-element-photocontrast" min="-100" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-element-photocontrast">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="The photo covers the shape at 100 %; larger shows less of it, closer.">Photo size</div>
+          <input type="range" id="rg-element-photosize" min="100" max="400" step="5" value="100">
+          <span class="ctrl-val" id="v-element-photosize">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Moves the photo inside the shape, left or right.">Move X</div>
+          <input type="range" id="rg-element-photomx" min="-50" max="50" step="1" value="0">
+          <span class="ctrl-val" id="v-element-photomx">0</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="Moves the photo inside the shape, up or down.">Move Y</div>
+          <input type="range" id="rg-element-photomy" min="-50" max="50" step="1" value="0">
+          <span class="ctrl-val" id="v-element-photomy">0</span>
         </div>
       </div>
       <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move, Rotation and Fit act on the whole Element. One layer’s own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>

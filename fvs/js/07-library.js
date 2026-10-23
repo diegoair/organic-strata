@@ -376,6 +376,7 @@ export function renderLayersUI() {
   // The pattern settings sit right under Style (single shape) or above the Element-wide controls (layers)
   if (L) ctrl('element-wide-label').before(ctrl('element-pattern-block'));
   else ctrl('element-style-row').after(ctrl('element-pattern-block'));
+  ctrl('element-pattern-block').after(ctrl('element-photo-block'));   // the photo settings follow the pattern's (Style = Photo)
   if (pv('sel-rule') === 'exhaustive') syncExhaustiveHint();
   ctrl('layers-hint').textContent = L ? L.items.length + (rt.partSel && rt.partSel.size >= 2 ? ' · ' + rt.partSel.size + ' selected' : ' · top first') : 'Add new layer';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';

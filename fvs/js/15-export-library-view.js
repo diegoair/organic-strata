@@ -44,7 +44,7 @@ import {
   useSvgAsSeed
 } from './02-seed-ui.js';
 import {
-  elementLibraryChanged, removeSavedElement, useAsPaperTile
+  elementLibraryChanged, removeSavedElement, useAsPaperTile, exportablePhotoSVG
 } from './04-appearance.js';
 import {
   drawIdFree, printComponentDims, renderGallery, renderSeedPreview
@@ -130,6 +130,7 @@ export function printWrapSVG(svg, paper, plate) {
 }
 export async function encodeOutput(svg, { format, scale, paper, plate }) {
   const print = printSizePanel.getMode() === 'print';
+  svg = exportablePhotoSVG(svg, true);   // the caller said so once
   const doc = print ? printWrapSVG(svg, paper, plate) : svg;
   if (format === 'svg') return new Blob([doc], { type: 'image/svg+xml' });
   const bd = svgBaseDims(svg), base = bd.w;
@@ -183,7 +184,7 @@ ctrl('btn-variant-export').addEventListener('click', () => {
 export function syncPlatesBlock() { ctrl('plates-block').hidden = state.colors.length < 2; }
 ctrl('btn-export').addEventListener('click', syncPlatesBlock);
 ctrl('btn-plates-export').addEventListener('click', () => {
-  const svg = tierSVG(); if (!svg) return;
+  const svg = exportablePhotoSVG(tierSVG()); if (!svg) return;
   const colors = state.colors.slice(), paper = state.paperColor;
   const scales = outputScales(), format = pv('sel-variant-format');
   const jobs = [];
@@ -246,7 +247,7 @@ ctrl('btn-export-svg').addEventListener('click', () => exportByTier('svg'));
 // Same channel Spore/Pollen/Halide use: the finished SVG of the active step, posted to the Figma plugin.
 ctrl('btn-export-figma').addEventListener('click', () => {
   const btn = ctrl('btn-export-figma');
-  const svg = tierSVG();
+  const svg = exportablePhotoSVG(tierSVG());
   if (!svg) { btn.textContent = 'Nothing to send'; setTimeout(() => { btn.textContent = 'Send to Figma'; }, 1600); return; }
   Organica.sendToFigma(svg, 'Flexible Visual System');
   btn.textContent = 'Sent ↗'; setTimeout(() => { btn.textContent = 'Send to Figma'; }, 1600);
@@ -694,7 +695,7 @@ export function closeLibview(opts) {
 export async function libviewDownload(kind, name, fmt) {
   let svg = libviewSVG(kind, name);
   if (!svg) return;
-  svg = ensureSvgNamespace(svg).replace(/\saria-hidden="true"/, '');
+  svg = exportablePhotoSVG(ensureSvgNamespace(svg).replace(/\saria-hidden="true"/, ''));
   const base = 'fvs-' + kind + '-' + fileSlug(kind === 'genesis' ? (genesisTileForms().find(x => x.id === name) || {}).name || name : name);
   if (fmt === 'svg') { Organica.download(new Blob([svg], { type: 'image/svg+xml' }), Organica.stamp(base, 'svg')); ctrl('libview-status').textContent = 'SVG downloaded'; return; }
   const vb = (svg.match(/viewBox="([^"]+)"/) || [])[1], parts = vb ? vb.trim().split(/[\s,]+/).map(Number) : [0, 0, 100, 100];

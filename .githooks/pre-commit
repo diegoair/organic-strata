@@ -15,6 +15,7 @@ echo "$staged" | grep -qE '^(fvs/js/(engine/)?0[3-6]-|scripts/test-fvs-generate)
 echo "$staged" | grep -qE '^(fvs/js/(engine/)?0[0-6]-|fvs/index\.html|scripts/test-fvs-axes|fvs/_axes-baseline)' && add axes
 echo "$staged" | grep -qE '^(fvs/js/(engine/)?0[0-6]-|fvs/js/engine/00-core|scripts/test-fvs-lookalikes)' && add lookalikes
 echo "$staged" | grep -qE '^(fvs/js/(engine/)?0[0-7]-|fvs/js/engine/00-core|shared/shapes\.js|scripts/test-fvs-aspect)' && add aspect
+echo "$staged" | grep -qE '^(fvs/js/(engine/)?0[4-7]-|fvs/index\.html|shared/core\.js|scripts/test-fvs-photo)' && add photo
 echo "$staged" | grep -qE '^(rhizome/|shared/node-canvas\.|scripts/test-rhizome)' && add rhizome
 echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/js/17-figure|scripts/test-figure-board)' && add figure-board
 echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/index\.html|fvs/fvs\.css|fvs/js/(0[5-9]|1[0-8])-|scripts/test-fvs-boards|scripts/lib/)' && add boards

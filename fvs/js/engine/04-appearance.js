@@ -160,6 +160,144 @@ export const DEFAULT_APPEARANCE = { fillMode: 'fill', strokeW: 4, rounded: true,
 export const PATTERN_DEFAULTS = { patType: 'lines', patSpacing: 8, patWeight: 2, patAngle: 45 };
 export const PATTERN_KEYS = Object.keys(PATTERN_DEFAULTS);
 export const patternOf = lk => { const o = {}; PATTERN_KEYS.forEach(k => { o[k] = lk && lk[k] != null ? lk[k] : PATTERN_DEFAULTS[k]; }); return o; };
+// ── Photo (Style = Photo, Oct 23, 2026 — Tropism T2, docs/FVS-TROPISM.md) ──
+// The shape is a mask and a photo shows through it, laid out in the Element's own box (it turns, flips and scales
+// with every cell). Element-wide settings like the Pattern's; their keys exist only while a photo is chosen, so every
+// appearance saved without one is unchanged. The photo itself lives once in its own store (`fvs-photo`, by id —
+// the UI hands it in through live.photoSource); an appearance carries only `photoId`. Looks, all from the Palette:
+// Normal (as it is) · Tone (darkest → Ink 1 … the last ink → Paper, a raster) · Dither (each dot the nearest of the
+// inks + Paper by tone, Paper empty — vector paths at export, one per ink).
+export const PHOTO_DEFAULTS = { photoId: '', photoLook: 'normal', photoAlg: 'fs', photoDot: 1, photoContrast: 0, photoSize: 100, photoMx: 0, photoMy: 0 };
+export const PHOTO_KEYS = Object.keys(PHOTO_DEFAULTS);
+export const photoOf = lk => {
+  if (!lk || !lk.photoId) return {};
+  const o = {};
+  PHOTO_KEYS.forEach(k => { o[k] = lk[k] != null ? lk[k] : PHOTO_DEFAULTS[k]; });
+  return o;
+};
+export function readPhotoControls() {
+  const id = pv('in-element-photo');
+  if (!id) return {};
+  return { photoId: id, photoLook: pv('in-element-photolook') || 'normal', photoAlg: pv('sel-element-photoalg'), photoDot: val('rg-element-photodot'),
+    photoContrast: val('rg-element-photocontrast'), photoSize: val('rg-element-photosize'), photoMx: val('rg-element-photomx'), photoMy: val('rg-element-photomy') };
+}
+const _photoImg = new Map();   // id → { img, ok }
+// The decoded photo, or null while it loads (live.onPhotoReady redraws when it arrives) / when the store has none.
+export function photoImage(id) {
+  if (!id) return null;
+  let e = _photoImg.get(id);
+  if (!e) {
+    const src = live.photoSource && live.photoSource(id);
+    if (!src) return null;
+    const img = document.createElement('img');
+    e = { img, ok: false };
+    _photoImg.set(id, e);
+    img.onload = () => { e.ok = true; if (live.onPhotoReady) live.onPhotoReady(id); };
+    img.src = src;
+  }
+  return e.ok ? e.img : null;
+}
+export function primePhoto(id, img) { _photoImg.set(id, { img, ok: true }); }
+const PHOTO_PX = 512;   // Normal / Tone: the Element box as a 512 px raster
+const _photoPlans = new Map(), _photoByIdx = new Map();
+let _photoIdx = 0;
+const hexRgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const lumOf = c => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+const contrastOf = c => (c >= 0 ? 1 + c / 25 : 1 + c / 100);   // −100 = flat grey … 0 = as is … +100 = ×5
+// One processed photo for this appearance and the live inks + Paper: { idx, look, canvas, url (blob, for the screen),
+// data (data URL, for files), paths (Dither: [{ hex, d }] in the 0..100 box) } — cached, never stored.
+export function photoPlan(a) {
+  const p = photoOf(a);
+  if (!p.photoId) return null;
+  const img = photoImage(p.photoId);
+  if (!img) return null;
+  const look = p.photoLook, pal = (live.inkPaletteOverride || state.colors).slice(), paper = state.paperColor;
+  const key = JSON.stringify([p.photoId, look, p.photoSize, p.photoMx, p.photoMy, look === 'normal' ? 0 : [p.photoContrast, pal, paper], look === 'dither' ? [p.photoAlg, p.photoDot] : 0]);
+  const hit = _photoPlans.get(key);
+  if (hit) return hit;
+  const R = look === 'dither' ? Math.max(4, Math.min(400, Math.round(100 / Math.max(0.25, +p.photoDot || 1)))) : PHOTO_PX;
+  const cv = document.createElement('canvas'); cv.width = cv.height = R;
+  const cx = cv.getContext('2d', { willReadFrequently: true });
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const k = Math.max(R / iw, R / ih) * Math.max(0.1, (+p.photoSize || 100) / 100), dw = iw * k, dh = ih * k;   // Cover, then Photo size
+  cx.imageSmoothingQuality = 'high';
+  cx.drawImage(img, (R - dw) / 2 + (+p.photoMx || 0) / 100 * R, (R - dh) / 2 + (+p.photoMy || 0) / 100 * R, dw, dh);
+  const plan = { idx: ++_photoIdx, look, canvas: cv, paths: null };
+  if (look !== 'normal') {
+    const id = cx.getImageData(0, 0, R, R), px = id.data, f = contrastOf(+p.photoContrast || 0), N = R * R;
+    const gray = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      const al = px[i * 4 + 3] / 255, l = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) / 255;
+      gray[i] = Math.max(0, Math.min(1, ((l * al + (1 - al)) - 0.5) * f + 0.5));   // a transparent pixel reads as light
+    }
+    const inks = pal.map(hexRgb).filter(Boolean), pap = hexRgb(paper);   // paper 'none' → transparent
+    if (look === 'tone') {
+      const stops = [...inks.map(c => [...c, 255]), pap ? [...pap, 255] : [255, 255, 255, 0]], m = stops.length - 1;
+      for (let i = 0; i < N; i++) {
+        const s = gray[i] * m, j = Math.min(m - 1, Math.floor(s)), t = m ? s - j : 0, A = stops[Math.max(0, j)], B = stops[Math.min(m, j + 1)];
+        for (let c = 0; c < 4; c++) px[i * 4 + c] = Math.round(A[c] + (B[c] - A[c]) * t);
+      }
+    } else {
+      const cols = [...inks, pap || [255, 255, 255]], paperK = cols.length - 1;
+      const at = Organica.dither.levels(gray, R, R, cols.map(lumOf), p.photoAlg, { bayer: 4 });
+      const ds = inks.map(() => '');
+      const u = 100 / R, f2 = v => +(v * u).toFixed(3);
+      for (let y = 0; y < R; y++) {
+        for (let x = 0; x < R;) {
+          const kk = at[y * R + x];
+          let e = x + 1;
+          while (e < R && at[y * R + e] === kk) e++;
+          if (kk !== paperK) ds[kk] += `M${f2(x)} ${f2(y)}H${f2(e)}V${f2(y + 1)}H${f2(x)}Z`;
+          x = e;
+        }
+      }
+      for (let i = 0; i < N; i++) {
+        const kk = at[i], c = cols[kk], on = kk !== paperK;
+        px[i * 4] = c[0]; px[i * 4 + 1] = c[1]; px[i * 4 + 2] = c[2]; px[i * 4 + 3] = on ? 255 : 0;
+      }
+      plan.paths = ds.map((d, i) => ({ hex: pal[i], d })).filter(q => q.d);
+    }
+    cx.putImageData(id, 0, 0);
+  }
+  plan.data = cv.toDataURL(look === 'normal' || (look === 'tone' && hexRgb(paper)) ? 'image/jpeg' : 'image/png', 0.9);
+  plan.url = URL.createObjectURL(Organica.dataURLToBlob(plan.data));
+  if (_photoPlans.size >= 48) {   // the oldest goes (its blob too); a drawing that still shows it is redrawn by then
+    const [k0, old] = _photoPlans.entries().next().value;
+    _photoPlans.delete(k0); _photoByIdx.delete(old.idx); URL.revokeObjectURL(old.url);
+  }
+  _photoPlans.set(key, plan); _photoByIdx.set(plan.idx, plan);
+  return plan;
+}
+// The photo's frame inside the shape's: the shape's place without its stretch (a uniform cover of the longer side),
+// so Width / Length never distort the photo.
+export const photoFrameAttr = (mx, my, rot, scale, w, l) => `translate(${(50 + (mx || 0)).toFixed(3)},${(50 + (my || 0)).toFixed(3)}) rotate(${rot || 0}) scale(${((scale == null ? 1 : scale) * Math.max(w || 1, l || 1)).toFixed(4)}) translate(-50,-50)`;
+export const photoFrameMatrix = (mx, my, rot, scale, w, l) => new DOMMatrix().translate(50 + (mx || 0), 50 + (my || 0)).rotate(rot || 0).scale((scale == null ? 1 : scale) * Math.max(w || 1, l || 1)).translate(-50, -50);
+export const photoImageTag = plan => `<image data-ph="${plan.idx}" href="${plan.url}" x="0" y="0" width="100" height="100" preserveAspectRatio="none"${plan.look === 'dither' ? ' style="image-rendering:pixelated"' : ''}/>`;
+export function paintPhotoCanvas(ctx, plan) {
+  const sm = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = plan.look !== 'dither';
+  ctx.drawImage(plan.canvas, 0, 0, 100, 100);
+  ctx.imageSmoothingEnabled = sm;
+}
+// A file (SVG, PNG through an <img>, plates, Figma) cannot reach the screen's blob: URLs — this makes an SVG
+// self-contained: each photo once in <defs> (Normal / Tone the embedded raster, Dither its vector paths, one per
+// ink) and every drawing of it a <use>. → { svg, raster } (raster: Normal / Tone are in it — say so).
+export function photoSelfContained(svg) {
+  if (!svg || svg.indexOf('data-ph="') < 0) return { svg, raster: false };
+  const defs = new Map();
+  let raster = false;
+  const out = svg.replace(/<image data-ph="(\d+)"[^>]*\/>/g, (m, i) => {
+    const plan = _photoByIdx.get(+i);
+    if (!plan) return '';
+    if (!defs.has(plan.idx)) {
+      if (plan.look === 'dither') defs.set(plan.idx, `<g id="ph${plan.idx}">${plan.paths.map(q => `<path d="${q.d}" fill="${q.hex}"/>`).join('')}</g>`);
+      else { raster = true; defs.set(plan.idx, `<image id="ph${plan.idx}" href="${plan.data}" x="0" y="0" width="100" height="100" preserveAspectRatio="none"/>`); }
+    }
+    return `<use href="#ph${plan.idx}"/>`;
+  });
+  if (!defs.size) return { svg: out, raster };
+  return { svg: out.replace(/(<svg\b[^>]*>)/, `$1<defs>${[...defs.values()].join('')}</defs>`), raster };
+}
 // ── Element as tile (Paper pattern = Element) ─────────────────────────
 // The tile is a flat silhouette in ONE ink: the current Element (all its fill
 // layers as one shape — stackGeometry's union), a saved Element, or a Genesis
@@ -571,6 +709,7 @@ export function getElementAppearance() {
     my: val('rg-element-my'),
     rotate: val('rg-element-rotate'),
     ...readPatternControls(),
+    ...readPhotoControls(),
     ground: readGroundControls(),
   };
 }

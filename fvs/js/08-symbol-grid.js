@@ -2,6 +2,7 @@
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
+import { exportablePhotoSVG } from './04-appearance.js';
 import { hooks } from './hooks.js';
 import {
   pv, state
@@ -84,13 +85,13 @@ export function exportFvsGrid(format) {
   const svgStr = buildFvsGridSVG();
   if (!svgStr) return;
   if (format === 'svg') {
-    Organica.download(new Blob([svgStr], { type: 'image/svg+xml' }), Organica.stamp('fvs-grid', 'svg'));
+    Organica.download(new Blob([exportablePhotoSVG(svgStr)], { type: 'image/svg+xml' }), Organica.stamp('fvs-grid', 'svg'));
     return;
   }
   const scale = parseInt(pv('sel-export-scale'), 10);
   const grid = getFvsGrid();
   const size = (parseFloat((svgStr.match(/ width="([\d.]+)"/) || [])[1]) || frameSize(grid)) * scale;   // the drawn frame (a Mirror changes it)
-  const scaledSVG = buildFvsGridSVG().replace(/width="[\d.]+" height="[\d.]+"/, `width="${size}" height="${size}"`);
+  const scaledSVG = exportablePhotoSVG(buildFvsGridSVG()).replace(/width="[\d.]+" height="[\d.]+"/, `width="${size}" height="${size}"`);
   const url = URL.createObjectURL(new Blob([scaledSVG], { type: 'image/svg+xml' }));
   const img = new Image();
   img.onload = () => {

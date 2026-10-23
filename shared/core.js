@@ -621,6 +621,54 @@
     return cells;
   };
 
+  // Multi-level dither (FVS Photo › Dither, Oct 23, 2026): the 0..1 gray field quantised to N tone
+  // levels (each a 0..1 value, e.g. the luminance of every ink + the Paper) instead of ink / paper.
+  // alg 'fs' | 'atkinson' (error diffusion to the nearest level) · 'bayer' (ordered between the two
+  // levels around each pixel, n×n matrix) · 'threshold' (nearest level). Returns a Uint8Array of
+  // indices into `levels` (as given, any order). Two levels 0 and 1 give the 1-bit dither above.
+  Organica.dither.levels = function levels(gray, W, H, lv, alg, opts) {
+    opts = opts || {};
+    const order = lv.map((v, i) => i).sort((a, b) => lv[a] - lv[b]), vals = order.map(i => lv[i]), n = vals.length;
+    const nearest = v => {
+      let k = 0;
+      while (k < n - 1 && Math.abs(vals[k + 1] - v) <= Math.abs(vals[k] - v)) k++;   // a tie goes to the lighter level, as the 1-bit dither does
+      return k;
+    };
+    const out = new Uint8Array(W * H);
+    if (alg === 'bayer') {
+      const m = opts.bayer || 4, t = Organica.dither.bayerThresholds(m);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = y * W + x, v = gray[i];
+        let k = 0;
+        while (k < n - 2 && vals[k + 1] <= v) k++;
+        const lo = vals[k], hi = vals[Math.min(n - 1, k + 1)];
+        const f = hi > lo ? (v - lo) / (hi - lo) : 0;
+        out[i] = order[f > t[(y % m) * m + (x % m)] ? Math.min(n - 1, k + 1) : k];
+      }
+      return out;
+    }
+    if (alg !== 'fs' && alg !== 'atkinson') {
+      for (let i = 0; i < W * H; i++) out[i] = order[nearest(gray[i])];
+      return out;
+    }
+    const kernel = alg === 'atkinson' ? Organica.dither.ATKINSON_KERNEL : Organica.dither.FS_KERNEL;
+    const buf = Float32Array.from(gray), serp = opts.serpentine !== false;
+    for (let y = 0; y < H; y++) {
+      const ltr = !serp || (y % 2 === 0);
+      for (let xi = 0; xi < W; xi++) {
+        const x = ltr ? xi : W - 1 - xi, i = y * W + x, k = nearest(buf[i]);
+        out[i] = order[k];
+        const err = buf[i] - vals[k];
+        for (let q = 0; q < kernel.length; q++) {
+          const nx = x + (ltr ? kernel[q][0] : -kernel[q][0]), ny = y + kernel[q][1];
+          if (nx < 0 || nx >= W || ny >= H) continue;
+          buf[ny * W + nx] += err * kernel[q][2];
+        }
+      }
+    }
+    return out;
+  };
+
   // ═══════════════════════════════════════════════════════════
   // FORMAT — aspect-ratio select
   //

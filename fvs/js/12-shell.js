@@ -44,7 +44,7 @@ import {
   setGalleryThumbVars, syncComponentGridUI
 } from './03-rules.js';
 import {
-  showPatternControls, syncGroundBlock, syncGroundInkOptions, syncGroundTileNote, syncLookBlocks
+  showPatternControls, showPhotoControls, syncGroundBlock, syncGroundInkOptions, syncGroundTileNote, syncLookBlocks
 } from './04-appearance.js';
 import {
   exportElement, measureElementInk, renderGallery, renderSeedPreview, saveElementView, setElementView, syncElementViewUI
@@ -655,6 +655,7 @@ export function applyShapeLook(look) {   // the Element's own look — not the P
   ctrl('sel-element-irrmode').value = look && look.irrMode === 'outline' ? 'outline' : 'corners';
   syncIrregularRows();
   showPatternControls(a);
+  showPhotoControls(a);
   syncLookBlocks();
 }
 ctrl('sel-seed-type').addEventListener('change', () => {
