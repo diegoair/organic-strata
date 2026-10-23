@@ -568,7 +568,7 @@ function inkAspect() {
   if (!geo || !geo.d) return 1;
   const bb = measureElementInk(geo, { ...getElementAppearance(), scale: 1, mx: 0, my: 0 }).bb;
   if (!bb || bb.width < 0.01 || bb.height < 0.01) return 1;
-  const a = Math.max(0.2, Math.min(5, bb.width / bb.height));
+  const a = Math.max(0.05, Math.min(20, bb.width / bb.height));   // a long wordmark is easily 6 : 1 (Oct 23, 2026; was capped at 5)
   return Math.abs(a - 1) <= 0.02 ? 1 : +a.toFixed(4);
 }
 export function syncProportionsUI() {

@@ -647,6 +647,13 @@ export function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {
       + `<rect width="${size}" height="${size}" fill="${state.paperColor}"/>${paperPatternSVG(size, size)}${body}</svg>`;
   }
   const pts = poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ');
+  // opts.crop: a Rectangle Element drawn as its box alone (the Components area's thumbnail — Diego, Oct 23, 2026: a wide
+  // wordmark was a thin strip in a big white square); the canvas and the views keep the square with the box in it
+  if (opts.crop && cellShapeOf(seed) === 'square') {
+    const b = elementBox(cellAspectOf(seed)), k = size / 100, f = v => (v * k).toFixed(2);
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${f(b.w)}" height="${f(b.h)}" viewBox="${f(b.x)} ${f(b.y)} ${f(b.w)} ${f(b.h)}">`
+      + `<rect x="${f(b.x)}" y="${f(b.y)}" width="${f(b.w)}" height="${f(b.h)}" fill="${state.paperColor}"/>${body}</svg>`;
+  }
   const id = 'cellclip-' + nextDrawId();
   const edge = opts.outline ? `<polygon class="cell-edge" transform="${T}" points="${pts}" fill="none" stroke="var(--border-strong)" stroke-width="1" vector-effect="non-scaling-stroke"/>` : '';
   return `<svg xmlns="http://www.w3.org/2000/svg" class="is-cell" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`

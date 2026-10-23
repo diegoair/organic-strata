@@ -600,10 +600,11 @@ function mountComponentBoard() {
   // an Element's own set: filled, or emptied on purpose (Clear board / Generate → auto false); an untouched empty one
   // gets the starter set, as the edited one does when the step opens
   const hasOwnSet = e => !!(e.gallery && e.gallery.components && (e.gallery.components.length || e.gallery.auto === false));
-  const elThumb = (e, live) => (live ? withAppearance(getElementAppearance(), () => buildSeedPreviewSVG(seedForSnapshot(), 0, false, false, 160, { outline: true }))
-    : withPalette(e.palette, () => withAppearance(e.app, () => buildSeedPreviewSVG(e.seed, 0, false, false, 160, { outline: true }))));
+  const elThumb = (e, live) => (live ? withAppearance(getElementAppearance(), () => buildSeedPreviewSVG(seedForSnapshot(), 0, false, false, 160, { outline: true, crop: true }))
+    : withPalette(e.palette, () => withAppearance(e.app, () => buildSeedPreviewSVG(e.seed, 0, false, false, 160, { outline: true, crop: true }))));   // a Rectangle: its box alone
   const elButton = (host, e, live) => {
     host.innerHTML = `<div class="fvs-board-gallery__el-box" role="button" tabindex="0" aria-label="${escAttr(nameOf(e))} — double-click or press Enter to open it on the Element board">${elThumb(e, live)}</div><span class="fvs-thumb-caption fvs-board-gallery__el-cap">Element</span>`;   // the baseline the Components are made from (Diego, Oct 11)
+    host.firstElementChild.style.setProperty('--el-ar', String(cellAspectOf(live ? seedForSnapshot() : e.seed)));   // the box's own proportions (Oct 23, 2026)
   };
   const goToElement = id => {
     boardActivate(id);
