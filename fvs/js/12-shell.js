@@ -51,7 +51,7 @@ import {
 } from './05-render-component.js';
 import {
   exitComponentEditMode, exportSelected, generate,
-  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setMirrorLine, setRhythmCombine, setRhythmMode, turnRhythmStep, setMirrorSpan, splitElementReset,
+  populateComponentStarterGallery, renderComponentEditCanvas, savePieceAsSeed, resizeRhythmBeat, setMirrorLine, turnRhythmStep, setMirrorSpan, splitElementReset,
   syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, rulePicker, syncRuleSaveUI, saveRule, syncUserRules, RULES, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
 } from './06-component-ui.js';
 import {
@@ -393,7 +393,7 @@ ctrl('rg-lens-width').addEventListener('input', e => { ctrl('v-lens-width').text
 ctrl('rg-cellsize').addEventListener('input', e => { ctrl('v-cellsize').textContent = e.target.value; renderGallery(); });
 ctrl('rg-gap').addEventListener('input', e => { ctrl('v-gap').textContent = e.target.value; renderGallery(); });
 ctrl('rg-random-count').addEventListener('input', e => { ctrl('v-random-count').textContent = e.target.value; });
-[['rg-rhythm-shift', 'v-rhythm-shift'], ['rg-rhythm-across', 'v-rhythm-across'], ['rg-rhythm-down', 'v-rhythm-down'], ['rg-rhythm-period', 'v-rhythm-period']].forEach(([rangeId, valId]) => {
+[].forEach(([rangeId, valId]) => {
   ctrl(rangeId).addEventListener('input', e => { ctrl(valId).textContent = e.target.value; });
 });
 
@@ -832,8 +832,6 @@ syncRuleAxesUI();
 
 ctrl('sel-rule').addEventListener('change', syncRuleUI);
 ctrl('seg-mirror-line').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b && b.getAttribute('aria-disabled') !== 'true') setMirrorLine(b.dataset.line); });
-ctrl('sel-rhythm-mode').addEventListener('change', e => setRhythmMode(e.target.value));
-ctrl('sel-rhythm-combine').addEventListener('change', e => setRhythmCombine(e.target.value));
 ctrl('rhythm-beat').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) turnRhythmStep(+b.dataset.step); });
 ctrl('btn-rhythm-beat-remove').addEventListener('click', () => resizeRhythmBeat(-1));
 ctrl('btn-rhythm-beat-add').addEventListener('click', () => resizeRhythmBeat(1));

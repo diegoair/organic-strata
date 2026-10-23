@@ -15,7 +15,7 @@ import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
-  ruleLines, ruleLinesAll, ruleMirror, ruleOscillator, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
+  ruleLines, ruleLinesAll, ruleMirror, ruleOscillator, ruleRhythmAll, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
   rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, FS_AFTER, turnAfter, flipScaleAfter, withTurnsOff, withOwnTurns, withFlipScaleOff, ruleAxes, dedupeComponents, TURNS_REPLACE, withTurnsReplace
 } from './engine/03-rules.js';
 import {
@@ -151,7 +151,7 @@ const ceSquare = () => state.componentEditMode && state.componentEditGrid && sta
 const CE_RULES = {
   identity: () => ruleIdentity(), pinwheel: () => rulePinwheel(), mirror: () => ruleMirror(), diagonal: () => ruleDiagonal(),
   checkerboard: () => ruleCheckerboard(), rowmirror: () => ruleRowMirror(), columnmirror: () => ruleColumnMirror(), radial: () => ruleRadial(),
-  hlines: () => ruleLinesAll(), vlines: () => ruleLinesAll(), oscillator: () => ruleOscillator(),
+  hlines: () => ruleLinesAll(), vlines: () => ruleLinesAll(), oscillator: () => ruleRhythmAll(),
 };
 const evenOrNull = w => (w && w.some(v => Math.abs(v - w[0]) > 1e-6) ? w : null);
 function resizeWeights(w, n) {
@@ -612,26 +612,14 @@ export function setMirrorLine(line) {
 // Rhythm (Oct 14, 2026): Mode Beat · Two beats · Wave · Connect, each with its own rows; Row shift for all but
 // Connect. The Beat is a row of steps, a click turns one a quarter; − / + remove / add the last (1–8 steps).
 export const RHYTHM_BEAT_MAX = 8;
-export function syncRhythm() {
-  const r = state.rhythm, m = r.mode;
-  ctrl('sel-rhythm-mode').value = m;
-  ctrl('sel-rhythm-combine').value = r.combine;
-  ctrl('rhythm-beat-block').style.display = m === 'beat' ? '' : 'none';
-  ctrl('rhythm-beats-block').style.display = m === 'beats' ? '' : 'none';
-  ctrl('rhythm-wave-block').style.display = m === 'wave' ? '' : 'none';
-  ctrl('rhythm-shift-row').style.display = m === 'connect' ? 'none' : '';
-  ctrl('rhythm-wrap-row').style.display = m === 'connect' ? '' : 'none';
-  ctrl('rhythm-sizes-row').style.display = m === 'connect' ? 'none' : '';   // its own sizes (Beat · Two beats · Wave)
-  ctrl('rhythm-flips-row').style.display = m === 'connect' ? '' : 'none';   // Connect: mirrored pieces too
+export function syncRhythm() {   // only the Beat is authored since Oct 23, 2026 (the curated package)
+  const r = state.rhythm;
   ctrl('rhythm-beat').innerHTML = r.beat.map((t, i) => `<button type="button" class="seg-btn" data-step="${i}" aria-label="Step ${i + 1}: ${t}°"><span class="fvs-beat__mark" style="--beat-turn:${t}deg" aria-hidden="true">F</span></button>`).join('');
   ctrl('v-rhythm-beat').textContent = r.beat.length + (r.beat.length === 1 ? ' step' : ' steps');
   ctrl('btn-rhythm-beat-remove').disabled = r.beat.length <= 1;
   ctrl('btn-rhythm-beat-add').disabled = r.beat.length >= RHYTHM_BEAT_MAX;
-  ctrl('rhythm-connect-hint').style.display = m === 'connect' && !elementReachesEdge() ? '' : 'none';
-  syncRuleAxesUI();   // Connect reads Flip, the other modes Scale
+  syncRuleAxesUI();
 }
-export function setRhythmMode(m) { state.rhythm.mode = m; syncRhythm(); }
-export function setRhythmCombine(c) { state.rhythm.combine = c; syncRhythm(); }
 export function turnRhythmStep(i) { const b = state.rhythm.beat; if (i in b) { b[i] = (b[i] + 90) % 360; syncRhythm(); } }
 export function resizeRhythmBeat(d) {
   const b = state.rhythm.beat;
@@ -1083,7 +1071,7 @@ export function produceRule(mode, { after = true } = {}) {
   let list = draw();
   if (!after) return list && dedupeComponents(list);   // the rule alone, folded as Generate folds (ruleIsCustom compares)
   if (TURN_AFTER.has(mode)) list = turnAfter(list);
-  if (FS_AFTER.has(mode)) list = flipScaleAfter(list, { scale: mode !== 'hlines' && mode !== 'vlines' });
+  if (FS_AFTER.has(mode)) list = flipScaleAfter(list, { scale: !['hlines', 'vlines', 'oscillator'].includes(mode) });   // Lines, Rhythm: Scale is their material
   return list;
 }
 function produceRuleBase(mode) {
@@ -1098,7 +1086,7 @@ function produceRuleBase(mode) {
     case 'columnmirror': return ruleColumnMirror();
     case 'radial': return ruleRadial();
     case 'hlines': case 'vlines': return ruleLinesAll();   // one Lines rule, both directions (Oct 22, 2026)
-    case 'oscillator': return ruleOscillator();
+    case 'oscillator': return ruleRhythmAll();
     case 'random': return ruleRandom();
     case 'exhaustive': return ruleExhaustive();
     default: return null;

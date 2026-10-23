@@ -36,8 +36,7 @@ const got = await P.ev(`
       set('chk-axis-rotation', R); set('chk-axis-flip', Fl); set('chk-axis-scale', S);
       const ak = (R ? 'R' : '-') + (Fl ? 'F' : '-') + (S ? 'S' : '-');
       for (const r of rules) {
-        const variants = r === 'oscillator' ? opts('sel-rhythm-mode').map(v => ['sel-rhythm-mode', v])
-          : [[null, '']];   // Lines: one package since Oct 22, 2026 (no Mode)
+        const variants = [[null, '']];   // Lines and Rhythm: one package each since Oct 22–23, 2026
         for (const [ctl, v] of variants) {
           if (ctl) set(ctl, v);
           set('sel-rule', r);

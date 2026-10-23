@@ -67,9 +67,9 @@ await sleep(400);
 const CAPTURE = async () => {
   const R = await import('/fvs/js/engine/03-rules.js'), UI = await import('/fvs/js/06-component-ui.js');
   const st = window.__fvs.state, $ = id => document.getElementById(id), F = R.FAMILIES;
-  const ids = ['rg-grid-cols', 'rg-grid-rows', 'chk-axis-rotation', 'chk-axis-flip', 'chk-axis-scale', 'sel-rhythm-angle', 'rg-rhythm-shift', 'rg-rhythm-across', 'rg-rhythm-down', 'sel-rhythm-amp', 'rg-rhythm-period', 'rg-random-count', 'num-seed'];
+  const ids = ['rg-grid-cols', 'rg-grid-rows', 'chk-axis-rotation', 'chk-axis-flip', 'chk-axis-scale', 'rg-random-count', 'num-seed'];
   const set = o => { for (const [k, v] of Object.entries(o)) { const e = $(k); if (e.type === 'checkbox') e.checked = v; else e.value = v; } };
-  const base = { 'chk-axis-rotation': true, 'chk-axis-flip': false, 'chk-axis-scale': false, 'sel-rhythm-angle': '90', 'rg-rhythm-shift': 1, 'rg-rhythm-across': 3, 'rg-rhythm-down': 4, 'sel-rhythm-amp': '90', 'rg-rhythm-period': 4, 'rg-random-count': 16, 'num-seed': 1 };
+  const base = { 'chk-axis-rotation': true, 'chk-axis-flip': false, 'chk-axis-scale': false, 'rg-random-count': 16, 'num-seed': 1 };
   const fmt = c => `${c.rotation}${c.flipH ? 'h' : ''}${c.flipV ? 'v' : ''}${c.scale !== 1 ? '@' + c.scale : ''}`;
   const row = cells => cells.map(fmt).join(' ');
   st.cellShape = 'square'; st.mirrorLine = 'both'; st.mirrorSpread = 'cell'; st.checkerStart = 0; st.radialReading = 'quadrants';
@@ -84,7 +84,7 @@ const CAPTURE = async () => {
   const extra = (key, sz, over, k, n) => { grid(sz, over); const r = run(k, n); CELLS[key] = { n: r.n, c: sz, r: sz, s: r.s }; };
   extra('2|checkerboard|RF', 2, { 'chk-axis-flip': true }, 'checkerboard', 6);
   extra('2|exhaustive|RF', 2, { 'chk-axis-flip': true }, 'exhaustive', 1);
-  st.rhythm.beat = [0, 90, 180, 270]; extra('4|osc|ramp', 4, { 'rg-rhythm-shift': 1 }, 'oscillator', 1); st.rhythm.beat = [0, 90, 0];
+  st.rhythm.beat = [0, 90, 180, 270]; extra('4|osc|ramp', 4, {}, 'oscillator', 1); st.rhythm.beat = [0, 90, 0];
   extra('2|pinwheel|S', 2, { 'chk-axis-scale': true }, 'pinwheel', 6);
   extra('4|random|RFS', 4, { 'chk-axis-flip': true, 'chk-axis-scale': true }, 'random', 6);
   CELLS['3|radial'] = 'disabled';
@@ -139,7 +139,8 @@ const CAPTURE = async () => {
   const lines = (axis, mode) => [90, 180, 270].map(stp => { grid(4); return row(R.ruleLines(axis, { mode, step: stp })[0].cells); });
   G.hlines = [g('Alternate', 'odd rows take Step: Step 90° · 180° · 270°', 4, lines('row', 'alternate')), g('Ramp', 'each row turns Step more than the row above: Step 90° · 180° · 270°', 4, lines('row', 'ramp'))];
   G.vlines = [g('Alternate', 'odd columns take Step: Step 90° · 180° · 270°', 4, lines('col', 'alternate')), g('Ramp', 'each column turns Step more than the one before: Step 90° · 180° · 270°', 4, lines('col', 'ramp'))];
-  const osc = (mode, list) => list.map(([o, rh]) => { st.rhythm = { mode, beat: [0, 90, 0], combine: 'add', ...rh }; grid(4, o); return row(R.ruleOscillator()[0].cells); });
+  const P_OF = { 'rg-rhythm-shift': 'shift', 'rg-rhythm-across': 'across', 'rg-rhythm-down': 'down', 'sel-rhythm-amp': 'amp', 'rg-rhythm-period': 'period' };   // the builder's parameters since Oct 23, 2026
+  const osc = (mode, list) => list.map(([o, rh]) => { st.rhythm = { mode, beat: [0, 90, 0], combine: 'add', ...rh }; grid(4); const p = Object.fromEntries(Object.entries(o).map(([k, v]) => [P_OF[k], +v])); return row(R.ruleOscillator({ mode, ...p, combine: st.rhythm.combine })[0].cells); });
   G.oscillator = [g('Beat 0° · 90° · 0°', 'the beat repeats along each row; Row shift 0 · 1 · 2 slides the next row along', 4, osc('beat', [[{ 'rg-rhythm-shift': 0 }], [{ 'rg-rhythm-shift': 1 }], [{ 'rg-rhythm-shift': 2 }]])),
     g('Beat · longer beats', '0° · 90° · 180° · 270° (a ramp) · 0° · 0° · 180° · 90° · 90° · 270° (Row shift 1)', 4, osc('beat', [[{}, { beat: [0, 90, 180, 270] }], [{}, { beat: [0, 0, 180] }], [{}, { beat: [90, 90, 270] }]])),
     g('Two beats · Add · One only · Both', 'a beat every 3 cells along the row (Across) and every 2 rows (Down), Angle 90°: each turns its cells, twice where they meet · cells on exactly one · only where they meet', 4, osc('beats', ['add', 'one', 'both'].map(c => [{ 'rg-rhythm-across': 3, 'rg-rhythm-down': 2 }, { combine: c }]))),

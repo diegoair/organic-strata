@@ -295,7 +295,7 @@ export function rotationValues() {
   if (live.ownTurns) return live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : rotationSteps();
   return panelTurns();
 }
-export const TURNS_REPLACE = new Set(['checkerboard', 'pinwheel', 'radial', 'hlines', 'vlines']);   // Radial too (Diego, Oct 22: "in Radial, bring back turns")
+export const TURNS_REPLACE = new Set(['checkerboard', 'pinwheel', 'radial', 'hlines', 'vlines', 'oscillator']);   // Radial too (Diego, Oct 22: "in Radial, bring back turns")
 export function withTurnsReplace(fn) { const k = live.turnsReplace; live.turnsReplace = true; try { return fn(); } finally { live.turnsReplace = k; } }
 // Step turn's step and starts: the cell shape's, or Every and 0 … Up to when Turns is on (TURNS_REPLACE)
 export function stepTurnSpace() {
@@ -315,7 +315,7 @@ function panelTurns() {
 // Turns row). Checkerboard, Random and Exhaustive include the cell shape's own turns in the rule, whatever Turns says
 // (OWN_TURNS — Diego, Oct 21: "the turns are their material, in the rule; they don't touch Turns"); Turns adds after.
 // Checkerboard left it Oct 22, 2026: a whole-board turn of its pairs only gave the swapped boards Start at already gives
-export const TURN_AFTER = new Set(['identity', 'mirror', 'oscillator', 'random', 'exhaustive']);
+export const TURN_AFTER = new Set(['identity', 'mirror', 'random', 'exhaustive']);
 export const OWN_TURNS = new Set(['checkerboard', 'random', 'exhaustive']);
 // Flip and Scale after the rule too (Oct 21, 2026 — plan phase 5): these rules draw without them, then every Component
 // comes again mirrored / at each size. Random and Exhaustive keep Flip and Scale as their material (Diego); Lines and
@@ -360,7 +360,7 @@ export function ruleAxes(mode, { lattice = false, rhythm = 'beat' } = {}) {
     case 'radial': return { rotation: 'values', flip: false, scale: true };   // Turns on = the starts (Oct 22, 2026)
     case 'pinwheel': return { rotation: 'values', flip: false, scale: true };   // Turns on = Every is the step, 0 … Up to the starts (Oct 22, 2026)
     case 'hlines': case 'vlines': return { rotation: 'values', flip: false, scale: true };   // Turns on = the steps (Oct 22, 2026)
-    case 'oscillator': return rhythm === 'connect' ? { rotation: null, flip: true, scale: false } : { rotation: null, flip: false, scale: true };
+    case 'oscillator': return { rotation: 'values', flip: true, scale: true };   // the curated package (Oct 23, 2026): Turns = Two beats' angles
     default: return all;   // Mirror, Checkerboard, Random, Exhaustive (and the hidden legacy rules)
   }
 }
@@ -657,27 +657,47 @@ export function rhythmCells(params, ctxs, cover) {
   }
   return rhythmBeatCells(ctxs, Array.isArray(p.beat) && p.beat.length ? p.beat : RHYTHM_DEFAULTS.beat, shift, null);
 }
-export function ruleOscillator() {
-  const grid = getGrid();
-  const ctxs = hooks.componentCellColRow(grid);
-  const r = state.rhythm, shift = parseFloat(pv('rg-rhythm-shift')) || 0;
-  const sv = pc('chk-rhythm-sizes') ? OWN_SIZES : null, s = sv ? '-s' : '';   // Rhythm's own sizes (Oct 21, 2026)
-  if (r.mode === 'connect') {
-    const views = rhythmConnectViews(pc('chk-rhythm-flips'));   // Connect's own mirrored pieces (Oct 21, 2026)
-    const cover = views.map(v => hooks.elementSideCover(v));
-    const out = [], wrap = pc('chk-rhythm-wrap');
-    for (let k = 1; k <= RHYTHM_CONNECT_SEEDS; k++) out.push({ id: `rhythm-connect-${views.length}-${wrap ? 'w' : ''}${k}`, ruleSource: 'oscillator', cells: rhythmConnectCells(ctxs, views, cover, k, wrap) });
+// One Rhythm pattern — a pure builder since Oct 22, 2026 (the atlas and tests pass its parameters; Generate makes the
+// curated package below). Defaults: the panel's Beat, Row shift 1, Two beats 3 × 4 Add 90°, Wave 90° / 4, Connect tiled.
+export function ruleOscillator(o = {}) {
+  const ctxs = hooks.componentCellColRow(getGrid());
+  const r = state.rhythm, mode = o.mode || r.mode, shift = o.shift ?? 1, sv = o.sizes || null, s = sv ? '-s' : '';
+  if (mode === 'connect') {
+    const views = rhythmConnectViews(!!o.flips), cover = views.map(v => hooks.elementSideCover(v));
+    const out = [], wrap = o.wrap ?? true;
+    for (let k = 1; k <= RHYTHM_CONNECT_SEEDS; k++) out.push({ id: `rhythm-connect-${views.length}-${wrap ? 'w' : ''}${k}`, ruleSource: 'oscillator', k, cells: rhythmConnectCells(ctxs, views, cover, k, wrap) });
     return dedupeComponents(out);
   }
-  if (r.mode === 'beats') {
-    const across = parseInt(pv('rg-rhythm-across'), 10) || 2, down = parseInt(pv('rg-rhythm-down'), 10) || 2, angle = parseInt(pv('sel-rhythm-angle'), 10) || 90;
-    return [{ id: `rhythm-beats-${across}-${down}-${angle}-${r.combine}-${shift}${s}`, ruleSource: 'oscillator', cells: rhythmBeatsCells(ctxs, across, down, angle, r.combine, shift, sv) }];
+  if (mode === 'beats') {
+    const across = o.across ?? 3, down = o.down ?? 4, angle = o.angle ?? 90, combine = o.combine || r.combine || 'add';
+    return [{ id: `rhythm-beats-${across}-${down}-${angle}-${combine}-${shift}${s}`, ruleSource: 'oscillator', cells: rhythmBeatsCells(ctxs, across, down, angle, combine, shift, sv) }];
   }
-  if (r.mode === 'wave') {
-    const amp = parseInt(pv('sel-rhythm-amp'), 10) || 90, period = parseInt(pv('rg-rhythm-period'), 10) || 4;
+  if (mode === 'wave') {
+    const amp = o.amp ?? 90, period = o.period ?? 4;
     return [{ id: `rhythm-wave-${amp}-${period}-${shift}${s}`, ruleSource: 'oscillator', cells: rhythmWaveCells(ctxs, amp, period, shift, sv) }];
   }
-  return [{ id: `rhythm-beat-${r.beat.join('.')}-${shift}${s}`, ruleSource: 'oscillator', cells: rhythmBeatCells(ctxs, r.beat, shift, sv) }];
+  const beat = o.beat || r.beat;
+  return [{ id: `rhythm-beat-${beat.join('.')}-${shift}${s}`, ruleSource: 'oscillator', cells: rhythmBeatCells(ctxs, beat, shift, sv) }];
+}
+// Rhythm — the curated package (Diego, Oct 23, 2026: "vai pacchetto curato"): only the Beat is authored; Generate makes
+// Beat × Row shift 0 · 0.5 · 1 · 1.5 · 2; Two beats × Combine × Across 2–4 × Down 2–4 × Row shift 0 · 1 × Angle 90 · 180
+// · 270 (Turns on: 0 … Up to by Every); Wave × Amplitude 90 · 180 × Row shift 0 · 1 × Period 4 · 6 · 8; Connect × tiled /
+// not × its 16 draws (Flip on: also the mirrored pieces). Scale on: Beat / Two beats / Wave again with their own sizes.
+// About 176 on a 4 × 4 before Scale. rv = a section · a column · a row for the board.
+const COMBINE_NAME = { add: 'Add', one: 'One only', both: 'Both' };
+export function ruleRhythmAll() {
+  const sized = pc('chk-axis-scale') ? [null, scaleValues()] : [null], out = [];
+  const angles = (live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : [90, 180, 270]).filter(t => mod360(t) !== 0);
+  const add = (list, rv) => list.forEach(c => out.push({ ...c, rv: { rule: 'Rhythm', ...rv } }));
+  const tag = (name, sizes) => name + (sizes ? ' · Sizes' : '');
+  for (const sizes of sized) for (const shift of [0, 0.5, 1, 1.5, 2]) add(ruleOscillator({ mode: 'beat', shift, sizes }), { sec: tag('Beat', sizes), col: 'Row shift ' + shift });
+  for (const sizes of sized) for (const combine of ['add', 'one', 'both']) for (let across = 2; across <= 4; across++) for (let down = 2; down <= 4; down++) for (const shift of [0, 1]) for (const angle of angles)
+    add(ruleOscillator({ mode: 'beats', across, down, angle, combine, shift, sizes }), { sec: tag(`Two beats · ${COMBINE_NAME[combine]} · Across ${across} · Down ${down}`, sizes), col: 'Angle ' + angle + '°', row: 'Row shift ' + shift });
+  for (const sizes of sized) for (const amp of [90, 180]) for (const shift of [0, 1]) for (const period of [4, 6, 8])
+    add(ruleOscillator({ mode: 'wave', amp, period, shift, sizes }), { sec: tag('Wave · Amplitude ' + amp + '°', sizes), col: 'Period ' + period, row: 'Row shift ' + shift });
+  for (const wrap of [true, false]) ruleOscillator({ mode: 'connect', wrap, flips: pc('chk-axis-flip') }).forEach(c => out.push({ ...c, rv: { rule: 'Rhythm', sec: 'Connect' + (wrap ? ' · Tile seamlessly' : ''), col: 'Draw ' + c.k } }));
+  const kept = dedupeComponents(out);
+  return kept.length ? kept : ruleIdentity();
 }
 // ── Family registry — Random/Exhaustive draw from here, on ANY grid (every
 // family builds through GRID_BUILD's col/row form; a canonical 2×2 keeps the

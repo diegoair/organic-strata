@@ -1446,13 +1446,7 @@
       <!-- Lines has no controls of its own since Oct 22, 2026 (Diego): both directions × Alternate / Ramp × Step is the package -->
 
       <div id="rule-oscillator-block" class="fvs-rule-opts" style="display:none">
-        <div class="ctrl-row"><div class="ctrl-label">Mode</div>
-          <select class="panel-select" id="sel-rhythm-mode">
-            <option value="beat" selected>Beat</option>
-            <option value="beats">Two beats</option>
-            <option value="wave">Wave</option>
-            <option value="connect">Connect</option>
-          </select></div>
+        <!-- Rhythm: only the Beat is authored since Oct 23, 2026 (Diego, "vai pacchetto curato") — Generate makes every mode -->
         <div id="rhythm-beat-block">
           <div class="ctrl-row"><div class="ctrl-label" id="rhythm-beat-label">Beat</div>
             <span class="ctrl-val" id="v-rhythm-beat">3 steps</span>
@@ -1461,39 +1455,6 @@
           </div>
           <div class="seg-ctrl fvs-beat" id="rhythm-beat" role="group" aria-labelledby="rhythm-beat-label"></div>
         </div>
-        <div id="rhythm-beats-block" style="display:none">
-          <div class="ctrl-row"><div class="ctrl-label">Across</div>
-            <input type="range" id="rg-rhythm-across" min="2" max="8" step="1" value="3"><span class="ctrl-val" id="v-rhythm-across">3</span>
-          </div>
-          <div class="ctrl-row"><div class="ctrl-label">Down</div>
-            <input type="range" id="rg-rhythm-down" min="2" max="8" step="1" value="4"><span class="ctrl-val" id="v-rhythm-down">4</span>
-          </div>
-          <div class="ctrl-row"><div class="ctrl-label">Combine</div>
-            <select class="panel-select" id="sel-rhythm-combine">
-              <option value="add" selected>Add</option>
-              <option value="one">One only</option>
-              <option value="both">Both</option>
-            </select></div>
-          <div class="ctrl-row"><div class="ctrl-label">Angle</div>
-            <select class="panel-select" id="sel-rhythm-angle"><option value="90" selected>90°</option><option value="180">180°</option><option value="270">270°</option></select>
-          </div>
-        </div>
-        <div id="rhythm-wave-block" style="display:none">
-          <div class="ctrl-row"><div class="ctrl-label">Amplitude</div>
-            <select class="panel-select" id="sel-rhythm-amp"><option value="90" selected>90°</option><option value="180">180°</option></select>
-          </div>
-          <div class="ctrl-row"><div class="ctrl-label">Period</div>
-            <input type="range" id="rg-rhythm-period" min="2" max="12" step="1" value="4"><span class="ctrl-val" id="v-rhythm-period">4</span>
-          </div>
-        </div>
-        <div class="ctrl-row" id="rhythm-shift-row"><div class="ctrl-label">Row shift</div>
-          <input type="range" id="rg-rhythm-shift" min="0" max="2" step="0.05" value="1"><span class="ctrl-val" id="v-rhythm-shift">1</span>
-        </div>
-        <!-- Rhythm's own Sizes (Beat · Two beats · Wave) and Flips (Connect) — Oct 21, 2026, plan phase 5: they were the Scale / Flip axes -->
-        <label class="check-row org-switch" id="rhythm-sizes-row"><input type="checkbox" id="chk-rhythm-sizes"><span>Sizes</span></label>
-        <label class="check-row org-switch" id="rhythm-flips-row" style="display:none"><input type="checkbox" id="chk-rhythm-flips"><span>Flips</span></label>
-        <label class="check-row org-switch" id="rhythm-wrap-row" style="display:none"><input type="checkbox" id="chk-rhythm-wrap" checked><span>Tile seamlessly</span></label>
-        <p class="org-panel__hint" id="rhythm-connect-hint" style="display:none">This Element doesn’t reach the edges of its cell, so there is nothing to join: the turns come out at random.</p>
       </div>
 
       <div id="rule-exhaustive-block" class="fvs-rule-opts" style="display:none">

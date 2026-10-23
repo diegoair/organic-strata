@@ -667,15 +667,20 @@ export function galleryGroups(list) {
 // fatto sempre per le regole con trasformazioni"): rv = {sec, col} — e.g. Step turn / Radial: a section per direction, a
 // column per start. One row per section.
 function variantGroups(list) {
-  const secs = [...new Set(list.map(c => c.rv.sec || ''))], cols = [...new Set(list.map(c => c.rv.col || ''))];
-  if (secs.length < 2 && cols.length < 2) return null;
-  if (cols.length > GROUP_MAX_COLS || secs.length > GROUP_MAX_SECTIONS) return null;
-  const per = 4, sec = c => secs.indexOf(c.rv.sec || '');
+  // rv = {sec, col, row?}: each section its own columns and rows (Rhythm's modes differ — Oct 23, 2026)
+  const secs = [], colsOf = {}, rowsOf = {};
+  list.forEach(c => { const s = c.rv.sec || ''; if (!(s in colsOf)) { secs.push(s); colsOf[s] = []; rowsOf[s] = []; }
+    if (!colsOf[s].includes(c.rv.col || '')) colsOf[s].push(c.rv.col || ''); if (!rowsOf[s].includes(c.rv.row || '')) rowsOf[s].push(c.rv.row || ''); });
+  const cols = Math.max(...secs.map(s => colsOf[s].length)), rows = Math.max(...secs.map(s => rowsOf[s].length));
+  if (secs.length < 2 && cols < 2 && rows < 2) return null;
+  if (cols > GROUP_MAX_COLS || secs.length > GROUP_MAX_SECTIONS) return null;
+  const off = {}; let o = 0; secs.forEach(s => { off[s] = o; o += rowsOf[s].length + 3; });   // three empty rows open each section
+  const S = c => c.rv.sec || '';
   return {
-    cols: cols.length, per, sec,
-    col: c => cols.indexOf(c.rv.col || ''),
-    row: c => sec(c) * per + 3,
-    rowLabel: () => null,
+    cols, sec: c => secs.indexOf(S(c)),
+    col: c => colsOf[S(c)].indexOf(c.rv.col || ''),
+    row: c => off[S(c)] + 3 + rowsOf[S(c)].indexOf(c.rv.row || ''),
+    rowLabel: c => rowsOf[S(c)].length > 1 ? c.rv.row : null,
     sectionLabel: c => [c.rv.rule || ruleLabel(c.ruleSource), c.rv.sec].filter(Boolean).join(' · '),
     colLabel: c => c.rv.col || null,
   };
