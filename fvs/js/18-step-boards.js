@@ -28,7 +28,7 @@ import {
 } from './05-render-component.js';
 import {
   ceSnapshot, editCellShape, enterComponentEditMode, exitComponentEditMode, populateComponentStarterGallery,
-  pushUndoEntry, renderComponentEditCanvas, selectComponentEditCell, starterComponents, syncGenerateButton
+  pushUndoEntry, renderComponentEditCanvas, selectComponentEditCell, starterComponents, syncGenerateButton, generate, generateBlock
 } from './06-component-ui.js';
 import {
   applyElementSnapshot, layersChanged, selectLayer, setPartEdit
@@ -62,7 +62,7 @@ provide({
   boardElementDrawn: () => elementDrawn, boardGalleryDrawn: () => galleryDrawn,
   boardComponentEdit: () => componentEdit, boardTierShown: () => boardTierShown,
   elementPalettes: () => elementPalettes, boardSymbolDrawn: () => symbolDrawn,
-  boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries,
+  boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries, generateAllElements: () => generateAllElements,
   syncCeCellProps: () => syncCeCellProps
 });
 
@@ -71,6 +71,16 @@ const el = (tag, cls, attrs) => { const n = document.createElement(tag); if (cls
 const clone = o => JSON.parse(JSON.stringify(o));
 const overlayOpen = () => ctrl('symbol-content-overlay').style.display !== 'none';   // as 12-shell.js reads it
 let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {}, elementPalettes = () => [];
+// Generate for every Element (Diego, Oct 23, 2026: "every time I change a rule all the elements generate based on the
+// rule"): the edited Element first, then each other one made the edited Element in turn (its seed, look, Palette and
+// Generated components come in, the new list goes back with it), and the one you were on again at the end.
+function generateAllElements() {
+  const start = state.activeElement, ids = state.elements.map(e => e.id);
+  generate();
+  if (ids.length < 2 || !start) return;
+  for (const id of ids) { if (id === start) continue; boardActivate(id); if (!generateBlock()) generate(); }
+  boardActivate(start);
+}
 let symbolDrawn = () => {}, boardActivate = () => {}, restoreGalleries = () => {}, elementBoard = null, elementSaveNow = () => {};
 
 // Each Element keeps its own Generated components (O-67 d, Diego, Oct 11, 2026): `gallery` on the Element = the
