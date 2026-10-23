@@ -20,10 +20,10 @@ import {
   layerPlace
 } from './engine/05-render-component.js';
 import {
-  syncActiveLayer
+  hexKey, syncActiveLayer
 } from './engine/07-library.js';
 import {
-  ctrl
+  buildPalette, ctrl
 } from './00-core.js';
 export const seedPicker = Organica.selectPicker(ctrl('sel-seed-type'), ctrl('seedtype-picker'), { registry: SEED_ICONS, ariaLabel: 'Shape' });
 
@@ -240,13 +240,16 @@ export function useSvgAsSeed(svgString) {
   ctrl('seed-upload-error').style.display = 'none';
   hooks.renderGallery();
   hooks.renderSeedPreview();
+  return geo;
 }
 
 export function handleSeedUpload(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      useSvgAsSeed(reader.result);
+      const geo = useSvgAsSeed(reader.result);
+      // the file's own colours become the Element's inks (Diego, Oct 23, 2026: "l'svg era rosso") — the first draws it
+      if (geo && geo.inks && geo.inks.length) { state.colors = geo.inks.slice(0, 8).map(hexKey); buildPalette(); }
       if (hooks.autoProportions) hooks.autoProportions();   // a drawing that is not square keeps its own proportions (Oct 23, 2026)
     } catch (e) {
       ctrl('seed-upload-error').textContent = e.message;

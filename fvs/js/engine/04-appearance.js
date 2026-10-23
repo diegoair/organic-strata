@@ -248,8 +248,19 @@ export function strokeOutlineParts(d, width, cap, join) {
 export function svgToTileGeo(svg) {
   if (!/<svg[\s>]/i.test(String(svg))) return null;   // Paper.js would fetch any other string as a URL
   const scope = splitPaperScope();
-  const root = scope.project.importSVG(ensureSvgNamespace(String(svg).replace(/var\(--ink\)/g, '#000')), { expandShapes: true, insert: false });
-  const parts = [], partsInk = [], whiteParts = [];
+  // a root sized in % (width="100%" height="100%", as Affinity / Illustrator export) is read by Paper as a square viewport,
+  // so a viewBox that isn't square came in squashed (Carhartt's 2130 × 2499 mark turned 1:1 — Oct 23, 2026): the root
+  // gets its viewBox's own size first, so the drawing keeps its proportions
+  const sized = String(svg).replace(/<svg\b[^>]*>/i, tag => {
+    const vb = tag.match(/viewBox\s*=\s*["']\s*[-\d.eE]+[\s,]+[-\d.eE]+[\s,]+([-\d.eE]+)[\s,]+([-\d.eE]+)/);
+    if (!vb || !(+vb[1] > 0) || !(+vb[2] > 0)) return tag;
+    const rel = v => !v || /%|auto/i.test(v);
+    const w = (tag.match(/\swidth\s*=\s*["']([^"']*)["']/) || [])[1], h = (tag.match(/\sheight\s*=\s*["']([^"']*)["']/) || [])[1];
+    if (!rel(w) && !rel(h)) return tag;
+    return tag.replace(/\s(width|height)\s*=\s*["'][^"']*["']/g, '').replace(/^<svg/i, `<svg width="${vb[1]}" height="${vb[2]}"`);
+  });
+  const root = scope.project.importSVG(ensureSvgNamespace(sized.replace(/var\(--ink\)/g, '#000')), { expandShapes: true, insert: false });
+  const parts = [], partsInk = [], whiteParts = [], inks = [];   // inks: the file's own paint colours, first seen first (Oct 23, 2026)
   // What is ink: visible, not a clip mask, not fully transparent (own or a parent's opacity). A white /
   // near-white paint is Paper (an uploaded file's background rect), used only if nothing else is drawn.
   const shown = it => { for (let p = it; p; p = p.parent) { if (!p.visible || p.opacity === 0) return false; } return !it.clipMask; };
@@ -275,6 +286,8 @@ export function svgToTileGeo(svg) {
     // SVG's default fill is black even on a <line>: only a shape with area is filled; any stroke is outlined
     const filled = it.fillColor && it.fillColor.alpha !== 0 && Math.abs(it.area) > 1e-6, stroked = it.strokeColor && it.strokeColor.alpha !== 0 && it.strokeWidth > 0;
     const fillTo = isWhite(it.fillColor) ? whiteParts : partsInk, strokeTo = isWhite(it.strokeColor) ? whiteParts : partsInk;   // each paint on its own
+    const note = col => { if (col && col.type !== 'gradient' && col.alpha !== 0 && !isWhite(col)) { const h = col.toCSS(true); if (!inks.includes(h)) inks.push(h); } };
+    if (filled) note(it.fillColor); if (stroked) note(it.strokeColor);
     if (filled) {   // an evenodd fill keeps its holes: sub-paths re-wound so nonzero reads them the same way (a ring)
       if (it.fillRule === 'evenodd') { const cp = new scope.CompoundPath({ pathData: c.pathData, insert: false }); cp.reorient(false, true); push(fillTo, cp.pathData); cp.remove(); }
       else push(fillTo, c.pathData);
@@ -310,7 +323,7 @@ export function svgToTileGeo(svg) {
   acc.remove(); ps.forEach(p => p.remove());
   if (!d || !(b.width > 0 || b.height > 0)) return null;
   const ns = 100 / Math.max(b.width, b.height);
-  return { d, fillRule: null, normScale: ns, normTx: -b.x + (100 - b.width * ns) / 2 / ns, normTy: -b.y + (100 - b.height * ns) / 2 / ns };
+  return { d, fillRule: null, normScale: ns, normTx: -b.x + (100 - b.width * ns) / 2 / ns, normTy: -b.y + (100 - b.height * ns) / 2 / ns, inks };   // inks: the file's colours
 }
 export function tileIconSVG(t) {
   if (!t || !t.geo || !t.geo.d) return '';
