@@ -49,7 +49,7 @@ is gone); the candidates sit on the board at 2×.
   **Freehand** (draw with bezier anchors), **Custom** (an uploaded SVG) and
   Seeds picked from the **Genesis library** (its 13 Base Seeds + your own Genesis seeds — the
   **Genesis seeds** group of the Library view, §7). An uploaded SVG and a Genesis seed come in
-  **whole** through one import (`useSvgAsSeed` → `svgToTileGeo`, Oct 6, 2026; it was the first shape
+  **whole** through one import (its Proportions set from the ink when it isn't square — §3a′, Oct 23, 2026) (`useSvgAsSeed` → `svgToTileGeo`, Oct 6, 2026; it was the first shape
   only): every visible shape united, strokes outlined with their own width / caps / joins, evenodd
   holes kept, transforms and clip paths applied (the viewBox too), hidden layers and zero-opacity
   groups skipped, white / near-white paint treated as Paper (a background rect) unless it is all there
@@ -228,6 +228,18 @@ The cell the Element is drawn for. Four icon buttons in the floatbar, on the Ele
 - **Symbol → Overlap & blend** (its own section, every Symbol grid, Oct 6, 2026; saved with the Symbol as `entry.overlap`, older Symbols open as Paper under / 0). **Overlap** (0–100 %): each cell's content grows past its cell; aligned Components grow their shared lattice instead (they stay aligned). Clip to cell turns off when Overlap goes above 0. **Blend**: **Paper under** (default — every Paper first, all inks on top, as before), **Normal** (each content's Paper right under its own ink; the later one covers), **Multiply** (no Paper; each content multiplies onto the page as one ink — the canvas draws it on its own layer, `inkLayer`, to match the SVG's `mix-blend-mode`), **Shared cells** (needs aligned Components — Match cell + a Grid shape: a small cell two cover is drawn once, by **Drawn by** — Nearest centre · Alternate · First · Last; `shareComponentGridCells`). Code: `symbolLook`, `overlapGrowth`, `syncOverlapSection`. Measured: PNG vs SVG ≤0.1 % of pixels in every Blend.
 - **Saved data.** A seed carries `cellShape` only when it isn't square; a Component grid carries `lattice: {shape, rings, outline}` (rings = Grid size). Missing = square — every existing file and the regression baseline are unchanged.
 - **Not yet:** layered Elements aren't cut to the cell; Arc truchet's square-only rows still show on a hexagon; Symbol rules still make 90° turns (Match cell rounds them); Element as Paper tile is square-only; the Transform axes label still reads 0/90/180/270°.
+
+### 3a′. Proportions — a Rectangle Element (Oct 23, 2026)
+
+Plan `~/.claude/plans` (Diego, Oct 23, 2026, after uploading the Carhartt logo): an Element can have **its own box** instead of the square — **Proportions** *Square · Drawing* in Look & place, after Length (square cells only; hidden on circle / triangle / hexagon).
+- **The box.** `state.cellAspect` = width / height (1 = square = every Element before), saved on the seed as `cellAspect` only when not square (`withCellShape`, `cellAspectOf`). The geometry is untouched (letterboxed in 0..100); the box is the centred `W × H` with the longer side 100 (`elementBox`), and `cellPolyOf(seed)` gives its outline. *Drawing* measures the ink as drawn (cropped — Width / Length count, Scale / Move don't; `measureElementInk`), sets the box to it and fits the ink to fill it (Fit to canvas); within **2 %** of square it stays Square.
+- **Upload.** An SVG whose ink is not square takes *Drawing* by itself (`autoProportions` after `useSvgAsSeed`), notice *Proportions set from the drawing — 1:1.67*. It is the **ink**, not the artboard (Diego): the Carhartt mark is 1 : 1 even though its file is 2130 × 2499 — the artboard's margins don't count.
+- **Its symmetry: a half turn.** `rotationStepOf('square')` is **180** while the box isn't square — `rotationSteps` 0 · 180, Turns' defaults 180 / 180, every rule turns by half turns (Step turn, Checkerboard, Lines, Rhythm incl. Connect and the Beat's clicks, Exhaustive); **Radial is unavailable** (*Radial needs square cells — this Element is a rectangle*: its quarter-turn walk would leave the cell). Turns with a free angle still contain the rotated box.
+- **Element step.** The canvas, the views (0° · 180° · Flip H · V · H+V) and Show as tile (a `W × H` lattice) draw the box; the joins overlay reads its outline (`polyEdgeOverlaySVG`).
+- **Component.** The grid passes `aspect`; `Organica.shapes.resolveGridCells` / `frameDims` scale every cell's width by `min(1, a)` and height by `min(1, 1/a)` while `cellSize` stays the Element's draw size — so the box fills the cell exactly and a grid of the mark meets edge to edge (track weights multiply on top). A hand-made cell's Stretch / Cover / Fixed read the box (`withCellPlace`).
+- **Symbol / Figure.** An Element is placed by its box (`placeInBox` natural `{w, h}`) — Contain fills the matching side, Stretch / Cover / Fixed read it; Match cell stays for the square box.
+- **Board.** Each Element keeps its own (the other Elements' areas draw with theirs — `onCellShapeOf`).
+- Tests: `scripts/test-fvs-aspect.sh` (frame 0.6 : 1, ink to both edges, half turns only, Radial gated, square again). Words open for Diego: ledger O-75.
 
 ### 3b. Divide into parts (Oct 10, 2026 — R1)
 
