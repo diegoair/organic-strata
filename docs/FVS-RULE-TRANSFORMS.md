@@ -3,7 +3,7 @@
 > Diego, Oct 21, 2026. *The Rule decides, the transformation transforms.* Rules are simple presets that guide the
 > creation; a transformation (Turn first, then Flip and Scale) is applied **after** the rule, on every cell of its result.
 > A rule that gets a transformation becomes **Custom** in the Rule menu, and can be **saved as your own rule** (a preset,
-> as in Living Path / Sinew / Apostate). Status: **phases 1–5 built Oct 21, 2026** (local); phase 6 (rule-by-rule tests) next.
+> as in Living Path / Sinew / Apostate). Status: **closed Oct 23, 2026** — phases 1–5 built Oct 21; phase 6 (the rule-by-rule tests with Diego, Oct 21–23) went further than this plan: every rule became a package (Checkerboard, Radial, Lines, Rhythm with nothing or only the Beat to pick; Turns replacing the rules' own turns; Exhaustive / Random = every rule's package), all grouped on the board. The current model is in `docs/FVS.md` §5; this file is history.
 
 ## Decisions (Diego, Oct 21, 2026)
 
