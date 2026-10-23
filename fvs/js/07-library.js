@@ -6,7 +6,7 @@ import {
   DEFAULT_COLOR_RULE, PALETTE_MAX, colorAt, entryInkAt, live, pc, pv, state
 } from './engine/00-core.js';
 import {
-  SEG_WEIGHT_DEF, SEED_TYPES, cellShapeOf, divideLayers, frameDims, partMethodsFor, partsOf, syncPartLayers
+  SEG_WEIGHT_DEF, SEED_TYPES, cellAspectOf, cellShapeOf, divideLayers, frameDims, partMethodsFor, partsOf, syncPartLayers
 } from './engine/01-geometry.js';
 import {
   CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, panelSeedSnapshot, xrId
@@ -179,6 +179,7 @@ export function applyElementSnapshot(seed, app) {
   applyAppearanceToUI(f.app);
 }
 export function applySeedToPanel(seed) {
+  state.cellAspect = cellAspectOf(seed);   // its box (Oct 23, 2026) — before the cell shape, which reads the turn step
   setCellShape(cellShapeOf(seed), { silent: true });
   if (seed && seed.type === 'stack' && Array.isArray(seed.layers) && seed.layers.length) {
     const items = seed.layers.map(l => JSON.parse(JSON.stringify(l)));

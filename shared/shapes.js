@@ -1240,8 +1240,12 @@
       const originX = (minX + maxX) / 2, originY = (minY + maxY) / 2;
       return raw.map(r => ({ ...r, cx: r.cx - originX, cy: r.cy - originY }));
     }
-    const totalW = grid.cols * grid.cellSize + (grid.cols - 1) * grid.gap;
-    const totalH = grid.rows * grid.cellSize + (grid.rows - 1) * grid.gap;
+    // aspect (FVS Rectangle Element, Oct 23, 2026): the Element's box is W × H, not square — every cell takes its
+    // proportions (widths × kx, heights × ky, the longer side stays cellSize) and cellSize stays the size the Element's
+    // 0..100 box is drawn at, so the box fills the cell exactly. Absent / 1 = square cells, exactly as before.
+    const a = grid.aspect > 0 ? grid.aspect : 1, kx = Math.min(1, a), ky = Math.min(1, 1 / a);
+    const totalW = grid.cols * grid.cellSize * kx + (grid.cols - 1) * grid.gap;
+    const totalH = grid.rows * grid.cellSize * ky + (grid.rows - 1) * grid.gap;
     const originX = -totalW / 2, originY = -totalH / 2;
     const centers = [];
     // Track sizes (FVS Component Edit, Oct 14, 2026): colWeights / rowWeights share the same total among the columns /
@@ -1253,19 +1257,20 @@
       for (let r = 0; r < grid.rows; r++) {
         let x = originX;
         for (let c = 0; c < grid.cols; c++) {
-          centers.push({ cx: x + cs[c] / 2, cy: y + rs[r] / 2, cellSize: Math.min(cs[c], rs[r]), cellW: cs[c], cellH: rs[r] });
-          x += cs[c] + grid.gap;
+          centers.push({ cx: x + cs[c] * kx / 2, cy: y + rs[r] * ky / 2, cellSize: Math.min(cs[c], rs[r]), cellW: cs[c] * kx, cellH: rs[r] * ky });
+          x += cs[c] * kx + grid.gap;
         }
-        y += rs[r] + grid.gap;
+        y += rs[r] * ky + grid.gap;
       }
       return centers;
     }
     for (let r = 0; r < grid.rows; r++) {
       for (let c = 0; c < grid.cols; c++) {
+        const w = grid.cellSize * kx, h = grid.cellSize * ky;
         centers.push({
-          cx: originX + c * (grid.cellSize + grid.gap) + grid.cellSize / 2,
-          cy: originY + r * (grid.cellSize + grid.gap) + grid.cellSize / 2,
-          cellSize: grid.cellSize, cellW: grid.cellSize, cellH: grid.cellSize,
+          cx: originX + c * (w + grid.gap) + w / 2,
+          cy: originY + r * (h + grid.gap) + h / 2,
+          cellSize: grid.cellSize, cellW: w, cellH: h,
         });
       }
     }
@@ -1285,8 +1290,8 @@
   // to before for square grids); frameDims is the tight width × height.
   function frameDims(grid) {
     if (grid.kind === 'loom') return { w: grid.width, h: grid.height };
-    const rows = grid.rows || grid.cols;
-    return { w: grid.cols * grid.cellSize + (grid.cols - 1) * grid.gap, h: rows * grid.cellSize + (rows - 1) * grid.gap };
+    const rows = grid.rows || grid.cols, a = grid.aspect > 0 ? grid.aspect : 1;   // a Rectangle Element's cells (Oct 23, 2026)
+    return { w: grid.cols * grid.cellSize * Math.min(1, a) + (grid.cols - 1) * grid.gap, h: rows * grid.cellSize * Math.min(1, 1 / a) + (rows - 1) * grid.gap };
   }
   function frameSize(grid) {
     const d = frameDims(grid);

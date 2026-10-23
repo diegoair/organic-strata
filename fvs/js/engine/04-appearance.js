@@ -5,7 +5,7 @@ import {
   colorAt, colorRuleCR, entryItemInk, live, paletteSlot, pc, pv, ruleInk, state, val
 } from './00-core.js';
 import {
-  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameSize, importAsPaperShape, median, ptsToD, resolveGridCells,
+  CELL_SHAPES, SEED_TYPES, cellShapeOf, elementBox, frameSize, importAsPaperShape, median, ptsToD, resolveGridCells,
   splitPaperScope
 } from './01-geometry.js';
 import {
@@ -60,7 +60,8 @@ function withCellPlace(item, cell) {
   if (cell.empty) item.empty = true;
   if (!cellHasPlacement(cell)) return item;
   const placed = cell.fitMode === 'fixed' && cell.scale != null && cell.scale !== 1 ? { ...cell, fixedSize: (cell.fixedSize || 100) * cell.scale } : cell;   // Scale scales a Fixed size too
-  const fit = item.cellSize / 100, p = Organica.shapes.resolveCellPlacement(itemW(item), itemH(item), 100, placed);
+  const bx = state.cellAspect !== 1 && !item.poly ? elementBox() : null;   // a Rectangle Element: Stretch / Cover / Fixed read its box (Oct 23, 2026)
+  const fit = item.cellSize / 100, p = Organica.shapes.resolveCellPlacement(itemW(item), itemH(item), bx ? { w: bx.w, h: bx.h } : 100, placed);
   item.scale = 1; item.kx = p.scaleX / fit; item.ky = p.scaleY / fit; item.dx = p.offsetX; item.dy = p.offsetY;
   return item;
 }

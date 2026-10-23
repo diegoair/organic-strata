@@ -555,6 +555,8 @@ export function syncRuleAvailability() {
     gates.manual = [false, 'Manual needs square cells'];
     if (count === 1) gates.checkerboard = [false, 'A single cell has no pattern'];
   } else if (!('manual' in gates)) gates.manual = [true, ''];
+  // a Rectangle Element (Oct 23, 2026): Radial turns each cell a quarter towards the centre — it would leave its cell
+  if (state.cellShape === 'square' && state.cellAspect !== 1) gates.radial = [false, 'Radial needs square cells — this Element is a rectangle'];
   Object.entries(gates).forEach(([v, [eligible, why]]) => {
     const opt = sel.querySelector(`option[value="${v}"]`);
     opt.disabled = !eligible;
@@ -620,7 +622,7 @@ export function syncRhythm() {   // only the Beat is authored since Oct 23, 2026
   ctrl('btn-rhythm-beat-add').disabled = r.beat.length >= RHYTHM_BEAT_MAX;
   syncRuleAxesUI();
 }
-export function turnRhythmStep(i) { const b = state.rhythm.beat; if (i in b) { b[i] = (b[i] + 90) % 360; syncRhythm(); } }
+export function turnRhythmStep(i) { const b = state.rhythm.beat; if (i in b) { b[i] = (b[i] + rotationStepOf(state.cellShape)) % 360; syncRhythm(); } }   // a Rectangle: half turns
 export function resizeRhythmBeat(d) {
   const b = state.rhythm.beat;
   if (d > 0 && b.length < RHYTHM_BEAT_MAX) b.push(0);
@@ -798,10 +800,11 @@ function axesReadout() {
 }
 function axesChanged() { axesReadout(); syncExhaustiveHint(); syncRuleAxisNote(); rulePicker.refresh(); syncRuleSaveUI(); }
 export function syncAxisValuesUI() {
-  if (turnsShape !== state.cellShape) {   // a new cell shape: its own steps
+  const shapeKey = state.cellShape + (state.cellAspect !== 1 ? ':rect' : '');   // a Rectangle has its own step (180)
+  if (turnsShape !== shapeKey) {   // a new cell shape: its own steps
     const st = rotationStepOf(state.cellShape), up = ctrl('rg-turn-upto'), ev = ctrl('rg-turn-every');
     if (turnsShape !== null || st !== 90) { up.value = 360 - st; ev.value = st; }
-    turnsShape = state.cellShape;
+    turnsShape = shapeKey;
   }
   axesReadout();
 }

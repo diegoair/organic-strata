@@ -259,6 +259,7 @@ export function getGrid() {
     return { kind: 'loom', cellShape: state.loomGrid.cellShape, cells: state.loomGrid.cells, width: state.loomGrid.inner.width, height: state.loomGrid.inner.height };
   }
   const g = { kind: 'square', cols: +pv('rg-grid-cols'), rows: +pv('rg-grid-rows'), cellSize: val('rg-cellsize'), gap: val('rg-gap') };
+  if (state.cellAspect !== 1) g.aspect = state.cellAspect;   // a Rectangle Element: its cells take its proportions (Oct 23, 2026)
   // the step's own track sizes ("Apply grid to all" from Component Edit) — only while they fit its columns / rows
   const w = state.gridWeights;
   if (w && w.colWeights && w.colWeights.length === g.cols) g.colWeights = w.colWeights.slice();
@@ -284,7 +285,8 @@ export function withGrid(grid, fn) {
   try { return fn(); } finally { state.gridOverride = keep; }
 }
 // ── Axis values: which turns and sizes a rule may use (Transform axes) ──
-export const rotationStepOf = shape => (CELL_SHAPES[shape] && CELL_SHAPES[shape].step) || 90;
+// a Rectangle Element (square cells, box not square — Oct 23, 2026) maps onto itself only by a half turn: its step is 180
+export const rotationStepOf = shape => (shape === 'square' && state.cellAspect !== 1) ? 180 : ((CELL_SHAPES[shape] && CELL_SHAPES[shape].step) || 90);
 export function rotationDefaults(shape = state.cellShape) { const st = rotationStepOf(shape); return { from: 0, to: 360 - st, step: st }; }
 export function rotationSteps(shape = state.cellShape) { const st = rotationStepOf(shape), out = []; for (let a = 0; a < 360; a += st) out.push(a); return out; }
 // Turns (Oct 21, 2026 — docs/FVS-RULE-TRANSFORMS.md phase 1): 0, Every, 2 × Every … up to Up to (#rg-turn-upto /
@@ -566,7 +568,7 @@ export function ruleLines(axis, { mode = 'alternate', step = 90, sizes = null } 
 // sizes (Scale on: Small · Medium · Large — the material, no Sizes switch). Grouped a section per direction · mode, a
 // column per step.
 export function ruleLinesAll() {
-  const steps = (live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : [90, 180, 270]).filter(t => mod360(t) !== 0);
+  const steps = (live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : rotationSteps()).filter(t => mod360(t) !== 0);   // the cell's own turns (a Rectangle: 180)
   const sized = pc('chk-axis-scale') ? [null, scaleValues()] : [null], out = [];
   for (const axis of ['row', 'col']) for (const mode of ['alternate', 'ramp']) for (const sizes of sized) for (const step of steps) {
     const [c] = ruleLines(axis, { mode, step, sizes });
@@ -607,7 +609,7 @@ export function rhythmBeatsCells(ctxs, across, down, angle, combine, shift, sv) 
 export function rhythmWaveCells(ctxs, amplitude, period, shift, sv) {
   return ctxs.map(ctx => {
     const w = Math.sin(2 * Math.PI * (ctx.col + shift * ctx.row) / period);
-    const turn = Math.round(amplitude * w / 90) * 90;
+    const st = rotationStepOf(state.cellShape), turn = Math.round(amplitude * w / st) * st;   // the cell's own step (180 on a Rectangle)
     return stateFrom(rmod(turn, 360) || 0, false, false, sv ? sizeAt(sv, w + 1) : 1.0);
   });
 }
@@ -647,7 +649,8 @@ export const RHYTHM_CONNECT_SEEDS = 16;
 export const RHYTHM_DEFAULTS = { mode: 'beat', beat: [0, 90, 0], shift: 1, across: 3, down: 4, combine: 'add', angle: 90, amp: 90, period: 4, wrap: true, flip: false, seed: 1 };
 export function rhythmConnectViews(flip) {
   const views = [];
-  for (const rot of ROTATIONS) for (const f of (flip ? FLIPS.slice(0, 3) : [FLIPS[0]])) views.push({ r: rot, fh: f.h, fv: f.v });
+  const turns = state.cellShape === 'square' && state.cellAspect !== 1 ? [0, 180] : ROTATIONS;   // a Rectangle: half turns (Oct 23, 2026)
+  for (const rot of turns) for (const f of (flip ? FLIPS.slice(0, 3) : [FLIPS[0]])) views.push({ r: rot, fh: f.h, fv: f.v });
   return views;
 }
 export function rhythmCells(params, ctxs, cover) {
@@ -690,13 +693,14 @@ export function ruleOscillator(o = {}) {
 const COMBINE_NAME = { add: 'Add', one: 'One only', both: 'Both' };
 export function ruleRhythmAll() {
   const sized = pc('chk-axis-scale') ? [null, scaleValues()] : [null], out = [];
-  const angles = (live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : [90, 180, 270]).filter(t => mod360(t) !== 0);
+  const angles = (live.turnsReplace && pc('chk-axis-rotation') ? panelTurns() : rotationSteps()).filter(t => mod360(t) !== 0), st = rotationStepOf(state.cellShape);
   const add = (list, rv) => list.forEach(c => out.push({ ...c, rv: { rule: 'Rhythm', ...rv } }));
   const tag = (name, sizes) => name + (sizes ? ' · Sizes' : '');
-  for (const sizes of sized) for (const shift of [0, 0.5, 1, 1.5, 2]) add(ruleOscillator({ mode: 'beat', shift, sizes }), { sec: tag('Beat', sizes), col: 'Row shift ' + shift });
+  const beat = state.rhythm.beat.map(t => mod360(Math.round(t / st) * st));   // a Rectangle's Beat in half turns
+  for (const sizes of sized) for (const shift of [0, 0.5, 1, 1.5, 2]) add(ruleOscillator({ mode: 'beat', beat, shift, sizes }), { sec: tag('Beat', sizes), col: 'Row shift ' + shift });
   for (const sizes of sized) for (const combine of ['add', 'one', 'both']) for (let across = 2; across <= 4; across++) for (let down = 2; down <= 4; down++) for (const shift of [0, 1]) for (const angle of angles)
     add(ruleOscillator({ mode: 'beats', across, down, angle, combine, shift, sizes }), { sec: tag(`Two beats · ${COMBINE_NAME[combine]} · Across ${across} · Down ${down}`, sizes), col: 'Angle ' + angle + '°', row: 'Row shift ' + shift });
-  for (const sizes of sized) for (const amp of [90, 180]) for (const shift of [0, 1]) for (const period of [4, 6, 8])
+  for (const sizes of sized) for (const amp of [90, 180].filter(v => v % st === 0)) for (const shift of [0, 1]) for (const period of [4, 6, 8])
     add(ruleOscillator({ mode: 'wave', amp, period, shift, sizes }), { sec: tag('Wave · Amplitude ' + amp + '°', sizes), col: 'Period ' + period, row: 'Row shift ' + shift });
   for (const wrap of [true, false]) ruleOscillator({ mode: 'connect', wrap, flips: pc('chk-axis-flip') }).forEach(c => out.push({ ...c, rv: { rule: 'Rhythm', sec: 'Connect' + (wrap ? ' · Tile seamlessly' : ''), col: 'Draw ' + c.k } }));
   const kept = dedupeComponents(out);

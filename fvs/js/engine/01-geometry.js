@@ -66,7 +66,15 @@ export function snapCandidates(ink, axis) {
   return out;
 }
 export const cellShapeOf = seed => (seed && seed.cellShape && CELL_SHAPES[seed.cellShape]) ? seed.cellShape : 'square';
-export const withCellShape = seed => (state.cellShape === 'square' || !seed) ? seed : { ...seed, cellShape: state.cellShape };
+export const withCellShape = seed => {
+  if (!seed) return seed;
+  if (state.cellShape !== 'square') return { ...seed, cellShape: state.cellShape };
+  return state.cellAspect !== 1 ? { ...seed, cellAspect: state.cellAspect } : seed;   // a Rectangle Element's box (Oct 23, 2026)
+};
+// The Element's box (Oct 23, 2026): width / height, 1 = square (every Element before). Only on square cells.
+export const cellAspectOf = seed => (seed && cellShapeOf(seed) === 'square' && seed.cellAspect > 0) ? seed.cellAspect : 1;
+// the box inside the 0..100 square, centred: the longer side 100
+export const elementBox = (a = state.cellAspect) => { const w = 100 * Math.min(1, a), h = 100 * Math.min(1, 1 / a); return { x: (100 - w) / 2, y: (100 - h) / 2, w, h }; };
 // A shape on a non-square cell is fitted WHOLE inside it (Diego, Oct 6, 2026 — it used to be cut to the
 // outline, so a Circle on a triangle became a solid triangle and a seed lost its ends). Its box centre goes on
 // the cell's centre (50,50), and it takes the largest scale at which every outline point is inside: the cells
