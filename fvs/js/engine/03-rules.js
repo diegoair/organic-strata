@@ -444,6 +444,9 @@ export function mirrorSpreadsEligible(line) {
   const d = crDims(hooks.componentCellColRow(getGrid())), long = line === 'lr' ? d.cols > 2 : line === 'tb' ? d.rows > 2 : d.cols > 2 || d.rows > 2;
   return long ? ['cell', 'pair', 'grid'] : ['cell'];
 }
+// the Mirror rule's variants by name (Oct 23, 2026 — the board groups them, Exhaustive sections them)
+const MIRROR_LINE_NAME = { both: 'All around', lr: 'Side by side', tb: 'Above and below' }, MIRROR_SPAN_NAME = { cell: 'Alternate', pair: 'In pairs', grid: 'Book' };
+const MIRROR_CORNER = ['top left', 'top right', 'bottom left', 'bottom right'];
 export function ruleMirror() {
   if (state.cellShape !== 'square') return latticeRule('mirror');
   const ok = mirrorLinesEligible(), line = ok.includes(state.mirrorLine) ? state.mirrorLine : (ok[0] || 'both');
@@ -453,11 +456,11 @@ export function ruleMirror() {
   if (spread === 'grid') {   // book-matched: one mirror line through the whole grid, along the Line
     // Both = the book mirrored both ways only (Diego, Oct 22, 2026): left | right and top | bottom are their own Lines
     const bm = FAMILIES.bookmatch, axes = line === 'lr' ? ['h'] : line === 'tb' ? ['v'] : ['hv'];
-    gallery = bm.paramSpace(av, cr, axes).map((p, i) => ({ id: `mirror-book-${i}`, ruleSource: 'mirror', cells: bm.build(p, cr) }));
+    gallery = bm.paramSpace(av, cr, axes).map((p, i) => ({ id: `mirror-book-${i}`, ruleSource: 'mirror', rv: { sec: MIRROR_LINE_NAME[line] + ' · Book', col: p.rotation ? 'Turn ' + p.rotation + '°' : '' }, cells: bm.build(p, cr) }));
   } else {
     const out = [];
     for (const rotation of av.rotations) for (let seed = 0; seed < 4; seed++) for (const s of av.scales) out.push({ seed, line, spread, rotation, scale: s });
-    gallery = out.map((p, i) => ({ id: `mirror-${i}`, ruleSource: 'mirror', cells: FAMILIES.mirror.build(p, cr) }));
+    gallery = out.map((p, i) => ({ id: `mirror-${i}`, ruleSource: 'mirror', rv: { sec: MIRROR_LINE_NAME[line] + ' · ' + MIRROR_SPAN_NAME[spread], col: 'Plain ' + MIRROR_CORNER[p.seed], row: p.rotation ? 'Turn ' + p.rotation + '°' : '' }, cells: FAMILIES.mirror.build(p, cr) }));
   }
   const kept = dedupeComponents(gallery);
   return kept.length ? kept : ruleIdentity();

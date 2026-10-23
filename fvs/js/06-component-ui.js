@@ -15,7 +15,7 @@ import {
   EXHAUSTIVE_CAP, FAMILIES, LATTICE_RULES, activeAxes, activeCellCount, axisSatisfied, crDims,
   canonicalState, exhaustiveTotal, getGrid, gridOf, isCanonical2x2, latticeMirrorKind, latticeRule, mirrorLinesEligible, mirrorSpreadsEligible, radialEligible, radialReadingsEligible, readManualCells,
   resolvedComponentDims, ruleCheckerboard, ruleColumnMirror, ruleDiagonal, ruleExhaustive, ruleIdentity,
-  ruleLines, ruleLinesAll, ruleMirror, ruleOscillator, ruleRhythmAll, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
+  ruleLines, ruleLinesAll, ruleMirror, ruleOscillator, ruleRhythmAll, mulberry32, rulePinwheel, ruleRadial, ruleRandom, ruleRowMirror, withGrid,
   rotationSteps, rotationValues, rotationStepOf, mod360, TURN_AFTER, OWN_TURNS, FS_AFTER, turnAfter, flipScaleAfter, withTurnsOff, withOwnTurns, withFlipScaleOff, ruleAxes, dedupeComponents, TURNS_REPLACE, withTurnsReplace
 } from './engine/03-rules.js';
 import {
@@ -861,19 +861,15 @@ export function syncGenerateButton() {
 }
 
 export function syncExhaustiveHint() {
-  const total = withLookAlikeFold(() => (produceRule('exhaustive') || []).length);   // Exhaustive as Generate makes it (own turns, then Turns)
+  const total = withLookAlikeFold(() => (produceRule('exhaustive') || []).length);   // Exhaustive as Generate makes it: every rule's package
   const hint = ctrl('rule-total-hint');
   if (total > EXHAUSTIVE_CAP) {
     hint.textContent = `${total.toLocaleString()} possible — exceeds the ${EXHAUSTIVE_CAP} cap. Narrow active axes or use Random instead.`;
     hint.classList.add('over-cap');
     setGenerateBlock(pv('sel-rule') === 'exhaustive' ? `too many to list (${total.toLocaleString()}) — narrow the axes or use Random` : '');
   } else {
-    const k = layerInkComboCount(), ax = OWN_TURNS.has(pv('sel-rule')) ? withOwnTurns(activeAxes) : activeAxes();
-    // no axis on = the one uniform Component (Diego, Oct 14, 2026: "it says one component only, it seems very strange") —
-    // say why, in Checkerboard's words (syncRuleAxisNote)
-    hint.textContent = !ax.rotation && !ax.flip && !ax.scale && k <= 1
-      ? '1 possible component — no axis is on. Under Transform axes, pick a second angle in Turns or turn on Flip or Scale for more.'
-      : k > 1
+    const k = layerInkComboCount();   // every rule's package together since Oct 23, 2026 — never one by default
+    hint.textContent = k > 1
       ? `${total.toLocaleString()} possible component${total === 1 ? '' : 's'} × ${k} layer-colour combinations = ${(total * k).toLocaleString()}${total * k > EXHAUSTIVE_CAP ? ` (first ${EXHAUSTIVE_CAP} shown)` : ''}.`
       : `${total.toLocaleString()} possible component${total === 1 ? '' : 's'}.`;
     hint.classList.remove('over-cap');
@@ -1062,7 +1058,29 @@ export function generateColourways() {
 // The cells a rule produces for the current panel (no gallery, no undo, no cap) — Generate's own dispatch, also what
 // scripts/test-fvs-axes.mjs reads (Tropism Phase 1, Oct 15, 2026). null for Manual, which builds from its own editor.
 // Turn after the rule (Oct 21, 2026): a TURN_AFTER rule draws with Turns off, then turnAfter adds each turn.
+// Exhaustive and Random draw from every rule's own package (Diego, Oct 23, 2026: "yes go ahead"): Uniform, Step turn,
+// Mirror, Checkerboard, Radial, Lines and Rhythm as each one's Generate makes it (its Turns / Flip / Scale too), the
+// rules this grid cannot run left out; Exhaustive lists them all (the 512 cap stays), Random draws Count of them from Seed.
+// Each Component keeps its rule (ruleSource) and pk = the package it came from — the board sections them by rule.
+const PACKAGE_RULES = ['identity', 'pinwheel', 'mirror', 'checkerboard', 'radial', 'hlines', 'oscillator'];
+export function allPackages() {
+  const sel = ctrl('sel-rule'), out = [];
+  for (const m of PACKAGE_RULES) {
+    const o = sel.querySelector(`option[value="${m}"]`);
+    if (!o || o.disabled) continue;
+    (produceRule(m) || []).forEach(c => out.push({ ...c, id: `${m}:${c.id}`, pk: m }));
+  }
+  return dedupeComponents(out);
+}
+function randomPackages() {
+  const all = allPackages(), count = Math.max(1, Math.round(val('rg-random-count')) || 16), rng = mulberry32(Math.round(val('num-seed')) || 0);
+  const idx = all.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }   // Fisher–Yates
+  return idx.slice(0, count).sort((a, b) => a - b).map(i => ({ ...all[i], id: all[i].id.replace(/^/, 'random:') }));   // kept in package order
+}
 export function produceRule(mode, { after = true } = {}) {
+  if (mode === 'exhaustive') return allPackages();
+  if (mode === 'random') return randomPackages();
   // the rule alone (its own turns, or none; no Flip / Scale for an FS_AFTER rule), then Turns, then Flip and Scale
   let draw = () => produceRuleBase(mode);
   if (FS_AFTER.has(mode)) { const d = draw; draw = () => withFlipScaleOff(d); }

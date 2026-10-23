@@ -147,15 +147,14 @@ const CAPTURE = async () => {
     g('Wave · Amplitude 90° · 180°', 'the turn follows a sine along the row, snapped to quarter turns: Period 4 · 90°, Period 6 · 180°, Period 8 · 180° with Row shift 0.5 (a tilted wave front)', 4, osc('wave', [[{ 'rg-rhythm-period': 4 }], [{ 'sel-rhythm-amp': '180', 'rg-rhythm-period': 6 }], [{ 'sel-rhythm-amp': '180', 'rg-rhythm-period': 8, 'rg-rhythm-shift': 0.5 }]]))];
   st.rhythm = { mode: 'beat', beat: [0, 90, 0], combine: 'add' };
   cr = grid(2);
-  G.random = [g('Seed 1 · Count 16', 'each result a family drawn at random, then one of its settings — every result a real symmetry; another Seed, other results', 2, R.ruleRandom().map(x => row(x.cells)))];
+  // Random and Exhaustive draw from every rule's package since Oct 23, 2026 (UI.produceRule — allPackages)
+  G.random = [g('Seed 1 · Count 16', 'Count Components drawn by Seed from every rule’s package (Uniform · Step turn · Mirror · Checkerboard · Radial · Lines · Rhythm); another Seed, other results', 2, UI.produceRule('random').map(x => row(x.cells)))];
   cr = grid(2);
-  const av = R.axisValues(), seen = new Set(), names = { identity: 'Uniform', pinwheel: 'Step turn', mirror: 'Mirror', bookmatch: 'Book‑match', diagonal: 'Diagonal mirror pattern', checkerboard: 'Checkerboard', radial: 'Radial' };
+  const names = { identity: 'Uniform', pinwheel: 'Step turn', mirror: 'Mirror', checkerboard: 'Checkerboard', radial: 'Radial', hlines: 'Lines', vlines: 'Lines', oscillator: 'Rhythm' };
   G.exhaustive = [];
-  for (const k of R.activeFamilies()) {
-    const list = [];
-    for (const p of F[k].paramSpace(av, cr)) { const cells = F[k].build(p, cr), key = R.componentKey(cells); if (seen.has(key)) continue; seen.add(key); list.push(row(cells)); }
-    if (list.length) G.exhaustive.push(g(`From ${names[k] || k}`, `${list.length} new — the cases not already listed by an earlier family`, 2, list));
-  }
+  const byRule = {};
+  for (const c of UI.produceRule('exhaustive')) (byRule[c.pk] = byRule[c.pk] || []).push(row(c.cells));
+  for (const [k, list] of Object.entries(byRule)) G.exhaustive.push(g(`From ${names[k] || k}`, `${list.length} — its package, less what an earlier rule already listed`, 2, list.slice(0, 16)));
 
   // LATTICE — the engine's own cells and states on circle / triangle / hexagon cells
   const L = {}, keep = { shape: st.cellShape, lattice: { ...st.cellLattice }, outline: { ...st.cellOutline } };

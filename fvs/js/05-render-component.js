@@ -626,7 +626,7 @@ function renderGalleryNow() {
 // by index); the labels are the first wraps' ::before (turn) / ::after (size), from data-row-label / data-section-label.
 // the turn and size a Component was given after its rule, for its accessible name: " · 45° · 125%"
 const xfLabel = c => !c.xf ? '' : (c.xf.t ? ` · ${c.xf.t}°` : '') + (c.xf.f ? ` · flip ${c.xf.f.toUpperCase()}` : '') + (c.xf.s && c.xf.s !== 1 ? ` · ${Math.round(c.xf.s * 100)}%` : '');
-const GROUP_MAX_COLS = 16, GROUP_MAX_SECTIONS = 64;
+const GROUP_MAX_COLS = 16, GROUP_MAX_SECTIONS = 200;   // 200 since Oct 23, 2026: Exhaustive sections every rule's package
 // Grouped "the rule first, then the transformations" (Diego, Oct 21, 2026): a section per variant of the rule (its title:
 // the rule and its number — for Random / Exhaustive also what the variant holds, size and mirrored, since there Flip and
 // Scale are the rule's material), a row per turn added after it, a column per flip × size added after it (labelled above
@@ -637,6 +637,7 @@ const flipName = f => f ? 'Flip ' + f.toUpperCase().split('').join('+') : '';
 const turnName = t => 'Turn ' + t + '°';
 const variantHolds = c => { const z = [...new Set(c.cells.map(x => x.scale))]; return [z.length === 1 ? pct(z[0]) : 'Mixed scales', c.cells.some(x => !!x.flipH !== !!x.flipV) ? 'Flipped' : 'No flip'].join(' · '); };
 export function galleryGroups(list) {
+  if (list.length && list.every(c => c.pk && !c.layerInks && !c.colourway)) return variantGroups(list, pkgRv);   // Exhaustive / Random
   if (list.some(c => c.ck) && list.every(c => c.ck && !c.layerInks && !c.colourway)) return checkerGroups(list);
   if (!list.some(c => c.xf)) return list.some(c => c.rv) && list.every(c => c.rv && !c.layerInks && !c.colourway) ? variantGroups(list) : null;
   const xs = list.map(c => c.xf || {});
@@ -666,23 +667,36 @@ export function galleryGroups(list) {
 // The rule's own variants, grouped even with nothing applied after it (Diego, Oct 22, 2026: "il raggruppamento deve essere
 // fatto sempre per le regole con trasformazioni"): rv = {sec, col} — e.g. Step turn / Radial: a section per direction, a
 // column per start. One row per section.
-function variantGroups(list) {
-  // rv = {sec, col, row?}: each section its own columns and rows (Rhythm's modes differ — Oct 23, 2026)
-  const secs = [], colsOf = {}, rowsOf = {};
-  list.forEach(c => { const s = c.rv.sec || ''; if (!(s in colsOf)) { secs.push(s); colsOf[s] = []; rowsOf[s] = []; }
-    if (!colsOf[s].includes(c.rv.col || '')) colsOf[s].push(c.rv.col || ''); if (!rowsOf[s].includes(c.rv.row || '')) rowsOf[s].push(c.rv.row || ''); });
+// A package Component's place on the board (Exhaustive / Random — Oct 23, 2026): a section per rule and its own section,
+// its column, and a row for what was added after the rule (Turns / Flip / Scale); Checkerboard: a section per A, a row per B.
+function pkgRv(c) {
+  const rule = ruleLabel(c.ruleSource);
+  if (c.ck) { const p = x => [turnName(x.r), x.f ? 'Flip H' : '', x.s !== 1 ? pct(x.s) : ''].filter(Boolean).join(' · '); return { rule, sec: 'A · ' + p(c.ck.a), col: '', row: 'B · ' + p(c.ck.b) }; }
+  const x = c.xf || {}, after = [x.t ? turnName(x.t) : '', x.f ? flipName(x.f) : '', x.s && x.s !== 1 ? pct(x.s) : ''].filter(Boolean).join(' · ');
+  return { rule, sec: (c.rv && c.rv.sec) || '', col: (c.rv && c.rv.col) || '', row: [c.rv && c.rv.row, after].filter(Boolean).join(' · ') };
+}
+function variantGroups(list, rvOf = c => c.rv) {
+  // rv = {rule?, sec, col, row?}: each section its own columns and rows (Rhythm's modes differ — Oct 23, 2026); two
+  // Components on one place move to the next column (a rule without names for all its variants)
+  const secs = [], colsOf = {}, rowsOf = {}, at = new Map(), seen = new Set();
+  list.forEach(c => { const v = rvOf(c), s = [v.rule || '', v.sec || ''].join('\u0001'); let col = v.col || '';
+    if (!(s in colsOf)) { secs.push(s); colsOf[s] = []; rowsOf[s] = []; }
+    while (seen.has(s + '|' + (v.row || '') + '|' + col)) col += '\u200b';
+    seen.add(s + '|' + (v.row || '') + '|' + col);
+    if (!colsOf[s].includes(col)) colsOf[s].push(col); if (!rowsOf[s].includes(v.row || '')) rowsOf[s].push(v.row || '');
+    at.set(c, { s, col, row: v.row || '', v }); });
   const cols = Math.max(...secs.map(s => colsOf[s].length)), rows = Math.max(...secs.map(s => rowsOf[s].length));
   if (secs.length < 2 && cols < 2 && rows < 2) return null;
   if (cols > GROUP_MAX_COLS || secs.length > GROUP_MAX_SECTIONS) return null;
   const off = {}; let o = 0; secs.forEach(s => { off[s] = o; o += rowsOf[s].length + 3; });   // three empty rows open each section
-  const S = c => c.rv.sec || '';
+  const A = c => at.get(c);
   return {
-    cols, sec: c => secs.indexOf(S(c)),
-    col: c => colsOf[S(c)].indexOf(c.rv.col || ''),
-    row: c => off[S(c)] + 3 + rowsOf[S(c)].indexOf(c.rv.row || ''),
-    rowLabel: c => rowsOf[S(c)].length > 1 ? c.rv.row : null,
-    sectionLabel: c => [c.rv.rule || ruleLabel(c.ruleSource), c.rv.sec].filter(Boolean).join(' · '),
-    colLabel: c => c.rv.col || null,
+    cols, sec: c => secs.indexOf(A(c).s),
+    col: c => colsOf[A(c).s].indexOf(A(c).col),
+    row: c => off[A(c).s] + 3 + rowsOf[A(c).s].indexOf(A(c).row),
+    rowLabel: c => rowsOf[A(c).s].length > 1 ? A(c).row || null : null,
+    sectionLabel: c => [A(c).v.rule || ruleLabel(c.ruleSource), A(c).v.sec].filter(Boolean).join(' · '),
+    colLabel: c => A(c).col.replace(/\u200b/g, '') || null,
   };
 }
 // Checkerboard grouped the same way (Diego, Oct 22, 2026: "qui non c'è il raggruppamento"): a section per A pose, a row per

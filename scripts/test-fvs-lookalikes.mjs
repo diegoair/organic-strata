@@ -24,10 +24,12 @@ const res = await P.ev(`
         set('sel-rule', rule);
         const all = run(true), kept = run(false);
         const ki = kept.map(img), ai = all.map(img);
+        // Rhythm › Connect (inside Exhaustive since Oct 23, 2026) is a seeded draw over the Element's distinct pieces: with the
+        // fold on it draws other boards, it does not lose any — left out of the check, as Random is
         // Checkerboard also drops a pair whose A and B draw the same for this Element (a Uniform, not a pair — Oct 22, 2026):
         // such a loss is fine when the Component draws exactly as every cell in its A pose
         const asUniform = c => { const p = c.cells[0]; return { ...c, cells: c.cells.map(x => ({ ...x, rotation: p.rotation, flipH: p.flipH, flipV: p.flipV, scale: p.scale })) }; };
-        const lost = ai.filter((a, i) => !ki.some(k => same(a, k)) && !(rule === 'checkerboard' && same(a, img(asUniform(all[i]))))).length;
+        const lost = ai.filter((a, i) => !ki.some(k => same(a, k)) && !String(all[i].id).includes('rhythm-connect') && !(all[i].ruleSource === 'checkerboard' && same(a, img(asUniform(all[i]))))).length;
         let dupes = 0; for (let i = 0; i < ki.length && i < 120; i++) for (let j = i + 1; j < ki.length && j < 120; j++) if (same(ki[i], ki[j])) dupes++;
         const tag = shape + ' ' + (ax[1] ? 'RF' : ax[2] ? 'RS' : 'R') + ' ' + rule;
         rows.push(tag + ': ' + all.length + ' → ' + kept.length);
