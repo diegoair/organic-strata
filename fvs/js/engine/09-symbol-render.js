@@ -5,7 +5,7 @@ import {
   cellInk, cellOwnInks, entryItemInk, live, offscreenCanvas, state
 } from './00-core.js';
 import {
-  CELL_SHAPES, SEED_TYPES, cellShapeOf, frameDims, frameSize, polygonCellTurn, resolveCellPlacement,
+  CELL_SHAPES, SEED_TYPES, cellAspectOf, cellShapeOf, elementBox, frameDims, frameSize, polygonCellTurn, resolveCellPlacement,
   resolveGridCells
 } from './01-geometry.js';
 import {
@@ -378,7 +378,10 @@ export function buildSymbolItems() {
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
     const geo = SEED_TYPES[cell.seedType].geometry(cell.seedParams || SYMBOL_SEED_DEFAULTS);
-    const place = placeInBox(c, 100, cell, cellPolygon(grid, i), cellPolygon(grid, i) && cell.fitMode === 'contain' ? seedOutline(geo) : null);
+    // a Rectangle Element is placed by its box, not the 0..100 square (Oct 23, 2026): Contain fills the cell's matching side,
+    // Stretch / Cover / Fixed read its width × height
+    const ea = cellAspectOf(cell.seedParams), eb = ea !== 1 ? elementBox(ea) : null;
+    const place = placeInBox(c, eb ? { w: eb.w, h: eb.h } : 100, cell, cellPolygon(grid, i), cellPolygon(grid, i) && cell.fitMode === 'contain' ? seedOutline(geo) : null);
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: place.rotate != null ? place.rotate : cell.rotation,
       scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
