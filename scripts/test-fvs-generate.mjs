@@ -49,6 +49,7 @@ const PAGE = `(() => { if (window.__g) return;
       selectedId: s.selectedId, selMarks: sel,
       capNote: s.galleryCapNote ? s.galleryCapNote.text : null,
       hint: (document.getElementById('rule-total-hint') || {}).textContent || '',
+      label: ((document.getElementById('board-gallery') || document).querySelector(':scope > .fvs-board-sheet__label') || {}).textContent || '',   // the count's place since Oct 23, 2026
       genDisabled: document.getElementById('btn-generate').getAttribute('aria-disabled') === 'true',
       cols: g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0,
       groupCols: (() => { const G = F.galleryGroups(comps); return G ? G.cols : 0; })(),   // grouped by transformation (Oct 21, 2026): a column per variant
@@ -97,11 +98,10 @@ for (const setup of SETUPS) {
     check(where, 'never more than 2,048 (every rule capped — Oct 15, 2026)', got.n <= 2048, `${got.n}`);
     check(where, 'the area\'s columns follow the count', got.cols === (got.groupCols || (got.n <= 32 ? 4 : Math.ceil(Math.sqrt(got.n * 1.5) / 4) * 4)), `${got.cols} columns for ${got.n}${got.groupCols ? ' (grouped)' : ''}`);
     if (r === 'exhaustive' && !got.genDisabled) {
-      // "N possible components." = N made · "N possible … × k layer-colour combinations = T" = min(T, 2,048) made
-      const num = t => +t.replace(/,/g, '');
-      const m = got.hint.match(/^([\d,]+) possible/), t = got.hint.match(/= ([\d,]+)/);
-      const want = t ? Math.min(num(t[1]), 2048) : m && num(m[1]);
-      check(where, 'Exhaustive hint = what it made', want === got.n, got.hint + ' / made ' + got.n);
+      // the count sits in the area's label since Oct 23, 2026 ("Arc · Generated components · 51 · editing"); the panel hint is
+      // empty below the cap
+      const m = got.label.match(/Generated components · ([\d,]+)/), want = m && +m[1].replace(/,/g, '');
+      check(where, 'the label\'s count = what it made', want === got.n && got.hint === '', got.label + ' / made ' + got.n + (got.hint ? ' / hint: ' + got.hint : ''));
     }
   };
   for (const r of rules) if (!(r === 'exhaustive' && ref[r].genDisabled)) own(`${setup.label} fresh ${r}`, r, ref[r]);

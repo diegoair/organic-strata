@@ -593,6 +593,7 @@
   /* selected: an outline round the sheet's body, never a box-shadow (that would replace the pile) */
   .fvs-board-sheet.is-selected > .fvs-board-sheet__body { outline: calc(2px / var(--nc-zoom, 1)) solid var(--ink); outline-offset: calc(var(--sheet-pile-depth) + var(--space-1)); }
   .fvs-board-sheet.is-selected > .fvs-board-sheet__label { background: var(--panel); }
+  #board-gallery > .fvs-board-sheet__label, .fvs-board-gallery-sheet > .fvs-board-sheet__label { max-width: none; }   /* the name + count never cut (Oct 23, 2026) */
   .fvs-board-sheet.is-linked.is-selected > .fvs-board-sheet__body { outline: none; }   /* a group: one ring round all of it */
   .fvs-board-ring { position: absolute; left: 0; top: 0; pointer-events: none; outline: calc(2px / var(--nc-zoom, 1)) solid var(--ink); }
   .fvs-board-marquee { position: absolute; z-index: 3; }

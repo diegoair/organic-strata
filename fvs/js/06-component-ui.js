@@ -868,10 +868,8 @@ export function syncExhaustiveHint() {
     hint.classList.add('over-cap');
     setGenerateBlock(pv('sel-rule') === 'exhaustive' ? `too many to list (${total.toLocaleString()}) — narrow the axes or use Random` : '');
   } else {
-    const k = layerInkComboCount();   // every rule's package together since Oct 23, 2026 — never one by default
-    hint.textContent = k > 1
-      ? `${total.toLocaleString()} possible component${total === 1 ? '' : 's'} × ${k} layer-colour combinations = ${(total * k).toLocaleString()}${total * k > EXHAUSTIVE_CAP ? ` (first ${EXHAUSTIVE_CAP} shown)` : ''}.`
-      : `${total.toLocaleString()} possible component${total === 1 ? '' : 's'}.`;
+    // the count now sits in the Generated components area's label (Diego, Oct 23, 2026); the panel says only the cap
+    hint.textContent = '';
     hint.classList.remove('over-cap');
     if (pv('sel-rule') === 'exhaustive') setGenerateBlock('');
   }

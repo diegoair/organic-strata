@@ -640,9 +640,11 @@ function mountComponentBoard() {
     // the edited Element's area: its label and thumbnail
     const ae = state.elements.find(e => e.id === act);
     if (ae) {
-      liveLabel.textContent = nameOf(ae) + ' · Generated components';
+      // the count sits in the area's label (Diego, Oct 23, 2026: "move this 51 possible components … to the component here")
+      const n = state.components.length, cnt = n ? ' · ' + n.toLocaleString() : '';
+      liveLabel.textContent = nameOf(ae) + ' · Generated components' + cnt;
       liveLabel.append(el('span', 'fvs-board-sheet__state', { textContent: ' · editing' }));
-      liveLabel.setAttribute('aria-label', nameOf(ae) + ' · Generated components · editing — drag to move');
+      liveLabel.setAttribute('aria-label', nameOf(ae) + ' · Generated components' + (n ? ` · ${n.toLocaleString()} component${n === 1 ? '' : 's'}` : '') + ' · editing — drag to move');
       elButton(liveEl, ae, true);
       liveEl.style.setProperty('--thumb-w', tw);
     }
@@ -659,7 +661,8 @@ function mountComponentBoard() {
         rec.grid.style.setProperty('--gal-cols', galleryCols(hasOwnSet(e) ? e.gallery.components.length : rec.grid.children.length));
         elButton(rec.elHost, e, false);
         const lab = rec.sheet.querySelector(':scope > .fvs-board-sheet__label');
-        if (lab) { lab.textContent = nameOf(e) + ' · Generated components'; lab.setAttribute('aria-label', nameOf(e) + ' · Generated components — drag to move'); }
+        const n = hasOwnSet(e) ? e.gallery.components.length : 0, cnt = n ? ' · ' + n.toLocaleString() : '';
+        if (lab) { lab.textContent = nameOf(e) + ' · Generated components' + cnt; lab.setAttribute('aria-label', nameOf(e) + ' · Generated components' + (n ? ` · ${n.toLocaleString()} component${n === 1 ? '' : 's'}` : '') + ' — drag to move'); }
       }
       const bx = thumbBoxOf(e); rec.body.style.setProperty('--thumb-w', bx.w + 'px'); rec.body.style.setProperty('--thumb-h', bx.h + 'px');
     });
