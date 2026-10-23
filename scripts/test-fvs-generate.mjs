@@ -96,7 +96,8 @@ for (const setup of SETUPS) {
     check(where, 'the first Component selected, one selection mark', got.selectedId === (got.ids[0] ?? null) && got.selMarks === (got.n ? 1 : 0), `selected ${got.selectedId}, marks ${got.selMarks}`);
     check(where, 'the gallery on screen', got.n === 0 || got.onScreen);
     check(where, 'never more than 2,048 (every rule capped — Oct 15, 2026)', got.n <= 2048, `${got.n}`);
-    check(where, 'the area\'s columns follow the count', got.cols === (got.groupCols || (got.n <= 32 ? 4 : Math.ceil(Math.sqrt(got.n * 1.5) / 4) * 4)), `${got.cols} columns for ${got.n}${got.groupCols ? ' (grouped)' : ''}`);
+    // grouped: the sections side by side in lanes since Oct 23, 2026 — at least one section wide
+    check(where, 'the area\'s columns follow the count', got.groupCols ? got.cols >= got.groupCols : got.cols === (got.n <= 32 ? 4 : Math.ceil(Math.sqrt(got.n * 1.5) / 4) * 4), `${got.cols} columns for ${got.n}${got.groupCols ? ' (grouped)' : ''}`);
     if (r === 'exhaustive' && !got.genDisabled) {
       // the count sits in the area's label since Oct 23, 2026 ("Arc · Generated components · 51 · editing"); the panel hint is
       // empty below the cap

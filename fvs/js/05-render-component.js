@@ -654,7 +654,7 @@ export function galleryGroups(list) {
   const tOf = c => turns.indexOf((c.xf && c.xf.t) || 0), byId = Object.fromEntries(list.map(c => [c.id, c]));
   return {
     cols: across ? turns.length : keys.length, per,
-    sec: c => bases.indexOf(c.base || c.id),
+    sec: c => bases.indexOf(c.base || c.id), secStart: c => bases.indexOf(c.base || c.id) * per, cat: () => '',
     col: c => across ? tOf(c) : keys.indexOf(colOf(c)),
     row: c => bases.indexOf(c.base || c.id) * per + 3 + (across ? 0 : tOf(c)),
     rowLabel: c => !across && turns.length > 1 ? turnName((c.xf && c.xf.t) || 0) : null,
@@ -675,7 +675,8 @@ function pkgRv(c) {
   const x = c.xf || {}, after = [x.t ? turnName(x.t) : '', x.f ? flipName(x.f) : '', x.s && x.s !== 1 ? pct(x.s) : ''].filter(Boolean).join(' · ');
   return { rule, sec: (c.rv && c.rv.sec) || '', col: (c.rv && c.rv.col) || '', row: [c.rv && c.rv.row, after].filter(Boolean).join(' · ') };
 }
-function variantGroups(list, rvOf = c => c.rv) {
+const DEFAULT_RV = c => c.rv;
+function variantGroups(list, rvOf = DEFAULT_RV) {
   // rv = {rule?, sec, col, row?}: each section its own columns and rows (Rhythm's modes differ — Oct 23, 2026); two
   // Components on one place move to the next column (a rule without names for all its variants)
   const secs = [], colsOf = {}, rowsOf = {}, at = new Map(), seen = new Set();
@@ -691,7 +692,8 @@ function variantGroups(list, rvOf = c => c.rv) {
   const off = {}; let o = 0; secs.forEach(s => { off[s] = o; o += rowsOf[s].length + 3; });   // three empty rows open each section
   const A = c => at.get(c);
   return {
-    cols, sec: c => secs.indexOf(A(c).s),
+    cols, sec: c => secs.indexOf(A(c).s), secStart: c => off[A(c).s],
+    cat: c => A(c).v.rule && rvOf !== DEFAULT_RV ? A(c).v.rule : (A(c).v.sec || '').split(' · ')[0],   // a lane per rule (Exhaustive) or per first word
     col: c => colsOf[A(c).s].indexOf(A(c).col),
     row: c => off[A(c).s] + 3 + rowsOf[A(c).s].indexOf(A(c).row),
     rowLabel: c => rowsOf[A(c).s].length > 1 ? A(c).row || null : null,
@@ -713,7 +715,7 @@ function checkerGroups(list) {
   const pose = x => [turnName(x.r), anyFlip ? (x.f ? 'Flip H' : 'No flip') : '', sizes.length > 1 ? pct(x.s) : ''].filter(Boolean).join(' · ');
   const sec = c => As.indexOf(key(c.ck.a));
   return {
-    cols: across ? turns.length : keys.length, per, sec,
+    cols: across ? turns.length : keys.length, per, sec, secStart: c => sec(c) * per, cat: () => '',
     col: c => across ? turns.indexOf(c.ck.b.r) : keys.indexOf(colOf(c.ck)),
     row: c => sec(c) * per + 3 + (across ? 0 : turns.indexOf(c.ck.b.r)),
     rowLabel: c => across ? null : 'B ' + turnName(c.ck.b.r),
@@ -721,10 +723,29 @@ function checkerGroups(list) {
     colLabel: c => across ? 'B · ' + turnName(c.ck.b.r) : 'B · ' + [anyFlip ? (c.ck.b.f ? 'Flip H' : 'No flip') : '', sizes.length > 1 ? pct(c.ck.b.s) : ''].filter(Boolean).join(' · '),
   };
 }
+// Sections side by side, not one endless column (Diego, Oct 23, 2026: "distribuiscila orizzontalmente in categorie
+// sempre"): a lane per category (a rule in Exhaustive, a mode in Rhythm, a reading in Radial…), its sections stacked in
+// it; a lane taller than the target splits into the next lane. The target height keeps the whole board about 1.6 : 1.
+function laneLayout(G, list) {
+  const S = new Map();   // section → { cat, w, h, order }
+  list.forEach(c => { const s = G.sec(c), rel = G.row(c) - G.secStart(c), k = G.col(c);
+    const v = S.get(s) || { cat: G.cat(c), w: 0, h: 4, rows: false };
+    v.w = Math.max(v.w, k + 1); v.h = Math.max(v.h, rel + 1); if (G.rowLabel(c)) v.rows = true; S.set(s, v); });
+  // in thumbs: a section's three opening rows are only gaps, about one thumb in all (its title, its column labels)
+  const thumbs = v => v.h - 3 + 1, secs = [...S.keys()].sort((a, b) => a - b), area = secs.reduce((n, s) => n + S.get(s).w * thumbs(S.get(s)), 0);
+  const T = Math.max(...secs.map(s => thumbs(S.get(s))), Math.ceil(Math.sqrt(area / 1.6)));
+  const lanes = []; let lane = null;
+  secs.forEach(s => { const v = S.get(s);
+    if (!lane || lane.cat !== v.cat || lane.t + thumbs(v) > T) { lane = { cat: v.cat, w: 0, h: 0, t: 0, rows: false, secs: [] }; lanes.push(lane); }
+    v.y = lane.h; lane.h += v.h; lane.t += thumbs(v); lane.w = Math.max(lane.w, v.w); lane.rows = lane.rows || v.rows; lane.secs.push(s); });
+  let x = 0; lanes.forEach((l, i) => { if (i) x += l.rows ? 2 : 1; l.secs.forEach(s => { S.get(s).x = x; }); x += l.w; });   // a gap column (two when row labels need room)
+  return { S, width: x };
+}
 function layoutGalleryGroups(gallery, list, wraps) {
   const G = galleryGroups(list);
   gallery.classList.toggle('is-grouped', !!G);
-  if (G) gallery.style.setProperty('--gal-cols', G.cols);
+  const L = G && laneLayout(G, list);
+  if (G) gallery.style.setProperty('--gal-cols', L.width);
   const rowDone = new Set(), secDone = new Set(), colDone = new Set(), top = {};
   const first = {};   // a section's title sits on its topmost, then leftmost thumb (a folded pair can empty the first row)
   if (G) list.forEach((c, i) => { const k = G.sec(c) + ':' + G.col(c), r = G.row(c), sc = G.sec(c), f = first[sc];
@@ -733,11 +754,12 @@ function layoutGalleryGroups(gallery, list, wraps) {
   wraps.forEach((w, i) => {
     const c = list[i];
     const cap = w.querySelector('.fvs-thumb-caption');
-    delete w.dataset.rowLabel; delete w.dataset.sectionLabel; if (cap) delete cap.dataset.colLabel; w.style.removeProperty('--gcol');
+    delete w.dataset.rowLabel; delete w.dataset.sectionLabel; if (cap) delete cap.dataset.colLabel; w.style.removeProperty('--gcol'); w.style.removeProperty('--sec-cols');
     if (!G) { w.style.gridColumn = ''; w.style.gridRow = ''; return; }
-    const col = G.col(c), row = G.row(c), sec = G.sec(c);
-    w.style.gridColumn = String(col + 1); w.style.gridRow = String(row + 1);
-    w.style.setProperty('--gcol', col);   // the labels on any wrap of a row / section shift back to the first column
+    const col = G.col(c), row = G.row(c), sec = G.sec(c), at = L.S.get(sec);
+    w.style.gridColumn = String(at.x + col + 1); w.style.gridRow = String(at.y + row - G.secStart(c) + 1);
+    w.style.setProperty('--gcol', col);   // the labels on any wrap of a row / section shift back to the section's first column
+    w.style.setProperty('--sec-cols', at.w);   // the section title spans its own section
     const rl = G.rowLabel(c);
     if (rl && !rowDone.has(row)) { rowDone.add(row); w.dataset.rowLabel = rl; }
     if (!secDone.has(sec) && first[sec].i === i) { secDone.add(sec); w.dataset.sectionLabel = G.sectionLabel(c); }
