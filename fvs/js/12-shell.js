@@ -588,7 +588,13 @@ export function autoProportions() {   // an upload: a drawing that is not square
   setProportions(a === 1 ? 'square' : 'drawing');
   if (a !== 1) Organica.notice('Proportions set from the drawing — ' + ratioText(a), { kind: 'info' });
 }
-ctrl('seg-element-proportions').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) setProportions(b.dataset.prop); });
+ctrl('seg-element-proportions').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn');
+  if (!b) return;
+  setProportions(b.dataset.prop);
+  // Drawing on a drawing within 2 % of square stays Square — say so, or the press seems to do nothing (Diego, Oct 23, 2026)
+  if (b.dataset.prop === 'drawing' && state.cellAspect === 1) Organica.notice('This drawing is already square — 1:1', { kind: 'info' });
+});
 ['rg-element-w', 'rg-element-l'].forEach(id => ctrl(id).addEventListener('change', () => { if (state.cellAspect !== 1) setProportions('drawing'); }));   // a stretch changes the drawing's proportions
 
 // The Element canvas's View: Show as tile (+ Layout / Turn) and Snap (05-render-component.js keeps the state).
