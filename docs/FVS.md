@@ -218,6 +218,12 @@ is gone); the candidates sit on the board at 2×.
   choose Dither for vector plates*), Dither its **vector paths, one per ink** (fill = the ink's hex, so Plates split it).
   A photo still loading draws nothing and redraws when it arrives (`live.onPhotoReady`); Generate's look-alike fold is off
   until it has. Tests: `scripts/test-fvs-photo.sh`. Later: *Across the Component*, Stipple, Bands.
+  **SVG files (Oct 24, 2026 — Diego):** *Open photo or SVG…* also takes an SVG (≤ 2 MB). It is stored as its own text
+  (`kind: 'svg'` in `fvs-photo`; made safe — no script / foreignObject / `on…` attributes, no `javascript:`, no link, `url()` or `@import` outside the file — given a viewBox and a size of
+  1024 on its longer side) plus a data URL that decodes it as an image. In **Normal it stays vector**: the screen shows the
+  file itself (`<image preserveAspectRatio="xMidYMid slice">`, sharp at any zoom), and a file gets the SVG once in `<defs>`
+  as `<svg id>` with its own ids prefixed, and a `<use width height>` per drawing — no raster notice. Tone and Dither read
+  it as an image (Dither is vector anyway).
 - **Reset Element** (floatbar, `reset` icon; was *Reset seed shape*) — since Oct 5, 2026 a **total
   reset** (Diego): the Element as FVS opens it — the picker's first shape, every shape's own parameters
   (not only the open one's) and their remembered Look & place, no layers, the default palette (one black
@@ -301,6 +307,13 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   **transparent** everywhere (every step, thumbnail, saved Component/Symbol and export):
   SVG gets `fill="none"`, PNG keeps the alpha, and the previews show a checkerboard behind.
   Click it again (or pick a colour) to get the previous Paper colour back.
+- **Paper › Pattern = Photo** (Oct 24, 2026 — Diego; design-system CONSULT the same day): a photo or an SVG **covers the whole
+  canvas** of every step, under everything, with the Element Photo's controls (`#ground-photo-block`: Open photo or SVG… ·
+  Replace · Remove, Look Normal · Tone · Dither, Algorithm, Dot size, Contrast, Photo size, Move X / Y — Ink, Spacing, Weight
+  and Angle hide). The photo plan is made for the canvas's proportion (`photoPlan(g, w / h)`). Saved in the appearance's
+  `ground` like every Paper pattern (`patType: 'photo'` + the photo keys, the id only). **Show in Symbol cells** (switch,
+  off by default — `photoCells`): a saved Component / Element placed in a Symbol cell draws its Paper photo there only when
+  on (`paperPatternSVG(w, h, nested)`); the Symbol's own Paper always draws.
 - **Paper = colour + texture** (Oct 3, 2026 — a test). The **Pattern** icon at the end of the
   Paper row switches a texture on over the Paper colour: **Pattern** (Lines / Crosshatch /
   Dots / Concentric), **Ink** (a palette ink), **Spacing / Weight / Angle**, opening right under

@@ -175,14 +175,15 @@ export const photoOf = lk => {
   PHOTO_KEYS.forEach(k => { o[k] = lk[k] != null ? lk[k] : PHOTO_DEFAULTS[k]; });
   return o;
 };
-export function readPhotoControls() {
-  const id = pv('in-element-photo');
+export function readPhotoControls(pre = 'element') {
+  const id = pv('in-' + pre + '-photo');
   if (!id) return {};
-  return { photoId: id, photoLook: pv('in-element-photolook') || 'normal', photoAlg: pv('sel-element-photoalg'), photoDot: val('rg-element-photodot'),
-    photoContrast: val('rg-element-photocontrast'), photoSize: val('rg-element-photosize'), photoMx: val('rg-element-photomx'), photoMy: val('rg-element-photomy') };
+  return { photoId: id, photoLook: pv('in-' + pre + '-photolook') || 'normal', photoAlg: pv('sel-' + pre + '-photoalg'), photoDot: val('rg-' + pre + '-photodot'),
+    photoContrast: val('rg-' + pre + '-photocontrast'), photoSize: val('rg-' + pre + '-photosize'), photoMx: val('rg-' + pre + '-photomx'), photoMy: val('rg-' + pre + '-photomy') };
 }
 const _photoImg = new Map();   // id → { img, ok }
-// The decoded photo, or null while it loads (live.onPhotoReady redraws when it arrives) / when the store has none.
+// The decoded photo (an SVG decodes as an image too), or null while it loads (live.onPhotoReady redraws when it
+// arrives) / when the store has none.
 export function photoImage(id) {
   if (!id) return null;
   let e = _photoImg.get(id);
@@ -198,33 +199,42 @@ export function photoImage(id) {
   return e.ok ? e.img : null;
 }
 export function primePhoto(id, img) { _photoImg.set(id, { img, ok: true }); }
-const PHOTO_PX = 512;   // Normal / Tone: the Element box as a 512 px raster
+const PHOTO_PX = 512;   // Normal / Tone: the box as a raster of 512 px on its longer side (an SVG: 1024)
 const _photoPlans = new Map(), _photoByIdx = new Map();
 let _photoIdx = 0;
 const hexRgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '').trim()); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const lumOf = c => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
 const contrastOf = c => (c >= 0 ? 1 + c / 25 : 1 + c / 100);   // −100 = flat grey … 0 = as is … +100 = ×5
-// One processed photo for this appearance and the live inks + Paper: { idx, look, canvas, url (blob, for the screen),
-// data (data URL, for files), paths (Dither: [{ hex, d }] in the 0..100 box) } — cached, never stored.
-export function photoPlan(a) {
+// One processed photo for these settings, a box of `aspect` (width / height — 1 for an Element, the canvas's for the
+// Paper) and the live inks + Paper: { idx, look, kind ('raster' | 'svg' — an SVG in Normal stays vector), canvas,
+// url (blob, for the screen), data (data URL, for files), paths (Dither: [{ hex, d }] in a 0..100 × 0..100 box),
+// svg (Normal SVG: its text) } — cached, never stored.
+export function photoPlan(a, aspect = 1) {
   const p = photoOf(a);
   if (!p.photoId) return null;
   const img = photoImage(p.photoId);
   if (!img) return null;
   const look = p.photoLook, pal = (live.inkPaletteOverride || state.colors).slice(), paper = state.paperColor;
-  const key = JSON.stringify([p.photoId, look, p.photoSize, p.photoMx, p.photoMy, look === 'normal' ? 0 : [p.photoContrast, pal, paper], look === 'dither' ? [p.photoAlg, p.photoDot] : 0]);
+  const svgText = look === 'normal' && live.photoSvg ? live.photoSvg(p.photoId) : null;
+  const ar = Math.max(0.05, Math.min(20, +aspect || 1));
+  const key = JSON.stringify([p.photoId, look, p.photoSize, p.photoMx, p.photoMy, +ar.toFixed(3), look === 'normal' ? 0 : [p.photoContrast, pal, paper], look === 'dither' ? [p.photoAlg, p.photoDot] : 0]);
   const hit = _photoPlans.get(key);
   if (hit) return hit;
-  const R = look === 'dither' ? Math.max(4, Math.min(400, Math.round(100 / Math.max(0.25, +p.photoDot || 1)))) : PHOTO_PX;
-  const cv = document.createElement('canvas'); cv.width = cv.height = R;
+  // the raster's size: Dither = one pixel per dot (Dot size in 1/100 of the box's shorter side), else PHOTO_PX on the longer side
+  let RW, RH;
+  if (look === 'dither') { const n = Math.max(4, Math.min(400, Math.round(100 / Math.max(0.25, +p.photoDot || 1)))); RW = ar >= 1 ? Math.round(n * ar) : n; RH = ar >= 1 ? n : Math.round(n / ar); }
+  else { const L = svgText ? 1024 : PHOTO_PX; RW = ar >= 1 ? L : Math.round(L * ar); RH = ar >= 1 ? Math.round(L / ar) : L; }
+  RW = Math.max(1, Math.min(4000, RW)); RH = Math.max(1, Math.min(4000, RH));
+  const cv = document.createElement('canvas'); cv.width = RW; cv.height = RH;
   const cx = cv.getContext('2d', { willReadFrequently: true });
-  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-  const k = Math.max(R / iw, R / ih) * Math.max(0.1, (+p.photoSize || 100) / 100), dw = iw * k, dh = ih * k;   // Cover, then Photo size
+  const iw = img.naturalWidth || img.width || 100, ih = img.naturalHeight || img.height || 100;
+  const k = Math.max(RW / iw, RH / ih) * Math.max(0.1, (+p.photoSize || 100) / 100), dw = iw * k, dh = ih * k;   // Cover, then Photo size
   cx.imageSmoothingQuality = 'high';
-  cx.drawImage(img, (R - dw) / 2 + (+p.photoMx || 0) / 100 * R, (R - dh) / 2 + (+p.photoMy || 0) / 100 * R, dw, dh);
-  const plan = { idx: ++_photoIdx, look, canvas: cv, paths: null };
+  cx.drawImage(img, (RW - dw) / 2 + (+p.photoMx || 0) / 100 * RW, (RH - dh) / 2 + (+p.photoMy || 0) / 100 * RH, dw, dh);
+  const plan = { idx: ++_photoIdx, look, kind: svgText ? 'svg' : 'raster', canvas: cv, paths: null, svg: svgText,
+    size: Math.max(0.1, (+p.photoSize || 100) / 100), mx: (+p.photoMx || 0) / 100, my: (+p.photoMy || 0) / 100 };
   if (look !== 'normal') {
-    const id = cx.getImageData(0, 0, R, R), px = id.data, f = contrastOf(+p.photoContrast || 0), N = R * R;
+    const id = cx.getImageData(0, 0, RW, RH), px = id.data, f = contrastOf(+p.photoContrast || 0), N = RW * RH;
     const gray = new Float32Array(N);
     for (let i = 0; i < N; i++) {
       const al = px[i * 4 + 3] / 255, l = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) / 255;
@@ -239,15 +249,15 @@ export function photoPlan(a) {
       }
     } else {
       const cols = [...inks, pap || [255, 255, 255]], paperK = cols.length - 1;
-      const at = Organica.dither.levels(gray, R, R, cols.map(lumOf), p.photoAlg, { bayer: 4 });
+      const at = Organica.dither.levels(gray, RW, RH, cols.map(lumOf), p.photoAlg, { bayer: 4 });
       const ds = inks.map(() => '');
-      const u = 100 / R, f2 = v => +(v * u).toFixed(3);
-      for (let y = 0; y < R; y++) {
-        for (let x = 0; x < R;) {
-          const kk = at[y * R + x];
+      const ux = 100 / RW, uy = 100 / RH, fx = v => +(v * ux).toFixed(3), fy = v => +(v * uy).toFixed(3);
+      for (let y = 0; y < RH; y++) {
+        for (let x = 0; x < RW;) {
+          const kk = at[y * RW + x];
           let e = x + 1;
-          while (e < R && at[y * R + e] === kk) e++;
-          if (kk !== paperK) ds[kk] += `M${f2(x)} ${f2(y)}H${f2(e)}V${f2(y + 1)}H${f2(x)}Z`;
+          while (e < RW && at[y * RW + e] === kk) e++;
+          if (kk !== paperK) ds[kk] += `M${fx(x)} ${fy(y)}H${fx(e)}V${fy(y + 1)}H${fx(x)}Z`;
           x = e;
         }
       }
@@ -259,8 +269,12 @@ export function photoPlan(a) {
     }
     cx.putImageData(id, 0, 0);
   }
-  plan.data = cv.toDataURL(look === 'normal' || (look === 'tone' && hexRgb(paper)) ? 'image/jpeg' : 'image/png', 0.9);
-  plan.url = URL.createObjectURL(Organica.dataURLToBlob(plan.data));
+  if (svgText) {   // Normal SVG: the screen shows the file itself (sharp at any zoom); `canvas` is only for canvas drawing
+    plan.url = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }));
+  } else {
+    plan.data = cv.toDataURL(look === 'normal' || (look === 'tone' && hexRgb(paper)) ? 'image/jpeg' : 'image/png', 0.9);
+    plan.url = URL.createObjectURL(Organica.dataURLToBlob(plan.data));
+  }
   if (_photoPlans.size >= 48) {   // the oldest goes (its blob too); a drawing that still shows it is redrawn by then
     const [k0, old] = _photoPlans.entries().next().value;
     _photoPlans.delete(k0); _photoByIdx.delete(old.idx); URL.revokeObjectURL(old.url);
@@ -272,16 +286,32 @@ export function photoPlan(a) {
 // so Width / Length never distort the photo.
 export const photoFrameAttr = (mx, my, rot, scale, w, l) => `translate(${(50 + (mx || 0)).toFixed(3)},${(50 + (my || 0)).toFixed(3)}) rotate(${rot || 0}) scale(${((scale == null ? 1 : scale) * Math.max(w || 1, l || 1)).toFixed(4)}) translate(-50,-50)`;
 export const photoFrameMatrix = (mx, my, rot, scale, w, l) => new DOMMatrix().translate(50 + (mx || 0), 50 + (my || 0)).rotate(rot || 0).scale((scale == null ? 1 : scale) * Math.max(w || 1, l || 1)).translate(-50, -50);
-export const photoImageTag = plan => `<image data-ph="${plan.idx}" href="${plan.url}" x="0" y="0" width="100" height="100" preserveAspectRatio="none"${plan.look === 'dither' ? ' style="image-rendering:pixelated"' : ''}/>`;
-export function paintPhotoCanvas(ctx, plan) {
+// The photo in a w × h box (an Element's 100 × 100, a Paper's canvas). A raster is laid out already; a Normal SVG is the
+// file itself, covering the box, then Photo size / Move X · Y about the box's centre.
+export function photoImageTag(plan, w = 100, h = 100) {
+  const f = v => +(+v).toFixed(3);
+  if (plan.kind === 'svg') {
+    const tf = `translate(${f(w / 2 + plan.mx * w)},${f(h / 2 + plan.my * h)}) scale(${f(plan.size)}) translate(${f(-w / 2)},${f(-h / 2)})`;
+    return `<g transform="${tf}"><image data-ph="${plan.idx}" href="${plan.url}" x="0" y="0" width="${f(w)}" height="${f(h)}" preserveAspectRatio="xMidYMid slice"/></g>`;
+  }
+  return `<image data-ph="${plan.idx}" href="${plan.url}" x="0" y="0" width="${f(w)}" height="${f(h)}" preserveAspectRatio="none"${plan.look === 'dither' ? ' style="image-rendering:pixelated"' : ''}/>`;
+}
+export function paintPhotoCanvas(ctx, plan, w = 100, h = 100) {
   const sm = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = plan.look !== 'dither';
-  ctx.drawImage(plan.canvas, 0, 0, 100, 100);
+  ctx.drawImage(plan.canvas, 0, 0, w, h);
   ctx.imageSmoothingEnabled = sm;
 }
+// An uploaded SVG placed in a file as a <defs> child: its own ids prefixed (two files, or the file twice, never clash),
+// its root an <svg id> a <use width height> sizes; script and event attributes are not carried.
+function svgAsDef(text, id) {
+  let t = String(text).replace(/<\?xml[^>]*>|<!DOCTYPE[^>]*>|<!--[\s\S]*?-->/gi, '').replace(/<script[\s\S]*?<\/script>/gi, '').replace(/\son\w+="[^"]*"/gi, '');
+  t = t.replace(/\bid="([^"]+)"/g, `id="${id}-$1"`).replace(/url\(\s*#([^)\s]+)\s*\)/g, `url(#${id}-$1)`).replace(/(\s(?:xlink:)?href=")#([^"]+)"/g, `$1#${id}-$2"`);
+  return t.replace(/<svg\b([^>]*)>/i, (m, at) => `<svg id="${id}"${at.replace(/\s(?:id|width|height|x|y|preserveAspectRatio)="[^"]*"/gi, '')} preserveAspectRatio="xMidYMid slice">`);
+}
 // A file (SVG, PNG through an <img>, plates, Figma) cannot reach the screen's blob: URLs — this makes an SVG
-// self-contained: each photo once in <defs> (Normal / Tone the embedded raster, Dither its vector paths, one per
-// ink) and every drawing of it a <use>. → { svg, raster } (raster: Normal / Tone are in it — say so).
+// self-contained: each photo once in <defs> (Normal / Tone the embedded raster, a Normal SVG its own vector, Dither
+// its vector paths, one per ink) and every drawing of it a <use>. → { svg, raster } (raster: a raster went in — say so).
 export function photoSelfContained(svg) {
   if (!svg || svg.indexOf('data-ph="') < 0) return { svg, raster: false };
   const defs = new Map();
@@ -289,11 +319,14 @@ export function photoSelfContained(svg) {
   const out = svg.replace(/<image data-ph="(\d+)"[^>]*\/>/g, (m, i) => {
     const plan = _photoByIdx.get(+i);
     if (!plan) return '';
+    const w = +(m.match(/\swidth="([\d.]+)"/) || [0, 100])[1], h = +(m.match(/\sheight="([\d.]+)"/) || [0, 100])[1];
     if (!defs.has(plan.idx)) {
-      if (plan.look === 'dither') defs.set(plan.idx, `<g id="ph${plan.idx}">${plan.paths.map(q => `<path d="${q.d}" fill="${q.hex}"/>`).join('')}</g>`);
+      if (plan.kind === 'svg') defs.set(plan.idx, svgAsDef(plan.svg, 'ph' + plan.idx));
+      else if (plan.look === 'dither') defs.set(plan.idx, `<g id="ph${plan.idx}">${plan.paths.map(q => `<path d="${q.d}" fill="${q.hex}"/>`).join('')}</g>`);
       else { raster = true; defs.set(plan.idx, `<image id="ph${plan.idx}" href="${plan.data}" x="0" y="0" width="100" height="100" preserveAspectRatio="none"/>`); }
     }
-    return `<use href="#ph${plan.idx}"/>`;
+    if (plan.kind === 'svg') return `<use href="#ph${plan.idx}" x="0" y="0" width="${w}" height="${h}"/>`;
+    return w === 100 && h === 100 ? `<use href="#ph${plan.idx}"/>` : `<use href="#ph${plan.idx}" transform="scale(${+(w / 100).toFixed(5)},${+(h / 100).toFixed(5)})"/>`;
   });
   if (!defs.size) return { svg: out, raster };
   return { svg: out.replace(/(<svg\b[^>]*>)/, `$1<defs>${[...defs.values()].join('')}</defs>`), raster };
@@ -552,6 +585,7 @@ export function readGroundControls() {
   if (!live.paperPatternOn) return null;
   const g = { patType: pv('sel-ground-pattern'), patSpacing: val('rg-ground-patspacing'), patWeight: val('rg-ground-patweight'), patAngle: val('rg-ground-patangle'), ink: +pv('sel-ground-ink') || 0 };
   if (g.patType === 'element') Object.assign(g, { src: pv('sel-ground-tile') || 'element', layout: pv('sel-ground-layout'), turn: pv('sel-ground-turn'), patSize: val('rg-ground-patsize') });
+  if (g.patType === 'photo') Object.assign(g, readPhotoControls('ground'), pc('chk-ground-photocells') ? { photoCells: true } : {});   // Paper = a photo (Oct 24, 2026)
   return g;
 }
 export function liveElementTile() {
@@ -665,17 +699,33 @@ export const groundInk = g => {
   const pal = live.inkPaletteOverride || state.colors, i = g.ink === 'cell' || g.ink == null ? 0 : +g.ink;
   return pal[((i % pal.length) + pal.length) % pal.length];
 };
-export function paperPatternSVG(w, h) {
+// `nested`: a saved Component / Element's own Paper drawn inside a Symbol cell — a Paper photo shows there only with
+// *Show in Symbol cells* (photoCells; off by default, else the photo repeats in every cell).
+export function paperPatternSVG(w, h, nested) {
   const g = getElementAppearance().ground;
   if (!g || !(w > 0) || !(h > 0)) return '';
   if (g.patType === 'element') return elementTileSVG(g, w, h, 'gnd' + hooks.nextDrawId());
+  if (g.patType === 'photo') {
+    if (nested && !g.photoCells) return '';
+    const plan = photoPlan(g, w / h);
+    if (!plan) return '';
+    const id = 'gnd' + hooks.nextDrawId();
+    return `<clipPath id="${id}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})">${photoImageTag(plan, w, h)}</g>`;
+  }
   const id = 'gnd' + hooks.nextDrawId(), { k, pg } = paperPatternGeo(g, w, h);
   return `<clipPath id="${id}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id})"><g transform="scale(${k.toFixed(4)})"><path d="${pg.d}" ${hooks.patternAttrs(pg, groundInk(g))}/></g></g>`;
 }
-export function paintPaperPatternCanvas(ctx, w, h) {
+export function paintPaperPatternCanvas(ctx, w, h, nested) {
   const g = getElementAppearance().ground;
   if (!g || !(w > 0) || !(h > 0)) return;
   if (g.patType === 'element') { paintElementTileCanvas(ctx, g, w, h); return; }
+  if (g.patType === 'photo') {
+    if (nested && !g.photoCells) return;
+    const plan = photoPlan(g, w / h);
+    if (!plan) return;
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip(); paintPhotoCanvas(ctx, plan, w, h); ctx.restore();
+    return;
+  }
   const { k, pg } = paperPatternGeo(g, w, h);
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();

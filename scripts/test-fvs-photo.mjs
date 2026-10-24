@@ -74,6 +74,40 @@ const res = await P.ev(`
     check('with layers: the Photo layer draws the photo, the new layer its ink', L && L.items.some(l => l.look && l.look.fillMode === 'photo') && /<image data-ph=/.test(sv) && /<path d="[^"]+" fill="#/.test(sv), L ? L.items.map(l => l.look && l.look.fillMode).join(',') : 'no layers'); }
   check('with layers: the photo block still shows (one set for the Element)', !q('element-photo-block').hidden, '');
   F.state.layers = null; F.renderLayersUI(); set('sel-element-fillmode', 'photo'); await w(50);
+  // an SVG (Oct 24, 2026): vector in Normal (the file itself in the screen, its own vector in a file), an image for Tone / Dither
+  F.setTier('element');
+  const svgSrc = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><defs><linearGradient id="g"><stop offset="0" stop-color="#112233"/><stop offset="1" stop-color="#eeddcc"/></linearGradient></defs><rect width="200" height="100" fill="url(#g)"/><circle cx="60" cy="50" r="30" fill="#ff8800" onclick="alert(1)"/><script>alert(2)</script><a href="javascript:alert(3)"><rect width="5" height="5"/></a><image href="https://example.com/x.png" width="5" height="5"/><style>@import url(https://example.com/a.css);</style><rect width="9" height="9" fill="url(https://example.com/p)"/></svg>';
+  q('in-element-photo').value = '';
+  F.usePhotoFile(new File([svgSrc], 'mark.svg', { type: 'image/svg+xml' }));
+  await until(() => q('in-element-photo').value && q('in-element-photo').value !== id);
+  const sid = q('in-element-photo').value, sent = F.PHOTO_STORE.read()[sid];
+  check('an SVG is stored as its text, made safe (no script, onclick, javascript:, external href / url() / @import), measurable (1024 wide)', sent && sent.kind === 'svg' && !/script|onclick|javascript:|example\\.com|@import/.test(sent.svg) && /width="1024\\.00"/.test(sent.svg), sent && sent.svg.slice(0, 120));
+  q('seg-element-photolook').querySelector('[data-look="normal"]').click(); await w(50);
+  { const sv = prev(), s = F.photoSelfContained(sv);
+    check('SVG in Normal: the screen shows the file (blob, cover)', /<image data-ph="\\d+" href="blob:[^"]+" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid slice"/.test(sv), sv.slice(0, 300));
+    check('SVG in Normal in a file: its own vector, ids prefixed, no raster', !s.raster && /<svg id="ph\\d+"[^>]*preserveAspectRatio="xMidYMid slice"/.test(s.svg) && /id="ph\\d+-g"/.test(s.svg) && /url\\(#ph\\d+-g\\)/.test(s.svg) && /<use href="#ph\\d+" x="0" y="0" width="100" height="100"\\/>/.test(s.svg) && !/<image/.test(s.svg), s.svg.slice(0, 300)); }
+  q('seg-element-photolook').querySelector('[data-look="dither"]').click(); await w(50);
+  { const s = F.photoSelfContained(prev());
+    check('SVG in Dither: vector paths in the Palette inks', !s.raster && /<path d="[^"]+" fill="#(ff0000|0000ff)"\\/>/.test(s.svg), s.svg.slice(0, 200)); }
+  // the Paper's Pattern = Photo: covers the whole canvas, any proportion; in a Symbol cell only with Show in Symbol cells
+  q('in-ground-photo').value = '';
+  F.usePhotoFile(new File([blob], 'paper.png', { type: 'image/png' }), 'ground');
+  await until(() => q('in-ground-photo').value);
+  check('Paper › Pattern = Photo: set, its block shows, Ink / Spacing hide', q('sel-ground-pattern').value === 'photo' && !q('ground-photo-block').hidden && q('ground-ink-row').style.display === 'none' && q('ground-patspacing-row').style.display === 'none', q('sel-ground-pattern').value);
+  const gnd = F.getElementAppearance().ground;
+  check('the Paper carries only the id', gnd && gnd.patType === "photo" && gnd.photoId === q("in-ground-photo").value && !JSON.stringify(gnd).includes("data:"), JSON.stringify(gnd));
+  { const wide = F.paperPatternSVG(300, 100);
+    check('the Paper photo covers a 3:1 canvas', /<image data-ph="\\d+" href="blob:[^"]+" x="0" y="0" width="300" height="100"/.test(wide), wide.slice(0, 200));
+    check('not in a Symbol cell by default', F.paperPatternSVG(100, 100, true) === '', '');
+    q('chk-ground-photocells').checked = true; q('chk-ground-photocells').dispatchEvent(new Event('change', { bubbles: true }));
+    check('Show in Symbol cells: drawn in a cell too', /<image data-ph=/.test(F.paperPatternSVG(100, 100, true)), '');
+    const s = F.photoSelfContained('<svg xmlns="http://www.w3.org/2000/svg">' + wide + '</svg>');
+    check('the Paper photo in a file: once in <defs>, used at 3:1', /<use href="#ph\\d+" transform="scale\\(3,1\\)"\\/>/.test(s.svg) && s.raster, s.svg.slice(-200)); }
+  { const c = document.createElement('canvas'); c.width = 120; c.height = 60; const x = c.getContext('2d'); F.paintPaperPatternCanvas(x, 120, 60);
+    const d = x.getImageData(0, 0, 120, 60).data; check('the Paper photo on a canvas: dark left, light right', d[(30 * 120 + 10) * 4] < 100 && d[(30 * 120 + 110) * 4] > 150, d[(30 * 120 + 10) * 4] + ' / ' + d[(30 * 120 + 110) * 4]); }
+  q('btn-ground-photo-remove').click(); await w(30);
+  check('Remove paper photo: nothing drawn, Open shows again', F.paperPatternSVG(100, 100) === '' && q('ground-photo-open-row').style.display !== 'none', '');
+  q('in-element-photo').value = id; F.showPhotoControls({ photoId: id }); set('sel-element-fillmode', 'photo'); await w(30);
   // the 1-bit case of the multi-level dither
   { const W = 37, H = 23, g = new Float32Array(W * H).map((_, i) => (Math.sin(i * 0.37) + 1) / 2);
     const a = Organica.dither.errorDiffusion(g, W, H, Organica.dither.FS_KERNEL, true), b = Organica.dither.levels(g, W, H, [0, 1], 'fs');

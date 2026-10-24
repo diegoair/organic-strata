@@ -31,40 +31,97 @@ provide({
   syncGroundInkOptions: () => syncGroundInkOptions
 });
 
-// ── Photo (Style = Photo — Tropism T2, Oct 23, 2026) ──
+// ── Photo (Style = Photo — Tropism T2, Oct 23, 2026; the Paper's Pattern = Photo and SVG files, Oct 24, 2026) ──
 // Each photo once, in its own store (by id, synced like every store); an appearance carries only its id, so a saved
-// Component / Symbol never copies the picture. Stored as a JPEG of at most 1024 px on its longer side.
+// Component / Symbol never copies the picture. A photo is stored as a JPEG of at most 1024 px on its longer side; an SVG
+// as its own text (it stays vector in Look Normal) + a data URL that decodes it as an image for Tone / Dither.
+// Two sets of the same controls: `element` (Look & place, Style = Photo) and `ground` (Paper › Pattern = Photo).
 export const PHOTO_STORE = Organica.store('fvs-photo');
-const PHOTO_MAX = 1024;
+const PHOTO_MAX = 1024, SVG_MAX = 2 * 1024 * 1024;
 live.photoSource = id => { const e = PHOTO_STORE.peek()[id]; return e && e.data ? e.data : null; };
+live.photoSvg = id => { const e = PHOTO_STORE.peek()[id]; return e && e.kind === 'svg' ? e.svg : null; };
 let _photoRedraw = 0;
 live.onPhotoReady = () => {   // a photo decoded after a drawing asked for it: draw everything again, once per frame
   if (_photoRedraw) return;
   _photoRedraw = requestAnimationFrame(() => { _photoRedraw = 0; hooks.onAppearanceChange(); });
 };
-export function showPhotoControls(lk) {
+export function showPhotoControls(lk, pre = 'element') {
   const p = { ...PHOTO_DEFAULTS, ...photoOf(lk) };
-  ctrl('in-element-photo').value = p.photoId;
-  ctrl('in-element-photolook').value = p.photoLook;
-  ctrl('sel-element-photoalg').value = p.photoAlg;
+  ctrl('in-' + pre + '-photo').value = p.photoId;
+  ctrl('in-' + pre + '-photolook').value = p.photoLook;
+  ctrl('sel-' + pre + '-photoalg').value = p.photoAlg;
   [['photodot', p.photoDot], ['photocontrast', p.photoContrast], ['photosize', p.photoSize], ['photomx', p.photoMx], ['photomy', p.photoMy]]
-    .forEach(([k, v]) => { ctrl('rg-element-' + k).value = v; ctrl('v-element-' + k).textContent = v; });
-  syncPhotoBlock();
+    .forEach(([k, v]) => { ctrl('rg-' + pre + '-' + k).value = v; ctrl('v-' + pre + '-' + k).textContent = v; });
+  if (pre === 'ground') ctrl('chk-ground-photocells').checked = !!(lk && lk.photoCells);
+  syncPhotoBlock(pre);
 }
-// What the photo block shows: Open photo… or the photo with Replace / Remove; Algorithm and Dot size for Dither,
+// What a photo block shows: Open photo or SVG… or the photo with Replace photo or SVG… / Remove; Algorithm and Dot size for Dither,
 // Contrast for Tone and Dither.
-export function syncPhotoBlock() {
-  const id = pv('in-element-photo'), look = pv('in-element-photolook') || 'normal';
-  ctrl('element-photo-open-row').style.display = id ? 'none' : '';   // .ctrl-row is flex: style.display, not hidden
-  ctrl('element-photo-has-row').style.display = id ? '' : 'none';
-  if (id) { const src = live.photoSource(id); if (src && ctrl('img-element-photo').getAttribute('src') !== src) ctrl('img-element-photo').src = src; }
-  ctrl('seg-element-photolook').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.look === look; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
-  ctrl('element-photoalg-row').style.display = ctrl('element-photodot-row').style.display = look === 'dither' ? '' : 'none';
-  ctrl('element-photocontrast-row').style.display = look === 'normal' ? 'none' : '';
+export function syncPhotoBlock(pre = 'element') {
+  const id = pv('in-' + pre + '-photo'), look = pv('in-' + pre + '-photolook') || 'normal';
+  ctrl(pre + '-photo-open-row').style.display = id ? 'none' : '';   // .ctrl-row is flex: style.display, not hidden
+  ctrl(pre + '-photo-has-row').style.display = id ? '' : 'none';
+  if (id) { const src = live.photoSource(id), im = ctrl('img-' + pre + '-photo'); if (src && im.getAttribute('src') !== src) im.src = src; }
+  ctrl('seg-' + pre + '-photolook').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.look === look; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+  ctrl(pre + '-photoalg-row').style.display = ctrl(pre + '-photodot-row').style.display = look === 'dither' ? '' : 'none';
+  ctrl(pre + '-photocontrast-row').style.display = look === 'normal' ? 'none' : '';
 }
-// A file → a JPEG ≤ 1024 px in the store → this Element's photo (Style = Photo).
-export function usePhotoFile(file) {
-  if (!file || !/^image\/(jpeg|png|webp)$/.test(file.type)) { Organica.notice('That file is not a photo — choose a JPEG, PNG or WebP image', { kind: 'info' }); return; }
+// An uploaded SVG made safe and measurable: no script / foreignObject / event attributes, a viewBox, and a size of
+// 1024 on its longer side (so it decodes as an image at that size for Tone / Dither). → text, or null if unreadable.
+function normalisePhotoSvg(text) {
+  let doc;
+  try { doc = new DOMParser().parseFromString(text, 'image/svg+xml'); } catch (e) { return null; }
+  const root = doc.documentElement;
+  if (!root || root.nodeName.toLowerCase() !== 'svg' || doc.getElementsByTagName('parsererror').length) return null;
+  [...root.querySelectorAll('script, foreignObject')].forEach(n => n.remove());
+  // nothing that runs or reaches out: event attributes, a link that is not #… or an embedded image, an external url() / @import
+  [root, ...root.querySelectorAll('*')].forEach(n => [...n.attributes].forEach(at => {
+    const v = at.value.trim();
+    if (/^on/i.test(at.name) || (/(^|:)href$/i.test(at.name) && !/^(#|data:image\/)/i.test(v)) || /url\(\s*['"]?(?!#|data:image\/)/i.test(v)) n.removeAttribute(at.name);
+  }));
+  [...root.querySelectorAll('style')].forEach(n => { if (/@import|url\(\s*['"]?(?!#|data:image\/)/i.test(n.textContent)) n.remove(); });
+  [...root.querySelectorAll('image, use')].forEach(n => { if (!n.getAttribute('href') && !n.getAttribute('xlink:href')) n.remove(); });   // what pointed outside is gone
+  let vb = (root.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+  if (vb.length !== 4 || !(vb[2] > 0) || !(vb[3] > 0)) {
+    const w = parseFloat(root.getAttribute('width')), h = parseFloat(root.getAttribute('height'));
+    vb = [0, 0, w > 0 ? w : 100, h > 0 ? h : 100];
+    root.setAttribute('viewBox', vb.join(' '));
+  }
+  const k = PHOTO_MAX / Math.max(vb[2], vb[3]);
+  root.setAttribute('width', (vb[2] * k).toFixed(2)); root.setAttribute('height', (vb[3] * k).toFixed(2));
+  root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  return new XMLSerializer().serializeToString(root);
+}
+// The new photo becomes this block's: the Element's Style = Photo, or the Paper's Pattern = Photo.
+function usePhotoId(id, img, pre) {
+  primePhoto(id, img);
+  ctrl('in-' + pre + '-photo').value = id;
+  if (pre === 'element') ctrl('sel-element-fillmode').value = 'photo';
+  else { live.paperPatternOn = true; if (hooks.paperSwatch) hooks.paperSwatch.setPattern(true); ctrl('sel-ground-pattern').value = 'photo'; syncGroundBlock(); }
+  syncPhotoBlock(pre);
+  hooks.onAppearanceChange();
+}
+const newPhotoId = () => 'photo-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+// A file → the store → this block's photo. A photo: a JPEG ≤ 1024 px. An SVG: its own text (≤ 2 MB).
+export function usePhotoFile(file, pre = 'element') {
+  const isSvg = file && (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || ''));
+  if (!file || (!isSvg && !/^image\/(jpeg|png|webp)$/.test(file.type))) { Organica.notice('That file is not a photo or an SVG — choose a JPEG, PNG, WebP or SVG file', { kind: 'info' }); return; }
+  if (isSvg) {
+    if (file.size > SVG_MAX) { Organica.notice(`This SVG is too large (${(file.size / 1048576).toFixed(1)} MB) — at most 2 MB`, { kind: 'info' }); return; }
+    file.text().then(text => {
+      const svg = normalisePhotoSvg(text);
+      if (!svg) { Organica.notice('This SVG could not be read', { kind: 'info' }); return; }
+      const data = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg), id = newPhotoId();
+      const all = PHOTO_STORE.read();
+      all[id] = { kind: 'svg', svg, data, name: file.name, savedAt: new Date().toISOString() };
+      if (!PHOTO_STORE.write(all)) return;   // storage full: the store showed the notice
+      const dec = new Image();
+      dec.onload = () => usePhotoId(id, dec, pre);
+      dec.onerror = () => Organica.notice('This SVG could not be drawn', { kind: 'info' });
+      dec.src = data;
+    });
+    return;
+  }
   const url = URL.createObjectURL(file), img = new Image();
   img.onload = () => {
     URL.revokeObjectURL(url);
@@ -75,19 +132,12 @@ export function usePhotoFile(file) {
     cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, cv.width, cv.height);   // a JPEG has no alpha: transparent reads as white
     cx.imageSmoothingQuality = 'high';
     cx.drawImage(img, 0, 0, cv.width, cv.height);
-    const data = cv.toDataURL('image/jpeg', 0.85);
-    const id = 'photo-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const data = cv.toDataURL('image/jpeg', 0.85), id = newPhotoId();
     const all = PHOTO_STORE.read();
     all[id] = { data, name: file.name, w: cv.width, h: cv.height, savedAt: new Date().toISOString() };
     if (!PHOTO_STORE.write(all)) return;   // storage full: the store showed the notice
     const dec = new Image();
-    dec.onload = () => {
-      primePhoto(id, dec);
-      ctrl('in-element-photo').value = id;
-      ctrl('sel-element-fillmode').value = 'photo';
-      syncPhotoBlock();
-      hooks.onAppearanceChange();
-    };
+    dec.onload = () => usePhotoId(id, dec, pre);
     dec.src = data;
   };
   img.onerror = () => { URL.revokeObjectURL(url); Organica.notice('This photo could not be read', { kind: 'info' }); };
@@ -99,26 +149,28 @@ export function exportablePhotoSVG(svg, quiet) {
   if (r.raster && !quiet) Organica.notice('This export contains a photo (raster) — choose Dither for vector plates', { kind: 'info' });
   return r.svg;
 }
-['btn-element-photo-open', 'btn-element-photo-replace'].forEach(id => ctrl(id).addEventListener('click', () => ctrl('file-element-photo').click()));
-ctrl('file-element-photo').addEventListener('change', e => { const f = e.target.files[0]; if (f) usePhotoFile(f); e.target.value = ''; });
-ctrl('btn-element-photo-remove').addEventListener('click', () => {   // the photo leaves this Element (the store keeps it — saved work may use it)
-  ctrl('in-element-photo').value = '';
-  if (pv('sel-element-fillmode') === 'photo') ctrl('sel-element-fillmode').value = 'fill';
-  syncPhotoBlock();
-  hooks.onAppearanceChange();
+['element', 'ground'].forEach(pre => {
+  [pre + '-photo-open', pre + '-photo-replace'].forEach(id => ctrl('btn-' + id).addEventListener('click', () => ctrl('file-' + pre + '-photo').click()));
+  ctrl('file-' + pre + '-photo').addEventListener('change', e => { const f = e.target.files[0]; if (f) usePhotoFile(f, pre); e.target.value = ''; });
+  ctrl('btn-' + pre + '-photo-remove').addEventListener('click', () => {   // the photo leaves this block (the store keeps it — saved work may use it)
+    ctrl('in-' + pre + '-photo').value = '';
+    if (pre === 'element' && pv('sel-element-fillmode') === 'photo') ctrl('sel-element-fillmode').value = 'fill';
+    syncPhotoBlock(pre);
+    hooks.onAppearanceChange();
+  });
+  ctrl('seg-' + pre + '-photolook').addEventListener('click', e => {
+    const b = e.target.closest('.seg-btn[data-look]');
+    if (!b) return;
+    ctrl('in-' + pre + '-photolook').value = b.dataset.look;
+    syncPhotoBlock(pre);
+    hooks.onAppearanceChange();
+  });
+  ctrl('sel-' + pre + '-photoalg').addEventListener('change', () => hooks.onAppearanceChange());
+  ['photodot', 'photocontrast', 'photosize', 'photomx', 'photomy'].forEach(k => ctrl('rg-' + pre + '-' + k).addEventListener('input', e => {
+    ctrl('v-' + pre + '-' + k).textContent = e.target.value; hooks.onAppearanceChange();
+  }));
 });
-ctrl('seg-element-photolook').addEventListener('click', e => {
-  const b = e.target.closest('.seg-btn[data-look]');
-  if (!b) return;
-  ctrl('in-element-photolook').value = b.dataset.look;
-  syncPhotoBlock();
-  hooks.onAppearanceChange();
-});
-ctrl('sel-element-photoalg').addEventListener('change', () => hooks.onAppearanceChange());
-['photodot', 'photocontrast', 'photosize', 'photomx', 'photomy'].forEach(k => ctrl('rg-element-' + k).addEventListener('input', e => {
-  ctrl('v-element-' + k).textContent = e.target.value; hooks.onAppearanceChange();
-}));
-
+ctrl('chk-ground-photocells').addEventListener('change', () => hooks.onAppearanceChange());
 
 
 
@@ -158,16 +210,20 @@ export function showGroundControls(g) {
     ctrl('sel-ground-layout').value = g.layout || 'grid';
     ctrl('sel-ground-turn').value = g.turn || 'none';
     syncGroundTileOptions(g.src);
+    showPhotoControls(g, 'ground');
   }
   syncGroundInkOptions(g && g.ink !== 'cell' ? g.ink : null);
   if (typeof hooks.paperSwatch !== 'undefined') hooks.paperSwatch.setPattern(live.paperPatternOn);
   syncGroundBlock();
 }
 export function syncGroundBlock() {
-  const type = pv('sel-ground-pattern'), tile = type === 'element';
-  ctrl('ground-patangle-row').style.display = type === 'concentric' ? 'none' : '';
+  const type = pv('sel-ground-pattern'), tile = type === 'element', photo = type === 'photo';
+  ctrl('ground-patangle-row').style.display = type === 'concentric' || photo ? 'none' : '';
   ctrl('ground-tile-block').hidden = !tile;
-  ctrl('ground-patweight-row').style.display = tile ? 'none' : '';   // a tile's weight is the Element's own (Fill, or its Stroke W)
+  ctrl('ground-patweight-row').style.display = tile || photo ? 'none' : '';   // a tile's weight is the Element's own (Fill, or its Stroke W)
+  ['ground-ink-row', 'ground-patspacing-row'].forEach(id => { ctrl(id).style.display = photo ? 'none' : ''; });   // a photo has no ink, no spacing
+  ctrl('ground-photo-block').hidden = !photo;
+  if (photo) syncPhotoBlock('ground');
   if (tile) syncGroundTileOptions();
 }
 

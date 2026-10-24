@@ -483,7 +483,7 @@ export function symbolSVGFromItems(items) {
       const draw = () => seedMarkupSVG(it.cx, it.cy, it.rotation, it.scaleX, it.scaleY, it.geo, it.color);
       cellMarkup = withEntryInks(it.inks, () => it.cellAppearance ? withAppearance(it.cellAppearance, draw) : draw());
       if (it.ownPaper) {   // a saved Element's own Paper + texture, as its library thumbnail shows it
-        const ground = withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paperPatternSVG(100, 100)));
+        const ground = withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paperPatternSVG(100, 100, true)));
         paperMarkup = `<g transform="translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(-50,-50)">`
           + clipToCellShapes(it.cellShape && it.cellShape !== 'square' ? [CELL_SHAPES[it.cellShape].poly] : null,
             (isPaperNone(it.ownPaper) ? '' : `<rect width="100" height="100" fill="${it.ownPaper}"/>`) + ground) + `</g>`;
@@ -515,7 +515,7 @@ export function symbolSVGFromItems(items) {
       cellMarkup = `<g transform="${tf}">${passes && !across ? passes.map(innerFor).join('') : innerFor(passes ? passes[0] : null)}</g>`;
       if (across) later = passes.slice(1).map(p => `<g transform="${tf}">${innerFor(p)}</g>`);
       // the nested Component's own Ground pattern sits on its paper, under all ink
-      const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paperPatternSVG(it.nestedW, it.nestedH)));
+      const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paperPatternSVG(it.nestedW, it.nestedH, true)));
       paperMarkup = `<g transform="${tf}">${clipToCellShapes(!it.region && it.nestedItems.length && it.nestedItems[0].poly ? it.nestedItems.map(ni => ni.poly) : null,
         `<rect width="${it.nestedW}" height="${it.nestedH}" fill="${it.nestedPaper}"/>${ground}`)}</g>`;
     }
@@ -614,7 +614,7 @@ export function drawSymbolCanvas(ctx) {
       ctx.translate(it.cx, it.cy); ctx.rotate(it.rotation * Math.PI / 180); ctx.scale(it.scaleX, it.scaleY); ctx.translate(-50, -50);
       if (it.cellShape && it.cellShape !== 'square') ctx.clip(latticeShapePath([{ poly: CELL_SHAPES[it.cellShape].poly }]));   // the Element's canvas is its cell
       fillPaper(ctx, it.ownPaper, 0, 0, 100, 100);
-      withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paintPaperPatternCanvas(ctx, 100, 100)));
+      withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paintPaperPatternCanvas(ctx, 100, 100, true)));
       ctx.restore();
       continue;
     }
@@ -623,7 +623,7 @@ export function drawSymbolCanvas(ctx) {
     nestedFrame(it);
     if (!it.region && it.nestedItems.length && it.nestedItems[0].poly) ctx.clip(latticeShapePath(it.nestedItems));   // a cell-shape Component: its canvas is the grid's outline
     fillPaper(ctx, it.nestedPaper, 0, 0, it.nestedW, it.nestedH);
-    withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintPaperPatternCanvas(ctx, it.nestedW, it.nestedH)));
+    withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintPaperPatternCanvas(ctx, it.nestedW, it.nestedH, true)));
     ctx.restore();
   }
   // pass 2 — ink
@@ -649,7 +649,7 @@ export function drawSymbolCanvas(ctx) {
         ctx.translate(it.cx, it.cy); ctx.rotate(it.rotation * Math.PI / 180); ctx.scale(it.scaleX, it.scaleY); ctx.translate(-50, -50);
         if (it.cellShape && it.cellShape !== 'square') ctx.clip(latticeShapePath([{ poly: CELL_SHAPES[it.cellShape].poly }]));
         fillPaper(ctx, it.ownPaper, 0, 0, 100, 100);
-        withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paintPaperPatternCanvas(ctx, 100, 100)));
+        withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paintPaperPatternCanvas(ctx, 100, 100, true)));
         ctx.restore();
       }
       const paintSeed = g => {
@@ -675,7 +675,7 @@ export function drawSymbolCanvas(ctx) {
         ctx.save();
         if (it.nestedItems.length && it.nestedItems[0].poly) ctx.clip(latticeShapePath(it.nestedItems));
         fillPaper(ctx, it.nestedPaper, 0, 0, it.nestedW, it.nestedH);
-        withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintPaperPatternCanvas(ctx, it.nestedW, it.nestedH)));
+        withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintPaperPatternCanvas(ctx, it.nestedW, it.nestedH, true)));
         ctx.restore();
       }
       // Multiply: the Component's ink goes on its own layer first, then the layer multiplies onto the page — the
