@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tropism tests</title>
+<style>
+  /* The Browser pane shows a local file as a data: URL — no stylesheet, font or photo can load from it. These are the
+     shared/tokens.css values this page uses (Oct 24, 2026), so it reads the same; served, the real tokens below win. */
+  :root { --paper: #ffffff; --ink: #0a0a0a; --mid: #696256; --panel: #f3f3f3; --border: #d0c8b8; --border-strong: #958462;
+    --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif; --font: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    --fs-small: 10px; --fs-large: 14px; --space-1: 4px; --space-2: 6px; --space-3: 8px; --space-4: 10px; --space-5: 14px;
+    --radius-sm: 2px; --radius-md: 4px; }
+</style>
+<link rel="stylesheet" href="../../shared/tokens.css">   <!-- relative: the page also opens as a file -->
+<style>
+  /* A local dev page (Oct 23, 2026 — Diego: "fammi vedere un test prima" for Tropism T3, T4, T5). Not linked, not shipped. */
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-small); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: var(--space-5); }
+  h1 { font-family: var(--font-display); font-size: var(--fs-large); margin: 0 0 var(--space-2); }
+  .lede { color: var(--mid); margin: 0 0 var(--space-4); max-width: 70ch; }
+  .tabs { display: flex; gap: var(--space-2); margin: 0 0 var(--space-4); flex-wrap: wrap; }
+  .tabs button, .seg button, #t3-open { font: inherit; font-family: var(--font-display); border: 1px solid var(--border-strong); background: var(--panel); color: var(--ink); padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
+  .tabs button[aria-pressed="true"], .seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .test { display: none; grid-template-columns: 300px 1fr; gap: var(--space-5); }
+  .test.on { display: grid; }
+  .ctl { display: flex; flex-direction: column; gap: var(--space-3); }
+  .ctl label { display: grid; grid-template-columns: 96px 1fr 36px; align-items: center; gap: var(--space-2); }
+  .ctl select { grid-column: 2 / 4; font: inherit; }
+  .seg { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+  .seg button { padding: var(--space-1) var(--space-2); }
+  .what { color: var(--mid); margin: 0; }
+  .what b { color: var(--ink); }
+  .stage { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
+  .stage figure { margin: 0; }
+  .stage figcaption { color: var(--mid); margin-top: var(--space-1); }
+  .stage svg { display: block; background: #fff; }
+  .row-label { font-family: var(--font-display); color: var(--ink); }
+  @media (max-width: 760px) { .test.on { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Tropism — three tests</h1>
+  <p class="lede">Each test is a small Component drawn here, outside FVS, to see what the idea does before anything is planned in the tool. The Element is the letter F (asymmetric, so every turn and flip shows) or a two-layer mark.</p>
+  <div class="tabs" role="group" aria-label="Test">
+    <button aria-pressed="true" data-t="t3">T3 · Image and Field</button>
+    <button aria-pressed="false" data-t="walk">T3 · Walks</button>
+    <button aria-pressed="false" data-t="t4">T4 · Offset, Stretch, Glide</button>
+    <button aria-pressed="false" data-t="t5">T5 · Layers follow the rule</button>
+  </div>
+
+  <section class="test on" id="t3">
+    <div class="ctl">
+      <p class="what"><b>A signal per cell</b> — a value 0–1 read under each cell’s centre — decides its turn, size or ink. Today only a rule decides; here a photo or a field does, and the grid becomes a picture made of Elements.</p>
+      <div><button type="button" id="t3-open">Open photo…</button> <input type="file" id="t3-file" accept="image/jpeg,image/png,image/webp" hidden> <span class="what" id="t3-photo-note"></span></div>
+      <label>Signal<select id="t3-src"><option value="photo">Photo (tone under the cell)</option><option value="noise">Field · noise</option><option value="linear">Field · linear gradient</option><option value="radial">Field · radial gradient</option><option value="rings">Field · rings</option></select></label>
+      <div><span class="row-label">Drives</span><div class="seg" id="t3-drive"><button aria-pressed="true" data-v="turn">Turn</button><button aria-pressed="true" data-v="size">Size</button><button aria-pressed="false" data-v="ink">Ink</button></div></div>
+      <label>Grid<input type="range" id="t3-n" min="6" max="32" value="16"><span id="t3-n-v">16</span></label>
+      <label>Seed / angle<input type="range" id="t3-seed" min="0" max="100" value="12"><span id="t3-seed-v">12</span></label>
+      <label>Rings<input type="range" id="t3-rings" min="2" max="12" value="5"><span id="t3-rings-v">5</span></label>
+      <p class="what">Turn: the level picks 0 · 90 · 180 · 270°. Size: dark = large. Ink: the level picks one of three inks.</p>
+    </div>
+    <div class="stage" id="t3-stage"></div>
+  </section>
+
+  <section class="test" id="walk">
+    <div class="ctl">
+      <p class="what"><b>Walks</b> — two more orders for Step turn: each cell turns a quarter more than the one before it <i>along the walk</i>. Today the walk is reading order; Spiral goes round from the edge to the centre, Snake goes back and forth row by row.</p>
+      <label>Grid<input type="range" id="w-n" min="3" max="10" value="6"><span id="w-n-v">6</span></label>
+      <div><span class="row-label">Show</span><div class="seg" id="w-num"><button aria-pressed="true" data-v="num">Order numbers</button></div></div>
+    </div>
+    <div class="stage" id="w-stage"></div>
+  </section>
+
+  <section class="test" id="t4">
+    <div class="ctl">
+      <p class="what"><b>Offset and Stretch per cell</b> — the rule’s class (Checkerboard A / B, a row, a column) moves or stretches each cell by a % of the cell. <b>Glide</b> is Mirror’s missing symmetry: every other row flipped and shifted half a cell (the brick of a woven pattern).</p>
+      <label>Class<select id="t4-cls"><option value="check">Checkerboard A / B</option><option value="row">By row</option><option value="col">By column</option></select></label>
+      <label>Offset X %<input type="range" id="t4-dx" min="-50" max="50" value="25"><span id="t4-dx-v">25</span></label>
+      <label>Offset Y %<input type="range" id="t4-dy" min="-50" max="50" value="0"><span id="t4-dy-v">0</span></label>
+      <label>Stretch %<input type="range" id="t4-sx" min="50" max="160" value="100"><span id="t4-sx-v">100</span></label>
+      <label>Grid<input type="range" id="t4-n" min="3" max="10" value="6"><span id="t4-n-v">6</span></label>
+    </div>
+    <div class="stage" id="t4-stage"></div>
+  </section>
+
+  <section class="test" id="t5">
+    <div class="ctl">
+      <p class="what"><b>Layers follow the rule</b> — a two-layer Element (a quarter ring under a dot). The rule’s class decides, per cell, which layers show, or whether only the top layer turns. Today every layer always shows and turns with the cell.</p>
+      <label>Class<select id="t5-cls"><option value="check">Checkerboard A / B</option><option value="row">Lines · by row</option><option value="beat">Beat 1 · 2 · 3</option></select></label>
+      <div><span class="row-label">The class decides</span><div class="seg" id="t5-mode"><button aria-pressed="true" data-v="show">Which layers show</button><button aria-pressed="false" data-v="turn">Only the top layer turns</button><button aria-pressed="false" data-v="swap">The layers swap inks</button></div></div>
+      <label>Grid<input type="range" id="t5-n" min="3" max="10" value="6"><span id="t5-n-v">6</span></label>
+    </div>
+    <div class="stage" id="t5-stage"></div>
+  </section>
+</div>
+<script>
+// Content colours of the drawings (user data, not chrome): the test palette.
+const INKS = ['#1d3b2a', '#c2462e', '#e8b04a'], PAPER = '#ffffff';
+const $ = id => document.getElementById(id);
+const F = '<path d="M30 15H72V31H46V44H66V58H46V85H30Z"/>';   // the letter F in a 100 box
+const pressed = (seg) => [...$(seg).querySelectorAll('button')].filter(b => b.getAttribute('aria-pressed') === 'true').map(b => b.dataset.v);
+const one = (seg, b) => $(seg).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+const svgWrap = (w, h, body, size) => `<svg viewBox="0 0 ${w} ${h}" width="${size}" height="${Math.round(size * h / w)}" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+const cell = (x, y, s, { rot = 0, flip = false, scale = 1, ink = INKS[0], dx = 0, dy = 0, sx = 1, body = F } = {}) =>
+  `<g transform="translate(${x + s / 2 + dx * s},${y + s / 2 + dy * s}) rotate(${rot}) scale(${(flip ? -1 : 1) * scale * sx * s / 100},${scale * s / 100}) translate(-50,-50)" fill="${ink}">${body}</g>`;
+
+// ── T3 signals ──
+let lum = null, LW = 0, LH = 0;
+// The photo's tones at 160 px. Opened as a file (file://) the browser will not let a page read a photo it loaded by
+// path (a tainted canvas), so: a photo you open always works; the reference photo works on a server; else a drawn test image.
+function readLum(src, note) {
+  const c = document.createElement('canvas'); LW = 160; LH = Math.max(1, Math.round(160 * (src.height || src.naturalHeight) / (src.width || src.naturalWidth))); c.width = LW; c.height = LH;
+  const x = c.getContext('2d'); x.drawImage(src, 0, 0, LW, LH);
+  try { const d = x.getImageData(0, 0, LW, LH).data; lum = new Float32Array(LW * LH); for (let i = 0; i < LW * LH; i++) lum[i] = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) / 255; $('t3-photo-note').textContent = note; }
+  catch (e) { drawnPhoto(); return; }
+  draw();
+}
+function drawnPhoto() {   // a stand-in "photo": a dark disc and a light band on a soft gradient
+  const c = document.createElement('canvas'); c.width = c.height = 160; const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 160, 160); g.addColorStop(0, '#d8d8d8'); g.addColorStop(1, '#505050'); x.fillStyle = g; x.fillRect(0, 0, 160, 160);
+  x.fillStyle = '#111'; x.beginPath(); x.arc(58, 62, 34, 0, Math.PI * 2); x.fill();
+  x.fillStyle = '#fafafa'; x.fillRect(0, 112, 160, 18);
+  readLum(c, 'A drawn test image — open a photo to use your own.');
+}
+const img = new Image();
+img.onload = () => readLum(img, 'The reference photo (Komorebi).');
+img.onerror = drawnPhoto;
+img.src = '../../komorebi/reference-photos/383dc2523fbd5b33c45b568994e08c56.jpg';
+$('t3-open').addEventListener('click', () => $('t3-file').click());
+$('t3-file').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { const im = new Image(); im.onload = () => { readLum(im, f.name); $('t3-src').value = 'photo'; draw(); }; im.src = r.result; };
+  r.readAsDataURL(f); e.target.value = '';
+});
+const hash = (x, y, s) => { const h = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return h - Math.floor(h); };
+const vnoise = (x, y, s) => { const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; };
+function signal(src, u, v, seed, rings) {   // u, v in 0..1
+  if (src === 'photo') { if (!lum) return 0.5; const s = Math.min(LW, LH), ox = (LW - s) / 2, oy = (LH - s) / 2; const i = Math.min(LW - 1, Math.floor(ox + u * s)), j = Math.min(LH - 1, Math.floor(oy + v * s)); return lum[j * LW + i]; }
+  if (src === 'noise') return Math.min(1, Math.max(0, (vnoise(u * 4, v * 4, seed) * 0.65 + vnoise(u * 9, v * 9, seed + 3) * 0.35)));
+  if (src === 'linear') { const a = seed / 100 * Math.PI * 2; return Math.min(1, Math.max(0, 0.5 + ((u - 0.5) * Math.cos(a) + (v - 0.5) * Math.sin(a)))); }
+  const r = Math.hypot(u - 0.5, v - 0.5) / 0.7071;
+  if (src === 'radial') return Math.min(1, r);
+  return (Math.floor(r * rings) % 2) ? 0.85 : 0.15;   // rings: alternate bands
+}
+function drawT3() {
+  const n = +$('t3-n').value, src = $('t3-src').value, seed = +$('t3-seed').value, rings = +$('t3-rings').value, dr = pressed('t3-drive');
+  const s = 30, W = n * s;
+  let body = `<rect width="${W}" height="${W}" fill="${PAPER}"/>`, map = `<rect width="${W}" height="${W}" fill="${PAPER}"/>`;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const L = signal(src, (i + 0.5) / n, (j + 0.5) / n, seed, rings);
+    map += `<rect x="${i * s}" y="${j * s}" width="${s}" height="${s}" fill="rgb(${Math.round(L * 255)},${Math.round(L * 255)},${Math.round(L * 255)})"/>`;
+    const lv4 = Math.min(3, Math.floor(L * 4)), lv3 = Math.min(2, Math.floor(L * 3));
+    body += cell(i * s, j * s, s, { rot: dr.includes('turn') ? lv4 * 90 : 0, scale: dr.includes('size') ? 1.15 - L * 0.8 : 1, ink: dr.includes('ink') ? INKS[lv3] : INKS[0] });
+  }
+  $('t3-stage').innerHTML = `<figure>${svgWrap(W, W, map, 220)}<figcaption>The signal (0 dark … 1 light)</figcaption></figure><figure>${svgWrap(W, W, body, 520)}<figcaption>The Component it drives — ${n}×${n}</figcaption></figure>`;
+}
+
+// ── T3 walks ──
+function walkOrder(n, kind) {
+  const out = [];
+  if (kind === 'reading') { for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) out.push([i, j]); }
+  else if (kind === 'snake') { for (let j = 0; j < n; j++) for (let k = 0; k < n; k++) out.push([j % 2 ? n - 1 - k : k, j]); }
+  else { let x0 = 0, y0 = 0, x1 = n - 1, y1 = n - 1; while (x0 <= x1 && y0 <= y1) { for (let i = x0; i <= x1; i++) out.push([i, y0]); for (let j = y0 + 1; j <= y1; j++) out.push([x1, j]); if (y0 < y1) for (let i = x1 - 1; i >= x0; i--) out.push([i, y1]); if (x0 < x1) for (let j = y1 - 1; j > y0; j--) out.push([x0, j]); x0++; y0++; x1--; y1--; } }
+  return out;
+}
+function drawWalk() {
+  const n = +$('w-n').value, nums = pressed('w-num').includes('num'), s = 44, W = n * s;
+  $('w-stage').innerHTML = [['reading', 'Reading order (today)'], ['spiral', 'Spiral'], ['snake', 'Snake']].map(([k, name]) => {
+    let body = `<rect width="${W}" height="${W}" fill="${PAPER}"/>`, path = '';
+    walkOrder(n, k).forEach(([i, j], idx) => {
+      body += cell(i * s, j * s, s, { rot: (idx % 4) * 90, ink: INKS[0] });
+      path += (idx ? 'L' : 'M') + (i * s + s / 2) + ' ' + (j * s + s / 2);
+      if (nums) body += `<text x="${i * s + 3}" y="${j * s + 11}" font-size="9" fill="${INKS[1]}" font-family="monospace">${idx + 1}</text>`;
+    });
+    if (nums) body += `<path d="${path}" fill="none" stroke="${INKS[2]}" stroke-width="1.5" opacity="0.8"/>`;
+    return `<figure>${svgWrap(W, W, body, 330)}<figcaption>${name} — +90° each step</figcaption></figure>`;
+  }).join('');
+}
+
+// ── T4 offset / stretch / glide ──
+function drawT4() {
+  const n = +$('t4-n').value, cls = $('t4-cls').value, dx = +$('t4-dx').value / 100, dy = +$('t4-dy').value / 100, sx = +$('t4-sx').value / 100, s = 44, W = n * s;
+  const klass = (i, j) => cls === 'check' ? (i + j) % 2 : cls === 'row' ? j % 2 : i % 2;
+  let a = `<rect width="${W}" height="${W}" fill="${PAPER}"/>`, b = a, g = a;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const k = klass(i, j);
+    a += cell(i * s, j * s, s, { ink: INKS[k] });
+    b += cell(i * s, j * s, s, { ink: INKS[k], dx: k ? dx : 0, dy: k ? dy : 0, sx: k ? sx : 1 });
+  }
+  for (let j = 0; j < n; j++) for (let i = -1; i < n; i++) g += cell(i * s + (j % 2 ? s / 2 : 0), j * s, s, { flip: !!(j % 2), ink: INKS[0] });
+  $('t4-stage').innerHTML = `<figure>${svgWrap(W, W, a, 300)}<figcaption>The class (no offset)</figcaption></figure>`
+    + `<figure>${svgWrap(W, W, `<defs><clipPath id="c4"><rect width="${W}" height="${W}"/></clipPath></defs><g clip-path="url(#c4)">${b}</g>`, 300)}<figcaption>Class B offset ${Math.round(dx * 100)} / ${Math.round(dy * 100)} %, stretch ${Math.round(sx * 100)} %</figcaption></figure>`
+    + `<figure>${svgWrap(W, W, `<defs><clipPath id="c5"><rect width="${W}" height="${W}"/></clipPath></defs><g clip-path="url(#c5)">${g}</g>`, 300)}<figcaption>Glide — every other row flipped and shifted half a cell</figcaption></figure>`;
+}
+
+// ── T5 layers follow the rule ──
+const RING = '<path d="M0 0H100A100 100 0 0 1 0 100Z M0 0V55A55 55 0 0 0 55 0Z" fill-rule="evenodd"/>', DOT = '<circle cx="74" cy="74" r="16"/>';
+function drawT5() {
+  const n = +$('t5-n').value, cls = $('t5-cls').value, mode = pressed('t5-mode')[0], s = 50, W = n * s;
+  const klass = (i, j) => cls === 'check' ? (i + j) % 2 : cls === 'row' ? j % 2 : (i + j * 2) % 3;
+  const base = (i, j) => ((i + j) % 4) * 90;   // a Step-turn-like base pose so the cells differ
+  let today = `<rect width="${W}" height="${W}" fill="${PAPER}"/>`, now = today;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const k = klass(i, j), r = base(i, j), x = i * s, y = j * s;
+    today += cell(x, y, s, { rot: r, body: RING, ink: INKS[0] }) + cell(x, y, s, { rot: r, body: DOT, ink: INKS[1] });
+    if (mode === 'show') now += (k !== 1 ? cell(x, y, s, { rot: r, body: RING, ink: INKS[0] }) : '') + (k !== 0 ? cell(x, y, s, { rot: r, body: DOT, ink: INKS[1] }) : '');
+    else if (mode === 'turn') now += cell(x, y, s, { rot: r, body: RING, ink: INKS[0] }) + cell(x, y, s, { rot: r + k * 90, body: DOT, ink: INKS[1] });
+    else now += cell(x, y, s, { rot: r, body: RING, ink: INKS[k % 2 ? 1 : 0] }) + cell(x, y, s, { rot: r, body: DOT, ink: INKS[k % 2 ? 0 : 1] });
+  }
+  const say = { show: 'A shows the ring only, B the dot only' + (cls === 'beat' ? ', beat 3 both' : ''), turn: 'the ring keeps its turn, the dot turns 90° more per class', swap: 'class B swaps the two layers’ inks' + (cls === 'beat' ? ' (beats 1 and 3 alike)' : '') }[mode];
+  $('t5-stage').innerHTML = `<figure>${svgWrap(W, W, today, 340)}<figcaption>Today — every layer in every cell</figcaption></figure><figure>${svgWrap(W, W, now, 340)}<figcaption>Following the class — ${say}</figcaption></figure>`;
+}
+
+function draw() { drawT3(); drawWalk(); drawT4(); drawT5(); }
+document.querySelectorAll('input[type=range]').forEach(r => r.addEventListener('input', () => { const v = $(r.id + '-v'); if (v) v.textContent = r.value; draw(); }));
+document.querySelectorAll('select').forEach(s => s.addEventListener('change', draw));
+$('t3-drive').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); draw(); });
+$('w-num').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); draw(); });
+$('t5-mode').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { one('t5-mode', b); draw(); } });
+document.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; one2(b); });
+function one2(b) { document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); document.querySelectorAll('.test').forEach(t => t.classList.toggle('on', t.id === b.dataset.t)); }
+draw();
+</script>
+</body>
+</html>
