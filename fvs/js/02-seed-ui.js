@@ -30,7 +30,7 @@ export const seedPicker = Organica.selectPicker(ctrl('sel-seed-type'), ctrl('see
 // Show only the rows of the active Interior / Trim mode / Lobes (dead-control rule).
 export function syncCircleRows() {
   const interior = pv('sel-circle-interior'), trim = pv('sel-circle-trim');
-  const show = (suffix, on) => { ctrl('row-circle-' + suffix).style.display = on ? '' : 'none'; };
+  const show = (suffix, on) => { ctrl('row-circle-' + suffix).hidden = !on; };
   show('lobedepth', val('rg-circle-lobes') >= 2);
   show('inner', interior === 'ring');
   show('ringcount', interior === 'rings'); show('ringratio', interior === 'rings');
@@ -43,7 +43,7 @@ export function syncCircleRows() {
 export function syncLegacyNote() {
   const type = pv('sel-seed-type'), sd = getPanelSeed();
   const kept = RETIRED_SEED.some(([k, def]) => RETIRED_PREFIX[k.match(/^[a-z]+/)[0]] === type && sd[k] != null && sd[k] !== def);
-  ctrl('seed-legacy-note').style.display = kept ? '' : 'none';
+  ctrl('seed-legacy-note').hidden = !kept;
 }
 // Copies (ex Inner seed) follow Appearance → Cut out (Diego's option B, Oct 4, 2026). Cut out 0: the legacy
 // alternating bands, Ratio = each copy's size. Cut out > 0: copies of the rim, each fitted inside the previous
@@ -53,8 +53,8 @@ export function syncLegacyNote() {
 export function syncCopiesRows() {
   const on = val('rg-inner-count') > 0, cut = val('rg-element-cutout') > 0;
   const hasApex = !!INNER_APEX[pv('sel-seed-type')];
-  ctrl('rg-inner-ratio').closest('.ctrl-row').style.display = on ? '' : 'none';
-  ctrl('sel-inner-anchor').closest('.ctrl-row').style.display = on && (!cut || hasApex) ? '' : 'none';   // with Cut out, no apex → Inner centre is the only choice
+  ctrl('rg-inner-ratio').closest('.ctrl-row').hidden = !on;
+  ctrl('sel-inner-anchor').closest('.ctrl-row').hidden = !(on && (!cut || hasApex));   // with Cut out, no apex → Inner centre is the only choice
   const lr = ctrl('lbl-inner-ratio'), lc = ctrl('lbl-inner-count');
   lr.textContent = cut ? 'Spacing' : 'Ratio';
   lr.title = cut ? 'How much of the previous copy’s hole the next copy fills — high packs the rings close together, low spaces them out. Rings never merge.'
@@ -76,7 +76,7 @@ export function syncDependentRows() {
   syncLegacyNote();
   SEED_DEPENDS.forEach(([id, on]) => {
     const el = ctrl(id), row = el && el.closest('.ctrl-row');
-    if (row) row.style.display = on() ? '' : 'none';
+    if (row) row.hidden = !(on());
   });
 }
 
@@ -237,7 +237,7 @@ export function useSvgAsSeed(svgString) {
   ctrl('sel-seed-type').value = 'custom'; rt.lastShapeType = 'custom';
   hooks.syncSeedUI();
   if (state.layers) { syncActiveLayer(); hooks.renderLayersUI(); }   // the active layer's card shows "Custom" at once
-  ctrl('seed-upload-error').style.display = 'none';
+  ctrl('seed-upload-error').hidden = true;
   hooks.renderGallery();
   hooks.renderSeedPreview();
   return geo;
@@ -253,12 +253,12 @@ export function handleSeedUpload(file) {
       if (hooks.autoProportions) hooks.autoProportions();   // a drawing that is not square keeps its own proportions (Oct 23, 2026)
     } catch (e) {
       ctrl('seed-upload-error').textContent = e.message;
-      ctrl('seed-upload-error').style.display = '';
+      ctrl('seed-upload-error').hidden = false;
     }
   };
   reader.onerror = () => {
     ctrl('seed-upload-error').textContent = 'Could not read that file.';
-    ctrl('seed-upload-error').style.display = '';
+    ctrl('seed-upload-error').hidden = false;
   };
   reader.readAsText(file);
 }

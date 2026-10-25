@@ -268,7 +268,7 @@ body {
 
   <div id="stage">
     <div id="empty-hint">load a font to begin</div>
-    <svg id="board" data-theme="light" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" style="display:none"></svg>
+    <svg id="board" data-theme="light" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" hidden></svg>
     <canvas id="glyphCanvas" data-theme="light" hidden></canvas>
     <div id="specEdit" data-theme="light" contenteditable="plaintext-only" spellcheck="false"
          autocapitalize="off" autocorrect="off" aria-label="Specimen text — type to edit" hidden></div>
@@ -1761,8 +1761,8 @@ function loadFontBuffer(buf, name){
   CHARSET=[...new Set(CHARSET)].sort((a,b)=>a-b);
   if(!CHARSET.includes(SELECTED.codePointAt(0))) SELECTED=String.fromCodePoint(CHARSET[0]||65);
   renderCharset();
-  $('board').style.display='';
-  $('empty-hint').style.display='none';
+  $('board').hidden = false;
+  $('empty-hint').hidden = true;
   setStatus('','font loaded: '+(name||'custom'));
   render();
 }
@@ -1852,7 +1852,7 @@ function render(){
   $('specEdit').hidden = VIEW!=='tester';
   $('phrases').hidden = VIEW!=='tester';
   $('specimen-size-row').hidden = VIEW!=='tester';
-  $('charset').style.display = VIEW==='tester' ? 'none' : '';
+  $('charset').hidden = !!(VIEW==='tester');
   $('btn-edit-points').hidden = VIEW==='tester';
   $('btn-edit-points').setAttribute('aria-pressed', String(VIEW==='glyph'));
   $('gtUndo').hidden = VIEW!=='glyph';
@@ -1868,9 +1868,9 @@ function render(){
   // on the way OUT of tester so family/glyph (which don't zoom) always
   // render at native scale instead of inheriting a leftover tester zoom.
   if(VIEW!=='tester' && typeof zoomPan!=='undefined') zoomPan.reset();
-  if(VIEW==='glyph'){ $('board').style.display='none'; $('glyphCanvas').hidden=false; $('glyphCanvas').classList.add('show'); mountGlyphEditor(); return; }
+  if(VIEW==='glyph'){ $('board').hidden = true; $('glyphCanvas').hidden=false; $('glyphCanvas').classList.add('show'); mountGlyphEditor(); return; }
   $('glyphCanvas').classList.remove('show'); $('glyphCanvas').hidden=true;
-  $('board').style.display='';
+  $('board').hidden = false;
   if(VIEW==='family') return renderFamily();
   return renderTester();
 }
@@ -2410,7 +2410,7 @@ function buildPresets(){
   const host=$('presets'); if(!host) return;
   host.innerHTML = `<div id="presetHost"></div>
     <button class="mini-btn" id="btnOpenSave" style="margin-top:var(--space-2);width:100%">+ save current look</button>
-    <div class="row" id="savePresetRow" style="display:none;margin-top:var(--space-2);gap:var(--space-2)">
+    <div class="row" id="savePresetRow" hidden style="margin-top:var(--space-2);gap:var(--space-2)">
       <input id="newPresetName" class="panel-input panel-input--full" placeholder="name this look" style="flex:1">
       <button class="mini-btn" id="btnSavePreset">Save</button>
     </div>`;
@@ -2431,13 +2431,13 @@ function buildPresets(){
   // comment already documents — so this row toggles via style.display, not
   // the hidden attribute, which would silently stay visible.
   $('btnOpenSave').addEventListener('click', ()=>{
-    $('savePresetRow').style.display='flex'; $('btnOpenSave').hidden=true; $('newPresetName').focus();
+    Organica.display($('savePresetRow'), 'flex'); $('btnOpenSave').hidden=true; $('newPresetName').focus();
   });
   const doSave=()=>{
     const name=($('newPresetName').value||'').trim(); if(!name) return;
     if(CREATIVE_PRESETS.some(p=>p.name===name)){ setStatus('', 'that name is a built-in preset'); return; }
     const all=userPresets(); all[name]=diffFromDefaults(); PRESET_STORE.write(all);
-    $('newPresetName').value=''; $('savePresetRow').style.display='none'; $('btnOpenSave').hidden=false;
+    $('newPresetName').value=''; $('savePresetRow').hidden = true; $('btnOpenSave').hidden=false;
     CURRENT_PRESET=name; updatePresetTrigger(); populatePresetMenu();
     setStatus('', '✓ preset saved');
   };

@@ -351,7 +351,7 @@ async function componentBoard(mode) {
     const ov = await ev(() => { const o = document.getElementById('symbol-content-overlay'); return { open: o.style.display !== 'none', seeds: o.classList.contains('is-seeds-only'), comps: getComputedStyle(document.getElementById('content-sec-components')).display }; });
     C('a second click on a picked cell opens Choose content (Seeds only)', ov.open && ov.seeds && ov.comps === 'none', JSON.stringify(ov));
     await press('Escape', 'Escape', 27);
-    const after = await ev(() => ({ ov: document.getElementById('symbol-content-overlay').style.display !== 'none', edit: __t.F.state.componentEditMode }));
+    const after = await ev(() => ({ ov: !document.getElementById('symbol-content-overlay').hidden, edit: __t.F.state.componentEditMode }));
     C('Esc closes Choose content first', !after.ov && after.edit, JSON.stringify(after));
     // a saved Element dragged from the rail onto a cell
     await ev(() => { if (!__t.F.railIsOpen()) document.getElementById('btn-rail').click(); });

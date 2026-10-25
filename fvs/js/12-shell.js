@@ -132,12 +132,12 @@ export function setTier(tier) {
   document.querySelectorAll('#canvas-wrap .tier-view').forEach(v => v.classList.toggle('active', v.dataset.tier === tier));
   ctrl('export-hint').textContent = STEP_EXPORT_HINTS[tier] || STEP_EXPORT_HINTS.component;
   // Reset / Upload only act on the Element's Shape.
-  ctrl('fb-cell-shape').style.display = tier === 'element' || tier === 'component' ? '' : 'none';
-  ctrl('fb-element-actions').style.display = tier === 'element' ? '' : 'none';
-  ctrl('fb-component-actions').style.display = tier === 'component' ? '' : 'none';
-  ctrl('fb-symbol-actions').style.display = tier === 'symbol' ? '' : 'none';
-  ctrl('fb-figure-actions').style.display = tier === 'figure' && !document.body.classList.contains('fg-composing') ? '' : 'none';
-  ctrl('fb-compose-actions').style.display = tier === 'figure' && document.body.classList.contains('fg-composing') ? '' : 'none';
+  ctrl('fb-cell-shape').hidden = !(tier === 'element' || tier === 'component');
+  ctrl('fb-element-actions').hidden = !(tier === 'element');
+  ctrl('fb-component-actions').hidden = !(tier === 'component');
+  ctrl('fb-symbol-actions').hidden = !(tier === 'symbol');
+  ctrl('fb-figure-actions').hidden = !(tier === 'figure' && !document.body.classList.contains('fg-composing'));
+  ctrl('fb-compose-actions').hidden = !(tier === 'figure' && document.body.classList.contains('fg-composing'));
   ctrl('fg-nodebar-dock').hidden = tier !== 'figure';   // the left dock: Library rail on the other steps, the node bar here
   hooks.syncRailTier(tier);
   placeStepNav();
@@ -720,9 +720,9 @@ export function syncIrregularRows() {
   let corners = false;
   if (on && BASE_GEOMETRY[type]) { try { corners = shapeHasCorners(BASE_GEOMETRY[type](getPanelSeed())); } catch (e) { corners = false; } }
   const rippling = !corners || pv('sel-element-irrmode') === 'outline';
-  ctrl('row-element-irrmode').style.display = on && corners ? '' : 'none';
-  ctrl('row-element-irrwaves').style.display = on && rippling ? '' : 'none';
-  ctrl('row-element-irrseed').style.display = on ? '' : 'none';
+  ctrl('row-element-irrmode').hidden = !(on && corners);
+  ctrl('row-element-irrwaves').hidden = !(on && rippling);
+  ctrl('row-element-irrseed').hidden = !on;
 }
 ['rg-element-irregular', 'rg-element-irrwaves', 'rg-element-irrseed'].forEach(id => ctrl(id).addEventListener('input', e => {
   ctrl(id.replace(/^rg-/, 'v-')).textContent = e.target.value; syncIrregularRows(); renderGallery(); renderSeedPreview();
@@ -771,10 +771,10 @@ document.querySelectorAll('#fb-symbol-actions [data-view]').forEach(b => b.addEv
 syncSymbolViewUI();
 
 ctrl('sel-symbol-fill').addEventListener('change', e => {
-  ctrl('symbol-generate-block').style.display = e.target.value === 'generate' ? '' : 'none';
-  ctrl('symbol-suggest-block').style.display = e.target.value === 'suggest' ? '' : 'none';
+  ctrl('symbol-generate-block').hidden = !(e.target.value === 'generate');
+  ctrl('symbol-suggest-block').hidden = !(e.target.value === 'suggest');
   syncManualBlock();
-  ctrl('symbol-rule-block').style.display = e.target.value === 'rule' ? '' : 'none';
+  ctrl('symbol-rule-block').hidden = !(e.target.value === 'rule');
   if (e.target.value === 'manual') renderCellPropertiesPanel();
   if (e.target.value === 'rule') syncSymbolRuleUI();
 });
@@ -841,7 +841,7 @@ ctrl('symbol-content-overlay').addEventListener('click', e => {
   if (e.target === ctrl('symbol-content-overlay')) closeCellContentOverlay(); // click on the backdrop itself
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && ctrl('symbol-content-overlay').style.display !== 'none') closeCellContentOverlay();
+  if (e.key === 'Escape' && !ctrl('symbol-content-overlay').hidden) closeCellContentOverlay();
 });
 bindCellProps('', SYMBOL_CELLS);
 
@@ -882,7 +882,7 @@ ctrl('chk-axis-rotation').addEventListener('change', () => { turnsChanged(); });
 ['rg-turn-upto', 'rg-turn-every'].forEach(id => ctrl(id).addEventListener('input', () => turnsChanged()));
 ctrl('chk-axis-flip').addEventListener('change', () => { syncExhaustiveHint(); syncRuleAxisNote(); });
 ctrl('chk-axis-scale').addEventListener('change', e => {
-  ctrl('scale-values-block').style.display = e.target.checked ? '' : 'none';
+  ctrl('scale-values-block').hidden = !e.target.checked;
   syncExhaustiveHint(); syncRuleAxisNote();
 });
 [['rg-scale-small', 'v-scale-small'], ['rg-scale-medium', 'v-scale-medium'], ['rg-scale-large', 'v-scale-large']].forEach(([rangeId, valId]) => {

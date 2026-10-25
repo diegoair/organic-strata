@@ -195,13 +195,13 @@ loadMembraneFont((err) => {
 // outline, Line/Point have no ring to reshape. Dead-control rule
 // (Komorebi §18): hide, don't leave it visibly doing nothing.
 function syncSeedShapeRow() {
-  ctrl('row-seedshape').style.display = (state.seedSource === 'procedural' && state.drawMode === 'circle') ? '' : 'none';
+  ctrl('row-seedshape').hidden = !((state.seedSource === 'procedural' && state.drawMode === 'circle'));
 }
 // row-imgscale + Seed-shape row aren't scoped to one tab, so they stay in
 // the markup and this keeps them in sync with the active seed source
 // (Organica.seedsPanel now owns the tab strip + pane show/hide + .active).
 function syncMembraneSeedRows() {
-  ctrl('row-imgscale').style.display = state.seedSource === 'procedural' ? 'none' : '';
+  ctrl('row-imgscale').hidden = !!(state.seedSource === 'procedural');
   syncSeedShapeRow();
 }
 
@@ -257,9 +257,9 @@ ctrl('rg-pointsize').addEventListener('input', e => {
 ctrl('sel-mode').addEventListener('change', e => {
   state.drawMode = e.target.value;
   const isPoint = state.drawMode === 'point';
-  ctrl('row-resolution').style.display = isPoint ? 'none' : '';
-  ctrl('row-initradius').style.display = isPoint ? 'none' : '';
-  ctrl('row-pointsize').style.display = isPoint ? '' : 'none';
+  ctrl('row-resolution').hidden = !!(isPoint);
+  ctrl('row-initradius').hidden = !!(isPoint);
+  ctrl('row-pointsize').hidden = !isPoint;
   syncSeedShapeRow();
   reseedCurrent();
 });
@@ -307,15 +307,15 @@ ctrl('sel-movement').addEventListener('change', e => {
   state.movementPattern = e.target.value;
   state.moveClock = 0;   // restart every pattern's own t=0 pose instead of jumping in mid-cycle
   if (state.movementPattern === 'linear') reseedLinear();
-  ctrl('row-float').style.display = state.movementPattern === 'mouse' ? '' : 'none';
-  ctrl('row-movespeed').style.display = state.movementPattern === 'mouse' ? 'none' : '';
-  ctrl('followpath-block').style.display = state.movementPattern === 'textpath' ? '' : 'none';
+  ctrl('row-float').hidden = !(state.movementPattern === 'mouse');
+  ctrl('row-movespeed').hidden = !!(state.movementPattern === 'mouse');
+  ctrl('followpath-block').hidden = !(state.movementPattern === 'textpath');
 });
 
 // ── Follow path ──
 ctrl('sel-pathsource').addEventListener('change', e => {
   state.pathSource = e.target.value;
-  ctrl('loompath-block').style.display = state.pathSource === 'loom' ? '' : 'none';
+  ctrl('loompath-block').hidden = !(state.pathSource === 'loom');
   if (state.pathSource === 'text' && state.seedSource === 'text' && isFontReady()) seedFromText();
 });
 ctrl('sel-loompathstyle').addEventListener('change', e => {
@@ -343,13 +343,13 @@ ctrl('file-loompath').addEventListener('change', e => {
 ctrl('chk-drawpath').addEventListener('change', e => { state.drawFullPath = e.target.checked; });
 ctrl('sel-pathrender').addEventListener('change', e => {
   state.pathRenderStyle = e.target.value;
-  ctrl('row-pathdotsize').style.display = state.pathRenderStyle === 'dots' ? '' : 'none';
+  ctrl('row-pathdotsize').hidden = !(state.pathRenderStyle === 'dots');
 });
 ctrl('rg-pathdotsize').addEventListener('input', e => { state.pathDotSize = parseFloat(e.target.value); ctrl('v-pathdotsize').textContent = state.pathDotSize.toFixed(1); });
 ctrl('chk-glow').addEventListener('change', e => { state.glowEnabled = e.target.checked; });
 ctrl('chk-writebrush').addEventListener('change', e => {
   state.writeBrush = e.target.checked;
-  ctrl('row-brushsize').style.display = state.writeBrush ? '' : 'none';
+  ctrl('row-brushsize').hidden = !state.writeBrush;
   if (state.seedSource === 'text' && isFontReady()) seedFromText();
 });
 ctrl('rg-brushsize').addEventListener('input', e => {
@@ -361,8 +361,8 @@ ctrl('rg-brushsize').addEventListener('input', e => {
 // ── Ink ──
 ctrl('sel-colorsrc').addEventListener('change', e => {
   state.colorSrc = e.target.value;
-  ctrl('row-fill').style.display = state.colorSrc === 'ink' ? '' : 'none';   // Fill only ever applies to Single ink's own one-shape path
-  ctrl('rmx-color-block').style.display = state.colorSrc === 'rmx' ? '' : 'none';
+  ctrl('row-fill').hidden = !(state.colorSrc === 'ink');   // Fill only ever applies to Single ink's own one-shape path
+  ctrl('rmx-color-block').hidden = !(state.colorSrc === 'rmx');
 });
 ctrl('rg-weight').addEventListener('input', e => { state.strokeW = parseFloat(e.target.value); ctrl('v-weight').textContent = state.strokeW.toFixed(2); });
 ctrl('rg-alpha').addEventListener('input', e => { state.strokeAlpha = parseInt(e.target.value, 10); ctrl('v-alpha').textContent = state.strokeAlpha; });

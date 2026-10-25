@@ -166,7 +166,7 @@
             <option value="custom">Custom…</option>
           </select>
         </div>
-        <div class="org-popover__row" id="row-scale-custom" style="display:none">
+        <div class="org-popover__row" id="row-scale-custom" hidden>
           <label class="org-popover__label" for="in-scale-custom">&times;</label>
           <input class="panel-input" id="in-scale-custom" type="number" min="0.1" max="20" step="0.1" value="2" aria-label="Custom export scale">
         </div>
@@ -197,7 +197,7 @@
       <h3>Preset <span class="hint">settings only</span></h3>
       <div id="preset-picker"></div>
       <select class="panel-select" id="sel-preset" aria-label="Preset"></select>
-      <div id="preset-name-row" style="display:none;margin-top:var(--space-3)">
+      <div id="preset-name-row" hidden style="margin-top:var(--space-3)">
         <input class="panel-input panel-input--full" id="preset-name" placeholder="Preset name" aria-label="Preset name">
         <div class="row-btns">
           <button class="mini-btn" id="btn-preset-confirm">Save</button>
@@ -255,7 +255,7 @@
           <option value="color">Colour filter</option>
         </select>
       </div>
-      <div class="ctrl-row" id="row-img-filterhue" style="display:none">
+      <div class="ctrl-row" id="row-img-filterhue" hidden>
         <div class="ctrl-label">Filter hue</div>
         <input type="range" id="rg-img-filterhue" min="0" max="360" step="1" value="0" aria-label="Colour filter hue">
         <span class="ctrl-val" id="v-img-filterhue">0°</span>
@@ -272,7 +272,7 @@
       </div>
       <label class="check-row"><input type="checkbox" id="ck-img-denoise"><span>Denoise</span></label>
       <label class="check-row"><input type="checkbox" id="ck-img-sharpen"><span>Sharpen</span></label>
-      <div class="ctrl-row" id="row-img-sharpen-amt" style="display:none">
+      <div class="ctrl-row" id="row-img-sharpen-amt" hidden>
         <div class="ctrl-label">Intensity</div>
         <input type="range" id="rg-img-sharpen-amt" min="0" max="300" step="1" value="100" aria-label="Sharpen intensity">
         <span class="ctrl-val" id="v-img-sharpen-amt">100%</span>
@@ -295,7 +295,7 @@
       <div id="chan-stack"><p class="org-empty">No image loaded yet.</p></div>
     </div>
 
-    <div class="panel-section" id="sec-transform" style="display:none">
+    <div class="panel-section" id="sec-transform" hidden>
       <h3>Transform <span class="hint" id="tf-target">—</span></h3>
 
       <div class="ctrl-row">
@@ -346,7 +346,7 @@
 <input type="file" id="file-input" class="org-file-input" accept="image/*">
 <input type="file" id="batch-input" class="org-file-input" accept="image/*" multiple>
 
-<div id="pattern-editor-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pattern editor" style="display:none">
+<div id="pattern-editor-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pattern editor" hidden>
   <div id="pattern-editor-panel" class="org-modal__panel">
     <h3>Custom pattern</h3>
     <p class="panel-note">
@@ -414,7 +414,7 @@ const canvasWrap = ctrl('canvas-wrap');
 const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
   idPrefix: 'ps',
   onChange: (s) => {
-    document.getElementById('screen-scale-rows').style.display = s.mode === 'print' ? 'none' : '';
+    document.getElementById('screen-scale-rows').hidden = !!(s.mode === 'print');
     updateSizeReadout();
   },
 });
@@ -1057,11 +1057,11 @@ function openPatternEditor(ch) {
   const size = 8;
   PE = { size, order: new Array(size * size).fill(null), front: 0, back: size * size - 1, history: [], targetCh: ch };
   buildPatternEditorDOM();
-  ctrl('pattern-editor-overlay').style.display = 'flex';
+  Organica.display(ctrl('pattern-editor-overlay'), 'flex');
 }
 
 function closePatternEditor() {
-  ctrl('pattern-editor-overlay').style.display = 'none';
+  ctrl('pattern-editor-overlay').hidden = true;
   PE = null;
 }
 
@@ -1905,7 +1905,7 @@ const TF_FIELDS = [
 
 function syncTransformPanel() {
   const ch = chanById(S.selId);
-  ctrl('sec-transform').style.display = ch ? '' : 'none';
+  ctrl('sec-transform').hidden = !ch;
   if (!ch) return;
   ctrl('tf-target').textContent = ch.name;
   TF_FIELDS.forEach(([rg, v, key]) => {
@@ -1977,7 +1977,7 @@ ctrl('btn-separate').addEventListener('click', () => separate(false));
 
 ctrl('sel-img-gray').addEventListener('change', e => {
   S.imgGray = e.target.value;
-  ctrl('row-img-filterhue').style.display = e.target.value === 'color' ? '' : 'none';
+  ctrl('row-img-filterhue').hidden = !(e.target.value === 'color');
   if (S.img) separate(true);
 });
 ctrl('rg-img-filterhue').addEventListener('input', e => {
@@ -2001,7 +2001,7 @@ ctrl('ck-img-denoise').addEventListener('change', e => {
 });
 ctrl('ck-img-sharpen').addEventListener('change', e => {
   S.imgSharpen = e.target.checked;
-  ctrl('row-img-sharpen-amt').style.display = e.target.checked ? '' : 'none';
+  ctrl('row-img-sharpen-amt').hidden = !e.target.checked;
   if (S.img) separate(true);
 });
 ctrl('rg-img-sharpen-amt').addEventListener('input', e => {
@@ -2127,7 +2127,7 @@ function updateSizeReadout() {
   ctrl('out-size').textContent = Math.round(S.W * s) + ' × ' + Math.round(S.H * s);
 }
 ctrl('sel-scale').addEventListener('change', () => {
-  ctrl('row-scale-custom').style.display = ctrl('sel-scale').value === 'custom' ? '' : 'none';
+  ctrl('row-scale-custom').hidden = !(ctrl('sel-scale').value === 'custom');
   updateSizeReadout();
 });
 ctrl('in-scale-custom').addEventListener('input', updateSizeReadout);
@@ -2473,7 +2473,7 @@ function applyPreset(name) {
   // existed, defaulting to the exact values that made applyImageFilters()
   // take its no-op fast path, so an old preset renders byte-identical.
   S.imgGray = p.imgGray || 'luminanceHD'; ctrl('sel-img-gray').value = S.imgGray;
-  ctrl('row-img-filterhue').style.display = S.imgGray === 'color' ? '' : 'none';
+  ctrl('row-img-filterhue').hidden = !(S.imgGray === 'color');
   S.imgFilterHue = p.imgFilterHue != null ? p.imgFilterHue : 0;
   ctrl('rg-img-filterhue').value = S.imgFilterHue; ctrl('v-img-filterhue').textContent = S.imgFilterHue + '°';
   S.imgBrightness = p.imgBrightness != null ? p.imgBrightness : 0;
@@ -2482,7 +2482,7 @@ function applyPreset(name) {
   ctrl('rg-img-contrast').value = S.imgContrast; ctrl('v-img-contrast').textContent = S.imgContrast;
   S.imgDenoise = !!p.imgDenoise; ctrl('ck-img-denoise').checked = S.imgDenoise;
   S.imgSharpen = !!p.imgSharpen; ctrl('ck-img-sharpen').checked = S.imgSharpen;
-  ctrl('row-img-sharpen-amt').style.display = S.imgSharpen ? '' : 'none';
+  ctrl('row-img-sharpen-amt').hidden = !S.imgSharpen;
   S.imgSharpenAmt = p.imgSharpenAmt != null ? p.imgSharpenAmt : 100;
   ctrl('rg-img-sharpen-amt').value = S.imgSharpenAmt; ctrl('v-img-sharpen-amt').textContent = S.imgSharpenAmt + '%';
   S.imgGamma = !!p.imgGamma; ctrl('ck-img-gamma').checked = S.imgGamma;
@@ -2581,15 +2581,15 @@ ctrl('sel-preset').addEventListener('change', e => { if (e.target.value) applyPr
 // Inline name field, not prompt() — prompt() throws outright in some
 // embedding contexts (found live in FVS, August 2026).
 ctrl('btn-preset-save').addEventListener('click', () => {
-  ctrl('preset-name-row').style.display = '';
+  ctrl('preset-name-row').hidden = false;
   ctrl('preset-name').value = 'Separation ' + (Object.keys(userPresets()).length + 1);
   ctrl('preset-name').select();
 });
-ctrl('btn-preset-cancel').addEventListener('click', () => { ctrl('preset-name-row').style.display = 'none'; });
+ctrl('btn-preset-cancel').addEventListener('click', () => { ctrl('preset-name-row').hidden = true; });
 ctrl('btn-preset-confirm').addEventListener('click', savePresetConfirm);
 ctrl('preset-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); savePresetConfirm(); }
-  if (e.key === 'Escape') { e.preventDefault(); ctrl('preset-name-row').style.display = 'none'; }
+  if (e.key === 'Escape') { e.preventDefault(); ctrl('preset-name-row').hidden = true; }
 });
 function savePresetConfirm() {
   const name = ctrl('preset-name').value.trim();
@@ -2597,7 +2597,7 @@ function savePresetConfirm() {
   if (BUILTIN_PRESETS[name]) { setStatus('error', 'That name is a built-in preset — pick another'); return; }
   const all = userPresets(); all[name] = readState();
   PRESETS.write(all);
-  ctrl('preset-name-row').style.display = 'none';
+  ctrl('preset-name-row').hidden = true;
   if (presetPicker) presetPicker.invalidate(name);   // an overwrite re-renders its thumbnail
   populatePresets(name);
   setStatus('active', 'Preset "' + name + '" saved');

@@ -199,8 +199,8 @@
         </div>
       </div>
 
-      <div class="org-popover__divider" id="plates-divider" style="display:none"></div>
-      <div id="plates-section" style="display:none">
+      <div class="org-popover__divider" id="plates-divider" hidden></div>
+      <div id="plates-section" hidden>
         <div class="org-popover__title">Plates</div>
         <div class="org-formats">
           <button class="org-btn" id="btn-plates-png" onclick="exportPlatesRaster()">PNG</button>
@@ -244,10 +244,10 @@
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()" data-armed="Confirm?">Delete</button>
       </div>
-      <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+      <div id="preset-save-row" class="ctrl-row" hidden style="margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this preset" aria-label="Name this preset" style="flex:1">
       </div>
-      <div id="preset-save-actions" class="row-btns" style="display:none">
+      <div id="preset-save-actions" class="row-btns" hidden>
         <button class="mini-btn" id="btn-preset-confirm">Save</button>
         <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
       </div>
@@ -271,12 +271,12 @@
         <input type="checkbox" id="ck-rmx" onchange="toggleRmx(this.checked)">
         <span>RMX · remix by tone</span>
       </label>
-      <div id="rmx-slots" class="rmx-slots" style="display:none">
+      <div id="rmx-slots" class="rmx-slots" hidden>
         <div class="rmx-slot" data-slot="0" onclick="rmxSelectSlot(0)"><svg class="ico ico--sm rmx-plus" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
         <div class="rmx-slot" data-slot="1" onclick="rmxSelectSlot(1)"><svg class="ico ico--sm rmx-plus" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
         <div class="rmx-slot" data-slot="2" onclick="rmxSelectSlot(2)"><svg class="ico ico--sm rmx-plus" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></div>
       </div>
-      <div id="rmx-hint" class="sub-label" style="display:none; margin-top: var(--space-2)">dark → mid → bright</div>
+      <div id="rmx-hint" class="sub-label" hidden style="margin-top: var(--space-2)">dark → mid → bright</div>
 
       <!-- Size (+ Range: Min dark → Max bright) -->
       <div class="ctrl-row">
@@ -288,7 +288,7 @@
         <input type="checkbox" id="ck-size-range" onchange="toggleRow('row-size-max',this.checked);render()">
         <span>Range</span>
       </label>
-      <div class="ctrl-row" id="row-size-max" style="display:none">
+      <div class="ctrl-row" id="row-size-max" hidden>
         <span class="ctrl-label">→ max</span>
         <input type="range" id="sl-size-max" min="0.5" max="16" step="0.5" value="6" oninput="syncVal(this,'vl-size-max');render()">
         <span class="ctrl-val" id="vl-size-max">6</span>
@@ -314,7 +314,7 @@
       <!-- Stroke controls (only for the procedural ~ Stroke symbol).
            Pointillist Line model: Size = thickness · Length px · Segments ·
            Warping (bend) · Rounded caps -->
-      <div id="stroke-controls" style="display:none">
+      <div id="stroke-controls" hidden>
         <div class="ctrl-row">
           <span class="ctrl-label">Style</span>
           <div class="seg-ctrl" id="strokestyle-seg">
@@ -361,7 +361,7 @@
         <input type="checkbox" id="ck-angle-flow" onchange="render()">
         <span>Flow (follow image)</span>
       </label>
-      <div class="ctrl-row" id="row-angle-max" style="display:none">
+      <div class="ctrl-row" id="row-angle-max" hidden>
         <span class="ctrl-label">→ max</span>
         <input type="range" id="sl-angle-max" min="0" max="360" value="360" oninput="syncVal(this,'vl-angle-max');render()">
         <span class="ctrl-val" id="vl-angle-max">360°</span>
@@ -382,7 +382,7 @@
       </div>
 
       <!-- RMX palette: up to 5 colours assigned by a chosen mapping -->
-      <div id="rmx-color-block" style="display:none">
+      <div id="rmx-color-block" hidden>
         <div class="ctrl-row mb-2">
           <span class="ctrl-label">Palette</span>
           <span class="sub-label" id="rmx-color-hint" style="margin:0">dark → bright</span>
@@ -507,7 +507,7 @@
         <input type="checkbox" id="ck-hide" onchange="toggleRow('row-hide-range',this.checked);scheduleRecompute()">
         <span>Hide Zone</span>
       </label>
-      <div class="ctrl-row" id="row-hide-range" style="display:none">
+      <div class="ctrl-row" id="row-hide-range" hidden>
         <span class="ctrl-label">→ range</span>
         <input type="range" id="sl-hide-min" min="0" max="255" value="255" oninput="syncVal(this,'vl-hide-min');scheduleRecompute()" title="Hide where brightness ≥ this">
         <span class="ctrl-val" id="vl-hide-min">255</span>
@@ -559,7 +559,7 @@ const canvasWrap = document.getElementById('canvas-wrap');
 const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
   idPrefix: 'ps',
   onChange: (s) => {
-    document.getElementById('screen-scale-rows').style.display = s.mode === 'print' ? 'none' : '';
+    document.getElementById('screen-scale-rows').hidden = !!(s.mode === 'print');
     updateSizeReadout();
   },
 });
@@ -707,7 +707,7 @@ function scheduleRecompute() {
 function syncVal(slider, valId) {
   document.getElementById(valId).textContent = /angle/.test(valId) ? slider.value + '°' : slider.value;
 }
-function toggleRow(id, show) { document.getElementById(id).style.display = show ? '' : 'none'; }
+function toggleRow(id, show) { document.getElementById(id).hidden = !show; }
 
 function segActive(group, val) {
   document.querySelectorAll('#' + group + ' .seg-btn').forEach(b =>
@@ -716,7 +716,7 @@ function segActive(group, val) {
 // Show Segments/Warping only when the procedural Stroke is in play (single or RMX slot).
 function updateStrokeControls() {
   const on = pointType === 'stroke' || (rmxOn && rmxForms.includes('stroke'));
-  document.getElementById('stroke-controls').style.display = on ? '' : 'none';
+  document.getElementById('stroke-controls').hidden = !on;
 }
 function setPointType(t) {
   pointType = t;   // 'g:<n>' | 'u:<id>' | 'stroke'
@@ -728,8 +728,8 @@ function setPointType(t) {
 // ── REMIX (RMX) ──
 function toggleRmx(on) {
   rmxOn = on;
-  document.getElementById('rmx-slots').style.display = on ? '' : 'none';
-  document.getElementById('rmx-hint').style.display = on ? '' : 'none';
+  document.getElementById('rmx-slots').hidden = !on;
+  document.getElementById('rmx-hint').hidden = !on;
   if (on && !rmxForms.some(Boolean)) rmxForms[0] = pointType;   // seed slot 1 with current
   rmxSlot = rmxForms.findIndex(f => !f); if (rmxSlot < 0) rmxSlot = 0;
   buildRmxSlots(); buildShapeGrid(); render();
@@ -762,9 +762,9 @@ function buildRmxSlots() {
 function setColorMode(m) {
   colorMode = m; segActive('colormode-seg', m);
   const rmx = m === 'rmx';
-  document.getElementById('rmx-color-block').style.display = rmx ? '' : 'none';
-  document.getElementById('row-point').style.display = rmx ? 'none' : '';
-  document.getElementById('row-swap').style.display = rmx ? 'none' : '';
+  document.getElementById('rmx-color-block').hidden = !rmx;
+  document.getElementById('row-point').hidden = !!(rmx);
+  document.getElementById('row-swap').hidden = !!(rmx);
   if (rmx) buildRmxPalette();
   syncPlatesUI();
   render();
@@ -785,8 +785,8 @@ function buildRmxPalette() {
 // blend with no single ink per point, so it can't be split into plates.
 function syncPlatesUI() {
   const on = Organica.palette.isSplittable(colorMode, rmxColorMap);
-  document.getElementById('plates-divider').style.display = on ? '' : 'none';
-  document.getElementById('plates-section').style.display = on ? '' : 'none';
+  document.getElementById('plates-divider').hidden = !on;
+  document.getElementById('plates-section').hidden = !on;
   if (on) {
     const n = rmxColors.length;
     document.getElementById('btn-plates-png').textContent = 'PNG (' + n + ')';
@@ -857,8 +857,8 @@ function setState(s) {
   if (Array.isArray(s.rmxForms)) rmxForms = s.rmxForms.slice();
   if (s.rmxOn !== undefined) {
     rmxOn = s.rmxOn; ctrl('ck-rmx').checked = rmxOn;
-    document.getElementById('rmx-slots').style.display = rmxOn ? '' : 'none';
-    document.getElementById('rmx-hint').style.display = rmxOn ? '' : 'none';
+    document.getElementById('rmx-slots').hidden = !rmxOn;
+    document.getElementById('rmx-hint').hidden = !rmxOn;
     buildRmxSlots();
   }
   if (s.strokeStyle) { strokeStyle = s.strokeStyle; segActive('strokestyle-seg', s.strokeStyle); }
@@ -924,8 +924,8 @@ function applyPreset(v) {
 }
 function savePreset() {
   ctrl('txt-preset-name').value = 'Preset ' + new Date().toLocaleTimeString();
-  ctrl('preset-save-row').style.display = '';
-  ctrl('preset-save-actions').style.display = '';
+  ctrl('preset-save-row').hidden = false;
+  ctrl('preset-save-actions').hidden = false;
   ctrl('txt-preset-name').focus();
   ctrl('txt-preset-name').select();
 }
@@ -939,8 +939,8 @@ function confirmSavePreset() {
   cancelSavePreset();
 }
 function cancelSavePreset() {
-  ctrl('preset-save-row').style.display = 'none';
-  ctrl('preset-save-actions').style.display = 'none';
+  ctrl('preset-save-row').hidden = true;
+  ctrl('preset-save-actions').hidden = true;
   ctrl('txt-preset-name').value = '';
 }
 function deletePreset() {

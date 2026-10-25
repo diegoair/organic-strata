@@ -78,7 +78,7 @@
         <span class="org-out" id="loop-label">6s</span>
       </div>
       <p class="org-popover__hint">Seconds per loop. 0 = play indefinitely. Video export uses this as its length (falls back to 6s).</p>
-      <p class="org-popover__hint one-shot" id="one-shot-note" style="display:none">This scene has a one-shot track — it will not loop seamlessly.</p>
+      <p class="org-popover__hint one-shot" id="one-shot-note" hidden>This scene has a one-shot track — it will not loop seamlessly.</p>
     </div>
   </div>
 
@@ -133,10 +133,10 @@
         <button class="mini-btn" onclick="saveScene()">Save</button>
         <button class="mini-btn" onclick="deleteScene()">Delete</button>
       </div>
-      <div id="scene-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+      <div id="scene-save-row" class="ctrl-row" hidden style="margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-scene-name" placeholder="Name this scene" aria-label="Name this scene" style="flex:1">
       </div>
-      <div id="scene-save-actions" class="row-btns" style="display:none">
+      <div id="scene-save-actions" class="row-btns" hidden>
         <button class="mini-btn" id="btn-scene-confirm">Save</button>
         <button class="mini-btn" id="btn-scene-cancel">Cancel</button>
       </div>
@@ -160,13 +160,13 @@
     <div class="panel-section">
       <h3>Whole field</h3>
       <label class="check-row"><input type="checkbox" id="ck-rotate" onchange="onFieldToggle()"><span>Rotate</span></label>
-      <div class="ctrl-row" id="row-rotate-turns" style="display:none">
+      <div class="ctrl-row" id="row-rotate-turns" hidden>
         <div class="ctrl-label" title="Whole turns per loop — an integer keeps the loop seamless.">Turns / loop</div>
         <input type="range" id="rg-rotate-turns" min="1" max="6" step="1" value="1">
         <span class="ctrl-val" id="v-rotate-turns">1</span>
       </div>
       <label class="check-row"><input type="checkbox" id="ck-zoom" onchange="onFieldToggle()"><span>Zoom</span></label>
-      <div id="rows-zoom" style="display:none">
+      <div id="rows-zoom" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Zoom amount</div>
           <input type="range" id="rg-zoom-amt" min="0" max="0.6" step="0.01" value="0.15">
@@ -220,7 +220,7 @@
         </div>
       </div>
 
-      <div id="block-phyllo" style="display:none">
+      <div id="block-phyllo" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Count</div>
           <input type="range" id="rg-count" min="2" max="2000" step="1" value="800">
@@ -233,7 +233,7 @@
         </div>
       </div>
 
-      <div id="block-spiral" style="display:none">
+      <div id="block-spiral" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Arms</div>
           <input type="range" id="rg-arms" min="1" max="12" step="1" value="3">
@@ -261,7 +261,7 @@
           <option value="shear">Spiral shear</option>
         </select>
       </div>
-      <div id="mod-rose" style="display:none">
+      <div id="mod-rose" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Petals</div>
           <input type="range" id="rg-petals" min="2" max="12" step="1" value="8">
@@ -273,7 +273,7 @@
           <span class="ctrl-val" id="v-petaldepth">0.5</span>
         </div>
       </div>
-      <div id="mod-shear" style="display:none">
+      <div id="mod-shear" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Angular offset that grows with ring index.">Twist / ring</div>
           <input type="range" id="rg-shear" min="0" max="2" step="0.02" value="1.2">
@@ -307,7 +307,7 @@
         </select>
       </div>
 
-      <div id="mesh-opts" style="display:none">
+      <div id="mesh-opts" hidden>
         <label class="check-row"><input type="checkbox" id="ck-diagonals"><span>Cell diagonals</span></label>
       </div>
 
@@ -324,7 +324,7 @@
         </div>
       </div>
 
-      <div id="render-marks" style="display:none">
+      <div id="render-marks" hidden>
         <div class="ctrl-row">
           <select class="panel-select" id="sel-markshape" aria-label="Mark shape">
             <option value="dot">Dot</option>
@@ -332,7 +332,7 @@
             <option value="line">Line</option>
           </select>
         </div>
-        <div class="ctrl-row" id="row-linedir" style="display:none">
+        <div class="ctrl-row" id="row-linedir" hidden>
           <select class="panel-select" id="sel-linedir" aria-label="Line direction">
             <option value="radial">Line: radial</option>
             <option value="tangent">Line: tangent</option>
@@ -357,7 +357,7 @@
         </div>
       </div>
 
-      <div id="render-arcs" style="display:none">
+      <div id="render-arcs" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Arc count</div>
           <input type="range" id="rg-arccount" min="2" max="30" step="1" value="7">
@@ -395,7 +395,7 @@
         </div>
       </div>
 
-      <div id="render-loops" style="display:none">
+      <div id="render-loops" hidden>
         <p class="org-panel__hint">Many near-concentric circle outlines, each independently perturbed by its own noise phase.</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Circle count</div>
@@ -523,18 +523,18 @@ function syncPanelRows() {
   const pl = ctrl('sel-placement').value;
   const mod = ctrl('sel-modulation').value;
   const rn = ctrl('sel-render').value;
-  ctrl('block-grid').style.display = pl === 'grid' ? '' : 'none';
-  ctrl('block-phyllo').style.display = pl === 'phyllo' ? '' : 'none';
-  ctrl('block-spiral').style.display = pl === 'spiral' ? '' : 'none';
-  ctrl('sec-shape').style.display = pl === 'grid' ? '' : 'none';
-  ctrl('mod-rose').style.display = pl === 'grid' && mod === 'rose' ? '' : 'none';
-  ctrl('mod-shear').style.display = pl === 'grid' && mod === 'shear' ? '' : 'none';
-  ctrl('mesh-opts').style.display = rn === 'mesh' ? '' : 'none';
-  ctrl('render-fill').style.display = rn === 'fill' ? '' : 'none';
-  ctrl('render-marks').style.display = rn === 'marks' ? '' : 'none';
-  ctrl('render-arcs').style.display = rn === 'arcs' ? '' : 'none';
-  ctrl('render-loops').style.display = rn === 'loops' ? '' : 'none';
-  ctrl('row-linedir').style.display = rn === 'marks' && ctrl('sel-markshape').value === 'line' ? '' : 'none';
+  ctrl('block-grid').hidden = !(pl === 'grid');
+  ctrl('block-phyllo').hidden = !(pl === 'phyllo');
+  ctrl('block-spiral').hidden = !(pl === 'spiral');
+  ctrl('sec-shape').hidden = !(pl === 'grid');
+  ctrl('mod-rose').hidden = !(pl === 'grid' && mod === 'rose');
+  ctrl('mod-shear').hidden = !(pl === 'grid' && mod === 'shear');
+  ctrl('mesh-opts').hidden = !(rn === 'mesh');
+  ctrl('render-fill').hidden = !(rn === 'fill');
+  ctrl('render-marks').hidden = !(rn === 'marks');
+  ctrl('render-arcs').hidden = !(rn === 'arcs');
+  ctrl('render-loops').hidden = !(rn === 'loops');
+  ctrl('row-linedir').hidden = !(rn === 'marks' && ctrl('sel-markshape').value === 'line');
 }
 
 // camelCase P for Organica.radial.buildScene — identical to radial's buildParams()
@@ -667,7 +667,7 @@ function sceneIsOneShot() {
   return readTracks().some(t => t.param && (t.wave === 'ramp-once' || (t.wave === 'spin' && t.param !== 'rotate')));
 }
 function updateOneShotNote() {
-  ctrl('one-shot-note').style.display = sceneIsOneShot() ? '' : 'none';
+  ctrl('one-shot-note').hidden = !(sceneIsOneShot());
 }
 
 // ── track param options, filtered by the current base ──
@@ -777,7 +777,7 @@ function syncTrackParam(i, resetAmount) {
   });
   sel.value = Array.from(sel.options).some(o => o.value === cur) ? cur : (sel.options[0] && sel.options[0].value);
 
-  ctrl('trk' + i + '-body').style.display = param ? '' : 'none';
+  ctrl('trk' + i + '-body').hidden = !param;
 
   const ar = amountRangeFor(param);
   const amt = ctrl('trk' + i + '-amount');
@@ -970,8 +970,8 @@ function loadScene(name) {
 
 function saveScene() {
   ctrl('txt-scene-name').value = 'Scene ' + new Date().toLocaleTimeString();
-  ctrl('scene-save-row').style.display = '';
-  ctrl('scene-save-actions').style.display = '';
+  ctrl('scene-save-row').hidden = false;
+  ctrl('scene-save-actions').hidden = false;
   ctrl('txt-scene-name').focus();
   ctrl('txt-scene-name').select();
 }
@@ -995,8 +995,8 @@ function confirmSaveScene() {
   cancelSaveScene();
 }
 function cancelSaveScene() {
-  ctrl('scene-save-row').style.display = 'none';
-  ctrl('scene-save-actions').style.display = 'none';
+  ctrl('scene-save-row').hidden = true;
+  ctrl('scene-save-actions').hidden = true;
   ctrl('txt-scene-name').value = '';
 }
 function deleteScene() {
@@ -1077,8 +1077,8 @@ function setPlayIcon(isPlaying) {
 
 // ── whole-field + loop UI ──
 function syncWholeFieldRows() {
-  ctrl('row-rotate-turns').style.display = ctrl('ck-rotate').checked ? '' : 'none';
-  ctrl('rows-zoom').style.display = ctrl('ck-zoom').checked ? '' : 'none';
+  ctrl('row-rotate-turns').hidden = !(ctrl('ck-rotate').checked);
+  ctrl('rows-zoom').hidden = !(ctrl('ck-zoom').checked);
 }
 function onFieldToggle() { syncWholeFieldRows(); updateOneShotNote(); scheduleStill(); }
 function syncLoopLabel() {

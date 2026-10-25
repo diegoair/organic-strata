@@ -182,8 +182,8 @@
         </div>
       </div>
 
-      <div class="org-popover__divider" id="plates-divider" style="display:none"></div>
-      <div id="plates-section" style="display:none">
+      <div class="org-popover__divider" id="plates-divider" hidden></div>
+      <div id="plates-section" hidden>
         <div class="org-popover__title">Plates</div>
         <div class="org-formats">
           <button class="org-btn" id="btn-plates-png" onclick="exportPlatesRaster()">PNG</button>
@@ -310,7 +310,7 @@
       </div>
 
       <!-- RMX palette: up to 5 colours assigned by a chosen mapping (by tone) -->
-      <div id="rmx-color-block" style="display:none; margin-bottom: var(--space-5)">
+      <div id="rmx-color-block" hidden style="margin-bottom: var(--space-5)">
         <div class="ctrl-row mb-2">
           <span class="ctrl-label">Palette</span>
           <span class="ctrl-label" style="min-width:auto; color:var(--mid)">dark → bright</span>
@@ -407,8 +407,8 @@ function buildRmxPalette() {
 // blend with no single ink per mark, so it can't be split into plates.
 function syncPlatesUI() {
   const on = Organica.palette.isSplittable(colorMode, rmxColorMap);
-  document.getElementById('plates-divider').style.display = on ? '' : 'none';
-  document.getElementById('plates-section').style.display = on ? '' : 'none';
+  document.getElementById('plates-divider').hidden = !on;
+  document.getElementById('plates-section').hidden = !on;
   if (on) {
     const n = rmxColors.length;
     document.getElementById('btn-plates-png').textContent = 'PNG (' + n + ')';
@@ -435,7 +435,7 @@ const ctx = canvas.getContext('2d');
 const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
   idPrefix: 'ps',
   onChange: () => {
-    document.getElementById('screen-scale-rows').style.display = printSizePanel.getMode() === 'print' ? 'none' : '';
+    document.getElementById('screen-scale-rows').hidden = !!(printSizePanel.getMode() === 'print');
   },
 });
 
@@ -569,8 +569,8 @@ function setColorMode(mode, btn) {
   document.querySelectorAll('.cm-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   const rmx = mode === 'rmx';
-  document.getElementById('rmx-color-block').style.display = rmx ? '' : 'none';
-  document.getElementById('row-mark').style.display = rmx ? 'none' : '';
+  document.getElementById('rmx-color-block').hidden = !rmx;
+  document.getElementById('row-mark').hidden = !!(rmx);
   if (rmx) buildRmxPalette();
   syncPlatesUI();
   liveUpdate();

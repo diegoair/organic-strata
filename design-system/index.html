@@ -2135,9 +2135,9 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
       <pre class="ds-code">.mt-1 … .mt-8   <span class="attr">/* margin-top: var(--space-1…8) */</span>
 .mb-1 … .mb-8   <span class="attr">/* margin-bottom: var(--space-1…8) */</span>
 .u-flex1        <span class="attr">/* flex: 1 1 auto; min-width: 0 */</span>
-.u-hidden       <span class="attr">/* display: none — only for elements NEVER
-                   toggled via el.style.display in JS; toggled rows must
-                   keep style="display:none" so clearing it works */</span></pre>
+.u-hidden       <span class="attr">/* display: none — an element hidden once, never shown again */</span>
+[hidden]        <span class="attr">/* display: none !important — show / hide with el.hidden;
+                   another display through Organica.display(el, 'flex') */</span></pre>
     </section>
 
     <!-- ═══════════════════ ICONS, MOTION & BEHAVIOUR (audit, Oct 2 2026) ═══════════════════ -->
@@ -2498,7 +2498,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 
       <div class="ds-mistake">
         <div class="ds-mistake__title">Toggled visibility as a class, not an inline style</div>
-        <p><code>.u-hidden { display: none }</code> looks like the obvious replacement for every <code>style="display:none"</code> in the codebase — except most of them are toggled from JS via <code>el.style.display = show ? '' : 'none'</code>. Clearing an inline style falls back to the stylesheet; if the stylesheet still has <code>.u-hidden</code> on the element, it stays hidden forever. Only apply the class to elements that are hidden once and never shown again (a permanently-hidden file-input trigger, for example).</p>
+        <p>Show and hide with the <code>hidden</code> attribute (since Oct 25, 2026): <code>[hidden] { display: none !important; }</code> in <code>tokens.css</code> beats any component’s own display, so a row starts with <code>hidden</code> and JS sets <code>el.hidden = !show</code>. A display other than none goes through <code>Organica.display(el, 'flex')</code>. Never <code>el.style.display</code>; <code>.u-hidden</code> only for an element hidden once and never shown again.</p>
       </div>
 
       <div class="ds-mistake">

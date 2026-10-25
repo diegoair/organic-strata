@@ -127,9 +127,9 @@ export function syncSymbolRuleUI() {
   syncStartSegs(ctrl('symbol-rule-block'));
   const name = pv('sel-symbol-rule');
   document.querySelectorAll('#symbol-rule-block .rule-params').forEach(el => {
-    el.style.display = el.id === 'rp-' + name ? '' : 'none';
+    el.hidden = !(el.id === 'rp-' + name);
   });
-  ctrl('row-rule-scalerange').style.display = pc('chk-rule-scale') ? '' : 'none';
+  ctrl('row-rule-scalerange').hidden = !(pc('chk-rule-scale'));
 }
 
 
@@ -140,7 +140,7 @@ export function syncSymbolRuleUI() {
 export function renderSymbolCanvasOnly() {
   const frame = ctrl('symbol-frame');
   const grid = getSymbolGrid();
-  ctrl('btn-symbol-clear').style.display = grid ? '' : 'none';
+  ctrl('btn-symbol-clear').hidden = !grid;
   ctrl('btn-symbol-clear').disabled = !symbolHasContent();   // an empty grid: the icon stays, disabled (nothing to clear)
   syncSymbolStart();
   if (!grid) {
@@ -453,12 +453,12 @@ function componentCellPropsHTML(I) {
             <input type="range" id="${I('rg-cellprop-scale')}" min="10" max="400" step="1" value="100">
             <span class="ctrl-val" id="${I('v-cellprop-scale')}">100</span>
           </div>
-          <div class="ctrl-row" id="${I('row-cellprop-fixedsize')}" style="display:none">
+          <div class="ctrl-row" id="${I('row-cellprop-fixedsize')}" hidden>
             <div class="ctrl-label">Size</div>
             <input type="range" id="${I('rg-cellprop-fixedsize')}" min="5" max="300" step="1" value="100">
             <span class="ctrl-val" id="${I('v-cellprop-fixedsize')}">100</span>
           </div>
-          <div class="ctrl-row" id="${I('row-cellprop-coveraxis')}" style="display:none">
+          <div class="ctrl-row" id="${I('row-cellprop-coveraxis')}" hidden>
             <div class="ctrl-label">Cover axis</div>
             <select class="panel-select" id="${I('sel-cellprop-coveraxis')}">
               <option value="auto">Auto (no gaps)</option>
@@ -524,7 +524,7 @@ export function cellPropsHTML(pre, opts = {}) {
               ${opts.component ? '' : '<option value="match">Match cell</option>'}
             </select>
           </div>
-          <div class="ctrl-row" id="${I('row-cellprop-coveraxis')}" style="display:none">
+          <div class="ctrl-row" id="${I('row-cellprop-coveraxis')}" hidden>
             <div class="ctrl-label">Cover axis</div>
             <select class="panel-select" id="${I('sel-cellprop-coveraxis')}">
               <option value="auto">Auto (no gaps)</option>
@@ -532,7 +532,7 @@ export function cellPropsHTML(pre, opts = {}) {
               <option value="y">Lock to height</option>
             </select>
           </div>
-          <div class="ctrl-row" id="${I('row-cellprop-overflow')}" style="display:none">
+          <div class="ctrl-row" id="${I('row-cellprop-overflow')}" hidden>
             <span class="ctrl-val" style="color:var(--danger);text-align:left;flex:1">⚠ Extends beyond cell bounds</span>
           </div>
           <div class="ctrl-row" id="${I('row-cellprop-scale')}">
@@ -540,7 +540,7 @@ export function cellPropsHTML(pre, opts = {}) {
             <input type="range" id="${I('rg-cellprop-scale')}" min="10" max="400" step="1" value="100">
             <span class="ctrl-val" id="${I('v-cellprop-scale')}">100</span>
           </div>
-          <div class="ctrl-row" id="${I('row-cellprop-fixedsize')}" style="display:none">
+          <div class="ctrl-row" id="${I('row-cellprop-fixedsize')}" hidden>
             <div class="ctrl-label">Size</div>
             <input type="range" id="${I('rg-cellprop-fixedsize')}" min="5" max="300" step="1" value="100">
             <span class="ctrl-val" id="${I('v-cellprop-fixedsize')}">100</span>
@@ -548,9 +548,9 @@ export function cellPropsHTML(pre, opts = {}) {
           <div class="ctrl-row" id="${I('row-cellprop-color')}">
             <div class="ctrl-label">Colour</div>
             <select class="panel-select" id="${I('sel-cellprop-color')}" aria-label="Cell colour"></select>
-            <input type="color" id="${I('in-cellprop-color')}" aria-label="Custom cell colour" style="display:none">
+            <input type="color" id="${I('in-cellprop-color')}" aria-label="Custom cell colour" hidden>
           </div>
-          <div class="ctrl-row" id="${I('row-cellprop-color-override')}" style="display:none">
+          <div class="ctrl-row" id="${I('row-cellprop-color-override')}" hidden>
             <span class="ctrl-val" style="color:var(--tool);text-align:left;flex:1">● Overrides the palette</span>
             <button class="mini-btn" id="${I('btn-cellprop-color-reset')}">Reset</button>
           </div>
@@ -573,8 +573,8 @@ export function cellPropsHTML(pre, opts = {}) {
 // keeps its own inks).
 export function syncCellColourUI(cell, isComponent, pre = '', colors = state.colors) {
   const c = b => ctrl(pre + b) || standIn();
-  c('row-cellprop-color').style.display = isComponent ? 'none' : '';
-  if (isComponent) { c('row-cellprop-color-override').style.display = 'none'; return; }
+  c('row-cellprop-color').hidden = !!(isComponent);
+  if (isComponent) { c('row-cellprop-color-override').hidden = true; return; }
   const sel = c('sel-cellprop-color');
   const pal = colors.map(hexKey);
   const cur = cell.color ? hexKey(cell.color) : '';
@@ -584,14 +584,14 @@ export function syncCellColourUI(cell, isComponent, pre = '', colors = state.col
     + `<option value="custom">Custom…</option>`;
   sel.value = !cur ? '' : custom ? 'custom' : cur;
   const inp = c('in-cellprop-color');
-  inp.style.display = custom ? '' : 'none';
+  inp.hidden = !custom;
   if (custom) inp.value = cur;
-  c('row-cellprop-color-override').style.display = cur ? '' : 'none';
+  c('row-cellprop-color-override').hidden = !cur;
 }
 // Cell properties belong to the selection, not to the Fill mode: the block
 // shows in Manual, and in any other mode as soon as cells are selected.
 export function syncManualBlock() {
-  ctrl('symbol-manual-block').style.display = (pv('sel-symbol-fill') === 'manual' || state.symbolSelection.size > 0) ? '' : 'none';
+  ctrl('symbol-manual-block').hidden = !((pv('sel-symbol-fill') === 'manual' || state.symbolSelection.size > 0));
 }
 // The Symbol step's target: the selected cells of state.symbolCells.
 export const SYMBOL_CELLS = {
@@ -608,8 +608,8 @@ export function renderCellPropertiesPanel() {
   syncManualBlock();
   syncFitAnchorUI();
   const hasSelection = state.symbolSelection.size > 0 && state.symbolGrid;
-  ctrl('symbol-cell-empty').style.display = hasSelection ? 'none' : '';
-  ctrl('symbol-cell-props').style.display = hasSelection ? '' : 'none';
+  ctrl('symbol-cell-empty').hidden = !!(hasSelection);
+  ctrl('symbol-cell-props').hidden = !hasSelection;
   if (!hasSelection) return;
   syncCellProps('', SYMBOL_CELLS);
 }
@@ -636,8 +636,8 @@ export function syncCellProps(pre, t) {
   // Component is already an internally-composed (often symmetric)
   // arrangement, so rotating/flipping the whole nested block as one more
   // knob adds little real value against the extra control surface.
-  c('row-cellprop-rotation').style.display = isComponent ? 'none' : '';
-  c('row-cellprop-flip').style.display = isComponent ? 'none' : '';
+  c('row-cellprop-rotation').hidden = !!(isComponent);
+  c('row-cellprop-flip').hidden = !!(isComponent);
   // A free angle (Radial / Wave with Snap off) gets its own option, so the menu shows it instead of a blank.
   const rotSel = c('sel-cellprop-rot'), rotVal = String(first.rotation || 0);
   rotSel.querySelectorAll('option[data-free]').forEach(o => { if (o.value !== rotVal) o.remove(); });
@@ -645,21 +645,21 @@ export function syncCellProps(pre, t) {
   rotSel.value = rotVal;
   c('sel-cellprop-flip').value = first.flipH && first.flipV ? 'hv' : first.flipH ? 'h' : first.flipV ? 'v' : 'none';
   c('sel-cellprop-fit').value = first.fitMode || 'contain';
-  c('row-cellprop-coveraxis').style.display = first.fitMode === 'cover' ? '' : 'none';
+  c('row-cellprop-coveraxis').hidden = !(first.fitMode === 'cover');
   c('sel-cellprop-coveraxis').value = first.coverAxis || 'auto';
-  c('row-cellprop-scale').style.display = first.fitMode === 'fixed' ? 'none' : '';
-  c('row-cellprop-fixedsize').style.display = first.fitMode === 'fixed' ? '' : 'none';
+  c('row-cellprop-scale').hidden = !!(first.fitMode === 'fixed');
+  c('row-cellprop-fixedsize').hidden = !(first.fitMode === 'fixed');
   c('rg-cellprop-scale').value = Math.round((first.scale == null ? 1 : first.scale) * 100);
   c('v-cellprop-scale').textContent = c('rg-cellprop-scale').value;
   c('rg-cellprop-fixedsize').value = first.fixedSize || 100;
   c('v-cellprop-fixedsize').textContent = c('rg-cellprop-fixedsize').value;
   syncCellColourUI(first, isComponent, pre, t.colors());
-  c('row-cellprop-seedparams').style.display = (isComponent || first.source === 'empty') ? 'none' : '';
+  c('row-cellprop-seedparams').hidden = !!((isComponent || first.source === 'empty'));
   c('symbol-cellprop-seedparams-label').textContent = first.seedParams ? 'Element settings' : 'Default';
   syncCellPad(c, first);
   if (t.lock) c('chk-cellprop-lock').checked = !!first.locked;
 
-  c('row-cellprop-overflow').style.display = t.overflow && t.overflow() ? '' : 'none';
+  c('row-cellprop-overflow').hidden = !(t.overflow && t.overflow());
 }
 // Padding fields from the shown cell: Horizontal / Vertical when the sides pair up (else empty, "Mixed"), the four sides
 // when Padding per side is on — on by itself when the cell's sides differ (Figma opens its four fields the same way).
@@ -754,11 +754,11 @@ ctrl('symbol-cell-props').innerHTML = cellPropsHTML('');
 let overlayTarget = null;
 export function openCellContentOverlay(target) {
   overlayTarget = target && target.apply ? target : null;
-  ctrl('chk-content-overlay-all').closest('label').style.display = overlayTarget ? 'none' : '';   // "all cells" is Symbol-only
+  ctrl('chk-content-overlay-all').closest('label').hidden = !!(overlayTarget);   // "all cells" is Symbol-only
   ctrl('symbol-content-overlay').classList.toggle('is-seeds-only', !!(overlayTarget && overlayTarget.seedsOnly));
   if (!overlayTarget && state.symbolSelection.size === 0 && !pc('chk-content-overlay-all')) return;
   renderCellContentOverlayTiles();
-  ctrl('symbol-content-overlay').style.display = 'flex';
+  Organica.display(ctrl('symbol-content-overlay'), 'flex');
   const first = ctrl('symbol-content-overlay').querySelector('button.fvs-library-item, button#btn-content-overlay-close');
   if (first) first.focus();
 }
@@ -780,15 +780,15 @@ function pickDone() { const t = overlayTarget; closeCellContentOverlay(); if (t)
 // Choose-content filter — which of the two lists to show (memory only).
 rt.contentFilter = 'all';
 export function syncContentFilter() {
-  ctrl('content-sec-seeds').style.display = rt.contentFilter === 'components' ? 'none' : '';
-  ctrl('content-sec-components').style.display = rt.contentFilter === 'seeds' ? 'none' : '';
+  ctrl('content-sec-seeds').hidden = !!(rt.contentFilter === 'components');
+  ctrl('content-sec-components').hidden = !!(rt.contentFilter === 'seeds');
   ctrl('seg-content-filter').querySelectorAll('.seg-btn').forEach(b => {
     const on = b.dataset.filter === rt.contentFilter;
     b.classList.toggle('active', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
 }
 export function closeCellContentOverlay() {
-  ctrl('symbol-content-overlay').style.display = 'none';
+  ctrl('symbol-content-overlay').hidden = true;
   ctrl('symbol-content-overlay').classList.remove('is-seeds-only');
   overlayTarget = null;
   ctrl('chk-content-overlay-all').checked = false;   // disarm so a later single-cell edit isn't hijacked
@@ -838,7 +838,7 @@ export function renderCellContentOverlayTiles() {
 
   const library = LIBRARY.read();
   const libNames = libraryNames(library);
-  ctrl('symbol-content-overlay__components-empty').style.display = libNames.length ? 'none' : '';
+  ctrl('symbol-content-overlay__components-empty').hidden = !!(libNames.length);
   const compWrap = ctrl('symbol-content-overlay__components');
   compWrap.innerHTML = '';
   if (!(overlayTarget && overlayTarget.seedsOnly)) compWrap.appendChild(emptyBtn);   // one button, one place: with the Seeds when they show
@@ -878,7 +878,7 @@ export function renderCellContentOverlayTiles() {
   // (seedParams, like Cell properties → Use Element) and the turn / flip of the tile.
   const elSec = ctrl('content-sec-element'), elTiles = ctrl('symbol-content-overlay__element');
   elTiles.innerHTML = '';
-  elSec.style.display = elementIsEmpty() ? 'none' : '';
+  elSec.hidden = !!(elementIsEmpty());
   if (!elementIsEmpty()) {
     const seedNow = getSeed();   // not `live`: that name is the module's run-time values (contentOverlayFit is read below)
     [[0, false, false, 'As it is'], ...seedPreviewStates().slice(1)].forEach(([r, fh, fv, label]) => {   // the strip's own 0° is "As it is" here
@@ -911,8 +911,8 @@ export function renderCellContentOverlayTiles() {
   // The plain default Seeds are not Symbol content any more: that list and the filter stay hidden — except for a target
   // that asks for Seeds (Component Edit's cells): there they are the content, with Empty (Oct 14, 2026 — Empty was
   // offered nowhere, the Components section that also carries it is hidden for them).
-  ctrl('content-sec-seeds').style.display = overlayTarget && overlayTarget.seedsOnly ? '' : 'none';
-  ctrl('seg-content-filter').style.display = 'none';
+  ctrl('content-sec-seeds').hidden = !(overlayTarget && overlayTarget.seedsOnly);
+  ctrl('seg-content-filter').hidden = true;
   Organica.autoLabelPanel(ctrl('symbol-content-overlay'));
 }
 
@@ -925,9 +925,9 @@ export function applyRuleState(s) {
     if (el.type === 'checkbox') el.checked = !!s[id]; else el.value = s[id];
     const v = ctrl(id.replace(/^rg-/, 'v-')); if (v && el.type === 'range') v.textContent = el.value;
   });
-  ctrl('symbol-rule-block').style.display = pv('sel-symbol-fill') === 'rule' ? '' : 'none';
-  ctrl('symbol-generate-block').style.display = pv('sel-symbol-fill') === 'generate' ? '' : 'none';
-  ctrl('symbol-suggest-block').style.display = pv('sel-symbol-fill') === 'suggest' ? '' : 'none';
+  ctrl('symbol-rule-block').hidden = !(pv('sel-symbol-fill') === 'rule');
+  ctrl('symbol-generate-block').hidden = !(pv('sel-symbol-fill') === 'generate');
+  ctrl('symbol-suggest-block').hidden = !(pv('sel-symbol-fill') === 'suggest');
   syncManualBlock();
   syncSymbolRuleUI();
 }

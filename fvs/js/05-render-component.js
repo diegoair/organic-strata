@@ -547,12 +547,12 @@ function renderGalleryNow() {
   if (state.components.length === 0) {
     gallery.innerHTML = '';
     gallery.classList.remove('visible');
-    empty.style.display = 'flex';
+    Organica.display(empty, 'flex');
     ctrl('gallery-status').textContent = elementIsEmpty() ? 'The Element is empty — draw a shape or pick one in step 1 first.' : '';
     setStatus('', 'No components yet');
     return;
   }
-  empty.style.display = 'none';
+  empty.hidden = true;
   gallery.classList.add('visible');
   // The plain "N components" count lives in the header status pill alone now — this line is
   // warning-only, so it stays empty (zero footprint, see the :empty CSS rule) most of the time.

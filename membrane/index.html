@@ -158,7 +158,7 @@
         <input type="range" id="rg-radius" min="20" max="320" step="5" value="150">
         <span class="ctrl-val" id="v-radius">150</span>
       </div>
-      <div class="ctrl-row" id="row-pointsize" style="display:none">
+      <div class="ctrl-row" id="row-pointsize" hidden>
         <div class="ctrl-label">Point size</div>
         <input type="range" id="rg-pointsize" min="2" max="60" step="1" value="8">
         <span class="ctrl-val" id="v-pointsize">8</span>
@@ -171,7 +171,7 @@
           <option value="point">Point</option>
         </select>
       </div>
-      <div class="ctrl-row" id="row-seedshape" style="display:none">
+      <div class="ctrl-row" id="row-seedshape" hidden>
         <div class="ctrl-label">Seed shape</div>
         <select class="panel-select" id="sel-seedshape">
           <option value="ring">Ring</option>
@@ -242,13 +242,13 @@
         <input type="range" id="rg-float" min="0" max="0.2" step="0.005" value="0.01">
         <span class="ctrl-val" id="v-float">0.010</span>
       </div>
-      <div class="ctrl-row" id="row-movespeed" style="display:none">
+      <div class="ctrl-row" id="row-movespeed" hidden>
         <div class="ctrl-label">Move speed</div>
         <input type="range" id="rg-movespeed" min="0.1" max="5" step="0.1" value="1">
         <span class="ctrl-val" id="v-movespeed">1.0</span>
       </div>
 
-      <div id="followpath-block" style="display:none">
+      <div id="followpath-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Path source</div>
           <select class="panel-select" id="sel-pathsource">
@@ -256,7 +256,7 @@
             <option value="loom">Loom grid (JSON)</option>
           </select>
         </div>
-        <div id="loompath-block" style="display:none">
+        <div id="loompath-block" hidden>
           <button class="upload-btn" id="btn-upload-loompath">+ Upload Loom JSON</button>
           <div class="ctrl-row">
             <div class="ctrl-label">Loom path</div>
@@ -275,14 +275,14 @@
             <option value="dots">Dots (beaded)</option>
           </select>
         </div>
-        <div class="ctrl-row" id="row-pathdotsize" style="display:none">
+        <div class="ctrl-row" id="row-pathdotsize" hidden>
           <div class="ctrl-label">Dot size</div>
           <input type="range" id="rg-pathdotsize" min="1" max="16" step="0.5" value="6">
           <span class="ctrl-val" id="v-pathdotsize">6.0</span>
         </div>
         <label class="check-row"><input type="checkbox" id="chk-glow"><span>Glow (neon halo)</span></label>
         <label class="check-row"><input type="checkbox" id="chk-writebrush"><span>Write as brush (small dot traces the path)</span></label>
-        <div class="ctrl-row" id="row-brushsize" style="display:none">
+        <div class="ctrl-row" id="row-brushsize" hidden>
           <div class="ctrl-label">Brush size</div>
           <input type="range" id="rg-brushsize" min="4" max="80" step="2" value="20">
           <span class="ctrl-val" id="v-brushsize">20</span>
@@ -304,7 +304,7 @@
         </select>
       </div>
 
-      <div id="rmx-color-block" style="display:none">
+      <div id="rmx-color-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Mapping</div>
           <select class="panel-select" id="sel-rmx-map">

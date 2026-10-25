@@ -440,7 +440,7 @@
       order.forEach(k => {
         const pane = panes[k] || document.getElementById(config.target + '-pane-' + k) ||
           document.getElementById('seedsrc-' + k);
-        if (pane) pane.style.display = (k === activeTab) ? 'block' : 'none';
+        if (pane) Organica.display(pane, (k === activeTab) ? 'block' : 'none');
       });
       const slot = slots.find(s => s.id === activeTab);
       if (slot && typeof slot.onActivate === 'function') slot.onActivate();

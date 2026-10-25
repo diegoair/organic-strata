@@ -1231,7 +1231,7 @@ function openBuiltin(def, title) {
 }
 function openNewFigure() {
   const cat = figureCatalog();
-  const m = document.createElement('div'); m.className = 'org-modal fg-new'; m.style.display = 'flex';
+  const m = document.createElement('div'); m.className = 'org-modal fg-new'; Organica.display(m, 'flex');
   m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-labelledby', 'fg-new-title');
   m.innerHTML = `<div class="org-modal__panel fg-new__panel"><div class="org-modal__header"><span class="org-modal__title" id="fg-new-title">New Figure…</span>
     <button class="org-btn org-btn--icon org-btn--sm org-btn--ghost" data-act="close" aria-label="Close">${Organica.icons.get('close', { size: 'sm' })}</button></div>
@@ -1310,7 +1310,7 @@ function enterCompose(figId) {
   composing = { fig: figId, comp: comp ? comp.id : null, sel: new Set(), when: null, tool: null, anchor: null, focus: 0, opener: document.activeElement, view: { zoom: ctl.zoomPan.zoom, ...ctl.zoomPan.pan } };
   document.body.classList.add('fg-composing'); syncExportButton();
   ctrl('fg-graph').hidden = true; ctrl('fg-compose').hidden = false;
-  ctrl('fb-figure-actions').style.display = 'none'; ctrl('fb-compose-actions').style.display = '';
+  ctrl('fb-figure-actions').hidden = true; ctrl('fb-compose-actions').hidden = false;
   setNodebar(null); renderComposeBar();
   // the left side is the Symbol step's Library rail: drag a saved Element / Component onto a cell, or click it for the selection
   rt.railTarget = { apply: composeRailApply }; live.railCompose = true; ctrl('fg-nodebar-dock').hidden = true; syncRailTier('figure'); placeStepNav();
@@ -1331,7 +1331,7 @@ function exitCompose() {
   const fig = composing.fig, view = composing.view, opener = composing.opener; composing = null;
   document.body.classList.remove('fg-composing'); syncExportButton();
   ctrl('fg-compose').hidden = true; ctrl('fg-graph').hidden = false;
-  ctrl('fb-compose-actions').style.display = 'none'; ctrl('fb-figure-actions').style.display = '';
+  ctrl('fb-compose-actions').hidden = true; ctrl('fb-figure-actions').hidden = false;
   renderNodebarButtons();
   rt.railTarget = null; live.railCompose = false; ctrl('fg-nodebar-dock').hidden = false; syncRailTier('figure'); placeStepNav();
   ctl.zoomPan.setView({ zoom: view.zoom, panX: view.x, panY: view.y });
@@ -1422,7 +1422,7 @@ function mountComposeFill(host, kind, comp) {
       ${seedRow}${apply('Apply rule')}`;
     const rp = ctrl('rp-' + draft.name), box = ctrl('fgc-rule-params');
     if (rp) {   // the Symbol step's own controls for this rule, cloned with a prefix
-      const c = rp.cloneNode(true); c.removeAttribute('style'); c.id = 'fgc-' + c.id;
+      const c = rp.cloneNode(true); c.removeAttribute('style'); c.hidden = false; c.id = 'fgc-' + c.id;
       c.querySelectorAll('[id]').forEach(e => { e.id = 'fgc-' + e.id; }); c.querySelectorAll('[aria-labelledby]').forEach(e => e.removeAttribute('aria-labelledby'));   // named again by autoLabelPanel, not by Symbol's own labels c.querySelectorAll('label[for]').forEach(e => e.setAttribute('for', 'fgc-' + e.getAttribute('for')));
       box.appendChild(c);
       SYMBOL_RULES[draft.name].fields.forEach(f => {
@@ -1878,7 +1878,7 @@ function initGraphMenu() {
 }
 
 export function renderFigureGraph() {
-  if (ctl) { if (composing) { ctrl('fb-figure-actions').style.display = 'none'; ctrl('fb-compose-actions').style.display = ''; drawCompose(); renderComposeInspector(); } else ctl.refresh(); return; }
+  if (ctl) { if (composing) { ctrl('fb-figure-actions').hidden = true; ctrl('fb-compose-actions').hidden = false; drawCompose(); renderComposeInspector(); } else ctl.refresh(); return; }
   rt.figureGraph = true;
   document.querySelector('.tier-view[data-tier="figure"]').classList.add('is-graph');
   document.querySelector('.tier-block[data-tier="figure"]').classList.add('is-graph');

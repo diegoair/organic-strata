@@ -269,11 +269,11 @@ feature**. `--radius-lg` (8px) is already the loudest the system gets.
 (`flex: 1 1 auto`), `.u-hidden` (`display: none`). All carry `!important` —
 a utility only does its job if it always wins the cascade; a component's own
 compound selector (`.row .val`) already outranks a single class without it.
-`.u-hidden` is only safe on elements that are hidden once and never shown
-again (a permanently-hidden file-input trigger) — anything toggled from JS
-via `el.style.display = show ? '' : 'none'` must keep the inline
-`style="display:none"` it started with, or clearing the inline style falls
-back to the class and it never shows.
+**Show and hide with the `hidden` attribute** (since Oct 25, 2026 — the inline `style="display:none"` sweep, every
+tool): `[hidden] { display: none !important; }` in `shared/tokens.css` makes it win over any component's own display
+(a flex `.ctrl-row`, a grid), so markup starts hidden with `hidden` and JS toggles `el.hidden = !show`. A value other
+than none (`'flex'`, `'block'`) goes through `Organica.display(el, v)` (`shared/core.js` — sets `hidden`, and the
+display when showing); never `el.style.display`. `.u-hidden` stays for an element hidden once and never shown again.
 
 **Two tokens outside the spacing/radius scale:**
 

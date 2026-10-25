@@ -178,10 +178,10 @@
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()" data-armed="Confirm?">Delete</button>
       </div>
-      <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+      <div id="preset-save-row" class="ctrl-row" hidden style="margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this preset" aria-label="Name this preset" style="flex:1">
       </div>
-      <div id="preset-save-actions" class="row-btns" style="display:none">
+      <div id="preset-save-actions" class="row-btns" hidden>
         <button class="mini-btn" id="btn-preset-confirm">Save</button>
         <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
       </div>
@@ -200,7 +200,7 @@
         <button class="seg-btn" data-val="threshold" onclick="setAlg('threshold')" title="Plain 50% threshold — no dithering, for comparison">Flat</button>
       </div>
 
-      <div class="ctrl-row" id="row-bayer" style="display:none">
+      <div class="ctrl-row" id="row-bayer" hidden>
         <span class="ctrl-label">Matrix</span>
         <select class="panel-select" id="sel-bayer" onchange="scheduleRender()">
           <option value="2">2 × 2</option>
@@ -251,7 +251,7 @@
         <input type="checkbox" id="ck-square" onchange="toggleRow('row-crop-position',this.checked);scheduleRender()" title="Center-crop to a square — for avatar-style portraits">
         <span>Square crop (avatar)</span>
       </label>
-      <div class="ctrl-row" id="row-crop-position" style="display:none">
+      <div class="ctrl-row" id="row-crop-position" hidden>
         <span class="ctrl-label"></span>
         <button class="mini-btn" onclick="enterCropMode()">Position crop…</button>
       </div>
@@ -259,12 +259,12 @@
         <input type="checkbox" id="ck-bgremove" onchange="toggleBgRows(this.checked);scheduleRender()">
         <span>Remove background</span>
       </label>
-      <div class="ctrl-row" id="row-bgtol" style="display:none">
+      <div class="ctrl-row" id="row-bgtol" hidden>
         <span class="ctrl-label">Tolerance</span>
         <input type="range" id="sl-bgtol" min="2" max="100" value="24" oninput="syncVal(this,'vl-bgtol');scheduleRender()" title="Colour-similarity reach from the reference — raise it if background scraps remain">
         <span class="ctrl-val" id="vl-bgtol">24</span>
       </div>
-      <div class="ctrl-row" id="row-bgpick" style="display:none">
+      <div class="ctrl-row" id="row-bgpick" hidden>
         <span class="ctrl-label">Reference</span>
         <button class="mini-btn" id="btn-bgpick" onclick="startPickBg()" title="Click a spot in the image that’s really background">Pick…</button>
         <button class="mini-btn" onclick="bgRefColor=null;scheduleRender()" title="Back to the automatic border-colour guess">Auto</button>
@@ -291,16 +291,16 @@
         <input type="checkbox" id="ck-outline" onchange="toggleOutlineRows(this.checked);scheduleRender()" title="A solid white ring traced around the silhouette — the sticker look, especially over Transparent">
         <span>Outline</span>
       </label>
-      <div class="ctrl-row" id="row-outline-width" style="display:none">
+      <div class="ctrl-row" id="row-outline-width" hidden>
         <span class="ctrl-label">Width</span>
         <input type="range" id="sl-outline-width" min="1" max="12" value="1" oninput="syncVal(this,'vl-outline-width');scheduleRender()">
         <span class="ctrl-val" id="vl-outline-width">1</span>
       </div>
-      <label class="check-row" id="row-bgfill" style="display:none">
+      <label class="check-row" id="row-bgfill" hidden>
         <input type="checkbox" id="ck-bgfill" onchange="toggleRow('row-bgfill-color',this.checked);scheduleRender()" title="Fill everything outside the outline (canvas margins minus the traced silhouette) with its own colour — by subtraction, not tied to Paper">
         <span>Background fill</span>
       </label>
-      <div class="color-row" id="row-bgfill-color" style="display:none">
+      <div class="color-row" id="row-bgfill-color" hidden>
         <span class="color-name">Colour</span>
         <span class="color-swatch-wrap">
           <button class="color-swatch" id="sw-bgfill" style="background:#cccccc" title="Background colour"></button>
@@ -373,7 +373,7 @@ const canvasWrap = document.getElementById('canvas-wrap');
 const printSizePanel = Organica.printSizePanel(document.getElementById('print-size-host'), {
   idPrefix: 'ps',
   onChange: () => {
-    document.getElementById('screen-scale-rows').style.display = printSizePanel.getMode() === 'print' ? 'none' : '';
+    document.getElementById('screen-scale-rows').hidden = !!(printSizePanel.getMode() === 'print');
     updateSizeReadout();
   },
 });
@@ -407,7 +407,7 @@ const setStatus = Organica.status();
 
 // ── CONTROLS ──
 function syncVal(slider, valId) { document.getElementById(valId).textContent = slider.value; }
-function toggleRow(id, show) { document.getElementById(id).style.display = show ? '' : 'none'; }
+function toggleRow(id, show) { document.getElementById(id).hidden = !show; }
 function toggleBgRows(show) {
   toggleRow('row-bgtol', show);
   toggleRow('row-bgpick', show);
@@ -534,8 +534,8 @@ function segActive(group, v) {
 function setAlg(a) {
   ditherAlg = a;
   segActive('alg-seg', a);
-  document.getElementById('row-bayer').style.display = a === 'bayer' ? '' : 'none';
-  document.getElementById('row-serp').style.display = (a === 'fs' || a === 'atkinson') ? '' : 'none';
+  document.getElementById('row-bayer').hidden = !(a === 'bayer');
+  document.getElementById('row-serp').hidden = !((a === 'fs' || a === 'atkinson'));
   scheduleRender();
 }
 
@@ -645,8 +645,8 @@ function applyPreset(name) {
 }
 function savePreset() {
   ctrl('txt-preset-name').value = 'Preset ' + new Date().toLocaleTimeString();
-  ctrl('preset-save-row').style.display = '';
-  ctrl('preset-save-actions').style.display = '';
+  ctrl('preset-save-row').hidden = false;
+  ctrl('preset-save-actions').hidden = false;
   ctrl('txt-preset-name').focus();
   ctrl('txt-preset-name').select();
 }
@@ -671,8 +671,8 @@ function confirmSavePreset() {
   cancelSavePreset();
 }
 function cancelSavePreset() {
-  ctrl('preset-save-row').style.display = 'none';
-  ctrl('preset-save-actions').style.display = 'none';
+  ctrl('preset-save-row').hidden = true;
+  ctrl('preset-save-actions').hidden = true;
   ctrl('txt-preset-name').value = '';
 }
 function deletePreset() {

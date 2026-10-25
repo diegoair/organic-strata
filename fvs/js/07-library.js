@@ -366,11 +366,11 @@ export const LAYER_ICONS = {
 export function renderLayersUI() {
   const list = ctrl('layers-list'), L = state.layers, place = ctrl('layer-place-block');
   closeLayerInkPop();
-  place.style.display = L ? '' : 'none';
+  place.hidden = !L;
   ctrl('layers-section').appendChild(place);   // park it before the list is rebuilt
-  ctrl('layer-inks-row').style.display = L ? '' : 'none';   // the colour-variants toggle only means something for a stack
+  ctrl('layer-inks-row').hidden = !L;   // the colour-variants toggle only means something for a stack
   if (L && L.parts) ctrl('chk-layer-inks').checked = !!L.parts.layerInks;   // a divided Element: its own switch, off by default (Oct 12, 2026)
-  ctrl('element-wide-label').style.display = L ? '' : 'none';   // Appearance Scale / Move are Element-wide: say so once there are layers
+  ctrl('element-wide-label').hidden = !L;   // Appearance Scale / Move are Element-wide: say so once there are layers
   // the per-layer look lives in the layer's card; with a single shape it is back in Appearance
   if (L) place.appendChild(ctrl('element-look-block')); else ctrl('element-wide-label').before(ctrl('element-look-block'));
   // The pattern settings sit right under Style (single shape) or above the Element-wide controls (layers)
@@ -408,7 +408,7 @@ export function renderLayersUI() {
   }).join('');
   const activeRow = list.querySelector(`.org-layer-card[data-layer="${L.active}"]`);
   const many = rt.partSel && rt.partSel.size >= 2;   // D: several picked — the one-layer settings step aside
-  place.style.display = many ? 'none' : '';
+  place.hidden = !!(many);
   if (activeRow) activeRow.appendChild(place);
   if (activeRow && many) activeRow.appendChild(Object.assign(document.createElement('p'), { className: 'panel-hint fvs-layer-place-hint', textContent: 'Select one layer to place or style it' }));   // Move / Size / Rotate live under the layer they edit
   syncColourGroupUI();
@@ -691,14 +691,14 @@ export function renderPartsUI() {
   sel.innerHTML = `<option value="none"${divided ? '' : ' selected'}>None</option>`
     + methods.map(x => `<option value="${x.id}"${x.reason ? ` disabled title="${x.reason}"` : ''}${m && x.id === m.id ? ' selected' : ''}>${x.label}</option>`).join('');
   partPicker.refresh();
-  ctrl('part-count-row').style.display = m && m.count ? '' : 'none';
+  ctrl('part-count-row').hidden = !(m && m.count);
   if (m && m.count) {
     const rg = ctrl('rg-part-count');
     rg.min = m.count[0]; rg.max = m.count[1]; rg.value = count; ctrl('v-part-count').textContent = count;
   }
   const res = divided ? partsOf(L.parts) : null;
   ctrl('part-hint').textContent = res && res.reason ? res.reason + ' — the whole shape is drawn meanwhile.' : partReasonsHint(methods.filter(x => x.reason));
-  ctrl('part-actions-row').style.display = divided ? '' : 'none';
+  ctrl('part-actions-row').hidden = !divided;
   // no parts hint (Diego, Oct 11, 2026: removed — "Choose a Division…" and "Click a part to select it…" both went); the
   // toolbar that carried it stays hidden
   ctrl('element-edit-toolbar').hidden = true;
@@ -910,9 +910,9 @@ export function applyLibraryEntryToUI(entry) {
 // this project (Symbols' Fit/Padding hidden for polygon grids, etc.).
 export function syncComponentRoleUI() {
   const relevant = state.componentRole === 'container' || state.componentRole === 'mask';
-  ctrl('underlying-component-block').style.display = relevant ? '' : 'none';
-  ctrl('underlying-component-empty').style.display = state.underlyingComponentName ? 'none' : '';
-  ctrl('underlying-component-set').style.display = state.underlyingComponentName ? 'flex' : 'none';
+  ctrl('underlying-component-block').hidden = !relevant;
+  ctrl('underlying-component-empty').hidden = !!(state.underlyingComponentName);
+  Organica.display(ctrl('underlying-component-set'), state.underlyingComponentName ? 'flex' : 'none');
   if (state.underlyingComponentName) ctrl('underlying-component-name').textContent = state.underlyingComponentName;
 }
 
@@ -925,7 +925,7 @@ export function removeUnderlyingComponent() {
 export function openUnderlyingComponentPicker() {
   const all = LIBRARY.read();
   const names = libraryNames(all);
-  ctrl('underlying-component-overlay-empty').style.display = names.length ? 'none' : '';
+  ctrl('underlying-component-overlay-empty').hidden = !!(names.length);
   const wrap = ctrl('underlying-component-overlay-tiles');
   wrap.innerHTML = '';
   for (const name of names) {
@@ -949,12 +949,12 @@ export function openUnderlyingComponentPicker() {
     });
     wrap.appendChild(btn);
   }
-  ctrl('underlying-component-overlay').style.display = 'flex';
+  Organica.display(ctrl('underlying-component-overlay'), 'flex');
   Organica.autoLabelPanel(ctrl('underlying-component-overlay'));
 }
 
 export function closeUnderlyingComponentPicker() {
-  ctrl('underlying-component-overlay').style.display = 'none';
+  ctrl('underlying-component-overlay').hidden = true;
 }
 
 export function renderLibrary() { hooks.renderLibraryRail(); }

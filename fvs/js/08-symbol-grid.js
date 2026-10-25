@@ -115,7 +115,7 @@ export function loadSymbolGridNow(model) {
   state.symbolSelection.clear();
   state.symbolClipEnabled = false;   // a new grid starts on the default
   hooks.syncSymbolViewUI();
-  ctrl('symbol-grid-error').style.display = 'none';
+  ctrl('symbol-grid-error').hidden = true;
   syncOverlapSection();
   hooks.renderSymbol();
 }
@@ -156,7 +156,7 @@ export function applySymbolCanvasToUI(cv) {
 }
 export function setSymbolCanvasMode(mode) {
   ctrl('seg-symcanvas-mode').querySelectorAll('.seg-btn').forEach(b => { b.classList.toggle('active', b.dataset.mode === mode); b.setAttribute('aria-pressed', String(b.dataset.mode === mode)); });
-  ctrl('symcanvas-print-block').style.display = mode === 'print' ? '' : 'none';
+  ctrl('symcanvas-print-block').hidden = !(mode === 'print');
   ctrl('symcanvas-unit-label').textContent = mode === 'print' ? pv('sel-symcanvas-unit') : 'px';
   ctrl('symcanvas-bleed-hint').hidden = !(mode === 'print' && pv('sel-symcanvas-unit') === 'in');   // the size is in inches, the bleed stays mm
 }
@@ -181,7 +181,7 @@ export function syncOverlapSection() {
   so.disabled = !sharedOk; so.title = sharedOk ? '' : 'Only with Components that have a Grid shape, set to Match cell';
   if (!sharedOk && o.blend === 'shared') o.blend = 'under';
   blend.value = o.blend; ctrl('sel-symbol-drawnby').value = o.drawnBy;
-  ctrl('symbol-drawnby-row').style.display = o.blend === 'shared' ? '' : 'none';
+  ctrl('symbol-drawnby-row').hidden = !(o.blend === 'shared');
 }
 export function onSymbolOverlapInput() {
   const o = state.symbolOverlap; o.amount = +pv('rg-symbol-overlap');
@@ -195,13 +195,13 @@ export async function generateSymbolGridInCanvas() {
   try {
     const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
     if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
-    ctrl('symgrid-gen-error').style.display = 'none';
+    ctrl('symgrid-gen-error').hidden = true;
     loadSymbolGrid(model);
     clipByDefaultForShape();
     fillSymbolCells();
   } catch (e) {
     ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
-    ctrl('symgrid-gen-error').style.display = '';
+    ctrl('symgrid-gen-error').hidden = false;
   }
 }
 // Fill the current grid's cells: Suggest or Arrange from the pool (or the saved Elements).
@@ -211,7 +211,7 @@ export function fillSymbolCells() {
   else if (elementPool().length) hooks.generateSymbolCells();   // Elements only: Arrange (Suggest reads Components)
   else {
     ctrl('symgrid-gen-error').textContent = 'Nothing to fill the grid with — save an Element or a Component first.';
-    ctrl('symgrid-gen-error').style.display = '';
+    ctrl('symgrid-gen-error').hidden = false;
   }
 }
 // A new grid of polygon cells (hexagons, triangles, Voronoi…) starts with Clip to cell ON: there, Cover and
@@ -228,14 +228,14 @@ export async function buildEmptySymbolGrid() {
     const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
     if (seq !== emptyBuildSeq || symbolHasContent()) return;   // a newer build, or the user placed something meanwhile
     if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
-    ctrl('symgrid-gen-error').style.display = 'none';
+    ctrl('symgrid-gen-error').hidden = true;
     loadSymbolGrid(model);
     clipByDefaultForShape();
     state.symbolCells = state.symbolCells.map(emptySymbolCell);
     hooks.renderSymbol();
   } catch (e) {
     ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
-    ctrl('symgrid-gen-error').style.display = '';
+    ctrl('symgrid-gen-error').hidden = false;
   }
 }
 // While every cell is empty, the panel is the grid's source: a change to the canvas or the
@@ -263,7 +263,7 @@ symCanvasPicker = Organica.selectPicker(ctrl('sel-symcanvas-preset'), ctrl('symc
 ctrl('sel-symgrid-gen').innerHTML = Object.entries(SYMGRID_GENS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 ctrl('sel-symgrid-gen').value = 'rectangular';
 renderSymgridParams();
-ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').style.display = 'none'; renderSymgridParams(); syncOverlapSection(); });
+ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-error').hidden = true; renderSymgridParams(); syncOverlapSection(); });
 ctrl('rg-symbol-overlap').addEventListener('input', onSymbolOverlapInput);
 ctrl('sel-symbol-blend').addEventListener('change', e => { state.symbolOverlap.blend = e.target.value; syncOverlapSection(); hooks.renderSymbol(); });
 ctrl('sel-symbol-drawnby').addEventListener('change', e => { state.symbolOverlap.drawnBy = e.target.value; hooks.renderSymbol(); });
@@ -275,7 +275,7 @@ ctrl('btn-symbol-clear').addEventListener('click', () => {
   state.symbolSuggestions = []; hooks.renderSuggestGallery();
   state.symbolSelection.clear();
   state.symbolMarqueeRect = null;
-  ctrl('symgrid-gen-error').style.display = 'none';
+  ctrl('symgrid-gen-error').hidden = true;
   hooks.renderSymbol();
   ctrl('btn-symbol-generate').focus({ preventScroll: true });   // Clear is disabled now: focus goes to Generate
 });
@@ -507,9 +507,9 @@ export function handleSymbolGridUpload(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try { loadSymbolGrid(reader.result); }
-    catch (e) { ctrl('symbol-grid-error').textContent = e.message; ctrl('symbol-grid-error').style.display = ''; }
+    catch (e) { ctrl('symbol-grid-error').textContent = e.message; ctrl('symbol-grid-error').hidden = false; }
   };
-  reader.onerror = () => { ctrl('symbol-grid-error').textContent = 'Could not read that file.'; ctrl('symbol-grid-error').style.display = ''; };
+  reader.onerror = () => { ctrl('symbol-grid-error').textContent = 'Could not read that file.'; ctrl('symbol-grid-error').hidden = false; };
   reader.readAsText(file);
 }
 

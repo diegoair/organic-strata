@@ -46,12 +46,12 @@ export function setComponentGrid(spec, opts = {}) {
 export function syncComponentGridUI() {
   const lattice = state.cellShape !== 'square';
   const legacy = !lattice && !!state.loomGrid;
-  ctrl('grid-legacy-hint').style.display = legacy ? '' : 'none';
-  ctrl('grid-square-block').style.display = legacy ? 'none' : '';
-  ctrl('gap-row').style.display = lattice ? 'none' : '';
-  ctrl('grid-cols-row').style.display = ctrl('grid-rows-row').style.display = lattice ? 'none' : '';
-  ctrl('grid-lattice-row').style.display = lattice ? '' : 'none';
-  ctrl('grid-outline-row').style.display = lattice ? '' : 'none';
+  ctrl('grid-legacy-hint').hidden = !legacy;
+  ctrl('grid-square-block').hidden = !!(legacy);
+  ctrl('gap-row').hidden = !!(lattice);
+  ctrl('grid-cols-row').hidden = ctrl('grid-rows-row').hidden = !!(lattice);
+  ctrl('grid-lattice-row').hidden = !lattice;
+  ctrl('grid-outline-row').hidden = !lattice;
   // Container / Mask fit the underlying Component in a square frame — square cells only.
   ['container', 'mask'].forEach(v => {
     const o = ctrl('sel-component-role').querySelector(`option[value="${v}"]`);

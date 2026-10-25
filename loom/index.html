@@ -304,7 +304,7 @@
         <div class="ctrl-label">Height</div>
         <input type="number" class="panel-select" id="num-height" value="1080" min="10" step="1" style="width:100%">
       </div>
-      <div class="ctrl-row" id="row-print-unit" style="display:none">
+      <div class="ctrl-row" id="row-print-unit" hidden>
         <div class="ctrl-label">Unit</div>
         <select class="panel-select" id="sel-unit" aria-label="Unit" onchange="onUnitChange()">
           <option value="mm" selected>mm</option>
@@ -313,7 +313,7 @@
           <option value="in">in</option>
         </select>
       </div>
-      <div class="ctrl-row" id="row-print-dpi" style="display:none">
+      <div class="ctrl-row" id="row-print-dpi" hidden>
         <div class="ctrl-label">DPI</div>
         <input type="number" class="panel-select" id="num-dpi" value="300" min="72" step="1" style="width:100%">
       </div>
@@ -343,7 +343,7 @@
         <input type="range" id="rg-safearea" min="0" max="20" step="0.5" value="0">
         <span class="ctrl-val" id="v-safearea">0</span>
       </div>
-      <div class="ctrl-row" id="row-bleed" style="display:none">
+      <div class="ctrl-row" id="row-bleed" hidden>
         <div class="ctrl-label" title="Always specified in mm regardless of the canvas’s own unit — the real print convention, a bleed spec doesn’t change because the document happens to be quoted in cm or m.">Bleed (mm)</div>
         <input type="number" class="panel-select" id="num-bleed" value="3" min="0" step="0.5" style="width:100%">
       </div>
@@ -371,7 +371,7 @@
            change. The thumbnail picker below is a pure front-end: picking
            an item sets this select's value and dispatches a real `change`
            event, which the picker doesn't listen for again itself. -->
-      <select class="panel-select" id="sel-gridtype" aria-label="Grid type" onchange="syncGeneratorRows()" style="display:none">
+      <select class="panel-select" id="sel-gridtype" aria-label="Grid type" onchange="syncGeneratorRows()" hidden>
         <option value="bento" selected>Bento</option>
         <option value="sinusoidal">Wave</option>
         <option value="hexagonal">Hexagonal</option>
@@ -441,7 +441,7 @@
         </div>
       </div>
 
-      <div id="block-sinusoidal" style="display:none">
+      <div id="block-sinusoidal" hidden>
         <p class="org-panel__hint">Sine and Noise, combined — same Columns×Rows lattice, rhythm in track SIZE not topology, the only difference is which function supplies the per-track weight.</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Function</div>
@@ -483,12 +483,12 @@
           <input type="range" id="rg-sin-phase" min="0" max="6.283" step="0.05" value="0">
           <span class="ctrl-val" id="v-sin-phase">0</span>
         </div>
-        <div class="ctrl-row" id="row-sin-scale" style="display:none">
+        <div class="ctrl-row" id="row-sin-scale" hidden>
           <div class="ctrl-label" title="Cycles of the noise field across the tracks — low values give a few broad swells, high values a choppier, more granular rhythm.">Scale</div>
           <input type="range" id="rg-sin-scale" min="0.5" max="8" step="0.1" value="2">
           <span class="ctrl-val" id="v-sin-scale">2</span>
         </div>
-        <div class="ctrl-row" id="row-sin-seed" style="display:none">
+        <div class="ctrl-row" id="row-sin-seed" hidden>
           <div class="ctrl-label" title="Reproducible starting value — same seed = same grid. Only affects the random part (Function = Noise).">Seed</div>
           <input type="range" id="rg-sin-seed" min="0" max="99" step="1" value="7">
           <span class="ctrl-val" id="v-sin-seed">7</span>
@@ -500,7 +500,7 @@
         </div>
       </div>
 
-      <div id="block-hexagonal" style="display:none">
+      <div id="block-hexagonal" hidden>
         <p class="org-panel__hint">Real regular-hexagon tessellation, not a distorted approximation — same polygon-cell pipeline as Voronoi, so this preview is also an embedded SVG. Gap/Padding-as-track-inset don’t apply; Gap here shrinks each hexagon toward its own centre instead.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Target hexagons across the canvas width — density, not a literal count.">Columns</div>
@@ -523,12 +523,12 @@
             <option value="noise">Noise</option>
           </select>
         </div>
-        <div class="ctrl-row" id="row-hex-spinamount" style="display:none">
+        <div class="ctrl-row" id="row-hex-spinamount" hidden>
           <div class="ctrl-label" title="Random: max degrees off-centre either way. Checkerboard/Spiral: degrees reached at full swing. Radial: degrees reached at the canvas edge. Noise: max degrees either way.">Spin amount</div>
           <input type="range" id="rg-hex-spinamount" min="0" max="60" step="1" value="20">
           <span class="ctrl-val" id="v-hex-spinamount">20</span>
         </div>
-        <div class="ctrl-row" id="row-hex-noisescale" style="display:none">
+        <div class="ctrl-row" id="row-hex-noisescale" hidden>
           <div class="ctrl-label" title="Cycles of the noise field across the canvas — low values give a few broad swirled regions, high values a fine, choppier variation.">Noise scale</div>
           <input type="range" id="rg-hex-noisescale" min="1" max="10" step="0.5" value="3">
           <span class="ctrl-val" id="v-hex-noisescale">3</span>
@@ -550,7 +550,7 @@
         </div>
       </div>
 
-      <div id="block-radial" style="display:none">
+      <div id="block-radial" hidden>
         <p class="org-panel__hint">Real polar coordinates — concentric rings crossed with angular sectors, each cell a curved ring-sector wedge. Covers the old Radial/Polar/Elliptical trio: Radius curve bunches ring thickness, Stretch fits an ellipse to the canvas instead of a circle inscribed with margin left over.</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Rings</div>
@@ -598,24 +598,24 @@
             <button class="seg-btn" data-v="noise" onclick="setSeg('seg-radial-distort', this)">Noise</button>
           </div>
         </div>
-        <div class="ctrl-row" id="row-radial-distort-amount" style="display:none">
+        <div class="ctrl-row" id="row-radial-distort-amount" hidden>
           <div class="ctrl-label" title="0 = straight spokes/circular rings.">Amount</div>
           <input type="range" id="rg-radial-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
           <span class="ctrl-val" id="v-radial-distort-amount">0.3</span>
         </div>
-        <div class="ctrl-row" id="row-radial-distort-freq" style="display:none">
+        <div class="ctrl-row" id="row-radial-distort-freq" hidden>
           <div class="ctrl-label" title="Sine: cycles along the spoke/ring. Noise: cycles of the noise field.">Frequency</div>
           <input type="range" id="rg-radial-distort-freq" min="0.5" max="8" step="0.1" value="2">
           <span class="ctrl-val" id="v-radial-distort-freq">2</span>
         </div>
-        <div class="ctrl-row" id="row-radial-distort-phase" style="display:none">
+        <div class="ctrl-row" id="row-radial-distort-phase" hidden>
           <div class="ctrl-label">Phase</div>
           <input type="range" id="rg-radial-distort-phase" min="0" max="6.283" step="0.05" value="0">
           <span class="ctrl-val" id="v-radial-distort-phase">0</span>
         </div>
       </div>
 
-      <div id="block-triangular" style="display:none">
+      <div id="block-triangular" hidden>
         <p class="org-panel__hint">Real equilateral-triangle tessellation (alternating up/down triangles), same polygon-cell pipeline as Voronoi/Hexagonal/Radial.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Target triangles across the canvas width — density, not a literal count.">Columns</div>
@@ -638,12 +638,12 @@
             <option value="noise">Noise</option>
           </select>
         </div>
-        <div class="ctrl-row" id="row-tri-spinamount" style="display:none">
+        <div class="ctrl-row" id="row-tri-spinamount" hidden>
           <div class="ctrl-label" title="Random: max degrees off-centre either way. Checkerboard/Spiral: degrees reached at full swing. Radial: degrees reached at the canvas edge. Noise: max degrees either way.">Spin amount</div>
           <input type="range" id="rg-tri-spinamount" min="0" max="60" step="1" value="20">
           <span class="ctrl-val" id="v-tri-spinamount">20</span>
         </div>
-        <div class="ctrl-row" id="row-tri-noisescale" style="display:none">
+        <div class="ctrl-row" id="row-tri-noisescale" hidden>
           <div class="ctrl-label" title="Cycles of the noise field across the canvas — low values give a few broad swirled regions, high values a fine, choppier variation.">Noise scale</div>
           <input type="range" id="rg-tri-noisescale" min="1" max="10" step="0.5" value="3">
           <span class="ctrl-val" id="v-tri-noisescale">3</span>
@@ -665,7 +665,7 @@
         </div>
       </div>
 
-      <div id="block-diamond" style="display:none">
+      <div id="block-diamond" hidden>
         <p class="org-panel__hint">Squares on a plain lattice, rotated as a whole field — Rotation 0 is a plain square grid, 45 is the diamond/argyle pattern. Same polygon-cell pipeline as Voronoi/Hexagonal/Radial/Triangular.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Target squares across the canvas width — density, not a literal count.">Columns</div>
@@ -688,12 +688,12 @@
             <option value="noise">Noise</option>
           </select>
         </div>
-        <div class="ctrl-row" id="row-dia-spinamount" style="display:none">
+        <div class="ctrl-row" id="row-dia-spinamount" hidden>
           <div class="ctrl-label" title="Random: max degrees off-centre either way. Checkerboard/Spiral: degrees reached at full swing. Radial: degrees reached at the canvas edge. Noise: max degrees either way.">Spin amount</div>
           <input type="range" id="rg-dia-spinamount" min="0" max="60" step="1" value="20">
           <span class="ctrl-val" id="v-dia-spinamount">20</span>
         </div>
-        <div class="ctrl-row" id="row-dia-noisescale" style="display:none">
+        <div class="ctrl-row" id="row-dia-noisescale" hidden>
           <div class="ctrl-label" title="Cycles of the noise field across the canvas — low values give a few broad swirled regions, high values a fine, choppier variation.">Noise scale</div>
           <input type="range" id="rg-dia-noisescale" min="1" max="10" step="0.5" value="3">
           <span class="ctrl-val" id="v-dia-noisescale">3</span>
@@ -715,7 +715,7 @@
         </div>
       </div>
 
-      <div id="block-circular" style="display:none">
+      <div id="block-circular" hidden>
         <p class="org-panel__hint">A genuine circle-packing grid — each cell IS a circle, arranged on the densest (hex-packing) lattice. Circles touch at a point, not a shared edge, so real void space between neighbours is expected, correct circle-packing geometry.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Target circle diameter across the canvas width — density, not a literal count.">Columns</div>
@@ -745,7 +745,7 @@
       </div>
 
 
-      <div id="block-linear" style="display:none">
+      <div id="block-linear" hidden>
         <p class="org-panel__hint">Column and Row combined into one generator — Axis picks full-height vertical strips (Columns), full-width horizontal bands (Rows), or a 2D lattice (Both), and the whole field can be rotated/jittered as one rigid tessellation, same technique as Hexagonal/Triangular/Diamond.</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Axis</div>
@@ -793,22 +793,22 @@
             <button class="seg-btn" data-v="noise" onclick="setSeg('seg-lin-distort', this)">Noise</button>
           </div>
         </div>
-        <div class="ctrl-row" id="row-lin-distort-amount" style="display:none">
+        <div class="ctrl-row" id="row-lin-distort-amount" hidden>
           <div class="ctrl-label" title="0 = straight lines, either mode’s bend relative to a track’s own width.">Amount</div>
           <input type="range" id="rg-lin-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
           <span class="ctrl-val" id="v-lin-distort-amount">0.3</span>
         </div>
-        <div class="ctrl-row" id="row-lin-distort-freq" style="display:none">
+        <div class="ctrl-row" id="row-lin-distort-freq" hidden>
           <div class="ctrl-label" title="Sine: cycles across the canvas. Noise: cycles of the noise field across the canvas.">Frequency</div>
           <input type="range" id="rg-lin-distort-freq" min="0.5" max="8" step="0.1" value="2">
           <span class="ctrl-val" id="v-lin-distort-freq">2</span>
         </div>
-        <div class="ctrl-row" id="row-lin-distort-phase" style="display:none">
+        <div class="ctrl-row" id="row-lin-distort-phase" hidden>
           <div class="ctrl-label">Phase</div>
           <input type="range" id="rg-lin-distort-phase" min="0" max="6.283" step="0.05" value="0">
           <span class="ctrl-val" id="v-lin-distort-phase">0</span>
         </div>
-        <div class="ctrl-row" id="row-lin-crop" style="display:none">
+        <div class="ctrl-row" id="row-lin-crop" hidden>
           <div class="ctrl-label" title="How the two OUTER division lines meet the canvas edge. None: edge cells fill solid to a rectangular frame. Low: the outer lines wave and clip, leaving open crescents. Full: each clipped-off crescent lobe becomes its own cell (Columns/Rows axes).">Crop</div>
           <div class="seg-ctrl" id="seg-lin-crop">
             <button class="seg-btn" data-v="none" onclick="setSeg('seg-lin-crop', this)">None</button>
@@ -819,7 +819,7 @@
       </div>
 
 
-      <div id="block-rectangular" style="display:none">
+      <div id="block-rectangular" hidden>
         <p class="org-panel__hint">Explicit hand-set proportions instead of an equal or periodic rule — the classic asymmetric magazine grid (one lead column next to narrow ones). Column/row count comes from how many numbers you type, not a separate slider.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Comma-separated relative widths, e.g. 2,1,1,3 — one wide lead column next to three narrow ones.">Column weights</div>
@@ -836,7 +836,7 @@
         </div>
       </div>
 
-      <div id="block-diagonal" style="display:none">
+      <div id="block-diagonal" hidden>
         <p class="org-panel__hint">Diamond’s parallelogram sibling — two families of parallel lines at Angle and Angle+Skew. Skew 90 is a plain rotated rect lattice (Diamond’s own case); away from 90 it shears into rhombi. Same polygon-cell pipeline as Voronoi/Hexagonal/Diamond.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Target divisions across the canvas width — density, not a literal count.">Count</div>
@@ -876,24 +876,24 @@
             <button class="seg-btn" data-v="noise" onclick="setSeg('seg-diag-distort', this)">Noise</button>
           </div>
         </div>
-        <div class="ctrl-row" id="row-diag-distort-amount" style="display:none">
+        <div class="ctrl-row" id="row-diag-distort-amount" hidden>
           <div class="ctrl-label" title="0 = straight lines.">Amount</div>
           <input type="range" id="rg-diag-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
           <span class="ctrl-val" id="v-diag-distort-amount">0.3</span>
         </div>
-        <div class="ctrl-row" id="row-diag-distort-freq" style="display:none">
+        <div class="ctrl-row" id="row-diag-distort-freq" hidden>
           <div class="ctrl-label" title="Sine: cycles across the lattice. Noise: cycles of the noise field.">Frequency</div>
           <input type="range" id="rg-diag-distort-freq" min="0.5" max="8" step="0.1" value="2">
           <span class="ctrl-val" id="v-diag-distort-freq">2</span>
         </div>
-        <div class="ctrl-row" id="row-diag-distort-phase" style="display:none">
+        <div class="ctrl-row" id="row-diag-distort-phase" hidden>
           <div class="ctrl-label">Phase</div>
           <input type="range" id="rg-diag-distort-phase" min="0" max="6.283" step="0.05" value="0">
           <span class="ctrl-val" id="v-diag-distort-phase">0</span>
         </div>
       </div>
 
-      <div id="block-angular" style="display:none">
+      <div id="block-angular" hidden>
         <p class="org-panel__hint">Pure radiating sectors from a point, no rings — each wedge reaches every edge/corner of the canvas rect (unlike Radial/Polar’s own circular boundary). A sunburst/fan filling the full rectangle.</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Sectors</div>
@@ -933,24 +933,24 @@
             <button class="seg-btn" data-v="noise" onclick="setSeg('seg-ang-distort', this)">Noise</button>
           </div>
         </div>
-        <div class="ctrl-row" id="row-ang-distort-amount" style="display:none">
+        <div class="ctrl-row" id="row-ang-distort-amount" hidden>
           <div class="ctrl-label" title="0 = straight spokes.">Amount</div>
           <input type="range" id="rg-ang-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
           <span class="ctrl-val" id="v-ang-distort-amount">0.3</span>
         </div>
-        <div class="ctrl-row" id="row-ang-distort-freq" style="display:none">
+        <div class="ctrl-row" id="row-ang-distort-freq" hidden>
           <div class="ctrl-label" title="Sine: cycles along the spoke. Noise: cycles of the noise field.">Frequency</div>
           <input type="range" id="rg-ang-distort-freq" min="0.5" max="8" step="0.1" value="2">
           <span class="ctrl-val" id="v-ang-distort-freq">2</span>
         </div>
-        <div class="ctrl-row" id="row-ang-distort-phase" style="display:none">
+        <div class="ctrl-row" id="row-ang-distort-phase" hidden>
           <div class="ctrl-label">Phase</div>
           <input type="range" id="rg-ang-distort-phase" min="0" max="6.283" step="0.05" value="0">
           <span class="ctrl-val" id="v-ang-distort-phase">0</span>
         </div>
       </div>
 
-      <div id="block-masonry" style="display:none">
+      <div id="block-masonry" hidden>
         <p class="org-panel__hint">Pinterest-style stacked columns — each column fills independently with randomised heights, so row boundaries don’t line up across columns (the whole point of masonry). Each cell is a plain rect, carried as a 4-point polygon since there’s no shared row lattice to place it on.</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Columns</div>
@@ -985,24 +985,24 @@
             <button class="seg-btn" data-v="noise" onclick="setSeg('seg-mas-distort', this)">Noise</button>
           </div>
         </div>
-        <div class="ctrl-row" id="row-mas-distort-amount" style="display:none">
+        <div class="ctrl-row" id="row-mas-distort-amount" hidden>
           <div class="ctrl-label" title="0 = straight seams.">Amount</div>
           <input type="range" id="rg-mas-distort-amount" min="0" max="0.9" step="0.02" value="0.3">
           <span class="ctrl-val" id="v-mas-distort-amount">0.3</span>
         </div>
-        <div class="ctrl-row" id="row-mas-distort-freq" style="display:none">
+        <div class="ctrl-row" id="row-mas-distort-freq" hidden>
           <div class="ctrl-label" title="Sine: cycles across the canvas height. Noise: cycles of the noise field.">Frequency</div>
           <input type="range" id="rg-mas-distort-freq" min="0.5" max="8" step="0.1" value="2">
           <span class="ctrl-val" id="v-mas-distort-freq">2</span>
         </div>
-        <div class="ctrl-row" id="row-mas-distort-phase" style="display:none">
+        <div class="ctrl-row" id="row-mas-distort-phase" hidden>
           <div class="ctrl-label">Phase</div>
           <input type="range" id="rg-mas-distort-phase" min="0" max="6.283" step="0.05" value="0">
           <span class="ctrl-val" id="v-mas-distort-phase">0</span>
         </div>
       </div>
 
-      <div id="block-fractal" style="display:none">
+      <div id="block-fractal" hidden>
         <p class="org-panel__hint">Recursive binary subdivision. Axis mode is the one real difference between the two generators this merged: Alternating applies the same rule at every scale (true self-similarity, slivers included); Longest side is a real treemap heuristic that keeps leaves closer to square.</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Axis mode</div>
@@ -1033,7 +1033,7 @@
         </div>
       </div>
 
-      <div id="block-organic" style="display:none">
+      <div id="block-organic" hidden>
         <p class="org-panel__hint">Voronoi’s relaxed sibling — Lloyd’s algorithm: each seed is repeatedly pulled to its own cell’s centroid, producing more even, rounded, naturally-packed cells than raw Voronoi’s sliver-prone random seeding. Iterations 0 reproduces raw Voronoi exactly.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Number of seed points — one per cell.">Points</div>
@@ -1052,7 +1052,7 @@
         </div>
       </div>
 
-      <div id="block-spiral" style="display:none">
+      <div id="block-spiral" hidden>
         <p class="org-panel__hint">Whirling-rectangle subdivision — cuts a strip off the current rect, rotating direction 90° clockwise each time. At Ratio ≈0.382/0.618 this is the classic golden-rectangle/Fibonacci spiral (the built-in "Golden Ratio" preset is exactly this, at that ratio).</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Count</div>

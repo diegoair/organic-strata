@@ -69,7 +69,7 @@ provide({
 const escAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const el = (tag, cls, attrs) => { const n = document.createElement(tag); if (cls) n.className = cls; if (attrs) Object.assign(n, attrs); return n; };
 const clone = o => JSON.parse(JSON.stringify(o));
-const overlayOpen = () => ctrl('symbol-content-overlay').style.display !== 'none';   // as 12-shell.js reads it
+const overlayOpen = () => !ctrl('symbol-content-overlay').hidden;   // as 12-shell.js reads it
 let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {}, elementPalettes = () => [];
 // Generate for every Element (Diego, Oct 23, 2026: "every time I change a rule all the elements generate based on the
 // rule"): the edited Element first, then each other one made the edited Element in turn (its seed, look, Palette and
@@ -834,10 +834,10 @@ export function syncCeCellProps() {
   const pick = cePicked().join(',');
   if (on && (!ceShown || pick !== ceLastPick)) ctrl('panel').scrollTop = 0;   // the section is the panel's first: a panel scrolled down hid it under the header (Diego, Oct 14)
   ceShown = on; ceLastPick = pick;
-  ctrl('fb-ce-place').style.display = on ? '' : 'none';
-  ctrl('fb-component-generate').style.display = ctrl('fb-component-generate-sep').style.display = on ? 'none' : '';   // Generate doesn't apply in Edit
-  ctrl('btn-component-view-guides').style.display = on && state.cellShape === 'square' ? '' : 'none';   // the track borders exist on square cells
-  ctrl('btn-component-view-clip').style.display = on ? '' : 'none';
+  ctrl('fb-ce-place').hidden = !on;
+  ctrl('fb-component-generate').hidden = ctrl('fb-component-generate-sep').hidden = !!(on);   // Generate doesn't apply in Edit
+  ctrl('btn-component-view-guides').hidden = !(on && state.cellShape === 'square');   // the track borders exist on square cells
+  ctrl('btn-component-view-clip').hidden = !on;
   ctrl('btn-component-view-clip').setAttribute('aria-pressed', String(!!state.componentClip));
   if (!on) return;
   ctrl('ce-cell-empty').hidden = n > 0;
@@ -848,8 +848,8 @@ export function syncCeCellProps() {
     ctrl('ce-rg-cellprop-rotdeg').value = deg; ctrl('ce-v-cellprop-rotdeg').textContent = deg;
     ctrl('ce-btn-cellprop-fliph').setAttribute('aria-pressed', String(!!f.flipH));
     ctrl('ce-btn-cellprop-flipv').setAttribute('aria-pressed', String(!!f.flipV));
-    ctrl('ce-row-cellprop-scale').style.display = '';   // Scale always: it scales a Fixed size too (withCellPlace)
-    ctrl('ce-row-cellprop-seedparams').style.display = f.empty ? 'none' : '';
+    ctrl('ce-row-cellprop-scale').hidden = false;   // Scale always: it scales a Fixed size too (withCellPlace)
+    ctrl('ce-row-cellprop-seedparams').hidden = !!(f.empty);
   }
   syncCeFitAnchor();
 }

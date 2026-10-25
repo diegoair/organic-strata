@@ -84,7 +84,7 @@
         <span class="org-out" id="speed-label">1×</span>
       </div>
       <p class="org-popover__hint">Seconds per loop. 0 = play indefinitely. Speed scales how fast the whole motion plays — 1× is real time. Video export uses Length ÷ Speed as its recorded duration (falls back to 6s ÷ Speed).</p>
-      <p class="org-popover__hint one-shot" id="one-shot-note" style="display:none">This scene has a one-shot track — it will not loop seamlessly.</p>
+      <p class="org-popover__hint one-shot" id="one-shot-note" hidden>This scene has a one-shot track — it will not loop seamlessly.</p>
     </div>
   </div>
 
@@ -162,17 +162,17 @@
         <input type="range" id="rg-tri-height" min="20" max="100" step="1" value="80">
         <span class="ctrl-val" id="v-tri-height">80</span>
       </div>
-      <div class="ctrl-row" id="row-arc-thickness" style="display:none">
+      <div class="ctrl-row" id="row-arc-thickness" hidden>
         <div class="ctrl-label">Thickness</div>
         <input type="range" id="rg-arc-thickness" min="10" max="100" step="1" value="60">
         <span class="ctrl-val" id="v-arc-thickness">60</span>
       </div>
-      <div class="ctrl-row" id="row-truchet-count" style="display:none">
+      <div class="ctrl-row" id="row-truchet-count" hidden>
         <div class="ctrl-label">Band count</div>
         <input type="range" id="rg-truchet-count" min="1" max="10" step="1" value="5">
         <span class="ctrl-val" id="v-truchet-count">5</span>
       </div>
-      <div class="ctrl-row" id="row-truchet-ratio" style="display:none">
+      <div class="ctrl-row" id="row-truchet-ratio" hidden>
         <div class="ctrl-label">Band ratio</div>
         <input type="range" id="rg-truchet-ratio" min="10" max="95" step="1" value="70">
         <span class="ctrl-val" id="v-truchet-ratio">70</span>
@@ -218,9 +218,9 @@
       <div id="tracks"></div>
     </div>
 
-    <div class="panel-section" id="section-breathe" style="display:none">
+    <div class="panel-section" id="section-breathe" hidden>
       <h3>Track Breathe <span class="hint">animates column/row sizes — rect grids only</span></h3>
-      <p class="org-panel__hint" id="breathe-fit-hint" style="display:none">Content only follows breathing tracks in <b>Fit to cell</b> — switch Content’s fit mode above to see the effect.</p>
+      <p class="org-panel__hint" id="breathe-fit-hint" hidden>Content only follows breathing tracks in <b>Fit to cell</b> — switch Content’s fit mode above to see the effect.</p>
       <div id="breathe-cols"></div>
       <div id="breathe-rows"></div>
     </div>
@@ -378,11 +378,11 @@ function refCellSize() {
 }
 function syncShapeRows() {
   const t = seg('seg-shape');
-  ctrl('row-tri-base').style.display = t === 'triangle' ? '' : 'none';
-  ctrl('row-tri-height').style.display = t === 'triangle' ? '' : 'none';
-  ctrl('row-arc-thickness').style.display = t === 'arc' ? '' : 'none';
-  ctrl('row-truchet-count').style.display = t === 'arctruchet' ? '' : 'none';
-  ctrl('row-truchet-ratio').style.display = t === 'arctruchet' ? '' : 'none';
+  ctrl('row-tri-base').hidden = !(t === 'triangle');
+  ctrl('row-tri-height').hidden = !(t === 'triangle');
+  ctrl('row-arc-thickness').hidden = !(t === 'arc');
+  ctrl('row-truchet-count').hidden = !(t === 'arctruchet');
+  ctrl('row-truchet-ratio').hidden = !(t === 'arctruchet');
 }
 function shapeGeometry() {
   const t = seg('seg-shape');
@@ -421,19 +421,19 @@ function buildTrackRow(i) {
       <option value="colour">Colour cycle</option>
       <option value="scale"${i === 0 ? ' selected' : ''}>Scale pulse</option>
     </select>
-    <div class="ctrl-row" id="trk${i}-row-colours" style="display:none">
+    <div class="ctrl-row" id="trk${i}-row-colours" hidden>
       <div class="ctrl-label">Colours</div>
       <div class="color-swatch-wrap"><button class="color-swatch" id="sw-trk${i}a" aria-label="Track ${i + 1} colour A"></button><input type="color" id="cp-trk${i}a" value="#1c1c1c"></div>
       <input type="hidden" id="hex-trk${i}a" value="#1c1c1c">
       <div class="color-swatch-wrap"><button class="color-swatch" id="sw-trk${i}b" aria-label="Track ${i + 1} colour B"></button><input type="color" id="cp-trk${i}b" value="#f2efe6"></div>
       <input type="hidden" id="hex-trk${i}b" value="#f2efe6">
     </div>
-    <div class="ctrl-row" id="trk${i}-row-amount" style="display:none">
+    <div class="ctrl-row" id="trk${i}-row-amount" hidden>
       <div class="ctrl-label">Amount</div>
       <input type="range" id="trk${i}-amount" min="0" max="1" step="0.01" value="0.3">
       <span class="ctrl-val" id="v-trk${i}-amount">0.3</span>
     </div>
-    <div class="ctrl-row" id="trk${i}-row-rest" style="display:none">
+    <div class="ctrl-row" id="trk${i}-row-rest" hidden>
       <div class="ctrl-label">Wave</div>
       <select class="panel-select" id="trk${i}-wave">
         <option value="sine">Sine</option>
@@ -441,17 +441,17 @@ function buildTrackRow(i) {
         <option value="noise">Noise</option>
       </select>
     </div>
-    <div class="ctrl-row" id="trk${i}-row-period" style="display:none">
+    <div class="ctrl-row" id="trk${i}-row-period" hidden>
       <div class="ctrl-label">Period</div>
       <input type="range" id="trk${i}-period" min="1" max="4" step="1" value="1">
       <span class="ctrl-val" id="v-trk${i}-period">1</span>
     </div>
-    <div class="ctrl-row" id="trk${i}-row-phase" style="display:none">
+    <div class="ctrl-row" id="trk${i}-row-phase" hidden>
       <div class="ctrl-label">Phase</div>
       <input type="range" id="trk${i}-phase" min="0" max="1" step="0.01" value="0">
       <span class="ctrl-val" id="v-trk${i}-phase">0</span>
     </div>
-    <div class="ctrl-row" id="trk${i}-row-ease" style="display:none">
+    <div class="ctrl-row" id="trk${i}-row-ease" hidden>
       <div class="ctrl-label">Ease</div>
       <select class="panel-select" id="trk${i}-ease">
         <option value="linear">Linear</option>
@@ -460,7 +460,7 @@ function buildTrackRow(i) {
         <option value="out">Ease out</option>
       </select>
     </div>
-    <div class="ctrl-row" id="trk${i}-row-staggerby" style="display:none">
+    <div class="ctrl-row" id="trk${i}-row-staggerby" hidden>
       <div class="ctrl-label">Stagger by</div>
       <select class="panel-select" id="trk${i}-staggerby">
         <option value="none">None (all together)</option>
@@ -471,7 +471,7 @@ function buildTrackRow(i) {
         <option value="noise">Noise</option>
       </select>
     </div>
-    <div class="ctrl-row" id="trk${i}-row-staggeramt" style="display:none">
+    <div class="ctrl-row" id="trk${i}-row-staggeramt" hidden>
       <div class="ctrl-label">Stagger amount</div>
       <input type="range" id="trk${i}-staggeramt" min="0" max="2" step="0.05" value="0">
       <span class="ctrl-val" id="v-trk${i}-staggeramt">0</span>
@@ -481,10 +481,10 @@ function buildTrackRow(i) {
 function syncTrackRows(i) {
   const t = ctrl('trk' + i + '-type').value;
   const show = t !== 'none';
-  ctrl('trk' + i + '-row-colours').style.display = t === 'colour' ? '' : 'none';
-  ctrl('trk' + i + '-row-amount').style.display = t === 'scale' ? '' : 'none';
+  ctrl('trk' + i + '-row-colours').hidden = !(t === 'colour');
+  ctrl('trk' + i + '-row-amount').hidden = !(t === 'scale');
   ['rest', 'period', 'phase', 'ease', 'staggerby', 'staggeramt'].forEach(k => {
-    ctrl('trk' + i + '-row-' + k).style.display = show ? '' : 'none';
+    ctrl('trk' + i + '-row-' + k).hidden = !show;
   });
 }
 function readTracks() {
@@ -508,7 +508,7 @@ function readTracks() {
   return out;
 }
 function sceneIsOneShot() { return readTracks().some(t => t.wave === 'ramp-once'); }
-function updateOneShotNote() { ctrl('one-shot-note').style.display = sceneIsOneShot() ? '' : 'none'; }
+function updateOneShotNote() { ctrl('one-shot-note').hidden = !(sceneIsOneShot()); }
 
 // ── GRID MOTION — Track Breathe: animates the grid's own column/row track
 // sizes (Loom's grid.tracks.cols/rows), not a per-cell visual output. A
@@ -613,7 +613,7 @@ function bindIndexChipClicks(axis) {
 // loadGrid().
 function syncBreatheUI() {
   const isRect = gridRaw && gridRaw.cellShape === 'rect';
-  ctrl('section-breathe').style.display = isRect ? '' : 'none';
+  ctrl('section-breathe').hidden = !isRect;
   if (!isRect) return;
   renderIndexChips('cols', rawModel.grid.tracks.cols.length);
   renderIndexChips('rows', rawModel.grid.tracks.rows.length);
@@ -695,7 +695,7 @@ function buildAnimatedGridRaw(tNorm) {
   return Organica.loadLoomGrid(animModel);
 }
 function updateBreatheFitHint() {
-  ctrl('breathe-fit-hint').style.display = (trackBreatheActive() && seg('seg-fit') === 'fixed') ? '' : 'none';
+  ctrl('breathe-fit-hint').hidden = !((trackBreatheActive() && seg('seg-fit') === 'fixed'));
 }
 
 // ── RENDER — build the per-cell draw list once, canvas + SVG both read it ──

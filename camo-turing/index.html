@@ -262,7 +262,7 @@
 
     <div class="panel-section">
       <h3>Seeds</h3>
-      <div class="ctrl-label" id="seedb-label" style="display:none; margin-bottom: var(--space-1)">Seed B</div>
+      <div class="ctrl-label" id="seedb-label" hidden style="margin-bottom: var(--space-1)">Seed B</div>
 
       <!-- Organica.seedsPanel builds Seed B's tab strip + panes here
            (genesis/svg/text/image, applyMode:'manual', bakeGeometry). The
@@ -290,7 +290,7 @@
         <div class="ctrl-label" title="Feed/Kill used OUTSIDE the shape, when Mode is Regime boundary.">Outside f/k</div>
         <span class="ctrl-val">0.0545 / 0.0620</span>
       </div>
-      <p class="org-panel__hint" id="paper-img-hint" style="display:none">Needs an Image or SVG source above (Genesis/Text shapes have no colour of their own to show).</p>
+      <p class="org-panel__hint" id="paper-img-hint" hidden>Needs an Image or SVG source above (Genesis/Text shapes have no colour of their own to show).</p>
 
       <div style="margin-top: var(--space-3); display: flex; align-items: center; gap: var(--space-2)">
         <label class="check-row" style="margin: 0">
@@ -299,7 +299,7 @@
         </label>
         <span class="org-tip" tabindex="0" role="note" aria-label="Seed A doesn’t grow — it just resists Seed B’s growth wherever the two overlap.">i<span class="org-tip__bubble" aria-hidden="true">Seed A doesn’t grow — it just resists Seed B’s growth wherever the two overlap.</span></span>
       </div>
-      <div id="seedsrc-a-block" style="display:none">
+      <div id="seedsrc-a-block" hidden>
         <div class="ctrl-label" style="margin-bottom: var(--space-1)">Seed A</div>
         <!-- Organica.seedsPanel builds Seed A's tab strip + panes here. -->
         <div id="seeds-host-a"></div>
@@ -331,7 +331,7 @@
       <h3>Transformers <span class="hint">raster stack, runs after Seeds</span></h3>
       <div class="presets" id="tx-presets"></div>
 
-      <div id="tx-particles-controls" style="display:none">
+      <div id="tx-particles-controls" hidden>
         <p class="org-panel__hint">Scatters disks of varying size onto the Seed’s own ink, unioned together — ported from Living Path’s Bubbles preset.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How many disks to scatter.">Count</div>
@@ -355,7 +355,7 @@
         </div>
       </div>
 
-      <div id="tx-dilate-controls" style="display:none">
+      <div id="tx-dilate-controls" hidden>
         <p class="org-panel__hint">Grows (positive) or shrinks (negative) the Seed’s own boundary, one pixel-neighbour pass per unit of Amount — ported from Living Path’s morph().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Positive grows the shape (dilate), negative shrinks it (erode). Each unit is one more neighbour-scan pass, so larger amounts cost more to compute.">Amount</div>
@@ -364,7 +364,7 @@
         </div>
       </div>
 
-      <div id="tx-blur-controls" style="display:none">
+      <div id="tx-blur-controls" hidden>
         <p class="org-panel__hint">Softens the Seed’s edge into a graduated ramp instead of a hard boundary — ported from Living Path’s boxBlur().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Blur radius in cells.">Radius</div>
@@ -373,7 +373,7 @@
         </div>
       </div>
 
-      <div id="tx-threshold-controls" style="display:none">
+      <div id="tx-threshold-controls" hidden>
         <p class="org-panel__hint">Re-cuts the shape at a hard level — most useful after Blur or Noise, to melt a softened/grainy edge back into a clean binary one.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Cells at or above this level become fully ink; below it, fully empty.">Level</div>
@@ -382,7 +382,7 @@
         </div>
       </div>
 
-      <div id="tx-noise-controls" style="display:none">
+      <div id="tx-noise-controls" hidden>
         <p class="org-panel__hint">Adds smooth random jitter to the shape’s edge — a grainy, degraded boundary instead of a clean one. Ported from Living Path’s addNoise().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How strong the jitter is.">Amount</div>
@@ -401,7 +401,7 @@
         </div>
       </div>
 
-      <div id="tx-skeleton-controls" style="display:none">
+      <div id="tx-skeleton-controls" hidden>
         <p class="org-panel__hint">Reduces the shape to its 1px centre-line (Zhang–Suen thinning), then thickens that line back to a constant width — a shape becomes a stream/wire tracing its own middle. Ported from Living Path’s skeleton().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How thick to redraw the centre-line. 0 leaves it at 1px.">Width</div>
@@ -410,7 +410,7 @@
         </div>
       </div>
 
-      <div id="tx-polygonize-controls" style="display:none">
+      <div id="tx-polygonize-controls" hidden>
         <p class="org-panel__hint">Quantizes the shape onto a coarse block grid — a faceted, low-poly look instead of a smooth boundary. Ported from Living Path’s polygonize().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Block size in cells — larger blocks read as chunkier.">Block</div>
@@ -419,7 +419,7 @@
         </div>
       </div>
 
-      <div id="tx-seam-controls" style="display:none">
+      <div id="tx-seam-controls" hidden>
         <p class="org-panel__hint">Content-aware carving (like Photoshop’s Seam Carving) — removes low-energy seams one at a time, pinching/warping the shape instead of uniformly scaling it. Ported from Living Path’s seamCarve(). Found by testing: a small shape with a lot of empty margin around it (Size well under 1) can absorb quite a few seams from the blank space alone before any visible pinch reaches the shape itself — push Seams higher if nothing seems to happen.</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How many seams to remove.">Seams</div>
@@ -429,7 +429,7 @@
         <label class="check-row org-switch"><span class="toggle-name">Horizontal seams</span><input type="checkbox" id="tx-seam-dir"></label>
       </div>
 
-      <div id="tx-reaction-controls" style="display:none">
+      <div id="tx-reaction-controls" hidden>
         <p class="org-panel__hint">Runs a real Gray-Scott pass CONFINED to the Seed’s own ink, then carves the settled pattern as holes into it — the shape becomes coral/cellular instead of solid. A genuine second reaction-diffusion, independent of the tool’s own live simulation. Ported from Living Path’s grayScott().</p>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Feed rate.">Feed</div>
@@ -494,10 +494,10 @@
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()" data-armed="Confirm?">Delete</button>
       </div>
-      <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+      <div id="preset-save-row" class="ctrl-row" hidden style="margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this preset" aria-label="Name this preset" style="flex:1">
       </div>
-      <div id="preset-save-actions" class="row-btns" style="display:none">
+      <div id="preset-save-actions" class="row-btns" hidden>
         <button class="mini-btn" id="btn-preset-confirm">Save</button>
         <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
       </div>
@@ -510,7 +510,7 @@
         <input type="range" id="rg-aniso" min="0" max="0.95" step="0.01" value="0" oninput="syncVal(this,'v-aniso'); onAnisoChange();">
         <span class="ctrl-val" id="v-aniso">0</span>
       </div>
-      <div class="ctrl-row" id="row-aniso-angle" style="display:none">
+      <div class="ctrl-row" id="row-aniso-angle" hidden>
         <div class="ctrl-label">Direction</div>
         <input type="range" id="rg-aniso-angle" min="0" max="180" step="1" value="0" oninput="syncVal(this,'v-aniso-angle'); onAnisoChange();">
         <span class="ctrl-val" id="v-aniso-angle">0</span>
@@ -521,7 +521,7 @@
       <h3>Layers <span class="hint">stack + blend, same algorithm</span></h3>
       <p class="org-panel__hint">Each layer is its own independent Gray-Scott sim, blended onto the pattern above (BEFORE colour) so Multiply/Diff carve genuinely new shapes, not just new colours. Select a layer below to edit its own Feed/Kill/dA/dB with the sliders above — Seeds/Transformers/export still work on the base pattern only.</p>
       <label class="check-row org-switch"><span class="toggle-name">Enable layers</span><input type="checkbox" id="ck-layers-on" onchange="toggleLayersOn()"></label>
-      <div id="layers-block" style="display:none">
+      <div id="layers-block" hidden>
         <div id="layers-stack"></div>
         <button class="mini-btn" style="width:100%; margin-top: var(--space-2)" onclick="addLayer()">+ Add layer</button>
       </div>
@@ -548,7 +548,7 @@
         </div>
       </div>
 
-      <div id="rmx-color-block" style="display:none">
+      <div id="rmx-color-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Palette</div>
           <select class="panel-select" id="sel-rmx-map" onchange="setRmxMapping(this.value)">
@@ -1109,7 +1109,7 @@ function initGL() {
   try { context = canvas.getContext('webgl2'); } catch (e) { context = null; }
   if (!context) {
     ctrl('gl-error').classList.add('visible');
-    canvas.style.display = 'none';
+    canvas.hidden = true;
     setStatus('error', 'WebGL2 unavailable');
     return false;
   }
@@ -1505,7 +1505,7 @@ function seedDefaultNucleation(seedFn, seedNum) {
 function onAnisoChange() {
   simMat.uniforms.uAnisoAmount.value = val('rg-aniso');
   simMat.uniforms.uAnisoAngle.value = val('rg-aniso-angle') * Math.PI / 180;
-  ctrl('row-aniso-angle').style.display = val('rg-aniso') > 0 ? 'flex' : 'none';
+  Organica.display(ctrl('row-aniso-angle'), val('rg-aniso') > 0 ? 'flex' : 'none');
 }
 
 function mulberry32(seed) { return Organica.mulberry32(seed); }
@@ -1558,7 +1558,7 @@ function onParamChange() {
 // ═══════════════════════════════════════════════════════════
 function toggleLayersOn() {
   layersOn = ctrl('ck-layers-on').checked;
-  ctrl('layers-block').style.display = layersOn ? 'block' : 'none';
+  Organica.display(ctrl('layers-block'), layersOn ? 'block' : 'none');
   if (layersOn && !extraLayers.length) addLayer();
   if (!layersOn) setActiveLayer(null);
   draw();
@@ -1914,9 +1914,9 @@ const RMX_COLORS_MAX = 5;
 
 function setColorMode(mode) {
   ctrl('seg-colormode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === mode));
-  ctrl('rmx-color-block').style.display = mode === 'rmx' ? 'block' : 'none';
-  ctrl('row-point').style.display = mode === 'rmx' ? 'none' : 'flex';   // RMX supplies its own colours — Ink/Paper become dead controls otherwise, not silently ignored
-  ctrl('row-paper').style.display = mode === 'rmx' ? 'none' : 'flex';
+  Organica.display(ctrl('rmx-color-block'), mode === 'rmx' ? 'block' : 'none');
+  Organica.display(ctrl('row-point'), mode === 'rmx' ? 'none' : 'flex');   // RMX supplies its own colours — Ink/Paper become dead controls otherwise, not silently ignored
+  Organica.display(ctrl('row-paper'), mode === 'rmx' ? 'none' : 'flex');
   dispMat.uniforms.uColorMode.value = mode === 'solid' ? 0.0 : mode === 'adaptive' ? 1.0 : 2.0;
   scheduleRender();
 }
@@ -2013,8 +2013,8 @@ const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true });
 
 function syncTwoShapeRows() {
   const on = ctrl('ck-twoshape').checked;
-  ctrl('seedsrc-a-block').style.display = on ? 'block' : 'none';
-  ctrl('seedb-label').style.display = on ? 'block' : 'none';
+  Organica.display(ctrl('seedsrc-a-block'), on ? 'block' : 'none');
+  Organica.display(ctrl('seedb-label'), on ? 'block' : 'none');
 }
 // Shape A (famine) — same four sources Shape B gets. Draws into its OWN
 // canvas (maskCanvasA), not the shared `maskCanvas`, so two textures can
@@ -2326,7 +2326,7 @@ function buildTransformerUI() {
     ariaLabel: 'Transformer',
     onChange(key) {
       activeTransformer = key;
-      Object.keys(TRANSFORMERS).forEach(t => { ctrl('tx-' + t + '-controls').style.display = t === key ? 'block' : 'none'; });
+      Object.keys(TRANSFORMERS).forEach(t => { Organica.display(ctrl('tx-' + t + '-controls'), t === key ? 'block' : 'none'); });
     },
   });
 }
@@ -2661,10 +2661,10 @@ function applySeed() {
 }
 function syncSeedModeRows() {
   const mode = ctrl('sel-seedmode').value;
-  ctrl('row-boundary-fk').style.display = mode === 'boundary' ? 'flex' : 'none';
+  Organica.display(ctrl('row-boundary-fk'), mode === 'boundary' ? 'flex' : 'none');
   const isPaperImg = mode === 'bgimage' || mode === 'stencil';
-  ctrl('row-seedsize').style.display = isPaperImg ? 'none' : 'flex';   // Size doesn't apply — no simulation seeding happens in these two modes
-  ctrl('paper-img-hint').style.display = isPaperImg ? 'block' : 'none';
+  Organica.display(ctrl('row-seedsize'), isPaperImg ? 'none' : 'flex');   // Size doesn't apply — no simulation seeding happens in these two modes
+  Organica.display(ctrl('paper-img-hint'), isPaperImg ? 'block' : 'none');
 }
 
 // Seed file inputs (SVG / image / font, ×2 for Seed A) are owned by
@@ -3448,8 +3448,8 @@ function applyPreset(name) {
 
 function savePreset() {
   ctrl('txt-preset-name').value = 'Preset ' + new Date().toLocaleTimeString();
-  ctrl('preset-save-row').style.display = '';
-  ctrl('preset-save-actions').style.display = '';
+  ctrl('preset-save-row').hidden = false;
+  ctrl('preset-save-actions').hidden = false;
   ctrl('txt-preset-name').focus();
   ctrl('txt-preset-name').select();
 }
@@ -3467,8 +3467,8 @@ function confirmSavePreset() {
 }
 
 function cancelSavePreset() {
-  ctrl('preset-save-row').style.display = 'none';
-  ctrl('preset-save-actions').style.display = 'none';
+  ctrl('preset-save-row').hidden = true;
+  ctrl('preset-save-actions').hidden = true;
   ctrl('txt-preset-name').value = '';
 }
 

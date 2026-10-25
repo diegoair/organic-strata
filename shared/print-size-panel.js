@@ -73,28 +73,28 @@
             '<button type="button" class="seg-btn" aria-pressed="false" data-v="print">Print</button>' +
           '</div>' +
         '</div>' +
-        '<div class="ctrl-row" id="' + id('row-unit') + '" style="display:none">' +
+        '<div class="ctrl-row" id="' + id('row-unit') + '" hidden>' +
           '<div class="ctrl-label">Unit</div>' +
           '<select class="panel-select" id="' + id('unit') + '" aria-label="Print unit">' +
             '<option value="mm">mm</option>' +
             '<option value="in">in</option>' +
           '</select>' +
         '</div>' +
-        '<div class="ctrl-row" id="' + id('row-size') + '" style="display:none">' +
+        '<div class="ctrl-row" id="' + id('row-size') + '" hidden>' +
           '<div class="ctrl-label">Size</div>' +
           '<input type="number" class="panel-input" id="' + id('width') + '" value="100" min="1" step="0.5" aria-label="Width" style="width:100%">' +
           '<span class="hint" aria-hidden="true">&times;</span>' +
           '<input type="number" class="panel-input" id="' + id('height') + '" value="100" min="1" step="0.5" aria-label="Height" style="width:100%">' +
         '</div>' +
-        '<div class="ctrl-row" id="' + id('row-dpi') + '" style="display:none">' +
+        '<div class="ctrl-row" id="' + id('row-dpi') + '" hidden>' +
           '<div class="ctrl-label">DPI</div>' +
           '<input type="number" class="panel-input" id="' + id('dpi') + '" value="300" min="72" step="1" aria-label="DPI" style="width:100%">' +
         '</div>' +
-        '<div class="ctrl-row" id="' + id('row-bleed') + '" style="display:none">' +
+        '<div class="ctrl-row" id="' + id('row-bleed') + '" hidden>' +
           '<div class="ctrl-label" title="Always mm, regardless of the unit above — the real print convention: a bleed spec doesn’t change because the document happens to be quoted in inches.">Bleed (mm)</div>' +
           '<input type="number" class="panel-input" id="' + id('bleed') + '" value="0" min="0" step="0.5" aria-label="Bleed in millimetres" style="width:100%">' +
         '</div>' +
-        '<div class="hint" id="' + id('pxhint') + '" style="display:none"></div>' +
+        '<div class="hint" id="' + id('pxhint') + '" hidden></div>' +
       '</div>';
 
     const modeCtrl = document.getElementById(id('mode'));
@@ -126,11 +126,11 @@
     function syncRows() {
       const isPrint = mode === 'print';
       const disp = isPrint ? '' : 'none';
-      rowUnit.style.display = disp;
-      rowSize.style.display = disp;
-      rowDpi.style.display = disp;
-      rowBleed.style.display = disp;
-      if (!isPrint) pxHint.style.display = 'none';
+      Organica.display(rowUnit, disp);
+      Organica.display(rowSize, disp);
+      Organica.display(rowDpi, disp);
+      Organica.display(rowBleed, disp);
+      if (!isPrint) pxHint.hidden = true;
     }
 
     modeCtrl.querySelectorAll('.seg-btn').forEach(function (btn) {
@@ -158,9 +158,9 @@
       getDpi: function () { return parseFloat(dpiEl.value) || 0; },
       getBleed: function () { return parseFloat(bleedEl.value) || 0; },
       setPixelPreview: function (w, h) {
-        if (mode !== 'print') { pxHint.style.display = 'none'; return; }
+        if (mode !== 'print') { pxHint.hidden = true; return; }
         pxHint.textContent = '→ ' + Math.round(w) + ' × ' + Math.round(h) + ' px';
-        pxHint.style.display = '';
+        pxHint.hidden = false;
       },
     };
   };

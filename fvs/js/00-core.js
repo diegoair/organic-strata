@@ -60,7 +60,7 @@ export const printSizePanel = Organica.printSizePanel(document.getElementById('p
   idPrefix: 'ps',
   title: 'Print (selection)',
   onChange: () => {
-    document.getElementById('screen-scale-rows').style.display = printSizePanel.getMode() === 'print' ? 'none' : '';
+    document.getElementById('screen-scale-rows').hidden = !!(printSizePanel.getMode() === 'print');
   },
 });
 
@@ -98,7 +98,7 @@ export function syncColorRuleUI() {
   for (let i = 0; i < n; i++) off.add(new Option('Colour ' + (i + 1), i));
   sel.value = state.colorRule.mode;
   off.value = String(Math.min(state.colorRule.offset || 0, n - 1));
-  ctrl('row-color-offset').style.display = n < 2 || state.colorRule.mode === 'element' ? 'none' : '';   // Element's colours: every cell slot 0, no start
+  ctrl('row-color-offset').hidden = !!(n < 2 || state.colorRule.mode === 'element');   // Element's colours: every cell slot 0, no start
   ctrl('chk-color-parts').checked = state.colorRule.parts === 'step';
   syncColorPartsRow();
   syncQuadrantHint();
@@ -114,7 +114,7 @@ export function syncQuadrantHint() {
       if (cr.length) odd = (Math.max(...cr.map(c => c.col)) + 1) % 2 === 1 || (Math.max(...cr.map(c => c.row)) + 1) % 2 === 1;
     } catch (e) { odd = false; }
   }
-  ctrl('color-quadrant-hint').style.display = odd ? '' : 'none';
+  ctrl('color-quadrant-hint').hidden = !odd;
 }
 export function refreshColourViews() {
   hooks.renderGallery();

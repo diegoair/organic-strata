@@ -320,12 +320,12 @@
             <button class="type-pill org-btn org-btn--sm" data-type="container">Container</button>
           </div>
         </div>
-        <div id="underlying-layer-block" style="display:none">
+        <div id="underlying-layer-block" hidden>
           <p class="panel-hint">Container shows the picked layer only inside this seed’s outline; Mask shows it everywhere except inside — a real hole.</p>
           <div id="underlying-layer-empty">
             <button class="upload-btn" id="btn-pick-layer" style="margin-bottom:0">Pick layer…</button>
           </div>
-          <div id="underlying-layer-set" class="panel-row" style="display:none">
+          <div id="underlying-layer-set" class="panel-row" hidden>
             <div style="display:flex;align-items:center;gap:var(--space-3);flex:1;min-width:0">
               <span id="underlying-layer-thumb" style="width:28px;height:28px;flex-shrink:0;border:1px solid var(--border)"></span>
               <span id="underlying-layer-name" style="font-size:var(--fs-base);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
@@ -341,7 +341,7 @@
           <!-- Inline new-set name field. The old creator.html used window.prompt()
                here, which THROWS outright (not just returns null) in some embedded
                contexts. A plain DOM row depends on nothing but the DOM. -->
-          <div class="panel-row" id="row-new-set" style="display:none">
+          <div class="panel-row" id="row-new-set" hidden>
             <input type="text" class="panel-input panel-input--full" id="ctrl-new-set-name" placeholder="new set name" aria-label="New set name">
           </div>
         </div>
@@ -431,8 +431,8 @@
           <span class="edit-kind-badge" id="edit-kind-badge"></span>
           <dl class="seed-detail__facts" id="edit-facts"></dl>
           <div id="edit-sets"></div>
-          <p class="panel-hint" id="edit-builtin-note" style="display:none">Built-in — Save forks a copy to My Seeds.</p>
-          <p class="panel-hint" id="edit-filter-note" style="display:none">This seed uses an SVG filter — it will be flattened on Save.</p>
+          <p class="panel-hint" id="edit-builtin-note" hidden>Built-in — Save forks a copy to My Seeds.</p>
+          <p class="panel-hint" id="edit-filter-note" hidden>This seed uses an SVG filter — it will be flattened on Save.</p>
         </section>
         <div class="panel-divider"></div>
       </div>
@@ -452,7 +452,7 @@
               <label class="panel-label">Kind</label>
               <div class="presets u-flex1" id="gen-seg"></div>
             </div>
-            <div id="row-gen-freehand" style="display:none">
+            <div id="row-gen-freehand" hidden>
               <label class="check-row"><input type="checkbox" id="ck-close" checked><span>Close path</span></label>
               <label class="check-row"><input type="checkbox" id="ck-smooth" checked><span>Smooth (curve)</span></label>
             </div>
@@ -464,47 +464,47 @@
               <label class="panel-label">Radius</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-r" min="10" max="95" value="60"><span class="panel-unit" id="gen-r-val" style="width:24px">60</span></div>
             </div>
-            <div class="panel-row" id="row-gen-thickness" style="display:none">
+            <div class="panel-row" id="row-gen-thickness" hidden>
               <label class="panel-label">Thickness</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-thickness" min="1" max="100" value="100"><span class="panel-unit" id="gen-thickness-val" style="width:24px">100</span></div>
             </div>
-            <div class="panel-row" id="row-gen-w" style="display:none">
+            <div class="panel-row" id="row-gen-w" hidden>
               <label class="panel-label" id="gen-w-label">Width</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-w" min="10" max="100" value="60"><span class="panel-unit" id="gen-w-val" style="width:24px">60</span></div>
             </div>
-            <div class="panel-row" id="row-gen-h" style="display:none">
+            <div class="panel-row" id="row-gen-h" hidden>
               <label class="panel-label">Height</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-h" min="10" max="100" value="60"><span class="panel-unit" id="gen-h-val" style="width:24px">60</span></div>
             </div>
-            <div class="panel-row" id="row-gen-triapex" style="display:none">
+            <div class="panel-row" id="row-gen-triapex" hidden>
               <label class="panel-label" title="Where the apex sits along the base — 0 is above the left corner, 50 is centred (isosceles), 100 is above the right corner.">Apex X</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-triapex" min="0" max="100" value="50"><span class="panel-unit" id="gen-triapex-val" style="width:24px">50</span></div>
             </div>
-            <div class="panel-row" id="row-gen-tricurve" style="display:none">
+            <div class="panel-row" id="row-gen-tricurve" hidden>
               <label class="panel-label" title="Bows every edge — positive bulges outward, negative caves inward.">Edge curvature</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-tricurve" min="-100" max="100" value="0"><span class="panel-unit" id="gen-tricurve-val" style="width:24px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-trioutline" style="display:none">
+            <div class="panel-row" id="row-gen-trioutline" hidden>
               <label class="panel-label" title="Hollow ring — wall thickness as a % of the triangle’s inradius. 0 is solid.">Outline (hollow)</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-trioutline" min="0" max="95" value="0"><span class="panel-unit" id="gen-trioutline-val" style="width:24px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-corner" style="display:none">
+            <div class="panel-row" id="row-gen-corner" hidden>
               <label class="panel-label">Corner rounding</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-corner" min="0" max="50" value="0"><span class="panel-unit" id="gen-corner-val" style="width:24px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-irregularity" style="display:none">
+            <div class="panel-row" id="row-gen-irregularity" hidden>
               <label class="panel-label">Irregularity</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-irregularity" min="0" max="100" value="0"><span class="panel-unit" id="gen-irregularity-val" style="width:24px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-seed" style="display:none">
+            <div class="panel-row" id="row-gen-seed" hidden>
               <label class="panel-label">Seed</label>
               <div class="panel-input-group"><input type="number" class="panel-input" id="gen-seed" value="1" min="0" max="9999"></div>
             </div>
-            <div class="panel-row" id="row-gen-polystep" style="display:none">
+            <div class="panel-row" id="row-gen-polystep" hidden>
               <label class="panel-label" title="Connects every n-th vertex: 2 on 5 sides is a pentagram. Capped by Sides.">Step</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polystep" min="1" max="9" value="1"><span class="panel-unit" id="gen-polystep-val" style="width:28px">1</span></div>
             </div>
-            <div class="panel-row" id="row-gen-polystyle" style="display:none">
+            <div class="panel-row" id="row-gen-polystyle" hidden>
               <label class="panel-label" title="How the corners are cut when Corner rounding is above 0.">Corner style</label>
               <select class="panel-select" id="gen-polystyle" aria-label="Polygon corner style">
                 <option value="round">Round</option>
@@ -512,38 +512,38 @@
                 <option value="scoop">Scoop</option>
               </select>
             </div>
-            <div class="panel-row" id="row-gen-polycurve" style="display:none">
+            <div class="panel-row" id="row-gen-polycurve" hidden>
               <label class="panel-label" title="Bows every edge — positive outward, negative inward.">Edge curvature</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polycurve" min="-100" max="100" value="0"><span class="panel-unit" id="gen-polycurve-val" style="width:28px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-polyoutline" style="display:none">
+            <div class="panel-row" id="row-gen-polyoutline" hidden>
               <label class="panel-label" title="Hollow ring, thickness as a % of the inradius. Ignored when Step is above 1.">Outline (hollow)</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polyoutline" min="0" max="95" value="0"><span class="panel-unit" id="gen-polyoutline-val" style="width:28px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-polyrotate" style="display:none">
+            <div class="panel-row" id="row-gen-polyrotate" hidden>
               <label class="panel-label" title="Rotates the polygon in place.">Rotate</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polyrotate" min="-180" max="180" value="0"><span class="panel-unit" id="gen-polyrotate-val" style="width:28px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-polyskew" style="display:none">
+            <div class="panel-row" id="row-gen-polyskew" hidden>
               <label class="panel-label" title="Jitters each vertex’s angle (uneven sides).">Angle jitter</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-polyskew" min="0" max="100" value="0"><span class="panel-unit" id="gen-polyskew-val" style="width:28px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-inner" style="display:none">
+            <div class="panel-row" id="row-gen-inner" hidden>
               <label class="panel-label">Inner radius</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-inner" min="10" max="90" value="45"><span class="panel-unit" id="gen-inner-val" style="width:24px">45</span></div>
             </div>
-            <div class="panel-row" id="row-gen-pivot" style="display:none">
+            <div class="panel-row" id="row-gen-pivot" hidden>
               <label class="panel-label">Pivot</label>
               <div class="seg u-flex1" id="gen-pivot-seg">
                 <button class="seg-btn active" data-pivot="corner">Corner</button>
                 <button class="seg-btn" data-pivot="center">Center</button>
               </div>
             </div>
-            <div class="panel-row" id="row-gen-sweep" style="display:none">
+            <div class="panel-row" id="row-gen-sweep" hidden>
               <label class="panel-label">Sweep</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-sweep" min="10" max="350" value="90"><span class="panel-unit" id="gen-sweep-val" style="width:28px">90°</span></div>
             </div>
-            <div class="panel-row" id="row-gen-arctype" style="display:none">
+            <div class="panel-row" id="row-gen-arctype" hidden>
               <label class="panel-label" title="Shortcut that sets Sweep. Reads Custom as soon as you move Sweep by hand.">Type</label>
               <select class="panel-select" id="gen-arctype" aria-label="Arc type">
                 <option value="quarter">Quarter</option>
@@ -553,35 +553,35 @@
                 <option value="custom">Custom</option>
               </select>
             </div>
-            <div class="panel-row" id="row-gen-arcstart" style="display:none">
+            <div class="panel-row" id="row-gen-arcstart" hidden>
               <label class="panel-label" title="Rotates the arc in place.">Start angle</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arcstart" min="0" max="359" value="0"><span class="panel-unit" id="gen-arcstart-val" style="width:24px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-arcround" style="display:none">
+            <div class="panel-row" id="row-gen-arcround" hidden>
               <label class="panel-label" title="Rounds the arc’s ends — 100 is a full semicircular cap (needs Thickness below 100).">End rounding</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arcround" min="0" max="100" value="0"><span class="panel-unit" id="gen-arcround-val" style="width:24px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-arcsegs" style="display:none">
+            <div class="panel-row" id="row-gen-arcsegs" hidden>
               <label class="panel-label" title="Splits the arc into separate dashes.">Segments</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arcsegs" min="1" max="24" value="1"><span class="panel-unit" id="gen-arcsegs-val" style="width:24px">1</span></div>
             </div>
-            <div class="panel-row" id="row-gen-arcgap" style="display:none">
+            <div class="panel-row" id="row-gen-arcgap" hidden>
               <label class="panel-label" title="Gap between segments, as a % of a segment’s length.">Segment gap</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arcgap" min="0" max="80" value="20"><span class="panel-unit" id="gen-arcgap-val" style="width:24px">20</span></div>
             </div>
-            <div class="panel-row" id="row-gen-arctaper" style="display:none">
+            <div class="panel-row" id="row-gen-arctaper" hidden>
               <label class="panel-label" title="Thins the band toward one end — comet and crescent shapes.">Taper</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-arctaper" min="-100" max="100" value="0"><span class="panel-unit" id="gen-arctaper-val" style="width:24px">0</span></div>
             </div>
-            <div class="panel-row" id="row-gen-len" style="display:none">
+            <div class="panel-row" id="row-gen-len" hidden>
               <label class="panel-label">Length</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-len" min="10" max="100" value="70"><span class="panel-unit" id="gen-len-val" style="width:24px">70</span></div>
             </div>
-            <div class="panel-row" id="row-gen-tail" style="display:none">
+            <div class="panel-row" id="row-gen-tail" hidden>
               <label class="panel-label">Tail length</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-tail" min="0" max="100" value="50"><span class="panel-unit" id="gen-tail-val" style="width:24px">50</span></div>
             </div>
-            <div class="panel-row" id="row-gen-amount" style="display:none">
+            <div class="panel-row" id="row-gen-amount" hidden>
               <label class="panel-label">Amount</label>
               <div class="panel-input-group"><input type="range" class="panel-range" id="gen-amount" min="0" max="100" value="40"><span class="panel-unit" id="gen-amount-val" style="width:24px">40</span></div>
             </div>
@@ -637,13 +637,13 @@
     </aside>
   </div>
 
-  <div id="layer-picker-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pick underlying layer" style="display:none">
+  <div id="layer-picker-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pick underlying layer" hidden>
     <div class="picker-panel">
       <div class="picker-header">
         <span>Pick underlying layer</span>
         <button class="org-btn org-btn--ghost org-btn--icon org-btn--sm" id="layer-picker-close" aria-label="Close">&times;</button>
       </div>
-      <div id="layer-picker-empty" style="display:none">No saved seeds yet — save one first.</div>
+      <div id="layer-picker-empty" hidden>No saved seeds yet — save one first.</div>
       <div id="layer-picker-tiles" class="picker-tiles"></div>
     </div>
   </div>
@@ -1419,7 +1419,7 @@
     const drawOn = isDrawMode();
     $('art').classList.toggle('notdraw', !drawOn);
     $('draw-canvas').classList.toggle('active', drawOn);
-    $('art-hint').style.display = drawOn ? 'block' : 'none';
+    Organica.display($('art-hint'), drawOn ? 'block' : 'none');
 
     if (mode === 'create') { syncGenerator(); syncImportUI(); }
     if (mode === 'edit') { syncEditPanel(); syncGenerator(); }
@@ -1449,12 +1449,12 @@
     const canDelete = editing && S.editForm && !S.editForm.builtIn;
 
     $('fb-mode-edit').disabled = !S.editForm;
-    $('btn-import-svg').style.display = creating ? '' : 'none';
-    $('btn-duplicate').style.display = editing ? '' : 'none';
-    $('btn-undo').style.display = draw ? '' : 'none';       // "Back"
-    $('btn-clear').style.display = creating ? '' : 'none';
-    $('btn-delete-fb').style.display = canDelete ? '' : 'none';
-    $('fb-sep-3').style.display = canDelete ? '' : 'none';
+    $('btn-import-svg').hidden = !creating;
+    $('btn-duplicate').hidden = !editing;
+    $('btn-undo').hidden = !draw;       // "Back"
+    $('btn-clear').hidden = !creating;
+    $('btn-delete-fb').hidden = !canDelete;
+    $('fb-sep-3').hidden = !canDelete;
 
     const hasShape = !!formMarkup();
     $('btn-export-svg').disabled = !hasShape;
@@ -1537,8 +1537,8 @@
       '<div><dt>viewBox</dt><dd>' + facts.w + ' × ' + facts.h + '</dd></div>' +
       '<div><dt>Elements</dt><dd>' + facts.n + '</dd></div>';
     renderEditSets();
-    $('edit-builtin-note').style.display = f.builtIn ? 'block' : 'none';
-    $('edit-filter-note').style.display = /filter\s*=|url\(#/.test(f.svg || '') ? 'block' : 'none';
+    Organica.display($('edit-builtin-note'), f.builtIn ? 'block' : 'none');
+    Organica.display($('edit-filter-note'), /filter\s*=|url\(#/.test(f.svg || '') ? 'block' : 'none');
     // The Delete button (floatbar #btn-delete-fb) is gated in syncFloatbar.
     $('ctrl-name').readOnly = !!f.builtIn;
   }
@@ -1805,7 +1805,7 @@
     // Extras rows (Star · Segment · Drop · Blob) — built from the shared table, shown per shape by syncGenerator().
     { let after = $('row-gen-amount');
       GX_SHAPES.forEach(sh => Organica.shapes.EXTRAS[sh].forEach(r => {
-        const row = document.createElement('div'); row.className = 'panel-row'; row.id = 'row-gen-x-' + r.key; row.style.display = 'none'; row.dataset.shape = sh;
+        const row = document.createElement('div'); row.className = 'panel-row'; row.id = 'row-gen-x-' + r.key; row.hidden = true; row.dataset.shape = sh;
         const lab = document.createElement('label'); lab.className = 'panel-label'; lab.textContent = r.label; if (r.title) lab.title = r.title; row.appendChild(lab);
         if (r.kind === 'select') {
           const sel = document.createElement('select'); sel.className = 'panel-select'; sel.id = 'gen-x-' + r.key; sel.setAttribute('aria-label', r.label);
@@ -1899,7 +1899,7 @@
     // Escape closes the layer-picker overlay.
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      if ($('layer-picker-overlay').style.display !== 'none') closeLayerPicker();
+      if (!$('layer-picker-overlay').hidden) closeLayerPicker();
     });
 
     // Save lives in a floatbar popover (#btn-save-open → #save-popover).
@@ -1935,9 +1935,9 @@
 
   function syncUnderlyingLayerUI() {
     const relevant = S.type === 'mask' || S.type === 'container';
-    $('underlying-layer-block').style.display = relevant ? '' : 'none';
-    $('underlying-layer-empty').style.display = S.underlyingLayer ? 'none' : '';
-    $('underlying-layer-set').style.display = S.underlyingLayer ? 'flex' : 'none';
+    $('underlying-layer-block').hidden = !relevant;
+    $('underlying-layer-empty').hidden = !!(S.underlyingLayer);
+    Organica.display($('underlying-layer-set'), S.underlyingLayer ? 'flex' : 'none');
     if (S.underlyingLayer) {
       $('underlying-layer-name').textContent = S.underlyingLayer.name;
       $('underlying-layer-thumb').innerHTML = `<svg viewBox="0 0 200 200" style="width:100%;height:100%">${S.underlyingLayer.innerMarkup}</svg>`;
@@ -1966,7 +1966,7 @@
 
   function buildPickerTiles(wrapId, emptyId, labelPrefix, onPick) {
     const forms = listAllLibrarySeeds();
-    $(emptyId).style.display = forms.length ? 'none' : '';
+    $(emptyId).hidden = !!(forms.length);
     const wrap = $(wrapId);
     wrap.innerHTML = '';
     for (const f of forms) {
@@ -1982,10 +1982,10 @@
 
   function openLayerPicker() {
     buildPickerTiles('layer-picker-tiles', 'layer-picker-empty', 'Use as underlying layer: ', f => { pickUnderlyingLayer(f); closeLayerPicker(); });
-    $('layer-picker-overlay').style.display = 'flex';
+    Organica.display($('layer-picker-overlay'), 'flex');
     Organica.autoLabelPanel($('layer-picker-overlay'));
   }
-  function closeLayerPicker() { $('layer-picker-overlay').style.display = 'none'; }
+  function closeLayerPicker() { $('layer-picker-overlay').hidden = true; }
 
   function pickUnderlyingLayer(form) {
     const div = document.createElement('div');
@@ -2075,16 +2075,16 @@
   function syncGenerator() {
     const t = S.gen.type;
     const fh = t === 'freehand';
-    const show = (id, on) => { $(id).style.display = on ? 'flex' : 'none'; };
+    const show = (id, on) => { Organica.display($(id), on ? 'flex' : 'none'); };
     // Freehand (the old Draw mode) — its own options block, and the Paper.js
     // drawing chrome over the artboard. Every parametric row below evaluates
     // false for 'freehand', so they all hide on their own.
-    $('row-gen-freehand').style.display = fh ? 'block' : 'none';
+    Organica.display($('row-gen-freehand'), fh ? 'block' : 'none');
     $('art').classList.toggle('notdraw', !fh);
     $('draw-canvas').classList.toggle('active', fh);
-    $('art-hint').style.display = fh ? 'block' : 'none';
+    Organica.display($('art-hint'), fh ? 'block' : 'none');
     // Kind picker: hidden for a vector seed in Edit (its kind is fixed).
-    $('row-gen-kind').style.display = (S.mode === 'edit' && S.editKind === 'vector') ? 'none' : 'flex';
+    Organica.display($('row-gen-kind'), (S.mode === 'edit' && S.editKind === 'vector') ? 'none' : 'flex');
     show('row-gen-n', t === 'polygon' || t === 'star');
     show('row-gen-r', t === 'circle' || t === 'polygon' || t === 'star' || t === 'drop' || t === 'blob');
     show('row-gen-thickness', t === 'arc');
@@ -2482,7 +2482,7 @@
   }
 
   function syncNewSetRow() {
-    $('row-new-set').style.display = $('ctrl-set').value === '__new__' ? 'flex' : 'none';
+    Organica.display($('row-new-set'), $('ctrl-set').value === '__new__' ? 'flex' : 'none');
   }
 
   // ── Save (Create — new user seed) ──────────────────────

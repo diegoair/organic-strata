@@ -904,6 +904,16 @@
     };
   };
 
+  // Show / hide by the [hidden] attribute (tokens.css makes it win over any display) — Oct 25, 2026, the inline
+  // display:none sweep. `v` is what style.display used to take: 'none' hides; '' shows with the element's own CSS
+  // display; any other value ('flex', 'block' …) shows with that display.
+  Organica.display = function (el, v) {
+    if (!el) return;
+    const none = v === 'none';
+    el.hidden = none;
+    el.style.display = none || !v ? '' : v;   // the one style.display write left: the helper's own
+  };
+
   // Export popover. Handles the accessibility contract a bare click handler
   // always forgets: aria-expanded on the trigger, Escape to dismiss,
   // click-outside to dismiss, and returning focus to the trigger on close
@@ -1789,7 +1799,7 @@
     var FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
     // Only a real overlay counts: an inline specimen (the design system's #modal demo is
     // position:relative) must not take focus or make the page behind it inert.
-    var visible = function (m) { if (m.style.display === 'none') return false; var cs = getComputedStyle(m); return cs.display !== 'none' && cs.position === 'fixed'; };
+    var visible = function (m) { if ((m.hidden || m.style.display === 'none')) return false; var cs = getComputedStyle(m); return cs.display !== 'none' && cs.position === 'fixed'; };
     function onVisible(m) {
       if (state.has(m)) return;
       var panel = m.querySelector('.org-modal__panel') || m;
@@ -1823,7 +1833,7 @@
       if (e.key === 'Escape') {
         e.stopPropagation();
         var x = open.querySelector('[aria-label="Close"], .org-modal__close, [data-modal-close]');
-        if (x) x.click(); else open.style.display = 'none';
+        if (x) x.click(); else open.hidden = true;
       } else if (e.key === 'Tab') {
         var f = Array.prototype.filter.call(open.querySelectorAll(FOCUSABLE), function (el) { return el.offsetParent !== null; });
         if (!f.length) { e.preventDefault(); return; }
@@ -1848,7 +1858,7 @@
     return new Promise(function (resolve) {
       var m = document.createElement('div');
       m.className = 'org-modal'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
-      m.setAttribute('aria-label', o.title || (withInput ? 'Enter a value' : 'Confirm')); m.style.display = 'flex';
+      m.setAttribute('aria-label', o.title || (withInput ? 'Enter a value' : 'Confirm')); Organica.display(m, 'flex');
       var esc = function (t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
       m.innerHTML = '<div class="org-modal__panel" style="--org-modal-w:340px">'
         + '<div class="org-modal__header"><span class="org-modal__title">' + esc(o.title || (withInput ? 'Name' : 'Are you sure?')) + '</span></div>'
@@ -1912,7 +1922,7 @@
       var html = Object.keys(groups).map(function (g) {
         return '<div class="ctrl-label" style="margin:var(--space-3) 0 var(--space-1)">' + g + '</div>' + groups[g].map(function (s) {
           return '<div class="row-btns" style="margin:0;justify-content:space-between"><span>' + s.label + '</span><code>' + s.keys + '</code></div>'; }).join(''); }).join('');
-      var m = document.createElement('div'); m.className = 'org-modal'; m.dataset.shortcuts = '1'; m.style.display = 'flex';
+      var m = document.createElement('div'); m.className = 'org-modal'; m.dataset.shortcuts = '1'; Organica.display(m, 'flex');
       m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-label', 'Keyboard shortcuts');
       m.innerHTML = '<div class="org-modal__panel" style="--org-modal-w:340px"><div class="org-modal__header"><span class="org-modal__title">Keyboard shortcuts</span>'
         + '<button class="org-btn org-btn--icon org-btn--sm org-btn--ghost" aria-label="Close">' + (Organica.icons ? Organica.icons.get('close', { size: 'sm' }) : '×') + '</button></div>' + html + '</div>';

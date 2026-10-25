@@ -296,7 +296,7 @@
     var board = el('div', 'nc-board');
     var wires = document.createElementNS(SVGNS, 'svg'); wires.setAttribute('class', 'nc-wires'); wires.setAttribute('aria-hidden', 'true');
     var wireG = document.createElementNS(SVGNS, 'g'); wires.appendChild(wireG);
-    var pending = document.createElementNS(SVGNS, 'path'); pending.setAttribute('class', 'nc-wire nc-wire--pending'); pending.style.display = 'none'; wires.appendChild(pending);
+    var pending = document.createElementNS(SVGNS, 'path'); pending.setAttribute('class', 'nc-wire nc-wire--pending'); pending.hidden = true; wires.appendChild(pending);
     var nodesLayer = el('div', 'nc-nodes'), framesLayer = el('div', 'nc-frames');
     board.append(wires, nodesLayer, framesLayer);
     var selectedFrame = null;
@@ -644,12 +644,12 @@
           p.el.classList.toggle('is-compatible', okc); p.el.classList.toggle('is-incompatible', !okc);
         });
       });
-      pending.style.display = '';
+      pending.hidden = false;
       function move(ev) { var p = toBoard(ev.clientX, ev.clientY); pending.setAttribute('d', fixedDir === 'out' ? wirePath(anchor.x, anchor.y, p.x, p.y) : wirePath(p.x, p.y, anchor.x, anchor.y)); }
       move(e);
       function up(ev) {
         document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up);
-        pending.style.display = 'none'; stage.classList.remove('nc-stage--wiring');
+        pending.hidden = true; stage.classList.remove('nc-stage--wiring');
         cards.forEach(function (c) { c.ports.forEach(function (p) { p.el.classList.remove('is-compatible', 'is-incompatible'); }); });
         var target = document.elementFromPoint(ev.clientX, ev.clientY);
         var tdot = target && target.closest && target.closest('.nc-port__dot');

@@ -251,7 +251,7 @@
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn" id="btn-cam" aria-label="Start the webcam">
       <svg class="ico" data-icon="video" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="4.5" width="8" height="7" rx="1"/><path d="m10 7 4-2v6l-4-2z"/></svg>
-      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true" style="display:none"><path d="M4 6l4 4 4-4"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true" hidden><path d="M4 6l4 4 4-4"/></svg>
     </button>
     <div class="org-popover" id="cam-popover" aria-label="Webcam options">
       <div class="org-popover__title">Webcam</div>
@@ -353,7 +353,7 @@
 </div>
 
 <input type="file" id="file-input" class="org-file-input" accept="video/*,.mov,.m4v,.mp4,.webm,.mkv" onchange="onFilePick(this)">
-<video id="src" muted playsinline style="display:none"></video>
+<video id="src" muted playsinline hidden></video>
 
 <script src="/shared/vendor/supabase-js.min.js"></script>
 <script src="/shared/core.js"></script>
@@ -1160,7 +1160,7 @@ async function syncCameraPicker() {
   const btn = $('btn-cam'), sel = $('sel-camera'), many = cams.length > 1;
   camMany = many;
   btn.classList.toggle('org-floatbar__btn--wide', many);
-  btn.querySelector('.chev').style.display = many ? '' : 'none';
+  btn.querySelector('.chev').hidden = !many;
   btn.setAttribute('aria-label', many ? 'Webcam' : 'Start the webcam');
   if (!many) { if (camPicker) camPicker.close(); return; }
   const live = camStream && camStream.getVideoTracks()[0] ? (camStream.getVideoTracks()[0].getSettings().deviceId || '') : '';
@@ -1199,7 +1199,7 @@ function setCoherence(v) {
   $('coh-hint').textContent = v === 'A' ? "Points are placed once; only their tone & size follow the video."
     : v === 'B' ? 'Points migrate toward the moving content — one relaxation step per frame.'
     : 'Full re-stipple every frame. Live preview updates in bursts; use Render for a clean pass.';
-  $('note').style.display = (v === 'C' && !recording) ? 'block' : 'none';
+  Organica.display($('note'), (v === 'C' && !recording) ? 'block' : 'none');
   $('note').textContent = 'Re-stipple is heavy per frame — the live preview lags and updates in bursts. Render gives a smooth result.';
   if (!applyingPreset && stippleFrozen && !running && workW) rebuildStipple(false);   // keep the frozen preview matched to the new mode
   else repaintStill();

@@ -220,10 +220,10 @@
         <button class="mini-btn" id="btn-preset-save">Save</button>
         <button class="mini-btn" id="btn-preset-delete" data-armed="Confirm?">Delete</button>
       </div>
-      <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-3)">
+      <div id="preset-save-row" class="ctrl-row" hidden style="margin-top:var(--space-3)">
         <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this network" aria-label="Name this network" style="flex:1">
       </div>
-      <div id="preset-save-actions" class="row-btns" style="display:none">
+      <div id="preset-save-actions" class="row-btns" hidden>
         <button class="mini-btn" id="btn-preset-confirm">Save</button>
         <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
       </div>
@@ -363,16 +363,16 @@ function handleLoomGridUpload(file) {
       });
       state.points = state.points.filter(p => p.source !== 'loom');
       pts.forEach(p => addPoint(p.x, p.y, 'loom'));
-      ctrl('loom-grid-error').style.display = 'none';
+      ctrl('loom-grid-error').hidden = true;
       onPointsChanged();
     } catch (e) {
       ctrl('loom-grid-error').textContent = e.message || 'Could not read that file.';
-      ctrl('loom-grid-error').style.display = '';
+      ctrl('loom-grid-error').hidden = false;
     }
   };
   reader.onerror = () => {
     ctrl('loom-grid-error').textContent = 'Could not read that file.';
-    ctrl('loom-grid-error').style.display = '';
+    ctrl('loom-grid-error').hidden = false;
   };
   reader.readAsText(file);
 }
@@ -803,14 +803,14 @@ function applyPreset(name) {
   onPointsChanged();
 }
 function beginSavePreset() {
-  ctrl('preset-save-row').style.display = 'flex';
-  ctrl('preset-save-actions').style.display = 'flex';
+  Organica.display(ctrl('preset-save-row'), 'flex');
+  Organica.display(ctrl('preset-save-actions'), 'flex');
   ctrl('txt-preset-name').value = '';
   ctrl('txt-preset-name').focus();
 }
 function cancelSavePreset() {
-  ctrl('preset-save-row').style.display = 'none';
-  ctrl('preset-save-actions').style.display = 'none';
+  ctrl('preset-save-row').hidden = true;
+  ctrl('preset-save-actions').hidden = true;
 }
 function confirmSavePreset() {
   const name = ctrl('txt-preset-name').value.trim();
@@ -838,7 +838,7 @@ function deletePreset() {
 // ── PANEL SYNC ──
 function syncPanelFromState() {
   ctrl('seg-mode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === state.mode));
-  ctrl('sc-params').style.display = state.mode === 'spaceColonization' ? 'block' : 'none';
+  Organica.display(ctrl('sc-params'), state.mode === 'spaceColonization' ? 'block' : 'none');
   ctrl('seg-play').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === state.playMode));
   ctrl('rg-growth-step').value = state.spaceColonization.growthStep; ctrl('v-growth-step').textContent = state.spaceColonization.growthStep;
   ctrl('rg-influence').value = state.spaceColonization.influenceRadius; ctrl('v-influence').textContent = state.spaceColonization.influenceRadius;

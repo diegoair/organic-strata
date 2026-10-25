@@ -639,3 +639,8 @@ html {
     --dur-settle: 1ms; --dur-stagger: 0ms;
   }
 }
+
+/* [hidden] always hides (Oct 25, 2026 — the inline style="display:none" sweep): a component's own display (a flex
+   .ctrl-row, a grid) would otherwise beat the browser's [hidden] rule. Show / hide with el.hidden, not style.display;
+   a value other than none goes through Organica.display(el, v). */
+[hidden] { display: none !important; }

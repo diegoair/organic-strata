@@ -59,12 +59,12 @@ export function showPhotoControls(lk, pre = 'element') {
 // Contrast for Tone and Dither.
 export function syncPhotoBlock(pre = 'element') {
   const id = pv('in-' + pre + '-photo'), look = pv('in-' + pre + '-photolook') || 'normal';
-  ctrl(pre + '-photo-open-row').style.display = id ? 'none' : '';   // .ctrl-row is flex: style.display, not hidden
-  ctrl(pre + '-photo-has-row').style.display = id ? '' : 'none';
+  ctrl(pre + '-photo-open-row').hidden = !!(id);   // .ctrl-row is flex: style.display, not hidden
+  ctrl(pre + '-photo-has-row').hidden = !id;
   if (id) { const src = live.photoSource(id), im = ctrl('img-' + pre + '-photo'); if (src && im.getAttribute('src') !== src) im.src = src; }
   ctrl('seg-' + pre + '-photolook').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.look === look; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
-  ctrl(pre + '-photoalg-row').style.display = ctrl(pre + '-photodot-row').style.display = look === 'dither' ? '' : 'none';
-  ctrl(pre + '-photocontrast-row').style.display = look === 'normal' ? 'none' : '';
+  ctrl(pre + '-photoalg-row').hidden = ctrl(pre + '-photodot-row').hidden = !(look === 'dither');
+  ctrl(pre + '-photocontrast-row').hidden = !!(look === 'normal');
 }
 // An uploaded SVG made safe and measurable: no script / foreignObject / event attributes, a viewBox, and a size of
 // 1024 on its longer side (so it decodes as an image at that size for Tone / Dither). → text, or null if unreadable.
@@ -188,11 +188,11 @@ export function showPatternControls(lk) {
 export function syncLookBlocks() {
   const L = state.layers, patRole = !!(L && (L.items[L.active].role || 'fill') === 'pattern');
   const fm = pv('sel-element-fillmode');
-  ctrl('element-style-row').style.display = patRole ? 'none' : '';
-  ctrl('element-stroke-block').style.display = !patRole && fm === 'stroke' ? '' : 'none';
+  ctrl('element-style-row').hidden = !!(patRole);
+  ctrl('element-stroke-block').hidden = !(!patRole && fm === 'stroke');
   const usesPattern = L ? L.items.some((l, i) => (l.role || 'fill') === 'pattern' || (i === L.active ? fm : (l.look && l.look.fillMode)) === 'pattern') : fm === 'pattern';
-  ctrl('element-pattern-block').style.display = usesPattern ? '' : 'none';
-  ctrl('element-patangle-row').style.display = pv('sel-element-pattern') === 'concentric' ? 'none' : '';
+  ctrl('element-pattern-block').hidden = !usesPattern;
+  ctrl('element-patangle-row').hidden = !!(pv('sel-element-pattern') === 'concentric');
   const usesPhoto = L ? L.items.some((l, i) => (l.role || 'fill') === 'fill' && (i === L.active ? fm : (l.look && l.look.fillMode)) === 'photo') : fm === 'photo';
   ctrl('element-photo-block').hidden = !usesPhoto || patRole;
   if (usesPhoto) syncPhotoBlock();
@@ -218,10 +218,10 @@ export function showGroundControls(g) {
 }
 export function syncGroundBlock() {
   const type = pv('sel-ground-pattern'), tile = type === 'element', photo = type === 'photo';
-  ctrl('ground-patangle-row').style.display = type === 'concentric' || photo ? 'none' : '';
+  ctrl('ground-patangle-row').hidden = !!(type === 'concentric' || photo);
   ctrl('ground-tile-block').hidden = !tile;
-  ctrl('ground-patweight-row').style.display = tile || photo ? 'none' : '';   // a tile's weight is the Element's own (Fill, or its Stroke W)
-  ['ground-ink-row', 'ground-patspacing-row'].forEach(id => { ctrl(id).style.display = photo ? 'none' : ''; });   // a photo has no ink, no spacing
+  ctrl('ground-patweight-row').hidden = !!(tile || photo);   // a tile's weight is the Element's own (Fill, or its Stroke W)
+  ['ground-ink-row', 'ground-patspacing-row'].forEach(id => { ctrl(id).hidden = !!(photo); });   // a photo has no ink, no spacing
   ctrl('ground-photo-block').hidden = !photo;
   if (photo) syncPhotoBlock('ground');
   if (tile) syncGroundTileOptions();

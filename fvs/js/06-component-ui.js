@@ -98,9 +98,9 @@ export function enterComponentEditMode(compId) {
   ctrl('rg-grid-cols').disabled = true; ctrl('rg-grid-rows').disabled = true;
   ctrl('sel-rule').disabled = true; rulePicker.refresh();
   ctrl('gallery').classList.remove('visible');
-  ctrl('gallery-empty').style.display = 'none';
+  ctrl('gallery-empty').hidden = true;
   ctrl('gallery-status').textContent = '';
-  ctrl('component-edit-view').style.display = 'flex';
+  Organica.display(ctrl('component-edit-view'), 'flex');
   if (hooks.boardComponentEdit) hooks.boardComponentEdit(true);   // Edit is the Component board's single view (18-step-boards.js)
   renderComponentEditCanvas();
   syncUndoUI();
@@ -128,7 +128,7 @@ export function exitComponentEditMode() {
   ctrl('component-edit-parts').hidden = true;
   ctrl('rg-grid-cols').disabled = false; ctrl('rg-grid-rows').disabled = false;
   ctrl('sel-rule').disabled = false; rulePicker.refresh();
-  ctrl('component-edit-view').style.display = 'none';
+  ctrl('component-edit-view').hidden = true;
   if (hooks.boardComponentEdit) hooks.boardComponentEdit(false);
   const compBlock = document.querySelector('.tier-block[data-tier="component"]');
   const elBlock = document.querySelector('.tier-block[data-tier="element"]');
@@ -604,7 +604,7 @@ export function syncMirrorLine() {
     'seg-mirror-line': syncSeg('seg-mirror-line', 'line', lines, state.mirrorLine),
     'seg-mirror-span': syncSeg('seg-mirror-span', 'span', spans, state.mirrorSpread),
   };
-  Object.keys(show).forEach(id => { ctrl(id).closest('.ctrl-row').style.display = own || !show[id] ? 'none' : ''; });   // .ctrl-row is flex
+  Object.keys(show).forEach(id => { ctrl(id).closest('.ctrl-row').hidden = !!(own || !show[id]); });   // .ctrl-row is flex
 }
 export function setMirrorLine(line) {
   if (!mirrorLinesEligible().includes(line)) return;
@@ -756,7 +756,7 @@ export function syncUserRules() {
   rulePicker.refresh(); syncRuleSaveUI();
 }
 // Save rule… shows while the rule is Custom and not already saved as it stands
-export function syncRuleSaveUI() { ctrl('rule-save-row').style.display = ruleIsCustom() && !activeSavedRule() ? '' : 'none'; }   // .row-btns is flex: [hidden] would not hide it
+export function syncRuleSaveUI() { ctrl('rule-save-row').hidden = !(ruleIsCustom() && !activeSavedRule()); }   // .row-btns is flex: [hidden] would not hide it
 export async function saveRule() {
   const base = pv('sel-rule');
   let name = await Organica.prompt({ title: 'Save rule', label: 'Rule name', value: lastSavedRule || ruleName(base), ok: 'Save' });
@@ -780,12 +780,12 @@ export function syncRuleAxisNote() {
   // Random with no axis on draws the one uniform Component, however many it is asked for (Oct 14, 2026)
   if (pv('sel-rule') === 'random' && !ax.rotation && !ax.flip && !ax.scale) {
     note.textContent = 'Random needs an axis on — under Transform axes (below), pick a second angle in Turns or turn on Flip or Scale; every Component is the same until then.';
-    note.style.display = ''; return;
+    note.hidden = false; return;
   }
   const satisfied = !fam || fam.requiresAxis !== 'any' || axisSatisfied('any', ax);
-  if (satisfied) { note.style.display = 'none'; return; }
+  if (satisfied) { note.hidden = true; return; }
   note.textContent = 'Checkerboard needs an axis on under Transform axes (below) — showing Uniform until then.';
-  note.style.display = '';
+  note.hidden = false;
 }
 
 // ── Transform axes (their own section below Rule — Diego, Oct 16, 2026) ──
@@ -819,12 +819,12 @@ export function syncRuleAxesUI() {
 export function syncRuleUI() {
   const mode = pv('sel-rule');
   rulePicker.refresh();
-  ctrl('rule-random-block').style.display = mode === 'random' ? '' : 'none';
-  ctrl('rule-mirror-block').style.display = mode === 'mirror' ? '' : 'none';
-  ctrl('rule-oscillator-block').style.display = mode === 'oscillator' ? '' : 'none';
+  ctrl('rule-random-block').hidden = !(mode === 'random');
+  ctrl('rule-mirror-block').hidden = !(mode === 'mirror');
+  ctrl('rule-oscillator-block').hidden = !(mode === 'oscillator');
   if (mode === 'oscillator') syncRhythm();
-  ctrl('rule-exhaustive-block').style.display = mode === 'exhaustive' ? '' : 'none';
-  ctrl('rule-manual-block').style.display = mode === 'manual' ? '' : 'none';
+  ctrl('rule-exhaustive-block').hidden = !(mode === 'exhaustive');
+  ctrl('rule-manual-block').hidden = !(mode === 'manual');
   syncRuleAxesUI();
   syncRuleAxisNote();
   // Exhaustive-over-cap disables Generate; leaving that mode for any
@@ -1420,24 +1420,24 @@ export function exportSelected(format) {
 // Thickness only for the arc; an upload has no adjustable params. ──
 export function syncSeedUI() {
   const type = pv('sel-seed-type');
-  ctrl('seed-triangle-block').style.display = type === 'triangle' ? '' : 'none';
-  ctrl('seed-arc-block').style.display = type === 'arc' ? '' : 'none';
-  ctrl('seed-arctruchet-block').style.display = type === 'arctruchet' ? '' : 'none';
-  ctrl('seed-wedge-block').style.display = type === 'wedge' ? '' : 'none';
-  ctrl('seed-polygon-block').style.display = type === 'polygon' ? '' : 'none';
-  ctrl('seed-star-block').style.display = type === 'star' ? '' : 'none';
-  ctrl('seed-roundedrect-block').style.display = type === 'roundedrect' ? '' : 'none';
-  ctrl('seed-chevron-block').style.display = type === 'chevron' ? '' : 'none';
-  ctrl('seed-cross-block').style.display = type === 'cross' ? '' : 'none';
-  ctrl('seed-lens-block').style.display = type === 'lens' ? '' : 'none';
-  ctrl('seed-circle-block').style.display = type === 'circle' ? '' : 'none';
-  ctrl('seed-segment-block').style.display = type === 'segment' ? '' : 'none';
-  ctrl('seed-drop-block').style.display = type === 'drop' ? '' : 'none';
-  ctrl('seed-blob-block').style.display = type === 'blob' ? '' : 'none';
-  ctrl('seed-freehand-block').style.display = type === 'freehand' ? '' : 'none';
+  ctrl('seed-triangle-block').hidden = !(type === 'triangle');
+  ctrl('seed-arc-block').hidden = !(type === 'arc');
+  ctrl('seed-arctruchet-block').hidden = !(type === 'arctruchet');
+  ctrl('seed-wedge-block').hidden = !(type === 'wedge');
+  ctrl('seed-polygon-block').hidden = !(type === 'polygon');
+  ctrl('seed-star-block').hidden = !(type === 'star');
+  ctrl('seed-roundedrect-block').hidden = !(type === 'roundedrect');
+  ctrl('seed-chevron-block').hidden = !(type === 'chevron');
+  ctrl('seed-cross-block').hidden = !(type === 'cross');
+  ctrl('seed-lens-block').hidden = !(type === 'lens');
+  ctrl('seed-circle-block').hidden = !(type === 'circle');
+  ctrl('seed-segment-block').hidden = !(type === 'segment');
+  ctrl('seed-drop-block').hidden = !(type === 'drop');
+  ctrl('seed-blob-block').hidden = !(type === 'blob');
+  ctrl('seed-freehand-block').hidden = !(type === 'freehand');
   { const off = INNER_UNSUPPORTED.has(type);
     ['rg-inner-count', 'rg-inner-ratio', 'sel-inner-anchor'].forEach(id => { ctrl(id).disabled = off; });
-    ctrl('inner-unsupported').style.display = off ? '' : 'none';
+    ctrl('inner-unsupported').hidden = !off;
     const hasApex = !!INNER_APEX[type], sel = ctrl('sel-inner-anchor');
     sel.querySelector('option[value="apex"]').disabled = !hasApex;
     if (!hasApex && sel.value === 'apex') { sel.value = val('rg-element-cutout') > 0 ? 'incentre' : 'centroid'; renderGallery(); renderSeedPreview(); } }

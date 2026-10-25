@@ -105,10 +105,10 @@
         <button class="mini-btn" onclick="savePreset()">Save</button>
         <button class="mini-btn" onclick="deletePreset()" data-armed="Confirm?">Delete</button>
       </div>
-      <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-2)">
+      <div id="preset-save-row" class="ctrl-row" hidden style="margin-top:var(--space-2)">
         <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this preset" aria-label="Name this preset" style="flex:1">
       </div>
-      <div id="preset-save-actions" class="row-btns" style="display:none">
+      <div id="preset-save-actions" class="row-btns" hidden>
         <button class="mini-btn" id="btn-preset-confirm">Save</button>
         <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
       </div>
@@ -398,11 +398,11 @@ const SCATTER_PATTERNS = new Set(['drop', 'conifer', 'fronds', 'leaves', 'cluste
 
 function syncConditionalRows() {
   const cookie = seg('seg-source') === 'cookie';
-  ctrl('row-cookie-load').style.display = cookie ? '' : 'none';
-  ctrl('row-pattern').style.display = cookie ? 'none' : '';
+  ctrl('row-cookie-load').hidden = !cookie;
+  ctrl('row-pattern').hidden = !!(cookie);
   const scatter = !cookie && SCATTER_PATTERNS.has(ctrl('sel-pattern').value);
-  ctrl('row-sizerange').style.display = scatter ? '' : 'none';
-  ctrl('row-merge').style.display = scatter ? '' : 'none';
+  ctrl('row-sizerange').hidden = !scatter;
+  ctrl('row-merge').hidden = !scatter;
 }
 
 // Each mask repurposes the same six sliders — relabel the panel to match
@@ -1480,8 +1480,8 @@ function applyPreset(name) {
 }
 function savePreset() {
   ctrl('txt-preset-name').value = 'Preset ' + new Date().toLocaleTimeString();
-  ctrl('preset-save-row').style.display = '';
-  ctrl('preset-save-actions').style.display = '';
+  ctrl('preset-save-row').hidden = false;
+  ctrl('preset-save-actions').hidden = false;
   ctrl('txt-preset-name').focus();
   ctrl('txt-preset-name').select();
 }
@@ -1497,8 +1497,8 @@ function confirmSavePreset() {
   cancelSavePreset();
 }
 function cancelSavePreset() {
-  ctrl('preset-save-row').style.display = 'none';
-  ctrl('preset-save-actions').style.display = 'none';
+  ctrl('preset-save-row').hidden = true;
+  ctrl('preset-save-actions').hidden = true;
   ctrl('txt-preset-name').value = '';
 }
 function deletePreset() {

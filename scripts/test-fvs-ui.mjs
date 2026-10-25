@@ -606,7 +606,7 @@ if (want('V')) {
         document.getElementById('btn-symgrid-generate').click();
         for (let i = 0; i < 60 && !(state.symbolGrid && state.symbolCells && state.symbolCells.length); i++) await __t.wait(100);
         await __t.wait(900);
-        const errEl = document.getElementById('symgrid-gen-error'); out.genError = errEl && errEl.style.display !== 'none' ? errEl.textContent : '';
+        const errEl = document.getElementById('symgrid-gen-error'); out.genError = errEl && !errEl.hidden ? errEl.textContent : '';
         if (!state.symbolGrid) { out.err = 'no grid'; return out; }
         let svg = ''; try { svg = buildSymbolSVG(); } catch (e) { out.err = 'buildSymbolSVG threw: ' + e.message; return out; }
         const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');

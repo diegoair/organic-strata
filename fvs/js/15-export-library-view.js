@@ -161,7 +161,7 @@ export function outputName(label, scale) {
   const fmt = pv('sel-variant-format');
   return Organica.stamp(`fvs-${label}${fmt === 'png' && scale > 1 ? '@' + scale + 'x' : ''}`, fmt);
 }
-export function syncVariantFormatUI() { ctrl('row-variant-scales').style.display = pv('sel-variant-format') === 'png' ? '' : 'none'; }
+export function syncVariantFormatUI() { ctrl('row-variant-scales').hidden = !(pv('sel-variant-format') === 'png'); }
 ctrl('sel-variant-format').addEventListener('change', syncVariantFormatUI);
 syncVariantFormatUI();
 
@@ -267,7 +267,7 @@ ctrl('btn-pick-underlying-component').addEventListener('click', openUnderlyingCo
 ctrl('btn-remove-underlying-component').addEventListener('click', removeUnderlyingComponent);
 ctrl('btn-underlying-overlay-close').addEventListener('click', closeUnderlyingComponentPicker);
 ctrl('underlying-component-overlay').addEventListener('click', e => { if (e.target === ctrl('underlying-component-overlay')) closeUnderlyingComponentPicker(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ctrl('underlying-component-overlay').style.display !== 'none') closeUnderlyingComponentPicker(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !ctrl('underlying-component-overlay').hidden) closeUnderlyingComponentPicker(); });
 
 
 // ── Init ──
@@ -301,7 +301,7 @@ export function setRailOpen(open, opts) {
 // measured without the panel's entry transform (offset*, not getBoundingClientRect).
 export function syncRailSpace() {
   const wrap = ctrl('canvas-wrap'), dock = ctrl('fvs-rail-dock'), railPanel = ctrl('fvs-rail-panel');   // ctrl(): it can run during init, before the const
-  const open = railPanel.dataset.open === 'true' && !railPanel.classList.contains('is-empty') && dock.style.display !== 'none';
+  const open = railPanel.dataset.open === 'true' && !railPanel.classList.contains('is-empty') && !dock.hidden;
   if (!open) { wrap.style.removeProperty('--fvs-rail-reserve'); return; }
   const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-5')) || 0;
   const right = dock.offsetLeft + railPanel.offsetLeft + railPanel.offsetWidth - wrap.getBoundingClientRect().left;
@@ -372,8 +372,8 @@ export function renderLibraryRail() {
   syncRailGroup(syms, sNames.map(n => ['symbol', n, symbolEntryThumbSVG(sAll[n])]));
   // An empty group is not shown (no "None saved yet"); Components stays on its own tab for Save all.
   const onComp = state.activeTier === 'component', visible = [['elements', elNames.length], ['components', cNames.length || onComp], ['symbols', sNames.length]];
-  visible.forEach(([k, on]) => { ctrl('rail-g-' + k).style.display = on ? '' : 'none'; });
-  ctrl('btn-rail-save-all').style.display = onComp ? '' : 'none';
+  visible.forEach(([k, on]) => { ctrl('rail-g-' + k).hidden = !on; });
+  ctrl('btn-rail-save-all').hidden = !onComp;
   // nothing to show at all (and no Save footer) → no empty glass box beside the toggle
   ctrl('fvs-rail-panel').classList.toggle('is-empty', !visible.some(([, on]) => on) && state.activeTier !== 'symbol');
   syncRailSpace();   // its contents (and so its width) changed
@@ -544,7 +544,7 @@ export function railSaveTarget() {
 }
 export function syncRailSave() {
   // Symbol only: Elements and Components save from their own thumbnails (the + circle)
-  ctrl('fvs-rail-panel').querySelector('.fvs-rail__foot').style.display = state.activeTier === 'symbol' ? '' : 'none';
+  ctrl('fvs-rail-panel').querySelector('.fvs-rail__foot').hidden = !(state.activeTier === 'symbol');
   railSaveBtn.disabled = !railSaveTarget();
 }
 ctrl('fvs-rail-panel').addEventListener('pointerenter', syncRailSave);
@@ -561,7 +561,7 @@ railSaveBtn.addEventListener('click', async () => {
 rt.railTarget = null;
 export function syncRailTier(tier) {
   const show = tier !== 'figure' || !!rt.railTarget;
-  ctrl('fvs-rail-dock').style.display = show ? '' : 'none';
+  ctrl('fvs-rail-dock').hidden = !show;
   syncRailSave();
   if (!show && railIsOpen()) setRailOpen(false);
   renderLibraryRail();
@@ -719,7 +719,7 @@ export function libviewOpenItem(kind, name) {
     closeLibview();
     if (state.activeTier !== 'element') setTier('element');
     try { useSvgAsSeed(f.svg); }   // whole: flower bloom = 9 ellipses, sun = disc + stroked rays
-    catch (e) { ctrl('seed-upload-error').textContent = e.message; ctrl('seed-upload-error').style.display = ''; }
+    catch (e) { ctrl('seed-upload-error').textContent = e.message; ctrl('seed-upload-error').hidden = false; }
     return;
   }
   closeLibview();

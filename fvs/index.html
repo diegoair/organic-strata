@@ -88,7 +88,7 @@
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
   <!-- Component-tier action — undo the last Generate / Clear / Add / Tile. Shown only on that tier by setTier(). -->
-  <div id="fb-component-actions" class="fvs-fb-group" style="display:none">
+  <div id="fb-component-actions" class="fvs-fb-group" hidden>
     <!-- Generate components (Oct 15, 2026 — Diego: Symbol's Fill the grid icon, behaviour and arrival): runs the rule and
          replaces the edited Element's Components (Manual: "Add component"). aria-disabled + the reason in its label when it
          can't run; .is-stale (a dot) + "— the rule changed" when Grid / Rule / Axes changed since the last run. Hidden in
@@ -104,11 +104,11 @@
       <svg class="ico" data-icon="fvs-grid" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11"/></svg>
     </button>
     <!-- Clip to cell (Component Edit): each cell's drawing cut to its cell — Symbol's toggle, the same setting as the panel's switch -->
-    <button class="org-floatbar__btn" id="btn-component-view-clip" aria-pressed="false" aria-label="Clip to cell" style="display:none">
+    <button class="org-floatbar__btn" id="btn-component-view-clip" aria-pressed="false" aria-label="Clip to cell" hidden>
       <svg class="ico" data-icon="fvs-clip" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6.5 13A6.5 6.5 0 0 1 13 6.5"/></svg>
     </button>
     <!-- Show guides (Component Edit only): the track borders and their % — Symbol's toggle, the same icon -->
-    <button class="org-floatbar__btn" id="btn-component-view-guides" aria-pressed="true" aria-label="Show guides" style="display:none">
+    <button class="org-floatbar__btn" id="btn-component-view-guides" aria-pressed="true" aria-label="Show guides" hidden>
       <svg class="ico" data-icon="fvs-guides" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/></svg>
     </button>
     <!-- Clear board: every candidate goes (clearGallery keeps an undo step, so ⌘Z brings them back). Hold to confirm. -->
@@ -116,7 +116,7 @@
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
     </button>
     <!-- Component Edit: Fit and Anchor on the picked cells (all cells when none is picked) — Symbol's floatbar group. -->
-    <span class="org-floatbar__group" id="fb-ce-place" role="group" aria-label="Fit in cell" style="display:none">
+    <span class="org-floatbar__group" id="fb-ce-place" role="group" aria-label="Fit in cell" hidden>
       <button class="org-floatbar__btn" id="btn-ce-fit-contain" data-fit="contain" data-fit-name="Contain" aria-pressed="false" aria-label="Contain · all cells">
         <svg class="ico" data-icon="fvs-contain" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1"/><circle cx="8" cy="8" r="2.6"/></svg>
       </button>
@@ -142,7 +142,7 @@
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
   <!-- Figure graph actions (Oct 2026). Shown only on the Figure step by setTier(). -->
-  <div id="fb-figure-actions" class="fvs-fb-group" style="display:none">
+  <div id="fb-figure-actions" class="fvs-fb-group" hidden>
     <span class="org-floatbar__group" role="group" aria-label="Graph">
       <button class="org-floatbar__btn" id="btn-fg-new" aria-label="New Figure…" data-icon-slot></button>
       <span class="org-popover-wrap">
@@ -175,7 +175,7 @@
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
   <!-- Compose actions (Phase 5). Shown instead of #fb-figure-actions while composing. -->
-  <div id="fb-compose-actions" class="fvs-fb-group" style="display:none">
+  <div id="fb-compose-actions" class="fvs-fb-group" hidden>
     <span class="org-floatbar__group" role="group" aria-label="Compose">
       <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-fg-compose-done" aria-label="Done" aria-keyshortcuts="Escape"><span class="fg-done__label">Done</span></button>
     </span>
@@ -187,7 +187,7 @@
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
   <!-- Symbol-tier actions. Shown only on that tier by setTier(). -->
-  <div id="fb-symbol-actions" class="fvs-fb-group" style="display:none">
+  <div id="fb-symbol-actions" class="fvs-fb-group" hidden>
     <span class="org-floatbar__group" role="group" aria-label="Symbol">
     <!-- Generate: fills the empty grid (Suggest / Arrange). aria-disabled + the reason in its label (the tooltip)
          when nothing is saved or the grid already has content. The variations are sheets on the Symbol board (18-step-boards.js). -->
@@ -195,7 +195,7 @@
       <svg class="ico" data-icon="generate" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M8 2.5v11M2.5 8h11"/><rect x="4" y="4" width="2.5" height="2.5" rx=".4" fill="currentColor" stroke="none"/><rect x="9.5" y="9.5" width="2.5" height="2.5" rx=".4" fill="currentColor" stroke="none"/></svg>
     </button>
     <!-- Clear: every cell empty, the grid kept. Hold to confirm (data-hold, core.js); a bare click falls back to two clicks. Shown with the grid, disabled while every cell is empty. -->
-    <button class="org-floatbar__btn" id="btn-symbol-clear" aria-label="Clear Symbol — hold to confirm" data-hold="Clear Symbol — click again to confirm" style="display:none">
+    <button class="org-floatbar__btn" id="btn-symbol-clear" aria-label="Clear Symbol — hold to confirm" data-hold="Clear Symbol — click again to confirm" hidden>
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
     </button>
     </span>
@@ -418,7 +418,7 @@
            clickable (data-cell-index hit layer, same pattern as Symbol's own
            #symbol-frame); the selected cell's own shape edits live from the
            Element sidebar panel, temporarily swapped into view. -->
-      <div id="component-edit-view" style="display:none">
+      <div id="component-edit-view" hidden>
         <div id="component-edit-toolbar" class="fvs-edit-toolbar">
           <button type="button" id="btn-component-edit-exit" class="mini-btn" aria-keyshortcuts="Escape"><svg class="ico ico--sm" data-icon="arrow-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8H3M6.5 4.5 3 8l3.5 3.5"/></svg>Back to board</button>
           <span id="component-edit-hint" class="hint">Click a cell to give it its own shape</span>
@@ -496,7 +496,7 @@
       </div>
       <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
       <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
-      <div id="layer-place-block" class="org-layer-card__content fvs-layer__place" style="display:none">
+      <div id="layer-place-block" class="org-layer-card__content fvs-layer__place" hidden>
         <div class="ctrl-row"><div class="ctrl-label" title="Move X — shifts this layer inside the Element; 100 is a full cell.">X</div><input type="range" id="rg-layer-mx" min="-100" max="100" step="0.1" value="0" aria-label="Move X"><span class="ctrl-val" id="v-layer-mx">0</span></div>
         <div class="ctrl-row"><div class="ctrl-label" title="Move Y">Y</div><input type="range" id="rg-layer-my" min="-100" max="100" step="0.1" value="0" aria-label="Move Y"><span class="ctrl-val" id="v-layer-my">0</span></div>
         <div class="ctrl-row"><div class="ctrl-label" title="Size">Size</div><input type="range" id="rg-layer-scale" min="0.1" max="2" step="0.01" value="1" aria-label="Size"><span class="ctrl-val" id="v-layer-scale">1</span></div>
@@ -589,7 +589,7 @@
           <span class="ctrl-val" id="v-tri-curve">0</span>
         </div>
       </div>
-      <div id="seed-arc-block" style="display:none">
+      <div id="seed-arc-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Shortcut that sets Sweep. Reads Custom as soon as you move Sweep by hand.">Type</div>
           <select class="panel-select" id="sel-arc-type" aria-label="Arc type">
@@ -642,7 +642,7 @@
           <span class="ctrl-val" id="v-arc-gap">20</span>
         </div>
       </div>
-      <div id="seed-arctruchet-block" style="display:none">
+      <div id="seed-arctruchet-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Shortcut that sets Fans, Bands, Thickness, Core and Rounding. Reads Custom as soon as you change any of the truchet controls by hand.">Type</div>
           <select class="panel-select" id="sel-tru-type" aria-label="Arc truchet type">
@@ -711,7 +711,7 @@
           <span class="ctrl-val" id="v-tru-gap">20</span>
         </div>
       </div>
-      <div id="seed-wedge-block" style="display:none">
+      <div id="seed-wedge-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Shortcut that sets Angle and Hole. Reads Custom as soon as you move either by hand.">Type</div>
           <select class="panel-select" id="sel-wedge-type" aria-label="Wedge type">
@@ -742,7 +742,7 @@
           <span class="ctrl-val" id="v-wedge-curve">0</span>
         </div>
       </div>
-      <div id="seed-polygon-block" style="display:none">
+      <div id="seed-polygon-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Shortcut that sets Sides. Reads Custom as soon as you move it by hand. (Triangle and Square are shapes of their own.)">Type</div>
           <select class="panel-select" id="sel-poly-type" aria-label="Polygon type">
@@ -781,7 +781,7 @@
           <span class="ctrl-val" id="v-poly-curve">0</span>
         </div>
       </div>
-      <div id="seed-star-block" style="display:none">
+      <div id="seed-star-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Points</div>
           <input type="range" id="rg-star-points" min="3" max="20" step="1" value="5">
@@ -793,7 +793,7 @@
           <span class="ctrl-val" id="v-star-inner">45</span>
         </div>
       </div>
-      <div id="seed-roundedrect-block" style="display:none">
+      <div id="seed-roundedrect-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Width</div>
           <input type="range" id="rg-rr-width" min="5" max="100" step="1" value="100">
@@ -810,7 +810,7 @@
           <span class="ctrl-val" id="v-rr-corner">0</span>
         </div>
       </div>
-      <div id="seed-chevron-block" style="display:none">
+      <div id="seed-chevron-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How far down the inner V’s apex sits — lower is a shallower chevron.">Notch</div>
           <input type="range" id="rg-chev-notch" min="10" max="90" step="1" value="40">
@@ -822,7 +822,7 @@
           <span class="ctrl-val" id="v-chev-arm">55</span>
         </div>
       </div>
-      <div id="seed-cross-block" style="display:none">
+      <div id="seed-cross-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How thick each arm is.">Thickness</div>
           <input type="range" id="rg-cross-armwidth" min="5" max="50" step="1" value="35">
@@ -839,14 +839,14 @@
           <span class="ctrl-val" id="v-cross-corner">0</span>
         </div>
       </div>
-      <div id="seed-lens-block" style="display:none">
+      <div id="seed-lens-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Width at the midline — tips are always fixed to the cell’s top/bottom edges.">Width</div>
           <input type="range" id="rg-lens-width" min="8" max="95" step="1" value="50">
           <span class="ctrl-val" id="v-lens-width">50</span>
         </div>
       </div>
-      <div id="seed-circle-block" style="display:none">
+      <div id="seed-circle-block" hidden>
         <div class="ctrl-row" id="row-circle-round">
           <div class="ctrl-label" title="0 = a true circle, 100 = a near-square squircle.">Roundness</div>
           <input type="range" id="rg-circle-round" min="0" max="100" step="1" value="0">
@@ -946,7 +946,7 @@
           <span class="ctrl-val" id="v-circle-slicegap">6</span>
         </div>
       </div>
-      <div id="seed-segment-block" style="display:none">
+      <div id="seed-segment-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Length</div>
           <input type="range" id="rg-seg-len" min="5" max="100" step="1" value="70">
@@ -959,7 +959,7 @@
         </div>
         <label class="check-row"><input type="checkbox" id="ck-seg-round"><span>Round ends</span></label>
       </div>
-      <div id="seed-drop-block" style="display:none">
+      <div id="seed-drop-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Radius</div>
           <input type="range" id="rg-drop-radius" min="5" max="100" step="1" value="60">
@@ -971,7 +971,7 @@
           <span class="ctrl-val" id="v-drop-tail">50</span>
         </div>
       </div>
-      <div id="seed-blob-block" style="display:none">
+      <div id="seed-blob-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label" title="How far the outline wobbles from a perfect circle.">Amount</div>
           <input type="range" id="rg-blob-amount" min="0" max="100" step="1" value="40">
@@ -983,7 +983,7 @@
           <span class="ctrl-val" id="v-blob-seed">1</span>
         </div>
       </div>
-      <div id="seed-freehand-block" style="display:none">
+      <div id="seed-freehand-block" hidden>
         <label class="check-row"><input type="checkbox" id="ck-fh-close" checked><span>Close path</span></label>
         <label class="check-row"><input type="checkbox" id="ck-fh-smooth" checked><span>Smooth (curve)</span></label>
         <div class="row-btns">
@@ -998,7 +998,7 @@
            shape-own Irregularity + Seed pairs (+ Polygon / Star Angle jitter), replaced by Appearance → Irregularity.
            Kept, never shown, so an older snapshot still round-trips through getPanelSeed(); foldLegacySeed()
            moves their values into Appearance on load whenever the result is identical. -->
-      <div id="seed-legacy" style="display:none">
+      <div id="seed-legacy" hidden>
         <input type="hidden" id="rg-poly-base" value="0"><input type="hidden" id="rg-star-base" value="-90">
         <div class="ctrl-row">
           <div class="ctrl-label" title="Jitters each vertex — 0 stays a perfectly clean triangle.">Irregularity</div>
@@ -1111,8 +1111,8 @@
           <span class="ctrl-val" id="v-blob-radius">60</span>
         </div>
       </div>
-      <p class="org-panel__hint" id="seed-legacy-note" style="display:none">This shape keeps a size, rotation, outline or irregularity saved before these controls moved to Look &amp; place (Scale, Rotate, Cut out, Irregularity). Reset Element clears it.</p>
-      <div id="seed-upload-error" class="org-panel__hint fvs-error" style="display:none"></div>
+      <p class="org-panel__hint" id="seed-legacy-note" hidden>This shape keeps a size, rotation, outline or irregularity saved before these controls moved to Look &amp; place (Scale, Rotate, Cut out, Irregularity). Reset Element clears it.</p>
+      <div id="seed-upload-error" class="org-panel__hint fvs-error" hidden></div>
     </div>
 
     <div class="panel-section">
@@ -1130,7 +1130,7 @@
           <option value="photo">Photo</option>
         </select>
       </div>
-      <div id="element-stroke-block" style="display:none">
+      <div id="element-stroke-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Stroke W</div>
           <input type="range" id="rg-element-strokew" min="1" max="20" step="1" value="4">
@@ -1207,10 +1207,10 @@
           <option value="apex">Apex</option>
         </select>
       </div>
-      <p class="org-panel__hint" id="inner-unsupported" style="display:none">Not available for this shape — its copies would cross instead of nest.</p>
+      <p class="org-panel__hint" id="inner-unsupported" hidden>Not available for this shape — its copies would cross instead of nest.</p>
       </div>
       <!-- The Element's pattern (Style = Pattern on any layer, and every Pattern-role layer): ONE set of settings for the whole Element, here in Appearance even with layers — a layer only picks its Style. -->
-      <div id="element-pattern-block" style="display:none">
+      <div id="element-pattern-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Type</div>
           <select class="panel-select" id="sel-element-pattern" aria-label="Pattern type">
@@ -1245,7 +1245,7 @@
         <div class="ctrl-row" id="element-photo-open-row">
           <button type="button" class="org-btn org-btn--sm" id="btn-element-photo-open"><svg class="ico" data-icon="upload" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 9.2V2M5.3 4.7 8 2l2.7 2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>Open photo or SVG…</button>
         </div>
-        <div class="fvs-photo-row" id="element-photo-has-row" style="display:none">
+        <div class="fvs-photo-row" id="element-photo-has-row" hidden>
           <img class="fvs-photo-thumb" id="img-element-photo" alt="The Element’s photo" data-theme="light">
           <button type="button" class="org-btn org-btn--sm" id="btn-element-photo-replace">Replace photo or SVG…</button>
           <button type="button" class="org-btn org-btn--sm org-btn--icon" id="btn-element-photo-remove" aria-label="Remove photo"><svg class="ico" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
@@ -1292,7 +1292,7 @@
           <span class="ctrl-val" id="v-element-photomy">0</span>
         </div>
       </div>
-      <div class="sub-label" id="element-wide-label" style="display:none" title="Scale, Move, Rotation and Fit act on the whole Element. One layer’s own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
+      <div class="sub-label" id="element-wide-label" hidden title="Scale, Move, Rotation and Fit act on the whole Element. One layer’s own style, stretch, size and position are in its card under Layers.">Whole Element — all layers</div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Uniform size of the shape itself, before it is placed in any cell.">Scale</div>
         <input type="range" id="rg-element-scale" min="0.1" max="5" step="0.001" value="1">
@@ -1336,7 +1336,7 @@
         <input type="number" class="panel-input" id="num-symcanvas-h" min="1" step="1" value="1080" aria-label="Size, height" style="width:30%">
         <span class="hint" id="symcanvas-unit-label">px</span>
       </div>
-      <div id="symcanvas-print-block" style="display:none">
+      <div id="symcanvas-print-block" hidden>
         <div class="ctrl-row">
           <span class="ctrl-label">Unit</span>
           <select class="panel-select" id="sel-symcanvas-unit" aria-label="Canvas unit"><option value="mm">mm</option><option value="in">in</option></select>
@@ -1364,9 +1364,9 @@
       </div>
       <div id="symgrid-gen-params"></div>
       <button class="panel-btn" id="btn-symgrid-generate" style="width:100%">Generate grid in canvas</button>
-      <div id="symgrid-gen-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
+      <div id="symgrid-gen-error" class="org-panel__hint" hidden style="color:var(--danger)"></div>
       <button class="mini-btn" id="btn-symbol-grid-upload" style="width:100%;margin-top:var(--space-2)">Load JSON grid</button>
-      <div id="symbol-grid-error" class="org-panel__hint" style="display:none;color:var(--danger)"></div>
+      <div id="symbol-grid-error" class="org-panel__hint" hidden style="color:var(--danger)"></div>
     </div>
     <!-- Overlap & blend (Oct 6, 2026): how cell contents reach into their neighbours and how overlaps draw — every
          Symbol grid. On a Component grid Overlap moves the Components closer in whole small cells (and rebuilds the
@@ -1379,7 +1379,7 @@
         <select class="panel-select" id="sel-symbol-blend" aria-label="Blend">
           <option value="under">Paper under</option><option value="normal">Normal</option><option value="multiply">Multiply</option><option value="shared">Shared cells</option>
         </select></div>
-      <div class="ctrl-row" id="symbol-drawnby-row" style="display:none"><div class="ctrl-label" title="Which content draws a small cell they both cover">Drawn by</div>
+      <div class="ctrl-row" id="symbol-drawnby-row" hidden><div class="ctrl-label" title="Which content draws a small cell they both cover">Drawn by</div>
         <select class="panel-select" id="sel-symbol-drawnby" aria-label="Drawn by">
           <option value="nearest">Nearest centre</option><option value="alternate">Alternate</option><option value="first">First</option><option value="last">Last</option>
         </select></div>
@@ -1413,7 +1413,7 @@
     </div>
     <div class="panel-section ce-hide">
       <h3>Grid <span class="hint" id="grid-cellcount-hint">4 cells</span></h3>
-      <div class="ctrl-row" id="grid-outline-row" style="display:none"><div class="ctrl-label" id="grid-outline-label" title="The shape the cells are grouped into">Grid shape</div>
+      <div class="ctrl-row" id="grid-outline-row" hidden><div class="ctrl-label" id="grid-outline-label" title="The shape the cells are grouped into">Grid shape</div>
         <div class="seg-ctrl" id="seg-grid-outline" role="group" aria-label="Grid shape">
           <button type="button" class="seg-btn" data-outline="hexagon" aria-pressed="false" aria-label="Hexagon" data-icon-slot></button>
           <button type="button" class="seg-btn" data-outline="triangle" aria-pressed="false" aria-label="Triangle" data-icon-slot></button>
@@ -1421,7 +1421,7 @@
           <button type="button" class="seg-btn" data-outline="square" aria-pressed="false" aria-label="Square" data-icon-slot></button>
         </div>
       </div>
-      <div class="ctrl-row" id="grid-lattice-row" style="display:none"><div class="ctrl-label" title="Cells along each side.">Grid size</div>
+      <div class="ctrl-row" id="grid-lattice-row" hidden><div class="ctrl-label" title="Cells along each side.">Grid size</div>
         <input type="range" id="rg-grid-rings" min="1" max="4" step="1" value="2" aria-label="Grid size">
         <span class="ctrl-val" id="v-grid-rings">2</span>
       </div>
@@ -1435,12 +1435,12 @@
         <input type="range" id="rg-grid-rows" min="1" max="8" step="1" value="2" aria-label="Component grid rows">
         <span class="ctrl-val" id="v-grid-rows">2</span>
       </div>
-      <p class="org-panel__hint" id="grid-legacy-hint" style="display:none">This Component was saved on an imported Loom grid (legacy). It renders as saved; pick columns × rows to start a new grid. Larger and irregular grids now live in the Symbol.</p>
+      <p class="org-panel__hint" id="grid-legacy-hint" hidden>This Component was saved on an imported Loom grid (legacy). It renders as saved; pick columns × rows to start a new grid. Larger and irregular grids now live in the Symbol.</p>
       <div id="grid-square-block">
         <!-- Cell size: removed from the panel (Oct 6, 2026, Diego) — every view fits the Component to its box, so it
              changed nothing visible; the output size is set at export (×1/×2/×4, Print). The input stays, hidden, as
              the grid's unit (160, or a loaded Component's own) so saved Components and Gap keep their proportions. -->
-        <div class="ctrl-row" style="display:none">
+        <div class="ctrl-row" hidden>
           <div class="ctrl-label">Cell size</div>
           <input type="range" id="rg-cellsize" min="60" max="260" step="1" value="160">
           <span class="ctrl-val" id="v-cellsize">160</span>
@@ -1475,7 +1475,7 @@
           <option value="manual" hidden>Manual</option><!-- off the menu (Diego, Oct 14, 2026 — Tropism Phase 0): cells are made by hand in Component Edit (Cell properties); kept hidden for the engine and the tests -->
         </select>
       </div>
-      <p class="org-panel__hint" id="rule-axis-note" style="display:none"></p>
+      <p class="org-panel__hint" id="rule-axis-note" hidden></p>
 
       <div id="rule-random-block" class="fvs-rule-opts">
         <div class="ctrl-row">
@@ -1494,7 +1494,7 @@
 
       <!-- Radial has no controls of its own since Oct 22, 2026 (Diego): every reading × direction × start is the package -->
       <!-- Checkerboard has no controls of its own since Oct 22, 2026 (Diego): every pair of poses, both starts, is the package -->
-      <div id="rule-mirror-block" class="fvs-rule-opts" style="display:none">
+      <div id="rule-mirror-block" class="fvs-rule-opts" hidden>
         <!-- Mirror (was Line) · Pattern (was Span) as icons, an option the grid cannot run hidden, a row with one option
              left hidden (Diego, Oct 22, 2026; design-system CONSULT the same day). data-line / data-span keep the engine's keys. -->
         <div class="ctrl-row"><div class="ctrl-label" id="mirror-line-label">Mirror</div>
@@ -1512,7 +1512,7 @@
       </div>
       <!-- Lines has no controls of its own since Oct 22, 2026 (Diego): both directions × Alternate / Ramp × Step is the package -->
 
-      <div id="rule-oscillator-block" class="fvs-rule-opts" style="display:none">
+      <div id="rule-oscillator-block" class="fvs-rule-opts" hidden>
         <!-- Rhythm: only the Beat is authored since Oct 23, 2026 (Diego, "vai pacchetto curato") — Generate makes every mode -->
         <div id="rhythm-beat-block">
           <div class="ctrl-row"><div class="ctrl-label" id="rhythm-beat-label">Beat</div>
@@ -1524,11 +1524,11 @@
         </div>
       </div>
 
-      <div id="rule-exhaustive-block" class="fvs-rule-opts" style="display:none">
+      <div id="rule-exhaustive-block" class="fvs-rule-opts" hidden>
         <p id="rule-total-hint"></p>
       </div>
 
-      <div id="rule-manual-block" class="fvs-rule-opts" style="display:none">
+      <div id="rule-manual-block" class="fvs-rule-opts" hidden>
         <!-- 4 cell groups injected by JS -->
       </div>
 
@@ -1552,7 +1552,7 @@
       <!-- Flip and Scale: switches like Turns (Diego, Oct 21: "rendi scale e flip un toggle") -->
       <label class="check-row org-switch"><input type="checkbox" id="chk-axis-flip"><span>Flip</span></label>
       <label class="check-row org-switch"><input type="checkbox" id="chk-axis-scale"><span>Scale</span></label>
-      <div id="scale-values-block" style="display:none">
+      <div id="scale-values-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Small %</div>
           <input type="range" id="rg-scale-small" min="10" max="400" step="1" value="75">
@@ -1570,7 +1570,7 @@
         </div>
       </div>
       <!-- Save rule… (Oct 21, 2026 — plan phase 3; at the end of Transform axes since Oct 21 — Diego): a Custom rule, as it stands, under a name in "Yours" (Rule menu) -->
-      <div class="row-btns" id="rule-save-row" style="display:none"><button type="button" class="mini-btn" id="btn-save-rule">Save rule…</button></div>
+      <div class="row-btns" id="rule-save-row" hidden><button type="button" class="mini-btn" id="btn-save-rule">Save rule…</button></div>
     </div>
 
     <!-- Colourways (Oct 21, 2026 — Diego: "move it to the bottom of the component, make it a toggle", with Layer colour variants;
@@ -1578,7 +1578,7 @@
          by the layers' inks, and by the palette's colourways. A change lights Generate's dot (it is in the step block). -->
     <div class="panel-section ce-hide">
       <h3>Colourways</h3>
-      <label class="check-row org-switch" id="layer-inks-row" style="display:none"><input type="checkbox" id="chk-layer-inks"><span>Layer colour variants</span></label>
+      <label class="check-row org-switch" id="layer-inks-row" hidden><input type="checkbox" id="chk-layer-inks"><span>Layer colour variants</span></label>
       <!-- the colour groups' rules (Oct 12, 2026): how each group of the edited Element changes in the colour variants -->
       <div id="colour-group-rules" hidden></div>
       <label class="check-row org-switch"><input type="checkbox" id="chk-colourways"><span>Each component in its colourways</span></label>
@@ -1597,11 +1597,11 @@
           <option value="mask">Mask</option>
         </select>
       </div>
-      <div id="underlying-component-block" style="display:none;margin-top:var(--space-2)">
+      <div id="underlying-component-block" hidden style="margin-top:var(--space-2)">
         <div id="underlying-component-empty">
           <button class="mini-btn" id="btn-pick-underlying-component" style="width:100%">Pick underlying component…</button>
         </div>
-        <div id="underlying-component-set" class="ctrl-row" style="display:none">
+        <div id="underlying-component-set" class="ctrl-row" hidden>
           <span class="ctrl-val" id="underlying-component-name" style="flex:1;text-align:left"></span>
           <button class="mini-btn" id="btn-remove-underlying-component">Remove</button>
         </div>
@@ -1622,7 +1622,7 @@
         <select class="panel-select" id="sel-color-offset" aria-label="Start at"></select>
       </div>
       <label class="check-row org-switch" id="row-color-parts" hidden><input type="checkbox" id="chk-color-parts"><span>Each part the next ink</span></label>
-      <p class="org-panel__hint" id="color-quadrant-hint" style="display:none">By quadrant needs an even number of columns and rows — on this grid the middle column or row falls in the second half.</p>
+      <p class="org-panel__hint" id="color-quadrant-hint" hidden>By quadrant needs an even number of columns and rows — on this grid the middle column or row falls in the second half.</p>
       <div class="color-row">
         <span class="color-name">Paper</span>
         <span class="color-swatch-wrap">
@@ -1698,7 +1698,7 @@
         <div class="ctrl-row" id="ground-photo-open-row">
           <button type="button" class="org-btn org-btn--sm" id="btn-ground-photo-open" aria-label="Open photo or SVG for the paper"><svg class="ico" data-icon="upload" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 9.2V2M5.3 4.7 8 2l2.7 2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>Open photo or SVG…</button>
         </div>
-        <div class="fvs-photo-row" id="ground-photo-has-row" style="display:none">
+        <div class="fvs-photo-row" id="ground-photo-has-row" hidden>
           <img class="fvs-photo-thumb" id="img-ground-photo" alt="The paper’s photo" data-theme="light">
           <button type="button" class="org-btn org-btn--sm" id="btn-ground-photo-replace" aria-label="Replace photo or SVG for the paper">Replace photo or SVG…</button>
           <button type="button" class="org-btn org-btn--sm org-btn--icon" id="btn-ground-photo-remove" aria-label="Remove paper photo"><svg class="ico" data-icon="close" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
@@ -1761,7 +1761,7 @@
         </select>
       </div>
 
-      <div id="symbol-rule-block" style="display:none">
+      <div id="symbol-rule-block" hidden>
         <div class="ctrl-row">
           <select class="panel-select" id="sel-symbol-rule" aria-label="Rule">
             <option value="oscillator" selected>Rhythm</option>
@@ -1775,7 +1775,7 @@
           </select>
         </div>
 
-        <div id="rp-orientation" class="rule-params" style="display:none">
+        <div id="rp-orientation" class="rule-params" hidden>
           <p class="org-panel__hint">For triangular grids: decide what the up-pointing and the down-pointing cells hold. A filled down cell is turned 180° so it stays a triangle that fills its cell; Empty leaves a hole.</p>
           <div class="ctrl-row"><div class="ctrl-label">Up cells</div>
             <select class="panel-select" id="sel-rule-ori-up"><option value="filled">Filled</option><option value="empty">Empty</option></select>
@@ -1799,7 +1799,7 @@
           </div>
         </div>
 
-        <div id="rp-checkerboard" class="rule-params" style="display:none">
+        <div id="rp-checkerboard" class="rule-params" hidden>
           <div class="ctrl-row"><div class="ctrl-label">Cells A</div>
             <select class="panel-select" id="sel-rule-chk-rota"><option value="0" selected>0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
           </div>
@@ -1817,7 +1817,7 @@
           <label class="check-row"><input type="checkbox" id="chk-rule-chk-flip"><span>Flip B instead of rotate</span></label>
         </div>
 
-        <div id="rp-rows" class="rule-params" style="display:none">
+        <div id="rp-rows" class="rule-params" hidden>
           <div class="ctrl-row"><div class="ctrl-label">Step</div>
             <input type="range" id="rg-rule-rows-step" min="0" max="270" step="90" value="90"><span class="ctrl-val" id="v-rule-rows-step">90</span>
           </div>
@@ -1826,7 +1826,7 @@
           </div>
         </div>
 
-        <div id="rp-columns" class="rule-params" style="display:none">
+        <div id="rp-columns" class="rule-params" hidden>
           <div class="ctrl-row"><div class="ctrl-label">Step</div>
             <input type="range" id="rg-rule-cols-step" min="0" max="270" step="90" value="90"><span class="ctrl-val" id="v-rule-cols-step">90</span>
           </div>
@@ -1835,14 +1835,14 @@
           </div>
         </div>
 
-        <div id="rp-radial" class="rule-params" style="display:none">
+        <div id="rp-radial" class="rule-params" hidden>
           <label class="check-row"><input type="checkbox" id="chk-rule-radial-snap" checked><span>Snap to 90°</span></label>
           <div class="ctrl-row"><div class="ctrl-label">Direction</div>
             <select class="panel-select" id="sel-rule-radial-chir"><option value="1" selected>Clockwise</option><option value="-1">Counter-clockwise</option></select>
           </div>
         </div>
 
-        <div id="rp-wave" class="rule-params" style="display:none">
+        <div id="rp-wave" class="rule-params" hidden>
           <div class="ctrl-row"><div class="ctrl-label">Amplitude</div>
             <input type="range" id="rg-rule-wave-amp" min="0" max="180" step="5" value="90"><span class="ctrl-val" id="v-rule-wave-amp">90</span>
           </div>
@@ -1861,7 +1861,7 @@
           <label class="check-row"><input type="checkbox" id="chk-rule-flip"><span>Flip</span></label>
           <label class="check-row"><input type="checkbox" id="chk-rule-scale"><span>Scale</span></label>
         </div>
-        <div class="ctrl-row" id="row-rule-scalerange" style="display:none">
+        <div class="ctrl-row" id="row-rule-scalerange" hidden>
           <div class="ctrl-label">Scale range</div>
           <input type="range" id="rg-rule-scale-min" min="20" max="100" step="5" value="75"><span class="ctrl-val" id="v-rule-scale-min">75</span>
           <input type="range" id="rg-rule-scale-max" min="100" max="300" step="5" value="125"><span class="ctrl-val" id="v-rule-scale-max">125</span>
@@ -1903,7 +1903,7 @@
         <p class="org-panel__hint" id="sug-hint"></p>
       </div>
 
-      <div id="symbol-generate-block" style="display:none">
+      <div id="symbol-generate-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Arrange</div>
           <select class="panel-select" id="sel-sym-arrange" aria-label="Arrangement"></select>
@@ -1922,10 +1922,10 @@
         <button class="mini-btn" id="btn-symbol-regenerate" style="width:100%">Arrange</button>
         <p class="org-panel__hint">Places the pool’s Components by a rule — which one goes in each cell follows its column/row, ring, sector or band (the n-th class takes the n-th Component). Random picks by weight. Locked cells stay. Then refine transforms with Rule, or single cells in Manual.</p>
       </div>
-      <div id="symbol-manual-block" style="display:none">
+      <div id="symbol-manual-block" hidden>
         <p class="org-panel__hint">Click a cell on the canvas to select it; drag to select several; ⌘-click (Ctrl-click on Windows) adds or removes a cell. Click a selected cell again — or double-click a cell — to choose its content, for the whole selection. Every change below applies to the selection.</p>
         <div id="symbol-cell-empty" class="org-empty">No cell selected.</div>
-        <div id="symbol-cell-props" style="display:none"><!-- filled by cellPropsHTML() (fvs/js/11-symbol-ui.js) — one block for Symbol and Compose --></div>
+        <div id="symbol-cell-props" hidden><!-- filled by cellPropsHTML() (fvs/js/11-symbol-ui.js) — one block for Symbol and Compose --></div>
       </div>
     </div>
 
@@ -1938,7 +1938,7 @@
   </div>
 </div>
 
-<div id="symbol-content-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Choose cell content" style="display:none">
+<div id="symbol-content-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Choose cell content" hidden>
   <div id="symbol-content-overlay__panel" class="org-modal__panel">
     <div id="symbol-content-overlay__header" class="org-modal__header">
       <span id="symbol-content-overlay__title" class="org-modal__title">Choose content</span>
@@ -1974,7 +1974,7 @@
   </div>
 </div>
 
-<div id="underlying-component-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pick underlying component" style="display:none">
+<div id="underlying-component-overlay" class="org-modal" role="dialog" aria-modal="true" aria-label="Pick underlying component" hidden>
   <div id="underlying-component-overlay__panel" class="org-modal__panel">
     <div id="underlying-component-overlay__header" class="org-modal__header">
       <span class="org-modal__title">Pick underlying component</span>

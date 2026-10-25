@@ -308,8 +308,8 @@
         svgPoint.y = d.y + Math.sin(a) * band;
         if (boundary.isPointInFill(svgPoint) !== centreIn) { straddles = true; break; }
       }
-      if (!centreIn && !straddles) { d.el.style.display = 'none'; continue; }
-      d.el.style.display = '';
+      if (!centreIn && !straddles) { d.el.hidden = true; continue; }
+      d.el.hidden = false;
       d.el.setAttribute('r', straddles ? baseR * edgeScale : baseR);
       d.el.setAttribute('cx', d.x);
       d.el.setAttribute('cy', d.y);

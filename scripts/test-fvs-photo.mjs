@@ -26,7 +26,7 @@ const res = await P.ev(`
   await until(() => q('in-element-photo').value);
   const id = q('in-element-photo').value;
   check('Open photo sets Style = Photo', q('sel-element-fillmode').value === 'photo', q('sel-element-fillmode').value);
-  check('the photo block shows, with Replace / Remove', !q('element-photo-block').hidden && q('element-photo-has-row').style.display !== 'none' && q('element-photo-open-row').style.display === 'none', '');
+  check('the photo block shows, with Replace / Remove', !q('element-photo-block').hidden && !q('element-photo-has-row').hidden && q('element-photo-open-row').hidden, '');
   const stored = F.PHOTO_STORE.read()[id];
   check('stored once, a JPEG ≤ 1024 px', stored && /^data:image\\/jpeg/.test(stored.data) && Math.max(stored.w, stored.h) <= 1024, stored && stored.w + '×' + stored.h);
   const app = F.getElementAppearance();
@@ -38,7 +38,7 @@ const res = await P.ev(`
     const d = x.getImageData(0, 0, 100, 100).data; return xs.map(([i, j]) => [...d.slice((j * 100 + i) * 4, (j * 100 + i) * 4 + 3)]); };
   { const [l, r, out] = canvasAt([[20, 50], [80, 50], [1, 1]]);
     check('Normal on a canvas: dark on the left, light on the right, the Paper outside the circle', l[0] < 90 && r[0] > 165 && out.join() === '255,255,255', JSON.stringify([l, r, out])); }
-  const shown = id => q(id).style.display !== 'none' && !q(id).hidden;
+  const shown = id => !q(id).hidden && !q(id).hidden;
   check('Normal shows neither Algorithm nor Contrast', !shown('element-photoalg-row') && !shown('element-photocontrast-row'), '');
   // Tone on two inks + a white Paper: darkest = Ink 1 (red), middle = Ink 2 (blue), lightest = Paper
   F.state.colors = ['#ff0000', '#0000ff']; F.state.paperColor = '#ffffff';
@@ -93,7 +93,7 @@ const res = await P.ev(`
   q('in-ground-photo').value = '';
   F.usePhotoFile(new File([blob], 'paper.png', { type: 'image/png' }), 'ground');
   await until(() => q('in-ground-photo').value);
-  check('Paper › Pattern = Photo: set, its block shows, Ink / Spacing hide', q('sel-ground-pattern').value === 'photo' && !q('ground-photo-block').hidden && q('ground-ink-row').style.display === 'none' && q('ground-patspacing-row').style.display === 'none', q('sel-ground-pattern').value);
+  check('Paper › Pattern = Photo: set, its block shows, Ink / Spacing hide', q('sel-ground-pattern').value === 'photo' && !q('ground-photo-block').hidden && q('ground-ink-row').hidden && q('ground-patspacing-row').hidden, q('sel-ground-pattern').value);
   const gnd = F.getElementAppearance().ground;
   check('the Paper carries only the id', gnd && gnd.patType === "photo" && gnd.photoId === q("in-ground-photo").value && !JSON.stringify(gnd).includes("data:"), JSON.stringify(gnd));
   { const wide = F.paperPatternSVG(300, 100);
@@ -106,7 +106,7 @@ const res = await P.ev(`
   { const c = document.createElement('canvas'); c.width = 120; c.height = 60; const x = c.getContext('2d'); F.paintPaperPatternCanvas(x, 120, 60);
     const d = x.getImageData(0, 0, 120, 60).data; check('the Paper photo on a canvas: dark left, light right', d[(30 * 120 + 10) * 4] < 100 && d[(30 * 120 + 110) * 4] > 150, d[(30 * 120 + 10) * 4] + ' / ' + d[(30 * 120 + 110) * 4]); }
   q('btn-ground-photo-remove').click(); await w(30);
-  check('Remove paper photo: nothing drawn, Open shows again', F.paperPatternSVG(100, 100) === '' && q('ground-photo-open-row').style.display !== 'none', '');
+  check('Remove paper photo: nothing drawn, Open shows again', F.paperPatternSVG(100, 100) === '' && !q('ground-photo-open-row').hidden, '');
   q('in-element-photo').value = id; F.showPhotoControls({ photoId: id }); set('sel-element-fillmode', 'photo'); await w(30);
   // the 1-bit case of the multi-level dither
   { const W = 37, H = 23, g = new Float32Array(W * H).map((_, i) => (Math.sin(i * 0.37) + 1) / 2);

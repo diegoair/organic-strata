@@ -65,7 +65,7 @@
     opts = opts || {};
     const registry = opts.registry || {};
     const id = 'selpick' + (++seq);
-    sel.style.display = 'none';
+    sel.hidden = true;
     host.classList.add('presets');
     if (opts.size === 'preview') host.classList.add('presets--preview');
     host.innerHTML = `<button type="button" class="preset-trigger" id="${id}-trigger" aria-label="${opts.ariaLabel || 'Choose'}" aria-haspopup="listbox" aria-expanded="false">

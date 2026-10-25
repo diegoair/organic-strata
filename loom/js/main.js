@@ -60,9 +60,9 @@ function deriveCanvasMode(unit) { return unit === 'px' ? 'screen' : 'print'; }
 
 function syncCanvasModeRows() {
   const isPrint = canvasMode === 'print';
-  ctrl('row-print-unit').style.display = isPrint ? '' : 'none';
-  ctrl('row-print-dpi').style.display = isPrint ? '' : 'none';
-  ctrl('row-bleed').style.display = isPrint ? '' : 'none';
+  ctrl('row-print-unit').hidden = !isPrint;
+  ctrl('row-print-dpi').hidden = !isPrint;
+  ctrl('row-bleed').hidden = !isPrint;
   document.querySelectorAll('#seg-canvas-mode .seg-btn').forEach(b => {
     const active = b.dataset.v === canvasMode;
     b.classList.toggle('active', active);
@@ -203,25 +203,25 @@ function round4(n) { return Math.round(n * 10000) / 10000; }
 const SOLVER_LABELS = { kiwi: 'Kiwi constraint solver', parametric: 'Direct parametric math', geometric: 'Geometric (half-plane clip)' };
 function syncGeneratorRows() {
   const type = ctrl('sel-gridtype').value;
-  ctrl('block-bento').style.display = type === 'bento' ? '' : 'none';
-  ctrl('block-sinusoidal').style.display = type === 'sinusoidal' ? '' : 'none';
-  ctrl('block-hexagonal').style.display = type === 'hexagonal' ? '' : 'none';
-  ctrl('block-radial').style.display = type === 'radial' ? '' : 'none';
-  ctrl('block-triangular').style.display = type === 'triangular' ? '' : 'none';
-  ctrl('block-diamond').style.display = type === 'diamond' ? '' : 'none';
-  ctrl('block-circular').style.display = type === 'circular' ? '' : 'none';
-  ctrl('block-linear').style.display = type === 'linear' ? '' : 'none';
-  ctrl('block-rectangular').style.display = type === 'rectangular' ? '' : 'none';
-  ctrl('block-diagonal').style.display = type === 'diagonal' ? '' : 'none';
-  ctrl('block-angular').style.display = type === 'angular' ? '' : 'none';
-  ctrl('block-masonry').style.display = type === 'masonry' ? '' : 'none';
-  ctrl('block-fractal').style.display = type === 'fractal' ? '' : 'none';
-  ctrl('block-organic').style.display = type === 'organic' ? '' : 'none';
-  ctrl('block-spiral').style.display = type === 'spiral' ? '' : 'none';
+  ctrl('block-bento').hidden = !(type === 'bento');
+  ctrl('block-sinusoidal').hidden = !(type === 'sinusoidal');
+  ctrl('block-hexagonal').hidden = !(type === 'hexagonal');
+  ctrl('block-radial').hidden = !(type === 'radial');
+  ctrl('block-triangular').hidden = !(type === 'triangular');
+  ctrl('block-diamond').hidden = !(type === 'diamond');
+  ctrl('block-circular').hidden = !(type === 'circular');
+  ctrl('block-linear').hidden = !(type === 'linear');
+  ctrl('block-rectangular').hidden = !(type === 'rectangular');
+  ctrl('block-diagonal').hidden = !(type === 'diagonal');
+  ctrl('block-angular').hidden = !(type === 'angular');
+  ctrl('block-masonry').hidden = !(type === 'masonry');
+  ctrl('block-fractal').hidden = !(type === 'fractal');
+  ctrl('block-organic').hidden = !(type === 'organic');
+  ctrl('block-spiral').hidden = !(type === 'spiral');
   // Padding has no defined meaning on a polygon cell yet (voronoi.js's own
   // header) — hidden rather than left as a dead control that visibly does
   // nothing, same rule Komorebi's own control audit already established.
-  ctrl('row-padding').style.display = ['hexagonal', 'radial', 'triangular', 'diamond', 'circular', 'diagonal', 'angular', 'masonry', 'fractal', 'organic', 'spiral', 'linear'].includes(type) ? 'none' : '';
+  ctrl('row-padding').hidden = !!(['hexagonal', 'radial', 'triangular', 'diamond', 'circular', 'diagonal', 'angular', 'masonry', 'fractal', 'organic', 'spiral', 'linear'].includes(type));
   ctrl('hint-solver').textContent = SOLVER_LABELS[GENERATORS[type].solver];
   if (type === 'hexagonal') syncHexSpinRow();
   if (type === 'triangular') syncTriSpinRow();
@@ -255,15 +255,15 @@ function syncGeneratorRows() {
 // Hidden on every polygon-cell generator, which has no track to equalize.
 function syncEqualizeRow() {
   const type = ctrl('sel-gridtype').value;
-  ctrl('row-equalize').style.display = GENERATORS[type].cellShape === 'rect' ? '' : 'none';
+  ctrl('row-equalize').hidden = !(GENERATORS[type].cellShape === 'rect');
 }
 // Columns only means something under Axis Columns/Both, Rows only under
 // Axis Rows/Both — hidden rather than left as a dead control the other
 // axis mode doesn't read, same rule as row-padding/Spin-amount above.
 function syncLinearAxisRow() {
   const axis = seg('seg-lin-axis');
-  ctrl('row-lin-cols').style.display = (axis === 'rows') ? 'none' : '';
-  ctrl('row-lin-rows').style.display = (axis === 'cols') ? 'none' : '';
+  ctrl('row-lin-cols').hidden = !!((axis === 'rows'));
+  ctrl('row-lin-rows').hidden = !!((axis === 'cols'));
 }
 // Distortion's Amount/Frequency show only once a mode is picked (Off
 // has nothing for them to affect); Phase only means something for
@@ -274,13 +274,13 @@ function syncLinearAxisRow() {
 // function serves all of them rather than five near-identical copies.
 function syncDistortRow(prefix) {
   const mode = seg('seg-' + prefix + '-distort');
-  ctrl('row-' + prefix + '-distort-amount').style.display = mode === 'off' ? 'none' : '';
-  ctrl('row-' + prefix + '-distort-freq').style.display = mode === 'off' ? 'none' : '';
-  ctrl('row-' + prefix + '-distort-phase').style.display = mode === 'sine' ? '' : 'none';
+  ctrl('row-' + prefix + '-distort-amount').hidden = !!(mode === 'off');
+  ctrl('row-' + prefix + '-distort-freq').hidden = !!(mode === 'off');
+  ctrl('row-' + prefix + '-distort-phase').hidden = !(mode === 'sine');
   // Linear alone carries a Crop toggle (how its two outer division lines
   // meet the frame) — shown whenever a distortion is active.
   const cropRow = ctrl('row-' + prefix + '-crop');
-  if (cropRow) cropRow.style.display = mode === 'off' ? 'none' : '';
+  if (cropRow) cropRow.hidden = !!(mode === 'off');
   syncSeedRow(DISTORT_PREFIX_TYPE[prefix] || prefix);
 }
 // syncDistortRow's own prefixes (lin/diag/ang/mas) don't match their type name.
@@ -316,7 +316,7 @@ function syncSeedRow(type) {
   const id = SEED_ROW[type];
   if (!id) return;
   const row = ctrl(id);
-  if (row) row.style.display = seedMatters(type) ? '' : 'none';
+  if (row) row.hidden = !(seedMatters(type));
 }
 
 // ── Phase 6 — Randomisation UI. Scoped to the CURRENT generator's own
@@ -373,8 +373,8 @@ function randomizeParams() {
 // as row-padding/the Voronoi hint above (Komorebi's own control audit).
 function syncHexSpinRow() {
   const mode = ctrl('sel-hex-spinmode').value;
-  ctrl('row-hex-spinamount').style.display = mode === 'off' ? 'none' : '';
-  ctrl('row-hex-noisescale').style.display = mode === 'noise' ? '' : 'none';
+  ctrl('row-hex-spinamount').hidden = !!(mode === 'off');
+  ctrl('row-hex-noisescale').hidden = !(mode === 'noise');
   syncSeedRow('hexagonal');
 }
 // Same idea, Triangular's own Spin block — kept as its own function rather
@@ -382,15 +382,15 @@ function syncHexSpinRow() {
 // per-generator-block pattern (readGridParams' own explicit branches).
 function syncTriSpinRow() {
   const mode = ctrl('sel-tri-spinmode').value;
-  ctrl('row-tri-spinamount').style.display = mode === 'off' ? 'none' : '';
-  ctrl('row-tri-noisescale').style.display = mode === 'noise' ? '' : 'none';
+  ctrl('row-tri-spinamount').hidden = !!(mode === 'off');
+  ctrl('row-tri-noisescale').hidden = !(mode === 'noise');
   syncSeedRow('triangular');
 }
 // Same idea, Diamond's own Spin block.
 function syncDiaSpinRow() {
   const mode = ctrl('sel-dia-spinmode').value;
-  ctrl('row-dia-spinamount').style.display = mode === 'off' ? 'none' : '';
-  ctrl('row-dia-noisescale').style.display = mode === 'noise' ? '' : 'none';
+  ctrl('row-dia-spinamount').hidden = !!(mode === 'off');
+  ctrl('row-dia-noisescale').hidden = !(mode === 'noise');
   syncSeedRow('diamond');
 }
 // Wave's Function toggle (Sine/Noise) — Frequency/Phase only mean
@@ -398,8 +398,8 @@ function syncDiaSpinRow() {
 // discipline as every Spin-mode row above.
 function syncWaveFnRow() {
   const fn = seg('seg-sin-fn');
-  ['row-sin-freq', 'row-sin-phase'].forEach(id => { ctrl(id).style.display = fn === 'noise' ? 'none' : ''; });
-  ['row-sin-scale', 'row-sin-seed'].forEach(id => { ctrl(id).style.display = fn === 'noise' ? '' : 'none'; });
+  ['row-sin-freq', 'row-sin-phase'].forEach(id => { ctrl(id).hidden = !!(fn === 'noise'); });
+  ['row-sin-scale', 'row-sin-seed'].forEach(id => { ctrl(id).hidden = !(fn === 'noise'); });
 }
 function readGridParams() {
   const type = ctrl('sel-gridtype').value;
@@ -733,7 +733,7 @@ function paintJSON() {
   ctrl('json-view').textContent = JSON.stringify(currentModel, null, 2);
 }
 function toggleJSONView() {
-  ctrl('json-panel').style.display = ctrl('ck-json-view').checked ? '' : 'none';
+  ctrl('json-panel').hidden = !(ctrl('ck-json-view').checked);
   if (ctrl('ck-json-view').checked) paintJSON();
 }
 

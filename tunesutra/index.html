@@ -101,7 +101,7 @@
   <div class="org-header__spacer"></div>
 </header>
 
-<main id="home" style="display:none" aria-label="Palettes"></main>
+<main id="home" hidden aria-label="Palettes"></main>
 
 <div id="app">
   <div id="stage-wrap" class="org-canvas-wrap">
@@ -315,10 +315,10 @@
         <button class="mini-btn" id="btn-preset-save">Save</button>
         <button class="mini-btn" id="btn-preset-delete" data-armed="Confirm?">Delete</button>
       </div>
-      <div id="preset-save-row" class="ctrl-row" style="display:none;margin-top:var(--space-3)">
+      <div id="preset-save-row" class="ctrl-row" hidden style="margin-top:var(--space-3)">
         <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this palette" aria-label="Name this palette" style="flex:1">
       </div>
-      <div id="preset-save-actions" class="row-btns" style="display:none">
+      <div id="preset-save-actions" class="row-btns" hidden>
         <button class="mini-btn" id="btn-preset-confirm">Save</button>
         <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
       </div>
@@ -871,9 +871,9 @@ function syncGradControls() {
   ctrl('rg-gsize').value = g.size; ctrl('v-gsize').textContent = g.size;
   ctrl('in-gseed').value = g.seed;
   ctrl('ck-gpaper').checked = g.paper;
-  ctrl('row-gangle').style.display = g.type === 'radial' ? 'none' : '';
-  ctrl('row-gamount').style.display = g.out === 'print' ? 'none' : '';
-  ctrl('row-gpattern').style.display = g.out === 'print' ? '' : 'none';
+  ctrl('row-gangle').hidden = !!(g.type === 'radial');
+  ctrl('row-gamount').hidden = !!(g.out === 'print');
+  ctrl('row-gpattern').hidden = !(g.out === 'print');
   ctrl('btn-export-plates').disabled = g.out !== 'print';
   const inks = g.stops.length;
   ctrl('grad-hint').textContent = g.out === 'print'
@@ -1365,7 +1365,7 @@ function syncViewSeg() {
   const garmentBtn = ctrl('btn-view-garment');
   garmentBtn.disabled = !garmentFits(count());
   garmentBtn.title = garmentFits(count()) ? '' : 'Available at 3 or 4 colours';
-  ctrl('row-figure').style.display = garmentFits(count()) ? '' : 'none';
+  ctrl('row-figure').hidden = !(garmentFits(count()));
   if (ctrl('sel-figure').value !== state.figure) { ctrl('sel-figure').value = state.figure; if (figurePicker) figurePicker.refresh(); }
 }
 function setView(view) {
@@ -1531,14 +1531,14 @@ function applyPreset(name) {
   commit(true);
 }
 function beginSavePreset() {
-  ctrl('preset-save-row').style.display = 'flex';
-  ctrl('preset-save-actions').style.display = 'flex';
+  Organica.display(ctrl('preset-save-row'), 'flex');
+  Organica.display(ctrl('preset-save-actions'), 'flex');
   ctrl('txt-preset-name').value = currentName || suggestedName;   // saving again under the same name overwrites it
   ctrl('txt-preset-name').focus();
 }
 function cancelSavePreset() {
-  ctrl('preset-save-row').style.display = 'none';
-  ctrl('preset-save-actions').style.display = 'none';
+  ctrl('preset-save-row').hidden = true;
+  ctrl('preset-save-actions').hidden = true;
 }
 function confirmSavePreset() {
   const name = ctrl('txt-preset-name').value.trim();
@@ -1621,9 +1621,9 @@ function renderHome() {
   ctrl('home').innerHTML = html;
 }
 function showHome(home) {
-  ctrl('home').style.display = home ? '' : 'none';
-  ctrl('app').style.display = home ? 'none' : '';
-  document.querySelector('.org-floatbar').style.display = home ? 'none' : '';
+  ctrl('home').hidden = !home;
+  ctrl('app').hidden = !!(home);
+  document.querySelector('.org-floatbar').hidden = !!(home);
 }
 function route() {
   let h = '';
@@ -1726,7 +1726,7 @@ Organica.autoLabelPanel(document);
 // background flush lands.
 // A palette opened by link may not be in this device's cache yet: once the
 // pull lands, try the route again if we fell back to the library.
-const onLibrary = () => ctrl('home').style.display !== 'none';
+const onLibrary = () => !ctrl('home').hidden;
 PRESETS.pull().then(() => { populatePresets(currentName); if (onLibrary()) route(); });
 PRESETS.onSync(() => { populatePresets(currentName); if (onLibrary()) renderHome(); });
 </script>
