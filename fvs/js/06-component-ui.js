@@ -867,7 +867,7 @@ export function syncExhaustiveHint() {
   const total = withLookAlikeFold(() => (produceRule('exhaustive') || []).length);   // Exhaustive as Generate makes it: every rule's package
   const hint = ctrl('rule-total-hint');
   if (total > EXHAUSTIVE_CAP) {
-    hint.textContent = `${total.toLocaleString()} possible — exceeds the ${EXHAUSTIVE_CAP} cap. Narrow active axes or use Random instead.`;
+    hint.textContent = `${total.toLocaleString()} possible — over the ${EXHAUSTIVE_CAP.toLocaleString()} cap. Narrow the axes or use Random.`;   // the same words as Generate's name below (Oct 25, 2026)
     hint.classList.add('over-cap');
     setGenerateBlock(pv('sel-rule') === 'exhaustive' ? `too many to list (${total.toLocaleString()}) — narrow the axes or use Random` : '');
   } else {

@@ -234,6 +234,7 @@ print("fvs engine")
 eng = sorted(f for f in subprocess.run(["git", "ls-files", "fvs/js/engine"], capture_output=True, text=True).stdout.split() if f.endswith(".js"))
 ENGINE_BAD = re.compile(r"\b(ctrl|setStatus)\(|\bwindow\.|localStorage|addEventListener|querySelector|getElementById|innerHTML|\bOrganica\.(download|icons|popover|prompt|confirm|notice|store\b|presetStore|dirty|selectPicker)")
 MODEL_OK = re.compile(r"Organica\.presetStore\('fvs(-element|-symbols)?'\)|Organica\.store\.library\.read\(\)|window\.ORGANIC_SEEDS")
+ENGINE_IMPORT_OK = ("/loom/js/generators/",)   # other tools' pure data modules the engine may import() on demand
 DOM_OK = re.compile(r"document\.(createElement|createElementNS)\(|document\.body\.(appendChild|removeChild)\(")
 bad_e = []
 for f in eng:
@@ -242,6 +243,11 @@ for f in eng:
         m = re.search(r"from '([^']+)'", line)
         if m and not (m.group(1).startswith("./") or m.group(1) in ("../hooks.js", "../rt.js")):
             bad_e.append(f"{f}:{n} imports {m.group(1)} (engine imports engine only)")
+        # a dynamic import() too (Oct 25, 2026 — it was not read): engine files, or another tool's data module named in
+        # ENGINE_IMPORT_OK (engine/08 loads Loom's generator registry on demand); never an FVS UI file
+        for d in re.findall(r"\bimport\(\s*['\"]([^'\"]+)['\"]\s*\)", code):
+            if not (d.startswith("./") or d in ("../hooks.js", "../rt.js") or d.startswith("/fvs/js/engine/") or d.startswith(ENGINE_IMPORT_OK)):
+                bad_e.append(f"{f}:{n} import('{d}') (engine imports engine only — or add a data module to ENGINE_IMPORT_OK)")
         code = MODEL_OK.sub("", code)   # the model's own stores + data sources are engine by design
         if ENGINE_BAD.search(code) or ("document." in code and not DOM_OK.search(code)):
             bad_e.append(f"{f}:{n} {code.strip()[:90]}")
