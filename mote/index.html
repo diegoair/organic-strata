@@ -246,9 +246,21 @@
   <button class="org-floatbar__btn" id="btn-open" aria-label="Open a video file">
     <svg class="ico" data-icon="folder-open" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4A1 1 0 0 1 2.5 3h2.8l1 1.3H13.5a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V4Z"/></svg>
   </button>
-  <button class="org-floatbar__btn" id="btn-cam" aria-label="Start the webcam">
-    <svg class="ico" data-icon="video" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="4.5" width="8" height="7" rx="1"/><path d="m10 7 4-2v6l-4-2z"/></svg>
-  </button>
+  <!-- The camera picker (Oct 25, 2026 — Diego; design-system CONSULT the same day): with more than one camera the button
+       gets a chevron and opens this popover; picking a camera starts it. With one camera it stays a plain Start button. -->
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn" id="btn-cam" aria-label="Start the webcam">
+      <svg class="ico" data-icon="video" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="4.5" width="8" height="7" rx="1"/><path d="m10 7 4-2v6l-4-2z"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true" style="display:none"><path d="M4 6l4 4 4-4"/></svg>
+    </button>
+    <div class="org-popover" id="cam-popover" aria-label="Webcam options">
+      <div class="org-popover__title">Webcam</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-camera">Camera</label>
+        <select class="org-select" id="sel-camera"></select>
+      </div>
+    </div>
+  </div>
   <button class="org-floatbar__btn" id="btn-mirror" aria-label="Mirror the webcam" aria-pressed="false" disabled>
     <svg class="ico" data-icon="mirror" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v12" stroke-dasharray="1.5 1.6"/><path d="M6.5 4.5 3 8l3.5 3.5zM9.5 4.5 13 8l-3.5 3.5z"/></svg>
   </button>
@@ -1102,20 +1114,29 @@ function releaseCamera() {
   if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
   if (video.srcObject) { try { video.srcObject = null; } catch (e) {} }
 }
-async function startCamera() {
+// The camera chosen last, per browser (device ids are this browser's own — not a synced preset).
+const CAM_KEY = 'organica.mote.camera';
+const savedCamera = () => { try { return localStorage.getItem(CAM_KEY) || ''; } catch (e) { return ''; } };
+async function startCamera(deviceId) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     setStatus('error', 'This browser has no getUserMedia (needs localhost or https).'); return;
   }
-  setStatus('rendering', 'Requesting camera…');
+  const want = typeof deviceId === 'string' && deviceId ? deviceId : savedCamera();
+  setStatus('rendering', camStream && deviceId ? 'Switching camera…' : 'Requesting camera…');
   releaseCamera();
+  const size = { width: { ideal: 1280 }, height: { ideal: 720 } };
   try {
-    camStream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
-    });
+    camStream = await navigator.mediaDevices.getUserMedia({ video: want ? { ...size, deviceId: { exact: want } } : size, audio: false });
   } catch (e) {
-    setStatus('error', 'Camera unavailable: ' + (e && e.message || e));
-    return;
+    try {   // the remembered camera is gone (unplugged): the default one
+      if (!want || deviceId) throw e;
+      camStream = await navigator.mediaDevices.getUserMedia({ video: size, audio: false });
+    } catch (e2) {
+      setStatus('error', 'Camera unavailable: ' + (e2 && e2.message || e2));
+      return;
+    }
   }
+  syncCameraPicker();
   source = 'webcam';
   ready = false; video.src = '';
   video.srcObject = camStream;
@@ -1128,6 +1149,34 @@ async function startCamera() {
   const p = video.play(); if (p && p.catch) p.catch(() => {});
 }
 window.addEventListener('pagehide', releaseCamera);
+
+// Camera picker: labels only exist after the first permission, so it is built after a camera has started (and again when
+// a camera is plugged in or out). One camera: nothing changes — #btn-cam starts it. More: #btn-cam opens the picker.
+let camPicker = null, camMany = false;   // Organica.popover has no destroy: with one camera left it stays attached, unused
+async function syncCameraPicker() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+  let cams;
+  try { cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput'); } catch (e) { return; }
+  const btn = $('btn-cam'), sel = $('sel-camera'), many = cams.length > 1;
+  camMany = many;
+  btn.classList.toggle('org-floatbar__btn--wide', many);
+  btn.querySelector('.chev').style.display = many ? '' : 'none';
+  btn.setAttribute('aria-label', many ? 'Webcam' : 'Start the webcam');
+  if (!many) { if (camPicker) camPicker.close(); return; }
+  const live = camStream && camStream.getVideoTracks()[0] ? (camStream.getVideoTracks()[0].getSettings().deviceId || '') : '';
+  sel.innerHTML = (live ? '' : '<option value="" disabled hidden>Choose a camera</option>')
+    + cams.map((d, i) => `<option value="${d.deviceId.replace(/"/g, '&quot;')}">${(d.label || 'Camera ' + (i + 1)).replace(/</g, '&lt;')}</option>`).join('');
+  sel.value = live && cams.some(d => d.deviceId === live) ? live : '';
+  if (!camPicker) camPicker = Organica.popover(btn, $('cam-popover'));
+}
+$('sel-camera').addEventListener('change', e => {   // picking a camera starts it right away
+  const id = e.target.value;
+  if (!id) return;
+  try { localStorage.setItem(CAM_KEY, id); } catch (err) {}
+  if (camPicker) camPicker.close();
+  startCamera(id);
+});
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) navigator.mediaDevices.addEventListener('devicechange', () => { if (camPicker || camStream) syncCameraPicker(); });   // plugged in / out: the list again
 
 // mirror (floatbar toggle, webcam only) -----------------------
 function setMirrorEnabled(on) {
@@ -1359,7 +1408,16 @@ rmxChips = Organica.palette.swatch($('rmx-palette'), {
 
 // ── GENERAL WIRING ────────────────────────────────────────────
 $('btn-open').onclick = () => $('file-input').click();
-$('btn-cam').onclick = startCamera;
+// One camera: start it (and keep a picker attached earlier closed — its own click listener runs after this one). Several,
+// none running: the list offers "Choose a camera", so any pick starts one (the list itself is rebuilt only by devicechange).
+$('btn-cam').onclick = () => {
+  if (!camMany) { startCamera(); if (camPicker) setTimeout(() => camPicker.close(), 0); return; }
+  if (!camStream) {
+    const sel = $('sel-camera');
+    if (!sel.querySelector('option[value=""]')) sel.insertAdjacentHTML('afterbegin', '<option value="" disabled hidden>Choose a camera</option>');
+    sel.value = '';
+  }
+};   // with several cameras the click opens the picker (Organica.popover)
 $('btn-mirror').onclick = toggleMirror;
 $('btn-play').onclick = () => { running ? pauseRealtime() : startRealtime(); };
 $('btn-stop').onclick = stopAll;

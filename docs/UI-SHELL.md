@@ -840,7 +840,8 @@ Honest list of where the tools still disagree:
   template's sheets and uses the standard header / panel / floatbar / `.org-stage`
   classes with the shared `#canvas-wrap` surround (white + dot grid: `--canvas-grid`, `--canvas-bg`)
   (the prototype's near-black stage was dropped Sep 1 as off-system). Source
-  (open-file `＋`, webcam, mirror) lives in the floatbar, which also carries a
+  (open-file `＋`, webcam, mirror) lives in the floatbar (with more than one camera the webcam button gets a chevron and opens a
+  small popover — *Webcam* › *Camera* select, picking one starts it; one camera = a plain *Start the webcam*, Oct 25, 2026), which also carries a
   small `#perf` readout (`ms / fps / pts`, `var(--font)` tabular). The Export
   popover has sub-heads (`.org-popover__title` + divider, the Vortex/Komorebi
   pattern) — **Still** (PNG / SVG), **Video — single** (Record / Render),
