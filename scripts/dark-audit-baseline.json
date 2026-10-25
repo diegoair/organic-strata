@@ -1,0 +1,266 @@
+{
+ "/": {
+  "opted": true,
+  "light": 28,
+  "dark": 28,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/design-system/": {
+  "opted": true,
+  "light": 8,
+  "dark": 11,
+  "islands": 2,
+  "button": true,
+  "error": null
+ },
+ "/genesis/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/spore/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/pollen/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/halide/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/komorebi/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/camo-turing/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/warping/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/loom/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/membrane/": {
+  "opted": true,
+  "light": 1,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/vortex/": {
+  "opted": true,
+  "light": 1,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/fvs/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/radial/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/pulsar/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/mote/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/murmur/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/undertow/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/dapple/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/gallery/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/mycel/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/trellis/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/tunesutra/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/livingpath/": {
+  "opted": true,
+  "light": 8,
+  "dark": 8,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/sinew/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/apostate/": {
+  "opted": true,
+  "light": 1,
+  "dark": 1,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/colornet/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/blob-boundary/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/rhizome/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/admin/": {
+  "opted": true,
+  "light": 28,
+  "dark": 28,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/sign-in/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 1,
+  "button": false,
+  "error": null
+ },
+ "/privacy/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/terms/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ }
+}

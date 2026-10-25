@@ -30,6 +30,7 @@ const JOBS = {
   'generate':           node('test-fvs-generate.mjs'),
   'lookalikes':         node('test-fvs-lookalikes.mjs'), // Generate folds what looks the same for this Element (Oct 21, 2026)
   'aspect':             node('test-fvs-aspect.mjs'),     // a Rectangle Element: its cells take its box, half turns only (Oct 23, 2026)
+  'dark-audit':         node('test-dark-audit.mjs'),     // every opted-in page, light + dark, against scripts/dark-audit-baseline.json (Oct 25, 2026)
   'photo':              node('test-fvs-photo.mjs'),      // Style = Photo: Normal · Tone · Dither from the Palette, self-contained files (Oct 23, 2026)
   'axes':               node('test-fvs-axes.mjs'),       // every rule × grid × axis frozen (Tropism Phase 1)   // Component: one Generate after another = a fresh one
   'qa':                 node('test-fvs-qa.mjs'),
