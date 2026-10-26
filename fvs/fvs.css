@@ -381,7 +381,7 @@
   #panel:has(.tier-block.is-ce-shaping) .panel-section:has(> #fvs-palette) { display: none; }   /* the Palette (colours) — shared by every step, outside the blocks */
   #component-edit-frame svg { width: min(100cqw, 100cqh * var(--comp-ar, 1)); height: min(100cqh, 100cqw / var(--comp-ar, 1)); display: block; }
   #component-edit-frame [data-cell-index] { cursor: pointer; }
-  #component-edit-frame [data-cell-index]:hover { fill: color-mix(in srgb, var(--tool) 8%, transparent); }
+  #component-edit-frame [data-cell-index]:hover { fill: color-mix(in srgb, var(--ink) 8%, transparent); }   /* as the marquee / drop wash; --tool was 2.97:1 (Oct 26, 2026) */
 
 
   /* ── Layers panel (Element): one .org-layer-card--flush per layer (panel.css) ──
@@ -450,7 +450,7 @@
   .fvs-ce-parts[hidden] { display: none; }
   .fvs-ce-parts .panel-select { width: auto; }
   .fvs-ce-parts .mini-btn { flex: 0 0 auto; }
-  #component-edit-frame [data-cell-index].is-picked { stroke: var(--tool); stroke-width: 2px; vector-effect: non-scaling-stroke; }   /* the edited cell: 3px; a picked one beside it: 2px — --tool reads on the light sheet in both themes */
+  #component-edit-frame [data-cell-index].is-picked { stroke: var(--ink); stroke-width: 2px; vector-effect: non-scaling-stroke; }   /* the edited cell: 3px; a picked one beside it: 2px — --ink, as the Element's picked parts (Oct 26, 2026; --tool measured 2.97:1 on the light sheet) */
   .fvs-ink-pop__head { flex-basis: 100%; margin: 0; font-size: var(--fs-small); color: var(--mid); }   /* "Colour for 3 parts": the ink goes to every picked part */
   .fvs-ink-pop button { all: unset; width: 20px; height: 20px; border-radius: 50%; background: var(--sw); cursor: pointer; box-shadow: 0 0 0 1px var(--border-strong); }   /* the edge: a near-black ink on the dark board */
   .fvs-ink-pop button.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }

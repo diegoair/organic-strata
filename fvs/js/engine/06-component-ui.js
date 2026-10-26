@@ -28,7 +28,7 @@ export function componentEditHitLayer(items, size, picked) {
   return items.map((it, i) => {
     const w = it.cellW || it.cellSize, h = it.cellH || it.cellSize, x = halfX + it.cx - w / 2, y = halfY + it.cy - h / 2;
     const sel = i === state.componentEditSelectedCell;
-    const style = sel ? 'fill:transparent;stroke:var(--tool);stroke-width:3px;' : 'fill:transparent;';
+    const style = sel ? 'fill:transparent;stroke:var(--ink);stroke-width:3px;' : 'fill:transparent;';
     const cls = picked && picked.has(i) && !sel ? ' class="is-picked"' : '';   // picked for part colours, beside the edited cell
     if (it.poly) return `<polygon data-cell-index="${i}"${cls} points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}" style="${style}"/>`;   // a cell-shape lattice: the cell's own outline
     return `<rect data-cell-index="${i}"${cls} x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w}" height="${h}" style="${style}"/>`;
