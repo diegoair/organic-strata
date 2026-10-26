@@ -64,6 +64,21 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('Gap −80 at Cell size 60: the frame never collapses (seamless off and on)', gs.every(Boolean), JSON.stringify(gs));
   set('rg-cellsize', 160); set('rg-gap', 0); set('chk-tile-seamless', false); await w(200);
   check('back at its defaults: no overlap again', !F.getGrid().overlap, JSON.stringify(F.getGrid().overlap));
+  // Component Edit (Phase 3): a picked cell's own Move and order
+  F.enterComponentEditMode(F.state.components[0].id); await w(400); F.selectComponentEditCell(0); F.cePicked = new Set([0]); F.syncCeCellProps(); await w(300);   // picked, as a click on the cell does
+  check('Edit: Move X / Y and the order buttons shown for a picked cell', !q('ce-row-cellprop-move-x').hidden && !q('ce-row-cellprop-order').hidden && q('ce-btn-cellprop-backward').disabled === false, 'hidden');
+  set('ce-rg-cellprop-move-x', 40); await w(300);
+  const ceItems = () => F.buildComponentItems({ cells: F.state.componentEditCells }, F.state.componentEditGrid);
+  const it0 = ceItems()[0], hit0 = document.querySelector('#component-edit-frame [data-cell-index="0"]');
+  check('Move X 40: the cell moves 40 % of its width, its hit box with it', Math.abs(it0.ox - 0.4 * (it0.cellW || it0.cellSize)) < 1e-6 && F.state.componentEditCells[0].moveX === 0.4 && hit0 && Math.abs(+hit0.getAttribute('x') - (F.frameDims(F.state.componentEditGrid).w / 2 + it0.cx + it0.ox - (it0.cellW || it0.cellSize) / 2)) < 0.02, JSON.stringify([it0.ox, F.state.componentEditCells[0].moveX]));
+  q('ce-btn-cellprop-forward').click(); await w(300);
+  const top = F.drawOrder(ceItems()).filter(x => !x.copy), last = top[top.length - 1];
+  check('Bring forward: the cell is drawn over every other one, the button then off', F.state.componentEditCells[0].z === 1 && last.cx === ceItems()[0].cx && last.cy === ceItems()[0].cy && q('ce-btn-cellprop-forward').disabled, JSON.stringify([F.state.componentEditCells[0].z, q('ce-btn-cellprop-forward').disabled]));
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true })); await w(300);
+  check('⌥↓ Send backward: under every other cell', F.state.componentEditCells[0].z === -1 && q('ce-btn-cellprop-backward').disabled, JSON.stringify(F.state.componentEditCells[0].z));
+  F.ceUndoStep(); await w(200); F.ceUndoStep(); await w(200);
+  check('Undo: back through the order steps', !F.state.componentEditCells[0].z, JSON.stringify(F.state.componentEditCells[0].z));
+  F.exitComponentEditMode(); await w(400);
   F.setCellShape('hexagon'); await w(300);
   check('a cell-shape lattice: no Tile section', q('tile-section').hidden, 'shown');
   F.setCellShape('square'); await w(300);

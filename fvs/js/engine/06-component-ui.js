@@ -16,7 +16,7 @@ import {
   rulePinwheel, ruleRadial
 } from './03-rules.js';
 import {
-  getElementAppearance
+  drawRank, getElementAppearance
 } from './04-appearance.js';
 // The big canvas: buildComponentSVGBody's normal visual output plus an
 // invisible (or, for the selected cell, outlined) hit-rect per cell —
@@ -25,7 +25,10 @@ import {
 export function componentEditHitLayer(items, size, picked) {
   const dims = resolvedComponentDims(size);
   const halfX = dims.w / 2, halfY = dims.h / 2;
-  return items.map((it, i) => {
+  // where cells overlap, the one drawn on top takes the click: the drawing's own order (drawRank)
+  const order = items.map((_, i) => i).sort((a, b) => drawRank(items[a], items[b]) || a - b);
+  return order.map(i => {
+    const it = items[i];
     const w = it.cellW || it.cellSize, h = it.cellH || it.cellSize, x = halfX + it.cx + (it.ox || 0) - w / 2, y = halfY + it.cy + (it.oy || 0) - h / 2;   // a Tile Offset moves the cell
     const sel = i === state.componentEditSelectedCell;
     const style = sel ? 'fill:transparent;stroke:var(--ink);stroke-width:3px;' : 'fill:transparent;';

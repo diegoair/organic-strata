@@ -36,7 +36,7 @@ export function buildComponentItems(component, grid) {
     rotation: t.rotation, flipH: t.flipH, flipV: t.flipV, scale: t.scale,
     cellSize: centers[i].cellSize, color: ruleInk(i, cr),
     content: t.content || null,
-  }, t, i, cr), centers[i]), t)), grid);
+  }, t, i, cr), centers[i]), t)), grid, component.cells);
 }
 // Overlap (Oct 26, 2026 — Diego: Elements that overlap their neighbours without changing shape; plan Phase 2). The grid's
 // `overlap` = { by: 'rows' | 'cols' | 'checker', x, y (the moved class's shift, a fraction of its cell), top: 'order' |
@@ -44,18 +44,27 @@ export function buildComponentItems(component, grid) {
 // than the Element. Every item keeps its place in the list (colours and Component Edit read it by index): it only gains
 // its class `oc` (0 / 1), the shift in dx / dy, and `ov` (the drawing's order and copies — drawOrder()). Absent = as before.
 export const overlapClass = (by, c, r) => by === 'rows' ? r % 2 : by === 'cols' ? c % 2 : (r + c) % 2;
-function withOverlap(items, grid) {
-  const o = grid.overlap;
-  if (!o || grid.kind !== 'square') return items;
-  const cols = grid.cols, d = Organica.shapes.frameDims(grid), ov = { top: o.top || 'order', wrap: !!o.wrap, w: d.w, h: d.h };
+// A cell's own Move X / Y (`moveX / moveY`, a fraction of its cell) and order (`z`, higher on top) — Component Edit, Phase 3
+// (Oct 26, 2026): the cell moves as an Offset does, and its order outranks On top.
+function withOverlap(items, grid, cells) {
+  const o = grid.overlap, own = cells && cells.some(c => c && (c.moveX || c.moveY || c.z));
+  if ((!o && !own) || grid.kind !== 'square') return items;
+  const cols = grid.cols, d = Organica.shapes.frameDims(grid), ov = { top: (o && o.top) || 'order', wrap: !!(o && o.wrap), w: d.w, h: d.h };
   return items.map((it, i) => {
-    const k = overlapClass(o.by, i % cols, Math.floor(i / cols)), out = { ...it, oc: k, ov };
-    if (k && (o.x || o.y)) { out.ox = (o.x || 0) * itemW(it); out.oy = (o.y || 0) * itemH(it); out.dx = (it.dx || 0) + out.ox; out.dy = (it.dy || 0) + out.oy; }   // ox / oy: the cell itself moved (its clip, its hit box)
+    const k = o ? overlapClass(o.by, i % cols, Math.floor(i / cols)) : 0, c = (cells && cells[i]) || {}, out = { ...it, oc: k, ov };
+    const mx = (k && o ? o.x || 0 : 0) + (c.moveX || 0), my = (k && o ? o.y || 0 : 0) + (c.moveY || 0);
+    if (mx || my) { out.ox = mx * itemW(it); out.oy = my * itemH(it); out.dx = (it.dx || 0) + out.ox; out.dy = (it.dy || 0) + out.oy; }   // ox / oy: the cell itself moved (its clip, its hit box)
+    if (c.z) out.z = c.z;
     return out;
   });
 }
 // What is drawn, in order: the moved class over (or under) the others, then — Seamless repeat — the copy of each cell that
 // reaches past an edge, one period over (what leaves the right comes back on the left), the drawing cut at the frame.
+// which of two cells is drawn later (> 0): its own order (z), then Tile › On top — Component Edit's hit boxes sort the same way
+export function drawRank(a, b) {
+  const top = (a.ov && a.ov.top) || 'order', rank = it => top === 'order' ? 0 : top === 'moved' ? (it.oc || 0) : 1 - (it.oc || 0);
+  return (a.z || 0) - (b.z || 0) || rank(a) - rank(b);
+}
 export function drawOrder(items) {
   const ov = items.length && items[0].ov;
   if (!ov) return items;
@@ -71,8 +80,8 @@ export function drawOrder(items) {
     });
   }
   // a copy draws with its cell (right after it, or in its class's turn): the order holds across the edge too
-  const rank = x => ov.top === 'order' ? 0 : ov.top === 'moved' ? x.it.oc : 1 - x.it.oc;
-  out.sort((a, b) => rank(a) - rank(b) || a.i - b.i || (a.it.copy ? 1 : 0) - (b.it.copy ? 1 : 0));
+  // a cell's own order first (Bring forward / Send backward), then On top, then reading order
+  out.sort((a, b) => drawRank(a.it, b.it) || a.i - b.i || (a.it.copy ? 1 : 0) - (b.it.copy ? 1 : 0));
   return out.map(x => x.it);
 }
 // A cell made by hand (Component Edit, Tropism Phase 0 — Oct 14, 2026): Symbol's cell fields on a Component cell. Its own

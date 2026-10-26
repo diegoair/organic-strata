@@ -661,6 +661,10 @@ function mountComponentBoard() {
       rt.cePicked.forEach(i => { const c = state.componentEditCells[i]; if (c && !c.locked) { c.empty = true; delete c.content; delete c.partInks; } });
       renderComponentEditCanvas(); syncCeCellProps();
     }
+    if (e.altKey && !e.metaKey && !e.ctrlKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && rt.cePicked.size && !overlayOpen() && !ctrl('ce-row-cellprop-order').hidden) {   // ⌥↑ / ⌥↓: Bring forward / Send backward
+      e.preventDefault();
+      ceOrder(e.key === 'ArrowUp' ? 1 : -1);
+    }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a' && !overlayOpen()) {   // every cell (Tropism Phase 0)
       e.preventDefault();
       rt.cePicked = new Set(state.componentEditCells.map((_, i) => i));
@@ -905,7 +909,26 @@ const CE_CELLS = {
   choose: () => openChooseForCells(),
   editShape: () => editCellShape(),
   lock: true,
+  order: d => ceOrder(d),
 };
+// Bring forward / Send backward (Oct 26, 2026): the picked cells one step over (or under) every other cell — their own
+// order (`z`) always wins over Tile › On top (Diego); 0 is stored as nothing. One undo step.
+function ceOrder(d) {
+  const cells = ceCells(), picked = new Set(cePicked()), others = cells.map((c, i) => (picked.has(i) ? null : c.z || 0)).filter(v => v != null);
+  if (!picked.size || !others.length) return;
+  // several picked: they keep their order among themselves (as Figma), all over (under) the others
+  const ps = [...picked].sort((a, b) => (cells[a].z || 0) - (cells[b].z || 0) || a - b), base = d > 0 ? Math.max(...others) + 1 : Math.min(...others) - ps.length;
+  ceSnapshot();
+  ps.forEach((i, k) => { const c = cells[i]; if (!c.locked) { const z = base + k; if (z) c.z = z; else delete c.z; } });
+  renderComponentEditCanvas();
+  syncCeCellProps();
+}
+function syncCeOrderUI() {
+  const cells = ceCells(), picked = new Set(cePicked()), zs = i => cells[i].z || 0;
+  const pz = [...picked].map(zs), oz = cells.map((_, i) => i).filter(i => !picked.has(i)).map(zs);
+  ctrl('ce-btn-cellprop-forward').disabled = !oz.length || Math.min(...pz) > Math.max(...oz);   // already over every other cell
+  ctrl('ce-btn-cellprop-backward').disabled = !oz.length || Math.max(...pz) < Math.min(...oz);
+}
 ctrl('ce-cell-props').innerHTML = cellPropsHTML('ce-', { component: true });
 bindCellProps('ce-', CE_CELLS);
 let ceShown = false;   // the section was showing: the panel is brought to its top only when it appears or a pick changes
@@ -933,6 +956,10 @@ export function syncCeCellProps() {
     ctrl('ce-btn-cellprop-flipv').setAttribute('aria-pressed', String(!!f.flipV));
     ctrl('ce-row-cellprop-scale').hidden = false;   // Scale always: it scales a Fixed size too (withCellPlace)
     ctrl('ce-row-cellprop-seedparams').hidden = !!(f.empty);
+    // Move and order: square cells (as Tile), and not on empty cells only
+    const sq = state.cellShape === 'square' && !state.loomGrid, drawn = cePicked().some(i => !ceCells()[i].empty);
+    ['move-x', 'move-y', 'order'].forEach(k => { ctrl('ce-row-cellprop-' + k).hidden = !(sq && drawn); });
+    syncCeOrderUI();
   }
   syncCeFitAnchor();
 }

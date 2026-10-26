@@ -432,6 +432,8 @@ export function applyToSelection(patch) {
 // Element's −180…180), Flip two toggles, Scale (always — it scales a Fixed size too), Size (Fixed size), Cover axis (Cover),
 // Padding, Lock. No Selected / Content / Colour rows; Fit is the floatbar's. The rows it shares keep their ids, so
 // syncCellProps / bindCellProps drive them (a row it leaves out reads / writes a stand-in).
+// … after Size: Move X / Y and Bring forward · Send backward (Oct 26, 2026 — plan Phase 3, design-system CONSULT): the picked
+// cells moved by a % of their cell, and their order where cells overlap — a cell's own order always wins over Tile › On top.
 function componentCellPropsHTML(I) {
   const pad = k => Organica.icons.get('pad-' + k, { size: 'md' });
   return `<div class="row-btns" id="${I('row-cellprop-seedparams')}">
@@ -457,6 +459,18 @@ function componentCellPropsHTML(I) {
             <div class="ctrl-label">Size</div>
             <input type="range" id="${I('rg-cellprop-fixedsize')}" min="5" max="300" step="1" value="100">
             <span class="ctrl-val" id="${I('v-cellprop-fixedsize')}">100</span>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-move-x')}"><div class="ctrl-label" title="% of a cell width">Move X</div>
+            <input type="range" id="${I('rg-cellprop-move-x')}" min="-100" max="100" step="1" value="0" aria-label="Move X">
+            <span class="ctrl-val" id="${I('v-cellprop-move-x')}">0</span>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-move-y')}"><div class="ctrl-label" title="% of a cell height">Move Y</div>
+            <input type="range" id="${I('rg-cellprop-move-y')}" min="-100" max="100" step="1" value="0" aria-label="Move Y">
+            <span class="ctrl-val" id="${I('v-cellprop-move-y')}">0</span>
+          </div>
+          <div class="row-btns" id="${I('row-cellprop-order')}">
+            <button type="button" class="mini-btn" id="${I('btn-cellprop-forward')}" aria-keyshortcuts="Alt+ArrowUp">Bring forward</button>
+            <button type="button" class="mini-btn" id="${I('btn-cellprop-backward')}" aria-keyshortcuts="Alt+ArrowDown">Send backward</button>
           </div>
           <div class="ctrl-row" id="${I('row-cellprop-coveraxis')}" hidden>
             <div class="ctrl-label">Cover axis</div>
@@ -653,6 +667,7 @@ export function syncCellProps(pre, t) {
   c('v-cellprop-scale').textContent = c('rg-cellprop-scale').value;
   c('rg-cellprop-fixedsize').value = first.fixedSize || 100;
   c('v-cellprop-fixedsize').textContent = c('rg-cellprop-fixedsize').value;
+  if (ctrl(pre + 'rg-cellprop-move-x')) ['x', 'y'].forEach(k => { const v = Math.round((first['move' + k.toUpperCase()] || 0) * 100); c('rg-cellprop-move-' + k).value = v; c('v-cellprop-move-' + k).textContent = v; });   // Move (Oct 26, 2026)
   syncCellColourUI(first, isComponent, pre, t.colors());
   c('row-cellprop-seedparams').hidden = !!((isComponent || first.source === 'empty'));
   c('symbol-cellprop-seedparams-label').textContent = first.seedParams ? 'Element settings' : 'Default';
@@ -696,6 +711,15 @@ export function bindCellProps(pre, t) {
     c('v-cellprop-fixedsize').textContent = e.target.value;
     t.apply({ fixedSize: parseInt(e.target.value, 10) });
   });
+  // Move X / Y and Bring forward / Send backward (Component Edit, Oct 26, 2026): 0 is stored as nothing (null deletes the key)
+  if (ctrl(pre + 'rg-cellprop-move-x')) {
+    ['x', 'y'].forEach(k => c('rg-cellprop-move-' + k).addEventListener('input', e => {
+      c('v-cellprop-move-' + k).textContent = e.target.value;
+      t.apply({ ['move' + k.toUpperCase()]: +e.target.value ? +e.target.value / 100 : null });
+    }));
+    c('btn-cellprop-forward').addEventListener('click', () => { if (t.order) t.order(1); });
+    c('btn-cellprop-backward').addEventListener('click', () => { if (t.order) t.order(-1); });
+  }
   // Padding: a field writes its side(s) on every selected cell, keeping that cell's other sides (pad wins over the
   // older single `padding`); values clamped to 0–45 % a side, so the box never closes
   const padWrap = c('cellprop-pad');

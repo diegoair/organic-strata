@@ -430,8 +430,15 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
   placed as a block (a region) or on the shared lattice (Match cell): those keep the reading order, no copies.
 - It **draws** the Components there are: the section is `.no-gen-sig`, outside Generate's signature (no dot). Saved with
   a Component (its grid), back on the panel when the Component is opened (`applyTileUI`).
-- Not yet: the rule's own classes as a Layout (Diego: later), per-cell Move / Bring forward (Phase 3), plates that
-  knock out what is covered (Phase 4), Weave as a third On top (Phase 5, test page first). Tests: `scripts/test-fvs-tile.sh`.
+- **Per cell, in Component Edit (Phase 3, Oct 26, 2026).** In Cell properties, after Scale: **Move X / Y** (−100 … 100 %
+  of the cell; the cell itself moves, as an Offset does — its clip and hit box with it) and **Bring forward · Send
+  backward** (⌥↑ / ⌥↓): the picked cells one step over / under every other cell (several keep their order among
+  themselves, as in Figma). A cell's own order (`z`) **always wins**
+  over On top, which orders the cells of the same order (Diego); the hit box drawn on top takes the click. The cell keys
+  `moveX` / `moveY` / `z` (0 = absent) count in a Component's key; each change is one undo step. Square cells only, and
+  not on empty cells.
+- Not yet: the rule's own classes as a Layout (Diego: later), plates that knock out what is covered (Phase 4), Weave as
+  a third On top (Phase 5, test page first). Tests: `scripts/test-fvs-tile.sh`.
 
 ### 5.2 The axes (Transform axes)
 

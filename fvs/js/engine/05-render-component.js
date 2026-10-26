@@ -444,7 +444,7 @@ export function withItemParts(it, g, fn) {
 // shape keep the cell-by-cell drawing (they work inside one cell). Paper rect, transforms and inks are unchanged.
 export function layerPasses(geo, items) {
   if (!geo || !geo.layers || geo.layers.length < 2 || items.some(it => it.content)) return null;
-  if (items.some(it => it.ov && it.ov.top !== 'order')) return null;   // Tile › On top: the cell on top covers the whole cell below (Diego, Oct 26, 2026)
+  if (items.some(it => (it.ov && it.ov.top !== 'order') || it.z)) return null;   // + a cell's own order   // Tile › On top: the cell on top covers the whole cell below (Diego, Oct 26, 2026)
   if (!geo.layers.every(l => (l.role || 'fill') === 'fill')) return null;
   return geo.layers.map(l => ({ ...geo, layers: [l] }));
 }

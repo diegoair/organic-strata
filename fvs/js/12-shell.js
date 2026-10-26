@@ -179,7 +179,7 @@ export function setTier(tier) {
 //     Double-click / "reset" = 100%.
 //   · the candidates on the board: galleryZoom sets their size (the --thumb-w/h vars, 2× on the board).
 // Keyboard shortcuts — list-only (each is handled by its own listener below); `?` shows them.
-[['⌘Z', 'Undo (Element, Component, Figure, Freehand)', 'Edit'], ['⌘⇧Z', 'Redo (Figure)', 'Edit'],
+[['⌘Z', 'Undo (Element, Component, Figure, Freehand)', 'Edit'], ['⌘⇧Z', 'Redo (Figure)', 'Edit'], ['⌥↑ / ⌥↓', 'Component Edit: bring forward / send backward', 'Edit'],
  ['Space (hold)', 'Pan the board', 'View'], ['Shift+1', 'Fit the board', 'View'], ['Shift+2', 'Fit the selection', 'View'],
  ['Space', 'Figure: shuffle', 'Figure'], ['V', 'Figure: variations', 'Figure'], ['[ / ]', 'Figure: nudge size', 'Figure'],
  ['1–6', 'Figure: pick a paint tool', 'Figure'], ['R / m / M', 'Figure: rotate / mirror V / mirror H the handle target', 'Figure'],
