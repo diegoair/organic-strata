@@ -45,32 +45,30 @@ export function setComponentGrid(spec, opts = {}) {
 }
 // Tile (Oct 26, 2026): Offset and On top only when cells move; the whole section on square cells only
 export function syncTileUI() {
-  const lay = ctrl('sel-tile-layout').value, moves = lay !== 'grid', comp = tileTarget();
-  ctrl('tile-section').hidden = state.cellShape !== 'square' || !!state.loomGrid;
+  const lay = ctrl('sel-tile-layout').value, moves = lay !== 'grid';
+  // in Component Edit only (Diego, Oct 26, 2026): the edited Component's Tile, part of the edit
+  ctrl('tile-section').hidden = !state.componentEditMode || state.cellShape !== 'square' || !!state.loomGrid;
   ctrl('tile-offset-x-row').hidden = ctrl('tile-offset-y-row').hidden = ctrl('tile-top-row').hidden = !moves;
-  // one Component's own (Diego, Oct 26, 2026): nothing selected, nothing to tile
-  ctrl('tile-none-hint').hidden = !!comp;
-  ctrl('tile-props').hidden = !comp;   // as Cell properties: nothing selected, the note alone
 }
-// the Component Tile acts on: the one selected on the board
-const tileTarget = () => (state.selectionExplicit && state.components.find(c => c.id === state.selectedId)) || null;
-// the panel shows the selected Component's Tile (every gallery draw — a pick, an undo, another Element)
+// the panel shows the edit's Tile (on entering Edit, after an Edit undo)
 export function syncTileFromSelection() {
-  const c = tileTarget(), key = c ? c.id + JSON.stringify(c.tile || null) : '';
+  const g = state.componentEditMode && state.componentEditGrid, o = g ? g.overlap || null : null, key = g ? JSON.stringify(o) : '';
   if (key === tileShown) { syncTileUI(); return; }
   tileShown = key;
-  applyTileUI(c && c.tile);
+  applyTileUI(o);
 }
 let tileShown = null;
-// a panel change goes on the selected Component only
+// a panel change goes on the edit's grid (Back to board drops it, Save as new component keeps it) — one Edit undo step
+// per gesture (a drag is one)
 function writeTile(opts = {}) {
-  const c = tileTarget();
-  if (!c) return;
-  if (opts.step && hooks.pushComponentUndo) hooks.pushComponentUndo();   // one undo step per gesture (a drag is one)
-  const o = tileOverlap();
-  if (o) c.tile = o; else delete c.tile;
-  tileShown = c.id + JSON.stringify(c.tile || null);
-  hooks.renderGallery(); if (!opts.live) hooks.renderSymbol();   // a drag redraws the Symbol at its end
+  const g = state.componentEditMode && state.componentEditGrid;
+  if (!g) return;
+  if (opts.step && hooks.ceSnapshot) hooks.ceSnapshot();
+  const o = tileOverlap(), next = { ...g };
+  if (o) next.overlap = o; else delete next.overlap;
+  state.componentEditGrid = next;
+  tileShown = JSON.stringify(o || null);
+  hooks.renderComponentEditCanvas();
 }
 const TILE_PRESET = { brick: [50, 0], halfdrop: [0, 50], alternate: [25, 25] };   // choosing a Layout sets its usual offset
 const setTileVal = (k, v) => { ctrl('rg-tile-offset-' + k).value = v; ctrl('v-tile-offset-' + k).textContent = v; };
@@ -93,7 +91,6 @@ ctrl('sel-tile-layout').addEventListener('change', e => {
   let armed = false;   // the drag's first move keeps the step
   ['pointerdown', 'keydown'].forEach(t => r.addEventListener(t, () => { armed = true; }));
   r.addEventListener('input', e => { ctrl('v-tile-offset-' + k).textContent = e.target.value; writeTile({ step: armed, live: true }); armed = false; });
-  r.addEventListener('change', () => hooks.renderSymbol());
 });
 ctrl('sel-tile-top').addEventListener('change', () => writeTile({ step: true }));
 ctrl('chk-tile-seamless').addEventListener('change', () => writeTile({ step: true }));

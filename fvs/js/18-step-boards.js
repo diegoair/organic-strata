@@ -943,6 +943,12 @@ export function syncCeCellProps() {
   ctrl('fb-ce-place').hidden = !on;
   ctrl('fb-component-generate').hidden = ctrl('fb-component-generate-sep').hidden = !!(on);   // Generate doesn't apply in Edit
   ctrl('btn-component-view-guides').hidden = !(on && state.cellShape === 'square');   // the track borders exist on square cells
+  ctrl('btn-component-view-tile').hidden = !(on && state.cellShape === 'square' && !state.loomGrid);   // Show as tile: square cells, as Tile
+  ctrl('btn-component-view-tile').setAttribute('aria-pressed', String(!!rt.ceTileView));
+  const gb = ctrl('btn-component-view-guides');   // the guides wait while Show as tile is on (the Element's pattern for an option that does not apply)
+  gb.setAttribute('aria-disabled', String(!!rt.ceTileView));
+  gb.setAttribute('aria-label', rt.ceTileView ? 'Show guides — off while Show as tile is on' : 'Show guides');
+  if (hooks.syncTileFromSelection) hooks.syncTileFromSelection();
   ctrl('btn-component-view-clip').hidden = !on;
   ctrl('btn-component-view-clip').setAttribute('aria-pressed', String(!!state.componentClip));
   if (!on) return;

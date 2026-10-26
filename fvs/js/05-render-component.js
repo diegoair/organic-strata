@@ -505,7 +505,6 @@ export function renderGallery() {
   // there (Diego, Oct 14, 2026 — a Paper colour changed in Edit did not show)
   if (state.componentEditMode && hooks.renderComponentEditCanvas) hooks.renderComponentEditCanvas();
   if (hooks.boardGalleryDrawn) hooks.boardGalleryDrawn();   // the Component board's Clear board (18-step-boards.js)
-  if (hooks.syncTileFromSelection) hooks.syncTileFromSelection();   // Tile shows the selected Component's own (Oct 26, 2026)
 }
 function renderGalleryNow() {
   // Component Edit mode owns the view while active (renderComponentEditCanvas

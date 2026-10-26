@@ -112,6 +112,11 @@
     <button class="org-floatbar__btn" id="btn-component-view-guides" aria-pressed="true" aria-label="Show guides" hidden>
       <svg class="ico" data-icon="fvs-guides" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/></svg>
     </button>
+    <!-- Show as tile (Component Edit only, Oct 26, 2026): the Component with its repeats faded around it — the Element's view,
+         for the Component's Tile. A view aid: never exported. -->
+    <button class="org-floatbar__btn" id="btn-component-view-tile" aria-pressed="false" aria-label="Show as tile" hidden>
+      <svg class="ico" data-icon="fvs-tile" viewBox="0 0 16 16" aria-hidden="true"><rect x="5.5" y="5.5" width="5" height="5"/><path d="M1.5 5.5h2.5M1.5 10.5h2.5M12 5.5h2.5M12 10.5h2.5M5.5 1.5V4M10.5 1.5V4M5.5 12v2.5M10.5 12v2.5"/></svg>
+    </button>
     <!-- Clear board: every candidate goes (clearGallery keeps an undo step, so ⌘Z brings them back). Hold to confirm. -->
     <button class="org-floatbar__btn" id="btn-board-clear-component" aria-label="Clear board — hold to confirm" data-hold="Clear board — click again to confirm">
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
@@ -1425,6 +1430,42 @@
         <button type="button" class="mini-btn" id="btn-ce-apply-grid" data-armed="Regenerate the others — click again">Apply grid to all</button>
       </div>
     </div>
+    <!-- Tile (Oct 26, 2026 — Diego: Elements that overlap their neighbours without changing shape, for continuous patterns;
+         design-system CONSULT the same day; plan Phase 2): which cells move (Layout, the Paper's words + Alternate), by how much
+         (Offset, % of a cell), who is on top, and Tile seamlessly (what leaves an edge comes back on the opposite one). Gap
+         below 0 brings the cells closer than the Element. One Component's own (comp.tile), set in Component Edit only, as
+         part of the edit — Save as new keeps it (Diego, Oct 26, 2026: "come quello dell'element … nell'edit del component, con
+         una preview" — the floatbar's Show as tile). Never Generate's dot (no-gen-sig). Square cells only. -->
+    <div class="panel-section no-gen-sig" id="tile-section" hidden>
+      <h3>Tile</h3>
+      <div class="ctrl-row"><div class="ctrl-label" title="Grid · Brick (every other row moves) · Half-drop (every other column moves) · Alternate (every other cell, as a checkerboard)">Layout</div>
+        <select class="panel-select" id="sel-tile-layout" aria-label="Layout">
+          <option value="grid" selected>Grid</option>
+          <option value="brick">Brick</option>
+          <option value="halfdrop">Half-drop</option>
+          <option value="alternate">Alternate</option>
+        </select>
+      </div>
+      <div class="ctrl-row" id="tile-offset-x-row" hidden>
+        <div class="ctrl-label" title="% of a cell width">Offset X</div>
+        <input type="range" id="rg-tile-offset-x" min="-50" max="50" step="1" value="0" aria-label="Offset X">
+        <span class="ctrl-val" id="v-tile-offset-x">0</span>
+      </div>
+      <div class="ctrl-row" id="tile-offset-y-row" hidden>
+        <div class="ctrl-label" title="% of a cell height">Offset Y</div>
+        <input type="range" id="rg-tile-offset-y" min="-50" max="50" step="1" value="0" aria-label="Offset Y">
+        <span class="ctrl-val" id="v-tile-offset-y">0</span>
+      </div>
+      <div class="ctrl-row" id="tile-top-row" hidden><div class="ctrl-label" title="Which cell is drawn on top where cells overlap: the whole cell, every layer. Reading order: each cell covers the one before it. The moved cells: they cover the others. The other cells: the moved ones go under them. A cell brought forward or sent backward in Edit keeps its own order.">On top</div>
+        <select class="panel-select" id="sel-tile-top" aria-label="On top">
+          <option value="order" selected>Reading order</option>
+          <option value="moved">The moved cells</option>
+          <option value="still">The other cells</option>
+        </select>
+      </div>
+      <label class="check-row org-switch" id="tile-seamless-row"><input type="checkbox" id="chk-tile-seamless"><span>Tile seamlessly</span></label>
+    </div>
+
     <!-- Component Edit — the picked cells' properties, Symbol's own block (Tropism Phase 0, Oct 14, 2026). Shown only in Edit. -->
     <div class="panel-section" id="ce-cell-section" hidden>
       <h3>Cell properties</h3>
@@ -1593,43 +1634,6 @@
       <div class="row-btns" id="rule-save-row" hidden><button type="button" class="mini-btn" id="btn-save-rule">Save rule…</button></div>
     </div>
 
-    <!-- Tile (Oct 26, 2026 — Diego: Elements that overlap their neighbours without changing shape, for continuous patterns;
-         design-system CONSULT the same day; plan Phase 2): which cells move (Layout, the Paper's words + Alternate), by how much
-         (Offset, % of a cell), who is on top, and Tile seamlessly (what leaves an edge comes back on the opposite one). Gap
-         below 0 brings the cells closer than the Element. It belongs to the selected Component only (Diego, Oct 26, 2026 —
-         comp.tile) — never Generate's dot (no-gen-sig). Square cells only. -->
-    <div class="panel-section ce-hide no-gen-sig" id="tile-section">
-      <h3>Tile</h3>
-      <div id="tile-none-hint" class="org-empty">No component selected.</div>
-      <div id="tile-props">
-      <div class="ctrl-row"><div class="ctrl-label" title="Grid · Brick (every other row moves) · Half-drop (every other column moves) · Alternate (every other cell, as a checkerboard)">Layout</div>
-        <select class="panel-select" id="sel-tile-layout" aria-label="Layout">
-          <option value="grid" selected>Grid</option>
-          <option value="brick">Brick</option>
-          <option value="halfdrop">Half-drop</option>
-          <option value="alternate">Alternate</option>
-        </select>
-      </div>
-      <div class="ctrl-row" id="tile-offset-x-row" hidden>
-        <div class="ctrl-label" title="% of a cell width">Offset X</div>
-        <input type="range" id="rg-tile-offset-x" min="-50" max="50" step="1" value="0" aria-label="Offset X">
-        <span class="ctrl-val" id="v-tile-offset-x">0</span>
-      </div>
-      <div class="ctrl-row" id="tile-offset-y-row" hidden>
-        <div class="ctrl-label" title="% of a cell height">Offset Y</div>
-        <input type="range" id="rg-tile-offset-y" min="-50" max="50" step="1" value="0" aria-label="Offset Y">
-        <span class="ctrl-val" id="v-tile-offset-y">0</span>
-      </div>
-      <div class="ctrl-row" id="tile-top-row" hidden><div class="ctrl-label" title="Which cell is drawn on top where cells overlap: the whole cell, every layer. Reading order: each cell covers the one before it. The moved cells: they cover the others. The other cells: the moved ones go under them. A cell brought forward or sent backward in Edit keeps its own order.">On top</div>
-        <select class="panel-select" id="sel-tile-top" aria-label="On top">
-          <option value="order" selected>Reading order</option>
-          <option value="moved">The moved cells</option>
-          <option value="still">The other cells</option>
-        </select>
-      </div>
-      <label class="check-row org-switch" id="tile-seamless-row"><input type="checkbox" id="chk-tile-seamless"><span>Tile seamlessly</span></label>
-      </div>
-    </div>
 
     <!-- Colourways (Oct 21, 2026 — Diego: "move it to the bottom of the component, make it a toggle", with Layer colour variants;
          design-system + content CONSULT the same day): two switches that make Generate multiply the Components by colour —

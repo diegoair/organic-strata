@@ -802,9 +802,15 @@ export function syncSymbolViewUI() {
   });
 }
 ctrl('btn-component-view-guides').addEventListener('click', e => {
+  if (e.currentTarget.getAttribute('aria-disabled') === 'true') return;   // off while Show as tile is on
   state.componentGuides = !state.componentGuides;
   e.currentTarget.setAttribute('aria-pressed', String(state.componentGuides));
   renderComponentEditCanvas();
+});
+ctrl('btn-component-view-tile').addEventListener('click', e => {   // Show as tile in Component Edit (Oct 26, 2026)
+  rt.ceTileView = !rt.ceTileView;
+  e.currentTarget.setAttribute('aria-pressed', String(rt.ceTileView));
+  renderComponentEditCanvas(); if (hooks.syncCeCellProps) hooks.syncCeCellProps();   // Show guides follows (off while tiled)
 });
 ctrl('btn-component-view-outline').addEventListener('click', e => {
   state.componentGridOutline = !state.componentGridOutline;

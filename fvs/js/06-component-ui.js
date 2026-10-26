@@ -23,7 +23,7 @@ import {
   withAppearance
 } from './engine/04-appearance.js';
 import {
-  buildComponentSVG, buildComponentSVGBody, componentGridOutlineSVG, drawComponentCanvas, gridWrapper, layerTransformAttr
+  buildComponentSVG, buildComponentSVGBody, componentGridOutlineSVG, drawComponentCanvas, gridWrapper, layerTransformAttr, nextDrawId
 } from './engine/05-render-component.js';
 import {
   COMPONENT_STARTER_RULES, RULE_TO_FAMILY, STARTER_VARIANTS_PER_RULE, UNDO_MAX, buildColourways,
@@ -52,7 +52,7 @@ import {
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks, pushComponentUndo: () => pushUndo,
+  adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks, pushComponentUndo: () => pushUndo, ceSnapshot: () => ceSnapshot,
   enterComponentEditMode: () => enterComponentEditMode, generate: () => generate,
   populateComponentStarterGallery: () => populateComponentStarterGallery, renderComponentEditCanvas: () => renderComponentEditCanvas,
   syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI, syncSplitUI: () => syncSplitUI,
@@ -402,17 +402,30 @@ export function renderComponentEditCanvas() {
   const hit = componentEditHitLayer(items, size, rt.cePicked);
   const dims = resolvedComponentDims(size);
   ctrl('component-edit-frame').style.setProperty('--comp-ar', (dims.w / dims.h).toFixed(5));   // the sheet's box takes the component's proportions
-  const tracks = ceTrackHandles(items, size);
+  // Show as tile (Oct 26, 2026): the Component with its repeats faded around it, one period over (the Element's view);
+  // the view is its frame and half of each neighbour, the guides wait until it is off
+  const tiled = !!rt.ceTileView && !(items.length && items[0].poly);
+  const tracks = tiled ? '' : ceTrackHandles(items, size);
   ctrl('component-edit-frame').innerHTML =
-    `<svg xmlns="http://www.w3.org/2000/svg"${items.length && items[0].poly ? ' class="is-cell"' : ''} viewBox="0 0 ${dims.w} ${dims.h}">${body}${componentGridOutlineSVG(items, size)}${(gridWrapper(items, grid.lattice && grid.lattice.outline) || {}).svg || ''}${hit}</svg>`;
+    `<svg xmlns="http://www.w3.org/2000/svg"${items.length && items[0].poly ? ' class="is-cell"' : ''} viewBox="${tiled ? `${-dims.w / 2} ${-dims.h / 2} ${2 * dims.w} ${2 * dims.h}` : `0 0 ${dims.w} ${dims.h}`}">${tiled ? tileView(body, dims) : body}${componentGridOutlineSVG(items, size)}${(gridWrapper(items, grid.lattice && grid.lattice.outline) || {}).svg || ''}${hit}</svg>`;
   const n = rt.cePicked.size, shaping = ceShaping();
   ctrl('component-edit-hint').textContent = !n
     ? (seed.parts ? 'Click cells — ⌘-click adds — then a part and an ink' : 'Click a cell — ⌘-click or drag to pick several')
     : shaping ? `Shape of ${n} cell${n === 1 ? '' : 's'} — click a cell to go back to its properties`
     : `${n} cell${n === 1 ? '' : 's'} selected`;
   if (tracks) { const svg = ctrl('component-edit-frame').querySelector('svg'); if (svg) svg.insertAdjacentHTML('beforeend', tracks); }
-  ceTrackLabels(size);
+  if (!tiled) ceTrackLabels(size); else { const old = ctrl('component-edit-frame').querySelector('.sym-track-labels'); if (old) old.remove(); }
   renderComponentEditParts();
+  if (hooks.syncTileFromSelection) hooks.syncTileFromSelection();   // the Tile section shows the edit's own
+}
+// Show as tile: the view's Paper (faded copies would show the page through — grey in dark), the 8 neighbours as <use>
+// copies of the centre's drawing, faded (.fvs-tile-ghost), no hit — the centre (id'd, drawn once) — and its frame as the
+// Element's dashed guide box. A <use> may point forward, so every id inside the drawing appears once.
+function tileView(body, dims) {
+  const id = 'ce-tile-src-' + nextDrawId();
+  let out = `<rect x="${-dims.w / 2}" y="${-dims.h / 2}" width="${2 * dims.w}" height="${2 * dims.h}" fill="${state.paperColor}"/><g class="fvs-tile-ghost" pointer-events="none">`;
+  for (const oy of [-1, 0, 1]) for (const ox of [-1, 0, 1]) if (ox || oy) out += `<use href="#${id}" x="${ox * dims.w}" y="${oy * dims.h}"/>`;
+  return out + `</g><g id="${id}">${body}</g><rect class="fvs-guide" x="0" y="0" width="${dims.w}" height="${dims.h}" pointer-events="none"/>`;
 }
 // ── Divide into parts, per cell (R3) ── the picked cells' own colour for one part of the divided Element
 // (cell.partInks {partKey: 'cell' | slot}); it lives in the edit's working copy until Save as new component.
