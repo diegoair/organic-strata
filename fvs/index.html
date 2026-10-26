@@ -1425,6 +1425,11 @@
       <div class="ctrl-row"><div class="ctrl-label">Rows</div>
         <input type="range" id="rg-ce-rows" min="2" max="8" step="1" value="2" aria-label="Rows"><span class="ctrl-val" id="v-ce-rows">2</span>
       </div>
+      <!-- Gap (Oct 26, 2026 — Diego: in Edit too, beside the Tile preview): the step's own setting, every Component — below 0
+           the cells come closer than the Element. Not part of the edit (Back to board keeps it). -->
+      <div class="ctrl-row"><div class="ctrl-label" title="The same for every component — below 0 the cells overlap">Gap</div>
+        <input type="range" id="rg-ce-gap" min="-80" max="40" step="1" value="0" aria-label="Gap"><span class="ctrl-val" id="v-ce-gap">0</span>
+      </div>
       <div class="row-btns">
         <button type="button" class="mini-btn" id="btn-ce-even-tracks">Even tracks</button>
         <button type="button" class="mini-btn" id="btn-ce-apply-grid" data-armed="Regenerate the others — click again">Apply grid to all</button>

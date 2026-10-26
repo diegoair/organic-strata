@@ -245,6 +245,7 @@ export function syncCeGridUI() {
   const g = state.componentEditGrid;
   ctrl('rg-ce-cols').value = g.cols; ctrl('v-ce-cols').textContent = g.cols;
   ctrl('rg-ce-rows').value = g.rows; ctrl('v-ce-rows').textContent = g.rows;
+  ctrl('rg-ce-gap').value = ctrl('rg-gap').value; ctrl('v-ce-gap').textContent = ctrl('rg-gap').value;   // the step's Gap
   ctrl('ce-grid-count').textContent = `${g.cols * g.rows} cell${g.cols * g.rows === 1 ? '' : 's'}`;
   ctrl('btn-ce-even-tracks').disabled = !g.colWeights && !g.rowWeights;
   ctrl('btn-ce-apply-grid').disabled = !ceOwnGrid();
@@ -254,6 +255,14 @@ export function syncCeGridUI() {
   const g = state.componentEditGrid;
   ceSetGrid(k === 'cols' ? +e.target.value : g.cols, k === 'rows' ? +e.target.value : g.rows);
 }));
+// Gap in Edit (Oct 26, 2026): the step's setting — the board's slider moves with it, the edit's grid takes it (clamped as
+// getGrid clamps it), every Component follows when Edit closes
+ctrl('rg-ce-gap').addEventListener('input', e => {
+  ctrl('v-ce-gap').textContent = e.target.value;
+  ctrl('rg-gap').value = e.target.value; ctrl('v-gap').textContent = e.target.value;
+  state.componentEditGrid = { ...state.componentEditGrid, gap: getGrid().gap };
+  renderComponentEditCanvas(); syncGenerateButton();
+});
 ctrl('btn-ce-even-tracks').addEventListener('click', ceEvenTracks);
 ctrl('btn-ce-apply-grid').addEventListener('click', ceApplyGridToAll);
 // The track borders on the canvas: Symbol's handles (.sym-track — a dashed line, solid on hover / drag) and its % labels.

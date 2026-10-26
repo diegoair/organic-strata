@@ -440,7 +440,9 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
   over (`.fvs-tile-ghost` `<use>` copies on the view's Paper; the view is the frame and half of each neighbour); the
   cells stay pickable, the guides wait until it is off; a view aid, never exported (`rt.ceTileView`). A new Component
   starts at Grid; a saved Component carries its Tile (its grid's `overlap`) and brings it back when opened; it survives
-  a reload. Gap stays the step's (every Component). The section is `.no-gen-sig` (no Generate dot).
+  a reload. Gap stays the step's (every Component) — and is in Edit's Grid too (Diego, Oct 26, 2026), beside the
+  preview: the board's slider moves with it, the edit's grid takes it, Back to board keeps it. The section is
+  `.no-gen-sig` (no Generate dot).
 - **Per cell, in Component Edit (Phase 3, Oct 26, 2026).** In Cell properties, after Scale: **Move X / Y** (−100 … 100 %
   of the cell; the cell itself moves, as an Offset does — its clip and hit box with it) and **Bring forward · Send
   backward** (⌥↑ / ⌥↓): the picked cells one step over / under every other cell (several keep their order among

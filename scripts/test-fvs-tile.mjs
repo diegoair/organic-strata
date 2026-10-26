@@ -28,6 +28,9 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('Gap goes below 0 (to −80)', q('rg-gap').min === '-80', q('rg-gap').min);
   F.enterComponentEditMode(id0); await w(500);
   check('in Component Edit: the Tile section and Show as tile', !q('tile-section').hidden && !q('btn-component-view-tile').hidden && q('sel-tile-layout').value === 'grid' && q('tile-offset-x-row').hidden, [q('tile-section').hidden, q('btn-component-view-tile').hidden]);
+  { const w0 = F.frameDims(eg()).w; set('rg-ce-gap', -30); await w(300);
+    check('Edit’s Grid has Gap: the step’s (the board’s slider with it), the edit draws it', eg().gap === -30 && q('rg-gap').value === '-30' && F.frameDims(eg()).w < w0, JSON.stringify([eg().gap, q('rg-gap').value]));
+    set('rg-ce-gap', 0); await w(200); }
   const presets = {};
   for (const lay of ['brick', 'halfdrop', 'alternate']) { set('sel-tile-layout', lay); await w(150); presets[lay] = q('rg-tile-offset-x').value + '/' + q('rg-tile-offset-y').value; }
   check('Layout presets its offset: Brick 50 / 0, Half-drop 0 / 50, Alternate 25 / 25; Offset and On top shown', presets.brick === '50/0' && presets.halfdrop === '0/50' && presets.alternate === '25/25' && !q('tile-offset-x-row').hidden && !q('tile-top-row').hidden, JSON.stringify(presets));
