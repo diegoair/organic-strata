@@ -404,8 +404,9 @@
   .fvs-group-rule-label { display: inline-flex; align-items: center; gap: var(--space-1); }
   .fvs-layers .org-layer-card.is-group-hl { box-shadow: inset 2px 0 0 var(--tool); }
   .fvs-element-frame.is-part-edit .fvs-part { cursor: pointer; }
-  .fvs-element-frame.is-part-edit .fvs-part > path { stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; }
-  .fvs-element-frame.is-part-edit .fvs-part:hover > path { stroke: var(--tool); stroke-width: 2px; }
+  /* at rest no outline; hover a 1px --ink line (as a Symbol empty cell) — --tool measured 2.97:1 on the light sheet (Diego, Oct 26, 2026) */
+  .fvs-element-frame.is-part-edit .fvs-part > path { vector-effect: non-scaling-stroke; }
+  @media (hover: hover) { .fvs-element-frame.is-part-edit .fvs-part:hover > path { stroke: var(--ink); stroke-width: 1px; } }
   /* a picked part (B): a crisp --tool outline, as a picked Component Edit cell — the paper halo read as a blurred edge */
   .fvs-element-frame.is-part-edit .fvs-part.is-sel > path, .fvs-element-frame.is-part-edit .fvs-part.is-group-hl > path { stroke: var(--tool); stroke-width: 2px; filter: none; }
   .fvs-layer__main { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-1) 0; }
