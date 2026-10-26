@@ -695,6 +695,17 @@ export function buildSeedPreviewSVG(seed, rotation, flipH, flipV, size, opts = {
 // centre is drawn as on the plain canvas (its parts tagged in Edit parts); the neighbours are <use> copies of an
 // untagged drawing, faded by CSS (.fvs-tile-ghost). Screen only — never an export. Square cells only.
 export const TILE_VIEW = { x: -50, w: 200 };
+// A Rectangle Element's canvas as its box alone (Oct 26, 2026 — Diego: on the board the sheet takes the box): only the
+// root's size and viewBox change, so every overlay drawn in the canvas's own units (parts, the cut grid, the snap
+// guide) stays where it was. The sheet's own proportions: the short side as the square's, the long side longer.
+export function cropSvgToBox(svg, a, size) {
+  if (!a || a === 1) return svg;
+  const b = elementBox(a), k = size / 100, f = v => (v * k).toFixed(2);
+  // the box is the sheet now: a work sheet like the square's — the sheet line and the pile (fvs.css), not a cell's edge
+  return svg.replace(/<svg\b([^>]*?)\swidth="[^"]*"\sheight="[^"]*"\sviewBox="[^"]*"/, (m, pre) => `<svg${pre} width="${f(b.w)}" height="${f(b.h)}" viewBox="${f(b.x)} ${f(b.y)} ${f(b.w)} ${f(b.h)}"`)
+    .replace(/^(<svg\b[^>]*?)\sclass="is-cell"/, '$1').replace(/<polygon class="cell-edge"[^>]*\/>/, '');
+}
+export const sheetScaleOf = a => ({ kw: Math.max(1, a || 1), kh: Math.max(1, 1 / (a || 1)) });
 export function buildSeedTileSVG(seed, view, tile, size) {
   const geo = SEED_TYPES[seed.type].geometry(seed), v = view || {}, t = tile || {};
   const orient = turn => `rotate(${(v.r || 0) + turn}) scale(${v.fh ? -1 : 1},${v.fv ? -1 : 1})`;

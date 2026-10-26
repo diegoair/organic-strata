@@ -63,7 +63,39 @@ const r2 = await P.ev(PRE + `F.setTier('element'); await w(600);
   check('Hexagon leaves it too', ar() === 1 && F.state.cellShape === 'hexagon' && !F.state.cellAspectMode, [ar(), F.state.cellShape]);
   fb('square').click(); await w(300);
   return rows;`);
-const rows = [...r, ...r2], fails = rows.filter(x => x.startsWith('✗'));
+// the board (Oct 26, 2026 — Diego: the sheet takes the Element's box, the Elements below move to make room)
+const r3 = await P.ev(PRE + `F.setTier('element'); await w(600);
+  const box = n => { const r = n.getBoundingClientRect(); return { y: r.y, h: r.height, w: r.width }; };
+  q('btn-board-new-element').click(); await w(900); q('btn-board-new-element').click(); await w(900);
+  document.querySelector('.fvs-board-el').click(); await w(900);   // the first Element, two below it
+  const f0 = box(q('element-frame')), below0 = [...document.querySelectorAll('.fvs-board-el')].map(n => box(n).y);
+  fb('rectangle').click(); await w(900);
+  const f1 = box(q('element-frame')), below1 = [...document.querySelectorAll('.fvs-board-el')].map(n => box(n).y), dy = f1.h - f0.h;
+  check('Portrait 2:3: the sheet is 1.5 × as tall, as wide', Math.abs(f1.h / f0.h - 1.5) < 0.02 && Math.abs(f1.w - f0.w) < 1, JSON.stringify([f0, f1]));
+  { const sv = q('element-svg').querySelector('svg'), cs = getComputedStyle(sv), vw = q('board-live-views').querySelector('.fvs-seed-preview-wrap').getBoundingClientRect().width;
+    check('a work sheet like the square: the sheet line and the pile', cs.outlineStyle === 'solid' && cs.boxShadow !== 'none' && !sv.classList.contains('is-cell'), cs.outlineStyle + ' | ' + cs.boxShadow); }
+  check('the Elements below move down by as much', below1.every((y, i) => Math.abs(y - below0[i] - dy) < 1.5), JSON.stringify([below0, below1, dy]));
+  document.querySelector('#seg-element-rect [data-orient="landscape"]').click(); await w(900);
+  const f2 = box(q('element-frame')), below2 = [...document.querySelectorAll('.fvs-board-el')].map(n => box(n).y);
+  { const vr = q('board-live-views').querySelector('.fvs-seed-preview-wrap').getBoundingClientRect(), fr = box(q('element-frame'));
+    check('Landscape: its Views strip stays a square sheet’s width, clear of the sheet', Math.abs(vr.width - f0.w) < 2 && vr.bottom <= fr.y + 1, JSON.stringify([vr.width, vr.bottom, fr.y])); }
+  check('Landscape 3:2: as tall as a square, 1.5 × as wide; the Elements below back up', Math.abs(f2.h - f0.h) < 1 && Math.abs(f2.w / f0.w - 1.5) < 0.02 && below2.every((y, i) => Math.abs(y - below0[i]) < 1.5), JSON.stringify([f2, below2]));
+  document.querySelector('#seg-element-rect [data-orient="portrait"]').click(); await w(900);
+  const rectId = F.state.activeElement;
+  document.querySelector('.fvs-board-el').click(); await w(900);   // another Element: the Rectangle is now drawn from its snapshot
+  const st = [...document.querySelectorAll('.fvs-board-el')].map(n => [box(n), n.querySelector('svg') && n.querySelector('svg').getAttribute('viewBox')]);
+  check('not being edited, its sheet keeps the box', st.some(([b, vb]) => Math.abs(b.h / b.w - 1.5) < 0.02 && /^66\.67 0\.00 266\.67 400\.00$/.test(vb)), JSON.stringify(st));
+  await w(800);
+  return rows;`);
+await P.sleep(800);
+await P.goto('/fvs/', 'window.__fvs && window.__fvs.isReady');
+const r4 = await P.ev(PRE + `F.setTier('element'); await w(900);
+  const tall = [...document.querySelectorAll('.fvs-board-el, #element-frame')].map(n => n.getBoundingClientRect()).filter(r => Math.abs(r.height / r.width - 1.5) < 0.02);
+  const all = [...document.querySelectorAll('.fvs-board-el, #element-frame')].map(n => n.getBoundingClientRect()).sort((a, b) => a.y - b.y);
+  const overlap = all.some((r, i) => i && r.y < all[i - 1].y + all[i - 1].height);
+  check('after a reload: the Rectangle sheet tall, no sheet over another', tall.length === 1 && !overlap, JSON.stringify(all.map(r => [Math.round(r.y), Math.round(r.height)])));
+  return rows;`);
+const rows = [...r, ...r2, ...r3, ...r4], fails = rows.filter(x => x.startsWith('✗'));
 for (const x of rows) console.log('  ' + x);
 const errs = P.errors.filter(e => !/Failed to load resource/.test(e));
 if (errs.length) console.log('  console: ' + errs.slice(0, 3).join(' | '));

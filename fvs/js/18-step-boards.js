@@ -18,7 +18,7 @@ import {
   ELEMENT_LIB, buildComponentItems, getElementAppearance, orientedElementTile, savedElementBySig, tileSig, withAppearance
 } from './engine/04-appearance.js';
 import {
-  buildSeedPreviewSVG, seedPreviewStates
+  buildSeedPreviewSVG, cropSvgToBox, seedPreviewStates, sheetScaleOf
 } from './engine/05-render-component.js';
 import {
   buildPalette, ctrl, syncColorRuleUI
@@ -64,7 +64,8 @@ provide({
   boardComponentEdit: () => componentEdit, boardTierShown: () => boardTierShown,
   elementPalettes: () => elementPalettes, boardSymbolDrawn: () => symbolDrawn,
   boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries, generateAllElements: () => generateAllElements,
-  syncCeCellProps: () => syncCeCellProps, symbolPaletteSwap: () => symbolPaletteSwap, syncSymbolPaletteHint: () => syncSymbolPaletteHint
+  syncCeCellProps: () => syncCeCellProps, symbolPaletteSwap: () => symbolPaletteSwap, syncSymbolPaletteHint: () => syncSymbolPaletteHint,
+  elementSheetResized: () => sheetResized
 });
 
 const escAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -82,6 +83,7 @@ function generateAllElements() {
   for (const id of ids) { if (id === start) continue; boardActivate(id); if (!generateBlock()) generate(); }
   boardActivate(start);
 }
+let sheetResized = () => {};
 let symbolDrawn = () => {}, boardActivate = () => {}, restoreGalleries = () => {}, elementBoard = null, elementSaveNow = () => {};
 
 // Each Element keeps its own Generated components (O-67 d, Diego, Oct 11, 2026): `gallery` on the Element = the
@@ -261,7 +263,10 @@ function mountElementBoard() {
   // another Element: drawn from its snapshot
   function mountStatic(e, x, y) {
     const body = el('div', 'fvs-board-el');
-    body.innerHTML = drawn(e);
+    const sk = sheetScaleOf(cellAspectOf(e.seed));   // a Rectangle: its sheet is its box (Oct 26, 2026)
+    body.innerHTML = cropSvgToBox(drawn(e), cellAspectOf(e.seed), 400);
+    body.style.setProperty('--el-kw', String(sk.kw)); body.style.setProperty('--el-kh', String(sk.kh));
+    seenKh[e.id] = sk.kh;
     const s = addSheet(B, sheetId(e.id), null, x, y, body);
     s.classList.add('fvs-board-element');
     const vb = el('div', 'fvs-board-views-static');
@@ -284,8 +289,20 @@ function mountElementBoard() {
   }
   const dropGroup = (id, keepEl) => { removeSheet(B, sheetId(id), keepEl); removeSheet(B, viewsId(id), keepEl); };
   const posOf = id => ({ ...B.sheets[sheetId(id)].p });
-  const lowest = () => state.elements.map(e => B.sheets[sheetId(e.id)]).filter(Boolean).reduce((a, b) => (b.p.y > a.p.y ? b : a));
-  const placeAdd = () => { const low = lowest(); placeSheet(B, 'new-element', low.p.x, low.p.y + W + GAP + VH); };   // under the lowest Element, lined up with it
+  // each Element's sheet height in board units: a Portrait Rectangle is taller (Oct 26, 2026); seen = as last drawn
+  const seenKh = {}, seenKw = {}, hOf = id => W * (seenKh[id] || 1);
+  const lowestId = () => state.elements.filter(e => B.sheets[sheetId(e.id)]).reduce((a, b) => (posOf(b.id).y > posOf(a.id).y ? b : a)).id;
+  const placeAdd = () => { const id = lowestId(), p = posOf(id); placeSheet(B, 'new-element', p.x, p.y + hOf(id) + GAP + VH); };   // under the lowest Element, lined up with it
+  // the live sheet changed height (a box chosen, another Element edited): the Elements below it move by as much
+  sheetResized = sk => {
+    const id = active(), was = seenKh[id] || 1, kw = sk.kw !== seenKw[id];
+    seenKh[id] = sk.kh; seenKw[id] = sk.kw;
+    if (!B.sheets[sheetId(id)]) return;
+    if (Math.abs(sk.kh - was) < 1e-6) { if (kw) requestAnimationFrame(() => drawRings(B)); return; }   // wider only: the selection ring follows
+    const y0 = posOf(id).y, dy = W * (sk.kh - was);
+    state.elements.forEach(e => { if (e.id !== id && B.sheets[sheetId(e.id)] && posOf(e.id).y > y0) { const p = posOf(e.id); pin(e.id, p.x, p.y + dy); } });
+    placeAdd(); B.save(); requestAnimationFrame(() => drawRings(B));
+  };
   function activate(id) {
     if (id === active() || !find(id)) return;
     if (rt.partEdit) setPartEdit(false);
@@ -385,8 +402,10 @@ function mountElementBoard() {
     placeAdd(); save(); B.save(); drawRings(B);
   }
   function layout() {   // one under the other, each with its Views above
-    state.elements.forEach((e, i) => {
-      const y = VH + i * (VH + W + GAP), p = B.pos[sheetId(e.id)] || { x: 0, y };
+    let y = VH;   // each under the one before, by its own height (a Portrait Rectangle is taller)
+    state.elements.forEach(e => {
+      const p = B.pos[sheetId(e.id)] || { x: 0, y };
+      y += VH + W * sheetScaleOf(cellAspectOf(e.seed)).kh + GAP;
       if (e.id === active()) placeLive(e, p.x, p.y); else mountStatic(e, p.x, p.y);
     });
     placeAdd(); relabel();

@@ -6,7 +6,7 @@ import {
   live, pc, pv, state
 } from './engine/00-core.js';
 import {
-  CELL_SHAPES, SEED_TYPES, cellPolyOf, cellShapeOf, frameDims, resolveGridCells, snapAxis, snapCandidates, splitPlan
+  CELL_SHAPES, SEED_TYPES, cellAspectOf, cellPolyOf, cellShapeOf, frameDims, resolveGridCells, snapAxis, snapCandidates, splitPlan
 } from './engine/01-geometry.js';
 import {
   getSeed, seedForSnapshot
@@ -18,7 +18,7 @@ import {
   buildComponentItems, getElementAppearance, withAppearance
 } from './engine/04-appearance.js';
 import {
-  buildComponentSVG, buildComponentSVGBody, buildSeedPreviewSVG, buildSeedTileSVG, componentGridOutlineSVG,
+  buildComponentSVG, buildComponentSVGBody, buildSeedPreviewSVG, buildSeedTileSVG, componentGridOutlineSVG, cropSvgToBox, sheetScaleOf,
   edgeContacts, elementPathMarkup, layerPlace, orientInkPoint, polyEdgeContacts, polyEdgeOverlaySVG, r2, tileEdgeOverlaySVG,
   seedPreviewStates, withGridWrapper
 } from './engine/05-render-component.js';
@@ -392,7 +392,14 @@ export function renderElementFrame(seed) {
   const overlay = buildSplitGridOverlaySVG(tiled ? 100 : 400 * ck, tiled ? '' : `translate(200,200) scale(${(4 * ck).toFixed(4)}) translate(-50,-50)`);
   if (overlay) svg = svg.replace('</svg>', overlay + '</svg>');
   syncElementViewUI(sd);
+  // a Rectangle: the canvas is its box (the board's sheet takes its shape — Oct 26, 2026); the tile view keeps the
+  // square (its neighbours), and so does a Freehand drawing being drawn (its canvas maps the square)
+  const drawing = frame.classList.contains('drawing'), a = !drawing && cellShapeOf(sd) === 'square' ? cellAspectOf(sd) : 1;
+  if (!tiled && a !== 1) svg = cropSvgToBox(svg, a, 400);
+  const sk = sheetScaleOf(a);
+  frame.style.setProperty('--el-kw', String(sk.kw)); frame.style.setProperty('--el-kh', String(sk.kh));
   ctrl('element-svg').innerHTML = svg;
+  if (hooks.elementSheetResized) hooks.elementSheetResized(sk);
   frame.classList.toggle('is-part-edit', editing);
   if (editing) {
     const L = state.layers, act = L.items[L.active];

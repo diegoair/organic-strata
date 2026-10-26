@@ -281,8 +281,17 @@ Plan `~/.claude/plans` (Diego, Oct 23, 2026, after uploading the Carhartt logo):
   Width / Length and an upload never re-measure a Rectangle's box (an upload fits whole in it). Everything else is the
   rectangle above: half turns (Step turn too with Turns off — on a Drawing box too, it turned 90° there by mistake), Radial unavailable, the Component's cells take the box.
   Not yet: a Symbol's modular block for a rectangle Component (`componentSpanOf` reads cols × rows only), the Figure's
-  Component level (`componentCellsFromRule` ignores the box), Match cell (square box only). Tests:
-  `scripts/test-fvs-rectangle.sh` (17 checks).
+  Component level (`componentCellsFromRule` ignores the box), Match cell (square box only).
+  **On the board (Oct 26, 2026 — Diego: the sheet takes the Element's box, the Elements below move to make room):** a
+  rectangle Element's sheet is its box — the short side as a square's (`--fvs-board-element-w`), the long side × the
+  ratio (`--el-kw` / `--el-kh` on `#element-frame` and `.fvs-board-el`, `sheetScaleOf`): Portrait taller, Landscape
+  wider. The canvas shows the box alone (`cropSvgToBox`: only the root's size and viewBox change, so the parts, the cut
+  grid and the snap guide keep their coordinates); Show as tile and a Freehand being drawn keep the square. When the
+  live sheet's height changes, every Element below it moves by as much (`sheetResized`, `seenKh`), New element follows
+  the lowest one by its height, and a fresh layout stacks each by its own height. Any rectangle box counts (a Drawing
+  box too). The box is a work sheet like the square's — the sheet line and the pile, not a cell's edge — and its Views
+  strip stays a square sheet's width (wider, the views would grow over the sheet). Entering a Freehand drawing on a rectangle shows the square while it draws (the board moves
+  the Elements below up, then back). Tests: `scripts/test-fvs-rectangle.sh` (25 checks).
 
 ### 3b. Divide into parts (Oct 10, 2026 — R1)
 
@@ -1419,7 +1428,7 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
 
 **Element board**
 - **Several Elements**, one under the other. Each is a group: its **name**, its **Views** strip (the seven
-  orientations, the width of its sheet), its **sheet**. The one being edited is the live panel — `#element-frame`
+  orientations, the width of a square sheet), its **sheet** (a rectangle Element's is its box — §3a′). The one being edited is the live panel — `#element-frame`
   and `#seed-preview`, in `#board-live-element` / `#board-live-views`; the others are drawn from their snapshot
   `{seed, app}` (`seedForSnapshot` + `getElementAppearance`, what a saved Element keeps). A click on another
   Element stores the active one and opens the clicked one (`applyElementSnapshot`); a click on one of its Views

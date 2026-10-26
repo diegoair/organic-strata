@@ -602,8 +602,10 @@
 
   /* Element: each its name + Views (one row the width of its Element) and its sheet */
   .fvs-board-views, .fvs-board-element, #board-new-element { --frame-w: var(--fvs-board-element-w); }
-  .tier-view:not(.is-single) .fvs-board #element-frame, .fvs-board-el, .fvs-board-new { width: var(--fvs-board-element-w); height: var(--fvs-board-element-w); }
-  .tier-view:not(.is-single) .fvs-board .fvs-seed-preview-wrap { width: var(--fvs-board-element-w); }
+  .fvs-board-new { width: var(--fvs-board-element-w); height: var(--fvs-board-element-w); }
+  /* a Rectangle Element's sheet is its box (Oct 26, 2026): the short side as a square's, the long side × --el-kw / --el-kh */
+  .tier-view:not(.is-single) .fvs-board #element-frame, .fvs-board-el { width: calc(var(--fvs-board-element-w) * var(--el-kw, 1)); height: calc(var(--fvs-board-element-w) * var(--el-kh, 1)); }
+  .tier-view:not(.is-single) .fvs-board .fvs-seed-preview-wrap { width: var(--fvs-board-element-w); }   /* a square sheet's width — a Landscape sheet's too: wider, its views would grow over the sheet (Oct 26, 2026) */
   .fvs-board-el > svg { width: 100%; height: 100%; display: block; cursor: pointer; }
   @media (hover: hover) { .fvs-board-el > svg:hover { outline-color: var(--ink); } }
   .fvs-board-views-static .fvs-seed-tile { cursor: pointer; }
