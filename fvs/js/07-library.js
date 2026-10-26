@@ -6,7 +6,7 @@ import {
   DEFAULT_COLOR_RULE, PALETTE_MAX, colorAt, entryInkAt, live, pc, pv, state
 } from './engine/00-core.js';
 import {
-  SEG_WEIGHT_DEF, SEED_TYPES, cellAspectOf, cellShapeOf, divideLayers, frameDims, partMethodsFor, partsOf, syncPartLayers
+  SEG_WEIGHT_DEF, SEED_TYPES, cellAspectModeOf, cellAspectOf, cellShapeOf, divideLayers, frameDims, partMethodsFor, partsOf, syncPartLayers
 } from './engine/01-geometry.js';
 import {
   CIRCLE_PARAMS, SEED_EXTRAS, SEED_ICONS, cap, panelSeedSnapshot, xrId
@@ -239,6 +239,9 @@ export function applyElementSnapshot(seed, app) {
 }
 export function applySeedToPanel(seed) {
   state.cellAspect = cellAspectOf(seed);   // its box (Oct 23, 2026) — before the cell shape, which reads the turn step
+  state.cellAspectMode = cellAspectModeOf(seed);   // a Rectangle cell: the box is chosen (Oct 26, 2026)
+  if (state.cellAspectMode) state.rectAspect = state.cellAspect;
+  rt.rectFree = false;   // a loaded box shows as its preset, Free only when it is not one
   setCellShape(cellShapeOf(seed), { silent: true });
   if (hooks.syncProportionsUI) hooks.syncProportionsUI();
   if (seed && seed.type === 'stack' && Array.isArray(seed.layers) && seed.layers.length) {

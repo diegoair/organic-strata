@@ -728,7 +728,7 @@ export const FAMILIES = {
   pinwheel: {
     requiresAxis: 'rotation',
     paramSpace(av) {
-      const out = [], { step, starts } = live.turnsReplace ? stepTurnSpace() : { step: 90, starts: [0, 90, 180, 270] };
+      const out = [], { step, starts } = live.turnsReplace ? stepTurnSpace() : state.cellShape === 'square' && state.cellAspect !== 1 ? { step: 180, starts: [0, 180] } : { step: 90, starts: [0, 90, 180, 270] };   // a Rectangle: half turns with Turns off too (Oct 26, 2026)
       for (const base of starts) for (const chirality of [1, -1]) for (const s of av.scales) out.push({ base, chirality, scale: s, step });
       return out;
     },

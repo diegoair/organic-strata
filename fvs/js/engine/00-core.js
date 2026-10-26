@@ -31,6 +31,9 @@ export const state = {
   colors: ['#000000'],   // the centralised Palette (Ink) — see buildPalette()/colorAt() below
   paperColor: '#ffffff',   // the ground every render/export paints against
   cellAspect: 1,      // the Element's box, width / height (Oct 23, 2026): 1 = square; otherwise a Rectangle — its cells follow it
+  cellAspectMode: null,   // 'fixed' = the Rectangle cell shape (Oct 26, 2026): the box is chosen (Portrait / Landscape + Proportions), not measured from the ink
+  cellKey: 'square',  // the floatbar's cell shape: a CELL_SHAPES key, or 'rectangle' (= square cells + a fixed box)
+  rectAspect: 2 / 3,  // the last Rectangle box chosen — Portrait 2:3 the first time (Diego, Oct 26, 2026)
   customSeed: null,   // {d, normTx, normTy, normScale} from an uploaded SVG, or null
   layers: null,       // null = a plain single-shape Element. Else {items:[{id,name,role:'fill'|'mask'|'container',ink:'cell'|slot,place:{mx,my,scale,rotate},seed}], active} — a stack, bottom→top; the Seed panel edits items[active]
   mirrorLine: 'both',               // the Mirror rule's Line: 'both' | 'lr' (left–right) | 'tb' (top–bottom) — Oct 13, 2026

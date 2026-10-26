@@ -34,10 +34,17 @@ Object.entries(SEED_TYPES).forEach(([type, t]) => {
   };
 });
 export function setCellShape(shape, opts = {}) {
-  if (!CELL_SHAPES[shape]) shape = 'square';
-  const changed = shape !== state.cellShape;
-  state.cellShape = shape;
-  ctrl('fb-cell-shape').querySelectorAll('[data-cell]').forEach(b => { const on = b.dataset.cell === shape; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
+  // Rectangle (Oct 26, 2026) is square cells with a chosen box: pressed, it takes the last box (Portrait 2:3 the first
+  // time); another shape pressed leaves it (the box back to 1). A loaded Element (silent) brings its own box and mode.
+  const rect = opts.silent ? shape === 'square' && state.cellAspectMode === 'fixed' : shape === 'rectangle';
+  if (rect) shape = 'square'; else if (!CELL_SHAPES[shape]) shape = 'square';
+  const key = rect ? 'rectangle' : shape, wasRect = state.cellKey === 'rectangle';
+  const changed = key !== state.cellKey;
+  if (!opts.silent && rect && !wasRect) { state.cellAspectMode = 'fixed'; state.cellAspect = state.rectAspect || 2 / 3; rt.rectFree = false; }
+  else if (!opts.silent && !rect && (wasRect || state.cellAspectMode === 'fixed')) { state.cellAspectMode = null; state.cellAspect = 1; }
+  state.cellShape = shape; state.cellKey = key;
+  ctrl('fb-cell-shape').querySelectorAll('[data-cell]').forEach(b => { const on = b.dataset.cell === key; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
+  if (!opts.silent && rect !== wasRect && hooks.fitSeedToCanvas) hooks.fitSeedToCanvas();   // the drawing fits whole in the new box (Diego, Oct 26, 2026)
   if (changed) rt.elementView = { r: 0, fh: false, fv: false };
   hooks.syncComponentGridUI();
   if (hooks.syncProportionsUI) hooks.syncProportionsUI();   // Proportions: square cells only (Oct 23, 2026)

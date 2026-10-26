@@ -154,6 +154,7 @@
     'fvs-cell-circle':   '<circle cx="8" cy="8" r="5.5"/>',
     'fvs-cell-triangle': '<path d="M8 2.5 14 13H2z"/>',
     'fvs-cell-hexagon':  '<path d="M2 8 5 2.8h6L14 8l-3 5.2H5z"/>',
+    'fvs-cell-rectangle': '<rect x="4" y="2" width="8" height="12" rx="1"/>',
     'fvs-diamond':   '<path d="M1.5 12.5h8l5-9h-8z"/>',
     'fvs-match':     '<path d="M1.5 8 4.75 2.4h6.5L14.5 8l-3.25 5.6h-6.5z"/><path d="M5 8l1.5-2.6h3L11 8l-1.5 2.6h-3z"/>',
     'fvs-transparent': '<path d="M2 2h4v4H2zM10 2h4v4h-4zM6 6h4v4H6zM2 10h4v4H2zM10 10h4v4h-4z"/><rect x="2" y="2" width="12" height="12"/>'

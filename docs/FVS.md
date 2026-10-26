@@ -243,7 +243,7 @@ is gone); the candidates sit on the board at 2×.
 
 ---
 
-### 3a. Cell shape — Square · Circle · Triangle · Hexagon (Oct 6, 2026)
+### 3a. Cell shape — Square · Circle · Triangle · Hexagon (Oct 6, 2026) · Rectangle (Oct 26, 2026, §3a′)
 
 The cell the Element is drawn for. Four icon buttons in the floatbar, on the Element and Component steps (one setting, shown on both). **Square** is the original 0–100 box and changes nothing. The others:
 
@@ -268,6 +268,21 @@ Plan `~/.claude/plans` (Diego, Oct 23, 2026, after uploading the Carhartt logo):
 - **Symbol / Figure.** An Element is placed by its box (`placeInBox` natural `{w, h}`) — Contain fills the matching side, Stretch / Cover / Fixed read it; Match cell stays for the square box.
 - **Board.** Each Element keeps its own (the other Elements' areas draw with theirs — `onCellShapeOf`). The Element's thumbnail in its Components area is its box alone (`buildSeedPreviewSVG` `crop`, `--el-ar` on `.fvs-board-gallery__el-box`) — a wide wordmark is no longer a thin strip in a white square (Diego, Oct 23). The Drawing ratio is clamped to 1 : 20 … 20 : 1 (was 1 : 5 … 5 : 1).
 - Tests: `scripts/test-fvs-aspect.sh` (frame 0.6 : 1, ink to both edges, half turns only, Radial gated, square again). Words decided by Diego the same day (O-75 closed).
+- **The Rectangle cell (Oct 26, 2026 — Diego: a fifth cell shape, Portrait or Landscape, a box he chooses; plan
+  `~/.claude/plans/dapper-imagining-sonnet.md` Phase 1).** A fifth floatbar button **Rectangle** (`data-cell="rectangle"`,
+  icon `fvs-cell-rectangle`, a 2:3 portrait outline; its name carries the box — *Cell shape: Rectangle, 2:3*). It is
+  **not** a `CELL_SHAPES` key: square cells + a **chosen** box — `state.cellAspectMode = 'fixed'`, saved on the seed as
+  `cellAspectMode: 'fixed'` beside `cellAspect` (absent = the measured box above, so every Element before is unchanged);
+  `state.cellKey` is the floatbar's shape (`'rectangle'` or a `CELL_SHAPES` key). Pressed, it takes the last box chosen
+  (`state.rectAspect`, **Portrait 2:3** the first time); another shape pressed leaves it (box 1). In Look & place, while
+  it is on: **Rectangle** *Portrait · Landscape*, **Proportions** *1:2 · 2:3 · 3:4 · Free* (landscape: *2:1 · 3:2 · 4:3*,
+  width first — *Cell shape · Drawing* hidden: Drawing would re-measure the box) and, with Free, **Long side** 1.1 … 4
+  (written *1:1.5* / *1.5:1*). A box change **fits the drawing whole** in it (Fit to canvas, now box-aware — Diego);
+  Width / Length and an upload never re-measure a Rectangle's box (an upload fits whole in it). Everything else is the
+  rectangle above: half turns (Step turn too with Turns off — on a Drawing box too, it turned 90° there by mistake), Radial unavailable, the Component's cells take the box.
+  Not yet: a Symbol's modular block for a rectangle Component (`componentSpanOf` reads cols × rows only), the Figure's
+  Component level (`componentCellsFromRule` ignores the box), Match cell (square box only). Tests:
+  `scripts/test-fvs-rectangle.sh` (17 checks).
 
 ### 3b. Divide into parts (Oct 10, 2026 — R1)
 

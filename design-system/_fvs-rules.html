@@ -603,6 +603,7 @@ const snap90 = d => ((Math.round(d / 90) * 90) % 360 + 360) % 360;
     ['Circle', 'circle', `<circle cx="32" cy="32" r="27" fill="${WASH}" stroke="${INK}" stroke-width="1.5"/>`, '90° turns · flip H and V', 'Packed circles; Paper shows in the gaps.'],
     ['Triangle', 'triangle', poly(tri), '120° turns · flip H only', 'Turns strip: 0 / 120 / 240 + Mirror. Arc becomes a 60° slice pivoted on a corner.'],
     ['Hexagon', 'hexagon', poly(hex), '60° turns · flip H and V', 'Turns strip: 60° steps + Flip H / V. Arc truchet becomes bands round three alternate corners.'],
+    ['Rectangle', 'rectangle', `<rect x="14.7" y="6" width="34.7" height="52" fill="${WASH}" stroke="${INK}" stroke-width="1.5"/>`, '180° turns · flip H and V', 'Square cells with a chosen box (Oct 26, 2026): Portrait or Landscape, 1:2 · 2:3 · 3:4 or Free up to 1:4; the drawing fits whole. Radial unavailable.'],
   ];
   $('cellshapes').innerHTML = items.map(([t, k, body, step, how]) => entry({ title: t, key: k, sheet: svg(S, S, body, t), count: step, how })).join('');
 })();

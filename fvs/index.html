@@ -42,6 +42,7 @@
       <button class="org-floatbar__btn" data-cell="circle" aria-pressed="false" aria-label="Cell shape: Circle" data-icon-slot></button>
       <button class="org-floatbar__btn" data-cell="triangle" aria-pressed="false" aria-label="Cell shape: Triangle" data-icon-slot></button>
       <button class="org-floatbar__btn" data-cell="hexagon" aria-pressed="false" aria-label="Cell shape: Hexagon" data-icon-slot></button>
+      <button class="org-floatbar__btn" data-cell="rectangle" aria-pressed="false" aria-label="Cell shape: Rectangle" data-icon-slot></button>
     </span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
   </div>
@@ -1152,11 +1153,30 @@
            Square, or the Drawing's own (its ink, cropped) — the Component's cells take them, the rules turn by half turns.
            Every cell shape since Oct 23, 2026: *Cell shape* (was *Square*) fits and stretches the drawing to the cell; *Drawing* on square cells only. The ratio is in Drawing's accessible name and the upload
            notice — a readout column left the buttons too narrow (212 px row). -->
+      <!-- Rectangle cell (Oct 26, 2026 — Diego: a fifth cell shape, Portrait or Landscape, a box he chooses) -->
+      <div class="ctrl-row" id="element-rect-row" hidden><div class="ctrl-label" id="element-rect-label">Rectangle</div>
+        <div class="seg-ctrl" id="seg-element-rect" role="group" aria-labelledby="element-rect-label">
+          <button type="button" class="seg-btn active" data-orient="portrait" aria-pressed="true">Portrait</button>
+          <button type="button" class="seg-btn" data-orient="landscape" aria-pressed="false">Landscape</button>
+        </div>
+      </div>
       <div class="ctrl-row" id="element-proportions-row"><div class="ctrl-label" id="element-proportions-label">Proportions</div>
         <div class="seg-ctrl" id="seg-element-proportions" role="group" aria-labelledby="element-proportions-label">
           <button type="button" class="seg-btn active" data-prop="square" aria-pressed="true">Cell shape</button>
           <button type="button" class="seg-btn" data-prop="drawing" aria-pressed="false" aria-label="Drawing">Drawing</button>
         </div>
+        <!-- the Rectangle cell's box (Oct 26, 2026; design-system CONSULT): its presets, width first -->
+        <div class="seg-ctrl" id="seg-element-rect-ratio" role="group" aria-labelledby="element-proportions-label" hidden>
+          <button type="button" class="seg-btn" data-ratio="2" aria-pressed="false">1:2</button>
+          <button type="button" class="seg-btn active" data-ratio="1.5" aria-pressed="true">2:3</button>
+          <button type="button" class="seg-btn" data-ratio="1.3333" aria-pressed="false">3:4</button>
+          <button type="button" class="seg-btn" data-ratio="free" aria-pressed="false">Free</button>
+        </div>
+      </div>
+      <div class="ctrl-row" id="element-rect-long-row" hidden>
+        <div class="ctrl-label">Long side</div>
+        <input type="range" id="rg-element-rect-long" min="1.1" max="4" step="0.05" value="1.5" aria-label="Long side">
+        <span class="ctrl-val" id="v-element-rect-long">1:1.5</span>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="Makes the outline irregular — 0 keeps it clean. Same seed, same shape.">Irregularity</div>

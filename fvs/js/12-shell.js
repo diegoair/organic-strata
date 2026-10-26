@@ -6,7 +6,7 @@ import {
   DEFAULT_COLOR_RULE, live, pv, state, val
 } from './engine/00-core.js';
 import {
-  BASE_GEOMETRY, CELL_SHAPES, SEED_TYPES, frameDims, shapeHasCorners
+  BASE_GEOMETRY, CELL_SHAPES, SEED_TYPES, elementBox, frameDims, shapeHasCorners
 } from './engine/01-geometry.js';
 import {
   CIRCLE_PARAMS, SEED_EXTRAS, getPanelSeed, getSeed, xrId
@@ -73,7 +73,7 @@ import { hooks, provide } from './hooks.js';
 import { isFigureLoaded, loadFigureTier } from './lazy.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  autoProportions: () => autoProportions, syncProportionsUI: () => syncProportionsUI,
+  autoProportions: () => autoProportions, syncProportionsUI: () => syncProportionsUI, fitSeedToCanvas: () => fitSeedToCanvas,
   fireChange: () => fireChange, onAppearanceChange: () => onAppearanceChange,
   paperSwatch: () => paperSwatch, setPaperUI: () => setPaperUI, syncArcType: () => syncArcType,
   syncExtrasTypes: () => syncExtrasTypes, syncFvsZoomHud: () => syncFvsZoomHud,
@@ -415,7 +415,7 @@ ctrl('file-seed').addEventListener('change', e => {
 // Cell shape: picks the cell the Element is drawn for; the lattice row picks the Component's cell count.
 ctrl('fb-cell-shape').querySelectorAll('[data-cell]').forEach(b => { b.innerHTML = Organica.icons.get('fvs-cell-' + b.dataset.cell); });
 ctrl('fb-cell-shape').addEventListener('click', e => {
-  const b = e.target.closest('[data-cell]'); if (!b || b.dataset.cell === state.cellShape) return;
+  const b = e.target.closest('[data-cell]'); if (!b || b.dataset.cell === state.cellKey) return;
   setCellShape(b.dataset.cell);
 });
 ctrl('seg-grid-outline').querySelectorAll('.seg-btn').forEach(b => { b.innerHTML = Organica.icons.get(OUTLINE_ICONS[b.dataset.outline]); });
@@ -554,7 +554,9 @@ export function fitSeedToCanvas() {
   if (!bb || (bb.width < 0.01 && bb.height < 0.01)) return;
   const setCtl = (k, v) => { ctrl('rg-element-' + k).value = v; ctrl('v-element-' + k).textContent = val('rg-element-' + k); };
   // Floored to the slider's step, never rounded up — a rounded-up Scale pushed the shape past the edge.
-  setCtl('scale', Math.floor(100 / Math.max(bb.width, bb.height) * 1000) / 1000);
+  // A Rectangle cell (Oct 26, 2026): whole inside its chosen box, centred (the box is centred in the 0..100 square)
+  const bx = state.cellAspectMode === 'fixed' ? elementBox() : null;
+  setCtl('scale', Math.floor((bx ? Math.min(bx.w / Math.max(bb.width, 0.01), bx.h / Math.max(bb.height, 0.01)) : 100 / Math.max(bb.width, bb.height)) * 1000) / 1000);
   const S = val('rg-element-scale');   // the slider may clamp — centre with the scale it actually holds
   setCtl('mx', Math.round(S * (50 - (bb.x + bb.width / 2)) * 10) / 10);
   setCtl('my', Math.round(S * (50 - (bb.y + bb.height / 2)) * 10) / 10);
@@ -573,9 +575,55 @@ function inkAspect() {
   const a = Math.max(0.05, Math.min(20, bb.width / bb.height));   // a long wordmark is easily 6 : 1 (Oct 23, 2026; was capped at 5)
   return Math.abs(a - 1) <= 0.02 ? 1 : +a.toFixed(4);
 }
+const RECT_LONG = [2, 1.5, 4 / 3];   // the presets' long side : short side — 1:2 · 2:3 · 3:4
+const rectLabel = (long, portrait) => { const i = RECT_LONG.findIndex(v => Math.abs(v - long) < 0.002), p = [[1, 2], [2, 3], [3, 4]][i]; return p ? (portrait ? p.join(':') : [p[1], p[0]].join(':')) : null; };
+function syncRectUI() {
+  const rect = state.cellAspectMode === 'fixed', a = state.cellAspect, portrait = a <= 1, long = portrait ? 1 / a : a;
+  ctrl('element-rect-row').hidden = !rect;
+  ctrl('seg-element-proportions').hidden = rect;
+  ctrl('seg-element-rect-ratio').hidden = !rect;
+  const fb = ctrl('fb-cell-shape').querySelector('[data-cell="rectangle"]');
+  if (!rect) { ctrl('element-rect-long-row').hidden = true; fb.setAttribute('aria-label', 'Cell shape: Rectangle'); return; }
+  const preset = rt.rectFree ? null : rectLabel(long, portrait);
+  ctrl('seg-element-rect').querySelectorAll('.seg-btn').forEach(b => { const on = (b.dataset.orient === 'portrait') === portrait; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+  ctrl('seg-element-rect-ratio').querySelectorAll('.seg-btn').forEach((b, i) => {
+    if (b.dataset.ratio !== 'free') b.textContent = portrait ? ['1:2', '2:3', '3:4'][i] : ['2:1', '3:2', '4:3'][i];   // width first
+    const on = b.dataset.ratio === 'free' ? !preset : !!preset && Math.abs(+b.dataset.ratio - long) < 0.002;
+    b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on));
+  });
+  ctrl('element-rect-long-row').hidden = !!preset;
+  ctrl('rg-element-rect-long').value = long;
+  ctrl('v-element-rect-long').textContent = ratioText(a);
+  fb.setAttribute('aria-label', 'Cell shape: Rectangle, ' + (preset || ratioText(a)));
+}
+function setRectBox(a) {   // the Rectangle's box changed: the drawing fits whole in it (Diego, Oct 26, 2026)
+  state.cellAspect = a; state.rectAspect = a;
+  fitSeedToCanvas();
+  syncRuleAvailability(); syncAxisValuesUI(); syncProportionsUI(); syncGenerateButton();
+}
+ctrl('seg-element-rect').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn');
+  if (!b || state.cellAspectMode !== 'fixed' || (b.dataset.orient === 'portrait') === (state.cellAspect <= 1)) return;
+  setRectBox(1 / state.cellAspect);
+});
+ctrl('seg-element-rect-ratio').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn');
+  if (!b || state.cellAspectMode !== 'fixed') return;
+  const portrait = state.cellAspect <= 1;
+  rt.rectFree = b.dataset.ratio === 'free';
+  const long = rt.rectFree ? (portrait ? 1 / state.cellAspect : state.cellAspect) : +b.dataset.ratio;
+  setRectBox(portrait ? 1 / long : long);
+});
+ctrl('rg-element-rect-long').addEventListener('input', e => {
+  if (state.cellAspectMode !== 'fixed') return;
+  const long = +e.target.value, portrait = state.cellAspect <= 1;
+  rt.rectFree = true;
+  setRectBox(+(portrait ? 1 / long : long).toFixed(4));
+});
 export function syncProportionsUI() {
+  syncRectUI();
   // every cell shape (Oct 23, 2026): Cell shape fits any cell; Drawing (a Rectangle box) is a square cell's only
-  ctrl('seg-element-proportions').querySelector('[data-prop="drawing"]').hidden = state.cellShape !== 'square';
+  ctrl('seg-element-proportions').querySelector('[data-prop="drawing"]').hidden = state.cellShape !== 'square' || state.cellAspectMode === 'fixed';
   const on = state.cellAspect !== 1 && state.cellShape === 'square';
   ctrl('seg-element-proportions').querySelectorAll('.seg-btn').forEach(b => { const v = b.dataset.prop === (on ? 'drawing' : 'square'); b.classList.toggle('active', v); b.setAttribute('aria-pressed', String(v)); });
   ctrl('seg-element-proportions').querySelector('[data-prop="drawing"]').setAttribute('aria-label', on ? 'Drawing, ' + ratioText(state.cellAspect) : 'Drawing');
@@ -606,6 +654,7 @@ function setProportions(mode) {
 }
 export function autoProportions() {   // an upload: a drawing that is not square keeps its own proportions
   if (state.cellShape !== 'square') return;
+  if (state.cellAspectMode === 'fixed') { fitSeedToCanvas(); return; }   // a Rectangle keeps its chosen box: the upload fits whole in it
   const a = inkAspect();
   if (a === 1) { state.cellAspect = 1; onAppearanceChange(); syncProportionsUI(); return; }   // a square drawing: left as drawn, no stretch
   setProportions('drawing');
@@ -618,7 +667,7 @@ ctrl('seg-element-proportions').addEventListener('click', e => {
   // Drawing on a drawing within 2 % of square stays Square — say so, or the press seems to do nothing (Diego, Oct 23, 2026)
   if (b.dataset.prop === 'drawing' && state.cellAspect === 1) Organica.notice('This drawing is already square — 1:1', { kind: 'info' });
 });
-['rg-element-w', 'rg-element-l'].forEach(id => ctrl(id).addEventListener('change', () => { if (state.cellAspect !== 1) setProportions('drawing'); }));   // a stretch changes the drawing's proportions
+['rg-element-w', 'rg-element-l'].forEach(id => ctrl(id).addEventListener('change', () => { if (state.cellAspect !== 1 && state.cellAspectMode !== 'fixed') setProportions('drawing'); }));   // a stretch changes the drawing's proportions — not a Rectangle's, whose box is chosen (Oct 26, 2026)
 
 // The Element canvas's View: Show as tile (+ Layout / Turn) and Snap (05-render-component.js keeps the state).
 ctrl('btn-element-view-tile').addEventListener('click', e => {

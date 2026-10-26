@@ -19,6 +19,7 @@ echo "$staged" | grep -qE '^(fvs/js/(engine/)?0[4-7]-|fvs/index\.html|shared/cor
 echo "$staged" | grep -qE '^(fvs/js/(engine/)?(0[0-9]|1[01])-|scripts/test-fvs-pipeline)' && add pipeline
 echo "$staged" | grep -qE '^(fvs/js/(engine/)?(0[0-7]|1[258])-|fvs/index\.html|scripts/test-fvs-versions)' && add versions
 echo "$staged" | grep -qE '^(fvs/js/(0[0-7]|1[28])-|fvs/js/engine/0[0-7]-|fvs/index\.html|scripts/test-fvs-element-undo)' && add element-undo
+echo "$staged" | grep -qE '^(fvs/js/(0[1-7]|12)-|fvs/js/engine/0[0-7]-|fvs/index\.html|shared/icons\.js|scripts/test-fvs-rectangle)' && add rectangle
 echo "$staged" | grep -qE '^(rhizome/|shared/node-canvas\.|scripts/test-rhizome)' && add rhizome
 echo "$staged" | grep -qE '^(shared/[a-z-]+\.css|design-system/_dark-audit|scripts/test-dark-audit|scripts/dark-audit-baseline)' && add dark-audit
 echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/js/17-figure|scripts/test-figure-board)' && add figure-board

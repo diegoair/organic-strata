@@ -69,9 +69,11 @@ export const cellShapeOf = seed => (seed && seed.cellShape && CELL_SHAPES[seed.c
 export const withCellShape = seed => {
   if (!seed) return seed;
   if (state.cellShape !== 'square') return { ...seed, cellShape: state.cellShape };
-  return state.cellAspect !== 1 ? { ...seed, cellAspect: state.cellAspect } : seed;   // a Rectangle Element's box (Oct 23, 2026)
+  if (state.cellAspect === 1) return seed;
+  return state.cellAspectMode === 'fixed' ? { ...seed, cellAspect: state.cellAspect, cellAspectMode: 'fixed' } : { ...seed, cellAspect: state.cellAspect };   // a Rectangle Element's box (Oct 23, 2026); chosen, not measured (Oct 26)
 };
 // The Element's box (Oct 23, 2026): width / height, 1 = square (every Element before). Only on square cells.
+export const cellAspectModeOf = seed => (seed && seed.cellAspectMode === 'fixed' && cellAspectOf(seed) !== 1) ? 'fixed' : null;
 export const cellAspectOf = seed => (seed && cellShapeOf(seed) === 'square' && seed.cellAspect > 0) ? seed.cellAspect : 1;
 // the box inside the 0..100 square, centred: the longer side 100
 // the Element's cell outline in its 0..100 box: a lattice cell's polygon, a Rectangle's box, or null for the square

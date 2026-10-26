@@ -336,7 +336,7 @@ function mountElementBoard() {
     editBase = now;
   }
   const editLater = () => { if (state.activeTier !== 'element') return; clearTimeout(editT); editT = setTimeout(noteEdit, 500); };
-  ['input', 'change', 'pointerup', 'keyup'].forEach(t => document.addEventListener(t, editLater, true));
+  ['input', 'change', 'pointerup', 'keyup', 'click'].forEach(t => document.addEventListener(t, editLater, true));   // click: a keyboard-pressed button too
   function pushUndo() {
     snap();
     undoStack.push({ items: clone(state.elements), active: active(), pos: clone(B.pos) });
