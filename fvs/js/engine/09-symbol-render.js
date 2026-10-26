@@ -551,14 +551,18 @@ export function symbolSVGFromItems(items) {
       clipAttr = ` clip-path="url(#clip-cell-${it.index}-${drawId})"`;
     }
     const c = (it.region && it.region.c) || centers[it.index];
+    const own = (it.type === 'component' || it.type === 'seed') && look;
     if (c && it.type !== 'missing') {
-      const k = cellBleed(c, bleed), ox = F.bx + c.cx, oy = F.by + c.cy;
-      const wrap = m => `<g transform="translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${k.kx.toFixed(5)},${k.ky.toFixed(5)}) translate(${(-ox).toFixed(2)},${(-oy).toFixed(2)})">${m}</g>`;
+      const ox = F.bx + c.cx, oy = F.by + c.cy;
+      const wrapK = k => m => `<g transform="translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${k.kx.toFixed(5)},${k.ky.toFixed(5)}) translate(${(-ox).toFixed(2)},${(-oy).toFixed(2)})">${m}</g>`;
+      const wrap = wrapK(cellBleed(c, bleed));
       cellMarkup = wrap(cellMarkup);
-      if (paperMarkup) paperMarkup = wrap(paperMarkup);
+      // the papers painted under all ink always reach past the cell (Oct 26, 2026 — Diego: a 1 px line between every cell
+      // with Clip to cell off): two papers that only touch leave an antialiased seam where the page shows through. A
+      // paper is flat colour, so the overlap changes no drawing; the ink keeps its own size (bleed only with Clip to cell).
+      if (paperMarkup) paperMarkup = own && look.interleave ? wrap(paperMarkup) : wrapK(cellBleed(c, symbolBleed(F)))(paperMarkup);
       if (later) later = later.map(wrap);
     }
-    const own = (it.type === 'component' || it.type === 'seed') && look;
     if (own && look.multiply) { paperMarkup = ''; cellMarkup = `<g style="mix-blend-mode:multiply">${cellMarkup}</g>`; }
     if (paperMarkup && own && look.interleave) body += `<g${clipAttr}>${paperMarkup}</g>`;
     else if (paperMarkup) papers += `<g${clipAttr}>${paperMarkup}</g>`;
@@ -583,7 +587,7 @@ export function drawSymbolCanvas(ctx) {
   const look = symbolLook(grid);
   // "Clip to cell" mirror of buildSymbolSVG()'s <clipPath> (the same bled outline)
   // and the same bled content, so preview/PNG and SVG export can't disagree.
-  const enter = it => {
+  const enter = (it, d = bleed) => {   // d: how far past the cell it reaches — the papers under all ink always symbolBleed (see symbolSVGFromItems)
     const rawCell = (it.region && it.region.raw) || grid.cells[it.index];   // a spanning Component: its whole block
     const clipping = state.symbolClipEnabled && rawCell;
     ctx.save();
@@ -596,7 +600,7 @@ export function drawSymbolCanvas(ctx) {
     }
     const c = (it.region && it.region.c) || centers[it.index];
     if (c && it.type !== 'missing') {
-      const k = cellBleed(c, bleed), ox = F.bx + c.cx, oy = F.by + c.cy;
+      const k = cellBleed(c, d), ox = F.bx + c.cx, oy = F.by + c.cy;
       ctx.translate(ox, oy); ctx.scale(k.kx, k.ky); ctx.translate(-ox, -oy);
     }
   };
@@ -610,7 +614,7 @@ export function drawSymbolCanvas(ctx) {
   for (const it of items) {
     if (it.type === 'seed' && it.ownPaper) {
       if (look && !look.shared) continue;   // Normal: painted under its own ink in pass 2; Multiply: no Paper
-      enter(it);
+      enter(it, symbolBleed(F));
       ctx.translate(it.cx, it.cy); ctx.rotate(it.rotation * Math.PI / 180); ctx.scale(it.scaleX, it.scaleY); ctx.translate(-50, -50);
       if (it.cellShape && it.cellShape !== 'square') ctx.clip(latticeShapePath([{ poly: CELL_SHAPES[it.cellShape].poly }]));   // the Element's canvas is its cell
       fillPaper(ctx, it.ownPaper, 0, 0, 100, 100);
@@ -619,7 +623,7 @@ export function drawSymbolCanvas(ctx) {
       continue;
     }
     if (it.type !== 'component' || (look && !look.shared)) continue;   // Normal / Multiply overlap: the Paper is painted (or skipped) in pass 2
-    enter(it);
+    enter(it, symbolBleed(F));
     nestedFrame(it);
     if (!it.region && it.nestedItems.length && it.nestedItems[0].poly) ctx.clip(latticeShapePath(it.nestedItems));   // a cell-shape Component: its canvas is the grid's outline
     fillPaper(ctx, it.nestedPaper, 0, 0, it.nestedW, it.nestedH);

@@ -789,7 +789,10 @@ its cells.
 - **No seams.** Cells never show a light line where they meet: nested Components'
   papers are painted first under all ink, and each cell's content and clip reach
   0.1% of the page past its border (the Component's own cells too), so neighbours
-  overlap instead of touching. With *Stretch*, a polygon cell's content is centred on
+  overlap instead of touching. The content does so with *Clip to cell* on; the **papers always** (Oct 26, 2026 — Diego
+  saw a 1 px line between every cell with Clip to cell off, on a 4:5 canvas whose cells sit on fractional pixels: two
+  papers that only touch let the page show through the antialiased edge). A paper is flat colour, so the overlap
+  changes no drawing; with Clip to cell off a cell on the grid's outer edge reaches that 0.1% into the margin. With *Stretch*, a polygon cell's content is centred on
   the cell's box, not its centroid (a hexagon cut by the margin stays covered).
 - **Contain in a polygon cell** (Oct 5, 2026) fits the content inside the
   cell's SHAPE, not its bounding box: the real outline of a Seed (sampled along its path; a Component's
