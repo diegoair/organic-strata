@@ -333,7 +333,8 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   Element.
 - **Colour by** decides which ink each cell gets: **Element's colours** (Oct 15, 2026 — every cell
   exactly as the Element step draws it, palette slot 0, no **Start at**; the default of a new
-  Element's Palette), **Palette in order** (was *Element's own colours*, `own` — the default of
+  Element's Palette; a saved Element placed in a Symbol draws in its own palette, Paper and texture under it, as under
+  Palette in order — fixed Oct 26, 2026, it took the live first ink and lost its Paper), **Palette in order** (was *Element's own colours*, `own` — the default of
   anything saved before Oct 15, 2026: a saved Element placed in a Symbol draws in its own palette, §7;
   every other cell, Component cells included, by cell order), By cell order,
   Checkerboard, By row, By column, Diagonal bands, By quadrant; **Start at** picks the leading
@@ -635,6 +636,11 @@ The **Role** section (Blend · Role) shows only in **Component Edit** (Diego, Oc
   candidate of the **edited Element's** set, already-saved ones skipped, *Saved n Components*.
   A saved Component keeps its Element, grid, cells, palette and rule, Paper + texture, layer inks,
   part colours, blend, role and clip — so it draws the same inside Symbols and Figures (§7).
+  Its thumbnails (Library, rail, Library view, the Pick-underlying and cell-content lists) draw with its **own saved look**
+  too — Style, stretch, Paper texture (Oct 26, 2026: they used the live panel's, so editing the Element changed every saved
+  thumbnail while the Symbol kept drawing the saved Component). `scripts/test-fvs-pipeline.sh` follows one Component
+  Element → gallery → saved → edited → Symbol on 11 cases (paper colours, transparent, Paper patterns, inks, Colour by,
+  Style, stretch, layers) and a saved Element dropped in a Symbol.
 - **Undo** (floatbar, ⌘Z on the Component step): the last **20** steps of Generate, Add, Clear /
   Clear board (all Elements at once), Colourways and Save as new component; each step remembers its
   Element, so undoing a step of another Element edits that Element first. It never touches the Element.

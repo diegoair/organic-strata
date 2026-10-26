@@ -142,8 +142,10 @@ export function entryItemInk(entry) {
     return o;
   };
 }
-// `own` (Palette in order): the cell's saved Element palette, when it has one.
-export const cellOwnInks = cell => (state.colorRule.mode === 'own' && cell.ownColors && cell.ownColors.length) ? cell.ownColors : null;
+// `own` (Palette in order) and `element` (Element's colours — the default of a new Element since Oct 15, 2026; until
+// Oct 26 it was left out here, so a saved Element dropped in a Symbol took the live palette's first ink and lost its own
+// Paper): the cell's saved Element palette, when it has one.
+export const cellOwnInks = cell => ((state.colorRule.mode === 'own' || state.colorRule.mode === 'element') && cell.ownColors && cell.ownColors.length) ? cell.ownColors : null;
 // ── The panel reader (Oct 2026). The engine (fvs/js/engine/) reads a control through pv / pc / val, never the
 // page: panelSource says where the values come from — today the controls themselves (setPanelSource, below);
 // a port can plug in its own state. Same values, read the same way. docs/FVS.md §11.

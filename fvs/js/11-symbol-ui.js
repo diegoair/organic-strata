@@ -15,7 +15,7 @@ import {
   fitThumbBox, mulberry32
 } from './engine/03-rules.js';
 import {
-  buildComponentItems
+  buildComponentItems, withAppearance
 } from './engine/04-appearance.js';
 import {
   buildSeedPreviewSVG, seedPreviewStates, withEntryInks
@@ -850,7 +850,7 @@ export function renderCellContentOverlayTiles() {
     const savedColorAt = entryInkAt(entry);
     const items = buildComponentItems({ cells: entry.component.cells }, entry.grid)
       .map((it, j) => ({ ...it, color: savedColorAt(j) }));
-    const svgStr = withEntryInks(entry.colors, () => buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName, entry.blend));
+    const svgStr = withEntryInks(entry.colors, () => withAppearance(entry.appearance, () => buildComponentSVGWithPaper(items, entry.seed, size, entry.paperColor, entry.role, entry.underlyingComponentName, entry.blend)));   // its own look, as componentThumbSVG
     const btn = document.createElement('button');
     btn.className = 'fvs-library-item';
     const box = fitThumbBox(size.w, size.h, 76);
