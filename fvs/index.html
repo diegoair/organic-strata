@@ -1596,10 +1596,12 @@
     <!-- Tile (Oct 26, 2026 — Diego: Elements that overlap their neighbours without changing shape, for continuous patterns;
          design-system CONSULT the same day; plan Phase 2): which cells move (Layout, the Paper's words + Alternate), by how much
          (Offset, % of a cell), who is on top, and Tile seamlessly (what leaves an edge comes back on the opposite one). Gap
-         below 0 brings the cells closer than the Element. It draws the Components there are — never Generate's dot
-         (no-gen-sig). Square cells only. -->
+         below 0 brings the cells closer than the Element. It belongs to the selected Component only (Diego, Oct 26, 2026 —
+         comp.tile) — never Generate's dot (no-gen-sig). Square cells only. -->
     <div class="panel-section ce-hide no-gen-sig" id="tile-section">
       <h3>Tile</h3>
+      <div id="tile-none-hint" class="org-empty">No component selected.</div>
+      <div id="tile-props">
       <div class="ctrl-row"><div class="ctrl-label" title="Grid · Brick (every other row moves) · Half-drop (every other column moves) · Alternate (every other cell, as a checkerboard)">Layout</div>
         <select class="panel-select" id="sel-tile-layout" aria-label="Layout">
           <option value="grid" selected>Grid</option>
@@ -1626,6 +1628,7 @@
         </select>
       </div>
       <label class="check-row org-switch" id="tile-seamless-row"><input type="checkbox" id="chk-tile-seamless"><span>Tile seamlessly</span></label>
+      </div>
     </div>
 
     <!-- Colourways (Oct 21, 2026 — Diego: "move it to the bottom of the component, make it a toggle", with Layer colour variants;

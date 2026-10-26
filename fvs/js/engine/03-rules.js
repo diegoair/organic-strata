@@ -252,8 +252,9 @@ export const EXHAUSTIVE_CAP = 2048;   // every rule's list stops here, Exhaustiv
 // Component saved on an imported Loom grid before that split still loads
 // (state.loomGrid, "legacy") and renders exactly as saved; picking columns ×
 // rows replaces it.
-// Tile (Oct 26, 2026): the panel's Layout / Offset / On top / Tile seamlessly as the grid's `overlap` (engine 04-appearance
-// withOverlap) — null at the defaults (Grid, seamless off), so the grid is the one it always was
+// Tile (Oct 26, 2026): the panel's Layout / Offset / On top / Tile seamlessly as an `overlap` (engine 04-appearance
+// withOverlap) — null at the defaults (Grid, seamless off). It belongs to ONE Component (`comp.tile`, Diego: "Tiles deve solo
+// funzionare sul componente selezionato e non su tutti"): the panel writes it to the selected one, gridOf(comp) reads it.
 const TILE_BY = { brick: 'rows', halfdrop: 'cols', alternate: 'checker' };
 export function tileOverlap() {
   const lay = pv('sel-tile-layout') || 'grid', wrap = !!pc('chk-tile-seamless');
@@ -272,7 +273,6 @@ export function getGrid() {
   // Gap below 0 (Tile, Oct 26, 2026) stops a unit short of the cell's short side: the cells never pass each other
   const g = { kind: 'square', cols: +pv('rg-grid-cols'), rows: +pv('rg-grid-rows'), cellSize: cs, gap: Math.max(val('rg-gap'), 1 - side) };
   if (state.cellAspect !== 1) g.aspect = state.cellAspect;   // a Rectangle Element: its cells take its proportions (Oct 23, 2026)
-  const ov = tileOverlap(); if (ov) g.overlap = ov;   // Tile (Oct 26, 2026): absent at its defaults — every grid before is unchanged
   // the step's own track sizes ("Apply grid to all" from Component Edit) — only while they fit its columns / rows
   const w = state.gridWeights;
   if (w && w.colWeights && w.colWeights.length === g.cols) g.colWeights = w.colWeights.slice();
@@ -284,11 +284,15 @@ export function getGrid() {
 // Square cells only. Absent = the step's grid (every Component before; the rules and Generate always use that one).
 export function gridOf(comp) {
   const g = getGrid();
-  if (!comp || !comp.grid || g.kind !== 'square') return g;
-  const own = { ...g, cols: comp.grid.cols, rows: comp.grid.rows };
-  delete own.colWeights; delete own.rowWeights;
-  if (comp.grid.colWeights) own.colWeights = comp.grid.colWeights.slice();
-  if (comp.grid.rowWeights) own.rowWeights = comp.grid.rowWeights.slice();
+  if (!comp || (!comp.grid && !comp.tile) || g.kind !== 'square') return g;
+  const own = { ...g };
+  if (comp.grid) {
+    own.cols = comp.grid.cols; own.rows = comp.grid.rows;
+    delete own.colWeights; delete own.rowWeights;
+    if (comp.grid.colWeights) own.colWeights = comp.grid.colWeights.slice();
+    if (comp.grid.rowWeights) own.rowWeights = comp.grid.rowWeights.slice();
+  }
+  if (comp.tile) own.overlap = { ...comp.tile };   // its own Tile (Oct 26, 2026)
   return own;
 }
 // Run `fn` with getGrid() answering `grid` (the rules read it) — then back.

@@ -708,7 +708,7 @@ function mountComponentBoard() {
     const grid = getGrid(), size = frameDims(grid);
     if (!g.components.length) return `<p class="hint fvs-board-gallery__empty">No generated components yet</p>`;
     return withPalette(e.palette, () => withAppearance(e.app, () => g.components.map((c, k) =>
-      `<div class="fvs-thumb-wrap"><button type="button" class="fvs-thumb" data-k="${k}" aria-label="Component ${escAttr(ruleLabel(c.ruleSource))} ${escAttr(c.id)} of ${escAttr(nameOf(e))} — double-click to edit">${componentThumbMarkup(c, gridOf(c), e.seed, c.grid ? frameDims(gridOf(c)) : size)}</button><span class="fvs-thumb-caption">${escAttr(componentCaption(c))}</span></div>`).join('')));
+      `<div class="fvs-thumb-wrap"><button type="button" class="fvs-thumb" data-k="${k}" aria-label="Component ${escAttr(ruleLabel(c.ruleSource))} ${escAttr(c.id)} of ${escAttr(nameOf(e))} — double-click to edit">${componentThumbMarkup(c, gridOf(c), e.seed, c.grid || c.tile ? frameDims(gridOf(c)) : size)}</button><span class="fvs-thumb-caption">${escAttr(componentCaption(c))}</span></div>`).join('')));
   }
   function staticSheet(e) {
     const id = 'gl-' + e.id;

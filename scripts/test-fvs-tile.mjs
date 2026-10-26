@@ -21,7 +21,12 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const compSVG = () => { const c = F.state.components[0], g = F.gridOf(c); return F.buildComponentSVG(F.buildComponentItems(c, g), F.getSeed(), F.frameDims(g)); };
   F.setTier('element'); set('sel-seed-type', 'lens'); await w(300);
   F.setTier('component'); await w(500); set('rg-grid-cols', 4); set('rg-grid-rows', 4); set('rg-gap', 0); set('sel-rule', 'checkerboard'); q('btn-generate').click(); await w(1200);
-  check('at its defaults the grid has no overlap (every grid before is unchanged)', !F.getGrid().overlap && q('tile-offset-x-row').hidden && q('tile-top-row').hidden, JSON.stringify(F.getGrid().overlap));
+  check('at its defaults no Component has a Tile (every grid before is unchanged)', !F.getGrid().overlap && F.state.components.every(c => !c.tile && !F.gridOf(c).overlap) && q('tile-offset-x-row').hidden && q('tile-top-row').hidden, JSON.stringify(F.getGrid().overlap));
+  F.state.selectionExplicit = false; F.renderGallery(); await w(300);
+  check('nothing selected: “No component selected.”, the controls off', !q('tile-none-hint').hidden && q('tile-props').hidden, [q('tile-none-hint').hidden, q('tile-props').hidden]);
+  const pick = async c => { [...document.querySelectorAll('.fvs-thumb')].find(b => (b.getAttribute('aria-label') || '').includes(' ' + c.id)).click(); await w(300); };
+  await pick(F.state.components[0]);
+  check('a Component selected: the controls on', q('tile-none-hint').hidden && !q('tile-props').hidden, 'hidden');
   check('Gap goes below 0 (to −80)', q('rg-gap').min === '-80', q('rg-gap').min);
   const presets = {};
   for (const lay of ['brick', 'halfdrop', 'alternate']) { set('sel-tile-layout', lay); await w(150); presets[lay] = q('rg-tile-offset-x').value + '/' + q('rg-tile-offset-y').value; }
@@ -29,6 +34,8 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('Tile never lights Generate’s dot', !q('btn-generate').classList.contains('is-stale'), 'stale');
   set('sel-tile-layout', 'brick'); await w(300);
   const c0 = F.state.components[0], items = F.buildComponentItems(c0, F.gridOf(c0));
+  const c1 = F.state.components[1];
+  check('only the selected Component takes it (Diego: “solo sul componente selezionato”)', F.state.components[0].tile && F.state.components[0].tile.by === 'rows' && !c1.tile && !F.gridOf(c1).overlap, JSON.stringify([F.state.components[0].tile, c1.tile]));
   check('Brick: every other row moved by half a cell, the others still', items.every((it, i) => Math.abs((it.dx || 0) - (Math.floor(i / 4) % 2 ? 0.5 * (it.cellW || it.cellSize) : 0)) < 1e-6), JSON.stringify(items.map(it => +(it.dx || 0).toFixed(1))));
   const plainW = F.frameDims({ ...F.gridOf(c0), overlap: undefined }).w;
   set('chk-tile-seamless', true); set('rg-gap', -40); await w(400);
@@ -52,7 +59,9 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const entry = Organica.store('fvs').read()[c0.savedName];
   check('saved with the Component (its grid’s overlap)', entry && entry.grid.overlap && entry.grid.overlap.wrap && entry.grid.overlap.by === 'rows' && entry.grid.gap === -40, JSON.stringify(entry && entry.grid));
   set('sel-tile-layout', 'grid'); set('chk-tile-seamless', false); set('rg-gap', 0); await w(200);
-  F.applyLibraryEntryToUI(entry); await w(300);
+  await pick(c1); await w(100);
+  check('another Component selected: the panel shows its own (Grid)', q('sel-tile-layout').value === 'grid' && !q('chk-tile-seamless').checked, q('sel-tile-layout').value);
+  F.applyLibraryEntryToUI(entry); await w(300); F.renderGallery(); await w(300);
   check('opened again: its Tile on the panel', q('sel-tile-layout').value === 'brick' && q('chk-tile-seamless').checked && q('sel-tile-top').value === 'still' && q('rg-tile-offset-x').value === '50', [q('sel-tile-layout').value, q('chk-tile-seamless').checked, q('sel-tile-top').value]);
   // the Symbol: the Component one period, cut at its frame
   F.setTier('symbol'); await w(500); F.railApply('component', c0.savedName, 0); await w(300);
@@ -60,10 +69,11 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   F.setTier('component'); await w(300);
   set('sel-tile-layout', 'grid'); set('chk-tile-seamless', false); set('rg-gap', 0); await w(200);
   set('rg-cellsize', 60); set('rg-grid-cols', 4); set('rg-gap', -80); await w(200);
-  const gs = [false, true].map(sm => { q('chk-tile-seamless').checked = sm; const g = F.getGrid(), d = F.frameDims(g); return d.w > 0 && d.h > 0 && g.gap > -60; });
+  const gs = [false, true].map(sm => { const g = { ...F.getGrid(), overlap: sm ? { by: 'rows', x: 0, y: 0, top: 'order', wrap: true } : undefined }, d = F.frameDims(g); return d.w > 0 && d.h > 0 && g.gap > -60; });
   check('Gap −80 at Cell size 60: the frame never collapses (seamless off and on)', gs.every(Boolean), JSON.stringify(gs));
   set('rg-cellsize', 160); set('rg-gap', 0); set('chk-tile-seamless', false); await w(200);
-  check('back at its defaults: no overlap again', !F.getGrid().overlap, JSON.stringify(F.getGrid().overlap));
+  const sel = F.state.components.find(c => c.id === F.state.selectedId);
+  check('back at its defaults: the Component has no Tile again', sel && !sel.tile && !F.gridOf(sel).overlap, JSON.stringify(sel && sel.tile));
   // Component Edit (Phase 3): a picked cell's own Move and order
   F.enterComponentEditMode(F.state.components[0].id); await w(400); F.selectComponentEditCell(0); F.cePicked = new Set([0]); F.syncCeCellProps(); await w(300);   // picked, as a click on the cell does
   check('Edit: Move X / Y and the order buttons shown for a picked cell', !q('ce-row-cellprop-move-x').hidden && !q('ce-row-cellprop-order').hidden && q('ce-btn-cellprop-backward').disabled === false, 'hidden');
@@ -79,6 +89,10 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   F.ceUndoStep(); await w(200); F.ceUndoStep(); await w(200);
   check('Undo: back through the order steps', !F.state.componentEditCells[0].z, JSON.stringify(F.state.componentEditCells[0].z));
   F.exitComponentEditMode(); await w(400);
+  await pick(F.state.components[0]);
+  { const before = JSON.stringify(F.state.components[0].tile || null); set('chk-tile-seamless', !q('chk-tile-seamless').checked); await w(200);
+    const changed = JSON.stringify(F.state.components[0].tile || null); F.undoComponents(); await w(300);
+    check('Undo: a Tile change is its own step', changed !== before && JSON.stringify(F.state.components[0].tile || null) === before, JSON.stringify([before, changed, F.state.components[0].tile])); }
   F.setCellShape('hexagon'); await w(300);
   check('a cell-shape lattice: no Tile section', q('tile-section').hidden, 'shown');
   F.setCellShape('square'); await w(300);

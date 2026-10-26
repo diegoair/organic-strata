@@ -428,8 +428,13 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
   (engine/04-appearance.js) gives what is drawn — the order On top asks for and the copies — in the Component's SVG
   (`wrapcut-*` clip), its canvas, and a Symbol's nested Component (`nwrap-*` clip at its frame) — not a Symbol cell
   placed as a block (a region) or on the shared lattice (Match cell): those keep the reading order, no copies.
-- It **draws** the Components there are: the section is `.no-gen-sig`, outside Generate's signature (no dot). Saved with
-  a Component (its grid), back on the panel when the Component is opened (`applyTileUI`).
+- **It belongs to one Component** (Diego, Oct 26, 2026: *Tiles deve solo funzionare sul componente selezionato e non su
+  tutti*): `comp.tile` (the `overlap` above), read by `gridOf(comp)` — never by `getGrid()`. The panel shows the selected
+  Component's Tile (`syncTileFromSelection`, on every gallery draw) and a change goes on that one only (`writeTile`);
+  with nothing selected the section says *No component selected.* and its controls hide (as Cell properties). Each
+  gesture is one undo step (a slider drag is one; the Symbol redraws at its end). A new Component starts at
+  Grid; Save as new component keeps its Tile; a saved Component carries it (its grid's `overlap`) and brings it back when
+  opened. Gap stays the step's (every Component). The section is `.no-gen-sig`, outside Generate's signature (no dot).
 - **Per cell, in Component Edit (Phase 3, Oct 26, 2026).** In Cell properties, after Scale: **Move X / Y** (−100 … 100 %
   of the cell; the cell itself moves, as an Offset does — its clip and hit box with it) and **Bring forward · Send
   backward** (⌥↑ / ⌥↓): the picked cells one step over / under every other cell (several keep their order among

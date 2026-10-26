@@ -9,7 +9,7 @@ import {
   CELL_OUTLINES, OUTLINE_GATE, latticeRings
 } from './engine/01-geometry.js';
 import {
-  GALLERY_THUMB, fitThumbBox
+  GALLERY_THUMB, fitThumbBox, tileOverlap
 } from './engine/03-rules.js';
 import {
   ctrl
@@ -17,7 +17,7 @@ import {
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  syncComponentGridUI: () => syncComponentGridUI
+  syncComponentGridUI: () => syncComponentGridUI, syncTileFromSelection: () => syncTileFromSelection
 });
 // spec: 'square3x3' (the recipes' string form), {cols, rows}, or a saved entry.grid.
 export function setComponentGrid(spec, opts = {}) {
@@ -45,9 +45,32 @@ export function setComponentGrid(spec, opts = {}) {
 }
 // Tile (Oct 26, 2026): Offset and On top only when cells move; the whole section on square cells only
 export function syncTileUI() {
-  const lay = ctrl('sel-tile-layout').value, moves = lay !== 'grid';
+  const lay = ctrl('sel-tile-layout').value, moves = lay !== 'grid', comp = tileTarget();
   ctrl('tile-section').hidden = state.cellShape !== 'square' || !!state.loomGrid;
   ctrl('tile-offset-x-row').hidden = ctrl('tile-offset-y-row').hidden = ctrl('tile-top-row').hidden = !moves;
+  // one Component's own (Diego, Oct 26, 2026): nothing selected, nothing to tile
+  ctrl('tile-none-hint').hidden = !!comp;
+  ctrl('tile-props').hidden = !comp;   // as Cell properties: nothing selected, the note alone
+}
+// the Component Tile acts on: the one selected on the board
+const tileTarget = () => (state.selectionExplicit && state.components.find(c => c.id === state.selectedId)) || null;
+// the panel shows the selected Component's Tile (every gallery draw — a pick, an undo, another Element)
+export function syncTileFromSelection() {
+  const c = tileTarget(), key = c ? c.id + JSON.stringify(c.tile || null) : '';
+  if (key === tileShown) { syncTileUI(); return; }
+  tileShown = key;
+  applyTileUI(c && c.tile);
+}
+let tileShown = null;
+// a panel change goes on the selected Component only
+function writeTile(opts = {}) {
+  const c = tileTarget();
+  if (!c) return;
+  if (opts.step && hooks.pushComponentUndo) hooks.pushComponentUndo();   // one undo step per gesture (a drag is one)
+  const o = tileOverlap();
+  if (o) c.tile = o; else delete c.tile;
+  tileShown = c.id + JSON.stringify(c.tile || null);
+  hooks.renderGallery(); if (!opts.live) hooks.renderSymbol();   // a drag redraws the Symbol at its end
 }
 const TILE_PRESET = { brick: [50, 0], halfdrop: [0, 50], alternate: [25, 25] };   // choosing a Layout sets its usual offset
 const setTileVal = (k, v) => { ctrl('rg-tile-offset-' + k).value = v; ctrl('v-tile-offset-' + k).textContent = v; };
@@ -63,11 +86,17 @@ export function applyTileUI(o) {
 ctrl('sel-tile-layout').addEventListener('change', e => {
   const p = TILE_PRESET[e.target.value];
   if (p) { setTileVal('x', p[0]); setTileVal('y', p[1]); }
-  syncTileUI(); hooks.renderGallery(); hooks.renderSymbol();
+  syncTileUI(); writeTile({ step: true });
 });
-['x', 'y'].forEach(k => ctrl('rg-tile-offset-' + k).addEventListener('input', e => { ctrl('v-tile-offset-' + k).textContent = e.target.value; hooks.renderGallery(); }));
-ctrl('sel-tile-top').addEventListener('change', () => { hooks.renderGallery(); hooks.renderSymbol(); });
-ctrl('chk-tile-seamless').addEventListener('change', () => { hooks.renderGallery(); hooks.renderSymbol(); });
+['x', 'y'].forEach(k => {
+  const r = ctrl('rg-tile-offset-' + k);
+  let armed = false;   // the drag's first move keeps the step
+  ['pointerdown', 'keydown'].forEach(t => r.addEventListener(t, () => { armed = true; }));
+  r.addEventListener('input', e => { ctrl('v-tile-offset-' + k).textContent = e.target.value; writeTile({ step: armed, live: true }); armed = false; });
+  r.addEventListener('change', () => hooks.renderSymbol());
+});
+ctrl('sel-tile-top').addEventListener('change', () => writeTile({ step: true }));
+ctrl('chk-tile-seamless').addEventListener('change', () => writeTile({ step: true }));
 export function syncComponentGridUI() {
   syncTileUI();
   const lattice = state.cellShape !== 'square';

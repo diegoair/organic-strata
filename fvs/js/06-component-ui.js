@@ -52,7 +52,7 @@ import {
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks,
+  adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks, pushComponentUndo: () => pushUndo,
   enterComponentEditMode: () => enterComponentEditMode, generate: () => generate,
   populateComponentStarterGallery: () => populateComponentStarterGallery, renderComponentEditCanvas: () => renderComponentEditCanvas,
   syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI, syncSplitUI: () => syncSplitUI,
@@ -376,6 +376,7 @@ export function saveComponentEditAsNew() {
   const newComp = { id: `edit-${Date.now()}`, ruleSource: 'edited', cells: structuredClone(state.componentEditCells) };
   const own = ceOwnGrid();
   if (own) newComp.grid = own;
+  if (state.componentEditGrid && state.componentEditGrid.overlap) newComp.tile = { ...state.componentEditGrid.overlap };   // its Tile goes with it
   pushUndo();
   state.components.push(newComp);
   state.selectedId = newComp.id;

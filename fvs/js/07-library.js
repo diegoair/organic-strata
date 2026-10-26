@@ -43,7 +43,7 @@ import {
   fhEditor, foldLegacySeed, syncDependentRows
 } from './02-seed-ui.js';
 import {
-  applyTileUI, setComponentGrid, syncComponentGridUI
+  setComponentGrid, syncComponentGridUI
 } from './03-rules.js';
 import {
   applyAppearanceToUI, syncLookBlocks
@@ -938,7 +938,6 @@ export function applyLibraryEntryToUI(entry) {
   if (entry.grid.kind !== 'loom') {
     ctrl('rg-cellsize').value = entry.grid.cellSize; ctrl('v-cellsize').textContent = entry.grid.cellSize;
     ctrl('rg-gap').value = entry.grid.gap; ctrl('v-gap').textContent = entry.grid.gap;
-    applyTileUI(entry.grid.overlap);   // its Tile (Oct 26, 2026)
   }
   syncRuleAvailability();
 
@@ -950,6 +949,7 @@ export function applyLibraryEntryToUI(entry) {
   hooks.setPaperUI(entry.paperColor);
 
   const comp = { id: `library-${Date.now()}`, ruleSource: entry.component.ruleSource, cells: entry.component.cells };
+  if (entry.grid && entry.grid.overlap) comp.tile = { ...entry.grid.overlap };   // its Tile (Oct 26, 2026)
   state.components = [comp];
   state.selectedId = comp.id;
   state.selectionExplicit = true;
