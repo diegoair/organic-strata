@@ -174,6 +174,7 @@
             <option value="1">&times;1</option>
             <option value="2" selected>&times;2</option>
             <option value="3">&times;3</option>
+            <option value="4">&times;4</option>
           </select>
         </div>
         <div class="org-popover__row">
@@ -699,6 +700,7 @@ async function doRender() {
 
   // Store for SVG export
   window._lastRenderData = { W, H, bgColor, marks: [], markSvgVb: [vbW, vbH], markSvg: mark.svg };
+  updateSizeReadout();
 
   async function drawBatch(start) {
     if (shouldStop) { finishRender(true); return; }
@@ -925,16 +927,41 @@ function printRasterDims(W) {
 // panel's physical size/DPI, same as exportJPG's own re-render path, with
 // a flat-fill bleed extension + crop marks + a real embedded pHYs chunk.
 // ─────────────────────────────────────────────
+// Screen PNG (Oct 26, 2026 — the Scale select was never wired: it threw and the PNG was the preview canvas as is): the
+// marks drawn again at the preview × Scale, capped at 8000 px on the longer side; the readout says the size first.
+const SCREEN_MAX_SIDE = 8000;
+function screenPngDims() {
+  const d = window._lastRenderData;
+  if (!d) return null;
+  let s = parseInt(document.getElementById('sel-scale').value, 10) || 2;
+  if (Math.max(d.W, d.H) * s > SCREEN_MAX_SIDE) s = SCREEN_MAX_SIDE / Math.max(d.W, d.H);
+  return { scale: s, w: Math.round(d.W * s), h: Math.round(d.H * s) };
+}
+function updateSizeReadout() {
+  const p = screenPngDims();
+  document.getElementById('vl-out-size').textContent = p ? p.w + ' × ' + p.h : '—';
+}
 function exportPNG() {
-  if (printSizePanel.getMode() !== 'print') {
-    const a = document.createElement('a');
-    a.download = 'spore-' + Date.now() + '.png';
-    a.href = canvas.toDataURL('image/png');
-    a.click();
-    return;
-  }
   const d = window._lastRenderData;
   if (!d) { setStatus('error', 'Render first.'); return; }
+  if (printSizePanel.getMode() !== 'print') {
+    const q = screenPngDims();
+    const oc = document.createElement('canvas');
+    oc.width = q.w; oc.height = q.h;
+    const octx = oc.getContext('2d');
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = 'high';
+    octx.fillStyle = d.bgColor;
+    octx.fillRect(0, 0, q.w, q.h);
+    const svgEl = new DOMParser().parseFromString(d.markSvg, 'image/svg+xml').querySelector('svg');
+    const vb = svgEl.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 20, 20];
+    paintSporeMarksScaled(octx, d.marks, svgEl, vb[2], vb[3], q.scale, 0, 0);
+    oc.toBlob(blob => {
+      Organica.download(blob, 'spore-' + Date.now() + '.png');
+      setStatus('active', 'PNG exported — ' + q.w + '×' + q.h);
+    }, 'image/png');
+    return;
+  }
   const { W, H, bgColor, marks, markSvg } = d;
   const p = printRasterDims(W);
 

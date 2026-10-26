@@ -70,7 +70,10 @@ Shared, identical picker with Pollen.
 The Export popover carries an explicit **Screen | Print** mode switch
 (`shared/print-size-panel.js`, shared with Loom/Pollen/Halide/Flexible Visual System):
 
-- **Screen** (default) — today's behaviour exactly.
+- **Screen** (default) — **Scale** ×1 · ×2 · ×3 · ×4 (default ×2) and the **Output** size beside it: the PNG is the marks
+  drawn again at the preview × Scale (capped at 8000 px on the longer side; ×1 = the preview, pixel for pixel). Until
+  Oct 26, 2026 the select was not wired — it threw, Output stayed “—” and the PNG was the preview canvas. JPG keeps its own
+  size (the source's native resolution × 2).
 - **Print** — a real physical size (mm/in) + DPI. PNG/JPG export a
   bleed-inclusive canvas (flat-fill background extension + crop marks) with a
   real embedded `pHYs` DPI chunk; SVG wraps the same per-mark markup the
