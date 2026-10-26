@@ -354,8 +354,12 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   browser's Genesis library, each turned into one filled outline), **Layout** (Grid / Brick /
   Half-drop), **Turn** (None / Alternate 0°·180° / Quarter pinwheel), **Size** (% of the spacing),
   Spacing, Angle. Weight hides: the tile uses the Element's Fill, or its Stroke. At most 2,500
-  tiles per canvas (the spacing is raised, with a note). SVG: one `<path>` in `<defs>` + one `<use>`
-  per tile. A saved Component / Symbol keeps a **snapshot** of the tile; the live Paper follows the
+  tiles per canvas (the spacing is raised, with a note). SVG: one `<path>` in `<defs>` and **one `<pattern>`** —
+  a 2 × 2 block of tiles with its neighbours (16 `<use>`), on the same lattice (origin at the canvas centre, turned by
+  Angle), repeated by the browser (Oct 26, 2026 — Diego: *le performance … pessime*; it was one `<use>` per tile, up to
+  2,500 per drawing in every thumbnail, Component and Symbol: 102 thumbnails at Spacing 4 = 200,000 nodes; a Gap drag
+  went from 8–11 s to 0.3 s). Same tiles, no tile moved (`scripts/test-fvs-paper-tile.sh`); edges a little darker
+  (the pattern's own antialiasing). The canvas still paints each tile. A saved Component / Symbol keeps a **snapshot** of the tile; the live Paper follows the
   Element.
 - **Colour by** decides which ink each cell gets: **Element's colours** (Oct 15, 2026 — every cell
   exactly as the Element step draws it, palette slot 0, no **Start at**; the default of a new

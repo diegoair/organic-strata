@@ -674,9 +674,20 @@ export function elementTileSVG(g, w, h, clipId) {
   const L = elementTileLayout(g, w, h), ink = groundInk(g), id = clipId + 't', sc = L.size / 100;
   const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: t.style.fillMode, color: ink, strokeW: t.style.strokeW, rounded: t.style.rounded })
     + (t.geo.fillRule && t.style.fillMode !== 'stroke' ? ` fill-rule="${t.geo.fillRule}"` : '');
-  const uses = L.tiles.map(p => `<use href="#${id}" transform="translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) rotate(${p.rot}) scale(${sc.toFixed(4)}) translate(-50,-50)"/>`).join('');
-  return `<defs><path id="${id}" d="${t.geo.d}" transform="${tileNormAttr(t.geo)}" ${attrs}/></defs>`
-    + `<clipPath id="${clipId}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${clipId})"><g transform="scale(${L.k.toFixed(4)})">${uses}</g></g>`;
+  // One SVG <pattern> (Oct 26, 2026 — Diego: "le performance … pessime"): a dense Paper of Element tiles was one <use> per
+  // tile — up to TILE_CAP (2,500) per drawing, in every thumbnail, Component and Symbol (102 thumbnails = 200,000 nodes).
+  // The lattice repeats every 2 tiles (Brick / Half-drop / Turn alternate), so a 2 × 2 block of tiles — with its
+  // neighbours, which reach into it — is the pattern's cell, on the same lattice: origin at the canvas centre, turned by
+  // Angle. The same tiles as before (L.spacing, the cap included), the browser repeats them.
+  const S = L.spacing, a = +g.patAngle || 0, cx = w / 2 / L.k, cy = h / 2 / L.k, pid = clipId + 'p';
+  let cell = '';
+  for (let j = -1; j <= 2; j++) for (let i = -1; i <= 2; i++) {
+    const { gx, gy, turn } = tileAt(i, j, S, g.layout, g.turn);
+    cell += `<use href="#${id}" transform="translate(${gx.toFixed(3)},${gy.toFixed(3)}) rotate(${turn}) scale(${sc.toFixed(4)}) translate(-50,-50)"/>`;
+  }
+  return `<defs><path id="${id}" d="${t.geo.d}" transform="${tileNormAttr(t.geo)}" ${attrs}/>`
+    + `<pattern id="${pid}" patternUnits="userSpaceOnUse" width="${(2 * S).toFixed(4)}" height="${(2 * S).toFixed(4)}" patternTransform="translate(${cx.toFixed(3)},${cy.toFixed(3)}) rotate(${a})">${cell}</pattern></defs>`
+    + `<clipPath id="${clipId}"><rect width="${w}" height="${h}"/></clipPath><g clip-path="url(#${clipId})"><g transform="scale(${L.k.toFixed(4)})"><rect width="${(w / L.k).toFixed(3)}" height="${(h / L.k).toFixed(3)}" fill="url(#${pid})"/></g></g>`;
 }
 export function paintElementTileCanvas(ctx, g, w, h) {
   const t = resolveTile(g);
