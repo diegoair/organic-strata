@@ -792,7 +792,14 @@ its cells.
   overlap instead of touching. The content does so with *Clip to cell* on; the **papers always** (Oct 26, 2026 — Diego
   saw a 1 px line between every cell with Clip to cell off, on a 4:5 canvas whose cells sit on fractional pixels: two
   papers that only touch let the page show through the antialiased edge). A paper is flat colour, so the overlap
-  changes no drawing; with Clip to cell off a cell on the grid's outer edge reaches that 0.1% into the margin. With *Stretch*, a polygon cell's content is centred on
+  changes no drawing; with Clip to cell off a cell on the grid's outer edge reaches that 0.1% into the margin.
+  **What Clip to cell really does** (debugged Oct 26, 2026): it cuts each cell at its border pushed out by that 0.1 %,
+  **and stretches the cell's ink to reach it** — about the cell centre, by the bleed over each side, so on a non-square
+  cell unevenly (162 × 207: +1.67 % across, +1.30 % down) and inside a nested Component too. Every edge moves up to ~1 px
+  (≈ 3.7 % of the pixels change on a full Symbol even when nothing overflows). The stretch is what hides the seams
+  between inks that meet exactly on a border: cutting only brings them back (solid squares: 10–30 thousand light
+  pixels; with Clip to cell off they are there today). Diego, Oct 26: keep it as it is (options left: exact inside with
+  a 1.35 px overlap band at the edges, an even stretch on both axes). With *Stretch*, a polygon cell's content is centred on
   the cell's box, not its centroid (a hexagon cut by the margin stays covered).
 - **Contain in a polygon cell** (Oct 5, 2026) fits the content inside the
   cell's SHAPE, not its bounding box: the real outline of a Seed (sampled along its path; a Component's

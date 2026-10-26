@@ -226,7 +226,10 @@ export function missingComponentMarkupSVG(cx, cy, cellW, cellH) {
 // on every row. Two fixes, shared by the SVG and the Canvas renderer: all nested
 // papers are painted first, under all ink; and each cell's content (and its
 // clip) reaches SYMBOL_BLEED beyond the border — ~0.1% of the page — so
-// neighbours overlap instead of touching. Too small to see as a change of shape.
+// neighbours overlap instead of touching. Measured Oct 26, 2026: on a 4:5 page with 162 × 207 cells the ink grows
+// 1.67 % across and 1.30 % down (the bleed over each side of a non-square cell), so every edge moves up to ~1 px and
+// Clip to cell changes ~3.7 % of the pixels; cutting only (no stretch) brings back the seams between inks that meet
+// exactly on a border (solid squares: 10–30 thousand light pixels). Diego kept the stretch.
 // bounding-box centre − centroid of polygon cell i (0 for rect cells)
 export function polygonBoxOffset(grid, i) {
   const raw = grid.cellShape === 'polygon' && grid.cells[i];
