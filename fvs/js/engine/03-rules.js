@@ -252,14 +252,27 @@ export const EXHAUSTIVE_CAP = 2048;   // every rule's list stops here, Exhaustiv
 // Component saved on an imported Loom grid before that split still loads
 // (state.loomGrid, "legacy") and renders exactly as saved; picking columns ×
 // rows replaces it.
+// Tile (Oct 26, 2026): the panel's Layout / Offset / On top / Tile seamlessly as the grid's `overlap` (engine 04-appearance
+// withOverlap) — null at the defaults (Grid, seamless off), so the grid is the one it always was
+const TILE_BY = { brick: 'rows', halfdrop: 'cols', alternate: 'checker' };
+export function tileOverlap() {
+  const lay = pv('sel-tile-layout') || 'grid', wrap = !!pc('chk-tile-seamless');
+  if (lay === 'grid' && !wrap) return null;
+  const o = { by: TILE_BY[lay] || 'rows', x: lay === 'grid' ? 0 : val('rg-tile-offset-x') / 100, y: lay === 'grid' ? 0 : val('rg-tile-offset-y') / 100, top: lay === 'grid' ? 'order' : pv('sel-tile-top') || 'order' };
+  if (wrap) o.wrap = true;
+  return o;
+}
 export function getGrid() {
   if (state.gridOverride) return state.gridOverride;   // a rule run on another grid (Component Edit's Columns × Rows)
   if (state.cellShape !== 'square') return cellLatticeGrid();
   if (state.loomGrid) {
     return { kind: 'loom', cellShape: state.loomGrid.cellShape, cells: state.loomGrid.cells, width: state.loomGrid.inner.width, height: state.loomGrid.inner.height };
   }
-  const g = { kind: 'square', cols: +pv('rg-grid-cols'), rows: +pv('rg-grid-rows'), cellSize: val('rg-cellsize'), gap: val('rg-gap') };
+  const cs = val('rg-cellsize'), side = cs * Math.min(1, state.cellAspect, 1 / state.cellAspect);
+  // Gap below 0 (Tile, Oct 26, 2026) stops a unit short of the cell's short side: the cells never pass each other
+  const g = { kind: 'square', cols: +pv('rg-grid-cols'), rows: +pv('rg-grid-rows'), cellSize: cs, gap: Math.max(val('rg-gap'), 1 - side) };
   if (state.cellAspect !== 1) g.aspect = state.cellAspect;   // a Rectangle Element: its cells take its proportions (Oct 23, 2026)
+  const ov = tileOverlap(); if (ov) g.overlap = ov;   // Tile (Oct 26, 2026): absent at its defaults — every grid before is unchanged
   // the step's own track sizes ("Apply grid to all" from Component Edit) — only while they fit its columns / rows
   const w = state.gridWeights;
   if (w && w.colWeights && w.colWeights.length === g.cols) g.colWeights = w.colWeights.slice();

@@ -15,7 +15,7 @@ import {
   mod360
 } from './03-rules.js';
 import {
-  DEFAULT_APPEARANCE, buildComponentItems, paintPaperPatternCanvas, paperPatternSVG, resolveItemGeo,
+  DEFAULT_APPEARANCE, buildComponentItems, drawOrder, paintPaperPatternCanvas, paperPatternSVG, resolveItemGeo,
   getElementAppearance, withAppearance
 } from './04-appearance.js';
 import {
@@ -372,6 +372,7 @@ export function buildSymbolItems() {
       if (reg) nestedItems = modulesToBlockCells(nestedItems, nestedW, nestedH, reg, cell);
       // A cell-shape Component set to Match cell sits on the Symbol's shared small-cell lattice (alignedPlacements).
       const al = AL.get(i);
+      if (!reg && !al) nestedItems = drawOrder(nestedItems);   // its Overlap: who is on top, a Seamless repeat's copies (Oct 26, 2026)
       const place = al || placeInBox(c, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell, reg ? null : cellPolygon(grid, i));
       return {
         type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: place.rotate != null ? place.rotate : cell.rotation,
@@ -515,7 +516,9 @@ export function symbolSVGFromItems(items) {
         return inner;
       };
       const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
-      cellMarkup = `<g transform="${tf}">${passes && !across ? passes.map(innerFor).join('') : innerFor(passes ? passes[0] : null)}</g>`;
+      cellMarkup = passes && !across ? passes.map(innerFor).join('') : innerFor(passes ? passes[0] : null);
+      if (it.nestedItems.some(ni => ni.copy)) { const wid = 'nwrap-' + it.index + '-' + drawId; cellMarkup = `<clipPath id="${wid}"><rect width="${it.nestedW.toFixed(2)}" height="${it.nestedH.toFixed(2)}"/></clipPath><g clip-path="url(#${wid})">${cellMarkup}</g>`; }   // a Seamless repeat: one period
+      cellMarkup = `<g transform="${tf}">${cellMarkup}</g>`;
       if (across) later = passes.slice(1).map(p => `<g transform="${tf}">${innerFor(p)}</g>`);
       // the nested Component's own Ground pattern sits on its paper, under all ink
       const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paperPatternSVG(it.nestedW, it.nestedH, true)));

@@ -385,7 +385,7 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 ### 5.1 The grid
 
 - **Square cells** (the default cell shape): **Columns × Rows**, each **1–4** (square or
-  rectangular — 2×3, 4×1…), **Gap** 0–40, **Clip to cell** (each cell cut to its own frame —
+  rectangular — 2×3, 4×1…), **Gap** −80–40 (below 0 the cells come closer than the Element — §5.1a, Oct 26, 2026), **Clip to cell** (each cell cut to its own frame —
   `cellcut-*` clipPaths / a canvas clip; saved as `clip: true`, kept with the Element's Generated
   components). *Cell size* is hidden (every view fits the Component; the output size is set at export).
   Larger and irregular grids live in the Symbol (§6). A rectangular Component sits letterboxed in its
@@ -402,6 +402,36 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
   longer fit are dropped and, when none is left, the current rule runs again on the new grid (Manual
   brings back the starter set); a change that keeps the count (2×3 → 3×2) keeps the candidates
   (`05-render-component.js`, grid invalidation).
+
+### 5.1a Tile — Elements that overlap their neighbours (Oct 26, 2026)
+
+Diego (Oct 26, 2026): *nella creazione dei component … ogni element e component vive solo nella propria cella e
+griglia … come un element … si possa anche sovrapporre (senza alterare le forme) ad altri element … pattern e tiles
+più interessanti*. Plan `~/.claude/plans/dapper-imagining-sonnet.md` Phase 2; design-system CONSULT the same day. A
+section **Tile** after Transform axes (square cells only — hidden on a lattice and on a legacy Loom grid):
+- **Layout** *Grid · Brick · Half-drop · Alternate* (the Paper's words + Alternate): which cells move — every other row,
+  every other column, every other cell (a checkerboard). Choosing one presets **Offset X / Y** (% of a cell, −50…50):
+  Brick 50 / 0, Half-drop 0 / 50, Alternate 25 / 25. Offset and On top show only when cells move.
+- **On top** *Reading order · The moved cells · The other cells* — where cells overlap, which covers which; a group on
+  top covers **the whole cell** below (every layer — Diego: *sì, la cella intera*), so a Component drawn layer by layer
+  (Oct 12) draws cell by cell while On top is not Reading order (`layerPasses`).
+- **Tile seamlessly** — the Component is one period: its frame is `cols × (cell + gap)` (`frameDims` with
+  `overlap.wrap`) and what leaves an edge comes back on the opposite one (a copy one period over, the drawing cut at
+  the frame). With Brick / Half-drop and an odd number of rows / columns the edge shows a seam — left so (Diego).
+- **Gap below 0** (Grid, −80 … 40) brings the cells closer than the Element: neighbours overlap, the shapes unchanged.
+  It stops a unit short of the cell's short side (`getGrid`), so at a small Cell size the cells never pass each other.
+  An Offset moves the cell itself: Clip to cell and Component Edit's hit box follow it (`ox / oy`).
+- **Engine.** The grid carries `overlap = { by: 'rows' | 'cols' | 'checker', x, y, top, wrap }` (`tileOverlap`,
+  engine/03-rules.js) — **absent at the defaults** (Grid, seamless off), so every grid and saved Component before is
+  unchanged (regression 619/619). `buildComponentItems` keeps every item in its cell's place (colours, Component Edit and
+  the Symbol read them by index): it adds the class `oc`, the offset in `dx / dy` and `ov`; `drawOrder(items)`
+  (engine/04-appearance.js) gives what is drawn — the order On top asks for and the copies — in the Component's SVG
+  (`wrapcut-*` clip), its canvas, and a Symbol's nested Component (`nwrap-*` clip at its frame) — not a Symbol cell
+  placed as a block (a region) or on the shared lattice (Match cell): those keep the reading order, no copies.
+- It **draws** the Components there are: the section is `.no-gen-sig`, outside Generate's signature (no dot). Saved with
+  a Component (its grid), back on the panel when the Component is opened (`applyTileUI`).
+- Not yet: the rule's own classes as a Layout (Diego: later), per-cell Move / Bring forward (Phase 3), plates that
+  knock out what is covered (Phase 4), Weave as a third On top (Phase 5, test page first). Tests: `scripts/test-fvs-tile.sh`.
 
 ### 5.2 The axes (Transform axes)
 

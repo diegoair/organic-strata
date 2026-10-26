@@ -1467,7 +1467,7 @@
         </div>
         <div class="ctrl-row" id="gap-row">
           <div class="ctrl-label">Gap</div>
-          <input type="range" id="rg-gap" min="0" max="40" step="1" value="0">
+          <input type="range" id="rg-gap" min="-80" max="40" step="1" value="0" aria-label="Gap">
           <span class="ctrl-val" id="v-gap">0</span>
         </div>
         <label class="check-row org-switch" id="component-clip-row"><input type="checkbox" id="chk-component-clip"><span>Clip to cell</span></label>
@@ -1593,6 +1593,41 @@
       <div class="row-btns" id="rule-save-row" hidden><button type="button" class="mini-btn" id="btn-save-rule">Save rule…</button></div>
     </div>
 
+    <!-- Tile (Oct 26, 2026 — Diego: Elements that overlap their neighbours without changing shape, for continuous patterns;
+         design-system CONSULT the same day; plan Phase 2): which cells move (Layout, the Paper's words + Alternate), by how much
+         (Offset, % of a cell), who is on top, and Tile seamlessly (what leaves an edge comes back on the opposite one). Gap
+         below 0 brings the cells closer than the Element. It draws the Components there are — never Generate's dot
+         (no-gen-sig). Square cells only. -->
+    <div class="panel-section ce-hide no-gen-sig" id="tile-section">
+      <h3>Tile</h3>
+      <div class="ctrl-row"><div class="ctrl-label" title="Grid · Brick (every other row moves) · Half-drop (every other column moves) · Alternate (every other cell, as a checkerboard)">Layout</div>
+        <select class="panel-select" id="sel-tile-layout" aria-label="Layout">
+          <option value="grid" selected>Grid</option>
+          <option value="brick">Brick</option>
+          <option value="halfdrop">Half-drop</option>
+          <option value="alternate">Alternate</option>
+        </select>
+      </div>
+      <div class="ctrl-row" id="tile-offset-x-row" hidden>
+        <div class="ctrl-label" title="% of a cell width">Offset X</div>
+        <input type="range" id="rg-tile-offset-x" min="-50" max="50" step="1" value="0" aria-label="Offset X">
+        <span class="ctrl-val" id="v-tile-offset-x">0</span>
+      </div>
+      <div class="ctrl-row" id="tile-offset-y-row" hidden>
+        <div class="ctrl-label" title="% of a cell height">Offset Y</div>
+        <input type="range" id="rg-tile-offset-y" min="-50" max="50" step="1" value="0" aria-label="Offset Y">
+        <span class="ctrl-val" id="v-tile-offset-y">0</span>
+      </div>
+      <div class="ctrl-row" id="tile-top-row" hidden><div class="ctrl-label" title="Which cell is drawn on top where cells overlap: the whole cell, every layer. Reading order: each cell covers the one before it. The moved cells: they cover the others. The other cells: the moved ones go under them.">On top</div>
+        <select class="panel-select" id="sel-tile-top" aria-label="On top">
+          <option value="order" selected>Reading order</option>
+          <option value="moved">The moved cells</option>
+          <option value="still">The other cells</option>
+        </select>
+      </div>
+      <label class="check-row org-switch" id="tile-seamless-row"><input type="checkbox" id="chk-tile-seamless"><span>Tile seamlessly</span></label>
+    </div>
+
     <!-- Colourways (Oct 21, 2026 — Diego: "move it to the bottom of the component, make it a toggle", with Layer colour variants;
          design-system + content CONSULT the same day): two switches that make Generate multiply the Components by colour —
          by the layers' inks, and by the palette's colourways. A change lights Generate's dot (it is in the step block). -->
@@ -1608,7 +1643,7 @@
          it says how the one Component draws and behaves later, not what Generate makes -->
     <div class="panel-section ce-only">
       <h3>Role</h3>
-      <div class="ctrl-row"><div class="ctrl-label" title="How the cells’ inks draw where they overlap (raise Scale to make them overlap)">Blend</div>
+      <div class="ctrl-row"><div class="ctrl-label" title="How the cells’ inks draw where they overlap. Raise Scale, lower Gap or offset the cells in Tile to make them overlap">Blend</div>
         <select class="panel-select" id="sel-component-blend" aria-label="Blend"><option value="normal">Normal</option><option value="multiply">Multiply</option></select></div>
       <div class="ctrl-row"><div class="ctrl-label">Role</div>
         <select class="panel-select" id="sel-component-role" aria-label="Component role">

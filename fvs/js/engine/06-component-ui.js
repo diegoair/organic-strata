@@ -26,7 +26,7 @@ export function componentEditHitLayer(items, size, picked) {
   const dims = resolvedComponentDims(size);
   const halfX = dims.w / 2, halfY = dims.h / 2;
   return items.map((it, i) => {
-    const w = it.cellW || it.cellSize, h = it.cellH || it.cellSize, x = halfX + it.cx - w / 2, y = halfY + it.cy - h / 2;
+    const w = it.cellW || it.cellSize, h = it.cellH || it.cellSize, x = halfX + it.cx + (it.ox || 0) - w / 2, y = halfY + it.cy + (it.oy || 0) - h / 2;   // a Tile Offset moves the cell
     const sel = i === state.componentEditSelectedCell;
     const style = sel ? 'fill:transparent;stroke:var(--ink);stroke-width:3px;' : 'fill:transparent;';
     const cls = picked && picked.has(i) && !sel ? ' class="is-picked"' : '';   // picked for part colours, beside the edited cell

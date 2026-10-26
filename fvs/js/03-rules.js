@@ -43,7 +43,33 @@ export function setComponentGrid(spec, opts = {}) {
   syncComponentGridUI();
   if (!opts.silent) { hooks.syncRuleAvailability(); hooks.renderGallery(); }
 }
+// Tile (Oct 26, 2026): Offset and On top only when cells move; the whole section on square cells only
+export function syncTileUI() {
+  const lay = ctrl('sel-tile-layout').value, moves = lay !== 'grid';
+  ctrl('tile-section').hidden = state.cellShape !== 'square' || !!state.loomGrid;
+  ctrl('tile-offset-x-row').hidden = ctrl('tile-offset-y-row').hidden = ctrl('tile-top-row').hidden = !moves;
+}
+const TILE_PRESET = { brick: [50, 0], halfdrop: [0, 50], alternate: [25, 25] };   // choosing a Layout sets its usual offset
+const setTileVal = (k, v) => { ctrl('rg-tile-offset-' + k).value = v; ctrl('v-tile-offset-' + k).textContent = v; };
+// a saved Component's Tile back on the panel (its grid's `overlap`; absent = Grid, seamless off)
+export function applyTileUI(o) {
+  const lay = !o ? 'grid' : !o.x && !o.y && (o.top || 'order') === 'order' ? 'grid' : ({ rows: 'brick', cols: 'halfdrop', checker: 'alternate' })[o.by] || 'grid';
+  ctrl('sel-tile-layout').value = lay;
+  setTileVal('x', Math.round((o && o.x || 0) * 100)); setTileVal('y', Math.round((o && o.y || 0) * 100));
+  ctrl('sel-tile-top').value = (o && o.top) || 'order';
+  ctrl('chk-tile-seamless').checked = !!(o && o.wrap);
+  syncTileUI();
+}
+ctrl('sel-tile-layout').addEventListener('change', e => {
+  const p = TILE_PRESET[e.target.value];
+  if (p) { setTileVal('x', p[0]); setTileVal('y', p[1]); }
+  syncTileUI(); hooks.renderGallery(); hooks.renderSymbol();
+});
+['x', 'y'].forEach(k => ctrl('rg-tile-offset-' + k).addEventListener('input', e => { ctrl('v-tile-offset-' + k).textContent = e.target.value; hooks.renderGallery(); }));
+ctrl('sel-tile-top').addEventListener('change', () => { hooks.renderGallery(); hooks.renderSymbol(); });
+ctrl('chk-tile-seamless').addEventListener('change', () => { hooks.renderGallery(); hooks.renderSymbol(); });
 export function syncComponentGridUI() {
+  syncTileUI();
   const lattice = state.cellShape !== 'square';
   const legacy = !lattice && !!state.loomGrid;
   ctrl('grid-legacy-hint').hidden = !legacy;

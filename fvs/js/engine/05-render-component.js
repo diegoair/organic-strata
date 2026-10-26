@@ -11,7 +11,7 @@ import {
   componentRoleActive, resolvedComponentDims
 } from './03-rules.js';
 import {
-  appearanceIsIdentity, appearanceMatrix, componentBoundaryClipContent, getElementAppearance,
+  appearanceIsIdentity, appearanceMatrix, componentBoundaryClipContent, drawOrder, getElementAppearance,
   itemH, itemW, paintPaperPatternCanvas, paperPatternSVG, patternOf, resolveItemGeo, resolveUnderlyingComponent,
   paintPhotoCanvas, photoFrameAttr, photoFrameMatrix, photoImageTag, photoOf, photoPlan,
   stretchOpts, tileAt, withAppearance
@@ -444,17 +444,18 @@ export function withItemParts(it, g, fn) {
 // shape keep the cell-by-cell drawing (they work inside one cell). Paper rect, transforms and inks are unchanged.
 export function layerPasses(geo, items) {
   if (!geo || !geo.layers || geo.layers.length < 2 || items.some(it => it.content)) return null;
+  if (items.some(it => it.ov && it.ov.top !== 'order')) return null;   // Tile › On top: the cell on top covers the whole cell below (Diego, Oct 26, 2026)
   if (!geo.layers.every(l => (l.role || 'fill') === 'fill')) return null;
   return geo.layers.map(l => ({ ...geo, layers: [l] }));
 }
 // Clip to cell (Component, Oct 12, 2026): each cell's drawing cut to its own frame, in the Component's coordinates
 export const cellClipShape = (it, halfX, halfY) => (it.poly
   ? `<polygon points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`
-  : `<rect x="${(halfX + it.cx - itemW(it) / 2).toFixed(2)}" y="${(halfY + it.cy - itemH(it) / 2).toFixed(2)}" width="${itemW(it).toFixed(2)}" height="${itemH(it).toFixed(2)}"/>`);
+  : `<rect x="${(halfX + it.cx + (it.ox || 0) - itemW(it) / 2).toFixed(2)}" y="${(halfY + it.cy + (it.oy || 0) - itemH(it) / 2).toFixed(2)}" width="${itemW(it).toFixed(2)}" height="${itemH(it).toFixed(2)}"/>`);
 export function clipCellCanvas(ctx, it, halfX, halfY) {
   ctx.beginPath();
   if (it.poly) { it.poly.forEach((p, k) => (k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.closePath(); }
-  else ctx.rect(halfX + it.cx - itemW(it) / 2, halfY + it.cy - itemH(it) / 2, itemW(it), itemH(it));
+  else ctx.rect(halfX + it.cx + (it.ox || 0) - itemW(it) / 2, halfY + it.cy + (it.oy || 0) - itemH(it) / 2, itemW(it), itemH(it));   // a Tile Offset moves the cell
   ctx.clip();
 }
 export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply) {
@@ -516,7 +517,10 @@ export function drawComponentCanvas(ctx, items, seed, size) {
     if (shape) { ctx.save(); ctx.clip(shape); }
     hooks.fillPaper(ctx, state.paperColor, 0, 0, dims.w, dims.h);
     paintPaperPatternCanvas(ctx, dims.w, dims.h);
-    drawItemsPlain(ctx, items, geo, path, dims.w, dims.h, state.componentBlend === 'multiply');
+    const drawn = drawOrder(items);
+    if (drawn.length > items.length) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, dims.w, dims.h); ctx.clip(); }   // a Seamless repeat: one period
+    drawItemsPlain(ctx, drawn, geo, path, dims.w, dims.h, state.componentBlend === 'multiply');
+    if (drawn.length > items.length) ctx.restore();
     if (shape) ctx.restore();
     return;
   }
@@ -622,8 +626,10 @@ export function buildComponentSVGBody(items, seed, size) {
         + `<g mask="url(#${uid})"><rect width="${size2}" height="${size2}" fill="${state.paperColor}"/>${paperPatternSVG(size2, size2)}${underWrapped}</g>`;
     }
   } else {
-    const passes = layerPasses(geo, items);
-    for (const pass of (passes || [null])) for (const it of items) {
+    const drawn = drawOrder(items);   // Overlap: who is on top, and a Seamless repeat's copies (Oct 26, 2026)
+    const passes = layerPasses(geo, drawn);
+    let inks = '';
+    for (const pass of (passes || [null])) for (const it of drawn) {
       if (it.empty) continue;
       const fit = it.cellSize / 100;
       const sx = (it.flipH ? -1 : 1) * it.scale * fit * (it.kx || 1);
@@ -640,9 +646,12 @@ export function buildComponentSVGBody(items, seed, size) {
       const markup = (it.content && it.content.appearance) ? withAppearance(it.content.appearance, paint) : paint();
       const cell = `<g transform="translate(${(halfX + it.cx + (it.dx || 0)).toFixed(2)},${(halfY + it.cy + (it.dy || 0)).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
         + markup + `</g>`;
-      if (state.componentClip) { const cid = 'cellcut-' + nextDrawId(); body += `<clipPath id="${cid}">${cellClipShape(it, halfX, halfY)}</clipPath><g clip-path="url(#${cid})">${cell}</g>`; }
-      else body += cell;
+      if (state.componentClip) { const cid = 'cellcut-' + nextDrawId(); inks += `<clipPath id="${cid}">${cellClipShape(it, halfX, halfY)}</clipPath><g clip-path="url(#${cid})">${cell}</g>`; }
+      else inks += cell;
     }
+    // a Seamless repeat's copies reach past the frame: cut there, so a nested copy (Symbol, tile view) stays one period
+    if (drawn.length > items.length) { const fid = 'wrapcut-' + nextDrawId(); body += `<clipPath id="${fid}"><rect width="${dims.w}" height="${dims.h}"/></clipPath><g clip-path="url(#${fid})">${inks}</g>`; }
+    else body += inks;
   }
   // A cell-shape lattice: the canvas is the cells' own outline — Paper and cells clipped to it.
   if (latticeClip) body = `<clipPath id="${latticeClip}">${items.map(it => `<polygon points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}"/>`).join('')}</clipPath><g clip-path="url(#${latticeClip})">${body}</g>`;

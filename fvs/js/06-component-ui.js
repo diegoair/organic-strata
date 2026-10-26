@@ -845,7 +845,7 @@ export const generateBlock = () => genBlock;
 export function setGenerateBlock(why) { genBlock = why || ''; syncGenerateButton(); }
 export function generateInputsSig() {
   const vals = [state.cellShape];
-  document.querySelectorAll('.tier-block[data-tier="component"] > .panel-section.ce-hide :is(input, select)').forEach(el => {
+  document.querySelectorAll('.tier-block[data-tier="component"] > .panel-section.ce-hide:not(.no-gen-sig) :is(input, select)').forEach(el => {   // Tile draws, never decides (Oct 26, 2026)
     if (el.id) vals.push(el.id + '=' + (el.type === 'checkbox' ? el.checked : el.value));
   });
   return vals.join('|');

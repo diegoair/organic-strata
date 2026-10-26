@@ -1291,7 +1291,9 @@
   function frameDims(grid) {
     if (grid.kind === 'loom') return { w: grid.width, h: grid.height };
     const rows = grid.rows || grid.cols, a = grid.aspect > 0 ? grid.aspect : 1;   // a Rectangle Element's cells (Oct 23, 2026)
-    return { w: grid.cols * grid.cellSize * Math.min(1, a) + (grid.cols - 1) * grid.gap, h: rows * grid.cellSize * Math.min(1, 1 / a) + (rows - 1) * grid.gap };
+    // Seamless repeat (FVS Overlap, Oct 26, 2026): the frame is one period — cols × (cell + gap) — so its copies meet edge to edge
+    const g = grid.gap || 0, cg = grid.overlap && grid.overlap.wrap ? grid.cols * g : (grid.cols - 1) * g, rg = grid.overlap && grid.overlap.wrap ? rows * g : (rows - 1) * g;
+    return { w: grid.cols * grid.cellSize * Math.min(1, a) + cg, h: rows * grid.cellSize * Math.min(1, 1 / a) + rg };
   }
   function frameSize(grid) {
     const d = frameDims(grid);
