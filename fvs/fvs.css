@@ -393,8 +393,8 @@
   .fvs-layers .org-layer-card, .fg-list .org-layer-card { margin-bottom: var(--space-1); }   /* FVS's one compact flush list (Element Layers, Figure rule / Set lists) */
   .fvs-layers .org-layer-card__head, .fg-list .org-layer-card__head { gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1); }
   .fvs-layers .org-layer-card:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
-  /* Divide into parts: the parts sit in one group in the list; on the canvas (Edit parts) a part under the
-     pointer takes the tool tint, the edited / picked ones the selection outline with a paper halo (as .fg-cell.is-sel). */
+  /* Divide into parts: the parts sit in one group in the list; on the canvas (Edit parts) no outline at rest,
+     a 1px --ink line under the pointer, a 2px --ink outline on the picked ones (O-65, Oct 26, 2026). */
   /* picked rows (A, Oct 12, 2026): selection is --tool everywhere — a tint + a bar, not the hover wash */
   .fvs-layers .org-layer-card.is-picked { background: color-mix(in srgb, var(--tool) 12%, var(--panel)); }
   .fvs-layers .org-layer-card.is-picked:not(.in-group) { box-shadow: inset 2px 0 0 var(--tool); }
@@ -407,8 +407,8 @@
   /* at rest no outline; hover a 1px --ink line (as a Symbol empty cell) — --tool measured 2.97:1 on the light sheet (Diego, Oct 26, 2026) */
   .fvs-element-frame.is-part-edit .fvs-part > path { vector-effect: non-scaling-stroke; }
   @media (hover: hover) { .fvs-element-frame.is-part-edit .fvs-part:hover > path { stroke: var(--ink); stroke-width: 1px; } }
-  /* a picked part (B): a crisp --tool outline, as a picked Component Edit cell — the paper halo read as a blurred edge */
-  .fvs-element-frame.is-part-edit .fvs-part.is-sel > path, .fvs-element-frame.is-part-edit .fvs-part.is-group-hl > path { stroke: var(--tool); stroke-width: 2px; filter: none; }
+  /* a picked part: a crisp 2px --ink outline, as hover and the marquee (Diego, Oct 26, 2026 — was --tool since Oct 12, 2.97:1) */
+  .fvs-element-frame.is-part-edit .fvs-part.is-sel > path, .fvs-element-frame.is-part-edit .fvs-part.is-group-hl > path { stroke: var(--ink); stroke-width: 2px; filter: none; }
   .fvs-layer__main { all: unset; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); cursor: pointer; padding: var(--space-1) 0; }
   .fvs-layer__main:focus-visible, .fvs-layer__swatch:focus-visible { outline: 2px solid var(--ink); }
   .fvs-layer__icon { width: 16px; height: 16px; flex-shrink: 0; display: flex; }
