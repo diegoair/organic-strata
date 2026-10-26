@@ -301,7 +301,7 @@ function mountElementBoard() {
     applyGallery(next.gallery);
     onAppearanceChange(); renderGallery(); renderSeedPreview();
     selectSheets(B, [sheetId(id)]);
-    relabel(); save(); B.save();
+    relabel(); save(); B.save(); rebase();
   }
   function add() {
     snap();
@@ -316,6 +316,27 @@ function mountElementBoard() {
   // Undo (Diego, Oct 11, 2026): Delete and Clear board each keep a step — the list and the places as they were
   const undoStack = [], UNDO_MAX = 20, undoBtn = ctrl('btn-board-undo-element');
   const syncUndo = () => { undoBtn.disabled = !undoStack.length; };
+  // …and every edit to the Element (Diego, Oct 26, 2026: "sull'element metti i comandi cmd z e undo"): a change that
+  // settles (500 ms after the last input / click — a slider drag is one step) keeps what the Element was before it
+  let editBase = null, editT = 0;
+  const editSnap = () => { const e = find(active()); return e ? { el: e.id, seed: clone(e.seed), app: clone(e.app), palette: clone(e.palette) } : null; };
+  const editKey = u => JSON.stringify([u.seed, u.app, u.palette]);
+  const rebase = () => { clearTimeout(editT); editT = 0; snap(); editBase = editSnap(); };
+  function noteEdit() {
+    clearTimeout(editT); editT = 0;
+    if (state.activeTier !== 'element' || !idle()) return;
+    snap();
+    const now = editSnap();
+    if (!now) return;
+    if (editBase && editBase.el === now.el && editKey(editBase) !== editKey(now)) {
+      undoStack.push({ kind: 'edit', ...editBase });
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+      syncUndo();
+    }
+    editBase = now;
+  }
+  const editLater = () => { if (state.activeTier !== 'element') return; clearTimeout(editT); editT = setTimeout(noteEdit, 500); };
+  ['input', 'change', 'pointerup', 'keyup'].forEach(t => document.addEventListener(t, editLater, true));
   function pushUndo() {
     snap();
     undoStack.push({ items: clone(state.elements), active: active(), pos: clone(B.pos) });
@@ -323,8 +344,19 @@ function mountElementBoard() {
     syncUndo();
   }
   function undo() {
+    if (state.activeTier === 'element') noteEdit();   // a change not settled yet is a step of its own first
     const u = undoStack.pop();
     if (!u) return;
+    if (u.kind === 'edit') {   // an edit: the Element as it was before it
+      if (!find(u.el)) { syncUndo(); return; }
+      if (rt.partEdit) setPartEdit(false);
+      if (u.el !== active()) activate(u.el);
+      applyElementSnapshot(clone(u.seed), clone(u.app));
+      applyPalette(clone(u.palette));
+      onAppearanceChange(); renderGallery(); renderSeedPreview();
+      rebase(); nameNow(); relabel(); save(); syncUndo(); syncClear();
+      return;
+    }
     if (u.kind === 'parts') {   // Delete on parts: the parts come back (on their Element, edited again if another is)
       if (!find(u.el)) { syncUndo(); return; }
       if (u.el !== active()) activate(u.el);
@@ -340,7 +372,7 @@ function mountElementBoard() {
   }
   undoBtn.addEventListener('click', undo);
   document.addEventListener('keydown', e => {
-    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || state.activeTier !== 'element' || !undoStack.length) return;
+    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || state.activeTier !== 'element' || (!undoStack.length && !editT)) return;   // editT: a change still settling
     if (fvsIsTypingTarget(e.target) || (pv('sel-seed-type') === 'freehand' && fhCanUndo())) return;   // text fields keep their own undo; a drawing with points keeps ⌘Z (12-shell.js), a blank one leaves it here
     e.preventDefault(); undo();
   });
@@ -373,7 +405,7 @@ function mountElementBoard() {
     applyPalette(cur.palette);
     applyGallery(cur.gallery);
     onAppearanceChange(); renderGallery(); renderSeedPreview();
-    layout();
+    layout(); rebase();
   }
   // first: the list as saved (or one Element, the one the page opened with)
   const first = readElements();
@@ -381,7 +413,7 @@ function mountElementBoard() {
   else {
     state.elements = [{ id: newId(), name: shapeName(BOOT.seed), custom: false, seed: clone(BOOT.seed), app: clone(BOOT.app), palette: livePalette() }];
     state.activeElement = state.elements[0].id;
-    layout();
+    layout(); rebase();
   }
   addSheet(B, 'new-element', 'New element', 0, 0, ctrl('board-new-element'));
   placeAdd();
@@ -450,7 +482,7 @@ function mountElementBoard() {
     applyPalette(NEW_PALETTE);
     applyGallery(null);
     onAppearanceChange(); renderGallery(); renderSeedPreview();
-    relabel(); save(); B.save();
+    relabel(); save(); B.save(); rebase();
     placeAdd();
     requestAnimationFrame(() => B.fit());
   }

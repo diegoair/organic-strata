@@ -48,7 +48,7 @@ export async function openChrome({ timeoutMs = 600000, width = 1440, height = 90
   ws.addEventListener('message', e => {
     const m = JSON.parse(e.data);
     if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); return; }
-    if (m.method === 'Runtime.exceptionThrown') errors.push('exception: ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text || '').split('\n')[0]);
+    if (m.method === 'Runtime.exceptionThrown') errors.push('exception: ' + (m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text || '').split('\n').slice(0, process.env.STACK ? 6 : 1).join(' ‹ '));
     else if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'error') errors.push('console.error: ' + m.params.args.map(a => a.value ?? a.description ?? '').join(' ').slice(0, 200));
   });
   const cdp = (method, params = {}) => new Promise(r => { const i = ++nid; pend.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
@@ -56,7 +56,7 @@ export async function openChrome({ timeoutMs = 600000, width = 1440, height = 90
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   async function ev(body, prelude = '') {
     const r = await cdp('Runtime.evaluate', { expression: `(async () => { ${prelude}\n${body} })()`, awaitPromise: true, returnByValue: true });
-    if (r.result?.exceptionDetails) throw new Error('page: ' + (r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text).split('\n')[0]);
+    if (r.result?.exceptionDetails) throw new Error('page: ' + (r.result.exceptionDetails.exception?.description || r.result.exceptionDetails.text).split('\n').slice(0, process.env.STACK ? 6 : 1).join(' ‹ '));
     return r.result?.result?.value;
   }
   async function goto(p, readyExpr) {
