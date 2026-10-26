@@ -45,6 +45,7 @@ import { ANCHOR_POSITIONS, buildSymbolLibraryEntry } from './engine/11-symbol-ui
 import { symbolCanvasOf, withPlacementDefaults } from './engine/08-symbol-grid.js';
 import { applySymbolCanvasToUI, syncOverlapSection } from './08-symbol-grid.js';
 import { renderSymbolPool } from './10-suggest.js';
+import { showGroundControls } from './04-appearance.js';
 import {
   fvsIsTypingTarget, galleryZoomTo, onAppearanceChange, setPaperUI, setTier
 } from './12-shell.js';
@@ -63,7 +64,7 @@ provide({
   boardComponentEdit: () => componentEdit, boardTierShown: () => boardTierShown,
   elementPalettes: () => elementPalettes, boardSymbolDrawn: () => symbolDrawn,
   boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries, generateAllElements: () => generateAllElements,
-  syncCeCellProps: () => syncCeCellProps
+  syncCeCellProps: () => syncCeCellProps, symbolPaletteSwap: () => symbolPaletteSwap, syncSymbolPaletteHint: () => syncSymbolPaletteHint
 });
 
 const escAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -117,7 +118,38 @@ function applyPalette(p) {
   syncColorRuleUI(); buildPalette();
   setPaperUI(p.paperColor);
 }
-// draw with an Element's own Palette for the length of fn (its sheet and Views on the board)
+// The Symbol's own Palette (Oct 26, 2026 — Diego: a Paper changed on the Symbol step changed the Element and its
+// Components): inks + Colour by + Paper + Paper texture. The Symbol follows the edited Element's Palette until its own is
+// changed on the Symbol step; from then on it keeps its own (state.symbolPalette.own). The panel works on one Palette
+// at a time, so changing step swaps it: entering the Symbol the edited Element's goes back on its Element (the board's
+// snap()) and the Symbol's comes in; leaving it, the Symbol's is kept — marked own if it differs from what it came in
+// with — and the edited Element's comes back. While on the Symbol step snap() writes nothing into the Element (idle()).
+const livePaletteWithGround = () => ({ ...livePalette(), ground: clone(getElementAppearance().ground || null) });
+const paletteKey = p => JSON.stringify([p.colors, p.colorRule, p.paperColor, p.ground || null]);
+let symbolPaletteIn = null;   // the Palette the Symbol came in with this visit
+// "Palette · Symbol’s own" only while it is: changed on the Symbol step (now, or on an earlier visit)
+function syncSymbolPaletteHint() {
+  const own = state.activeTier === 'symbol' && ((state.symbolPalette && state.symbolPalette.own) || (symbolPaletteIn != null && paletteKey(livePaletteWithGround()) !== symbolPaletteIn));
+  ctrl('palette-symbol-hint').hidden = !own;
+}
+function symbolPaletteSwap(from, to) {
+  if (from === to || (from !== 'symbol' && to !== 'symbol')) return;
+  if (to === 'symbol') {
+    if (typeof elementSaveNow === 'function') elementSaveNow();   // the Element's Palette goes back on it first
+    const own = state.symbolPalette && state.symbolPalette.own;
+    const p = own ? state.symbolPalette : { ...livePaletteWithGround(), own: false };   // not changed here yet: the Element's, as it is now
+    symbolPaletteIn = paletteKey(p);
+    applyPalette(p);
+    showGroundControls(p.ground || null);
+  } else {
+    const now = livePaletteWithGround(), was = state.symbolPalette;
+    state.symbolPalette = { ...now, own: !!(was && was.own) || paletteKey(now) !== symbolPaletteIn };
+    const e = state.elements.find(x => x.id === state.activeElement);
+    applyPalette(e && e.palette);
+    showGroundControls(e && e.app ? e.app.ground || null : null);
+  }
+  onAppearanceChange();
+}
 function withPalette(p, fn) {
   p = p || DEFAULT_PALETTE;
   const prev = { colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor };
@@ -170,7 +202,7 @@ function mountElementBoard() {
   const active = () => state.activeElement;
   const sheetId = id => 'el-' + id, viewsId = id => 'vw-' + id;
   const save = () => writeElements();
-  const idle = () => !state.componentEditMode && !state.preFigureSnapshot;   // the panel is the active Element (not a cell's scratch pad, not Figure's sandbox)
+  const idle = () => !state.componentEditMode && !state.preFigureSnapshot && state.activeTier !== 'symbol';   // the panel is the active Element (not a cell's scratch pad, not Figure's sandbox, not the Symbol's own Palette)
   const snap = () => { const e = find(active()); if (e && idle()) { e.seed = clone(seedForSnapshot()); e.app = clone(getElementAppearance()); e.palette = livePalette(); e.gallery = liveGallery(); } };
   const drawn = e => withPalette(e.palette, () => withAppearance(e.app, () => buildSeedPreviewSVG(e.seed, 0, false, false, 400, { outline: true })));
   // each Element has its Views above it: the active one's is FVS's live strip, the others are drawn from their snapshot —
@@ -902,20 +934,22 @@ function mountSymbolBoard() {
 
   // The working Symbol is kept across reloads (Diego, Oct 11, 2026 — it lived in memory only): its grid and Canvas,
   // cells, pool, Arrange and rule settings, clip and overlap, in the user's account (Organica.store, signed out = this
-  // browser's cache), saved a moment after each redraw and on leaving. NOT its colours, Paper or look: those belong to
-  // the edited Element (O-67 c), so restoring them would overwrite its Palette. Saving to the library is unchanged.
+  // browser's cache), saved a moment after each redraw and on leaving — with its own Palette (`palette`, Oct 26, 2026;
+  // until then the Symbol drew with the edited Element's and changing it there changed the Element). Library unchanged.
   const WORK = Organica.store('fvs-symbol-work');
   const workOf = () => {
     const e = buildSymbolLibraryEntry();
     if (!e) return null;
     ['colors', 'colorRule', 'paperColor', 'appearance', 'savedAt'].forEach(k => delete e[k]);
+    e.palette = state.activeTier === 'symbol' ? { ...livePaletteWithGround(), own: !!(state.symbolPalette && state.symbolPalette.own) || paletteKey(livePaletteWithGround()) !== symbolPaletteIn } : state.symbolPalette;   // the Symbol's own Palette (Oct 26, 2026)
     return JSON.parse(JSON.stringify(e));
   };
   const saveWork = () => { const w = workOf(); if (w) { try { WORK.write({ current: w }); } catch (err) {} } };
   let saveT = 0;
-  symbolDrawn = () => { clearTimeout(saveT); saveT = setTimeout(saveWork, 600); };
+  symbolDrawn = () => { clearTimeout(saveT); saveT = setTimeout(saveWork, 600); syncSymbolPaletteHint(); };   // a Palette change on the Symbol redraws it: the hint follows
   window.addEventListener('pagehide', () => { clearTimeout(saveT); saveWork(); });
   function applyWork(w) {
+    if (w.palette) { state.symbolPalette = w.palette; if (state.activeTier === 'symbol' && w.palette.own) { applyPalette(w.palette); showGroundControls(w.palette.ground || null); symbolPaletteIn = paletteKey(w.palette); } }
     state.symbolGrid = Organica.loadLoomGrid(w.gridModel);
     const cv = symbolCanvasOf(state.symbolGrid);
     if (cv) applySymbolCanvasToUI(cv);

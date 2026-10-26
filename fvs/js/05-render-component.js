@@ -478,7 +478,7 @@ export const drawIdFree = svg => {
 // list = new thumbnails): a save, a selection or a redraw that changes nothing visible only updates classes, the
 // caption and the save circle, instead of re-creating and re-painting every SVG.
 // A kept SVG keeps its own ids, still unique on the page (the counter only goes up).
-const galleryThumbs = new WeakMap();   // comp → { key, wrap, btn, cap, quickSave, savedName }
+const galleryThumbs = new WeakMap();   // comp → { key, wrap, btn, cap, quickSave, saveKey }
 // One Component's thumbnail SVG — the edited Element's area and the other Elements' (18-step-boards.js, drawn with their
 // own Element / Palette / appearance) both draw through it.
 export function componentThumbMarkup(comp, grid, seed, size) {
@@ -562,10 +562,13 @@ function renderGalleryNow() {
 
   syncSelectedColourway();
   const wraps = [];
+  const versionMemo = hooks.savedVersionMemo();   // the live panel, read once for every thumbnail's saved-version check
   for (const comp of state.components) {
     const cg = gridOf(comp), svgStr = componentThumbMarkup(comp, cg, seed, comp.grid ? frameDims(cg) : size);   // a Component with its own grid (Edit) draws on it
     const isSelected = comp.id === state.selectedId && state.selectionExplicit;
-    const thumbClass = 'fvs-thumb' + (isSelected ? ' selected' : '') + (comp.savedName ? ' saved-in-library' : '');
+    const saved = hooks.savedVersionOf(comp, versionMemo), earlier = saved ? null : hooks.earlierVersionOf(comp, versionMemo);   // ✓ = this drawing is saved (by content)
+    const saveKey = (saved || '') + '|' + (earlier || '');
+    const thumbClass = 'fvs-thumb' + (isSelected ? ' selected' : '') + (saved ? ' saved-in-library' : '');
     const caption = componentCaption(comp);
     const key = drawIdFree(svgStr);
     const kept = galleryThumbs.get(comp);
@@ -573,10 +576,10 @@ function renderGalleryNow() {
       if (kept.btn.className !== thumbClass) kept.btn.className = thumbClass;
       kept.btn.setAttribute('aria-label', `Component ${ruleLabel(comp.ruleSource)} ${comp.id}${xfLabel(comp)} — double-click to edit`);
       if (kept.btn.title !== caption) { kept.btn.title = caption; kept.cap.textContent = caption; }
-      if (kept.savedName !== (comp.savedName || null)) {   // the save circle carries the name in its label / its click
-        const q = galleryQuickSave(comp);
+      if (kept.saveKey !== saveKey) {   // the save circle carries the name in its label / its click
+        const q = galleryQuickSave(comp, saved, earlier);
         kept.quickSave.replaceWith(q);
-        kept.quickSave = q; kept.savedName = comp.savedName || null;
+        kept.quickSave = q; kept.saveKey = saveKey;
       }
       wraps.push(kept.wrap);
       continue;
@@ -594,13 +597,12 @@ function renderGalleryNow() {
     // Hover-only quick-save — a sibling of the thumb button, not nested in
     // it (a <button> inside a <button> is invalid HTML), positioned over
     // its top-right corner by .fvs-thumb-wrap's own `position: relative`.
-    // Once a candidate is saved (comp.savedName), the ✓ stays put — no
-    // fade, no revert to "+" — since renderGallery() rebuilds this button
-    // from comp.savedName whenever that changes, not from transient DOM state.
+    // ✓ while the library holds this exact drawing (savedVersionOf, by content — Oct 26, 2026); an Element edit turns it
+    // back into + (which then saves this version as another), and renderGallery() rebuilds the circle when that changes.
     // Hovering that ✓ swaps it to a delete "×" (mouseenter/leave, not CSS
     // content, since the label/title need to change too for a11y) — a
     // click then removes the saved entry instead of re-saving it.
-    const quickSave = galleryQuickSave(comp);
+    const quickSave = galleryQuickSave(comp, saved, earlier);
     // Component Edit: a double-click on the thumbnail (18-step-boards.js), or Enter on the one already selected — the
     // keyboard's way in since the hover pencil went (Oct 11, 2026)
     const cid = comp.id;
@@ -612,7 +614,7 @@ function renderGalleryNow() {
     cap.className = 'fvs-thumb-caption';
     cap.textContent = caption;
     wrap.append(btn, quickSave, cap);
-    galleryThumbs.set(comp, { key, wrap, btn, cap, quickSave, savedName: comp.savedName || null });
+    galleryThumbs.set(comp, { key, wrap, btn, cap, quickSave, saveKey });
     wraps.push(wrap);
   }
   // in order, moving only what moved; thumbnails of candidates no longer listed go
@@ -767,12 +769,13 @@ function layoutGalleryGroups(gallery, list, wraps) {
     if (cap && lab && G.cols > 1 && !colDone.has(ck) && row === top[ck]) { colDone.add(ck); cap.dataset.colLabel = lab; }   // on the caption: attr() reads its own element
   });
 }
-// The thumbnail's save circle — rebuilt (alone) when the candidate's saved name changes.
-function galleryQuickSave(comp) {
+// The thumbnail's save circle — rebuilt (alone) when its saved version changes. saved: the saved Component that draws
+// exactly this (✓); earlier: the one it was saved as before the Element changed (+ saves this version as another).
+function galleryQuickSave(comp, saved, earlier) {
   return quickSaveButton({
-    savedName: comp.savedName,
-    labelSave: 'Save to library',
-    labelSaved: `Saved to library as "${comp.savedName}"`,
+    savedName: saved,
+    labelSave: earlier ? `Save this version to library — an earlier version is saved as “${earlier}”` : 'Save to library',
+    labelSaved: `Saved to library as “${saved}”`,
     labelRemove: 'Remove from library',
     onSave: () => hooks.quickSaveComponentToLibrary(comp.id),
     onRemove: () => hooks.deleteQuickSavedComponent(comp.id),

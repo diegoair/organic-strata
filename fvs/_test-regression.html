@@ -50,6 +50,7 @@ async function battery() {
     if (state.layers) { state.layers = null; renderLayersUI(); }
     state.colors = ['#000000']; state.colorRule = { ...DEFAULT_COLOR_RULE }; state.paperColor = '#ffffff';
     syncColorRuleUI(); buildPalette();
+    state.symbolPalette = null;   // the battery paints one Palette and reads it on every step (the Symbol's own Palette: scripts/test-fvs-versions.sh)
     chg('sel-element-fillmode', 'fill'); setComponentGrid('square2x2');
   };
 

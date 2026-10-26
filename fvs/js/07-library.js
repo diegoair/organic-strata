@@ -21,8 +21,8 @@ import {
   LAYER_ROLES, layerInkColor, layerPlace, withEntryInks
 } from './engine/05-render-component.js';
 import {
-  LAYER_NEW_INKS, LAYER_ROLE_ORDER, LIBRARY, buildComponentSVGWithPaper, buildLibraryEntryFor, hexKey,
-  layerName, libraryNames, newLayerId, readLookControls, syncActiveLayer, uniqueLibraryName
+  LAYER_NEW_INKS, LAYER_ROLE_ORDER, LIBRARY, buildComponentSVGWithPaper, buildLibraryEntryFor, entryVersionKey, hexKey,
+  layerName, libraryNames, newLayerId, readLookControls, savedVersionMemo, syncActiveLayer, uniqueLibraryName
 } from './engine/07-library.js';
 import {
   addSavedToPool
@@ -86,6 +86,7 @@ const escGroup = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(
 provide({
   applyElementSnapshot: () => applyElementSnapshot, applyPanelSeedRaw: () => applyPanelSeedRaw, applySeedToPanel: () => applySeedToPanel, enterElementEdit: () => enterElementEdit,
   deleteQuickSavedComponent: () => deleteQuickSavedComponent,
+  savedVersionOf: () => savedVersionOf, earlierVersionOf: () => earlierVersionOf, savedVersionMemo: () => savedVersionMemo,
   quickSaveComponentToLibrary: () => quickSaveComponentToLibrary, renderLayersUI: () => renderLayersUI,
   layerPanelSeed: () => layerPanelSeed, showLayerStyle: () => showLayerStyle, syncComponentRoleUI: () => syncComponentRoleUI
 });
@@ -104,6 +105,62 @@ provide({
 // becomes a delete toggle (deleteQuickSavedComponent below) — a fresh save
 // always mints a new entry (or dedupes), it never silently overwrites an
 // existing one.
+// ── Saved versions (Oct 26, 2026 — Diego: an edited Element left its saved Components ✓, and the only way to save the
+// new look deleted the old one). A gallery Component is ✓ only while the library holds the same drawing (by content,
+// entryVersionKey — as Saved Elements); comp.savedName stays as the link to the version it was saved as, so + can say
+// "an earlier version is saved as …" and the Library view can Replace that version with this one.
+let libraryVersions = { key: null, map: null };
+function libraryVersionMap() {
+  const all = LIBRARY.peek(), key = Object.keys(all).map(n => n + '\u0000' + (all[n].savedAt || '') + (all[n].hidden ? 'h' : '')).join('\u0001');
+  if (libraryVersions.key !== key) {
+    const map = new Map();
+    Object.keys(all).forEach(n => {   // a deleted one kept hidden for a Symbol is not 'saved'
+      const e = all[n];
+      if (e && e.component && !e.hidden && !map.has(entryVersionKey(e))) map.set(entryVersionKey(e), n);
+    });
+    libraryVersions = { key, map };
+  }
+  return libraryVersions.map;
+}
+// the name of the saved Component that draws exactly what this one draws, or null; memo = savedVersionMemo() for a gallery
+export function savedVersionOf(comp, memo) {
+  const e = comp && buildLibraryEntryFor(comp, memo);
+  return e ? libraryVersionMap().get(entryVersionKey(e)) || null : null;
+}
+export { savedVersionMemo };
+// every version this Component was saved as, newest last (comp.savedNames; comp.savedName = the newest — older saves have
+// only that one); a version removed from the library drops out, so the one before it is the earlier version again
+const versionsOf = comp => (comp.savedNames || (comp.savedName ? [comp.savedName] : [])).filter(n => LIBRARY.peek()[n] && !LIBRARY.peek()[n].hidden);
+function noteSaved(comp, name) {
+  comp.savedNames = [...(comp.savedNames || (comp.savedName ? [comp.savedName] : [])).filter(n => n !== name), name];
+  comp.savedName = name;
+}
+// the newest version this Component was saved as, when it no longer draws the same (the + names it; Replace takes it)
+export function earlierVersionOf(comp, memo) {
+  if (!comp) return null;
+  const now = savedVersionOf(comp, memo), vs = versionsOf(comp).filter(n => n !== now);
+  return now ? null : vs[vs.length - 1] || null;
+}
+// Library view › Replace: the saved Component gets the current version of the gallery Component saved as it (same name,
+// so every Symbol that uses it changes too — hence the confirm)
+export function replaceableBy(name) {
+  if (!LIBRARY.peek()[name]) return null;
+  const memo = savedVersionMemo();
+  return state.components.find(c => versionsOf(c).includes(name) && savedVersionOf(c, memo) !== name) || null;
+}
+export async function replaceSavedComponent(name) {
+  const comp = replaceableBy(name);
+  if (!comp) return false;
+  if (Organica.confirm && !(await Organica.confirm({ title: `Replace the saved Component “${name}”?`, message: 'It gets the current version. Symbols that use it change too.', ok: 'Replace' }))) return false;
+  const entry = buildLibraryEntryFor(comp), all = LIBRARY.read();
+  if (!entry || !all[name]) return false;
+  all[name] = { ...entry, ...(all[name].hidden ? { hidden: true } : {}) };
+  if (!LIBRARY.write(all)) return false;
+  renderLibrary(); renderGallery();
+  if (hooks.renderSymbol) hooks.renderSymbol();
+  Organica.notice('Component replaced', { kind: 'info' });
+  return true;
+}
 export function quickSaveComponentToLibrary(compId, chosen) {
   const comp = state.components.find(c => c.id === compId);
   const entry = buildLibraryEntryFor(comp);
@@ -115,7 +172,7 @@ export function quickSaveComponentToLibrary(compId, chosen) {
   addSavedToPool(name);
   state.selectedId = comp.id;
   state.selectionExplicit = true;
-  comp.savedName = name;
+  noteSaved(comp, name);
   renderLibrary();
   renderGallery();
 }
@@ -128,9 +185,10 @@ export function saveAllComponentsToLibrary() {
   const all = LIBRARY.read();
   const time = new Date().toLocaleTimeString();
   const added = [];   // [comp, name]
+  const memo = savedVersionMemo();
   state.components.forEach(comp => {
-    if (comp.savedName && all[comp.savedName]) return;
-    const entry = buildLibraryEntryFor(comp);
+    if (savedVersionOf(comp, memo)) return;   // this drawing is saved already (an earlier version is not: it is saved as a new one)
+    const entry = buildLibraryEntryFor(comp, memo);
     if (!entry) return;
     const base = ruleLabel(comp.ruleSource) + ' ' + time;
     let name = base, i = 2;
@@ -140,7 +198,7 @@ export function saveAllComponentsToLibrary() {
   });
   if (!added.length) return;
   if (!LIBRARY.write(all)) return;   // storage full: the store showed the notice — nothing is marked saved
-  added.forEach(([comp, name]) => { comp.savedName = name; addSavedToPool(name); });
+  added.forEach(([comp, name]) => { noteSaved(comp, name); addSavedToPool(name); });
   renderLibrary();
   renderGallery();
   Organica.notice(`Saved ${added.length} Component${added.length === 1 ? '' : 's'}`, { kind: 'info' });
@@ -151,10 +209,11 @@ export function saveAllComponentsToLibrary() {
 // the Library section's own "×" tile calls), then clears the marker so
 // the thumbnail's button reverts to a plain hover-only "+".
 export function deleteQuickSavedComponent(compId) {
-  const comp = state.components.find(c => c.id === compId);
-  if (!comp || !comp.savedName) return;
-  hooks.deleteSaved('component', comp.savedName);   // kept hidden while a Symbol / Container still uses it
-  comp.savedName = null;
+  const comp = state.components.find(c => c.id === compId), name = comp && savedVersionOf(comp);
+  if (!name) return;   // the ✓ is this drawing's saved version — only that one goes, never another
+  hooks.deleteSaved('component', name);   // kept hidden while a Symbol / Container still uses it
+  comp.savedNames = versionsOf(comp).filter(n => n !== name);   // the one before it is the earlier version again
+  comp.savedName = comp.savedNames[comp.savedNames.length - 1] || null;
   renderGallery();
 }
 
@@ -162,7 +221,7 @@ export function removeLibraryEntry(name) {
   const all = LIBRARY.read();
   delete all[name];
   LIBRARY.write(all);
-  state.components.forEach(c => { if (c.savedName === name) delete c.savedName; });   // the gallery's saved ✓ must follow
+  state.components.forEach(c => { if (c.savedNames) c.savedNames = c.savedNames.filter(n => n !== name); if (c.savedName === name) { const v = c.savedNames || []; if (v.length) c.savedName = v[v.length - 1]; else delete c.savedName; } });   // the saved-version links must follow
   renderLibrary();
 }
 

@@ -113,6 +113,7 @@ export function setTier(tier) {
   // stuck in their edit-mode state the next time Component tier is shown.
   if (state.componentEditMode && tier !== 'component') exitComponentEditMode();
   const prevTier = state.activeTier;
+  if (hooks.symbolPaletteSwap) hooks.symbolPaletteSwap(prevTier, tier);   // the Symbol keeps its own Palette (before the step changes, so the Element's is saved on it)
   // See snapshotComponentElementState()/restoreComponentElementState() —
   // Figure is a sandbox; entering it captures how Element/Component looked,
   // leaving it back to either of those tiers puts it back exactly as it was,
@@ -136,6 +137,7 @@ export function setTier(tier) {
   ctrl('fb-element-actions').hidden = !(tier === 'element');
   ctrl('fb-component-actions').hidden = !(tier === 'component');
   ctrl('fb-symbol-actions').hidden = !(tier === 'symbol');
+  if (hooks.syncSymbolPaletteHint) hooks.syncSymbolPaletteHint(); else ctrl('palette-symbol-hint').hidden = true;   // “Symbol’s own” only once it is (Oct 26, 2026)
   ctrl('fb-figure-actions').hidden = !(tier === 'figure' && !document.body.classList.contains('fg-composing'));
   ctrl('fb-compose-actions').hidden = !(tier === 'figure' && document.body.classList.contains('fg-composing'));
   ctrl('fg-nodebar-dock').hidden = tier !== 'figure';   // the left dock: Library rail on the other steps, the node bar here

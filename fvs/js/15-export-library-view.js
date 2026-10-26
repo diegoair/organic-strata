@@ -55,7 +55,7 @@ import {
 import {
   applyElementSnapshot, applyLibraryEntryToUI, closeUnderlyingComponentPicker,
   openUnderlyingComponentPicker, removeLibraryEntry, removeUnderlyingComponent, renameLibraryEntry,
-  renderLibrary, saveAllComponentsToLibrary, syncComponentRoleUI
+  renderLibrary, replaceSavedComponent, replaceableBy, saveAllComponentsToLibrary, syncComponentRoleUI
 } from './07-library.js';
 import {
   renderSymbolPool
@@ -465,7 +465,7 @@ export async function railRename(kind, name) {
   }
   if (kind === 'component') {
     renameLibraryEntry(name, next);
-    state.components.forEach(c => { if (c.savedName === name) c.savedName = next; });
+    state.components.forEach(c => { if (c.savedName === name) c.savedName = next; if (c.savedNames) c.savedNames = c.savedNames.map(n => (n === name ? next : n)); });   // the saved-version history follows a rename
     renderGallery();
     return;
   }
@@ -570,7 +570,7 @@ export function deleteSavedComponent(name) {
   const all = LIBRARY.read();
   if (!all[name]) return;
   state.symbolPool = state.symbolPool.filter(p => p.name !== name);
-  state.components.forEach(c => { if (c.savedName === name) delete c.savedName; });
+  state.components.forEach(c => { if (c.savedNames) c.savedNames = c.savedNames.filter(n => n !== name); if (c.savedName === name) { const v = c.savedNames || []; if (v.length) c.savedName = v[v.length - 1]; else delete c.savedName; } });
   if (componentUsage(name).total) {
     const key = name + ' (deleted ' + Date.now().toString(36) + ')';
     renameLibraryEntry(name, key);   // repoints every user to the hidden key
@@ -633,6 +633,12 @@ export function libviewTile(kind, item) {
   const fmt = f => { const x = document.createElement('button'); x.type = 'button'; x.className = 'mini-btn'; x.dataset.lvAct = f; x.textContent = f.toUpperCase(); x.setAttribute('aria-label', 'Download ' + item.name + ' as ' + f.toUpperCase()); return x; };
   if (kind !== 'genesis') {
     acts.append(act('pencil', 'rename', 'Rename ' + item.name), act('copy', 'duplicate', 'Duplicate ' + item.name));
+  }
+  // Replace (Oct 26, 2026): a saved Component whose gallery Component now draws differently can take the current version
+  if (kind === 'component' && replaceableBy(item.name)) {
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'mini-btn'; x.dataset.lvAct = 'replace';
+    x.textContent = 'Replace'; x.setAttribute('aria-label', 'Replace ' + item.name + ' with the current version');
+    acts.append(x);
   }
   acts.append(fmt('svg'), fmt('png'));
   if (kind !== 'genesis') acts.append(act('trash', 'delete', 'Delete ' + item.name));   // one click (Diego: "delete is delete")
@@ -739,6 +745,7 @@ ctrl('fvs-libview').addEventListener('click', async e => {
   const verb = act.dataset.lvAct, status = ctrl('libview-status');
   if (verb === 'svg' || verb === 'png') { libviewDownload(kind, name, verb); return; }
   if (verb === 'rename') { await railRename(kind, name); renderLibview(); status.textContent = KIND_WORD[kind] + ' renamed'; return; }
+  if (verb === 'replace') { replaceSavedComponent(name).then(done => { if (done) renderLibview(); }); return; }   // replaceSavedComponent says so (one notice)
   if (verb === 'duplicate') { if (duplicateSaved(kind, name)) { renderLibview(); status.textContent = KIND_WORD[kind] + ' duplicated'; } return; }
   if (verb === 'delete') { deleteSaved(kind, name); renderLibview(); status.textContent = KIND_WORD[kind] + ' deleted'; syncLibviewButton(); }
 });

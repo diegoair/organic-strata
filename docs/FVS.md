@@ -641,6 +641,15 @@ The **Role** section (Blend · Role) shows only in **Component Edit** (Diego, Oc
   thumbnail while the Symbol kept drawing the saved Component). `scripts/test-fvs-pipeline.sh` follows one Component
   Element → gallery → saved → edited → Symbol on 11 cases (paper colours, transparent, Paper patterns, inks, Colour by,
   Style, stretch, layers) and a saved Element dropped in a Symbol.
+- **Saved versions** (Oct 26, 2026 — Diego): a Generated component's save circle follows **what it draws** — ✓ only
+  while the library holds that exact drawing (`entryVersionKey`: seed, look, grid, inks, Colour by, Paper, cells, role,
+  blend, clip — never the name or time), as Saved Elements do. Editing the Element turns it back into **+**, named
+  *Save this version to library — an earlier version is saved as “‹name›”*, which saves the new version as **another**
+  Component (the earlier one stays, and so do the Symbols using it); going back to the saved look lights ✓ again; ✓
+  removes only its own version. `comp.savedNames` keeps the history (newest last, kept across reloads with the Element's
+  Generated components). **Save all** skips what is saved by content. The Library view's tile then offers **Replace** on
+  the earlier version (*Replace ‹name› with the current version*, a confirm — *Symbols that use it change too*): the saved
+  Component takes the current version under the same name. Test: `scripts/test-fvs-versions.sh`.
 - **Undo** (floatbar, ⌘Z on the Component step): the last **20** steps of Generate, Add, Clear /
   Clear board (all Elements at once), Colourways and Save as new component; each step remembers its
   Element, so undoing a step of another Element edits that Element first. It never touches the Element.
@@ -792,6 +801,12 @@ its cells.
   - Anchor when no target has room to move in (the content is exactly its cell) → off. Both write the same per-cell fields as Cell
   properties → Fit.
 
+- **The Symbol's Palette** (Oct 26, 2026 — Diego: a Paper changed on the Symbol step changed the Element and its
+  Components): inks, Colour by, Paper and Paper texture are the **Symbol's own** once changed on the Symbol step
+  (`state.symbolPalette.own`); until then the Symbol follows the edited Element's. Changing step swaps the panel's
+  Palette (`symbolPaletteSwap`, 18-step-boards.js): the Element's goes back on its Element, the Symbol's comes in; on the
+  Symbol step the board writes nothing into the Element. Kept with the working Symbol (`fvs-symbol-work` › `palette`) and,
+  as before, in a saved Symbol. The Palette title reads *Palette · Symbol’s own* there once it is changed on the Symbol step (while it still follows the Element, plain *Palette*).
 - **No seams.** Cells never show a light line where they meet: nested Components'
   papers are painted first under all ink, and each cell's content and clip reach
   0.1% of the page past its border (the Component's own cells too), so neighbours

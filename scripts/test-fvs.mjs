@@ -32,6 +32,7 @@ const JOBS = {
   'aspect':             node('test-fvs-aspect.mjs'),     // a Rectangle Element: its cells take its box, half turns only (Oct 23, 2026)
   'dark-audit':         node('test-dark-audit.mjs'),     // every opted-in page, light + dark, against scripts/dark-audit-baseline.json (Oct 25, 2026)
   'photo':              node('test-fvs-photo.mjs'),
+  'versions':           node('test-fvs-versions.mjs'),   // saved versions by content, Replace; the Symbol's own Palette (Oct 26, 2026)
   'pipeline':           node('test-fvs-pipeline.mjs'),   // paper, textures and inks from Element to gallery, saved, Symbol (Oct 26, 2026)      // Style = Photo: Normal · Tone · Dither from the Palette, self-contained files (Oct 23, 2026)
   'axes':               node('test-fvs-axes.mjs'),       // every rule × grid × axis frozen (Tropism Phase 1)   // Component: one Generate after another = a fresh one
   'qa':                 node('test-fvs-qa.mjs'),

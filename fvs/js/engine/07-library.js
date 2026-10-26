@@ -91,14 +91,16 @@ export function uniqueLibraryName(base) {
 export const LAYER_NEW_INKS = ['#e8321e', '#0a9a3e', '#1f5fd6', '#f2b300', '#7a3fd1', '#0e9aa7', '#d6336c'];
 export const newLayerId = () => 'l' + Math.random().toString(36).slice(2, 7);
 export const LAYER_ROLE_ORDER = ['fill', 'container', 'mask', 'pattern'];
-export function buildLibraryEntryFor(comp) {
+// memo (optional): { seed, app } of the live panel, taken once for a whole gallery (savedVersionMemo) — the same entry
+export function buildLibraryEntryFor(comp, memo) {
   if (!comp) return null;
-  return withComponentColours(comp, () => libraryEntryFromLive(comp));   // a colourway is saved with its own colours
+  return withComponentColours(comp, () => libraryEntryFromLive(comp, memo));   // a colourway is saved with its own colours
 }
-export function libraryEntryFromLive(comp) {
+export const savedVersionMemo = () => ({ seed: seedForSnapshot(), app: appearanceSnapshot() });
+export function libraryEntryFromLive(comp, memo) {
   return {
-    seed: seedWithLayerInks(seedForSnapshot(), comp.layerInks),
-    appearance: appearanceSnapshot(),
+    seed: seedWithLayerInks(memo ? memo.seed : seedForSnapshot(), comp.layerInks),
+    appearance: memo ? memo.app : appearanceSnapshot(),
     grid: gridOf(comp),
     colors: state.colors.slice(),
     colorRule: { ...state.colorRule },
@@ -112,6 +114,16 @@ export function libraryEntryFromLive(comp) {
   };
 }
 export function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedComponent()); }
+// What a saved Component draws, as one key (Oct 26, 2026 — Diego): a gallery Component is "saved" only when the library
+// holds an entry with the same key, so editing the Element turns its ✓ back into + (as Saved Elements, by signature).
+// Everything that changes the drawing; never the name, the time or the rule that made it.
+export function entryVersionKey(e) {
+  const s = JSON.stringify([e.seed, e.appearance, e.grid, e.colors, e.colorRule, e.paperColor, e.component && e.component.cells,
+    e.role || 'normal', e.underlyingComponentName || null, e.blend || null, !!e.clip]);
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36) + ':' + s.length;
+}
 export function syncActiveLayer() {
   if (!state.layers) return;
   const L = state.layers, l = L.items[L.active];
