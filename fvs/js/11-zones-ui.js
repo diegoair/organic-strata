@@ -157,12 +157,12 @@ export function renderZonesPanel() {
   box.innerHTML = zones.length ? zones.map((z, i) => {
     const name = whenText(z.when) + ' · ' + doText(z.do), seeded = z.do && (z.do.symbolRule || z.do.arrange || z.do.follow);
     return `<div class="org-layer-card org-layer-card--flush fvs-zone-card${z.off ? ' is-off' : ''}${i === state.zonePick ? ' is-picked' : ''}" role="listitem" data-i="${i}"><div class="org-layer-card__head">
-      <button type="button" class="org-layer-card__title fg-rule__pick" data-act="pick" data-i="${i}" aria-pressed="${i === state.zonePick}" aria-label="Zone ${i + 1}: ${esc(name)}">${i + 1} · ${esc(name)}</button>
+      <button type="button" class="org-layer-card__title fg-rule__pick" data-act="pick" data-i="${i}" aria-pressed="${i === state.zonePick}" aria-label="Zone ${i + 1} · ${esc(name)}">${i + 1} · ${esc(name)}</button>
       ${seeded ? `<button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="seed" data-i="${i}" aria-label="New random seed for zone ${i + 1}">${Organica.icons.get('refresh')}</button>` : ''}
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="up" data-i="${i}" aria-label="Move zone ${i + 1} up"${i === 0 ? ' disabled' : ''}>${Organica.icons.get('chevron-up')}</button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="down" data-i="${i}" aria-label="Move zone ${i + 1} down"${i === zones.length - 1 ? ' disabled' : ''}>${Organica.icons.get('chevron-down')}</button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="off" data-i="${i}" aria-pressed="${!z.off}" aria-label="Zone ${i + 1} on">${Organica.icons.get(z.off ? 'eye-off' : 'eye')}</button>
-      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-i="${i}" aria-label="Delete zone ${i + 1}">${Organica.icons.get('trash')}</button></div></div>`;
+      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-i="${i}" data-armed="Delete?" aria-label="Delete zone ${i + 1}">${Organica.icons.get('trash')}</button></div></div>`;
   }).join('') : '<p class="org-empty">No zones yet. Pick one above or select cells.</p>';
   ctrl('btn-zone-from-sel').disabled = !state.symbolSelection.size;
   // the inspector

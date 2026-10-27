@@ -1189,7 +1189,7 @@ Suggest → Cells. Plan: `/Users/diego/.claude/plans/penso-che-abbiamo-ora-misty
   Every other; on a radial grid Rings = one zone per ring); **row / column handles** in the sheet's margin (click = the
   line, Shift = a range, ⌘ = add / remove); **Cells › Select** Row · Column · Ring · Every other cell · Same content ·
   Border · Centre; the canvas marquee as before. Zones on the canvas: the picked one a solid ink outline, the others
-  dashed, a hovered zone's cells hinted (ink only — design-system CONSULT).
+  dashed, a hovered zone's cells hinted (ink only — design-system CONSULT). A zone card's Delete is armed (`data-armed`).
 - **What it does** (Zone inspector, *Does*): **Content** (one of this Symbol's contents or a saved Component, or *From
   the pool* arranged by an Arrange rule, + Fit) · **Rule** (*Follows*: a Symbol rule — the Rule block lives here now — or
   a generator below) · **Locked** · **Empty**. A zone that does nothing yet is **open**.

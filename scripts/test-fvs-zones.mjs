@@ -107,6 +107,8 @@ const ui = await P.ev(`const F = window.__fvs, q = id => document.getElementById
   q('zone-list').querySelector('[data-act="off"][data-i="1"]').click(); await w(150);
   check('switching the Locked zone off frees the border', border.every(i => !F.state.symbolCells[i].locked), 'still locked');
   q('zone-list').querySelector('[data-act="del"][data-i="1"]').click(); await w(150);
+  check('Delete zone is armed: one click deletes nothing', F.state.symbolZones.length === 6, F.state.symbolZones.length);
+  q('zone-list').querySelector('[data-act="del"][data-i="1"]').click(); await w(150);
   check('delete: 5 zones', F.state.symbolZones.length === 5, F.state.symbolZones.length);
   q('zone-list').querySelector('[data-act="down"][data-i="0"]').click(); await w(150);
   check('move down: the column zone is second', F.state.symbolZones[1].when.sel === 'col', JSON.stringify(F.state.symbolZones.map(z => z.when.sel)));
@@ -154,7 +156,7 @@ const sug = await P.ev(`const F = window.__fvs, q = id => document.getElementByI
   F.state.symbolZones = []; F.applyZonesNow();
   return rows;`);
 rows.push(...sug);
-if (process.env.ZONES_SHOT) await P.ev(`window.__fvs.state.zonePick = 1; window.__fvs.renderSymbol(); document.getElementById('sym-zones-section').scrollIntoView(); return 1;`);
+if (process.env.ZONES_SHOT) await P.ev(`${process.env.ZONES_DARK ? "document.documentElement.setAttribute('data-theme', 'dark');" : ''} window.__fvs.state.zonePick = 1; window.__fvs.renderSymbol(); document.getElementById('sym-zones-section').scrollIntoView(); return 1;`);
 const shot = process.env.ZONES_SHOT && await P.cdp('Page.captureScreenshot', { format: 'png' });
 if (process.env.ZONES_SHOT) (await import('node:fs')).writeFileSync(process.env.ZONES_SHOT, Buffer.from(shot.result.data, 'base64'));
 const fails = rows.filter(x => x.startsWith('✗'));
