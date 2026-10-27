@@ -85,6 +85,14 @@ for (const C of CASES) {
     const paperRGB = [0xf6, 0xf2, 0xe9], isInk = (Rr, k) => Rr.d[k + 3] > 128 && Math.abs(Rr.d[k] - paperRGB[0]) + Math.abs(Rr.d[k + 1] - paperRGB[1]) + Math.abs(Rr.d[k + 2] - paperRGB[2]) > 60;
     const S = await raster(svg); let ink = 0; for (let k = 0; k < S.d.length; k += 4) if (isInk(S, k)) ink++;
     R.cover = ink / (S.W * S.H);
+    // chips: pieces of ink cut off on every side (Paper all round — the Crossing gap parts the inks), smaller than a twentieth of a cell (what Interlace can leave)
+    { const cellPx = S.W / C.grid.cols, lim = cellPx * cellPx / 20, seen = new Uint8Array(S.W * S.H);
+      let chips = 0;
+      for (let p0 = 0; p0 < S.W * S.H; p0++) { if (seen[p0] || !isInk(S, p0 * 4)) continue; const st = [p0]; seen[p0] = 1; let n = 0, edge = false;
+        while (st.length) { const p = st.pop(), x = p % S.W, y = (p / S.W) | 0; n++; if (x === 0 || y === 0 || x === S.W - 1 || y === S.H - 1) edge = true;
+          for (const q of [x > 0 ? p - 1 : -1, x < S.W - 1 ? p + 1 : -1, y > 0 ? p - S.W : -1, y < S.H - 1 ? p + S.W : -1]) if (q >= 0 && !seen[q] && isInk(S, q * 4)) { seen[q] = 1; st.push(q); } }
+        if (n > 12 && n < lim && !edge) chips++; }
+      R.chips = chips; }
     const seam = axis => { let same = 0, n = 0; if (axis === 'x') for (let j = 0; j < S.H; j++) { n++; if (isInk(S, (j * S.W) * 4) === isInk(S, (j * S.W + S.W - 1) * 4)) same++; } else for (let i = 0; i < S.W; i++) { n++; if (isInk(S, i * 4) === isInk(S, ((S.H - 1) * S.W + i) * 4)) same++; } return same / n; };
     R.seamX = seam('x'); R.seamY = seam('y');
     // canvas twin vs SVG: the share of pixels that differ (ink vs no ink)
@@ -107,7 +115,7 @@ for (const C of CASES) {
   const { svg, ...m } = r;
   fs.writeFileSync(path.join(OUT, C.id + '.svg'), svg);
   results.push({ id: C.id, name: C.name, ...m });
-  console.log(`${C.id} ${C.name.padEnd(30)} ${m.kb.toFixed(1).padStart(6)} KB ${m.ms.toFixed(1).padStart(6)} ms  cover ${(m.cover * 100).toFixed(0)}%  seam ${(m.seamX * 100).toFixed(1)}/${(m.seamY * 100).toFixed(1)}  canvas≠svg ${(m.canvasDiff * 100).toFixed(1)}%  masks ${m.masks}` + (m.plateTwice != null ? `  plates twice ${(m.plateTwice * 100).toFixed(2)}%` : '') + `  symbol wrap ${m.symbolWrap} weave ${m.symbolWeave}`);
+  console.log(`${C.id} ${C.name.padEnd(30)} ${m.kb.toFixed(1).padStart(6)} KB ${m.ms.toFixed(1).padStart(6)} ms  cover ${(m.cover * 100).toFixed(0)}%  seam ${(m.seamX * 100).toFixed(1)}/${(m.seamY * 100).toFixed(1)}  canvas≠svg ${(m.canvasDiff * 100).toFixed(1)}%  masks ${m.masks}` + (m.plateTwice != null ? `  plates twice ${(m.plateTwice * 100).toFixed(2)}%` : '') + `  chips ${m.chips}  symbol wrap ${m.symbolWrap} weave ${m.symbolWeave}`);
 }
 if (args.includes('--json')) fs.writeFileSync(args[args.indexOf('--json') + 1], JSON.stringify(results, null, 1));   // the measures, for the analysis
 const errs = P.errors.filter(e => !/Failed to load resource/.test(e));

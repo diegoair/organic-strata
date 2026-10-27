@@ -63,6 +63,21 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     const over = new Map(); covers.forEach((c, k) => c.forEach(j => { over.set(k + '>' + j, true); }));
     check('Weave: cells masked by the neighbours over them (' + n + '), a mask and a dilate per masked cell', n > 4 && (sv.match(/<mask id="weave-/g) || []).length === n && (sv.match(/feMorphology/g) || []).length === n, n + ' / ' + (sv.match(/<mask id="weave-/g) || []).length);
     check('…each pair decided once: never both over each other', [...over.keys()].every(k => { const [a, b] = k.split('>'); return !over.has(b + '>' + a); }), 'a pair both ways'); }
+  // the over / under goes round each cell (Oct 27, 2026 — gallery tiles 30–31): on Grid two of the four diagonals over
+  // it, on Brick three of its six nearest neighbours — never a cell over (or under) every neighbour
+  { const roundOf = (grid, nearest) => { const comp = { cells: Array.from({ length: 36 }, () => ({ rotation: 0, flipH: false, flipV: false, scale: 1 })) };
+      const items = F.buildComponentItems(comp, grid), drawn = F.drawOrder(items), cov = F.weaveCovers(drawn), out = [];
+      drawn.forEach((a, i) => { if (a.copy) return; const d = (b) => Math.hypot(b.cx + (b.dx || 0) - a.cx - (a.dx || 0), b.cy + (b.dy || 0) - a.cy - (a.dy || 0));
+        const nb = drawn.map((b, j) => j).filter(j => j !== i).sort((x, y) => d(drawn[x]) - d(drawn[y])).filter(j => nearest(d(drawn[j]) / a.ov.px));
+        out.push(nb.filter(j => cov[i].includes(j)).length + '/' + nb.length); });
+      return [...new Set(out)].join(' '); };
+    const base = { kind: 'square', cols: 6, rows: 6, cellSize: 160, gap: -110 };
+    const diag = roundOf({ ...base, overlap: { by: 'rows', x: 0, y: 0, top: 'weave', wrap: true, margin: 0.02 } }, r => r > 1.2 && r < 1.6);
+    check('Interlace on Grid: two of the four diagonals over each cell', diag === '2/4', diag);
+    const brick = roundOf({ ...base, gap: -100, overlap: { by: 'rows', x: 0.5, y: 0, top: 'weave', wrap: true, margin: 0.02 } }, r => r < 1.2);
+    check('Interlace on Brick: three of the six nearest over each cell', brick === '3/6', brick);
+    const drop = roundOf({ ...base, gap: -100, overlap: { by: 'cols', x: 0, y: 0.5, top: 'weave', wrap: true, margin: 0.02 } }, r => r < 1.2);
+    check('Interlace on Half-drop: three of the six nearest over each cell', drop === '3/6', drop); }
   set('rg-tile-margin', 0); await w(200); F.applyTileUI(eg().overlap); await w(100);
   check('Crossing gap 0 is kept (back on the panel as 0)', eg().overlap.margin === 0 && q('rg-tile-margin').value === '0', JSON.stringify([eg().overlap.margin, q('rg-tile-margin').value]));
   set('sel-tile-layout', 'brick'); set('sel-tile-top', 'still'); await w(200);

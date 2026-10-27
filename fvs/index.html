@@ -1437,7 +1437,7 @@
     </div>
     <!-- Tile (Oct 26, 2026 — Diego: Elements that overlap their neighbours without changing shape, for continuous patterns;
          design-system CONSULT the same day; plan Phase 2): which cells move (Layout, the Paper's words + Alternate), by how much
-         (Offset, % of a cell), who is on top, and Tile seamlessly (what leaves an edge comes back on the opposite one). Gap
+         (Offset, % of the distance from one cell to the next), who is on top, and Tile seamlessly (what leaves an edge comes back on the opposite one). Gap
          below 0 brings the cells closer than the Element. One Component's own (comp.tile), set in Component Edit only, as
          part of the edit — Save as new keeps it (Diego, Oct 26, 2026: "come quello dell'element … nell'edit del component, con
          una preview" — the floatbar's Show as tile). Never Generate's dot (no-gen-sig). Square cells only. -->
@@ -1452,12 +1452,12 @@
         </select>
       </div>
       <div class="ctrl-row" id="tile-offset-x-row" hidden>
-        <div class="ctrl-label" title="% of a cell width">Offset X</div>
+        <div class="ctrl-label" title="% of the distance from one cell to the next, across">Offset X</div>
         <input type="range" id="rg-tile-offset-x" min="-50" max="50" step="1" value="0" aria-label="Offset X">
         <span class="ctrl-val" id="v-tile-offset-x">0</span>
       </div>
       <div class="ctrl-row" id="tile-offset-y-row" hidden>
-        <div class="ctrl-label" title="% of a cell height">Offset Y</div>
+        <div class="ctrl-label" title="% of the distance from one cell to the next, down">Offset Y</div>
         <input type="range" id="rg-tile-offset-y" min="-50" max="50" step="1" value="0" aria-label="Offset Y">
         <span class="ctrl-val" id="v-tile-offset-y">0</span>
       </div>

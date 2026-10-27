@@ -49,33 +49,54 @@ export const overlapClass = (by, c, r) => by === 'rows' ? r % 2 : by === 'cols' 
 function withOverlap(items, grid, cells) {
   const o = grid.overlap, own = cells && cells.some(c => c && (c.moveX || c.moveY || c.z));
   if ((!o && !own) || grid.kind !== 'square') return items;
-  const cols = grid.cols, rows = items.length / cols, d = Organica.shapes.frameDims(grid), ov = { top: (o && o.top) || 'order', wrap: !!(o && o.wrap), w: d.w, h: d.h, margin: (o && o.margin) || 0 };
+  const cols = grid.cols, rows = items.length / cols, d = Organica.shapes.frameDims(grid), ov = { top: (o && o.top) || 'order', wrap: !!(o && o.wrap), w: d.w, h: d.h, margin: (o && o.margin) || 0,
+    hex: o && o.by === 'rows' && o.x ? 'rows' : o && o.by === 'cols' && o.y ? 'cols' : null };   // Brick / Half-drop: six neighbours (Interlace reads it)
   // Weave: the lattice the cells sit on — the first cell's centre and the pitch — so a copy one period over still knows its
   // column / row (weaveAbove reads it)
   ov.x0 = items[0].cx; ov.y0 = items[0].cy;
-  ov.px = cols > 1 ? items[1].cx - items[0].cx : d.w; ov.py = rows > 1 ? items[cols].cy - items[0].cy : d.h;
+  ov.px = cols > 1 ? items[1].cx - items[0].cx : itemW(items[0]) + (grid.gap || 0); ov.py = rows > 1 ? items[cols].cy - items[0].cy : itemH(items[0]) + (grid.gap || 0);
   return items.map((it, i) => {
     const k = o ? overlapClass(o.by, i % cols, Math.floor(i / cols)) : 0, c = (cells && cells[i]) || {}, out = { ...it, oc: k, ov };
-    const mx = (k && o ? o.x || 0 : 0) + (c.moveX || 0), my = (k && o ? o.y || 0 : 0) + (c.moveY || 0);
-    if (mx || my) { out.ox = mx * itemW(it); out.oy = my * itemH(it); out.dx = (it.dx || 0) + out.ox; out.dy = (it.dy || 0) + out.oy; }   // ox / oy: the cell itself moved (its clip, its hit box)
+    // the Layout's Offset is a fraction of the distance from one cell to the next (Oct 27, 2026 — gallery tile 31: it was of
+    // the cell, so with a Gap below 0 Brick moved a row 0.84 of a step, not half — no longer a brick); a cell's own Move
+    // stays a fraction of the cell. At Gap 0 the two are the same.
+    const ox = (k && o ? (o.x || 0) * ov.px : 0) + (c.moveX || 0) * itemW(it), oy = (k && o ? (o.y || 0) * ov.py : 0) + (c.moveY || 0) * itemH(it);
+    if (ox || oy) { out.ox = ox; out.oy = oy; out.dx = (it.dx || 0) + out.ox; out.dy = (it.dy || 0) + out.oy; }   // ox / oy: the cell itself moved (its clip, its hit box)
     if (c.z) out.z = c.z;
     return out;
   });
 }
 // Weave (Oct 26, 2026 — plan Phase 5, tested on explorations/tropism first): every pair of neighbours has one on top,
-// alternating across the grid, so each cell passes over one neighbour and under the next — the cell is cut by the
-// silhouettes of the neighbours above it (a mask), never changed. Across a row the left one is on top on even
-// (column + row), down a column the upper one on odd, on a diagonal by the column. The cells' place on the lattice
-// (a copy one period over counts as the column beyond the edge).
+// alternating round each cell, so each cell passes over one neighbour and under the next — the cell is cut by the
+// silhouettes of the neighbours above it (a mask), never changed. The cells' place on the lattice (a copy one period over
+// counts as the column beyond the edge).
 export const weaveSpot = it => ({ c: Math.round((it.cx - it.ov.x0) / it.ov.px), r: Math.round((it.cy - it.ov.y0) / it.ov.py) });
 const odd2 = v => ((v % 2) + 2) % 2;
-export function weaveAbove(a, b) {   // is b over a?
-  const A = weaveSpot(a), B = weaveSpot(b);
+// Square lattice (Grid, Alternate): across a row the left one is on top on even (column + row), down a column the upper
+// one on odd — the plain weave. On a diagonal (Oct 27, 2026 — gallery tile 30: a cell on an odd column was under all four
+// diagonals, two cuts 15° apart left a chip on the ring) the four diagonals alternate round each cell too: a cell on an
+// even column is under its upper-right and lower-left neighbours, over the other two; on an odd column the reverse.
+// Brick / Half-drop (Oct 27, 2026 — gallery tile 31: read as a square lattice, a moved ring lay over all four neighbours
+// above and below): six neighbours, the over / under by the direction from one cell to the other in six 60° sectors —
+// alternate sectors on top (a triaxial weave), the sectors centred on the row (Brick) or the column (Half-drop).
+// The same rule everywhere on the lattice, so a copy one period over agrees with its cell.
+function weaveSquareAbove(A, B) {   // is B over A?
   if (B.r === A.r) return (odd2(Math.min(A.c, B.c) + A.r) === 0) === (B.c < A.c);
   if (B.c === A.c) return (odd2(A.c + Math.min(A.r, B.r)) === 1) === (B.r < A.r);
-  return (odd2(Math.min(A.c, B.c)) === 0) === (B.c < A.c);
+  const L = A.c < B.c ? A : B, R = L === A ? B : A, rightOver = R.r < L.r ? odd2(L.c) === 0 : odd2(L.c) === 1;
+  return (B === R) === rightOver;
 }
-// …and the neighbours above each drawn cell: next on the lattice (one column / row away) and close enough to touch
+function weaveHexAbove(a, b, hex) {   // is b over a? decided once per pair, from one canonical side
+  const x = b.cx + (b.dx || 0) - a.cx - (a.dx || 0), y = b.cy + (b.dy || 0) - a.cy - (a.dy || 0);
+  const flip = y < -1e-6 || (Math.abs(y) <= 1e-6 && x < 0), t = Math.atan2(flip ? -y : y, flip ? -x : x) * 180 / Math.PI;   // 0 … 180
+  const sector = Math.floor(((t + (hex === 'rows' ? 30 : 0)) % 360 + 1e-6) / 60);
+  return (odd2(sector) === 0) !== flip;
+}
+export function weaveAbove(a, b) {   // is b over a?
+  return a.ov.hex ? weaveHexAbove(a, b, a.ov.hex) : weaveSquareAbove(weaveSpot(a), weaveSpot(b));
+}
+// …and the neighbours above each drawn cell, close enough to touch: on a square lattice the next ones (one column / row
+// away); on Brick / Half-drop any that reach it (a ring there can touch a cell two columns over)
 export function weaveCovers(drawn) {
   const reach = it => 0.75 * Math.max(itemW(it), itemH(it)) * Math.max(1, it.scale || 1) * Math.max(1, it.kx || 1, it.ky || 1);
   const spots = drawn.map(it => (it.ov ? weaveSpot(it) : null));
@@ -84,7 +105,8 @@ export function weaveCovers(drawn) {
     const ax = a.cx + (a.dx || 0), ay = a.cy + (a.dy || 0), out = [];
     drawn.forEach((b, j) => {
       if (j === i || b.empty || !spots[j]) return;
-      if (Math.abs(spots[j].c - spots[i].c) > 1 || Math.abs(spots[j].r - spots[i].r) > 1 || (spots[j].c === spots[i].c && spots[j].r === spots[i].r)) return;
+      if (spots[j].c === spots[i].c && spots[j].r === spots[i].r) return;
+      if (!a.ov.hex && (Math.abs(spots[j].c - spots[i].c) > 1 || Math.abs(spots[j].r - spots[i].r) > 1)) return;
       if (Math.hypot(b.cx + (b.dx || 0) - ax, b.cy + (b.dy || 0) - ay) > reach(a) + reach(b)) return;
       if (weaveAbove(a, b)) out.push(j);
     });

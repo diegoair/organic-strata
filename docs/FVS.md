@@ -419,7 +419,7 @@ griglia … come un element … si possa anche sovrapporre (senza alterare le fo
 più interessanti*. Plan `~/.claude/plans/dapper-imagining-sonnet.md` Phase 2; design-system CONSULT the same day. A
 section **Tile** after Transform axes (square cells only — hidden on a lattice and on a legacy Loom grid):
 - **Layout** *Grid · Brick · Half-drop · Alternate* (the Paper's words + Alternate): which cells move — every other row,
-  every other column, every other cell (a checkerboard). Choosing one presets **Offset X / Y** (% of a cell, −50…50):
+  every other column, every other cell (a checkerboard). Choosing one presets **Offset X / Y** (% of the distance from one cell to the next — the cell plus the Gap, −50…50; it was % of the cell until Oct 27, 2026, so with a Gap below 0 Brick moved a row 0.84 of a step, not half — gallery tile 31):
   Brick 50 / 0, Half-drop 0 / 50, Alternate 25 / 25. Offset and On top show only when cells move.
 - **On top** *Reading order · The moved cells · The other cells* — where cells overlap, which covers which; a group on
   top covers **the whole cell** below (every layer — Diego: *sì, la cella intera*), so a Component drawn layer by layer
@@ -459,9 +459,16 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
   not on empty cells.
 - **Interlace** (was *Weave* — renamed by Diego, Oct 27, 2026; the saved value stays `weave`) (Phase 5, Oct 26–27, 2026 — first on `explorations/tropism/`): a fourth **On top**, on Grid too (On top
   shows on every Layout; *The moved cells / The other cells* only when cells move). Every pair of neighbours has one on
-  top, alternating across the grid (across a row the left one on even column + row, down a column the upper one on
-  odd, on a diagonal by the column — `weaveAbove`), so each cell passes over one neighbour and under the next, which
-  no drawing order can do. Each cell is cut by a `<mask>` of the neighbours over it (`weaveCovers`: one column / row
+  top, alternating round each cell (`weaveAbove`): on Grid / Alternate across a row the left one on even column + row,
+  down a column the upper one on odd, and the four diagonals alternate too — on an even column the upper-right and
+  lower-left over the cell (Oct 27, 2026: by the column alone, an odd-column cell was under all four, two cuts 15° apart
+  left a chip — gallery tile 30); on Brick / Half-drop (`ov.hex`) the six neighbours by direction, in 60° sectors centred
+  on the row / column, three over and three under (a triaxial weave; any neighbour that reaches the cell counts, not only
+  the next column — Oct 27, 2026, gallery tile 31: read as a square lattice, a moved ring lay over every neighbour). So
+  each cell passes over one neighbour and under the next, which no drawing order can do. Where rings overlap so much that
+  three meet near one point, a short piece of a ring still shows between two crossings (a strand peeking out): a pair-level
+  over / under cannot avoid it there (tried and dropped: per crossing — fragmented, straight cuts, 2–4× the file; a closing
+  of the mask — it also fills a shape's own narrow gaps). Each cell is cut by a `<mask>` of the neighbours over it (`weaveCovers`: one column / row
   away and close enough to touch; a copy one period over counts as the column beyond the edge), its shape unchanged.
   **Crossing gap** (0–10 % of a cell, shown with Interlace, 2 by default; *Margin* is the Canvas's) leaves Paper round the cell on top — the silhouettes
   grown by an `feMorphology` dilate in the Component's units (each silhouette black by its alpha, so a pattern or a photo
@@ -475,9 +482,8 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
 - Not yet: the rule's own classes as a Layout (Diego: later). Tests: `scripts/test-fvs-tile.sh`.
 - **Pattern tests in the gallery** (Oct 27, 2026 — Diego: *test di generazioni di patterns usando tile … salvali nella
   galleria*): tiles 25–36, made and measured by `scripts/gallery-fvs-tile-patterns.mjs` (12 cases, the user's path:
-  Element → Generate → Component Edit › Tile → Save as new → export). Found, not fixed: Interlace on **Brick** reads a
-  square lattice (some rings over every neighbour, chips left inside rings — tile 31); where diagonal neighbours also cross,
-  small chips (tile 30); a **Crossing gap** wider than the stroke breaks the rings apart (tile 33); **Arc** in Stroke
+  Element → Generate → Component Edit › Tile → Save as new → export). Fixed the same day: Interlace on **Brick** (tile 31 —
+  the Offset in steps, the six neighbours alternate) and the diagonals on Grid (tile 30). Found, not fixed: a **Crossing gap** wider than the stroke breaks the rings apart (tile 33); **Arc** in Stroke
   strokes the closed quarter pie, so the radii are woven too (tile 32); a non-square Component (6 × 5) in a Symbol is
   placed as a block and loses its seamless copies; Interlace costs ~7× the file (64 masks; the arc truchet 226 KB).
 
