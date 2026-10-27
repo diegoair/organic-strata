@@ -79,8 +79,12 @@ export function buildGridCSS(model) {
   const off = gridOffset(grid);
   const padTop = r2(inner.y + off.y), padLeft = r2(inner.x + off.x);
   const padRight = r2(canvas.width - inner.width - inner.x + off.x), padBottom = r2(canvas.height - inner.height - inner.y + off.y);
+  // Overflow (Square cells): the grid starts before the canvas's edge — CSS padding can't be negative, so the cells are
+  // moved by the overshoot and the container clips what lies past the canvas (as the SVG / PNG do)
+  const shiftX = Math.min(0, padLeft), shiftY = Math.min(0, padTop), over = padTop < 0 || padLeft < 0 || padRight < 0 || padBottom < 0;
+  const pad = v => Math.max(0, v), shift = shiftX || shiftY ? ` transform: translate(${r2(shiftX)}px, ${r2(shiftY)}px);` : '';
   return {
-    containerCSS: `display: grid; box-sizing: border-box; grid-template-columns: ${cols}; grid-template-rows: ${rows}; gap: ${grid.gap}px; padding: ${padTop}px ${padRight}px ${padBottom}px ${padLeft}px; width: ${r2(canvas.width)}${unit}; height: ${r2(canvas.height)}${unit};`,
+    containerCSS: `display: grid; box-sizing: border-box; grid-template-columns: ${cols}; grid-template-rows: ${rows}; gap: ${grid.gap}px; padding: ${pad(padTop)}px ${pad(padRight)}px ${pad(padBottom)}px ${pad(padLeft)}px; width: ${r2(canvas.width)}${unit}; height: ${r2(canvas.height)}${unit};${over ? ' overflow: hidden;' : ''}`,
     // Every cell draws its own right + bottom border; only col-0/row-0
     // cells also draw left/top. A shared edge between two adjacent cells
     // is then drawn by exactly ONE of them — the cell to its left or
@@ -106,7 +110,7 @@ export function buildGridCSS(model) {
       // bordered box within its grid area.
       const pad = grid.padding || 0;
       if (pad) b += ` margin: ${pad}px;`;
-      return `grid-column: ${c.col + 1} / span ${c.colSpan}; grid-row: ${c.row + 1} / span ${c.rowSpan}; ${b}`;
+      return `grid-column: ${c.col + 1} / span ${c.colSpan}; grid-row: ${c.row + 1} / span ${c.rowSpan}; ${b}${shift}`;
     }),
   };
 }

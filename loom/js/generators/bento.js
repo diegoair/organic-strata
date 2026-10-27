@@ -76,6 +76,8 @@ function buildSpans(cols, rows, variety, seed) {
  * and the grid is centred: the leftover on the long side is split equally,
  *   grid.offset = { x: (inner.width − used width) / 2, y: (inner.height − used height) / 2 }
  * (Rows was derived from Columns the first day — Diego: keep Rows.)
+ * OVERFLOW (`overflow: true` + `reach` {left, top, right, bottom} = the canvas around inner): the squares go on to
+ * the canvas's edges on the same lattice; the tracks then count the extra squares, params keep what was asked.
  * `grid.offset` is the model's way to say "the tracks start this far in from
  * the inner rect's top-left": every reader that turns tracks into rects adds
  * it (json-model.js resolveCellRects, the HTML renderer's padding, main.js's
@@ -84,15 +86,24 @@ function buildSpans(cols, rows, variety, seed) {
  * on the derived rows exactly as on typed rows.
  */
 export function generateBento(params, inner) {
-  const { cols, variety, gap, seed } = params;
-  const { rows } = params, square = !!params.square;
+  const { variety, gap, seed } = params;
+  let { cols, rows } = params; const square = !!params.square;
   let colSizes, rowSizes, offset = null;
   if (square) {
     // Columns and Rows as chosen; the side is the larger square that fits both ways, the grid centred (Diego, Oct 27, 2026:
     // Rows stays — it was derived from Columns until then)
     const s = Math.min((inner.width - (cols - 1) * gap) / cols, (inner.height - (rows - 1) * gap) / rows);
-    colSizes = new Array(cols).fill(s); rowSizes = new Array(rows).fill(s);
     offset = { x: (inner.width - (cols * s + (cols - 1) * gap)) / 2, y: (inner.height - (rows * s + (rows - 1) * gap)) / 2 };
+    // Overflow (`reach` = the canvas's edges around the inner rect): the same squares go on to them on the same lattice,
+    // the chosen grid where it was; the canvas cuts the outer ones
+    if (params.overflow && params.reach) {
+      const p = s + gap, R = params.reach;
+      const l = Math.ceil((offset.x + R.left) / p - 1e-9), t = Math.ceil((offset.y + R.top) / p - 1e-9);
+      const r = Math.ceil((inner.width - offset.x - (cols * s + (cols - 1) * gap) + R.right) / p - 1e-9), b = Math.ceil((inner.height - offset.y - (rows * s + (rows - 1) * gap) + R.bottom) / p - 1e-9);
+      offset = { x: offset.x - l * p, y: offset.y - t * p };
+      cols += l + r; rows += t + b;
+    }
+    colSizes = new Array(cols).fill(s); rowSizes = new Array(rows).fill(s);
   } else {
     colSizes = solveTracksKiwi(cols, inner.width, gap);
     rowSizes = solveTracksKiwi(rows, inner.height, gap);
@@ -102,7 +113,7 @@ export function generateBento(params, inner) {
   const grid = {
     type: 'bento',
     solver: 'kiwi',
-    params: square ? { cols, rows, variety, seed, square: true } : { cols, rows, variety, seed },
+    params: square ? { cols: params.cols, rows: params.rows, variety, seed, square: true, ...(params.overflow ? { overflow: true } : {}) } : { cols, rows, variety, seed },
     gap,
     tracks: { cols: colSizes, rows: rowSizes },
   };

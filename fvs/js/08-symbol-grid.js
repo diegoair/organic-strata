@@ -170,13 +170,19 @@ export function renderSymgridParams() {
     ? `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
     : `<div class="ctrl-row" id="symgen-row-${k}"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`;
   // Square cells (Oct 27, 2026): after Rows (Diego) — on, the cells are squares and the grid centred; nothing hides
-  const square = spec.square ? `<label class="check-row org-switch" id="symgen-square-row"><input type="checkbox" id="chk-symgen-square"${was ? ' checked' : ''}><span>Square cells</span></label>` : '';
+  const wasOf = ctrl('chk-symgen-overflow') && ctrl('chk-symgen-overflow').checked;
+  // Overflow (Oct 27, 2026): with Square cells only — the squares go on to the canvas's edges, cut there
+  const square = spec.square ? `<label class="check-row org-switch" id="symgen-square-row"><input type="checkbox" id="chk-symgen-square"${was ? ' checked' : ''}><span>Square cells</span></label>`
+    + `<label class="check-row org-switch" id="symgen-overflow-row"${was ? '' : ' hidden'}><input type="checkbox" id="chk-symgen-overflow"${wasOf ? ' checked' : ''}><span>Overflow</span></label>` : '';
   ctrl('symgrid-gen-params').innerHTML = spec.params.map(p => row(p) + (p[0] === 'rows' ? square : '')).join('');
   spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
   syncSquareCellsUI();
 }
 provide({ syncSquareCellsUI: () => syncSquareCellsUI() });
-export function syncSquareCellsUI() {}   // nothing to show or hide since Rows stays (Oct 27, 2026); kept for the drag hook
+export function syncSquareCellsUI() {   // Overflow shows only with Square cells on (hidden, not greyed)
+  const sq = ctrl('chk-symgen-square'), of = ctrl('symgen-overflow-row');
+  if (of) of.hidden = !(sq && sq.checked);
+}
 // ── Overlap & blend — every Symbol grid. Saved with the Symbol (entry.overlap); older Symbols open as Paper under, 0.
 state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest' };
 export function syncOverlapSection() {

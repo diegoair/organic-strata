@@ -270,8 +270,8 @@ function syncEqualizeRow() {
 }
 // ── Square cells (Bento) — after Rows (Diego, Oct 27, 2026): Columns × Rows as chosen, cells square, the grid centred
 // (bento.js); nothing in the panel hides — the switch only changes how the tracks are sized.
-function syncBentoSquareRow() {}
-function syncBentoSquareReadout() {}
+function syncBentoSquareRow() { ctrl('row-bento-overflow').hidden = !ctrl('chk-bento-square').checked; }   // Overflow only with Square cells (hidden, not greyed)
+function syncBentoSquareReadout() { syncBentoSquareRow(); }
 
 // ── Count ranges — one source: GENERATORS[type].ranges (registry.js). Every
 // hand-written slider id maps to its generator + param key here; at init
@@ -452,6 +452,7 @@ function readGridParams() {
       cols: Math.round(val('rg-bento-cols')), rows: Math.round(val('rg-bento-rows')),
       variety: val('rg-bento-variety'), gap: unitVal('rg-bento-gap'), seed: Math.round(val('rg-bento-seed')),
       square: ctrl('chk-bento-square').checked,
+      overflow: ctrl('chk-bento-square').checked && ctrl('chk-bento-overflow').checked,
     };
   }
   if (type === 'hexagonal') {
@@ -581,6 +582,8 @@ function build() {
   const type = ctrl('sel-gridtype').value;
   const generator = GENERATORS[type];
   const params = readGridParams();
+  // Overflow (Bento square cells): how far the canvas's edges are from the inner rect — the squares go on to them
+  if (params.overflow) params.reach = { left: inner.x, top: inner.y, right: canvas.width - inner.x - inner.width, bottom: canvas.height - inner.y - inner.height };
 
   // Kiwi throws (an uncaught exception, not a return value) when a
   // canvas is too small for the current Columns/Rows/Gap combination to
@@ -1095,7 +1098,7 @@ function applyGridParamsToUI(type, params) {
   if (type === 'bento') {
     setR('rg-bento-cols', params.cols); setR('rg-bento-rows', params.rows);
     setR('rg-bento-variety', params.variety); setR('rg-bento-gap', params.gap); setR('rg-bento-seed', params.seed);
-    ctrl('chk-bento-square').checked = !!params.square;
+    ctrl('chk-bento-square').checked = !!params.square; ctrl('chk-bento-overflow').checked = !!params.overflow;
     syncBentoSquareRow();
   } else if (type === 'sinusoidal') {
     setR('rg-sin-cols', params.cols); setR('rg-sin-rows', params.rows);

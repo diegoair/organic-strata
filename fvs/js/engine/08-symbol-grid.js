@@ -583,7 +583,7 @@ export function figureWithMirror(defs, body, box, size, rot, mir) {
 export function readSymgridParams(id) {
   const out = {};
   SYMGRID_GENS[id].params.forEach(([k, , a]) => { const v = pv('symgen-' + k); out[k] = a === 'text' ? v : parseFloat(v); });
-  if (SYMGRID_GENS[id].square && pc('chk-symgen-square')) out.square = true;   // Columns × Rows, square cells
+  if (SYMGRID_GENS[id].square && pc('chk-symgen-square')) { out.square = true; if (pc('chk-symgen-overflow')) out.overflow = true; }   // Columns × Rows, square cells (+ Overflow)
   return out;
 }
 // Loom's grid generators (loom/js/generators/registry.js, untouched), imported on first use — the Rhizome way.
@@ -593,6 +593,7 @@ export function loomRegistry() { return (loomRegistryP = loomRegistryP || import
 // the Figure graph's Figure node (engine/17) and the regression suite call it.
 export async function symbolGridModel(genId, params, cv) {
   params = params || {};
+  const asked = params;   // what the panel asked for — the frame keeps it (Overflow adds tracks to the model only)
   const G = (await loomRegistry())[genId];
   if (!G) throw new Error(`Unknown grid generator "${genId}".`);
   const m = Math.min(cv.W, cv.H) * (cv.margin / 100);
@@ -603,6 +604,15 @@ export async function symbolGridModel(genId, params, cv) {
     const cols = Math.round(params.cols), rows = Math.round(params.rows), side = Math.min(inner.width / cols, inner.height / rows);
     const w = side * cols, h = side * rows;
     inner = { x: inner.x + (inner.width - w) / 2, y: inner.y + (inner.height - h) / 2, width: w, height: h };
+    // Overflow (Oct 27, 2026 — Diego: "si vanno a riempire anche gli spazi rimasti vuoti e le celle tagliate fuori dalla
+    // canvas vengono nascoste"): the same squares go on past Columns × Rows to the canvas's edges, margin included, on
+    // the same lattice (the chosen grid stays where it was, in the middle); a square the edge cuts is cut by the canvas
+    if (params.overflow) {
+      const l = Math.ceil(inner.x / side - 1e-9), t = Math.ceil(inner.y / side - 1e-9);
+      const r = Math.ceil((cv.W - inner.x - w) / side - 1e-9), b = Math.ceil((cv.H - inner.y - h) / side - 1e-9);
+      inner = { x: inner.x - l * side, y: inner.y - t * side, width: (cols + l + r) * side, height: (rows + t + b) * side };
+      params = { ...params, cols: cols + l + r, rows: rows + t + b };
+    }
   }
   if (genId === 'rectangular') {
     // New UI path: cols/rows are just a track COUNT → equal starting weights
@@ -615,7 +625,7 @@ export async function symbolGridModel(genId, params, cv) {
     if (params.colWeights != null) params = { ...params, colWeights: clampWeightTrackCount(params.colWeights) };
     if (params.rowWeights != null) params = { ...params, rowWeights: clampWeightTrackCount(params.rowWeights) };
   }
-  const { square: _sq, ...gp } = params;   // Square cells are made here (the inner box and Rows), so the generator gets plain Columns × Rows
+  const { square: _sq, overflow: _of, ...gp } = params;   // Square cells are made here (the inner box and Rows), so the generator gets plain Columns × Rows
   const full = { ...G.defaults, ...gp, gap: 0 };
   const { grid, cells } = G.generate(full, inner);
   if (G.cellShape === 'polygon') grid.cellShape = 'polygon';
@@ -627,7 +637,7 @@ export async function symbolGridModel(genId, params, cv) {
   return {
     version: '1.0',
     canvas: { width: W, height: H, unit: 'px', margin: cv.margin, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, safeArea: 0, bleed: 0,
-      fvsFrame: { ...frame, generator: genId, params } },
+      fvsFrame: { ...frame, generator: genId, params: asked.overflow ? asked : params } },
     grid, cells,
   };
 }

@@ -812,7 +812,11 @@ its cells.
   grid section says so and keeps the last grid). **Square cells** (Rectangular, Bento — a switch after Rows, Diego): Columns ×
   Rows as chosen, every cell an exact square of the larger side that fits both ways, the grid centred — the leftover on
   the long side goes to the margin (Rows was derived from Columns and hidden for a few hours the same day; Diego: keep
-  Rows). The section's hint reads *6 × 8 · 48 cells*. The grid is
+  Rows). The section's hint reads *6 × 8 · 48 cells*. **Overflow** (a switch after Square cells, shown only with it — Diego, Oct 27, 2026: *si vanno a
+  riempire anche gli spazi rimasti vuoti e le celle tagliate fuori dalla canvas vengono nascoste*): the same squares go
+  on past Columns × Rows to the canvas's edges, margin included, on the same lattice — the chosen grid stays where it
+  was, in the middle — and a square the edge cuts is cut by the canvas (the export is the canvas). The model gets the
+  extra tracks (6 × 6 on Portrait 4:5 → 8 × 10 · 80 cells); the Symbol's frame keeps what was asked. The grid is
   centred by Loom's own **`grid.offset`** (`{ x, y }`, where the tracks start inside the margin's box —
   `loom/js/json-model.js` `gridOffset`; `Organica.loadLoomGrid` adds it, and so do the Symbol's guides and track
   handles); absent on every other grid and every model saved before, so they are unchanged. Dragging a border turns

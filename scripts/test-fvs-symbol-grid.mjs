@@ -45,6 +45,21 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     const left = Math.min(...cells.map(c => c.x)), right = cv.width - Math.max(...cells.map(c => c.x + c.width));
     check('Square cells on ' + preset + ' ' + cols + ' × ' + rows + ': ' + q('symbol-cellcount-hint').textContent + ', exact squares, centred, Rows shown', square && cells.length === cols * rows && Math.abs(top - bottom) < 0.5 && Math.abs(left - right) < 0.5 && !q('symgen-row-rows').hidden, JSON.stringify([cells.length, s0, top, bottom, left, right]));
   }
+  // Overflow (with Square cells): the squares go on to the canvas's edges, margin included, cut there; the chosen grid stays put
+  { set('sel-symcanvas-preset', 'Portrait 4:5'); set('symgen-cols', 6); set('symgen-rows', 6); await settle();
+    const base = F.state.symbolGrid.cells.map(c => c.x.toFixed(2) + ',' + c.y.toFixed(2)), s0 = F.state.symbolGrid.cells[0].width;
+    check('Overflow shows with Square cells on', !q('symgen-overflow-row').hidden, 'hidden');
+    set('chk-symgen-overflow', true); await settle();
+    const cells = F.state.symbolGrid.cells, cv = F.state.symbolGrid.canvas, at = new Set(cells.map(c => c.x.toFixed(2) + ',' + c.y.toFixed(2)));
+    const minX = Math.min(...cells.map(c => c.x)), maxX = Math.max(...cells.map(c => c.x + c.width)), minY = Math.min(...cells.map(c => c.y)), maxY = Math.max(...cells.map(c => c.y + c.height));
+    const ok = cells.every(c => Math.abs(c.width - s0) < 0.01 && Math.abs(c.height - s0) < 0.01) && minX <= 0.01 && minY <= 0.01 && maxX >= cv.width - 0.01 && maxY >= cv.height - 0.01 && base.every(k => at.has(k));
+    check('Overflow on Portrait 4:5 6 × 6: ' + q('symbol-cellcount-hint').textContent + ' — the canvas covered to its edges, same squares, the 6 × 6 where it was', ok, JSON.stringify([cells.length, minX, minY, maxX, maxY, cv.width, cv.height, base.filter(k => !at.has(k)).length]));
+    check('…the Symbol keeps what was asked (6 × 6, Overflow) — the extra tracks are the model’s', F.state.symbolGrid.canvas.fvsFrame.params.cols === 6 && F.state.symbolGrid.canvas.fvsFrame.params.overflow === true, JSON.stringify(F.state.symbolGrid.canvas.fvsFrame.params));
+    const sv = F.buildSymbolSVG();
+    check('…the export is the canvas (viewBox), so a cut square ends at its edge', /viewBox="0 0 1080 1350"/.test(sv), (sv.match(/viewBox="[^"]+"/) || [])[0]);
+    set('chk-symgen-overflow', false); await settle();
+    set('chk-symgen-square', false); await settle();
+    check('Square cells off: Overflow hides', q('symgen-overflow-row').hidden, 'shown'); }
   set('chk-symgen-square', false); await settle();
   check('Square cells off: the cells fill the margin box again', Math.abs(Math.min(...F.state.symbolGrid.cells.map(c => c.x)) - Math.min(F.state.symbolGrid.canvas.width, F.state.symbolGrid.canvas.height) * 0.05) < 0.5, Math.min(...F.state.symbolGrid.cells.map(c => c.x)));
   // the presets export at their own size
