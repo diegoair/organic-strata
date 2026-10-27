@@ -9,7 +9,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { innerRect } from '../canvas-manager.js';
-import { catmullRomPathD } from '../json-model.js';
+import { catmullRomPathD, gridOffset } from '../json-model.js';
 
 function r2(n) { return Math.round(n * 100) / 100; }
 
@@ -74,8 +74,11 @@ export function buildGridCSS(model) {
   // one value on all four sides: top/left come straight from inner's own
   // origin, right/bottom are back-derived from what inner didn't already
   // account for (the same rect the tracks themselves were solved inside).
-  const padTop = r2(inner.y), padLeft = r2(inner.x);
-  const padRight = r2(canvas.width - inner.width - inner.x), padBottom = r2(canvas.height - inner.height - inner.y);
+  // grid.offset (Bento's Square cells): the tracks don't fill the inner
+  // rect — the leftover goes on both sides of that axis as extra padding.
+  const off = gridOffset(grid);
+  const padTop = r2(inner.y + off.y), padLeft = r2(inner.x + off.x);
+  const padRight = r2(canvas.width - inner.width - inner.x + off.x), padBottom = r2(canvas.height - inner.height - inner.y + off.y);
   return {
     containerCSS: `display: grid; box-sizing: border-box; grid-template-columns: ${cols}; grid-template-rows: ${rows}; gap: ${grid.gap}px; padding: ${padTop}px ${padRight}px ${padBottom}px ${padLeft}px; width: ${r2(canvas.width)}${unit}; height: ${r2(canvas.height)}${unit};`,
     // Every cell draws its own right + bottom border; only col-0/row-0

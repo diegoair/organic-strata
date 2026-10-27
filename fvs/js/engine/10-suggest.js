@@ -593,7 +593,9 @@ export function suggestSymbols(opts = {}) {
     for (const [id, rule] of Object.entries(SYMBOL_ARRANGE)) {
       if (id === 'random' || (id === 'orientation' && !G.orient.some(Boolean))) continue;
       const cells = arrangeCells(grid, cur, pal, id, seed, fit);
-      const cand = cells.map((c, i) => (fixed[i] ? locked[i] : { name: c.componentName, r: 0, fh: false }));
+      // a cell a spanning Component covers comes back unnamed: it takes the pool's first, as More like this does (Oct 27, 2026 —
+      // Fill the grid on an empty grid threw on it)
+      const cand = cells.map((c, i) => (fixed[i] ? locked[i] : { name: c.componentName || pal[0].name, r: 0, fh: false }));
       add(refineTurns(G, cand, fit, anByName, mulberry32(seed + id.length * 31), fixed, T, CWs), rule.label);
     }
     for (let b = 0; b < 3; b++) add(beamCandidate(G, pal, W, fit, anByName, mulberry32(seed * 17 + b * 101 + 1), locked, beamWidth, T, CWs), 'Continuity search');

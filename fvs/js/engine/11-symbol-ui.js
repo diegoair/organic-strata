@@ -109,7 +109,11 @@ export const TRACK_MIN_FRAC = 0.04;   // a track never shrinks below 4% of the g
 export function symbolTrackGrid() {
   const g = state.symbolGrid;
   if (!g || g.cellShape !== 'rect' || !g.grid || !g.grid.tracks || !g.grid.tracks.cols || !g.grid.tracks.rows) return null;
-  return g;
+  // Square cells: the tracks sit at Loom's grid.offset inside the margin's box — guides and handles follow it (Oct 27, 2026)
+  const off = g.grid.offset;
+  if (!off) return g;
+  const gap = g.grid.gap || 0, len = t => t.reduce((a, b) => a + b, 0) + gap * Math.max(0, t.length - 1);
+  return { ...g, inner: { x: g.inner.x + (off.x || 0), y: g.inner.y + (off.y || 0), width: len(g.grid.tracks.cols), height: len(g.grid.tracks.rows) } };
 }
 export function trackBorders(axis) {
   const g = symbolTrackGrid();

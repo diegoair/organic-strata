@@ -36,6 +36,7 @@ const JOBS = {
   'element-undo':       node('test-fvs-element-undo.mjs'),   // every Element edit a step for ⌘Z / Undo (Oct 26, 2026)
   'rectangle':          node('test-fvs-rectangle.mjs'),   // the Rectangle cell: Portrait / Landscape, presets, Free (Oct 26, 2026)
   'tile':               node('test-fvs-tile.mjs'),   // Component › Tile: Layout, Offset, On top, Tile seamlessly, Gap below 0 (Oct 26, 2026)
+  'symbol-grid':        node('test-fvs-symbol-grid.mjs'),   // the live Symbol grid, Square cells, social formats, Loom's ranges (Oct 27, 2026)
   'paper-tile':         node('test-fvs-paper-tile.mjs'),   // Paper › Element as one <pattern>: same tiles, few nodes (Oct 26, 2026)
   'pipeline':           node('test-fvs-pipeline.mjs'),   // paper, textures and inks from Element to gallery, saved, Symbol (Oct 26, 2026)      // Style = Photo: Normal · Tone · Dither from the Palette, self-contained files (Oct 23, 2026)
   'axes':               node('test-fvs-axes.mjs'),       // every rule × grid × axis frozen (Tropism Phase 1)   // Component: one Generate after another = a fresh one

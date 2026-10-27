@@ -67,24 +67,51 @@ function buildSpans(cols, rows, variety, seed) {
 }
 
 /**
- * @param {{cols:number, rows:number, variety:number, gap:number, seed:number}} params
+ * @param {{cols:number, rows:number, variety:number, gap:number, seed:number, square?:boolean, maxRows?:number}} params
  * @param {{width:number, height:number}} inner  canvas inner rect size
+ *
+ * SQUARE CELLS (`square: true`, Diego, Oct 27, 2026). Rows is no longer an
+ * input: it is derived from Columns so every base cell is an exact square.
+ *   s    = (inner.width − (cols − 1)·gap) / cols      — the column width Kiwi solves anyway
+ *   rows = floor((inner.height + gap) / (s + gap))    — as many whole squares as fit,
+ *          at least 1, at most `maxRows` (default BENTO_MAX_ROWS = the registry's rows max)
+ * The squares rarely fill the height exactly; the leftover is split equally
+ * above and below — the grid is centred vertically. Returned:
+ *   grid.params = { cols, rows (the DERIVED count), variety, seed, square: true }
+ *   grid.tracks = { cols: [s × cols], rows: [s × rows] }   (every row track = the column width)
+ *   grid.offset = { x: 0, y: (inner.height − (rows·s + (rows − 1)·gap)) / 2 }
+ * `grid.offset` is the model's way to say "the tracks start this far in from
+ * the inner rect's top-left": every reader that turns tracks into rects adds
+ * it (json-model.js resolveCellRects, the HTML renderer's padding, main.js's
+ * track handles). Absent / {0,0} = today's behaviour, so every other
+ * generator and every saved model is unchanged. Spans (Variety) are built
+ * on the derived rows exactly as on typed rows.
  */
+export const BENTO_MAX_ROWS = 24;
 export function generateBento(params, inner) {
-  const { cols, rows, variety, gap, seed } = params;
+  const { cols, variety, gap, seed } = params;
+  const square = !!params.square;
+  const colSizes = solveTracksKiwi(cols, inner.width, gap);
+  let rows = params.rows, rowSizes, offset = null;
+  if (square) {
+    const s = colSizes[0];
+    const maxRows = params.maxRows || BENTO_MAX_ROWS;
+    rows = Math.max(1, Math.min(maxRows, Math.floor((inner.height + gap) / (s + gap) + 1e-9)));
+    rowSizes = new Array(rows).fill(s);
+    const used = rows * s + (rows - 1) * gap;
+    offset = { x: 0, y: (inner.height - used) / 2 };   // negative only if one square is taller than the inner rect — still centred
+  } else {
+    rowSizes = solveTracksKiwi(rows, inner.height, gap);
+  }
   const cells = buildSpans(cols, rows, variety, seed).map((s, i) => ({ id: 'c' + i, ...s }));
 
-  const colSizes = solveTracksKiwi(cols, inner.width, gap);
-  const rowSizes = solveTracksKiwi(rows, inner.height, gap);
-
-  return {
-    grid: {
-      type: 'bento',
-      solver: 'kiwi',
-      params: { cols, rows, variety, seed },
-      gap,
-      tracks: { cols: colSizes, rows: rowSizes },
-    },
-    cells,
+  const grid = {
+    type: 'bento',
+    solver: 'kiwi',
+    params: square ? { cols, rows, variety, seed, square: true } : { cols, rows, variety, seed },
+    gap,
+    tracks: { cols: colSizes, rows: rowSizes },
   };
+  if (offset) grid.offset = offset;
+  return { grid, cells };
 }

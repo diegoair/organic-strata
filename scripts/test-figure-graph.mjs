@@ -394,11 +394,11 @@ const ch = await P.ev(`
     // Series / Table (Phase E): sweepable parameters from the inputs; a 'set' spec sets exactly those values (no rng, Vary
     // ignored, a step equal to the current value is still a record); seriesSpecs snaps the steps and crosses two axes row-major
     const sw = F('sweepableOf')(inp), cols = sw.find(x => x.key === 'grid:cols'), hue = sw.find(x => x.key === 'palette:hue');
-    res.sweep = !!cols && cols.min === 5 && cols.max === 8 && cols.cur === 6 && !!hue && sw.some(x => x.key === 'transform:turn') && sw.some(x => x.key === 'transform:per');
+    res.sweep = !!cols && cols.min === 2 && cols.max === 24 && cols.cur === 6 && !!hue && sw.some(x => x.key === 'transform:turn') && sw.some(x => x.key === 'transform:per');
     const st1 = V(inp, { mode: 'set', set: { 'grid:cols': 8, 'palette:hue': 60 }, seed: 1 }, { vary: { grid: false, palette: false } });
     const st2 = V(inp, { mode: 'set', set: { 'grid:cols': 6 }, seed: 1 });
     res.setMode = st1.inputs.grid.params.cols === 8 && st1.changes.length === 2 && st1.label === 'Grid: Columns 8 · Palette: Hue +60°' && st2.changes.length === 1 && st2.label === 'Grid: Columns 6' && st2.inputs.grid.params.cols === 6;
-    const ser = F('seriesSpecs')({ mode: 'series', seed: 3, series: [{ key: 'grid:cols', from: 4, to: 9, steps: 4 }] }, sw).map(q => q.spec.set['grid:cols']);
+    const ser = F('seriesSpecs')({ mode: 'series', seed: 3, series: [{ key: 'grid:cols', from: 5, to: 8, steps: 4 }] }, sw).map(q => q.spec.set['grid:cols']);
     const mat = F('seriesSpecs')({ mode: 'table', seed: 3, series: [{ key: 'grid:cols', from: 5, to: 7, steps: 3 }, { key: 'palette:hue', from: -60, to: 60, steps: 2 }] }, sw).map(q => q.spec.set['grid:cols'] + '/' + q.spec.set['palette:hue']);
     res.seriesSpecs = JSON.stringify(ser) === JSON.stringify([5, 6, 7, 8]) && JSON.stringify(mat) === JSON.stringify(['5/-60', '6/-60', '7/-60', '5/60', '6/60', '7/60']);
     // Changes as records + edits (Phase D): varyInputs returns the changes it made; an edit by 'kind:key' replaces the drawn

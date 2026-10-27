@@ -10,7 +10,7 @@
    ───────────────────────────────────────────────────────────── */
 
 import { CANVAS_PRESETS, createCanvas, innerRect, safeAreaRect, UNIT_TO_MM, toCanonical } from './canvas-manager.js';
-import { buildModel, offsets } from './json-model.js';
+import { buildModel, offsets, gridOffset } from './json-model.js';
 import { GENERATORS } from './generators/registry.js';
 import { renderSVG, cellsMarkup } from './renderers/svg-renderer.js';
 import { paintGridDOM, buildHTMLSnippet } from './renderers/html-renderer.js';
@@ -35,16 +35,27 @@ let currentInner = null;
 // ── Canvas Manager ──
 function populateCanvasPresets() {
   const sel = ctrl('sel-canvas-preset');
-  Object.keys(CANVAS_PRESETS).forEach(name => {
+  // One <optgroup> per preset `group` (Screen, then Print — the order the
+  // object lists them in); the picker shows each group's label as a
+  // heading (.pi-group). option value = the preset key (saved data).
+  const groups = {};
+  Object.entries(CANVAS_PRESETS).forEach(([name, p]) => {
+    const label = p.group || 'Screen';
+    if (!groups[label]) { groups[label] = document.createElement('optgroup'); groups[label].label = label; sel.appendChild(groups[label]); }
     const opt = document.createElement('option');
     opt.value = name; opt.textContent = name;
-    sel.appendChild(opt);
+    groups[label].appendChild(opt);
   });
   // Thumbnail picker (Organica.selectPicker, 26px icons): each format as a
   // rectangle at its own aspect — "1:1 vs 4:5" at a glance. "Custom…" is
-  // the placeholder (no preset), so the trigger shows its text only.
+  // the placeholder (no preset), so the trigger shows its text only. The
+  // menu row adds the preset's hint (where the size is used) under its name.
+  const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const registry = {};
-  Object.entries(CANVAS_PRESETS).forEach(([n, p]) => { registry[n] = { name: n, icon: Organica.aspectIcon(p.width, p.height) }; });
+  Object.entries(CANVAS_PRESETS).forEach(([n, p]) => {
+    registry[n] = { name: n, icon: Organica.aspectIcon(p.width, p.height),
+      rowHtml: p.hint ? `${esc(n)}<span class="pi-hint">${esc(p.hint)}</span>` : esc(n) };
+  });
   Organica.selectPicker(sel, ctrl('canvas-preset-picker'), { registry, ariaLabel: 'Canvas preset' });
 }
 // ── Output mode: Screen (px, today's behaviour) vs Print (a real
@@ -257,6 +268,47 @@ function syncEqualizeRow() {
   const type = ctrl('sel-gridtype').value;
   ctrl('row-equalize').hidden = !(GENERATORS[type].cellShape === 'rect');
 }
+// ── Square cells (Bento) — Rows is derived from Columns (bento.js), so
+// the Rows row is HIDDEN while it is on (not greyed: it does nothing), and
+// the derived count shows in the Columns readout ("6 × 11").
+function syncBentoSquareRow() {
+  const on = ctrl('chk-bento-square').checked;
+  ctrl('row-bento-rows').hidden = on;
+  if (!on) ctrl('v-bento-cols').textContent = ctrl('rg-bento-cols').value;
+}
+function syncBentoSquareReadout(grid) {
+  syncBentoSquareRow();
+  if (grid.offset) ctrl('v-bento-cols').textContent = `${grid.tracks.cols.length} × ${grid.tracks.rows.length}`;
+}
+
+// ── Count ranges — one source: GENERATORS[type].ranges (registry.js). Every
+// hand-written slider id maps to its generator + param key here; at init
+// each slider takes the registry's min/max and its value is clamped into it
+// (the HTML attributes say the same, so the page reads right before JS runs).
+const RANGE_CONTROLS = {
+  'rg-bento-cols': ['bento', 'cols'], 'rg-bento-rows': ['bento', 'rows'],
+  'rg-sin-cols': ['sinusoidal', 'cols'], 'rg-sin-rows': ['sinusoidal', 'rows'],
+  'rg-hex-cols': ['hexagonal', 'cols'],
+  'rg-radial-rings': ['radial', 'rings'], 'rg-radial-sectors': ['radial', 'sectors'],
+  'rg-tri-cols': ['triangular', 'cols'], 'rg-dia-cols': ['diamond', 'cols'], 'rg-cir-cols': ['circular', 'cols'],
+  'rg-lin-cols': ['linear', 'cols'], 'rg-lin-rows': ['linear', 'rows'],
+  'rg-diag-count': ['diagonal', 'count'], 'rg-ang-sectors': ['angular', 'sectors'],
+  'rg-mas-cols': ['masonry', 'cols'], 'rg-frac-depth': ['fractal', 'depth'],
+  'rg-org-points': ['organic', 'points'], 'rg-spi-count': ['spiral', 'count'],
+};
+function applyRegistryRanges() {
+  Object.entries(RANGE_CONTROLS).forEach(([id, [type, key]]) => {
+    const r = GENERATORS[type] && GENERATORS[type].ranges && GENERATORS[type].ranges[key];
+    const el = ctrl(id);
+    if (!r || !el) return;
+    el.min = r[0]; el.max = r[1];
+    const v = Math.min(r[1], Math.max(r[0], parseFloat(el.value)));
+    el.value = v;
+    const valEl = el.closest('.ctrl-row')?.querySelector('.ctrl-val');
+    if (valEl) valEl.textContent = el.value;
+  });
+}
+
 // Columns only means something under Axis Columns/Both, Rows only under
 // Axis Rows/Both — hidden rather than left as a dead control the other
 // axis mode doesn't read, same rule as row-padding/Spin-amount above.
@@ -407,6 +459,8 @@ function readGridParams() {
     return {
       cols: Math.round(val('rg-bento-cols')), rows: Math.round(val('rg-bento-rows')),
       variety: val('rg-bento-variety'), gap: unitVal('rg-bento-gap'), seed: Math.round(val('rg-bento-seed')),
+      square: ctrl('chk-bento-square').checked,
+      maxRows: GENERATORS.bento.ranges.rows[1],
     };
   }
   if (type === 'hexagonal') {
@@ -529,6 +583,7 @@ function setSeg(groupId, btn) {
 }
 
 // ── Build — Canvas → Grid Definition → Constraint Engine → JSON Model ──
+let tooSmallNotice = null;
 function build() {
   const canvas = readCanvas();
   const inner = innerRect(canvas);
@@ -547,13 +602,18 @@ function build() {
   // deliberately left as-is) crashed the whole app rather than just
   // failing to render. Caught here so any unreachable combination, not
   // only this one path to it, degrades to a status message instead.
+  // Shown as an error notice (setStatus('') is silent since the status line
+  // was retired) and closed again by the next build that succeeds — with
+  // Columns/Rows up to 24 (registry ranges) this path is reachable from the
+  // sliders alone, e.g. Bento 24 × 24 on Landscape 1.91:1 or any A4 sheet.
   let grid, cells;
   try {
     ({ grid, cells } = generator.generate(params, inner));
   } catch (err) {
-    setStatus('', 'Canvas too small for this grid — increase size or reduce Columns/Rows/Gap');
+    if (!tooSmallNotice || !tooSmallNotice.el.isConnected) tooSmallNotice = Organica.notice('The canvas is too small for this grid — enlarge it, or lower Columns, Rows or Gap.', { kind: 'error' });   // once, not on every input (screen readers)
     return;
   }
+  if (tooSmallNotice) { tooSmallNotice.close(); tooSmallNotice = null; }
   grid.padding = unitVal('rg-padding');   // visual inset per cell, applied post-resolution by every renderer that reads it
   // Equalize columns/rows — a standing option (checkbox), not a one-off
   // action: baked into every build() while checked, so it survives any
@@ -569,8 +629,12 @@ function build() {
     grid.equalizeCols = ctrl('ck-equalize-cols').checked;
     grid.equalizeRows = ctrl('ck-equalize-rows').checked;
     if (grid.equalizeCols) grid.tracks.cols = solveTracksKiwi(grid.tracks.cols.length, inner.width, grid.gap);
-    if (grid.equalizeRows) grid.tracks.rows = solveTracksKiwi(grid.tracks.rows.length, inner.height, grid.gap);
+    // Square cells: the rows are already equal (each = the column width) and
+    // deliberately do NOT fill the height — re-solving them would stretch
+    // the squares back into rectangles.
+    if (grid.equalizeRows && !grid.offset) grid.tracks.rows = solveTracksKiwi(grid.tracks.rows.length, inner.height, grid.gap);
   }
+  if (type === 'bento') syncBentoSquareReadout(grid);
   cells.forEach((c, i) => { c.number = i + 1; });   // sequential by default — Shuffle numbers randomises on top of this
   currentModel = buildModel({ canvas, grid, cells });
   currentInner = inner;
@@ -613,12 +677,13 @@ function renderTrackHandles() {
   // so this checks for the polygon case, not for an explicit 'rect'.
   if (!currentModel || currentModel.grid.cellShape === 'polygon') return;
   const grid = currentModel.grid, inner = currentInner;
+  const off = gridOffset(grid);   // Bento's Square cells: the tracks start below the inner rect's top
   const colOff = offsets(grid.tracks.cols, grid.gap);
   const rowOff = offsets(grid.tracks.rows, grid.gap);
   for (let i = 1; i < grid.tracks.cols.length; i++) {
     const h = document.createElement('div');
     h.className = 'track-handle track-handle--col';
-    h.style.left = (inner.x + colOff[i] - grid.gap / 2) + 'px';
+    h.style.left = (inner.x + off.x + colOff[i] - grid.gap / 2) + 'px';
     h.dataset.axis = 'cols'; h.dataset.index = i - 1;
     h.addEventListener('pointerdown', onHandlePointerDown);
     container.appendChild(h);
@@ -626,7 +691,7 @@ function renderTrackHandles() {
   for (let i = 1; i < grid.tracks.rows.length; i++) {
     const h = document.createElement('div');
     h.className = 'track-handle track-handle--row';
-    h.style.top = (inner.y + rowOff[i] - grid.gap / 2) + 'px';
+    h.style.top = (inner.y + off.y + rowOff[i] - grid.gap / 2) + 'px';
     h.dataset.axis = 'rows'; h.dataset.index = i - 1;
     h.addEventListener('pointerdown', onHandlePointerDown);
     container.appendChild(h);
@@ -642,7 +707,10 @@ function onHandlePointerDown(e) {
   e.stopPropagation();   // don't also start #canvas-frame's own pan-drag
   const axis = e.currentTarget.dataset.axis;
   const index = parseInt(e.currentTarget.dataset.index, 10);
-  const innerSize = axis === 'cols' ? currentInner.width : currentInner.height;
+  // The length the tracks actually span — the inner rect's side for every
+  // filling grid, less for Square cells (whose rows stop short of the height).
+  const t = currentModel.grid.tracks[axis], g = currentModel.grid.gap;
+  const innerSize = t.reduce((a, b) => a + b, 0) + g * (t.length - 1);
   dragState = {
     axis, index,
     startClientX: e.clientX, startClientY: e.clientY,
@@ -694,6 +762,14 @@ function onHandlePointerUp() {
   dragState = null;
   window.removeEventListener('pointermove', onHandlePointerMove);
   window.removeEventListener('pointerup', onHandlePointerUp);
+  // a drag makes the cells uneven: Square cells turns off (Diego, Oct 27, 2026 — as in FVS); grid.offset stays until the next build
+  if (ctrl('sel-gridtype').value === 'bento' && ctrl('chk-bento-square').checked) {
+    ctrl('chk-bento-square').checked = false;
+    if (currentModel.grid.params) currentModel.grid.params.square = false;
+    ctrl('rg-bento-rows').value = currentModel.grid.tracks.rows.length;
+    const vr = document.getElementById('v-bento-rows'); if (vr) vr.textContent = ctrl('rg-bento-rows').value;
+    syncBentoSquareRow();
+  }
   renderTrackHandles();
   setStatus('active', 'Track resized');
 }
@@ -1028,6 +1104,8 @@ function applyGridParamsToUI(type, params) {
   if (type === 'bento') {
     setR('rg-bento-cols', params.cols); setR('rg-bento-rows', params.rows);
     setR('rg-bento-variety', params.variety); setR('rg-bento-gap', params.gap); setR('rg-bento-seed', params.seed);
+    ctrl('chk-bento-square').checked = !!params.square;
+    syncBentoSquareRow();
   } else if (type === 'sinusoidal') {
     setR('rg-sin-cols', params.cols); setR('rg-sin-rows', params.rows);
     setR('rg-sin-amount', params.amount); setR('rg-sin-freq', params.frequency); setR('rg-sin-phase', params.phase);
@@ -1295,6 +1373,7 @@ function buildGeneratorPicker() {
 }
 
 // ── INIT ──
+applyRegistryRanges();
 populateCanvasPresets();
 syncCanvasModeRows();
 const gridtypePicker = buildGeneratorPicker();   // before syncGeneratorRows() — it refreshes the picker's own trigger on every call

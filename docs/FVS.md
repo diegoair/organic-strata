@@ -486,7 +486,7 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
 - **Pattern tests in the gallery** (Oct 27, 2026 — Diego: *test di generazioni di patterns usando tile … salvali nella
   galleria*, then *rifai i pattern usando solo i 5 component presenti ora e la palette usata ora*): tiles 25–36, on Diego's five
   Components (Mirror 08:20:40 / 41 / 42, Radial 08:20:44 / 46) and palette, each Tile saved as new and placed in every cell
-  of a 6 × 6 Symbol (`scripts/gallery-fvs-tile-patterns.mjs`; the rectangular generator takes 5–8 tracks). The Symbol
+  of a 6 × 6 Symbol (`scripts/gallery-fvs-tile-patterns.mjs`; the rectangular generator took 5–8 tracks then). The Symbol
   equals the Component repeated (0 % of pixels) in every case. **Fixed the same day** (Diego: *fai funzionare Interlace
   dentro il Symbol e togli le linee sottili*): a nested Component weaves in the Symbol as on its step (`nweave-*` masks in
   its own units, each written once and shared by every cell holding the same Component — 914 → 229 KB on a 6 × 6), the
@@ -795,13 +795,33 @@ its cells.
   the Grid tier with no extra field. In Print the Export follows the canvas: SVG at
   the physical size with the paper extended into the bleed and crop marks; PNG at
   the canvas DPI with the DPI written into the file.
-- **Symbol grid** — *Generate grid in canvas* runs one of Loom's own generators
+- **Symbol grid** — live (Oct 27, 2026 — Diego: *al cambio di tipologia di grid si aggiorna automaticamente la canvas e la
+  grid … elimina generate grid in canvas*): the generator, its parameters and the Canvas rebuild the grid at once (no
+  button), one of Loom's own generators
   (Rectangular, Bento, Wave, Masonry, Hexagonal, Triangular, Diamond, Circular,
   Radial, Organic, Fractal, Spiral — `loom/js/generators/registry.js`, imported as
   ES modules) inside the canvas margin, gap 0 so cells meet. **Load JSON grid** loads
   a grid file exported from Loom; it keeps its own frame. (The former *More grids*
   block — saved Loom grids, ready-made Bento/Hexagonal, Square N×M, Triangle — was
   removed Oct 2, 2026.) The preview fits any proportion.
+  **Columns / Rows** are Loom's ranges (Oct 27, 2026 — Diego: *aumenta il numero di col e rows … a partire da Loom*):
+  2–24 on Rectangular, Bento, Wave, Masonry; the lattices their Loom minimum and maximum (Hexagonal / Circular 3–24,
+  Triangular / Diamond 3–30); the source is `ranges` in `loom/js/generators/registry.js`, and
+  `scripts/test-fvs-symbol-grid.mjs` checks `SYMGRID_GENS` agrees (Rings, Cells, Depth keep the Symbol's own). The old
+  *Symbol band* (25–64 cells) gives way to a cap: a Symbol holds at most **2,048 cells** (`SYMBOL_CELL_CAP`; past it the
+  grid section says so and keeps the last grid). **Square cells** (Rectangular, Bento — a switch under Columns): Rows
+  follow Columns and the canvas — the side from Columns, as many rows as fit, the height left over centred into the
+  margin (exact squares, Diego); Rows is hidden while on, the section's hint reads *6 × 11 · 66 cells*. The grid is
+  centred by the model's per-side margins (`marginTop` … `marginLeft`, which `Organica.loadLoomGrid` now reads as Loom's
+  own `innerRect` does — every model before has them at 0). Dragging a border turns Square cells off.
+  **The contents repeat** (Diego): when the grid changes, the cells take the old ones as a motif — on Columns × Rows
+  grids by row and column, wrapped (`carrySymbolCells`), on the others by order; a grid that shrinks keeps its first rows
+  and columns; borders dragged on Rectangular stay when only the canvas changes. Filling the cells is **Fill the grid**
+  (floatbar) and the **Fill** section — never the grid section. **Canvas formats** in two groups, *Screen* and *Print*,
+  one name per size and the platform as the row's hint: Square 1:1 (Instagram post · LinkedIn), Portrait 4:5 (Instagram
+  portrait), Portrait 3:4 (Instagram grid), Portrait 2:3 (Pinterest), Vertical 9:16 (Instagram story and reel),
+  Landscape 16:9 (X · YouTube), Landscape 1.91:1 (Instagram landscape · link preview), Widescreen 3:2; A4, A3, Letter.
+  Every Screen format exports at its own size (SVG viewBox, PNG ×1 — checked).
 - **View toggles (floatbar)** — four icon buttons in the Symbol step's floatbar (on =
   the icon at full strength, as everywhere in the bar): **Show grid** (the grid's own lines; *Show loaded grid* until Oct 8, 2026), **Clip to
   cell** (content cut at the cell's edge — the one that is in the export and saved
@@ -818,9 +838,8 @@ its cells.
   Symbol step with no grid builds the panel's grid (canvas, generator, parameters) with every
   cell **empty**: each one drawn with a dashed outline while *Show guides* is on (`--border-strong`, the file's 6 5 dash;
   hover = ink + a light wash), a drop target for the Library rail and a click target for
-  Choose content. Building by hand needs no button. While every cell is empty the panel is the
-  grid's source: a change to the canvas or the generator rebuilds it live (nothing to lose);
-  once anything is placed, *Generate grid in canvas* does that. Outline contrast on the default
+  Choose content. Building by hand needs no button. The panel is always the grid's source: a change to the canvas or
+  the generator rebuilds it live, empty or not (Oct 27, 2026; until then only while every cell was empty). Outline contrast on the default
   Paper: 3.65:1 light, 4.73:1 dark.
 - **The Symbol floatbar** (Oct 5, 2026) — three named groups (`.org-floatbar__group`) between
   separators: **Symbol** (Fill the grid · Variations · Clear) | **Fit in cell** (Contain · Stretch ·
@@ -852,7 +871,7 @@ its cells.
   handle on the preview (never exported). Drag it: the two tracks either side trade
   size, the total stays, the cells keep their content, and a track never goes below
   4% of the grid. On *Rectangular* the Column / Row weights fields follow live
-  (mean 1, two decimals), so *Generate grid in canvas* reproduces the proportions.
+  (mean 1, two decimals); a later Canvas change keeps them, a new Columns / Rows count resets them.
 - **Components pool** — the saved Components the Symbol is built from. It fills itself, with no
   panel section (the *Components · N in the pool* section with its weights and *+ Add Components…*
   was removed on Oct 4, 2026, `40b71e8`): the first Symbol visit takes the 8 most recently saved,

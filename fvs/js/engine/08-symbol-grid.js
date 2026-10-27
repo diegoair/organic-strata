@@ -2,7 +2,7 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  DEFAULT_COLOR_RULE, live, pv, state
+  DEFAULT_COLOR_RULE, live, pc, pv, state
 } from './00-core.js';
 import {
   frameDims, frameSize, median, resolveGridCells
@@ -260,16 +260,22 @@ export function polyOrient(points) {
   const low = ys.filter(y => Math.abs(y - mx) < 1e-6).length, high = ys.filter(y => Math.abs(y - mn) < 1e-6).length;
   return low === 2 ? 'up' : high === 2 ? 'down' : null;
 }
-export const SYMCANVAS_PRESETS = {   // Loom's CANVAS_PRESETS (loom/js/canvas-manager.js) + 9:16 and A3
-  'Square 1:1': { w: 1080, h: 1080, unit: 'px' },
-  'Portrait 4:5': { w: 1080, h: 1350, unit: 'px' },
-  'Landscape 16:9': { w: 1920, h: 1080, unit: 'px' },
-  'Vertical 9:16': { w: 1080, h: 1920, unit: 'px' },
-  'Widescreen 3:2': { w: 1620, h: 1080, unit: 'px' },
-  'A4 portrait': { w: 210, h: 297, unit: 'mm' },
-  'A4 landscape': { w: 297, h: 210, unit: 'mm' },
-  'A3 portrait': { w: 297, h: 420, unit: 'mm' },
-  'Letter portrait': { w: 215.9, h: 279.4, unit: 'mm' },
+export const SYMCANVAS_PRESETS = {   // Loom's CANVAS_PRESETS (loom/js/canvas-manager.js), mirrored — keys are saved data, never renamed
+  // Screen / Print groups and the platforms as row hints (Oct 27, 2026 — Diego: social formats, Instagram first; one size
+  // one name, the platform only as a hint). Sizes checked against 2026 guides: IG post 1:1, portrait 4:5, grid 3:4,
+  // story / reel 9:16, landscape 1.91:1; Pinterest 2:3.
+  'Square 1:1': { w: 1080, h: 1080, unit: 'px', group: 'Screen', hint: 'Instagram post · LinkedIn' },
+  'Portrait 4:5': { w: 1080, h: 1350, unit: 'px', group: 'Screen', hint: 'Instagram portrait' },
+  'Portrait 3:4': { w: 1080, h: 1440, unit: 'px', group: 'Screen', hint: 'Instagram grid' },
+  'Portrait 2:3': { w: 1000, h: 1500, unit: 'px', group: 'Screen', hint: 'Pinterest' },
+  'Vertical 9:16': { w: 1080, h: 1920, unit: 'px', group: 'Screen', hint: 'Instagram story and reel' },
+  'Landscape 16:9': { w: 1920, h: 1080, unit: 'px', group: 'Screen', hint: 'X · YouTube' },
+  'Landscape 1.91:1': { w: 1080, h: 566, unit: 'px', group: 'Screen', hint: 'Instagram landscape · link preview' },
+  'Widescreen 3:2': { w: 1620, h: 1080, unit: 'px', group: 'Screen' },
+  'A4 portrait': { w: 210, h: 297, unit: 'mm', group: 'Print' },
+  'A4 landscape': { w: 297, h: 210, unit: 'mm', group: 'Print' },
+  'A3 portrait': { w: 297, h: 420, unit: 'mm', group: 'Print' },
+  'Letter portrait': { w: 215.9, h: 279.4, unit: 'mm', group: 'Print' },
 };
 export const PX_PER_MM = 96 / 25.4;
 // [key, label, min, max, step, default] — or [key, label, 'text', default]. Everything
@@ -281,6 +287,11 @@ export const PX_PER_MM = 96 / 25.4;
 // (Fractal's exact 2^depth, and Figure's own hex-ring picker elsewhere) don't map
 // onto a literal 5-8 slider and get their own deliberately different-looking range
 // that still lands in the same cell-count band — see CLAUDE.md session note.
+// Columns / Rows (Oct 27, 2026 — Diego: "aumenta il numero di col e rows … a partire da Loom"): Loom's ranges, the one
+// source being loom/js/generators/registry.js `ranges` (scripts/test-fvs-tile.mjs checks the two agree) — 2–24 on the
+// Columns × Rows generators, the lattices their own Loom minimum and maximum. The "Symbol band" gives way to a cell cap
+// (SYMBOL_CELL_CAP). `square`: the generator offers Square cells (Rows follow Columns and the canvas, exact squares).
+export const SYMBOL_CELL_CAP = 2048;
 export const SYMGRID_GENS = {
   // Columns/Rows just pick the track COUNT (equal-width to start, same slider
   // shape as every other generator) — uneven weights are set afterward by
@@ -288,14 +299,14 @@ export const SYMGRID_GENS = {
   // each column / beside each row shows the current share. A free-text
   // "1,1,1,1,1" field asked the user to hand-author that string blind; this
   // doesn't, and it's the same generate-then-drag workflow Loom itself uses.
-  rectangular: { label: 'Rectangular', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6]] },
-  bento: { label: 'Bento', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Seed', 0, 999, 1, 7]] },
-  sinusoidal: { label: 'Wave', params: [['cols', 'Columns', 5, 8, 1, 6], ['rows', 'Rows', 5, 8, 1, 6], ['amount', 'Amount', 0, 1, 0.05, 0.5], ['frequency', 'Frequency', 0.5, 6, 0.5, 2]] },
-  masonry: { label: 'Masonry', params: [['cols', 'Columns', 5, 8, 1, 6], ['seed', 'Seed', 0, 999, 1, 7]] },
-  hexagonal: { label: 'Hexagonal', params: [['cols', 'Columns', 5, 8, 1, 6]] },
-  triangular: { label: 'Triangular', params: [['cols', 'Columns', 5, 8, 1, 6]] },
-  diamond: { label: 'Diamond', params: [['cols', 'Columns', 5, 8, 1, 6]] },
-  circular: { label: 'Circular', params: [['cols', 'Columns', 5, 8, 1, 6]] },
+  rectangular: { label: 'Rectangular', square: true, params: [['cols', 'Columns', 2, 24, 1, 6], ['rows', 'Rows', 2, 24, 1, 6]] },
+  bento: { label: 'Bento', square: true, params: [['cols', 'Columns', 2, 24, 1, 6], ['rows', 'Rows', 2, 24, 1, 6], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Seed', 0, 999, 1, 7]] },
+  sinusoidal: { label: 'Wave', params: [['cols', 'Columns', 2, 24, 1, 6], ['rows', 'Rows', 2, 24, 1, 6], ['amount', 'Amount', 0, 1, 0.05, 0.5], ['frequency', 'Frequency', 0.5, 6, 0.5, 2]] },
+  masonry: { label: 'Masonry', params: [['cols', 'Columns', 2, 24, 1, 6], ['seed', 'Seed', 0, 999, 1, 7]] },
+  hexagonal: { label: 'Hexagonal', params: [['cols', 'Columns', 3, 24, 1, 6]] },
+  triangular: { label: 'Triangular', params: [['cols', 'Columns', 3, 30, 1, 6]] },
+  diamond: { label: 'Diamond', params: [['cols', 'Columns', 3, 30, 1, 6]] },
+  circular: { label: 'Circular', params: [['cols', 'Columns', 3, 24, 1, 6]] },
   radial: { label: 'Radial', params: [['rings', 'Rings', 5, 8, 1, 6], ['sectors', 'Sectors', 5, 8, 1, 6]] },
   organic: { label: 'Organic (Voronoi)', params: [['points', 'Cells', 25, 64, 1, 40], ['iterations', 'Relax', 0, 8, 1, 4], ['seed', 'Seed', 0, 999, 1, 7]] },
   fractal: { label: 'Fractal', params: [['depth', 'Depth', 5, 6, 1, 5], ['variance', 'Variance', 0, 0.5, 0.05, 0.2], ['seed', 'Seed', 0, 999, 1, 7]] },
@@ -303,8 +314,8 @@ export const SYMGRID_GENS = {
 };
 // Rectangular has no cols/rows slider — column/row count is literally the number of
 // comma-separated weights typed in. Clamp the track COUNT (not the weight values) to
-// the same 5-8 band every other generator uses, padding/truncating as needed.
-export function clampWeightTrackCount(str, min = 5, max = 8) {
+// the same 2–24 range as the Columns / Rows sliders, padding/truncating as needed (5–8 until Oct 27, 2026).
+export function clampWeightTrackCount(str, min = 2, max = 24) {
   let parts = String(str).split(',').map(s => s.trim()).filter(s => s !== '');
   if (parts.length > max) parts = parts.slice(0, max);
   while (parts.length < min) parts.push('1');
@@ -376,6 +387,19 @@ export function overlapGrowth() { return 1 + Math.max(0, state.symbolOverlap.amo
 // ── The empty Symbol: the panel's grid with every cell empty ──
 export const emptySymbolCell = () => ({ source: 'empty', rotation: 0, flipH: false, flipV: false, scale: 1, color: null, fitMode: 'contain', fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false });
 export const symbolHasContent = () => (state.symbolCells || []).some(c => c && c.source !== 'empty');
+// The grid changed live (Oct 27, 2026 — Diego: the contents repeat): the new cells take the old ones as a repeating
+// motif — on Columns × Rows grids by row and column, wrapped (cell r, c takes the old r mod rows, c mod columns), on the
+// others by order, wrapped. A grid that shrinks keeps its first rows and columns.
+export function carrySymbolCells(oldGrid, oldCells, newGrid) {
+  const oc = oldGrid.cells, nc = newGrid.cells, n = oldCells.length;
+  if (!n) return nc.map(emptySymbolCell);
+  const take = i => structuredClone(oldCells[((i % n) + n) % n] || emptySymbolCell());
+  const lattice = g => g.cells.every(c => Number.isInteger(c.col) && Number.isInteger(c.row));
+  if (!lattice(oldGrid) || !lattice(newGrid)) return nc.map((c, k) => take(k));
+  const at = new Map(oc.map((c, i) => [c.row + ',' + c.col, i]));
+  const R = Math.max(...oc.map(c => c.row + (c.rowSpan || 1))), C = Math.max(...oc.map(c => c.col + (c.colSpan || 1)));
+  return nc.map((c, k) => { const i = at.get((c.row % R) + ',' + (c.col % C)); return take(i == null ? k : i); });
+}
 // The floatbar Generate: fills the empty grid. Disabled (aria-disabled, so it stays focusable and its
 // tooltip says why) when nothing is saved, or when the grid already has content (no Symbol undo — Clear first).
 export function symbolGenerateBlock() {
@@ -559,6 +583,7 @@ export function figureWithMirror(defs, body, box, size, rot, mir) {
 export function readSymgridParams(id) {
   const out = {};
   SYMGRID_GENS[id].params.forEach(([k, , a]) => { const v = pv('symgen-' + k); out[k] = a === 'text' ? v : parseFloat(v); });
+  if (SYMGRID_GENS[id].square && pc('chk-symgen-square')) { out.square = true; delete out.rows; }   // Rows follow Columns
   return out;
 }
 // Loom's grid generators (loom/js/generators/registry.js, untouched), imported on first use — the Rhizome way.
@@ -567,10 +592,21 @@ export function loomRegistry() { return (loomRegistryP = loomRegistryP || import
 // The Loom model for a generated grid inside a canvas (cv = readSymbolCanvas()'s shape) — pure; the Symbol step,
 // the Figure graph's Figure node (engine/17) and the regression suite call it.
 export async function symbolGridModel(genId, params, cv) {
+  params = params || {};
   const G = (await loomRegistry())[genId];
   if (!G) throw new Error(`Unknown grid generator "${genId}".`);
   const m = Math.min(cv.W, cv.H) * (cv.margin / 100);
-  const inner = { x: m, y: m, width: Math.max(1, cv.W - 2 * m), height: Math.max(1, cv.H - 2 * m) };
+  let inner = { x: m, y: m, width: Math.max(1, cv.W - 2 * m), height: Math.max(1, cv.H - 2 * m) };
+  // Square cells (Oct 27, 2026 — Diego: exact squares): the side from Columns, as many Rows as fit (2–24), the height
+  // left over centred into the margin; on a canvas too wide for that many columns, the width is the one cut down
+  if (params.square && params.cols) {
+    const cols = Math.round(params.cols); let side = inner.width / cols, rows = Math.floor(inner.height / side + 1e-9);
+    if (rows < 1) { rows = 1; side = inner.height; }
+    rows = Math.min(rows, (G.ranges && G.ranges.rows && G.ranges.rows[1]) || 24);   // Loom's range, the one source
+    const w = side * cols, h = side * rows;
+    inner = { x: inner.x + (inner.width - w) / 2, y: inner.y + (inner.height - h) / 2, width: w, height: h };
+    params = { ...params, rows };
+  }
   if (genId === 'rectangular') {
     // New UI path: cols/rows are just a track COUNT → equal starting weights
     // (uneven ones come from dragging borders afterward). Old path, still
@@ -582,11 +618,15 @@ export async function symbolGridModel(genId, params, cv) {
     if (params.colWeights != null) params = { ...params, colWeights: clampWeightTrackCount(params.colWeights) };
     if (params.rowWeights != null) params = { ...params, rowWeights: clampWeightTrackCount(params.rowWeights) };
   }
-  const full = { ...G.defaults, ...params, gap: 0 };
+  const { square: _sq, ...gp } = params;   // Square cells are made here (the inner box and Rows), so the generator gets plain Columns × Rows
+  const full = { ...G.defaults, ...gp, gap: 0 };
   const { grid, cells } = G.generate(full, inner);
   if (G.cellShape === 'polygon') grid.cellShape = 'polygon';
   cells.forEach((c, i) => { c.number = i + 1; });
   const { W, H, ...frame } = cv;
+  // Square cells: the grid sits centred in the margin's box — Loom's own grid.offset (loom/js/json-model.js), read by
+  // Organica.loadLoomGrid; absent otherwise, so every other model is as before
+  if (params.square) grid.offset = { x: inner.x - m, y: inner.y - m };
   return {
     version: '1.0',
     canvas: { width: W, height: H, unit: 'px', margin: cv.margin, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, safeArea: 0, bleed: 0,

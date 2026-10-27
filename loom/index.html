@@ -416,12 +416,13 @@
       <div id="block-bento">
         <div class="ctrl-row">
           <div class="ctrl-label">Columns</div>
-          <input type="range" id="rg-bento-cols" min="2" max="10" step="1" value="4">
+          <input type="range" id="rg-bento-cols" min="2" max="24" step="1" value="4">
           <span class="ctrl-val" id="v-bento-cols">4</span>
         </div>
-        <div class="ctrl-row">
+        <label class="check-row org-switch"><input type="checkbox" id="chk-bento-square"><span>Square cells</span></label>
+        <div class="ctrl-row" id="row-bento-rows">
           <div class="ctrl-label">Rows</div>
-          <input type="range" id="rg-bento-rows" min="2" max="10" step="1" value="4">
+          <input type="range" id="rg-bento-rows" min="2" max="24" step="1" value="4">
           <span class="ctrl-val" id="v-bento-rows">4</span>
         </div>
         <div class="ctrl-row">
@@ -452,12 +453,12 @@
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Columns</div>
-          <input type="range" id="rg-sin-cols" min="2" max="20" step="1" value="8">
+          <input type="range" id="rg-sin-cols" min="2" max="24" step="1" value="8">
           <span class="ctrl-val" id="v-sin-cols">8</span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Rows</div>
-          <input type="range" id="rg-sin-rows" min="2" max="20" step="1" value="5">
+          <input type="range" id="rg-sin-rows" min="2" max="24" step="1" value="5">
           <span class="ctrl-val" id="v-sin-rows">5</span>
         </div>
         <div class="ctrl-row">
@@ -757,12 +758,12 @@
         </div>
         <div class="ctrl-row" id="row-lin-cols">
           <div class="ctrl-label">Columns</div>
-          <input type="range" id="rg-lin-cols" min="1" max="24" step="1" value="6">
+          <input type="range" id="rg-lin-cols" min="2" max="24" step="1" value="6">
           <span class="ctrl-val" id="v-lin-cols">6</span>
         </div>
         <div class="ctrl-row" id="row-lin-rows">
           <div class="ctrl-label">Rows</div>
-          <input type="range" id="rg-lin-rows" min="1" max="24" step="1" value="6">
+          <input type="range" id="rg-lin-rows" min="2" max="24" step="1" value="6">
           <span class="ctrl-val" id="v-lin-rows">6</span>
         </div>
         <div class="ctrl-row">
@@ -954,7 +955,7 @@
         <p class="org-panel__hint">Pinterest-style stacked columns — each column fills independently with randomised heights, so row boundaries don’t line up across columns (the whole point of masonry). Each cell is a plain rect, carried as a 4-point polygon since there’s no shared row lattice to place it on.</p>
         <div class="ctrl-row">
           <div class="ctrl-label">Columns</div>
-          <input type="range" id="rg-mas-cols" min="2" max="12" step="1" value="5">
+          <input type="range" id="rg-mas-cols" min="2" max="24" step="1" value="5">
           <span class="ctrl-val" id="v-mas-cols">5</span>
         </div>
         <div class="ctrl-row">

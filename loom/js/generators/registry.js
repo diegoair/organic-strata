@@ -38,13 +38,25 @@ import { generateFractal } from './fractal.js';
 import { generateOrganic } from './organic.js';
 import { generateSpiral } from './spiral.js';
 
+// `ranges` — the ONE source for every count control's bounds (Owner decision,
+// Oct 27, 2026: "Loom is the mother generator"). Shape:
+//   ranges: { <paramKey>: [min, max], … }
+// Each key is a key of that generator's own `defaults` / generate() params
+// (cols, rows, rings, sectors, count, depth, points) — never a control id.
+// Integers, both ends inclusive. Loom's panel reads them at init
+// (main.js applyRegistryRanges: each slider's min/max, current value
+// clamped); FVS's Symbol grid reads the same object. Rectangular declares
+// cols/rows although Loom's own panel types weights instead of counts —
+// FVS turns a count into equal weights and needs the bounds.
+// Bento also takes `square` (boolean, not ranged): see bento.js.
 export const GENERATORS = {
   bento: {
     label: 'Bento',
     solver: 'kiwi',
     cellShape: 'rect',
     generate: generateBento,
-    defaults: { cols: 4, rows: 4, variety: 0.5, gap: 12, seed: 7 },
+    defaults: { cols: 4, rows: 4, variety: 0.5, gap: 12, seed: 7, square: false },
+    ranges: { cols: [2, 24], rows: [2, 24] },
   },
   sinusoidal: {
     // Label "Wave" — the type key stays 'sinusoidal' (its original,
@@ -55,6 +67,7 @@ export const GENERATORS = {
     cellShape: 'rect',
     generate: generateSinusoidal,
     defaults: { cols: 8, rows: 5, fn: 'sine', amount: 0.5, frequency: 2, phase: 0, scale: 2, seed: 7, axis: 'cols', gap: 8 },
+    ranges: { cols: [2, 24], rows: [2, 24] },
   },
   hexagonal: {
     label: 'Hexagonal',
@@ -62,6 +75,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateHexagonal,
     defaults: { cols: 8, rotation: 0, spinMode: 'off', spinAmount: 20, noiseScale: 3, gap: 0.06, jitter: 0, seed: 7 },
+    ranges: { cols: [3, 24] },
   },
   radial: {
     // Covers the old Radial/Polar/Elliptical trio — `curve` 1 and
@@ -72,6 +86,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateRadial,
     defaults: { rings: 4, sectors: 12, innerRadiusFrac: 0.15, gap: 0.08, startAngle: 0, curve: 1, stretch: false, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
+    ranges: { rings: [1, 12], sectors: [3, 36] },
   },
   triangular: {
     label: 'Triangular',
@@ -79,6 +94,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateTriangular,
     defaults: { cols: 8, rotation: 0, spinMode: 'off', spinAmount: 20, noiseScale: 3, gap: 0.06, jitter: 0, seed: 7 },
+    ranges: { cols: [3, 30] },
   },
   diamond: {
     label: 'Diamond',
@@ -89,6 +105,7 @@ export const GENERATORS = {
     // pattern out of the box, matching this generator's own name (see
     // diamond.js's own header: 0 = axis-aligned squares, 45 = diamonds).
     defaults: { cols: 8, rotation: 45, spinMode: 'off', spinAmount: 20, noiseScale: 3, gap: 0.06, jitter: 0, seed: 7 },
+    ranges: { cols: [3, 30] },
   },
   circular: {
     label: 'Circular',
@@ -96,6 +113,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateCircular,
     defaults: { cols: 8, rotation: 0, gap: 0.06, jitter: 0, seed: 7 },
+    ranges: { cols: [3, 24] },
   },
   linear: {
     label: 'Linear',
@@ -103,6 +121,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateLinear,
     defaults: { cols: 6, rows: 6, axis: 'cols', rotation: 0, jitter: 0, gap: 0.05, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
+    ranges: { cols: [2, 24], rows: [2, 24] },
   },
   rectangular: {
     label: 'Rectangular',
@@ -110,6 +129,7 @@ export const GENERATORS = {
     cellShape: 'rect',
     generate: generateRectangular,
     defaults: { colWeights: '2,1,1', rowWeights: '1,1,2', gap: 12 },
+    ranges: { cols: [2, 24], rows: [2, 24] },
   },
   diagonal: {
     label: 'Diagonal',
@@ -117,6 +137,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateDiagonal,
     defaults: { count: 8, angle: 20, skew: 90, gap: 0.06, jitter: 0, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
+    ranges: { count: [3, 30] },
   },
   angular: {
     label: 'Angular',
@@ -124,6 +145,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateAngular,
     defaults: { sectors: 12, startAngle: 0, centerX: 0.5, centerY: 0.5, gap: 0.06, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
+    ranges: { sectors: [2, 48] },
   },
   masonry: {
     label: 'Masonry',
@@ -131,6 +153,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateMasonry,
     defaults: { cols: 5, minHeight: 0.5, maxHeight: 1.8, gap: 12, seed: 7, distortMode: 'off', distortAmount: 0.3, distortFrequency: 2, distortPhase: 0 },
+    ranges: { cols: [2, 24] },
   },
   fractal: {
     // Covers the old Fractal/Recursive pair — `axisMode: 'alternate'`
@@ -140,6 +163,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateFractal,
     defaults: { depth: 5, variance: 0.2, axisMode: 'alternate', gap: 8, seed: 7 },
+    ranges: { depth: [1, 8] },
   },
   organic: {
     // Covers the old Voronoi too — Iterations 0 is Voronoi's exact
@@ -149,6 +173,7 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateOrganic,
     defaults: { points: 24, iterations: 4, seed: 7 },
+    ranges: { points: [4, 60] },
   },
   spiral: {
     label: 'Spiral',
@@ -156,5 +181,6 @@ export const GENERATORS = {
     cellShape: 'polygon',
     generate: generateSpiral,
     defaults: { count: 8, ratio: 0.382, gap: 8 },
+    ranges: { count: [2, 16] },
   },
 };

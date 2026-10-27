@@ -154,7 +154,9 @@ export function renderSymbolCanvasOnly() {
     return;
   }
   const count = resolveGridCells(grid).length;
-  ctrl('symbol-cellcount-hint').textContent = count + (count === 1 ? ' cell' : ' cells');
+  const lat = grid.cells.length && grid.cells.every(c => Number.isInteger(c.col) && Number.isInteger(c.row));   // Columns × Rows grids: the count too (Square cells derives Rows)
+  const dims = lat ? Math.max(...grid.cells.map(c => c.col + (c.colSpan || 1))) + ' × ' + Math.max(...grid.cells.map(c => c.row + (c.rowSpan || 1))) + ' · ' : '';
+  ctrl('symbol-cellcount-hint').textContent = dims + count + (count === 1 ? ' cell' : ' cells');
   let svg = buildSymbolSVG();
   let overlay = buildEmptyCellHitsSVG();
   if (state.symbolView.outline) overlay += buildGridOutlineSVG();
@@ -299,6 +301,9 @@ export function moveTrackBorder(axis, i, pos) {
     if (frame && frame.params) frame.params = { ...frame.params, [key]: grid.params[key] };
     if (pv('sel-symgrid-gen') === 'rectangular' && ctrl('symgen-' + key)) ctrl('symgen-' + key).value = grid.params[key];
   }
+  // a drag makes the cells uneven: Square cells turns off (Oct 27, 2026), Rows shows the rows there are
+  const sq = ctrl('chk-symgen-square');
+  if (sq && sq.checked) { sq.checked = false; const r = ctrl('symgen-rows'); if (r) { r.value = tracks.rows.length; ctrl('v-symgen-rows').textContent = r.value; } hooks.syncSquareCellsUI(); }
   state.symbolGrid = Organica.loadLoomGrid({ ...g, grid });
 }
 export let trackDrag = null;   // {axis, i} while a border is being dragged

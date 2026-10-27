@@ -31,7 +31,25 @@ Two solvers, chosen **per generator**, not globally — this was the explicit ou
 
 ## 3. Canvas Manager (`js/canvas-manager.js`)
 
-Width/height/unit (px, mm, cm, m, or in), a preset library (`Square 1:1`, `Landscape 16:9`, `Portrait 4:5`, `Widescreen 3:2`, `A4 portrait/landscape`, `Letter portrait`), Margin and Safe area (both a single percentage of the canvas's own shorter side, applied to all four sides), and Bleed (always mm regardless of canvas unit — the real print convention — shown for any non-px unit).
+Width/height/unit (px, mm, cm, m, or in), a preset library (below), Margin and Safe area (both a single percentage of the canvas's own shorter side, applied to all four sides), and Bleed (always mm regardless of canvas unit — the real print convention — shown for any non-px unit).
+
+**Canvas presets — Screen and Print, with where each size is used (Oct 27, 2026, Diego: the social sizes).** `CANVAS_PRESETS` entry shape: `'Key': { width, height, unit: 'px' | 'mm', group: 'Screen' | 'Print', hint?: string }`. The **key is saved data** (it is the `<option>` value) — never rename one; a new size is a new key. `populateCanvasPresets()` builds one `<optgroup>` per `group` (Screen first, then Print — the object's own order, each group contiguous), so the thumbnail picker (`Organica.selectPicker`) shows the two headings (`.pi-group`); each row passes its `hint` through `registry[key].rowHtml` (name + a `.pi-hint` line, menu rows only — the trigger shows the name alone). px presets switch to Screen mode, mm presets to Print (`applyCanvasPreset` derives the mode from `unit`).
+
+| Group | Key | Size | Hint |
+|---|---|---|---|
+| Screen | `Square 1:1` | 1080 × 1080 px | Instagram post · LinkedIn |
+| Screen | `Portrait 4:5` | 1080 × 1350 px | Instagram portrait |
+| Screen | `Portrait 3:4` (new) | 1080 × 1440 px | Instagram grid |
+| Screen | `Portrait 2:3` (new) | 1000 × 1500 px | Pinterest |
+| Screen | `Vertical 9:16` (new) | 1080 × 1920 px | Instagram story and reel |
+| Screen | `Landscape 16:9` | 1920 × 1080 px | X · YouTube |
+| Screen | `Landscape 1.91:1` (new) | 1080 × 566 px | Instagram landscape · link preview |
+| Screen | `Widescreen 3:2` | 1620 × 1080 px | — |
+| Print | `A4 portrait` / `A4 landscape` | 210 × 297 / 297 × 210 mm | — |
+| Print | `A3 portrait` (new) | 297 × 420 mm | — |
+| Print | `Letter portrait` | 215.9 × 279.4 mm | — |
+
+Verified headlessly (Oct 27): every Screen preset exports a PNG at ×1 of exactly W × H and an SVG with `viewBox="0 0 W H"`; every Print preset exports its mm size plus 2 × the default 3 mm bleed (A4 → `216mm × 303mm`, 2551 × 3579 px at 300 dpi; A3 → `303mm × 426mm`, 3579 × 5031 px).
 
 **Units — px vs. the metric family.** mm/cm/m/in convert between each other with clean decimal factors (`UNIT_TO_MM = { mm: 1, cm: 10, m: 1000, in: 25.4 }`); px does not — a CSS pixel has no fixed physical size, so "converting" it to mm would mean silently assuming a DPI nobody asked for. `createCanvas` canonicalises any mm/cm/m/in input to an internal **mm-equivalent** number (`canvas.width`/`canvas.height`) that every generator, `innerRect`/`safeAreaRect`, and the on-screen canvas-frame sizing read directly — none of them need to know or care which of the three the user actually typed. `canvas.displayWidth`/`displayHeight`/`unit` keep the raw typed number, unconverted, purely for showing it back to the user. Gap and Padding (absolute-number sliders, unlike the percentage-based Margin/Safe area) go through the same canonicalisation (`main.js`'s `unitVal()`) — and their own slider range/step rescales when the unit changes (`UNIT_RANGES`, `rescaleUnitField`), converting the CURRENT value to preserve its physical size rather than leaving the raw number unchanged and silently meaning something else (a Gap of "12" is 12mm under `mm` but would be 12 *metres* under `m` with no rescale — verified live that switching units keeps the physical gap constant, e.g. 12mm → 1.2cm → 0.02m, the last step-snapped by the `m` slider's own 0.02 granularity).
 
@@ -64,6 +82,8 @@ Loom's own `px|mm|cm|m|in` unit selector already covered part of the ground the 
 
 ## 4. Generators (`js/generators/`)
 
+**Count ranges — one source (Oct 27, 2026, Diego: "Loom is the mother generator").** Each `GENERATORS` entry carries `ranges: { <paramKey>: [min, max] }` — keys are the generator's own param keys (`cols`, `rows`, `rings`, `sectors`, `count`, `depth`, `points`), integers, both ends inclusive. At init `main.js`'s `applyRegistryRanges()` sets every count slider's `min`/`max` from it (an explicit id → `[type, key]` table, `RANGE_CONTROLS`) and clamps its value; the HTML attributes say the same. FVS's Symbol grid reads the same object. Columns / Rows are **2–24** on Bento, Wave, Linear, Masonry (cols) and Rectangular (declared for FVS — Loom types weights there); Hexagonal cols 3–24, Triangular / Diamond 3–30, Circular 3–24; Radial rings 1–12 × sectors 3–36, Diagonal count 3–30, Angular sectors 2–48, Fractal depth 1–8, Organic points 4–60, Spiral count 2–16. Kiwi keeps its 16-canonical-unit floor per track, so a high count can be unsatisfiable on a small canvas — on a Print canvas that floor is 16 **mm** (Bento's 24 columns never fit an A4); the build is caught and an error notice says "Canvas too small for this grid…", closed again by the next build that succeeds.
+
 ### Convergence pass — 21 generators down to 15
 
 Asked directly to review the full list for real overlap rather than assumed-distinct entries. Five pairs/trios turned out to be the exact same mechanism at fixed parameter values, not genuinely different structures — each merged generator's own header below has the full reasoning, this is the map:
@@ -84,6 +104,8 @@ Zero output capability lost — every old generator's exact result is still reac
 ### Bento (`bento.js`) — Kiwi
 
 A base Columns×Rows lattice where adjacent cells are randomly merged (seeded) into 1×1 up to 2×2 rectangular spans — the mixed-size look a Bento grid is named for. `Variety` gates how often a merge is attempted; **0 is a verified exact no-op** (a plain uniform grid, every cell 1×1). Track sizing is solved by Kiwi: every column/row equal by default (medium-strength constraint — a soft preference), a hard minimum size, and a hard "tracks + gaps fill the canvas" sum.
+
+**Square cells** (`square: true`, Diego, Oct 27, 2026 — a switch under Columns). Rows stops being an input: every base cell is an exact square. The side is the column width Kiwi already solves, `s = (inner.width − (cols − 1)·gap) / cols`; `rows = floor((inner.height + gap) / (s + gap))`, at least 1 and at most `maxRows` (the registry's rows max, 24 — `readGridParams` passes it; the generator falls back to `BENTO_MAX_ROWS`). The squares rarely fill the height, so the leftover is split equally above and below: the generator returns `grid.offset = { x: 0, y: leftover / 2 }` (§5), every row track = `s`, and `grid.params = { cols, rows (derived), variety, seed, square: true }`. Spans (Variety) are built on the derived rows like on typed ones. In the panel the Rows row is **hidden** (not greyed) while the switch is on and the Columns readout shows the derived count (`6 × 11`); Equalize rows is skipped (it would stretch the squares back to the height); a row drag spans the tracks' own length, not the inner height. The flag round-trips through Save / Load (`applyGridParamsToUI` → `syncBentoSquareRow`). Verified: Portrait 4:5, Vertical 9:16, Landscape 1.91:1, Square 1:1 at 2 / 6 / 13 / 24 columns — every 1×1 cell equal width and height (max difference < 1e-12) and the gap above the grid equal to the gap below.
 
 A first version weighted each track by how many spans touched it, meant to make a track under a wide cell size up proportionally — reverted after testing, because dividing a wide cell's contribution across its own tracks made them *thinner*, the opposite of the intended effect. Bento's visual variety comes entirely from the span topology, not from unequal track sizing.
 
@@ -254,11 +276,14 @@ Merged into the same "Load saved…" dropdown as the user's own named grids (`al
   version, generatedAt,
   canvas: { width, height, unit, orientation, margin, safeArea, bleed },
   grid: { type, solver, params, gap, padding, cellShape,
-          tracks: { cols: [...], rows: [...] } },   // rect grids only
+          tracks: { cols: [...], rows: [...] },     // rect grids only
+          offset?: { x, y } },                      // where the tracks start inside the inner rect (Bento Square cells)
   cells: [ { id, col, row, colSpan, rowSpan } ]      // rect grids
       // OR [ { id, points: [[x,y],...], centroid: [x,y] } ]  — polygon grids (Voronoi)
 }
 ```
+
+`grid.offset` (Oct 27, 2026) — present only when a rect grid's tracks do not fill the inner rect (Bento's Square cells): every reader that turns tracks into rects adds it — `resolveCellRects` (via `gridOffset(grid)`, exported), the HTML renderer's container padding, the track handles. Absent = `{0, 0}`, so every other generator and every saved model is unchanged. `shared/core.js`'s own port of `resolveCellRects` (`Organica.loadLoomGrid`, used by FVS / Trellis / Rhizome) has to add the same offset.
 
 `grid.cellShape` (`'rect'` or `'polygon'`) is the fork every renderer branches on. Rect grids deliberately do **not** store per-cell pixel `x/y/width/height` — those are always derivable from `tracks` + spans (`resolveCellRects`), and storing a derived value alongside its source is exactly how "which one is the truth" bugs happen. Polygon grids (Voronoi) have no track lattice at all — there's no meaningful "canonical span" representation for an arbitrary polygon, so their cells carry final absolute-coordinate points directly, resolved once at generation time. The CSS Grid renderer reads `tracks` + spans natively (`grid-template-columns`, `grid-column: n / span k`); SVG/raster/Figma read resolved pixel rects for rect grids, or `cell.points` directly for polygon grids — every renderer reads the same source either way, so none can drift from another.
 

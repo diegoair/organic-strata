@@ -46,14 +46,26 @@ function clampCanonical(v) {
 // "Industry standard" presets per the brief — a first pass, not exhaustive.
 // Width/height are in the preset's own natural unit; Loom's own Unit control
 // only changes how the CUSTOM width/height fields below are interpreted.
+// The KEY is saved data (it is the <option> value) — never rename one.
+// Entry shape (Diego, Oct 27, 2026 — the social sizes):
+//   'Key': { width, height, unit: 'px' | 'mm', group: 'Screen' | 'Print', hint?: string }
+// `group` = the picker heading (Screen first, then Print, each contiguous —
+// keep the object in that order); `hint` = where the size is used, shown
+// under the name in the picker's menu only. px presets are Screen mode,
+// mm presets Print mode (applyCanvasPreset derives it from `unit`).
 export const CANVAS_PRESETS = {
-  'Square 1:1': { width: 1080, height: 1080, unit: 'px' },
-  'Landscape 16:9': { width: 1920, height: 1080, unit: 'px' },
-  'Portrait 4:5': { width: 1080, height: 1350, unit: 'px' },
-  'Widescreen 3:2': { width: 1620, height: 1080, unit: 'px' },
-  'A4 portrait': { width: 210, height: 297, unit: 'mm' },
-  'A4 landscape': { width: 297, height: 210, unit: 'mm' },
-  'Letter portrait': { width: 215.9, height: 279.4, unit: 'mm' },
+  'Square 1:1': { width: 1080, height: 1080, unit: 'px', group: 'Screen', hint: 'Instagram post · LinkedIn' },
+  'Portrait 4:5': { width: 1080, height: 1350, unit: 'px', group: 'Screen', hint: 'Instagram portrait' },
+  'Portrait 3:4': { width: 1080, height: 1440, unit: 'px', group: 'Screen', hint: 'Instagram grid' },
+  'Portrait 2:3': { width: 1000, height: 1500, unit: 'px', group: 'Screen', hint: 'Pinterest' },
+  'Vertical 9:16': { width: 1080, height: 1920, unit: 'px', group: 'Screen', hint: 'Instagram story and reel' },
+  'Landscape 16:9': { width: 1920, height: 1080, unit: 'px', group: 'Screen', hint: 'X · YouTube' },
+  'Landscape 1.91:1': { width: 1080, height: 566, unit: 'px', group: 'Screen', hint: 'Instagram landscape · link preview' },
+  'Widescreen 3:2': { width: 1620, height: 1080, unit: 'px', group: 'Screen' },
+  'A4 portrait': { width: 210, height: 297, unit: 'mm', group: 'Print' },
+  'A4 landscape': { width: 297, height: 210, unit: 'mm', group: 'Print' },
+  'A3 portrait': { width: 297, height: 420, unit: 'mm', group: 'Print' },
+  'Letter portrait': { width: 215.9, height: 279.4, unit: 'mm', group: 'Print' },
 };
 
 // Absolute floor in CANONICAL units — well above any generator's own

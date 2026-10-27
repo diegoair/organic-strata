@@ -922,6 +922,7 @@ input[type=color] { opacity: 0; position: absolute; pointer-events: none; }
 .preset-item[aria-disabled="true"], .preset-trigger:disabled { opacity: 0.42; cursor: not-allowed; }
 @media (hover: hover) { .preset-item[aria-disabled="true"]:hover { background: none; } }
 .pi-name { flex: 1; line-height: 1.2; }
+.pi-name .pi-hint { display: block; font-size: var(--fs-micro); color: var(--mid); }   /* a row's hint under its name (rowHtml) — canvas formats, Oct 27, 2026 */
 .pi-group { font-size: var(--fs-micro); color: var(--mid); padding: var(--space-2) var(--space-2) 0; }
 
 /* PALETTE LIBRARY MENU — Organica.palette.pick (palette.js). A .preset-menu

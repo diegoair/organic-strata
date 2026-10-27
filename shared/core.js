@@ -251,9 +251,10 @@
       return out;
     };
     const colOff = offsets(tracks.cols), rowOff = offsets(tracks.rows);
+    const off = model.grid.offset || { x: 0, y: 0 };   // Loom's grid.offset (json-model.js gridOffset): square cells centred in the inner rect (Oct 27, 2026)
     return model.cells.map(c => {
-      const x = inner.x + colOff[c.col] + pad;
-      const y = inner.y + rowOff[c.row] + pad;
+      const x = inner.x + (off.x || 0) + colOff[c.col] + pad;
+      const y = inner.y + (off.y || 0) + rowOff[c.row] + pad;
       const width = colOff[c.col + c.colSpan] - colOff[c.col] - gap - 2 * pad;
       const height = rowOff[c.row + c.rowSpan] - rowOff[c.row] - gap - 2 * pad;
       return { ...c, shape: 'rect', x, y, width: Math.max(0, width), height: Math.max(0, height) };
@@ -876,7 +877,7 @@
       el.addEventListener('pointerenter', () => clearTimeout(noticeTimer));
       el.addEventListener('pointerleave', arm);
     }
-    return { close: () => { if (noticeEl === el) Organica.noticeClose(); } };
+    return { el, close: () => { if (noticeEl === el) Organica.noticeClose(); } };   // el: still showing? (el.isConnected)
   };
   Organica.noticeClose = function () {
     clearTimeout(noticeTimer);

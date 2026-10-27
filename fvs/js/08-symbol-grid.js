@@ -3,7 +3,7 @@
 // Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
 import { exportablePhotoSVG } from './04-appearance.js';
-import { hooks } from './hooks.js';
+import { hooks, provide } from './hooks.js';
 import {
   pv, state
 } from './engine/00-core.js';
@@ -20,7 +20,7 @@ import {
   LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames
 } from './engine/07-library.js';
 import {
-  GEN_ARRIVE, PX_PER_MM, SYMCANVAS_PRESETS, SYMGRID_GENS, buildFvsGridSVG, cellNaturalSize, symbolGridModel,
+  GEN_ARRIVE, PX_PER_MM, SYMBOL_CELL_CAP, SYMCANVAS_PRESETS, SYMGRID_GENS, carrySymbolCells, buildFvsGridSVG, cellNaturalSize, symbolGridModel,
   defaultSymbolCells, emptySymbolCell, fitPatch, fitTargetIndices, getFvsGrid,
   getSymbolGrid, readSymgridParams, samePlacement, symbolGenerateBlock, symbolHasAlignedComponents,
   symbolHasContent
@@ -165,11 +165,20 @@ export function syncSymbolCanvasHint() {
   ctrl('symbol-canvas-hint').textContent = cv.mode === 'print' ? `${cv.pw} × ${cv.ph} ${cv.unit} · ${cv.dpi} DPI` : `${cv.pw} × ${cv.ph} px`;
 }
 export function renderSymgridParams() {
-  const genId = pv('sel-symgrid-gen'), spec = SYMGRID_GENS[genId];
-  ctrl('symgrid-gen-params').innerHTML = spec.params.map(([k, label, a, b, step, def]) => a === 'text'
-    ? `<div class="ctrl-row"><div class="ctrl-label">${label} <span class="hint">5–8 weights</span></div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
-    : `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`).join('');
+  const genId = pv('sel-symgrid-gen'), spec = SYMGRID_GENS[genId], was = ctrl('chk-symgen-square') && ctrl('chk-symgen-square').checked;
+  const row = ([k, label, a, b, step, def]) => a === 'text'
+    ? `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
+    : `<div class="ctrl-row" id="symgen-row-${k}"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`;
+  // Square cells (Oct 27, 2026): right under Columns; on, Rows is hidden — it follows Columns and the canvas
+  const square = spec.square ? `<label class="check-row org-switch" id="symgen-square-row"><input type="checkbox" id="chk-symgen-square"${was ? ' checked' : ''}><span>Square cells</span></label>` : '';
+  ctrl('symgrid-gen-params').innerHTML = spec.params.map(p => row(p) + (p[0] === 'cols' ? square : '')).join('');
   spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
+  syncSquareCellsUI();
+}
+provide({ syncSquareCellsUI: () => syncSquareCellsUI() });
+export function syncSquareCellsUI() {
+  const on = !!(ctrl('chk-symgen-square') && ctrl('chk-symgen-square').checked), rows = ctrl('symgen-row-rows');
+  if (rows) rows.hidden = on;
 }
 // ── Overlap & blend — every Symbol grid. Saved with the Symbol (entry.overlap); older Symbols open as Paper under, 0.
 state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest' };
@@ -188,22 +197,6 @@ export function onSymbolOverlapInput() {
   if (o.amount > 0 && state.symbolClipEnabled) { state.symbolClipEnabled = false; hooks.syncSymbolViewUI(); }   // a clip would cut the overlap away
   syncOverlapSection(); hooks.renderSymbol();
 }
-export async function generateSymbolGridInCanvas() {
-  const id = pv('sel-symgrid-gen');
-  // With nothing saved the grid is built empty (the start pane says why it can't be filled).
-  if (!libraryNames(LIBRARY.read()).length && !elementPool().length) { await buildEmptySymbolGrid(); return; }
-  try {
-    const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
-    if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
-    ctrl('symgrid-gen-error').hidden = true;
-    loadSymbolGrid(model);
-    clipByDefaultForShape();
-    fillSymbolCells();
-  } catch (e) {
-    ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
-    ctrl('symgrid-gen-error').hidden = false;
-  }
-}
 // Fill the current grid's cells: Suggest or Arrange from the pool (or the saved Elements).
 export function fillSymbolCells() {
   hooks.renderSymbolPool();   // self-heals a stale pool (a Component renamed or deleted since) before filling
@@ -221,30 +214,45 @@ export function clipByDefaultForShape() {
   state.symbolClipEnabled = !!state.symbolGrid && state.symbolGrid.cellShape === 'polygon';
   hooks.syncSymbolViewUI();
 }
+// The grid is live (Oct 27, 2026 — Diego: "al cambio di tipologia di grid si aggiorna automaticamente la canvas e la grid
+// … elimina generate grid in canvas"): any change to the Canvas or the Symbol grid section rebuilds it, and the cells'
+// contents follow as a repeating motif (carrySymbolCells). Filling the cells is the floatbar's Fill the grid and the
+// Fill section's, never this. An empty Symbol stays empty.
+// the generator's own count controls, named as the panel names them (Columns or Rows · Columns · Rings or Sectors …)
+const countWords = id => { const ls = SYMGRID_GENS[id].params.filter(p => p[2] !== 'text' && Number.isInteger(p[4]) && p[4] === 1 && p[0] !== 'seed').map(p => p[1]); return ls.length > 1 ? ls.slice(0, -1).join(', ') + ' or ' + ls[ls.length - 1] : ls[0] || 'the counts'; };
 export let emptyBuildSeq = 0;
-export async function buildEmptySymbolGrid() {
+export async function buildEmptySymbolGrid(opts = {}) {
   const seq = ++emptyBuildSeq, id = pv('sel-symgrid-gen');
   try {
-    const model = await symbolGridModel(id, readSymgridParams(id), readSymbolCanvas());
-    if (seq !== emptyBuildSeq || symbolHasContent()) return;   // a newer build, or the user placed something meanwhile
-    if (!model.cells.length) throw new Error('No cells — make the canvas larger or lower the counts.');
+    // borders dragged on a Rectangular grid stay when only the canvas changes (same Columns and Rows); a new count resets them
+    const params = readSymgridParams(id), was = state.symbolGrid && state.symbolGrid.grid && state.symbolGrid.grid.type === 'rectangular' && state.symbolGrid.grid.params;
+    if (id === 'rectangular' && was && !opts.genChanged && !params.square) {
+      const n = w => String(w || '').split(',').filter(x => x.trim() !== '').length;
+      if (n(was.colWeights) === params.cols) { params.colWeights = was.colWeights; delete params.cols; }
+      if (n(was.rowWeights) === params.rows) { params.rowWeights = was.rowWeights; delete params.rows; }
+    }
+    const model = await symbolGridModel(id, params, readSymbolCanvas());
+    if (seq !== emptyBuildSeq) return;   // a newer build
+    if (!model.cells.length) throw new Error('No cells — enlarge the canvas, or lower ' + countWords(id) + '.');
+    if (model.cells.length > SYMBOL_CELL_CAP) throw new Error(`${model.cells.length.toLocaleString('en')} cells — a Symbol holds at most ${SYMBOL_CELL_CAP.toLocaleString('en')}: lower ${countWords(id)}.`);
     ctrl('symgrid-gen-error').hidden = true;
+    const prev = state.symbolGrid && symbolHasContent() ? { grid: state.symbolGrid, cells: state.symbolCells } : null, clip = state.symbolClipEnabled;
     loadSymbolGrid(model);
-    clipByDefaultForShape();
-    state.symbolCells = state.symbolCells.map(emptySymbolCell);
+    if (opts.genChanged || !prev) clipByDefaultForShape(); else { state.symbolClipEnabled = clip; hooks.syncSymbolViewUI(); }
+    state.symbolCells = prev ? carrySymbolCells(prev.grid, prev.cells, state.symbolGrid) : state.symbolCells.map(emptySymbolCell);
     hooks.renderSymbol();
   } catch (e) {
-    ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it or reduce columns/rows.' : e.message;
+    ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it, or lower ' + countWords(id) + '.' : e.message;
     ctrl('symgrid-gen-error').hidden = false;
   }
 }
-// While every cell is empty, the panel is the grid's source: a change to the canvas or the
-// generator rebuilds it (nothing to lose). Once something is placed, "Generate grid in canvas" does.
 export let emptyRebuildTimer = 0;
 ['sym-canvas-section', 'sym-grid-section'].forEach(id => ['input', 'change'].forEach(ev => ctrl(id).addEventListener(ev, e => {
-  if (e.target.closest('button') || !state.symbolGrid || symbolHasContent()) return;
+  if (e.target.closest('button') || !state.symbolGrid || e.target.type === 'file') return;
+  if (e.target.id === 'chk-symgen-square') syncSquareCellsUI();
+  const genChanged = e.target.id === 'sel-symgrid-gen';
   clearTimeout(emptyRebuildTimer);
-  emptyRebuildTimer = setTimeout(buildEmptySymbolGrid, 120);
+  emptyRebuildTimer = setTimeout(() => buildEmptySymbolGrid({ genChanged }), 120);
 })));
 export function syncSymbolStart() {
   const btn = ctrl('btn-symbol-generate'), why = symbolGenerateBlock();
@@ -252,12 +260,12 @@ export function syncSymbolStart() {
   btn.setAttribute('aria-label', why || 'Fill the grid');
 }
 
-ctrl('sel-symcanvas-preset').innerHTML = Object.keys(SYMCANVAS_PRESETS).map(n => `<option>${n}</option>`).join('') + '<option>Custom</option>';
+ctrl('sel-symcanvas-preset').innerHTML = ['Screen', 'Print'].map(g => `<optgroup label="${g}">${Object.entries(SYMCANVAS_PRESETS).filter(([, p]) => p.group === g).map(([n]) => `<option value="${n}">${n}</option>`).join('')}${g === 'Print' ? '<option value="Custom">Custom</option>' : ''}</optgroup>`).join('');
 // Thumbnail picker (Organica.selectPicker, 26px icons): each format as a
 // rectangle at its own aspect; Custom is dashed.
 symCanvasPicker = Organica.selectPicker(ctrl('sel-symcanvas-preset'), ctrl('symcanvas-picker'), {
   ariaLabel: 'Canvas format',
-  registry: Object.assign(Object.fromEntries(Object.entries(SYMCANVAS_PRESETS).map(([n, p]) => [n, { name: n, icon: Organica.aspectIcon(p.w, p.h) }])),
+  registry: Object.assign(Object.fromEntries(Object.entries(SYMCANVAS_PRESETS).map(([n, p]) => [n, { name: n, icon: Organica.aspectIcon(p.w, p.h), rowHtml: p.hint ? `${n}<span class="pi-hint">${p.hint}</span>` : n }])),
     { Custom: { name: 'Custom', icon: Organica.aspectIcon(1, 1, { dashed: true }) } }),
 });
 ctrl('sel-symgrid-gen').innerHTML = Object.entries(SYMGRID_GENS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
@@ -267,7 +275,6 @@ ctrl('sel-symgrid-gen').addEventListener('change', () => { ctrl('symgrid-gen-err
 ctrl('rg-symbol-overlap').addEventListener('input', onSymbolOverlapInput);
 ctrl('sel-symbol-blend').addEventListener('change', e => { state.symbolOverlap.blend = e.target.value; syncOverlapSection(); hooks.renderSymbol(); });
 ctrl('sel-symbol-drawnby').addEventListener('change', e => { state.symbolOverlap.drawnBy = e.target.value; hooks.renderSymbol(); });
-ctrl('btn-symgrid-generate').addEventListener('click', generateSymbolGridInCanvas);
 // Clear: every cell empty again, the grid kept — the Symbol is back to its empty grid with Generate over it.
 ctrl('btn-symbol-clear').addEventListener('click', () => {
   if (genArrivalStop) genArrivalStop();

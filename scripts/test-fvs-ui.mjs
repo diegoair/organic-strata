@@ -299,7 +299,7 @@ async function seedComponents(n) {
   }, n);
 }
 async function gridReady(preset = 'Square 1:1', gen = 'rectangular') {
-  await ev(async (preset, gen) => { setTier('symbol'); await __t.wait(400); __t.chg('sel-symcanvas-preset', preset); __t.chg('sel-symgrid-gen', gen); document.getElementById('btn-symgrid-generate').click(); for (let i = 0; i < 40 && !(state.symbolCells && state.symbolCells.length); i++) await __t.wait(100); await __t.wait(1200); }, preset, gen);
+  await ev(async (preset, gen) => { setTier('symbol'); await __t.wait(400); __t.chg('sel-symcanvas-preset', preset); __t.chg('sel-symgrid-gen', gen); await __t.wait(500); state.symbolCells = state.symbolCells.map(emptySymbolCell); fillSymbolCells();   /* the grid is live (Oct 27, 2026): no Generate button — the Fill path fills it */ for (let i = 0; i < 40 && !(state.symbolCells && state.symbolCells.length); i++) await __t.wait(100); await __t.wait(1200); }, preset, gen);
 }
 if (want('J3')) {
   await seedComponents(3);
@@ -415,7 +415,7 @@ if (want('J2')) {
       saveComponentEditAsNew(); await wait(300);
       const edited = state.components.find(x => x.ruleSource === 'edited'); if (!edited) return { err: 'edit did not produce a Component' };
       quickSaveComponentToLibrary(edited.id, 'T edited'); quickSaveComponentToLibrary(base.id, 'T base'); await wait(150);
-      setTier('symbol'); await wait(400); document.getElementById('btn-symgrid-generate').click(); for (let i = 0; i < 40 && !(state.symbolCells && state.symbolCells.length); i++) await wait(100); await wait(800);
+      setTier('symbol'); await wait(900); for (let i = 0; i < 40 && !(state.symbolCells && state.symbolCells.length); i++) await wait(100); await wait(800);
       const svgOf = name => { state.symbolCells.forEach(cl => Object.assign(cl, { source: 'component', componentName: name, rotation: 0, flipH: false, flipV: false, scale: 1, fitMode: 'contain' })); return buildSymbolSVG(); };
       const a = svgOf('T base'), b = svgOf('T edited');
       let cv = ''; try { const o = document.createElement('canvas'); o.width = o.height = 200; const cx = o.getContext('2d'); drawSymbolCanvas(cx); cv = 'ok'; } catch (e) { cv = 'threw ' + e.message; }
@@ -603,7 +603,7 @@ if (want('V')) {
         __t.chg('sel-symcanvas-preset', cfg.preset);
         const seg = document.querySelector('#seg-symcanvas-mode [data-mode="' + cfg.mode + '"], #seg-symcanvas-mode button'); // best effort
         __t.chg('sel-symgrid-gen', cfg.gen); __t.chg('sel-symbol-fill', cfg.fill); __t.chg('sel-sym-arrange', cfg.arr); __t.chg('sel-sym-arrange-fit', cfg.fit);
-        document.getElementById('btn-symgrid-generate').click();
+        await __t.wait(500); state.symbolCells = state.symbolCells.map(emptySymbolCell); fillSymbolCells();   // the grid is live: fill it
         for (let i = 0; i < 60 && !(state.symbolGrid && state.symbolCells && state.symbolCells.length); i++) await __t.wait(100);
         await __t.wait(900);
         const errEl = document.getElementById('symgrid-gen-error'); out.genError = errEl && !errEl.hidden ? errEl.textContent : '';
