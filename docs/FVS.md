@@ -830,7 +830,9 @@ its cells.
   one name per size and the platform as the row's hint: Square 1:1 (Instagram post · LinkedIn), Portrait 4:5 (Instagram
   portrait), Portrait 3:4 (Instagram grid), Portrait 2:3 (Pinterest), Vertical 9:16 (Instagram story and reel),
   Landscape 16:9 (X · YouTube), Landscape 1.91:1 (Instagram landscape · link preview), Widescreen 3:2; A4, A3, Letter.
-  Every Screen format exports at its own size (SVG viewBox, PNG ×1 — checked).
+  Every Screen format exports at its own size (SVG viewBox, PNG ×1 — checked). **Story safe zone** (O-77, Diego: option 1): on a 9:16 canvas a
+  dashed guide under **Show guides** marks the area clear of Instagram's chrome (top 14 %, bottom 35 %, sides 6 % —
+  Loom's `STORY_SAFE`, mirrored as `STORY_SAFE` in engine/08); screen only, never exported (`storySafeOverlaySVG`).
 - **View toggles (floatbar)** — four icon buttons in the Symbol step's floatbar (on =
   the icon at full strength, as everywhere in the bar): **Show grid** (the grid's own lines; *Show loaded grid* until Oct 8, 2026), **Clip to
   cell** (content cut at the cell's edge — the one that is in the export and saved

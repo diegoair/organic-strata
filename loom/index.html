@@ -80,6 +80,7 @@
   z-index: 1;
 }
 #guide-safe { border-color: #c98a4a; }
+#guide-story { border-color: var(--guide-blue); }   /* the story safe zone (9:16 only, O-77) — the guide colour already in use */
 
 /* Background reticle — a viewing aid only (§ ck-bg-grid), sized in
    main.js's syncCanvasOverlays() off the canvas's own dimensions, never
@@ -269,6 +270,7 @@
       <div id="guide-bg-grid"></div>
       <div class="loom-guide" id="guide-margin"></div>
       <div class="loom-guide" id="guide-safe"></div>
+      <div class="loom-guide" id="guide-story" hidden aria-hidden="true"></div>
       <div id="grid-preview"></div>
       <div id="overlay-frame"></div>
       <div id="track-handles"></div>

@@ -27,7 +27,7 @@ import {
   LIBRARY, buildComponentSVGWithPaper, fillPaper, hexKey, libraryNames
 } from './engine/07-library.js';
 import {
-  getSymbolGrid, polyOrient, snapPose, symbolCanvasOf, symbolFrame, symbolHasContent, withPlacementDefaults
+  STORY_SAFE, getSymbolGrid, isStoryCanvas, polyOrient, snapPose, symbolCanvasOf, symbolFrame, symbolHasContent, withPlacementDefaults
 } from './engine/08-symbol-grid.js';
 import {
   buildSymbolSVG, cellOverflowInfo, drawSymbolCanvas
@@ -161,7 +161,7 @@ export function renderSymbolCanvasOnly() {
   let overlay = buildEmptyCellHitsSVG();
   if (state.symbolView.outline) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
-  if (state.symbolView.guides) overlay += buildTrackHandlesSVG();
+  if (state.symbolView.guides) overlay += buildTrackHandlesSVG() + storySafeOverlaySVG();
   if (trackDrag) overlay += buildOverflowOutlineSVG();
   if (state.symbolView.cover) overlay += buildCoverCropPreviewSVG();
   if (state.symbolMarqueeRect) {
@@ -215,6 +215,14 @@ export function svgPointFromEvent(e) {
 
 
 
+// The story safe zone (O-77, Oct 27, 2026): on a 9:16 canvas, where Instagram's own chrome leaves text and logos clear —
+// a dashed guide under Show guides, never exported (the overlay is screen-only)
+export function storySafeOverlaySVG() {
+  const g = getSymbolGrid(), f = g && g.canvasFrame;
+  if (!f || !isStoryCanvas(f.width, f.height)) return '';
+  const { top, bottom, side } = STORY_SAFE;
+  return `<rect class="sym-story-safe" x="${(f.width * side).toFixed(2)}" y="${(f.height * top).toFixed(2)}" width="${(f.width * (1 - 2 * side)).toFixed(2)}" height="${(f.height * (1 - top - bottom)).toFixed(2)}"/>`;
+}
 export function buildTrackHandlesSVG() {
   const g = symbolTrackGrid();
   if (!g) return '';

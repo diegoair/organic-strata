@@ -277,6 +277,9 @@ export const SYMCANVAS_PRESETS = {   // Loom's CANVAS_PRESETS (loom/js/canvas-ma
   'A3 portrait': { w: 297, h: 420, unit: 'mm', group: 'Print' },
   'Letter portrait': { w: 215.9, h: 279.4, unit: 'mm', group: 'Print' },
 };
+// The story safe zone on a 9:16 canvas — Loom's STORY_SAFE (loom/js/canvas-manager.js), mirrored; drawn under Show guides
+export const STORY_SAFE = { top: 0.14, bottom: 0.35, side: 0.06 };
+export const isStoryCanvas = (w, h) => Math.abs(w / h - 9 / 16) < 0.005;
 export const PX_PER_MM = 96 / 25.4;
 // [key, label, min, max, step, default] — or [key, label, 'text', default]. Everything
 // else comes from the generator's own registry defaults; gap is 0 so cells touch

@@ -77,6 +77,16 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   // the cap: 24 × 24 on 9:16 square cells is fine; Masonry / Wave 24 × 24 builds
   set('sel-symcanvas-preset', 'Square 1:1'); set('symgen-cols', 24); set('symgen-rows', 24); await settle();
   check('24 × 24 = 576 cells builds', F.state.symbolCells.length === 576 && q('symgrid-gen-error').hidden, F.state.symbolCells.length + ' ' + q('symgrid-gen-error').textContent);
+  // the story safe zone (O-77): a guide on 9:16 only, under Show guides, never exported; the numbers = Loom's
+  { set('sel-symcanvas-preset', 'Vertical 9:16'); await settle();
+    const r = q('symbol-frame').querySelector('.sym-story-safe'), g = F.state.symbolView.guides;
+    const want = [0.06 * 1080, 0.14 * 1920, 0.88 * 1080, 0.51 * 1920].map(v => v.toFixed(2)).join();
+    check('Vertical 9:16: the story safe zone under Show guides (' + (r ? ['x', 'y', 'width', 'height'].map(k => r.getAttribute(k)).join() : 'none') + ')', g && r && ['x', 'y', 'width', 'height'].map(k => r.getAttribute(k)).join() === want, want);
+    check('…never in the export', !/sym-story-safe/.test(F.buildSymbolSVG()), 'in the SVG');
+    set('sel-symcanvas-preset', 'Portrait 4:5'); await settle();
+    check('…and not on another format', !q('symbol-frame').querySelector('.sym-story-safe'), 'shown on 4:5');
+    const L = await import('/loom/js/canvas-manager.js');
+    check('…its numbers = Loom’s STORY_SAFE', JSON.stringify(L.STORY_SAFE) === JSON.stringify(F.STORY_SAFE) && L.storySafeRect({ width: 1080, height: 1920 }).width === 0.88 * 1080, JSON.stringify([L.STORY_SAFE, F.STORY_SAFE])); }
   // the ranges match Loom's registry (one source)
   const G = await F.loomRegistry(), off = [];
   for (const [id, spec] of Object.entries(F.SYMGRID_GENS)) for (const [k, , a, b] of spec.params.filter(p => p[0] === 'cols' || p[0] === 'rows')) { const r = G[id] && G[id].ranges && G[id].ranges[k]; if (r && (r[0] !== a || r[1] !== b)) off.push(id + '.' + k + ' ' + a + '–' + b + ' vs Loom ' + r.join('–')); }

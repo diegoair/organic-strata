@@ -9,7 +9,7 @@
    renderer is allowed to recompute geometry its own way.
    ───────────────────────────────────────────────────────────── */
 
-import { CANVAS_PRESETS, createCanvas, innerRect, safeAreaRect, UNIT_TO_MM, toCanonical } from './canvas-manager.js';
+import { CANVAS_PRESETS, createCanvas, innerRect, safeAreaRect, storySafeRect, UNIT_TO_MM, toCanonical } from './canvas-manager.js';
 import { buildModel, offsets, gridOffset } from './json-model.js';
 import { GENERATORS } from './generators/registry.js';
 import { renderSVG, cellsMarkup } from './renderers/svg-renderer.js';
@@ -774,6 +774,10 @@ function paintGuides(canvas, inner) {
     `left:${inner.x}px; top:${inner.y}px; width:${inner.width}px; height:${inner.height}px;`;
   ctrl('guide-safe').style.cssText =
     `left:${safe.x}px; top:${safe.y}px; width:${safe.width}px; height:${safe.height}px;`;
+  // the story safe zone, on a 9:16 canvas only (O-77) — beside Safe area, a guide like it
+  const story = storySafeRect(canvas), sg = ctrl('guide-story');
+  sg.hidden = !story;
+  if (story) sg.style.cssText = `left:${story.x}px; top:${story.y}px; width:${story.width}px; height:${story.height}px;`;
 }
 
 // Three preview-only verification aids (§ user request) — none of them

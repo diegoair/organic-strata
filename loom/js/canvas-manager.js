@@ -136,6 +136,17 @@ export function innerRect(canvas) {
 
 // Safe-area rect, purely a guide (never clips generator output in this
 // phase) — nested inside the margin rect, same percentage convention.
+// Story safe zone (Diego, Oct 27, 2026 — O-77, option 1): on a 9:16 canvas (Instagram story and reel) the app's own
+// chrome covers about the top 14 %, the bottom 35 % and 6 % at each side (2026 guides). A guide only — never clips,
+// never exported. FVS mirrors these numbers (fvs/js/engine/08-symbol-grid.js STORY_SAFE; scripts/test-fvs-symbol-grid.mjs).
+export const STORY_SAFE = { top: 0.14, bottom: 0.35, side: 0.06 };
+export const isStoryCanvas = (w, h) => Math.abs(w / h - 9 / 16) < 0.005;
+export function storySafeRect(canvas) {
+  if (!isStoryCanvas(canvas.width, canvas.height)) return null;
+  const { top, bottom, side } = STORY_SAFE;
+  return { x: canvas.width * side, y: canvas.height * top, width: canvas.width * (1 - 2 * side), height: canvas.height * (1 - top - bottom) };
+}
+
 export function safeAreaRect(canvas) {
   const inner = innerRect(canvas);
   const shortSide = Math.min(inner.width, inner.height);

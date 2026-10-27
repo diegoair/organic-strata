@@ -365,3 +365,6 @@ Asked to evaluate a general multi-grid layered system first (arbitrary N layers,
 ---
 
 *Organica*
+
+
+**Story safe zone** (Oct 27, 2026 — Diego, O-77 option 1). On a 9:16 canvas (Vertical 9:16 or a Custom size of that proportion) the preview draws `#guide-story` beside Safe area: a dashed `--guide-blue` box at top 14 %, bottom 35 %, 6 % each side — where Instagram's story / reel chrome leaves text and logos clear. `STORY_SAFE` + `storySafeRect(canvas)` in `canvas-manager.js` (FVS mirrors them). A guide only: never clips, never exported.
