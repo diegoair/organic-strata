@@ -170,18 +170,20 @@ export function renderSymgridParams() {
     ? `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
     : `<div class="ctrl-row" id="symgen-row-${k}"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`;
   // Square cells (Oct 27, 2026): after Rows (Diego) — on, the cells are squares and the grid centred; nothing hides
-  const wasOf = ctrl('chk-symgen-overflow') && ctrl('chk-symgen-overflow').checked;
+  const wasOf = ctrl('chk-symgen-overflow') && ctrl('chk-symgen-overflow').checked, wasKm = ctrl('chk-symgen-keepmargin') && ctrl('chk-symgen-keepmargin').checked;
   // Overflow (Oct 27, 2026): with Square cells only — the squares go on to the canvas's edges, cut there
   const square = spec.square ? `<label class="check-row org-switch" id="symgen-square-row"><input type="checkbox" id="chk-symgen-square"${was ? ' checked' : ''}><span>Square cells</span></label>`
-    + `<label class="check-row org-switch" id="symgen-overflow-row"${was ? '' : ' hidden'}><input type="checkbox" id="chk-symgen-overflow"${wasOf ? ' checked' : ''}><span>Overflow</span></label>` : '';
+    + `<label class="check-row org-switch" id="symgen-overflow-row"${was ? '' : ' hidden'}><input type="checkbox" id="chk-symgen-overflow"${wasOf ? ' checked' : ''}><span>Overflow</span></label>`
+    + `<label class="check-row org-switch" id="symgen-keepmargin-row"${was && wasOf ? '' : ' hidden'}><input type="checkbox" id="chk-symgen-keepmargin"${wasKm ? ' checked' : ''}><span>Keep margin</span></label>` : '';
   ctrl('symgrid-gen-params').innerHTML = spec.params.map(p => row(p) + (p[0] === 'rows' ? square : '')).join('');
   spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
   syncSquareCellsUI();
 }
 provide({ syncSquareCellsUI: () => syncSquareCellsUI() });
 export function syncSquareCellsUI() {   // Overflow shows only with Square cells on (hidden, not greyed)
-  const sq = ctrl('chk-symgen-square'), of = ctrl('symgen-overflow-row');
-  if (of) of.hidden = !(sq && sq.checked);
+  const sq = ctrl('chk-symgen-square'), of = ctrl('symgen-overflow-row'), km = ctrl('symgen-keepmargin-row'), on = !!(sq && sq.checked);
+  if (of) of.hidden = !on;
+  if (km) km.hidden = !(on && ctrl('chk-symgen-overflow').checked);   // Keep margin: with Overflow on
 }
 // ── Overlap & blend — every Symbol grid. Saved with the Symbol (entry.overlap); older Symbols open as Paper under, 0.
 state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest' };
@@ -252,7 +254,7 @@ export async function buildEmptySymbolGrid(opts = {}) {
 export let emptyRebuildTimer = 0;
 ['sym-canvas-section', 'sym-grid-section'].forEach(id => ['input', 'change'].forEach(ev => ctrl(id).addEventListener(ev, e => {
   if (e.target.closest('button') || !state.symbolGrid || e.target.type === 'file') return;
-  if (e.target.id === 'chk-symgen-square') syncSquareCellsUI();
+  if (e.target.id === 'chk-symgen-square' || e.target.id === 'chk-symgen-overflow') syncSquareCellsUI();
   const genChanged = e.target.id === 'sel-symgrid-gen';
   clearTimeout(emptyRebuildTimer);
   emptyRebuildTimer = setTimeout(() => buildEmptySymbolGrid({ genChanged }), 120);

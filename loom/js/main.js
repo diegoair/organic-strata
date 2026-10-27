@@ -270,7 +270,7 @@ function syncEqualizeRow() {
 }
 // ── Square cells (Bento) — after Rows (Diego, Oct 27, 2026): Columns × Rows as chosen, cells square, the grid centred
 // (bento.js); nothing in the panel hides — the switch only changes how the tracks are sized.
-function syncBentoSquareRow() { ctrl('row-bento-overflow').hidden = !ctrl('chk-bento-square').checked; }   // Overflow only with Square cells (hidden, not greyed)
+function syncBentoSquareRow() { ctrl('row-bento-overflow').hidden = !ctrl('chk-bento-square').checked; ctrl('row-bento-keepmargin').hidden = !(ctrl('chk-bento-square').checked && ctrl('chk-bento-overflow').checked); }   // Overflow only with Square cells (hidden, not greyed)
 function syncBentoSquareReadout() { syncBentoSquareRow(); }
 
 // ── Count ranges — one source: GENERATORS[type].ranges (registry.js). Every
@@ -453,6 +453,7 @@ function readGridParams() {
       variety: val('rg-bento-variety'), gap: unitVal('rg-bento-gap'), seed: Math.round(val('rg-bento-seed')),
       square: ctrl('chk-bento-square').checked,
       overflow: ctrl('chk-bento-square').checked && ctrl('chk-bento-overflow').checked,
+      keepMargin: ctrl('chk-bento-square').checked && ctrl('chk-bento-overflow').checked && ctrl('chk-bento-keepmargin').checked,
     };
   }
   if (type === 'hexagonal') {
@@ -583,7 +584,7 @@ function build() {
   const generator = GENERATORS[type];
   const params = readGridParams();
   // Overflow (Bento square cells): how far the canvas's edges are from the inner rect — the squares go on to them
-  if (params.overflow) params.reach = { left: inner.x, top: inner.y, right: canvas.width - inner.x - inner.width, bottom: canvas.height - inner.y - inner.height };
+  if (params.overflow) params.reach = params.keepMargin ? { left: 0, top: 0, right: 0, bottom: 0 } : { left: inner.x, top: inner.y, right: canvas.width - inner.x - inner.width, bottom: canvas.height - inner.y - inner.height };   // Keep margin: to the inner rect only
 
   // Kiwi throws (an uncaught exception, not a return value) when a
   // canvas is too small for the current Columns/Rows/Gap combination to
@@ -1102,7 +1103,7 @@ function applyGridParamsToUI(type, params) {
   if (type === 'bento') {
     setR('rg-bento-cols', params.cols); setR('rg-bento-rows', params.rows);
     setR('rg-bento-variety', params.variety); setR('rg-bento-gap', params.gap); setR('rg-bento-seed', params.seed);
-    ctrl('chk-bento-square').checked = !!params.square; ctrl('chk-bento-overflow').checked = !!params.overflow;
+    ctrl('chk-bento-square').checked = !!params.square; ctrl('chk-bento-overflow').checked = !!params.overflow; ctrl('chk-bento-keepmargin').checked = !!params.keepMargin;
     syncBentoSquareRow();
   } else if (type === 'sinusoidal') {
     setR('rg-sin-cols', params.cols); setR('rg-sin-rows', params.rows);

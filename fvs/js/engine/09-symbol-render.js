@@ -605,9 +605,24 @@ export function symbolSVGFromItems(items) {
   const meta = { tool: 'FVS-Symbol', cells: items.length, exportedAt: new Date().toISOString() };
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${F.w}" height="${F.h}" viewBox="0 0 ${F.w} ${F.h}">`
     + `<metadata>${JSON.stringify(meta)}</metadata>` + (defs ? `<defs>${defs}</defs>` : '')
-    + `<rect width="${F.w}" height="${F.h}" fill="${state.paperColor}"/>` + paperPatternSVG(F.w, F.h) + papers + body + `</svg>`;
+    + `<rect width="${F.w}" height="${F.h}" fill="${state.paperColor}"/>` + paperPatternSVG(F.w, F.h) + clipToMargin(papers + body, drawId) + `</svg>`;
+}
+// Overflow › Keep margin (Oct 27, 2026): the cells cut at the margin line — the Paper still covers the whole canvas
+const marginClip = () => state.symbolGrid && state.symbolGrid.grid && state.symbolGrid.grid.clipRect;
+function clipToMargin(markup, id) {
+  const c = marginClip();
+  return c ? `<clipPath id="mclip-${id}"><rect x="${c.x.toFixed(2)}" y="${c.y.toFixed(2)}" width="${c.w.toFixed(2)}" height="${c.h.toFixed(2)}"/></clipPath><g clip-path="url(#mclip-${id})">${markup}</g>` : markup;
 }
 export function drawSymbolCanvas(ctx) {
+  const c = marginClip();
+  if (!c) { drawSymbolCanvasBody(ctx); return; }
+  const F = symbolFrame(getSymbolGrid());
+  ctx.clearRect(0, 0, F.w, F.h);
+  ctx.save(); ctx.beginPath(); ctx.rect(c.x, c.y, c.w, c.h); ctx.clip(); drawSymbolCanvasBody(ctx); ctx.restore();
+  // the margin: the Paper and its pattern under what is already drawn
+  ctx.save(); ctx.globalCompositeOperation = 'destination-over'; paintPaperPatternCanvas(ctx, F.w, F.h); fillPaper(ctx, state.paperColor, 0, 0, F.w, F.h); ctx.restore();
+}
+function drawSymbolCanvasBody(ctx) {
   const grid = getSymbolGrid();
   const F = grid ? symbolFrame(grid) : { w: 0, h: 0, X: v => v, Y: v => v };
   ctx.clearRect(0, 0, F.w, F.h);

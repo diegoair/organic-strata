@@ -57,6 +57,17 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     check('…the Symbol keeps what was asked (6 × 6, Overflow) — the extra tracks are the model’s', F.state.symbolGrid.canvas.fvsFrame.params.cols === 6 && F.state.symbolGrid.canvas.fvsFrame.params.overflow === true, JSON.stringify(F.state.symbolGrid.canvas.fvsFrame.params));
     const sv = F.buildSymbolSVG();
     check('…the export is the canvas (viewBox), so a cut square ends at its edge', /viewBox="0 0 1080 1350"/.test(sv), (sv.match(/viewBox="[^"]+"/) || [])[0]);
+    // Keep margin: the squares to the margin's box, cut at the margin line; the margin stays Paper (SVG and PNG)
+    check('Keep margin shows with Overflow on', !q('symgen-keepmargin-row').hidden, 'hidden');
+    set('chk-symgen-keepmargin', true); await settle();
+    { const cells = F.state.symbolGrid.cells, cv = F.state.symbolGrid.canvas, m = Math.min(cv.width, cv.height) * 0.05, cr = F.state.symbolGrid.grid.clipRect;
+      const minX = Math.min(...cells.map(c => c.x)), maxX = Math.max(...cells.map(c => c.x + c.width));
+      const sv = F.buildSymbolSVG();
+      const png = await new Promise(res => { const dl = Organica.download; Organica.download = b => { Organica.download = dl; const i = new Image(); i.onload = () => { const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; const x = c.getContext('2d'); x.drawImage(i, 0, 0); res([x.getImageData(Math.round(m / 2), Math.round(cv.height / 2), 1, 1).data, x.getImageData(Math.round(m + 2), Math.round(cv.height / 2), 1, 1).data]); }; i.src = URL.createObjectURL(b); }; q('sel-export-scale').value = '1'; F.exportSymbol('png'); });
+      const paper = F.state.paperColor.toLowerCase(), hex = d => '#' + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+      check('Keep margin: ' + q('symbol-cellcount-hint').textContent + ' — to the margin, cut there (SVG clip), the margin Paper in the PNG', cr && Math.abs(cr.x - m) < 0.01 && minX <= m + 0.01 && minX > -0.01 && maxX >= cv.width - m - 0.01 && /<clipPath id="mclip-/.test(sv) && hex(png[0]) === paper, JSON.stringify([cr, minX, maxX, hex(png[0]), paper])); }
+    set('chk-symgen-keepmargin', false); await settle();
+    check('Keep margin off: no margin cut', !F.state.symbolGrid.grid.clipRect && !/mclip-/.test(F.buildSymbolSVG()), 'still cut');
     set('chk-symgen-overflow', false); await settle();
     set('chk-symgen-square', false); await settle();
     check('Square cells off: Overflow hides', q('symgen-overflow-row').hidden, 'shown'); }

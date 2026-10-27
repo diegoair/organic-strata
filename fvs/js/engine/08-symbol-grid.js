@@ -586,7 +586,7 @@ export function figureWithMirror(defs, body, box, size, rot, mir) {
 export function readSymgridParams(id) {
   const out = {};
   SYMGRID_GENS[id].params.forEach(([k, , a]) => { const v = pv('symgen-' + k); out[k] = a === 'text' ? v : parseFloat(v); });
-  if (SYMGRID_GENS[id].square && pc('chk-symgen-square')) { out.square = true; if (pc('chk-symgen-overflow')) out.overflow = true; }   // Columns × Rows, square cells (+ Overflow)
+  if (SYMGRID_GENS[id].square && pc('chk-symgen-square')) { out.square = true; if (pc('chk-symgen-overflow')) { out.overflow = true; if (pc('chk-symgen-keepmargin')) out.keepMargin = true; } }   // Columns × Rows, square cells (+ Overflow)
   return out;
 }
 // Loom's grid generators (loom/js/generators/registry.js, untouched), imported on first use — the Rhizome way.
@@ -610,9 +610,12 @@ export async function symbolGridModel(genId, params, cv) {
     // Overflow (Oct 27, 2026 — Diego: "si vanno a riempire anche gli spazi rimasti vuoti e le celle tagliate fuori dalla
     // canvas vengono nascoste"): the same squares go on past Columns × Rows to the canvas's edges, margin included, on
     // the same lattice (the chosen grid stays where it was, in the middle); a square the edge cuts is cut by the canvas
+    // Keep margin (Diego, Oct 27, 2026: "all'overflow aggiungi anche la possibilità di avere il margine"): to the margin's
+    // box instead, the squares cut at the margin line (grid.clipRect — buildSymbolSVG / drawSymbolCanvas clip there)
     if (params.overflow) {
-      const l = Math.ceil(inner.x / side - 1e-9), t = Math.ceil(inner.y / side - 1e-9);
-      const r = Math.ceil((cv.W - inner.x - w) / side - 1e-9), b = Math.ceil((cv.H - inner.y - h) / side - 1e-9);
+      const e0 = params.keepMargin ? m : 0, ex = params.keepMargin ? cv.W - m : cv.W, ey = params.keepMargin ? cv.H - m : cv.H;
+      const l = Math.ceil((inner.x - e0) / side - 1e-9), t = Math.ceil((inner.y - e0) / side - 1e-9);
+      const r = Math.ceil((ex - inner.x - w) / side - 1e-9), b = Math.ceil((ey - inner.y - h) / side - 1e-9);
       inner = { x: inner.x - l * side, y: inner.y - t * side, width: (cols + l + r) * side, height: (rows + t + b) * side };
       params = { ...params, cols: cols + l + r, rows: rows + t + b };
     }
@@ -628,7 +631,7 @@ export async function symbolGridModel(genId, params, cv) {
     if (params.colWeights != null) params = { ...params, colWeights: clampWeightTrackCount(params.colWeights) };
     if (params.rowWeights != null) params = { ...params, rowWeights: clampWeightTrackCount(params.rowWeights) };
   }
-  const { square: _sq, overflow: _of, ...gp } = params;   // Square cells are made here (the inner box and Rows), so the generator gets plain Columns × Rows
+  const { square: _sq, overflow: _of, keepMargin: _km, ...gp } = params;   // Square cells are made here (the inner box and Rows), so the generator gets plain Columns × Rows
   const full = { ...G.defaults, ...gp, gap: 0 };
   const { grid, cells } = G.generate(full, inner);
   if (G.cellShape === 'polygon') grid.cellShape = 'polygon';
@@ -637,6 +640,7 @@ export async function symbolGridModel(genId, params, cv) {
   // Square cells: the grid sits centred in the margin's box — Loom's own grid.offset (loom/js/json-model.js), read by
   // Organica.loadLoomGrid; absent otherwise, so every other model is as before
   if (params.square) grid.offset = { x: inner.x - m, y: inner.y - m };
+  if (params.square && params.overflow && params.keepMargin) grid.clipRect = { x: m, y: m, w: W - 2 * m, h: H - 2 * m };
   return {
     version: '1.0',
     canvas: { width: W, height: H, unit: 'px', margin: cv.margin, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, safeArea: 0, bleed: 0,

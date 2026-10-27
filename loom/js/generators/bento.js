@@ -78,6 +78,7 @@ function buildSpans(cols, rows, variety, seed) {
  * (Rows was derived from Columns the first day — Diego: keep Rows.)
  * OVERFLOW (`overflow: true` + `reach` {left, top, right, bottom} = the canvas around inner): the squares go on to
  * the canvas's edges on the same lattice; the tracks then count the extra squares, params keep what was asked.
+ * KEEP MARGIN (`keepMargin: true`, reach 0): only to the inner rect, the edge tracks cut down to it.
  * `grid.offset` is the model's way to say "the tracks start this far in from
  * the inner rect's top-left": every reader that turns tracks into rects adds
  * it (json-model.js resolveCellRects, the HTML renderer's padding, main.js's
@@ -104,6 +105,16 @@ export function generateBento(params, inner) {
       cols += l + r; rows += t + b;
     }
     colSizes = new Array(cols).fill(s); rowSizes = new Array(rows).fill(s);
+    // Keep margin (`reach` all 0 — main.js): the squares stop at the inner rect; the edge tracks are cut down to it, so
+    // every renderer draws the cut squares as they are (Diego, Oct 27, 2026)
+    if (params.overflow && params.keepMargin) {
+      const trim = (sizes, start, span) => {
+        const over0 = Math.max(0, -start), end = start + sizes.reduce((a, v) => a + v, 0) + gap * (sizes.length - 1), over1 = Math.max(0, end - span);
+        sizes[0] -= over0; sizes[sizes.length - 1] -= over1;
+        return start + over0;
+      };
+      offset = { x: trim(colSizes, offset.x, inner.width), y: trim(rowSizes, offset.y, inner.height) };
+    }
   } else {
     colSizes = solveTracksKiwi(cols, inner.width, gap);
     rowSizes = solveTracksKiwi(rows, inner.height, gap);
@@ -113,7 +124,7 @@ export function generateBento(params, inner) {
   const grid = {
     type: 'bento',
     solver: 'kiwi',
-    params: square ? { cols: params.cols, rows: params.rows, variety, seed, square: true, ...(params.overflow ? { overflow: true } : {}) } : { cols, rows, variety, seed },
+    params: square ? { cols: params.cols, rows: params.rows, variety, seed, square: true, ...(params.overflow ? { overflow: true } : {}), ...(params.overflow && params.keepMargin ? { keepMargin: true } : {}) } : { cols, rows, variety, seed },
     gap,
     tracks: { cols: colSizes, rows: rowSizes },
   };
