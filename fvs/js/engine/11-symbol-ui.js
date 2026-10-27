@@ -372,6 +372,7 @@ export function buildSymbolLibraryEntry() {
     rule: readRuleState(),
     pool: state.symbolPool.map(p => ({ ...p })),   // was "palette" — renamed to avoid clashing with the colour Palette; `applySymbolLibraryEntryToUI` still reads the old key too
     arrange: { rule: pv('sel-sym-arrange'), fit: pv('sel-sym-arrange-fit'), seed: pv('num-symbol-seed') },
+    ...(state.symbolZones && state.symbolZones.length ? { zones: JSON.parse(JSON.stringify(state.symbolZones)) } : {}),   // Zones (Oct 27, 2026): only when there are some
     savedAt: new Date().toISOString(),
   };
 }

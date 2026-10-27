@@ -30,6 +30,7 @@ import * as m08 from './08-symbol-grid.js';
 import * as m09 from './09-symbol-render.js';
 import * as m10 from './10-suggest.js';
 import * as m11 from './11-symbol-ui.js';
+import * as m11z from './11-zones-ui.js';
 import * as m12 from './12-shell.js';
 import * as m15 from './15-export-library-view.js';
 import * as m16 from './16-board.js';
@@ -38,7 +39,7 @@ import * as m99 from './99-boot.js';
 
 const api = {};
 const expose = list => { for (const ns of list) for (const name of Object.keys(ns)) Object.defineProperty(api, name, { get: () => ns[name], enumerable: true, configurable: true }); };
-expose([e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e11z, e12, e15, m00, m01, m02, m03, m04, m05, m06, m07, m08, m09, m10, m11, m12, m15, m16, m18, m99]);
+expose([e00, e01, e02, e03, e04, e05, e06, e07, e08, e09, e10, e11, e11z, e12, e15, m00, m01, m02, m03, m04, m05, m06, m07, m08, m09, m10, m11, m11z, m12, m15, m16, m18, m99]);
 // Figure loads on demand: until then its names say so (await __fvs.loadFigureTier()) instead of being missing.
 for (const name of ["BUILTIN_RECIPES","FG_GRID_TYPES","FG_HUE_TURNS","FG_ICONS","FG_LATTICE_OF","FG_LOCK_GROUPS","FG_SEEDS","FG_SEED_MAIN","FG_SEED_POOL","FG_STR_OF","FIGURE_CLASSIC_LABELS","FIGURE_LATTICES","FIGURE_MAX_SHAPES","FIGURE_MUTATIONS","FIGURE_PORT_TYPES","FIGURE_RECIPES_V1_AS_V2","FIGURE_TOOLS","FIT_PRESET","LEAF_CELLS","REPEAT_LATTICES","applyClassRules","applyHandle","canvasOf","canvasSummary","capMap","compileFigure","componentCellsFromRule","describeRule","elementEntryFromRecipe","entrySnapshot","evalFigure","fgBaseColours","fgLastGridTransform","fgPick","fgSymbol","figureCardHTML","figureCatalog","figureChecks","figureClassWhen","figureFirstLevelOf","figureGalleryCache","figureHandleTarget","figureHistory","figureMutateOnce","figureNeighbours","figureNodeTypes","figurePaintable","figureSVGOf","figureShuffle","figureStepCache","figureStepIds","graphFromRecipe","gridDefaults","gridSpec","gridSummary","gridTypeFromLattice","hexFigureRecipes","isLattice","isSealedSymbol","normMask","paintCell","promoteFigureToTile","rasterMask","recipeElementKey","encodeFile","exportPlan","exportSummary","pinsFor","FIGURE_RENDER_CAP","figureWithVariations","variationSpecs","varyInputs","KEEP_KEYS","recursiveFigureRecipes","renderFigureGraph","ruleOf","runBuiltinRecipe","runFigureRecipe","runSealedSymbolLevel","svgURI","symbolLevelFromLiveState","triangleFigureRecipes","validateFigureRecipe","withFigureSandbox"])
   Object.defineProperty(api, name, { get: () => { throw new Error(name + ': the Figure tier is not loaded — await __fvs.loadFigureTier()'); }, enumerable: true, configurable: true });

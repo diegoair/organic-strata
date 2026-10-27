@@ -1831,15 +1831,45 @@
     </div>
 
     <div class="tier-block" data-tier="symbol">
-    <div class="panel-section">
-      <h3>Fill</h3>
-      <div class="ctrl-row">
+    <!-- One flow (Diego, Oct 27, 2026 — no Fill mode menu): Zones → Suggest → Cells. The old Fill select stays, hidden, as
+         the store of the panel's mode (the regression page and older saves set it); every block keeps its ids. -->
+    <div class="panel-section" id="sym-zones-section">
+      <h3>Zones</h3>
+      <div class="ctrl-row" hidden>
         <select class="panel-select" id="sel-symbol-fill" aria-label="Fill mode">
           <option value="suggest" selected>Suggest</option>
           <option value="generate">Arrange (pool)</option>
           <option value="manual">Manual</option>
           <option value="rule">Rule</option>
         </select>
+      </div>
+      <div class="row-btns fvs-zone-ready" id="zone-ready" role="group" aria-label="Ready-made zones"></div>
+      <p class="org-panel__hint">Hover to see the cells, click to add the zone.</p>
+      <div class="fg-list" role="list" id="zone-list"></div>
+      <div class="row-btns"><button type="button" class="mini-btn" id="btn-zone-from-sel" disabled>Zone from selection</button></div>
+      <div id="zone-inspector" hidden>
+        <div class="sub-label" id="zone-does-label">Does</div>
+        <div class="ctrl-row fvs-zone-does">
+          <div class="seg-ctrl" id="seg-zone-does" role="group" aria-labelledby="zone-does-label">
+            <button type="button" class="seg-btn" data-does="content" aria-pressed="false">Content</button>
+            <button type="button" class="seg-btn" data-does="rule" aria-pressed="false">Rule</button>
+            <button type="button" class="seg-btn" data-does="keep" aria-pressed="false">Locked</button>
+            <button type="button" class="seg-btn" data-does="empty" aria-pressed="false">Empty</button>
+          </div>
+        </div>
+        <div id="zone-content-block" hidden>
+          <div class="ctrl-row"><div class="ctrl-label">Content</div>
+            <select class="panel-select" id="sel-zone-content" aria-label="Content"></select>
+          </div>
+          <div class="ctrl-row" id="row-zone-arrange"><div class="ctrl-label">Arrange by</div>
+            <select class="panel-select" id="sel-zone-arrange" aria-label="Arrange by"></select>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Fit</div>
+            <select class="panel-select" id="sel-zone-fit" aria-label="Fit in cell"><option value="fill">Stretch</option><option value="contain">Contain</option><option value="cover">Cover (no gaps)</option><option value="match">Match cell</option></select>
+          </div>
+        </div>
+        <div id="zone-rule-host"></div>
+        <p class="org-panel__hint" id="zone-hint"></p>
       </div>
 
       <div id="symbol-rule-block" hidden>
@@ -1960,7 +1990,14 @@
         <p class="org-panel__hint">The rule fills every cell’s transform from its column/row (Rhythm / Checkerboard / Rows / Columns) or its position (Radial / Wave / Random). Content is never changed — set it once with Choose content → "Apply to all". Edit individual cells afterward in Manual; lock a cell there so <em>Apply rule</em> skips it. <em>Reset &amp; apply to all</em> ignores locks.</p>
       </div>
 
+    </div>
+    <div class="panel-section" id="sym-suggest-section">
+      <h3>Suggest</h3>
       <div id="symbol-suggest-block">
+        <div class="ctrl-row"><div class="ctrl-label">Surprise</div>
+          <input type="range" id="rg-sug-surprise" min="0" max="100" step="5" value="30" aria-label="Surprise"><span class="ctrl-val" id="v-sug-surprise">30</span></div>
+        <p class="org-panel__hint">Low: ordered and continuous. High: surprising.</p>
+        <div hidden><!-- the scoring weights Surprise sets (suggestWeights reads them) -->
         <div class="ctrl-row"><div class="ctrl-label">Continuity</div>
           <input type="range" id="rg-sug-cont" min="0" max="100" step="5" value="60"><span class="ctrl-val" id="v-sug-cont">60</span></div>
         <div class="ctrl-row"><div class="ctrl-label">Balance</div>
@@ -1969,6 +2006,7 @@
           <input type="range" id="rg-sug-sur" min="0" max="100" step="5" value="30"><span class="ctrl-val" id="v-sug-sur">30</span></div>
         <div class="ctrl-row"><div class="ctrl-label">Colour</div>
           <input type="range" id="rg-sug-col" min="0" max="100" step="5" value="40"><span class="ctrl-val" id="v-sug-col">40</span></div>
+        </div>
         <div class="ctrl-row">
           <div class="ctrl-label">Seed</div>
           <input type="number" class="panel-input" id="num-sug-seed" value="1" min="0" max="999999" step="1" aria-label="Suggestion seed">
@@ -2002,6 +2040,20 @@
         </div>
         <button class="mini-btn" id="btn-symbol-regenerate" style="width:100%">Arrange</button>
         <p class="org-panel__hint">Places the pool’s Components by a rule — which one goes in each cell follows its column/row, ring, sector or band (the n-th class takes the n-th Component). Random picks by weight. Locked cells stay. Then refine transforms with Rule, or single cells in Manual.</p>
+      </div>
+    </div>
+    <div class="panel-section" id="sym-cells-section">
+      <h3>Cells</h3>
+      <div class="ctrl-row fvs-zone-similar"><div class="ctrl-label" id="zone-similar-label">Select</div>
+        <div class="row-btns" role="group" aria-labelledby="zone-similar-label" id="zone-similar">
+          <button type="button" class="mini-btn" data-similar="row" disabled>Row</button>
+          <button type="button" class="mini-btn" data-similar="col" disabled>Column</button>
+          <button type="button" class="mini-btn" data-similar="ring" disabled hidden>Ring</button>
+          <button type="button" class="mini-btn" data-similar="every" disabled>Every other cell</button>
+          <button type="button" class="mini-btn" data-similar="content" disabled>Same content</button>
+          <button type="button" class="mini-btn" data-similar="border">Border</button>
+          <button type="button" class="mini-btn" data-similar="centre">Centre</button>
+        </div>
       </div>
       <div id="symbol-manual-block" hidden>
         <p class="org-panel__hint">Click a cell on the canvas to select it; drag to select several; ⌘-click (Ctrl-click on Windows) adds or removes a cell. Click a selected cell again — or double-click a cell — to choose its content, for the whole selection. Every change below applies to the selection.</p>

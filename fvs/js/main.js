@@ -28,6 +28,7 @@ import './08-symbol-grid.js';
 import './09-symbol-render.js';
 import './10-suggest.js';
 import './11-symbol-ui.js';
+import './11-zones-ui.js';
 import './12-shell.js';
 import './15-export-library-view.js';
 import './16-board.js';

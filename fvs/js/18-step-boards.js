@@ -1069,6 +1069,7 @@ function mountSymbolBoard() {
     if (w.arrange) { ctrl('sel-sym-arrange').value = w.arrange.rule; ctrl('sel-sym-arrange-fit').value = w.arrange.fit; ctrl('num-symbol-seed').value = w.arrange.seed; }
     state.symbolCells = (w.cells || []).map(c => withPlacementDefaults({ ...c }));
     state.symbolSelection.clear();
+    state.symbolZones = w.zones ? JSON.parse(JSON.stringify(w.zones)) : []; state.zonePick = null;
     state.symbolClipEnabled = w.clipEnabled !== false;
     if (hooks.syncSymbolViewUI) hooks.syncSymbolViewUI();
     state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(w.overlap || {}) };

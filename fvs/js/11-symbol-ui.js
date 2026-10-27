@@ -75,6 +75,7 @@ provide({
 
 export function applySymbolRule(opts) {
   opts = opts || {};
+  if (!opts.resetAll && state.zonePick != null && hooks.ruleToPickedZone && hooks.zonePickedRule && hooks.zonePickedRule()) { hooks.ruleToPickedZone(); return; }   // the Rule block in a zone edits that zone (Zones, Oct 27, 2026)
   const grid = getSymbolGrid();
   if (!grid || !state.symbolCells.length) return;
   const name = pv('sel-symbol-rule');
@@ -161,6 +162,7 @@ export function renderSymbolCanvasOnly() {
   let overlay = buildEmptyCellHitsSVG();
   if (state.symbolView.outline) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
+  if (hooks.zonesOverlaySVG) overlay += hooks.zonesOverlaySVG();   // the Zones' outlines (11-zones-ui)
   if (state.symbolView.guides) overlay += buildTrackHandlesSVG() + storySafeOverlaySVG();
   if (trackDrag) overlay += buildOverflowOutlineSVG();
   if (state.symbolView.cover) overlay += buildCoverCropPreviewSVG();
@@ -174,6 +176,7 @@ export function renderSymbolCanvasOnly() {
   frame.innerHTML = svg;
   if (hooks.boardSymbolDrawn) hooks.boardSymbolDrawn();   // the working Symbol kept (18-step-boards.js)
   renderTrackLabelsOverlay();
+  if (hooks.renderLineHandles) hooks.renderLineHandles();   // the row / column handles (11-zones-ui)
   // …and once more when this step's layout has settled. A render can run while
   // the Suggest strip above is momentarily empty: the frame is then taller, the
   // labels are measured against that, and the strip is refilled before the
@@ -181,7 +184,7 @@ export function renderSymbolCanvasOnly() {
   // (which compares sizes between frames) never fires, and the labels stay
   // where the sheet was. Found on wide canvases, where the sheet re-centres.
   cancelAnimationFrame(trackLabelsRaf);
-  trackLabelsRaf = requestAnimationFrame(renderTrackLabelsOverlay);
+  trackLabelsRaf = requestAnimationFrame(() => { renderTrackLabelsOverlay(); if (hooks.renderLineHandles) hooks.renderLineHandles(); });
   setStatus('active', `Symbol · ${count} cells`);
 }
 export let trackLabelsRaf = 0;
@@ -190,7 +193,7 @@ export function renderSymbol() {
   syncOverlapSection();   // Shared cells follows whether aligned Components are in the Symbol
   renderSymbolCanvasOnly();
   if (pv('sel-symbol-fill') === 'manual' || state.symbolSelection.size) renderCellPropertiesPanel();
-  else { syncManualBlock(); syncFitAnchorUI(); }
+  else { syncManualBlock(); syncFitAnchorUI(); if (hooks.renderZonesPanel) hooks.renderZonesPanel(); }
 }
 
 // Click-to-select on the rendered Symbol itself (Strata's Refine editor
@@ -643,6 +646,7 @@ export const SYMBOL_CELLS = {
   spanCut: () => { const r = currentSpanLayout().region[Math.min(...state.symbolSelection)]; return !!(r && r.cut); },
 };
 export function renderCellPropertiesPanel() {
+  if (hooks.renderZonesPanel) hooks.renderZonesPanel();   // Zone from selection, Select follow the selection
   syncManualBlock();
   syncFitAnchorUI();
   const hasSelection = state.symbolSelection.size > 0 && state.symbolGrid;
@@ -1030,6 +1034,7 @@ export function applySymbolLibraryEntryToUI(entry) {
   // filled to true, matching withPlacementDefaults' own convention of
   // restoring exactly the pre-feature behaviour for anything not saved.
   state.symbolClipEnabled = entry.clipEnabled !== false;
+  state.symbolZones = entry.zones ? JSON.parse(JSON.stringify(entry.zones)) : []; state.zonePick = null;
   hooks.syncSymbolViewUI();
   state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(entry.overlap || {}) };
   syncOverlapSection();

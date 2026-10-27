@@ -740,3 +740,23 @@
 .fvs-photo-row { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); }
 .fvs-photo-thumb { width: var(--space-8); height: var(--space-8); object-fit: cover; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--paper); flex: none; }
 .fvs-photo-row .org-btn:not(.org-btn--icon) { flex: 1 1 auto; }
+
+  /* ── Symbol › Zones (Oct 27, 2026; design-system CONSULT the same day: ink only, no zone colours) ── */
+  #symbol-frame g[data-cell-index].is-hint > :first-child { stroke: var(--ink); stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; filter: drop-shadow(0 0 1px var(--paper)); transition: stroke var(--dur-fast) var(--ease-standard); }   /* a hovered zone's cells — as Compose's .fg-cell.is-hint */
+  #symbol-frame .fvs-zone-outline { fill: none; pointer-events: none; stroke: var(--border-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
+  #symbol-frame .fvs-zone-outline.is-picked { stroke: var(--ink); stroke-width: 2px; stroke-dasharray: none; filter: drop-shadow(0 0 1px var(--paper)) drop-shadow(0 0 1px var(--paper)); }
+  .fvs-zone-card.is-picked { background: color-mix(in srgb, var(--tool) 12%, var(--panel)); box-shadow: inset 2px 0 0 var(--tool); }
+  .fvs-zone-card .fg-rule__pick { flex: 1; min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: left; }   /* the zone's name wraps: two lines beat a cut name */
+  .fvs-zone-does .seg-ctrl { flex: 1; }
+  .fvs-zone-does .seg-btn { flex: 1; padding-inline: var(--space-1); }
+  .fvs-zone-ready, .fvs-zone-similar .row-btns { flex-wrap: wrap; row-gap: var(--space-1); }
+  #symbol-rule-block.is-zone .fvs-zone-hide { display: none; }   /* in a zone the rule applies to it: no Apply / Reset / content buttons */
+  .fvs-line-handles { position: absolute; inset: 0; pointer-events: none; }
+  .fvs-line-handle { position: absolute; pointer-events: auto; box-sizing: border-box; min-width: var(--hit-min); min-height: var(--hit-min); padding: 0; border: 0; background: transparent; cursor: pointer; }
+  .fvs-line-handle::after { content: ''; position: absolute; left: 50%; top: 50%; background: var(--border-strong); border-radius: var(--radius-sm); transition: background-color var(--dur-fast) var(--ease-standard); }
+  .fvs-line-handle--col { transform: translate(-50%, 0); }
+  .fvs-line-handle--col::after { width: var(--space-4); height: var(--space-1); transform: translate(-50%, -50%); }
+  .fvs-line-handle--row { transform: translate(0, -50%); }
+  .fvs-line-handle--row::after { width: var(--space-1); height: var(--space-4); transform: translate(-50%, -50%); }
+  .fvs-line-handle:hover::after, .fvs-line-handle.is-on::after { background: var(--ink); }
+  .fvs-line-handle:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; border-radius: var(--radius-sm); }

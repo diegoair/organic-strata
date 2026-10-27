@@ -178,6 +178,16 @@ export function contentPatch(c, fit) {
     rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV };
 }
 
+// A content taken from a cell of the Symbol (Zones' Content from "this Symbol"): the fields that say what the cell holds,
+// put on another cell with its pose reset (a down triangle turned to face its slot) and the zone's Fit.
+export const CONTENT_FIELDS = ['source', 'seedType', 'seedParams', 'componentName', 'ownColors', 'ownPaper', 'ownAppearance', 'appearancePatch', 'color', 'span', 'colourway'];
+export function contentOfCell(c) { const o = {}; CONTENT_FIELDS.forEach(k => { if (c && c[k] != null) o[k] = clone(c[k]); }); return o; }
+function placeContent(cell, item, fit, ctx) {
+  const patch = item.tpl ? { ...contentOfCell(item.tpl), rotation: 0, flipH: false, flipV: false, scale: 1, fitMode: fit || cell.fitMode } : contentPatch(item, fit || cell.fitMode);
+  CONTENT_FIELDS.forEach(k => { if (!(k in patch)) delete cell[k]; });
+  Object.assign(cell, withPlacementDefaults(patch), { rotation: ctx && ctx.orient === 'down' ? 180 : 0 });
+}
+
 // ── What a zone does — generators the zone can Follow (Phase 2+ fill this registry; docs/FVS.md §6c).
 // ZONE_FOLLOW[id] = { label, applies(grid, idxs, ctxs) → bool, build(cells, idxs, params, rng, env) → cells (in
 // place), caption(params) }. `do.follow = {id, params, seed}` runs one on the zone's cells.
@@ -239,11 +249,14 @@ export function applyZones(cellsIn, grid, rules, opts) {
       if (d.arrange && (d.arrange.pool || []).length) {
         const A = SYMBOL_ARRANGE[d.arrange.rule] || SYMBOL_ARRANGE.random, pool = d.arrange.pool, k = d.arrange.rule === 'checker' ? Math.min(2, pool.length) : pool.length;
         const pick = A.cls ? pool[((A.cls(sctx[i], k) % k) + k) % k] : pool[Math.floor(rngs[ri]() * pool.length)];
-        Object.assign(cell, withPlacementDefaults(contentPatch(pick, d.arrange.fit || cell.fitMode)), { rotation: sctx[i].orient === 'down' ? 180 : 0 }); if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell);
+        if (pick.tpl) placeContent(cell, pick, d.arrange.fit, sctx[i]);   // a content of this Symbol (Zones)
+        else Object.assign(cell, withPlacementDefaults(contentPatch(pick, d.arrange.fit || cell.fitMode)), { rotation: sctx[i].orient === 'down' ? 180 : 0 });
+        if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell);
         return;
       }
       if (d.pattern) cell.appearancePatch = { fillMode: 'pattern', patType: d.pattern.patType || 'lines', patSpacing: +d.pattern.patSpacing || 8, patWeight: +d.pattern.patWeight || 2, patAngle: d.pattern.patAngle != null ? +d.pattern.patAngle : 45 };
-      if (d.content && typeof d.content === 'object') { const pose = { rotation: cell.rotation, flipH: cell.flipH, flipV: cell.flipV }; Object.assign(cell, withPlacementDefaults(contentPatch(d.content, cell.fitMode)), d.keepPose ? pose : {}); if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell); }
+      if (d.content && typeof d.content === 'object' && d.content.tpl) { placeContent(cell, d.content, d.fit, sctx[i]); own[i] = clone(cell); }
+      else if (d.content && typeof d.content === 'object') { const pose = { rotation: cell.rotation, flipH: cell.flipH, flipV: cell.flipV }; Object.assign(cell, withPlacementDefaults(contentPatch(d.content, cell.fitMode)), d.keepPose ? pose : {}); if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell); }
       else if (d.toggle) { if (cell.source === 'empty') Object.assign(cell, { source: own[i].source === 'empty' ? 'seed' : own[i].source }); else cell.source = 'empty'; }
       else if (d.content === 'empty') cell.source = 'empty';
       else if (d.content === 'filled') { Object.assign(cell, d.seed ? { source: 'seed', seedType: d.seed } : { source: own[i].source === 'empty' ? 'seed' : own[i].source }); }
@@ -259,4 +272,54 @@ export function applyZones(cellsIn, grid, rules, opts) {
     });
   });
   return { cells, counts };
+}
+
+// ── Picking a part (Phase 1) ─────────────────────────────────
+// Select similar, from one cell: the cells that share its row / column / ring / sector, every other one like it, the
+// ones holding the same content (cellContentKey-like: Component name, or the Element's shape + settings), the border,
+// the centre. → the `when` of that part (so Zone from selection keeps the part, not the cells).
+export const SIMILAR_KINDS = ['row', 'col', 'ring', 'sector', 'every', 'content', 'border', 'centre'];
+const contentKeyOf = c => !c || c.source === 'empty' ? 'empty' : c.source === 'component' ? 'c:' + c.componentName
+  : 'e:' + JSON.stringify([c.seedType, c.seedParams || null, c.ownColors || null, c.color || null]);
+export function similarWhen(i, kind, ctxs, cells) {
+  const c = ctxs[i]; if (!c) return null;
+  switch (kind) {
+    case 'row': return { sel: 'row', k: c.row };
+    case 'col': return { sel: 'col', k: c.col };
+    case 'ring': return c.ring != null ? { sel: 'ring', k: c.ring } : null;
+    case 'sector': return c.sector != null ? { sel: 'sector', k: c.sector } : null;
+    case 'every': return { sel: 'every', by: 'checker', n: 2, phase: (c.col + c.row) % 2 };
+    case 'border': return { sel: 'border' };
+    case 'centre': return { sel: 'centre' };
+    case 'content': { const k = contentKeyOf(cells[i]); return { index: cells.map((x, j) => (contentKeyOf(x) === k ? j : -1)).filter(j => j >= 0) }; }
+    default: return null;
+  }
+}
+// Ready-made zones from the grid's geometry — each a { key, label, when } the panel offers as a chip. Rings only where
+// the grid has them; Rows / Columns only where cells have their own rows and columns.
+export function readyZones(ctxs) {
+  if (!ctxs.length) return [];
+  const E = ctxs[0].ext, out = [];
+  out.push({ key: 'border', label: 'Border', when: { sel: 'border' } });
+  out.push({ key: 'centre', label: 'Centre', when: { sel: 'centre' } });
+  if (!E.radial) {
+    out.push({ key: 'diagonals', label: 'Diagonals', when: { sel: 'diagonal', which: 'both' } });
+    ['tl', 'tr', 'bl', 'br'].forEach(q => out.push({ key: 'q-' + q, label: { tl: 'Top left', tr: 'Top right', bl: 'Bottom left', br: 'Bottom right' }[q], group: 'Quadrants', when: { sel: 'quadrant', q } }));
+    out.push({ key: 'checker', label: 'Every other', when: { sel: 'every', by: 'checker', n: 2, phase: 0 } });
+  } else {
+    for (let k = 0; k <= E.maxRing; k++) out.push({ key: 'ring-' + k, label: 'Ring ' + (k + 1), group: 'Rings', when: { sel: 'ring', k: k === E.maxRing ? -1 : k } });
+    out.push({ key: 'sectors-alt', label: 'Every other sector', when: { sel: 'every', by: 'sector', n: 2, phase: 0 } });
+  }
+  return out.filter(z => zoneCells(z.when, ctxs).length > 0);
+}
+// The lines a handle can pick: each column / row (or ring) with the mean position of its cells (grid-centred, as
+// cellColRow's cx / cy) — for the handles on the canvas edge. Grids whose cells have no own rows and columns (bands of
+// a hexagon / triangle grid) still get them: the bands cellColRow makes.
+export function zoneLines(ctxs, geo) {
+  const by = (k, axis) => {
+    const m = new Map();
+    ctxs.forEach((c, i) => { if (c[k] == null) return; const e = m.get(c[k]) || { k: c[k], sum: 0, n: 0 }; e.sum += geo[i][axis]; e.n++; m.set(c[k], e); });
+    return [...m.values()].sort((a, b) => a.k - b.k).map(e => ({ k: e.k, at: e.sum / e.n, n: e.n }));
+  };
+  return { cols: by('col', 'cx'), rows: by('row', 'cy') };
 }
