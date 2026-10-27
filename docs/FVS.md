@@ -473,6 +473,13 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
   raster photo, and a drawing where no cell reaches into another (no `data-fvs-overlap` mark) keep the plain plate —
   every plate before is unchanged (regression 619/619). A `<mask>` / `<clipPath>` already in the drawing is kept as it is.
 - Not yet: the rule's own classes as a Layout (Diego: later). Tests: `scripts/test-fvs-tile.sh`.
+- **Pattern tests in the gallery** (Oct 27, 2026 — Diego: *test di generazioni di patterns usando tile … salvali nella
+  galleria*): tiles 25–36, made and measured by `scripts/gallery-fvs-tile-patterns.mjs` (12 cases, the user's path:
+  Element → Generate → Component Edit › Tile → Save as new → export). Found, not fixed: Interlace on **Brick** reads a
+  square lattice (some rings over every neighbour, chips left inside rings — tile 31); where diagonal neighbours also cross,
+  small chips (tile 30); a **Crossing gap** wider than the stroke breaks the rings apart (tile 33); **Arc** in Stroke
+  strokes the closed quarter pie, so the radii are woven too (tile 32); a non-square Component (6 × 5) in a Symbol is
+  placed as a block and loses its seamless copies; Interlace costs ~7× the file (64 masks; the arc truchet 226 KB).
 
 ### 5.2 The axes (Transform axes)
 
