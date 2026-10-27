@@ -632,8 +632,10 @@ export async function symbolGridModel(genId, params, cv) {
     const equalWeights = n => Array.from({ length: Math.max(1, Math.round(n)) }, () => '1').join(',');
     if (params.cols != null) params = { ...params, colWeights: equalWeights(params.cols) };
     if (params.rows != null) params = { ...params, rowWeights: equalWeights(params.rows) };
-    if (params.colWeights != null) params = { ...params, colWeights: clampWeightTrackCount(params.colWeights) };
-    if (params.rowWeights != null) params = { ...params, rowWeights: clampWeightTrackCount(params.rowWeights) };
+    // the 2–24 range is for what is asked: the tracks Overflow adds may pass it (they are counted by the cell cap)
+    const maxT = over ? 4096 : 24;
+    if (params.colWeights != null) params = { ...params, colWeights: clampWeightTrackCount(params.colWeights, 2, maxT) };
+    if (params.rowWeights != null) params = { ...params, rowWeights: clampWeightTrackCount(params.rowWeights, 2, maxT) };
   }
   const { square: _sq, overflow: _of, keepMargin: _km, ...gp } = params;   // Square cells are made here (the inner box and Rows), so the generator gets plain Columns × Rows
   const full = { ...G.defaults, ...gp, gap: 0 };

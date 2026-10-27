@@ -819,7 +819,9 @@ its cells.
   extra tracks (6 × 6 on Portrait 4:5 → 8 × 10 · 80 cells); the Symbol's frame keeps what was asked. **Keep margin** (a switch
   after Overflow, shown only with Overflow, Square cells or not — Diego, Oct 27, 2026: *all'overflow aggiungi anche la possibilità di avere il
   margine*): the squares go on only to the margin's box and are cut at the margin line (`grid.clipRect`; the SVG clips
-  there, the PNG too — the margin stays Paper and its pattern). The grid is
+  there, the PNG too — the margin stays Paper and its pattern). The 2–24 range is for what is asked: the tracks Overflow adds may
+  pass it (the cell cap counts them). Debugged Oct 27, 2026: 5 canvases × margins 0 / 5 / 15 / 25 % × Square cells ×
+  Overflow × Keep margin × Rectangular / Bento — 240 cases, sizes, places, the margin clip and the export checked. The grid is
   centred by Loom's own **`grid.offset`** (`{ x, y }`, where the tracks start inside the margin's box —
   `loom/js/json-model.js` `gridOffset`; `Organica.loadLoomGrid` adds it, and so do the Symbol's guides and track
   handles); absent on every other grid and every model saved before, so they are unchanged. Dragging a border turns

@@ -97,6 +97,15 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   // the cap: 24 × 24 on 9:16 square cells is fine; Masonry / Wave 24 × 24 builds
   set('sel-symcanvas-preset', 'Square 1:1'); set('symgen-cols', 24); set('symgen-rows', 24); await settle();
   check('24 × 24 = 576 cells builds', F.state.symbolCells.length === 576 && q('symgrid-gen-error').hidden, F.state.symbolCells.length + ' ' + q('symgrid-gen-error').textContent);
+  // the debug of Oct 27 (every canvas × margin × Square cells × Overflow × Keep margin): two cases that failed
+  { set('sel-symcanvas-preset', 'Landscape 1.91:1'); set('rg-symcanvas-margin', 25); set('chk-symgen-square', true); set('chk-symgen-overflow', true); if (q('chk-symgen-keepmargin')) set('chk-symgen-keepmargin', false);
+    set('symgen-cols', 5); set('symgen-rows', 7); await settle();
+    const c = F.state.symbolGrid.cells, s0 = c[0].width;
+    check('Overflow past 24 tracks (Landscape 1.91:1, margin 25 %): still squares (' + c.length + ' cells)', c.every(x => Math.abs(x.width - s0) < 0.02 && Math.abs(x.height - s0) < 0.02), c[0].width + '×' + c[0].height);
+    set('rg-symcanvas-margin', 5); set('chk-symgen-overflow', false); set('chk-symgen-square', false); await settle();
+    const B = await import('/loom/js/generators/bento.js'), inner = { x: 0, y: 0, width: 1080, height: 566 };
+    const g = B.generateBento({ cols: 5, rows: 7, variety: 0, gap: 12, seed: 7, square: true, overflow: true, keepMargin: true, reach: { left: 0, top: 0, right: 0, bottom: 0 } }, inner);
+    check('Loom Bento Keep margin with a gap: no empty edge track (a cell that would land in a gap is not added)', g.grid.tracks.cols.concat(g.grid.tracks.rows).every(v => v > 0), g.grid.tracks.cols.map(v => v.toFixed(1)).join(' ')); }
   // the story safe zone (O-77): a guide on 9:16 only, under Show guides, never exported; the numbers = Loom's
   { set('sel-symcanvas-preset', 'Vertical 9:16'); await settle();
     const r = q('symbol-frame').querySelector('.sym-story-safe'), g = F.state.symbolView.guides;

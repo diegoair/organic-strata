@@ -101,8 +101,11 @@ export function generateBento(params, inner) {
     // cells go on to them on the same lattice, the chosen grid where it was; the canvas cuts the outer ones
     if (over && params.reach) {
       const px = sx + gap, py = sy + gap, R = params.reach;
-      const l = Math.ceil((offset.x + R.left) / px - 1e-9), t = Math.ceil((offset.y + R.top) / py - 1e-9);
-      const r = Math.ceil((inner.width - offset.x - (cols * sx + (cols - 1) * gap) + R.right) / px - 1e-9), b = Math.ceil((inner.height - offset.y - (rows * sy + (rows - 1) * gap) + R.bottom) / py - 1e-9);
+      // how many more cells reach into a strip d wide: cell j starts j steps out and is s wide — it counts while it reaches
+      // back past the strip's outer edge (one that would land wholly in a gap there is not added)
+      const more = (d, s1, p1) => Math.max(0, Math.ceil((d + s1) / p1 - 1e-9) - 1);
+      const l = more(offset.x + R.left, sx, px), t = more(offset.y + R.top, sy, py);
+      const r = more(inner.width - offset.x - (cols * sx + (cols - 1) * gap) + R.right, sx, px), b = more(inner.height - offset.y - (rows * sy + (rows - 1) * gap) + R.bottom, sy, py);
       offset = { x: offset.x - l * px, y: offset.y - t * py };
       cols += l + r; rows += t + b;
     }
