@@ -339,7 +339,10 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   and Angle hide). The photo plan is made for the canvas's proportion (`photoPlan(g, w / h)`). Saved in the appearance's
   `ground` like every Paper pattern (`patType: 'photo'` + the photo keys, the id only). **Show in Symbol cells** (switch,
   off by default — `photoCells`): a saved Component / Element placed in a Symbol cell draws its Paper photo there only when
-  on (`paperPatternSVG(w, h, nested)`); the Symbol's own Paper always draws.
+  on (`paperPatternSVG(w, h, nested)`); the Symbol's own Paper always draws. A cell's own Paper the same colour as the Symbol's is not painted
+  while the Symbol has a Paper pattern (Oct 27, 2026 — Diego: *su symbol ho provato a cambiare il pattern ma non lo
+  visualizza*: 36 Components each painted their opaque Paper over it; `hidesPattern`, engine/09-symbol-render.js, SVG and
+  canvas); a different Paper, an Overlap look (Normal / Multiply) and a Symbol with no pattern draw as before.
 - **Paper = colour + texture** (Oct 3, 2026 — a test). The **Pattern** icon at the end of the
   Paper row switches a texture on over the Paper colour: **Pattern** (Lines / Crosshatch /
   Dots / Concentric), **Ink** (a palette ink), **Spacing / Weight / Angle**, opening right under

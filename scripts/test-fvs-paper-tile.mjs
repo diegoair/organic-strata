@@ -30,6 +30,20 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const svg = F.buildComponentSVG(F.buildComponentItems(comp, grid), F.getSeed(), F.frameDims(grid)), host = document.createElement('div'); host.innerHTML = svg;
   const nodes = host.getElementsByTagName('*').length;
   check('a 4×4 Component on a Spacing 4 Paper: a few dozen nodes, not thousands (' + nodes + ')', nodes < 120, nodes);
+  // a Symbol full of Components (Oct 27, 2026 — Diego: "su symbol ho provato a cambiare il pattern ma non lo visualizza"):
+  // a cell's own Paper the Symbol's colour is not painted over the Symbol's pattern; a different one stays
+  { F.setTier('component'); await w(500); q('btn-generate').click(); await w(1000);
+    F.quickSaveComponentToLibrary(F.state.components[0].id); await w(300); const nm = F.getSelectedComponent().savedName;
+    F.setTier('symbol'); await w(500);
+    const model = await F.symbolGridModel('rectangular', { cols: 6, rows: 6 }, { ...F.readSymbolCanvas(), margin: 0 }); F.loadSymbolGrid(model); await w(300);
+    const patch = F.railPatch('component', nm); F.state.symbolCells.forEach(c => F.patchCell(c, patch));
+    const paperRects = () => F.buildSymbolSVG().split('" fill="' + F.state.paperColor + '"/>').length - 1;
+    const onTile = paperRects();   // the Element (tile) Paper from above is still on
+    F.showGroundControls({ patType: 'lines', patSpacing: 8, patWeight: 2, patAngle: 45, ink: 0 }); F.onAppearanceChange(); await w(300);
+    const onLines = paperRects();
+    check('Symbol Paper pattern over cells of the same Paper: the cells’ Paper not painted over it (tile ' + onTile + ', lines ' + onLines + ' — only the Symbol’s)', onTile === 1 && onLines === 1, onTile + ' / ' + onLines);
+    F.showGroundControls(null); F.onAppearanceChange(); await w(200);
+    check('…and without a pattern every cell keeps its Paper (the drawing as before)', paperRects() === 1 + F.state.symbolCells.length, paperRects()); }
   F.showGroundControls(null); F.onAppearanceChange();
   return rows;`);
 const fails = rows.filter(x => x.startsWith('✗'));

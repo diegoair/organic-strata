@@ -473,6 +473,10 @@ export function symbolSVGFromItems(items) {
   // nothing to stop it — the Symbol's reach and the nested Component's add up, and every cell is drawn about 0.2%
   // of the page too large, over its neighbours and past the grid. So unclipped content is drawn at its true size.
   const bleed = state.symbolClipEnabled ? symbolBleed(F) : 0, centers = resolveGridCells(grid);
+  // A cell's own Paper the same colour as the Symbol's, under a Symbol Paper pattern, is not painted (Oct 27, 2026 — Diego:
+  // "su symbol ho provato a cambiare il pattern ma non lo visualizza"): it adds nothing but covers the Symbol's pattern
+  // (a photo, an Element tile, lines), so a Symbol full of Components hid it everywhere. A different Paper stays its own.
+  const hidesPattern = paper => !look && !!getElementAppearance().ground && String(paper).toLowerCase() === String(state.paperColor).toLowerCase();
   const look = symbolLook(grid);   // Component grid with Overlap: Normal = each Component's Paper right under its own ink; Multiply = no Paper, inks multiply
   let defs = '';
   let nClip = 0;
@@ -491,7 +495,7 @@ export function symbolSVGFromItems(items) {
         const ground = withEntryInks(it.inks, () => withAppearance(it.ownAppearance, () => paperPatternSVG(100, 100, true)));
         paperMarkup = `<g transform="translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(-50,-50)">`
           + clipToCellShapes(it.cellShape && it.cellShape !== 'square' ? [CELL_SHAPES[it.cellShape].poly] : null,
-            (isPaperNone(it.ownPaper) ? '' : `<rect width="100" height="100" fill="${it.ownPaper}"/>`) + ground) + `</g>`;
+            (isPaperNone(it.ownPaper) || hidesPattern(it.ownPaper) ? '' : `<rect width="100" height="100" fill="${it.ownPaper}"/>`) + ground) + `</g>`;
       }
     } else {
       const geo = SEED_TYPES[it.nestedSeed.type].geometry(it.nestedSeed);
@@ -545,7 +549,7 @@ export function symbolSVGFromItems(items) {
       // the nested Component's own Ground pattern sits on its paper, under all ink
       const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paperPatternSVG(it.nestedW, it.nestedH, true)));
       paperMarkup = `<g transform="${tf}">${clipToCellShapes(!it.region && it.nestedItems.length && it.nestedItems[0].poly ? it.nestedItems.map(ni => ni.poly) : null,
-        `<rect width="${it.nestedW}" height="${it.nestedH}" fill="${it.nestedPaper}"/>${ground}`)}</g>`;
+        `${hidesPattern(it.nestedPaper) ? '' : `<rect width="${it.nestedW}" height="${it.nestedH}" fill="${it.nestedPaper}"/>`}${ground}`)}</g>`;
     }
     // An invisible hit-shape covering the cell's FULL boundary (not just
     // whatever the content happens to draw) — without this, clicking the
@@ -654,7 +658,7 @@ export function drawSymbolCanvas(ctx) {
     enter(it, symbolBleed(F));
     nestedFrame(it);
     if (!it.region && it.nestedItems.length && it.nestedItems[0].poly) ctx.clip(latticeShapePath(it.nestedItems));   // a cell-shape Component: its canvas is the grid's outline
-    fillPaper(ctx, it.nestedPaper, 0, 0, it.nestedW, it.nestedH);
+    if (!(!look && getElementAppearance().ground && String(it.nestedPaper).toLowerCase() === String(state.paperColor).toLowerCase())) fillPaper(ctx, it.nestedPaper, 0, 0, it.nestedW, it.nestedH);   // as the SVG: not over the Symbol's pattern
     withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintPaperPatternCanvas(ctx, it.nestedW, it.nestedH, true)));
     ctx.restore();
   }
