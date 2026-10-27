@@ -52,7 +52,7 @@ import {
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
-  adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks, pushComponentUndo: () => pushUndo, ceSnapshot: () => ceSnapshot,
+  adoptColourway: () => adoptColourway, adoptLayerInks: () => adoptLayerInks, showComponentRule: () => showComponentRule, pushComponentUndo: () => pushUndo, ceSnapshot: () => ceSnapshot,
   enterComponentEditMode: () => enterComponentEditMode, generate: () => generate,
   populateComponentStarterGallery: () => populateComponentStarterGallery, renderComponentEditCanvas: () => renderComponentEditCanvas,
   syncRuleAvailability: () => syncRuleAvailability, syncSeedUI: () => syncSeedUI, syncSplitUI: () => syncSplitUI,
@@ -873,8 +873,21 @@ export function generateInputsSig() {
   });
   return vals.join('|');
 }
+// A Component clicked on the board: the Rule section shows the rule that made it (Diego, Oct 27, 2026 — "the panel shows
+// the wrong Rule": a Rule picked, then another Component clicked, seemed to have the new rule). A Component of an
+// Exhaustive / Random run (its package `pk`) shows that run's rule; one made by hand (edited, Manual, a library
+// Component) leaves the Rule as it is. Changing the Rule still only acts at the next Generate.
+export function showComponentRule(comp) {
+  if (!comp) return;
+  const sel = ctrl('sel-rule'), run = rt.componentGenRule || (String(state.componentGenSig || '').match(/sel-rule=([^|]+)/) || [])[1];   // the run's rule (the signature's, after a reload)
+  const r = comp.pk && run ? run : comp.ruleSource, o = r && sel.querySelector(`option[value="${r}"]`);
+  if (!o || o.disabled || o.hidden || sel.value === r) return;   // Manual is off the menu (Oct 14)
+  sel.value = r;
+  sel.dispatchEvent(new Event('change', { bubbles: true }));
+  rulePicker.refresh(); syncGenerateButton();
+}
 export const noteGenerateReference = () => { if (state.componentGenSig == null) state.componentGenSig = generateInputsSig(); };
-export const markGenerated = () => { state.componentGenSig = generateInputsSig(); syncGenerateButton(); };
+export const markGenerated = () => { state.componentGenSig = generateInputsSig(); rt.componentGenRule = pv('sel-rule'); syncGenerateButton(); };
 export function syncGenerateButton() {
   const b = ctrl('btn-generate'); if (!b) return;
   const name = pv('sel-rule') === 'manual' ? 'Add component' : 'Generate components';

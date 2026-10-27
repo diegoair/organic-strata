@@ -52,6 +52,10 @@ const r = await P.ev(PRE + `
   check('Replace: the saved one takes the current version, same name; the Symbol changes', inkOf(red) === '#1d3b2a' && before === '#c2462e' && after === '#1d3b2a' && circle().saved, JSON.stringify({ ink: inkOf(red), before, after, circle: circle() }));
   const n0 = lib().length; F.saveAllComponentsToLibrary(); await w(200); const n1 = lib().length; F.saveAllComponentsToLibrary(); await w(200);
   check('Save all: the saved drawing is skipped, a second run adds nothing', n1 - n0 === F.state.components.length - 1 && lib().length === n1, JSON.stringify([n0, n1, lib().length, F.state.components.length]));
+  // a clicked Component shows the rule that made it (Oct 27, 2026)
+  { const thumbs = () => [...document.querySelectorAll('#gallery .fvs-thumb')];
+    set('sel-rule', 'checkerboard'); await w(300); thumbs()[1].click(); await w(400);
+    check('a Component clicked: the Rule shows the rule that made it, Generate’s dot off', q('sel-rule').value === 'mirror' && !q('btn-generate').classList.contains('is-stale'), q('sel-rule').value); }
   // (2) the Symbol's own Palette
   await paint(RED); F.setTier('element'); F.setPaperUI('#f4efe4'); F.onAppearanceChange(); await w(700);
   F.setTier('symbol'); await w(400);

@@ -595,7 +595,7 @@ function renderGalleryNow() {
     btn.className = thumbClass;
     btn.setAttribute('aria-label', `Component ${ruleLabel(comp.ruleSource)} ${comp.id}${xfLabel(comp)} — double-click to edit`);
     btn.innerHTML = svgStr;
-    btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; hooks.adoptLayerInks(comp); hooks.adoptColourway(comp); renderGallery(); });
+    btn.addEventListener('click', () => { state.selectedId = comp.id; state.selectionExplicit = true; hooks.adoptLayerInks(comp); hooks.adoptColourway(comp); hooks.showComponentRule(comp); renderGallery(); });   // its own rule on the panel (Oct 27, 2026)
     // Caption = the rule that made it + each cell's rotation (f = flipped),
     // so two look-alike candidates can be told apart without opening them.
     btn.title = caption;
