@@ -8,10 +8,10 @@ import {
   getSymbolGrid
 } from './engine/08-symbol-grid.js';
 import {
-  buildSymbolSVG
+  buildSymbolSVG, currentSpanLayout
 } from './engine/09-symbol-render.js';
 import {
-  SYMBOL_ARRANGE, arrangeCells, candFromCells, elementPool, poolEntries, suggestSymbols, symbolSource
+  SYMBOL_ARRANGE, arrangeCells, candFromCells, cellContentKey, elementPool, poolEntries, suggestSymbols, symbolContentPool, symbolSource
 } from './engine/10-suggest.js';
 import {
   ctrl, setStatus
@@ -74,20 +74,29 @@ export function renderSuggestGallery(currentIdx) {
 }
 export function runSuggest(more) {
   if (!state.symbolGrid) return;
-  if (!poolEntries().length) {
+  // the Symbol's own contents (Oct 27, 2026): what its cells hold, weighted by count; none yet (an empty grid, the
+  // placeholder triangles) = the library pool, as Fill the grid
+  const L = currentSpanLayout(), own = symbolContentPool(state.symbolCells, L.covered);
+  if (!own.length && !poolEntries().length) {
     if (elementPool().length) { generateSymbolCells(); ctrl('sug-hint').textContent = 'Suggest reads saved Components — with Elements only the cells were arranged.'; return; }
     ctrl('sug-hint').textContent = 'Add Components to the pool first (Components section above).'; return;
   }
-  const base = more ? candFromCells(state.symbolCells) : null;
-  if (more && base.some(c => !c)) { runSuggest(false); return; }
-  setStatus('active', 'Suggesting…');
-  // With cells selected, the variations change only those (Diego, Oct 27, 2026): the others are held for the search as
-  // locked cells are, and every variation keeps them exactly as they are
+  // held for the search and kept in every variation: the cells outside a selection (Diego, Oct 27, 2026: the variations
+  // change only the selected cells), and — from the Symbol's contents — the empty cells, the cells under a block and a
+  // missing Component (a hole stays a hole)
   const sel = state.symbolSelection.size ? new Set(state.symbolSelection) : null, real = state.symbolCells;
-  if (sel) state.symbolCells = real.map((c, i) => (sel.has(i) ? c : { ...c, locked: true }));
-  try { state.symbolSuggestions = suggestSymbols(more ? { base } : {}); } finally { state.symbolCells = real; }
-  if (sel) state.symbolSuggestions.forEach(sg => { sg.cells = sg.cells.map((c, i) => (sel.has(i) ? c : real[i])); sg.sel = true; });
-  ctrl('sug-hint').textContent = (sel ? `Variations of the ${sel.size} selected cell${sel.size === 1 ? '' : 's'}. ` : '') + (suggestSymbols.lastNote || '');
+  const holds = (c, i) => (sel && !sel.has(i)) || (own.length && (L.covered[i] != null || !c || c.source === 'empty' || (c.source === 'component' && !cellContentKey(c))));
+  const held = real.map(holds);
+  const base = more ? candFromCells(real) : null;
+  if (more && base.some((c, i) => !c && !held[i])) { runSuggest(false); return; }
+  setStatus('active', 'Suggesting…');
+  if (held.some(Boolean)) state.symbolCells = real.map((c, i) => (held[i] ? { ...c, locked: true } : c));
+  try { state.symbolSuggestions = suggestSymbols({ ...(more ? { base } : {}), ...(own.length ? { pool: own } : {}) }); } finally { state.symbolCells = real; }
+  state.symbolSuggestions.forEach(sg => { sg.cells = sg.cells.map((c, i) => (held[i] ? real[i] : c)); if (sel) sg.sel = true; });
+  ctrl('sug-hint').textContent = [
+    own.length ? `From this Symbol’s ${own.length} content${own.length === 1 ? '' : 's'}` + (own.length === 1 ? ' — turns and flips only.' : '.') : '',
+    sel ? `Variations of the ${sel.size} selected cell${sel.size === 1 ? '' : 's'}.` : '',
+    suggestSymbols.lastNote || ''].filter(Boolean).join(' ');
   if (!more && state.symbolSuggestions.length) state.symbolCells = state.symbolSuggestions[0].cells.map(c => ({ ...c }));
   hooks.renderSymbol();
   renderSuggestGallery(more ? -1 : 0);   // More like this applies nothing: what it found shows on the Variations sheet

@@ -23,6 +23,7 @@ echo "$staged" | grep -qE '^(fvs/js/(0[1-7]|12)-|fvs/js/engine/0[0-7]-|fvs/index
 echo "$staged" | grep -qE '^(fvs/js/(0[3-7]|1[1258])-|fvs/js/engine/0[0-9]-|fvs/index\.html|shared/shapes\.js|scripts/test-fvs-tile)' && add tile
 echo "$staged" | grep -qE '^(fvs/js/(08|11)-|fvs/js/engine/08-|fvs/index\.html|shared/core\.js|loom/js/(generators|canvas-manager)|scripts/test-fvs-symbol-grid)' && add symbol-grid
 echo "$staged" | grep -qE '^(fvs/js/(09|11|15)-|fvs/js/engine/(09|11|15)-|fvs/index\.html|scripts/test-fvs-symbol-cells)' && add symbol-cells
+echo "$staged" | grep -qE '^(fvs/js/(10|11)-|fvs/js/engine/(09|10)-|scripts/test-fvs-symbol-suggest)' && add symbol-suggest
 echo "$staged" | grep -qE '^(fvs/js/(1[168])-|fvs/js/engine/00-|fvs/index\.html|fvs/fvs\.css|shared/store\.js|scripts/test-fvs-symbol-boards)' && add symbol-boards
 echo "$staged" | grep -qE '^(fvs/js/engine/04-|scripts/test-fvs-paper-tile)' && add paper-tile
 echo "$staged" | grep -qE '^(rhizome/|shared/node-canvas\.|scripts/test-rhizome)' && add rhizome

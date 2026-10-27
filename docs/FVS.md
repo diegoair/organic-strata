@@ -1005,7 +1005,21 @@ its cells.
 
 ### 6a. Suggest — how the variations are made
 
-- Each palette Component is rasterised once into an ink mask of its own tight
+- **What it draws from** (Diego, Oct 27, 2026 — *"leghiamo la generazione di varianti a quello che è nella symbol come
+  elementi e componenti, quindi non richiamando altri elementi e componenti esterni"*): **Suggest and More like this use
+  only the Symbol's own contents** — each distinct Component and each distinct Element its cells hold (an Element by
+  its shape, settings, own inks / Paper / look), weighted by how many cells hold it (`symbolContentPool`,
+  `cellContentKey`). Not a content: empty cells, a missing Component, the cells under a block, and the grid's
+  placeholder triangles (a plain seed cell with no settings of its own). A variation **copies the cell a content came
+  from** and changes only its turn and flip (and colourway, Recolour) — Cells (span), Fit, scale, padding and colour
+  stay (`cellsFromCand` with the templates). **Held** in every variation (as locked cells): the empty cells, the cells
+  under a block, a missing Component — a hole stays a hole — and, **with cells selected, every cell outside the
+  selection** (only the selection varies; the selection stays after a variation is taken). An Element is analysed as a
+  Component is (`analyseElementCell`: its 0..100 box on a clear 64-px canvas; its ink its own, or the Palette rule's for
+  its first cell — so its colour score is an approximation). Recolour stays for Components only. With no content yet (an
+  empty grid, the placeholders) Suggest uses the library pool — the 8 latest saved Components — as **Fill the grid**
+  always does. With one content only the turns and flips vary (the hint says so). Test: `scripts/test-fvs-symbol-suggest.sh`.
+- Each content (a pool Component, or an Element above) is rasterised once into an ink mask of its own tight
   frame (cached by name + save time), so any point of any turned/flipped placement
   can be asked "ink or paper?".
 - The grid's real adjacencies: rect cells share a vertical/horizontal segment
@@ -1013,17 +1027,17 @@ its cells.
   (Loom's triangular lattice offsets its rows) and curved borders made of many
   pieces (Radial). One pair per two neighbouring cells, with 10 sample points
   along the shared border, nudged into each side.
-- A variation = per cell {Component, turn}. Square Components in square-ish cells
+- A variation = per cell {content, turn, colourway}. Square Components in square-ish cells
   take any of the 8 turns/flips; otherwise only 0°/180° (± flip).
-- Scores, weighted by the three sliders:
+- Scores, weighted by the four sliders (Colour: §6b):
   - **Continuity** — the two sides of every shared border agree (ink meets ink
     counts most, paper meets paper a little, a mismatch costs);
   - **Balance** — ink spread evenly over a 3×3 split of the page, and each
     Component used as often as its weight;
   - **Surprise** — fewer identical neighbours.
-- Generators: every Arrange rule with each cell's turn chosen for continuity; a
-  beam search (width 4) over Component × turn, cell by cell; a weighted mix with
-  the same turn search. Ranked, exact duplicates dropped, up to 12, deterministic per
+- Generators: every Arrange rule but Random (Up / down only on a grid with triangles) with each cell's turn
+  chosen for continuity; a beam search (width 4 — 2 on a large grid with Recolour) over content × turn, cell by
+  cell, three times; a weighted mix with the same turn search, twice. More like this: 11 tries. Ranked, exact duplicates dropped, up to 12, deterministic per
   seed. The first is put on the sheet at once.
 - **Variations (on the board)** (Oct 2026, §13) — Suggest's variations are sheets beside the Symbol on
   the Symbol board (`#board-variations`, `#fvs-sug-panel` inside it), three across at 260 board units,
@@ -1283,7 +1297,7 @@ onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeL
   (along the first row to the obstacle, then down while that whole row is free — `spanBlockCropped`), the Component keeps
   its full size (placed in the whole virtual block, extended by the grid's own step) and is drawn only inside those cells
   (a clip even with *Clip to cell* off; `region.cut`); the panel says so. A new drop on the cell goes back to *In
-  proportion*. Arrange / Suggest keep *In proportion*. Test: `scripts/test-fvs-symbol-cells.sh`.
+  proportion*. Arrange keeps *In proportion*; Suggest keeps each content's own Cells (§6a). Test: `scripts/test-fvs-symbol-cells.sh`.
 - **A Symbol from Elements only** (Oct 4, 2026). With no saved Component, Fill the grid builds the
   grid anyway and fills it from the **saved Elements** (the latest 8, weight ×1, `elementPool()`),
   each placed as from the library rail. Arrange rules work as with Components; Suggest reads

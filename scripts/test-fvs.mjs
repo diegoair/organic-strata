@@ -38,6 +38,7 @@ const JOBS = {
   'tile':               node('test-fvs-tile.mjs'),   // Component › Tile: Layout, Offset, On top, Tile seamlessly, Gap below 0 (Oct 26, 2026)
   'symbol-grid':        node('test-fvs-symbol-grid.mjs'),   // the live Symbol grid, Square cells, social formats, Loom's ranges (Oct 27, 2026)
   'symbol-cells':       node('test-fvs-symbol-cells.mjs'),   // a Component's Cells on the Symbol: One cell · In proportion · Its grid size, cut (Oct 27, 2026)
+  'symbol-suggest':     node('test-fvs-symbol-suggest.mjs'),   // Suggest / More like this from the Symbol's own contents (Oct 27, 2026)
   'symbol-boards':      node('test-fvs-symbol-boards.mjs'),   // several Symbols on the Symbol board, Delete + Undo, reload, `current` read forward (Oct 27, 2026)
   'paper-tile':         node('test-fvs-paper-tile.mjs'),   // Paper › Element as one <pattern>: same tiles, few nodes (Oct 26, 2026)
   'pipeline':           node('test-fvs-pipeline.mjs'),   // paper, textures and inks from Element to gallery, saved, Symbol (Oct 26, 2026)      // Style = Photo: Normal · Tone · Dither from the Palette, self-contained files (Oct 23, 2026)

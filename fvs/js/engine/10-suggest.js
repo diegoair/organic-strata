@@ -2,19 +2,22 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  DEFAULT_COLOR_RULE, entryItemInk, offscreenCanvas, pc, pv, state
+  DEFAULT_COLOR_RULE, cellInk, cellOwnInks, entryItemInk, offscreenCanvas, pc, pv, state
 } from './00-core.js';
 import {
-  frameDims, frameSize, resolveCellPlacement, resolveGridCells
+  SEED_TYPES, frameDims, frameSize, resolveCellPlacement, resolveGridCells
 } from './01-geometry.js';
+import {
+  SYMBOL_SEED_DEFAULTS
+} from './02-seed-ui.js';
 import {
   canonicalState, mulberry32
 } from './03-rules.js';
 import {
-  ELEMENT_LIB, buildComponentItems, withAppearance
+  ELEMENT_LIB, buildComponentItems, getElementAppearance, withAppearance
 } from './04-appearance.js';
 import {
-  drawComponentCanvas, withEntryInks
+  applyElementStretchCanvas, drawComponentCanvas, paintGeoCanvas, withEntryInks
 } from './05-render-component.js';
 import {
   buildColourways
@@ -68,6 +71,70 @@ export function elementPool() {
     .slice(0, 8).map(name => ({ name, weight: 1, kind: 'element' }));
 }
 export const symbolSource = () => { const c = poolEntries(); return c.length ? c : elementPool(); };
+// ── Suggest from the Symbol's own contents (Diego, Oct 27, 2026: "leghiamo la generazione di varianti a quello che è
+// nella symbol come elementi e componenti, quindi non richiamando altri elementi e componenti esterni") ──────────────
+// Suggest and More like this draw from what the Symbol's cells hold — each distinct Component (by name) and each
+// distinct Element (its shape, settings, own inks / Paper / look), weighted by how many cells hold it. A variation
+// copies the cell a content came from and changes only its turn and flip (and colourway with Recolour), so Cells
+// (span), Fit, scale, padding and colour stay. Not counted: empty cells, missing Components, cells under a block, and
+// the grid's placeholder triangles (a plain seed cell with no settings of its own). Fill the grid keeps the library.
+const contentKeyCache = new WeakMap();
+export function cellContentKey(c) {
+  if (!c) return null;
+  if (c.source === 'component') return c.componentName && LIBRARY.peek()[c.componentName] ? c.componentName : null;
+  if (c.source !== 'seed' || !SEED_TYPES[c.seedType] || (!c.seedParams && !c.ownColors && !c.ownAppearance)) return null;   // a placeholder
+  if (contentKeyCache.has(c)) return contentKeyCache.get(c);
+  const k = 'element:' + JSON.stringify([c.seedType, c.seedParams || null, c.ownColors || null, c.ownPaper || null, c.ownAppearance || null, c.appearancePatch || null, c.color || null]);
+  contentKeyCache.set(c, k);
+  return k;
+}
+export function symbolContentPool(cells, covered) {
+  const by = new Map();
+  cells.forEach((c, i) => {
+    if (covered && covered[i] != null) return;
+    const k = cellContentKey(c);
+    if (!k) return;
+    const e = by.get(k);
+    if (e) e.weight++; else by.set(k, { name: k, weight: 1, tpl: c, at: i, element: c.source === 'seed' });
+  });
+  return [...by.values()];
+}
+// An Element cell's ink mask, as analyseComponent makes one for a Component: drawn in its 0..100 box on a clear 64-px
+// canvas (ink = an opaque pixel), its ink the cell's own (or, under the Palette's rule, the one its first cell takes).
+const elementAnalysisCache = new Map();
+export function analyseElementCell(entry) {
+  if (elementAnalysisCache.has(entry.name)) return elementAnalysisCache.get(entry.name);
+  const c = entry.tpl, RES = 64;
+  const geo = SEED_TYPES[c.seedType].geometry(c.seedParams || SYMBOL_SEED_DEFAULTS);
+  const own = cellOwnInks(c), ink = hexKey(cellInk(c, entry.at) || '#000000');
+  const app = c.appearancePatch || c.ownAppearance ? { ...(c.ownAppearance || getElementAppearance()), ...(c.appearancePatch || {}) } : null;
+  const cv = offscreenCanvas(RES, RES), g = cv.getContext('2d');
+  const draw = () => {
+    g.setTransform(RES / 100, 0, 0, RES / 100, 0, 0);
+    applyElementStretchCanvas(g);
+    g.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale);
+    g.scale(geo.normScale, geo.normScale);
+    paintGeoCanvas(g, geo, new Path2D(geo.d || ''), ink);
+  };
+  withEntryInks(own, () => (app ? withAppearance(app, draw) : draw()));
+  const px = g.getImageData(0, 0, RES, RES).data;
+  const cands = [...new Set([ink, ...((own || []).map(hexKey))])].filter(h => /^#[0-9a-f]{6}$/.test(h));
+  const lab = cands.map(h => Organica.color.hexToOklab(h));
+  const cov = new Uint8Array(RES * RES), inkMap = new Uint8Array(RES * RES), area = new Array(cands.length).fill(0);
+  let n = 0;
+  for (let k = 0; k < RES * RES; k++) {
+    if (px[k * 4 + 3] <= 128) continue;
+    cov[k] = 1; n++;
+    const L = Organica.color.hexToOklab(Organica.rgbToHex(px[k * 4], px[k * 4 + 1], px[k * 4 + 2]));
+    let bi = 0, bd = Infinity;
+    lab.forEach((q, j) => { const d = (q.L - L.L) ** 2 + (q.a - L.a) ** 2 + (q.b - L.b) ** 2; if (d < bd) { bd = d; bi = j; } });
+    inkMap[k] = bi + 1; area[bi]++;
+  }
+  const paper = own && c.ownPaper && !isPaperNone(c.ownPaper) ? hexKey(c.ownPaper) : null;
+  const out = { cov, ink: inkMap, pal: [paper, ...cands], share: [1 - n / (RES * RES), ...area.map(a => a / (RES * RES))], GW: RES, GH: RES, density: n / (RES * RES), square: true, natural: 100 };
+  elementAnalysisCache.set(entry.name, out);
+  return out;
+}
 export function weightedPick(pal, rng) {
   const total = pal.reduce((t, p) => t + (p.weight || 1), 0);
   let r = rng() * total;
@@ -318,7 +385,9 @@ export function beamCandidate(G, pal, W, fit, anByName, rng, locked, width, T, C
 // A cell's turn in the engine's own form {r, fh}: flip V = a half turn + flip H,
 // flip H + V = a half turn (see canonicalState).
 export function choiceOfCell(c) {
-  if (!c || c.source !== 'component') return null;
+  if (!c) return null;
+  if (c.source === 'seed') { const k = cellContentKey(c); if (!k) return null; let r = ((Math.round((c.rotation || 0) / 90) * 90) % 360 + 360) % 360, fh = !!c.flipH; if (c.flipV) { r = (r + 180) % 360; fh = !fh; } return { name: k, r, fh }; }
+  if (c.source !== 'component') return null;
   let r = ((Math.round(c.rotation / 90) * 90) % 360 + 360) % 360, fh = !!c.flipH;
   if (c.flipV) { r = (r + 180) % 360; fh = !fh; }
   const ch = { name: c.componentName, r, fh };
@@ -326,10 +395,16 @@ export function choiceOfCell(c) {
   return ch;
 }
 export function candFromCells(cells) { return cells.map(choiceOfCell); }
-export function cellsFromCand(cand, fit, prevCells, CW) {
+export function cellsFromCand(cand, fit, prevCells, CW, tpls) {
   return cand.map((ch, i) => {
     const prev = prevCells[i];
     if (prev && prev.locked) return prev;
+    const tpl = tpls && tpls[ch.name];
+    if (tpl) {   // a content of the Symbol: its own cell, turned / flipped — Cells, Fit, scale, padding, colour kept
+      const cell = { ...tpl, rotation: ch.r, flipH: ch.fh, flipV: false, locked: false };
+      if (ch.cw && CW && CW[ch.name] && CW[ch.name][ch.cw]) { const cw = CW[ch.name][ch.cw]; cell.colourway = { colors: cw.colors.slice(), paper: cw.paper }; }
+      return cell;
+    }
     const cell = { source: 'component', componentName: ch.name, rotation: ch.r, flipH: ch.fh, flipV: false, scale: 1, color: null,
       fitMode: fit, fixedSize: 100, anchorX: 0, anchorY: 0, padding: 0, locked: false };
     if (ch.cw && CW) { const cw = CW[ch.name][ch.cw]; cell.colourway = { colors: cw.colors.slice(), paper: cw.paper }; }
@@ -541,13 +616,14 @@ export function suggestWeights() { return { cont: +pv('rg-sug-cont') / 100, bal:
 // The candidate list (pure apart from reading the grid/palette state).
 export function suggestSymbols(opts = {}) {
   const G = suggestGridContext();
-  const pal = poolEntries();
+  const pal = opts.pool || poolEntries();   // opts.pool: the Symbol's own contents (symbolContentPool)
   if (!G || !pal.length) return [];
+  const tpls = opts.pool ? Object.fromEntries(pal.map(p => [p.name, p.tpl])) : null;
   const W = opts.weights || suggestWeights();
   const fit = opts.fit || pv('sel-sym-arrange-fit') || 'fill';
   const seed = opts.seed != null ? opts.seed : (parseInt(pv('num-sug-seed'), 10) || 0);
   const anByName = {};
-  pal.forEach(p => { anByName[p.name] = analyseComponent(p.name); });
+  pal.forEach(p => { anByName[p.name] = p.element ? analyseElementCell(p) : analyseComponent(p.name); });
   // Colourways per Component: [own colours, …]. Filled by Recolour; a cell that
   // already carries one (locked, or the base of "More like this") adds its own.
   const recolour = opts.recolour != null ? opts.recolour : pc('chk-sug-recolour');
@@ -558,7 +634,7 @@ export function suggestSymbols(opts = {}) {
     if (k < 0) { k = CW[name].push({ colors: cw.colors.map(hexKey), paper: cw.paper }) - 1; anByName[name + '#' + k] = recolouredAnalysis(anByName[name], lib[name], CW[name][k]); }
     return k;
   };
-  pal.forEach(p => { CW[p.name] = [null]; if (recolour) suggestColourways(p.name).forEach(cw => cwAdd(p.name, cw)); });
+  pal.forEach(p => { CW[p.name] = [null]; if (recolour && !p.element) suggestColourways(p.name).forEach(cw => cwAdd(p.name, cw)); });   // Recolour: Components only
   const resolve = ch => {
     if (!ch) return ch;
     const out = { name: ch.name, r: ch.r, fh: ch.fh };
@@ -567,7 +643,7 @@ export function suggestSymbols(opts = {}) {
     return out;
   };
   const cur = state.symbolCells;
-  const locked = cur.map(c => (c && c.locked && c.source === 'component' && anByName[c.componentName] ? resolve(choiceOfCell(c)) : null));
+  const locked = cur.map(c => { if (!c || !c.locked) return null; const ch = choiceOfCell(c); return ch && anByName[ch.name] ? resolve(ch) : null; });
   const base = opts.base ? opts.base.map(ch => (ch && anByName[ch.name] ? resolve(ch) : null)) : null;
   const T = suggestColourTable(anByName);
   const CWs = recolour ? CW : null;
@@ -610,5 +686,5 @@ export function suggestSymbols(opts = {}) {
   const scored = out.map(o => ({ ...o, score: scoreSymbolCandidate(G, o.cand, pal, W, fit, anByName, T) }))
     .sort((a, b) => b.score.total - a.score.total)
     .filter(o => { const key = o.cand.map(c => c.name + (c.cw ? '#' + c.cw : '') + canonicalState({ rotation: c.r, flipH: c.fh, flipV: false, scale: 1 })).join('|'); if (seen.has(key)) return false; seen.add(key); return true; });
-  return scored.slice(0, opts.limit || 12).map(o => ({ ...o, cells: cellsFromCand(o.cand, fit, cur, CW) }));
+  return scored.slice(0, opts.limit || 12).map(o => ({ ...o, cells: cellsFromCand(o.cand, fit, cur, CW, tpls) }));
 }
