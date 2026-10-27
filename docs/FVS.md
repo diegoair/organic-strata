@@ -1167,6 +1167,55 @@ Shuffle / Variations / Lock, the Advanced form) was replaced by the Figure graph
 
 - An assistant can produce the recipe from an image: see `.claude/skills/fvs-figure-from-image`.
 
+### 6c. Zones — a part of the Symbol and what it does (Oct 27, 2026)
+
+Diego, Oct 27, 2026: *"voglio poter dire ad un determinato gruppo di righe, colonne, celle selezionate di fare e di seguire
+delle regole … in maniera super semplice"*, and the variations should stop being random: geometry should suggest what he
+would not see. The Fill mode menu (Suggest · Arrange · Manual · Rule) is gone from the panel: **one flow**, Zones →
+Suggest → Cells. Plan: `/Users/diego/.claude/plans/penso-che-abbiamo-ora-misty-hamming.md` (phases 0–6, all local).
+
+- **The model** (`fvs/js/engine/11-zones.js`). A zone = `{ when, do, off }`, the Figure's region-rule shape: **one
+  evaluator**, `applyZones(cells, grid, zones)` (pure; the Figure's `applyRulesToContent` is a wrapper, byte-identical).
+  Zones apply in order, a later one wins; a **Locked** zone always wins (its cells are locked, `lockedBy: 'zone'`, so
+  removing the zone frees them). Zones write into the cells — the saved / drawn Symbol is the cells, as before; the zones
+  are saved with it (`entry.zones`, only when there are some: every baseline unchanged).
+- **Which cells** (`when`): the Figure's keys (`row`, `col`, `index`, `parity`, `class`, `ring`, `sector`, `at`) +
+  **named selectors** that survive a grid rebuild — `{sel: row | col | ring | sector, k}` (k < 0 from the end: row −1 =
+  the last row), `border` (`depth`), `centre` (`size`), `quadrant` (`tl tr bl br`), `diagonal` (`main anti both`),
+  `every` (`by`, `n`, `phase`), `all`, and `not` (a part minus another). Rings and sectors of Radial / Circular grids are
+  derived from the cells' centres (Loom's wedges carry none). `whenFromCells` turns a selection into the selector that
+  takes exactly those cells (Zone from selection keeps the part, not the cells).
+- **Picking a part** (`fvs/js/11-zones-ui.js`): ready-made zones (Border · Centre · Diagonals · Quadrants = four zones ·
+  Every other; on a radial grid Rings = one zone per ring); **row / column handles** in the sheet's margin (click = the
+  line, Shift = a range, ⌘ = add / remove); **Cells › Select** Row · Column · Ring · Every other cell · Same content ·
+  Border · Centre; the canvas marquee as before. Zones on the canvas: the picked one a solid ink outline, the others
+  dashed, a hovered zone's cells hinted (ink only — design-system CONSULT).
+- **What it does** (Zone inspector, *Does*): **Content** (one of this Symbol's contents or a saved Component, or *From
+  the pool* arranged by an Arrange rule, + Fit) · **Rule** (*Follows*: a Symbol rule — the Rule block lives here now — or
+  a generator below) · **Locked** · **Empty**. A zone that does nothing yet is **open**.
+- **Generators** (`ZONE_FOLLOW`, each `applies · space · build · caption · words`):
+  - **Symmetry** (`engine/03-symmetry.js`): the 12 wallpaper groups of the square lattice (p1 p2 pm pg cm pmm pmg pgg cmm
+    p4 p4m p4g) as generators on an n × n tile; orbits by union-find carrying each cell's pose from its representative
+    (poses = dihedral elements, mirror then turn, `composePose`); a cell a mirror or a centre runs through is flagged
+    `axis` (exact only for a symmetric content) and a tile where most are is refused. **Rosettes** C m / D m about the
+    zone's centre on any grid. The hexagonal / triangular groups (p3 … p6m) are rosettes in this pass.
+  - **Continuity**: a beam search (width 6) along a snake walk of the zone, each step scored with Suggest's `pairScore`
+    on the shared edges with the placed cells and the cells outside the zone; turns only, or contents and turns.
+  - **Field** (`engine/03-drive.js`, from the Tropism test page): a gradient · the centre · rings · noise · a photo (a
+    32 × 32 luminance sample, stored in the zone) picks which content, the turn, the size, or holes.
+  - **Rhythm**: a sequence (A B · A B B · A B C · A A B B) along a walk (snake · spiral · diagonal · rings), + a turn a step.
+- **Suggest** (`suggestZoned`): open zones get proposals (a content arrangement, a pose rule, every generator that
+  applies), on bases from `suggestSymbols`, through `applyZones`; score = Suggest's (`scoreSymbolCandidate`) + an order
+  term; twelve picked by **MMR** (λ from **Surprise**, the one slider: it also sets the hidden weights), so no two
+  variations are alike. A variation names what each zone got (*Zone 2: p4m · Zone 3: Rhythm · A B B · spiral*);
+  clicking it writes that into the zones. Cells held by a zone that does something never change.
+- **Use generated components** (switch): each Element's Generated components no saved entry draws join the pool in
+  memory (`gen:<element>:<component>`, `engine/07-library.js` overlay — `peek` / `read` see them, `write` never stores
+  them); a variation that uses one carries **Uses generated** and is never applied by itself; a click asks, saves each
+  to the Library (`group: 'Saved from Suggest'`) and renames the cells.
+- **Tests**: `test-fvs-zones` (54), `test-fvs-symmetry` (33), `test-fvs-continuity` (10), `test-fvs-drive` (17),
+  `test-fvs-generated` (12) — all in `test-fvs.sh` and the pre-commit hook. Not yet in the rule atlas.
+
 ## 6a. Layer roles: Mask / Subtraction mask / Pattern
 
 A layer's **role icon** (on its row) sets how it acts on the **layers below** it:
