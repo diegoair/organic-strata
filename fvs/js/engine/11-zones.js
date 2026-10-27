@@ -15,6 +15,9 @@ import {
   WALLPAPER, WALLPAPER_WORDS, composePose, poseOf, rosetteMap, wallpaperMap
 } from './03-symmetry.js';
 import {
+  signal, walkOrder, zoneUV
+} from './03-drive.js';
+import {
   getSymbolGrid, polyOrient, snapPose, withPlacementDefaults
 } from './08-symbol-grid.js';
 import {
@@ -299,6 +302,56 @@ ZONE_FOLLOW.continuity = {
   },
   caption: p => (p.content === 'pool' ? 'Continuity · contents and turns' : 'Continuity · turns'),
   words: p => (p.content === 'pool' ? 'lines run on: picks contents and turns' : 'lines run on: turns what each cell holds'),
+};
+// Field (Phase 5) — a signal over the zone (a gradient, the centre, rings, noise, a photo) decides, cell by cell, which
+// content (bands of the pool), the turn (quarter turns, sixths on hexagon / triangle cells), the size, or a hole.
+const poolOf = cells => { const own = symbolContentPool(cells); return own.length ? own.map(p => ({ tpl: contentOfCell(p.tpl), name: p.name })) : poolEntries().map(p => ({ kind: 'component', name: p.name })); };
+function putContent(cell, item) {
+  CONTENT_FIELDS.forEach(k => { delete cell[k]; });
+  Object.assign(cell, item.tpl ? clone(item.tpl) : { source: 'component', componentName: item.name, span: false });
+}
+const FIELD_SIGNALS = [{ signal: 'gradient', angle: 0 }, { signal: 'gradient', angle: 45 }, { signal: 'gradient', angle: 90 }, { signal: 'centre' }, { signal: 'rings', rings: 3 }, { signal: 'noise', seed: 1, scale: 3 }, { signal: 'noise', seed: 2, scale: 5 }];
+const SIGNAL_WORDS = p => (p.signal === 'gradient' ? 'gradient ' + (p.angle || 0) + '°' : p.signal === 'centre' ? 'from the centre' : p.signal === 'rings' ? (p.rings || 3) + ' rings' : p.signal === 'noise' ? 'noise' : p.signal === 'photo' ? 'photo' : p.signal);
+const DRIVE_WORDS = { content: 'which content', turn: 'the turn', scale: 'the size', empty: 'holes' };
+ZONE_FOLLOW.field = {
+  label: 'Field',
+  applies: (grid, idxs) => idxs.length >= 4,
+  space: () => FIELD_SIGNALS.flatMap(sg => ['content', 'turn', 'scale', 'empty'].map(drive => ({ ...sg, drive }))),
+  build(cells, idxs, p, rng, env) {
+    const uv = zoneUV(idxs, env.ctxs), pool = poolOf(cells), poly = env.grid && env.grid.cellShape === 'polygon';
+    idxs.forEach(i => {
+      const [u, v] = uv.get(i), L = signal(p.signal, u, v, p), cell = cells[i];
+      if (p.drive === 'content' && pool.length) putContent(cell, pool[Math.min(pool.length - 1, Math.floor(L * pool.length))]);
+      else if (p.drive === 'turn') { const step = poly ? 60 : 90, n = 360 / step; cell.rotation = Math.min(n - 1, Math.floor(L * n)) * step + (env.ctxs[i].orient === 'down' ? 180 : 0); }
+      else if (p.drive === 'scale') cell.scale = Math.round((0.45 + 0.6 * L) * 100) / 100;
+      else if (p.drive === 'empty' && L < (p.threshold != null ? p.threshold : 0.35)) cell.source = 'empty';
+    });
+  },
+  caption: p => 'Field · ' + SIGNAL_WORDS(p) + ' → ' + (DRIVE_WORDS[p.drive] || p.drive),
+  words: p => 'a ' + SIGNAL_WORDS(p) + ' decides ' + (DRIVE_WORDS[p.drive] || p.drive),
+};
+// Rhythm (Phase 5) — the zone walked in an order (reading, snake, spiral, rings, diagonal): step t takes the sequence's
+// content (A B B …, letters = the pool in order) and a turn of t × the step.
+const SEQS = ['AB', 'ABB', 'ABC', 'AABB'];
+ZONE_FOLLOW.rhythm = {
+  label: 'Rhythm',
+  applies: (grid, idxs) => idxs.length >= 3,
+  space: (grid, idxs, ctxs) => {
+    const out = [], radial = idxs.some(i => ctxs[i].ring != null);
+    ['snake', 'spiral', 'diagonal', 'rings'].forEach(walk => { if (radial && walk !== 'rings' && walk !== 'spiral') return; SEQS.forEach(seq => [0, 90].forEach(turn => out.push({ walk, seq, turn }))); });
+    return out;
+  },
+  build(cells, idxs, p, rng, env) {
+    const pool = poolOf(cells), order = walkOrder(idxs, env.ctxs, p.walk), seq = String(p.seq || 'AB'), poly = env.grid && env.grid.cellShape === 'polygon';
+    const step = poly && p.turn ? 60 : (+p.turn || 0);
+    order.forEach((i, t) => {
+      const cell = cells[i], k = seq.charCodeAt(t % seq.length) - 65;
+      if (pool.length) putContent(cell, pool[k % pool.length]);
+      cell.rotation = (((t * step) % 360) + (env.ctxs[i].orient === 'down' ? 180 : 0)) % 360; cell.flipH = false; cell.flipV = false;
+    });
+  },
+  caption: p => 'Rhythm · ' + p.seq.split('').join(' ') + ' · ' + p.walk + (p.turn ? ' · +' + p.turn + '°' : ''),
+  words: p => p.seq.split('').join(' ') + ' along a ' + p.walk + ' walk' + (p.turn ? ', turning ' + p.turn + '° each step' : ''),
 };
 // Symmetry › rosettes: m-fold turns about the zone's centre (C m), with mirrors (D m) — any grid that carries them.
 function centresOf(grid) {

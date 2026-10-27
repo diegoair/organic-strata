@@ -29,6 +29,7 @@ echo "$staged" | grep -qE '^(fvs/js/engine/04-|scripts/test-fvs-paper-tile)' && 
 echo "$staged" | grep -qE '^(fvs/js/(1[01])-|fvs/js/engine/(1[0136])-|shared/shapes\.js|scripts/test-fvs-zones)' && add zones
 echo "$staged" | grep -qE '^(fvs/js/engine/(03-symmetry|11-zones)|scripts/test-fvs-symmetry)' && add symmetry
 echo "$staged" | grep -qE '^(fvs/js/engine/(10-suggest|11-zones)|scripts/test-fvs-continuity)' && add continuity
+echo "$staged" | grep -qE '^(fvs/js/engine/(03-drive|11-zones)|scripts/test-fvs-drive)' && add drive
 echo "$staged" | grep -qE '^(rhizome/|shared/node-canvas\.|scripts/test-rhizome)' && add rhizome
 echo "$staged" | grep -qE '^(shared/[a-z-]+\.css|design-system/_dark-audit|scripts/test-dark-audit|scripts/dark-audit-baseline)' && add dark-audit
 echo "$staged" | grep -qE '^(shared/node-canvas\.|shared/core\.js|fvs/js/17-figure|scripts/test-figure-board)' && add figure-board

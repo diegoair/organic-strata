@@ -190,7 +190,8 @@ export function renderZonesPanel() {
         const list = groups.get(G.label) || []; list.push({ v: id + '|' + JSON.stringify(params), t: (G.caption ? G.caption(params) : G.label) + (G.words && G.words(params) ? ' — ' + G.words(params) : '') }); groups.set(G.label, list);
       });
     });
-    const cur = z.do.follow ? z.do.follow.id + '|' + JSON.stringify(z.do.follow.params || {}) : '';
+    if (groups.has('Field')) groups.get('Field').push(...['content', 'turn', 'scale', 'empty'].map(drive => ({ v: 'photo|' + drive, t: 'Field · a photo → ' + { content: 'which content', turn: 'the turn', scale: 'the size', empty: 'holes' }[drive] + '…' })));
+    const fp = z.do.follow && z.do.follow.params, cur = z.do.follow ? (z.do.follow.id === 'field' && fp && fp.signal === 'photo' ? 'photo|' + fp.drive : z.do.follow.id + '|' + JSON.stringify(fp || {})) : '';
     ctrl('sel-zone-follow').innerHTML = '<option value="">A Symbol rule</option>' + [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(o => `<option value="${esc(o.v)}"${o.v === cur ? ' selected' : ''}>${esc(o.t)}</option>`).join('')}</optgroup>`).join('');
   }
   // the Rule block lives in the inspector while a zone is picked
@@ -363,6 +364,31 @@ ctrl('sel-zone-follow').addEventListener('change', () => {
   const z = state.symbolZones[state.zonePick]; if (!z) return;
   const v = ctrl('sel-zone-follow').value;
   if (!v) z.do = { symbolRule: readRule() };
+  else if (v.startsWith('photo|')) { pickPhoto(v.slice(6)); return; }
   else { const k = v.indexOf('|'); z.do = { follow: { id: v.slice(0, k), params: JSON.parse(v.slice(k + 1)), seed: newSeed() } }; }
   applyZonesNow();
 });
+
+// Field · a photo: the picture sampled once to 32 × 32 luminance (stored in the zone as base64 — a few hundred bytes,
+// never the photo itself), so the engine reads numbers, not an image.
+function pickPhoto(drive) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.addEventListener('change', () => {
+    const f = inp.files && inp.files[0]; if (!f) { renderZonesPanel(); return; }
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => {
+      const N = 32, cv = document.createElement('canvas'); cv.width = N; cv.height = N;
+      const g = cv.getContext('2d'), sq = Math.min(img.width, img.height);
+      g.drawImage(img, (img.width - sq) / 2, (img.height - sq) / 2, sq, sq, 0, 0, N, N);
+      const d = g.getImageData(0, 0, N, N).data; let bin = '';
+      for (let k = 0; k < N * N; k++) bin += String.fromCharCode(Math.round(0.2126 * d[k * 4] + 0.7152 * d[k * 4 + 1] + 0.0722 * d[k * 4 + 2]));
+      URL.revokeObjectURL(url);
+      const z = state.symbolZones[state.zonePick]; if (!z) return;
+      z.do = { follow: { id: 'field', params: { signal: 'photo', lum: btoa(bin), drive }, seed: newSeed() } };
+      applyZonesNow();
+    };
+    img.src = url;
+  });
+  inp.click();
+}
