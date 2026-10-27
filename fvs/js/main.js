@@ -13,6 +13,7 @@ import './engine/08-symbol-grid.js';
 import './engine/09-symbol-render.js';
 import './engine/10-suggest.js';
 import './engine/11-symbol-ui.js';
+import './engine/11-zones.js';
 import './engine/12-shell.js';
 import './engine/15-export-library-view.js';
 import './00-core.js';

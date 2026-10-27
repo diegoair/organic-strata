@@ -80,33 +80,9 @@ export const BUILTIN_RECIPES = [
 //   transform — rotate the whole figure, mirror it over its right/bottom edge
 // runFigureRecipe() drives the same state and functions the UI does, so what it draws IS what
 // the tiers export (one code path, checked by the regression suite).
-export function slotClassContext(grid) {
-  const cr = cellColRow(grid);
-  const raw = (state.symbolGrid && state.symbolGrid.cells) || [];
-  return cr.map((c, i) => ({
-    index: i, col: c.col, row: c.row, parity: (c.col + c.row) % 2 === 1 ? 'odd' : 'even',
-    orient: raw[i] && raw[i].points ? polyOrient(raw[i].points) : null,
-    ring: raw[i] && raw[i].ring != null ? raw[i].ring : null, sector: raw[i] && raw[i].sector != null ? raw[i].sector : null,
-  }));
-}
-export function ruleMatches(when, ctx) {
-  const has = (v, x) => Array.isArray(v) ? v.includes(x) : v === x;
-  return (when.class == null || has(when.class, ctx.orient)) && (when.row == null || has(when.row, ctx.row))
-    && (when.col == null || has(when.col, ctx.col)) && (when.index == null || has(when.index, ctx.index))
-    && (when.parity == null || when.parity === ctx.parity) && (when.ring == null || has(when.ring, ctx.ring)) && (when.sector == null || has(when.sector, ctx.sector))
-    && (when.at == null || when.at.some(a => a[0] === ctx.row && a[1] === ctx.col));   // at: [[row, col], …] — cells by grid address (Compose)
-}
-// Rotate & mirror on the cells (Oct 9, 2026): how much one cell turns — the Rotation, + the Rotation per cell × the
-// cell's count (cell / row / column, from 0), + a random turn up to ± Random rotation, drawn from the seed and the cell's index.
-export function cellTurnOf(d, ctx) {
-  let t = +d.turnBy || 0;
-  if (d.turnStep && +d.turnStep.deg) t += +d.turnStep.deg * (+ctx[d.turnStep.by === 'row' ? 'row' : d.turnStep.by === 'col' ? 'col' : 'index'] || 0);
-  if (d.turnRandom != null) {   // { seed, amount }: up to ± amount° each way (a bare number = a seed from before, a full turn)
-    const R = typeof d.turnRandom === 'object' ? d.turnRandom : { seed: d.turnRandom, amount: 180 };
-    t += (+R.amount || 0) * (2 * Organica.mulberry32(((R.seed >>> 0) ^ Math.imul((+ctx.index || 0) + 1, 2654435761)) >>> 0)() - 1);
-  }
-  return t;
-}
+// slotClassContext, ruleMatches, cellTurnOf moved to engine/11-zones (Oct 27, 2026 — one evaluator for Zones and region rules)
+export { slotClassContext, ruleMatches, cellTurnOf } from './11-zones.js';
+import { slotClassContext, ruleMatches, cellTurnOf } from './11-zones.js';
 // Rules apply in order; a later rule overrides an earlier one on the slots it matches.
 export function applyClassRules(rules, seedType) {
   const grid = getSymbolGrid();
