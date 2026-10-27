@@ -114,7 +114,7 @@ for (const C of CASES) {
     const model = await F.symbolGridModel('rectangular', { cols: 6, rows: 6 }, { ...F.readSymbolCanvas(), margin: 0 });
     F.loadSymbolGrid(model); await w(300);
     const patch = F.railPatch('component', name); F.state.symbolCells.forEach(cell => F.patchCell(cell, patch)); F.renderSymbolCanvasOnly(); await w(400);
-    const sym = F.buildSymbolSVG(); R.symbolSVG = sym; R.symbolKB = sym.length / 1024; R.symbolMasks = (sym.match(/<mask id="weave-/g) || []).length;
+    const sym = F.buildSymbolSVG(); R.symbolSVG = sym; R.symbolKB = sym.length / 1024; R.symbolMasks = (sym.match(/<mask id="n?weave-/g) || []).length;
     // the Symbol against the Component repeated 6 × 6 (what a creation should look like)
     { const Y = await raster(sym, 480), cv = document.createElement('canvas'); cv.width = 480; cv.height = Y.H; const x = cv.getContext('2d');
       const p = await raster(svg, 80); for (let i = 0; i < 6; i++) for (let j = 0; j < 6; j++) x.drawImage(p.img, i * 80, j * Y.H / 6, 80, Y.H / 6);

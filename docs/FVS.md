@@ -484,9 +484,13 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
   galleria*, then *rifai i pattern usando solo i 5 component presenti ora e la palette usata ora*): tiles 25–36, on Diego's five
   Components (Mirror 08:20:40 / 41 / 42, Radial 08:20:44 / 46) and palette, each Tile saved as new and placed in every cell
   of a 6 × 6 Symbol (`scripts/gallery-fvs-tile-patterns.mjs`; the rectangular generator takes 5–8 tracks). The Symbol
-  equals the Component repeated (0 % of pixels) in every case but **Interlace**, which a Symbol draws in reading order
-  (24–32 % differs) — as the canvas twin. Found, not fixed: **hairlines** of Paper where two shapes meet edge to edge, at
-  the Component's cells and the Symbol's cells; **Tile seamlessly** at Gap 0 triples a Symbol's file (61 → 189 KB: every
+  equals the Component repeated (0 % of pixels) in every case. **Fixed the same day** (Diego: *fai funzionare Interlace
+  dentro il Symbol e togli le linee sottili*): a nested Component weaves in the Symbol as on its step (`nweave-*` masks in
+  its own units, each written once and shared by every cell holding the same Component — 914 → 229 KB on a 6 × 6), the
+  PNG of a woven Component or Symbol is drawn from its SVG (`svgWeaves` / `downloadSVGAsPNG`, fvs/js/05-render-component.js;
+  the canvas twin still draws reading order — thumbnails, print PNG), and the seamless cut (`nwrap-*`) reaches half a
+  Symbol pixel past the frame, so neighbouring cells overlap by their own continuation instead of leaving a hairline of
+  Paper. Still: a faint seam where two shapes meet edge to edge inside a Component. Found, not fixed: **Tile seamlessly** at Gap 0 triples a Symbol's file (61 → 189 KB: every
   nested Component carries its wrap copies, even when nothing crosses an edge); a **Crossing gap** wider than the stroke
   breaks a ring apart; **Arc** in Stroke strokes the closed quarter pie; a non-square Component in a Symbol is placed as a
   block and loses its seamless copies. Fixed the same day: Interlace on Brick and on the Grid's diagonals, the Offset in steps.

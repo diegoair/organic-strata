@@ -130,6 +130,22 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('saved with the Component (its grid’s overlap)', entry && entry.grid.overlap && entry.grid.overlap.wrap, JSON.stringify(entry && entry.grid));
   F.setTier('symbol'); await w(500); F.railApply('component', made.savedName, 0); await w(300);
   check('in a Symbol: its copies cut at its frame', /id="nwrap-/.test(F.buildSymbolSVG()), 'no nwrap clip');
+  // Interlace in a Symbol (Oct 27, 2026): the nested Component weaves too, its masks written once and shared by every cell
+  // that holds it; a Seamless repeat's cut reaches half a pixel past the frame (no hairline of Paper between cells)
+  { F.setTier('component'); await w(300); F.enterComponentEditMode(F.state.components[0].id); await w(400);
+    set('rg-ce-gap', -60); set('sel-tile-layout', 'grid'); await w(150); set('sel-tile-top', 'weave'); set('chk-tile-seamless', true); await w(250);
+    q('btn-component-edit-save').click(); await w(600); if (F.state.componentEditMode) { F.exitComponentEditMode(); await w(300); }
+    const wv = F.getSelectedComponent(), own = (F.tierSVG().match(/<mask id="weave-/g) || []).length;
+    F.quickSaveComponentToLibrary(wv.id); await w(300); const nm = F.getSelectedComponent().savedName || wv.savedName;
+    F.setTier('symbol'); await w(500); F.state.symbolSelection.clear(); F.railApply('component', nm, 0); F.railApply('component', nm, 1); await w(300);
+    const sym = F.buildSymbolSVG(), masks = (sym.match(/<mask id="nweave-/g) || []).length, used = (sym.match(/mask="url\\(#nweave-/g) || []).length;
+    check('in a Symbol: Interlace kept — the masks written once (' + masks + '), used by both cells (' + used + ')', own > 0 && masks === own && used === 2 * own, JSON.stringify([own, masks, used]));
+    const clip = (sym.match(/<clipPath id="nwrap-[^"]*"><rect x="(-[\\d.]+)"/) || [])[1];
+    check('…and the seamless cut reaches a hair past the frame (no Paper hairline)', clip && +clip < 0, clip);
+    { const dl = Organica.download; let got = null; Organica.download = (b, n) => { got = { type: b.type, size: b.size, n }; };
+      try { F.exportSymbol('png'); for (let k = 0; k < 40 && !got; k++) await w(100); } finally { Organica.download = dl; }
+      check('…and its PNG is drawn from the SVG (a woven Symbol)', got && got.type === 'image/png' && got.size > 1000, JSON.stringify(got)); }
+    set('rg-gap', 0); }
   F.setTier('component'); await w(300);
   set('rg-cellsize', 60); set('rg-gap', -80); await w(200);
   const gs = [false, true].map(sm => { const g = { ...F.getGrid(), overlap: sm ? { by: 'rows', x: 0, y: 0, top: 'order', wrap: true } : undefined }, d = F.frameDims(g); return d.w > 0 && d.h > 0 && g.gap > -60; });

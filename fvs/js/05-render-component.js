@@ -434,6 +434,21 @@ export function exportElement(format) {
   img.src = url;
 }
 
+// A PNG drawn from the SVG itself (Oct 27, 2026): Interlace cuts each cell with SVG masks the canvas drawing cannot
+// make, so a drawing that weaves is rasterised from its own SVG — the PNG then matches the screen and the SVG file.
+export const svgWeaves = svg => /<mask id="n?weave-/.test(svg);
+export function downloadSVGAsPNG(svg, w, h, name) {
+  const sized = svg.replace(/<svg\b([^>]*)>/, (m, a) => '<svg' + a.replace(/\s(width|height)="[^"]*"/g, '') + ` width="${w}" height="${h}">`);
+  const url = URL.createObjectURL(new Blob([exportablePhotoSVG(sized)], { type: 'image/svg+xml' })), img = new Image();
+  img.onload = () => {
+    const off = document.createElement('canvas'); off.width = w; off.height = h;
+    off.getContext('2d').drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    off.toBlob(blob => Organica.download(blob, name));
+  };
+  img.src = url;
+}
+
 // ── Gallery ──
 // A cell-shape thumbnail's selected / saved ring, drawn along the cells' outline: the lattice's outer edges
 // (an edge two cells share cancels out), chained into closed loops and stroked mitre-joined UNDER the Paper,

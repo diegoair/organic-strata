@@ -45,6 +45,9 @@ import {
   applyAppearanceToUI, exportablePhotoSVG
 } from './04-appearance.js';
 import {
+  downloadSVGAsPNG, svgWeaves
+} from './05-render-component.js';
+import {
   applySymbolCanvasToUI, syncFitAnchorUI, syncOverlapSection, syncSymbolStart
 } from './08-symbol-grid.js';
 import {
@@ -1017,6 +1020,8 @@ export function exportSymbol(format) {
     return;
   }
   const scale = parseInt(pv('sel-export-scale'), 10);
+  const woven = buildSymbolSVG();
+  if (svgWeaves(woven)) { downloadSVGAsPNG(woven, Math.round(F.w * scale), Math.round(F.h * scale), Organica.stamp('fvs-symbol', 'png')); return; }   // Interlace: from the SVG
   const off = document.createElement('canvas');
   off.width = Math.round(F.w * scale); off.height = Math.round(F.h * scale);
   const ctx = off.getContext('2d');

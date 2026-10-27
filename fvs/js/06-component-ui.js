@@ -47,7 +47,7 @@ import {
   applyAppearanceToUI, exportablePhotoSVG
 } from './04-appearance.js';
 import {
-  buildPrintComponentSVG, elementReachesEdge, printComponentDims, renderGallery, renderSeedPreview
+  buildPrintComponentSVG, downloadSVGAsPNG, elementReachesEdge, printComponentDims, renderGallery, renderSeedPreview, svgWeaves
 } from './05-render-component.js';
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
@@ -1440,6 +1440,8 @@ export function exportSelected(format) {
   }
 
   const scale = parseInt(pv('sel-export-scale'), 10);
+  const woven = buildComponentSVG(items, seed, baseDims);
+  if (svgWeaves(woven)) { downloadSVGAsPNG(woven, baseDims.w * scale, baseDims.h * scale, Organica.stamp('fvs', 'png')); return; }   // Interlace: from the SVG
   const off = document.createElement('canvas');
   off.width = baseDims.w * scale; off.height = baseDims.h * scale;
   const ctx = off.getContext('2d');

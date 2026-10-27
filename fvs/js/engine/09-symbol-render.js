@@ -15,7 +15,7 @@ import {
   mod360
 } from './03-rules.js';
 import {
-  DEFAULT_APPEARANCE, buildComponentItems, drawOrder, paintPaperPatternCanvas, paperPatternSVG, resolveItemGeo,
+  DEFAULT_APPEARANCE, buildComponentItems, drawOrder, weaveCovers, paintPaperPatternCanvas, paperPatternSVG, resolveItemGeo,
   getElementAppearance, withAppearance
 } from './04-appearance.js';
 import {
@@ -476,6 +476,7 @@ export function symbolSVGFromItems(items) {
   const look = symbolLook(grid);   // Component grid with Overlap: Normal = each Component's Paper right under its own ink; Multiply = no Paper, inks multiply
   let defs = '';
   let nClip = 0;
+  const weaveMasks = new Map();   // Interlace: one mask per distinct cover, shared by every cell that holds the same Component (its units are the Component's)
   const upper = [];   // layer passes 1… of every Component cell, after every cell's first pass
   let papers = '';   // every nested Component's own paper, painted before any ink
   let body = '';
@@ -501,23 +502,44 @@ export function symbolSVGFromItems(items) {
       // within the Component: always (it looks as on its own step); across the Symbol's cells only with no Overlap look —
       // interleave (each Component's Paper right under its own ink) / Multiply keep the cell-by-cell order (Oct 13, 2026)
       const passes = layerPasses(geo, it.nestedItems), across = passes && !look;
+      // Interlace (Oct 27, 2026 — Diego: "fai funzionare Interlace dentro il Symbol"; gallery tiles 32–33): as on the
+      // Component step, each cell cut by a mask of the neighbours over it, in the nested Component's own units
+      const weave = !passes && it.nestedItems.length && it.nestedItems[0].ov && it.nestedItems[0].ov.top === 'weave';
       const innerFor = pass => {
         let inner = '';
+        const ones = weave ? [] : null;
         for (const ni of it.nestedItems) {
-          if (ni.empty) continue;
+          if (ni.empty) { if (ones) ones.push(''); continue; }
           const nfit = ni.cellSize / 100, nk = 1 + 2 * nBleed / Math.max(1e-6, ni.cellSize);   // the Component's own cells overlap too
           const nsx = (ni.flipH ? -1 : 1) * ni.scale * nfit * nk * (ni.kx || 1), nsy = (ni.flipV ? -1 : 1) * ni.scale * nfit * nk * (ni.ky || 1);   // kx/ky: a module stretched to its own block cell
           // a cell the Component was edited in (Component Edit mode) carries its own Element + Appearance: draw that, not the Component's one shared Element
           const niGeo = pass || (ni.content ? resolveItemGeo(ni, geo) : geo), niApp = ni.content && ni.content.appearance ? ni.content.appearance : it.nestedAppearance;
           let one = withEntryInks(it.nestedColors, () => withAppearance(niApp, () => seedMarkupSVG(nhx + ni.cx + (ni.dx || 0), nhy + ni.cy + (ni.dy || 0), ni.rotation, nsx, nsy, niGeo, ni.color)));
           if (it.nestedClip) { const cid = 'ncut-' + it.index + '-' + drawId + '-' + (nClip++); one = `<clipPath id="${cid}">${cellClipShape(ni, nhx, nhy)}</clipPath><g clip-path="url(#${cid})">${one}</g>`; }
-          inner += it.nestedBlend ? `<g style="mix-blend-mode:multiply">${one}</g>` : one;   // the Component's own Blend → Multiply
+          one = it.nestedBlend ? `<g style="mix-blend-mode:multiply">${one}</g>` : one;   // the Component's own Blend → Multiply
+          if (ones) ones.push(one); else inner += one;
+        }
+        if (ones) {
+          const covers = weaveCovers(it.nestedItems), sil = j => ones[j].replace(/\sid="[^"]*"/g, '');
+          ones.forEach((one, k) => {
+            if (!one) return;
+            if (!covers[k].length) { inner += one; return; }
+            const ni = it.nestedItems[k], r = (ni.ov.margin || 0) * ni.cellSize, pad = r + ni.cellSize, cover = covers[k].map(sil).join('');
+            const box = `x="${(-pad).toFixed(2)}" y="${(-pad).toFixed(2)}" width="${(it.nestedW + 2 * pad).toFixed(2)}" height="${(it.nestedH + 2 * pad).toFixed(2)}"`, key = box + r + cover;
+            let mid = weaveMasks.get(key);
+            if (!mid) {
+              mid = 'nweave-' + it.index + '-' + drawId + '-' + k; weaveMasks.set(key, mid);
+              const grow = `<filter id="${mid}f" filterUnits="userSpaceOnUse" ${box}><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0"/>${r > 0 ? `<feMorphology operator="dilate" radius="${r.toFixed(2)}"/>` : ''}</filter>`;
+              inner += `<mask id="${mid}" maskUnits="userSpaceOnUse" ${box}><rect ${box} fill="#ffffff"/>${grow}<g filter="url(#${mid}f)">${cover}</g></mask>`;
+            }
+            inner += `<g mask="url(#${mid})">${one}</g>`;
+          });
         }
         return inner;
       };
       const tf = `translate(${it.cx.toFixed(2)},${it.cy.toFixed(2)}) rotate(${it.rotation}) scale(${it.scaleX.toFixed(4)},${it.scaleY.toFixed(4)}) translate(${(-nhx).toFixed(2)},${(-nhy).toFixed(2)})`;
       cellMarkup = passes && !across ? passes.map(innerFor).join('') : innerFor(passes ? passes[0] : null);
-      if (it.nestedItems.some(ni => ni.copy)) { const wid = 'nwrap-' + it.index + '-' + drawId; cellMarkup = `<clipPath id="${wid}"><rect width="${it.nestedW.toFixed(2)}" height="${it.nestedH.toFixed(2)}"/></clipPath><g clip-path="url(#${wid})">${cellMarkup}</g>`; }   // a Seamless repeat: one period
+      if (it.nestedItems.some(ni => ni.copy)) { const wid = 'nwrap-' + it.index + '-' + drawId, h = 0.5 / Math.max(1e-6, Math.min(Math.abs(it.scaleX), Math.abs(it.scaleY))); cellMarkup = `<clipPath id="${wid}"><rect x="${(-h).toFixed(3)}" y="${(-h).toFixed(3)}" width="${(it.nestedW + 2 * h).toFixed(2)}" height="${(it.nestedH + 2 * h).toFixed(2)}"/></clipPath><g clip-path="url(#${wid})">${cellMarkup}</g>`; }   // a Seamless repeat: one period
       cellMarkup = `<g transform="${tf}">${cellMarkup}</g>`;
       if (across) later = passes.slice(1).map(p => `<g transform="${tf}">${innerFor(p)}</g>`);
       // the nested Component's own Ground pattern sits on its paper, under all ink
