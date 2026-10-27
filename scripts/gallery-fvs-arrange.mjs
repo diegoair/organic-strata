@@ -68,7 +68,8 @@ for (const C of todo) {
   const r = await P.ev(`const C = ${JSON.stringify(C)}, GP = ${JSON.stringify(GRIDS[C.grid].params)}, F = window.__fvs, q = id => document.getElementById(id), w = ms => new Promise(r => setTimeout(r, ms));
     const R = {};
     const model = await F.symbolGridModel(C.grid, GP, { ...F.readSymbolCanvas(), margin: 4 });
-    F.loadSymbolGrid(model); await w(60);
+    F.loadSymbolGrid(model); F.clipByDefaultForShape(); await w(60);   // as the panel builds it: polygon cells start with Clip to cell on
+    R.clip = F.state.symbolClipEnabled;
     F.state.symbolCells = F.state.symbolCells.map(x => ({ ...x, locked: false }));
     q('sel-sym-arrange').value = C.rule; q('sel-sym-arrange-fit').value = C.fit; q('num-symbol-seed').value = C.seed;
     F.renderSymbolPool(); F.generateSymbolCells(); await w(60);
@@ -95,7 +96,7 @@ for (const C of todo) {
   if (svg && pick) fs.writeFileSync(path.join(OUT, pick[0] + '.svg'), svg);
   else if (svg && only.includes(C.id)) fs.writeFileSync(path.join(OUT, C.id.replace(/\./g, '-') + '.svg'), svg);
   const pc = v => (v * 100).toFixed(0).padStart(3) + '%';
-  console.log(`${C.id.padEnd(30)} cells ${String(m.cells).padStart(3)}  used ${m.used}/5  same-nb ${pc(m.sameNb)}  ink ${pc(m.cover)}  paper ${pc(m.paper)}  ${m.kb.toFixed(0).padStart(4)} KB ${m.ms.toFixed(0).padStart(4)} ms`);
+  console.log(`${C.id.padEnd(30)} clip ${m.clip ? "on " : "off"} cells ${String(m.cells).padStart(3)}  used ${m.used}/5  same-nb ${pc(m.sameNb)}  ink ${pc(m.cover)}  paper ${pc(m.paper)}  ${m.kb.toFixed(0).padStart(4)} KB ${m.ms.toFixed(0).padStart(4)} ms`);
 }
 if (SHEETS) for (const g of [...new Set(todo.map(C => C.grid))]) {
   // a sheet per grid: a row per Fit, a column per rule, labelled
