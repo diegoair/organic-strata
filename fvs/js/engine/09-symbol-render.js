@@ -243,6 +243,11 @@ export function nestedBleed(it, d) { return d / Math.max(1e-6, Math.min(Math.abs
 // scale about the cell centre so the content reaches `d` past each side
 export function cellBleed(c, d) { return { kx: 1 + 2 * d / Math.max(1e-6, c.cellW), ky: 1 + 2 * d / Math.max(1e-6, c.cellH) }; }
 // the cell's clip outline, pushed out by `d`
+// Clip to cell reaches twice the content's bleed (Oct 27, 2026 — Diego: "ci sono dei pixel tra le celle"): with the clip
+// edge exactly on the bled content's edge, a GPU raster (the app's own browser) softened both edges at the same line and
+// let the Paper below show through as a hairline between cells; one more bleed past the content keeps the edges apart
+// (what a cell overflows still stops a hair past its neighbour's edge). Exports were clean either way.
+export const CLIP_REACH = 2;
 export function bleedCellOutline(grid, rawCell, F, d) {
   if (grid.cellShape === 'polygon') {
     const cx = rawCell.points.reduce((t, p) => t + p[0], 0) / rawCell.points.length, cy = rawCell.points.reduce((t, p) => t + p[1], 0) / rawCell.points.length;
@@ -576,7 +581,7 @@ export function symbolSVGFromItems(items) {
     // free-overflow behaviour (a deliberate bleed effect stays possible).
     let clipAttr = '';
     if (state.symbolClipEnabled && cellPts) {
-      const o = bleedCellOutline(grid, rawCell, F, bleed);
+      const o = bleedCellOutline(grid, rawCell, F, CLIP_REACH * bleed);
       const clipShape = o.poly ? `<polygon points="${o.poly.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ')}"/>`
         : `<rect x="${o.x.toFixed(2)}" y="${o.y.toFixed(2)}" width="${o.w.toFixed(2)}" height="${o.h.toFixed(2)}"/>`;
       defs += `<clipPath id="clip-cell-${it.index}-${drawId}">${clipShape}</clipPath>`;
@@ -639,7 +644,7 @@ function drawSymbolCanvasBody(ctx) {
     const clipping = state.symbolClipEnabled && rawCell;
     ctx.save();
     if (clipping) {
-      const o = bleedCellOutline(grid, rawCell, F, bleed);
+      const o = bleedCellOutline(grid, rawCell, F, CLIP_REACH * bleed);
       ctx.beginPath();
       if (o.poly) { o.poly.forEach((p, i) => (i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]))); ctx.closePath(); }
       else ctx.rect(o.x, o.y, o.w, o.h);

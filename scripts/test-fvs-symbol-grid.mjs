@@ -120,6 +120,11 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
       set('chk-symgen-keepmargin', false); set('chk-symgen-overflow', false); await settle();
     }
     set('rg-symcanvas-margin', 5); set('sel-symgrid-gen', 'rectangular'); await settle(); }
+  // Clip to cell reaches twice the content's bleed (Oct 27, 2026 — Diego: pixels between the cells, in the app's browser)
+  { const was = F.state.symbolClipEnabled; F.state.symbolClipEnabled = true; const sv = F.buildSymbolSVG(), c = F.state.symbolGrid.cells[0];
+    const r = sv.match(/<clipPath id="clip-cell-0-[^"]*"><rect x="([-\\d.]+)" y="([-\\d.]+)"/), b = F.symbolBleed(F.symbolFrame(F.getSymbolGrid()));
+    check('Clip to cell: the clip reaches ' + F.CLIP_REACH + ' × the content’s bleed past the cell (no hairline where the two edges met)', r && Math.abs(+r[1] - (c.x - F.CLIP_REACH * b)) < 0.02 && F.CLIP_REACH === 2, JSON.stringify([r && r[1], c.x, b]));
+    F.state.symbolClipEnabled = was; }
   // the story safe zone (O-77): a guide on 9:16 only, under Show guides, never exported; the numbers = Loom's
   { set('sel-symcanvas-preset', 'Vertical 9:16'); await settle();
     const r = q('symbol-frame').querySelector('.sym-story-safe'), g = F.state.symbolView.guides;

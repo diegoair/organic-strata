@@ -889,6 +889,12 @@ its cells.
   (*Clear Symbol — click again to confirm*). After clearing, focus goes to Fill the grid. It empties every cell and keeps the
   grid (borders dragged by hand too), clears the selection and the variations, so the
   Symbol is back to its empty grid. Saved Symbols are not touched.
+- **Clip to cell reaches twice the bleed** (Oct 27, 2026 — Diego: *ci sono dei pixel tra le celle*): with the clip edge exactly
+  on the bled content's edge (`symbolBleed`), the app's own browser (GPU raster) softened both edges on the same line and
+  the Paper showed through as a hairline between cells — exports and a software raster were clean. The clip now reaches
+  `CLIP_REACH` (2) × the bleed (`bleedCellOutline`, engine/09), so the edges no longer meet; what a cell overflows stops
+  a hair further. Reproduced and checked in the app's browser on Diego's own Symbol. Regression re-recorded (36 clipped
+  Symbol / grid / Figure cases: the clip rect only).
 - **Resize columns and rows by dragging** — on any rect grid that has tracks
   (Rectangular, Bento, Wave, a plain square…) each inner border shows a dashed
   handle on the preview (never exported). Drag it: the two tracks either side trade
