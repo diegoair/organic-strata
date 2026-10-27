@@ -42,6 +42,7 @@ const JOBS = {
   'symbol-boards':      node('test-fvs-symbol-boards.mjs'),   // several Symbols on the Symbol board, Delete + Undo, reload, `current` read forward (Oct 27, 2026)
   'zones':              node('test-fvs-zones.mjs'),   // Symbol Zones: named selectors, Zone from selection, applyZones (Oct 27, 2026)
   'symmetry':           node('test-fvs-symmetry.mjs'),   // Zones › Symmetry: 12 wallpaper groups + rosettes, invariance (Oct 27, 2026)
+  'continuity':         node('test-fvs-continuity.mjs'),   // Zones › Continuity: edge matching along a walk (Oct 27, 2026)
   'paper-tile':         node('test-fvs-paper-tile.mjs'),   // Paper › Element as one <pattern>: same tiles, few nodes (Oct 26, 2026)
   'pipeline':           node('test-fvs-pipeline.mjs'),   // paper, textures and inks from Element to gallery, saved, Symbol (Oct 26, 2026)      // Style = Photo: Normal · Tone · Dither from the Palette, self-contained files (Oct 23, 2026)
   'axes':               node('test-fvs-axes.mjs'),       // every rule × grid × axis frozen (Tropism Phase 1)   // Component: one Generate after another = a fresh one

@@ -18,7 +18,8 @@ import {
   getSymbolGrid, polyOrient, snapPose, withPlacementDefaults
 } from './08-symbol-grid.js';
 import {
-  SYMBOL_ARRANGE, candFromCells, scorable, scoreSymbolCandidate, suggestEnv, suggestSymbols, symbolCellContext
+  EMPTY_CHOICE, SYMBOL_ARRANGE, anOf, candFromCells, choiceBits, choiceOfCell, pairScore, poolEntries, scorable, scoreSymbolCandidate, statesFor,
+  suggestEnv, suggestSymbols, symbolCellContext, symbolContentPool
 } from './10-suggest.js';
 import {
   SYMBOL_RULES, cellColRow, symbolPastePlan
@@ -225,6 +226,79 @@ ZONE_FOLLOW.wallpaper = {
   build(cells, idxs, p, rng, env) { const M = wallpaperMap(idxs, env.ctxs, p.group, p.n); if (M) applyOrbitMap(cells, M); },
   caption: p => p.group + (p.n > 2 ? ' · tile ' + p.n : ''),
   words: p => WALLPAPER_WORDS[p.group] || '',
+};
+// Continuity (Phase 4) — lines and fills run on from cell to cell, across the zone and into its neighbours: a beam search
+// along a walk of the zone (snake, by rows), each step scored on the shared edges with the cells already placed and the
+// cells outside the zone (as they are). Content: 'keep' turns and mirrors what each cell holds; 'pool' also picks which
+// content (this Symbol's own, else the saved Components). The match is the share of edge samples where ink meets ink or
+// paper meets paper (the Suggest caption's continuity).
+const contMemo = new Map();
+function snakeOrder(idxs, ctxs) {
+  return idxs.slice().sort((a, b) => (ctxs[a].row - ctxs[b].row) || ((ctxs[a].row % 2 ? -1 : 1) * (ctxs[a].col - ctxs[b].col)));
+}
+export function continuitySolve(cells, idxs, p, env) {
+  const own = symbolContentPool(cells), pal = own.length ? own : poolEntries();
+  if (!pal.length) return null;
+  const E = suggestEnv(own.length ? { pool: own } : {}); if (!E) return null;
+  const G = E.G, fit = E.fit, an = E.anByName, T = E.T, width = p.width || 6;
+  const inZone = new Set(idxs), fixed = scorable(candFromCells(cells), an).map((ch, i) => (inZone.has(i) ? null : ch));
+  const key = JSON.stringify([idxs, p, fixed.map(c => c && c.name + c.r + (c.fh ? 1 : 0))]);
+  if (contMemo.has(key)) return contMemo.get(key);
+  const order = snakeOrder(idxs, env.ctxs);
+  const optionsAt = i => {
+    const cur = choiceOfCell(cells[i]), names = p.content === 'pool' ? pal.map(x => x.name) : [cur && an[cur.name] ? cur.name : null].filter(Boolean);
+    const out = [];
+    names.forEach(nm => statesFor(G, i, an[nm]).forEach(([r, fh]) => out.push({ name: nm, r, fh })));
+    return out;
+  };
+  let beam = [{ cand: fixed.slice(), s: 0 }];
+  for (const i of order) {
+    const opts = optionsAt(i); if (!opts.length) continue;
+    const next = [];
+    beam.forEach(b => opts.forEach(ch => {
+      let s = 0;
+      G.nbrs[i].forEach(k => {
+        const pr = G.pairs[k], o = pr.i === i ? pr.j : pr.i, other = b.cand[o];
+        if (!other) return;
+        s += pairScore(choiceBits(G, i, ch, pr.i === i ? pr.pi : pr.pj, fit, an), choiceBits(G, o, other, pr.i === i ? pr.pj : pr.pi, fit, an), anOf(an, ch), anOf(an, other), T).s;
+      });
+      next.push({ b, i, ch, s: b.s + s });
+    }));
+    next.sort((x, y) => y.s - x.s);
+    beam = next.slice(0, width).map(x => { const cand = x.b.cand.slice(); cand[x.i] = x.ch; return { cand, s: x.s }; });
+  }
+  // the match over the zone's edges
+  let m = 0, n = 0;
+  const best = beam[0].cand;
+  G.pairs.forEach(pr => {
+    if (!inZone.has(pr.i) && !inZone.has(pr.j)) return;
+    const a = best[pr.i], b = best[pr.j]; if (!a || !b) return;
+    m += pairScore(choiceBits(G, pr.i, a, pr.pi, fit, an), choiceBits(G, pr.j, b, pr.pj, fit, an), anOf(an, a), anOf(an, b), T).match; n++;
+  });
+  const res = { cand: best, match: n ? m / n : 1, tpls: E.tpls ? Object.fromEntries(Object.entries(E.tpls).map(([k, t]) => [k, contentOfCell(t)])) : null };   // copies: the tpl is a cell the build then changes
+  if (contMemo.size > 64) contMemo.clear();
+  contMemo.set(key, res);
+  return res;
+}
+ZONE_FOLLOW.continuity = {
+  label: 'Continuity',
+  applies: (grid, idxs) => idxs.length >= 2,
+  space: () => [{ content: 'keep' }, { content: 'pool' }],
+  build(cells, idxs, p, rng, env) {
+    const R = continuitySolve(cells, idxs, p, env); if (!R) return;
+    idxs.forEach(i => {
+      const ch = R.cand[i]; if (!ch || ch.name === EMPTY_CHOICE) return;
+      const cell = cells[i], tpl = R.tpls && R.tpls[ch.name];
+      if (p.content === 'pool' && (tpl || cell.componentName !== ch.name)) {
+        CONTENT_FIELDS.forEach(k => { delete cell[k]; });
+        Object.assign(cell, tpl ? contentOfCell(tpl) : { source: 'component', componentName: ch.name, span: false });
+      }
+      cell.rotation = ch.r; cell.flipH = ch.fh; cell.flipV = false;
+    });
+    env.notes = env.notes || {}; env.notes.continuity = R.match;
+  },
+  caption: p => (p.content === 'pool' ? 'Continuity · contents and turns' : 'Continuity · turns'),
+  words: p => (p.content === 'pool' ? 'lines run on: picks contents and turns' : 'lines run on: turns what each cell holds'),
 };
 // Symmetry › rosettes: m-fold turns about the zone's centre (C m), with mirrors (D m) — any grid that carries them.
 function centresOf(grid) {
