@@ -85,6 +85,37 @@ function polygonCentroid(poly) {
   return [x / poly.length, y / poly.length];
 }
 
+// OVERFLOW (Diego, Oct 27, 2026) — `params.overflow` + `params.reach` {left, top, right, bottom} (main.js: how far
+// the canvas's edges lie beyond the inner rect; all 0 = Keep margin). Everything is still sized from `inner` (cell
+// size, lattice origin, rotation centre); the lattice only goes on past it, clipped against the larger rect. Null when
+// there is nothing to add (Overflow off, or Keep margin) — the output is then today's, byte for byte.
+function overflowRect(params, inner) {
+  const R = params.overflow && params.reach;
+  if (!R) return null;
+  const l = Math.max(0, R.left || 0), t = Math.max(0, R.top || 0), r = Math.max(0, R.right || 0), b = Math.max(0, R.bottom || 0);
+  if (!(l || t || r || b)) return null;
+  return { x: inner.x - l, y: inner.y - t, width: inner.width + l + r, height: inner.height + t + b };
+}
+// Distance from (cx, cy) to the farthest corner of `rect`.
+function farCorner(rect, cx, cy) {
+  const xs = [rect.x, rect.x + rect.width], ys = [rect.y, rect.y + rect.height];
+  let m = 0;
+  xs.forEach(x => ys.forEach(y => { m = Math.max(m, Math.hypot(x - cx, y - cy)); }));
+  return m;
+}
+function polygonArea(poly) {
+  let a = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i], q = poly[(i + 1) % poly.length];
+    a += p[0] * q[1] - q[0] * p[1];
+  }
+  return a / 2;
+}
+// Overflow params flags, so presets round-trip (reach itself is not stored — main.js derives it from the canvas).
+function overflowFlags(params) {
+  return { ...(params.overflow ? { overflow: true } : {}), ...(params.overflow && params.keepMargin ? { keepMargin: true } : {}) };
+}
+
 // Sutherland–Hodgman clip of a convex polygon against an axis-aligned
 // rect — same technique as every other polygon generator's own private
 // copy (hexagonal.js/triangular.js/diamond.js's own clipToRect).
@@ -137,21 +168,30 @@ export function generateCircular(params, inner) {
   const colSteps = Math.ceil((2 * halfDiag) / hSpacing) + 2;
   const rowSteps = Math.ceil((2 * halfDiag) / vSpacing) + 2;
   const colStart = -Math.floor(colSteps / 2), rowStart = -Math.floor(rowSteps / 2);
+  // Overflow: the same packing goes on to the clip rect's corners (hexagonal.js's own note) — the range above keeps
+  // `rng` in its own order, the added circles draw from their own stream.
+  const clip = overflowRect(params, inner);
+  const reachDiag = clip ? farCorner(clip, centerX, centerY) + r : halfDiag;
+  const colStepsX = Math.ceil((2 * reachDiag) / hSpacing) + 2, rowStepsX = Math.ceil((2 * reachDiag) / vSpacing) + 2;
+  const colStartX = -Math.floor(colStepsX / 2), rowStartX = -Math.floor(rowStepsX / 2);
+  const rngX = mulberry32((seed >>> 0) ^ 0x5BD1E995);
 
   const cells = [];
-  for (let row = rowStart; row < rowStart + rowSteps; row++) {
-    for (let col = colStart; col < colStart + colSteps; col++) {
+  for (let row = rowStartX; row < rowStartX + rowStepsX; row++) {
+    for (let col = colStartX; col < colStartX + colStepsX; col++) {
+      const rnd = (row >= rowStart && row < rowStart + rowSteps && col >= colStart && col < colStart + colSteps) ? rng : rngX;
       let cx = centerX + col * hSpacing + (row % 2 !== 0 ? hSpacing / 2 : 0);
       let cy = centerY + row * vSpacing;
       if (jitter > 0) {
-        cx += (rng() - 0.5) * 2 * jitter * r;
-        cy += (rng() - 0.5) * 2 * jitter * r;
+        cx += (rnd() - 0.5) * 2 * jitter * r;
+        cy += (rnd() - 0.5) * 2 * jitter * r;
       }
       if (rad !== 0) {
         [cx, cy] = rotatePoint([cx, cy], centerX, centerY, rad);
       }
-      const poly = clipToRect(circlePoints(cx, cy, effR, 48), inner);
+      const poly = clipToRect(circlePoints(cx, cy, effR, 48), clip || inner);
       if (poly.length < 3) continue;
+      if (clip && Math.abs(polygonArea(poly)) < 1e-6) continue;
       cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly) });
     }
   }
@@ -161,7 +201,7 @@ export function generateCircular(params, inner) {
       type: 'circular',
       solver: 'geometric',
       cellShape: 'polygon',
-      params: { cols, rotation, gap, jitter, seed },
+      params: { cols, rotation, gap, jitter, seed, ...overflowFlags(params) },
       gap: 0,
     },
     cells,

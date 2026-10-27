@@ -106,6 +106,20 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     const B = await import('/loom/js/generators/bento.js'), inner = { x: 0, y: 0, width: 1080, height: 566 };
     const g = B.generateBento({ cols: 5, rows: 7, variety: 0, gap: 12, seed: 7, square: true, overflow: true, keepMargin: true, reach: { left: 0, top: 0, right: 0, bottom: 0 } }, inner);
     check('Loom Bento Keep margin with a gap: no empty edge track (a cell that would land in a gap is not added)', g.grid.tracks.cols.concat(g.grid.tracks.rows).every(v => v > 0), g.grid.tracks.cols.map(v => v.toFixed(1)).join(' ')); }
+  // Overflow / Keep margin on Radial and the lattices (Diego, Oct 27, 2026): Loom's own generators continue their cells
+  { const bounds = g => { const xs = g.cells.flatMap(c => c.points.map(q => q[0])), ys = g.cells.flatMap(c => c.points.map(q => q[1])); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)].map(v => Math.round(v)); };
+    for (const gen of ['hexagonal', 'triangular', 'diamond', 'circular', 'radial']) {
+      set('sel-symgrid-gen', gen); await settle(); set('sel-symcanvas-preset', 'Portrait 4:5'); set('rg-symcanvas-margin', 8); await settle();
+      const order = [...q('symgrid-gen-params').children].map(e => e.id).filter(Boolean);
+      const off = bounds(F.state.symbolGrid), nOff = F.state.symbolCells.length;
+      set('chk-symgen-overflow', true); await settle(); const on = bounds(F.state.symbolGrid), nOn = F.state.symbolCells.length;
+      set('chk-symgen-keepmargin', true); await settle(); const km = bounds(F.state.symbolGrid);
+      const m = Math.round(1080 * 0.08);
+      const okOn = on[0] <= 0 && on[1] <= 0 && on[2] >= 1080 && on[3] >= 1350, okKm = km[0] >= m - 1 && km[1] >= m - 1 && km[2] <= 1080 - m + 1 && km[3] <= 1350 - m + 1;
+      check(gen + ': Overflow ' + nOff + ' → ' + nOn + ' cells, to the canvas edges; Keep margin inside the margin (switches last in the section)', okOn && okKm && nOn > nOff && order[order.length - 2] === 'symgen-overflow-row', JSON.stringify({ off, on, km, order: order.slice(-2) }));
+      set('chk-symgen-keepmargin', false); set('chk-symgen-overflow', false); await settle();
+    }
+    set('rg-symcanvas-margin', 5); set('sel-symgrid-gen', 'rectangular'); await settle(); }
   // the story safe zone (O-77): a guide on 9:16 only, under Show guides, never exported; the numbers = Loom's
   { set('sel-symcanvas-preset', 'Vertical 9:16'); await settle();
     const r = q('symbol-frame').querySelector('.sym-story-safe'), g = F.state.symbolView.guides;

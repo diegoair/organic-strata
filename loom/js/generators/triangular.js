@@ -146,6 +146,37 @@ function polygonCentroid(poly) {
   return [x / poly.length, y / poly.length];
 }
 
+// OVERFLOW (Diego, Oct 27, 2026) — `params.overflow` + `params.reach` {left, top, right, bottom} (main.js: how far
+// the canvas's edges lie beyond the inner rect; all 0 = Keep margin). Everything is still sized from `inner` (cell
+// size, lattice origin, rotation centre); the lattice only goes on past it, clipped against the larger rect. Null when
+// there is nothing to add (Overflow off, or Keep margin) — the output is then today's, byte for byte.
+function overflowRect(params, inner) {
+  const R = params.overflow && params.reach;
+  if (!R) return null;
+  const l = Math.max(0, R.left || 0), t = Math.max(0, R.top || 0), r = Math.max(0, R.right || 0), b = Math.max(0, R.bottom || 0);
+  if (!(l || t || r || b)) return null;
+  return { x: inner.x - l, y: inner.y - t, width: inner.width + l + r, height: inner.height + t + b };
+}
+// Distance from (cx, cy) to the farthest corner of `rect`.
+function farCorner(rect, cx, cy) {
+  const xs = [rect.x, rect.x + rect.width], ys = [rect.y, rect.y + rect.height];
+  let m = 0;
+  xs.forEach(x => ys.forEach(y => { m = Math.max(m, Math.hypot(x - cx, y - cy)); }));
+  return m;
+}
+function polygonArea(poly) {
+  let a = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i], q = poly[(i + 1) % poly.length];
+    a += p[0] * q[1] - q[0] * p[1];
+  }
+  return a / 2;
+}
+// Overflow params flags, so presets round-trip (reach itself is not stored — main.js derives it from the canvas).
+function overflowFlags(params) {
+  return { ...(params.overflow ? { overflow: true } : {}), ...(params.overflow && params.keepMargin ? { keepMargin: true } : {}) };
+}
+
 /**
  * @param {{cols:number, rotation:number, spinMode:'off'|'random'|'checkerboard'|'radial'|'spiral'|'noise', spinAmount:number, noiseScale:number, gap:number, jitter:number, seed:number}} params
  * @param {{x:number, y:number, width:number, height:number}} inner
@@ -170,11 +201,19 @@ export function generateTriangular(params, inner) {
   const rowSteps = Math.ceil((2 * halfDiag) / h) + 2;
   const colSteps = Math.ceil((2 * halfDiag) / (side / 2)) + 2;
   const rowStart = -Math.floor(rowSteps / 2), colStart = -Math.floor(colSteps / 2);
+  // Overflow: the same lattice goes on to the clip rect's corners (hexagonal.js's own note) — the range above keeps
+  // `rng` in its own order, the added triangles draw from their own stream.
+  const clip = overflowRect(params, inner);
+  const reachDiag = clip ? farCorner(clip, centerX, centerY) + side : halfDiag;
+  const rowStepsX = Math.ceil((2 * reachDiag) / h) + 2, colStepsX = Math.ceil((2 * reachDiag) / (side / 2)) + 2;
+  const rowStartX = -Math.floor(rowStepsX / 2), colStartX = -Math.floor(colStepsX / 2);
+  const rngX = mulberry32((seed >>> 0) ^ 0x5BD1E995);
 
   const cells = [];
-  for (let row = rowStart; row < rowStart + rowSteps; row++) {
+  for (let row = rowStartX; row < rowStartX + rowStepsX; row++) {
     const y0 = centerY + row * h, y1 = y0 + h;
-    for (let i = colStart; i < colStart + colSteps; i++) {
+    for (let i = colStartX; i < colStartX + colStepsX; i++) {
+      const rnd = (row >= rowStart && row < rowStart + rowSteps && i >= colStart && i < colStart + colSteps) ? rng : rngX;
       const x0 = centerX + i * (side / 2);
       const up = (((i % 2) + 2) % 2) === 0;
       let poly = up
@@ -183,12 +222,12 @@ export function generateTriangular(params, inner) {
 
       let centroid = polygonCentroid(poly);
       if (jitter > 0) {
-        const dx = (rng() - 0.5) * 2 * jitter * side;
-        const dy = (rng() - 0.5) * 2 * jitter * side;
+        const dx = (rnd() - 0.5) * 2 * jitter * side;
+        const dy = (rnd() - 0.5) * 2 * jitter * side;
         poly = poly.map(p => [p[0] + dx, p[1] + dy]);
         centroid = [centroid[0] + dx, centroid[1] + dy];
       }
-      const spinDeg = spinFor(spinMode, spinAmount, i, row, centroid[0], centroid[1], centerX, centerY, halfDiag, rng, noiseFreq, noiseOffset);
+      const spinDeg = spinFor(spinMode, spinAmount, i, row, centroid[0], centroid[1], centerX, centerY, halfDiag, rnd, noiseFreq, noiseOffset);
       if (spinDeg) {
         const spinRad = (Math.PI / 180) * spinDeg;
         poly = poly.map(p => rotatePoint(p, centroid[0], centroid[1], spinRad));
@@ -197,8 +236,9 @@ export function generateTriangular(params, inner) {
       if (rad !== 0) {
         poly = poly.map(p => rotatePoint(p, centerX, centerY, rad));
       }
-      poly = clipToRect(poly, inner);
+      poly = clipToRect(poly, clip || inner);
       if (poly.length < 3) continue;
+      if (clip && Math.abs(polygonArea(poly)) < 1e-6) continue;
       cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly) });
     }
   }
@@ -208,7 +248,7 @@ export function generateTriangular(params, inner) {
       type: 'triangular',
       solver: 'geometric',
       cellShape: 'polygon',
-      params: { cols, rotation, spinMode, spinAmount, noiseScale, gap, jitter, seed },
+      params: { cols, rotation, spinMode, spinAmount, noiseScale, gap, jitter, seed, ...overflowFlags(params) },
       gap: 0,
     },
     cells,

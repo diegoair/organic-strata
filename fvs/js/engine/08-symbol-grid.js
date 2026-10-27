@@ -302,15 +302,15 @@ export const SYMGRID_GENS = {
   // each column / beside each row shows the current share. A free-text
   // "1,1,1,1,1" field asked the user to hand-author that string blind; this
   // doesn't, and it's the same generate-then-drag workflow Loom itself uses.
-  rectangular: { label: 'Rectangular', square: true, params: [['cols', 'Columns', 2, 24, 1, 6], ['rows', 'Rows', 2, 24, 1, 6]] },
-  bento: { label: 'Bento', square: true, params: [['cols', 'Columns', 2, 24, 1, 6], ['rows', 'Rows', 2, 24, 1, 6], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Seed', 0, 999, 1, 7]] },
+  rectangular: { label: 'Rectangular', square: true, overflow: true, params: [['cols', 'Columns', 2, 24, 1, 6], ['rows', 'Rows', 2, 24, 1, 6]] },
+  bento: { label: 'Bento', square: true, overflow: true, params: [['cols', 'Columns', 2, 24, 1, 6], ['rows', 'Rows', 2, 24, 1, 6], ['variety', 'Variety', 0, 1, 0.05, 0.5], ['seed', 'Seed', 0, 999, 1, 7]] },
   sinusoidal: { label: 'Wave', params: [['cols', 'Columns', 2, 24, 1, 6], ['rows', 'Rows', 2, 24, 1, 6], ['amount', 'Amount', 0, 1, 0.05, 0.5], ['frequency', 'Frequency', 0.5, 6, 0.5, 2]] },
   masonry: { label: 'Masonry', params: [['cols', 'Columns', 2, 24, 1, 6], ['seed', 'Seed', 0, 999, 1, 7]] },
-  hexagonal: { label: 'Hexagonal', params: [['cols', 'Columns', 3, 24, 1, 6]] },
-  triangular: { label: 'Triangular', params: [['cols', 'Columns', 3, 30, 1, 6]] },
-  diamond: { label: 'Diamond', params: [['cols', 'Columns', 3, 30, 1, 6]] },
-  circular: { label: 'Circular', params: [['cols', 'Columns', 3, 24, 1, 6]] },
-  radial: { label: 'Radial', params: [['rings', 'Rings', 5, 8, 1, 6], ['sectors', 'Sectors', 5, 8, 1, 6]] },
+  hexagonal: { label: 'Hexagonal', overflow: true, params: [['cols', 'Columns', 3, 24, 1, 6]] },
+  triangular: { label: 'Triangular', overflow: true, params: [['cols', 'Columns', 3, 30, 1, 6]] },
+  diamond: { label: 'Diamond', overflow: true, params: [['cols', 'Columns', 3, 30, 1, 6]] },
+  circular: { label: 'Circular', overflow: true, params: [['cols', 'Columns', 3, 24, 1, 6]] },
+  radial: { label: 'Radial', overflow: true, params: [['rings', 'Rings', 5, 8, 1, 6], ['sectors', 'Sectors', 5, 8, 1, 6]] },
   organic: { label: 'Organic (Voronoi)', params: [['points', 'Cells', 25, 64, 1, 40], ['iterations', 'Relax', 0, 8, 1, 4], ['seed', 'Seed', 0, 999, 1, 7]] },
   fractal: { label: 'Fractal', params: [['depth', 'Depth', 5, 6, 1, 5], ['variance', 'Variance', 0, 0.5, 0.05, 0.2], ['seed', 'Seed', 0, 999, 1, 7]] },
   spiral: { label: 'Spiral (golden)', params: [['count', 'Cells', 25, 64, 1, 40]] },
@@ -586,10 +586,8 @@ export function figureWithMirror(defs, body, box, size, rot, mir) {
 export function readSymgridParams(id) {
   const out = {};
   SYMGRID_GENS[id].params.forEach(([k, , a]) => { const v = pv('symgen-' + k); out[k] = a === 'text' ? v : parseFloat(v); });
-  if (SYMGRID_GENS[id].square) {   // Square cells, Overflow, Keep margin — each on its own (Overflow does not need Square cells)
-    if (pc('chk-symgen-square')) out.square = true;
-    if (pc('chk-symgen-overflow')) { out.overflow = true; if (pc('chk-symgen-keepmargin')) out.keepMargin = true; }
-  }
+  if (SYMGRID_GENS[id].square && pc('chk-symgen-square')) out.square = true;   // Square cells, Overflow, Keep margin — each on its own
+  if (SYMGRID_GENS[id].overflow && pc('chk-symgen-overflow')) { out.overflow = true; if (pc('chk-symgen-keepmargin')) out.keepMargin = true; }
   return out;
 }
 // Loom's grid generators (loom/js/generators/registry.js, untouched), imported on first use — the Rhizome way.
@@ -611,6 +609,7 @@ export async function symbolGridModel(genId, params, cv) {
   // on past Columns × Rows to the canvas's edges on the same lattice, the chosen grid where it was; the canvas cuts them.
   // Keep margin ("la possibilità di avere il margine"): only to the margin's box, cut at the margin line (grid.clipRect).
   const sqOn = SYMGRID_GENS[genId] && SYMGRID_GENS[genId].square, square = sqOn && params.square, over = sqOn && params.overflow;
+  const latticeOver = !sqOn && SYMGRID_GENS[genId] && SYMGRID_GENS[genId].overflow && params.overflow;   // Radial and the lattices: Loom's generator continues its own cells
   if ((square || over) && params.cols && params.rows) {
     const cols = Math.round(params.cols), rows = Math.round(params.rows);
     const sx = square ? Math.min(inner.width / cols, inner.height / rows) : inner.width / cols, sy = square ? sx : inner.height / rows;
@@ -639,6 +638,8 @@ export async function symbolGridModel(genId, params, cv) {
   }
   const { square: _sq, overflow: _of, keepMargin: _km, ...gp } = params;   // Square cells are made here (the inner box and Rows), so the generator gets plain Columns × Rows
   const full = { ...G.defaults, ...gp, gap: 0 };
+  if (latticeOver) Object.assign(full, { overflow: true, keepMargin: !!params.keepMargin,
+    reach: params.keepMargin ? { left: 0, top: 0, right: 0, bottom: 0 } : { left: inner.x, top: inner.y, right: cv.W - inner.x - inner.width, bottom: cv.H - inner.y - inner.height } });
   const { grid, cells } = G.generate(full, inner);
   if (G.cellShape === 'polygon') grid.cellShape = 'polygon';
   cells.forEach((c, i) => { c.number = i + 1; });
@@ -650,7 +651,7 @@ export async function symbolGridModel(genId, params, cv) {
   return {
     version: '1.0',
     canvas: { width: W, height: H, unit: 'px', margin: cv.margin, marginTop: 0, marginRight: 0, marginBottom: 0, marginLeft: 0, safeArea: 0, bleed: 0,
-      fvsFrame: { ...frame, generator: genId, params: over ? asked : params } },
+      fvsFrame: { ...frame, generator: genId, params: over || latticeOver ? asked : params } },
     grid, cells,
   };
 }

@@ -270,8 +270,24 @@ function syncEqualizeRow() {
 }
 // ── Square cells (Bento) — after Rows (Diego, Oct 27, 2026): Columns × Rows as chosen, cells square, the grid centred
 // (bento.js); nothing in the panel hides — the switch only changes how the tracks are sized.
-function syncBentoSquareRow() { ctrl('row-bento-keepmargin').hidden = !ctrl('chk-bento-overflow').checked; }   // Keep margin only with Overflow (hidden, not greyed); Overflow always shows   // Overflow only with Square cells (hidden, not greyed)
+function syncBentoSquareRow() { syncOverflowRows(); }   // Keep margin only with Overflow (hidden, not greyed); Overflow always shows
 function syncBentoSquareReadout() { syncBentoSquareRow(); }
+// ── Overflow · Keep margin — Bento and, since Oct 27, 2026 (Diego), Radial and the lattices Hexagonal / Triangular /
+// Diamond / Circular: the cells go on to the canvas's edges (build() sets params.reach); Keep margin shows only while
+// its Overflow is on (hidden, not greyed).
+const OVERFLOW_PREFIX = { bento: 'bento', hexagonal: 'hex', radial: 'radial', triangular: 'tri', diamond: 'dia', circular: 'cir' };
+function syncOverflowRows() {
+  Object.values(OVERFLOW_PREFIX).forEach(x => { ctrl('row-' + x + '-keepmargin').hidden = !ctrl('chk-' + x + '-overflow').checked; });
+}
+function overflowParams(type) {
+  const x = OVERFLOW_PREFIX[type], on = ctrl('chk-' + x + '-overflow').checked;
+  return { overflow: on, keepMargin: on && ctrl('chk-' + x + '-keepmargin').checked };
+}
+function applyOverflowParams(type, params) {
+  const x = OVERFLOW_PREFIX[type];
+  ctrl('chk-' + x + '-overflow').checked = !!params.overflow; ctrl('chk-' + x + '-keepmargin').checked = !!params.keepMargin;
+  syncOverflowRows();
+}
 
 // ── Count ranges — one source: GENERATORS[type].ranges (registry.js). Every
 // hand-written slider id maps to its generator + param key here; at init
@@ -462,6 +478,7 @@ function readGridParams() {
       spinMode: ctrl('sel-hex-spinmode').value, spinAmount: val('rg-hex-spinamount'),
       noiseScale: val('rg-hex-noisescale'),
       gap: val('rg-hex-gap'), jitter: val('rg-hex-jitter'), seed: Math.round(val('rg-hex-seed')),
+      ...overflowParams('hexagonal'),
     };
   }
   if (type === 'radial') {
@@ -472,6 +489,7 @@ function readGridParams() {
       stretch: ctrl('ck-radial-stretch').checked, seed: Math.round(val('rg-radial-seed')),
       distortMode: seg('seg-radial-distort'), distortAmount: val('rg-radial-distort-amount'),
       distortFrequency: val('rg-radial-distort-freq'), distortPhase: val('rg-radial-distort-phase'),
+      ...overflowParams('radial'),
     };
   }
   if (type === 'triangular') {
@@ -480,6 +498,7 @@ function readGridParams() {
       spinMode: ctrl('sel-tri-spinmode').value, spinAmount: val('rg-tri-spinamount'),
       noiseScale: val('rg-tri-noisescale'),
       gap: val('rg-tri-gap'), jitter: val('rg-tri-jitter'), seed: Math.round(val('rg-tri-seed')),
+      ...overflowParams('triangular'),
     };
   }
   if (type === 'diamond') {
@@ -488,12 +507,14 @@ function readGridParams() {
       spinMode: ctrl('sel-dia-spinmode').value, spinAmount: val('rg-dia-spinamount'),
       noiseScale: val('rg-dia-noisescale'),
       gap: val('rg-dia-gap'), jitter: val('rg-dia-jitter'), seed: Math.round(val('rg-dia-seed')),
+      ...overflowParams('diamond'),
     };
   }
   if (type === 'circular') {
     return {
       cols: Math.round(val('rg-cir-cols')), rotation: val('rg-cir-rotation'),
       gap: val('rg-cir-gap'), jitter: val('rg-cir-jitter'), seed: Math.round(val('rg-cir-seed')),
+      ...overflowParams('circular'),
     };
   }
   if (type === 'linear') {
@@ -583,7 +604,7 @@ function build() {
   const type = ctrl('sel-gridtype').value;
   const generator = GENERATORS[type];
   const params = readGridParams();
-  // Overflow (Bento square cells): how far the canvas's edges are from the inner rect — the squares go on to them
+  // Overflow (Bento, Radial, Hexagonal, Triangular, Diamond, Circular): how far the canvas's edges are from the inner rect — the cells go on to them
   if (params.overflow) params.reach = params.keepMargin ? { left: 0, top: 0, right: 0, bottom: 0 } : { left: inner.x, top: inner.y, right: canvas.width - inner.x - inner.width, bottom: canvas.height - inner.y - inner.height };   // Keep margin: to the inner rect only
 
   // Kiwi throws (an uncaught exception, not a return value) when a
@@ -630,6 +651,7 @@ function build() {
     if (grid.equalizeRows && !grid.offset) grid.tracks.rows = solveTracksKiwi(grid.tracks.rows.length, inner.height, grid.gap);
   }
   if (type === 'bento') syncBentoSquareReadout(grid);
+  syncOverflowRows();
   cells.forEach((c, i) => { c.number = i + 1; });   // sequential by default — Shuffle numbers randomises on top of this
   currentModel = buildModel({ canvas, grid, cells });
   currentInner = inner;
@@ -1118,6 +1140,7 @@ function applyGridParamsToUI(type, params) {
     setS('sel-hex-spinmode', params.spinMode); setR('rg-hex-spinamount', params.spinAmount);
     setR('rg-hex-noisescale', params.noiseScale);
     setR('rg-hex-gap', params.gap); setR('rg-hex-jitter', params.jitter); setR('rg-hex-seed', params.seed);
+    applyOverflowParams(type, params);
     syncHexSpinRow();
   } else if (type === 'radial') {
     setR('rg-radial-rings', params.rings); setR('rg-radial-sectors', params.sectors);
@@ -1128,22 +1151,26 @@ function applyGridParamsToUI(type, params) {
     setR('rg-radial-distort-amount', params.distortAmount); setR('rg-radial-distort-freq', params.distortFrequency);
     setR('rg-radial-distort-phase', params.distortPhase);
     if (params.distortMode) setSegValue('seg-radial-distort', params.distortMode);
+    applyOverflowParams(type, params);
     syncDistortRow('radial');
   } else if (type === 'triangular') {
     setR('rg-tri-cols', params.cols); setR('rg-tri-rotation', params.rotation);
     setS('sel-tri-spinmode', params.spinMode); setR('rg-tri-spinamount', params.spinAmount);
     setR('rg-tri-noisescale', params.noiseScale);
     setR('rg-tri-gap', params.gap); setR('rg-tri-jitter', params.jitter); setR('rg-tri-seed', params.seed);
+    applyOverflowParams(type, params);
     syncTriSpinRow();
   } else if (type === 'diamond') {
     setR('rg-dia-cols', params.cols); setR('rg-dia-rotation', params.rotation);
     setS('sel-dia-spinmode', params.spinMode); setR('rg-dia-spinamount', params.spinAmount);
     setR('rg-dia-noisescale', params.noiseScale);
     setR('rg-dia-gap', params.gap); setR('rg-dia-jitter', params.jitter); setR('rg-dia-seed', params.seed);
+    applyOverflowParams(type, params);
     syncDiaSpinRow();
   } else if (type === 'circular') {
     setR('rg-cir-cols', params.cols); setR('rg-cir-rotation', params.rotation);
     setR('rg-cir-gap', params.gap); setR('rg-cir-jitter', params.jitter); setR('rg-cir-seed', params.seed);
+    applyOverflowParams(type, params);
   } else if (type === 'linear') {
     setR('rg-lin-cols', params.cols); setR('rg-lin-rows', params.rows);
     setR('rg-lin-rotation', params.rotation); setR('rg-lin-jitter', params.jitter);

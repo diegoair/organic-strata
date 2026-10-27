@@ -72,6 +72,60 @@ function polygonCentroid(poly) {
   return [x / poly.length, y / poly.length];
 }
 
+// OVERFLOW (Diego, Oct 27, 2026) — `params.overflow` + `params.reach` {left, top, right, bottom} (main.js: how far
+// the canvas's edges lie beyond the inner rect; all 0 = Keep margin). Everything is still sized from `inner` (cell
+// size, lattice origin, rotation centre); the lattice only goes on past it, clipped against the larger rect. Null when
+// there is nothing to add (Overflow off, or Keep margin) — the output is then today's, byte for byte.
+function overflowRect(params, inner) {
+  const R = params.overflow && params.reach;
+  if (!R) return null;
+  const l = Math.max(0, R.left || 0), t = Math.max(0, R.top || 0), r = Math.max(0, R.right || 0), b = Math.max(0, R.bottom || 0);
+  if (!(l || t || r || b)) return null;
+  return { x: inner.x - l, y: inner.y - t, width: inner.width + l + r, height: inner.height + t + b };
+}
+function polygonArea(poly) {
+  let a = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i], q = poly[(i + 1) % poly.length];
+    a += p[0] * q[1] - q[0] * p[1];
+  }
+  return a / 2;
+}
+// Overflow params flags, so presets round-trip (reach itself is not stored — main.js derives it from the canvas).
+function overflowFlags(params) {
+  return { ...(params.overflow ? { overflow: true } : {}), ...(params.overflow && params.keepMargin ? { keepMargin: true } : {}) };
+}
+
+// Sutherland–Hodgman clip against an axis-aligned rect — the same private copy as hexagonal.js's own clipToRect. A
+// ring-sector is not convex (its inner arc), but the clip rect is, which is all Sutherland–Hodgman needs; a wedge the
+// rect cuts in two comes back as one polygon joined along the rect's edge (zero-width there), drawn as two pieces.
+function clipToRect(poly, rect) {
+  const planes = [
+    { p: [rect.x, rect.y], n: [1, 0] },
+    { p: [rect.x + rect.width, rect.y], n: [-1, 0] },
+    { p: [rect.x, rect.y], n: [0, 1] },
+    { p: [rect.x, rect.y + rect.height], n: [0, -1] },
+  ];
+  let out = poly;
+  for (const plane of planes) {
+    if (out.length === 0) break;
+    const input = out;
+    out = [];
+    const side = (p) => (p[0] - plane.p[0]) * plane.n[0] + (p[1] - plane.p[1]) * plane.n[1];
+    for (let i = 0; i < input.length; i++) {
+      const cur = input[i], prev = input[(i - 1 + input.length) % input.length];
+      const curSide = side(cur), prevSide = side(prev);
+      const curIn = curSide >= 0, prevIn = prevSide >= 0;
+      if (curIn !== prevIn) {
+        const t = prevSide / (prevSide - curSide);
+        out.push([prev[0] + t * (cur[0] - prev[0]), prev[1] + t * (cur[1] - prev[1])]);
+      }
+      if (curIn) out.push(cur);
+    }
+  }
+  return out;
+}
+
 function distortAt(pos, refLen, mode, amount, freq, phase, seedOffset) {
   if (mode === 'off' || !amount) return 0;
   const t = pos / refLen;
@@ -108,9 +162,24 @@ export function generateRadial(params, inner) {
   const realPoint = realPointFactory(cx, cy, outerRx, outerRy, angleWarp, radiusWarp);
   const ringSubdiv = 18, spokeSubdiv = active ? 16 : 1;
 
+  // OVERFLOW (Diego, Oct 27, 2026): same centre, same sectors, same ring step — the rings go on outward (each one the
+  // last ring's step) until the clip rect's farthest corner is covered, then every wedge is clipped against it.
+  // Overflow = the canvas (`reach` from main.js); Keep margin (reach 0) = the inner rect itself, so its corners fill.
+  const clip = params.overflow && params.reach ? (overflowRect(params, inner) || { x: inner.x, y: inner.y, width: inner.width, height: inner.height }) : null;
+  let ringCount = rings;
+  const lastStep = fracAt(rings) - fracAt(rings - 1);
+  const fracOut = i => i <= rings ? fracAt(i) : fracAt(rings) + (i - rings) * lastStep;
+  if (clip && lastStep > 0) {
+    const xs = [clip.x, clip.x + clip.width], ys = [clip.y, clip.y + clip.height];
+    let need = 0;   // the farthest corner, in the ellipse's own radius fraction
+    xs.forEach(x => ys.forEach(y => { need = Math.max(need, Math.hypot((x - cx) / outerRx, (y - cy) / outerRy)); }));
+    need += active ? 0.15 * distortAmount : 0;   // a ring's radius wobbles up to this much (radiusWarp below)
+    while (fracOut(ringCount) < need && ringCount < rings + 400) ringCount++;
+  }
+
   const cells = [];
-  for (let i = 0; i < rings; i++) {
-    const f0 = fracAt(i), f1 = fracAt(i + 1);
+  for (let i = 0; i < ringCount; i++) {
+    const f0 = clip ? fracOut(i) : fracAt(i), f1 = clip ? fracOut(i + 1) : fracAt(i + 1);
     const rGap = (gap || 0) * (f1 - f0) * 0.4;
     const f0g = Math.max(0, f0 + rGap), f1g = Math.max(f0g, f1 - rGap);
     for (let j = 0; j < sectors; j++) {
@@ -122,6 +191,14 @@ export function generateRadial(params, inner) {
         .concat(traceRing(realPoint, f1g, a0g, a1g, ringSubdiv).slice(1))
         .concat(traceSpoke(realPoint, f1g, f0g, a1g, spokeSubdiv).slice(1))
         .concat(traceRing(realPoint, f0g, a1g, a0g, ringSubdiv).slice(1, -1));
+      if (clip) {
+        const cut = clipToRect(poly, clip);
+        if (cut.length < 3 || Math.abs(polygonArea(cut)) < 1e-6) continue;
+        // a cut wedge keeps its straight cut: 'sharp' holds the corners the canvas edge makes (catmullRomPathD)
+        const wasCut = cut.length !== poly.length || cut.some((p, k) => p !== poly[k]);
+        cells.push({ id: 'c' + cells.length, points: cut, centroid: polygonCentroid(cut), smooth: active ? (wasCut ? 'sharp' : true) : false });
+        continue;
+      }
       cells.push({ id: 'c' + cells.length, points: poly, centroid: polygonCentroid(poly), smooth: active });
     }
   }
@@ -131,7 +208,7 @@ export function generateRadial(params, inner) {
       type: 'radial',
       solver: 'geometric',
       cellShape: 'polygon',
-      params: { rings, sectors, innerRadiusFrac, gap, startAngle, curve, stretch, seed, distortMode, distortAmount, distortFrequency, distortPhase },
+      params: { rings, sectors, innerRadiusFrac, gap, startAngle, curve, stretch, seed, distortMode, distortAmount, distortFrequency, distortPhase, ...overflowFlags(params) },
       gap: 0,
     },
     cells,

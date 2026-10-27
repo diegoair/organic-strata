@@ -512,6 +512,8 @@
           <input type="range" id="rg-hex-cols" min="3" max="24" step="1" value="8">
           <span class="ctrl-val" id="v-hex-cols">8</span>
         </div>
+        <label class="check-row org-switch" id="row-hex-overflow"><input type="checkbox" id="chk-hex-overflow"><span>Overflow</span></label>
+        <label class="check-row org-switch" id="row-hex-keepmargin" hidden><input type="checkbox" id="chk-hex-keepmargin"><span>Keep margin</span></label>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Rigidly rotates the whole tessellation — centres and hexagons together, which is why it still tiles edge-to-edge at any angle. Repeats every 60°: 0 is the old 'Flat-top', 30 is the old 'Pointy-top'.">Rotation</div>
           <input type="range" id="rg-hex-rotation" min="0" max="60" step="1" value="0">
@@ -567,6 +569,8 @@
           <input type="range" id="rg-radial-sectors" min="3" max="36" step="1" value="12">
           <span class="ctrl-val" id="v-radial-sectors">12</span>
         </div>
+        <label class="check-row org-switch" id="row-radial-overflow"><input type="checkbox" id="chk-radial-overflow"><span>Overflow</span></label>
+        <label class="check-row org-switch" id="row-radial-keepmargin" hidden><input type="checkbox" id="chk-radial-keepmargin"><span>Keep margin</span></label>
         <div class="ctrl-row">
           <div class="ctrl-label" title="1 = linear ring spacing (the old Radial’s own default). Higher bunches rings toward the centre; lower bunches them toward the outer edge.">Radius curve</div>
           <input type="range" id="rg-radial-curve" min="0.3" max="3" step="0.1" value="1">
@@ -627,6 +631,8 @@
           <input type="range" id="rg-tri-cols" min="3" max="30" step="1" value="8">
           <span class="ctrl-val" id="v-tri-cols">8</span>
         </div>
+        <label class="check-row org-switch" id="row-tri-overflow"><input type="checkbox" id="chk-tri-overflow"><span>Overflow</span></label>
+        <label class="check-row org-switch" id="row-tri-keepmargin" hidden><input type="checkbox" id="chk-tri-keepmargin"><span>Keep margin</span></label>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Rigidly rotates the whole tessellation — centres and triangles together, which is why it still tiles edge-to-edge at any angle. Repeats every 60°.">Rotation</div>
           <input type="range" id="rg-tri-rotation" min="0" max="60" step="1" value="0">
@@ -677,6 +683,8 @@
           <input type="range" id="rg-dia-cols" min="3" max="30" step="1" value="8">
           <span class="ctrl-val" id="v-dia-cols">8</span>
         </div>
+        <label class="check-row org-switch" id="row-dia-overflow"><input type="checkbox" id="chk-dia-overflow"><span>Overflow</span></label>
+        <label class="check-row org-switch" id="row-dia-keepmargin" hidden><input type="checkbox" id="chk-dia-keepmargin"><span>Keep margin</span></label>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Rigidly rotates the whole tessellation — centres and squares together, which is why it still tiles edge-to-edge at any angle. Repeats every 90°: 0 = axis-aligned squares, 45 = diamonds.">Rotation</div>
           <input type="range" id="rg-dia-rotation" min="0" max="90" step="1" value="45">
@@ -727,6 +735,8 @@
           <input type="range" id="rg-cir-cols" min="3" max="24" step="1" value="8">
           <span class="ctrl-val" id="v-cir-cols">8</span>
         </div>
+        <label class="check-row org-switch" id="row-cir-overflow"><input type="checkbox" id="chk-cir-overflow"><span>Overflow</span></label>
+        <label class="check-row org-switch" id="row-cir-keepmargin" hidden><input type="checkbox" id="chk-cir-keepmargin"><span>Keep margin</span></label>
         <div class="ctrl-row">
           <div class="ctrl-label" title="Rigidly rotates the whole packing lattice — an individual circle’s own outline never changes (a circle is rotationally symmetric), only how rows/columns align, which changes how the boundary clips. Repeats every 60°.">Rotation</div>
           <input type="range" id="rg-cir-rotation" min="0" max="60" step="1" value="0">

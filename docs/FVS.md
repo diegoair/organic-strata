@@ -821,7 +821,14 @@ its cells.
   margine*): the squares go on only to the margin's box and are cut at the margin line (`grid.clipRect`; the SVG clips
   there, the PNG too — the margin stays Paper and its pattern). The 2–24 range is for what is asked: the tracks Overflow adds may
   pass it (the cell cap counts them). Debugged Oct 27, 2026: 5 canvases × margins 0 / 5 / 15 / 25 % × Square cells ×
-  Overflow × Keep margin × Rectangular / Bento — 240 cases, sizes, places, the margin clip and the export checked. The grid is
+  Overflow × Keep margin × Rectangular / Bento — 240 cases, sizes, places, the margin clip and the export checked.
+  **Overflow and Keep margin on Radial and the lattices** (Hexagonal, Triangular, Diamond, Circular — Diego, Oct 27, 2026,
+  after the analysis: only where a lattice can go on; not Organic, Fractal, Spiral, nor Wave / Masonry for now): the two
+  switches after the generator's last count; Loom's generators take `reach` (the canvas's edges around the margin's box —
+  `symbolGridModel` passes it) and continue their own cells past the margin, cut at the canvas. The lattices already cut
+  at the margin, so Keep margin there is what they always did (byte-identical); Radial's rings go on until the corners are
+  covered — with Keep margin the margin box's corners. E.g. Portrait 4:5, margin 8 %: Hexagonal 53 → 77 cells,
+  Radial 36 → 76. The grid is
   centred by Loom's own **`grid.offset`** (`{ x, y }`, where the tracks start inside the margin's box —
   `loom/js/json-model.js` `gridOffset`; `Organica.loadLoomGrid` adds it, and so do the Symbol's guides and track
   handles); absent on every other grid and every model saved before, so they are unchanged. Dragging a border turns

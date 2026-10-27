@@ -172,10 +172,12 @@ export function renderSymgridParams() {
   // Square cells (Oct 27, 2026): after Rows (Diego) — on, the cells are squares and the grid centred; nothing hides
   const wasOf = ctrl('chk-symgen-overflow') && ctrl('chk-symgen-overflow').checked, wasKm = ctrl('chk-symgen-keepmargin') && ctrl('chk-symgen-keepmargin').checked;
   // Overflow (Oct 27, 2026): the cells go on to the canvas's edges, cut there — with or without Square cells
-  const square = spec.square ? `<label class="check-row org-switch" id="symgen-square-row"><input type="checkbox" id="chk-symgen-square"${was ? ' checked' : ''}><span>Square cells</span></label>`
-    + `<label class="check-row org-switch" id="symgen-overflow-row"><input type="checkbox" id="chk-symgen-overflow"${wasOf ? ' checked' : ''}><span>Overflow</span></label>`
+  const square = spec.square ? `<label class="check-row org-switch" id="symgen-square-row"><input type="checkbox" id="chk-symgen-square"${was ? ' checked' : ''}><span>Square cells</span></label>` : '';
+  const overflow = spec.overflow ? `<label class="check-row org-switch" id="symgen-overflow-row"><input type="checkbox" id="chk-symgen-overflow"${wasOf ? ' checked' : ''}><span>Overflow</span></label>`
     + `<label class="check-row org-switch" id="symgen-keepmargin-row"${wasOf ? '' : ' hidden'}><input type="checkbox" id="chk-symgen-keepmargin"${wasKm ? ' checked' : ''}><span>Keep margin</span></label>` : '';
-  ctrl('symgrid-gen-params').innerHTML = spec.params.map(p => row(p) + (p[0] === 'rows' ? square : '')).join('');
+  // after Rows (Square cells, then Overflow · Keep margin); on a generator without Rows, after its last count
+  const counts = spec.params.filter(p => p[2] !== 'text' && p[4] === 1 && p[0] !== 'seed').map(p => p[0]), after = spec.params.some(p => p[0] === 'rows') ? 'rows' : counts[counts.length - 1];
+  ctrl('symgrid-gen-params').innerHTML = spec.params.map(p => row(p) + (p[0] === after ? square + overflow : '')).join('');
   spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
   syncSquareCellsUI();
 }
