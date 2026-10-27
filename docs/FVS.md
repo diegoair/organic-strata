@@ -404,6 +404,9 @@ comes from the edited Element's Palette (§4) and, optionally, from **layer colo
 - **Legacy**: a Component saved on an imported Loom grid (before Sep 2026) still renders exactly
   as saved, with a hint; picking columns × rows replaces it. New Components never use a Loom grid
   (`getGrid`, engine/03-rules.js).
+- **A clicked Component shows its rule** (Oct 27, 2026 — Diego: *the panel shows the wrong Rule*): the Rule section takes
+  the rule that made it (`showComponentRule`); a Component of an Exhaustive / Random run shows that run's rule, one made by
+  hand leaves the Rule as it is. A Rule changed and not run still only acts at the next Generate.
 - **Changing the grid** after a Generate: if the **cell count** changes, the candidates that no
   longer fit are dropped and, when none is left, the current rule runs again on the new grid (Manual
   brings back the starter set); a change that keeps the count (2×3 → 3×2) keeps the candidates
@@ -454,8 +457,22 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
   over On top, which orders the cells of the same order (Diego); the hit box drawn on top takes the click. The cell keys
   `moveX` / `moveY` / `z` (0 = absent) count in a Component's key; each change is one undo step. Square cells only, and
   not on empty cells.
-- Not yet: the rule's own classes as a Layout (Diego: later), plates that knock out what is covered (Phase 4), Weave as
-  a third On top (Phase 5, test page first). Tests: `scripts/test-fvs-tile.sh`.
+- **Weave** (Phase 5, Oct 26–27, 2026 — first on `explorations/tropism/`): a fourth **On top**, on Grid too (On top
+  shows on every Layout; *The moved cells / The other cells* only when cells move). Every pair of neighbours has one on
+  top, alternating across the grid (across a row the left one on even column + row, down a column the upper one on
+  odd, on a diagonal by the column — `weaveAbove`), so each cell passes over one neighbour and under the next, which
+  no drawing order can do. Each cell is cut by a `<mask>` of the neighbours over it (`weaveCovers`: one column / row
+  away and close enough to touch; a copy one period over counts as the column beyond the edge), its shape unchanged.
+  **Crossing gap** (0–10 % of a cell, shown with Weave, 2 by default; *Margin* is the Canvas's) leaves Paper round the cell on top — the silhouettes
+  grown by an `feMorphology` dilate in the Component's units (each silhouette black by its alpha, so a pattern or a photo
+  covers by its shape; ids dropped); saved as `overlap.margin` (0 kept). SVG only: the canvas twin and a Symbol's nested
+  Component keep the reading order — On top's `title` says so. 8 × 8 with Show as tile: 100 masks, ~27 ms.
+- **Plates knock out what is covered** (Phase 4, Oct 26, 2026): `plateSVG` turns the drawing into a mask — ink i white,
+  every other paint (the other inks, a nested Paper) black, in the drawing's order — over one black rect, so where a
+  cell (or a Weave neighbour) covers ink i, plate i does not print it, as on screen. **Multiply** (overprint), a
+  raster photo, and a drawing where no cell reaches into another (no `data-fvs-overlap` mark) keep the plain plate —
+  every plate before is unchanged (regression 619/619). A `<mask>` / `<clipPath>` already in the drawing is kept as it is.
+- Not yet: the rule's own classes as a Layout (Diego: later). Tests: `scripts/test-fvs-tile.sh`.
 
 ### 5.2 The axes (Transform axes)
 

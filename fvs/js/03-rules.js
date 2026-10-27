@@ -48,7 +48,12 @@ export function syncTileUI() {
   const lay = ctrl('sel-tile-layout').value, moves = lay !== 'grid';
   // in Component Edit only (Diego, Oct 26, 2026): the edited Component's Tile, part of the edit
   ctrl('tile-section').hidden = !state.componentEditMode || state.cellShape !== 'square' || !!state.loomGrid;
-  ctrl('tile-offset-x-row').hidden = ctrl('tile-offset-y-row').hidden = ctrl('tile-top-row').hidden = !moves;
+  ctrl('tile-offset-x-row').hidden = ctrl('tile-offset-y-row').hidden = !moves;
+  // On top: always (Weave works on Grid too); the moved / other groups only when cells move
+  const top = ctrl('sel-tile-top');
+  top.querySelectorAll('option[value="moved"], option[value="still"]').forEach(op => { op.hidden = op.disabled = !moves; });   // Safari ignores hidden on an <option>
+  if (!moves && (top.value === 'moved' || top.value === 'still')) top.value = 'order';
+  ctrl('tile-margin-row').hidden = top.value !== 'weave';   // Weave's Crossing gap
 }
 // the panel shows the edit's Tile (on entering Edit, after an Edit undo)
 export function syncTileFromSelection() {
@@ -74,10 +79,11 @@ const TILE_PRESET = { brick: [50, 0], halfdrop: [0, 50], alternate: [25, 25] }; 
 const setTileVal = (k, v) => { ctrl('rg-tile-offset-' + k).value = v; ctrl('v-tile-offset-' + k).textContent = v; };
 // a saved Component's Tile back on the panel (its grid's `overlap`; absent = Grid, seamless off)
 export function applyTileUI(o) {
-  const lay = !o ? 'grid' : !o.x && !o.y && (o.top || 'order') === 'order' ? 'grid' : ({ rows: 'brick', cols: 'halfdrop', checker: 'alternate' })[o.by] || 'grid';
+  const lay = !o ? 'grid' : o.lay || (!o.x && !o.y && ['order', 'weave'].includes(o.top || 'order') ? 'grid' : ({ rows: 'brick', cols: 'halfdrop', checker: 'alternate' })[o.by] || 'grid');   // o.lay since Oct 26 (Weave on Grid)
   ctrl('sel-tile-layout').value = lay;
   setTileVal('x', Math.round((o && o.x || 0) * 100)); setTileVal('y', Math.round((o && o.y || 0) * 100));
   ctrl('sel-tile-top').value = (o && o.top) || 'order';
+  { const m = o && o.margin != null ? Math.round(o.margin * 1000) / 10 : 2; ctrl('rg-tile-margin').value = m; ctrl('v-tile-margin').textContent = m; }
   ctrl('chk-tile-seamless').checked = !!(o && o.wrap);
   syncTileUI();
 }
@@ -92,7 +98,10 @@ ctrl('sel-tile-layout').addEventListener('change', e => {
   ['pointerdown', 'keydown'].forEach(t => r.addEventListener(t, () => { armed = true; }));
   r.addEventListener('input', e => { ctrl('v-tile-offset-' + k).textContent = e.target.value; writeTile({ step: armed, live: true }); armed = false; });
 });
-ctrl('sel-tile-top').addEventListener('change', () => writeTile({ step: true }));
+ctrl('sel-tile-top').addEventListener('change', () => { syncTileUI(); writeTile({ step: true }); });
+{ const r = ctrl('rg-tile-margin'); let armed = false;
+  ['pointerdown', 'keydown'].forEach(t => r.addEventListener(t, () => { armed = true; }));
+  r.addEventListener('input', e => { ctrl('v-tile-margin').textContent = e.target.value; writeTile({ step: armed, live: true }); armed = false; }); }
 ctrl('chk-tile-seamless').addEventListener('change', () => writeTile({ step: true }));
 export function syncComponentGridUI() {
   syncTileUI();

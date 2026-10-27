@@ -53,6 +53,32 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const order2 = F.drawOrder(ceItems()).filter(it => !it.copy).map(it => it.oc).join('');
   check('On top · The other cells: drawn after the moved ones', /^1+0+$/.test(order2), order2);
   check('On top draws the whole cell (not layer by layer)', F.layerPasses({ layers: [{}, {}] }, ceItems()) === null, 'passes');
+  // Weave (Phase 5): every cell masked by the neighbours over it; Margin grows them; works on Grid too
+  set('sel-tile-layout', 'grid'); await w(150);
+  check('On top on Grid: Reading order and Weave only', [...q('sel-tile-top').options].filter(o => !o.hidden).map(o => o.value).join() === 'order,weave', [...q('sel-tile-top').options].filter(o => !o.hidden).map(o => o.value).join());
+  set('sel-tile-top', 'weave'); await w(200);
+  check('Weave: Margin shown, saved with the Tile', !q('tile-margin-row').hidden && eg().overlap && eg().overlap.top === 'weave' && eg().overlap.margin === 0.02, JSON.stringify(eg().overlap));
+  { const sv = editSVG(), covers = F.weaveCovers(F.drawOrder(ceItems())), n = covers.filter(c => c.length).length;
+    // a cycle: no single drawing order can do it — some cell is over a neighbour that is over another that is over it
+    const over = new Map(); covers.forEach((c, k) => c.forEach(j => { over.set(k + '>' + j, true); }));
+    check('Weave: cells masked by the neighbours over them (' + n + '), a mask and a dilate per masked cell', n > 4 && (sv.match(/<mask id="weave-/g) || []).length === n && (sv.match(/feMorphology/g) || []).length === n, n + ' / ' + (sv.match(/<mask id="weave-/g) || []).length);
+    check('…each pair decided once: never both over each other', [...over.keys()].every(k => { const [a, b] = k.split('>'); return !over.has(b + '>' + a); }), 'a pair both ways'); }
+  set('rg-tile-margin', 0); await w(200); F.applyTileUI(eg().overlap); await w(100);
+  check('Crossing gap 0 is kept (back on the panel as 0)', eg().overlap.margin === 0 && q('rg-tile-margin').value === '0', JSON.stringify([eg().overlap.margin, q('rg-tile-margin').value]));
+  set('sel-tile-layout', 'brick'); set('sel-tile-top', 'still'); await w(200);
+  // Plates (Phase 4): where an ink is covered it does not print
+  { const raster = async sv => { const vb = sv.match(/viewBox="([^"]+)"/)[1].split(' ').map(Number), W = 240, H = Math.round(W * vb[3] / vb[2]);
+      const img = await new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = j; i.src = URL.createObjectURL(new Blob([sv.replace(/<svg\b([^>]*?)\swidth="[^"]*"\sheight="[^"]*"/, '<svg$1 width="' + W + '" height="' + H + '"')], { type: 'image/svg+xml' })); });
+      const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.drawImage(img, 0, 0); return { d: x.getImageData(0, 0, W, H).data, W, H }; };
+    const inkAt = (R, fx, fy) => R.d[(Math.round(fy * R.H) * R.W + Math.round(fx * R.W)) * 4 + 3] > 128;
+    const two = ['#1d3b2a', '#c2462e'], comp = { cells: [0, 1].map(k => ({ rotation: 0, flipH: false, flipV: false, scale: 1, color: two[k] })) }, grid = { kind: 'square', cols: 2, rows: 1, cellSize: 160, gap: -80 };
+    const svg = F.withEntryInks ? F.buildComponentSVG(F.buildComponentItems(comp, grid), { ...F.getSeed(), type: 'circle' }, F.frameDims(grid)) : '';
+    const p0 = await raster(F.plateSVG(svg, two, 0, F.state.paperColor)), p1 = await raster(F.plateSVG(svg, two, 1, F.state.paperColor));
+    check('Plates: where the second circle covers the first, the first ink does not print; the second does', !inkAt(p0, 0.5, 0.5) && inkAt(p1, 0.5, 0.5) && inkAt(p0, 0.2, 0.5) && inkAt(p1, 0.8, 0.5), JSON.stringify([inkAt(p0, 0.5, 0.5), inkAt(p1, 0.5, 0.5)]));
+    const mult = svg.replace(/<g transform/g, '<g style="mix-blend-mode:multiply" transform'), m0 = await raster(F.plateSVG(mult, two, 0, F.state.paperColor));
+    const apart = { kind: 'square', cols: 2, rows: 1, cellSize: 160, gap: 0 }, plain = F.buildComponentSVG(F.buildComponentItems(comp, apart), { ...F.getSeed(), type: 'circle' }, F.frameDims(apart));
+    check('Plates where nothing covers: the plain plate (no mask)', !/<mask/.test(F.plateSVG(plain, two, 0, F.state.paperColor)) && /<mask/.test(F.plateSVG(svg, two, 0, F.state.paperColor)), 'mask');
+    check('Plates with Multiply: overprint — each ink whole', inkAt(m0, 0.5, 0.5) && inkAt(m0, 0.2, 0.5), JSON.stringify(inkAt(m0, 0.5, 0.5))); }
   // the preview
   q('btn-component-view-tile').click(); await w(300);
   const sv = q('component-edit-frame').querySelector('svg'), vb = sv.getAttribute('viewBox').split(' ').map(Number), fd = F.frameDims(eg());

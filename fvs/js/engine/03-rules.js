@@ -257,9 +257,12 @@ export const EXHAUSTIVE_CAP = 2048;   // every rule's list stops here, Exhaustiv
 // funzionare sul componente selezionato e non su tutti"): the panel writes it to the selected one, gridOf(comp) reads it.
 const TILE_BY = { brick: 'rows', halfdrop: 'cols', alternate: 'checker' };
 export function tileOverlap() {
-  const lay = pv('sel-tile-layout') || 'grid', wrap = !!pc('chk-tile-seamless');
-  if (lay === 'grid' && !wrap) return null;
-  const o = { by: TILE_BY[lay] || 'rows', x: lay === 'grid' ? 0 : val('rg-tile-offset-x') / 100, y: lay === 'grid' ? 0 : val('rg-tile-offset-y') / 100, top: lay === 'grid' ? 'order' : pv('sel-tile-top') || 'order' };
+  const lay = pv('sel-tile-layout') || 'grid', wrap = !!pc('chk-tile-seamless'), top = pv('sel-tile-top') || 'order';
+  if (lay === 'grid' && !wrap && top !== 'weave') return null;
+  // On top on Grid: Reading order or Weave (no cells move, so no moved / other group)
+  const o = { by: TILE_BY[lay] || 'rows', x: lay === 'grid' ? 0 : val('rg-tile-offset-x') / 100, y: lay === 'grid' ? 0 : val('rg-tile-offset-y') / 100, top: lay === 'grid' && top !== 'weave' ? 'order' : top };
+  if (lay !== 'grid') o.lay = lay;
+  if (o.top === 'weave') o.margin = val('rg-tile-margin') / 100;   // Weave's Crossing gap, % of a cell (0 kept too)
   if (wrap) o.wrap = true;
   return o;
 }

@@ -11,7 +11,7 @@ import {
   componentRoleActive, resolvedComponentDims
 } from './03-rules.js';
 import {
-  appearanceIsIdentity, appearanceMatrix, componentBoundaryClipContent, drawOrder, getElementAppearance,
+  appearanceIsIdentity, appearanceMatrix, componentBoundaryClipContent, drawOrder, getElementAppearance, weaveCovers,
   itemH, itemW, paintPaperPatternCanvas, paperPatternSVG, patternOf, resolveItemGeo, resolveUnderlyingComponent,
   paintPhotoCanvas, photoFrameAttr, photoFrameMatrix, photoImageTag, photoOf, photoPlan,
   stretchOpts, tileAt, withAppearance
@@ -627,7 +627,7 @@ export function buildComponentSVGBody(items, seed, size) {
     }
   } else {
     const drawn = drawOrder(items);   // Overlap: who is on top, and a Seamless repeat's copies (Oct 26, 2026)
-    const passes = layerPasses(geo, drawn);
+    const passes = layerPasses(geo, drawn), weave = drawn.length && drawn[0].ov && drawn[0].ov.top === 'weave', cells = [];
     let inks = '';
     for (const pass of (passes || [null])) for (const it of drawn) {
       if (it.empty) continue;
@@ -646,10 +646,28 @@ export function buildComponentSVGBody(items, seed, size) {
       const markup = (it.content && it.content.appearance) ? withAppearance(it.content.appearance, paint) : paint();
       const cell = `<g transform="translate(${(halfX + it.cx + (it.dx || 0)).toFixed(2)},${(halfY + it.cy + (it.dy || 0)).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
         + markup + `</g>`;
-      if (state.componentClip) { const cid = 'cellcut-' + nextDrawId(); inks += `<clipPath id="${cid}">${cellClipShape(it, halfX, halfY)}</clipPath><g clip-path="url(#${cid})">${cell}</g>`; }
-      else inks += cell;
+      const one = state.componentClip ? (() => { const cid = 'cellcut-' + nextDrawId(); return `<clipPath id="${cid}">${cellClipShape(it, halfX, halfY)}</clipPath><g clip-path="url(#${cid})">${cell}</g>`; })() : cell;
+      if (weave) cells.push(one); else inks += one;
+    }
+    // Weave (Oct 26, 2026): each cell masked by the silhouettes of the neighbours over it — the drawing order no longer
+    // decides, so the over / under can go round (A over B over C over A), which painting in order cannot do
+    if (weave) {
+      // a neighbour's silhouette: its drawing, ids dropped (they stay the original's), turned black by its alpha (a filter —
+      // a pattern, a photo or any colour covers by its shape), grown by the Crossing gap
+      const covers = weaveCovers(drawn), sil = k => cells[k].replace(/\sid="[^"]*"/g, '');
+      cells.forEach((one, k) => {
+        if (!covers[k].length) { inks += one; return; }
+        const mid = 'weave-' + nextDrawId(), ov = drawn[k].ov, r = (ov.margin || 0) * drawn[k].cellSize;
+        // Margin: the Paper left round the cell on top (the neighbours' silhouettes grown by it, in the Component's units)
+        const grow = `<filter id="${mid}f" filterUnits="userSpaceOnUse" x="0" y="0" width="${dims.w}" height="${dims.h}"><feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0"/>${r > 0 ? `<feMorphology operator="dilate" radius="${r.toFixed(2)}"/>` : ''}</filter>`;
+        inks += `<mask id="${mid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${dims.w}" height="${dims.h}"><rect width="${dims.w}" height="${dims.h}" fill="#ffffff"/>${grow}<g filter="url(#${mid}f)">${covers[k].map(sil).join('')}</g></mask><g mask="url(#${mid})">${one}</g>`;
+      });
     }
     // a Seamless repeat's copies reach past the frame: cut there, so a nested copy (Symbol, tile view) stays one period
+    // cells that reach into each other (Tile, a cell's Move / order, a Gap below 0): the plates knock out what is covered
+    // (plateSVG reads the mark); a drawing where nothing covers keeps the plain plate
+    const reachOut = drawn.some(it => it.ov) || (items.length > 1 && !items[0].poly && items.some((it, k) => k && Math.abs(it.cx - items[0].cx) < itemW(it) * 0.999 && Math.abs(it.cy - items[0].cy) < itemH(it) * 0.999));
+    if (reachOut) inks = `<g data-fvs-overlap="">${inks}</g>`;
     if (drawn.length > items.length) { const fid = 'wrapcut-' + nextDrawId(); body += `<clipPath id="${fid}"><rect width="${dims.w}" height="${dims.h}"/></clipPath><g clip-path="url(#${fid})">${inks}</g>`; }
     else body += inks;
   }

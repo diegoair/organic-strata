@@ -61,14 +61,27 @@ export function svgBaseDims(svg) { const m = svg.match(/viewBox="0 0 ([\d.]+) ([
 export function svgInnerOf(svg) { return svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, ''); }
 // Plates: one black-on-transparent SVG per palette colour. Only the
 // shapes painted in ink i survive; every other palette colour → none.
+// Covered ink is cut out (Oct 26, 2026 — plan Phase 4, Tile): where a cell, a Paper or another ink is drawn over ink i, it
+// does not print in plate i — the screen's Normal order. The drawing becomes a mask (ink i white, every other paint —
+// the other inks, a nested Paper — black, in the drawing's own order) over one black rect. Multiply (overprint) and a
+// raster photo keep the plain plate: each ink whole, the other inks gone. A <mask> / <clipPath> already in the drawing
+// is left as it is (its black and white are its own).
 export function plateSVG(svg, colors, i, paper) {
   const cs = colors.map(hexKey);
   let out = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paper}"/>`, 'i'), '');
-  out = out.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => {
-    const j = cs.indexOf(hexKey(c));
-    return j === -1 ? m : `${attr}="${j === i ? '#000000' : 'none'}"`;
-  });
-  return out;
+  if (!/data-fvs-overlap/.test(out) || /mix-blend-mode:\s*multiply|<image\b/.test(out)) {   // nothing covers, or overprint: the plain plate
+    return out.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => {
+      const j = cs.indexOf(hexKey(c));
+      return j === -1 ? m : `${attr}="${j === i ? '#000000' : 'none'}"`;
+    });
+  }
+  const m = out.match(/^(<svg\b[^>]*>)([\s\S]*)(<\/svg>\s*)$/), vb = out.match(/viewBox="([-\d.]+)[ ,]+([-\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)"/);
+  if (!m || !vb) return out;
+  const paint = seg => seg.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (x, attr, c) => `${attr}="${cs.indexOf(hexKey(c)) === i ? '#ffffff' : '#000000'}"`);
+  const inner = m[2].split(/(<(mask|clipPath)\b[\s\S]*?<\/\2>)/).map((seg, k) => (k % 3 === 0 ? paint(seg) : k % 3 === 1 ? seg : '')).join('');
+  const [x, y, w, h] = vb.slice(1).map(Number), id = 'plate-' + i;
+  return `${m[1]}<defs><mask id="${id}" maskUnits="userSpaceOnUse" x="${x}" y="${y}" width="${w}" height="${h}"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#000000"/>${inner}</mask></defs>`
+    + `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#000000" mask="url(#${id})"/>${m[3]}`;
 }
 // What a click on a tile does depends on the tab: the aria-label says which.
 export function railTileVerb(kind) {

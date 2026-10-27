@@ -49,7 +49,11 @@ export const overlapClass = (by, c, r) => by === 'rows' ? r % 2 : by === 'cols' 
 function withOverlap(items, grid, cells) {
   const o = grid.overlap, own = cells && cells.some(c => c && (c.moveX || c.moveY || c.z));
   if ((!o && !own) || grid.kind !== 'square') return items;
-  const cols = grid.cols, d = Organica.shapes.frameDims(grid), ov = { top: (o && o.top) || 'order', wrap: !!(o && o.wrap), w: d.w, h: d.h };
+  const cols = grid.cols, rows = items.length / cols, d = Organica.shapes.frameDims(grid), ov = { top: (o && o.top) || 'order', wrap: !!(o && o.wrap), w: d.w, h: d.h, margin: (o && o.margin) || 0 };
+  // Weave: the lattice the cells sit on — the first cell's centre and the pitch — so a copy one period over still knows its
+  // column / row (weaveAbove reads it)
+  ov.x0 = items[0].cx; ov.y0 = items[0].cy;
+  ov.px = cols > 1 ? items[1].cx - items[0].cx : d.w; ov.py = rows > 1 ? items[cols].cy - items[0].cy : d.h;
   return items.map((it, i) => {
     const k = o ? overlapClass(o.by, i % cols, Math.floor(i / cols)) : 0, c = (cells && cells[i]) || {}, out = { ...it, oc: k, ov };
     const mx = (k && o ? o.x || 0 : 0) + (c.moveX || 0), my = (k && o ? o.y || 0 : 0) + (c.moveY || 0);
@@ -58,11 +62,40 @@ function withOverlap(items, grid, cells) {
     return out;
   });
 }
+// Weave (Oct 26, 2026 — plan Phase 5, tested on explorations/tropism first): every pair of neighbours has one on top,
+// alternating across the grid, so each cell passes over one neighbour and under the next — the cell is cut by the
+// silhouettes of the neighbours above it (a mask), never changed. Across a row the left one is on top on even
+// (column + row), down a column the upper one on odd, on a diagonal by the column. The cells' place on the lattice
+// (a copy one period over counts as the column beyond the edge).
+export const weaveSpot = it => ({ c: Math.round((it.cx - it.ov.x0) / it.ov.px), r: Math.round((it.cy - it.ov.y0) / it.ov.py) });
+const odd2 = v => ((v % 2) + 2) % 2;
+export function weaveAbove(a, b) {   // is b over a?
+  const A = weaveSpot(a), B = weaveSpot(b);
+  if (B.r === A.r) return (odd2(Math.min(A.c, B.c) + A.r) === 0) === (B.c < A.c);
+  if (B.c === A.c) return (odd2(A.c + Math.min(A.r, B.r)) === 1) === (B.r < A.r);
+  return (odd2(Math.min(A.c, B.c)) === 0) === (B.c < A.c);
+}
+// …and the neighbours above each drawn cell: next on the lattice (one column / row away) and close enough to touch
+export function weaveCovers(drawn) {
+  const reach = it => 0.75 * Math.max(itemW(it), itemH(it)) * Math.max(1, it.scale || 1) * Math.max(1, it.kx || 1, it.ky || 1);
+  const spots = drawn.map(it => (it.ov ? weaveSpot(it) : null));
+  return drawn.map((a, i) => {
+    if (!a.ov || a.ov.top !== 'weave' || a.empty) return [];
+    const ax = a.cx + (a.dx || 0), ay = a.cy + (a.dy || 0), out = [];
+    drawn.forEach((b, j) => {
+      if (j === i || b.empty || !spots[j]) return;
+      if (Math.abs(spots[j].c - spots[i].c) > 1 || Math.abs(spots[j].r - spots[i].r) > 1 || (spots[j].c === spots[i].c && spots[j].r === spots[i].r)) return;
+      if (Math.hypot(b.cx + (b.dx || 0) - ax, b.cy + (b.dy || 0) - ay) > reach(a) + reach(b)) return;
+      if (weaveAbove(a, b)) out.push(j);
+    });
+    return out;
+  });
+}
 // What is drawn, in order: the moved class over (or under) the others, then — Seamless repeat — the copy of each cell that
 // reaches past an edge, one period over (what leaves the right comes back on the left), the drawing cut at the frame.
 // which of two cells is drawn later (> 0): its own order (z), then Tile › On top — Component Edit's hit boxes sort the same way
 export function drawRank(a, b) {
-  const top = (a.ov && a.ov.top) || 'order', rank = it => top === 'order' ? 0 : top === 'moved' ? (it.oc || 0) : 1 - (it.oc || 0);
+  const top = (a.ov && a.ov.top) || 'order', rank = it => top === 'order' || top === 'weave' ? 0 : top === 'moved' ? (it.oc || 0) : 1 - (it.oc || 0);   // Weave: no order — its masks decide
   return (a.z || 0) - (b.z || 0) || rank(a) - rank(b);
 }
 export function drawOrder(items) {

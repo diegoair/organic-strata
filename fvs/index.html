@@ -1461,12 +1461,18 @@
         <input type="range" id="rg-tile-offset-y" min="-50" max="50" step="1" value="0" aria-label="Offset Y">
         <span class="ctrl-val" id="v-tile-offset-y">0</span>
       </div>
-      <div class="ctrl-row" id="tile-top-row" hidden><div class="ctrl-label" title="Which cell is drawn on top where cells overlap: the whole cell, every layer. Reading order: each cell covers the one before it. The moved cells: they cover the others. The other cells: the moved ones go under them. A cell brought forward or sent backward in Edit keeps its own order.">On top</div>
+      <div class="ctrl-row" id="tile-top-row"><div class="ctrl-label" title="Which cell is drawn on top where cells overlap: the whole cell, every layer. Reading order: each cell covers the one before it. The moved cells: they cover the others. The other cells: the moved ones go under them. Weave: every pair of neighbours has one on top, alternating, so each cell passes over one and under the next — in the Component; in a Symbol it draws in reading order. A cell brought forward or sent backward in Edit keeps its own order.">On top</div>
         <select class="panel-select" id="sel-tile-top" aria-label="On top">
           <option value="order" selected>Reading order</option>
           <option value="moved">The moved cells</option>
           <option value="still">The other cells</option>
+          <option value="weave">Weave</option>
         </select>
+      </div>
+      <div class="ctrl-row" id="tile-margin-row" hidden>
+        <div class="ctrl-label" title="The Paper left round the cell on top, % of a cell">Crossing gap</div>
+        <input type="range" id="rg-tile-margin" min="0" max="10" step="0.5" value="2" aria-label="Crossing gap">
+        <span class="ctrl-val" id="v-tile-margin">2</span>
       </div>
       <label class="check-row org-switch" id="tile-seamless-row"><input type="checkbox" id="chk-tile-seamless"><span>Tile seamlessly</span></label>
     </div>
