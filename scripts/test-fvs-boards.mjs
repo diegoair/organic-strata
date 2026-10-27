@@ -488,6 +488,15 @@ async function generatedPerElement(mode) {
   C('a click in another area edits its Element and selects that Component', sw.active === target.el && sw.sel === sw.third && sw.explicit, JSON.stringify(sw));
   { const want = await panelOf(target.el), now = await ev(() => document.getElementById('sel-rule').value), comp = await ev(() => { const c = __t.F.state.components.find(x => x.id === __t.F.state.selectedId); return c && c.ruleSource; });
     C('…and the panel shows that Element\'s own Rule, not the one Generate just used (' + now + ')', now !== 'random' || want === 'random', JSON.stringify({ want, now, comp })); }
+  // a panel kept over the shared one (Stack 11:34:02, Oct 27, 2026: Random kept, Pinwheel Components): the group comes back
+  // with the Rule its Components were made with — its last Generate's signature wins
+  { const res = await ev(async () => { const F = __t.F, H = (await import('/fvs/js/hooks.js')).hooks, me = F.state.activeElement, other = F.state.elements.find(e => e.id !== me && e.gallery && e.gallery.gsig);
+      if (!other) return { skip: true };
+      const made = (String(other.gallery.gsig).match(/sel-rule=([^|]+)/) || [])[1]; other.gallery.panel = { ...(other.gallery.panel || {}), 'sel-rule': made === 'random' ? 'mirror' : 'random' };
+      H.boardActivateElement(other.id); await new Promise(r => setTimeout(r, 500));
+      const now = document.getElementById('sel-rule').value, stale = document.getElementById('btn-generate').classList.contains('is-stale');
+      H.boardActivateElement(me); await new Promise(r => setTimeout(r, 300)); return { made, now, stale }; });
+    C('a group comes back with the Rule its Components were made with, not a panel kept over it', res.skip || (res.now === res.made && !res.stale), JSON.stringify(res)); }
   // Clear board: every area; ⌘Z brings them all back
   await hold(await ev(() => __t.box('#btn-board-clear-component')));
   const cl = await areas();

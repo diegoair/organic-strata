@@ -883,6 +883,14 @@ export function genPanelValues() {
   document.querySelectorAll(GEN_PANEL_SEL).forEach(el => { if (el.id && el.type !== 'file') out[el.id] = el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value; });
   return out;
 }
+// …read back from a Generate signature (generateInputsSig: the cell shape, then id=value, joined by |) — the panel exactly
+// as it was when that Element's Components were made
+export function genPanelFromSig(sig) {
+  if (!sig) return null;
+  const out = {};
+  String(sig).split('|').slice(1).forEach(kv => { const i = kv.indexOf('='); if (i > 0) { const v = kv.slice(i + 1); out[kv.slice(0, i)] = v === 'true' ? true : v === 'false' ? false : v; } });
+  return Object.keys(out).length ? out : null;
+}
 export function applyGenPanel(vals) {
   if (!vals) return;
   for (const [id, v] of Object.entries(vals)) {
