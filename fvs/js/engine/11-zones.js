@@ -9,13 +9,13 @@ import {
   state
 } from './00-core.js';
 import {
-  mulberry32
+  canonicalState, mulberry32
 } from './03-rules.js';
 import {
-  polyOrient, snapPose, withPlacementDefaults
+  getSymbolGrid, polyOrient, snapPose, withPlacementDefaults
 } from './08-symbol-grid.js';
 import {
-  SYMBOL_ARRANGE, symbolCellContext
+  SYMBOL_ARRANGE, candFromCells, scorable, scoreSymbolCandidate, suggestEnv, suggestSymbols, symbolCellContext
 } from './10-suggest.js';
 import {
   SYMBOL_RULES, cellColRow, symbolPastePlan
@@ -322,4 +322,87 @@ export function zoneLines(ctxs, geo) {
     return [...m.values()].sort((a, b) => a.k - b.k).map(e => ({ k: e.k, at: e.sum / e.n, n: e.n }));
   };
   return { cols: by('col', 'cx'), rows: by('row', 'cy') };
+}
+
+// ── Suggest with Zones (Phase 2) ─────────────────────────────
+// Diego, Oct 27, 2026: "le variations al momento sono troppo casuali … seguendo le più complesse regole di geometria
+// gli algoritmi mi suggerissero creazioni che da solo non riuscirei a vedere". A zone that Does nothing yet is *open*:
+// Suggest proposes, for each open zone, what it could do — a content arranged by a rule, a pose rule, and every
+// generator in ZONE_FOLLOW (symmetry, continuity, field, rhythm, as they arrive) — on top of the usual search over the
+// cells no zone holds. Every candidate is the zones evaluator applied to a base (one of suggestSymbols' results), scored
+// as Suggest scores (continuity, balance, surprise, colour) + a structure term, and twelve are picked by MMR so they
+// differ from each other: λ·score − (1−λ)·likeness to the ones already picked, λ from Surprise.
+// opts: { open: [{ zone index, idxs }], surprise 0..1, seed, pool, limit } → [{ cells, label, score, zoneDos }]
+const SUG_RULES = [   // the Symbol rules a zone may take, with a few settings each
+  ['rows', [{ step: 90, mode: 'alternate' }, { step: 180, mode: 'alternate' }, { step: 90, mode: 'ramp' }]],
+  ['columns', [{ step: 90, mode: 'alternate' }, { step: 180, mode: 'alternate' }, { step: 90, mode: 'ramp' }]],
+  ['checkerboard', [{ rotA: 0, rotB: 90, swap: false, flip: false }, { rotA: 0, rotB: 180, swap: false, flip: false }, { rotA: 90, rotB: 270, swap: false, flip: false }, { rotA: 0, rotB: 0, swap: false, flip: true }]],
+  ['oscillator', [{ angle: 90, shift: 1, period: 2, phase: 0 }, { angle: 90, shift: 1, period: 3, phase: 1 }, { angle: 180, shift: 0.5, period: 4, phase: 0 }]],
+  ['radial', [{ snap: true, chir: 1 }, { snap: true, chir: -1 }]],
+  ['wave', [{ amp: 90, freq: 1, phase: 0, snap: true }, { amp: 180, freq: 0.5, phase: 90, snap: true }]],
+];
+const RULE_LABEL = { rows: 'Rows', columns: 'Columns', checkerboard: 'Checkerboard', oscillator: 'Rhythm', radial: 'Radial', wave: 'Wave', random: 'Random' };
+// What an open zone could do: [{ dos: [do, …], label }] — a content (or the base's), then a pose (or the base's turns).
+export function zoneOptions(grid, idxs, pal, rng, ctxs) {
+  const pool = pal.map(p => (p.tpl ? { tpl: contentOfCell(p.tpl) } : { kind: 'component', name: p.name }));
+  const contents = [{ d: null, label: '' }];
+  Object.keys(SYMBOL_ARRANGE).forEach(id => {
+    if (id === 'orientation' && !ctxs.some(c => c.orient)) return;
+    if (id === 'random') return;
+    contents.push({ d: { arrange: { rule: id, pool, seed: 1 + Math.floor(rng() * 99999), fit: 'contain' } }, label: SYMBOL_ARRANGE[id].label });
+  });
+  pal.forEach((p, k) => contents.push({ d: { content: pool[k], fit: 'contain' }, label: 'One content' }));
+  const poses = [{ d: null, label: '' }];
+  SUG_RULES.forEach(([name, ps]) => ps.forEach(params => poses.push({ d: { symbolRule: { name, params, seed: 1 + Math.floor(rng() * 99999), vary: { rotation: true, flip: true, scale: false } } }, label: RULE_LABEL[name] })));
+  const gens = [];
+  Object.entries(ZONE_FOLLOW).forEach(([id, G]) => {
+    if (G.applies && !G.applies(grid, idxs, ctxs)) return;
+    const space = G.space ? G.space(grid, idxs, ctxs, rng) : [{}];
+    space.forEach(params => gens.push({ d: { follow: { id, params, seed: 1 + Math.floor(rng() * 99999) } }, label: G.caption ? G.caption(params) : G.label }));
+  });
+  const out = [];
+  contents.forEach(c => poses.forEach(p => { if (c.d || p.d) out.push({ dos: [c.d, p.d].filter(Boolean), label: [c.label, p.label].filter(Boolean).join(' + ') }); }));
+  gens.forEach(g => contents.forEach(c => out.push({ dos: [c.d, g.d].filter(Boolean), label: [c.label, g.label].filter(Boolean).join(' + ') })));
+  return out;
+}
+// Order: how few distinct (content, pose) a candidate uses — 1 = one repeated cell, 0 = every cell different.
+function structureOf(cand) {
+  const k = new Set(cand.map(c => c.name + canonicalState({ rotation: c.r, flipH: c.fh, flipV: false, scale: 1 })));
+  return cand.length > 1 ? 1 - (k.size - 1) / (cand.length - 1) : 1;
+}
+const likeness = (a, b) => { let same = 0; for (let i = 0; i < a.length; i++) if (a[i].name === b[i].name && a[i].r === b[i].r && a[i].fh === b[i].fh) same++; return same / Math.max(1, a.length); };
+export function suggestZoned(opts = {}) {
+  const env = suggestEnv(opts); if (!env) return [];
+  const grid = getSymbolGrid(), ctxs = zoneContexts(grid), s = opts.surprise != null ? opts.surprise : 0.3;
+  const seed = opts.seed != null ? opts.seed : 1, rng = mulberry32((seed * 7919 + 13) >>> 0);
+  const bases = suggestSymbols({ ...opts, limit: opts.open && opts.open.length ? 6 : 24 });
+  const scoreOf = cells => {
+    const cand = scorable(candFromCells(cells), env.anByName), sc = scoreSymbolCandidate(env.G, cand, env.pal, env.W, env.fit, env.anByName, env.T);
+    const st = structureOf(cand);
+    return { cand, score: { ...sc, structure: st, total: 0.75 * sc.total + 0.25 * ((1 - s) * st + s * (1 - st)) } };
+  };
+  const pool = [];
+  bases.forEach(b => pool.push({ cells: b.cells, label: b.label, zoneDos: null, ...scoreOf(b.cells) }));
+  const open = (opts.open || []).filter(o => o.idxs.length);
+  if (open.length) {
+    const opt = open.map(o => zoneOptions(grid, o.idxs, env.pal, rng, ctxs));
+    const N = Math.min(400, 60 * bases.length);
+    for (let t = 0; t < N; t++) {
+      const b = bases[t % bases.length]; if (!b) break;
+      const pick = opt.map(list => list[Math.floor(rng() * list.length)]);
+      const synth = [];
+      pick.forEach((p, k) => p.dos.forEach(d => synth.push({ when: { index: open[k].idxs }, do: d })));
+      const cells = applyZones(b.cells, grid, synth, { ctxs }).cells;
+      pool.push({ cells, label: pick.map((p, k) => 'Zone ' + (open[k].zone + 1) + ': ' + p.label).join(' · '), zoneDos: pick.map((p, k) => ({ zone: open[k].zone, dos: p.dos })), ...scoreOf(cells) });
+    }
+  }
+  // dedupe, then MMR
+  const seen = new Set(), uniq = pool.filter(o => { const k = o.cand.map(c => c.name + ':' + c.r + (c.fh ? 'h' : '')).join('|'); if (seen.has(k)) return false; seen.add(k); return true; });
+  const lam = 0.85 - 0.5 * s, picked = [], limit = opts.limit || 12;
+  while (picked.length < limit && uniq.length) {
+    let bi = 0, bv = -Infinity;
+    uniq.forEach((o, k) => { const sim = picked.length ? Math.max(...picked.map(p => likeness(o.cand, p.cand))) : 0; const v = lam * o.score.total - (1 - lam) * sim; if (v > bv) { bv = v; bi = k; } });
+    picked.push(uniq.splice(bi, 1)[0]);
+  }
+  return picked.map(o => ({ cells: o.cells, label: o.label, score: o.score, zoneDos: o.zoneDos }));
 }

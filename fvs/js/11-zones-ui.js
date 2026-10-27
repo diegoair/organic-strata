@@ -334,3 +334,14 @@ document.addEventListener('click', e => {
   state.zonePick = null;
   renderSymbolCanvasOnly(); renderCellPropertiesPanel(); renderZonesPanel();
 }, true);
+
+// Suggest › Surprise (Oct 27, 2026 — one slider for the four weights): low = continuity and order, high = surprise.
+// It sets the scoring weights suggestWeights reads (their controls stay, hidden) and the MMR's λ (suggestZoned).
+function syncSurprise() {
+  const v = +ctrl('rg-sug-surprise').value, s = v / 100;
+  ctrl('v-sug-surprise').textContent = v;
+  const put = (id, x) => { ctrl(id).value = String(Math.round(x / 5) * 5); ctrl(id.replace(/^rg-/, 'v-')).textContent = ctrl(id).value; };
+  put('rg-sug-cont', 90 - 60 * s); put('rg-sug-sur', 10 + 80 * s); put('rg-sug-bal', 30);
+}
+ctrl('rg-sug-surprise').addEventListener('input', syncSurprise);
+syncSurprise();

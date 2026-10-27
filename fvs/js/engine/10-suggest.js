@@ -613,6 +613,24 @@ export function suggestGridContext() {
   return { cells, pairs, nbrs, order, bounds, orient: raw.map(c => (c.points ? polyOrient(c.points) : null)) };
 }
 export function suggestWeights() { return { cont: +pv('rg-sug-cont') / 100, bal: +pv('rg-sug-bal') / 100, sur: +pv('rg-sug-sur') / 100, col: +pv('rg-sug-col') / 100 }; }
+// What a search needs, made once: the grid's adjacencies, the pool and each content's analysed mask, the colour table,
+// the weights. Shared by suggestSymbols and the Zones' search (engine/11-zones suggestZoned). An empty cell scores as
+// paper ('__empty'). Pure apart from reading the grid / palette state.
+export const EMPTY_CHOICE = '__empty';
+export function suggestEnv(opts = {}) {
+  const G = suggestGridContext();
+  const pal = opts.pool || poolEntries();
+  if (!G || !pal.length) return null;
+  const anByName = {};
+  pal.forEach(p => { anByName[p.name] = p.element ? analyseElementCell(p) : analyseComponent(p.name); });
+  const R = 64;
+  anByName[EMPTY_CHOICE] = { cov: new Uint8Array(R * R), ink: new Uint8Array(R * R), pal: [null], share: [1], GW: R, GH: R, density: 0, square: true, natural: 100 };
+  const T = suggestColourTable(anByName);
+  return { G, pal, anByName, T, W: opts.weights || suggestWeights(), fit: opts.fit || pv('sel-sym-arrange-fit') || 'fill',
+    tpls: opts.pool ? Object.fromEntries(pal.map(p => [p.name, p.tpl])) : null };
+}
+// A candidate any cell of which may be empty or hold a content outside the pool: those score as paper.
+export const scorable = (cand, anByName) => cand.map(ch => (ch && anByName[ch.name] ? ch : { name: EMPTY_CHOICE, r: 0, fh: false }));
 // The candidate list (pure apart from reading the grid/palette state).
 export function suggestSymbols(opts = {}) {
   const G = suggestGridContext();
