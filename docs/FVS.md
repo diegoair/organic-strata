@@ -1274,6 +1274,16 @@ onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeL
   it; follows the cell's turn and flips). Equal cells draw exactly as before. SVG and PNG agree
   (0 differing pixels measured). Suggest and polygon / Loom
   grids stay one cell per Component for now. Symbols saved before this are unchanged.
+  **Cells — One cell · In proportion · Its grid size** (Diego, Oct 27, 2026 — *"posso scegliere se quel component deve
+  occupare una sola cella o tutte le celle che lo compongono … l'inizio è sempre top left"*): a row of the cell panel,
+  for a Component cell on a regular grid (hidden otherwise). *In proportion* is the block above (`span: true`, every
+  placement's default — unchanged); *Its grid size* covers every cell the Component is made of (`span: 'grid'`, 2×4 →
+  2×4, turned 90° / 270° swapped), from its cell as the top-left; *One cell* = `span: false`. Where the full block does
+  not fit — the grid's edge, a cell already covered, a locked cell — it is **cut**: it covers the cells that are there
+  (along the first row to the obstacle, then down while that whole row is free — `spanBlockCropped`), the Component keeps
+  its full size (placed in the whole virtual block, extended by the grid's own step) and is drawn only inside those cells
+  (a clip even with *Clip to cell* off; `region.cut`); the panel says so. A new drop on the cell goes back to *In
+  proportion*. Arrange / Suggest keep *In proportion*. Test: `scripts/test-fvs-symbol-cells.sh`.
 - **A Symbol from Elements only** (Oct 4, 2026). With no saved Component, Fill the grid builds the
   grid anyway and fills it from the **saved Elements** (the latest 8, weight ×1, `elementPool()`),
   each placed as from the library rail. Arrange rules work as with Components; Suggest reads
@@ -1657,7 +1667,21 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
 
 **Symbol board**
 - **A placed Component drawn as on its own step** (debug Oct 12, 2026): its saved *Clip to cell* cuts its cells (`nestedClip`), **each Component is always drawn layer by layer inside itself** (also with Blend Normal = interleave, the usual case — Oct 13: the first fix skipped it there), and with no Overlap look (Blend *under*) the Symbol draws every Component's layers **layer by layer across all cells** — `layerPasses` per Component; pass 0 in the cell loop, passes 1… after it (SVG `upper[]`, canvas `laterCanvas`). With an Overlap look (interleave / Multiply) the cell-by-cell order stays. SVG and PNG agree (the same ~3 % of anti-aliased edge pixels differ as before).
-- **The working Symbol is kept across reloads** (Diego, Oct 11, 2026 — it lived in memory only): its grid and Canvas, cells, pool, Arrange and rule settings, clip and overlap, in the user's account (`Organica.store('fvs-symbol-work')`, row `current`; signed out = this browser's cache), saved 600 ms after a redraw and on `pagehide`, restored at boot (the account's copy after `pull()` while the page's Symbol is untouched). **Not** its colours, Paper or look — those are the edited Element's (O-67 c); a saved Symbol in the library still carries its own. The unsaved-work guard (`Organica.dirty 'fvs-symbol'`) is no longer set: a reload loses nothing.
+- **The working Symbol is kept across reloads** (Diego, Oct 11, 2026 — it lived in memory only; one row per Symbol since Oct 27, below): its grid and Canvas, cells, pool, Arrange and rule settings, clip and overlap, in the user's account (`Organica.store('fvs-symbol-work')`, row `current` until Oct 27; signed out = this browser's cache), saved 600 ms after a redraw and on `pagehide`, restored at boot (the account's copy after `pull()` while the page's Symbol is untouched). **Not** its colours, Paper or look — those are the edited Element's (O-67 c); a saved Symbol in the library still carries its own. The unsaved-work guard (`Organica.dirty 'fvs-symbol'`) is no longer set: a reload loses nothing.
+- **Several Symbols** (Diego, Oct 27, 2026 — *"creazione di più board symbol come abbiamo in element per gli element"*):
+  the board holds a column of Symbols, as the Element board holds Elements. The one being edited is the live
+  `#board-symbol` (sheet id `sy-<id>`), the others are static sheets drawn from their snapshot
+  (`.fvs-board-symbol--static`, `symbolEntryThumbSVG` with their own Palette); a click on one edits it. Each keeps its
+  own grid and Canvas, cells, pool, Arrange and rule settings, clip, overlap and Palette (`work` = the row above, from
+  `buildSymbolLibraryEntry`). **New symbol** (`#board-new-symbol`, under the lowest) adds one with the edited Symbol's
+  grid, every cell empty, on the edited Element's Palette. Names *Symbol 1, 2…*, renamed by double-click / F2 (` · editing`
+  on the edited one when there are several). **Delete** on a selected sheet (selected by its name; selected cells win:
+  Delete empties them) removes it — the edited one too, editing moves to the nearest; the last one stays; **Undo**
+  (`#btn-board-undo-symbol`, ⌘Z) brings it back. Variations sits beside the edited Symbol (its Suggest: cleared on a
+  switch). Store: one row per Symbol `{name, custom, work, n}` + `board: {active}` in `fvs-symbol-work`; the row
+  `current` is still written (the edited one's work — what an older page reads) and, when it is the only row, read
+  forward as *Symbol 1*. Figure and the rail's *Save Symbol* read the edited Symbol (the live `state.symbol*`), as
+  before. Test: `scripts/test-fvs-symbol-boards.sh`.
 - The Symbol sheet (`#symbol-frame` at 900 board units) with Suggest's variations as sheets beside it
   (§6a, *Variations*); a click adopts one. Selection, marquee, rail drop and track drag work inside the zoomed
   board; the % labels are placed again on every zoom (`renderTrackLabelsOverlay`, scaled by 1 / zoom).

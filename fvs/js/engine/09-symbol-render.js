@@ -35,11 +35,14 @@ provide({
 });
 export const _gcd = (a, b) => b ? _gcd(b, a % b) : a;
 // The block a Component asks for, in Symbol cells, at this turn (90°/270° swap it).
-export function componentSpanOf(name, rotation) {
+// mode (a cell's Cells, Oct 27, 2026): 'fit' (default) = the proportion reduced; 'all' = every cell the Component is made of
+// (2×4 → 2×4); 'one' = its own cell.
+export function componentSpanOf(name, rotation, mode) {
+  if (mode === 'one') return [1, 1];
   const entry = name && LIBRARY.peek()[name];
   const g = entry && entry.grid;
   if (!g || g.kind === 'loom' || !g.cols) return [1, 1];
-  const c = g.cols, r = g.rows || g.cols, k = _gcd(c, r);
+  const c = g.cols, r = g.rows || g.cols, k = mode === 'all' ? 1 : _gcd(c, r);
   const q = (((rotation || 0) % 360) + 360) % 360;
   return (q === 90 || q === 270) ? [r / k, c / k] : [c / k, r / k];
 }
@@ -53,6 +56,22 @@ export function spanBlock(lat, i, span, taken, cells) {
   }
   return out;
 }
+// Cells › Its grid size: the block as far as it goes — along the first row to the grid's edge or the first cell already
+// covered / locked, then down while that whole row is free. The Component keeps its full size and is cut at the block's
+// edge (Diego, Oct 27, 2026: "ricopre lo spazio attorno … l'inizio è sempre top left"). Always at least the cell itself.
+export function spanBlockCropped(lat, i, span, taken, cells) {
+  const c0 = lat.col[i], r0 = lat.row[i];
+  const free = k => k >= 0 && !(taken && taken[k] != null && taken[k] !== i) && !(k !== i && cells && cells[k] && cells[k].locked);
+  let w = 1, h = 1;
+  while (w < span[0] && free(lat.at(c0 + w, r0))) w++;
+  while (h < span[1]) { let ok = true; for (let c = c0; c < c0 + w; c++) if (!free(lat.at(c, r0 + h))) { ok = false; break; } if (!ok) break; h++; }
+  const block = [];
+  for (let r = r0; r < r0 + h; r++) for (let c = c0; c < c0 + w; c++) block.push(lat.at(c, r));
+  return { block, w, h };
+}
+// A Component cell's Cells (Oct 27, 2026), on its `span` key: true = In proportion (every placement's default since Oct 4),
+// 'grid' = Its grid size, false / absent = One cell.
+export const cellSpanMode = cell => (cell.span === 'grid' ? 'all' : cell.span ? 'fit' : 'one');
 // A spanning Component whose block cells differ in size (a border dragged by hand): each of its modules
 // goes in its own cell instead of the whole Component being spread evenly over the block. The frame is
 // cut in as many bands as the block has cells along each axis; a band takes its cell's share of the
@@ -295,21 +314,36 @@ export function symbolSpanLayout(grid, cells) {
   if (!lat) return out;
   const taken = {}, centers = resolveGridCells(grid);
   cells.forEach((cell, i) => {
-    if (!cell || taken[i] != null || cell.source !== 'component' || !cell.span) return;
-    const sp = componentSpanOf(cell.componentName, cell.rotation);
+    if (!cell || taken[i] != null || cell.source !== 'component') return;
+    const mode = cellSpanMode(cell);
+    if (mode === 'one') return;
+    const sp = componentSpanOf(cell.componentName, cell.rotation, mode);
     if (sp[0] * sp[1] <= 1) return;
-    const block = spanBlock(lat, i, sp, taken, cells);
+    // 'all' takes what is there (cut at the edge); 'fit' the whole block or nothing, as before
+    const cut = mode === 'all' ? spanBlockCropped(lat, i, sp, taken, cells) : null;
+    const block = cut ? cut.block : spanBlock(lat, i, sp, taken, cells);
     if (!block) return;
+    const w = cut ? cut.w : sp[0], h = cut ? cut.h : sp[1];
     block.forEach(k => { taken[k] = i; if (k !== i) out.covered[k] = i; });
     const a = centers[block[0]], b = centers[block[block.length - 1]];
-    const x0 = a.cx - a.cellW / 2, y0 = a.cy - a.cellH / 2, x1 = b.cx + b.cellW / 2, y1 = b.cy + b.cellH / 2;
     const ra = grid.cells[block[0]], rb = grid.cells[block[block.length - 1]];
-    // the block's own column widths / row heights, in order — its cells can differ (a border dragged by hand)
+    // the block's own column widths / row heights, in order — its cells can differ (a border dragged by hand);
+    // a cut block's missing columns / rows take the size of its last one
     const colW = [], rowH = [];
-    for (let k = 0; k < sp[0]; k++) colW.push(centers[block[k]].cellW);
-    for (let k = 0; k < sp[1]; k++) rowH.push(centers[block[k * sp[0]]].cellH);
+    for (let k = 0; k < sp[0]; k++) colW.push(centers[block[Math.min(k, w - 1)]].cellW);
+    for (let k = 0; k < sp[1]; k++) rowH.push(centers[block[Math.min(k, h - 1) * w]].cellH);
+    const x0 = a.cx - a.cellW / 2, y0 = a.cy - a.cellH / 2;
+    let x1 = b.cx + b.cellW / 2, y1 = b.cy + b.cellH / 2;
+    if (cut) {   // a cut block reaches on past the cells it covers by the grid's own step (cell + gutter)
+      const c0 = lat.col[i], r0 = lat.row[i], nb = (dc, dr) => { const k = lat.at(c0 + dc, r0 + dr); return k >= 0 ? centers[k] : null; };
+      const sx = nb(1, 0) ? nb(1, 0).cx - a.cx : nb(-1, 0) ? a.cx - nb(-1, 0).cx : a.cellW;
+      const sy = nb(0, 1) ? nb(0, 1).cy - a.cy : nb(0, -1) ? a.cy - nb(0, -1).cy : a.cellH;
+      x1 += (sp[0] - w) * sx; y1 += (sp[1] - h) * sy;
+    }
     out.region[i] = {
       colW, rowH,
+      // cut: the Component is placed in its whole block (c) but drawn only inside the cells it covers (raw)
+      cut: !!cut && (w < sp[0] || h < sp[1]),
       // fixedK: the block's length in cells along its long side — Fixed size is a size PER CELL, so a 1×2
       // block holds its Component at the same scale per module as a square Component in one cell.
       c: { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, cellW: x1 - x0, cellH: y1 - y0, cellSize: Math.min(x1 - x0, y1 - y0), fixedK: Math.max(sp[0], sp[1]) },
@@ -583,7 +617,7 @@ export function symbolSVGFromItems(items) {
     // referenced as a clipPath instead. Off restores the pre-feature
     // free-overflow behaviour (a deliberate bleed effect stays possible).
     let clipAttr = '';
-    if (state.symbolClipEnabled && cellPts) {
+    if ((state.symbolClipEnabled || (it.region && it.region.cut)) && cellPts) {   // a cut block (Cells › Its grid size) always stops at its cells
       const o = bleedCellOutline(grid, rawCell, F, CLIP_REACH * bleed);
       const clipShape = o.poly ? `<polygon points="${o.poly.map(p => `${p[0].toFixed(2)},${p[1].toFixed(2)}`).join(' ')}"/>`
         : `<rect x="${o.x.toFixed(2)}" y="${o.y.toFixed(2)}" width="${o.w.toFixed(2)}" height="${o.h.toFixed(2)}"/>`;
@@ -645,7 +679,7 @@ function drawSymbolCanvasBody(ctx) {
   // and the same bled content, so preview/PNG and SVG export can't disagree.
   const enter = (it, d = bleed) => {   // d: how far past the cell it reaches — the papers under all ink always symbolBleed (see symbolSVGFromItems)
     const rawCell = (it.region && it.region.raw) || grid.cells[it.index];   // a spanning Component: its whole block
-    const clipping = state.symbolClipEnabled && rawCell;
+    const clipping = (state.symbolClipEnabled || (it.region && it.region.cut)) && rawCell;
     ctx.save();
     if (clipping) {
       const o = bleedCellOutline(grid, rawCell, F, CLIP_REACH * bleed);

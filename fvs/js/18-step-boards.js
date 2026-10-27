@@ -42,10 +42,10 @@ import {
   applyRuleState, bindCellProps, cellPropsHTML, openCellContentOverlay, renderSymbol, renderTrackLabelsOverlay,
   syncCellProps, syncContentFilter
 } from './11-symbol-ui.js';
-import { ANCHOR_POSITIONS, buildSymbolLibraryEntry } from './engine/11-symbol-ui.js';
-import { symbolCanvasOf, withPlacementDefaults } from './engine/08-symbol-grid.js';
+import { ANCHOR_POSITIONS, buildSymbolLibraryEntry, symbolEntryThumbSVG } from './engine/11-symbol-ui.js';
+import { emptySymbolCell, symbolCanvasOf, withPlacementDefaults } from './engine/08-symbol-grid.js';
 import { applySymbolCanvasToUI, syncOverlapSection } from './08-symbol-grid.js';
-import { renderSymbolPool } from './10-suggest.js';
+import { renderSuggestGallery, renderSymbolPool } from './10-suggest.js';
 import { showGroundControls } from './04-appearance.js';
 import {
   fvsIsTypingTarget, galleryZoomTo, onAppearanceChange, setPaperUI, setTier
@@ -1003,20 +1003,22 @@ ctrl('ce-anchor-grid').querySelectorAll('.fvs-flyout__tool').forEach(btn => btn.
 }));
 
 // ── Symbol board ────────────────────────────────────────────────────────────────────────────────────────
+// Several Symbols (Diego, Oct 27, 2026: "creazione di più board symbol come abbiamo in element"), as the Element board:
+// a column of sheets, the one being edited is the live #board-symbol, the others are drawn from their snapshot; a click on
+// one edits it; New symbol under the lowest; Delete on a selected sheet (never the last), Undo brings it back. Each keeps
+// its own grid, cells, Palette, rule, clip and overlap (`work`); Variations sits beside the edited one (it is its Suggest).
 function mountSymbolBoard() {
   const B = makeBoard('symbol');
-  addSheet(B, 'symbol', 'Symbol', 0, 0, ctrl('board-symbol'));
-  addSheet(B, 'variations', 'Variations', 980, 0, ctrl('board-variations'));
-  ctrl('board-variations').classList.toggle('is-empty', !state.symbolSuggestions.length);
-  B.fitFocus = () => B.fit(['symbol']);
-  // the % labels are measured on screen: placed again after a zoom (one frame later, after the transform)
-  B.onZoom = () => { cancelAnimationFrame(B.labelsRaf); B.labelsRaf = requestAnimationFrame(() => { if (state.activeTier === 'symbol') renderTrackLabelsOverlay(); }); };
+  const SW = 900, GAP = 240, VX = 980;   // board units: a Symbol's sheet, the room between Symbols, Variations to its right
+  const liveSheet = ctrl('board-symbol'), liveLabel = liveSheet.querySelector('.fvs-board-sheet__label');
+  liveSheet.classList.add('fvs-board-symbol-sheet');
+  B.onZoom = () => { cancelAnimationFrame(B.labelsRaf); B.labelsRaf = requestAnimationFrame(() => { if (state.activeTier === 'symbol') renderTrackLabelsOverlay(); }); };   // the % labels are measured on screen
 
-  // The working Symbol is kept across reloads (Diego, Oct 11, 2026 — it lived in memory only): its grid and Canvas,
-  // cells, pool, Arrange and rule settings, clip and overlap, in the user's account (Organica.store, signed out = this
-  // browser's cache), saved a moment after each redraw and on leaving — with its own Palette (`palette`, Oct 26, 2026;
-  // until then the Symbol drew with the edited Element's and changing it there changed the Element). Library unchanged.
+  // The Symbols are kept across reloads (Diego, Oct 11, 2026 — one working Symbol then): one row per Symbol
+  // ({name, custom, work, n}) + 'board' ({active}), in the user's account (Organica.store, signed out = this browser's cache).
+  // `current` — the single working Symbol before Oct 27, 2026 — is read forward once, and kept as the edited one's copy.
   const WORK = Organica.store('fvs-symbol-work');
+  const BOARD_ROW = 'board', LEGACY = 'current';
   const workOf = () => {
     const e = buildSymbolLibraryEntry();
     if (!e) return null;
@@ -1024,12 +1026,40 @@ function mountSymbolBoard() {
     e.palette = state.activeTier === 'symbol' ? { ...livePaletteWithGround(), own: !!(state.symbolPalette && state.symbolPalette.own) || paletteKey(livePaletteWithGround()) !== symbolPaletteIn } : state.symbolPalette;   // the Symbol's own Palette (Oct 26, 2026)
     return JSON.parse(JSON.stringify(e));
   };
-  const saveWork = () => { const w = workOf(); if (w) { try { WORK.write({ current: w }); } catch (err) {} } };
+  const newId = () => 's' + Date.now().toString(36) + Math.floor(Math.random() * 36 ** 3).toString(36);
+  const find = id => state.symbols.find(s => s.id === id);
+  const active = () => state.activeSymbol;
+  const sheetId = id => 'sy-' + id;
+  const nextName = () => { const used = new Set(state.symbols.map(s => s.name)); let n = state.symbols.length + 1; while (used.has('Symbol ' + n)) n++; return 'Symbol ' + n; };
+  function readSymbols() {
+    const obj = WORK.read() || {};
+    let items = Object.entries(obj).filter(([k, v]) => k !== BOARD_ROW && k !== LEGACY && v && v.work && v.work.gridModel)
+      .map(([id, v]) => ({ id, name: v.name, custom: !!v.custom, work: v.work, n: v.n || 0 })).sort((a, b) => a.n - b.n);
+    let act = obj[BOARD_ROW] && obj[BOARD_ROW].active;
+    if (!items.length && obj[LEGACY] && obj[LEGACY].gridModel) { items = [{ id: 's-current', name: 'Symbol 1', custom: false, work: obj[LEGACY] }]; act = items[0].id; }
+    items.forEach(s => { delete s.n; });
+    return { items, active: act };
+  }
+  const snap = () => { const s = find(active()); if (s && !state.preFigureSnapshot) { const w = workOf(); if (w) s.work = w; } };
+  function save() {
+    const obj = {};
+    state.symbols.forEach((s, i) => { if (s.work) obj[s.id] = { name: s.name, custom: !!s.custom, work: s.work, n: i }; });
+    obj[BOARD_ROW] = { active: active() };
+    const a = find(active()); if (a && a.work) obj[LEGACY] = a.work;   // the single Symbol an older page reads
+    try { WORK.write(obj); } catch (err) {}
+  }
+  const saveWork = () => { snap(); save(); };
   let saveT = 0;
   symbolDrawn = () => { clearTimeout(saveT); saveT = setTimeout(saveWork, 600); syncSymbolPaletteHint(); };   // a Palette change on the Symbol redraws it: the hint follows
   window.addEventListener('pagehide', () => { clearTimeout(saveT); saveWork(); });
+  // the edited Element's Palette — what a Symbol not changed on the Symbol step draws with
+  const elementPalette = () => { const e = state.elements.find(x => x.id === state.activeElement); return { ...(e && e.palette ? e.palette : DEFAULT_PALETTE), ground: e && e.app ? e.app.ground || null : null }; };
   function applyWork(w) {
-    if (w.palette) { state.symbolPalette = w.palette; if (state.activeTier === 'symbol' && w.palette.own) { applyPalette(w.palette); showGroundControls(w.palette.ground || null); symbolPaletteIn = paletteKey(w.palette); } }
+    state.symbolPalette = w.palette || null;
+    if (state.activeTier === 'symbol') {   // the panel's Palette is the Symbol's: its own, else the edited Element's
+      const p = w.palette && w.palette.own ? w.palette : elementPalette();
+      applyPalette(p); showGroundControls(p.ground || null); symbolPaletteIn = paletteKey(p);
+    }
     state.symbolGrid = Organica.loadLoomGrid(w.gridModel);
     const cv = symbolCanvasOf(state.symbolGrid);
     if (cv) applySymbolCanvasToUI(cv);
@@ -1042,16 +1072,194 @@ function mountSymbolBoard() {
     state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(w.overlap || {}) };
     syncOverlapSection();
     if (w.rule) applyRuleState(w.rule);
-    if (state.activeTier === 'symbol') renderSymbol();
+    if (state.activeTier === 'symbol') { onAppearanceChange(); renderSymbol(); }
   }
-  const first = (WORK.read() || {}).current;
-  if (first && first.gridModel) { try { applyWork(first); } catch (err) { console.warn('FVS: the kept Symbol could not be restored', err); } }
-  // the account's copy: taken while the Symbol here is still the one the page opened with
-  const opened = JSON.stringify(first ? workOf() : null);
+  // another Symbol, drawn from its snapshot with its own Palette
+  const drawn = s => {
+    const w = s.work, p = w.palette && w.palette.own ? w.palette : (w.palette || elementPalette());
+    try {
+      return symbolEntryThumbSVG({ gridModel: w.gridModel, cells: (w.cells || []).map(c => withPlacementDefaults({ ...c })), colors: p.colors, colorRule: p.colorRule, paperColor: p.paperColor,
+        clipEnabled: w.clipEnabled, overlap: w.overlap, appearance: { ...getElementAppearance(), ground: p.ground || null } });
+    } catch (err) { return ''; }
+  };
+  const nameLabel = id => B.sheets[sheetId(id)] && B.sheets[sheetId(id)].label;
+  function relabel() {
+    state.symbols.forEach(s => {
+      const sh = B.sheets[sheetId(s.id)], lab = nameLabel(s.id);
+      if (!sh || !lab || lab.querySelector('input')) return;
+      const on = s.id === active();
+      sh.el.classList.toggle('is-active', on && state.symbols.length > 1);
+      lab.textContent = s.name;
+      lab.setAttribute('aria-label', s.name + (on && state.symbols.length > 1 ? ' · editing' : '') + ' — drag to move, double-click to rename');
+      if (on && state.symbols.length > 1) lab.append(el('span', 'fvs-board-sheet__state', { textContent: ' · editing' }));
+      const body = !on && sh.el.querySelector('.fvs-board-symbol--static');
+      if (body) body.setAttribute('aria-label', s.name + ' — click or press Enter to edit');
+    });
+  }
+  function rename(id) {
+    const s = find(id), lab = nameLabel(id);
+    if (!s || !lab || lab.querySelector('input')) return;
+    const inp = el('input', 'nc-frame__input fvs-board-sheet__input', { type: 'text', value: s.name });
+    inp.setAttribute('aria-label', 'Symbol name');
+    lab.textContent = ''; lab.append(inp); inp.focus(); inp.select();
+    let done = false;
+    const end = keep => {
+      if (done) return; done = true;
+      const v = inp.value.trim();
+      if (keep && v) { s.name = v; s.custom = true; }
+      inp.remove(); relabel(); save(); lab.focus();
+    };
+    inp.addEventListener('keydown', ev => { ev.stopPropagation(); if (ev.key === 'Enter') end(true); if (ev.key === 'Escape') end(false); });
+    inp.addEventListener('pointerdown', ev => ev.stopPropagation());
+    inp.addEventListener('blur', () => end(true));
+  }
+  const wireName = (lab, id) => {
+    lab.addEventListener('dblclick', ev => { ev.preventDefault(); rename(id()); });
+    lab.addEventListener('keydown', ev => { if (ev.key === 'F2' && !lab.querySelector('input')) { ev.preventDefault(); rename(id()); } });
+  };
+  const posOf = id => ({ ...B.sheets[sheetId(id)].p });
+  const pin = (id, x, y) => { placeSheet(B, sheetId(id), x, y); B.pos[sheetId(id)] = B.sheets[sheetId(id)].p; };
+  const placeVariations = () => { if (B.sheets[sheetId(active())]) { const p = posOf(active()); placeSheet(B, 'variations', p.x + VX, p.y); } };
+  function placeLive(s, x, y) { addSheet(B, sheetId(s.id), s.name, x, y, liveSheet); pin(s.id, x, y); }
+  function mountStatic(s, x, y) {
+    const body = el('div', 'fvs-board-symbol fvs-board-symbol--static');
+    body.innerHTML = drawn(s);
+    const sh = addSheet(B, sheetId(s.id), s.name, x, y, body);
+    sh.classList.add('fvs-board-symbol-sheet');
+    wireName(B.sheets[sheetId(s.id)].label, () => s.id);
+    pin(s.id, x, y);
+    body.addEventListener('pointerdown', ev => { if (ev.button === 0 && !isPanKey(ev)) selectSheets(B, [sheetId(s.id)]); });
+    body.addEventListener('click', ev => { ev.stopPropagation(); activate(s.id); });
+    body.setAttribute('role', 'button'); body.tabIndex = 0;   // the keyboard's way to edit another Symbol (Enter / Space)
+    body.addEventListener('keydown', ev => { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === body) { ev.preventDefault(); activate(s.id); } });
+  }
+  const lowestId = () => state.symbols.filter(s => B.sheets[sheetId(s.id)]).reduce((a, b) => (posOf(b.id).y > posOf(a.id).y ? b : a)).id;
+  const placeAdd = () => { const id = lowestId(), p = posOf(id); placeSheet(B, 'new-symbol', p.x, p.y + SW + GAP); };
+  function activate(id) {
+    if (id === active() || !find(id)) return;
+    clearTimeout(saveT); snap();
+    const prev = find(active()), next = find(id), pp = posOf(prev.id), np = posOf(next.id);
+    removeSheet(B, sheetId(next.id));          // its drawing goes: the live sheet takes its place
+    removeSheet(B, sheetId(prev.id), true);    // the live sheet leaves the Symbol it showed (kept in the page)
+    state.activeSymbol = id;
+    placeLive(next, np.x, np.y);
+    mountStatic(prev, pp.x, pp.y);
+    state.symbolSuggestions = []; renderSuggestGallery();   // the variations were the other Symbol's
+    applyWork(next.work);
+    placeVariations(); selectSheets(B, [sheetId(id)]);
+    relabel(); save(); B.save();
+  }
+  function add() {
+    clearTimeout(saveT); snap();
+    const cur = find(active()).work, w = clone(cur);
+    w.cells = (w.cells || []).map(() => emptySymbolCell());   // the edited Symbol's grid, every cell empty
+    w.palette = null;   // the edited Element's Palette, until changed here
+    const s = { id: newId(), name: nextName(), custom: false, work: w };
+    state.symbols.push(s);
+    const at = B.sheets['new-symbol'].p;   // where New symbol stood
+    mountStatic(s, at.x, at.y);
+    activate(s.id);
+    placeAdd();
+    requestAnimationFrame(() => B.fit());
+  }
+  // Undo: a Symbol deleted from the board comes back (the list and the places as they were)
+  const undoStack = [], UNDO_MAX = 20, undoBtn = ctrl('btn-board-undo-symbol');
+  const syncUndo = () => { undoBtn.disabled = !undoStack.length; };
+  function pushUndo() {
+    clearTimeout(saveT); snap();
+    undoStack.push({ items: clone(state.symbols), active: active(), pos: clone(B.pos) });
+    if (undoStack.length > UNDO_MAX) undoStack.shift();
+    syncUndo();
+  }
+  function undo() {
+    const u = undoStack.pop();
+    if (!u) return;
+    clearTimeout(saveT); snap();
+    const cur = find(active());   // the Symbol being edited keeps what was done to it since
+    Object.assign(B.pos, u.pos);
+    load({ items: u.items.map(s => (cur && s.id === cur.id ? cur : s)), active: u.active });
+    selectSheets(B, []); save(); B.save(); syncUndo();
+  }
+  undoBtn.addEventListener('click', undo);
+  document.addEventListener('keydown', e => {
+    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || state.activeTier !== 'symbol' || !undoStack.length || fvsIsTypingTarget(e.target)) return;
+    e.preventDefault(); undo();
+  });
+  function remove(id) {
+    if (id === active() || state.symbols.length < 2) return;
+    const i = state.symbols.findIndex(s => s.id === id);
+    if (i < 0) return;
+    state.symbols.splice(i, 1);
+    removeSheet(B, sheetId(id));
+    placeAdd(); save(); B.save(); drawRings(B);
+  }
+  function layout() {   // one under the other
+    let y = 0;
+    state.symbols.forEach(s => {
+      const p = B.pos[sheetId(s.id)] || { x: 0, y };
+      y = Math.max(y, p.y) + SW + GAP;
+      if (s.id === active()) placeLive(s, p.x, p.y); else mountStatic(s, p.x, p.y);
+    });
+    placeAdd(); placeVariations(); relabel();
+  }
+  function load(list) {   // a list from the store (boot, Undo, another device): the board drawn again
+    selectSheets(B, []);
+    const kept = { ...B.pos };   // the sheets go and come back: their places stay
+    state.symbols.forEach(s => removeSheet(B, sheetId(s.id), s.id === active()));
+    Object.assign(B.pos, kept);
+    state.symbols = list.items.map(s => ({ ...s, name: s.name || nextName() }));
+    const was = active();
+    state.activeSymbol = state.symbols.some(s => s.id === list.active) ? list.active : state.symbols[0].id;
+    const cur = find(active());
+    if (cur.work && cur.work.gridModel && (was !== active() || list.apply)) {
+      if (was !== active()) { state.symbolSuggestions = []; renderSuggestGallery(); }
+      try { applyWork(cur.work); } catch (err) { console.warn('FVS: the kept Symbol could not be restored', err); }
+    }
+    layout();
+  }
+  // first: the Symbols as saved (or one, the Symbol the page opened with)
+  const first = readSymbols();
+  addSheet(B, 'variations', 'Variations', VX, 0, ctrl('board-variations'));
+  ctrl('board-variations').classList.toggle('is-empty', !state.symbolSuggestions.length);
+  if (first.items.length) load({ ...first, apply: true });
+  else {
+    state.symbols = [{ id: newId(), name: 'Symbol 1', custom: false, work: workOf() }];
+    state.activeSymbol = state.symbols[0].id;
+    layout();
+  }
+  addSheet(B, 'new-symbol', 'New symbol', 0, 0, ctrl('board-new-symbol'));
+  placeAdd();
+  wireName(liveLabel, active);
+  const newBtn = ctrl('btn-board-new-symbol');
+  newBtn.innerHTML = Organica.icons.get('plus', { size: 'xl' });
+  newBtn.addEventListener('click', add);
+  // the account's copy: taken while the Symbols here are still the ones the page opened with
+  const opened = JSON.stringify(first.items), openedHere = JSON.stringify(state.symbols);
   WORK.pull().then(() => {
-    const w = (WORK.read() || {}).current;
-    if (w && w.gridModel && JSON.stringify(workOf()) === opened && JSON.stringify(w) !== JSON.stringify(first)) applyWork(w);
+    const l = readSymbols();
+    if (l.items.length && JSON.stringify(l.items) !== opened && JSON.stringify(state.symbols) === openedHere) load({ ...l, apply: true });
   }).catch(() => {});
+  // Delete on a selected Symbol sheet removes it — the one being edited too: editing moves to the nearest first. The last
+  // one stays. Selected cells win: Delete empties them (12-shell.js).
+  document.addEventListener('keydown', ev => {
+    if (state.activeTier !== 'symbol' || B.single || (ev.key !== 'Delete' && ev.key !== 'Backspace') || fvsIsTypingTarget(ev.target) || overlayOpen() || state.symbolSelection.size) return;
+    let ids = [...B.selected].filter(k => k.startsWith('sy-')).map(k => k.slice(3)).filter(find);
+    if (!ids.length) return;
+    ev.preventDefault();
+    const left = state.symbols.filter(s => !ids.includes(s.id));
+    if (!left.length) { ids = ids.filter(id => id !== active()); if (!ids.length) return; }
+    pushUndo();
+    if (ids.includes(active())) {
+      const y = posOf(active()).y;
+      const next = left.reduce((a, b) => (Math.abs(posOf(b.id).y - y) < Math.abs(posOf(a.id).y - y) ? b : a));
+      activate(next.id);
+    }
+    ids.forEach(remove);
+    selectSheets(B, []);
+  });
+  B.afterMove = () => { placeAdd(); };
+  B.fitFocus = () => B.fit([sheetId(active())]);
+  B.firstFit = () => B.fit([sheetId(active())]);
 }
 
 mountElementBoard();

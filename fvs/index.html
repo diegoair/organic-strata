@@ -204,6 +204,10 @@
     <button class="org-floatbar__btn" id="btn-symbol-clear" aria-label="Clear Symbol — hold to confirm" data-hold="Clear Symbol — click again to confirm" hidden>
       <svg class="ico" data-icon="eraser" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/></svg>
     </button>
+    <!-- Undo: a Symbol deleted from the board (Delete on its selected sheet) comes back -->
+    <button class="org-floatbar__btn" id="btn-board-undo-symbol" aria-label="Undo (⌘Z)" disabled>
+      <svg class="ico" data-icon="undo" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    </button>
     </span>
     <span class="org-floatbar__sep" aria-hidden="true"></span>
     <span class="org-floatbar__group" role="group" aria-label="Fit in cell">
@@ -446,6 +450,11 @@
           <div class="fvs-board-sheet" id="board-symbol">
             <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="Symbol — drag to move">Symbol</button>
             <div class="fvs-board-sheet__body fvs-board-symbol"><div id="symbol-frame"></div></div>
+          </div>
+          <!-- New symbol: an empty sheet under the Symbols (18-step-boards.js) -->
+          <div class="fvs-board-sheet" id="board-new-symbol">
+            <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="New symbol — drag to move">New symbol</button>
+            <div class="fvs-board-sheet__body"><button type="button" class="fvs-board-new" id="btn-board-new-symbol" aria-label="New symbol" data-theme="light" data-icon-slot></button></div>
           </div>
           <!-- Variations: Suggest's variations as sheets beside the Symbol, always open; a click puts one on the Symbol -->
           <div class="fvs-board-sheet" id="board-variations">

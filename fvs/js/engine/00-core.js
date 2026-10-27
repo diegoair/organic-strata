@@ -18,6 +18,9 @@ export const state = {
   // The Element board (Oct 2026, docs/FVS.md §13): several Elements, each a snapshot {seed, app} as a saved Element keeps;
   // the active one is the live panel. [{id, name, custom (renamed by hand), seed, app}] — persisted by 18-step-boards.js.
   elements: [], activeElement: null,
+  // The Symbol board (Oct 27, 2026): several Symbols, each {id, name, custom, work} (work = what the Symbol keeps: grid, cells,
+  // Palette, rule…); the active one is the live state.symbol* — persisted by 18-step-boards.js.
+  symbols: [], activeSymbol: null,
   componentClip: false,   // Clip to cell on the Component step (Oct 12, 2026): each cell cut to its frame
   componentEditMode: false,
   componentEditId: null,          // the component being edited FROM (read-only source, never mutated)

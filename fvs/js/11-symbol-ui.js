@@ -30,7 +30,7 @@ import {
   STORY_SAFE, getSymbolGrid, isStoryCanvas, polyOrient, snapPose, symbolCanvasOf, symbolFrame, symbolHasContent, withPlacementDefaults
 } from './engine/08-symbol-grid.js';
 import {
-  buildSymbolSVG, cellOverflowInfo, drawSymbolCanvas
+  buildSymbolSVG, cellOverflowInfo, cellSpanMode, currentSpanLayout, drawSymbolCanvas, symbolLattice
 } from './engine/09-symbol-render.js';
 import {
   RULE_CONTROL_IDS, SYMBOL_LIBRARY, SYMBOL_RULES, TRACK_MIN_FRAC, buildCoverCropPreviewSVG,
@@ -526,6 +526,12 @@ export function cellPropsHTML(pre, opts = {}) {
             <span class="ctrl-val" id="${I('symbol-cellprop-content-label')}" style="flex:1;text-align:left">—</span>
             <button class="mini-btn" id="${I('btn-cellprop-choose')}">Choose…</button>
           </div>
+          <div class="ctrl-row" id="${I('row-cellprop-span')}" hidden><div class="ctrl-label">Cells</div>
+            <select class="panel-select" id="${I('sel-cellprop-span')}">
+              <option value="one">One cell</option><option value="fit">In proportion</option><option value="all">Its grid size</option>
+            </select>
+          </div>
+          <p class="panel-note" id="${I('note-cellprop-span-cut')}" hidden>Cut at the grid’s edge or at a cell already taken or locked</p>
           <div class="ctrl-row fvs-cellprop-shape" id="${I('row-cellprop-seedparams')}">
             <div class="ctrl-label">Shape</div>
             <span class="ctrl-val" id="${I('symbol-cellprop-seedparams-label')}" style="flex:1;text-align:left">Default</span>
@@ -633,6 +639,8 @@ export const SYMBOL_CELLS = {
   overflow: () => !state.symbolClipEnabled && cellOverflowInfo(Math.min(...state.symbolSelection)),
   choose: () => openCellContentOverlay(),
   lock: true,
+  spans: true,   // the Cells row: a Component over several cells (Compose places its own way)
+  spanCut: () => { const r = currentSpanLayout().region[Math.min(...state.symbolSelection)]; return !!(r && r.cut); },
 };
 export function renderCellPropertiesPanel() {
   syncManualBlock();
@@ -661,6 +669,11 @@ export function syncCellProps(pre, t) {
     label = SEED_TYPES[first.seedType].label;
   }
   c('symbol-cellprop-content-label').textContent = label;
+  // Cells (Oct 27, 2026): how many Symbol cells a Component covers from its own — on a regular grid only (the Symbol's)
+  const spans = !!(t.spans && isComponent && symbolLattice(getSymbolGrid()));
+  c('row-cellprop-span').hidden = !spans;
+  c('sel-cellprop-span').value = cellSpanMode(first);
+  c('note-cellprop-span-cut').hidden = !(spans && t.spanCut && t.spanCut());
 
   // Rotation/Flip are hidden entirely for Component cells — a saved
   // Component is already an internally-composed (often symmetric)
@@ -713,6 +726,11 @@ export function bindCellProps(pre, t) {
   c('sel-cellprop-flip').addEventListener('change', e => {
     const v = e.target.value;
     t.apply({ flipH: v === 'h' || v === 'hv', flipV: v === 'v' || v === 'hv' });
+  });
+  c('sel-cellprop-span').addEventListener('change', e => {
+    const v = e.target.value;
+    t.apply({ span: v === 'all' ? 'grid' : v === 'fit' });
+    t.refresh();
   });
   c('sel-cellprop-fit').addEventListener('change', e => {
     t.apply({ fitMode: e.target.value });
