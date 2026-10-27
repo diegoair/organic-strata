@@ -490,7 +490,7 @@ export function symbolSVGFromItems(items) {
   let papers = '';   // every nested Component's own paper, painted before any ink
   let body = '';
   for (const it of items) {
-    let cellMarkup, paperMarkup = '', later = null;
+    let cellMarkup, paperMarkup = '', groundMarkup = '', later = null;   // groundMarkup: a Component's Paper texture alone (kept under Multiply)
     if (it.type === 'missing') {
       cellMarkup = missingComponentMarkupSVG(it.cx, it.cy, it.cellW, it.cellH);
     } else if (it.type === 'seed') {
@@ -555,6 +555,9 @@ export function symbolSVGFromItems(items) {
       const ground = withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paperPatternSVG(it.nestedW, it.nestedH, true)));
       paperMarkup = `<g transform="${tf}">${clipToCellShapes(!it.region && it.nestedItems.length && it.nestedItems[0].poly ? it.nestedItems.map(ni => ni.poly) : null,
         `${hidesPattern(it.nestedPaper) ? '' : `<rect width="${it.nestedW}" height="${it.nestedH}" fill="${it.nestedPaper}"/>`}${ground}`)}</g>`;
+      // Blend › Multiply drops the Component's Paper, not its texture: the texture is drawn in the Component's inks, so it
+      // multiplies with them (Oct 27, 2026 — Diego: a Component with a Lines Paper showed no lines in the Symbol)
+      if (ground) groundMarkup = `<g transform="${tf}">${clipToCellShapes(!it.region && it.nestedItems.length && it.nestedItems[0].poly ? it.nestedItems.map(ni => ni.poly) : null, ground)}</g>`;
     }
     // An invisible hit-shape covering the cell's FULL boundary (not just
     // whatever the content happens to draw) — without this, clicking the
@@ -594,13 +597,14 @@ export function symbolSVGFromItems(items) {
       const wrapK = k => m => `<g transform="translate(${ox.toFixed(2)},${oy.toFixed(2)}) scale(${k.kx.toFixed(5)},${k.ky.toFixed(5)}) translate(${(-ox).toFixed(2)},${(-oy).toFixed(2)})">${m}</g>`;
       const wrap = wrapK(cellBleed(c, bleed));
       cellMarkup = wrap(cellMarkup);
+      if (groundMarkup) groundMarkup = wrapK(cellBleed(c, symbolBleed(F)))(groundMarkup);
       // the papers painted under all ink always reach past the cell (Oct 26, 2026 — Diego: a 1 px line between every cell
       // with Clip to cell off): two papers that only touch leave an antialiased seam where the page shows through. A
       // paper is flat colour, so the overlap changes no drawing; the ink keeps its own size (bleed only with Clip to cell).
       if (paperMarkup) paperMarkup = own && look.interleave ? wrap(paperMarkup) : wrapK(cellBleed(c, symbolBleed(F)))(paperMarkup);
       if (later) later = later.map(wrap);
     }
-    if (own && look.multiply) { paperMarkup = ''; cellMarkup = `<g style="mix-blend-mode:multiply">${cellMarkup}</g>`; }
+    if (own && look.multiply) { paperMarkup = ''; cellMarkup = `<g style="mix-blend-mode:multiply">${groundMarkup}${cellMarkup}</g>`; }
     if (paperMarkup && own && look.interleave) body += `<g${clipAttr}>${paperMarkup}</g>`;
     else if (paperMarkup) papers += `<g${clipAttr}>${paperMarkup}</g>`;
     body += `<g data-cell-index="${it.index}"${clipAttr}>${hit}${cellMarkup}</g>`;
@@ -739,6 +743,12 @@ function drawSymbolCanvasBody(ctx) {
       const layer = look && look.multiply ? offscreenCanvas(ctx.canvas.width, ctx.canvas.height) : null;
       const g = layer ? layer.getContext('2d') : ctx;
       if (layer) g.setTransform(ctx.getTransform());
+      if (layer) {   // Multiply: the Component's Paper texture on its ink layer, under its ink (as the SVG)
+        g.save();
+        if (it.nestedItems.length && it.nestedItems[0].poly) g.clip(latticeShapePath(it.nestedItems));
+        withEntryInks(it.nestedColors, () => withAppearance(it.nestedAppearance, () => paintPaperPatternCanvas(g, it.nestedW, it.nestedH, true)));
+        g.restore();
+      }
       const nBleed = nestedBleed(it, bleed);
       const prevOverride = live.appearanceOverride, prevInks = live.inkPaletteOverride;
       live.appearanceOverride = { ...DEFAULT_APPEARANCE, ...(it.nestedAppearance || {}) };

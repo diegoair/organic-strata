@@ -889,6 +889,11 @@ its cells.
   (*Clear Symbol — click again to confirm*). After clearing, focus goes to Fill the grid. It empties every cell and keeps the
   grid (borders dragged by hand too), clears the selection and the variations, so the
   Symbol is back to its empty grid. Saved Symbols are not touched.
+- **Blend › Multiply keeps a Component's Paper texture** (Oct 27, 2026 — Diego: *quando faccio il drag e drop di un component con
+  un pattern di righe … il pattern in symbol non viene mostrato*): Multiply drops each Component's Paper so its inks multiply
+  onto the Symbol's — the Paper's texture (Lines, Dots … drawn in the Component's inks) went with it. Now only the flat
+  Paper goes: the texture is drawn under the Component's ink inside its multiply group (SVG) and on its ink layer (canvas /
+  PNG). test-fvs-paper-tile (8).
 - **Clip to cell reaches twice the bleed** (Oct 27, 2026 — Diego: *ci sono dei pixel tra le celle*): with the clip edge exactly
   on the bled content's edge (`symbolBleed`), the app's own browser (GPU raster) softened both edges on the same line and
   the Paper showed through as a hairline between cells — exports and a software raster were clean. The clip now reaches

@@ -44,6 +44,16 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     check('Symbol Paper pattern over cells of the same Paper: the cells’ Paper not painted over it (tile ' + onTile + ', lines ' + onLines + ' — only the Symbol’s)', onTile === 1 && onLines === 1, onTile + ' / ' + onLines);
     F.showGroundControls(null); F.onAppearanceChange(); await w(200);
     check('…and without a pattern every cell keeps its Paper (the drawing as before)', paperRects() === 1 + F.state.symbolCells.length, paperRects()); }
+  // Blend › Multiply keeps a Component's Paper texture (Oct 27, 2026 — Diego: a Lines Paper showed no lines in the Symbol)
+  { F.setTier('element'); await w(200); F.showGroundControls({ patType: 'lines', patSpacing: 9, patWeight: 6, patAngle: 0, ink: 0 }); F.onAppearanceChange(); await w(200);
+    F.setTier('component'); await w(500); q('btn-generate').click(); await w(1000);
+    F.quickSaveComponentToLibrary(F.state.components[0].id); await w(300); const nm = F.getSelectedComponent().savedName;
+    F.setTier('symbol'); await w(500); F.showGroundControls(null); F.onAppearanceChange(); await w(200);
+    const patch = F.railPatch('component', nm); F.state.symbolCells.forEach(c => F.patchCell(c, patch));
+    const was = F.state.symbolOverlap.blend; F.state.symbolOverlap.blend = 'multiply';
+    const sv = F.buildSymbolSVG(), n = (sv.match(/clip-path="url\\(#gnd/g) || []).length;
+    check('Blend › Multiply: each Component keeps its Paper texture (' + n + ' cells), under its ink', n === F.state.symbolCells.length && /mix-blend-mode:multiply"><g transform="[^"]*"><g transform="[^"]*"><clipPath id="gnd/.test(sv), n);
+    F.state.symbolOverlap.blend = was; F.setTier('component'); await w(300); }
   F.showGroundControls(null); F.onAppearanceChange();
   return rows;`);
 const fails = rows.filter(x => x.startsWith('✗'));
