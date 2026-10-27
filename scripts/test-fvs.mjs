@@ -44,6 +44,7 @@ const JOBS = {
   'symmetry':           node('test-fvs-symmetry.mjs'),   // Zones › Symmetry: 12 wallpaper groups + rosettes, invariance (Oct 27, 2026)
   'continuity':         node('test-fvs-continuity.mjs'),   // Zones › Continuity: edge matching along a walk (Oct 27, 2026)
   'drive':              node('test-fvs-drive.mjs'),   // Zones › Field and Rhythm: signals, walks (Oct 27, 2026)
+  'generated':          node('test-fvs-generated.mjs'),   // Suggest › Use generated components: in memory, badge, confirm + save (Oct 27, 2026)
   'paper-tile':         node('test-fvs-paper-tile.mjs'),   // Paper › Element as one <pattern>: same tiles, few nodes (Oct 26, 2026)
   'pipeline':           node('test-fvs-pipeline.mjs'),   // paper, textures and inks from Element to gallery, saved, Symbol (Oct 26, 2026)      // Style = Photo: Normal · Tone · Dither from the Palette, self-contained files (Oct 23, 2026)
   'axes':               node('test-fvs-axes.mjs'),       // every rule × grid × axis frozen (Tropism Phase 1)   // Component: one Generate after another = a fresh one

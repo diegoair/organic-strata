@@ -760,3 +760,5 @@
   .fvs-line-handle--row::after { width: var(--space-1); height: var(--space-4); transform: translate(-50%, -50%); }
   .fvs-line-handle:hover::after, .fvs-line-handle.is-on::after { background: var(--ink); }
   .fvs-line-handle:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; border-radius: var(--radius-sm); }
+  .fvs-suggest__item { position: relative; }
+  .fvs-suggest__badge { position: absolute; left: var(--space-1); bottom: var(--space-1); padding: 0 var(--space-1); font-size: var(--fs-micro); font-family: var(--font-display); color: var(--ink); background: var(--paper); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); pointer-events: none; }   /* a variation that uses generated components (Zones, Oct 27, 2026) */

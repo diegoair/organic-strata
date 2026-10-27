@@ -173,3 +173,25 @@ export function buildComponentSVGWithPaper(items, seed, size, paperColor, role, 
   state.paperColor = prev.paper; state.componentRole = prev.role; state.underlyingComponentName = prev.under; state.componentBlend = prev.blend;
   return svg;
 }
+
+// ── Generated components in Suggest (Oct 27, 2026 — Diego: suggested first, visible as a variation, saved only when the
+// variation is applied and confirmed). An Element's Generated components it never saved join the Library here under
+// 'gen:<element>:<component>' keys, in memory only: peek / read see them (so every renderer, analysis and thumbnail
+// does), write never stores them. `auto: true` keeps them out of every list and picker.
+export const GEN_PREFIX = 'gen:';
+export const isGenName = n => typeof n === 'string' && n.startsWith(GEN_PREFIX);
+const RAW_LIB = { read: LIBRARY.read.bind(LIBRARY), peek: (LIBRARY.peek || LIBRARY.read).bind(LIBRARY), write: LIBRARY.write.bind(LIBRARY) };
+let genEntries = {}, mergedOf = null, merged = null;
+export function setGenComponents(obj) { genEntries = obj || {}; mergedOf = null; }
+export const genComponents = () => genEntries;
+LIBRARY.peek = () => {
+  const base = RAW_LIB.peek();
+  if (!Object.keys(genEntries).length) return base;
+  if (mergedOf !== base) { merged = { ...base, ...genEntries }; mergedOf = base; }
+  return merged;
+};
+LIBRARY.read = () => {
+  const base = RAW_LIB.read();
+  return Object.keys(genEntries).length ? { ...base, ...JSON.parse(JSON.stringify(genEntries)) } : base;
+};
+LIBRARY.write = obj => RAW_LIB.write(Object.fromEntries(Object.entries(obj || {}).filter(([k]) => !isGenName(k))));

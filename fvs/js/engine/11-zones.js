@@ -12,6 +12,12 @@ import {
   canonicalState, mulberry32
 } from './03-rules.js';
 import {
+  seedWithLayerInks
+} from './06-component-ui.js';
+import {
+  GEN_PREFIX, LIBRARY, entryVersionKey, isGenName, setGenComponents
+} from './07-library.js';
+import {
   WALLPAPER, WALLPAPER_WORDS, composePose, poseOf, rosetteMap, wallpaperMap
 } from './03-symmetry.js';
 import {
@@ -585,3 +591,32 @@ export function suggestZoned(opts = {}) {
   }
   return picked.map(o => ({ cells: o.cells, label: o.label, score: o.score, zoneDos: o.zoneDos }));
 }
+
+// ── Generated components (Phase 6) ───────────────────────────
+// Each Element's Generated components that are not saved (no Library entry draws the same: entryVersionKey) become
+// in-memory Library entries 'gen:<element id>:<component id>' (engine/07-library setGenComponents) — the newest
+// Elements first, at most `cap`. → the pool entries ({ name, weight }) Suggest adds when Use generated is on.
+export function collectGeneratedComponents(cap = 16) {
+  const saved = new Set(Object.entries(LIBRARY.peek() || {}).filter(([n]) => !isGenName(n)).map(([, e]) => { try { return entryVersionKey(e); } catch (err) { return null; } }));
+  const out = {}, pool = [];
+  (state.elements || []).slice().reverse().forEach(el => {
+    const live = el.id === state.activeElement, g = el.gallery, comps = (live ? state.components : g && g.components) || [];   // the edited Element: its live gallery
+    const pal = live ? { colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor } : el.palette || { colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor };
+    comps.forEach(comp => {
+      if (pool.length >= cap || !comp || !comp.cells || !comp.cells.length) return;
+      const n = Math.round(Math.sqrt(comp.cells.length)), panel = (g && g.panel) || {};
+      const cols = (comp.grid && comp.grid.cols) || +panel['rg-grid-cols'] || n, rows = (comp.grid && comp.grid.rows) || +panel['rg-grid-rows'] || Math.ceil(comp.cells.length / cols);
+      const entry = { seed: seedWithLayerInks(clone(el.seed), comp.layerInks), appearance: clone(el.app || {}), grid: { kind: 'square', cols, rows, cellSize: 160, gap: 0 },
+        colors: (pal.colors || []).slice(), colorRule: { ...(pal.colorRule || {}) }, paperColor: pal.paperColor || '#ffffff',
+        component: { ruleSource: comp.ruleSource, cells: clone(comp.cells) }, role: 'normal', underlyingComponentName: null, auto: true,
+        generated: { element: el.id, elementName: el.name, component: comp.id }, savedAt: '' };
+      let key = null; try { key = entryVersionKey(entry); } catch (err) { return; }
+      if (saved.has(key)) return;
+      const name = GEN_PREFIX + el.id + ':' + comp.id;
+      out[name] = entry; pool.push({ name, weight: 1 });
+    });
+  });
+  setGenComponents(out);
+  return pool;
+}
+export const generatedIn = cells => [...new Set((cells || []).filter(c => c && c.source === 'component' && isGenName(c.componentName)).map(c => c.componentName))];
