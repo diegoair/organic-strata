@@ -1,7 +1,7 @@
 {
   "maxTiles": 36,
-  "maxTotalKB": 4096,
+  "maxTotalKB": 5120,
   "maxSampleKB": 300,
   "maxPageKB": 40,
-  "note": "Development test gallery budget. Enforced by scripts/check.py; shown on /gallery/. Raised Oct 6, 2026 (16 → 24 tiles, 2 → 3 MB) for the FVS overlap & blend tests, and Oct 27, 2026 (24 → 36 tiles, 3 → 4 MB) for the FVS Tile pattern tests — both on Diego's request. Retire tiles rather than raising it again."
+  "note": "Development test gallery budget. Enforced by scripts/check.py; shown on /gallery/. Raised Oct 6, 2026 (16 → 24 tiles, 2 → 3 MB) for the FVS overlap & blend tests, and Oct 27, 2026 (24 → 36 tiles, 3 → 5 MB) for the FVS Tile pattern tests, each a 6 × 6 Symbol of Diego's own Components — both on Diego's request. Retire tiles rather than raising it again."
 }

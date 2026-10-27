@@ -481,11 +481,15 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
   every plate before is unchanged (regression 619/619). A `<mask>` / `<clipPath>` already in the drawing is kept as it is.
 - Not yet: the rule's own classes as a Layout (Diego: later). Tests: `scripts/test-fvs-tile.sh`.
 - **Pattern tests in the gallery** (Oct 27, 2026 — Diego: *test di generazioni di patterns usando tile … salvali nella
-  galleria*): tiles 25–36, made and measured by `scripts/gallery-fvs-tile-patterns.mjs` (12 cases, the user's path:
-  Element → Generate → Component Edit › Tile → Save as new → export). Fixed the same day: Interlace on **Brick** (tile 31 —
-  the Offset in steps, the six neighbours alternate) and the diagonals on Grid (tile 30). Found, not fixed: a **Crossing gap** wider than the stroke breaks the rings apart (tile 33); **Arc** in Stroke
-  strokes the closed quarter pie, so the radii are woven too (tile 32); a non-square Component (6 × 5) in a Symbol is
-  placed as a block and loses its seamless copies; Interlace costs ~7× the file (64 masks; the arc truchet 226 KB).
+  galleria*, then *rifai i pattern usando solo i 5 component presenti ora e la palette usata ora*): tiles 25–36, on Diego's five
+  Components (Mirror 08:20:40 / 41 / 42, Radial 08:20:44 / 46) and palette, each Tile saved as new and placed in every cell
+  of a 6 × 6 Symbol (`scripts/gallery-fvs-tile-patterns.mjs`; the rectangular generator takes 5–8 tracks). The Symbol
+  equals the Component repeated (0 % of pixels) in every case but **Interlace**, which a Symbol draws in reading order
+  (24–32 % differs) — as the canvas twin. Found, not fixed: **hairlines** of Paper where two shapes meet edge to edge, at
+  the Component's cells and the Symbol's cells; **Tile seamlessly** at Gap 0 triples a Symbol's file (61 → 189 KB: every
+  nested Component carries its wrap copies, even when nothing crosses an edge); a **Crossing gap** wider than the stroke
+  breaks a ring apart; **Arc** in Stroke strokes the closed quarter pie; a non-square Component in a Symbol is placed as a
+  block and loses its seamless copies. Fixed the same day: Interlace on Brick and on the Grid's diagonals, the Offset in steps.
 
 ### 5.2 The axes (Transform axes)
 
