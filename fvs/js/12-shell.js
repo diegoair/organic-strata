@@ -968,7 +968,7 @@ ctrl('chk-layer-inks').addEventListener('change', e => {
 ctrl('btn-generate').addEventListener('click', () => {
   const why = generateBlock();
   if (why) { Organica.notice(why.replace(/^./, c => c.toUpperCase()), { kind: 'info' }); return; }
-  if (pv('sel-rule') !== 'manual' && hooks.generateAllElements) hooks.generateAllElements(); else generate();   // every Element on the board (Oct 23, 2026)
+  generate();   // the edited Element only — each Element has its own Rule (Oct 27, 2026; every Element on the board from Oct 23)
   if (pv('sel-rule') !== 'manual') runComponentArrival();   // Symbol's arrival on the new Components — the button's, as Fill the grid's (08-symbol-grid.js)
 });
 {

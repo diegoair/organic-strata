@@ -873,13 +873,33 @@ export function generateInputsSig() {
   });
   return vals.join('|');
 }
+// Each Element's own Grid and Rule (Oct 27, 2026 — Diego: "il bug delle rule che vengono ereditate quando cambio component
+// group"): the controls generateInputsSig reads (Grid · Rule · Transform axes) are kept on the Element with its Generated
+// components and come back on the panel with them — set without their events (a Grid input would re-run the gallery),
+// then the sections synced; the range readouts follow (`v-` + the id without `rg-`).
+const GEN_PANEL_SEL = '.tier-block[data-tier="component"] > .panel-section.ce-hide:not(.no-gen-sig) :is(input, select)';
+export function genPanelValues() {
+  const out = {};
+  document.querySelectorAll(GEN_PANEL_SEL).forEach(el => { if (el.id && el.type !== 'file') out[el.id] = el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value; });
+  return out;
+}
+export function applyGenPanel(vals) {
+  if (!vals) return;
+  for (const [id, v] of Object.entries(vals)) {
+    const el = document.getElementById(id); if (!el) continue;
+    if (el.type === 'checkbox' || el.type === 'radio') el.checked = !!v; else el.value = v;
+    if (el.type === 'range') { const r = document.getElementById('v-' + id.replace(/^rg-/, '')); if (r && /^-?[\d.]+$/.test(r.textContent.trim())) r.textContent = v; }
+  }
+  hooks.syncComponentGridUI(); syncRuleAvailability(); syncRuleUI();
+  rulePicker.refresh(); syncGenerateButton();
+}
 // A Component clicked on the board: the Rule section shows the rule that made it (Diego, Oct 27, 2026 — "the panel shows
 // the wrong Rule": a Rule picked, then another Component clicked, seemed to have the new rule). A Component of an
 // Exhaustive / Random run (its package `pk`) shows that run's rule; one made by hand (edited, Manual, a library
 // Component) leaves the Rule as it is. Changing the Rule still only acts at the next Generate.
 export function showComponentRule(comp) {
   if (!comp) return;
-  const sel = ctrl('sel-rule'), run = rt.componentGenRule || (String(state.componentGenSig || '').match(/sel-rule=([^|]+)/) || [])[1];   // the run's rule (the signature's, after a reload)
+  const sel = ctrl('sel-rule'), run = (String(state.componentGenSig || '').match(/sel-rule=([^|]+)/) || [])[1] || rt.componentGenRule;   // the run's rule: this Element's own last run (its signature), else the last one
   const r = comp.pk && run ? run : comp.ruleSource, o = r && sel.querySelector(`option[value="${r}"]`);
   if (!o || o.disabled || o.hidden || sel.value === r) return;   // Manual is off the menu (Oct 14)
   sel.value = r;

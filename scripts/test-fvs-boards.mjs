@@ -467,14 +467,17 @@ async function generatedPerElement(mode) {
   const a0 = await areas();
   C('one area per Element, each with its Element thumbnail and its Components', a0.length === 3 && a0.every(a => a.n > 0 && a.el && / · Generated components/.test(a.label)) && a0.filter(a => /editing/.test(a.label)).length === 1, JSON.stringify(a0));
   C('each area is drawn in its own Element\'s Palette', a0.find(a => a.id === 'gallery').red === true && a0.filter(a => a.id !== 'gallery').every(a => a.red === false), JSON.stringify(a0.map(a => [a.id, a.red])));
-  // Generate makes every Element's Components with the rule (Diego, Oct 23, 2026), the edited Element staying the edited one
+  // Generate makes the edited Element's Components only (Diego, Oct 27, 2026 — "il bug delle rule che vengono ereditate
+  // quando cambio component group … quando genero e clicco cambiano tutte"; every Element from Oct 23), each Element keeping
+  // its own Grid and Rule on the panel
   const act0 = await ev(() => __t.F.state.activeElement);
-  const before = await ev(() => JSON.stringify(__t.F.state.elements.filter(e => e.id !== __t.F.state.activeElement).map(e => e.gallery)));
+  const others = () => ev(() => JSON.stringify(__t.F.state.elements.filter(e => e.id !== __t.F.state.activeElement).map(e => e.gallery && e.gallery.components)));
+  const before = await others(), mineBefore = await ev(() => JSON.stringify(__t.F.state.components.map(c => c.cells)));
   await ev(() => { document.getElementById('sel-rule').value = 'random'; document.getElementById('sel-rule').dispatchEvent(new Event('change', { bubbles: true })); document.getElementById('btn-generate').click(); });
   await settle();
-  const after = await ev(() => JSON.stringify(__t.F.state.elements.filter(e => e.id !== __t.F.state.activeElement).map(e => e.gallery)));
-  const rules = await ev(() => __t.F.state.elements.filter(e => e.id !== __t.F.state.activeElement).map(e => [...new Set(((e.gallery && e.gallery.components) || []).map(c => c.ruleSource))].join('|')));
-  C('Generate makes every Element\'s Components with the rule, the edited one stays', before !== after && rules.every(r => r === 'random' || /^(identity|pinwheel|mirror|checkerboard|radial|hlines|vlines|oscillator)(\|(identity|pinwheel|mirror|checkerboard|radial|hlines|vlines|oscillator))*$/.test(r)) && (await ev(() => __t.F.state.activeElement)) === act0, JSON.stringify(rules));
+  const after = await others(), mine = await ev(() => JSON.stringify(__t.F.state.components.map(c => c.cells)));
+  C('Generate makes the edited Element\'s Components only — the other Elements keep theirs', before === after && mine !== mineBefore && (await ev(() => __t.F.state.activeElement)) === act0, JSON.stringify([before === after, mine !== mineBefore]));
+  const panelOf = id => ev(id => { const e = __t.F.state.elements.find(x => x.id === id); return e && e.gallery && e.gallery.panel ? e.gallery.panel['sel-rule'] : null; }, id);
   // a click on a Component of another area: that Element is edited, that Component selected
   // Generate re-framed the board on a list that changed size: frame every area again (Shift+1) before clicking one
   await press('Digit1', '!', 49, SHIFT); await settle();
@@ -483,6 +486,8 @@ async function generatedPerElement(mode) {
   await click(target);
   const sw = await ev(k => ({ active: __t.F.state.activeElement, sel: __t.F.state.selectedId, third: __t.F.state.components[k] && __t.F.state.components[k].id, explicit: __t.F.state.selectionExplicit }), target.k);
   C('a click in another area edits its Element and selects that Component', sw.active === target.el && sw.sel === sw.third && sw.explicit, JSON.stringify(sw));
+  { const want = await panelOf(target.el), now = await ev(() => document.getElementById('sel-rule').value), comp = await ev(() => { const c = __t.F.state.components.find(x => x.id === __t.F.state.selectedId); return c && c.ruleSource; });
+    C('…and the panel shows that Element\'s own Rule, not the one Generate just used (' + now + ')', now !== 'random' || want === 'random', JSON.stringify({ want, now, comp })); }
   // Clear board: every area; ⌘Z brings them all back
   await hold(await ev(() => __t.box('#btn-board-clear-component')));
   const cl = await areas();
