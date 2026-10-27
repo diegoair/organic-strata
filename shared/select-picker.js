@@ -30,7 +30,8 @@
  *           centre-cropped) — look and texture: dither, stipple, grain,
  *           light, palettes. Content colours — stays light in dark mode.
  *
- * Registry entry: { name, icon } — icon is SVG/HTML markup — or
+ * Registry entry: { name, icon, rowHtml? } — icon is SVG/HTML markup; rowHtml (optional, escaped markup) is the
+ *   menu row's label instead of the name, e.g. name + <span class="pi-hint">hint</span> — the trigger keeps name — or
  *   { name, thumb: () => string | Promise<string> } — rendered LAZILY: only
  *   when the menu first opens (or the entry is current in the trigger),
  *   paced one per animation frame so opening is instant, then cached. The

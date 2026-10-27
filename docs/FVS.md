@@ -812,8 +812,12 @@ its cells.
   grid section says so and keeps the last grid). **Square cells** (Rectangular, Bento — a switch under Columns): Rows
   follow Columns and the canvas — the side from Columns, as many rows as fit, the height left over centred into the
   margin (exact squares, Diego); Rows is hidden while on, the section's hint reads *6 × 11 · 66 cells*. The grid is
-  centred by the model's per-side margins (`marginTop` … `marginLeft`, which `Organica.loadLoomGrid` now reads as Loom's
-  own `innerRect` does — every model before has them at 0). Dragging a border turns Square cells off.
+  centred by Loom's own **`grid.offset`** (`{ x, y }`, where the tracks start inside the margin's box —
+  `loom/js/json-model.js` `gridOffset`; `Organica.loadLoomGrid` adds it, and so do the Symbol's guides and track
+  handles); absent on every other grid and every model saved before, so they are unchanged. Dragging a border turns
+  Square cells off. The grid section's errors name the generator's own counts (*Columns or Rows*, *Columns*, *Rings or
+  Sectors* …): *No cells — enlarge the canvas, or lower ‹counts›.* · *‹n› cells — a Symbol holds at most 2,048: lower
+  ‹counts›.* · *The canvas is too small for this grid — enlarge it, or lower ‹counts›.* (`fvs/js/08-symbol-grid.js`).
   **The contents repeat** (Diego): when the grid changes, the cells take the old ones as a motif — on Columns × Rows
   grids by row and column, wrapped (`carrySymbolCells`), on the others by order; a grid that shrinks keeps its first rows
   and columns; borders dragged on Rectangular stay when only the canvas changes. Filling the cells is **Fill the grid**

@@ -1603,7 +1603,8 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
         <tr><td>Menu</td><td><code>div.preset-menu[role=listbox]</code>, <code>position: fixed</code> from the trigger rect, opens below (above if there is no room), max-height fills the viewport, groups via <code>optgroup</code> → <code>.pi-group</code>. Rows <code>button.preset-item[role=option][aria-selected]</code>, 56px, 40px square thumb; hover = <code>--track-bg</code> fill, selected = <code>--ink</code> border (never the same cue).</td></tr>
         <tr><td>Keyboard</td><td><kbd>↓</kbd>/<kbd>↑</kbd> on the trigger opens and focuses the selected row · <kbd>↓ ↑ Home End</kbd> move · <kbd>Enter</kbd>/<kbd>Space</kbd> picks · <kbd>Esc</kbd> closes and returns focus to the trigger · <kbd>Tab</kbd> closes.</td></tr>
         <tr><td>Dismissal</td><td>outside click, scroll or resize (the menu is fixed-positioned), or any other dropdown opening — one dropdown is open at a time across pickers, popovers and menus (<code>organica:dropdown-open</code>).</td></tr>
-        <tr><td>Data</td><td><code>registry[key] = { name, icon | thumb }</code>; <code>picker.refresh()</code> after changing the select from code, <code>picker.invalidate(key)</code> after re-saving a preset.</td></tr>
+        <tr><td>Data</td><td><code>registry[key] = { name, icon | thumb, rowHtml? }</code>; <code>picker.refresh()</code> after changing the select from code, <code>picker.invalidate(key)</code> after re-saving a preset.</td></tr>
+        <tr><td>Row hint</td><td><code>rowHtml</code> (optional, markup — escape it) replaces the name <em>in the menu row only</em>; the trigger keeps <code>name</code>. Its one documented use: the name, then <code>&lt;span class="pi-hint"&gt;</code> with where the option is used — a second line in <code>--fs-micro</code>, <code>--mid</code> (<code>.pi-name .pi-hint</code>, panel.css). The hint is a note, never the option’s name: canvas formats are named by their aspect (<em>Vertical 9:16</em>) and the platform rides as the hint (<em>Instagram story and reel</em>) — Diego, Oct 27, 2026. Loom and Flexible Visual System Canvas formats; <code>presetPicker</code> passes its own rows’ markup through the same field.</td></tr>
         <tr><td>Adapters</td><td><code>Organica.Transformer.buildPicker</code> (Camo Turing, Genesis) is now a thin adapter over this picker — it maps its "none" entry to a real option and reports <code>''</code>. Living Path, Sinew and Apostate use <code>Organica.presetPicker</code> — the same picker with built-in rows, a <em>Yours</em> group (<code>optgroup</code>), a delete button on the user’s own rows (<code>.preset-row</code> + <code>.pi-del</code>, a sibling because a button cannot nest a button), a placeholder with its own label and thumbnail (Living Path’s live <em>Custom</em> stack), and a <code>sig()</code> that refreshes every thumbnail when the font or source changes. No tool hand-wires a preset menu any more.</td></tr>
       </table>
       <p class="ds-note"><strong>When a dropdown gets thumbnails.</strong> Only when all three hold: the options differ <em>visibly</em> (the look is the choice); the name doesn’t predict the look ("Burl wood" vs "Oak plank", or any user-named saved preset); and the image comes from the tool’s <em>own renderer</em>, never a drawing of it, which could mislead. A graph’s wiring (Rhizome) or a name that already says the shape (Genesis arc type) doesn’t qualify.</p>
@@ -1617,6 +1618,11 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
         <div id="ds-selpick-preview-host"></div>
         <select id="ds-selpick-preview-sel" class="panel-select"><option value="">Choose a treatment…</option><option value="threshold">Threshold</option><option value="bayer">Bayer 4×4</option><option value="fs">Floyd–Steinberg</option></select>
       </div>
+      <div class="ds-example" style="max-width:280px">
+        <div id="ds-selpick-hint-host"></div>
+        <select id="ds-selpick-hint-sel" class="panel-select"><optgroup label="Screen"><option value="Square 1:1">Square 1:1</option><option value="Vertical 9:16" selected>Vertical 9:16</option><option value="Landscape 1.91:1">Landscape 1.91:1</option></optgroup><optgroup label="Print"><option value="A4 portrait">A4 portrait</option></optgroup></select>
+      </div>
+      <p class="ds-note"><strong>Groups and row hints</strong> (the example above: canvas formats, as Loom and Flexible Visual System build them). <code>&lt;optgroup&gt;</code> headings <em>Screen</em> · <em>Print</em> become <code>.pi-group</code>; a row with a <code>rowHtml</code> hint shows it on a second line under the name; the trigger shows the name alone.</p>
       <table>
         <thead><tr><th>Dropdown</th><th>Size</th><th>Thumbnail</th></tr></thead>
         <tbody>
@@ -2120,6 +2126,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <tr><td>Position</td><td>centred on the canvas: horizontally by the floatbar’s formula (<code>--floatbar-offset</code> / <code>--panel-w</code>), vertically in the space below the header · <code>z-index</code> above the floatbar</td></tr>
         <tr><td>Kinds</td><td><strong>error</strong> <code>--danger</code> dot, <code>role="alert"</code>, self-closes at 12s · <strong>busy</strong> pulsing <code>--tool</code> dot, no timer, closed by the next non-busy call · <strong>info</strong> <code>--mid</code> dot, self-closes at 12s</td></tr>
         <tr><td>Close</td><td>20px <code>×</code> button (<code>--slo-h</code>, <code>--radius-sm</code>), Escape, or the timer · reduced-motion: no entrance animation</td></tr>
+        <tr><td>Returns</td><td><code>{ el, close }</code> — <code>close()</code> closes this notice only if it is still the one showing; <code>el.isConnected</code> says whether it still is (Oct 27, 2026 — Loom shows its “canvas too small” error <em>once</em>, not again on every slider input while it is on screen, which a screen reader would repeat).</td></tr>
       </table>
       </div>
       <p class="ds-note"><strong>What it does not show</strong> — on purpose: "Ready", prompts ("Drop a photo to begin" — the canvas already says it), live counts (they belong on the canvas or in the panel, not in a live region rewriting at drag rate), confirmations ("saved" — the download is the confirmation). <code>setStatus('active' | '')</code> is silent. Camo Turing and Genesis called <code>setStatus</code> ~40 times with no header slot to show it, so their errors ("WebGL2 unavailable", "A set with that name already exists") were invisible; they now appear.</p>
@@ -2866,6 +2873,12 @@ Organica.selectPicker(document.getElementById('ds-selpick-preview-sel'), documen
     return Organica.squareThumb(c);
   } }])),
 });
+/* groups + row hints: canvas formats as Loom / FVS build them (rowHtml = name + .pi-hint, menu rows only) */
+Organica.selectPicker(document.getElementById('ds-selpick-hint-sel'), document.getElementById('ds-selpick-hint-host'), {
+  ariaLabel: 'Canvas format (demo)',
+  registry: Object.fromEntries([['Square 1:1', 1080, 1080, 'Instagram post · LinkedIn'], ['Vertical 9:16', 1080, 1920, 'Instagram story and reel'], ['Landscape 1.91:1', 1080, 566, 'Instagram landscape · link preview'], ['A4 portrait', 210, 297, '']]
+    .map(([n, w, h, hint]) => [n, { name: n, icon: Organica.aspectIcon(w, h), rowHtml: hint ? n + '<span class="pi-hint">' + hint + '</span>' : n }])),
+});
 Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getElementById('ds-selpick-host'), {
   ariaLabel: 'Demo',
   registry: {
@@ -2970,6 +2983,11 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   });
   (() => { const t = document.querySelector('#ds-selpick-preview-host .pt-ico'); if (t) { const c = getComputedStyle(t); if (c.width !== c.height) bad('preview trigger thumbnail is not square: ' + c.width + ' × ' + c.height); } })();
   assert('#ds-selpick-preview-host.presets--preview', { position: 'relative' });   // the preview class is applied
+  /* row hint (rowHtml + .pi-hint): a second line in --fs-micro — probe inside the hint demo's menu */
+  (() => { const menu = document.querySelector('#ds-selpick-hint-host .preset-menu'); if (!menu) { bad('hint demo picker not mounted'); return; }
+    const probe = document.createElement('span'); probe.className = 'pi-name'; probe.innerHTML = 'Name<span class="pi-hint" id="ds-pi-hint-probe">Hint</span>'; menu.appendChild(probe);
+    assert('#ds-pi-hint-probe', { display: 'block', fontSize: '9px' });   // --fs-micro, under the name
+    probe.remove(); })();
   assert('.panel-select', { fontSize: '10px', borderRadius: '2px' }); // --t-control-size
   // THE FIELD — base, alias, lg, code (header.css)
   assert('#ds-field-matrix .org-field:not(.org-field--lg):not(.org-field--code)', { minHeight: '26px', fontSize: '10px', borderTopLeftRadius: '2px' });

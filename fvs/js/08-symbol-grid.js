@@ -265,7 +265,7 @@ ctrl('sel-symcanvas-preset').innerHTML = ['Screen', 'Print'].map(g => `<optgroup
 // rectangle at its own aspect; Custom is dashed.
 symCanvasPicker = Organica.selectPicker(ctrl('sel-symcanvas-preset'), ctrl('symcanvas-picker'), {
   ariaLabel: 'Canvas format',
-  registry: Object.assign(Object.fromEntries(Object.entries(SYMCANVAS_PRESETS).map(([n, p]) => [n, { name: n, icon: Organica.aspectIcon(p.w, p.h), rowHtml: p.hint ? `${n}<span class="pi-hint">${p.hint}</span>` : n }])),
+  registry: Object.assign(Object.fromEntries(Object.entries(SYMCANVAS_PRESETS).map(([n, p]) => [n, { name: n, icon: Organica.aspectIcon(p.w, p.h), rowHtml: p.hint ? `${n} <span class="pi-hint">${p.hint}</span>` : n }])),
     { Custom: { name: 'Custom', icon: Organica.aspectIcon(1, 1, { dashed: true }) } }),
 });
 ctrl('sel-symgrid-gen').innerHTML = Object.entries(SYMGRID_GENS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');

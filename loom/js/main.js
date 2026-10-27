@@ -54,7 +54,7 @@ function populateCanvasPresets() {
   const registry = {};
   Object.entries(CANVAS_PRESETS).forEach(([n, p]) => {
     registry[n] = { name: n, icon: Organica.aspectIcon(p.width, p.height),
-      rowHtml: p.hint ? `${esc(n)}<span class="pi-hint">${esc(p.hint)}</span>` : esc(n) };
+      rowHtml: p.hint ? `${esc(n)} <span class="pi-hint">${esc(p.hint)}</span>` : esc(n) };   // the space: the row's accessible name reads name, then hint
   });
   Organica.selectPicker(sel, ctrl('canvas-preset-picker'), { registry, ariaLabel: 'Canvas preset' });
 }
