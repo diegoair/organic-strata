@@ -75,6 +75,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const overlayOpen = () => !ctrl('symbol-content-overlay').hidden;   // as 12-shell.js reads it
 let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {}, elementPalettes = () => [];
 let sheetResized = () => {};
+let rebaseSymbolEdits = () => {};   // the Symbol board's undo baseline, taken again when the Symbol step is entered
 let symbolDrawn = () => {}, boardActivate = () => {}, restoreGalleries = () => {}, elementBoard = null, elementSaveNow = () => {};
 
 // Each Element keeps its own Generated components (O-67 d, Diego, Oct 11, 2026): `gallery` on the Element = the
@@ -139,6 +140,7 @@ function symbolPaletteSwap(from, to) {
     symbolPaletteIn = paletteKey(p);
     applyPalette(p);
     showGroundControls(p.ground || null);
+    rebaseSymbolEdits();
   } else {
     const now = livePaletteWithGround(), was = state.symbolPalette;
     state.symbolPalette = { ...now, own: !!(was && was.own) || paletteKey(now) !== symbolPaletteIn };
@@ -1050,7 +1052,7 @@ function mountSymbolBoard() {
   }
   const saveWork = () => { snap(); save(); };
   let saveT = 0;
-  symbolDrawn = () => { clearTimeout(saveT); saveT = setTimeout(saveWork, 600); syncSymbolPaletteHint(); };   // a Palette change on the Symbol redraws it: the hint follows
+  symbolDrawn = () => { clearTimeout(saveT); saveT = setTimeout(saveWork, 600); syncSymbolPaletteHint(); editLater(); };   // a Palette change on the Symbol redraws it: the hint follows
   window.addEventListener('pagehide', () => { clearTimeout(saveT); saveWork(); });
   // the edited Element's Palette — what a Symbol not changed on the Symbol step draws with
   const elementPalette = () => { const e = state.elements.find(x => x.id === state.activeElement); return { ...(e && e.palette ? e.palette : DEFAULT_PALETTE), ground: e && e.app ? e.app.ground || null : null }; };
@@ -1147,7 +1149,7 @@ function mountSymbolBoard() {
     state.symbolSuggestions = []; renderSuggestGallery();   // the variations were the other Symbol's
     applyWork(next.work);
     placeVariations(); selectSheets(B, [sheetId(id)]);
-    relabel(); save(); B.save();
+    relabel(); save(); B.save(); rebase();
   }
   function add() {
     clearTimeout(saveT); snap();
@@ -1162,9 +1164,30 @@ function mountSymbolBoard() {
     placeAdd();
     requestAnimationFrame(() => B.fit());
   }
-  // Undo: a Symbol deleted from the board comes back (the list and the places as they were)
+  // Undo: a Symbol deleted from the board comes back (the list and the places as they were)…
   const undoStack = [], UNDO_MAX = 20, undoBtn = ctrl('btn-board-undo-symbol');
   const syncUndo = () => { undoBtn.disabled = !undoStack.length; };
+  // …and every edit to the Symbol (Diego, Oct 27, 2026: "undo su symbol ctrl z non funziona"), as the Element's: a change
+  // that settles (500 ms after the last redraw — Fill the grid, a drop, a variation, a cell's Fit, the grid) keeps what the
+  // Symbol was before it. A selection or a zoom changes nothing kept, so it is no step.
+  let editBase = null, editT = 0;
+  const editKey = w => JSON.stringify([w.gridModel, w.cells, w.clipEnabled, w.overlap, w.palette && [w.palette.colors, w.palette.colorRule, w.palette.paperColor, w.palette.ground]]);
+  const editable = () => state.activeTier === 'symbol' && !state.preFigureSnapshot;
+  function noteEdit() {
+    clearTimeout(editT); editT = 0;
+    if (!editable()) return;
+    const w = workOf();
+    if (!w) return;
+    if (editBase && editBase.id === active() && editKey(editBase.work) !== editKey(w)) {
+      undoStack.push({ kind: 'edit', id: editBase.id, work: editBase.work });
+      if (undoStack.length > UNDO_MAX) undoStack.shift();
+      syncUndo();
+    }
+    editBase = { id: active(), work: w };
+  }
+  function editLater() { if (!editable()) return; clearTimeout(editT); editT = setTimeout(noteEdit, 500); }
+  function rebase() { clearTimeout(editT); editT = 0; const w = editable() ? workOf() : null; editBase = w ? { id: active(), work: w } : null; }
+  rebaseSymbolEdits = () => { clearTimeout(editT); editT = 0; editBase = null; };   // entering the step: the next settled draw is the baseline (the Palette swap is no edit)
   function pushUndo() {
     clearTimeout(saveT); snap();
     undoStack.push({ items: clone(state.symbols), active: active(), pos: clone(B.pos) });
@@ -1172,8 +1195,18 @@ function mountSymbolBoard() {
     syncUndo();
   }
   function undo() {
+    if (editT) noteEdit();   // a change not settled yet is a step of its own first
     const u = undoStack.pop();
     if (!u) return;
+    if (u.kind === 'edit') {   // an edit: the Symbol as it was before it
+      if (!find(u.id)) { syncUndo(); return; }
+      if (u.id !== active()) activate(u.id);
+      state.symbolSuggestions = []; renderSuggestGallery();
+      applyWork(clone(u.work));
+      renderSymbol();
+      rebase(); clearTimeout(saveT); snap(); save(); syncUndo();
+      return;
+    }
     clearTimeout(saveT); snap();
     const cur = find(active());   // the Symbol being edited keeps what was done to it since
     Object.assign(B.pos, u.pos);
@@ -1182,7 +1215,7 @@ function mountSymbolBoard() {
   }
   undoBtn.addEventListener('click', undo);
   document.addEventListener('keydown', e => {
-    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || state.activeTier !== 'symbol' || !undoStack.length || fvsIsTypingTarget(e.target)) return;
+    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z' || state.activeTier !== 'symbol' || (!undoStack.length && !editT) || fvsIsTypingTarget(e.target) || overlayOpen()) return;   // editT: a change still settling
     e.preventDefault(); undo();
   });
   function remove(id) {
@@ -1215,7 +1248,7 @@ function mountSymbolBoard() {
       if (was !== active()) { state.symbolSuggestions = []; renderSuggestGallery(); }
       try { applyWork(cur.work); } catch (err) { console.warn('FVS: the kept Symbol could not be restored', err); }
     }
-    layout();
+    layout(); rebase();
   }
   // first: the Symbols as saved (or one, the Symbol the page opened with)
   const first = readSymbols();

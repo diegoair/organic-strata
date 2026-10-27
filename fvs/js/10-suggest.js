@@ -64,7 +64,7 @@ export function renderSuggestGallery(currentIdx) {
     btn.setAttribute('aria-label', cap); btn.title = cap;
     btn.addEventListener('click', () => {
       state.symbolCells = sg.cells.map(c => ({ ...c }));
-      state.symbolSelection.clear();
+      if (!sg.sel) state.symbolSelection.clear();   // variations of a selection: the selection stays, for the next run
       hooks.renderSymbol();
       wrap.querySelectorAll('.fvs-suggest__item').forEach((b, k) => b.classList.toggle('is-current', k === i));
     });
@@ -81,8 +81,13 @@ export function runSuggest(more) {
   const base = more ? candFromCells(state.symbolCells) : null;
   if (more && base.some(c => !c)) { runSuggest(false); return; }
   setStatus('active', 'Suggesting…');
-  state.symbolSuggestions = suggestSymbols(more ? { base } : {});
-  ctrl('sug-hint').textContent = suggestSymbols.lastNote || '';
+  // With cells selected, the variations change only those (Diego, Oct 27, 2026): the others are held for the search as
+  // locked cells are, and every variation keeps them exactly as they are
+  const sel = state.symbolSelection.size ? new Set(state.symbolSelection) : null, real = state.symbolCells;
+  if (sel) state.symbolCells = real.map((c, i) => (sel.has(i) ? c : { ...c, locked: true }));
+  try { state.symbolSuggestions = suggestSymbols(more ? { base } : {}); } finally { state.symbolCells = real; }
+  if (sel) state.symbolSuggestions.forEach(sg => { sg.cells = sg.cells.map((c, i) => (sel.has(i) ? c : real[i])); sg.sel = true; });
+  ctrl('sug-hint').textContent = (sel ? `Variations of the ${sel.size} selected cell${sel.size === 1 ? '' : 's'}. ` : '') + (suggestSymbols.lastNote || '');
   if (!more && state.symbolSuggestions.length) state.symbolCells = state.symbolSuggestions[0].cells.map(c => ({ ...c }));
   hooks.renderSymbol();
   renderSuggestGallery(more ? -1 : 0);   // More like this applies nothing: what it found shows on the Variations sheet

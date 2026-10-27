@@ -46,6 +46,25 @@ const rows = await P.ev(pre + `
   check('the last one stays', F.state.symbols.length === 1, F.state.symbols.length);
   q('btn-board-undo-symbol').click(); await w(300);
   check('Undo again: both back, the first edited again (as it was when deleted)', F.state.symbols.length === 2 && F.state.activeSymbol === first && F.state.symbolCells.length === 9, JSON.stringify([F.state.symbols.length, F.state.symbolCells.length]));
+  // ⌘Z on a Symbol edit (Diego, Oct 27: "undo su symbol ctrl z non funziona")
+  const z = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true }));
+  await w(700);
+  const before = JSON.stringify(F.state.symbolCells.map(c => c.source));
+  F.patchCell(F.state.symbolCells[0], F.emptySymbolCell()); F.renderSymbol(); await w(700);
+  check('an edit (a cell emptied) is a step', !q('btn-board-undo-symbol').disabled && F.state.symbolCells[0].source === 'empty', q('btn-board-undo-symbol').disabled);
+  z(); await w(300);
+  check('⌘Z: the cell back', JSON.stringify(F.state.symbolCells.map(c => c.source)) === before, JSON.stringify(F.state.symbolCells.map(c => c.source)));
+  F.patchCell(F.state.symbolCells[1], F.emptySymbolCell()); F.renderSymbol(); z(); await w(300);
+  check('⌘Z within the 500 ms: the unsettled change undone too', JSON.stringify(F.state.symbolCells.map(c => c.source)) === before, JSON.stringify(F.state.symbolCells.map(c => c.source)));
+  F.state.symbolSelection = new Set([0]); F.renderSymbol(); await w(700);
+  // Suggest on a selection (Diego, Oct 27: "si creano variants solo sulla selezione del symbol")
+  const keep = JSON.stringify(F.state.symbolCells.slice(1));
+  F.state.symbolSelection = new Set([0, 4]); q('btn-sug-run').click(); await w(400);
+  const sg = F.state.symbolSuggestions;
+  check('Suggest with 2 cells selected: every variation keeps the other cells as they were', sg.length > 0 && sg.every(v => [1, 2, 3, 5, 6, 7, 8].every(i => JSON.stringify(v.cells[i]) === JSON.stringify(JSON.parse(keep)[i - 1]))), sg.length);
+  check('…and varies the selected ones', new Set(sg.map(v => JSON.stringify([v.cells[0], v.cells[4]]))).size > 1, 'all the same');
+  check('…the selection stays', F.state.symbolSelection.size === 2 && /2 selected cells/.test(q('sug-hint').textContent), q('sug-hint').textContent);
+  F.state.symbolSelection.clear(); F.renderSymbol();
   window.dispatchEvent(new Event('pagehide')); await w(100);
   window.__kept = { active: F.state.activeSymbol, names: F.state.symbols.map(s => s.name).join() };
   sessionStorage.setItem('kept', JSON.stringify(window.__kept));
