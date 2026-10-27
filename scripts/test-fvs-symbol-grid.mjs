@@ -32,18 +32,21 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   set('sel-symgrid-gen', 'hexagonal'); await settle();
   check('live: another grid type, the contents carried by order', F.state.symbolGrid.cellShape === 'polygon' && F.state.symbolCells.some(c => c.componentName === A) && F.state.symbolCells.some(c => c.componentName === B), F.state.symbolGrid.cellShape);
   set('sel-symgrid-gen', 'rectangular'); await settle();
-  // Square cells: exact squares on every canvas, Rows hidden, the count in the hint
-  for (const preset of ['Portrait 4:5', 'Vertical 9:16', 'Landscape 1.91:1', 'Portrait 3:4', 'A4 portrait']) {
+  // Square cells (after Rows — Diego): Columns × Rows as chosen, exact squares, centred both ways, Rows always shown
+  const order = [...q('symgrid-gen-params').children].map(e => e.id).filter(Boolean);
+  check('Square cells sits right after Rows', order.indexOf('symgen-square-row') === order.indexOf('symgen-row-rows') + 1, order.join());
+  for (const [preset, cols, rows] of [['Portrait 4:5', 6, 8], ['Vertical 9:16', 6, 8], ['Landscape 1.91:1', 6, 8], ['Portrait 3:4', 9, 12], ['A4 portrait', 5, 5]]) {
     set('sel-symcanvas-preset', preset); await w(100);
     if (!q('chk-symgen-square').checked) set('chk-symgen-square', true);
-    set('symgen-cols', 6); await settle();
-    const cells = F.state.symbolGrid.cells, sides = cells.map(c => [c.width, c.height]), s0 = sides[0][0];
-    const square = sides.every(([a, b]) => Math.abs(a - s0) < 0.01 && Math.abs(b - s0) < 0.01);
-    const cv = F.state.symbolGrid.canvas, ys = cells.map(c => c.y), top = Math.min(...ys), bottom = cv.height - Math.max(...cells.map(c => c.y + c.height));
-    check('Square cells on ' + preset + ': ' + q('symbol-cellcount-hint').textContent + ', exact squares, centred, Rows hidden', square && Math.abs(top - bottom) < 0.5 && q('symgen-row-rows').hidden && /^6 × \\d+ · \\d+ cells$/.test(q('symbol-cellcount-hint').textContent), JSON.stringify([s0, top, bottom, q('symbol-cellcount-hint').textContent]));
+    set('symgen-cols', cols); set('symgen-rows', rows); await settle();
+    const cells = F.state.symbolGrid.cells, s0 = cells[0].width;
+    const square = cells.every(c => Math.abs(c.width - s0) < 0.01 && Math.abs(c.height - s0) < 0.01);
+    const cv = F.state.symbolGrid.canvas, top = Math.min(...cells.map(c => c.y)), bottom = cv.height - Math.max(...cells.map(c => c.y + c.height));
+    const left = Math.min(...cells.map(c => c.x)), right = cv.width - Math.max(...cells.map(c => c.x + c.width));
+    check('Square cells on ' + preset + ' ' + cols + ' × ' + rows + ': ' + q('symbol-cellcount-hint').textContent + ', exact squares, centred, Rows shown', square && cells.length === cols * rows && Math.abs(top - bottom) < 0.5 && Math.abs(left - right) < 0.5 && !q('symgen-row-rows').hidden, JSON.stringify([cells.length, s0, top, bottom, left, right]));
   }
   set('chk-symgen-square', false); await settle();
-  check('Square cells off: Rows back', !q('symgen-row-rows').hidden, 'hidden');
+  check('Square cells off: the cells fill the margin box again', Math.abs(Math.min(...F.state.symbolGrid.cells.map(c => c.x)) - Math.min(F.state.symbolGrid.canvas.width, F.state.symbolGrid.canvas.height) * 0.05) < 0.5, Math.min(...F.state.symbolGrid.cells.map(c => c.x)));
   // the presets export at their own size
   const want = { 'Square 1:1': [1080, 1080], 'Portrait 4:5': [1080, 1350], 'Portrait 3:4': [1080, 1440], 'Portrait 2:3': [1000, 1500], 'Vertical 9:16': [1080, 1920], 'Landscape 16:9': [1920, 1080], 'Landscape 1.91:1': [1080, 566] };
   const sizes = [];

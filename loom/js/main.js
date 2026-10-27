@@ -268,18 +268,10 @@ function syncEqualizeRow() {
   const type = ctrl('sel-gridtype').value;
   ctrl('row-equalize').hidden = !(GENERATORS[type].cellShape === 'rect');
 }
-// ── Square cells (Bento) — Rows is derived from Columns (bento.js), so
-// the Rows row is HIDDEN while it is on (not greyed: it does nothing), and
-// the derived count shows in the Columns readout ("6 × 11").
-function syncBentoSquareRow() {
-  const on = ctrl('chk-bento-square').checked;
-  ctrl('row-bento-rows').hidden = on;
-  if (!on) ctrl('v-bento-cols').textContent = ctrl('rg-bento-cols').value;
-}
-function syncBentoSquareReadout(grid) {
-  syncBentoSquareRow();
-  if (grid.offset) ctrl('v-bento-cols').textContent = `${grid.tracks.cols.length} × ${grid.tracks.rows.length}`;
-}
+// ── Square cells (Bento) — after Rows (Diego, Oct 27, 2026): Columns × Rows as chosen, cells square, the grid centred
+// (bento.js); nothing in the panel hides — the switch only changes how the tracks are sized.
+function syncBentoSquareRow() {}
+function syncBentoSquareReadout() {}
 
 // ── Count ranges — one source: GENERATORS[type].ranges (registry.js). Every
 // hand-written slider id maps to its generator + param key here; at init
@@ -460,7 +452,6 @@ function readGridParams() {
       cols: Math.round(val('rg-bento-cols')), rows: Math.round(val('rg-bento-rows')),
       variety: val('rg-bento-variety'), gap: unitVal('rg-bento-gap'), seed: Math.round(val('rg-bento-seed')),
       square: ctrl('chk-bento-square').checked,
-      maxRows: GENERATORS.bento.ranges.rows[1],
     };
   }
   if (type === 'hexagonal') {

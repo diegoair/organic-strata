@@ -809,9 +809,10 @@ its cells.
   Triangular / Diamond 3–30); the source is `ranges` in `loom/js/generators/registry.js`, and
   `scripts/test-fvs-symbol-grid.mjs` checks `SYMGRID_GENS` agrees (Rings, Cells, Depth keep the Symbol's own). The old
   *Symbol band* (25–64 cells) gives way to a cap: a Symbol holds at most **2,048 cells** (`SYMBOL_CELL_CAP`; past it the
-  grid section says so and keeps the last grid). **Square cells** (Rectangular, Bento — a switch under Columns): Rows
-  follow Columns and the canvas — the side from Columns, as many rows as fit, the height left over centred into the
-  margin (exact squares, Diego); Rows is hidden while on, the section's hint reads *6 × 11 · 66 cells*. The grid is
+  grid section says so and keeps the last grid). **Square cells** (Rectangular, Bento — a switch after Rows, Diego): Columns ×
+  Rows as chosen, every cell an exact square of the larger side that fits both ways, the grid centred — the leftover on
+  the long side goes to the margin (Rows was derived from Columns and hidden for a few hours the same day; Diego: keep
+  Rows). The section's hint reads *6 × 8 · 48 cells*. The grid is
   centred by Loom's own **`grid.offset`** (`{ x, y }`, where the tracks start inside the margin's box —
   `loom/js/json-model.js` `gridOffset`; `Organica.loadLoomGrid` adds it, and so do the Symbol's guides and track
   handles); absent on every other grid and every model saved before, so they are unchanged. Dragging a border turns

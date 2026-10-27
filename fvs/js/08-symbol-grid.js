@@ -169,17 +169,14 @@ export function renderSymgridParams() {
   const row = ([k, label, a, b, step, def]) => a === 'text'
     ? `<div class="ctrl-row"><div class="ctrl-label">${label}</div><input type="text" class="panel-input" id="symgen-${k}" value="${b}" aria-label="${label}"></div>`
     : `<div class="ctrl-row" id="symgen-row-${k}"><div class="ctrl-label">${label}</div><input type="range" id="symgen-${k}" min="${a}" max="${b}" step="${step}" value="${def}" aria-label="${label}"><span class="ctrl-val" id="v-symgen-${k}">${def}</span></div>`;
-  // Square cells (Oct 27, 2026): right under Columns; on, Rows is hidden — it follows Columns and the canvas
+  // Square cells (Oct 27, 2026): after Rows (Diego) — on, the cells are squares and the grid centred; nothing hides
   const square = spec.square ? `<label class="check-row org-switch" id="symgen-square-row"><input type="checkbox" id="chk-symgen-square"${was ? ' checked' : ''}><span>Square cells</span></label>` : '';
-  ctrl('symgrid-gen-params').innerHTML = spec.params.map(p => row(p) + (p[0] === 'cols' ? square : '')).join('');
+  ctrl('symgrid-gen-params').innerHTML = spec.params.map(p => row(p) + (p[0] === 'rows' ? square : '')).join('');
   spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
   syncSquareCellsUI();
 }
 provide({ syncSquareCellsUI: () => syncSquareCellsUI() });
-export function syncSquareCellsUI() {
-  const on = !!(ctrl('chk-symgen-square') && ctrl('chk-symgen-square').checked), rows = ctrl('symgen-row-rows');
-  if (rows) rows.hidden = on;
-}
+export function syncSquareCellsUI() {}   // nothing to show or hide since Rows stays (Oct 27, 2026); kept for the drag hook
 // ── Overlap & blend — every Symbol grid. Saved with the Symbol (entry.overlap); older Symbols open as Paper under, 0.
 state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest' };
 export function syncOverlapSection() {

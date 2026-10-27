@@ -583,7 +583,7 @@ export function figureWithMirror(defs, body, box, size, rot, mir) {
 export function readSymgridParams(id) {
   const out = {};
   SYMGRID_GENS[id].params.forEach(([k, , a]) => { const v = pv('symgen-' + k); out[k] = a === 'text' ? v : parseFloat(v); });
-  if (SYMGRID_GENS[id].square && pc('chk-symgen-square')) { out.square = true; delete out.rows; }   // Rows follow Columns
+  if (SYMGRID_GENS[id].square && pc('chk-symgen-square')) out.square = true;   // Columns × Rows, square cells
   return out;
 }
 // Loom's grid generators (loom/js/generators/registry.js, untouched), imported on first use — the Rhizome way.
@@ -597,15 +597,12 @@ export async function symbolGridModel(genId, params, cv) {
   if (!G) throw new Error(`Unknown grid generator "${genId}".`);
   const m = Math.min(cv.W, cv.H) * (cv.margin / 100);
   let inner = { x: m, y: m, width: Math.max(1, cv.W - 2 * m), height: Math.max(1, cv.H - 2 * m) };
-  // Square cells (Oct 27, 2026 — Diego: exact squares): the side from Columns, as many Rows as fit (2–24), the height
-  // left over centred into the margin; on a canvas too wide for that many columns, the width is the one cut down
-  if (params.square && params.cols) {
-    const cols = Math.round(params.cols); let side = inner.width / cols, rows = Math.floor(inner.height / side + 1e-9);
-    if (rows < 1) { rows = 1; side = inner.height; }
-    rows = Math.min(rows, (G.ranges && G.ranges.rows && G.ranges.rows[1]) || 24);   // Loom's range, the one source
+  // Square cells (Oct 27, 2026 — Diego: exact squares, then "Rows stays"): Columns × Rows as chosen, every cell a square
+  // of the larger side that fits both ways, the grid centred — the leftover on the long side goes to the margin
+  if (params.square && params.cols && params.rows) {
+    const cols = Math.round(params.cols), rows = Math.round(params.rows), side = Math.min(inner.width / cols, inner.height / rows);
     const w = side * cols, h = side * rows;
     inner = { x: inner.x + (inner.width - w) / 2, y: inner.y + (inner.height - h) / 2, width: w, height: h };
-    params = { ...params, rows };
   }
   if (genId === 'rectangular') {
     // New UI path: cols/rows are just a track COUNT → equal starting weights
