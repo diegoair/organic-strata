@@ -457,13 +457,13 @@ section **Tile** after Transform axes (square cells only — hidden on a lattice
   over On top, which orders the cells of the same order (Diego); the hit box drawn on top takes the click. The cell keys
   `moveX` / `moveY` / `z` (0 = absent) count in a Component's key; each change is one undo step. Square cells only, and
   not on empty cells.
-- **Weave** (Phase 5, Oct 26–27, 2026 — first on `explorations/tropism/`): a fourth **On top**, on Grid too (On top
+- **Interlace** (was *Weave* — renamed by Diego, Oct 27, 2026; the saved value stays `weave`) (Phase 5, Oct 26–27, 2026 — first on `explorations/tropism/`): a fourth **On top**, on Grid too (On top
   shows on every Layout; *The moved cells / The other cells* only when cells move). Every pair of neighbours has one on
   top, alternating across the grid (across a row the left one on even column + row, down a column the upper one on
   odd, on a diagonal by the column — `weaveAbove`), so each cell passes over one neighbour and under the next, which
   no drawing order can do. Each cell is cut by a `<mask>` of the neighbours over it (`weaveCovers`: one column / row
   away and close enough to touch; a copy one period over counts as the column beyond the edge), its shape unchanged.
-  **Crossing gap** (0–10 % of a cell, shown with Weave, 2 by default; *Margin* is the Canvas's) leaves Paper round the cell on top — the silhouettes
+  **Crossing gap** (0–10 % of a cell, shown with Interlace, 2 by default; *Margin* is the Canvas's) leaves Paper round the cell on top — the silhouettes
   grown by an `feMorphology` dilate in the Component's units (each silhouette black by its alpha, so a pattern or a photo
   covers by its shape; ids dropped); saved as `overlap.margin` (0 kept). SVG only: the canvas twin and a Symbol's nested
   Component keep the reading order — On top's `title` says so. 8 × 8 with Show as tile: 100 masks, ~27 ms.
