@@ -90,24 +90,26 @@ export function generateBento(params, inner) {
   const { variety, gap, seed } = params;
   let { cols, rows } = params; const square = !!params.square;
   let colSizes, rowSizes, offset = null;
-  if (square) {
-    // Columns and Rows as chosen; the side is the larger square that fits both ways, the grid centred (Diego, Oct 27, 2026:
-    // Rows stays — it was derived from Columns until then)
-    const s = Math.min((inner.width - (cols - 1) * gap) / cols, (inner.height - (rows - 1) * gap) / rows);
-    offset = { x: (inner.width - (cols * s + (cols - 1) * gap)) / 2, y: (inner.height - (rows * s + (rows - 1) * gap)) / 2 };
-    // Overflow (`reach` = the canvas's edges around the inner rect): the same squares go on to them on the same lattice,
-    // the chosen grid where it was; the canvas cuts the outer ones
-    if (params.overflow && params.reach) {
-      const p = s + gap, R = params.reach;
-      const l = Math.ceil((offset.x + R.left) / p - 1e-9), t = Math.ceil((offset.y + R.top) / p - 1e-9);
-      const r = Math.ceil((inner.width - offset.x - (cols * s + (cols - 1) * gap) + R.right) / p - 1e-9), b = Math.ceil((inner.height - offset.y - (rows * s + (rows - 1) * gap) + R.bottom) / p - 1e-9);
-      offset = { x: offset.x - l * p, y: offset.y - t * p };
+  const over = !!params.overflow;
+  if (square || over) {
+    // Columns and Rows as chosen; with Square cells the side is the larger square that fits both ways, the grid centred
+    // (Diego, Oct 27, 2026: Rows stays — it was derived from Columns until then); without, the cells fill the inner rect
+    const fx = (inner.width - (cols - 1) * gap) / cols, fy = (inner.height - (rows - 1) * gap) / rows;
+    const sx = square ? Math.min(fx, fy) : fx, sy = square ? sx : fy;
+    offset = { x: (inner.width - (cols * sx + (cols - 1) * gap)) / 2, y: (inner.height - (rows * sy + (rows - 1) * gap)) / 2 };
+    // Overflow (`reach` = the canvas's edges around the inner rect) — with or without Square cells (Diego): the same
+    // cells go on to them on the same lattice, the chosen grid where it was; the canvas cuts the outer ones
+    if (over && params.reach) {
+      const px = sx + gap, py = sy + gap, R = params.reach;
+      const l = Math.ceil((offset.x + R.left) / px - 1e-9), t = Math.ceil((offset.y + R.top) / py - 1e-9);
+      const r = Math.ceil((inner.width - offset.x - (cols * sx + (cols - 1) * gap) + R.right) / px - 1e-9), b = Math.ceil((inner.height - offset.y - (rows * sy + (rows - 1) * gap) + R.bottom) / py - 1e-9);
+      offset = { x: offset.x - l * px, y: offset.y - t * py };
       cols += l + r; rows += t + b;
     }
-    colSizes = new Array(cols).fill(s); rowSizes = new Array(rows).fill(s);
-    // Keep margin (`reach` all 0 — main.js): the squares stop at the inner rect; the edge tracks are cut down to it, so
-    // every renderer draws the cut squares as they are (Diego, Oct 27, 2026)
-    if (params.overflow && params.keepMargin) {
+    colSizes = new Array(cols).fill(sx); rowSizes = new Array(rows).fill(sy);
+    // Keep margin (`reach` all 0 — main.js): the cells stop at the inner rect; the edge tracks are cut down to it, so
+    // every renderer draws the cut cells as they are (Diego, Oct 27, 2026)
+    if (over && params.keepMargin) {
       const trim = (sizes, start, span) => {
         const over0 = Math.max(0, -start), end = start + sizes.reduce((a, v) => a + v, 0) + gap * (sizes.length - 1), over1 = Math.max(0, end - span);
         sizes[0] -= over0; sizes[sizes.length - 1] -= over1;
@@ -115,6 +117,7 @@ export function generateBento(params, inner) {
       };
       offset = { x: trim(colSizes, offset.x, inner.width), y: trim(rowSizes, offset.y, inner.height) };
     }
+    if (!offset.x && !offset.y) offset = null;
   } else {
     colSizes = solveTracksKiwi(cols, inner.width, gap);
     rowSizes = solveTracksKiwi(rows, inner.height, gap);
@@ -124,7 +127,7 @@ export function generateBento(params, inner) {
   const grid = {
     type: 'bento',
     solver: 'kiwi',
-    params: square ? { cols: params.cols, rows: params.rows, variety, seed, square: true, ...(params.overflow ? { overflow: true } : {}), ...(params.overflow && params.keepMargin ? { keepMargin: true } : {}) } : { cols, rows, variety, seed },
+    params: square || over ? { cols: params.cols, rows: params.rows, variety, seed, ...(square ? { square: true } : {}), ...(over ? { overflow: true } : {}), ...(over && params.keepMargin ? { keepMargin: true } : {}) } : { cols, rows, variety, seed },
     gap,
     tracks: { cols: colSizes, rows: rowSizes },
   };

@@ -812,12 +812,12 @@ its cells.
   grid section says so and keeps the last grid). **Square cells** (Rectangular, Bento — a switch after Rows, Diego): Columns ×
   Rows as chosen, every cell an exact square of the larger side that fits both ways, the grid centred — the leftover on
   the long side goes to the margin (Rows was derived from Columns and hidden for a few hours the same day; Diego: keep
-  Rows). The section's hint reads *6 × 8 · 48 cells*. **Overflow** (a switch after Square cells, shown only with it — Diego, Oct 27, 2026: *si vanno a
+  Rows). The section's hint reads *6 × 8 · 48 cells*. **Overflow** (a switch after Square cells, always shown and working with or without it — Diego, Oct 27, 2026: *sempre visibile e funzionante a prescindere dello square cells*; first: *si vanno a
   riempire anche gli spazi rimasti vuoti e le celle tagliate fuori dalla canvas vengono nascoste*): the same squares go
   on past Columns × Rows to the canvas's edges, margin included, on the same lattice — the chosen grid stays where it
   was, in the middle — and a square the edge cuts is cut by the canvas (the export is the canvas). The model gets the
   extra tracks (6 × 6 on Portrait 4:5 → 8 × 10 · 80 cells); the Symbol's frame keeps what was asked. **Keep margin** (a switch
-  after Overflow, shown only with it — Diego, Oct 27, 2026: *all'overflow aggiungi anche la possibilità di avere il
+  after Overflow, shown only with Overflow, Square cells or not — Diego, Oct 27, 2026: *all'overflow aggiungi anche la possibilità di avere il
   margine*): the squares go on only to the margin's box and are cut at the margin line (`grid.clipRect`; the SVG clips
   there, the PNG too — the margin stays Paper and its pattern). The grid is
   centred by Loom's own **`grid.offset`** (`{ x, y }`, where the tracks start inside the margin's box —

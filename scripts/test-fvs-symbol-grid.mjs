@@ -70,7 +70,16 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     check('Keep margin off: no margin cut', !F.state.symbolGrid.grid.clipRect && !/mclip-/.test(F.buildSymbolSVG()), 'still cut');
     set('chk-symgen-overflow', false); await settle();
     set('chk-symgen-square', false); await settle();
-    check('Square cells off: Overflow hides', q('symgen-overflow-row').hidden, 'shown'); }
+    // Overflow without Square cells (Diego: "sempre visibile e funzionante a prescindere dello square cells")
+    check('Square cells off: Overflow still shows', !q('symgen-overflow-row').hidden, 'hidden');
+    set('chk-symgen-overflow', true); await settle();
+    { const cells = F.state.symbolGrid.cells, cv = F.state.symbolGrid.canvas, m = Math.min(cv.width, cv.height) * 0.05;
+      const cw = (cv.width - 2 * m) / 6, ch = (cv.height - 2 * m) / 6, same = cells.every(c => Math.abs(c.width - cw) < 0.01 && Math.abs(c.height - ch) < 0.01);
+      const minX = Math.min(...cells.map(c => c.x)), maxY = Math.max(...cells.map(c => c.y + c.height));
+      check('Overflow without Square cells: ' + q('symbol-cellcount-hint').textContent + ' — the 6 × 6 cells (' + cw.toFixed(1) + ' × ' + ch.toFixed(1) + ') go on to the canvas edges', same && minX <= 0.01 && maxY >= cv.height - 0.01 && cells.length > 36, JSON.stringify([cells.length, minX, maxY])); }
+    set('chk-symgen-keepmargin', true); await settle();
+    check('…with Keep margin: the plain 6 × 6 (it already fills the margin), cut at the margin', F.state.symbolCells.length === 36 && !!F.state.symbolGrid.grid.clipRect, F.state.symbolCells.length);
+    set('chk-symgen-keepmargin', false); set('chk-symgen-overflow', false); await settle(); }
   set('chk-symgen-square', false); await settle();
   check('Square cells off: the cells fill the margin box again', Math.abs(Math.min(...F.state.symbolGrid.cells.map(c => c.x)) - Math.min(F.state.symbolGrid.canvas.width, F.state.symbolGrid.canvas.height) * 0.05) < 0.5, Math.min(...F.state.symbolGrid.cells.map(c => c.x)));
   // the presets export at their own size

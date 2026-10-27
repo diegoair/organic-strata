@@ -270,7 +270,7 @@ function syncEqualizeRow() {
 }
 // ── Square cells (Bento) — after Rows (Diego, Oct 27, 2026): Columns × Rows as chosen, cells square, the grid centred
 // (bento.js); nothing in the panel hides — the switch only changes how the tracks are sized.
-function syncBentoSquareRow() { ctrl('row-bento-overflow').hidden = !ctrl('chk-bento-square').checked; ctrl('row-bento-keepmargin').hidden = !(ctrl('chk-bento-square').checked && ctrl('chk-bento-overflow').checked); }   // Overflow only with Square cells (hidden, not greyed)
+function syncBentoSquareRow() { ctrl('row-bento-keepmargin').hidden = !ctrl('chk-bento-overflow').checked; }   // Keep margin only with Overflow (hidden, not greyed); Overflow always shows   // Overflow only with Square cells (hidden, not greyed)
 function syncBentoSquareReadout() { syncBentoSquareRow(); }
 
 // ── Count ranges — one source: GENERATORS[type].ranges (registry.js). Every
@@ -452,8 +452,8 @@ function readGridParams() {
       cols: Math.round(val('rg-bento-cols')), rows: Math.round(val('rg-bento-rows')),
       variety: val('rg-bento-variety'), gap: unitVal('rg-bento-gap'), seed: Math.round(val('rg-bento-seed')),
       square: ctrl('chk-bento-square').checked,
-      overflow: ctrl('chk-bento-square').checked && ctrl('chk-bento-overflow').checked,
-      keepMargin: ctrl('chk-bento-square').checked && ctrl('chk-bento-overflow').checked && ctrl('chk-bento-keepmargin').checked,
+      overflow: ctrl('chk-bento-overflow').checked,   // with or without Square cells (Diego, Oct 27, 2026)
+      keepMargin: ctrl('chk-bento-overflow').checked && ctrl('chk-bento-keepmargin').checked,
     };
   }
   if (type === 'hexagonal') {
@@ -623,7 +623,7 @@ function build() {
   if (generator.cellShape === 'rect') {
     grid.equalizeCols = ctrl('ck-equalize-cols').checked;
     grid.equalizeRows = ctrl('ck-equalize-rows').checked;
-    if (grid.equalizeCols) grid.tracks.cols = solveTracksKiwi(grid.tracks.cols.length, inner.width, grid.gap);
+    if (grid.equalizeCols && !grid.offset) grid.tracks.cols = solveTracksKiwi(grid.tracks.cols.length, inner.width, grid.gap);   // Square cells / Overflow: the tracks are set (re-solving would refill the inner rect)
     // Square cells: the rows are already equal (each = the column width) and
     // deliberately do NOT fill the height — re-solving them would stretch
     // the squares back into rectangles.
