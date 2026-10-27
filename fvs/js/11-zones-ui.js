@@ -180,10 +180,23 @@ export function renderZonesPanel() {
     ctrl('sel-zone-arrange').value = (z.do.arrange && z.do.arrange.rule) || 'random';
     ctrl('sel-zone-fit').value = (z.do.arrange && z.do.arrange.fit) || z.do.fit || 'contain';
   }
+  // Follows: a Symbol rule (the Rule block below) or a generator of the zone's geometry (Symmetry, Continuity, Field, Rhythm)
+  ctrl('row-zone-follow').hidden = kind !== 'rule';
+  if (kind === 'rule') {
+    const grid = getSymbolGrid(), idxs = zoneCells(z.when, ctxs), groups = new Map(), rng = Organica.mulberry32(1);
+    Object.entries(ZONE_FOLLOW).forEach(([id, G]) => {
+      if (G.applies && !G.applies(grid, idxs, ctxs)) return;
+      (G.space ? G.space(grid, idxs, ctxs, rng) : [{}]).forEach(params => {
+        const list = groups.get(G.label) || []; list.push({ v: id + '|' + JSON.stringify(params), t: (G.caption ? G.caption(params) : G.label) + (G.words && G.words(params) ? ' — ' + G.words(params) : '') }); groups.set(G.label, list);
+      });
+    });
+    const cur = z.do.follow ? z.do.follow.id + '|' + JSON.stringify(z.do.follow.params || {}) : '';
+    ctrl('sel-zone-follow').innerHTML = '<option value="">A Symbol rule</option>' + [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(o => `<option value="${esc(o.v)}"${o.v === cur ? ' selected' : ''}>${esc(o.t)}</option>`).join('')}</optgroup>`).join('');
+  }
   // the Rule block lives in the inspector while a zone is picked
   if (ruleBlock.parentElement !== ctrl('zone-rule-host')) ctrl('zone-rule-host').appendChild(ruleBlock);
   ruleBlock.classList.add('is-zone');
-  ruleBlock.hidden = kind !== 'rule';
+  ruleBlock.hidden = kind !== 'rule' || !!z.do.follow;
   if (kind === 'rule' && z.do.symbolRule && !ruleBlock._syncing) {
     const sr = z.do.symbolRule;
     ruleBlock._syncing = true;
@@ -345,3 +358,11 @@ function syncSurprise() {
 }
 ctrl('rg-sug-surprise').addEventListener('input', syncSurprise);
 syncSurprise();
+
+ctrl('sel-zone-follow').addEventListener('change', () => {
+  const z = state.symbolZones[state.zonePick]; if (!z) return;
+  const v = ctrl('sel-zone-follow').value;
+  if (!v) z.do = { symbolRule: readRule() };
+  else { const k = v.indexOf('|'); z.do = { follow: { id: v.slice(0, k), params: JSON.parse(v.slice(k + 1)), seed: newSeed() } }; }
+  applyZonesNow();
+});

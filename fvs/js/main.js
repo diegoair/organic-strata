@@ -5,6 +5,7 @@ import './engine/00-core.js';
 import './engine/01-geometry.js';
 import './engine/02-seed-ui.js';
 import './engine/03-rules.js';
+import './engine/03-symmetry.js';
 import './engine/04-appearance.js';
 import './engine/05-render-component.js';
 import './engine/06-component-ui.js';

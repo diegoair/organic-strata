@@ -12,6 +12,9 @@ import {
   canonicalState, mulberry32
 } from './03-rules.js';
 import {
+  WALLPAPER, WALLPAPER_WORDS, composePose, poseOf, rosetteMap, wallpaperMap
+} from './03-symmetry.js';
+import {
   getSymbolGrid, polyOrient, snapPose, withPlacementDefaults
 } from './08-symbol-grid.js';
 import {
@@ -192,6 +195,55 @@ function placeContent(cell, item, fit, ctx) {
 // ZONE_FOLLOW[id] = { label, applies(grid, idxs, ctxs) → bool, build(cells, idxs, params, rng, env) → cells (in
 // place), caption(params) }. `do.follow = {id, params, seed}` runs one on the zone's cells.
 export const ZONE_FOLLOW = {};
+// A map {i → {rep, pose}} applied: every cell takes its representative's content, posed by the group's operation.
+function applyOrbitMap(cells, M) {
+  const src = new Map();
+  M.forEach(m => { if (!src.has(m.rep)) src.set(m.rep, clone(cells[m.rep])); });
+  M.forEach((m, i) => {
+    const s = src.get(m.rep); if (!s || i === m.rep) return;
+    const cell = cells[i];
+    CONTENT_FIELDS.forEach(k => { delete cell[k]; });
+    Object.assign(cell, contentOfCell(s));
+    const p = composePose(m.pose, poseOf(s));
+    cell.rotation = p.r; cell.flipH = p.f; cell.flipV = false;
+  });
+}
+const rectLattice = (grid, idxs, ctxs) => grid && grid.cellShape === 'rect' && idxs.length >= 4 && new Set(idxs.map(i => ctxs[i].row + ',' + ctxs[i].col)).size === idxs.length;
+// Symmetry › the wallpaper groups (square lattices): the zone becomes a pattern of the group on a tile of n × n cells.
+ZONE_FOLLOW.wallpaper = {
+  label: 'Symmetry',
+  applies: rectLattice,
+  space(grid, idxs, ctxs) {
+    const out = [], span = k => Math.max(...idxs.map(i => ctxs[i][k])) - Math.min(...idxs.map(i => ctxs[i][k])) + 1;
+    const small = Math.min(span('col'), span('row'));
+    Object.keys(WALLPAPER).forEach(group => [2, 4].forEach(n => {
+      if (n > small || (n === 4 && !['p4m', 'p4g', 'cmm', 'pmg', 'pgg', 'cm'].includes(group))) return;
+      if (wallpaperMap(idxs, ctxs, group, n)) out.push({ group, n });
+    }));
+    return out;
+  },
+  build(cells, idxs, p, rng, env) { const M = wallpaperMap(idxs, env.ctxs, p.group, p.n); if (M) applyOrbitMap(cells, M); },
+  caption: p => p.group + (p.n > 2 ? ' · tile ' + p.n : ''),
+  words: p => WALLPAPER_WORDS[p.group] || '',
+};
+// Symmetry › rosettes: m-fold turns about the zone's centre (C m), with mirrors (D m) — any grid that carries them.
+function centresOf(grid) {
+  const geo = cellColRow(grid), pts = geo.map(g => [g.cx, g.cy]);
+  const nn = pts.map((p, i) => { let d = Infinity; pts.forEach((q, j) => { if (j !== i) d = Math.min(d, Math.hypot(p[0] - q[0], p[1] - q[1])); }); return d; }).filter(Number.isFinite).sort((a, b) => a - b);
+  return { pts, tol: 0.35 * (nn[Math.floor(nn.length / 2)] || 1) };
+}
+ZONE_FOLLOW.rosette = {
+  label: 'Symmetry',
+  applies: (grid, idxs) => idxs.length >= 3,
+  space(grid, idxs) {
+    const { pts, tol } = centresOf(grid), out = [];
+    [2, 3, 4, 6, 8].forEach(m => [false, true].forEach(mirror => { if (rosetteMap(idxs, pts, m, mirror, tol)) out.push({ m, mirror }); }));
+    return out;
+  },
+  build(cells, idxs, p, rng, env) { const { pts, tol } = centresOf(env.grid), M = rosetteMap(idxs, pts, p.m, p.mirror, tol); if (M) applyOrbitMap(cells, M); },
+  caption: p => (p.mirror ? 'D' : 'C') + p.m + ' rosette',
+  words: p => p.m + (p.mirror ? ' mirrors and turns' : ' turns') + ' about the centre',
+};
 
 // ── The evaluator ────────────────────────────────────────────
 // Cell rules on a sealed level (the Figure graph's cells hold content patches): applyClassRules()'s order and
