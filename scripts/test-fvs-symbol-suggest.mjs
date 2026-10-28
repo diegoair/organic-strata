@@ -63,9 +63,9 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('…Suggest after Suggest keeps drawing from the Symbol’s contents as you made them (they never narrow)', nOwn() === own0 && F.state.symbolSuggestions.length >= 4, own0 + ' → ' + nOwn() + ', ' + F.state.symbolSuggestions.length);
   check('…and new variations', JSON.stringify(F.state.symbolSuggestions.map(v => v.cells.map(c => c.rotation))) !== one, 'the same');
   q('fvs-sug-panel').querySelectorAll('.fvs-suggest__item')[1].click(); await w(300);
-  const picked = JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation])), seed1 = q('num-sug-seed').value;
+  const seed1 = q('num-sug-seed').value;
   q('btn-sug-run').click(); await w(500);
-  check('after a variation is picked, Suggest looks for more like it: the Symbol stays, the seed too', JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation])) === picked && q('num-sug-seed').value === seed1 && F.state.symbolSuggestions.length > 0, 'applied or reseeded');
+  check('after a variation is picked, Suggest gives new ones: the next seed, none “Like the current”', +q('num-sug-seed').value === +seed1 + 1 && F.state.symbolSuggestions.length > 0 && F.state.symbolSuggestions.every(v => v.label !== 'Like the current'), seed1 + ' → ' + q('num-sug-seed').value + ' ' + F.state.symbolSuggestions.map(v => v.label).join());
   // a selection of one cell, a variation picked, Suggest again: variations that differ, never the Symbol itself (Oct 28, 2026 —
   // the 8–20% re-draw of More like this changed nothing on one free cell and the sheet showed the Symbol alone)
   F.state.symbolSelection = new Set([1]); F.renderSymbol(); await w(100);
@@ -73,7 +73,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const cur = JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation, !!c.flipH]));
   q('btn-sug-run').click(); await w(500);
   const keys = F.state.symbolSuggestions.map(v => JSON.stringify(v.cells.map(c => [c.componentName, c.rotation, !!c.flipH])));
-  check('one selected cell, picked, Suggest again: several variations, none the Symbol as it is, the Symbol kept', keys.length >= 2 && new Set(keys).size === keys.length && !keys.includes(cur) && JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation, !!c.flipH])) === cur, keys.length + ' / ' + keys.includes(cur));
+  check('one selected cell, picked, Suggest again: several variations, none the Symbol as it was', keys.length >= 2 && new Set(keys).size === keys.length && !keys.includes(cur), keys.length + ' / ' + keys.includes(cur));
   F.state.symbolSelection.clear();
   return rows;`);
 const fails = rows.filter(x => x.startsWith('✗'));

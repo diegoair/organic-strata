@@ -97,7 +97,6 @@ export function renderSuggestGallery(currentIdx) {
     if (sg.gen && sg.gen.length) { btn.classList.add('uses-generated'); btn.insertAdjacentHTML('beforeend', '<span class="fvs-suggest__badge">Uses generated</span>'); }
     btn.addEventListener('click', async () => {
       if (sg.gen && sg.gen.length && !(await saveGeneratedFor(sg))) return;
-      rt.sugPicked = true;   // the next Suggest looks for more like this one
       state.symbolCells = sg.cells.map(c => ({ ...c }));
       rt.sugSource = rt.sugOwn && rt.sugOwn.length ? { cells: asPut(state.symbolCells), own: rt.sugOwn } : null;
       if (sg.zoneDos && sg.zoneDos[0] && hooks.selectionTakeDos) hooks.selectionTakeDos(sg.zoneDos[0].dos);   // an open selection takes what this variation gave it (Oct 28, 2026)
@@ -174,12 +173,11 @@ export function runSuggest(more, keep) {   // keep: apply nothing (the fallback 
 }
 ctrl('fvs-sug-panel').addEventListener('wheel', e => e.stopPropagation(), { passive: true });   // scrolling the strip never zooms the sheet
 ['cont', 'bal', 'sur', 'col'].forEach(k => ctrl('rg-sug-' + k).addEventListener('input', e => { ctrl('v-sug-' + k).textContent = e.target.value; }));
-// One Suggest (Oct 28, 2026): every click the next seed (the first is the field's, so a run can be repeated); after a
-// variation was picked, more like it (was More like this)
+// One Suggest (Oct 28, 2026): every click new variations, the next seed (the first is the field's, so a run can be
+// repeated) — after a pick too (Diego: "niente più varianti simili dopo una scelta"; More like this is off the screen)
 ctrl('btn-sug-run').addEventListener('click', () => {
-  const more = !!rt.sugPicked; rt.sugPicked = false;
-  runSuggest(more);
-  if (!more) ctrl('num-sug-seed').value = (parseInt(pv('num-sug-seed'), 10) || 0) + 1;
+  runSuggest(false);
+  ctrl('num-sug-seed').value = (parseInt(pv('num-sug-seed'), 10) || 0) + 1;
 });
 ctrl('btn-sug-more').addEventListener('click', () => runSuggest(true));
 ctrl('btn-sug-seed-random').addEventListener('click', () => { ctrl('num-sug-seed').value = Math.floor(Math.random() * 1e6); runSuggest(false); });
