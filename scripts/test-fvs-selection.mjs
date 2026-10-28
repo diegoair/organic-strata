@@ -26,7 +26,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const ctx = () => F.zoneContexts(F.getSymbolGrid());
   check('no Zones and no Cells section', !q('sym-zones-section') && !q('sym-cells-section') && !q('zone-list'), 'still there');
   // the Zones of Oct 27 ({when, do}) are not saved selections: no dot without a selection
-  F.state.symbolZones = [{ when: { sel: 'border' }, do: { keep: true } }, { when: { sel: 'quadrant', q: 'tl' }, do: {} }]; F.renderSymbol(); await w(200);
+  F.state.symbolZones = [{ when: { sel: 'border' }, do: { keep: true } }, { when: { sel: 'quadrant', q: 'tl' }, do: {} }, { name: '', when: { sel: 'border' }, fill: null, rule: { follow: { id: 'field', params: { signal: 'noise', drive: 'turn' }, seed: 1 } }, off: false }]; F.renderSymbol(); await w(200);
   check('old Zones are dropped: nothing on the sheet with no selection', !document.querySelector('.fvs-sel-overlay') && F.state.symbolZones.length === 0, document.querySelectorAll('.fvs-sel-overlay .nc-port__dot').length + ' dots');
   // pick column 2 by hand (the last picked: its bottom cell)
   const col2 = ctx().filter(c => c.col === 2).map(c => c.index);
