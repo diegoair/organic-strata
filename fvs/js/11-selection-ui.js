@@ -481,6 +481,7 @@ ctrl('sel-sel-rule').addEventListener('change', () => {
 });
 ctrl('sel-seq').innerHTML = Object.keys(SEL_SEQS).map(k => `<button type="button" class="seg-btn" data-seq="${k}" aria-pressed="false">${SEQ_LABEL[k]}</button>`).join('');
 ctrl('symbol-rule-block').querySelectorAll('#btn-rule-choose-content, #btn-symbol-apply-rule, #btn-symbol-clear-rule, .org-panel__hint').forEach(el => el.classList.add('fvs-sel-hide'));
+ctrl('sel-symbol-rule').closest('.ctrl-row').classList.add('fvs-sel-hide');   // the section's own Rule select picks it (Diego, Oct 28: "ci sono due dropdown rule")
 // Transform · Cells: the Cell properties rows this section keeps (Diego, Oct 28, 2026) moved in from their block
 ['note-cellprop-turn', 'row-cellprop-rotation', 'row-cellprop-flip', 'row-cellprop-scale', 'row-cellprop-fixedsize', 'row-cellprop-overflow'].forEach(id => { const el = ctrl(id); if (el) ctrl('sel-transform').appendChild(el); });
 ['row-cellprop-span', 'note-cellprop-span-cut'].forEach(id => { const el = ctrl(id); if (el) ctrl('sel-cells').appendChild(el); });

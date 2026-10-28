@@ -74,6 +74,9 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('…Cells › One cell: Rotation and Flip show', !q('row-cellprop-rotation').hidden && !q('row-cellprop-flip').hidden && q('note-cellprop-turn').hidden, 'hidden');
   set('sel-cellprop-rot', '90'); await w(120);
   check('…and turn the selected Components', blk.every(i => F.state.symbolCells[i].rotation === 90), JSON.stringify(blk.map(i => F.state.symbolCells[i].rotation)));
+  set('sel-sel-rule', 'rule|wave'); await w(150);
+  check('Rule › Wave: one Rule select, the Wave settings under it', !q('symbol-rule-block').hidden && getComputedStyle(q('sel-symbol-rule').closest('.ctrl-row')).display === 'none' && !q('rp-wave').hidden, 'two selects');
+  set('sel-sel-rule', ''); await w(100);
   // Lock
   q('btn-sel-lock').click(); await w(80);
   check('Lock: the 4 cells locked, the button pressed', blk.every(i => F.state.symbolCells[i].locked) && q('btn-sel-lock').getAttribute('aria-pressed') === 'true', 'no');
