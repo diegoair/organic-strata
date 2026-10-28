@@ -541,6 +541,7 @@ export function cellPropsHTML(pre, opts = {}) {
             </select>
           </div>
           <p class="panel-note" id="${I('note-cellprop-span-cut')}" hidden>Cut at the grid’s edge or at a cell already taken or locked</p>
+          <p class="panel-note" id="${I('note-cellprop-turn')}" hidden>To rotate or flip a Component, set Cells to One cell</p>
           <div class="ctrl-row fvs-cellprop-shape" id="${I('row-cellprop-seedparams')}">
             <div class="ctrl-label">Shape</div>
             <span class="ctrl-val" id="${I('symbol-cellprop-seedparams-label')}" style="flex:1;text-align:left">Default</span>
@@ -689,8 +690,13 @@ export function syncCellProps(pre, t) {
   // Component is already an internally-composed (often symmetric)
   // arrangement, so rotating/flipping the whole nested block as one more
   // knob adds little real value against the extra control surface.
-  c('row-cellprop-rotation').hidden = !!(isComponent);
-  c('row-cellprop-flip').hidden = !!(isComponent);
+  // Since Oct 28, 2026 (Diego: "keep in the selection bar also transformation controls such as rotation, flips") a
+  // Component that takes one cell turns and flips like any content; one over several cells (Cells › In proportion / Its
+  // grid size) still does not — the note says how.
+  const turnsNot = isComponent && (!t.spans || cellSpanMode(first) !== 'one');
+  c('row-cellprop-rotation').hidden = turnsNot;
+  c('row-cellprop-flip').hidden = turnsNot;
+  c('note-cellprop-turn').hidden = !(turnsNot && t.spans && symbolLattice(getSymbolGrid()));
   // A free angle (Radial / Wave with Snap off) gets its own option, so the menu shows it instead of a blank.
   const rotSel = c('sel-cellprop-rot'), rotVal = String(first.rotation || 0);
   rotSel.querySelectorAll('option[data-free]').forEach(o => { if (o.value !== rotVal) o.remove(); });

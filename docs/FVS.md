@@ -1177,11 +1177,14 @@ value … selection will be made only by the users with click or drag"* — and 
 
 - **Picking** — only by hand: click, drag (marquee), ⌘ / Shift add or remove; **⌘A** every cell; **Esc** closes the
   section, a second Esc drops the selection. No handles, no ready-made parts, no Select buttons.
-- **The dot** (`fvs/js/11-selection-ui.js`): a selection gets a dot in the sheet's margin, on the side (left / right) of the
-  **last picked cell** and level with it, wired to it — the node board's own `.nc-port__dot` / `.nc-wire` (content
-  colour), placed by `.fvs-sel-anchor` (design-system CONSULT, Oct 28). A click on the dot opens the **Selection**
-  section of the right bar and a second dot, the **drop target**: a square dot with one quadrant in the content colour.
-  A saved selection keeps a faded dot on the sheet; a click opens it again.
+- **The box** (`fvs/js/11-selection-ui.js`; Diego, Oct 28 — after a reference of labelled pills wired to their targets): a
+  selection gets a pill in the sheet's left margin — the items' thumbnails (three dots when it has none) · its name
+  (*6 cells* / the saved name) · what it does (*Checkerboard*, *p4m*, *Drop here*) — with a port dot on its right edge and
+  a wire to the selection, ending in a ringed dot on the selection's left edge, level with the last picked cell (the node
+  board's `.nc-port__dot` / `.nc-wire`; the pill geometry of `.nc-node--pill`, local). The pill of the selection on show is
+  its **drop target**: rail drags onto it become items A, B, C…; a click opens the **Selection** section. Pills stack down
+  the margin in the order of their cells and never overlap, drawn at screen size at any zoom. The selection on show is in
+  the content colour; saved ones grey (`--mid`: a quieter border and name, the wire and end dot faded), a click opens them again.
 - **The section** (only while a dot is open): the header — "N cells" or the saved name — with **Lock** (the cells are
   locked: rules and Suggest leave them) · **Save selection…** (bookmark) · **Clear** (eraser: the cells empty) · for a
   saved one **Rename** and **Delete** (armed; the cells keep what they hold). Then:
@@ -1192,7 +1195,8 @@ value … selection will be made only by the users with click or drag"* — and 
     2 × 2 blocks · Rings · Sectors · Wave · Random · **Rhythm** along Reading · Snake · Spiral · Diagonal · Rings, with a
     **Sequence** (A B C · A B B · A A B B · A B C B). Read from the selection itself: its first column / row start on A,
     its centre is the centre (`engine/11-zones` `arrangeLetters`, `arrange.local`).
-  - **Transform**: Rotation · Flip · Scale (the Cell properties rows, moved here).
+  - **Transform**: Rotation · Flip · Scale (the Cell properties rows, moved here); a Component turns and flips when it
+    takes One cell (*To rotate or flip a Component, set Cells to One cell* when it spans several).
   - **Rule**: None · a Symbol rule (the Rule block lives here, without Apply / Reset) · **Symmetry** (12 wallpaper groups,
     rosettes) · **Continuity** · **Field** (gradient, centre, rings, noise, a photo). Rhythm moved to Arrange (it takes the items).
   - **Cells**: Cells (One cell · In proportion · Its grid size) · Padding.

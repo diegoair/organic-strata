@@ -32,16 +32,19 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const col2 = ctx().filter(c => c.col === 2).map(c => c.index);
   F.state.symbolSelection = new Set(col2); F.selectionTouched(col2[col2.length - 1]); F.renderSymbol(); await w(250);
   const dot = document.querySelector('.fvs-sel-dot'), svg = q('symbol-frame').querySelector('svg');
-  check('a dot beside the selection, wired', !!dot && document.querySelectorAll('.fvs-sel-wires path').length === 1, String(!!dot));
-  check('…on the left (column 3 of 6 is in the left half), outside the sheet', dot && dot.getBoundingClientRect().right < svg.getBoundingClientRect().left + 2, dot && JSON.stringify([dot.getBoundingClientRect().right, svg.getBoundingClientRect().left]));
+  check('a box beside the selection, wired, with its end dot', !!dot && dot.classList.contains('fvs-sel-pill') && document.querySelectorAll('.fvs-sel-wires path').length === 1 && document.querySelectorAll('.fvs-sel-end').length === 1, String(!!dot));
+  check('…in the left margin, outside the sheet', dot && dot.getBoundingClientRect().right < svg.getBoundingClientRect().left, dot && JSON.stringify([dot.getBoundingClientRect().right, svg.getBoundingClientRect().left]));
+  check('…its name is its text: "6 cells Drop here"', /6 cells\\s*Drop here/.test(dot.textContent) && !dot.hasAttribute('aria-label') && dot.getAttribute('aria-describedby') === 'sym-sel-drop-hint', dot.textContent);
   check('…level with the last picked cell', dot && Math.abs((dot.getBoundingClientRect().top + dot.getBoundingClientRect().bottom) / 2 - (() => { const r = q('symbol-frame').querySelector('[data-cell-index="' + col2[col2.length - 1] + '"]').getBoundingClientRect(); return (r.top + r.bottom) / 2; })()) < 3, 'off');
-  check('the section is closed until the dot is clicked', q('sym-selection-section').hidden && !document.querySelector('.fvs-sel-drop'), 'open');
+  check('the section is closed until the box is clicked; the box is the drop target', q('sym-selection-section').hidden && dot.classList.contains('fvs-sel-drop'), 'open');
   dot.click(); await w(150);
-  check('click the dot: the Selection section opens, with a drop target', !q('sym-selection-section').hidden && !!document.querySelector('.fvs-sel-drop') && q('sel-title').textContent === '6 cells', q('sel-title').textContent);
+  check('click the box: the Selection section opens', !q('sym-selection-section').hidden && q('sel-title').textContent === '6 cells' && document.querySelector('.fvs-sel-dot').getAttribute('aria-expanded') === 'true', q('sel-title').textContent);
   check('Transform has Rotation · Flip · Scale; Cells has Cells · Padding', ['row-cellprop-rotation', 'row-cellprop-flip', 'row-cellprop-scale'].every(id => q('sel-transform').contains(q(id))) && q('sel-cells').contains(q('row-cellprop-span')) && q('sel-cells').contains(q('cellprop-pad')), 'misplaced');
   // drops: A, B, C
   F.selectionDrop('component', A); await w(80); F.selectionDrop('component', B); await w(80); F.selectionDrop('component', Cn); await w(150);
   check('three drops → three items A B C', q('sel-items').querySelectorAll('.fvs-sel-item').length === 3, q('sel-items').querySelectorAll('.fvs-sel-item').length);
+  F.renderCellPropertiesPanel(); await w(50);
+  check('a Component over several cells: no Rotation / Flip, a note says how', q('row-cellprop-rotation').hidden && !q('note-cellprop-turn').hidden, JSON.stringify([q('row-cellprop-rotation').hidden, q('note-cellprop-turn').hidden, F.state.symbolCells[col2[0]].span]));
   check('Arrange tiles show (2 or more items)', !q('sel-arrange-block').hidden && q('sel-arrange').querySelectorAll('[data-arr]').length >= 12, q('sel-arrange').querySelectorAll('[data-arr]').length);
   const seq = () => col2.map(i => ({ [A]: 'A', [B]: 'B', [Cn]: 'C' }[F.state.symbolCells[i].componentName] || '?')).join('');
   check('Checkerboard by default: the column reads A B C A B C', seq() === 'ABCABC', seq());
@@ -64,7 +67,13 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   F.selectionDrop('component', A); F.selectionDrop('component', B); await w(150);
   const at = (c, r) => F.state.symbolCells[ctx().find(x => x.col === c && x.row === r).index].componentName;
   check('Checkerboard from the selection\\'s own corner: A B / B A', at(3, 2) === A && at(4, 2) === B && at(3, 3) === B && at(4, 3) === A, [at(3, 2), at(4, 2)].join(' '));
-  check('the dot on the right (columns 4–5 of 6)', document.querySelector('.fvs-sel-dot').getBoundingClientRect().left > svg.getBoundingClientRect().right - 2, 'left');
+  { const e = document.querySelector('.fvs-sel-end').getBoundingClientRect(), c = q('symbol-frame').querySelector('[data-cell-index="' + blk[2] + '"]').getBoundingClientRect();
+    check('the wire lands on the left edge of the selection, on the row of the last cell', Math.abs((e.left + e.right) / 2 - c.left) < 3 && Math.abs((e.top + e.bottom) / 2 - (c.top + c.bottom) / 2) < 3, JSON.stringify([e.left, c.left]));
+    check('the box says what it does', /Checkerboard/.test(document.querySelector('.fvs-sel-dot').textContent), document.querySelector('.fvs-sel-dot').textContent); }
+  set('sel-cellprop-span', 'one'); await w(150);
+  check('…Cells › One cell: Rotation and Flip show', !q('row-cellprop-rotation').hidden && !q('row-cellprop-flip').hidden && q('note-cellprop-turn').hidden, 'hidden');
+  set('sel-cellprop-rot', '90'); await w(120);
+  check('…and turn the selected Components', blk.every(i => F.state.symbolCells[i].rotation === 90), JSON.stringify(blk.map(i => F.state.symbolCells[i].rotation)));
   // Lock
   q('btn-sel-lock').click(); await w(80);
   check('Lock: the 4 cells locked, the button pressed', blk.every(i => F.state.symbolCells[i].locked) && q('btn-sel-lock').getAttribute('aria-pressed') === 'true', 'no');
@@ -79,7 +88,11 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const col2b = ctx().filter(c => c.col === 2).map(c => c.index);
   const seqB = col2b.map(i => ({ [A]: 'A', [B]: 'B', [Cn]: 'C' }[F.state.symbolCells[i].componentName] || '?')).join('');
   check('8 × 8: the saved column holds A B C again, over 8 cells', seqB === 'ABCABCAB', seqB);
-  check('a faded dot for the saved selection', document.querySelectorAll('.fvs-sel-saved').length === 1 || (F.state.selPick === 0), 'none');
+  check('a faded box for the saved selection', document.querySelectorAll('.fvs-sel-saved').length === 1 || (F.state.selPick === 0), 'none');
+  // two boxes never overlap: a second selection on the same rows
+  { const c4 = ctx().filter(c => c.col === 4).map(c => c.index); F.state.symbolSelection = new Set(c4); F.selectionTouched(c4[c4.length - 1]); F.renderSymbol(); await w(200);
+    const r = [...document.querySelectorAll('.fvs-sel-pill')].map(p => p.getBoundingClientRect()).sort((a, b) => a.top - b.top);
+    check('two boxes, stacked without overlap', r.length === 2 && r[1].top >= r[0].bottom, JSON.stringify(r.map(x => [x.top, x.bottom]))); }
   // Suggest leaves a saved selection as it is
   F.state.symbolSelection.clear(); F.selectionTouched(null); F.renderSymbol(); await w(100);
   F.state.symbolCells.forEach((c, i) => { if (!col2b.includes(i)) F.patchCell(c, F.railPatch('component', A)); });
@@ -123,7 +136,12 @@ if (process.env.SEL_SHOT) {
     const col = C.filter(c => c.col === 2).map(c => c.index);
     F.state.symbolSelection = new Set(col); F.selectionTouched(col[col.length - 1]); F.renderSymbol(); await w(100);
     document.querySelector('.fvs-sel-dot').click(); await w(100);
-    lib.forEach(n => F.selectionDrop('component', n)); await w(300);
+    lib.forEach(n => F.selectionDrop('component', n)); await w(200);
+    if (${process.env.SEL_SAVED ? 1 : 0}) {   // a saved selection too, for the picture
+      Organica.prompt = async o => 'Border'; document.getElementById('btn-sel-save').click(); await w(200);
+      const c5 = C.filter(c => c.col === 5 && c.row >= 3).map(c => c.index); F.state.symbolSelection = new Set(c5); F.selectionTouched(c5[0]); F.renderSymbol(); await w(100);
+      document.querySelector('.fvs-sel-dot').click(); await w(100); F.selectionDrop('component', lib[0]); await w(200);
+    }
     document.getElementById('sym-selection-section').scrollIntoView(); return 1;`);
   const shot = await P.cdp('Page.captureScreenshot', { format: 'png' });
   (await import('node:fs')).writeFileSync(process.env.SEL_SHOT, Buffer.from(shot.result.data, 'base64'));

@@ -745,11 +745,40 @@
      outside a card — the dot in the sheet's margin, wired to the last picked cell; the drop target a square dot with one
      quadrant in the content colour. .fvs-sel-anchor only places them. ── */
   .fvs-sel-overlay { position: absolute; inset: 0; pointer-events: none; }
-  .fvs-sel-overlay .nc-wires { width: 100%; height: 100%; }
   .fvs-sel-anchor { position: absolute; pointer-events: auto; translate: -50% -50%; cursor: pointer; }
-  .fvs-sel-saved { opacity: 0.35; }   /* as its .nc-wire--faint */
-  .fvs-sel-saved:hover, .fvs-sel-saved:focus-visible { opacity: 1; }
-  .fvs-sel-drop { background: linear-gradient(to right, var(--port-content) 50%, var(--paper) 50%) top / 100% 50% no-repeat, var(--paper); }
+  /* a selection's box (Diego, Oct 28 — after a reference of labelled pills wired to their targets): .nc-node--pill's
+     geometry, local; the port dot on its right edge, where the wire starts */
+  .fvs-sel-pill {
+    --pill-h: calc(var(--space-6) + 2 * var(--space-2));
+    position: absolute; pointer-events: auto; translate: -100% 0; box-sizing: border-box;
+    transform-origin: 100% 50%; scale: calc(1 / var(--nc-zoom, 1));   /* screen size at any board zoom: a label, not part of the sheet */
+    display: inline-flex; align-items: center; gap: var(--space-2); height: var(--pill-h); max-width: calc(var(--space-8) * 8);
+    padding: 0 calc(var(--space-4) + var(--port-d) / 2) 0 var(--space-3);
+    background: var(--paper); color: var(--ink); border: 1px solid var(--border-strong); border-radius: calc(var(--pill-h) / 2 + 1px);   /* a stadium: half its height */
+    cursor: pointer; white-space: nowrap; transition: border-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);   /* no scale: it changes with every zoom step */
+  }
+  .fvs-sel-pill:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .fvs-sel-pill.is-compatible { box-shadow: 0 0 0 2px var(--ink); }   /* a rail drag over it: drop here */
+  .fvs-sel-pill.is-pop { animation: fvs-sel-pop var(--dur-slow) var(--ease-overshoot); }
+  @keyframes fvs-sel-pop { 0%, 100% { scale: calc(1 / var(--nc-zoom, 1)); } 40% { scale: calc(1.04 / var(--nc-zoom, 1)); } }   /* nc-pop's, at screen size */
+  .fvs-sel-pill.is-open { border-color: var(--port-content); }
+  .fvs-sel-pill__glyph { display: inline-flex; align-items: center; flex: none; }
+  .fvs-sel-pill__thumb { display: inline-flex; width: var(--space-6); height: var(--space-6); border-radius: var(--radius-sm); background: var(--paper); box-shadow: 0 0 0 1px var(--border); }
+  .fvs-sel-pill__thumb + .fvs-sel-pill__thumb { margin-left: calc(var(--space-6) / -2); }
+  #symbol-frame .fvs-sel-pill__thumb svg { width: 100%; height: 100%; }   /* not the sheet's own size (#symbol-frame svg) */
+  #symbol-frame .fvs-sel-overlay .fvs-sel-wires { width: 100%; height: 100%; }
+  .fvs-sel-pill__dots { display: inline-grid; grid-template-columns: repeat(2, var(--space-2)); gap: var(--space-1); }
+  .fvs-sel-pill__dots i { width: var(--space-2); height: var(--space-2); border-radius: 50%; background: var(--border-strong); }
+  .fvs-sel-pill__dots i:nth-child(3) { background: var(--port-c); }
+  .fvs-sel-pill__name { font-family: var(--font-display); font-size: var(--t-control-size); }
+  .fvs-sel-pill__value { font-family: var(--font-mono); font-size: var(--t-value-size); color: var(--mid); overflow: hidden; text-overflow: ellipsis; }
+  .fvs-sel-pill__port { position: absolute; right: calc(var(--port-d) / -2 - 1px); top: 50%; translate: 0 -50%; pointer-events: none; }
+  .fvs-sel-end { position: absolute; translate: -50% -50%; scale: calc(1 / var(--nc-zoom, 1)); pointer-events: none; box-shadow: 0 0 0 2px var(--paper); }
+  .fvs-sel-end.is-saved { opacity: 0.35; }   /* as its .nc-wire--faint */
+  .fvs-sel-saved { border-color: var(--border); }   /* a saved one reads quieter, its text stays readable (REVIEW, Oct 28) */
+  .fvs-sel-saved .fvs-sel-pill__name { color: var(--mid); }
+  .fvs-sel-saved:hover, .fvs-sel-saved:focus-visible { border-color: var(--border-strong); }
+  .fvs-sel-saved:hover .fvs-sel-pill__name, .fvs-sel-saved:focus-visible .fvs-sel-pill__name { color: var(--ink); }
   #symbol-frame .fvs-sel-letter { fill: var(--ink); font-family: var(--font-display); text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; vector-effect: non-scaling-stroke; pointer-events: none; }
   .fvs-sel-head { display: flex; align-items: flex-start; gap: var(--space-2); }
   .fvs-sel-head__name { flex: 1; min-width: 0; }

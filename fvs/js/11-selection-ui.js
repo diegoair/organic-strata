@@ -316,9 +316,23 @@ export function renderSelectionPanel() {
 }
 function parkRuleBlock() { const rb = ctrl('symbol-rule-block'); if (rb) rb.hidden = true; }
 
-// ── On the canvas: the dot, its wire, the drop target, the saved selections' dots ─────────────
-// HTML over the sheet (as the % labels): the dot sits in the margin on the side of the cell it is wired to — left or right
-// (the shared wire is horizontal: design-system CONSULT, Oct 28, 2026).
+// ── On the canvas: a box per selection in the sheet's left margin (Diego, Oct 28, 2026 — after a reference of labelled
+// pills wired to their targets): a pill = the items' thumbnails (or three dots when it has none) · its name · what it does,
+// a port dot at its end and a coloured wire to the selection, ending in a ringed dot on the selection's left edge, level
+// with the last picked cell. The pill of the selection on show is its drop target (rail drags = items A, B, C…). Pills
+// stack down the margin in the order of their cells and never overlap. Colour: the selection on show is content (it takes
+// content); the saved ones --mid, faded until hovered — a --port-* colour names a node type (design-system CONSULT, Oct 28;
+// a colour per selection would need a categorical palette: O-79 k).
+const colourOf = saved => (saved ? '--mid' : '--port-content');
+function doesText(z) {
+  if (z.rule && z.rule.symbolRule) return ((ctrl('sel-symbol-rule').querySelector(`option[value="${CSS.escape(z.rule.symbolRule.name)}"]`) || {}).textContent || 'Rule');
+  if (z.rule && z.rule.follow) { const G = ZONE_FOLLOW[z.rule.follow.id]; return G ? (G.caption ? G.caption(z.rule.follow.params || {}) : G.label) : 'Rule'; }
+  const a = z.fill && z.fill.arrange;
+  if (a && a.pool && a.pool.length > 1) return a.rule === 'rhythm' ? 'Rhythm · ' + (WALK_LABEL[a.walk] || 'Reading') : ARR_LABEL[a.rule] || 'Arranged';
+  if (a && a.pool && a.pool.length === 1) return a.pool[0].label || a.pool[0].name || 'One content';
+  if (z.fill && z.fill.empty) return 'Empty';
+  return 'Drop here';
+}
 export function selectionOverlay() {
   const frame = ctrl('symbol-frame'), old = document.getElementById('sym-sel-overlay');
   if (old) old.remove();
@@ -329,58 +343,67 @@ export function selectionOverlay() {
   const zoom = parseFloat(getComputedStyle(frame).getPropertyValue('--nc-zoom')) || 1;
   const scale = Math.min(svgR.width / F.w, svgR.height / F.h) / zoom;
   const offX = (svgR.left - frameR.left) / zoom + (svgR.width / zoom - F.w * scale) / 2, offY = (svgR.top - frameR.top) / zoom + (svgR.height / zoom - F.h * scale) / 2;
-  // clear of the row % labels in the same margin: the dot 2.5 × --space-8 out, the drop target one --space-6 further
   const tok = k => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(k)) || 0;
-  const gap = 2.5 * (tok('--space-8') || 32), step = tok('--space-6') || 16;
-  const bx = (x, y) => [offX + F.X(x) * scale, offY + F.Y(y) * scale];
-  const boxOf = i => { const c = grid.cells[i]; if (!c) return null; const b = c.points ? c.points.reduce((t, p) => [Math.min(t[0], p[0]), Math.min(t[1], p[1]), Math.max(t[2], p[0]), Math.max(t[3], p[1])], [Infinity, Infinity, -Infinity, -Infinity]) : [c.x, c.y, c.x + c.width, c.y + c.height]; const a = bx(b[0], b[1]), z = bx(b[2], b[3]); return [a[0], a[1], z[0], z[1]]; };
-  const left = offX, right = offX + F.w * scale;
-  const wrap = document.createElement('div');
-  wrap.id = 'sym-sel-overlay'; wrap.className = 'fvs-sel-overlay';
-  let wires = '';
-  const place = (i, out = 0) => {
-    const b = boxOf(i); if (!b) return null;
-    const cy = (b[1] + b[3]) / 2, onLeft = (b[0] + b[2]) / 2 < (left + right) / 2;
-    const x = onLeft ? left - gap - step * out : right + gap + step * out;
-    return { x, y: cy, from: onLeft ? [b[0], cy] : [b[2], cy], onLeft };
-  };
-  const wire = (p, cls) => { const a = p.onLeft ? [p.x, p.y] : p.from, z = p.onLeft ? p.from : [p.x, p.y]; wires += `<path class="nc-wire nc-wire--content${cls}" d="${Organica.nodeCanvas.wirePath(a[0], a[1], z[0], z[1])}"/>`; };
-  const dot = (p, cls, attrs) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'nc-port__dot fvs-sel-anchor ' + cls; b.dataset.type = 'content'; b.style.left = p.x.toFixed(1) + 'px'; b.style.top = p.y.toFixed(1) + 'px'; Object.entries(attrs).forEach(([k, v]) => b.setAttribute(k, v)); wrap.appendChild(b); return b; };
-  // saved selections: a faded dot each (not the one on show)
+  const gap = 2.5 * (tok('--space-8') || 32), gapV = tok('--space-2') || 6;   // clear of the row % labels in the same margin
   const ctxs = zoneContexts(grid);
+  const boxOf = i => { const c = grid.cells[i]; if (!c) return null; const b = c.points ? c.points.reduce((t, p) => [Math.min(t[0], p[0]), Math.min(t[1], p[1]), Math.max(t[2], p[0]), Math.max(t[3], p[1])], [Infinity, Infinity, -Infinity, -Infinity]) : [c.x, c.y, c.x + c.width, c.y + c.height]; return [offX + F.X(b[0]) * scale, offY + F.Y(b[1]) * scale, offX + F.X(b[2]) * scale, offY + F.Y(b[3]) * scale]; };
+  // where a selection's wire lands: the left edge of its leftmost cell on the last picked cell's row
+  const endOf = (idxs, last) => {
+    const row = ctxs[last] && ctxs[last].row, same = row != null ? idxs.filter(i => ctxs[i] && ctxs[i].row === row) : [last];
+    const lb = same.map(boxOf).filter(Boolean).sort((a, b) => a[0] - b[0])[0] || boxOf(last);
+    return lb ? [lb[0], (lb[1] + lb[3]) / 2] : null;
+  };
+  const list = [];
   savedList().forEach((z, k) => {
     if (k === state.selPick) return;
     const idxs = zoneCells(z.when, ctxs); if (!idxs.length) return;
-    const p = place(Math.max(...idxs)); if (!p) return;
-    wire(p, ' nc-wire--faint');
-    dot(p, 'fvs-sel-saved', { 'data-saved': String(k), 'aria-label': 'Open ' + (z.name || 'Selection ' + (k + 1)) });
+    const end = endOf(idxs, Math.max(...idxs)); if (end) list.push({ z, k, end, saved: true, n: idxs.length });
   });
-  // the selection on show
   if (state.symbolSelection.size) {
-    const n = state.symbolSelection.size, last = state.symbolSelection.has(state.selLast) ? state.selLast : Math.max(...state.symbolSelection);
-    const p = place(last);
-    if (p) {
-      wire(p, '');
-      const d = dot(p, 'fvs-sel-dot', { 'aria-expanded': String(!!state.selOpen), 'aria-controls': 'sym-selection-section', 'aria-label': 'Selection: ' + n + (n === 1 ? ' cell' : ' cells') });
-      if (state.selOpen) {
-        const q = place(last, 1);
-        dot(q, 'nc-port__dot--multi fvs-sel-drop', { 'aria-label': 'Add content to the selection — drag Elements or Components here' });
-      }
-      d.dataset.sel = '1';
-    }
+    const idxs = [...state.symbolSelection], last = state.symbolSelection.has(state.selLast) ? state.selLast : Math.max(...idxs);
+    const end = endOf(idxs, last); if (end) list.push({ z: current(), k: state.selPick, end, saved: false, n: idxs.length });
   }
-  if (!wrap.children.length) return;
-  wrap.insertAdjacentHTML('afterbegin', `<svg class="nc-wires fvs-sel-wires" aria-hidden="true">${wires}</svg>`);
+  if (!list.length) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'sym-sel-overlay'; wrap.className = 'fvs-sel-overlay';
   frame.appendChild(wrap);
+  const x = offX - gap;
+  list.forEach(e => {
+    const b = document.createElement('button'), z = e.z, items = itemsOf(z);
+    b.type = 'button';
+    b.className = 'fvs-sel-pill' + (e.saved ? ' fvs-sel-saved' : ' fvs-sel-dot fvs-sel-drop' + (state.selOpen ? ' is-open' : ''));
+    b.style.setProperty('--port-c', `var(${colourOf(e.saved)})`);
+    const name = e.k != null ? (savedList()[e.k].name || 'Selection ' + (e.k + 1)) : e.n + (e.n === 1 ? ' cell' : ' cells'), does = doesText(z);
+    if (e.saved) { b.dataset.saved = String(e.k); b.setAttribute('aria-label', 'Open ' + name + ', ' + does); }
+    else { b.setAttribute('aria-expanded', String(!!state.selOpen)); b.setAttribute('aria-controls', 'sym-selection-section'); b.setAttribute('aria-describedby', 'sym-sel-drop-hint'); }   // its name is its text
+    const glyph = items.length ? items.slice(0, 3).map(it => `<span class="fvs-sel-pill__thumb">${thumbOf(it)}</span>`).join('') : '<span class="fvs-sel-pill__dots"><i></i><i></i><i></i></span>';
+    b.innerHTML = `<span class="fvs-sel-pill__glyph" aria-hidden="true">${glyph}</span><span class="fvs-sel-pill__name">${esc(name)}</span><span class="fvs-sel-pill__value">${esc(does)}</span><span class="nc-port__dot fvs-sel-pill__port" aria-hidden="true"></span>`;
+    b.style.left = x.toFixed(1) + 'px';
+    wrap.appendChild(b);
+    e.el = b; e.h0 = b.offsetHeight || 24; e.h = e.h0 / zoom;   // drawn at screen size (scale 1 / zoom): its height on the board
+  });
+  // stack: in the order of their cells, pushed down so none overlaps the one above
+  list.sort((a, b) => a.end[1] - b.end[1]);
+  let prev = -Infinity;
+  list.forEach(e => { e.y = Math.max(e.end[1], prev + e.h + gapV); prev = e.y; e.el.style.top = (e.y - e.h0 / 2).toFixed(1) + 'px'; });
+  let wires = '';
+  list.forEach(e => {
+    wires += `<path class="nc-wire${e.saved ? ' nc-wire--faint' : ' nc-wire--list'}" style="--wire-c: var(${colourOf(e.saved)})" d="${Organica.nodeCanvas.wirePath(x, e.y, e.end[0], e.end[1])}"/>`;
+    const d = document.createElement('span');
+    d.className = 'nc-port__dot fvs-sel-end'; d.setAttribute('aria-hidden', 'true');
+    d.className += e.saved ? ' is-saved' : '';
+    d.style.setProperty('--port-c', `var(${colourOf(e.saved)})`); d.style.left = e.end[0].toFixed(1) + 'px'; d.style.top = e.end[1].toFixed(1) + 'px';
+    wrap.appendChild(d);
+  });
+  wrap.insertAdjacentHTML('afterbegin', `<svg class="nc-wires fvs-sel-wires" aria-hidden="true">${wires}</svg><span id="sym-sel-drop-hint" hidden>Drag Elements or Components here</span>`);
 }
 
 // ── Events ───────────────────────────────────────────────────
 document.addEventListener('mousedown', e => { if (e.target.closest && e.target.closest('.fvs-sel-overlay')) e.stopPropagation(); }, true);   // a dot is no marquee
 document.addEventListener('click', e => {
-  const b = e.target.closest && e.target.closest('.fvs-sel-overlay .nc-port__dot'); if (!b) return;
+  const b = e.target.closest && e.target.closest('.fvs-sel-overlay .fvs-sel-pill'); if (!b) return;
   e.stopPropagation();
   if (b.dataset.saved != null) { openSaved(+b.dataset.saved); return; }
-  if (b.classList.contains('fvs-sel-drop')) { chooseItem(); return; }
   if (state.selOpen) closeSelection(); else openSelection();
 }, true);
 document.addEventListener('keydown', e => {
@@ -465,7 +488,7 @@ ctrl('sel-sel-rule').addEventListener('change', () => {
 ctrl('sel-seq').innerHTML = Object.keys(SEL_SEQS).map(k => `<button type="button" class="seg-btn" data-seq="${k}" aria-pressed="false">${SEQ_LABEL[k]}</button>`).join('');
 ctrl('symbol-rule-block').querySelectorAll('#btn-rule-choose-content, #btn-symbol-apply-rule, #btn-symbol-clear-rule, .org-panel__hint').forEach(el => el.classList.add('fvs-sel-hide'));
 // Transform · Cells: the Cell properties rows this section keeps (Diego, Oct 28, 2026) moved in from their block
-['row-cellprop-rotation', 'row-cellprop-flip', 'row-cellprop-scale', 'row-cellprop-fixedsize', 'row-cellprop-overflow'].forEach(id => { const el = ctrl(id); if (el) ctrl('sel-transform').appendChild(el); });
+['note-cellprop-turn', 'row-cellprop-rotation', 'row-cellprop-flip', 'row-cellprop-scale', 'row-cellprop-fixedsize', 'row-cellprop-overflow'].forEach(id => { const el = ctrl(id); if (el) ctrl('sel-transform').appendChild(el); });
 ['row-cellprop-span', 'note-cellprop-span-cut'].forEach(id => { const el = ctrl(id); if (el) ctrl('sel-cells').appendChild(el); });
 { const pad = ctrl('cellprop-pad'); if (pad) { const lab = pad.previousElementSibling; if (lab && lab.classList.contains('sub-label')) { lab.classList.remove('sub-label'); lab.className = 'ctrl-label fvs-sel-padlabel'; ctrl('sel-cells').appendChild(lab); } ctrl('sel-cells').appendChild(pad); } }
 [['btn-sel-lock', 'lock'], ['btn-sel-save', 'bookmark'], ['btn-sel-rename', 'pencil'], ['btn-sel-clear', 'eraser'], ['btn-sel-delete', 'trash']].forEach(([id, ic]) => { ctrl(id).innerHTML = Organica.icons.get(ic); });
