@@ -130,6 +130,7 @@
     'fvs-clip':      '<rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6.5 13A6.5 6.5 0 0 1 13 6.5"/>',
     'fvs-crop':      '<rect x="4" y="5" width="8" height="6" rx="1"/><circle cx="8" cy="8" r="6.2" stroke-dasharray="2 2.05"/>',
     'fvs-guides':    '<path d="M6 1.5v13M1.5 10h13" stroke-dasharray="2 2.1"/>',
+    'fvs-letters':   '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M5.5 11L8 5l2.5 6M6.4 9h3.2"/>',   // Show letters — each cell's content as A B C (FVS Symbol, Oct 28, 2026)
     'fvs-tile':      '<rect x="5.5" y="5.5" width="5" height="5"/><path d="M1.5 5.5h2.5M1.5 10.5h2.5M12 5.5h2.5M12 10.5h2.5M5.5 1.5V4M10.5 1.5V4M5.5 12v2.5M10.5 12v2.5"/>',
     'fvs-mirror-side': '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M8 1.5v13" stroke-dasharray="1.5 1.6"/><path d="M4 4h2.5l-2.5 2.5zM12 4h-2.5l2.5 2.5zM4 9.5h2.5l-2.5 2.5zM12 9.5h-2.5l2.5 2.5z"' + F + '/>',   // Mirror › Side by side: every other column mirrored left–right (FVS Component, Diego, Oct 22, 2026)
     'fvs-mirror-above': '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M1.5 8h13" stroke-dasharray="1.5 1.6"/><path d="M4 4h2.5l-2.5 2.5zM9.5 4h2.5l-2.5 2.5zM4 12h2.5l-2.5 -2.5zM9.5 12h2.5l-2.5 -2.5z"' + F + '/>',   // Mirror › Above and below: every other row mirrored top–bottom (FVS Component, Diego, Oct 22, 2026)

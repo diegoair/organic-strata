@@ -798,7 +798,7 @@ ctrl('file-loom-grid').addEventListener('change', e => {
 export function syncSymbolViewUI() {
   document.querySelectorAll('#fb-symbol-actions [data-view]').forEach(b => {
     const k = b.dataset.view;
-    b.setAttribute('aria-pressed', String(k === 'clip' ? state.symbolClipEnabled : state.symbolView[k]));
+    b.setAttribute('aria-pressed', String(!!(k === 'clip' ? state.symbolClipEnabled : state.symbolView[k])));
   });
 }
 ctrl('btn-component-view-guides').addEventListener('click', e => {

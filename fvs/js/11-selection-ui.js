@@ -7,6 +7,7 @@
 // sheet (faded), its content and rule apply again whenever the Symbol is drawn anew (a resize keeps whole rows / columns).
 // The evaluator is engine/11-zones applyZones (shared with the Figure's region rules); a saved selection is stored in
 // state.symbolZones as { name, when, fill, rule, off } (entry.zones). An ES module of fvs/js/main.js. Map docs/FVS.md §6c, §11.
+import { rt } from './rt.js';
 import {
   live, pv, state
 } from './engine/00-core.js';
@@ -26,10 +27,10 @@ import {
   SYMBOL_ARRANGE, componentThumbSVG, symbolCellContext
 } from './engine/10-suggest.js';
 import {
-  SYMBOL_LIBRARY, SYMBOL_RULES, symbolPastePlan
+  SYMBOL_LIBRARY, SYMBOL_RULES, contentKey, symbolLetterKeys, symbolPastePlan
 } from './engine/11-symbol-ui.js';
 import {
-  SEL_ARRANGE, SEL_SEQS, SEL_WALKS, ZONE_FOLLOW, applyZones, arrangeLetters, whenFromCells, zoneCells, zoneContexts
+  SEL_ARRANGE, SEL_SEQS, SEL_WALKS, ZONE_FOLLOW, applyZones, arrangeLetters, contentOfCell, contentPatch, whenFromCells, zoneCells, zoneContexts
 } from './engine/11-zones.js';
 import {
   ctrl
@@ -44,7 +45,7 @@ import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   applySelectionsNow: () => applySelectionsNow, renderSelectionPanel: () => renderSelectionPanel, selectionOverlay: () => selectionOverlay,
-  selectionLettersSVG: () => selectionLettersSVG, selectionDrop: () => selectionDrop, symbolPaste: () => symbolPaste,
+  selectionLettersSVG: () => selectionLettersSVG, symbolLettersSVG: () => symbolLettersSVG, selectionDrop: () => selectionDrop, symbolPaste: () => symbolPaste,
   selectionRuleEdit: () => selectionRuleEdit, selectionTouched: () => selectionTouched, selectionTakeDos: () => selectionTakeDos,
   heldBySelections: () => heldBySelections
 });
@@ -54,6 +55,15 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const ctxsNow = () => { const g = getSymbolGrid(); return g ? zoneContexts(g) : []; };
 const newSeed = () => 1 + Math.floor(Math.random() * 99999);
 const LETTER = k => String.fromCharCode(65 + (k % 26));
+// One letter per content on the whole Symbol (Show letters, Oct 28, 2026): the cells' letters, and an item of the
+// Selection takes its content's letter — a new one past the Symbol's when it is in no cell yet. rt.letterKeys keeps the
+// order shown, so a painted cell never re-letters the others.
+function letterKeys() { rt.letterKeys = symbolLetterKeys(state.symbolCells, rt.letterKeys); return rt.letterKeys; }
+const itemKey = it => { try { return contentKey(it.tpl ? contentOfCell(it.tpl) : contentPatch(it)); } catch (e) { return null; } };
+function poolLetters(items) {
+  const keys = letterKeys().slice();
+  return items.map(it => { const k = itemKey(it); let i = k ? keys.indexOf(k) : -1; if (i < 0) { keys.push(k || ('?' + keys.length)); i = keys.length - 1; } return LETTER(i); });
+}
 
 // ── The model ────────────────────────────────────────────────
 // A saved selection: { name, when, fill, rule, off }. fill = what goes in the cells ({arrange} · {content} · {empty}),
@@ -164,7 +174,7 @@ function lettersFor(spec, n) {
 // A tile: the selection's own cells, drawn small, each in its letter's tint (ink at 85 / 50 / 20 % on paper) with the letter.
 const TINTS = [85, 50, 20, 70, 35];
 function tileSVG(spec, n) {
-  const grid = getSymbolGrid(), L = lettersFor(spec, n);
+  const grid = getSymbolGrid(), L = lettersFor(spec, n), PL = poolLetters(itemsOf(current()));
   if (!grid || !L.size) return '';
   const cells = [...L.keys()].map(i => grid.cells[i]).filter(Boolean);
   const box = c => (c.points ? c.points.reduce((b, p) => [Math.min(b[0], p[0]), Math.min(b[1], p[1]), Math.max(b[2], p[0]), Math.max(b[3], p[1])], [Infinity, Infinity, -Infinity, -Infinity]) : [c.x, c.y, c.x + c.width, c.y + c.height]);
@@ -177,7 +187,7 @@ function tileSVG(spec, n) {
     const shape = c.points ? `<polygon points="${c.points.map(p => p.join(',')).join(' ')}"` : `<rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}"`;
     const b = box(c), cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2, fs = 0.5 * Math.min(b[2] - b[0], b[3] - b[1]);
     s += `${shape} style="fill:${tint};stroke:var(--paper)" stroke-width="${(0.012 * Math.max(w, h)).toFixed(2)}"/>`;
-    if (L.size <= 64) s += `<text x="${cx}" y="${cy}" font-size="${fs.toFixed(2)}" text-anchor="middle" dominant-baseline="central" style="fill:${TINTS[k % TINTS.length] >= 50 ? 'var(--paper)' : 'var(--ink)'};font-family:var(--font-display)">${LETTER(k)}</text>`;
+    if (L.size <= 64) s += `<text x="${cx}" y="${cy}" font-size="${fs.toFixed(2)}" text-anchor="middle" dominant-baseline="central" style="fill:${TINTS[k % TINTS.length] >= 50 ? 'var(--paper)' : 'var(--ink)'};font-family:var(--font-display)">${PL[k] || LETTER(k)}</text>`;
   });
   return `<svg viewBox="${B[0] - pad} ${B[1] - pad} ${w + 2 * pad} ${h + 2 * pad}" aria-hidden="true">${s}</svg>`;
 }
@@ -185,13 +195,27 @@ function tileSVG(spec, n) {
 export function selectionLettersSVG() {
   if (!hoverRule || !state.selOpen) return '';
   const grid = getSymbolGrid(), n = itemsOf(current()).length; if (!grid || n < 2) return '';
-  const F = symbolFrame(grid), L = lettersFor(specOf(hoverRule), n);
+  const F = symbolFrame(grid), L = lettersFor(specOf(hoverRule), n), PL = poolLetters(itemsOf(current()));
   let s = '';
   L.forEach((k, i) => {
     const c = grid.cells[i]; if (!c) return;
     const b = c.points ? c.points.reduce((t, p) => [Math.min(t[0], p[0]), Math.min(t[1], p[1]), Math.max(t[2], p[0]), Math.max(t[3], p[1])], [Infinity, Infinity, -Infinity, -Infinity]) : [c.x, c.y, c.x + c.width, c.y + c.height];
     const fs = 0.45 * Math.min(b[2] - b[0], b[3] - b[1]);
-    s += `<text class="fvs-sel-letter" x="${F.X((b[0] + b[2]) / 2).toFixed(2)}" y="${F.Y((b[1] + b[3]) / 2).toFixed(2)}" font-size="${fs.toFixed(2)}">${LETTER(k)}</text>`;
+    s += `<text class="fvs-sel-letter" x="${F.X((b[0] + b[2]) / 2).toFixed(2)}" y="${F.Y((b[1] + b[3]) / 2).toFixed(2)}" font-size="${fs.toFixed(2)}">${PL[k] || LETTER(k)}</text>`;
+  });
+  return `<g aria-hidden="true">${s}</g>`;
+}
+// Show letters (the floatbar's View): every filled cell's letter, on screen only — a hovered Arrange tile's own letters win.
+export function symbolLettersSVG() {
+  if (!state.symbolView.letters || (hoverRule && state.selOpen)) return '';
+  const grid = getSymbolGrid(); if (!grid) return '';
+  const F = symbolFrame(grid), keys = letterKeys();
+  let s = '';
+  grid.cells.forEach((c, i) => {
+    const k = contentKey(state.symbolCells[i]); if (!k || !c) return;
+    const b = c.points ? c.points.reduce((t, p) => [Math.min(t[0], p[0]), Math.min(t[1], p[1]), Math.max(t[2], p[0]), Math.max(t[3], p[1])], [Infinity, Infinity, -Infinity, -Infinity]) : [c.x, c.y, c.x + c.width, c.y + c.height];
+    const fs = 0.45 * Math.min(b[2] - b[0], b[3] - b[1]);
+    s += `<text class="fvs-sel-letter" x="${F.X((b[0] + b[2]) / 2).toFixed(2)}" y="${F.Y((b[1] + b[3]) / 2).toFixed(2)}" font-size="${fs.toFixed(2)}">${LETTER(keys.indexOf(k))}</text>`;
   });
   return `<g aria-hidden="true">${s}</g>`;
 }
@@ -267,11 +291,12 @@ export function renderSelectionPanel() {
   ctrl('btn-sel-delete').hidden = !saved;
   ctrl('btn-sel-clear').setAttribute('aria-label', 'Clear ' + n + (n === 1 ? ' cell' : ' cells'));
   // items
+  const PL = poolLetters(items);
   ctrl('sel-items').innerHTML = items.length ? items.map((it, k) => `<div class="org-layer-card org-layer-card--flush fvs-sel-item" role="listitem"><div class="org-layer-card__head">
-      <span class="fvs-sel-item__letter" aria-hidden="true">${LETTER(k)}</span><span class="fvs-sel-item__thumb" aria-hidden="true">${thumbOf(it)}</span>
+      <span class="fvs-sel-item__letter" aria-hidden="true">${PL[k]}</span><span class="fvs-sel-item__thumb" aria-hidden="true">${thumbOf(it)}</span>
       <span class="org-layer-card__title">${esc(it.label || it.name || 'Item')}</span>
-      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="up" data-k="${k}" aria-label="Move ${LETTER(k)} earlier"${k === 0 ? ' disabled' : ''}>${Organica.icons.get('chevron-up')}</button>
-      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-k="${k}" aria-label="Remove ${LETTER(k)}">${Organica.icons.get('close')}</button></div></div>`).join('')
+      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="up" data-k="${k}" aria-label="Move ${PL[k]} earlier"${k === 0 ? ' disabled' : ''}>${Organica.icons.get('chevron-up')}</button>
+      <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-k="${k}" aria-label="Remove ${PL[k]}">${Organica.icons.get('close')}</button></div></div>`).join('')
     : '';
   ctrl('sel-content-block').hidden = !items.length;
   // arrange

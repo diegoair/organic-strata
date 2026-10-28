@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// FVS Symbol › Brush (Oct 28, 2026 — Diego: "clic sulla tile la prende, clic sulle celle la mette, clic di nuovo ruota e
+// FVS Symbol › Brush and Show letters (Oct 28, 2026 — Diego: "clic sulla tile la prende, clic sulle celle la mette, clic di nuovo ruota e
 // ribalta, Esc la lascia"). A mouse click on a Library rail tile on the Symbol step takes it as the Brush; a click or a
 // drag over the cells puts it there; a click on a cell holding it walks its 8 poses; Esc puts it down; a Symbol tile is
 // never a Brush; Enter on a tile still places it in the selected cells; the Element's 7 poses are in the rail; a second
-// click on a selected cell no longer opens Choose content; the rail opens by default. 15-export-library-view.
+// click on a selected cell no longer opens Choose content; the rail opens by default; Show letters (one letter per
+// content, kept as cells are painted, shared with the Selection's items, never exported). 15-export-library-view.
 // Usage: scripts/test-fvs-brush.sh
 import { openChrome } from './lib/chrome-page.mjs';
 
@@ -71,6 +72,27 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   F.saveSymbolAs && F.saveSymbolAs('S brush'); await w(300); F.renderLibraryRail && F.renderLibraryRail(); await w(200);
   const st = tile('symbol');
   if (st) { const was = F.state.activeTier; st.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 })); await w(400); check('a Symbol tile is not a Brush', !document.body.classList.contains('fvs-brush-on'), 'brush on'); }
+  // Show letters: one letter per content, on screen only
+  const lettersOn = () => [...q('symbol-frame').querySelectorAll('text.fvs-sel-letter')];
+  q('btn-symbol-view-letters').click(); await w(150);
+  const filled = F.state.symbolCells.filter(c => c.source !== 'empty').length;
+  check('Show letters: a letter on every filled cell', q('btn-symbol-view-letters').getAttribute('aria-pressed') === 'true' && lettersOn().length === filled, lettersOn().length + ' of ' + filled);
+  const letterAt = i => { const r = q('symbol-frame').querySelector('[data-cell-index="' + i + '"]').getBoundingClientRect(); const t = lettersOn().find(t => { const b = t.getBoundingClientRect(), x = (b.left + b.right) / 2, y = (b.top + b.bottom) / 2; return x > r.left && x < r.right && y > r.top && y < r.bottom; }); return t && t.textContent; };
+  check('…the same content, the same letter (turned or not)', letterAt(5) === letterAt(8) && letterAt(8) === letterAt(11) && letterAt(5) !== letterAt(1), [5, 8, 11, 1].map(letterAt).join());
+  const before = [5, 1].map(letterAt).join();
+  await mclick(poses[0]); press(15); await w(150); setTimeout(() => {}, 0);
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await w(100);
+  check('…another pose of the same Element keeps its letter, the others keep theirs', [5, 1].map(letterAt).join() === before && letterAt(15) === letterAt(1), [5, 1, 15].map(letterAt).join());
+  check('…never in the export', !/fvs-sel-letter/.test(F.buildSymbolSVG()), 'in the SVG');
+  // the Selection's items take the same letters
+  F.state.symbolSelection = new Set([12, 13]); F.selectionTouched(13); F.renderSymbol(); await w(150);
+  document.querySelector('.fvs-sel-dot').click(); await w(150);
+  F.selectionDrop('component', A); await w(200);
+  const itemL = (document.querySelector('.fvs-sel-item__letter') || {}).textContent;
+  check('a Selection item has its content’s letter on the Symbol', itemL === letterAt(5), itemL + ' vs ' + letterAt(5));
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await w(100);
+  q('btn-symbol-view-letters').click(); await w(100);
+  check('Show letters off: no letters', !lettersOn().length, lettersOn().length);
   // leaving the step puts it down
   F.setTier('symbol'); await w(300); await mclick(tile('component', A)); F.setTier('component'); await w(300);
   check('leaving the Symbol step puts the Brush down', !document.body.classList.contains('fvs-brush-on'), 'still on');

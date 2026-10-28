@@ -81,7 +81,7 @@ export const state = {
   symbolSelection: new Set(),   // cell indices, Manual mode's click-to-select — never persisted (editing-session-only)
   symbolMarqueeRect: null,      // {x,y,w,h} in the canvas's own 0..size space, live during a drag-select — preview-only, never persisted or exported
   symbolClipEnabled: false,     // Symbol-level: clip each cell's content to its own bounds (rect/polygon). OFF (the default since the toggles moved to the floatbar) allows bleed; persisted per saved Symbol.
-  symbolView: { outline: false, cover: false, guides: true },   // preview-only overlays, toggled from the floatbar: the loaded grid's lines, the cover-crop preview, the column/row guides
+  symbolView: { outline: false, cover: false, guides: true },   // preview-only overlays, toggled from the floatbar: the loaded grid's lines, the cover-crop preview, the column/row guides; + letters (Show letters, Oct 28, 2026) once switched — absent = off, so the regression's default case stays
 };
 // ── Palette — centralised colour assignment (moved out of Seed, which
 // is now pure shape geometry). Promoted to shared/palette.js

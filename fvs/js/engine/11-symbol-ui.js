@@ -89,6 +89,21 @@ export function symbolCellBounds() {
     index: i, x: F.bx + c.cx - c.cellW / 2, y: F.by + c.cy - c.cellH / 2, w: c.cellW, h: c.cellH,
   }));
 }
+// Show letters (Diego, Oct 28, 2026): one letter per content on the whole Symbol — A, B, C… — the same in the Selection's
+// items and Arrange. What a cell holds, whatever its turn: a Component by name, an Element by its settings.
+export function contentKey(c) {
+  if (!c || c.source === 'empty' || !c.source) return null;
+  if (c.source === 'component') return 'c:' + c.componentName;
+  return 's:' + JSON.stringify(c.seedParams || c.seedType || '');
+}
+// The order of the letters: the one shown before (so painting a new cell never re-letters the others), without what
+// is gone, then each new content in reading order.
+export function symbolLetterKeys(cells, prev) {
+  const here = new Set(), fresh = [];
+  (cells || []).forEach(c => { const k = contentKey(c); if (k && !here.has(k)) { here.add(k); fresh.push(k); } });
+  const keep = (prev || []).filter(k => here.has(k));
+  return keep.concat(fresh.filter(k => !keep.includes(k)));
+}
 export function rectsIntersect(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }

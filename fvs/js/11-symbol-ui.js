@@ -163,6 +163,7 @@ export function renderSymbolCanvasOnly() {
   if (state.symbolView.outline) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
   if (hooks.selectionLettersSVG) overlay += hooks.selectionLettersSVG();   // a hovered Arrange tile's letters (11-selection-ui)
+  if (hooks.symbolLettersSVG) overlay += hooks.symbolLettersSVG();   // Show letters: each cell's content as A B C (screen only)
   if (state.symbolView.guides) overlay += buildTrackHandlesSVG() + storySafeOverlaySVG();
   if (trackDrag) overlay += buildOverflowOutlineSVG();
   if (state.symbolView.cover) overlay += buildCoverCropPreviewSVG();
