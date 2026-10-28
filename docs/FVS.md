@@ -1225,6 +1225,54 @@ value … selection will be made only by the users with click or drag"* — and 
   Clear, Delete armed, paste, Esc, ⌘A, ⌘Z), `test-fvs-zones` (25, the engine), `test-fvs-symmetry`, `-continuity`,
   `-drive`, `-generated` — in `test-fvs.sh` and the pre-commit hook. Not yet in the rule atlas.
 
+### 6d. Drawing the Symbol — Brush, letters, Assets, Suggest on the Variations sheet (Oct 28, 2026)
+
+Diego, after the `explorations/asset-learn/` test (*"il modello di interazione … è ottimo e semplice e vorrei tenerlo e
+integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encapsulated-lobster.md` Phase B.
+
+- **The Library rail is the content picker.** It opens by default (§7). On the Symbol step its first group, **Element**, is
+  the Element on the Element step in its 7 poses (As it is · 90° · 180° · 270° · Flip H · Flip V · Flip H+V —
+  `elementPoses` / `elementPosePatch`, `11-symbol-ui.js`), what the Choose content window offered. **Choose content no
+  longer opens on the Symbol step**: a click on a selected cell keeps the selection (`SYMBOL_CELLS` has no `choose`, its
+  Choose… button is hidden). The window stays for Figure Compose and Component Edit.
+- **Brush** (`15-export-library-view.js`, `rt.brush`): a mouse click on an Element, a pose or a Component tile (or an
+  Asset) takes it — the tile ringed (`.is-brush`), the sheet's cursor a crosshair, the rail's note says what to do. A click
+  or a drag over the cells places it (a capture `mousedown` on `#symbol-frame`: no marquee, no selection); a click on a
+  cell that already holds it walks its 8 poses (0 → 90 → 180 → 270, then flipped H, the same four, then back); a drag
+  over cells holding it leaves their turn; a locked cell stays. **Esc** or a click on the same tile puts it down
+  (a dialog's, a popover's or a field's Esc stays theirs); leaving the Symbol step too. **Enter** on a tile still places
+  it in the selected cells (`railUse`). A Symbol is never a Brush (it is dragged and pasted). Each stroke is one ⌘Z
+  step (the Symbol board keeps an edit once it settles). Mouse only: no `aria-pressed` (Enter places, it does not toggle).
+- **Show letters** (floatbar View, `fvs-letters`): one letter per content on the whole Symbol — a Component by name, an
+  Element by its settings, whatever the turn (`contentKey`, `symbolLetterKeys`, `engine/11-symbol-ui.js`). The order is
+  kept as cells are painted (`rt.letterKeys`: the letters shown before, minus what is gone, then new contents in reading
+  order). The Selection's items and Arrange take the same letters (`poolLetters`, `11-selection-ui.js`): an item not yet
+  on the Symbol gets the next one. Screen only (`symbolLettersSVG`, the `.fvs-sel-letter` overlay), never exported; off
+  by default (`state.symbolView.letters` absent = off, so the regression's default case stays).
+- **Assets** (Diego: *"un subset selezionato come pattern, da salvare e riusare … nella gallery e anche nella library"*):
+  **Save as asset…** in the Selection section keeps the selected cells as a pattern — a Symbol entry whose other cells
+  are empty + `asset: { idxs }` (`buildAssetEntry`), in its own store `Organica.presetStore('fvs-assets')`
+  (`ASSET_LIBRARY`, cloud-synced). Listed in the rail's **Assets** group and in the Library view (filter *Assets*: Rename ·
+  Duplicate · SVG · PNG · Delete); its picture is cropped to its cells (`assetThumbSVG`). Placed **from a cell** — its
+  top-left cell there (`assetPastePlan`): dragged onto a cell, Enter from the first selected cell, or stamped with the
+  Brush (a click, not a drag); past the grid's edge it is cut, a locked cell stays.
+- **Suggest and Variations as one** (Diego: *"Variations e Suggest devono convergere ed essere semplificate"*): Suggest's
+  controls — **Suggest**, **Surprise**, *Use generated components*, the hint — sit on the Variations sheet after its name
+  (`.fvs-sug-bar`, at screen size like the name); the panel's Suggest section is hidden (it keeps the Fill mode and
+  Arrange controls the code reads). Seed, More like this and Recolour (test) are gone from the screen: every Suggest takes
+  the next seed (the first is the field's, so a run repeats), and after a variation is picked Suggest looks for more
+  like it (`rt.sugPicked` → `runSuggest(true)`). Each variation is the Symbol **repeated 3 × 3** (`repeat3`: the Symbol
+  once in `<defs>`, eight `<use>`), two per row.
+- **The steps** have their own bar at the top (`#fvs-stepbar`, `.org-floatbar--top` in `shared/floatbar.css`, closes
+  O-63); `placeStepNav` is gone and the left dock holds the rail or the node bar only. The board's fit clears the top bar
+  (`fitInset`, `16-board.js`).
+- **Tests**: `scripts/test-fvs-brush.sh` (34: rail open, poses, no Choose content, Brush pick / place / 8 poses / drag /
+  locked / Esc / Enter / Symbol never / leaving the step, Show letters, Assets save / crop / store / Enter / stamp / cut /
+  Library / Delete); `test-fvs-symbol-suggest.sh` (+6: on the sheet, only three controls, 3 × 3, next seed, new
+  variations, more like the picked one). In `test-fvs.sh` and the pre-commit hook.
+- **Not done**: Neighbours (the asset-learn page's adjacency rule) is not in the engine (Diego: use what is there); an
+  Asset keeps its cells, not a rule that repeats it; the Brush has no keyboard or touch path.
+
 ## 6a. Layer roles: Mask / Subtraction mask / Pattern
 
 A layer's **role icon** (on its row) sets how it acts on the **layers below** it:
@@ -1274,10 +1322,11 @@ onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeL
 - **Nothing to show** — on the Element step with nothing saved the toggle is disabled (`aria-disabled`,
   still focusable) and says why: *Library rail — save an Element, a Component or a Symbol first* (`railBlock`,
   Oct 6, 2026). On the Component and Symbol steps it always opens (Save all · Save Symbol live there).
-- **Open / close** — the rail's toggle (**Library rail**, `grid` icon) opens it; the toggle or Esc closes it. It always starts
-  **closed** when the page loads (Oct 5, 2026): its open state is no longer remembered,
-  `localStorage['organica.fvs.rail']` is not read or written any more, and the old key is left in
-  place, as the localStorage rule asks.
+- **Open / close** — the rail's toggle (**Library rail**, `grid` icon) opens it; the toggle or Esc inside the rail closes it.
+  Since Oct 28, 2026 (Diego: *"Rail aperta di default: sì"*, reversing Oct 5's always-closed start) it **opens by default**
+  and remembers a close by hand in `localStorage['organica.fvs.rail-open']` (only the toggle and Esc write it; a step that
+  hides it, the Library view and an empty Element tab close it without changing the wish). The old
+  `organica.fvs.rail` (Oct 3–5) is left in place, unread, as the localStorage rule asks.
 - **It never covers the work** (Oct 5, 2026): while the panel is open, the work area reserves its
   width (`#canvas-wrap`'s left padding up to the panel's right edge + `--space-5`, `syncRailSpace`),
   so the Component gallery and the Symbol sheet move right and re-centre instead of sitting under
