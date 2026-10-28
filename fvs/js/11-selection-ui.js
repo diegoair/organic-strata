@@ -57,14 +57,10 @@ const LETTER = k => String.fromCharCode(65 + (k % 26));
 
 // ── The model ────────────────────────────────────────────────
 // A saved selection: { name, when, fill, rule, off }. fill = what goes in the cells ({arrange} · {content} · {empty}),
-// rule = how they turn ({symbolRule} · {follow}). Zones saved on Oct 27 ({when, do}) read as one or the other.
-function normal(z) {
-  if (!z || z.fill !== undefined || z.rule !== undefined) return z;
-  const d = z.do || {}, out = { name: z.name || '', when: z.when, fill: null, rule: null, off: !!z.off };
-  if (d.symbolRule || d.follow) out.rule = d; else if (d.arrange || d.content || d.empty) out.fill = d;
-  return out;
-}
-const savedList = () => (state.symbolZones = (state.symbolZones || []).map(normal));
+// rule = how they turn ({symbolRule} · {follow}). The Zones of Oct 27 ({when, do}, never pushed) are not selections
+// anyone saved: they are dropped (what they did is already in the cells), so they draw no dot.
+const isSaved = z => !!z && z.when && (z.fill !== undefined || z.rule !== undefined);
+const savedList = () => { const z = state.symbolZones || []; if (!z.every(isSaved)) state.symbolZones = z.filter(isSaved); return state.symbolZones; };
 const rulesOf = (when, z) => [z.fill && { when, do: z.fill, off: z.off }, z.rule && { when, do: z.rule, off: z.off }].filter(Boolean);
 // The selection on show: a saved one (state.selPick) or the cells just picked (state.selDraft, kept until the selection
 // changes — what it did stays in the cells).

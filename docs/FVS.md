@@ -1200,7 +1200,7 @@ value … selection will be made only by the users with click or drag"* — and 
     axis — O-79 asks whether any comes back.
 - **The model**: a selection before Save is a draft (`state.selDraft = {fill, rule}`) applied to the picked cells and kept
   in them; a **saved selection** is `{ name, when, fill, rule, off }` in `state.symbolZones` (`entry.zones`, the key of
-  Oct 27; a zone `{when, do}` reads as one). `when` = `whenFromCells` — the named selector that takes exactly those cells
+  Oct 27; the Zones of Oct 27 — `{when, do}`, never pushed — are dropped on load, their effect already in the cells). `when` = `whenFromCells` — the named selector that takes exactly those cells
   (a whole column stays a column on a bigger grid); `fill` = `{arrange}` · `{content}` · `{empty}`, `rule` =
   `{symbolRule}` · `{follow}`. Saved selections apply again after every grid rebuild (`applySelectionsNow`); the
   Symbol's undo (⌘Z) counts them. One evaluator, `applyZones`, for these and the Figure's region rules.
