@@ -1235,14 +1235,19 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
   `elementPoses` / `elementPosePatch`, `11-symbol-ui.js`), what the Choose content window offered. **Choose content no
   longer opens on the Symbol step**: a click on a selected cell keeps the selection (`SYMBOL_CELLS` has no `choose`, its
   Choose… button is hidden). The window stays for Figure Compose and Component Edit.
-- **Brush** (`15-export-library-view.js`, `rt.brush`): a mouse click on an Element, a pose or a Component tile (or an
-  Asset) takes it — the tile ringed (`.is-brush`), the sheet's cursor a crosshair, the rail's note says what to do. A click
-  or a drag over the cells places it (a capture `mousedown` on `#symbol-frame`: no marquee, no selection); a click on a
-  cell that already holds it walks its 8 poses (0 → 90 → 180 → 270, then flipped H, the same four, then back); a drag
-  over cells holding it leaves their turn; a locked cell stays. **Esc** or a click on the same tile puts it down
-  (a dialog's, a popover's or a field's Esc stays theirs); leaving the Symbol step too. **Enter** on a tile still places
-  it in the selected cells (`railUse`). A Symbol is never a Brush (it is dragged and pasted). Each stroke is one ⌘Z
-  step (the Symbol board keeps an edit once it settles). Mouse only: no `aria-pressed` (Enter places, it does not toggle).
+- **Brush** (`15-export-library-view.js`, `rt.brush`) — **a mode in the bar** since Oct 28, 2026 (Diego: *"una modalità
+  brush sulla floatbar centrale in basso … così è nascosto"*): the Symbol bar opens with a **Tool** group, **Select (V)** ·
+  **Brush (B)** (`btn-symbol-mode-select` / `-brush`, icons `pointer` / `brush`, one pressed at a time). **Select**
+  (default): a click on a cell always selects; a click on a rail tile puts it in the selected cells (`railUse`). **Brush**
+  (`setBrushMode`): turned on with nothing taken it takes the selected cell's Component, else the Element as it is
+  (`brushFromSelection`); a mouse click on an Element, a pose, a Component or an Asset tile takes it — the tile ringed
+  (`.is-brush`), its drawing in the button (`#symbol-brush-thumb`, aria-label *Brush: name (B)*), the sheet's cursor a
+  crosshair, the rail's note says what to do. A click or a drag over the cells places it (a capture `mousedown` on
+  `#symbol-frame`: no marquee, no selection; ⌘ / Shift-click still selects); a click on a cell that already holds it
+  walks its 8 poses (0 → 90 → 180 → 270, then flipped H, the same four, then back); a drag over cells holding it leaves
+  their turn; a locked cell stays. **Select**, **V**, **Esc** or leaving the Symbol step puts it down (a dialog's, a
+  popover's or a field's Esc stays theirs). **Enter** on a tile still places it in the selected cells. A Symbol is never
+  a Brush (it is dragged and pasted). Each stroke is one ⌘Z step (the Symbol board keeps an edit once it settles).
 - **Show letters** (floatbar View, `fvs-letters`): one letter per content on the whole Symbol — a Component by name, an
   Element by its settings, whatever the turn (`contentKey`, `symbolLetterKeys`, `engine/11-symbol-ui.js`). The order is
   kept as cells are painted (`rt.letterKeys`: the letters shown before, minus what is gone, then new contents in reading
@@ -1266,12 +1271,12 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
 - **The steps** have their own bar at the top (`#fvs-stepbar`, `.org-floatbar--top` in `shared/floatbar.css`, closes
   O-63); `placeStepNav` is gone and the left dock holds the rail or the node bar only. The board's fit clears the top bar
   (`fitInset`, `16-board.js`).
-- **Tests**: `scripts/test-fvs-brush.sh` (34: rail open, poses, no Choose content, Brush pick / place / 8 poses / drag /
+- **Tests**: `scripts/test-fvs-brush.sh` (41: rail open, poses, no Choose content, Select · Brush / V / B, Brush pick / place / 8 poses / drag /
   locked / Esc / Enter / Symbol never / leaving the step, Show letters, Assets save / crop / store / Enter / stamp / cut /
   Library / Delete); `test-fvs-symbol-suggest.sh` (+6: on the sheet, only three controls, 3 × 3, next seed, new
   variations, more like the picked one). In `test-fvs.sh` and the pre-commit hook.
 - **Not done**: Neighbours (the asset-learn page's adjacency rule) is not in the engine (Diego: use what is there); an
-  Asset keeps its cells, not a rule that repeats it; the Brush has no keyboard or touch path.
+  Asset keeps its cells, not a rule that repeats it; the Brush has no touch path (B / V are its keys).
 
 ## 6a. Layer roles: Mask / Subtraction mask / Pattern
 

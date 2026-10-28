@@ -3258,7 +3258,7 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
 </script>
 <script>
 (function(){
-  var GROUPS=[['General',/^(plus|minus|close|check|chevron-.*|arrow-.*)$/],['File / IO',/^(download|upload|folder-open|video)$/],['History / run',/^(undo|redo|refresh|reset|loop|dice|play|pause|stop)$/],['Edit',/^(trash|eraser|pencil|copy|swap|eye|eye-off|grip|invert)$/],['Views',/^(grid|full-family|sun|moon|mirror|align-.*)$/],['Glyph editor',/^(edit-points|add-point|handles|outline|legible)$/],['Node graph',/^(node-.*|palette|fit-view|fit-selection|pin|alert|select-(row|column|class|range))$/],['Flexible Visual System',/^fvs-/],['Living Path phrases · layer roles',/^(phrase|role)-/],['Other',/./]]; /* catch-all: a registry name no group matches is still shown */
+  var GROUPS=[['General',/^(plus|minus|close|check|chevron-.*|arrow-.*)$/],['File / IO',/^(download|upload|folder-open|video)$/],['History / run',/^(undo|redo|refresh|reset|loop|dice|play|pause|stop)$/],['Edit',/^(trash|eraser|pencil|pointer|brush|copy|swap|eye|eye-off|grip|invert)$/],['Views',/^(grid|full-family|sun|moon|mirror|align-.*)$/],['Glyph editor',/^(edit-points|add-point|handles|outline|legible)$/],['Node graph',/^(node-.*|palette|fit-view|fit-selection|pin|alert|select-(row|column|class|range))$/],['Flexible Visual System',/^fvs-/],['Living Path phrases · layer roles',/^(phrase|role)-/],['Other',/./]]; /* catch-all: a registry name no group matches is still shown */
   var host=document.getElementById('ds-icon-groups'); if(!host||!window.Organica||!Organica.icons) return;
   var names=Organica.icons.names(), used={};
   host.innerHTML=GROUPS.map(function(g){
