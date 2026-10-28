@@ -68,7 +68,7 @@ import {
   renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary, saveSymbolAs, svgPointFromEvent
 } from './11-symbol-ui.js';
 import {
-  exportByTier, onAppearanceChange, setPaperUI, setTier
+  exportByTier, fvsIsTypingTarget, onAppearanceChange, setPaperUI, setTier
 } from './12-shell.js';
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
@@ -339,7 +339,7 @@ export function railTile(kind, name, svg, w, h) {
   x.type = 'button'; x.className = 'rmx-x'; x.dataset.railRemove = '1';
   x.innerHTML = Organica.icons.get('trash', { size: 'xs' });
   x.setAttribute('aria-label', 'Delete ' + name);   // one click, no confirm (Diego, Oct 6, 2026)
-  if (kind === 'pose') { b.title = 'Element · ' + name; tile.append(b); return tile; }   // the live Element: nothing to rename or delete
+  if (kind === 'pose') { tile.append(b); return tile; }   // the live Element: nothing to rename or delete
   tile.append(b, ren, x);
   return tile;
 }
@@ -586,10 +586,9 @@ export function setBrush(b) {
   document.body.classList.toggle('fvs-brush-on', !!rt.brush);
   railPanel.querySelectorAll('.fvs-library-item').forEach(t => {
     const on = !!rt.brush && t.dataset.railKind === rt.brush.kind && t.dataset.railName === rt.brush.name;
-    t.classList.toggle('is-brush', on);
-    if (t.dataset.railKind !== 'symbol') t.setAttribute('aria-pressed', String(on));
+    t.classList.toggle('is-brush', on);   // the visual; the live note says the Brush is on (no aria-pressed: Enter places, it does not toggle)
   });
-  railNotice(rt.brush ? 'Brush: click or drag over cells to paint. Click a cell again to turn or flip it. Esc stops.' : '', true);
+  railNotice(rt.brush ? 'Brush: click or drag over cells to place it. Click a cell again to turn or flip it. Esc puts it down.' : '', true);
 }
 export function toggleBrush(kind, name) { setBrush(rt.brush && rt.brush.kind === kind && rt.brush.name === name ? null : { kind, name }); }
 // The cell under a point of the sheet (its bounding box — as the marquee reads cells)
@@ -632,6 +631,8 @@ window.addEventListener('mouseup', () => {
 // Esc puts the Brush down before anything else reads it (the Selection's Esc, the rail's)
 window.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || !rt.brush) return;
+  const shown = el => el.getClientRects().length > 0;
+  if ([...document.querySelectorAll('.org-modal, dialog[open], .org-popover[data-open="true"]')].some(shown) || fvsIsTypingTarget(document.activeElement)) return;   // an Esc for a dialog, a popover or a field stays theirs
   e.preventDefault(); e.stopImmediatePropagation();
   setBrush(null);
 }, true);

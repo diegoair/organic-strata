@@ -33,7 +33,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   F.state.symbolSelection.clear(); F.renderSymbol(); await w(100);
   // take the Component as the Brush
   await mclick(tile('component', A));
-  check('a click on a tile takes it as the Brush: pressed, the sheet a crosshair', tile('component', A).classList.contains('is-brush') && tile('component', A).getAttribute('aria-pressed') === 'true' && document.body.classList.contains('fvs-brush-on'), String(tile('component', A).className));
+  check('a click on a tile takes it as the Brush: pressed, the sheet a crosshair', tile('component', A).classList.contains('is-brush') && document.body.classList.contains('fvs-brush-on'), String(tile('component', A).className));
   press(5); await w(150);
   check('a click on a cell puts it there', F.state.symbolCells[5].source === 'component' && F.state.symbolCells[5].componentName === A, JSON.stringify(F.state.symbolCells[5].source));
   check('…and selects nothing', F.state.symbolSelection.size === 0, F.state.symbolSelection.size);

@@ -321,7 +321,7 @@
 
 /* Top variant (.org-floatbar--top, Oct 28, 2026 — FVS's steps, ledger O-63): the same bar, mirrored under the header.
    Its tooltips and popovers open downward. Centred like the bottom bar (--floatbar-offset). */
-.org-floatbar--top { top: calc(var(--header-h) + var(--space-3)); bottom: auto; }
+.org-floatbar--top { top: calc(var(--header-h, 0px) + var(--space-3)); bottom: auto; }   /* --header-h: header.css */
 .org-floatbar--top .org-floatbar__btn[aria-label]:not([aria-expanded="true"]):is(:hover, :focus-visible)::after { bottom: auto; top: calc(100% + var(--space-3)); }
 .org-floatbar--top .org-popover { bottom: auto; top: calc(100% + var(--space-3)); transform: translateX(-50%) translateY(calc(-1 * var(--space-2))) scale(0.97); transform-origin: top center; }
 @starting-style { .org-floatbar--top .org-popover[data-open="true"] { transform: translateX(-50%) translateY(calc(-1 * var(--space-2))) scale(0.97); } }
