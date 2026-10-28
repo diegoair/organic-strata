@@ -33,7 +33,7 @@ import {
   componentThumbSVG
 } from './engine/10-suggest.js';
 import {
-  SYMBOL_LIBRARY, buildSymbolLibraryEntry, patchCell, symbolCellBounds, symbolEntryThumbSVG
+  ASSET_LIBRARY, SYMBOL_LIBRARY, assetThumbSVG, buildSymbolLibraryEntry, patchCell, symbolCellBounds, symbolEntryThumbSVG
 } from './engine/11-symbol-ui.js';
 import {
   DEFAULT_VARIANTS, KIND_WORD, LIBVIEW_KINDS, RAIL_DBL_MS, componentUsage, dupName, elementInLivePaper,
@@ -386,8 +386,10 @@ export function renderLibraryRail() {
   syncRailGroup(ctrl('rail-poses'), poses.map(([r, fh, fv, label]) => ['pose', label, buildSeedPreviewSVG(seedNow, r, fh, fv, 48)]));
   const sAll = SYMBOL_LIBRARY.read(), sNames = Object.keys(sAll || {}).sort(newestFirst(sAll));
   syncRailGroup(syms, sNames.map(n => ['symbol', n, symbolEntryThumbSVG(sAll[n])]));
+  const aAll = ASSET_LIBRARY.read(), aNames = Object.keys(aAll || {}).sort(newestFirst(aAll));
+  syncRailGroup(ctrl('rail-assets'), aNames.map(n => ['asset', n, assetThumbSVG(aAll[n])]));
   // An empty group is not shown (no "None saved yet"); Components stays on its own tab for Save all.
-  const onComp = state.activeTier === 'component', visible = [['poses', poses.length], ['elements', elNames.length], ['components', cNames.length || onComp], ['symbols', sNames.length]];
+  const onComp = state.activeTier === 'component', visible = [['poses', poses.length], ['elements', elNames.length], ['components', cNames.length || onComp], ['symbols', sNames.length], ['assets', aNames.length]];
   visible.forEach(([k, on]) => { ctrl('rail-g-' + k).hidden = !on; });
   ctrl('btn-rail-save-all').hidden = !onComp;
   // nothing to show at all (and no Save footer) → no empty glass box beside the toggle
@@ -461,7 +463,7 @@ window.addEventListener('pointermove', e => {
   e.preventDefault();
   railDrag.ghost.style.transform = `translate3d(${e.clientX - 24}px, ${e.clientY - 24}px, 0)`;
   const g = railCellAt(e), idx = g ? railCellIndex(g) : null;
-  if (idx !== railDrag.idx) { clearRailDrop(); if (g) g.classList.add(idx === 'drop' ? (railPress.kind === 'symbol' ? 'is-incompatible' : 'is-compatible') : 'is-drop'); railDrag.idx = idx; }
+  if (idx !== railDrag.idx) { clearRailDrop(); if (g) g.classList.add(idx === 'drop' ? (railPress.kind === 'symbol' || railPress.kind === 'asset' ? 'is-incompatible' : 'is-compatible') : 'is-drop'); railDrag.idx = idx; }
 });
 window.addEventListener('pointerup', e => {
   if (!railPress || e.pointerId !== railPress.id) return;
@@ -472,15 +474,15 @@ window.addEventListener('pointerup', e => {
   const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };
   window.addEventListener('click', swallow, { capture: true, once: true });
   setTimeout(() => window.removeEventListener('click', swallow, true), 0);
-  if (idx === 'drop') { if (press.kind !== 'symbol' && hooks.selectionDrop) hooks.selectionDrop(press.kind, press.name); return; }
-  if (idx != null && !Number.isNaN(idx)) (rt.railTarget ? rt.railTarget.apply : press.kind === 'symbol' ? (k, n, i) => hooks.symbolPaste && hooks.symbolPaste(n, i) : railApply)(press.kind, press.name, idx);
+  if (idx === 'drop') { if (press.kind !== 'symbol' && press.kind !== 'asset' && hooks.selectionDrop) hooks.selectionDrop(press.kind, press.name); return; }
+  if (idx != null && !Number.isNaN(idx)) (rt.railTarget ? rt.railTarget.apply : press.kind === 'symbol' ? (k, n, i) => hooks.symbolPaste && hooks.symbolPaste(n, i) : press.kind === 'asset' ? (k, n, i) => hooks.assetPaste && hooks.assetPaste(n, i) : railApply)(press.kind, press.name, idx);
 });
 window.addEventListener('pointercancel', cancelRailDrag);
 window.addEventListener('blur', () => { if (railPress) cancelRailDrag(); });   // a drag never stays half done when the window loses the pointer
 railPanel.addEventListener('dragstart', e => e.preventDefault());   // never the browser's own drag of a tile's picture or text
 // Rename: the one centred dialog; a taken name asks again.
 export async function railRename(kind, name) {
-  const store = kind === 'element' ? ELEMENT_LIB : kind === 'symbol' ? SYMBOL_LIBRARY : LIBRARY;
+  const store = kind === 'element' ? ELEMENT_LIB : kind === 'symbol' ? SYMBOL_LIBRARY : kind === 'asset' ? ASSET_LIBRARY : LIBRARY;
   let label = 'New name', next;
   for (;;) {
     next = await Organica.prompt({ title: 'Rename', label, value: next || name, ok: 'Rename' });
@@ -527,6 +529,12 @@ export function railUse(kind, name) {
     setTier('symbol'); applySymbolLibraryEntryToUI(e);
     return;
   }
+  if (kind === 'asset') {   // from the first selected cell (Enter, the Library view)
+    if (t !== 'symbol') setTier('symbol');
+    if (!state.symbolSelection.size) { railNotice('Select a cell: the asset is placed from it'); return; }
+    if (hooks.assetPaste) hooks.assetPaste(name, Math.min(...state.symbolSelection));
+    return;
+  }
   if (t === 'symbol') { railApply(kind, name, null); return; }
   if (kind === 'element') { useAsPaperTile('saved:' + name); return; }
   const e = LIBRARY.read()[name];
@@ -556,7 +564,7 @@ railPanel.addEventListener('click', e => {
   if (e.target.closest('[data-rail-rename]')) { railRename(kind, name); return; }
   if (kind === 'symbol' || e.detail === 0) { railUse(kind, name); return; }   // a Symbol / Enter on a focused tile
   clearTimeout(railClickTimer);
-  if (e.detail >= 2) { if (kind === 'pose') setTier('element'); else (kind === 'element' ? openSavedElement : openSavedComponent)(name); return; }
+  if (e.detail >= 2) { if (kind === 'asset') return; if (kind === 'pose') setTier('element'); else (kind === 'element' ? openSavedElement : openSavedComponent)(name); return; }
   railClickTimer = setTimeout(() => (brushable(kind) ? toggleBrush(kind, name) : railUse(kind, name)), RAIL_DBL_MS);   // a mouse click on the Symbol step takes the tile as the Brush
 });
 ctrl('btn-rail-save-all').addEventListener('click', saveAllComponentsToLibrary);
@@ -570,6 +578,7 @@ ctrl('btn-rail-save-all').addEventListener('click', saveAllComponentsToLibrary);
 rt.brush = null;   // { kind, name } while a tile is the Brush
 const brushable = kind => state.activeTier === 'symbol' && !rt.railTarget && kind !== 'symbol';
 function brushPatch(b) {
+  if (b.kind === 'asset') return ASSET_LIBRARY.read()[b.name] ? {} : null;   // an asset is stamped, not patched (brushPaint)
   if (b.kind === 'pose') { const i = elementPoses().findIndex(p => p[3] === b.name); return i < 0 ? null : elementPosePatch(i); }
   return railPatch(b.kind, b.name);
 }
@@ -599,7 +608,9 @@ function brushCellAt(e) {
 }
 function brushPaint(i, click) {
   const cell = state.symbolCells[i], b = rt.brush;
-  if (!cell || !b || cell.locked) return false;
+  if (!cell || !b) return false;
+  if (b.kind === 'asset') { if (click && hooks.assetPaste) hooks.assetPaste(b.name, i, { quiet: true }); return click; }   // a click stamps it from that cell; a drag does not repeat it
+  if (cell.locked) return false;
   if (click && brushHolds(cell, b)) {   // again on it: the next of the 8 poses — 0 90 180 270, then flipped 0 90 180 270
     const r = ((cell.rotation || 0) + 90) % 360;
     patchCell(cell, { rotation: r, flipH: r === 0 ? !cell.flipH : !!cell.flipH, flipV: false });
@@ -690,6 +701,7 @@ export function deleteSavedElement(name) {
 export function deleteSaved(kind, name) {
   if (kind === 'element') deleteSavedElement(name);
   else if (kind === 'symbol') removeSymbolLibraryEntry(name);
+  else if (kind === 'asset') { const all = ASSET_LIBRARY.read(); delete all[name]; ASSET_LIBRARY.write(all); renderLibraryRail(); }
   else deleteSavedComponent(name);
   sweepHiddenSaved();
 }
@@ -707,13 +719,13 @@ export function sweepHiddenSaved() {
   if (dropEl.length) { dropEl.forEach(n => delete els[n]); ELEMENT_LIB.write(els); elementLibraryChanged(); }
 }
 export function duplicateSaved(kind, name) {
-  const store = kind === 'element' ? ELEMENT_LIB : kind === 'symbol' ? SYMBOL_LIBRARY : LIBRARY;
+  const store = kind === 'element' ? ELEMENT_LIB : kind === 'symbol' ? SYMBOL_LIBRARY : kind === 'asset' ? ASSET_LIBRARY : LIBRARY;
   const all = store.read();
   if (!all[name]) return null;
   const next = dupName(all, name);
   all[next] = { ...JSON.parse(JSON.stringify(all[name])), savedAt: new Date().toISOString() };
   store.write(all);
-  if (kind === 'element') elementLibraryChanged(); else if (kind === 'symbol') renderSymbolLibrary(); else renderLibrary();
+  if (kind === 'element') elementLibraryChanged(); else if (kind === 'symbol') renderSymbolLibrary(); else if (kind === 'asset') renderLibraryRail(); else renderLibrary();
   return next;
 }
 
@@ -769,7 +781,7 @@ export function renderLibview() {
   if (!shown) {
     const esc = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
     body.innerHTML = q ? `<div class="org-empty"><p class="org-empty__title">No matches</p><p class="org-empty__hint">Nothing saved is named “${esc(pv('libview-q').trim())}”.</p></div>`
-      : `<div class="org-empty"><p class="org-empty__title">Nothing here yet</p><p class="org-empty__hint">${libviewKind === 'all' ? 'Save an Element, a Component or a Symbol.' : 'No ' + (LIBVIEW_KINDS.find(k => k[0] === libviewKind) || [, 'items'])[1] + ' saved yet.'}</p></div>`;
+      : `<div class="org-empty"><p class="org-empty__title">Nothing here yet</p><p class="org-empty__hint">${libviewKind === 'all' ? 'Save an Element, a Component, a Symbol or an asset.' : 'No ' + (LIBVIEW_KINDS.find(k => k[0] === libviewKind) || [, 'items'])[1] + ' saved yet.'}</p></div>`;
   }
 }
 export function syncLibviewButton() {
@@ -835,6 +847,7 @@ export function libviewOpenItem(kind, name) {
   closeLibview();
   if (kind === 'element') openSavedElement(name);
   else if (kind === 'component') openSavedComponent(name);
+  else if (kind === 'asset') railUse('asset', name);
   else railUse('symbol', name);
 }
 ctrl('fvs-libview').addEventListener('click', async e => {

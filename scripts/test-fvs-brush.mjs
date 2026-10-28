@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// FVS Symbol › Brush and Show letters (Oct 28, 2026 — Diego: "clic sulla tile la prende, clic sulle celle la mette, clic di nuovo ruota e
+// FVS Symbol › Brush, Show letters and Assets (Oct 28, 2026 — Diego: "clic sulla tile la prende, clic sulle celle la mette, clic di nuovo ruota e
 // ribalta, Esc la lascia"). A mouse click on a Library rail tile on the Symbol step takes it as the Brush; a click or a
 // drag over the cells puts it there; a click on a cell holding it walks its 8 poses; Esc puts it down; a Symbol tile is
 // never a Brush; Enter on a tile still places it in the selected cells; the Element's 7 poses are in the rail; a second
@@ -93,6 +93,33 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await w(100);
   q('btn-symbol-view-letters').click(); await w(100);
   check('Show letters off: no letters', !lettersOn().length, lettersOn().length);
+  // Assets: the selected cells saved as a pattern — in the rail's Assets and the Library, placed from a cell
+  Organica.prompt = async o => o.value;
+  F.state.symbolSelection = new Set([5, 9]); F.selectionTouched(9); F.renderSymbol(); await w(150);
+  document.querySelector('.fvs-sel-dot').click(); await w(150);
+  q('btn-sel-asset').click(); await w(300);
+  const at = tile('asset');
+  check('Save as asset: a tile in the rail’s Assets', !!at && !q('rail-g-assets').hidden && at.dataset.railName === 'Asset 1', at && at.dataset.railName);
+  const vb = at && (at.querySelector('svg').getAttribute('viewBox') || '').split(' ').map(Number);
+  check('…its picture is cropped to its cells (1 × 2 of a 4 × 4 grid)', vb && vb[3] > vb[2] * 1.5, JSON.stringify(vb));
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await w(100);
+  F.state.symbolCells.forEach(c => F.patchCell(c, { source: 'empty', rotation: 0, flipH: false, flipV: false, locked: false })); F.renderSymbol(); await w(150);
+  const src = JSON.parse(JSON.stringify(Object.values(JSON.parse(localStorage.getItem('organica.fvs-assets.presets') || '{}'))[0] || null));
+  check('…kept in its own store, the other cells empty', src && src.asset && src.asset.idxs.join() === '5,9' && src.cells.filter(c => c.source !== 'empty').length === 2, src && JSON.stringify(src.asset));
+  F.state.symbolSelection = new Set([2]); F.renderSymbol(); await w(100);
+  at.click(); await w(200);
+  check('Enter on the asset places it from the selected cell (its top-left)', F.state.symbolCells[2].componentName === A && F.state.symbolCells[6].componentName === A && F.state.symbolCells.filter(c => c.source !== 'empty').length === 2, F.state.symbolCells.map(c => c.source[0]).join(''));
+  F.state.symbolSelection.clear(); F.renderSymbol();
+  await mclick(tile('asset')); press(3); await w(150);
+  check('…as the Brush, a click stamps it; past the edge it is cut', F.state.symbolCells[3].componentName === A && F.state.symbolCells[7].componentName === A, F.state.symbolCells.map(c => c.source[0]).join(''));
+  press(15); await w(150);
+  check('…at the last row only its top cell lands', F.state.symbolCells[15].componentName === A, F.state.symbolCells[15].source);
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await w(80);
+  q('btn-libview').click(); await w(300);
+  check('the Library lists Assets', [...document.querySelectorAll('#libview-body .fvs-libview__thumb')].some(b => b.dataset.lvKind === 'asset') && !!document.querySelector('#libview-filter [data-kind="asset"]'), 'not there');
+  q('libview-close').click(); await w(150);
+  tile('asset').parentElement.querySelector('[data-rail-remove]').click(); await w(200);
+  check('Delete on the rail removes the asset', !tile('asset') && q('rail-g-assets').hidden, 'still there');
   // leaving the step puts it down
   F.setTier('symbol'); await w(300); await mclick(tile('component', A)); F.setTier('component'); await w(300);
   check('leaving the Symbol step puts the Brush down', !document.body.classList.contains('fvs-brush-on'), 'still on');

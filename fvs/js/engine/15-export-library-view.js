@@ -36,7 +36,7 @@ import {
   componentThumbSVG
 } from './10-suggest.js';
 import {
-  SYMBOL_LIBRARY, symbolEntryThumbSVG
+  ASSET_LIBRARY, SYMBOL_LIBRARY, assetThumbSVG, symbolEntryThumbSVG
 } from './11-symbol-ui.js';
 import { hooks, provide } from '../hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
@@ -87,7 +87,8 @@ export function plateSVG(svg, colors, i, paper) {
 export function railTileVerb(kind) {
   const t = state.activeTier;
   if (live.railCompose) return kind === 'symbol' ? 'Place Symbol at the first selected cell —' : 'Place ' + (kind === 'element' ? 'Element' : 'Component') + ' in the selected cells —';   // Compose (17-figure-graph sets it)
-  if (kind === 'pose') return 'Place the Element in the selected cells —';   // the Element group (Symbol step only, Oct 28, 2026)
+  if (kind === 'pose') return 'Place the Element in the selected cells —';
+  if (kind === 'asset') return 'Place the asset from the selected cell —';   // the Element group (Symbol step only, Oct 28, 2026)
   if (kind === 'symbol') return 'Load Symbol';
   if (t === 'symbol') return 'Place ' + (kind === 'element' ? 'Element' : 'Component') + ' in the selected cells —';
   return kind === 'element' ? 'Use Element as Paper tile —' : 'Load Component';
@@ -95,7 +96,7 @@ export function railTileVerb(kind) {
 // Anything saved at all? Elements (with a tile), Components, Symbols.
 export function railSavedCount() {
   const elAll = ELEMENT_LIB.read() || {};
-  return shownElementNames(elAll).length + libraryNames(LIBRARY.read()).length + Object.keys(SYMBOL_LIBRARY.read() || {}).length;
+  return shownElementNames(elAll).length + libraryNames(LIBRARY.read()).length + Object.keys(SYMBOL_LIBRARY.read() || {}).length + Object.keys(ASSET_LIBRARY.read() || {}).length;
 }
 // The rail toggle is aria-disabled (focusable, the reason in its label = the tooltip) when opening it
 // would show nothing: nothing saved, on the Element tab (Component / Symbol keep their Save buttons there).
@@ -127,15 +128,15 @@ export function dupName(all, base) {
 // Base Seeds + the user's own) in one view over the canvas, opened from the floatbar on every tier.
 // A tile's click opens / loads it (a Genesis seed becomes the Element's Shape); Rename · Duplicate ·
 // SVG · PNG · Delete under it. The rail stays for dragging onto Symbol cells.
-export const LIBVIEW_KINDS = [['element', 'Elements'], ['component', 'Components'], ['symbol', 'Symbols'], ['genesis', 'Genesis seeds']];
+export const LIBVIEW_KINDS = [['element', 'Elements'], ['component', 'Components'], ['symbol', 'Symbols'], ['asset', 'Assets'], ['genesis', 'Genesis seeds']];
 export function libviewVerb(kind, name) {
   return kind === 'element' ? 'Edit Element ' + name : kind === 'component' ? 'Load Component ' + name
-    : kind === 'symbol' ? 'Load Symbol ' + name : 'Use as Element shape: ' + name;
+    : kind === 'symbol' ? 'Load Symbol ' + name : kind === 'asset' ? 'Place asset ' + name + ' from the selected cell' : 'Use as Element shape: ' + name;
 }
 // Always on (Diego, Oct 6, 2026): the Genesis seeds are always there, and the Library is where the Element picks them.
 export function libviewBlock() { return ''; }
 export const fileSlug = n => String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'item';
-export const KIND_WORD = { element: 'Element', component: 'Component', symbol: 'Symbol' };
+export const KIND_WORD = { element: 'Element', component: 'Component', symbol: 'Symbol', asset: 'Asset' };
 export function tierSVG() {
   const t = state.activeTier;
   if (t === 'symbol') return getSymbolGrid() ? buildSymbolSVG() : '';
@@ -187,6 +188,7 @@ export function libviewItems(kind) {
   if (kind === 'element') { const all = ELEMENT_LIB.read(); return shownElementNames(all).sort(newest(all)).map(n => ({ name: n, svg: () => savedElementThumb(all[n]) })); }
   if (kind === 'component') { const all = LIBRARY.read(); return libraryNames(all).sort(newest(all)).map(n => ({ name: n, svg: () => componentThumbSVG(n) })); }
   if (kind === 'symbol') { const all = SYMBOL_LIBRARY.read(); return Object.keys(all || {}).sort(newest(all)).map(n => ({ name: n, svg: () => symbolEntryThumbSVG(all[n]) })); }
+  if (kind === 'asset') { const all = ASSET_LIBRARY.read(); return Object.keys(all || {}).sort(newest(all)).map(n => ({ name: n, svg: () => assetThumbSVG(all[n]) })); }
   return genesisTileForms().map(f => ({ name: f.name || f.id, id: f.id, svg: () => String(f.svg) }));
 }
 // A saved item as a file: the same SVG its thumbnail draws (Paper included), or that SVG rasterised.
@@ -194,6 +196,7 @@ export function libviewSVG(kind, name) {
   if (kind === 'element') { const e = ELEMENT_LIB.read()[name]; return e ? savedElementThumb(e) : ''; }
   if (kind === 'component') return componentThumbSVG(name);
   if (kind === 'symbol') { const e = SYMBOL_LIBRARY.read()[name]; return e ? symbolEntryThumbSVG(e) : ''; }
+  if (kind === 'asset') { const e = ASSET_LIBRARY.read()[name]; return e ? assetThumbSVG(e) : ''; }
   const f = genesisTileForms().find(x => x.id === name);
   return f ? String(f.svg).replace(/var\(--ink\)/g, '#000000') : '';
 }

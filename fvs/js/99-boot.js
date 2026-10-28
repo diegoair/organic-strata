@@ -12,7 +12,7 @@ import {
   LIBRARY, pruneAutoLibraryEntries
 } from './engine/07-library.js';
 import {
-  SYMBOL_LIBRARY
+  ASSET_LIBRARY, SYMBOL_LIBRARY
 } from './engine/11-symbol-ui.js';
 import {
   elementLibraryChanged
@@ -30,7 +30,7 @@ import {
   setTier
 } from './12-shell.js';
 import {
-  railWanted, setRailOpen
+  railWanted, renderLibraryRail, setRailOpen
 } from './15-export-library-view.js';
 
 setRailOpen(railWanted()); rt.railBooted = true;   // open unless it was closed by hand (Diego, Oct 28, 2026 — reverses Oct 5's always-closed start; organica.fvs.rail, the old key, is left unread)
@@ -44,6 +44,7 @@ Organica.autoLabelPanel(document);
 // Cloud sync (shared/store.js): hydrate component + symbol libraries from Supabase.
 LIBRARY.pull().then(() => { pruneAutoLibraryEntries(); renderLibrary(); });        LIBRARY.onSync(() => renderLibrary());
 SYMBOL_LIBRARY.pull().then(() => renderSymbolLibrary()); SYMBOL_LIBRARY.onSync(() => renderSymbolLibrary());
+ASSET_LIBRARY.pull().then(() => renderLibraryRail()); ASSET_LIBRARY.onSync(() => renderLibraryRail());   // Assets (Oct 28, 2026)
 ELEMENT_LIB.pull().then(() => elementLibraryChanged());   ELEMENT_LIB.onSync(() => elementLibraryChanged());   // saved Elements from the account show on a new device / session without a reload
 // Genesis library (seed picker) — hydrate the cache from Supabase; the picker
 // reads it live each time it opens, so no re-render needed here.

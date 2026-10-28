@@ -229,11 +229,11 @@ else:
 # 5b. FVS engine stays engine — fvs/js/engine/*.js is model + logic with no DOM UI (docs/FVS.md
 # §11). It may import only other engine files and ../hooks.js / ../rt.js, never a UI file, and use
 # the DOM only to measure / composite offscreen (createElement / createElementNS / body append + remove); the
-# model's stores (presetStore 'fvs' / 'fvs-element' / 'fvs-symbols', the Genesis library, ORGANIC_SEEDS) are allowed.
+# model's stores (presetStore 'fvs' / 'fvs-element' / 'fvs-symbols' / 'fvs-assets', the Genesis library, ORGANIC_SEEDS) are allowed.
 print("fvs engine")
 eng = sorted(f for f in subprocess.run(["git", "ls-files", "fvs/js/engine"], capture_output=True, text=True).stdout.split() if f.endswith(".js"))
 ENGINE_BAD = re.compile(r"\b(ctrl|setStatus)\(|\bwindow\.|localStorage|addEventListener|querySelector|getElementById|innerHTML|\bOrganica\.(download|icons|popover|prompt|confirm|notice|store\b|presetStore|dirty|selectPicker)")
-MODEL_OK = re.compile(r"Organica\.presetStore\('fvs(-element|-symbols)?'\)|Organica\.store\.library\.read\(\)|window\.ORGANIC_SEEDS")
+MODEL_OK = re.compile(r"Organica\.presetStore\('fvs(-element|-symbols|-assets)?'\)|Organica\.store\.library\.read\(\)|window\.ORGANIC_SEEDS")
 ENGINE_IMPORT_OK = ("/loom/js/generators/",)   # other tools' pure data modules the engine may import() on demand
 DOM_OK = re.compile(r"document\.(createElement|createElementNS)\(|document\.body\.(appendChild|removeChild)\(")
 bad_e = []

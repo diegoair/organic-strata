@@ -27,7 +27,7 @@ import {
   SYMBOL_ARRANGE, componentThumbSVG, symbolCellContext
 } from './engine/10-suggest.js';
 import {
-  SYMBOL_LIBRARY, SYMBOL_RULES, contentKey, symbolLetterKeys, symbolPastePlan
+  ASSET_LIBRARY, SYMBOL_LIBRARY, SYMBOL_RULES, assetPastePlan, buildAssetEntry, contentKey, symbolLetterKeys, symbolPastePlan
 } from './engine/11-symbol-ui.js';
 import {
   SEL_ARRANGE, SEL_SEQS, SEL_WALKS, ZONE_FOLLOW, applyZones, arrangeLetters, contentOfCell, contentPatch, whenFromCells, zoneCells, zoneContexts
@@ -45,7 +45,7 @@ import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   applySelectionsNow: () => applySelectionsNow, renderSelectionPanel: () => renderSelectionPanel, selectionOverlay: () => selectionOverlay,
-  selectionLettersSVG: () => selectionLettersSVG, symbolLettersSVG: () => symbolLettersSVG, selectionDrop: () => selectionDrop, symbolPaste: () => symbolPaste,
+  selectionLettersSVG: () => selectionLettersSVG, symbolLettersSVG: () => symbolLettersSVG, selectionDrop: () => selectionDrop, symbolPaste: () => symbolPaste, assetPaste: () => assetPaste,
   selectionRuleEdit: () => selectionRuleEdit, selectionTouched: () => selectionTouched, selectionTakeDos: () => selectionTakeDos,
   heldBySelections: () => heldBySelections
 });
@@ -156,6 +156,13 @@ export function symbolPaste(name, idx) {
   const plan = symbolPastePlan(entry, ctxs, [ctxs[idx].row, ctxs[idx].col]);
   plan.forEach(([ti, c]) => { const cell = state.symbolCells[ti]; if (cell && !cell.locked) state.symbolCells[ti] = withPlacementDefaults(clone(c)); });
   renderSymbol();
+}
+// An asset placed on a cell (Oct 28, 2026): its cells pasted with its top-left cell there; past the edge it is cut, a locked
+// cell stays. opts.quiet: the Brush's stamp (the stroke's end redraws).
+export function assetPaste(name, idx, opts) {
+  const entry = ASSET_LIBRARY.read()[name], ctxs = ctxsNow(); if (!entry || !ctxs[idx]) return;
+  assetPastePlan(entry, ctxs, [ctxs[idx].row, ctxs[idx].col]).forEach(([ti, c]) => { const cell = state.symbolCells[ti]; if (cell && !cell.locked) state.symbolCells[ti] = withPlacementDefaults(clone(c)); });
+  if (opts && opts.quiet) renderSymbolCanvasOnly(); else renderSymbol();
 }
 const thumbOf = it => { try { if (it.tpl) return it.tpl.source === 'component' ? componentThumbSVG(it.tpl.componentName) : ''; if (it.kind === 'element') return it.entry && !it.entry.thumb && it.entry.seed ? savedElementEntrySVG(it.entry) : savedElementThumb(it.entry); return componentThumbSVG(it.name); } catch (e) { return ''; } };
 
@@ -463,6 +470,18 @@ ctrl('btn-sel-save').addEventListener('click', async () => {
   state.selPick = list.length - 1; state.selDraft = null;
   applySelectionsNow();
   renderSelectionPanel();
+});
+// Save as asset (Oct 28, 2026): the selected cells as a pattern — the Library rail's Assets and the Library
+ctrl('btn-sel-asset').addEventListener('click', async () => {
+  if (!state.symbolSelection.size) return;
+  const all = ASSET_LIBRARY.read(), def = 'Asset ' + (Object.keys(all).length + 1);
+  let name = Organica.prompt ? await Organica.prompt({ title: 'Save as asset', label: 'Name', value: def, ok: 'Save' }) : def;
+  if (name == null) return;
+  name = String(name).trim() || def;
+  const e = buildAssetEntry([...state.symbolSelection]); if (!e) return;
+  all[name] = e; ASSET_LIBRARY.write(all);
+  if (hooks.renderLibraryRail) hooks.renderLibraryRail();
+  if (hooks.renderLibview) hooks.renderLibview();
 });
 ctrl('btn-sel-rename').addEventListener('click', async () => {
   const z = state.selPick != null && savedList()[state.selPick]; if (!z) return;

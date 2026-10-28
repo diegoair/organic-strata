@@ -17,7 +17,7 @@ import {
   LIBRARY
 } from './07-library.js';
 import {
-  getSymbolGrid, symbolFrame
+  emptySymbolCell, getSymbolGrid, symbolFrame
 } from './08-symbol-grid.js';
 import {
   buildSymbolItems, buildSymbolSVG, cellOverflowInfo, symbolCellBoxes, symbolSpanLayout
@@ -405,6 +405,46 @@ export function symbolEntryThumbSVG(entry) {
   const svgStr = withAppearance(entry.appearance, buildSymbolSVG);
   state.symbolGrid = prev.grid; state.symbolCells = prev.cells; state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.symbolClipEnabled = prev.clip; state.symbolOverlap = prev.overlap;
   return svgStr;
+}
+// ── Assets (Diego, Oct 28, 2026 — "un subset selezionato come pattern, da salvare e riusare … nella gallery e anche nella
+// library"): the cells of a selection kept as a pattern. An asset is a saved Symbol entry whose other cells are empty,
+// + asset.idxs (the cells it keeps); its thumbnail is cropped to them; placed on a cell, it is pasted with its top-left
+// cell there (what falls outside the grid is cut). A store of its own, so the Symbols list stays the Symbols.
+export const ASSET_LIBRARY = Organica.presetStore('fvs-assets');
+export function buildAssetEntry(idxs) {
+  const e = buildSymbolLibraryEntry(), keep = new Set(idxs);
+  if (!e || !keep.size) return null;
+  e.cells = e.cells.map((c, i) => (keep.has(i) ? { ...c, locked: false } : emptySymbolCell()));
+  delete e.zones; delete e.pool; delete e.arrange; delete e.rule;
+  e.asset = { idxs: [...keep].sort((a, b) => a - b) };
+  return e;
+}
+// the asset's cells as rows and columns of its own grid, from its top-left cell
+function assetCells(entry) {
+  const gm = entry && entry.gridModel, idxs = entry && entry.asset && entry.asset.idxs; if (!gm || !idxs) return [];
+  const L = Organica.loadLoomGrid(gm);
+  const G = { kind: 'loom', cellShape: L.cellShape, cells: L.cells, width: L.inner.width, height: L.inner.height, canvasFrame: L.canvas && L.canvas.fvsFrame ? L.canvas : null };
+  const cr = Organica.shapes.cellColRow(G, L.cells, L.grid); if (!cr.length) return [];
+  const mine = idxs.filter(i => cr[i]), r0 = Math.min(...mine.map(i => cr[i].row)), c0 = Math.min(...mine.map(i => cr[i].col));
+  return mine.map(i => ({ i, dr: cr[i].row - r0, dc: cr[i].col - c0 }));
+}
+export function assetPastePlan(entry, targets, at) {
+  if (!at) return [];
+  const byAddr = new Map(targets.map(t => [t.row + ',' + t.col, t.index])), out = [];
+  assetCells(entry).forEach(({ i, dr, dc }) => { const ti = byAddr.get((at[0] + dr) + ',' + (at[1] + dc)); if (ti != null && entry.cells[i]) out.push([ti, entry.cells[i]]); });
+  return out;
+}
+export function assetThumbSVG(entry) {
+  const svg = symbolEntryThumbSVG(entry), idxs = (entry.asset && entry.asset.idxs) || [];
+  const prev = state.symbolGrid;
+  try {
+    state.symbolGrid = Organica.loadLoomGrid(entry.gridModel);
+    const g = getSymbolGrid(), F = symbolFrame(g);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    idxs.forEach(i => { const c = g.cells[i]; if (!c) return; const pts = c.points || [[c.x, c.y], [c.x + c.width, c.y + c.height]]; pts.forEach(([x, y]) => { x0 = Math.min(x0, F.X(x)); x1 = Math.max(x1, F.X(x)); y0 = Math.min(y0, F.Y(y)); y1 = Math.max(y1, F.Y(y)); }); });
+    if (!(x1 > x0 && y1 > y0)) return svg;
+    return svg.replace(/viewBox="[^"]*"/, `viewBox="${x0.toFixed(2)} ${y0.toFixed(2)} ${(x1 - x0).toFixed(2)} ${(y1 - y0).toFixed(2)}"`).replace(/ width="[\d.]+" height="[\d.]+"/, '');
+  } finally { state.symbolGrid = prev; }
 }
 export function buildSymbolPrintSVG(F, cv) {
   const d = symbolPrintDims(F, cv);

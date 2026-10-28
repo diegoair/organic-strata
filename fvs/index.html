@@ -352,6 +352,7 @@
       <div id="rail-g-elements"><div class="sub-label">Elements</div><div class="fvs-rail__grid" id="rail-elements"></div></div>
       <div id="rail-g-components"><div class="fvs-rail__head"><div class="sub-label">Components</div><button type="button" class="mini-btn" id="btn-rail-save-all">Save all</button></div><div class="fvs-rail__grid" id="rail-components"></div></div>
       <div id="rail-g-symbols"><div class="sub-label">Symbols</div><div class="fvs-rail__grid" id="rail-symbols"></div></div>
+      <div id="rail-g-assets"><div class="sub-label">Assets</div><div class="fvs-rail__grid" id="rail-assets"></div></div>
     </div>
     <p class="fvs-rail__note" id="rail-note" role="status" aria-live="polite"></p>
     <div class="fvs-rail__foot"><button type="button" class="mini-btn" id="btn-rail-save-lib">Save Symbol</button></div>
@@ -517,6 +518,7 @@
           <button type="button" class="seg-btn" data-kind="element" aria-pressed="false">Elements</button>
           <button type="button" class="seg-btn" data-kind="component" aria-pressed="false">Components</button>
           <button type="button" class="seg-btn" data-kind="symbol" aria-pressed="false">Symbols</button>
+          <button type="button" class="seg-btn" data-kind="asset" aria-pressed="false">Assets</button>
           <button type="button" class="seg-btn" data-kind="genesis" aria-pressed="false">Genesis seeds</button>
         </div>
         <button type="button" class="icon-btn" id="libview-close" aria-label="Close" data-icon-slot></button>
@@ -1883,6 +1885,8 @@
           <div class="seg-ctrl" id="sel-seq" role="group" aria-labelledby="sel-seq-label"></div>
         </div>
       </div>
+      <!-- Save as asset (Oct 28, 2026): the selected cells kept as a pattern, in the Library rail's Assets and the Library -->
+      <button class="mini-btn" id="btn-sel-asset" style="width:100%">Save as asset…</button>
       <div class="sub-label">Transform</div>
       <div id="sel-transform"></div>
       <div class="sub-label">Rule</div>
