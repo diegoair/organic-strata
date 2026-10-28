@@ -42,6 +42,7 @@ const JOBS = {
   'symbol-boards':      node('test-fvs-symbol-boards.mjs'),   // several Symbols on the Symbol board, Delete + Undo, reload, `current` read forward (Oct 27, 2026)
   'zones':              node('test-fvs-zones.mjs'),   // engine/11-zones: named selectors, whenFromCells, applyZones (Oct 27, 2026)
   'selection':          node('test-fvs-selection.mjs'),   // Symbol Selection: dot, drop target, Arrange, Save, Lock, Clear (Oct 28, 2026)
+  'brush':              node('test-fvs-brush.mjs'),       // Symbol Brush: take a rail tile, paint, turn / flip on a click again, Esc (Oct 28, 2026)
   'symmetry':           node('test-fvs-symmetry.mjs'),   // Zones › Symmetry: 12 wallpaper groups + rosettes, invariance (Oct 27, 2026)
   'continuity':         node('test-fvs-continuity.mjs'),   // Zones › Continuity: edge matching along a walk (Oct 27, 2026)
   'drive':              node('test-fvs-drive.mjs'),   // Zones › Field and Rhythm: signals, walks (Oct 27, 2026)

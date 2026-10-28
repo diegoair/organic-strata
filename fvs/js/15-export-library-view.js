@@ -33,7 +33,7 @@ import {
   componentThumbSVG
 } from './engine/10-suggest.js';
 import {
-  SYMBOL_LIBRARY, buildSymbolLibraryEntry, patchCell, symbolEntryThumbSVG
+  SYMBOL_LIBRARY, buildSymbolLibraryEntry, patchCell, symbolCellBounds, symbolEntryThumbSVG
 } from './engine/11-symbol-ui.js';
 import {
   DEFAULT_VARIANTS, KIND_WORD, LIBVIEW_KINDS, RAIL_DBL_MS, componentUsage, dupName, elementInLivePaper,
@@ -65,7 +65,7 @@ import {
 } from './10-suggest.js';
 import {
   applySymbolLibraryEntryToUI, applyToSelection, elementPosePatch, elementPoses, removeSymbolLibraryEntry, renderCellPropertiesPanel,
-  renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary, saveSymbolAs
+  renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary, saveSymbolAs, svgPointFromEvent
 } from './11-symbol-ui.js';
 import {
   exportByTier, onAppearanceChange, setPaperUI, setTier
@@ -392,6 +392,7 @@ export function renderLibraryRail() {
   ctrl('btn-rail-save-all').hidden = !onComp;
   // nothing to show at all (and no Save footer) → no empty glass box beside the toggle
   ctrl('fvs-rail-panel').classList.toggle('is-empty', !visible.some(([, on]) => on) && state.activeTier !== 'symbol');
+  if (rt.brush) setBrush(rt.brush);   // the Brush's tile stays pressed after a redraw (gone if its item was deleted)
   syncRailSpace();   // its contents (and so its width) changed
 }
 railBtn.addEventListener('click', () => { if (railBtn.getAttribute('aria-disabled') === 'true') return; const open = !railIsOpen(); setRailWanted(open); setRailOpen(open); });
@@ -556,9 +557,85 @@ railPanel.addEventListener('click', e => {
   if (kind === 'symbol' || e.detail === 0) { railUse(kind, name); return; }   // a Symbol / Enter on a focused tile
   clearTimeout(railClickTimer);
   if (e.detail >= 2) { if (kind === 'pose') setTier('element'); else (kind === 'element' ? openSavedElement : openSavedComponent)(name); return; }
-  railClickTimer = setTimeout(() => railUse(kind, name), RAIL_DBL_MS);
+  railClickTimer = setTimeout(() => (brushable(kind) ? toggleBrush(kind, name) : railUse(kind, name)), RAIL_DBL_MS);   // a mouse click on the Symbol step takes the tile as the Brush
 });
 ctrl('btn-rail-save-all').addEventListener('click', saveAllComponentsToLibrary);
+
+// ── Brush (Diego, Oct 28, 2026 — the asset-learn page's tray: "clic sulla tile la prende, clic sulle celle la mette,
+// clic di nuovo ruota e ribalta, Esc la lascia"). A mouse click on an Element, a pose of the Element or a Component tile
+// on the Symbol step takes it as the Brush (the tile pressed, the sheet's cursor a crosshair); a click or a drag on the
+// cells puts it there; a click on a cell already holding it turns it a quarter, past 270° it flips (8 poses); Esc, or a
+// click on the same tile, puts it down. Enter on a tile still places it in the selected cells (railUse). A Symbol is
+// never a Brush: it is dragged and pasted. Each stroke is one ⌘Z step (the Symbol board keeps an edit once it settles).
+rt.brush = null;   // { kind, name } while a tile is the Brush
+const brushable = kind => state.activeTier === 'symbol' && !rt.railTarget && kind !== 'symbol';
+function brushPatch(b) {
+  if (b.kind === 'pose') { const i = elementPoses().findIndex(p => p[3] === b.name); return i < 0 ? null : elementPosePatch(i); }
+  return railPatch(b.kind, b.name);
+}
+// Does the cell already hold what the Brush puts (any pose of it)?
+function brushHolds(cell, b) {
+  if (!cell) return false;
+  if (b.kind === 'component') return cell.source === 'component' && cell.componentName === b.name;
+  const p = brushPatch(b); if (!p) return false;
+  const q = typeof p === 'function' ? p(cell) : p;
+  return cell.source === 'seed' && JSON.stringify(cell.seedParams) === JSON.stringify(q.seedParams);
+}
+export function setBrush(b) {
+  rt.brush = b && brushPatch(b) ? b : null;
+  document.body.classList.toggle('fvs-brush-on', !!rt.brush);
+  railPanel.querySelectorAll('.fvs-library-item').forEach(t => {
+    const on = !!rt.brush && t.dataset.railKind === rt.brush.kind && t.dataset.railName === rt.brush.name;
+    t.classList.toggle('is-brush', on);
+    if (t.dataset.railKind !== 'symbol') t.setAttribute('aria-pressed', String(on));
+  });
+  railNotice(rt.brush ? 'Brush: click or drag over cells to paint. Click a cell again to turn or flip it. Esc stops.' : '');
+}
+export function toggleBrush(kind, name) { setBrush(rt.brush && rt.brush.kind === kind && rt.brush.name === name ? null : { kind, name }); }
+// The cell under a point of the sheet (its bounding box — as the marquee reads cells)
+function brushCellAt(e) {
+  const pt = svgPointFromEvent(e); if (!pt) return null;
+  const c = symbolCellBounds().find(b => pt.x >= b.x && pt.x < b.x + b.w && pt.y >= b.y && pt.y < b.y + b.h);
+  return c ? c.index : null;
+}
+function brushPaint(i, click) {
+  const cell = state.symbolCells[i], b = rt.brush;
+  if (!cell || !b || cell.locked) return false;
+  if (click && brushHolds(cell, b)) {   // again on it: the next of the 8 poses — 0 90 180 270, then flipped 0 90 180 270
+    const r = ((cell.rotation || 0) + 90) % 360;
+    patchCell(cell, { rotation: r, flipH: r === 0 ? !cell.flipH : !!cell.flipH, flipV: false });
+    return true;
+  }
+  if (brushHolds(cell, b)) return false;   // a drag over cells that hold it already leaves their turn
+  return patchCell(cell, brushPatch(b));
+}
+let brushStroke = null;   // { done: Set, moved } while the mouse is down with a Brush
+ctrl('symbol-frame').addEventListener('mousedown', e => {
+  if (!rt.brush || state.activeTier !== 'symbol' || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  if (e.target.closest && e.target.closest('.fvs-sel-overlay, .sym-track')) return;   // the selection's boxes, a grid border
+  const i = brushCellAt(e); if (i == null) return;
+  e.preventDefault(); e.stopImmediatePropagation();   // no marquee, no selection click
+  brushStroke = { done: new Set([i]), moved: false, first: i };
+  if (brushPaint(i, true)) renderSymbolCanvasOnly();
+}, true);
+window.addEventListener('mousemove', e => {
+  if (!brushStroke) return;
+  const i = brushCellAt(e); if (i == null || brushStroke.done.has(i)) return;
+  brushStroke.done.add(i); brushStroke.moved = true;
+  if (brushPaint(i, false)) renderSymbolCanvasOnly();
+});
+window.addEventListener('mouseup', () => {
+  if (!brushStroke) return;
+  brushStroke = null;
+  renderSymbol();   // the panels, the saved work and the undo step follow the stroke
+}, true);
+// Esc puts the Brush down before anything else reads it (the Selection's Esc, the rail's)
+window.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !rt.brush) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  setBrush(null);
+}, true);
+
 
 // Save: the Symbol only — Elements and Components save from their own thumbnails.
 export function railSaveTarget() {
@@ -584,6 +661,7 @@ railSaveBtn.addEventListener('click', async () => {
 // Compose's cells as a region rule; the rail is then the same Library rail as the Symbol step's (Oct 8, 2026).
 rt.railTarget = null;
 export function syncRailTier(tier) {
+  if (tier !== 'symbol') setBrush(null);
   const show = tier !== 'figure' || !!rt.railTarget;
   ctrl('fvs-rail-dock').hidden = !show;
   syncRailSave();

@@ -181,6 +181,8 @@
   @media (hover: none) { .fvs-rail__tile .rmx-x { opacity: 1; } }
   .fvs-rail__grid .fvs-library-item { width: 3rem; height: 3rem; background: var(--paper); touch-action: none; }
   .fvs-rail__grid .fvs-library-item.is-dragging { opacity: 0.35; }
+  .fvs-rail__grid .fvs-library-item.is-brush { box-shadow: 0 0 0 2px var(--ink); }   /* the Brush (Oct 28, 2026): the tile taken, as a rail drag over a box */
+  body.fvs-brush-on #symbol-frame { cursor: crosshair; }
   .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 3rem; height: 3rem; background: var(--paper); border: 1px solid var(--border-strong); }
   .fvs-rail-ghost svg { width: 100%; height: 100%; display: block; }
   body.is-rail-dragging { cursor: grabbing; user-select: none; }
