@@ -14,7 +14,7 @@ import {
   SYMBOL_ARRANGE, arrangeCells, candFromCells, cellContentKey, elementPool, poolEntries, suggestSymbols, symbolContentPool, symbolSource
 } from './engine/10-suggest.js';
 import {
-  collectGeneratedComponents, generatedIn, suggestZoned, zoneCells, zoneContexts
+  collectGeneratedComponents, generatedIn, suggestZoned
 } from './engine/11-zones.js';
 import {
   LIBRARY, isGenName, setGenComponents
@@ -75,7 +75,7 @@ export function renderSuggestGallery(currentIdx) {
     btn.addEventListener('click', async () => {
       if (sg.gen && sg.gen.length && !(await saveGeneratedFor(sg))) return;
       state.symbolCells = sg.cells.map(c => ({ ...c }));
-      if (sg.zoneDos) applyZoneDos(sg.zoneDos);   // the open zones take what this variation gave them (Zones, Oct 27, 2026)
+      if (sg.zoneDos && sg.zoneDos[0] && hooks.selectionTakeDos) hooks.selectionTakeDos(sg.zoneDos[0].dos);   // an open selection takes what this variation gave it (Oct 28, 2026)
       if (!sg.sel) state.symbolSelection.clear();   // variations of a selection: the selection stays, for the next run
       hooks.renderSymbol();
       wrap.querySelectorAll('.fvs-suggest__item').forEach((b, k) => b.classList.toggle('is-current', k === i));
@@ -97,16 +97,13 @@ export function runSuggest(more) {
   // change only the selected cells), and — from the Symbol's contents — the empty cells, the cells under a block and a
   // missing Component (a hole stays a hole)
   const sel = state.symbolSelection.size ? new Set(state.symbolSelection) : null, real = state.symbolCells;
-  // Zones (Oct 27, 2026): a zone that does something holds its cells; a zone that does nothing yet is open — Suggest
-  // proposes what it could do (suggestZoned)
-  const grid = state.symbolGrid ? getSymbolGrid() : null, zc = grid ? zoneContexts(grid) : [], zoneHeld = new Set(), open = [];
-  (state.symbolZones || []).forEach((z, k) => {
-    if (z.off) return;
-    const idxs = zoneCells(z.when, zc), d = z.do || {};
-    if (Object.keys(d).length) idxs.forEach(i => zoneHeld.add(i));
-    else open.push({ zone: k, idxs: sel ? idxs.filter(i => sel.has(i)) : idxs });
-  });
-  const openCells = new Set(open.flatMap(o => o.idxs));
+  // a saved selection holds its cells (Oct 28, 2026); the selection on show is open: Suggest proposes what it could do, by
+  // geometry too (suggestZoned: Symmetry, Continuity, Field, the Arrange classes). No selection: the Symbol's own turns
+  // and contents, as before (⌘A opens every cell to the geometry).
+  const zoneHeld = hooks.heldBySelections ? hooks.heldBySelections() : new Set();
+  const openIdx = sel ? [...sel].filter(i => !zoneHeld.has(i) && !(real[i] && real[i].locked)) : [];
+  const open = openIdx.length ? [{ zone: 0, idxs: openIdx, name: 'Selection' }] : [];
+  const openCells = new Set(openIdx);
   const holds = (c, i) => zoneHeld.has(i) || (sel && !sel.has(i)) || (!openCells.has(i) && own.length && (L.covered[i] != null || !c || c.source === 'empty' || (c.source === 'component' && !cellContentKey(c))));
   const held = real.map(holds);
   const base = more ? candFromCells(real) : null;
@@ -128,7 +125,7 @@ export function runSuggest(more) {
     own.length ? `From this Symbol’s ${own.length} content${own.length === 1 ? '' : 's'}` + (own.length === 1 && !gen.length ? ' — turns and flips only.' : '.') : '',
     gen.length ? `+ ${gen.length} generated component${gen.length === 1 ? '' : 's'} not saved yet.` : '',
     sel ? `Variations of the ${sel.size} selected cell${sel.size === 1 ? '' : 's'}.` : '',
-    open.length ? `${open.length} open zone${open.length === 1 ? '' : 's'}: each variation says what it gives ${open.length === 1 ? 'it' : 'them'}.` : zoneHeld.size ? `${zoneHeld.size} cells held by zones.` : '',
+    zoneHeld.size ? `${zoneHeld.size} cells held by saved selections.` : '',
     suggestSymbols.lastNote || ''].filter(Boolean).join(' ');
   const first = state.symbolSuggestions.find(sg => !sg.gen.length);   // a variation with generated components waits for a click (and a confirm)
   if (!more && first) state.symbolCells = first.cells.map(c => ({ ...c }));   // the open zones stay open until a variation is clicked: Suggest again explores them again
@@ -140,19 +137,6 @@ ctrl('fvs-sug-panel').addEventListener('wheel', e => e.stopPropagation(), { pass
 ctrl('btn-sug-run').addEventListener('click', () => runSuggest(false));
 ctrl('btn-sug-more').addEventListener('click', () => runSuggest(true));
 ctrl('btn-sug-seed-random').addEventListener('click', () => { ctrl('num-sug-seed').value = Math.floor(Math.random() * 1e6); runSuggest(false); });
-
-// A variation's gift to the open zones: each gets the variation's content and / or rule — one zone per action (a zone
-// does one thing), the second right after the first on the same cells.
-export function applyZoneDos(zoneDos) {
-  const zs = state.symbolZones;
-  [...zoneDos].sort((a, b) => b.zone - a.zone).forEach(({ zone, dos }) => {
-    const z = zs[zone]; if (!z || !dos.length) return;
-    const extra = dos.slice(1).map(d => ({ when: JSON.parse(JSON.stringify(z.when)), do: JSON.parse(JSON.stringify(d)) }));
-    z.do = JSON.parse(JSON.stringify(dos[0]));
-    zs.splice(zone + 1, 0, ...extra);
-  });
-  if (hooks.renderZonesPanel) hooks.renderZonesPanel();
-}
 
 // Applying a variation that uses generated components: say which, then save each to the Library ("Saved from Suggest"),
 // under the usual "<rule> <time>" name, and point the variation's cells at the saved names. false = not applied.
@@ -174,3 +158,14 @@ export async function saveGeneratedFor(sg) {
   renderLibrary();
   return true;
 }
+
+// Suggest › Surprise (Oct 27, 2026 — one slider for the four weights): low = continuity and order, high = surprise.
+// It sets the scoring weights suggestWeights reads (their controls stay, hidden) and the MMR's λ (suggestZoned).
+function syncSurprise() {
+  const v = +ctrl('rg-sug-surprise').value, s = v / 100;
+  ctrl('v-sug-surprise').textContent = v;
+  const put = (id, x) => { ctrl(id).value = String(Math.round(x / 5) * 5); ctrl(id.replace(/^rg-/, 'v-')).textContent = ctrl(id).value; };
+  put('rg-sug-cont', 90 - 60 * s); put('rg-sug-sur', 10 + 80 * s); put('rg-sug-bal', 30);
+}
+ctrl('rg-sug-surprise').addEventListener('input', syncSurprise);
+syncSurprise();

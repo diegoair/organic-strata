@@ -67,7 +67,7 @@ import {
 import {
   exportByTier, onAppearanceChange, setPaperUI, setTier
 } from './12-shell.js';
-import { provide } from './hooks.js';
+import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   closeLibview: () => closeLibview, deleteSaved: () => deleteSaved, libviewIsOpen: () => libviewIsOpen,
@@ -406,9 +406,15 @@ export let railPress = null, railDrag = null;   // {kind,name,tile,x,y,id} / {gh
 // A drop target other than the Symbol step's cells: { apply(kind, name, idx), cellSel } — Compose (cellSel left out:
 // its .fg-cell) and Component Edit's cells (18-step-boards.js). null = the Symbol step's own.
 export function setRailTarget(t) { rt.railTarget = t || null; }
-export const railCellAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); const g = el && el.closest(rt.railTarget ? (rt.railTarget.cellSel || '#fg-compose-stage .fg-cell') : '#symbol-frame [data-cell-index]'); return g; };
-const railCellIndex = g => +(g.dataset.cellIndex != null ? g.dataset.cellIndex : g.dataset.i);
-export const clearRailDrop = () => document.querySelectorAll('#canvas-wrap .is-drop').forEach(g => g.classList.remove('is-drop'));
+// The Symbol step's selection drop target (Oct 28, 2026 — 11-selection-ui): the square dot beside a selection takes
+// Elements / Components as the selection's items A, B, C…; it answers before any cell.
+export const railCellAt = e => {
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  if (!rt.railTarget && el && el.closest('.fvs-sel-drop')) return el.closest('.fvs-sel-drop');
+  return el && el.closest(rt.railTarget ? (rt.railTarget.cellSel || '#fg-compose-stage .fg-cell') : '#symbol-frame [data-cell-index]');
+};
+const railCellIndex = g => (g.classList.contains('fvs-sel-drop') ? 'drop' : +(g.dataset.cellIndex != null ? g.dataset.cellIndex : g.dataset.i));
+export const clearRailDrop = () => document.querySelectorAll('#canvas-wrap .is-drop, #canvas-wrap .is-compatible, #canvas-wrap .is-incompatible').forEach(g => g.classList.remove('is-drop', 'is-compatible', 'is-incompatible'));
 
 export function cancelRailDrag() {
   if (railDrag) railDrag.ghost.remove();
@@ -418,7 +424,7 @@ export function cancelRailDrag() {
 }
 railPanel.addEventListener('pointerdown', e => {
   const tile = e.button === 0 && e.target.closest('.fvs-library-item');
-  if (!tile || (state.activeTier !== 'symbol' && !rt.railTarget) || (tile.dataset.railKind === 'symbol' && !rt.railTarget)) return;   // a Symbol drags only in Compose (Diego, Oct 8, 2026: in the Symbol step a click opens it)
+  if (!tile || (state.activeTier !== 'symbol' && !rt.railTarget)) return;   // a Symbol drags onto a cell too (Oct 28, 2026: a drag pastes it there; a click still opens it)
   railPress = { kind: tile.dataset.railKind, name: tile.dataset.railName, tile, x: e.clientX, y: e.clientY, id: e.pointerId };
 });
 window.addEventListener('pointermove', e => {
@@ -437,7 +443,7 @@ window.addEventListener('pointermove', e => {
   e.preventDefault();
   railDrag.ghost.style.transform = `translate3d(${e.clientX - 24}px, ${e.clientY - 24}px, 0)`;
   const g = railCellAt(e), idx = g ? railCellIndex(g) : null;
-  if (idx !== railDrag.idx) { clearRailDrop(); if (g) g.classList.add('is-drop'); railDrag.idx = idx; }
+  if (idx !== railDrag.idx) { clearRailDrop(); if (g) g.classList.add(idx === 'drop' ? (railPress.kind === 'symbol' ? 'is-incompatible' : 'is-compatible') : 'is-drop'); railDrag.idx = idx; }
 });
 window.addEventListener('pointerup', e => {
   if (!railPress || e.pointerId !== railPress.id) return;
@@ -448,7 +454,8 @@ window.addEventListener('pointerup', e => {
   const swallow = ev => { ev.stopPropagation(); ev.preventDefault(); };
   window.addEventListener('click', swallow, { capture: true, once: true });
   setTimeout(() => window.removeEventListener('click', swallow, true), 0);
-  if (idx != null && !Number.isNaN(idx)) (rt.railTarget ? rt.railTarget.apply : railApply)(press.kind, press.name, idx);
+  if (idx === 'drop') { if (press.kind !== 'symbol' && hooks.selectionDrop) hooks.selectionDrop(press.kind, press.name); return; }
+  if (idx != null && !Number.isNaN(idx)) (rt.railTarget ? rt.railTarget.apply : press.kind === 'symbol' ? (k, n, i) => hooks.symbolPaste && hooks.symbolPaste(n, i) : railApply)(press.kind, press.name, idx);
 });
 window.addEventListener('pointercancel', cancelRailDrag);
 window.addEventListener('blur', () => { if (railPress) cancelRailDrag(); });   // a drag never stays half done when the window loses the pointer

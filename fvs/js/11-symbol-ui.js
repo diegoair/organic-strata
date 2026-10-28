@@ -75,7 +75,7 @@ provide({
 
 export function applySymbolRule(opts) {
   opts = opts || {};
-  if (!opts.resetAll && state.zonePick != null && hooks.ruleToPickedZone && hooks.zonePickedRule && hooks.zonePickedRule()) { hooks.ruleToPickedZone(); return; }   // the Rule block in a zone edits that zone (Zones, Oct 27, 2026)
+  if (!opts.resetAll && hooks.selectionRuleEdit && hooks.selectionRuleEdit()) return;   // the Rule block in the Selection section edits that selection's rule (Oct 28, 2026)
   const grid = getSymbolGrid();
   if (!grid || !state.symbolCells.length) return;
   const name = pv('sel-symbol-rule');
@@ -162,7 +162,7 @@ export function renderSymbolCanvasOnly() {
   let overlay = buildEmptyCellHitsSVG();
   if (state.symbolView.outline) overlay += buildGridOutlineSVG();
   overlay += buildSelectionOutlineSVG();
-  if (hooks.zonesOverlaySVG) overlay += hooks.zonesOverlaySVG();   // the Zones' outlines (11-zones-ui)
+  if (hooks.selectionLettersSVG) overlay += hooks.selectionLettersSVG();   // a hovered Arrange tile's letters (11-selection-ui)
   if (state.symbolView.guides) overlay += buildTrackHandlesSVG() + storySafeOverlaySVG();
   if (trackDrag) overlay += buildOverflowOutlineSVG();
   if (state.symbolView.cover) overlay += buildCoverCropPreviewSVG();
@@ -176,7 +176,7 @@ export function renderSymbolCanvasOnly() {
   frame.innerHTML = svg;
   if (hooks.boardSymbolDrawn) hooks.boardSymbolDrawn();   // the working Symbol kept (18-step-boards.js)
   renderTrackLabelsOverlay();
-  if (hooks.renderLineHandles) hooks.renderLineHandles();   // the row / column handles (11-zones-ui)
+  if (hooks.selectionOverlay) hooks.selectionOverlay();   // the selection's dot, wire, drop target (11-selection-ui)
   // …and once more when this step's layout has settled. A render can run while
   // the Suggest strip above is momentarily empty: the frame is then taller, the
   // labels are measured against that, and the strip is refilled before the
@@ -184,7 +184,7 @@ export function renderSymbolCanvasOnly() {
   // (which compares sizes between frames) never fires, and the labels stay
   // where the sheet was. Found on wide canvases, where the sheet re-centres.
   cancelAnimationFrame(trackLabelsRaf);
-  trackLabelsRaf = requestAnimationFrame(() => { renderTrackLabelsOverlay(); if (hooks.renderLineHandles) hooks.renderLineHandles(); });
+  trackLabelsRaf = requestAnimationFrame(() => { renderTrackLabelsOverlay(); if (hooks.selectionOverlay) hooks.selectionOverlay(); });
   setStatus('active', `Symbol · ${count} cells`);
 }
 export let trackLabelsRaf = 0;
@@ -193,7 +193,8 @@ export function renderSymbol() {
   syncOverlapSection();   // Shared cells follows whether aligned Components are in the Symbol
   renderSymbolCanvasOnly();
   if (pv('sel-symbol-fill') === 'manual' || state.symbolSelection.size) renderCellPropertiesPanel();
-  else { syncManualBlock(); syncFitAnchorUI(); if (hooks.renderZonesPanel) hooks.renderZonesPanel(); }
+  else { syncManualBlock(); syncFitAnchorUI(); }
+  if (hooks.renderSelectionPanel) hooks.renderSelectionPanel();
 }
 
 // Click-to-select on the rendered Symbol itself (Strata's Refine editor
@@ -355,7 +356,7 @@ export function bindSymbolCanvasSelection() {
   const addKey = e => e.metaKey || e.ctrlKey || e.shiftKey;   // ⌘ (Ctrl on Windows) or Shift: add to / remove from the selection
 
   frame.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || (e.target.closest && e.target.closest('.fvs-sel-overlay'))) return;   // the selection's dots are not cells
     const pt = svgPointFromEvent(e);
     if (!pt) return;
     e.preventDefault(); // no native text/seed drag while marquee-selecting
@@ -375,8 +376,10 @@ export function bindSymbolCanvasSelection() {
       w: Math.abs(pt.x - dragStart.x), h: Math.abs(pt.y - dragStart.y),
     };
     state.symbolMarqueeRect = rect;
-    const hits = symbolCellBounds().filter(c => rectsIntersect(rect, c)).map(c => c.index);
+    const hitBoxes = symbolCellBounds().filter(c => rectsIntersect(rect, c)), hits = hitBoxes.map(c => c.index);
     state.symbolSelection = new Set([...dragBase, ...hits]);
+    const under = hitBoxes.length ? hitBoxes.reduce((b, c) => { const d = Math.hypot(c.x + c.w / 2 - pt.x, c.y + c.h / 2 - pt.y); return d < b[1] ? [c.index, d] : b; }, [hits[0], Infinity])[0] : null;
+    if (hooks.selectionTouched) hooks.selectionTouched(under);   // the dot follows the cell the drag ends on
     renderSymbolCanvasOnly();
     renderCellPropertiesPanel();
   });
@@ -401,6 +404,7 @@ export function bindSymbolCanvasSelection() {
       // already active, clicking empty canvas silently left it in place.
       if (!addKey(e) && state.symbolSelection.size > 0) {
         state.symbolSelection.clear();
+        if (hooks.selectionTouched) hooks.selectionTouched(null);
         renderSymbolCanvasOnly();
         renderCellPropertiesPanel();
       }
@@ -409,6 +413,7 @@ export function bindSymbolCanvasSelection() {
     const i = parseInt(el.getAttribute('data-cell-index'), 10);
     if (addKey(e)) {
       state.symbolSelection.has(i) ? state.symbolSelection.delete(i) : state.symbolSelection.add(i);
+      if (hooks.selectionTouched) hooks.selectionTouched(i);
       renderSymbolCanvasOnly();
       renderCellPropertiesPanel();
     } else {
@@ -420,6 +425,7 @@ export function bindSymbolCanvasSelection() {
       if (!again) {
         state.symbolSelection.clear();
         state.symbolSelection.add(i);
+        if (hooks.selectionTouched) hooks.selectionTouched(i);
       }
       renderSymbolCanvasOnly();
       renderCellPropertiesPanel();
@@ -629,8 +635,9 @@ export function syncCellColourUI(cell, isComponent, pre = '', colors = state.col
 }
 // Cell properties belong to the selection, not to the Fill mode: the block
 // shows in Manual, and in any other mode as soon as cells are selected.
+// Since Oct 28, 2026 the rows shown live in the Selection section (11-selection-ui): the block keeps the rest, out of sight.
 export function syncManualBlock() {
-  ctrl('symbol-manual-block').hidden = !((pv('sel-symbol-fill') === 'manual' || state.symbolSelection.size > 0));
+  ctrl('symbol-manual-block').hidden = true;
 }
 // The Symbol step's target: the selected cells of state.symbolCells.
 export const SYMBOL_CELLS = {
@@ -646,7 +653,6 @@ export const SYMBOL_CELLS = {
   spanCut: () => { const r = currentSpanLayout().region[Math.min(...state.symbolSelection)]; return !!(r && r.cut); },
 };
 export function renderCellPropertiesPanel() {
-  if (hooks.renderZonesPanel) hooks.renderZonesPanel();   // Zone from selection, Select follow the selection
   syncManualBlock();
   syncFitAnchorUI();
   const hasSelection = state.symbolSelection.size > 0 && state.symbolGrid;
@@ -1034,7 +1040,7 @@ export function applySymbolLibraryEntryToUI(entry) {
   // filled to true, matching withPlacementDefaults' own convention of
   // restoring exactly the pre-feature behaviour for anything not saved.
   state.symbolClipEnabled = entry.clipEnabled !== false;
-  state.symbolZones = entry.zones ? JSON.parse(JSON.stringify(entry.zones)) : []; state.zonePick = null;
+  state.symbolZones = entry.zones ? JSON.parse(JSON.stringify(entry.zones)) : []; state.selPick = null; state.selOpen = false; state.selDraft = null;   // saved selections (11-selection-ui)
   hooks.syncSymbolViewUI();
   state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(entry.overlap || {}) };
   syncOverlapSection();

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// FVS Symbol › Zones (Oct 27, 2026 — Diego: "voglio poter dire ad un determinato gruppo di righe, colonne, celle
-// selezionate di fare e di seguire delle regole"). engine/11-zones: the named selectors on Rectangular, Hexagonal,
-// Triangular and Radial grids and after a rebuild (row −1 stays the last row), Zone from selection (the selector that
-// takes exactly those cells), and applyZones — pure, in order, a Keep zone always wins. The Figure's region rules run on
-// the same evaluator: scripts/test-figure-eval.sh keeps them byte-identical.
+// FVS engine/11-zones (Oct 27, 2026; the Symbol's Zones panel removed Oct 28 — its UI test is test-fvs-selection): the
+// named selectors on Rectangular, Hexagonal, Triangular and Radial grids and after a rebuild (row −1 stays the last
+// row), whenFromCells (the selector that takes exactly those cells — what a saved selection keeps), and applyZones —
+// pure, in order, a Keep zone always wins. The Figure's region rules run on the same evaluator:
+// scripts/test-figure-eval.sh keeps them byte-identical.
 // Usage: scripts/test-fvs-zones.sh
 import { openChrome } from './lib/chrome-page.mjs';
 
@@ -61,104 +61,6 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     if (gen === 'triangular') check('triangles: up / down by class', n({ class: 'up' }) > 0 && n({ class: 'down' }) > 0, [n({ class: 'up' }), n({ class: 'down' })]);
   }
   return rows;`);
-// ── the panel: ready-made zones, the list, the inspector, the handles, Select ──
-const ui = await P.ev(`const F = window.__fvs, q = id => document.getElementById(id), w = ms => new Promise(r => setTimeout(r, ms));
-  const set = (id, v) => { const e = q(id); if (e.type === 'checkbox') e.checked = v; else e.value = v; e.dispatchEvent(new Event(e.type === 'checkbox' || e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); };
-  const rows = [], check = (n, ok, got) => rows.push((ok ? '✓ ' : '✗ ') + n + (ok ? '' : ' — ' + got));
-  set('sel-symgrid-gen', 'rectangular'); await w(500); set('symgen-cols', 6); set('symgen-rows', 6); await w(500);
-  // a Component to fill with
-  F.setTier('component'); await w(500); q('btn-generate').click(); await w(800);
-  F.quickSaveComponentToLibrary(F.state.components[0].id); await w(200); const A = F.getSelectedComponent().savedName;
-  F.setTier('symbol'); await w(700);
-  F.state.symbolCells.forEach(c => F.patchCell(c, F.railPatch('component', A))); F.renderSymbol(); await w(200);
-  check('no Fill mode menu on screen', q('sel-symbol-fill').closest('.ctrl-row').hidden, 'shown');
-  const ready = [...q('zone-ready').querySelectorAll('[data-ready]')].map(b => b.textContent);
-  check('ready-made zones: Border · Centre · Diagonals · Quadrants · Every other', JSON.stringify(ready) === JSON.stringify(['Border', 'Centre', 'Diagonals', 'Quadrants', 'Every other']), JSON.stringify(ready));
-  check('line handles: 6 columns + 6 rows', document.querySelectorAll('#sym-line-handles .fvs-line-handle').length === 12, document.querySelectorAll('#sym-line-handles .fvs-line-handle').length);
-  // a column by its handle → Zone from selection → Rule
-  document.querySelector('.fvs-line-handle--col[data-k="2"]').click(); await w(100);
-  check('a column handle selects the column', F.state.symbolSelection.size === 6 && [...F.state.symbolSelection].every(i => F.zoneContexts(F.getSymbolGrid())[i].col === 2), F.state.symbolSelection.size);
-  document.querySelector('.fvs-line-handle--col[data-k="4"]').dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true })); await w(100);
-  check('⌘ adds another column', F.state.symbolSelection.size === 12, F.state.symbolSelection.size);
-  check('Zone from selection is on', !q('btn-zone-from-sel').disabled, 'disabled');
-  q('btn-zone-from-sel').click(); await w(150);
-  check('…a zone of columns 3 and 5 (a selector)', JSON.stringify(F.state.symbolZones[0].when) === JSON.stringify({ sel: 'col', k: [2, 4] }), JSON.stringify(F.state.symbolZones[0].when));
-  check('the inspector shows', !q('zone-inspector').hidden, 'hidden');
-  q('seg-zone-does').querySelector('[data-does="rule"]').click(); await w(150);
-  set('sel-symbol-rule', 'rows'); await w(50); set('rg-rule-rows-step', 90); await w(250);
-  const C = () => F.zoneContexts(F.getSymbolGrid());
-  check('Rule: the zone follows Rows; only its cells turn', F.state.symbolZones[0].do.symbolRule.name === 'rows' && F.state.symbolCells.every((c, i) => (C()[i].col === 2 || C()[i].col === 4) ? c.rotation === 90 * (C()[i].row % 2) : c.rotation === 0), JSON.stringify(F.state.symbolCells.slice(0, 6).map(c => c.rotation)));
-  check('the Rule block sits in the inspector, without Apply', q('zone-rule-host').contains(q('symbol-rule-block')) && !q('symbol-rule-block').hidden && getComputedStyle(q('btn-symbol-apply-rule')).display === 'none', 'not');
-  // Border, Locked
-  q('zone-ready').querySelector('[data-ready="0"]').click(); await w(150);
-  q('seg-zone-does').querySelector('[data-does="keep"]').click(); await w(150);
-  const border = F.zoneCells({ sel: 'border' }, C());
-  check('Locked: the border is locked (by the zone)', border.every(i => F.state.symbolCells[i].locked && F.state.symbolCells[i].lockedBy === 'zone'), 'not locked');
-  check('…and the column zone before it still turns what is not locked', F.state.symbolCells.every((c, i) => !(C()[i].col === 2 && C()[i].row === 3) || c.rotation === 90), 'no');
-  // Quadrants → four zones; Content from the pool
-  q('zone-ready').querySelector('[data-ready="3"]').click(); await w(150);
-  check('Quadrants adds four zones', F.state.symbolZones.length === 6, F.state.symbolZones.length);
-  q('seg-zone-does').querySelector('[data-does="empty"]').click(); await w(150);
-  const tl = F.zoneCells({ sel: 'quadrant', q: 'tl' }, C());
-  check('Empty on the top-left quadrant (the locked border stays)', tl.every(i => border.includes(i) ? F.state.symbolCells[i].source === 'component' : F.state.symbolCells[i].source === 'empty'), 'mismatch');
-  // order, off, delete
-  const outline = () => (q('symbol-frame').innerHTML.match(/fvs-zone-outline/g) || []).length;
-  check('outlines on the canvas, one per zone on', outline() === 6, outline());
-  q('zone-list').querySelector('[data-act="off"][data-i="1"]').click(); await w(150);
-  check('switching the Locked zone off frees the border', border.every(i => !F.state.symbolCells[i].locked), 'still locked');
-  q('zone-list').querySelector('[data-act="del"][data-i="1"]').click(); await w(150);
-  check('Delete zone is armed: one click deletes nothing', F.state.symbolZones.length === 6, F.state.symbolZones.length);
-  q('zone-list').querySelector('[data-act="del"][data-i="1"]').click(); await w(150);
-  check('delete: 5 zones', F.state.symbolZones.length === 5, F.state.symbolZones.length);
-  q('zone-list').querySelector('[data-act="down"][data-i="0"]').click(); await w(150);
-  check('move down: the column zone is second', F.state.symbolZones[1].when.sel === 'col', JSON.stringify(F.state.symbolZones.map(z => z.when.sel)));
-  // Select (similar)
-  F.state.symbolSelection = new Set([7]); F.renderCellPropertiesPanel(); await w(50);
-  q('zone-similar').querySelector('[data-similar="row"]').click(); await w(80);
-  check('Select › Row', F.state.symbolSelection.size === 6 && [...F.state.symbolSelection].every(i => C()[i].row === 1), F.state.symbolSelection.size);
-  q('zone-similar').querySelector('[data-similar="every"]').click(); await w(80);
-  check('Select › Every other cell', F.state.symbolSelection.size === 18, F.state.symbolSelection.size);
-  // saved with the Symbol, back after a reload of the entry
-  const e = F.buildSymbolLibraryEntry();
-  check('zones saved with the Symbol', e.zones && e.zones.length === 5, e.zones && e.zones.length);
-  F.state.symbolZones = []; F.applySymbolLibraryEntryToUI && F.applySymbolLibraryEntryToUI(e); await w(300);
-  check('…and read back', F.state.symbolZones.length === 5, F.state.symbolZones.length);
-  return rows;`);
-rows.push(...ui);
-// ── Suggest with zones: held cells stay, open zones get something, the twelve differ, same seed = same result ──
-const sug = await P.ev(`const F = window.__fvs, q = id => document.getElementById(id), w = ms => new Promise(r => setTimeout(r, ms));
-  const set = (id, v) => { const e = q(id); e.value = v; e.dispatchEvent(new Event(e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); };
-  const rows = [], check = (n, ok, got) => rows.push((ok ? '✓ ' : '✗ ') + n + (ok ? '' : ' — ' + got));
-  const lib = Object.keys(F.LIBRARY.peek());
-  set('symgen-cols', 8); set('symgen-rows', 8); await w(500);
-  F.state.symbolCells.forEach(c => F.patchCell(c, F.railPatch('component', lib[0])));
-  F.state.symbolZones = [{ when: { sel: 'border' }, do: { keep: true } }, { when: { sel: 'quadrant', q: 'tl' }, do: {} }, { when: { sel: 'quadrant', q: 'br' }, do: {} }];
-  F.applyZonesNow(); await w(100);
-  const C = F.zoneContexts(F.getSymbolGrid()), border = F.zoneCells({ sel: 'border' }, C), before = JSON.stringify(border.map(i => F.state.symbolCells[i]));
-  set('num-sug-seed', 7); set('rg-sug-surprise', 30);
-  const t0 = performance.now(); q('btn-sug-run').click(); const ms = performance.now() - t0; await w(200);
-  const S = F.state.symbolSuggestions;
-  check('Suggest gives 12 variations', S.length === 12, S.length);
-  check('the Locked border is the same in every variation', S.every(sg => JSON.stringify(border.map(i => sg.cells[i])) === before), 'changed');
-  check('variations say what the open zones get', S.filter(sg => sg.zoneDos && /Zone 2: .+ · Zone 3: /.test(sg.label)).length >= 8, JSON.stringify(S.map(sg => sg.label).slice(0, 4)));
-  const key = sg => sg.cells.map(c => c.componentName + ':' + c.rotation + (c.flipH ? 'h' : '')).join('|');
-  const sim = (a, b) => { const A = key(a).split('|'), B = key(b).split('|'); return A.filter((x, i) => x === B[i]).length / A.length; };
-  let maxSim = 0; for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) maxSim = Math.max(maxSim, sim(S[i], S[j]));
-  check('no two variations are the same (most alike under 99%)', maxSim < 0.99, maxSim.toFixed(3));
-  const first = S.map(key).join('/');
-  q('btn-sug-run').click(); await w(200);
-  check('same seed, same variations', F.state.symbolSuggestions.map(key).join('/') === first, 'different');
-  check('Suggest on 64 cells, 2 open zones, under 1.5 s', ms < 1500, ms.toFixed(0) + ' ms');
-  // a variation applied: the open zones take what it gave them
-  const k = F.state.symbolSuggestions.findIndex(sg => sg.zoneDos);
-  document.querySelectorAll('#fvs-sug-panel .fvs-suggest__item')[k].click(); await w(150);
-  check('applying it writes the zones (no zone left open)', F.state.symbolZones.length >= 3 && F.state.symbolZones.every(z => Object.keys(z.do).length), JSON.stringify(F.state.symbolZones.map(z => Object.keys(z.do))));
-  F.state.symbolZones = []; F.applyZonesNow();
-  return rows;`);
-rows.push(...sug);
-if (process.env.ZONES_SHOT) await P.ev(`${process.env.ZONES_DARK ? "document.documentElement.setAttribute('data-theme', 'dark');" : ''} window.__fvs.state.zonePick = 1; window.__fvs.renderSymbol(); document.getElementById('sym-zones-section').scrollIntoView(); return 1;`);
-const shot = process.env.ZONES_SHOT && await P.cdp('Page.captureScreenshot', { format: 'png' });
-if (process.env.ZONES_SHOT) (await import('node:fs')).writeFileSync(process.env.ZONES_SHOT, Buffer.from(shot.result.data, 'base64'));
 const fails = rows.filter(x => x.startsWith('✗'));
 for (const x of rows) console.log('  ' + x);
 const errs = P.errors.filter(e => !/Failed to load resource/.test(e));

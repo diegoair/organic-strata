@@ -73,8 +73,11 @@ export const state = {
                        //   {source:'component', componentName, rotation, flipH, flipV, scale, fitMode, fixedSize, anchorX, anchorY, padding}
   symbolPool: [],   // [{name, weight}] — the saved Components a Symbol is built from (Arrange / Suggest). "Pool", not "Palette" — Palette is colour only.
   symbolSuggestions: [],   // the last Suggest gallery ({label, score, cells}), tied to the current grid
-  symbolZones: [],   // the Symbol's Zones — [{when, do, off}] (engine/11-zones), saved with the Symbol (Oct 27, 2026)
-  zonePick: null,   // the Zone being edited (its index) — never persisted
+  symbolZones: [],   // the Symbol's saved selections — [{name, when, fill, rule, off}] (11-selection-ui; Zones' {when, do} read too), saved with the Symbol
+  selPick: null,    // the saved selection on show (its index) — never persisted
+  selOpen: false,   // the selection's dot clicked: its section shows in the right bar
+  selLast: null,    // the cell the dot is wired to (the last one picked)
+  selDraft: null,   // what the selection on show does before it is saved: {fill, rule}
   symbolSelection: new Set(),   // cell indices, Manual mode's click-to-select — never persisted (editing-session-only)
   symbolMarqueeRect: null,      // {x,y,w,h} in the canvas's own 0..size space, live during a drag-select — preview-only, never persisted or exported
   symbolClipEnabled: false,     // Symbol-level: clip each cell's content to its own bounds (rect/polygon). OFF (the default since the toggles moved to the floatbar) allows bleed; persisted per saved Symbol.

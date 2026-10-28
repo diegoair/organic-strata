@@ -201,6 +201,43 @@ function placeContent(cell, item, fit, ctx) {
   Object.assign(cell, withPlacementDefaults(patch), { rotation: ctx && ctx.orient === 'down' ? 180 : 0 });
 }
 
+// ── A selection's contents arranged (Oct 28, 2026 — Diego: "if I select a column and drop 3 components I can go to the
+// sets of rules that tell me how these 3 components should be there, like checkerboard ABC ABC ABC"). The letter each
+// cell of the selection takes, A = 0 … read from the selection itself: its first column / row start on A, its centre is
+// the centre of Rings / Sectors / Wave. Checkerboard cycles every item (A B C / B C A); Rhythm walks the cells (Reading ·
+// Snake · Spiral · Diagonal · Rings) and repeats a sequence. → Map(cell index → item index).
+export const SEL_ARRANGE = ['checker', 'rows', 'columns', 'diagonal', 'blocks', 'rings', 'sectors', 'wave', 'random'];
+export const SEL_WALKS = ['reading', 'snake', 'spiral', 'diagonal', 'rings'];
+export const SEL_SEQS = { ABC: null, ABB: [0, 1, 1], AABB: [0, 0, 1, 1], ABCB: [0, 1, 2, 1] };
+export function arrangeLetters(idxs, sctx, ctxs, n, spec, rng) {
+  const out = new Map();
+  if (!idxs.length || n < 1) return out;
+  spec = spec || {};
+  if (n === 1 || spec.rule === 'all') { idxs.forEach(i => out.set(i, 0)); return out; }
+  if (spec.rule === 'rhythm') {
+    const order = walkOrder(idxs, ctxs, SEL_WALKS.includes(spec.walk) ? spec.walk : 'reading');
+    const seq = (SEL_SEQS[spec.seq] || null), len = seq ? seq.length : n;
+    order.forEach((i, t) => out.set(i, seq ? seq[t % len] % n : t % n));
+    return out;
+  }
+  if (spec.rule === 'random' || !SYMBOL_ARRANGE[spec.rule] || !SYMBOL_ARRANGE[spec.rule].cls) {
+    const r = rng || mulberry32(1);
+    idxs.forEach(i => out.set(i, Math.floor(r() * n)));
+    return out;
+  }
+  const c0 = Math.min(...idxs.map(i => sctx[i].col)), r0 = Math.min(...idxs.map(i => sctx[i].row));
+  const cx = idxs.reduce((t, i) => t + sctx[i].nx, 0) / idxs.length, cy = idxs.reduce((t, i) => t + sctx[i].ny, 0) / idxs.length;
+  const hx = Math.max(1e-6, ...idxs.map(i => Math.abs(sctx[i].nx - cx))), hy = Math.max(1e-6, ...idxs.map(i => Math.abs(sctx[i].ny - cy)));
+  const A = SYMBOL_ARRANGE[spec.rule];
+  idxs.forEach(i => {
+    const s = sctx[i], nx = (s.nx - cx) / hx, ny = (s.ny - cy) / hy;
+    const local = { ...s, col: s.col - c0, row: s.row - r0, nx, ny, angle: Math.atan2(ny, nx) };
+    const k = spec.rule === 'checker' ? local.col + local.row : A.cls(local, n);
+    out.set(i, ((k % n) + n) % n);
+  });
+  return out;
+}
+
 // ── What a zone does — generators the zone can Follow (Phase 2+ fill this registry; docs/FVS.md §6c).
 // ZONE_FOLLOW[id] = { label, applies(grid, idxs, ctxs) → bool, build(cells, idxs, params, rng, env) → cells (in
 // place), caption(params) }. `do.follow = {id, params, seed}` runs one on the zone's cells.
@@ -399,6 +436,8 @@ export function applyZones(cellsIn, grid, rules, opts) {
   const ctxs = opts.ctxs || zoneContexts(grid, null, opts.derive !== false), sctx = symbolCellContext(grid);
   const rngs = rules.map(r => { const d = r.do || {}, sd = (d.symbolRule && d.symbolRule.seed) || (d.arrange && d.arrange.seed) || (d.follow && d.follow.seed) || 0; return mulberry32(sd >>> 0); });
   const pastes = rules.map(r => r.do && r.do.paste ? new Map(symbolPastePlan(r.do.paste.entry, ctxs, r.do.paste.at)) : null);   // a Symbol put in the cells
+  // a selection's arrangement (arrange.local, Oct 28, 2026): the letters read from the selection's own cells
+  const letters = rules.map((r, ri) => { const a = r.do && r.do.arrange; return a && a.local && (a.pool || []).length ? arrangeLetters(zoneCells(r.when, ctxs), sctx, ctxs, a.pool.length, a, mulberry32(((a.seed || 1) * 2654435761) >>> 0)) : null; });
   const kept = new Set(), counts = rules.map(() => 0);
   // Follow runs on a zone's cells as a whole (a symmetry, a walk), before the cell-by-cell pass, in zone order
   const follows = rules.map((r, ri) => {
@@ -433,7 +472,7 @@ export function applyZones(cellsIn, grid, rules, opts) {
       }
       if (d.arrange && (d.arrange.pool || []).length) {
         const A = SYMBOL_ARRANGE[d.arrange.rule] || SYMBOL_ARRANGE.random, pool = d.arrange.pool, k = d.arrange.rule === 'checker' ? Math.min(2, pool.length) : pool.length;
-        const pick = A.cls ? pool[((A.cls(sctx[i], k) % k) + k) % k] : pool[Math.floor(rngs[ri]() * pool.length)];
+        const pick = letters[ri] ? pool[letters[ri].get(i) || 0] : A.cls ? pool[((A.cls(sctx[i], k) % k) + k) % k] : pool[Math.floor(rngs[ri]() * pool.length)];
         if (pick.tpl) placeContent(cell, pick, d.arrange.fit, sctx[i]);   // a content of this Symbol (Zones)
         else Object.assign(cell, withPlacementDefaults(contentPatch(pick, d.arrange.fit || cell.fitMode)), { rotation: sctx[i].orient === 'down' ? 180 : 0 });
         if (cw && cell.source === 'component') cell.colourway = clone(cw); own[i] = clone(cell);
@@ -457,56 +496,6 @@ export function applyZones(cellsIn, grid, rules, opts) {
     });
   });
   return { cells, counts };
-}
-
-// ── Picking a part (Phase 1) ─────────────────────────────────
-// Select similar, from one cell: the cells that share its row / column / ring / sector, every other one like it, the
-// ones holding the same content (cellContentKey-like: Component name, or the Element's shape + settings), the border,
-// the centre. → the `when` of that part (so Zone from selection keeps the part, not the cells).
-export const SIMILAR_KINDS = ['row', 'col', 'ring', 'sector', 'every', 'content', 'border', 'centre'];
-const contentKeyOf = c => !c || c.source === 'empty' ? 'empty' : c.source === 'component' ? 'c:' + c.componentName
-  : 'e:' + JSON.stringify([c.seedType, c.seedParams || null, c.ownColors || null, c.color || null]);
-export function similarWhen(i, kind, ctxs, cells) {
-  const c = ctxs[i]; if (!c) return null;
-  switch (kind) {
-    case 'row': return { sel: 'row', k: c.row };
-    case 'col': return { sel: 'col', k: c.col };
-    case 'ring': return c.ring != null ? { sel: 'ring', k: c.ring } : null;
-    case 'sector': return c.sector != null ? { sel: 'sector', k: c.sector } : null;
-    case 'every': return { sel: 'every', by: 'checker', n: 2, phase: (c.col + c.row) % 2 };
-    case 'border': return { sel: 'border' };
-    case 'centre': return { sel: 'centre' };
-    case 'content': { const k = contentKeyOf(cells[i]); return { index: cells.map((x, j) => (contentKeyOf(x) === k ? j : -1)).filter(j => j >= 0) }; }
-    default: return null;
-  }
-}
-// Ready-made zones from the grid's geometry — each a { key, label, when } the panel offers as a chip. Rings only where
-// the grid has them; Rows / Columns only where cells have their own rows and columns.
-export function readyZones(ctxs) {
-  if (!ctxs.length) return [];
-  const E = ctxs[0].ext, out = [];
-  out.push({ key: 'border', label: 'Border', when: { sel: 'border' } });
-  out.push({ key: 'centre', label: 'Centre', when: { sel: 'centre' } });
-  if (!E.radial) {
-    out.push({ key: 'diagonals', label: 'Diagonals', when: { sel: 'diagonal', which: 'both' } });
-    ['tl', 'tr', 'bl', 'br'].forEach(q => out.push({ key: 'q-' + q, label: { tl: 'Top left', tr: 'Top right', bl: 'Bottom left', br: 'Bottom right' }[q], group: 'Quadrants', when: { sel: 'quadrant', q } }));
-    out.push({ key: 'checker', label: 'Every other', when: { sel: 'every', by: 'checker', n: 2, phase: 0 } });
-  } else {
-    for (let k = 0; k <= E.maxRing; k++) out.push({ key: 'ring-' + k, label: 'Ring ' + (k + 1), group: 'Rings', when: { sel: 'ring', k: k === E.maxRing ? -1 : k } });
-    out.push({ key: 'sectors-alt', label: 'Every other sector', when: { sel: 'every', by: 'sector', n: 2, phase: 0 } });
-  }
-  return out.filter(z => zoneCells(z.when, ctxs).length > 0);
-}
-// The lines a handle can pick: each column / row (or ring) with the mean position of its cells (grid-centred, as
-// cellColRow's cx / cy) — for the handles on the canvas edge. Grids whose cells have no own rows and columns (bands of
-// a hexagon / triangle grid) still get them: the bands cellColRow makes.
-export function zoneLines(ctxs, geo) {
-  const by = (k, axis) => {
-    const m = new Map();
-    ctxs.forEach((c, i) => { if (c[k] == null) return; const e = m.get(c[k]) || { k: c[k], sum: 0, n: 0 }; e.sum += geo[i][axis]; e.n++; m.set(c[k], e); });
-    return [...m.values()].sort((a, b) => a.k - b.k).map(e => ({ k: e.k, at: e.sum / e.n, n: e.n }));
-  };
-  return { cols: by('col', 'cx'), rows: by('row', 'cy') };
 }
 
 // ── Suggest with Zones (Phase 2) ─────────────────────────────
@@ -578,7 +567,7 @@ export function suggestZoned(opts = {}) {
       const synth = [];
       pick.forEach((p, k) => p.dos.forEach(d => synth.push({ when: { index: open[k].idxs }, do: d })));
       const cells = applyZones(b.cells, grid, synth, { ctxs }).cells;
-      pool.push({ cells, label: pick.map((p, k) => 'Zone ' + (open[k].zone + 1) + ': ' + p.label).join(' · '), zoneDos: pick.map((p, k) => ({ zone: open[k].zone, dos: p.dos })), ...scoreOf(cells) });
+      pool.push({ cells, label: pick.map((p, k) => (open[k].name || 'Zone ' + (open[k].zone + 1)) + ': ' + p.label).join(' · '), zoneDos: pick.map((p, k) => ({ zone: open[k].zone, dos: p.dos })), ...scoreOf(cells) });
     }
   }
   // dedupe, then MMR

@@ -246,6 +246,7 @@ export async function buildEmptySymbolGrid(opts = {}) {
     loadSymbolGrid(model);
     if (opts.genChanged || !prev) clipByDefaultForShape(); else { state.symbolClipEnabled = clip; hooks.syncSymbolViewUI(); }
     state.symbolCells = prev ? carrySymbolCells(prev.grid, prev.cells, state.symbolGrid) : state.symbolCells.map(emptySymbolCell);
+    if (hooks.applySelectionsNow) hooks.applySelectionsNow({ quiet: true });   // saved selections take their cells again (a whole row stays a row)
     hooks.renderSymbol();
   } catch (e) {
     ctrl('symgrid-gen-error').textContent = /unsatisfiable/i.test(e.message) ? 'The canvas is too small for this grid — enlarge it, or lower ' + countWords(id) + '.' : e.message;

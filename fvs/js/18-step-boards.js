@@ -1069,7 +1069,7 @@ function mountSymbolBoard() {
     if (w.arrange) { ctrl('sel-sym-arrange').value = w.arrange.rule; ctrl('sel-sym-arrange-fit').value = w.arrange.fit; ctrl('num-symbol-seed').value = w.arrange.seed; }
     state.symbolCells = (w.cells || []).map(c => withPlacementDefaults({ ...c }));
     state.symbolSelection.clear();
-    state.symbolZones = w.zones ? JSON.parse(JSON.stringify(w.zones)) : []; state.zonePick = null;
+    state.symbolZones = w.zones ? JSON.parse(JSON.stringify(w.zones)) : []; state.selPick = null; state.selOpen = false; state.selDraft = null;
     state.symbolClipEnabled = w.clipEnabled !== false;
     if (hooks.syncSymbolViewUI) hooks.syncSymbolViewUI();
     state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...(w.overlap || {}) };
@@ -1172,7 +1172,7 @@ function mountSymbolBoard() {
   // that settles (500 ms after the last redraw — Fill the grid, a drop, a variation, a cell's Fit, the grid) keeps what the
   // Symbol was before it. A selection or a zoom changes nothing kept, so it is no step.
   let editBase = null, editT = 0;
-  const editKey = w => JSON.stringify([w.gridModel, w.cells, w.clipEnabled, w.overlap, w.palette && [w.palette.colors, w.palette.colorRule, w.palette.paperColor, w.palette.ground]]);
+  const editKey = w => JSON.stringify([w.gridModel, w.cells, w.clipEnabled, w.overlap, w.zones || null, w.palette && [w.palette.colors, w.palette.colorRule, w.palette.paperColor, w.palette.ground]]);
   const editable = () => state.activeTier === 'symbol' && !state.preFigureSnapshot;
   function noteEdit() {
     clearTimeout(editT); editT = 0;

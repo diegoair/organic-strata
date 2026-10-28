@@ -32,7 +32,7 @@ import * as m08 from './08-symbol-grid.js';
 import * as m09 from './09-symbol-render.js';
 import * as m10 from './10-suggest.js';
 import * as m11 from './11-symbol-ui.js';
-import * as m11z from './11-zones-ui.js';
+import * as m11z from './11-selection-ui.js';
 import * as m12 from './12-shell.js';
 import * as m15 from './15-export-library-view.js';
 import * as m16 from './16-board.js';
