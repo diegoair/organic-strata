@@ -354,7 +354,7 @@ function putContent(cell, item) {
   Object.assign(cell, item.tpl ? clone(item.tpl) : { source: 'component', componentName: item.name, span: false });
 }
 const FIELD_SIGNALS = [{ signal: 'gradient', angle: 0 }, { signal: 'gradient', angle: 45 }, { signal: 'gradient', angle: 90 }, { signal: 'centre' }, { signal: 'rings', rings: 3 }, { signal: 'noise', seed: 1, scale: 3 }, { signal: 'noise', seed: 2, scale: 5 }];
-const SIGNAL_WORDS = p => (p.signal === 'gradient' ? 'gradient ' + (p.angle || 0) + '°' : p.signal === 'centre' ? 'from the centre' : p.signal === 'rings' ? (p.rings || 3) + ' rings' : p.signal === 'noise' ? 'noise' : p.signal === 'photo' ? 'photo' : p.signal);
+const SIGNAL_WORDS = p => (p.signal === 'gradient' ? 'gradient ' + (p.angle || 0) + '°' : p.signal === 'centre' ? 'from the centre' : p.signal === 'rings' ? (p.rings || 3) + ' rings' : p.signal === 'noise' ? ((+p.scale || 3) <= 3 ? 'large noise' : 'fine noise') : p.signal === 'photo' ? 'photo' : p.signal);
 const DRIVE_WORDS = { content: 'which content', turn: 'the turn', scale: 'the size', empty: 'holes' };
 ZONE_FOLLOW.field = {
   label: 'Field',
@@ -371,7 +371,7 @@ ZONE_FOLLOW.field = {
     });
   },
   caption: p => 'Field · ' + SIGNAL_WORDS(p) + ' → ' + (DRIVE_WORDS[p.drive] || p.drive),
-  words: p => 'a ' + SIGNAL_WORDS(p) + ' decides ' + (DRIVE_WORDS[p.drive] || p.drive),
+  words: () => '',   // the caption says it all (Oct 28, 2026: "a from the centre decides…" read wrong)
 };
 // Rhythm (Phase 5) — the zone walked in an order (reading, snake, spiral, rings, diagonal): step t takes the sequence's
 // content (A B B …, letters = the pool in order) and a turn of t × the step.
