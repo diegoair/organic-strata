@@ -2,7 +2,7 @@
 // FVS Symbol › Brush, Show letters and Assets (Oct 28, 2026 — Diego: "clic sulla tile la prende, clic sulle celle la mette, clic di nuovo ruota e
 // ribalta, Esc la lascia"). A mouse click on a Library rail tile on the Symbol step takes it as the Brush; a click or a
 // drag over the cells puts it there; a click on a cell holding it walks its 8 poses; Esc puts it down; a Symbol tile is
-// never a Brush; Enter on a tile still places it in the selected cells; the Element's 7 poses are in the rail; a second
+// never a Brush; Enter on a tile still places it in the selected cells; the rail shows the saved Elements only (no 7 poses); a second
 // click on a selected cell no longer opens Choose content; the rail opens by default; Show letters (one letter per
 // content, kept as cells are painted, shared with the Selection's items, never exported). 15-export-library-view.
 // Usage: scripts/test-fvs-brush.sh
@@ -15,13 +15,15 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const rows = [], check = (n, ok, got) => rows.push((ok ? '✓ ' : '✗ ') + n + (ok ? '' : ' — ' + got));
   F.setTier('component'); await w(500); set('rg-grid-cols', 2); set('rg-grid-rows', 2); await w(200); q('btn-generate').click(); await w(800);
   F.quickSaveComponentToLibrary(F.state.components[0].id); await w(200); const A = F.getSelectedComponent().savedName;
+  const E = F.saveElementVariant(0, false, false, '0°', 'Brush test element'); await w(200);
   F.setTier('symbol'); await w(700);
   check('the Library rail is open by default (something saved)', q('fvs-rail-panel').dataset.open === 'true', q('fvs-rail-panel').dataset.open);
   set('sel-symcanvas-preset', 'Square 1:1'); set('sel-symgrid-gen', 'rectangular'); await w(450); set('symgen-cols', 4); set('symgen-rows', 4); await w(600);
   F.state.symbolCells.forEach(c => F.patchCell(c, { source: 'empty', rotation: 0, flipH: false, flipV: false, locked: false })); F.renderSymbol(); await w(200);
   const tile = (k, n) => [...document.querySelectorAll('#fvs-rail-panel .fvs-library-item')].find(t => t.dataset.railKind === k && (n == null || t.dataset.railName === n));
-  const poses = [...document.querySelectorAll('#rail-poses .fvs-library-item')];
-  check('the Element in its 7 poses, first in the rail', poses.length === 7 && !q('rail-g-poses').hidden && poses[0].dataset.railName === 'As it is', poses.length);
+  // only the saved Elements (Diego, Oct 28, 2026: "non è necessario portare tutti gli element nel library rail ma solo quello salvato")
+  check('the rail shows the saved Element, not the Element’s 7 poses', q('rail-g-poses').hidden && !document.querySelector('#rail-poses .fvs-library-item') && !!tile('element', E), document.querySelectorAll('#rail-poses .fvs-library-item').length + ' poses');
+  const elTile = () => tile('element', E);
   const mclick = async t => { t.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 })); await w(300); };
   const key = async k => { window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); await w(80); };
   const brushOn = () => document.body.classList.contains('fvs-brush-on');
@@ -44,7 +46,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('…and a click on a cell still selects it', F.state.symbolSelection.has(13) && F.state.symbolSelection.size === 1, JSON.stringify([...F.state.symbolSelection]));
   F.patchCell(F.state.symbolCells[14], { source: 'empty' }); F.state.symbolSelection = new Set([14]); F.renderSymbol(); await w(100);
   await key('b');
-  check('B turns the Brush on with nothing taken: the Element as it is, in the button', pressed('btn-symbol-mode-brush') && !pressed('btn-symbol-mode-select') && brushOn() && !q('symbol-brush-thumb').hidden && tile('pose', 'As it is').classList.contains('is-brush'), q('btn-symbol-mode-brush').getAttribute('aria-label'));
+  check('B turns the Brush on with nothing taken: the newest saved Element, in the button', pressed('btn-symbol-mode-brush') && !pressed('btn-symbol-mode-select') && brushOn() && !q('symbol-brush-thumb').hidden && elTile().classList.contains('is-brush'), q('btn-symbol-mode-brush').getAttribute('aria-label'));
   await key('v');
   check('V: back to Select', pressed('btn-symbol-mode-select') && !brushOn() && q('symbol-brush-thumb').hidden, 'still on');
   F.state.symbolSelection.clear(); F.renderSymbol(); await w(100);
@@ -69,14 +71,14 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   F.state.symbolCells[0].locked = true; press(0); await w(80);
   check('a locked cell is not painted', F.state.symbolCells[0].source === 'empty', F.state.symbolCells[0].source);
   F.state.symbolCells[0].locked = false;
-  // a pose of the Element
-  await take(poses[2]);
-  check('another tile takes the Brush over', poses[2].classList.contains('is-brush') && !tile('component', A).classList.contains('is-brush'), 'both');
+  // the saved Element
+  await take(elTile());
+  check('another tile takes the Brush over', elTile().classList.contains('is-brush') && !tile('component', A).classList.contains('is-brush'), 'both');
   press(1); await w(100);
-  check('a pose of the Element paints with its turn (180°)', F.state.symbolCells[1].source === 'seed' && F.state.symbolCells[1].rotation === 180, JSON.stringify([F.state.symbolCells[1].source, F.state.symbolCells[1].rotation]));
+  check('the saved Element paints; a click again turns it (90°)', F.state.symbolCells[1].source === 'seed' && (press(1), F.state.symbolCells[1].rotation === 90), JSON.stringify([F.state.symbolCells[1].source, F.state.symbolCells[1].rotation]));
   // Select puts it down
   q('btn-symbol-mode-select').click(); await w(80);
-  check('Select puts the Brush down', !brushOn() && !poses[2].classList.contains('is-brush'), 'still on');
+  check('Select puts the Brush down', !brushOn() && !elTile().classList.contains('is-brush'), 'still on');
   // Esc
   await take(tile('component', A));
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await w(80);
@@ -99,9 +101,9 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const letterAt = i => { const r = q('symbol-frame').querySelector('[data-cell-index="' + i + '"]').getBoundingClientRect(); const t = lettersOn().find(t => { const b = t.getBoundingClientRect(), x = (b.left + b.right) / 2, y = (b.top + b.bottom) / 2; return x > r.left && x < r.right && y > r.top && y < r.bottom; }); return t && t.textContent; };
   check('…the same content, the same letter (turned or not)', letterAt(5) === letterAt(8) && letterAt(8) === letterAt(11) && letterAt(5) !== letterAt(1), [5, 8, 11, 1].map(letterAt).join());
   const before = [5, 1].map(letterAt).join();
-  await take(poses[0]); press(15); await w(150); setTimeout(() => {}, 0);
+  await take(elTile()); press(15); await w(150); setTimeout(() => {}, 0);
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await w(100);
-  check('…another pose of the same Element keeps its letter, the others keep theirs', [5, 1].map(letterAt).join() === before && letterAt(15) === letterAt(1), [5, 1, 15].map(letterAt).join());
+  check('…the same Element again keeps its letter, the others keep theirs', [5, 1].map(letterAt).join() === before && letterAt(15) === letterAt(1), [5, 1, 15].map(letterAt).join());
   check('…never in the export', !/fvs-sel-letter/.test(F.buildSymbolSVG()), 'in the SVG');
   // the Selection's items take the same letters
   F.state.symbolSelection = new Set([12, 13]); F.selectionTouched(13); F.renderSymbol(); await w(150);

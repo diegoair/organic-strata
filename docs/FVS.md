@@ -1230,17 +1230,18 @@ value … selection will be made only by the users with click or drag"* — and 
 Diego, after the `explorations/asset-learn/` test (*"il modello di interazione … è ottimo e semplice e vorrei tenerlo e
 integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encapsulated-lobster.md` Phase B.
 
-- **The Library rail is the content picker.** It opens by default (§7). On the Symbol step its first group, **Element**, is
-  the Element on the Element step in its 7 poses (As it is · 90° · 180° · 270° · Flip H · Flip V · Flip H+V —
-  `elementPoses` / `elementPosePatch`, `11-symbol-ui.js`), what the Choose content window offered. **Choose content no
+- **The Library rail is the content picker.** It opens by default (§7). ~~On the Symbol step its first group, **Element**, is
+  the Element on the Element step in its 7 poses~~ — **gone the same day** (Diego: *"non è necessario portare tutti gli
+  element nel library rail ma solo quello salvato"*): the rail shows the saved Elements; a turn or a flip is a click again
+  on a cell with the Brush (`elementPoses` / `elementPosePatch` stay, for the Brush's last fallback: nothing saved). **Choose content no
   longer opens on the Symbol step**: a click on a selected cell keeps the selection (`SYMBOL_CELLS` has no `choose`, its
   Choose… button is hidden). The window stays for Figure Compose and Component Edit.
 - **Brush** (`15-export-library-view.js`, `rt.brush`) — **a mode in the bar** since Oct 28, 2026 (Diego: *"una modalità
   brush sulla floatbar centrale in basso … così è nascosto"*): the Symbol bar opens with a **Tool** group, **Select (V)** ·
   **Brush (B)** (`btn-symbol-mode-select` / `-brush`, icons `pointer` / `brush`, one pressed at a time). **Select**
   (default): a click on a cell always selects; a click on a rail tile puts it in the selected cells (`railUse`). **Brush**
-  (`setBrushMode`): turned on with nothing taken it takes the selected cell's Component, else the Element as it is
-  (`brushFromSelection`); a mouse click on an Element, a pose, a Component or an Asset tile takes it — the tile ringed
+  (`setBrushMode`): turned on with nothing taken it takes the selected cell's Component, else the newest saved Element, else
+  the Element as it is (`brushFromSelection`); a mouse click on an Element, a pose, a Component or an Asset tile takes it — the tile ringed
   (`.is-brush`), its drawing in the button (`#symbol-brush-thumb`, aria-label *Brush: name (B)*), the sheet's cursor a
   crosshair, the rail's note says what to do. A click or a drag over the cells places it (a capture `mousedown` on
   `#symbol-frame`: no marquee, no selection; ⌘ / Shift-click still selects); a click on a cell that already holds it

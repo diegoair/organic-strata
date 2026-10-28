@@ -9,7 +9,7 @@ import {
   frameDims
 } from './engine/01-geometry.js';
 import {
-  ensureSvgNamespace, getSeed
+  ensureSvgNamespace
 } from './engine/02-seed-ui.js';
 import {
   fitThumbBox
@@ -18,11 +18,8 @@ import {
   ELEMENT_LIB, genesisTileForms, savedElementThumb
 } from './engine/04-appearance.js';
 import {
-  buildSeedPreviewSVG, r2
+  r2
 } from './engine/05-render-component.js';
-import {
-  elementIsEmpty
-} from './engine/06-component-ui.js';
 import {
   LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames, shownElementNames
 } from './engine/07-library.js';
@@ -380,10 +377,10 @@ export function renderLibraryRail() {
   syncRailGroup(els, elNames.map(n => ['element', n, savedElementThumb(elAll[n])]));
   const cAll = LIBRARY.read(), cNames = libraryNames(cAll).sort(newestFirst(cAll));
   syncRailGroup(comps, cNames.map(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 48); return ['component', n, componentThumbSVG(n), box.w, box.h]; }));
-  // The Element on the Element step, as it is and in its six turns and flips — what the Choose content window offered
-  // (Diego, Oct 28, 2026: the window is gone from the Symbol step; the rail is where content comes from).
-  const poses = state.activeTier === 'symbol' && !elementIsEmpty() ? elementPoses() : [], seedNow = poses.length ? getSeed() : null;
-  syncRailGroup(ctrl('rail-poses'), poses.map(([r, fh, fv, label]) => ['pose', label, buildSeedPreviewSVG(seedNow, r, fh, fv, 48)]));
+  // No group of the Element's seven poses any more (Diego, Oct 28, 2026: "non è necessario portare tutti gli element nel
+  // library rail ma solo quello salvato"): the rail shows the saved Elements; a turn or a flip is a click again on a cell.
+  const poses = [];
+  syncRailGroup(ctrl('rail-poses'), []);
   const sAll = SYMBOL_LIBRARY.read(), sNames = Object.keys(sAll || {}).sort(newestFirst(sAll));
   syncRailGroup(syms, sNames.map(n => ['symbol', n, symbolEntryThumbSVG(sAll[n])]));
   const aAll = ASSET_LIBRARY.read(), aNames = Object.keys(aAll || {}).sort(newestFirst(aAll));
@@ -602,11 +599,13 @@ export function setBrush(b) {
 }
 // The Brush mode (Diego, Oct 28, 2026: "una modalità brush sulla floatbar centrale in basso … così è nascosto"): Select ·
 // Brush in the Symbol step's bar, V / B. Brush on = a Brush in hand (rt.brush) — turned on with nothing taken yet it
-// takes what the selected cell holds (a Component) or the Element as it is; Select, Esc or leaving the step puts it down.
+// takes what the selected cell holds (a Component), else the newest saved Element, else the Element as it is; Select, Esc or leaving the step puts it down.
 export function brushFromSelection() {
   const i = state.symbolSelection.size ? Math.min(...state.symbolSelection) : -1, c = state.symbolCells[i];
   if (c && c.source === 'component' && c.componentName && LIBRARY.read()[c.componentName]) return { kind: 'component', name: c.componentName };
-  return { kind: 'pose', name: elementPoses()[0][3] };
+  const elAll = ELEMENT_LIB.read(), saved = shownElementNames(elAll).sort((a, b) => String((elAll[b] || {}).savedAt || '').localeCompare(String((elAll[a] || {}).savedAt || '')));
+  if (saved.length) return { kind: 'element', name: saved[0] };   // the newest saved Element, as the rail shows first
+  return { kind: 'pose', name: elementPoses()[0][3] };   // nothing saved: the Element on the Element step, as it is
 }
 export function setBrushMode(on) {
   if (on && state.activeTier !== 'symbol') return;

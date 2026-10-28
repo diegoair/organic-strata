@@ -551,7 +551,7 @@ if (want('D')) {
     const seq = [];
     await ev(() => { document.getElementById('btn-rail').focus(); });
     for (let i = 0; i < 13; i++) { await cdp('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 }); await cdp('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 }); await sleep(60); seq.push(await ev(() => { const a = document.activeElement; return (a.dataset.railKind ? 'tile:' + a.dataset.railKind : a.dataset.railRename ? 'rename' : a.dataset.railRemove ? 'remove' : a.id || a.tagName); })); }
-    // the Element group first on the Symbol step (Oct 28, 2026): its 7 poses, one stop each, nothing to rename or remove
+    // no Element poses group since Oct 28, 2026 (only the saved Elements); a pose tile, if any, has nothing to rename or remove
     const p0 = seq.findIndex(x => x !== 'tile:pose');
     expect(c, p0 >= 0 && seq.slice(0, p0).every(x => x === 'tile:pose') && seq[p0] === 'tile:element' && seq[p0 + 1] === 'rename' && seq[p0 + 2] === 'remove', 'tab order: ' + seq.join(' → '));
     const ring = await ev(() => { const a = document.activeElement, s = getComputedStyle(a); return { w: s.outlineWidth, st: s.outlineStyle }; });
