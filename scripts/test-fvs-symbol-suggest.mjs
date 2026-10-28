@@ -49,6 +49,20 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const more = F.state.symbolSuggestions;
   check('More like this: ' + more.length + ' variations, A keeps Cells › Its grid size', more.length > 0 && more.every(v => v.cells.every(c => c.componentName !== A || c.span === 'grid' || c.span === true)) && more.some(v => v.cells.some(c => c.componentName === A && c.span === 'grid')), 'span lost');
   check('…still never C or D', more.every(v => v.cells.every(c => c.source !== 'component' || c.componentName === A || c.componentName === B)), 'outside');
+  // Suggest and Variations as one (Diego, Oct 28, 2026): the controls on the Variations sheet, each variation repeated 3 × 3
+  check('Suggest is on the Variations sheet, not in the panel', q('board-variations').contains(q('btn-sug-run')) && q('sym-suggest-section').hidden, 'in the panel');
+  check('…only Suggest, Surprise and Use generated show', [q('btn-sug-more'), q('num-sug-seed'), q('chk-sug-recolour')].every(e => !e.getClientRects().length) && !!q('rg-sug-surprise').getClientRects().length, 'more shows');
+  const it = q('fvs-sug-panel').querySelector('.fvs-suggest__item svg');
+  check('each variation is the Symbol repeated 3 × 3', it && it.querySelectorAll(':scope > use').length === 9, it && it.querySelectorAll('use').length);
+  const seed0 = q('num-sug-seed').value; q('btn-sug-run').click(); await w(500);
+  const one = JSON.stringify(F.state.symbolSuggestions.map(v => v.cells.map(c => c.rotation)));
+  check('…each Suggest takes the next seed', +q('num-sug-seed').value === +seed0 + 1, seed0 + ' → ' + q('num-sug-seed').value);
+  q('btn-sug-run').click(); await w(500);
+  check('…and new variations', JSON.stringify(F.state.symbolSuggestions.map(v => v.cells.map(c => c.rotation))) !== one, 'the same');
+  q('fvs-sug-panel').querySelectorAll('.fvs-suggest__item')[1].click(); await w(300);
+  const picked = JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation])), seed1 = q('num-sug-seed').value;
+  q('btn-sug-run').click(); await w(500);
+  check('after a variation is picked, Suggest looks for more like it: the Symbol stays, the seed too', JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation])) === picked && q('num-sug-seed').value === seed1 && F.state.symbolSuggestions.length > 0, 'applied or reseeded');
   return rows;`);
 const fails = rows.filter(x => x.startsWith('✗'));
 for (const x of rows) console.log('  ' + x);

@@ -1,6 +1,7 @@
 // Flexible Visual System · 10-suggest — Arrange + Suggest — pool, scoring, variations dock.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
+import { rt } from './rt.js';
 import {
   pv, state
 } from './engine/00-core.js';
@@ -55,6 +56,16 @@ ctrl('sel-sym-arrange').innerHTML = Object.entries(SYMBOL_ARRANGE).map(([k, v]) 
 
 
 
+// A variation drawn repeated 3 × 3 (Diego, Oct 28, 2026 — "su un insieme più grande di ripetizione"): the Symbol as a
+// tile, so how it runs on at its edges shows. The Symbol once in <defs>, eight <use> — the ids inside stay unique.
+function repeat3(svg, i) {
+  const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/), open = svg.indexOf('>') + 1, close = svg.lastIndexOf('</svg>');
+  if (!m || open <= 0 || close < open) return svg;
+  const w = +m[1], h = +m[2], id = 'sug-rep-' + i;
+  let uses = '';
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) uses += `<use href="#${id}" x="${c * w}" y="${r * h}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${3 * w} ${3 * h}" aria-hidden="true"><defs><g id="${id}">${svg.slice(open, close)}</g></defs>${uses}</svg>`;
+}
 export function renderSuggestGallery(currentIdx) {
   // the Variations sheet on the Symbol board (always open): empty, it shows its note instead
   const wrap = ctrl('fvs-sug-panel'), n = state.symbolSuggestions.length;
@@ -64,7 +75,7 @@ export function renderSuggestGallery(currentIdx) {
   wrap.innerHTML = '';
   state.symbolSuggestions.forEach((sg, i) => {
     state.symbolCells = sg.cells;
-    const svg = buildSymbolSVG();
+    const svg = repeat3(buildSymbolSVG(), i);
     const btn = document.createElement('button');
     btn.className = 'fvs-suggest__item' + (i === currentIdx ? ' is-current' : '');
     btn.type = 'button';
@@ -74,6 +85,7 @@ export function renderSuggestGallery(currentIdx) {
     if (sg.gen && sg.gen.length) { btn.classList.add('uses-generated'); btn.insertAdjacentHTML('beforeend', '<span class="fvs-suggest__badge">Uses generated</span>'); }
     btn.addEventListener('click', async () => {
       if (sg.gen && sg.gen.length && !(await saveGeneratedFor(sg))) return;
+      rt.sugPicked = true;   // the next Suggest looks for more like this one
       state.symbolCells = sg.cells.map(c => ({ ...c }));
       if (sg.zoneDos && sg.zoneDos[0] && hooks.selectionTakeDos) hooks.selectionTakeDos(sg.zoneDos[0].dos);   // an open selection takes what this variation gave it (Oct 28, 2026)
       if (!sg.sel) state.symbolSelection.clear();   // variations of a selection: the selection stays, for the next run
@@ -134,7 +146,13 @@ export function runSuggest(more) {
 }
 ctrl('fvs-sug-panel').addEventListener('wheel', e => e.stopPropagation(), { passive: true });   // scrolling the strip never zooms the sheet
 ['cont', 'bal', 'sur', 'col'].forEach(k => ctrl('rg-sug-' + k).addEventListener('input', e => { ctrl('v-sug-' + k).textContent = e.target.value; }));
-ctrl('btn-sug-run').addEventListener('click', () => runSuggest(false));
+// One Suggest (Oct 28, 2026): every click the next seed (the first is the field's, so a run can be repeated); after a
+// variation was picked, more like it (was More like this)
+ctrl('btn-sug-run').addEventListener('click', () => {
+  const more = !!rt.sugPicked; rt.sugPicked = false;
+  runSuggest(more);
+  if (!more) ctrl('num-sug-seed').value = (parseInt(pv('num-sug-seed'), 10) || 0) + 1;
+});
 ctrl('btn-sug-more').addEventListener('click', () => runSuggest(true));
 ctrl('btn-sug-seed-random').addEventListener('click', () => { ctrl('num-sug-seed').value = Math.floor(Math.random() * 1e6); runSuggest(false); });
 

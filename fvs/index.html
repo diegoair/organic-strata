@@ -462,12 +462,33 @@
             <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="New symbol — drag to move">New symbol</button>
             <div class="fvs-board-sheet__body"><button type="button" class="fvs-board-new" id="btn-board-new-symbol" aria-label="New symbol" data-theme="light" data-icon-slot></button></div>
           </div>
-          <!-- Variations: Suggest's variations as sheets beside the Symbol, always open; a click puts one on the Symbol -->
+          <!-- Variations: Suggest's variations beside the Symbol, each repeated 3 × 3 (Oct 28, 2026), always open; a click puts one on the Symbol -->
           <div class="fvs-board-sheet" id="board-variations">
             <button type="button" class="nc-frame__label fvs-board-sheet__label" aria-label="Variations — drag to move">Variations</button>
+            <!-- Suggest, on its own sheet (Oct 28, 2026): one button, Surprise, Use generated components; above the sheet, at
+                 screen size like its name -->
+            <div class="fvs-sug-bar" id="symbol-suggest-block" role="group" aria-label="Suggest">
+              <button type="button" class="org-btn org-btn--sm" id="btn-sug-run">Suggest</button>
+              <div class="ctrl-row"><div class="ctrl-label">Surprise</div>
+                <input type="range" id="rg-sug-surprise" min="0" max="100" step="5" value="30" aria-label="Surprise"><span class="ctrl-val" id="v-sug-surprise">30</span></div>
+              <label class="check-row org-switch"><input type="checkbox" id="chk-sug-generated"><span>Use generated components</span></label>
+              <p class="org-panel__hint" id="sug-hint"></p>
+        <div hidden><!-- Seed, More like this and Recolour (test) are gone from the screen (Oct 28, 2026): each Suggest takes a new seed,
+             and after a variation is picked it looks for more like it. The controls stay, hidden, for the code and the tests. -->
+          <input type="number" class="panel-input" id="num-sug-seed" value="1" min="0" max="999999" step="1" aria-label="Suggestion seed">
+          <button class="icon-btn" id="btn-sug-seed-random" aria-label="Random suggestion seed"></button>
+          <input type="checkbox" id="chk-sug-recolour" aria-label="Recolour cells (test)">
+          <button class="mini-btn" id="btn-sug-more">More like this</button>
+          <input type="range" id="rg-sug-cont" min="0" max="100" step="5" value="60" aria-label="Continuity"><span id="v-sug-cont">60</span>
+          <input type="range" id="rg-sug-bal" min="0" max="100" step="5" value="30" aria-label="Balance"><span id="v-sug-bal">30</span>
+          <input type="range" id="rg-sug-sur" min="0" max="100" step="5" value="30" aria-label="Surprise weight"><span id="v-sug-sur">30</span>
+          <input type="range" id="rg-sug-col" min="0" max="100" step="5" value="40" aria-label="Colour"><span id="v-sug-col">40</span>
+        </div>
+            </div>
+
             <div class="fvs-board-sheet__body">
               <div class="fvs-board-variations" id="fvs-sug-panel" role="region" aria-label="Symbol variations"></div>
-              <p class="org-empty fvs-board-variations__empty" id="fvs-sug-empty">Fill the grid with Suggest to see variations here</p>
+              <p class="org-empty fvs-board-variations__empty" id="fvs-sug-empty">Suggest shows variations of this Symbol here, each repeated 3 × 3</p>
             </div>
           </div>
         </div>
@@ -1992,8 +2013,9 @@
         <div id="symbol-cell-props" hidden><!-- filled by cellPropsHTML() (fvs/js/11-symbol-ui.js) — one block for Symbol and Compose --></div>
       </div>
     </div>
-    <div class="panel-section" id="sym-suggest-section">
-      <h3>Suggest</h3>
+    <!-- Suggest lives on the Variations sheet since Oct 28, 2026 (Diego: "Variations e Suggest devono convergere ed essere
+         semplificate"); this section keeps only the hidden Fill mode and Arrange controls the code still reads -->
+    <div class="panel-section" id="sym-suggest-section" hidden>
       <div class="ctrl-row" hidden>
         <select class="panel-select" id="sel-symbol-fill" aria-label="Fill mode">
           <option value="suggest" selected>Suggest</option>
@@ -2002,36 +2024,6 @@
           <option value="rule">Rule</option>
         </select>
       </div>
-      <div id="symbol-suggest-block">
-        <div class="ctrl-row"><div class="ctrl-label">Surprise</div>
-          <input type="range" id="rg-sug-surprise" min="0" max="100" step="5" value="30" aria-label="Surprise"><span class="ctrl-val" id="v-sug-surprise">30</span></div>
-        <p class="org-panel__hint">Low: ordered and continuous. High: surprising.</p>
-        <div hidden><!-- the scoring weights Surprise sets (suggestWeights reads them) -->
-        <div class="ctrl-row"><div class="ctrl-label">Continuity</div>
-          <input type="range" id="rg-sug-cont" min="0" max="100" step="5" value="60"><span class="ctrl-val" id="v-sug-cont">60</span></div>
-        <div class="ctrl-row"><div class="ctrl-label">Balance</div>
-          <input type="range" id="rg-sug-bal" min="0" max="100" step="5" value="30"><span class="ctrl-val" id="v-sug-bal">30</span></div>
-        <div class="ctrl-row"><div class="ctrl-label">Surprise</div>
-          <input type="range" id="rg-sug-sur" min="0" max="100" step="5" value="30"><span class="ctrl-val" id="v-sug-sur">30</span></div>
-        <div class="ctrl-row"><div class="ctrl-label">Colour</div>
-          <input type="range" id="rg-sug-col" min="0" max="100" step="5" value="40"><span class="ctrl-val" id="v-sug-col">40</span></div>
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
-          <input type="number" class="panel-input" id="num-sug-seed" value="1" min="0" max="999999" step="1" aria-label="Suggestion seed">
-          <button class="icon-btn" id="btn-sug-seed-random" title="Random seed" aria-label="Random suggestion seed">
-            <svg class="ico ico--sm" data-icon="refresh" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.65"/><path d="M13 2.3V6h-3.7"/></svg>
-          </button>
-        </div>
-        <label class="check-row org-switch"><input type="checkbox" id="chk-sug-generated"><span>Use generated components</span></label>
-        <label class="check-row"><input type="checkbox" id="chk-sug-recolour"><span>Recolour cells (test)</span></label>
-        <div class="row-btns">
-          <button class="mini-btn" id="btn-sug-run">Suggest</button>
-          <button class="mini-btn" id="btn-sug-more">More like this</button>
-        </div>
-        <p class="org-panel__hint" id="sug-hint"></p>
-      </div>
-
       <div id="symbol-generate-block" hidden>
         <div class="ctrl-row">
           <div class="ctrl-label">Arrange</div>
