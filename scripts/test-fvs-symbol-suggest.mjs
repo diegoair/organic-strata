@@ -54,15 +54,27 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('…only Suggest, Surprise and Use generated show', [q('btn-sug-more'), q('num-sug-seed'), q('chk-sug-recolour')].every(e => !e.getClientRects().length) && !!q('rg-sug-surprise').getClientRects().length, 'more shows');
   const it = q('fvs-sug-panel').querySelector('.fvs-suggest__item svg');
   check('each variation is the Symbol repeated 3 × 3', it && it.querySelectorAll(':scope > use').length === 9, it && it.querySelectorAll('use').length);
-  const seed0 = q('num-sug-seed').value; q('btn-sug-run').click(); await w(500);
+  const nOwn = () => (q('sug-hint').textContent.match(/Symbol’s (\d+) content/) || [])[1];
+  const seed0 = q('num-sug-seed').value; q('btn-sug-run').click(); await w(500); const own0 = nOwn();
   const one = JSON.stringify(F.state.symbolSuggestions.map(v => v.cells.map(c => c.rotation)));
   check('…each Suggest takes the next seed', +q('num-sug-seed').value === +seed0 + 1, seed0 + ' → ' + q('num-sug-seed').value);
   q('btn-sug-run').click(); await w(500);
+  q('btn-sug-run').click(); await w(500); q('btn-sug-run').click(); await w(500);
+  check('…Suggest after Suggest keeps drawing from the Symbol’s contents as you made them (they never narrow)', nOwn() === own0 && F.state.symbolSuggestions.length >= 4, own0 + ' → ' + nOwn() + ', ' + F.state.symbolSuggestions.length);
   check('…and new variations', JSON.stringify(F.state.symbolSuggestions.map(v => v.cells.map(c => c.rotation))) !== one, 'the same');
   q('fvs-sug-panel').querySelectorAll('.fvs-suggest__item')[1].click(); await w(300);
   const picked = JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation])), seed1 = q('num-sug-seed').value;
   q('btn-sug-run').click(); await w(500);
   check('after a variation is picked, Suggest looks for more like it: the Symbol stays, the seed too', JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation])) === picked && q('num-sug-seed').value === seed1 && F.state.symbolSuggestions.length > 0, 'applied or reseeded');
+  // a selection of one cell, a variation picked, Suggest again: variations that differ, never the Symbol itself (Oct 28, 2026 —
+  // the 8–20% re-draw of More like this changed nothing on one free cell and the sheet showed the Symbol alone)
+  F.state.symbolSelection = new Set([1]); F.renderSymbol(); await w(100);
+  q('btn-sug-run').click(); await w(500); q('fvs-sug-panel').querySelectorAll('.fvs-suggest__item')[0].click(); await w(300);
+  const cur = JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation, !!c.flipH]));
+  q('btn-sug-run').click(); await w(500);
+  const keys = F.state.symbolSuggestions.map(v => JSON.stringify(v.cells.map(c => [c.componentName, c.rotation, !!c.flipH])));
+  check('one selected cell, picked, Suggest again: several variations, none the Symbol as it is, the Symbol kept', keys.length >= 2 && new Set(keys).size === keys.length && !keys.includes(cur) && JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation, !!c.flipH])) === cur, keys.length + ' / ' + keys.includes(cur));
+  F.state.symbolSelection.clear();
   return rows;`);
 const fails = rows.filter(x => x.startsWith('✗'));
 for (const x of rows) console.log('  ' + x);

@@ -674,13 +674,17 @@ export function suggestSymbols(opts = {}) {
   const out = [];
   const add = (cand, label) => out.push({ cand, label });
   if (opts.base) {
-    // "More like this": 8–20% of the free cells re-drawn, then turns refined.
+    // "More like this": 8–20% of the free cells re-drawn — at least one (Oct 28, 2026: with a few free cells, a
+    // selection of one, the rate re-drew none and every variation came back as the Symbol itself) — then turns refined.
+    const free = cand0 => cand0.map((ch, i) => i).filter(i => !fixed[i]);
     for (let v = 0; v < 11; v++) {
       const r = mulberry32(seed * 131 + v * 977 + 5);
       const cand = base.map((ch, i) => (fixed[i] ? locked[i] : ch ? { ...ch } : { name: pal[0].name, r: 0, fh: false }));
       const rate = 0.08 + 0.12 * r();
       const keep = cand.map((ch, i) => fixed[i] || r() >= rate);   // only the re-drawn cells get a new Component + turn
-      cand.forEach((ch, i) => { if (!keep[i]) cand[i] = { name: weightedPick(pal, r).name, r: 0, fh: false }; });
+      const open = free(cand);
+      if (open.length && open.every(i => keep[i])) keep[open[Math.floor(r() * open.length)]] = false;
+      cand.forEach((ch, i) => { if (!keep[i]) cand[i] = { name: weightedPick(pal, r).name, r: Math.floor(r() * 4) * 90, fh: r() < 0.5 }; });
       add(refineTurns(G, cand, fit, anByName, r, keep, T, CWs), 'Like the current');
     }
   } else {
@@ -700,7 +704,8 @@ export function suggestSymbols(opts = {}) {
     }
   }
   // score, rank, drop duplicates (same Component + canonical turn in every cell)
-  const seen = new Set();
+  // the Symbol as it is is never one of its own variations
+  const seen = new Set(base ? [base.map(c => (c ? c.name + (c.cw ? '#' + c.cw : '') + canonicalState({ rotation: c.r, flipH: c.fh, flipV: false, scale: 1 }) : '')).join('|')] : []);
   const scored = out.map(o => ({ ...o, score: scoreSymbolCandidate(G, o.cand, pal, W, fit, anByName, T) }))
     .sort((a, b) => b.score.total - a.score.total)
     .filter(o => { const key = o.cand.map(c => c.name + (c.cw ? '#' + c.cw : '') + canonicalState({ rotation: c.r, flipH: c.fh, flipV: false, scale: 1 })).join('|'); if (seen.has(key)) return false; seen.add(key); return true; });

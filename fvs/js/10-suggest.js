@@ -87,6 +87,7 @@ export function renderSuggestGallery(currentIdx) {
       if (sg.gen && sg.gen.length && !(await saveGeneratedFor(sg))) return;
       rt.sugPicked = true;   // the next Suggest looks for more like this one
       state.symbolCells = sg.cells.map(c => ({ ...c }));
+      rt.sugSource = rt.sugOwn && rt.sugOwn.length ? { cells: asPut(state.symbolCells), own: rt.sugOwn } : null;
       if (sg.zoneDos && sg.zoneDos[0] && hooks.selectionTakeDos) hooks.selectionTakeDos(sg.zoneDos[0].dos);   // an open selection takes what this variation gave it (Oct 28, 2026)
       if (!sg.sel) state.symbolSelection.clear();   // variations of a selection: the selection stays, for the next run
       hooks.renderSymbol();
@@ -96,11 +97,19 @@ export function renderSuggestGallery(currentIdx) {
   });
   state.symbolCells = prev;
 }
-export function runSuggest(more) {
+// What a Symbol looks like to Suggest: what each cell holds, its turn and flip — two variations that look alike are one.
+const look = cells => JSON.stringify(cells.map(c => (!c || c.source === 'empty' ? 0 : [c.componentName || JSON.stringify(c.seedParams || null), c.rotation || 0, !!c.flipH, !!c.flipV])));
+// The contents Suggest draws from are the Symbol's as YOU made it: while the Symbol is still a variation Suggest put there
+// (applied or picked, not a setting edited since), the next Suggest keeps the contents it had — a variation that used fewer of
+// them no longer narrows every later run (Oct 28, 2026: Diego's runs ended on one content, the same variation nine times).
+rt.sugSource = null;   // { cells, own } — the variation on the Symbol (every setting of every cell), the contents it was drawn from
+const asPut = cells => JSON.stringify(cells);
+export function runSuggest(more, keep) {   // keep: apply nothing (the fallback of More like this)
   if (!state.symbolGrid) return;
   // the Symbol's own contents (Oct 27, 2026): what its cells hold, weighted by count; none yet (an empty grid, the
   // placeholder triangles) = the library pool, as Fill the grid
-  const L = currentSpanLayout(), own = symbolContentPool(state.symbolCells, L.covered);
+  const L = currentSpanLayout(), own0 = symbolContentPool(state.symbolCells, L.covered);
+  const own = rt.sugSource && rt.sugSource.own.length && rt.sugSource.cells === asPut(state.symbolCells) ? rt.sugSource.own : own0;
   if (!own.length && !poolEntries().length) {
     if (elementPool().length) { generateSymbolCells(); ctrl('sug-hint').textContent = 'Suggest reads saved Components — with Elements only the cells were arranged.'; return; }
     ctrl('sug-hint').textContent = 'Save a Component first, or place one on the Symbol from the Library rail.'; return;
@@ -131,8 +140,15 @@ export function runSuggest(more) {
     state.symbolSuggestions = more ? suggestSymbols({ base, ...(pool ? { pool } : {}) })
       : suggestZoned({ ...(pool ? { pool } : {}), open, surprise, seed });
   } finally { state.symbolCells = real; }
+  rt.sugOwn = own;   // a variation picked from this run keeps these contents
   state.symbolSuggestions.forEach(sg => { sg.gen = generatedIn(sg.cells); });
   state.symbolSuggestions.forEach(sg => { sg.cells = sg.cells.map((c, i) => (held[i] ? real[i] : c)); if (sel) sg.sel = true; });
+  // the Symbol as it is is never one of its own variations, nor two the same (what each cell holds, its turn and flip)
+  const seenLook = new Set([look(real)]);
+  state.symbolSuggestions = state.symbolSuggestions.filter(sg => { const k = look(sg.cells); if (seenLook.has(k)) return false; seenLook.add(k); return true; });
+  // More like this found too few that differ (a small selection, few contents): a fresh Suggest instead (Oct 28, 2026 —
+  // Diego saw one variation, the Symbol itself, repeated 3 × 3, and read it as nine the same)
+  if (more && state.symbolSuggestions.length < 4) { runSuggest(false, true); return; }
   ctrl('sug-hint').textContent = [
     own.length ? `From this Symbol’s ${own.length} content${own.length === 1 ? '' : 's'}` + (own.length === 1 && !gen.length ? ' — turns and flips only.' : '.') : '',
     gen.length ? `+ ${gen.length} generated component${gen.length === 1 ? '' : 's'} not saved yet.` : '',
@@ -140,9 +156,9 @@ export function runSuggest(more) {
     zoneHeld.size ? `${zoneHeld.size} cells held by saved selections.` : '',
     suggestSymbols.lastNote || ''].filter(Boolean).join(' ');
   const first = state.symbolSuggestions.find(sg => !sg.gen.length);   // a variation with generated components waits for a click (and a confirm)
-  if (!more && first) state.symbolCells = first.cells.map(c => ({ ...c }));   // the open zones stay open until a variation is clicked: Suggest again explores them again
+  if (!more && !keep && first) { state.symbolCells = first.cells.map(c => ({ ...c })); rt.sugSource = { cells: asPut(state.symbolCells), own }; }   // the open zones stay open until a variation is clicked: Suggest again explores them again
   hooks.renderSymbol();
-  renderSuggestGallery(more || !first ? -1 : state.symbolSuggestions.indexOf(first));   // More like this applies nothing: what it found shows on the Variations sheet
+  renderSuggestGallery(more || keep || !first ? -1 : state.symbolSuggestions.indexOf(first));   // More like this applies nothing: what it found shows on the Variations sheet
 }
 ctrl('fvs-sug-panel').addEventListener('wheel', e => e.stopPropagation(), { passive: true });   // scrolling the strip never zooms the sheet
 ['cont', 'bal', 'sur', 'col'].forEach(k => ctrl('rg-sug-' + k).addEventListener('input', e => { ctrl('v-sug-' + k).textContent = e.target.value; }));
