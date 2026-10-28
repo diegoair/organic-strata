@@ -1,6 +1,7 @@
 // Flexible Visual System · 99-boot — Boot — first render, tier, cloud sync of the libraries.
 // An ES module of fvs/js/main.js. It imports what it uses from earlier files; later files it reaches through hooks.*.
 // Architecture + file map: docs/FVS.md §11.
+import { rt } from './rt.js';
 import {
   state
 } from './engine/00-core.js';
@@ -29,10 +30,10 @@ import {
   setTier
 } from './12-shell.js';
 import {
-  setRailOpen
+  railWanted, setRailOpen
 } from './15-export-library-view.js';
 
-setRailOpen(false);   // always starts closed — the saved library stays out of the way until asked for (was restored from organica.fvs.rail)
+setRailOpen(railWanted()); rt.railBooted = true;   // open unless it was closed by hand (Diego, Oct 28, 2026 — reverses Oct 5's always-closed start; organica.fvs.rail, the old key, is left unread)
 
 renderGallery();
 renderSeedPreview();

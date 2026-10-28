@@ -87,6 +87,7 @@ export function plateSVG(svg, colors, i, paper) {
 export function railTileVerb(kind) {
   const t = state.activeTier;
   if (live.railCompose) return kind === 'symbol' ? 'Place Symbol at the first selected cell —' : 'Place ' + (kind === 'element' ? 'Element' : 'Component') + ' in the selected cells —';   // Compose (17-figure-graph sets it)
+  if (kind === 'pose') return 'Place the Element in the selected cells —';   // the Element group (Symbol step only, Oct 28, 2026)
   if (kind === 'symbol') return 'Load Symbol';
   if (t === 'symbol') return 'Place ' + (kind === 'element' ? 'Element' : 'Component') + ' in the selected cells —';
   return kind === 'element' ? 'Use Element as Paper tile —' : 'Load Component';

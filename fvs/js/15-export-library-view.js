@@ -9,7 +9,7 @@ import {
   frameDims
 } from './engine/01-geometry.js';
 import {
-  ensureSvgNamespace
+  ensureSvgNamespace, getSeed
 } from './engine/02-seed-ui.js';
 import {
   fitThumbBox
@@ -18,8 +18,11 @@ import {
   ELEMENT_LIB, genesisTileForms, savedElementThumb
 } from './engine/04-appearance.js';
 import {
-  r2
+  buildSeedPreviewSVG, r2
 } from './engine/05-render-component.js';
+import {
+  elementIsEmpty
+} from './engine/06-component-ui.js';
 import {
   LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames, shownElementNames
 } from './engine/07-library.js';
@@ -61,7 +64,7 @@ import {
   renderSymbolPool
 } from './10-suggest.js';
 import {
-  applySymbolLibraryEntryToUI, applyToSelection, removeSymbolLibraryEntry, renderCellPropertiesPanel,
+  applySymbolLibraryEntryToUI, applyToSelection, elementPosePatch, elementPoses, removeSymbolLibraryEntry, renderCellPropertiesPanel,
   renderSymbol, renderSymbolCanvasOnly, renderSymbolLibrary, saveSymbolAs
 } from './11-symbol-ui.js';
 import {
@@ -286,8 +289,15 @@ renderSymbolLibrary();
 // is dragged onto a cell (pointer drag, the Layers pattern) — or clicked / Enter to put it in the
 // selected cells. Place-only: renaming and removing stay in the right-bar libraries.
 export const railPanel = ctrl('fvs-rail-panel'), railBtn = ctrl('btn-rail');
+// Open by default, remembered per browser (Diego, Oct 28, 2026): only the user's own toggle (the button, Esc) writes it;
+// a step that hides the rail, the Library view or an empty Element tab close it without changing the wish.
+const RAIL_OPEN_KEY = 'organica.fvs.rail-open';
+export function railWanted() { try { return localStorage.getItem(RAIL_OPEN_KEY) !== 'false'; } catch (e) { return true; } }
+function setRailWanted(open) { try { localStorage.setItem(RAIL_OPEN_KEY, String(!!open)); } catch (e) { /* private mode: it opens next time */ } }
+function railMayReopen() { return railWanted() && !railIsOpen() && !railBlock() && !ctrl('fvs-rail-dock').hidden && !document.body.classList.contains('fvs-libview-open'); }
 export function railIsOpen() { return ctrl('fvs-rail-panel').dataset.open === 'true'; }   // a function: renderLibrary() reaches it during init
 export function setRailOpen(open, opts) {
+  const railPanel = ctrl('fvs-rail-panel'), railBtn = ctrl('btn-rail');   // ctrl(): syncRailButton can reopen it during init, before the consts
   railPanel.dataset.open = open ? 'true' : 'false';
   railPanel.toggleAttribute('inert', !open);
   railBtn.setAttribute('aria-expanded', String(open));
@@ -329,6 +339,7 @@ export function railTile(kind, name, svg, w, h) {
   x.type = 'button'; x.className = 'rmx-x'; x.dataset.railRemove = '1';
   x.innerHTML = Organica.icons.get('trash', { size: 'xs' });
   x.setAttribute('aria-label', 'Delete ' + name);   // one click, no confirm (Diego, Oct 6, 2026)
+  if (kind === 'pose') { b.title = 'Element · ' + name; tile.append(b); return tile; }   // the live Element: nothing to rename or delete
   tile.append(b, ren, x);
   return tile;
 }
@@ -356,6 +367,7 @@ export function syncRailButton() {
   railBtn.setAttribute('aria-disabled', String(!!why));
   railBtn.setAttribute('aria-label', why || 'Library rail');
   if (why && railIsOpen()) setRailOpen(false);
+  else if (!why && rt.railBooted && railMayReopen()) setRailOpen(true);   // not during init: 99-boot opens it once the module is ready
 }
 export function renderLibraryRail() {
   ctrl('fvs-rail-panel').dataset.railTier = state.activeTier;   // the Symbol tab's tiles drag (grab cursor)
@@ -368,28 +380,33 @@ export function renderLibraryRail() {
   syncRailGroup(els, elNames.map(n => ['element', n, savedElementThumb(elAll[n])]));
   const cAll = LIBRARY.read(), cNames = libraryNames(cAll).sort(newestFirst(cAll));
   syncRailGroup(comps, cNames.map(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 48); return ['component', n, componentThumbSVG(n), box.w, box.h]; }));
+  // The Element on the Element step, as it is and in its six turns and flips — what the Choose content window offered
+  // (Diego, Oct 28, 2026: the window is gone from the Symbol step; the rail is where content comes from).
+  const poses = state.activeTier === 'symbol' && !elementIsEmpty() ? elementPoses() : [], seedNow = poses.length ? getSeed() : null;
+  syncRailGroup(ctrl('rail-poses'), poses.map(([r, fh, fv, label]) => ['pose', label, buildSeedPreviewSVG(seedNow, r, fh, fv, 48)]));
   const sAll = SYMBOL_LIBRARY.read(), sNames = Object.keys(sAll || {}).sort(newestFirst(sAll));
   syncRailGroup(syms, sNames.map(n => ['symbol', n, symbolEntryThumbSVG(sAll[n])]));
   // An empty group is not shown (no "None saved yet"); Components stays on its own tab for Save all.
-  const onComp = state.activeTier === 'component', visible = [['elements', elNames.length], ['components', cNames.length || onComp], ['symbols', sNames.length]];
+  const onComp = state.activeTier === 'component', visible = [['poses', poses.length], ['elements', elNames.length], ['components', cNames.length || onComp], ['symbols', sNames.length]];
   visible.forEach(([k, on]) => { ctrl('rail-g-' + k).hidden = !on; });
   ctrl('btn-rail-save-all').hidden = !onComp;
   // nothing to show at all (and no Save footer) → no empty glass box beside the toggle
   ctrl('fvs-rail-panel').classList.toggle('is-empty', !visible.some(([, on]) => on) && state.activeTier !== 'symbol');
   syncRailSpace();   // its contents (and so its width) changed
 }
-railBtn.addEventListener('click', () => { if (railBtn.getAttribute('aria-disabled') === 'true') return; setRailOpen(!railIsOpen()); });
+railBtn.addEventListener('click', () => { if (railBtn.getAttribute('aria-disabled') === 'true') return; const open = !railIsOpen(); setRailWanted(open); setRailOpen(open); });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || e.defaultPrevented) return;
   if (railDrag) { cancelRailDrag(); return; }
   const a = document.activeElement, inRail = a && (a.closest('#fvs-rail') || a.closest('#fvs-rail-panel'));
-  if (railIsOpen() && (inRail || !a || a === document.body)) setRailOpen(false, { focus: true });   // an Escape meant for a field or popover stays theirs
+  if (railIsOpen() && inRail) { setRailWanted(false); setRailOpen(false, { focus: true }); }   // only an Escape inside the rail closes it now (Oct 28, 2026: open by default — Esc on the sheet is the Selection's / the Brush's)
 });
 
 // A cell inside the selection takes the whole selection; any other cell takes only itself.
 export function railApply(kind, name, idx) {
   if (state.activeTier !== 'symbol') return;
-  const patch = railPatch(kind, name);
+  const pi = kind === 'pose' ? elementPoses().findIndex(p => p[3] === name) : -1;
+  const patch = kind === 'pose' ? (pi < 0 ? null : elementPosePatch(pi)) : railPatch(kind, name);
   if (!patch) return;
   if (idx != null && !state.symbolSelection.has(idx)) {
     const cell = state.symbolCells[idx];
@@ -538,7 +555,7 @@ railPanel.addEventListener('click', e => {
   if (e.target.closest('[data-rail-rename]')) { railRename(kind, name); return; }
   if (kind === 'symbol' || e.detail === 0) { railUse(kind, name); return; }   // a Symbol / Enter on a focused tile
   clearTimeout(railClickTimer);
-  if (e.detail >= 2) { (kind === 'element' ? openSavedElement : openSavedComponent)(name); return; }
+  if (e.detail >= 2) { if (kind === 'pose') setTier('element'); else (kind === 'element' ? openSavedElement : openSavedComponent)(name); return; }
   railClickTimer = setTimeout(() => railUse(kind, name), RAIL_DBL_MS);
 });
 ctrl('btn-rail-save-all').addEventListener('click', saveAllComponentsToLibrary);
@@ -704,6 +721,7 @@ export function closeLibview(opts) {
   ctrl('btn-libview').setAttribute('aria-expanded', 'false');
   ctrl('libview-status').textContent = '';
   if (opts && opts.focus) ctrl('btn-libview').focus();
+  syncRailButton();   // the rail it closed comes back, if it was open
 }
 export async function libviewDownload(kind, name, fmt) {
   let svg = libviewSVG(kind, name);

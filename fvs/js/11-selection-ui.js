@@ -38,7 +38,7 @@ import {
   renderSuggestGallery
 } from './10-suggest.js';
 import {
-  applyToSelection, openCellContentOverlay, renderCellPropertiesPanel, renderSymbol, renderSymbolCanvasOnly, syncSymbolRuleUI
+  applyToSelection, elementPoses, elementPosePatch, openCellContentOverlay, renderCellPropertiesPanel, renderSymbol, renderSymbolCanvasOnly, syncSymbolRuleUI
 } from './11-symbol-ui.js';
 import { hooks, provide } from './hooks.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
@@ -117,6 +117,11 @@ function closeSelection() {
 // Dropped on the square drop target (15-export-library-view), or picked with Choose content (one item, the old way).
 function itemFor(kind, name) {
   if (kind === 'component') return LIBRARY.peek()[name] ? { kind, name } : null;
+  if (kind === 'pose') {   // the Element on the Element step, in one of its poses (the Library rail's Element group, Oct 28, 2026)
+    const i = elementPoses().findIndex(p => p[3] === name); if (i < 0) return null;
+    const p = elementPosePatch(i)({});
+    return { kind: 'element', name: 'Element · ' + name, entry: { seed: p.seedParams, orientation: { rotation: p.rotation, flipH: p.flipH, flipV: p.flipV } } };
+  }
   const e = ELEMENT_LIB.read()[name];
   return e && e.seed ? { kind: 'element', name, entry: clone(e) } : null;
 }

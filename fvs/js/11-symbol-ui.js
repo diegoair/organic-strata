@@ -201,7 +201,7 @@ export function renderSymbol() {
 // uses the same click-a-shape-on-canvas convention) — delegated on
 // #symbol-frame, which survives every re-render (only its innerHTML is
 // replaced), so this binds exactly once rather than being re-attached
-// per render. Plain click selects just this cell (a click on a selected cell opens Choose content);
+// per render. Plain click selects just this cell (a click on a selected cell keeps it);
 // ⌘/Ctrl-click (or Shift-click) toggles this cell into/out of a multi-cell selection.
 // Mouse position → the SVG's own internal 0..size coordinate space (same
 // technique Creator's old draw-mode artLoc() used) — needed both for a
@@ -417,19 +417,16 @@ export function bindSymbolCanvasSelection() {
       renderSymbolCanvasOnly();
       renderCellPropertiesPanel();
     } else {
-      // A plain click SELECTS; a click on a cell that is already selected (alone or in a
-      // group — so also the second click of a double-click) opens Choose content for the
-      // whole selection. Selecting a cell to change its Fit, Anchor or turn must not pop
-      // the content picker in the way.
-      const again = state.symbolSelection.has(i);
-      if (!again) {
+      // A plain click SELECTS; a click on a cell that is already selected keeps the selection (Diego, Oct 28, 2026:
+      // the Choose content window is gone from the Symbol step — content comes from the Library rail, dragged or
+      // painted with the Brush).
+      if (!state.symbolSelection.has(i)) {
         state.symbolSelection.clear();
         state.symbolSelection.add(i);
         if (hooks.selectionTouched) hooks.selectionTouched(i);
       }
       renderSymbolCanvasOnly();
       renderCellPropertiesPanel();
-      if (again) openCellContentOverlay();
     }
   });
 }
@@ -648,7 +645,7 @@ export const SYMBOL_CELLS = {
   apply: patch => applyToSelection(patch),
   refresh: () => renderCellPropertiesPanel(),
   overflow: () => !state.symbolClipEnabled && cellOverflowInfo(Math.min(...state.symbolSelection)),
-  choose: () => openCellContentOverlay(),
+  // no choose(): the Symbol step has no Choose content window (Oct 28, 2026) — the Library rail places content
   lock: true,
   spans: true,   // the Cells row: a Component over several cells (Compose places its own way)
   spanCut: () => { const r = currentSpanLayout().region[Math.min(...state.symbolSelection)]; return !!(r && r.cut); },
@@ -737,7 +734,8 @@ export function syncCellPad(c, cell) {
 }
 export function bindCellProps(pre, t) {
   const c = b => ctrl(pre + b) || standIn();
-  c('btn-cellprop-choose').addEventListener('click', () => t.choose());
+  c('btn-cellprop-choose').hidden = !t.choose;
+  c('btn-cellprop-choose').addEventListener('click', () => t.choose && t.choose());
   c('sel-cellprop-rot').addEventListener('change', e => t.apply({ rotation: snapPose(parseInt(e.target.value, 10)) }));
   c('sel-cellprop-flip').addEventListener('change', e => {
     const v = e.target.value;
@@ -826,6 +824,22 @@ ctrl('symbol-cell-props').innerHTML = cellPropsHTML('');
 // { count(), apply(patch | cell => patch), done() } and its pick becomes the selection's region rule. seedsOnly: true =
 // the Seeds only (Component Edit's cells, 18-step-boards.js — a Component cell can't hold a Component).
 let overlayTarget = null;
+// The Element itself as cell content: as it is and in the six states of the Element step's own preview strip — the
+// Choose content window's Element row, and the Library rail's Element group on the Symbol step (Oct 28, 2026).
+export function elementPoses() { return [[0, false, false, 'As it is'], ...seedPreviewStates().slice(1)]; }   // the strip's own 0° is "As it is" here
+// pose i → a patch (cell => patch): the cell keeps the Element's settings as they are now (seedParams) and the turn /
+// flip of the pose. A layer that follows the cell colour would take a different ink in every cell (the Symbol's colour
+// rule) and vanish wherever that ink is also another layer's own: it is pinned to the palette's first ink.
+export function elementPosePatch(i) {
+  const [r, fh, fv] = elementPoses()[i] || elementPoses()[0];
+  const sp = JSON.parse(JSON.stringify(seedForSnapshot()));
+  if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
+  return cell => ({
+    source: 'seed', seedType: sp.type, seedParams: JSON.parse(JSON.stringify(sp)), color: cell.color || null, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null,
+    rotation: r, flipH: fh, flipV: fv,
+    fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0,
+  });
+}
 export function openCellContentOverlay(target) {
   overlayTarget = target && target.apply ? target : null;
   ctrl('chk-content-overlay-all').closest('label').hidden = !!(overlayTarget);   // "all cells" is Symbol-only
@@ -955,25 +969,13 @@ export function renderCellContentOverlayTiles() {
   elSec.hidden = !!(elementIsEmpty());
   if (!elementIsEmpty()) {
     const seedNow = getSeed();   // not `live`: that name is the module's run-time values (contentOverlayFit is read below)
-    [[0, false, false, 'As it is'], ...seedPreviewStates().slice(1)].forEach(([r, fh, fv, label]) => {   // the strip's own 0° is "As it is" here
+    elementPoses().forEach(([r, fh, fv, label], i) => {
       const btn = document.createElement('button');
       btn.className = 'fvs-library-item';
       btn.title = 'Element · ' + label;
       btn.setAttribute('aria-label', 'Use the Element — ' + label);
       btn.innerHTML = buildSeedPreviewSVG(seedNow, r, fh, fv, 72);
-      btn.addEventListener('click', () => {
-        const sp = JSON.parse(JSON.stringify(seedForSnapshot()));
-        // A layer that follows the cell colour would take a different ink in every cell (the Symbol's
-        // colour rule) and vanish wherever that ink is also another layer's own. Here it is pinned to
-        // the ink the Element step shows it in — the palette's first — so every cell shows all layers.
-        if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
-        contentTarget()(cell => ({
-          source: 'seed', seedType: sp.type, seedParams: JSON.parse(JSON.stringify(sp)), color: cell.color || null, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null,
-          rotation: r, flipH: fh, flipV: fv,
-          fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0,
-        }));
-        pickDone();
-      });
+      btn.addEventListener('click', () => { contentTarget()(elementPosePatch(i)); pickDone(); });
       const item = document.createElement('div');
       const cap = document.createElement('span');
       cap.className = 'fvs-library-caption';
