@@ -6,7 +6,7 @@ import {
   pv, state
 } from './engine/00-core.js';
 import {
-  getSymbolGrid, symbolFrame
+  getSymbolGrid
 } from './engine/08-symbol-grid.js';
 import {
   buildSymbolSVG, currentSpanLayout
@@ -56,38 +56,18 @@ ctrl('sel-sym-arrange').innerHTML = Object.entries(SYMBOL_ARRANGE).map(([k, v]) 
 
 
 
-// A variation drawn repeated 3 × 3 (Diego, Oct 28, 2026 — "su un insieme più grande di ripetizione"): the Symbol as a
-// tile, so how it runs on at its edges shows. Only its grid repeats — the canvas margin left out, each copy cut to the
-// grid, the copies touching (with the margin in, the nine read as nine separate grids — "solo 9 x 9 griglie"). The Symbol
-// once in <defs>, eight more <use> — the ids inside stay unique.
-function gridBox() {
-  const g = getSymbolGrid(); if (!g || !g.cells.length) return null;
-  const Fr = symbolFrame(g);
-  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  g.cells.forEach(c => {
-    const pts = c.points || [[c.x, c.y], [c.x + c.width, c.y + c.height]];
-    pts.forEach(([x, y]) => { x0 = Math.min(x0, Fr.X(x)); x1 = Math.max(x1, Fr.X(x)); y0 = Math.min(y0, Fr.Y(y)); y1 = Math.max(y1, Fr.Y(y)); });
-  });
-  return x1 > x0 && y1 > y0 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
-}
-function repeat3(svg, i, box) {
-  const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/), open = svg.indexOf('>') + 1, close = svg.lastIndexOf('</svg>');
-  if (!m || open <= 0 || close < open) return svg;
-  const b = box || { x: 0, y: 0, w: +m[1], h: +m[2] }, id = 'sug-rep-' + i;
-  let uses = '';
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) uses += `<use href="#${id}" x="${c * b.w}" y="${r * b.h}"/>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${b.x} ${b.y} ${3 * b.w} ${3 * b.h}" aria-hidden="true"><defs><clipPath id="${id}-c"><rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}"/></clipPath><g id="${id}" clip-path="url(#${id}-c)">${svg.slice(open, close)}</g></defs>${uses}</svg>`;
-}
+// A variation is the Symbol as it is — the same cells, the same size on the sheet as the others (Diego, Oct 28, 2026:
+// "le varianti devono essere dello stesso numero di celle del symbol non più grandi"; the 3 × 3 repeat is gone).
 export function renderSuggestGallery(currentIdx) {
   // the Variations sheet on the Symbol board (always open): empty, it shows its note instead
   const wrap = ctrl('fvs-sug-panel'), n = state.symbolSuggestions.length;
   ctrl('board-variations').classList.toggle('is-empty', !n);
   if (!n) { wrap.innerHTML = ''; return; }
-  const prev = state.symbolCells, box = gridBox();
+  const prev = state.symbolCells;
   wrap.innerHTML = '';
   state.symbolSuggestions.forEach((sg, i) => {
     state.symbolCells = sg.cells;
-    const svg = repeat3(buildSymbolSVG(), i, box);
+    const svg = buildSymbolSVG();
     const btn = document.createElement('button');
     btn.className = 'fvs-suggest__item' + (i === currentIdx ? ' is-current' : '');
     btn.type = 'button';
@@ -158,7 +138,7 @@ export function runSuggest(more, keep) {   // keep: apply nothing (the fallback 
   const seenLook = new Set([look(real)]);
   state.symbolSuggestions = state.symbolSuggestions.filter(sg => { const k = look(sg.cells); if (seenLook.has(k)) return false; seenLook.add(k); return true; });
   // More like this found too few that differ (a small selection, few contents): a fresh Suggest instead (Oct 28, 2026 —
-  // Diego saw one variation, the Symbol itself, repeated 3 × 3, and read it as nine the same)
+  // Diego saw one variation, the Symbol itself, and read it as nine the same)
   if (more && state.symbolSuggestions.length < 4) { runSuggest(false, true); return; }
   ctrl('sug-hint').textContent = [
     own.length ? `From this Symbol’s ${own.length} content${own.length === 1 ? '' : 's'}` + (own.length === 1 && !gen.length ? ' — turns and flips only.' : '.') : '',

@@ -1266,8 +1266,9 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
   (`.fvs-sug-bar`, at screen size like the name); the panel's Suggest section is hidden (it keeps the Fill mode and
   Arrange controls the code reads). Seed, More like this and Recolour (test) are gone from the screen: every Suggest takes
   the next seed (the first is the field's, so a run repeats) and gives new variations — after a pick too (Diego, Oct 28,
-  2026: *"niente più varianti simili dopo una scelta"*; More like this is off the screen). Each variation is the Symbol **repeated 3 × 3** (`repeat3`: the Symbol
-  once in `<defs>`, eight `<use>`), two per row. **Variations that differ** (Oct 28, 2026, Diego saw *"9 variations tutte
+  2026: *"niente più varianti simili dopo una scelta"*; More like this is off the screen). Each variation is the Symbol **with its own cells**, half its width, two per
+  row (the 3 × 3 repeat of the same day is gone — Diego: *"le varianti devono essere dello stesso numero di celle del
+  symbol non più grandi"*). **Variations that differ** (Oct 28, 2026, Diego saw *"9 variations tutte
   uguali"*): while the Symbol is still a variation Suggest put there (applied or picked, no setting edited since), the next
   Suggest draws from the contents it had (`rt.sugSource`) — before, a variation that used fewer contents narrowed every
   later run down to one; More like this (code only now) re-draws at least one free cell and, when fewer than 4 differ, a

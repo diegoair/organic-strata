@@ -49,11 +49,11 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const more = F.state.symbolSuggestions;
   check('More like this: ' + more.length + ' variations, A keeps Cells › Its grid size', more.length > 0 && more.every(v => v.cells.every(c => c.componentName !== A || c.span === 'grid' || c.span === true)) && more.some(v => v.cells.some(c => c.componentName === A && c.span === 'grid')), 'span lost');
   check('…still never C or D', more.every(v => v.cells.every(c => c.source !== 'component' || c.componentName === A || c.componentName === B)), 'outside');
-  // Suggest and Variations as one (Diego, Oct 28, 2026): the controls on the Variations sheet, each variation repeated 3 × 3
+  // Suggest and Variations as one (Diego, Oct 28, 2026): the controls on the Variations sheet, each variation the Symbol with its own cells
   check('Suggest is on the Variations sheet, not in the panel', q('board-variations').contains(q('btn-sug-run')) && q('sym-suggest-section').hidden, 'in the panel');
   check('…only Suggest, Surprise and Use generated show', [q('btn-sug-more'), q('num-sug-seed'), q('chk-sug-recolour')].every(e => !e.getClientRects().length) && !!q('rg-sug-surprise').getClientRects().length, 'more shows');
   const it = q('fvs-sug-panel').querySelector('.fvs-suggest__item svg');
-  check('each variation is the Symbol repeated 3 × 3', it && it.querySelectorAll(':scope > use').length === 9, it && it.querySelectorAll('use').length);
+  check('each variation is the Symbol with its own cells, not repeated', it && !it.querySelector(':scope > use') && (it.getAttribute('viewBox') || '') === (q('symbol-frame').querySelector('svg').getAttribute('viewBox') || '-'), it && it.getAttribute('viewBox'));
   const nOwn = () => (q('sug-hint').textContent.match(/Symbol’s (\d+) content/) || [])[1];
   const seed0 = q('num-sug-seed').value; q('btn-sug-run').click(); await w(500); const own0 = nOwn();
   const one = JSON.stringify(F.state.symbolSuggestions.map(v => v.cells.map(c => c.rotation)));
