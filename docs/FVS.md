@@ -1268,7 +1268,12 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
   the next seed (the first is the field's, so a run repeats) and gives new variations — after a pick too (Diego, Oct 28,
   2026: *"niente più varianti simili dopo una scelta"*; More like this is off the screen). Each variation is the Symbol **with its own cells**, half its width, two per
   row (the 3 × 3 repeat of the same day is gone — Diego: *"le varianti devono essere dello stesso numero di celle del
-  symbol non più grandi"*). **Variations that differ** (Oct 28, 2026, Diego saw *"9 variations tutte
+  symbol non più grandi"*). **Your Symbol stays** (Oct 28, 2026 — Diego: *"per non perdere la versione creata da me quando clicco due volte su una
+  variante crea un nuovo symbol sotto modificabile"*): Suggest puts nothing on the Symbol (only Fill the grid, on an empty
+  grid, takes the first — `runSuggest(…, fill)`); a click on a variation puts it on the Symbol (after a double-click's
+  time, 220 ms; Enter at once); a **double-click** keeps the Symbol as it is and makes the variation a **new Symbol below**,
+  edited, the Variations kept (`hooks.symbolFromVariation` → the Symbol board's `add(cells)`, `18-step-boards.js`).
+  **Variations that differ** (Oct 28, 2026, Diego saw *"9 variations tutte
   uguali"*): while the Symbol is still a variation Suggest put there (applied or picked, no setting edited since), the next
   Suggest draws from the contents it had (`rt.sugSource`) — before, a variation that used fewer contents narrowed every
   later run down to one; More like this (code only now) re-draws at least one free cell and, when fewer than 4 differ, a

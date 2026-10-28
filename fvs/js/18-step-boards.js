@@ -66,7 +66,7 @@ provide({
   elementPalettes: () => elementPalettes, boardSymbolDrawn: () => symbolDrawn,
   boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries,
   syncCeCellProps: () => syncCeCellProps, symbolPaletteSwap: () => symbolPaletteSwap, syncSymbolPaletteHint: () => syncSymbolPaletteHint,
-  elementSheetResized: () => sheetResized
+  elementSheetResized: () => sheetResized, symbolFromVariation: () => symbolFromVariation
 });
 
 const escAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -76,6 +76,7 @@ const overlayOpen = () => !ctrl('symbol-content-overlay').hidden;   // as 12-she
 let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {}, elementPalettes = () => [];
 let sheetResized = () => {};
 let rebaseSymbolEdits = () => {};   // the Symbol board's undo baseline, taken again when the Symbol step is entered
+let symbolFromVariation = () => {};   // a variation as a new Symbol under the lowest (the Symbol board)
 let symbolDrawn = () => {}, boardActivate = () => {}, restoreGalleries = () => {}, elementBoard = null, elementSaveNow = () => {};
 
 // Each Element keeps its own Generated components (O-67 d, Diego, Oct 11, 2026): `gallery` on the Element = the
@@ -1138,7 +1139,7 @@ function mountSymbolBoard() {
   }
   const lowestId = () => state.symbols.filter(s => B.sheets[sheetId(s.id)]).reduce((a, b) => (posOf(b.id).y > posOf(a.id).y ? b : a)).id;
   const placeAdd = () => { const id = lowestId(), p = posOf(id); placeSheet(B, 'new-symbol', p.x, p.y + SW + GAP); };
-  function activate(id) {
+  function activate(id, keepVariations) {
     if (id === active() || !find(id)) return;
     clearTimeout(saveT); snap();
     const prev = find(active()), next = find(id), pp = posOf(prev.id), np = posOf(next.id);
@@ -1147,21 +1148,24 @@ function mountSymbolBoard() {
     state.activeSymbol = id;
     placeLive(next, np.x, np.y);
     mountStatic(prev, pp.x, pp.y);
-    state.symbolSuggestions = []; renderSuggestGallery();   // the variations were the other Symbol's
+    if (!keepVariations) { state.symbolSuggestions = []; renderSuggestGallery(); }   // the variations were the other Symbol's
     applyWork(next.work);
     placeVariations(); selectSheets(B, [sheetId(id)]);
     relabel(); save(); B.save(); rebase();
   }
-  function add() {
+  function add(cells) {
     clearTimeout(saveT); snap();
     const cur = find(active()).work, w = clone(cur);
-    w.cells = (w.cells || []).map(() => emptySymbolCell());   // the edited Symbol's grid, every cell empty
-    w.palette = null;   // the edited Element's Palette, until changed here
+    if (cells) w.cells = clone(cells);   // a variation, kept as a Symbol of its own (its Palette, grid and rule the edited one's)
+    else {
+      w.cells = (w.cells || []).map(() => emptySymbolCell());   // the edited Symbol's grid, every cell empty
+      w.palette = null;   // the edited Element's Palette, until changed here
+    }
     const s = { id: newId(), name: nextName(), custom: false, work: w };
     state.symbols.push(s);
     const at = B.sheets['new-symbol'].p;   // where New symbol stood
     mountStatic(s, at.x, at.y);
-    activate(s.id);
+    activate(s.id, !!cells);   // from a variation: the Variations stay, to keep browsing them
     placeAdd();
     requestAnimationFrame(() => B.fit());
   }
@@ -1266,7 +1270,10 @@ function mountSymbolBoard() {
   wireName(liveLabel, active);
   const newBtn = ctrl('btn-board-new-symbol');
   newBtn.innerHTML = Organica.icons.get('plus', { size: 'xl' });
-  newBtn.addEventListener('click', add);
+  newBtn.addEventListener('click', () => add());
+  // a double-click on a variation (Diego, Oct 28, 2026: "per non perdere la versione creata da me … crea un nuovo symbol
+  // sotto modificabile"): the Symbol you made stays as it is, the variation becomes a new Symbol below it, edited
+  symbolFromVariation = cells => { if (cells && find(active())) add(cells); };
   // the account's copy: taken while the Symbols here are still the ones the page opened with
   const opened = JSON.stringify(first.items), openedHere = JSON.stringify(state.symbols);
   WORK.pull().then(() => {

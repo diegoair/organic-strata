@@ -74,7 +74,18 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   q('btn-sug-run').click(); await w(500);
   const keys = F.state.symbolSuggestions.map(v => JSON.stringify(v.cells.map(c => [c.componentName, c.rotation, !!c.flipH])));
   check('one selected cell, picked, Suggest again: several variations, none the Symbol as it was', keys.length >= 2 && new Set(keys).size === keys.length && !keys.includes(cur), keys.length + ' / ' + keys.includes(cur));
-  F.state.symbolSelection.clear();
+  F.state.symbolSelection.clear(); F.renderSymbol(); await w(100);
+  // Suggest keeps your Symbol; a double-click on a variation makes it a new Symbol below, edited; yours stays (Diego, Oct 28, 2026:
+  // "per non perdere la versione creata da me quando clicco due volte su una variante crea un nuovo symbol sotto modificabile")
+  const mine = JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation, !!c.flipH]));
+  q('btn-sug-run').click(); await w(500);
+  check('Suggest puts nothing on the Symbol: yours stays as it is', JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation, !!c.flipH])) === mine, 'changed');
+  const nSym = F.state.symbols.length, was = F.state.activeSymbol, v3 = F.state.symbolSuggestions[2];
+  const b3 = q('fvs-sug-panel').querySelectorAll('.fvs-suggest__item')[2];
+  b3.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 })); b3.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 })); b3.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 })); await w(600);
+  const kept = F.state.symbols.find(x => x.id === was);
+  check('a double-click on a variation: a new Symbol, edited, holding that variation', F.state.symbols.length === nSym + 1 && F.state.activeSymbol !== was && JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation, !!c.flipH])) === JSON.stringify(v3.cells.map(c => [c.componentName, c.rotation, !!c.flipH])), F.state.symbols.length + ' ' + (F.state.activeSymbol !== was));
+  check('…the Symbol you made kept as it was, the variations still there', kept && JSON.stringify(kept.work.cells.map(c => [c.componentName, c.rotation, !!c.flipH])) === mine && F.state.symbolSuggestions.length > 0, kept ? 'changed' : 'gone');
   return rows;`);
 const fails = rows.filter(x => x.startsWith('✗'));
 for (const x of rows) console.log('  ' + x);

@@ -206,7 +206,7 @@ export function onSymbolOverlapInput() {
 // Fill the current grid's cells: Suggest or Arrange from the pool (or the saved Elements).
 export function fillSymbolCells() {
   hooks.renderSymbolPool();   // self-heals a stale pool (a Component renamed or deleted since) before filling
-  if (poolEntries().length) { if (pv('sel-symbol-fill') === 'suggest') hooks.runSuggest(false); else hooks.generateSymbolCells(); }
+  if (poolEntries().length) { if (pv('sel-symbol-fill') === 'suggest') hooks.runSuggest(false, false, true); else hooks.generateSymbolCells(); }   // Suggest: the first variation goes on the grid
   else if (elementPool().length) hooks.generateSymbolCells();   // Elements only: Arrange (Suggest reads Components)
   else {
     ctrl('symgrid-gen-error').textContent = 'Nothing to fill the grid with — save an Element or a Component first.';

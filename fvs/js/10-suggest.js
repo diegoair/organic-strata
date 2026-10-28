@@ -73,20 +73,34 @@ export function renderSuggestGallery(currentIdx) {
     btn.type = 'button';
     btn.innerHTML = svg;
     const cap = `Use variation ${i + 1}${sg.gen && sg.gen.length ? ' (uses generated)' : ''}: ${sg.label}${sg.score.edges ? ` · continuity ${Math.round(sg.score.match * 100)}%` : ''}${sg.score.structure != null ? ` · order ${Math.round(sg.score.structure * 100)}%` : ''}${sg.score.col != null ? ` · colour ${Math.round(sg.score.col * 100)}%` : ''}`;
-    btn.setAttribute('aria-label', cap); btn.title = cap;
+    btn.setAttribute('aria-label', cap); btn.title = cap + ' — double-click: a new Symbol';   // the tooltip says the double-click; the name stays the click's
     if (sg.gen && sg.gen.length) { btn.classList.add('uses-generated'); btn.insertAdjacentHTML('beforeend', '<span class="fvs-suggest__badge">Uses generated</span>'); }
-    btn.addEventListener('click', async () => {
+    // a click puts it on the Symbol; a double-click keeps the Symbol as it is and makes the variation a new Symbol below
+    // (Diego, Oct 28, 2026: "per non perdere la versione creata da me") — the click waits a double-click's time first
+    btn.addEventListener('dblclick', async () => {
+      clearTimeout(sugClickT);
       if (sg.gen && sg.gen.length && !(await saveGeneratedFor(sg))) return;
-      state.symbolCells = sg.cells.map(c => ({ ...c }));
-      rt.sugSource = rt.sugOwn && rt.sugOwn.length ? { cells: asPut(state.symbolCells), own: rt.sugOwn } : null;
-      if (sg.zoneDos && sg.zoneDos[0] && hooks.selectionTakeDos) hooks.selectionTakeDos(sg.zoneDos[0].dos);   // an open selection takes what this variation gave it (Oct 28, 2026)
-      if (!sg.sel) state.symbolSelection.clear();   // variations of a selection: the selection stays, for the next run
-      hooks.renderSymbol();
-      wrap.querySelectorAll('.fvs-suggest__item').forEach((b, k) => b.classList.toggle('is-current', k === i));
+      if (hooks.symbolFromVariation) hooks.symbolFromVariation(sg.cells.map(c => ({ ...c })));
+    });
+    btn.addEventListener('click', e => {
+      clearTimeout(sugClickT);
+      if (e.detail > 1) return;   // the second click of a double-click
+      sugClickT = setTimeout(() => useVariation(sg, i, wrap), e.detail === 0 ? 0 : SUG_DBL_MS);   // Enter: at once
     });
     wrap.appendChild(btn);
   });
   state.symbolCells = prev;
+}
+let sugClickT = 0;
+const SUG_DBL_MS = 220;   // under the usual double-click interval, as the rail's tiles
+async function useVariation(sg, i, wrap) {
+  if (sg.gen && sg.gen.length && !(await saveGeneratedFor(sg))) return;
+  state.symbolCells = sg.cells.map(c => ({ ...c }));
+  rt.sugSource = rt.sugOwn && rt.sugOwn.length ? { cells: asPut(state.symbolCells), own: rt.sugOwn } : null;
+  if (sg.zoneDos && sg.zoneDos[0] && hooks.selectionTakeDos) hooks.selectionTakeDos(sg.zoneDos[0].dos);   // an open selection takes what this variation gave it (Oct 28, 2026)
+  if (!sg.sel) state.symbolSelection.clear();   // variations of a selection: the selection stays, for the next run
+  hooks.renderSymbol();
+  wrap.querySelectorAll('.fvs-suggest__item').forEach((b, k) => b.classList.toggle('is-current', k === i));
 }
 // What a Symbol looks like to Suggest: what each cell holds, its turn and flip — two variations that look alike are one.
 const look = cells => JSON.stringify(cells.map(c => (!c || c.source === 'empty' ? 0 : [c.componentName || JSON.stringify(c.seedParams || null), c.rotation || 0, !!c.flipH, !!c.flipV])));
@@ -95,7 +109,7 @@ const look = cells => JSON.stringify(cells.map(c => (!c || c.source === 'empty' 
 // them no longer narrows every later run (Oct 28, 2026: Diego's runs ended on one content, the same variation nine times).
 rt.sugSource = null;   // { cells, own } — the variation on the Symbol (every setting of every cell), the contents it was drawn from
 const asPut = cells => JSON.stringify(cells);
-export function runSuggest(more, keep) {   // keep: apply nothing (the fallback of More like this)
+export function runSuggest(more, keep, fill) {   // keep: apply nothing (the fallback of More like this); fill: Fill the grid — the first variation goes on it
   if (!state.symbolGrid) return;
   // the Symbol's own contents (Oct 27, 2026): what its cells hold, weighted by count; none yet (an empty grid, the
   // placeholder triangles) = the library pool, as Fill the grid
@@ -146,10 +160,13 @@ export function runSuggest(more, keep) {   // keep: apply nothing (the fallback 
     sel ? `Variations of the ${sel.size} selected cell${sel.size === 1 ? '' : 's'}.` : '',
     zoneHeld.size ? `${zoneHeld.size} cells held by saved selections.` : '',
     suggestSymbols.lastNote || ''].filter(Boolean).join(' ');
-  const first = state.symbolSuggestions.find(sg => !sg.gen.length);   // a variation with generated components waits for a click (and a confirm)
-  if (!more && !keep && first) { state.symbolCells = first.cells.map(c => ({ ...c })); rt.sugSource = { cells: asPut(state.symbolCells), own }; }   // the open zones stay open until a variation is clicked: Suggest again explores them again
+  // Suggest puts nothing on the Symbol (Oct 28, 2026 — Diego: "per non perdere la versione creata da me"): the variations
+  // show on the Variations sheet; a click puts one on the Symbol, a double-click makes it a new Symbol below. Fill the
+  // grid (an empty grid, nothing to lose) still takes the first.
+  const first = fill && state.symbolSuggestions.find(sg => !sg.gen.length);   // a variation with generated components waits for a click (and a confirm)
+  if (first) { state.symbolCells = first.cells.map(c => ({ ...c })); rt.sugSource = { cells: asPut(state.symbolCells), own }; }
   hooks.renderSymbol();
-  renderSuggestGallery(more || keep || !first ? -1 : state.symbolSuggestions.indexOf(first));   // More like this applies nothing: what it found shows on the Variations sheet
+  renderSuggestGallery(first ? state.symbolSuggestions.indexOf(first) : -1);
 }
 ctrl('fvs-sug-panel').addEventListener('wheel', e => e.stopPropagation(), { passive: true });   // scrolling the strip never zooms the sheet
 ['cont', 'bal', 'sur', 'col'].forEach(k => ctrl('rg-sug-' + k).addEventListener('input', e => { ctrl('v-sug-' + k).textContent = e.target.value; }));
