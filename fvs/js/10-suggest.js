@@ -103,7 +103,7 @@ export function runSuggest(more) {
   const L = currentSpanLayout(), own = symbolContentPool(state.symbolCells, L.covered);
   if (!own.length && !poolEntries().length) {
     if (elementPool().length) { generateSymbolCells(); ctrl('sug-hint').textContent = 'Suggest reads saved Components — with Elements only the cells were arranged.'; return; }
-    ctrl('sug-hint').textContent = 'Add Components to the pool first (Components section above).'; return;
+    ctrl('sug-hint').textContent = 'Save a Component first, or place one on the Symbol from the Library rail.'; return;
   }
   // held for the search and kept in every variation: the cells outside a selection (Diego, Oct 27, 2026: the variations
   // change only the selected cells), and — from the Symbol's contents — the empty cells, the cells under a block and a

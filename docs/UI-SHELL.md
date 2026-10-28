@@ -15,7 +15,7 @@ Halide, Komorebi and, in spirit, Living Path):
 ┌──────────────────────────────────────────────────────────┐
 │ HEADER   nav · logo / Tool · · · · account · patterns    │  64px (--header-h), in flow
 ├───────────────────────────────────┬──────────────────────┤
-│                                   │                      │
+│     [ TOP BAR ] nav, optional     │                      │
 │  CANVAS                           │  PANEL               │
 │  the artwork, centred             │  controls, scrolls   │
 │  drop target, zoom/pan            │  248px (--panel-w)   │
@@ -26,6 +26,7 @@ Halide, Komorebi and, in spirit, Living Path):
 │  HUD bottom-left   [ FLOATBAR ]   │                      │
 └───────────────────────────────────┴──────────────────────┘
    the floatbar: Open · playback · Export, fixed bottom-centre
+   the top bar (optional): navigation only — FVS's steps; mirrored, tips below
 ```
 
 **Left dock (optional, Oct 2026 — ledger O-30/O-31).** A vertical `.org-dock` (`shared/floatbar.css`) for what
@@ -35,6 +36,16 @@ you **add** to the canvas: a library of things to place, the node bar. A bar of 
 the Library rail on Element / Component / Symbol, the node bar on the Figure graph). The dock is transformed
 (centred), so a drag ghost or a popover goes on `<body>`, never inside it. Actions stay in the bottom floatbar;
 the panel on the right stays the place for settings. Not a deviation from the Tool template — no `OWN_LAYOUT` entry.
+
+**Top floatbar (optional, Oct 28, 2026 — ledger O-63).** A tool may carry **two floatbars**: the actions bar at the
+bottom (Open · playback · Export — always) and, when it has navigation between views or steps, a **navigation bar at
+the top**, `.org-floatbar.org-floatbar--top` (`shared/floatbar.css`): the same bar mirrored under the header
+(`top: calc(var(--header-h, 0px) + var(--space-3))`), centred the same way (`--floatbar-offset`), its tooltips and
+popovers opening **below** it. Both are direct children of `<body>` (the template check's *floatbar a child of body*
+holds for each), each its own `role="toolbar"` with its own `aria-label` (FVS: *Steps* on top, *Actions* below); no
+actions in the top bar, no navigation in the bottom one, nothing of the kind in the left dock (that is for what you
+add to the canvas). First consumer: FVS `#fvs-stepbar` (Element · Component · Symbol · Figure, `aria-pressed`, one
+group). Reference `/design-system/#floatbar-top`. Not a deviation from the Tool template — no `OWN_LAYOUT` entry.
 
 ### Three templates (decided Oct 2, 2026 — `docs/DESIGN-DECISIONS.md` O-6)
 
@@ -147,6 +158,8 @@ flex box — never `display: contents`, Safari drops its role) with
 `.org-floatbar__sep` between groups; the order inside a group is the tool's own
 (see its manual). Tooltips are unchanged. Never add a per-tool `aria-pressed` /
 `.is-armed` / hover background override: it lives in `floatbar.css`.
+Its mirror `.org-floatbar--top` (Oct 28, 2026) is the optional navigation bar under the header — §1
+"Top floatbar".
 
 Before the tool's own `<script>`:
 

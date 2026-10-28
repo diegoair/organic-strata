@@ -268,7 +268,7 @@
   //   announce(text)            a polite live-region message (default: a hidden region in the stage)
   //   engine                    createEngine(...) — default: one made here, isActive = the card is on screen
   //   history                   createHistory() — default: one made here
-  //   fitInset                  { left, bottom } px of the stage covered by chrome (a left dock, a floatbar) — Fit avoids them
+  //   fitInset                  { left, bottom, top } px of the stage covered by chrome (a left dock, the floatbars) — Fit avoids them
   //   keepActive(node) → bool   compute this node even off screen (the host shows its output elsewhere)
   //   keyScope(target) → bool   focus on this element still counts as the board for its shortcuts (the host's floatbar…)
   // }
@@ -835,10 +835,10 @@
       var ns = ids.map(function (id) { return findNode(ctl.model, id); }).filter(Boolean); if (!ns.length) return;
       var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       ns.forEach(function (n) { measure(n.id); var c = cards.get(n.id), w = c ? c.w : 200, h = c ? c.h : 120; x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + w); y1 = Math.max(y1, n.y + h); });
-      var r = stage.getBoundingClientRect(), pad = 48, inset = o.fitInset || {}, L = inset.left || 0, B = inset.bottom || 0;
-      var W = r.width - L, H = r.height - B;
+      var r = stage.getBoundingClientRect(), pad = 48, inset = o.fitInset || {}, L = inset.left || 0, B = inset.bottom || 0, T = inset.top || 0;
+      var W = r.width - L, H = r.height - B - T;
       var z = Math.min(1.5, Math.max(0.1, Math.min((W - pad * 2) / (x1 - x0), (H - pad * 2) / (y1 - y0))));
-      zoomPan.setView({ zoom: z, panX: L + (W - (x1 - x0) * z) / 2 - x0 * z, panY: (H - (y1 - y0) * z) / 2 - y0 * z });
+      zoomPan.setView({ zoom: z, panX: L + (W - (x1 - x0) * z) / 2 - x0 * z, panY: T + (H - (y1 - y0) * z) / 2 - y0 * z });
       if (!again) requestAnimationFrame(function () { fit(ids, true); });   // measured again at the new zoom (a chip → a full card)
     }
     ctl.fitAll = function () { fit(ctl.model.nodes.map(function (n) { return n.id; })); };

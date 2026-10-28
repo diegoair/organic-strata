@@ -142,7 +142,7 @@
      "file": "fvs/index.html",
      "template": "tool",
      "variant": "own surface",
-     "why": "a step-nav row above #app, its own gallery / symbol surfaces and the Figure node graph",
+     "why": "the steps in their own top floatbar, its own step boards and the Figure node graph",
      "sheets": [
       "tokens",
       "icons",

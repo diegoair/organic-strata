@@ -585,6 +585,13 @@ The FVS-only part (sheets, rings, the single view) is `.fvs-board-*` in `fvs/fvs
 The returned object is now `{ zoomBy, reset, apply, setView, zoom, pan }`; the other options
 (`canvas, wrap, min, max, isReady, onChange, panAlways, panStart`) are as before.
 
+### The top floatbar — `.org-floatbar--top` (`shared/floatbar.css`, Oct 28, 2026)
+
+CSS only. The same bar as the actions floatbar, mirrored under the header (`top: --header-h + --space-3`; `--header-h`
+from `header.css`, 0 without it); its tooltips and popovers open downward. For navigation only — FVS's steps
+(`#fvs-stepbar`, toolbar *Steps*, ledger O-63). A direct child of `<body>`, before the actions bar; code that looks
+the actions bar up says `:not(.org-floatbar--top)`. Live reference `/design-system/#floatbar-top`.
+
 ### The left dock — `.org-dock` (`shared/floatbar.css`, Oct 2026)
 
 CSS only, no module. The optional left slot of the Tool template (ledger O-30 / O-31,

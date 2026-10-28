@@ -1884,7 +1884,7 @@ export function renderFigureGraph() {
     stage: ctrl('fg-graph'), registry, model: loadModel(),
     isActive: () => state.activeTier === 'figure' && !composing && !document.body.classList.contains('fvs-libview-open'),   // Compose owns the keyboard (its own handler below)
     renderBody, cardClass, nodeLabel, protect,
-    fitInset: { left: 88, bottom: 72 },   // the node bar (left dock) and the floatbar
+    fitInset: { left: 88, bottom: 72, top: 72 },   // the node bar (left dock), the floatbar and the steps' bar at the top (Oct 28, 2026)
     wireLabel: (e, m) => { const src = NC.findNode(m, e.from.node); return src && src.type === 'set' ? '×' + ((src.params || {}).items || []).length : ''; },   // UI-COPY: the Set's wire is labelled ×n
     wireClass: (e, m) => { const src = NC.findNode(m, e.from.node); return !src ? '' : ['canvas', 'grid', 'palette'].includes(src.type) ? 'nc-wire--faint' : src.type === 'set' ? 'nc-wire--list' : ''; },
     onSelect: ids => { if (!composing) renderInspector(ids); syncButtons(); },   // in Compose the panel is Compose's
