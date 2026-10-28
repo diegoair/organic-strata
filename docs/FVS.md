@@ -1188,8 +1188,9 @@ value … selection will be made only by the users with click or drag"* — and 
 - **The section** (only while a dot is open): the header — "N cells" or the saved name — with **Lock** (the cells are
   locked: rules and Suggest leave them) · **Save selection…** (bookmark) · **Clear** (eraser: the cells empty) · for a
   saved one **Rename** and **Delete** (armed; the cells keep what they hold). Then:
-  - **Content**: the items **A, B, C…** — Elements / Components dragged from the Library rail onto the drop target, or
-    picked with **Choose content** (also a click on the drop target); reorder (earlier) and remove.
+  - **Content** (shown once there are items): the items **A, B, C…** — Elements / Components dragged from the Library rail
+    onto the box; reorder (earlier) and remove. No Choose content button and no empty-state text here (Diego, Oct 28);
+    a double-click on a selected cell still opens Choose content for the whole selection.
   - **Arrange** (with 2 items or more): tiles, each the selection's own cells drawn small, in ink tints, lettered — click
     applies, hover shows the letters on the canvas. Checkerboard (over N: A B C / B C A) · Rows · Columns · Diagonal ·
     2 × 2 blocks · Rings · Sectors · Wave · Random · **Rhythm** along Reading · Snake · Spiral · Diagonal · Rings, with a

@@ -63,7 +63,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const blk = ctx().filter(c => c.col >= 3 && c.col <= 4 && c.row >= 2 && c.row <= 3).map(c => c.index);
   F.state.symbolSelection = new Set(blk); F.selectionTouched(blk[3]); F.renderSymbol(); await w(100);
   document.querySelector('.fvs-sel-dot').click(); await w(100);
-  check('a new selection: no items yet', q('sel-items').querySelectorAll('.fvs-sel-item').length === 0, 'kept');
+  check('a new selection: no items yet, and no Content part (no hint, no Choose content)', q('sel-items').querySelectorAll('.fvs-sel-item').length === 0 && q('sel-content-block').hidden && !q('btn-sel-choose'), 'shown');
   F.selectionDrop('component', A); F.selectionDrop('component', B); await w(150);
   const at = (c, r) => F.state.symbolCells[ctx().find(x => x.col === c && x.row === r).index].componentName;
   check('Checkerboard from the selection\\'s own corner: A B / B A', at(3, 2) === A && at(4, 2) === B && at(3, 3) === B && at(4, 3) === A, [at(3, 2), at(4, 2)].join(' '));

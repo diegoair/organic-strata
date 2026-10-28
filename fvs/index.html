@@ -1845,9 +1845,10 @@
           <button type="button" class="org-btn org-btn--icon" id="btn-sel-delete" data-armed="Delete?" aria-label="Delete saved selection" hidden></button>
         </div>
       </div>
-      <div class="sub-label">Content</div>
-      <div class="fg-list" role="list" id="sel-items"></div>
-      <div class="row-btns"><button type="button" class="mini-btn" id="btn-sel-choose">Choose content</button></div>
+      <div id="sel-content-block" hidden><!-- only with items: they come from drops on the selection's box (Diego, Oct 28) -->
+        <div class="sub-label">Content</div>
+        <div class="fg-list" role="list" id="sel-items"></div>
+      </div>
       <div id="sel-arrange-block" hidden>
         <div class="sub-label">Arrange</div>
         <div class="fvs-arrange-grid" id="sel-arrange" role="group" aria-label="Arrange"></div>

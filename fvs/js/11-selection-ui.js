@@ -29,7 +29,7 @@ import {
   SYMBOL_LIBRARY, SYMBOL_RULES, symbolPastePlan
 } from './engine/11-symbol-ui.js';
 import {
-  SEL_ARRANGE, SEL_SEQS, SEL_WALKS, ZONE_FOLLOW, applyZones, arrangeLetters, contentOfCell, whenFromCells, zoneCells, zoneContexts
+  SEL_ARRANGE, SEL_SEQS, SEL_WALKS, ZONE_FOLLOW, applyZones, arrangeLetters, whenFromCells, zoneCells, zoneContexts
 } from './engine/11-zones.js';
 import {
   ctrl
@@ -142,12 +142,6 @@ export function symbolPaste(name, idx) {
   plan.forEach(([ti, c]) => { const cell = state.symbolCells[ti]; if (cell && !cell.locked) state.symbolCells[ti] = withPlacementDefaults(clone(c)); });
   renderSymbol();
 }
-// Choose content in the Selection section adds an item too: the window's pick, kept as the content it puts in a cell
-const chooseItem = () => openCellContentOverlay({
-  count: () => state.symbolSelection.size,
-  apply: patch => { const p = typeof patch === 'function' ? patch({}) : patch; const tpl = contentOfCell(p); setItems([...itemsOf(current()), { tpl, label: p.source === 'component' ? p.componentName : p.source === 'empty' ? 'Empty' : (p.seedType || 'Element') }]); },
-  done: () => {},
-});
 const thumbOf = it => { try { if (it.tpl) return it.tpl.source === 'component' ? componentThumbSVG(it.tpl.componentName) : ''; if (it.kind === 'element') return it.entry && !it.entry.thumb && it.entry.seed ? savedElementEntrySVG(it.entry) : savedElementThumb(it.entry); return componentThumbSVG(it.name); } catch (e) { return ''; } };
 
 // ── Arrange ──────────────────────────────────────────────────
@@ -273,7 +267,8 @@ export function renderSelectionPanel() {
       <span class="org-layer-card__title">${esc(it.label || it.name || 'Item')}</span>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="up" data-k="${k}" aria-label="Move ${LETTER(k)} earlier"${k === 0 ? ' disabled' : ''}>${Organica.icons.get('chevron-up')}</button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-act="del" data-k="${k}" aria-label="Remove ${LETTER(k)}">${Organica.icons.get('close')}</button></div></div>`).join('')
-    : '<p class="org-empty">Drag Elements or Components onto the square dot beside the selection: each one is a letter, A, B, C…</p>';
+    : '';
+  ctrl('sel-content-block').hidden = !items.length;
   // arrange
   const multi = items.length >= 2, a = z.fill && z.fill.arrange;
   ctrl('sel-arrange-block').hidden = !multi;
@@ -451,7 +446,6 @@ ctrl('btn-sel-delete').addEventListener('click', () => {   // armed: the saved s
   state.selPick = null; state.selDraft = null;
   renderSymbol(); renderSelectionPanel();
 });
-ctrl('btn-sel-choose').addEventListener('click', chooseItem);
 ctrl('sel-items').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const items = itemsOf(current()).slice(), k = +b.dataset.k;
