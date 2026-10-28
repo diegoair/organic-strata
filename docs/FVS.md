@@ -1267,7 +1267,11 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
   Arrange controls the code reads). Seed, More like this and Recolour (test) are gone from the screen: every Suggest takes
   the next seed (the first is the field's, so a run repeats), and after a variation is picked Suggest looks for more
   like it (`rt.sugPicked` → `runSuggest(true)`). Each variation is the Symbol **repeated 3 × 3** (`repeat3`: the Symbol
-  once in `<defs>`, eight `<use>`), two per row.
+  once in `<defs>`, eight `<use>`), two per row. **Variations that differ** (Oct 28, 2026, Diego saw *"9 variations tutte
+  uguali"*): while the Symbol is still a variation Suggest put there (applied or picked, no setting edited since), the next
+  Suggest draws from the contents it had (`rt.sugSource`) — before, a variation that used fewer contents narrowed every
+  later run down to one; More like this re-draws at least one free cell and, when fewer than 4 differ, a fresh Suggest
+  runs instead (applying nothing); the Symbol as it is and duplicates never show.
 - **The steps** have their own bar at the top (`#fvs-stepbar`, `.org-floatbar--top` in `shared/floatbar.css`, closes
   O-63); `placeStepNav` is gone and the left dock holds the rail or the node bar only. The board's fit clears the top bar
   (`fitInset`, `16-board.js`).
