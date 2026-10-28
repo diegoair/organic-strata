@@ -593,7 +593,7 @@
      .nc-frame__label / .nc-marquee); here only what is FVS's. Board sizes are content geometry, component-local. */
   #canvas-wrap:not(.is-libview):has(> .tier-view.active > .fvs-board-stage) { padding: 0; overflow: hidden; position: relative; }
   #canvas-wrap .tier-view.active:has(> .fvs-board-stage) { display: block; position: relative; height: 100%;
-    --fvs-board-element-w: 560px; --fvs-board-symbol-w: 900px; --fvs-board-gallery-w: 1400px; --fvs-board-variation-w: 400px; }
+    --fvs-board-element-w: 560px; --fvs-board-symbol-w: 900px; --fvs-board-gallery-w: 1400px; --fvs-board-variation-w: var(--fvs-board-symbol-w); }
   .fvs-board-stage { position: absolute; inset: 0; }
   .fvs-board-hud { position: absolute; left: 50%; top: var(--space-4); translate: -50% 0; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: var(--space-2); pointer-events: none; }
   .fvs-board-hud > * { pointer-events: auto; }
@@ -673,8 +673,10 @@
   .fvs-board-symbol--static { align-items: center; justify-content: center; cursor: pointer; }   /* another Symbol, drawn from its snapshot */
   .fvs-board-symbol--static > svg { max-width: 100%; max-height: 100%; display: block; }
   .fvs-board .sym-track-labels { transform: scale(calc(1 / var(--nc-zoom, 1))); transform-origin: 0 0; }   /* placed in screen px (renderTrackLabelsOverlay): scaled back, placed again on every zoom */
-  #board-variations { --frame-w: calc(2 * var(--fvs-board-variation-w)); }
-  .fvs-board-variations { display: grid; grid-template-columns: repeat(2, var(--fvs-board-variation-w)); gap: var(--space-6); }   /* two across: each one repeated 3 × 3 (Oct 28, 2026) */
+  /* two across, each as wide as the Symbol and repeated 3 × 3 — one repeat a third of the Symbol, apart enough that two
+     variations never read as one grid (Oct 28, 2026: at 400px every copy was 1/7 of the Symbol, "solo 9 x 9 griglie") */
+  #board-variations { --frame-w: calc(2 * var(--fvs-board-variation-w)); --fvs-board-variation-gap: calc(var(--space-8) * 3); }
+  .fvs-board-variations { display: grid; grid-template-columns: repeat(2, var(--fvs-board-variation-w)); gap: var(--fvs-board-variation-gap); }
   /* Suggest's controls (Oct 28, 2026): one row after the sheet's name, at screen size like it (the shift is in screen px,
      inside the scale, so the name never covers it at any zoom) */
   .fvs-sug-bar { position: absolute; left: 0; bottom: 100%; margin-bottom: var(--space-1); transform-origin: 0 100%;
@@ -692,7 +694,7 @@
   .fvs-board-variations .fvs-suggest__item:focus-visible { outline: 2px solid var(--ink); outline-offset: var(--space-1); }
   /* no variations yet: a dashed placeholder the size of the grid to come, its note at a constant size on screen */
   .fvs-board-variations__empty { display: none; }
-  #board-variations.is-empty > .fvs-board-sheet__body { width: calc(2 * var(--fvs-board-variation-w) + var(--space-6)); height: var(--fvs-board-symbol-w); max-height: calc(var(--fvs-board-variation-w) + var(--space-8));
+  #board-variations.is-empty > .fvs-board-sheet__body { width: calc(2 * var(--fvs-board-variation-w) + var(--fvs-board-variation-gap)); height: var(--fvs-board-symbol-w); max-height: calc(var(--fvs-board-variation-w) + var(--space-8));
     border: calc(1px / var(--nc-zoom, 1)) dashed var(--border-strong); display: flex; align-items: center; justify-content: center; }
   #board-variations.is-empty .fvs-board-variations__empty { display: block; margin: 0; font-size: calc(var(--fs-small) / var(--nc-zoom, 1)); }
   #board-variations.is-empty .fvs-board-variations { display: none; }
