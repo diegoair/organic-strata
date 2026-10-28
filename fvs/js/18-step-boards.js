@@ -1302,4 +1302,4 @@ mountSymbolBoard();
 // The boards' gestures reach past them — a rail Element dropped on a cell, Clear board's hold: the same mouse there
 // (one that reports a side button held sends no pointerdown), as node-canvas does for its node bar.
 Organica.nodeCanvas.chordShim(ctrl('fvs-rail-panel'));
-Organica.nodeCanvas.chordShim(document.querySelector('body > .org-floatbar[role="toolbar"]'));
+Organica.nodeCanvas.chordShim(document.querySelector('body > .org-floatbar[role="toolbar"]:not(.org-floatbar--top)'));

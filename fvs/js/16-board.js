@@ -32,9 +32,10 @@ const LEGACY_VIEW_KEY = tier => 'organica.fvs.proto.board.' + tier;   // the pro
 // the left dock (step buttons, the Library rail — its width varies) and the floatbar lie over the board: the fit keeps
 // clear of them, measured (Figure's fitInset is a constant; here the open rail is wider)
 function fitInset(r) {
-  const dock = document.getElementById('fvs-rail-dock'), bar = document.querySelector('body > .org-floatbar[role="toolbar"]');
-  const d = dock && dock.getBoundingClientRect(), b = bar && bar.getBoundingClientRect();
-  return { left: d && d.width ? Math.max(0, d.right - r.left) : 0, bottom: b && b.height ? Math.max(0, r.bottom - b.top) : 0 };
+  const dock = document.getElementById('fvs-rail-dock'), bar = document.querySelector('body > .org-floatbar[role="toolbar"]:not(.org-floatbar--top)'), steps = document.getElementById('fvs-stepbar');
+  const d = dock && dock.getBoundingClientRect(), b = bar && bar.getBoundingClientRect(), t = steps && steps.getBoundingClientRect();
+  return { left: d && d.width ? Math.max(0, d.right - r.left) : 0, bottom: b && b.height ? Math.max(0, r.bottom - b.top) : 0,
+    top: t && t.height ? Math.max(0, t.bottom - r.top) : 0 };   // the steps' bar at the top (Oct 28, 2026)
 }
 
 // The board of a step: its stage, board and HUD are the tier view's own markup (fvs/index.html).
@@ -190,7 +191,7 @@ function fitBox(B, boxes, opts = {}) {
   // …and clear of the HUD at the top (Edit toolbar, empty notes) when it shows something
   const r = B.stage.getBoundingClientRect(), pad = 48, hud = B.hud.getBoundingClientRect();
   if (!r.width || !r.height) return;
-  const inset = { ...fitInset(r), top: hud.height > 1 ? Math.max(0, hud.bottom - r.top) : 0 };
+  const fi = fitInset(r), inset = { ...fi, top: Math.max(fi.top, hud.height > 1 ? Math.max(0, hud.bottom - r.top) : 0) };
   if (opts.centred) { inset.left = Math.max(inset.left, 0); inset.right = inset.left; inset.top = inset.bottom = Math.max(inset.top, inset.bottom); }
   const w = r.width - inset.left - (inset.right || 0) - 2 * pad, h = r.height - inset.top - inset.bottom - 2 * pad;
   const zoom = Math.min(1.5, w / Math.max(1, x1 - x0), h / Math.max(1, y1 - y0));

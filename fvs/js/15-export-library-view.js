@@ -512,8 +512,8 @@ export async function railRename(kind, name) {
   } else renderLibraryRail();
 }
 export let railNoteTimer = 0;
-export function railNotice(text) {
-  const n = ctrl('rail-note'); n.textContent = text;
+export function railNotice(text, info) {
+  const n = ctrl('rail-note'); n.textContent = text; n.classList.toggle('is-info', !!info);
   clearTimeout(railNoteTimer); if (text) railNoteTimer = setTimeout(() => { n.textContent = ''; }, 8000);
 }
 export function railRemove(kind, name) { deleteSaved(kind, name); }
@@ -589,7 +589,7 @@ export function setBrush(b) {
     t.classList.toggle('is-brush', on);
     if (t.dataset.railKind !== 'symbol') t.setAttribute('aria-pressed', String(on));
   });
-  railNotice(rt.brush ? 'Brush: click or drag over cells to paint. Click a cell again to turn or flip it. Esc stops.' : '');
+  railNotice(rt.brush ? 'Brush: click or drag over cells to paint. Click a cell again to turn or flip it. Esc stops.' : '', true);
 }
 export function toggleBrush(kind, name) { setBrush(rt.brush && rt.brush.kind === kind && rt.brush.name === name ? null : { kind, name }); }
 // The cell under a point of the sheet (its bounding box — as the marquee reads cells)

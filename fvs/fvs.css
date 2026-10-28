@@ -208,7 +208,8 @@
   .fvs-libview__actions .mini-btn { flex: 0 0 auto; }
   .fvs-libview__status { margin: 0; min-height: 1lh; font-size: var(--fs-small); color: var(--mid); }   /* its line is kept even when empty: a message never moves the tiles under the pointer */
   body.fvs-libview-open #fvs-rail-dock { visibility: hidden; }
-  .fvs-rail__note { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--danger); }
+  .fvs-rail__note { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--danger); width: min-content; min-width: 100%; }   /* wraps to the tiles' width: a long note never widens the rail */
+  .fvs-rail__note.is-info { color: var(--mid); }   /* a hint (the Brush), not a warning */
   .fvs-rail__note:empty { margin: 0; }   /* always rendered (a live region), no space when empty */
   #panel .org-empty { margin-bottom: var(--space-2); }
 
