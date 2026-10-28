@@ -204,6 +204,13 @@
   </div>
   <!-- Symbol-tier actions. Shown only on that tier by setTier(). -->
   <div id="fb-symbol-actions" class="fvs-fb-group" hidden>
+    <!-- Tool: Select (click / drag picks cells) or Brush (click / drag places the Brush's content — a rail tile; its
+         thumbnail in the button). One pressed at a time; V / B (Diego, Oct 28, 2026: "una modalità brush sulla floatbar"). -->
+    <span class="org-floatbar__group" role="group" aria-label="Tool">
+      <button class="org-floatbar__btn" id="btn-symbol-mode-select" aria-pressed="true" aria-label="Select (V)" aria-keyshortcuts="V" data-icon-slot></button>
+      <button class="org-floatbar__btn fvs-brush-btn" id="btn-symbol-mode-brush" aria-pressed="false" aria-label="Brush (B)" aria-keyshortcuts="B"><span class="fvs-brush-thumb" id="symbol-brush-thumb" aria-hidden="true" hidden></span></button>
+    </span>
+    <span class="org-floatbar__sep" aria-hidden="true"></span>
     <span class="org-floatbar__group" role="group" aria-label="Symbol">
     <!-- Generate: fills the empty grid (Suggest / Arrange). aria-disabled + the reason in its label (the tooltip)
          when nothing is saved or the grid already has content. The variations are sheets on the Symbol board (18-step-boards.js). -->

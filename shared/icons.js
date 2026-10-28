@@ -57,6 +57,8 @@
     'trash':         '<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/><path d="M6.7 7v4M9.3 7v4"/>',   // delete, permanently
     'eraser':        '<path d="M6.2 13.5 2.7 10a1 1 0 0 1 0-1.4l6-6a1 1 0 0 1 1.4 0l3.2 3.2a1 1 0 0 1 0 1.4L8.5 13.5"/><path d="M6.5 13.5h7"/>',   // clear the canvas — not a bin
     'pencil':        '<path d="M10.5 2.5 13.5 5.5 6 13H3v-3l7.5-7.5Z"/>',
+    'pointer':       '<path d="M4 2.5v10.5l3-2.8 2 4.3 1.8-.8-2-4.3h4.2z"/>',   // the Select tool — pick cells (FVS Symbol, Oct 28, 2026); not the select-* commands
+    'brush':         '<path d="M13.5 2.5 8 8.5"/><path d="M8.8 9.3 6.7 7.2c-1.6.2-2.6 1.4-2.7 3-.1 1.2-.6 2.1-1.5 2.8 2.3.6 4.8.3 5.9-1 .5-.7.6-1.6.4-2.7Z"/>',   // the Brush tool — place a tile's content by clicking / dragging (FVS Symbol, Oct 28, 2026); not pencil (= edit)
     'lock':          '<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',   // lock cells — rules and Suggest leave them (FVS Selection, Oct 28, 2026)
     'bookmark':      '<path d="M4.5 2.5h7v11L8 10.5l-3.5 3z"/>',   // save a selection — kept with the Symbol; not download (= Export), not pin, not library
     'copy':          '<rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>',

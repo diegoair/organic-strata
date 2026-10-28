@@ -565,7 +565,7 @@ railPanel.addEventListener('click', e => {
   if (kind === 'symbol' || e.detail === 0) { railUse(kind, name); return; }   // a Symbol / Enter on a focused tile
   clearTimeout(railClickTimer);
   if (e.detail >= 2) { if (kind === 'asset') return; if (kind === 'pose') setTier('element'); else (kind === 'element' ? openSavedElement : openSavedComponent)(name); return; }
-  railClickTimer = setTimeout(() => (brushable(kind) ? toggleBrush(kind, name) : railUse(kind, name)), RAIL_DBL_MS);   // a mouse click on the Symbol step takes the tile as the Brush
+  railClickTimer = setTimeout(() => (rt.brush && brushable(kind) ? setBrush({ kind, name }) : railUse(kind, name)), RAIL_DBL_MS);   // Brush on: a click takes the tile as the Brush; Select: it goes in the selected cells
 });
 ctrl('btn-rail-save-all').addEventListener('click', saveAllComponentsToLibrary);
 
@@ -597,9 +597,31 @@ export function setBrush(b) {
     const on = !!rt.brush && t.dataset.railKind === rt.brush.kind && t.dataset.railName === rt.brush.name;
     t.classList.toggle('is-brush', on);   // the visual; the live note says the Brush is on (no aria-pressed: Enter places, it does not toggle)
   });
-  railNotice(rt.brush ? 'Brush: click or drag over cells to place it. Click a cell again to turn or flip it. Esc puts it down.' : '', true);
+  railNotice(rt.brush ? 'Brush: click or drag over cells to place it. Click a cell again to turn or flip it. Click a tile to change the Brush.' : '', true);
+  syncBrushMode();
 }
-export function toggleBrush(kind, name) { setBrush(rt.brush && rt.brush.kind === kind && rt.brush.name === name ? null : { kind, name }); }
+// The Brush mode (Diego, Oct 28, 2026: "una modalità brush sulla floatbar centrale in basso … così è nascosto"): Select ·
+// Brush in the Symbol step's bar, V / B. Brush on = a Brush in hand (rt.brush) — turned on with nothing taken yet it
+// takes what the selected cell holds (a Component) or the Element as it is; Select, Esc or leaving the step puts it down.
+export function brushFromSelection() {
+  const i = state.symbolSelection.size ? Math.min(...state.symbolSelection) : -1, c = state.symbolCells[i];
+  if (c && c.source === 'component' && c.componentName && LIBRARY.read()[c.componentName]) return { kind: 'component', name: c.componentName };
+  return { kind: 'pose', name: elementPoses()[0][3] };
+}
+export function setBrushMode(on) {
+  if (on && state.activeTier !== 'symbol') return;
+  setBrush(on ? (rt.brush || brushFromSelection()) : null);
+}
+function syncBrushMode() {
+  const on = !!rt.brush, sel = ctrl('btn-symbol-mode-select'), br = ctrl('btn-symbol-mode-brush'), th = ctrl('symbol-brush-thumb');
+  if (sel) sel.setAttribute('aria-pressed', String(!on));
+  if (br) br.setAttribute('aria-pressed', String(on));
+  if (th) {
+    const t = on && [...railPanel.querySelectorAll('.fvs-library-item')].find(x => x.dataset.railKind === rt.brush.kind && x.dataset.railName === rt.brush.name);
+    th.innerHTML = t ? t.innerHTML : ''; th.hidden = !t;
+    if (br) br.setAttribute('aria-label', on ? 'Brush: ' + (rt.brush.kind === 'pose' ? 'Element, ' : '') + rt.brush.name + ' (B)' : 'Brush (B)');   // the key stays in the tooltip, as Undo (⌘Z)
+  }
+}
 // The cell under a point of the sheet (its bounding box — as the marquee reads cells)
 function brushCellAt(e) {
   const pt = svgPointFromEvent(e); if (!pt) return null;
@@ -648,6 +670,19 @@ window.addEventListener('keydown', e => {
   setBrush(null);
 }, true);
 
+
+// Select · Brush in the bar, and their keys (V / B, a bare key, not while typing — the Figure's own keys are elsewhere)
+ctrl('btn-symbol-mode-select').innerHTML = Organica.icons.get('pointer');
+ctrl('btn-symbol-mode-brush').insertAdjacentHTML('afterbegin', Organica.icons.get('brush'));
+ctrl('btn-symbol-mode-select').addEventListener('click', () => setBrushMode(false));
+ctrl('btn-symbol-mode-brush').addEventListener('click', () => setBrushMode(true));
+window.addEventListener('keydown', e => {
+  if (state.activeTier !== 'symbol' || e.metaKey || e.ctrlKey || e.altKey || e.repeat || fvsIsTypingTarget(document.activeElement)) return;
+  if ([...document.querySelectorAll('.org-modal, dialog[open]')].some(el => el.getClientRects().length > 0)) return;
+  const k = e.key.toLowerCase();
+  if (k === 'v' || k === 'b') { e.preventDefault(); setBrushMode(k === 'b'); }
+});
+syncBrushMode();
 
 // Save: the Symbol only — Elements and Components save from their own thumbnails.
 export function railSaveTarget() {

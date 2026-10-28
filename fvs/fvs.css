@@ -182,6 +182,13 @@
   .fvs-rail__grid .fvs-library-item { width: 3rem; height: 3rem; background: var(--paper); touch-action: none; }
   .fvs-rail__grid .fvs-library-item.is-dragging { opacity: 0.35; }
   .fvs-rail__grid .fvs-library-item.is-brush { box-shadow: 0 0 0 2px var(--ink); }   /* the Brush (Oct 28, 2026): the tile taken, as a rail drag over a box */
+  /* Tool › Brush in the Symbol bar: the brush icon + what it holds (the rail tile's own drawing), full strength (a bar
+     button's span child is dimmed to 0.6). The button widens only while the Brush holds something. */
+  .fvs-brush-btn { gap: var(--space-1); }
+  .fvs-brush-btn:has(> .fvs-brush-thumb:not([hidden])) { width: auto; padding: 0 var(--space-2); }
+  .org-floatbar__btn > .fvs-brush-thumb { opacity: 1; display: inline-flex; width: var(--icon-xl); height: var(--icon-xl); border-radius: var(--radius-sm); overflow: hidden; background: var(--paper); }
+  .org-floatbar__btn > .fvs-brush-thumb[hidden] { display: none; }
+  .fvs-brush-thumb > svg { width: 100%; height: 100%; }
   body.fvs-brush-on #symbol-frame { cursor: crosshair; }
   .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 3rem; height: 3rem; background: var(--paper); border: 1px solid var(--border-strong); }
   .fvs-rail-ghost svg { width: 100%; height: 100%; display: block; }

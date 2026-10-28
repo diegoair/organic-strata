@@ -23,6 +23,9 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const poses = [...document.querySelectorAll('#rail-poses .fvs-library-item')];
   check('the Element in its 7 poses, first in the rail', poses.length === 7 && !q('rail-g-poses').hidden && poses[0].dataset.railName === 'As it is', poses.length);
   const mclick = async t => { t.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 })); await w(300); };
+  const key = async k => { window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); await w(80); };
+  const brushOn = () => document.body.classList.contains('fvs-brush-on');
+  const take = async t => { if (!brushOn()) q('btn-symbol-mode-brush').click(); await mclick(t); };   // Brush mode, then the tile
   const cellXY = i => { const r = q('symbol-frame').querySelector('[data-cell-index="' + i + '"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
   const mouse = (type, i, tgt) => { const [x, y] = cellXY(i); (tgt || q('symbol-frame').querySelector('[data-cell-index="' + i + '"]')).dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 })); };
   const press = (i) => { mouse('mousedown', i); mouse('mouseup', i); };
@@ -31,8 +34,24 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   press(0); await w(100);
   check('a click on a selected cell keeps it, no Choose content', getComputedStyle(q('symbol-content-overlay')).display === 'none' && F.state.symbolSelection.has(0), 'opened');
   F.state.symbolSelection.clear(); F.renderSymbol(); await w(100);
-  // take the Component as the Brush
+  // Select · Brush in the bar (Oct 28, 2026): Select by default; a click on a tile with Select places it in the selection
+  const pressed = id => q(id).getAttribute('aria-pressed') === 'true';
+  check('the bar’s Tool: Select pressed by default, Brush not', pressed('btn-symbol-mode-select') && !pressed('btn-symbol-mode-brush') && !brushOn(), 'brush on');
+  F.state.symbolSelection = new Set([14]); F.renderSymbol(); await w(100);
   await mclick(tile('component', A));
+  check('…with Select a click on a tile places it in the selected cell, no Brush', F.state.symbolCells[14].componentName === A && !brushOn(), F.state.symbolCells[14].source);
+  press(13); await w(100);
+  check('…and a click on a cell still selects it', F.state.symbolSelection.has(13) && F.state.symbolSelection.size === 1, JSON.stringify([...F.state.symbolSelection]));
+  F.patchCell(F.state.symbolCells[14], { source: 'empty' }); F.state.symbolSelection = new Set([14]); F.renderSymbol(); await w(100);
+  await key('b');
+  check('B turns the Brush on with nothing taken: the Element as it is, in the button', pressed('btn-symbol-mode-brush') && !pressed('btn-symbol-mode-select') && brushOn() && !q('symbol-brush-thumb').hidden && tile('pose', 'As it is').classList.contains('is-brush'), q('btn-symbol-mode-brush').getAttribute('aria-label'));
+  await key('v');
+  check('V: back to Select', pressed('btn-symbol-mode-select') && !brushOn() && q('symbol-brush-thumb').hidden, 'still on');
+  F.state.symbolSelection.clear(); F.renderSymbol(); await w(100);
+  // take the Component as the Brush
+  q('btn-symbol-mode-brush').click(); await w(80);
+  await mclick(tile('component', A));
+  check('Brush on, a click on a tile takes it: its thumbnail in the button', q('btn-symbol-mode-brush').getAttribute('aria-label') === 'Brush: ' + A + ' (B)' && !q('symbol-brush-thumb').hidden, q('btn-symbol-mode-brush').getAttribute('aria-label'));
   check('a click on a tile takes it as the Brush: pressed, the sheet a crosshair', tile('component', A).classList.contains('is-brush') && document.body.classList.contains('fvs-brush-on'), String(tile('component', A).className));
   press(5); await w(150);
   check('a click on a cell puts it there', F.state.symbolCells[5].source === 'component' && F.state.symbolCells[5].componentName === A, JSON.stringify(F.state.symbolCells[5].source));
@@ -51,15 +70,15 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('a locked cell is not painted', F.state.symbolCells[0].source === 'empty', F.state.symbolCells[0].source);
   F.state.symbolCells[0].locked = false;
   // a pose of the Element
-  await mclick(poses[2]);
+  await take(poses[2]);
   check('another tile takes the Brush over', poses[2].classList.contains('is-brush') && !tile('component', A).classList.contains('is-brush'), 'both');
   press(1); await w(100);
   check('a pose of the Element paints with its turn (180°)', F.state.symbolCells[1].source === 'seed' && F.state.symbolCells[1].rotation === 180, JSON.stringify([F.state.symbolCells[1].source, F.state.symbolCells[1].rotation]));
-  // a click on the same tile puts it down
-  await mclick(poses[2]);
-  check('a click on the Brush tile puts it down', !F.state || (!document.body.classList.contains('fvs-brush-on') && !poses[2].classList.contains('is-brush')), 'still on');
+  // Select puts it down
+  q('btn-symbol-mode-select').click(); await w(80);
+  check('Select puts the Brush down', !brushOn() && !poses[2].classList.contains('is-brush'), 'still on');
   // Esc
-  await mclick(tile('component', A));
+  await take(tile('component', A));
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await w(80);
   check('Esc puts the Brush down', !document.body.classList.contains('fvs-brush-on'), 'still on');
   check('…and leaves the rail open', q('fvs-rail-panel').dataset.open === 'true', 'closed');
@@ -80,7 +99,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const letterAt = i => { const r = q('symbol-frame').querySelector('[data-cell-index="' + i + '"]').getBoundingClientRect(); const t = lettersOn().find(t => { const b = t.getBoundingClientRect(), x = (b.left + b.right) / 2, y = (b.top + b.bottom) / 2; return x > r.left && x < r.right && y > r.top && y < r.bottom; }); return t && t.textContent; };
   check('…the same content, the same letter (turned or not)', letterAt(5) === letterAt(8) && letterAt(8) === letterAt(11) && letterAt(5) !== letterAt(1), [5, 8, 11, 1].map(letterAt).join());
   const before = [5, 1].map(letterAt).join();
-  await mclick(poses[0]); press(15); await w(150); setTimeout(() => {}, 0);
+  await take(poses[0]); press(15); await w(150); setTimeout(() => {}, 0);
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await w(100);
   check('…another pose of the same Element keeps its letter, the others keep theirs', [5, 1].map(letterAt).join() === before && letterAt(15) === letterAt(1), [5, 1, 15].map(letterAt).join());
   check('…never in the export', !/fvs-sel-letter/.test(F.buildSymbolSVG()), 'in the SVG');
@@ -110,7 +129,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   at.click(); await w(200);
   check('Enter on the asset places it from the selected cell (its top-left)', F.state.symbolCells[2].componentName === A && F.state.symbolCells[6].componentName === A && F.state.symbolCells.filter(c => c.source !== 'empty').length === 2, F.state.symbolCells.map(c => c.source[0]).join(''));
   F.state.symbolSelection.clear(); F.renderSymbol();
-  await mclick(tile('asset')); press(3); await w(150);
+  await take(tile('asset')); press(3); await w(150);
   check('…as the Brush, a click stamps it; past the edge it is cut', F.state.symbolCells[3].componentName === A && F.state.symbolCells[7].componentName === A, F.state.symbolCells.map(c => c.source[0]).join(''));
   press(15); await w(150);
   check('…at the last row only its top cell lands', F.state.symbolCells[15].componentName === A, F.state.symbolCells[15].source);
@@ -121,8 +140,10 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   tile('asset').parentElement.querySelector('[data-rail-remove]').click(); await w(200);
   check('Delete on the rail removes the asset', !tile('asset') && q('rail-g-assets').hidden, 'still there');
   // leaving the step puts it down
-  F.setTier('symbol'); await w(300); await mclick(tile('component', A)); F.setTier('component'); await w(300);
+  F.setTier('symbol'); await w(300); await take(tile('component', A)); F.setTier('component'); await w(300);
   check('leaving the Symbol step puts the Brush down', !document.body.classList.contains('fvs-brush-on'), 'still on');
+  await key('b');
+  check('B does nothing off the Symbol step', !brushOn(), 'brush on');
   return rows;`);
 rows.forEach(r => console.log('  ' + r));
 const errs = P.errors.filter(e => !/Failed to load resource/.test(e));
