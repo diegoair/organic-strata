@@ -1233,7 +1233,9 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
 - **The Library rail is the content picker.** It opens by default (§7). ~~On the Symbol step its first group, **Element**, is
   the Element on the Element step in its 7 poses~~ — **gone the same day** (Diego: *"non è necessario portare tutti gli
   element nel library rail ma solo quello salvato"*): the rail shows the saved Elements; a turn or a flip is a click again
-  on a cell with the Brush (`elementPoses` / `elementPosePatch` stay, for the Brush's last fallback: nothing saved). **Choose content no
+  on a cell with the Brush. **Nothing saved yet** (Oct 29, 2026 — Diego: *"bring the basic element 1 only in the library rail
+  as default"*): on the Symbol step the Elements group holds one tile, the Element on the Element step as it is, by its
+  board name (*Element 1*…; kind `pose`, `liveElementName`), what the Brush takes by default; it goes once an Element is saved. **Choose content no
   longer opens on the Symbol step**: a click on a selected cell keeps the selection (`SYMBOL_CELLS` has no `choose`, its
   Choose… button is hidden). The window stays for Figure Compose and Component Edit.
 - **Brush** (`15-export-library-view.js`, `rt.brush`) — **a mode in the bar** since Oct 28, 2026 (Diego: *"una modalità

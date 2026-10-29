@@ -9,7 +9,7 @@ import {
   frameDims
 } from './engine/01-geometry.js';
 import {
-  ensureSvgNamespace
+  ensureSvgNamespace, getSeed
 } from './engine/02-seed-ui.js';
 import {
   fitThumbBox
@@ -18,7 +18,10 @@ import {
   ELEMENT_LIB, genesisTileForms, savedElementThumb
 } from './engine/04-appearance.js';
 import {
-  r2
+  elementIsEmpty
+} from './engine/06-component-ui.js';
+import {
+  buildSeedPreviewSVG, r2
 } from './engine/05-render-component.js';
 import {
   LIBRARY, buildLibraryEntry, hexKey, isPaperNone, libraryNames, shownElementNames
@@ -374,7 +377,10 @@ export function renderLibraryRail() {
   // newest first (Diego, Oct 5, 2026): a save lands at the top, in view — at the end it sat below the fold
   const newestFirst = all => (a, b) => String((all[b] || {}).savedAt || '').localeCompare(String((all[a] || {}).savedAt || ''));
   const elAll = ELEMENT_LIB.read(), elNames = shownElementNames(elAll).sort(newestFirst(elAll));
-  syncRailGroup(els, elNames.map(n => ['element', n, savedElementThumb(elAll[n])]));
+  // None saved yet: the Element on the Element step, as it is, is the Elements group's one tile on the Symbol step — what
+  // the Brush takes by default (Diego, Oct 29, 2026: "bring the basic element 1 only in the library rail as default").
+  const live = !elNames.length && state.activeTier === 'symbol' && !elementIsEmpty();
+  syncRailGroup(els, live ? [['pose', liveElementName(), buildSeedPreviewSVG(getSeed(), 0, false, false, 48)]] : elNames.map(n => ['element', n, savedElementThumb(elAll[n])]));
   const cAll = LIBRARY.read(), cNames = libraryNames(cAll).sort(newestFirst(cAll));
   syncRailGroup(comps, cNames.map(n => { const size = frameDims(cAll[n].grid), box = fitThumbBox(size.w, size.h, 48); return ['component', n, componentThumbSVG(n), box.w, box.h]; }));
   // No group of the Element's seven poses any more (Diego, Oct 28, 2026: "non è necessario portare tutti gli element nel
@@ -386,7 +392,7 @@ export function renderLibraryRail() {
   const aAll = ASSET_LIBRARY.read(), aNames = Object.keys(aAll || {}).sort(newestFirst(aAll));
   syncRailGroup(ctrl('rail-assets'), aNames.map(n => ['asset', n, assetThumbSVG(aAll[n])]));
   // An empty group is not shown (no "None saved yet"); Components stays on its own tab for Save all.
-  const onComp = state.activeTier === 'component', visible = [['poses', poses.length], ['elements', elNames.length], ['components', cNames.length || onComp], ['symbols', sNames.length], ['assets', aNames.length]];
+  const onComp = state.activeTier === 'component', visible = [['poses', poses.length], ['elements', elNames.length || live], ['components', cNames.length || onComp], ['symbols', sNames.length], ['assets', aNames.length]];
   visible.forEach(([k, on]) => { ctrl('rail-g-' + k).hidden = !on; });
   ctrl('btn-rail-save-all').hidden = !onComp;
   // nothing to show at all (and no Save footer) → no empty glass box beside the toggle
@@ -405,8 +411,7 @@ document.addEventListener('keydown', e => {
 // A cell inside the selection takes the whole selection; any other cell takes only itself.
 export function railApply(kind, name, idx) {
   if (state.activeTier !== 'symbol') return;
-  const pi = kind === 'pose' ? elementPoses().findIndex(p => p[3] === name) : -1;
-  const patch = kind === 'pose' ? (pi < 0 ? null : elementPosePatch(pi)) : railPatch(kind, name);
+  const patch = kind === 'pose' ? elementPosePatch(poseAt(name)) : railPatch(kind, name);
   if (!patch) return;
   if (idx != null && !state.symbolSelection.has(idx)) {
     const cell = state.symbolCells[idx];
@@ -576,7 +581,7 @@ rt.brush = null;   // { kind, name } while a tile is the Brush
 const brushable = kind => state.activeTier === 'symbol' && !rt.railTarget && kind !== 'symbol';
 function brushPatch(b) {
   if (b.kind === 'asset') return ASSET_LIBRARY.read()[b.name] ? {} : null;   // an asset is stamped, not patched (brushPaint)
-  if (b.kind === 'pose') { const i = elementPoses().findIndex(p => p[3] === b.name); return i < 0 ? null : elementPosePatch(i); }
+  if (b.kind === 'pose') return elementPosePatch(poseAt(b.name));
   return railPatch(b.kind, b.name);
 }
 // Does the cell already hold what the Brush puts (any pose of it)?
@@ -600,12 +605,15 @@ export function setBrush(b) {
 // The Brush mode (Diego, Oct 28, 2026: "una modalità brush sulla floatbar centrale in basso … così è nascosto"): Select ·
 // Brush in the Symbol step's bar, V / B. Brush on = a Brush in hand (rt.brush) — turned on with nothing taken yet it
 // takes what the selected cell holds (a Component), else the newest saved Element, else the Element as it is; Select, Esc or leaving the step puts it down.
+// The Element on the Element step — its name on the Element board ("Element 1"…); a pose tile named so is that Element as it is
+export function liveElementName() { const e = state.elements && state.elements.find(x => x.id === state.activeElement); return (e && e.name) || 'Element'; }
+const poseAt = name => { const i = elementPoses().findIndex(p => p[3] === name); return i < 0 ? 0 : i; };   // a pose by name; any other name = as it is
 export function brushFromSelection() {
   const i = state.symbolSelection.size ? Math.min(...state.symbolSelection) : -1, c = state.symbolCells[i];
   if (c && c.source === 'component' && c.componentName && LIBRARY.read()[c.componentName]) return { kind: 'component', name: c.componentName };
   const elAll = ELEMENT_LIB.read(), saved = shownElementNames(elAll).sort((a, b) => String((elAll[b] || {}).savedAt || '').localeCompare(String((elAll[a] || {}).savedAt || '')));
   if (saved.length) return { kind: 'element', name: saved[0] };   // the newest saved Element, as the rail shows first
-  return { kind: 'pose', name: elementPoses()[0][3] };   // nothing saved: the Element on the Element step, as it is
+  return { kind: 'pose', name: liveElementName() };   // nothing saved: the Element on the Element step, as it is (its rail tile)
 }
 export function setBrushMode(on) {
   if (on && state.activeTier !== 'symbol') return;
@@ -618,7 +626,7 @@ function syncBrushMode() {
   if (th) {
     const t = on && [...railPanel.querySelectorAll('.fvs-library-item')].find(x => x.dataset.railKind === rt.brush.kind && x.dataset.railName === rt.brush.name);
     th.innerHTML = t ? t.innerHTML : ''; th.hidden = !t;
-    if (br) br.setAttribute('aria-label', on ? 'Brush: ' + (rt.brush.kind === 'pose' ? 'Element, ' : '') + rt.brush.name + ' (B)' : 'Brush (B)');   // the key stays in the tooltip, as Undo (⌘Z)
+    if (br) br.setAttribute('aria-label', on ? 'Brush: ' + rt.brush.name + ' (B)' : 'Brush (B)');   // the key stays in the tooltip, as Undo (⌘Z)
   }
 }
 // The cell under a point of the sheet (its bounding box — as the marquee reads cells)

@@ -15,6 +15,14 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const rows = [], check = (n, ok, got) => rows.push((ok ? '✓ ' : '✗ ') + n + (ok ? '' : ' — ' + got));
   F.setTier('component'); await w(500); set('rg-grid-cols', 2); set('rg-grid-rows', 2); await w(200); q('btn-generate').click(); await w(800);
   F.quickSaveComponentToLibrary(F.state.components[0].id); await w(200); const A = F.getSelectedComponent().savedName;
+  // no Element saved yet: the Element on the Element step, as it is, is the rail's one Element tile, and what B takes (Diego, Oct 29, 2026)
+  F.setTier('symbol'); await w(700);
+  const liveT = [...document.querySelectorAll('#rail-elements .fvs-library-item')], liveName = F.state.elements.find(x => x.id === F.state.activeElement).name;
+  check('nothing saved: the rail shows the Element as it is, one tile, by its name', liveT.length === 1 && liveT[0].dataset.railKind === 'pose' && liveT[0].dataset.railName === liveName && !q('rail-g-elements').hidden, liveT.length + ' ' + (liveT[0] && liveT[0].dataset.railName) + ' vs ' + liveName);
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true })); await w(100);
+  check('…B takes it: ringed, its drawing in the button', liveT[0].classList.contains('is-brush') && !q('symbol-brush-thumb').hidden && q('btn-symbol-mode-brush').getAttribute('aria-label') === 'Brush: ' + liveName + ' (B)', q('btn-symbol-mode-brush').getAttribute('aria-label'));
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', bubbles: true })); await w(80);
+  F.setTier('component'); await w(400);
   const E = F.saveElementVariant(0, false, false, '0°', 'Brush test element'); await w(200);
   F.setTier('symbol'); await w(700);
   check('the Library rail is open by default (something saved)', q('fvs-rail-panel').dataset.open === 'true', q('fvs-rail-panel').dataset.open);
@@ -22,7 +30,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   F.state.symbolCells.forEach(c => F.patchCell(c, { source: 'empty', rotation: 0, flipH: false, flipV: false, locked: false })); F.renderSymbol(); await w(200);
   const tile = (k, n) => [...document.querySelectorAll('#fvs-rail-panel .fvs-library-item')].find(t => t.dataset.railKind === k && (n == null || t.dataset.railName === n));
   // only the saved Elements (Diego, Oct 28, 2026: "non è necessario portare tutti gli element nel library rail ma solo quello salvato")
-  check('the rail shows the saved Element, not the Element’s 7 poses', q('rail-g-poses').hidden && !document.querySelector('#rail-poses .fvs-library-item') && !!tile('element', E), document.querySelectorAll('#rail-poses .fvs-library-item').length + ' poses');
+  check('the rail shows the saved Element, not the Element’s 7 poses nor the unsaved one', q('rail-g-poses').hidden && !document.querySelector('#rail-poses .fvs-library-item') && !!tile('element', E) && !document.querySelector('#rail-elements [data-rail-kind="pose"]'), document.querySelectorAll('#rail-poses .fvs-library-item').length + ' poses');
   const elTile = () => tile('element', E);
   const mclick = async t => { t.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 })); await w(300); };
   const key = async k => { window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); await w(80); };

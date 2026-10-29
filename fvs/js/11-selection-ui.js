@@ -128,9 +128,9 @@ function closeSelection() {
 function itemFor(kind, name) {
   if (kind === 'component') return LIBRARY.peek()[name] ? { kind, name } : null;
   if (kind === 'pose') {   // the Element on the Element step, in one of its poses (the Library rail's Element group, Oct 28, 2026)
-    const i = elementPoses().findIndex(p => p[3] === name); if (i < 0) return null;
+    const k = elementPoses().findIndex(p => p[3] === name), i = k < 0 ? 0 : k;   // any other name: the Element as it is (the rail's tile when none is saved, Oct 29, 2026)
     const p = elementPosePatch(i)({});
-    return { kind: 'element', name: 'Element · ' + name, entry: { seed: p.seedParams, orientation: { rotation: p.rotation, flipH: p.flipH, flipV: p.flipV } } };
+    return { kind: 'element', name: k < 0 ? name : 'Element · ' + name, entry: { seed: p.seedParams, orientation: { rotation: p.rotation, flipH: p.flipH, flipV: p.flipV } } };
   }
   const e = ELEMENT_LIB.read()[name];
   return e && e.seed ? { kind: 'element', name, entry: clone(e) } : null;
