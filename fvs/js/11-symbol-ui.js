@@ -146,6 +146,7 @@ export function renderSymbolCanvasOnly() {
   const grid = getSymbolGrid();
   ctrl('btn-symbol-clear').hidden = !grid;
   ctrl('btn-symbol-clear').disabled = !symbolHasContent();   // an empty grid: the icon stays, disabled (nothing to clear)
+  ctrl('btn-symbol-reset-sizes').disabled = !symbolSizesChanged();   // a border was dragged: the sizes can go back
   syncSymbolStart();
   if (!grid) {
     // No grid yet: the empty grid is being built from the panel (buildEmptySymbolGrid, on entering the step).
@@ -307,6 +308,11 @@ export function moveTrackBorder(axis, i, pos) {
   sizes[i] = a; sizes[i + 1] = pair - a;
   const tracks = { ...g.grid.tracks, [axis]: sizes };
   const grid = { ...g.grid, tracks };
+  // the sizes before the first drag, kept with the grid (saved with it) — Reset cell sizes puts them back (Oct 29, 2026)
+  if (!grid.trackOrigin) {
+    const sqOn = !!(ctrl('chk-symgen-square') && ctrl('chk-symgen-square').checked);
+    grid.trackOrigin = { cols: g.grid.tracks.cols.slice(), rows: g.grid.tracks.rows.slice(), params: g.grid.params ? { colWeights: g.grid.params.colWeights, rowWeights: g.grid.params.rowWeights } : null, square: sqOn };
+  }
   const frame = g.canvas && g.canvas.fvsFrame;
   const key = axis === 'cols' ? 'colWeights' : 'rowWeights';
   if (grid.type === 'rectangular') {
@@ -319,6 +325,38 @@ export function moveTrackBorder(axis, i, pos) {
   if (sq && sq.checked) { sq.checked = false; const r = ctrl('symgen-rows'); if (r) { r.value = tracks.rows.length; ctrl('v-symgen-rows').textContent = r.value; } hooks.syncSquareCellsUI(); }
   state.symbolGrid = Organica.loadLoomGrid({ ...g, grid });
 }
+// Reset cell sizes (Diego, Oct 29, 2026: "con un click si possono riportare le dimensioni delle celle a quella originale"):
+// every column and row back to its size before the first drag. symbolSizesChanged: there is something to put back.
+const sameSizes = (a, b) => a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < 1e-6);
+export function symbolSizesChanged() {
+  const g = symbolTrackGrid(), o = g && g.grid.trackOrigin;
+  return !!o && !(sameSizes(o.cols, g.grid.tracks.cols) && sameSizes(o.rows, g.grid.tracks.rows));
+}
+export function resetSymbolTrackSizes() {
+  const g = symbolTrackGrid(), o = g && g.grid.trackOrigin;
+  if (!o) return false;
+  const { trackOrigin, ...rest } = g.grid;
+  const grid = { ...rest, tracks: { ...g.grid.tracks, cols: o.cols.slice(), rows: o.rows.slice() } };
+  const frame = g.canvas && g.canvas.fvsFrame;
+  if (grid.type === 'rectangular') {
+    const params = { ...(grid.params || {}) };
+    ['colWeights', 'rowWeights'].forEach(k => {
+      const v = o.params ? o.params[k] : undefined;
+      if (v == null) delete params[k]; else params[k] = v;
+      if (frame && frame.params) { frame.params = { ...frame.params }; if (v == null) delete frame.params[k]; else frame.params[k] = v; }
+      if (pv('sel-symgrid-gen') === 'rectangular' && ctrl('symgen-' + k)) ctrl('symgen-' + k).value = v == null ? '' : v;
+    });
+    grid.params = params;
+  }
+  state.symbolGrid = Organica.loadLoomGrid({ ...g, grid });
+  // a drag had turned Square cells off: back on, as it was
+  const sq = ctrl('chk-symgen-square');
+  if (o.square && sq && !sq.checked) { sq.checked = true; sq.dispatchEvent(new Event('change', { bubbles: true })); }
+  state.symbolSuggestions = []; renderSuggestGallery();   // variations were drawn for the other proportions
+  renderSymbol();
+  return true;
+}
+ctrl('btn-symbol-reset-sizes').addEventListener('click', resetSymbolTrackSizes);
 export let trackDrag = null;   // {axis, i} while a border is being dragged
 export function bindSymbolTrackDrag() {
   const frame = ctrl('symbol-frame');

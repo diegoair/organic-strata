@@ -181,7 +181,7 @@ export function renderSymgridParams() {
   spec.params.forEach(([k, , a]) => { if (a !== 'text') ctrl('symgen-' + k).addEventListener('input', e => { ctrl('v-symgen-' + k).textContent = e.target.value; }); });
   syncSquareCellsUI();
 }
-provide({ syncSquareCellsUI: () => syncSquareCellsUI() });
+provide({ syncSquareCellsUI: () => syncSquareCellsUI });   // a getter: it returns the function (it called it, and a border drag with Square cells on threw — found Oct 29, 2026)
 export function syncSquareCellsUI() {   // Keep margin shows only with Overflow on (hidden, not greyed)
   const of = ctrl('chk-symgen-overflow'), km = ctrl('symgen-keepmargin-row');
   if (km) km.hidden = !(of && of.checked);   // Keep margin: with Overflow on (Overflow itself always shows — Diego, Oct 27, 2026)

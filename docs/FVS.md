@@ -1257,6 +1257,13 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
   order). The Selection's items and Arrange take the same letters (`poolLetters`, `11-selection-ui.js`): an item not yet
   on the Symbol gets the next one. Screen only (`symbolLettersSVG`, the `.fvs-sel-letter` overlay), never exported; off
   by default (`state.symbolView.letters` absent = off, so the regression's default case stays).
+- **Reset cell sizes** (Oct 29, 2026 — Diego: *"con un click si possono riportare le dimensioni delle celle a quella
+  originale"*): a `.mini-btn` in the Symbol grid section, disabled until a border is dragged. The first drag keeps the
+  sizes it changed on the grid itself (`grid.trackOrigin`: the tracks, the rectangular generator's col / row weights, Square
+  cells on or off — saved with the Symbol); one click puts them all back (`resetSymbolTrackSizes`), Square cells on again if
+  a drag had turned it off, one ⌘Z step. A new grid (Columns, Rows, a generator) starts fresh. Component Edit keeps its
+  *Even tracks*. Found on the way: `hooks.syncSquareCellsUI` was a getter that called the function, so a border drag with
+  Square cells on threw (`08-symbol-grid.js`).
 - **Assets** (Diego: *"un subset selezionato come pattern, da salvare e riusare … nella gallery e anche nella library"*):
   **Save as asset…** in the Selection section keeps the selected cells as a pattern — a Symbol entry whose other cells
   are empty + `asset: { idxs }` (`buildAssetEntry`), in its own store `Organica.presetStore('fvs-assets')`

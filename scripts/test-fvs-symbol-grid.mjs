@@ -140,6 +140,25 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   for (const [id, spec] of Object.entries(F.SYMGRID_GENS)) for (const [k, , a, b] of spec.params.filter(p => p[0] === 'cols' || p[0] === 'rows')) { const r = G[id] && G[id].ranges && G[id].ranges[k]; if (r && (r[0] !== a || r[1] !== b)) off.push(id + '.' + k + ' ' + a + '–' + b + ' vs Loom ' + r.join('–')); }
   const withRanges = Object.keys(F.SYMGRID_GENS).filter(id => G[id] && G[id].ranges).length;
   check('Columns / Rows ranges = Loom’s registry — Rings, Cells, Depth keep the Symbol’s own (' + withRanges + ' generators declare ranges)', withRanges >= 4 && !off.length, off.join('; ') || 'no ranges in Loom');
+  // Reset cell sizes (Diego, Oct 29, 2026): a border dragged, one click puts every column and row back
+  {
+    const st = (id, v) => { const e = document.getElementById(id); if (e.type === 'checkbox') e.checked = v; else e.value = v; e.dispatchEvent(new Event(e.type === 'checkbox' || e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); };
+    const W = ms => new Promise(r => setTimeout(r, ms)), btn = document.getElementById('btn-symbol-reset-sizes');
+    st('sel-symgrid-gen', 'rectangular'); await W(400); st('symgen-cols', 4); st('symgen-rows', 3); await W(500);
+    if (document.getElementById('chk-symgen-square').checked) { st('chk-symgen-square', false); await W(400); }
+    const tr = () => JSON.stringify(F.state.symbolGrid.grid.tracks), before = tr();
+    check('Reset cell sizes: disabled while no border was dragged', btn.disabled, 'enabled');
+    F.moveTrackBorder('cols', 0, F.state.symbolGrid.grid.tracks.cols[0] * 1.6); F.moveTrackBorder('rows', 1, F.state.symbolGrid.grid.tracks.rows[0] * 2.4); F.renderSymbol(); await W(150);
+    check('…a drag changes the sizes and enables it', tr() !== before && !btn.disabled, tr());
+    btn.click(); await W(300);
+    check('…one click: every column and row back to its size before the drag, disabled again', tr() === before && btn.disabled && !F.state.symbolGrid.grid.trackOrigin, tr() + ' vs ' + before);
+    st('chk-symgen-square', true); await W(500);
+    const sqBefore = tr();
+    F.moveTrackBorder('cols', 1, F.state.symbolGrid.grid.tracks.cols[0] * 1.7); F.renderSymbol(); await W(150);
+    const sqOff = !document.getElementById('chk-symgen-square').checked;
+    btn.click(); await W(500);
+    check('…a drag turned Square cells off: Reset turns it back on, the sizes as they were', sqOff && document.getElementById('chk-symgen-square').checked && tr() === sqBefore, [sqOff, document.getElementById('chk-symgen-square').checked, tr() === sqBefore].join());
+  }
   return rows;`);
 const fails = rows.filter(x => x.startsWith('✗'));
 for (const x of rows) console.log('  ' + x);
