@@ -312,7 +312,11 @@ async function compileFromSymbol(inputs, params, opts) {
   }
   const componentEntries = clone(sy.components || {});
   composeRules.forEach(r => { const c = r.do && r.do.content; if (c && typeof c === 'object' && c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
-  const firstSeed = cells.find(c => c.source === 'seed' && c.seedParams && SEED_TYPES[c.seedParams.type]);
+  // the recipe's base Element is only the panel's starting Shape — every seed cell draws from its own seedParams. A plain
+  // shape type only: a Stack (layers) or a drawn shape set as the panel's type alone throws (Oct 29, 2026 — Diego's Symbol
+  // with Element cells drew "Cannot read properties of undefined (reading 'geometry')")
+  const plain = t => t && SEED_TYPES[t] && t !== 'stack' && t !== 'freehand';
+  const firstSeed = cells.find(c => c.source === 'seed' && c.seedParams && plain(c.seedParams.type));
   const element = { type: firstSeed ? firstSeed.seedParams.type : 'triangle', style: 'fill', colors, paper };
   const ground = pal && pal.ground ? pal.ground : own.ground;
   if (ground) element.ground = clone(ground);

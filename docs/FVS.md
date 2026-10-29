@@ -1625,7 +1625,9 @@ creati"*; *"Symbol si sostituisce a quello che oggi è la canvas figure, le logi
   first* until a Symbol has a filled cell; a click then stays and says so. `setTier('figure')` itself is not gated (code, tests).
 - Found on the way: after a Figure visit (left through Symbol) the Symbol board stopped keeping the edited Symbol and its
   ⌘Z until Element / Component was visited (`snap` / `editable` read `preFigureSnapshot`) — now they read the active step.
-- Tests: `scripts/test-fvs-figure-symbols.sh` (11); the Figure board and QA suites fill a Symbol first.
+- The recipe's base Element is a plain Shape, never a Stack or a drawn one (each seed cell draws from its own
+  seedParams; a Stack set as the panel's type alone threw — Diego's Symbol with Stack cells, Oct 29, 2026).
+- Tests: `scripts/test-fvs-figure-symbols.sh` (12); the Figure board and QA suites fill a Symbol first.
 
 ### 12.3 The old Figure UI, retired (end of Phase 3, Oct 2026)
 

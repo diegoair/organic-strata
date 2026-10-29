@@ -62,6 +62,15 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   F.state.symbols.splice(1, 1); F.renderSymbol(); await w(900);
   tab().click(); await w(3500);
   check('a Symbol deleted on the board: its Symbol node and its Figure go, the other stays', !symNodes().some(n => n.params.symbolId === ids[1]) && !figsOf(ids[1]).length && figsOf(ids[0]).length === 1, JSON.stringify(symNodes().map(n => n.name)));
+  // a Symbol whose cells hold a Stack Element (layers): the recipe's base Shape is a plain one, never the Stack (Oct 29, 2026 —
+  // Diego's Symbol drew "Cannot read properties of undefined (reading 'geometry')")
+  { const seed = JSON.parse(JSON.stringify(F.seedForSnapshot())), look = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1 };
+    const stack = { type: 'stack', active: 1, layers: [{ id: 'la', role: 'fill', ink: 0, place: { mx: 0, my: 0, scale: 1, rotate: 0 }, seed, look }, { id: 'lb', role: 'fill', ink: 1, place: { mx: 20, my: 20, scale: 0.6, rotate: 0 }, seed: { ...seed, type: 'circle' }, look }] };
+    const sn0 = symNodes()[0], w = JSON.parse(JSON.stringify(sn0.params.snapshot.work));
+    w.cells.forEach((c, i) => { if (i % 3 === 0) Object.assign(c, { source: 'seed', seedType: 'stack', seedParams: JSON.parse(JSON.stringify(stack)), ownColors: ['#3700ff', '#ff1900'], ownPaper: 'none' }); });
+    let r = null, err = '';
+    try { r = await F.compileFigure({ symbol: { kind: 'symbol', work: w, components: sn0.params.snapshot.components } }, {}, { checks: false }); } catch (e) { err = e.message; }
+    check('a Symbol with Stack Element cells draws (the base Shape is a plain one)', r && r.svg && r.recipe.element.type !== 'stack', err || (r && r.recipe.element.type)); }
   return rows;`);
 rows.forEach(r => console.log('  ' + r));
 const errs = P.errors.filter(e => !/Failed to load resource/.test(e));
