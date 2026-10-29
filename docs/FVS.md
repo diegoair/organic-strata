@@ -1275,7 +1275,8 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
   con suggest da symbol. lo sposteremo in figure ma dopo non ora"*): the Variations sheet is off the Symbol board
   (`#board-variations` hidden, no sheet added, `18-step-boards.js`) and Suggest's controls with it. The engine stays —
   `10-suggest.js` (`runSuggest`, the gallery, the double-click to a new Symbol), `engine/10-suggest.js`, `suggestZoned` —
-  for the Figure later; **Fill the grid** still fills an empty grid through it (`fillSymbolCells`). What it was:
+  for the Figure later. **Fill the grid** fills an empty grid with **Arrange** now, not Suggest (Diego, Oct 29: *"Sì, usa
+  Arrange"*; `fillSymbolCells`). What it was:
 - ~~**Suggest and Variations as one**~~ (Diego: *"Variations e Suggest devono convergere ed essere semplificate"*): Suggest's
   controls — **Suggest**, **Surprise**, *Use generated components*, the hint — sit on the Variations sheet after its name
   (`.fvs-sug-bar`, at screen size like the name); the panel's Suggest section is hidden (it keeps the Fill mode and

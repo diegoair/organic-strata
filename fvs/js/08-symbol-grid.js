@@ -203,11 +203,11 @@ export function onSymbolOverlapInput() {
   if (o.amount > 0 && state.symbolClipEnabled) { state.symbolClipEnabled = false; hooks.syncSymbolViewUI(); }   // a clip would cut the overlap away
   syncOverlapSection(); hooks.renderSymbol();
 }
-// Fill the current grid's cells: Suggest or Arrange from the pool (or the saved Elements).
+// Fill the current grid's cells: Arrange from the pool (or the saved Elements). Not Suggest any more (Diego, Oct 29, 2026:
+// "Sì, usa Arrange" — Suggest is off the Symbol step).
 export function fillSymbolCells() {
   hooks.renderSymbolPool();   // self-heals a stale pool (a Component renamed or deleted since) before filling
-  if (poolEntries().length) { if (pv('sel-symbol-fill') === 'suggest') hooks.runSuggest(false, false, true); else hooks.generateSymbolCells(); }   // Suggest: the first variation goes on the grid
-  else if (elementPool().length) hooks.generateSymbolCells();   // Elements only: Arrange (Suggest reads Components)
+  if (poolEntries().length || elementPool().length) hooks.generateSymbolCells();
   else {
     ctrl('symgrid-gen-error').textContent = 'Nothing to fill the grid with — save an Element or a Component first.';
     ctrl('symgrid-gen-error').hidden = false;
@@ -406,7 +406,6 @@ ctrl('btn-symbol-generate').addEventListener('click', () => {
   fillSymbolCells();
   if (symbolHasContent()) runSymbolArrival();
   syncSymbolStart();
-  if (state.symbolSuggestions.length) { const cur = document.querySelector('#fvs-sug-panel .is-current, #fvs-sug-panel .fvs-suggest__item'); if (cur) cur.focus({ preventScroll: true }); }   // Generate is disabled now: focus on the variation shown
 });
 // Fit (floatbar, Symbol step) and Anchor (Symbol grid section) act on the SELECTION when there is one,
 // on every cell when there is none — one control for both, the label says which.
