@@ -37,6 +37,13 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('…each Figure draws', imgs().length === 2 && !document.querySelector('#fg-graph .nc-node.is-error'), imgs().length);
   const fig = figsOf(ids[0])[0] || {};
   check('…its Figure takes the Symbol, not Canvas + Grid + Content (cells: 16)', !!document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]') && /16 cells/.test(document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]').textContent), document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]') && document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]').textContent.slice(0, 80));
+  // a saved view that leaves Symbol 2's Figure off screen: entering the step fits the view (Diego, Oct 29 — "se ci sono due
+  // symbol in symbol dobbiamo ritrovarle anche in Figure")
+  { const onScreen = id => { const st = q('fg-graph').getBoundingClientRect(), el = document.querySelector('#fg-graph [data-node-id="' + id + '"]'); if (!el) return false; const r = el.getBoundingClientRect(); return r.top < st.bottom - 72 && r.bottom > st.top && r.left < st.right && r.right > st.left; };
+    F.figureSetView({ zoom: 1.2, panX: 0, panY: 0 }); await w(200);
+    const off = !onScreen(figsOf(ids[1])[0].id);
+    F.setTier('symbol'); await w(600); tab().click(); await w(1500);
+    check('a saved view that hides Symbol 2’s Figure: entering Figure shows both', off && onScreen(figsOf(ids[0])[0].id) && onScreen(figsOf(ids[1])[0].id), 'off before ' + off + ', after ' + onScreen(figsOf(ids[0])[0].id) + ' ' + onScreen(figsOf(ids[1])[0].id)); }
   // edit Symbol 1, rename Symbol 2, delete Symbol 3 — then back to Figure
   F.setTier('symbol'); await w(800);
   document.querySelectorAll('.fvs-board-symbol--static')[0].click(); await w(800);

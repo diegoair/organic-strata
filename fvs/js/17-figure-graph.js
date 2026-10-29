@@ -103,6 +103,7 @@ function symbolSnapshot(s) {
   return { work: JSON.parse(JSON.stringify(s.work)), components };
 }
 export function figureGraphModel() { return ctl ? ctl.model : null; }   // the graph on screen (tests)
+export function figureSetView(v) { if (ctl) ctl.zoomPan.setView(v); }   // tests: a saved view
 export function figureUseModel(m) { if (!ctl) return; ctl.setModel(ensureNames(m)); ctl.commit('load'); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); }   // tests: put a graph on screen
 export function boardSymbols() { return hooks.boardSymbols ? hooks.boardSymbols() : []; }
 export function anySymbolFilled() { return boardSymbols().some(s => filled(s.work)); }
@@ -134,6 +135,23 @@ function syncSymbolFigures(m) {
     if (snap && !same(sn.params.snapshot, snap)) { sn.params.snapshot = snap; changed = true; syncSymbolFigures.touched.push(sn.id); }
   });
   return changed;
+}
+// Every Symbol's Figure on screen (Diego, Oct 29, 2026: "se ci sono due symbol in symbol dobbiamo ritrovarle anche in
+// Figure"): the saved view can leave a Figure added later below the floatbar — on entering the step, a Symbol's Figure
+// that is less than a quarter on screen makes the view fit all.
+function showSymbolFigures() {
+  requestAnimationFrame(() => {
+    if (!ctl || composing || state.activeTier !== 'figure') return;
+    const stage = ctrl('fg-graph'), st = stage.getBoundingClientRect(); if (!st.width) return;
+    const L = st.left + 88, T = st.top + 72, R = st.right, B = st.bottom - 72;
+    const hidden = ctl.model.nodes.filter(n => n.type === 'figure' && n.params.symbolId).some(n => {
+      const el = stage.querySelector('.nc-node[data-node-id="' + n.id + '"]'); if (!el) return true;
+      const r = el.getBoundingClientRect(), area = r.width * r.height; if (!area) return true;
+      const w = Math.max(0, Math.min(r.right, R) - Math.max(r.left, L)), h = Math.max(0, Math.min(r.bottom, B) - Math.max(r.top, T));
+      return w * h < area / 4;
+    });
+    if (hidden) ctl.fitAll();
+  });
 }
 function starterModel() {
   if (anySymbolFilled()) { const m = NC.createModel(); syncSymbolFigures(m); return m; }   // the Symbols' Figures (Oct 29, 2026)
@@ -1938,7 +1956,7 @@ function initGraphMenu() {
 
 export function renderFigureGraph() {
   if (ctl && !composing && syncSymbolFigures(ctl.model)) { ctl.commit('sync', { amend: false }); syncSymbolFigures.touched.forEach(id => ctl.touch(id)); }   // the Symbols, as they are now
-  if (ctl) { if (composing) { ctrl('fb-figure-actions').hidden = true; ctrl('fb-compose-actions').hidden = false; drawCompose(); renderComposeInspector(); } else ctl.refresh(); return; }
+  if (ctl) { if (composing) { ctrl('fb-figure-actions').hidden = true; ctrl('fb-compose-actions').hidden = false; drawCompose(); renderComposeInspector(); } else { ctl.refresh(); showSymbolFigures(); } return; }
   rt.figureGraph = true;
   document.querySelector('.tier-view[data-tier="figure"]').classList.add('is-graph');
   document.querySelector('.tier-block[data-tier="figure"]').classList.add('is-graph');
@@ -1979,5 +1997,5 @@ export function renderFigureGraph() {
   if (syncChildren()) ctl.commit('sync', { amend: true });   // a graph saved before child Figures: its variations become nodes
   else if (ctl.model.nodes.some(n => n.type === 'figure-var')) ctl.refresh();   // their names follow their Figure's: drawn again now that ctl exists
   if (variationsNodes.moved) requestAnimationFrame(restackAll);   // a migrated Variations node: its children stand beside it
-  renderInspector([]); syncButtons();
+  renderInspector([]); syncButtons(); showSymbolFigures();
 }

@@ -1618,7 +1618,9 @@ creati"*; *"Symbol si sostituisce a quello che oggi è la canvas figure, le logi
   a Symbol deleted on the board takes its pair with it; an empty Symbol gets none (one emptied since keeps its Figure, which
   says *Fill a cell of this Symbol on the Symbol step*). What the Figure adds stays. The board side: `hooks.boardSymbols`
   (`18-step-boards.js`) — the edited Symbol taken again first (outside the Figure step). Copying a Symbol node or its
-  Figure makes a copy the sync does not follow.
+  Figure makes a copy the sync does not follow. **Every Symbol's Figure on screen** (`showSymbolFigures`): entering the step,
+  a Symbol's Figure less than a quarter inside the view (the saved view can leave one added later below the floatbar)
+  makes the view fit all (Diego, Oct 29: *"se ci sono due symbol in symbol dobbiamo ritrovarle anche in Figure"*).
 - **The starter graph**: the Symbols' Figures; with none filled, the classic Canvas · Grid · Palette → Figure 1
   (`classicStarter`, also what the Figure board test draws on). Graphs saved before keep their Figures; the Symbols' are added.
 - **The Figure step button** (`syncFigureTab`, `12-shell.js`): `aria-disabled` + *Figure — fill a cell on the Symbol step
