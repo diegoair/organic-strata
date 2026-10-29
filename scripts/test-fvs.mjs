@@ -42,6 +42,7 @@ const JOBS = {
   'symbol-boards':      node('test-fvs-symbol-boards.mjs'),   // several Symbols on the Symbol board, Delete + Undo, reload, `current` read forward (Oct 27, 2026)
   'zones':              node('test-fvs-zones.mjs'),   // engine/11-zones: named selectors, whenFromCells, applyZones (Oct 27, 2026)
   'selection':          node('test-fvs-selection.mjs'),   // Symbol Selection: dot, drop target, Arrange, Save, Lock, Clear (Oct 28, 2026)
+  'segment':            node('test-fvs-segment.mjs'),   // Element: Segment's bar = the line's own stroke where it folds (Wave, Repeat, a thick bar) (Oct 29, 2026)
   'layer-duplicate':    node('test-fvs-layer-duplicate.mjs'),   // Element: Duplicate a layer — the copy above it, the edited one (Oct 29, 2026)
   'figure-symbols':     node('test-fvs-figure-symbols.mjs'),   // Figure ← Symbol: one Figure per filled Symbol, synced; the Figure tab waits for a filled Symbol (Oct 29, 2026)
   'brush':              node('test-fvs-brush.mjs'),       // Symbol Brush: take a rail tile, paint, turn / flip on a click again, Esc (Oct 28, 2026)

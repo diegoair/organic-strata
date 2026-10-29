@@ -108,6 +108,17 @@ is gone); the candidates sit on the board at 2×.
   the gap between copies as a % of a tile (0 = touching). Rays then turn the whole grid;
   if the bar's thickness pushes past the canvas it is fitted back in. Segments saved before
   this (plain lines) are drawn as bars too.
+  **Where the line folds** (Oct 29, 2026 — Diego: *"con wave e altre trasformazioni non mi sembrano che funzionino bene
+  i segmenti"*): a plain offset of the line, turning tighter than half the bar (a high Wave, many Wave cycles, a thick
+  bar, a Repeat that squashes the line), turned back on itself and left teeth and spikes. Now a line with a point where
+  it turns tighter than 1.05 × the half width, or a corner over 20°, is drawn as its own stroke (`segmentBar`,
+  `engine/01-geometry.js`): the ribbon is cut at each such point, a 24-gon (or two thin triangles on a gentle turn)
+  of the half width covers it, and the pieces of that one line are united with Paper.js, from fewer points (one every
+  15 % of the half width at most, within 1 % of the line, the first and last segments kept). Lines are never united
+  with each other (every ring winds the same way, nonzero fills the overlaps); a copy that is only shifted (Repeat,
+  Lines) reuses the union (`_segFoldCache`). A butt end keeps no notch: next to a steep start the browser's own stroke
+  leaves one, the bar fills it. A line that never folds is drawn as before, byte for byte. Test:
+  `scripts/test-fvs-segment.sh` (the bar against the line's stroke drawn by the browser, rasterised).
   As a **second layer**, a Segment gets the full canvas: a new layer starts at Scale 0.6 (so
   it shows on top of the one below), and choosing Segment on it sets Scale 1 so its repeats
   fill the whole canvas, not the central 60%. Going back to another shape gives 0.6 back; a

@@ -250,7 +250,7 @@ export const INNER_APEX = {   // where the shape's pivot sits in its own d-space
 // the same way (positive area), so overlaps (Rays, Lines) stay filled under
 // nonzero instead of cancelling out. No Paper.js — pure maths, memoised.
 export const SEG_WEIGHT_DEF = 8;
-export const _segBarCache = new Map();
+export const _segBarCache = new Map(), _segFoldCache = new Map();   // the bar · one folded line's united stroke, by its shape
 export function segmentBar(g, weight, round) {
   const key = g.d + '|' + g.normTx + '|' + g.normTy + '|' + g.normScale + '|' + weight + '|' + round;
   if (_segBarCache.has(key)) return _segBarCache.get(key);
@@ -258,12 +258,12 @@ export function segmentBar(g, weight, round) {
   const polys = g.d.split(/(?=M)/).map(sub => (sub.match(/-?\d*\.?\d+(?:e-?\d+)?/g) || []).map(Number))
     .map(nums => { const pts = []; for (let i = 0; i + 1 < nums.length; i += 2) pts.push([(nums[i] + g.normTx) * g.normScale, (nums[i + 1] + g.normTy) * g.normScale]); return pts; })
     .filter(pts => pts.length > 1);
-  let d = '', x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const grow = (q, r) => { if (q[0] - r < x0) x0 = q[0] - r; if (q[0] + r > x1) x1 = q[0] + r; if (q[1] - r < y0) y0 = q[1] - r; if (q[1] + r > y1) y1 = q[1] + r; };
-  for (let pts of polys) {
-    pts = pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 1e-6);
+  // One ribbon `hw` each side of `pts`, wound positive; a round cap only at a true end of the line (a run cut at a fold
+  // keeps a butt end there, under the fold's disc).
+  const ribbon = (pts, capStart, capEnd, grow) => {
     const n = pts.length;
-    if (n < 2) continue;
     const normals = pts.map((p, i) => {
       const n1 = i > 0 ? segNormal(pts[i - 1], p) : null, n2 = i < n - 1 ? segNormal(p, pts[i + 1]) : null;
       if (n1 && n2) { const m = unitVec([n1[0] + n2[0], n1[1] + n2[1]]); const c = Math.max(0.3, m[0] * n1[0] + m[1] * n1[1]); return [m[0] / c, m[1] / c]; }   // miter, clamped
@@ -276,16 +276,100 @@ export function segmentBar(g, weight, round) {
     let area = 0; for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; area += a[0] * b[1] - b[0] * a[1]; }
     if (area < 0) { [left, right] = [right, left]; }
     left.forEach(q => grow(q, 0)); right.forEach(q => grow(q, 0));
-    if (round) { grow(pts[0], hw); grow(pts[n - 1], hw); }   // a round end bulges up to hw past its centre point
+    if (capStart) grow(pts[0], hw);
+    if (capEnd) grow(pts[n - 1], hw);   // a round end bulges up to hw past its centre point
     const P = q => R(q[0]) + ',' + R(q[1]);
     const tanEnd = unitVec([pts[n - 1][0] - pts[n - 2][0], pts[n - 1][1] - pts[n - 2][1]]);
     const tanStart = unitVec([pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]]);
     const arc = (c, from, to, dir) => capArc(c, from, to, dir).replace(/-?\d*\.?\d+(?:e-?\d+)?/g, m => String(R(+m)));
     let s = 'M ' + left.map(P).join(' L ');
-    s += round ? ' ' + arc(pts[n - 1], left[n - 1], right[n - 1], tanEnd) : ' L ' + P(right[n - 1]);
+    s += capEnd ? ' ' + arc(pts[n - 1], left[n - 1], right[n - 1], tanEnd) : ' L ' + P(right[n - 1]);
     s += ' L ' + right.slice(0, n - 1).reverse().map(P).join(' L ');   // down to right[0] — a 2-point line needs it too (else a triangle)
-    s += round ? ' ' + arc(pts[0], right[0], left[0], tanStart) : '';
-    d += (d ? ' ' : '') + s + ' Z';
+    s += capStart ? ' ' + arc(pts[0], right[0], left[0], tanStart) : '';
+    return s + ' Z';
+  };
+  // A fold (Diego, Oct 29, 2026: "con wave e altre trasformazioni non mi sembrano che funzionino bene i segmenti"): where
+  // the line turns tighter than half the bar's width — a high Wave, many Wave cycles, a thick bar, a Repeat that
+  // squashes the line — the inner side of a plain offset turns back on itself and leaves teeth and spikes. There the bar
+  // is the line's own stroke: the ribbon is cut at each fold point, a disc of the bar's half width covers it, and the
+  // pieces of that one line are united (Paper.js, as Cut out). Lines are not united with each other — every ring winds
+  // the same way, so nonzero fills their overlaps — and a copy that is only shifted (Repeat, Lines) reuses the union.
+  // A line that never folds keeps its ribbon as before.
+  const strokeOf = pts => {
+    const o = pts[0], key = hw + '|' + round + '|' + pts.map(p => Math.round((p[0] - o[0]) * 10) + ',' + Math.round((p[1] - o[1]) * 10)).join(' ');   // to 0.1 (0.1 % of the cell): a shifted copy differs by its rounding
+    let rel = _segFoldCache.get(key);
+    if (!rel) {
+      let loc = pts.map(p => [p[0] - o[0], p[1] - o[1]]);
+      const foldsOf = loc => { const folds = [];
+      for (let i = 1; i < loc.length - 1; i++) {
+        const ax = loc[i][0] - loc[i - 1][0], ay = loc[i][1] - loc[i - 1][1], bx = loc[i + 1][0] - loc[i][0], by = loc[i + 1][1] - loc[i][1];
+        const la = Math.hypot(ax, ay), lb = Math.hypot(bx, by), turn = Math.abs(Math.atan2(ax * by - ay * bx, ax * bx + ay * by));
+        if (turn > 1e-6 && (turn > 0.35 || Math.min(la, lb) / (2 * Math.sin(Math.min(turn, Math.PI - 1e-6) / 2)) < hw * 1.05)) folds.push(i);
+      }
+      return folds; };
+      let folds = foldsOf(loc);
+      if (!folds.length) rel = { plain: true };
+      else {
+        try {
+          // a folding line is drawn from fewer points: a point goes when the chord that replaces it is shorter than 15 % of
+          // the half width and passes within 1 % of it and of every point it skips (a crest's tip stays) — the union has
+          // far fewer pieces (a Repeat 9 × 9 squashes a wave until every point folds)
+          const step = hw * 0.15, dev = hw * 0.01, thin = [loc[0], loc[1]];   // the first and last segments stay: a butt end keeps its direction
+          const off = (q, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy; if (!L2) return Math.hypot(q[0] - a[0], q[1] - a[1]); const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2)); return Math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dy); };
+          let k = 1;
+          for (let j = 3; j < loc.length - 1; j++) {
+            const a = loc[k], b = loc[j];
+            let ok = Math.hypot(b[0] - a[0], b[1] - a[1]) < step;
+            for (let i = k + 1; ok && i < j; i++) if (off(loc[i], a, b) > dev) ok = false;
+            if (!ok) { k = j - 1; thin.push(loc[k]); }
+          }
+          if (loc.length > 3) thin.push(loc[loc.length - 2]);
+          if (loc.length > 2) thin.push(loc[loc.length - 1]);
+          if (thin.length < loc.length) { loc = thin; folds = foldsOf(loc); }
+          const scope = splitPaperScope(), parts = [], cuts = [0, ...folds, loc.length - 1], noGrow = () => {};
+          for (let k = 0; k + 1 < cuts.length; k++) {
+            const run = loc.slice(cuts[k], cuts[k + 1] + 1);
+            if (run.length > 1) parts.push(new scope.CompoundPath({ pathData: ribbon(run, round && k === 0, round && k === cuts.length - 2, noGrow), insert: false }));
+          }
+          // what covers a fold point, straight-sided (Paper's booleans are far faster on lines than on curves): a turn over
+          // 8° gets a 24-gon of the bar's half width (≤ 0.9 % short of the circle); a gentler one two thin triangles that
+          // close the wedge between the two runs on either side (what they leave out ≈ hw·θ²/8, as in Cut out)
+          folds.forEach(i => {
+            const a = loc[i], pv = loc[i - 1], nx = loc[i + 1], u = unitVec([a[0] - pv[0], a[1] - pv[1]]), v = unitVec([nx[0] - a[0], nx[1] - a[1]]);
+            const turn = Math.abs(Math.atan2(u[0] * v[1] - u[1] * v[0], u[0] * v[0] + u[1] * v[1]));
+            if (turn > 0.14) { const ring = []; for (let k = 0; k < 24; k++) { const t = k / 24 * Math.PI * 2; ring.push([a[0] + Math.cos(t) * hw, a[1] + Math.sin(t) * hw]); } const g = new scope.Path({ segments: ring, closed: true, insert: false }); g.clockwise = true; parts.push(g); }
+            else for (const sg of [1, -1]) {
+              const tri = new scope.Path({ segments: [a, [a[0] - sg * u[1] * hw, a[1] + sg * u[0] * hw], [a[0] - sg * v[1] * hw, a[1] + sg * v[0] * hw]], closed: true, insert: false });
+              tri.clockwise = true; parts.push(tri);
+            }
+          });
+          let layer = parts;
+          while (layer.length > 1) {
+            const next = [];
+            for (let i = 0; i < layer.length; i += 2) {
+              if (i + 1 >= layer.length) { next.push(layer[i]); continue; }
+              next.push(layer[i].unite(layer[i + 1], { insert: false }));
+              layer[i].remove(); layer[i + 1].remove();
+            }
+            layer = next;
+          }
+          const tol = Math.min(0.05, Math.max(0.01, hw * 0.005)), rings = [];
+          paperLeaves(layer[0]).forEach(l => { const c = l.clone({ insert: false }); try { c.flatten(tol); } catch (e) { /* straight */ } const q = c.segments.map(sg => [sg.point.x, sg.point.y]); c.remove(); if (q.length > 2) rings.push(q); });
+          layer[0].remove();
+          rel = { rings };
+        } catch (e) { rel = { plain: true }; }   // no Paper here: the plain ribbon, as before
+      }
+      if (_segFoldCache.size > 400) _segFoldCache.clear();
+      _segFoldCache.set(key, rel);
+    }
+    if (rel.plain) return ribbon(pts, round, round, grow);
+    return rel.rings.map(q => 'M ' + q.map(v => { const x = v[0] + o[0], y = v[1] + o[1]; grow([x, y], 0); return R(x) + ',' + R(y); }).join(' L ') + ' Z').join(' ');
+  };
+  let d = '';
+  for (let pts of polys) {
+    pts = pts.filter((p, i) => i === 0 || Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]) > 1e-6);
+    if (pts.length < 2) continue;
+    d += (d ? ' ' : '') + strokeOf(pts);
   }
   // The thickness can push past the canvas (Rays turning a full grid, round ends
   // on a full-length bar): fit the finished bar back in, like overflowNorm does.
