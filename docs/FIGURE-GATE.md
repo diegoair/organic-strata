@@ -127,6 +127,24 @@ show the same words and draw the same result.
 - [ ] A Figure saved before Oct 13 with the old rule names (Pinwheel / Oscillator) opens and draws as before.
 - [ ] Console: no errors after these.
 
+## 3 (Oct 29, 2026). Manual half — Figure ← Symbol
+
+Work of the day: the Figure is made from the Symbol step's Symbols (Diego: *"se ho 3 symbol vedo 3 figure con i symbol
+creati"*). Try in both themes, console open:
+
+- [ ] A fresh browser (no Symbol filled): the **Figure** step button is greyed; its tooltip says *Figure — fill a cell on the
+  Symbol step first*; a click stays on Symbol with a notice.
+- [ ] Fill one cell of Symbol 1: the Figure button opens. Figure: **Symbol 1** (pill, the Symbol's picture, *Edit it on the
+  Symbol step*) → **Symbol 1** (Figure card, the Symbol drawn as on the Symbol step).
+- [ ] New symbol, fill it; a third, leave it empty → Figure: two Symbol → Figure pairs, none for the empty one.
+- [ ] Change cells on Symbol 1, rename Symbol 2 (double-click its name) → back to Figure: the first Figure redrawn, the second renamed.
+- [ ] Delete Symbol 2 on the Symbol board → back to Figure: its pair is gone, Symbol 1's stays.
+- [ ] Select the Symbol pill → Delete: a notice, it stays. The same for its Figure.
+- [ ] The Figure of a Symbol: its panel has Compose, Palette, Add Variations, Keep own colours — no Canvas, Grid, Fit, Clip to cell.
+- [ ] Wire a Palette into it: the Components recolour. Add Variations: palette / rule changes only (never the grid or the cells).
+- [ ] Compose on it (double-click): region rules work on the Symbol's cells.
+- [ ] A graph saved before today (Canvas · Grid · Content → Figure) opens and draws as before; the Symbols' Figures are added beside it.
+
 ## 4. Record
 
 Tick each commit in the **Organica test log** artifact (https://claude.ai/artifact/FsEoGMwKmWeKinrXfUhvyh) as you go. It lists every commit of the day with a "try this" and a link, and its note field is where a failure goes. Then:

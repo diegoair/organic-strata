@@ -1598,6 +1598,35 @@ Figure is a node **Graph**: Canvas, Grid and Palette nodes (the foundation), con
 - **Saved.** The graph being edited autosaves to `Organica.store('fvs-figure')` → `Current graph`; the view (zoom, pan) to `localStorage['organica.fvs.figure-view']`.
 - **Colour.** A Palette recolours the content it feeds: Elements by its *Colour by* rule, Components through their colourway (the Palette's inks + Paper; the Component's own colour rule still picks which ink goes where). **Keep own colours** on the Figure leaves every content in the colours it was saved with.
 
+### 12.2b Figure ← Symbol (Oct 29, 2026)
+
+Diego: *"Figure è attivo solo quando almeno un symbol è creato. Il default rimane così ma deve caricare il symbol. Quello
+che è in Symbol e quello che è in Figure devono essere sincronizzati, quindi se ho 3 symbol vedo 3 figure con i symbol
+creati"*; *"Symbol si sostituisce a quello che oggi è la canvas figure, le logiche rimangono invariate"*.
+
+- **The Symbol node** (`engine/17-figure-nodes.js`, type `symbol`, Content, hidden from the node bar, icon `fvs-symbol`):
+  params `{symbolId, name, snapshot: {work, components}}` — the Symbol's `work` as the Symbol board keeps it (grid model,
+  cells, Palette, clip, Overlap) + a copy of every Component its cells hold. Card: the Symbol's picture, *Edit it on the
+  Symbol step*. It can't be deleted in the graph (`protect`); nor can its Figure.
+- **A Figure of a Symbol** (`params.symbolId`): its inputs are **Symbol · Palette · Rules · Composition** (`meta.inputs` is a
+  function of the node) — the Symbol takes the place of Canvas + Grid + Content. `compileFromSymbol` makes the sealed
+  Symbol level from the Symbol's own cells (Palette optional, else the Symbol's; Keep own colours as usual; a Component rule
+  poses the cells by their place, as on any non-square grid); Rules, Composition, Repeat, Rotate & mirror and Variations
+  work as on any Figure (a variation never changes a Symbol's grid or content). Its panel has no Canvas · Grid · Fit · Clip.
+- **The sync** (`syncSymbolFigures`, `17-figure-graph.js`), one way, on every visit to the step and when the graph mounts:
+  every Symbol of the board with a filled cell gets a Symbol node → Figure, named as the Symbol; an edit or a rename follows;
+  a Symbol deleted on the board takes its pair with it; an empty Symbol gets none (one emptied since keeps its Figure, which
+  says *Fill a cell of this Symbol on the Symbol step*). What the Figure adds stays. The board side: `hooks.boardSymbols`
+  (`18-step-boards.js`) — the edited Symbol taken again first (outside the Figure step). Copying a Symbol node or its
+  Figure makes a copy the sync does not follow.
+- **The starter graph**: the Symbols' Figures; with none filled, the classic Canvas · Grid · Palette → Figure 1
+  (`classicStarter`, also what the Figure board test draws on). Graphs saved before keep their Figures; the Symbols' are added.
+- **The Figure step button** (`syncFigureTab`, `12-shell.js`): `aria-disabled` + *Figure — fill a cell on the Symbol step
+  first* until a Symbol has a filled cell; a click then stays and says so. `setTier('figure')` itself is not gated (code, tests).
+- Found on the way: after a Figure visit (left through Symbol) the Symbol board stopped keeping the edited Symbol and its
+  ⌘Z until Element / Component was visited (`snap` / `editable` read `preFigureSnapshot`) — now they read the active step.
+- Tests: `scripts/test-fvs-figure-symbols.sh` (11); the Figure board and QA suites fill a Symbol first.
+
 ### 12.3 The old Figure UI, retired (end of Phase 3, Oct 2026)
 
 Diego's go-ahead, Oct 7, 2026. The graph is the only Figure UI now.
