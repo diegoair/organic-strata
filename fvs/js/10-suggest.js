@@ -18,6 +18,9 @@ import {
   collectGeneratedComponents, generatedIn, suggestZoned
 } from './engine/11-zones.js';
 import {
+  symbolCellBounds
+} from './engine/11-symbol-ui.js';
+import {
   LIBRARY, isGenName, setGenComponents
 } from './engine/07-library.js';
 import {
@@ -67,7 +70,7 @@ export function renderSuggestGallery(currentIdx) {
   wrap.innerHTML = '';
   state.symbolSuggestions.forEach((sg, i) => {
     state.symbolCells = sg.cells;
-    const svg = buildSymbolSVG();
+    const svg = veilOutside(buildSymbolSVG(), sg.selIdx);
     const btn = document.createElement('button');
     btn.className = 'fvs-suggest__item' + (i === currentIdx ? ' is-current' : '');
     btn.type = 'button';
@@ -90,6 +93,17 @@ export function renderSuggestGallery(currentIdx) {
     wrap.appendChild(btn);
   });
   state.symbolCells = prev;
+}
+// Variations of a selection change only its cells (Oct 27, 2026): the others are veiled on the Variations sheet, so what
+// differs shows — with the whole Symbol at the same strength twelve variations of six cells read as twelve the same
+// (Diego, Oct 29, 2026: "al momento sono tutte uguali"). Screen only: a click puts the variation on the Symbol as it is.
+function veilOutside(svg, selIdx) {
+  if (!selIdx || !selIdx.length) return svg;
+  const keep = new Set(selIdx), end = svg.lastIndexOf('</svg>');
+  if (end < 0) return svg;
+  const paper = Organica.contentColor('--paper') || 'white';
+  const rects = symbolCellBounds().filter(b => !keep.has(b.index)).map(b => `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}"/>`).join('');
+  return svg.slice(0, end) + `<g class="fvs-sug-veil" fill="${paper}" fill-opacity="0.72" pointer-events="none">${rects}</g>` + svg.slice(end);
 }
 let sugClickT = 0;
 const SUG_DBL_MS = 220;   // under the usual double-click interval, as the rail's tiles
@@ -147,7 +161,7 @@ export function runSuggest(more, keep, fill) {   // keep: apply nothing (the fal
   } finally { state.symbolCells = real; }
   rt.sugOwn = own;   // a variation picked from this run keeps these contents
   state.symbolSuggestions.forEach(sg => { sg.gen = generatedIn(sg.cells); });
-  state.symbolSuggestions.forEach(sg => { sg.cells = sg.cells.map((c, i) => (held[i] ? real[i] : c)); if (sel) sg.sel = true; });
+  state.symbolSuggestions.forEach(sg => { sg.cells = sg.cells.map((c, i) => (held[i] ? real[i] : c)); if (sel) { sg.sel = true; sg.selIdx = [...sel]; } });
   // the Symbol as it is is never one of its own variations, nor two the same (what each cell holds, its turn and flip)
   const seenLook = new Set([look(real)]);
   state.symbolSuggestions = state.symbolSuggestions.filter(sg => { const k = look(sg.cells); if (seenLook.has(k)) return false; seenLook.add(k); return true; });
@@ -157,7 +171,7 @@ export function runSuggest(more, keep, fill) {   // keep: apply nothing (the fal
   ctrl('sug-hint').textContent = [
     own.length ? `From this Symbol’s ${own.length} content${own.length === 1 ? '' : 's'}` + (own.length === 1 && !gen.length ? ' — turns and flips only.' : '.') : '',
     gen.length ? `+ ${gen.length} generated component${gen.length === 1 ? '' : 's'} not saved yet.` : '',
-    sel ? `Variations of the ${sel.size} selected cell${sel.size === 1 ? '' : 's'}.` : '',
+    sel ? `Variations of the ${sel.size} selected cell${sel.size === 1 ? '' : 's'} — Esc, then Suggest, for the whole Symbol.` : '',
     zoneHeld.size ? `${zoneHeld.size} cells held by saved selections.` : '',
     suggestSymbols.lastNote || ''].filter(Boolean).join(' ');
   // Suggest puts nothing on the Symbol (Oct 28, 2026 — Diego: "per non perdere la versione creata da me"): the variations

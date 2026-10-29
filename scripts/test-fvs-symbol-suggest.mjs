@@ -73,6 +73,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const cur = JSON.stringify(F.state.symbolCells.map(c => [c.componentName, c.rotation, !!c.flipH]));
   q('btn-sug-run').click(); await w(500);
   const keys = F.state.symbolSuggestions.map(v => JSON.stringify(v.cells.map(c => [c.componentName, c.rotation, !!c.flipH])));
+  check('variations of a selection: the cells outside it veiled on the sheet, never in the export', document.querySelectorAll('#fvs-sug-panel .fvs-sug-veil').length === F.state.symbolSuggestions.length && !/fvs-sug-veil/.test(F.buildSymbolSVG()), document.querySelectorAll('#fvs-sug-panel .fvs-sug-veil').length);
   check('one selected cell, picked, Suggest again: several variations, none the Symbol as it was', keys.length >= 2 && new Set(keys).size === keys.length && !keys.includes(cur), keys.length + ' / ' + keys.includes(cur));
   F.state.symbolSelection.clear(); F.renderSymbol(); await w(100);
   // Suggest keeps your Symbol; a double-click on a variation makes it a new Symbol below, edited; yours stays (Diego, Oct 28, 2026:

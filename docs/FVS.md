@@ -1278,7 +1278,9 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
   the next seed (the first is the field's, so a run repeats) and gives new variations — after a pick too (Diego, Oct 28,
   2026: *"niente più varianti simili dopo una scelta"*; More like this is off the screen). Each variation is the Symbol **with its own cells**, half its width, two per
   row (the 3 × 3 repeat of the same day is gone — Diego: *"le varianti devono essere dello stesso numero di celle del
-  symbol non più grandi"*). **Your Symbol stays** (Oct 28, 2026 — Diego: *"per non perdere la versione creata da me quando clicco due volte su una
+  symbol non più grandi"*). **Variations of a selection** (Oct 29, 2026 — Diego: *"al momento sono tutte uguali"*: six of 36 cells selected, each
+  variation changed 3–6 of them): on the Variations sheet the cells outside the selection are veiled (`.fvs-sug-veil`,
+  the paper at 72 %, screen only), the hint says *Esc, then Suggest, for the whole Symbol*. **Your Symbol stays** (Oct 28, 2026 — Diego: *"per non perdere la versione creata da me quando clicco due volte su una
   variante crea un nuovo symbol sotto modificabile"*): Suggest puts nothing on the Symbol (only Fill the grid, on an empty
   grid, takes the first — `runSuggest(…, fill)`); a click on a variation puts it on the Symbol (after a double-click's
   time, 220 ms; Enter at once); a **double-click** keeps the Symbol as it is and makes the variation a **new Symbol below**,
