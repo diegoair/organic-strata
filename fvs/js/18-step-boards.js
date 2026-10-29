@@ -4,7 +4,7 @@
 //     panel, the others are drawn from their snapshot; New element, Clear board, the single view.
 //   · Component: the gallery as one area; double-click a candidate = Component Edit in its single view, its cells with
 //     Symbol's grammar (marquee, a second click = Choose content, a rail Element dropped on them, Delete).
-//   · Symbol: the Symbol sheet with Suggest's variations as sheets beside it.
+//   · Symbol: the Symbol sheets (Suggest's Variations sheet removed Oct 29, 2026 — to move to the Figure later).
 // The FVS files call in through hooks (boardElementDrawn, boardGalleryDrawn, boardComponentEdit, boardTierShown).
 // An ES module of fvs/js/main.js — docs/FVS.md §11, §13.
 import { rt } from './rt.js';
@@ -1123,7 +1123,7 @@ function mountSymbolBoard() {
   };
   const posOf = id => ({ ...B.sheets[sheetId(id)].p });
   const pin = (id, x, y) => { placeSheet(B, sheetId(id), x, y); B.pos[sheetId(id)] = B.sheets[sheetId(id)].p; };
-  const placeVariations = () => { if (B.sheets[sheetId(active())]) { const p = posOf(active()); placeSheet(B, 'variations', p.x + VX, p.y); } };
+  const placeVariations = () => { if (B.sheets.variations && B.sheets[sheetId(active())]) { const p = posOf(active()); placeSheet(B, 'variations', p.x + VX, p.y); } };
   function placeLive(s, x, y) { addSheet(B, sheetId(s.id), s.name, x, y, liveSheet); pin(s.id, x, y); }
   function mountStatic(s, x, y) {
     const body = el('div', 'fvs-board-symbol fvs-board-symbol--static');
@@ -1257,8 +1257,10 @@ function mountSymbolBoard() {
   }
   // first: the Symbols as saved (or one, the Symbol the page opened with)
   const first = readSymbols();
-  addSheet(B, 'variations', 'Variations', VX, 0, ctrl('board-variations'));
-  ctrl('board-variations').classList.toggle('is-empty', !state.symbolSuggestions.length);
+  // No Variations sheet on the Symbol step (Diego, Oct 29, 2026: "visto che i risultati prodotti sono scadenti eliminiamo
+  // variations con suggest da symbol. lo sposteremo in figure ma dopo"): the sheet and Suggest's controls are off the
+  // board; the engine (10-suggest.js, engine/10-suggest.js, suggestZoned) stays, for the Figure later.
+  ctrl('board-variations').hidden = true;
   if (first.items.length) load({ ...first, apply: true });
   else {
     state.symbols = [{ id: newId(), name: 'Symbol 1', custom: false, work: workOf() }];

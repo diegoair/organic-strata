@@ -391,15 +391,9 @@ async function componentBoard(mode) {
 async function symbolBoard(mode) {
   const C = (n, ok, d) => check(mode, 'Symbol · ' + n, ok, d);
   await step('symbol');
-  C('the Symbol sheet and an empty Variations sheet', await ev(() => !!document.querySelector('#board-symbol #symbol-frame svg') && document.getElementById('board-variations').classList.contains('is-empty')));
+  // no Variations sheet on the Symbol step (Diego, Oct 29, 2026: Suggest's variations removed from Symbol, for the Figure later)
+  C('the Symbol sheet, no Variations sheet', await ev(() => !!document.querySelector('#board-symbol #symbol-frame svg') && document.getElementById('board-variations').hidden && !document.getElementById('board-variations').getClientRects().length));
   C('no Variations button in the floatbar', await ev(() => !document.getElementById('btn-sug-dock')));
-  // variations: shown as sheets, a click puts one on the Symbol
-  await ev(() => { const F = __t.F; F.state.symbolSuggestions = [0, 1, 2].map(i => ({ cells: F.state.symbolCells.map(c => ({ ...c })), label: 'test ' + i, score: { edges: 0 } })); F.renderSuggestGallery(0); });
-  await press('Digit1', '!', 49, SHIFT);
-  const items = await ev(() => document.querySelectorAll('#fvs-sug-panel .fvs-suggest__item').length);
-  C('Suggest\'s variations are sheets beside the Symbol', items === 3 && await ev(() => !document.getElementById('board-variations').classList.contains('is-empty')), items + ' items');
-  await click(await ev(() => __t.box('#fvs-sug-panel .fvs-suggest__item:nth-child(3)')));
-  C('a click on a variation makes it current', await ev(() => document.querySelector('#fvs-sug-panel .fvs-suggest__item:nth-child(3)').classList.contains('is-current')));
   // the % labels: placed again after a zoom, at the same size on screen
   await ev(() => { __t.F.state.symbolView.guides = true; __t.F.renderSymbol(); });
   await wheel(await ev(() => __t.empty('symbol')), -240);

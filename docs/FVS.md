@@ -1271,7 +1271,12 @@ integrarlo a FVS"*), plan `/Users/diego/.claude/plans/my-feedback-and-fix-encaps
   Duplicate · SVG · PNG · Delete); its picture is cropped to its cells (`assetThumbSVG`). Placed **from a cell** — its
   top-left cell there (`assetPastePlan`): dragged onto a cell, Enter from the first selected cell, or stamped with the
   Brush (a click, not a drag); past the grid's edge it is cut, a locked cell stays.
-- **Suggest and Variations as one** (Diego: *"Variations e Suggest devono convergere ed essere semplificate"*): Suggest's
+- **Removed from the Symbol step, Oct 29, 2026** (Diego: *"visto che i risultati prodotti sono scadenti eliminiamo variations
+  con suggest da symbol. lo sposteremo in figure ma dopo non ora"*): the Variations sheet is off the Symbol board
+  (`#board-variations` hidden, no sheet added, `18-step-boards.js`) and Suggest's controls with it. The engine stays —
+  `10-suggest.js` (`runSuggest`, the gallery, the double-click to a new Symbol), `engine/10-suggest.js`, `suggestZoned` —
+  for the Figure later; **Fill the grid** still fills an empty grid through it (`fillSymbolCells`). What it was:
+- ~~**Suggest and Variations as one**~~ (Diego: *"Variations e Suggest devono convergere ed essere semplificate"*): Suggest's
   controls — **Suggest**, **Surprise**, *Use generated components*, the hint — sit on the Variations sheet after its name
   (`.fvs-sug-bar`, at screen size like the name); the panel's Suggest section is hidden (it keeps the Fill mode and
   Arrange controls the code reads). Seed, More like this and Recolour (test) are gone from the screen: every Suggest takes
