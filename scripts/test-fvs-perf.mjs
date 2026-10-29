@@ -8,7 +8,7 @@
 // hidden: it throttles timers to one per second.)
 //
 // Two parts:
-//   1. sequence — circle cells, grid size 1, an empty library, up to 12 saves in a row (what the gallery offers, ≥ 8). Catches a save that gets slower with
+//   1. sequence — circle cells, grid size 2, an empty library, up to 12 saves in a row (what the gallery offers, ≥ 8). Catches a save that gets slower with
 //      every saved thumbnail (Oct 6, 2026: 13 CSS filter passes per saved cell-shape thumbnail → ~2 s by the 12th).
 //   2. matrix — every cell shape × grid shape × grid size (+ square 2×2 / 3×3 / 4×4 / 4×2), N saves each, on top of a
 //      library pre-filled with ~P saved Components, the Library rail open. Catches a save that gets slower with the
@@ -168,17 +168,18 @@ const judge = (where, t) => {
 // 1 — sequence
 console.log(`FVS perf — ${path.relative(process.cwd(), ROOT) || '.'}, Library rail ${RAIL ? 'open' : 'closed'}, budget ${MAX_MS} ms per save`);
 if (ONLY.includes('sequence')) {
-await setGrid({ shape: 'circle', outline: 'hexagon', rings: 1 });
-// as many saves as the gallery offers, up to 12 (a circle / size-1 grid has 10 candidates since the Oct 14, 2026 rule
-// changes — the 11th and 12th saves found nothing to click and failed the run)
-const offered = await ev(`document.querySelectorAll('#gallery .fvs-thumb-quicksave:not(.saved)').length`);
+await setGrid({ shape: 'circle', outline: 'hexagon', rings: 2 });
+// as many saves as the gallery offers, up to 12. Since Oct 26, 2026 a save marks every thumbnail that IS that Component
+// (the same cells) saved too: a circle / size-1 grid offers 9 thumbnails but only 4 different Components — the 5th save
+// found nothing to click (Oct 29, 2026). Size 2 offers 9 different ones.
+const offered = await ev(`new Set(window.__fvs.state.components.map(c => JSON.stringify(c.cells))).size`);   // different Components, not thumbnails
 const N = Math.min(12, offered);
 if (N < 8) fails.push(`sequence: only ${offered} unsaved thumbnails to save (need 8)`);
 for (let i = 0; i < N; i++) {
   const t = await save(PROFILE && 'sequence'.startsWith(PROFILE) && i === N - 1);
   results.sequence.push(t); judge(`sequence save ${i + 1}`, t);
 }
-console.log(`sequence  circle / grid size 1, ${N} saves:  ` + results.sequence.join(', ') + ' ms');
+console.log(`sequence  circle / grid size 2, ${N} saves:  ` + results.sequence.join(', ') + ' ms');
 const seq = results.sequence.filter(t => typeof t === 'number');
 if (seq.length === N && N >= 8) {
   const head = (seq[1] + seq[2]) / 2, tail = (seq[N - 2] + seq[N - 1]) / 2;
@@ -199,7 +200,9 @@ outer: for (let round = 0; round < 20; round++) {
     }
   }
 }
-await ev(`window.__fvs.fireChange('sel-seed-type', 'triangle'); 1`); await sleep(200);
+// the matrix saves an Element the prefill never used: its thumbnails are not in the library yet (a Component the library
+// already holds shows as saved — since Oct 26, 2026 — and the matrix found nothing to save, Oct 29, 2026)
+await ev(`window.__fvs.fireChange('sel-seed-type', 'roundedrect'); 1`); await sleep(200);
 const kb = await ev(`Math.round((localStorage.getItem(window.__fvs.LIBRARY.key) || '').length / 1024)`);
 console.log(`prefill   ${await libCount()} saved Components, ${kb} KB in localStorage`);
 
@@ -213,7 +216,10 @@ for (const shape of Object.keys(OUTLINES)) for (const outline of OUTLINES[shape]
 for (const k of combos) {
   await setGrid(k);
   const t = [];
-  for (let i = 0; i < SAVES; i++) { const r = await save(PROFILE && label(k).startsWith(PROFILE) && i === 0); t.push(r); judge(label(k), r); }
+  // as many saves as this grid has different Components not saved yet, up to SAVES (a size-1 grid of a symmetric Element
+  // has one: its thumbnails are the same Component, saved together since Oct 26, 2026)
+  const free = await ev(`(() => { const F = window.__fvs, lib = Object.values(F.LIBRARY.read()).map(e => JSON.stringify((e.component || {}).cells || null)); return new Set(F.state.components.filter(c => !c.savedName).map(c => JSON.stringify(c.cells)).filter(k => !lib.includes(k))).size; })()`);
+  for (let i = 0; i < Math.min(SAVES, Math.max(1, free)); i++) { const r = await save(PROFILE && label(k).startsWith(PROFILE) && i === 0); t.push(r); judge(label(k), r); }
   results.matrix.push({ combo: label(k), ms: t, library: await libCount() });
   console.log(label(k).padEnd(30) + `lib ${await libCount()}`.padEnd(10) + t.join(', ') + (t.every(x => typeof x === 'number') ? ' ms' : ''));
 }
@@ -271,7 +277,10 @@ if (ONLY.includes('storage')) {
     if (!ok) fails.push(`storage full — ${what}: notice "${n}", library ${before} → ${after}, marked saved ${r.markedSaved}`);
     await closeNotice();
   };
-  await expectRefused('save circle', async () => { const t = await save(false); return { markedSaved: await ev(`!!document.querySelector('#gallery .fvs-thumb.saved-in-library')`) || typeof t === 'number' }; });
+  // marked = MORE thumbnails show saved than before the click (the gallery may already show some: a Component the matrix
+  // saved earlier is in the library — since Oct 26, 2026 every thumbnail that is it shows so; Oct 29, 2026)
+  const savedNow = () => ev(`document.querySelectorAll('#gallery .fvs-thumb.saved-in-library').length`);
+  await expectRefused('save circle', async () => { const s0 = await savedNow(); const t = await save(false); return { markedSaved: (await savedNow()) > s0 || typeof t === 'number' }; });
   await expectRefused('Save all', async () => { await ev(`window.__fvs.saveAllComponentsToLibrary(); 1`); return { markedSaved: await ev(`window.__fvs.state.components.some(c => c.savedName)`) }; });
   await expectRefused('Element save', async () => { const n = await ev(`(() => { const F = window.__fvs; return F.saveElementVariant(0, false, false, '0°') || null; })()`); return { markedSaved: !!n }; });
   await expectRefused('Symbol save', async () => { await ev(`window.__fvs.setTier('symbol'); new Promise(r => setTimeout(r, 600))`); const had = await ev(`Object.keys(window.__fvs.SYMBOL_LIBRARY.read()).length`); await ev(`(() => { const F = window.__fvs; if (!F.state.symbolGrid && F.generateSymbol) F.generateSymbol(); F.saveSymbolAs('perf symbol'); return 1; })()`); return { markedSaved: (await ev(`Object.keys(window.__fvs.SYMBOL_LIBRARY.read()).length`)) !== had }; });
