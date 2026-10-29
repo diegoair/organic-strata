@@ -127,6 +127,7 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
   if (first.cells.length !== getSymbolGrid().cells.length) throw new Error(`The adopted Symbol has ${first.cells.length} cells but its grid has ${getSymbolGrid().cells.length}`);
   state.symbolCells = first.cells.map(c => withPlacementDefaults(clone(c)));
   state.symbolClipEnabled = first.clip !== false;
+  if (first.overlap) state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...first.overlap };   // a Symbol's own Overlap & blend (a Figure of a Symbol, Oct 29, 2026)
   if (first.rules && first.rules.length) applyRulesToContent(first.rules, first.paletteColourway);
 }
 const COMPOSE_CELL_FIELDS = ['source', 'seedType', 'componentName', 'colourway', 'rotation', 'flipH', 'flipV', 'fitMode', 'coverAxis', 'scale', 'fixedSize', 'color', 'padding', 'pad', 'seedParams', 'anchorX', 'anchorY'];

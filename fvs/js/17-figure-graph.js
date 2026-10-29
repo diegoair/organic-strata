@@ -5,7 +5,7 @@
 // click to add). Right panel = the selected node's settings. Bottom floatbar = New Figure…, Undo / Redo, Delete,
 // Fit all / Fit selection. Words: docs/UI-COPY.md §2 "Figure graph".
 import { rt } from './rt.js';
-import { provide } from './hooks.js';
+import { hooks, provide } from './hooks.js';
 import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps, syncStartSegs } from './11-symbol-ui.js';
 import { syncExportButton } from './12-shell.js';
 import { syncRailTier } from './15-export-library-view.js';
@@ -30,7 +30,7 @@ import {
   SYMBOL_ARRANGE, componentThumbSVG
 } from './engine/10-suggest.js';
 import {
-  SYMBOL_LIBRARY, SYMBOL_RULES, symbolPastePlan
+  SYMBOL_LIBRARY, SYMBOL_RULES, symbolEntryThumbSVG, symbolPastePlan
 } from './engine/11-symbol-ui.js';
 import {
   SEED_TYPES
@@ -87,7 +87,61 @@ function ensureNames(model) { model.nodes.forEach(n => { if (!n.name) n.name = n
 // Room between node columns: port labels sit outside the cards (node-canvas.css), an output's and an input's face
 // each other across the gap — two one-word labels + their gaps need ~120 px (design-system review, Oct 8, 2026).
 const LABEL_ROOM = 136, COL_STEP = 224 + LABEL_ROOM;   // 224 = the default card width (14rem)
+// ── the Symbol step's Symbols as Figures (Diego, Oct 29, 2026: "Quello che è in Symbol e quello che è in Figure devono
+// essere sincronizzati, quindi se ho 3 symbol vedo 3 figure con i symbol creati"). One way, live: every Symbol of the
+// Symbol board with at least one filled cell has a Symbol node → a Figure (params.symbolId); a new, renamed or edited
+// Symbol follows on the next visit to the step; a deleted one takes its nodes with it (what hangs off its Figure stays,
+// unwired). A Symbol emptied since keeps its Figure, which says so. What the Figure adds (rules, Variations) stays here.
+const filled = w => !!(w && w.gridModel && (w.cells || []).some(c => c && c.source && c.source !== 'empty'));
+function symbolWorkThumb(w) {
+  const p = w.palette || {};
+  try { return symbolEntryThumbSVG({ ...w, colors: p.colors || ['#000000'], colorRule: p.colorRule, paperColor: p.paperColor || '#ffffff' }); } catch (e) { return ''; }
+}
+function symbolSnapshot(s) {
+  const lib = LIBRARY.read(), components = {};
+  (s.work.cells || []).forEach(c => { if (c && c.source === 'component' && c.componentName && lib[c.componentName]) components[c.componentName] = JSON.parse(JSON.stringify(lib[c.componentName])); });
+  return { work: JSON.parse(JSON.stringify(s.work)), components };
+}
+export function figureGraphModel() { return ctl ? ctl.model : null; }   // the graph on screen (tests)
+export function figureUseModel(m) { if (!ctl) return; ctl.setModel(ensureNames(m)); ctl.commit('load'); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); }   // tests: put a graph on screen
+export function boardSymbols() { return hooks.boardSymbols ? hooks.boardSymbols() : []; }
+export function anySymbolFilled() { return boardSymbols().some(s => filled(s.work)); }
+function syncSymbolFigures(m) {
+  syncSymbolFigures.touched = [];   // Symbol nodes whose snapshot changed: recomputed (a param change does not re-run a node by itself)
+  const syms = boardSymbols();
+  if (!syms.length) return false;
+  let changed = false;
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  // gone from the Symbol board: its Symbol node and its Figure go
+  const ids = new Set(syms.map(s => s.id));
+  m.nodes.filter(n => n.type === 'symbol' && !ids.has(n.params.symbolId)).forEach(n => {
+    m.nodes.filter(f => f.type === 'figure' && f.params.symbolId === n.params.symbolId).forEach(f => NC.removeNode(m, f.id));
+    NC.removeNode(m, n.id); changed = true;
+  });
+  const ROW = 720;   // board units between two Symbols' Figures: a Figure card is about as tall as wide
+  let y = m.nodes.length ? Math.max(...m.nodes.map(n => (n.y || 0) + ROW)) : 40;
+  syms.forEach(s => {
+    let sn = m.nodes.find(n => n.type === 'symbol' && n.params.symbolId === s.id);
+    if (!sn && !filled(s.work)) return;   // an empty Symbol has no Figure (yet)
+    const snap = s.work ? symbolSnapshot(s) : null;
+    if (!sn) {
+      sn = NC.addNode(m, { type: 'symbol', x: 40, y, params: { symbolId: s.id, name: s.name, snapshot: snap }, name: s.name });
+      const fg = NC.addNode(m, { type: 'figure', x: 40 + COL_STEP, y, params: { ...registry.defaults('figure'), symbolId: s.id }, name: s.name });
+      NC.addEdge(m, { node: sn.id, port: 'symbol' }, { node: fg.id, port: 'symbol' });
+      y += ROW; changed = true; return;
+    }
+    if (sn.name !== s.name) { sn.name = s.name; sn.params.name = s.name; m.nodes.filter(f => f.type === 'figure' && f.params.symbolId === s.id).forEach(f => { f.name = s.name; }); changed = true; }
+    if (snap && !same(sn.params.snapshot, snap)) { sn.params.snapshot = snap; changed = true; syncSymbolFigures.touched.push(sn.id); }
+  });
+  return changed;
+}
 function starterModel() {
+  if (anySymbolFilled()) { const m = NC.createModel(); syncSymbolFigures(m); return m; }   // the Symbols' Figures (Oct 29, 2026)
+  return classicStarter();
+}
+// The graph before Oct 29, 2026: Canvas + Grid + Palette → Figure 1 with the newest saved Component / Element — still what a
+// graph with no filled Symbol starts from, and what the Figure board test draws on (figureUseModel).
+export function classicStarter() {
   const m = NC.createModel();
   const mk = (type, x, y) => NC.addNode(m, { type, x, y, params: registry.defaults(type), name: nextName(m, type) });
   const cv = mk('canvas', 40, 40), gr = mk('grid', 40, 200), pa = mk('palette', 40, 360), fg = mk('figure', 40 + COL_STEP, 40);
@@ -189,6 +243,9 @@ function renderBody(node, entry, el) {
     const flip = m && (cells ? { v: 'flip horizontal', h: 'flip vertical', vh: 'flip both' }[m] : 'mirror ' + MIRRORS[m].toLowerCase());
     const bits = [rot ? `Rotation ${rot}°` : '', flip || '', cells && +p.perCell ? `+${p.perCell}° per ${{ row: 'row', col: 'column' }[p.countBy] || 'cell'}` : '', cells && (p.randomAmount != null ? +p.randomAmount : p.random ? 180 : 0) ? `random ±${p.randomAmount != null ? +p.randomAmount : 180}°` : ''].filter(Boolean);
     el.innerHTML = NC.body.line(bits.length ? bits.join(' · ').replace(/^./, c => c.toUpperCase()) : 'No change');
+  } else if (node.type === 'symbol') {   // the Symbol step's Symbol, kept in step by the sync (Oct 29, 2026)
+    const w = p.snapshot && p.snapshot.work;
+    el.innerHTML = w ? NC.body.thumb(symbolWorkThumb(w), 'Edit it on the Symbol step') : NC.body.thumb('', 'Fill a cell of this Symbol on the Symbol step');
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
     el.innerHTML = p.snapshot ? NC.body.thumb(entryThumb(node.type, p.name, p.snapshot), gone ? `${p.name} is no longer in the library — drawn from the copy kept in this graph` : p.name) : NC.body.thumb('', 'Pick a saved ' + node.type);
@@ -530,6 +587,8 @@ function bindRename(node, ids) {
 // A Figure always has a Canvas and a Grid: the one feeding it can't be deleted while it is that Figure's only one.
 function protect(node, model, removing) {   // removing: the ids deleted together — a Figure going with its Canvas / Grid does not keep them
   if (node.type === 'figure-var') { const par = sourceOf(node, model); return par && !(removing || []).includes(par.id) ? (node.params.item != null ? `A variation goes with its Variations node — lower the count on ${nodeLabel(par)} or remove the item from the Set instead` : `A variation goes with its Variations node — lower the count on ${nodeLabel(par)} instead`) : null; }
+  if (node.type === 'symbol') return 'This Symbol comes from the Symbol step — delete it there';   // the sync made it; the Symbol board removes it
+  if (node.type === 'figure' && node.params && node.params.symbolId) return 'This Figure comes from a Symbol — delete the Symbol on the Symbol step';
   if (node.type !== 'canvas' && node.type !== 'grid') return null;
   const feeds = model.edges.some(e => e.from.node === node.id && !(removing || []).includes(e.to.node) && model.nodes.some(n => n.id === e.to.node && n.type === 'figure'));
   return feeds ? `A Figure needs a ${node.type === 'canvas' ? 'Canvas' : 'Grid'} — connect another one first` : null;
@@ -910,8 +969,10 @@ function renderInspectorBody(box, ids) {
   } else if (node.type === 'figure') {
     const cur = foundationOf(node);
     rows.push({ html: `<button type="button" class="panel-btn fg-block" id="fgi-compose">Compose</button>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });   // the node's main verb
-    if (!ctl.model.edges.some(e => e.to.node === node.id && e.to.port === 'content')) rows.push({ html: `<p class="org-empty">${savedEntries().element.length + savedEntries().component.length ? 'No content yet — add an Element or a Component from Content nodes on the left, then connect it to this Figure.' : 'No content yet — save an Element or a Component in its step first, or start from a built-in Figure with New Figure…'}</p>` });
+    const fromSymbol = !!p.symbolId;   // a Symbol's Figure: its canvas, grid and cells are the Symbol's (no Canvas · Grid · Content, no Fit · Clip)
+    if (!fromSymbol && !ctl.model.edges.some(e => e.to.node === node.id && e.to.port === 'content')) rows.push({ html: `<p class="org-empty">${savedEntries().element.length + savedEntries().component.length ? 'No content yet — add an Element or a Component from Content nodes on the left, then connect it to this Figure.' : 'No content yet — save an Element or a Component in its step first, or start from a built-in Figure with New Figure…'}</p>` });
     ['canvas', 'grid', 'palette'].forEach((t, k) => {
+      if (fromSymbol && t !== 'palette') return;
       const summary = n => t === 'canvas' ? canvasSummary(canvasOf(n.params)) : t === 'grid' ? gridSummary({ gen: n.params.gen, params: n.params.params }) : (k => k + (k === 1 ? ' ink' : ' inks'))((n.params.colors || []).length);
       const opts = ctl.model.nodes.filter(n => n.type === t).map(n => [n.id, nodeLabel(n) + ' · ' + summary(n)]);
       if (t === 'palette') opts.unshift(['', 'None — content’s own colours']);
@@ -932,10 +993,10 @@ function renderInspectorBody(box, ids) {
     const fv = figureValue(node.id), cks = fv && fv.checks ? fv.checks : [];
     if (cks.length) rows.push({ html: `</div><div class="panel-section"><h3>Checks <span class="hint">${cks.every(c => c.ok) ? 'All pass' : cks.filter(c => !c.ok).length + ' to look at'}</span></h3><ul class="fg-checks">${cks.map(c => `<li class="${c.ok ? 'is-ok' : 'is-bad'}">${Organica.icons.get(c.ok ? 'check' : 'alert', { size: 'xs' })}<span>${esc(c.label)}${c.detail ? ` <span class="fg-checks__detail">${esc(c.detail)}</span>` : ''}</span></li>`).join('')}</ul>` });
     rows.push({ html: '</div><div class="panel-section"><h3>Cells</h3>' });
-    rows.push(selectRow('Fit', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; delete p.symbolFit; edited(node, true); }));   // a built-in's own fit gives way to the user's
+    if (!fromSymbol) rows.push(selectRow('Fit', 'fgi-fit', [['fill', 'Stretch'], ['contain', 'Contain'], ['cover', 'Cover (no gaps)'], ['match', 'Match cell']], p.fit, v => { p.fit = v; delete p.symbolFit; edited(node, true); }));   // a built-in's own fit gives way to the user's
     rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-keepown"${p.keepOwn ? ' checked' : ''}><span>Keep own colours</span></label>`,
       bind: () => { ctrl('fgi-keepown').addEventListener('change', e => { p.keepOwn = e.target.checked; edited(node, true); }); } });
-    rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-clip"${p.clip !== false ? ' checked' : ''}><span>Clip to cell</span></label>`,
+    if (!fromSymbol) rows.push({ html: `<label class="check-row"><input type="checkbox" id="fgi-clip"${p.clip !== false ? ' checked' : ''}><span>Clip to cell</span></label>`,
       bind: () => { ctrl('fgi-clip').addEventListener('change', e => { p.clip = e.target.checked; edited(node, true); }); } });
   }
   if (node.type === 'variations') {
@@ -1876,6 +1937,7 @@ function initGraphMenu() {
 }
 
 export function renderFigureGraph() {
+  if (ctl && !composing && syncSymbolFigures(ctl.model)) { ctl.commit('sync', { amend: false }); syncSymbolFigures.touched.forEach(id => ctl.touch(id)); }   // the Symbols, as they are now
   if (ctl) { if (composing) { ctrl('fb-figure-actions').hidden = true; ctrl('fb-compose-actions').hidden = false; drawCompose(); renderComposeInspector(); } else ctl.refresh(); return; }
   rt.figureGraph = true;
   document.querySelector('.tier-view[data-tier="figure"]').classList.add('is-graph');
@@ -1913,6 +1975,7 @@ export function renderFigureGraph() {
   ctrl('btn-fg-new').addEventListener('click', openNewFigure);
   initNodebar(); initGraphMenu(); initCompose();
   ctrl('btn-export').addEventListener('click', e => { if (state.activeTier !== 'figure' || composing) return; e.preventDefault(); e.stopImmediatePropagation(); exportFromFloatbar(); }, true);
+  if (syncSymbolFigures(ctl.model)) { ctl.commit('sync', { amend: true }); requestAnimationFrame(() => ctl.fitAll()); }   // the Symbols' Figures, as the Symbol step has them
   if (syncChildren()) ctl.commit('sync', { amend: true });   // a graph saved before child Figures: its variations become nodes
   else if (ctl.model.nodes.some(n => n.type === 'figure-var')) ctl.refresh();   // their names follow their Figure's: drawn again now that ctl exists
   if (variationsNodes.moved) requestAnimationFrame(restackAll);   // a migrated Variations node: its children stand beside it

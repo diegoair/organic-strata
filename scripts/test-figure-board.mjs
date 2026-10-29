@@ -121,9 +121,15 @@ async function openFigure() {
   for (let i = 0; i < 150; i++) { await sleep(100); if (await ev(() => !window.__leaving && !!(window.__fvs && window.__fvs.isReady) && !!document.querySelector('button[aria-label="Figure"]')).catch(() => false)) break; }
   await quiet();
   await ev(t => { document.documentElement.dataset.theme = t; }, THEME);
-  const b = await ev(() => { const r = document.querySelector('button[aria-label="Figure"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  // the Figure step opens once a Symbol has content (Oct 29, 2026): a saved Component, a Symbol filled with it
+  await ev(async () => { const F = window.__fvs, w = ms => new Promise(r => setTimeout(r, ms)); F.setTier('component'); await w(500); document.getElementById('btn-generate').click(); await w(800);
+    F.quickSaveComponentToLibrary(F.state.components[0].id); await w(200); F.setTier('symbol'); await w(800); document.getElementById('btn-symbol-generate').click(); await w(900); });
+  const b = await ev(() => { const r = document.querySelector('#tier-tabs [data-tier="figure"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   await click(b);   // the real dock click: the button keeps the focus (Space must still pan)
+  for (let i = 0; i < 80; i++) { await sleep(100); if (await ev(() => document.querySelectorAll('.nc-node').length > 1).catch(() => false)) break; }
+  await ev(() => { const F = window.__fvs; F.LIBRARY.write({}); F.figureUseModel(F.classicStarter()); });   // the gestures are tried on the classic graph (Canvas, Grid, Palette → Figure), as before: no saved Component (the one that filled the Symbol is gone)
   for (let i = 0; i < 80; i++) { await sleep(100); if (await ev(() => document.querySelectorAll('.nc-node').length > 3).catch(() => false)) break; }
+  await sleep(800);   // its fit to the view has run
   await quiet();
   await cdp('Runtime.evaluate', { expression: PAGE });
 }

@@ -48,7 +48,7 @@ import { applySymbolCanvasToUI, syncOverlapSection } from './08-symbol-grid.js';
 import { renderSuggestGallery, renderSymbolPool } from './10-suggest.js';
 import { showGroundControls } from './04-appearance.js';
 import {
-  fvsIsTypingTarget, galleryZoomTo, onAppearanceChange, setPaperUI, setTier
+  fvsIsTypingTarget, galleryZoomTo, onAppearanceChange, setPaperUI, setTier, syncFigureTab
 } from './12-shell.js';
 import {
   railNotice, setRailTarget
@@ -66,7 +66,7 @@ provide({
   elementPalettes: () => elementPalettes, boardSymbolDrawn: () => symbolDrawn,
   boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries,
   syncCeCellProps: () => syncCeCellProps, symbolPaletteSwap: () => symbolPaletteSwap, syncSymbolPaletteHint: () => syncSymbolPaletteHint,
-  elementSheetResized: () => sheetResized, symbolFromVariation: () => symbolFromVariation
+  elementSheetResized: () => sheetResized, symbolFromVariation: () => symbolFromVariation, boardSymbols: () => boardSymbols
 });
 
 const escAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -76,7 +76,8 @@ const overlayOpen = () => !ctrl('symbol-content-overlay').hidden;   // as 12-she
 let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {}, elementPalettes = () => [];
 let sheetResized = () => {};
 let rebaseSymbolEdits = () => {};   // the Symbol board's undo baseline, taken again when the Symbol step is entered
-let symbolFromVariation = () => {};   // a variation as a new Symbol under the lowest (the Symbol board)
+let symbolFromVariation = () => {};
+let boardSymbols = () => [];   // the Symbol board's Symbols as kept ({id, name, work}) — the Figure step's sync reads them   // a variation as a new Symbol under the lowest (the Symbol board)
 let symbolDrawn = () => {}, boardActivate = () => {}, restoreGalleries = () => {}, elementBoard = null, elementSaveNow = () => {};
 
 // Each Element keeps its own Generated components (O-67 d, Diego, Oct 11, 2026): `gallery` on the Element = the
@@ -1043,17 +1044,20 @@ function mountSymbolBoard() {
     items.forEach(s => { delete s.n; });
     return { items, active: act };
   }
-  const snap = () => { const s = find(active()); if (s && !state.preFigureSnapshot) { const w = workOf(); if (w) s.work = w; } };
+  // not while the Figure step is open (its sandbox): after a Figure visit the snapshot stays pending until Element / Component,
+  // but back on the Symbol step its edits are kept again (found Oct 29, 2026 — they were lost until then)
+  const snap = () => { const s = find(active()); if (s && state.activeTier !== 'figure') { const w = workOf(); if (w) s.work = w; } };
   function save() {
     const obj = {};
     state.symbols.forEach((s, i) => { if (s.work) obj[s.id] = { name: s.name, custom: !!s.custom, work: s.work, n: i }; });
     obj[BOARD_ROW] = { active: active() };
     const a = find(active()); if (a && a.work) obj[LEGACY] = a.work;   // the single Symbol an older page reads
     try { WORK.write(obj); } catch (err) {}
+    syncFigureTab();   // a Symbol added, emptied or deleted: the Figure step opens or closes
   }
   const saveWork = () => { snap(); save(); };
   let saveT = 0;
-  symbolDrawn = () => { clearTimeout(saveT); saveT = setTimeout(saveWork, 600); syncSymbolPaletteHint(); editLater(); };   // a Palette change on the Symbol redraws it: the hint follows
+  symbolDrawn = () => { clearTimeout(saveT); saveT = setTimeout(saveWork, 600); syncSymbolPaletteHint(); editLater(); };   // a Palette change on the Symbol redraws it: the hint follows (saveWork → save: the Figure step's tab follows too)
   window.addEventListener('pagehide', () => { clearTimeout(saveT); saveWork(); });
   // the edited Element's Palette — what a Symbol not changed on the Symbol step draws with
   const elementPalette = () => { const e = state.elements.find(x => x.id === state.activeElement); return { ...(e && e.palette ? e.palette : DEFAULT_PALETTE), ground: e && e.app ? e.app.ground || null : null }; };
@@ -1177,7 +1181,7 @@ function mountSymbolBoard() {
   // Symbol was before it. A selection or a zoom changes nothing kept, so it is no step.
   let editBase = null, editT = 0;
   const editKey = w => JSON.stringify([w.gridModel, w.cells, w.clipEnabled, w.overlap, w.zones || null, w.palette && [w.palette.colors, w.palette.colorRule, w.palette.paperColor, w.palette.ground]]);
-  const editable = () => state.activeTier === 'symbol' && !state.preFigureSnapshot;
+  const editable = () => state.activeTier === 'symbol';   // (after a Figure visit too — Oct 29, 2026)
   function noteEdit() {
     clearTimeout(editT); editT = 0;
     if (!editable()) return;
@@ -1269,6 +1273,7 @@ function mountSymbolBoard() {
   }
   addSheet(B, 'new-symbol', 'New symbol', 0, 0, ctrl('board-new-symbol'));
   placeAdd();
+  syncFigureTab();   // the Figure step: open once a Symbol has content
   wireName(liveLabel, active);
   const newBtn = ctrl('btn-board-new-symbol');
   newBtn.innerHTML = Organica.icons.get('plus', { size: 'xl' });
@@ -1276,6 +1281,8 @@ function mountSymbolBoard() {
   // a double-click on a variation (Diego, Oct 28, 2026: "per non perdere la versione creata da me … crea un nuovo symbol
   // sotto modificabile"): the Symbol you made stays as it is, the variation becomes a new Symbol below it, edited
   symbolFromVariation = cells => { if (cells && find(active())) add(cells); };
+  // the Figure step's Symbols (Oct 29, 2026): the one being edited taken again first (outside the Figure's sandbox)
+  boardSymbols = () => { if (state.activeTier !== 'figure') { clearTimeout(saveT); snap(); } return state.symbols.map(x => ({ id: x.id, name: x.name, work: x.work })); };
   // the account's copy: taken while the Symbols here are still the ones the page opened with
   const opened = JSON.stringify(first.items), openedHere = JSON.stringify(state.symbols);
   WORK.pull().then(() => {

@@ -117,6 +117,8 @@ const bootKB = await ev(`return Math.round(performance.getEntriesByType('resourc
 // 1b — the real way into Figure, before anything preloads it: click its tab, let it arrive, check it drew
 phase = 'figure-tab-click';
 { const e0 = errors.length;
+  // the Figure step opens once a Symbol has content (Oct 29, 2026): one Symbol cell holds the Element — then the tab
+  await ev(`F('setTier')('symbol'); await idle(800); const c = F('state').symbolCells[0]; F('patchCell')(c, F('elementPosePatch')(0)(c)); F('renderSymbol')(); await idle(900); return 1;`);
   const ok = await ev(`document.querySelector('#tier-tabs [data-tier="figure"]').click();
     for (let i = 0; i < 40; i++) { await idle(100); const v = document.querySelector('.tier-view[data-tier="figure"]');
       if (v && v.classList.contains('active') && document.querySelectorAll('#fg-graph .nc-node').length > 0) return true; }   // the Figure step is a node graph (docs/FVS.md §12)

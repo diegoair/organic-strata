@@ -291,7 +291,45 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
   main.variations.forEach(v => withSrc(v, src, v.slot === 0 ? { ...main } : null));   // the base: this group's own drawing
   return main;
 }
+// A Figure made from a Symbol (Diego, Oct 29, 2026: "Symbol si sostituisce a quello che oggi è la canvas figure, le
+// logiche rimangono invariate"): the Symbol's canvas, grid and cells take the place of Canvas + Grid + Content; the
+// Palette (optional — else the Symbol's own), Rules and Composition work on those cells as on any Figure's.
+async function compileFromSymbol(inputs, params, opts) {
+  const sy = inputs.symbol, w = sy.work, pal = inputs.palette, rules = chainOf(inputs.rules);
+  const { cellRules, compRule, repeats, transform: final } = chainPlan(rules);
+  const own = w.palette || {};
+  const colors = pal && pal.colors && pal.colors.length ? pal.colors.slice() : (own.colors || ['#000000']).slice();
+  const colorRule = pal ? { ...DEFAULT_COLOR_RULE, ...(pal.rule || {}) } : { ...DEFAULT_COLOR_RULE, ...(own.colorRule || {}) };
+  const paper = pal && pal.paper ? pal.paper : (own.paperColor || '#ffffff');
+  const composeRules = (inputs.composition && inputs.composition.rules ? inputs.composition.rules : [])
+    .map(r => r.do && r.do.ink != null ? { ...r, do: { ...r.do, color: colors[r.do.ink % colors.length] } } : r);
+  const model = clone(w.gridModel);
+  let cells = (w.cells || []).map(c => clone(c));
+  if (pal && pal.colors && pal.colors.length && !params.keepOwn) cells.forEach(c => { if (c.source === 'component') c.colourway = { colors: colors.slice(), paper }; });
+  if (compRule) {   // a Component rule poses every cell by the place its centre has in the space, as on any non-square grid
+    const posed = componentCellsFromRule(compRule.rule, compRule.params, spatialCR(Organica.loadLoomGrid(clone(model)).cells, compRule.rule), null);
+    cells = cells.map((c, i) => { const q = posed[i] || {}; return { ...c, rotation: q.rotation || 0, flipH: !!q.flipH, flipV: !!q.flipV }; });
+  }
+  const componentEntries = clone(sy.components || {});
+  composeRules.forEach(r => { const c = r.do && r.do.content; if (c && typeof c === 'object' && c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
+  const firstSeed = cells.find(c => c.source === 'seed' && c.seedParams && SEED_TYPES[c.seedParams.type]);
+  const element = { type: firstSeed ? firstSeed.seedParams.type : 'triangle', style: 'fill', colors, paper };
+  const ground = pal && pal.ground ? pal.ground : own.ground;
+  if (ground) element.ground = clone(ground);
+  const first = { kind: 'symbol', lattice: { type: 'loomModel', model }, cells, componentEntries, colors, colorRule: params.keepOwn ? { ...DEFAULT_COLOR_RULE, ...(own.colorRule || {}) } : colorRule, paperColor: paper, clip: w.clipEnabled !== false };
+  if (w.overlap && +w.overlap.amount > 0) first.overlap = clone(w.overlap);
+  if (cellRules.length || composeRules.length) first.rules = clone(cellRules.concat(composeRules));
+  if (composeRules.length && pal && pal.colors && !params.keepOwn) first.paletteColourway = { colors: colors.slice(), paper };
+  const recipe = { tool: 'fvs-recipe', version: 2, element, levels: [first, ...repeats] };
+  if (final) recipe.transform = clone(final);
+  const r = evalFigure(recipe, opts);
+  const cv = { W: +(model.canvas && model.canvas.width) || 1080, H: +(model.canvas && model.canvas.height) || 1080, margin: 0 };
+  const lost = composeLost(composeRules, r.compose ? r.compose.ctxs : null, r.cells);
+  return { svg: repeats.length ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv,
+    base: r.levels.symbol || '', compose: r.compose, lost, checks: r.checks, colors: colors.slice(), paper };
+}
 export async function compileFigure(inputs, params, opts) {
+  if (inputs.symbol) return compileFromSymbol(inputs, params, opts);
   const cv = inputs.canvas, grid = inputs.grid, pal = inputs.palette, rules = chainOf(inputs.rules);
   const contents = [].concat(...(inputs.content || []).filter(Boolean).map(c => c.kind === 'set' ? c.items : [c])).filter(Boolean);
   if (!contents.length) throw new Error('Connect a Content input');
@@ -618,6 +656,7 @@ const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) =>
 // each prefixed with the input it changed, joined with ' · ').
 export function varyInputs(inputs, spec, settings) {
   const st = settingsOf(settings);
+  if (inputs.symbol) { st.vary.grid = false; st.vary.content = false; }   // a Symbol's grid and cells are the Symbol step's
   const inp = { ...inputs, rules: chainOf(inputs.rules) }, rng = mulberry32((spec.seed * 2654435761) >>> 0), changes = [], extra = {};
   const spread = () => { extra.contentSeed = Math.floor(rng() * 1e9); changes.push({ kind: 'content', key: 'spread', label: 'Spread', value: extra.contentSeed, text: 'New spread', shown: 'new', edit: null }); };
   const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells, a rule's Random rotation
@@ -884,13 +923,22 @@ export function figureNodeTypes() {
     { meta: { id: 'export', label: 'Export', category: 'Output', pill: true, icon: 'download', inputs: [{ name: 'figures', type: 'figure', label: 'Figures', multi: true, required: true }], outputs: [],
         params: [{ name: 'which', default: 'all' }, { name: 'formats', default: { svg: true, png: false, plates: false } }, { name: 'scales', default: [1] }, { name: 'transparent', default: false }] },
       compute: (i, p, ctx) => ({ files: null }) },   // the UI fills the plan from the Figures' own results (they carry no names here)
+    // A Symbol of the Symbol step (Oct 29, 2026): made and kept in step by the graph (one per Symbol with content — the
+    // Figure step's sync, 17-figure-graph.js), never from the node bar; its snapshot = the Symbol's work + its Components.
+    { meta: { id: 'symbol', label: 'Symbol', category: 'Content', pill: true, hidden: true, icon: 'fvs-symbol', inputs: [], outputs: [{ name: 'symbol', type: 'symbol', label: 'Symbol' }],
+        params: [{ name: 'symbolId', default: null }, { name: 'name', default: '' }, { name: 'snapshot', default: null }] },
+      compute: (i, p) => { const w = p.snapshot && p.snapshot.work; if (!w || !w.gridModel || !(w.cells || []).some(c => c && c.source && c.source !== 'empty')) throw new Error('Fill a cell of this Symbol on the Symbol step');
+        return { symbol: { kind: 'symbol', id: p.symbolId, name: p.name, work: w, components: p.snapshot.components || {} } }; } },
     { meta: { id: 'figure', label: 'Figure', category: 'Content', icon: 'fvs-figure',   // with Content in the bar; a capped card (Diego, Oct 9, 2026)
-        inputs: [{ name: 'canvas', type: 'canvas', label: 'Canvas', required: true }, { name: 'grid', type: 'grid', label: 'Grid', required: true },
+        // a Figure of a Symbol (params.symbolId, made by the sync): the Symbol takes the place of Canvas + Grid + Content
+        inputs: node => node && node.params && node.params.symbolId ? [{ name: 'symbol', type: 'symbol', label: 'Symbol', required: true },
+          { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'rules', type: 'rule', label: 'Rules', chain: true }, { name: 'composition', type: 'composition', label: 'Composition' }]
+          : [{ name: 'canvas', type: 'canvas', label: 'Canvas', required: true }, { name: 'grid', type: 'grid', label: 'Grid', required: true },
           { name: 'palette', type: 'palette', label: 'Palette' }, { name: 'content', type: 'content', label: 'Content', required: true, multi: true },
           { name: 'rules', type: 'rule', label: 'Rules', chain: true }, { name: 'composition', type: 'composition', label: 'Composition' }],
         outputs: [{ name: 'figure', type: 'figure', label: 'Figure' }],
         params: [{ name: 'fit', default: 'contain' }, { name: 'clip', default: true }, { name: 'keepOwn', default: false }, { name: 'symbolFit', default: null },
-          { name: 'fixed', default: null }] },
+          { name: 'fixed', default: null }] },   // + symbolId on a Figure of a Symbol (set by the sync, not a default: the other Figures' params stay as they were)
       // a Figure draws itself only (Diego, Oct 9, 2026) — its variations are a Variations node's; a Set's items are mixed over the cells
       compute: async (i, p) => ({ figure: await figureWithVariations(i, { ...p, variations: 1, fanOut: false }) }) },
     // Variations (Diego, Oct 9, 2026): Figure → Variations → one Figure per variation, each saying what changed. It draws

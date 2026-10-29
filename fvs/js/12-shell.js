@@ -114,6 +114,7 @@ export function setTier(tier) {
   // that never leaves Figure (or leaves via Symbol) keeps the ONE pending
   // snapshot from the first entry, so the original pre-exploration state
   // survives any number of Figure↔Symbol hops in between.
+  if (tier === 'figure' && prevTier !== 'figure' && hooks.boardSymbols) hooks.boardSymbols();   // the Symbol being edited, kept before the sandbox opens (the Figure's sync reads it)
   if (tier === 'figure' && prevTier !== 'figure' && !state.preFigureSnapshot) {
     state.preFigureSnapshot = snapshotComponentElementState();
   } else if (prevTier === 'figure' && (tier === 'component' || tier === 'element') && state.preFigureSnapshot) {
@@ -121,6 +122,7 @@ export function setTier(tier) {
     state.preFigureSnapshot = null;
   }
   state.activeTier = tier;
+  syncFigureTab();
   ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.tier === tier)));
   document.querySelectorAll('.tier-block').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));
   document.querySelectorAll('#canvas-wrap .tier-view').forEach(v => v.classList.toggle('active', v.dataset.tier === tier));
@@ -895,7 +897,22 @@ document.addEventListener('keydown', e => {
 bindCellProps('', SYMBOL_CELLS);
 
 ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(btn => { btn.innerHTML = Organica.icons.get(STEP_ICONS[btn.dataset.tier]); });
-ctrl('tier-tabs').addEventListener('click', e => { const b = e.target.closest('[data-tier]'); if (b) setTier(b.dataset.tier); });
+ctrl('tier-tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tier]'); if (!b) return;
+  if (b.getAttribute('aria-disabled') === 'true') { Organica.notice('Fill a cell on the Symbol step first — each Symbol becomes a Figure', { kind: 'info' }); return; }
+  setTier(b.dataset.tier);
+});
+// The Figure step is there once a Symbol has content (Diego, Oct 29, 2026: "Figure è attivo solo quando almeno un symbol
+// è creato"): aria-disabled + the reason in its name (the tooltip), focusable; the click says what to do.
+export function symbolFilledAny() {
+  return (hooks.boardSymbols ? hooks.boardSymbols() : []).some(s => s.work && s.work.gridModel && (s.work.cells || []).some(c => c && c.source && c.source !== 'empty'));
+}
+export function syncFigureTab() {
+  const b = ctrl('tier-tabs').querySelector('[data-tier="figure"]'); if (!b) return;
+  const off = state.activeTier !== 'figure' && !symbolFilledAny();
+  b.setAttribute('aria-disabled', String(off));
+  b.setAttribute('aria-label', off ? 'Figure — fill a cell on the Symbol step first' : 'Figure');
+}
 
 export const repaintPaper = () => { renderGallery(); renderSeedPreview(); if (state.symbolGrid) renderSymbolCanvasOnly(); };
 export const paperSwatch = Organica.palette.swatch('paper', {
