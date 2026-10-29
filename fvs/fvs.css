@@ -429,9 +429,9 @@
   .fvs-layer__swatch { all: unset; width: 14px; height: 14px; margin: 0 var(--space-1); border-radius: 50%; background: var(--sw); cursor: pointer; flex-shrink: 0; }
   .fvs-layer__swatch.is-cell { background: linear-gradient(135deg, var(--sw) 50%, var(--paper) 50%); }
   .fvs-layer__swatch:disabled { opacity: 0.25; cursor: default; }
-  .fvs-layer__del { opacity: 0; }
-  @media (hover: none) { .fvs-thumb-quicksave, .fvs-thumb-tile, .fvs-layer__del { opacity: 1; } }   /* touch has no hover to reveal them */
-  .org-layer-card:hover .fvs-layer__del, .org-layer-card.active .fvs-layer__del, .fvs-layer__del:focus-visible { opacity: 1; }
+  .fvs-layer__del, .fvs-layer__dup { opacity: 0; }
+  @media (hover: none) { .fvs-thumb-quicksave, .fvs-thumb-tile, .fvs-layer__del, .fvs-layer__dup { opacity: 1; } }   /* touch has no hover to reveal them */
+  .org-layer-card:hover :is(.fvs-layer__del, .fvs-layer__dup), .org-layer-card.active :is(.fvs-layer__del, .fvs-layer__dup), :is(.fvs-layer__del, .fvs-layer__dup):focus-visible { opacity: 1; }
   .fvs-layer__place { display: flex; flex-direction: column; padding-top: 0; }
   .fvs-layer__place .ctrl-row { margin-bottom: 0; min-height: var(--space-7); gap: var(--space-2); }
   /* the block already sits on --control-bg: its sliders' wells take the next step down, or they would vanish into it */

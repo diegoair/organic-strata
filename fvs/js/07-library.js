@@ -405,6 +405,22 @@ export function removeLayer(i) {
   }
   layersChanged();
 }
+// Duplicate (Diego, Oct 29, 2026: "add a duplicate feature on the layer of the element"): the copy goes right above its
+// layer — same shape, look, place, role, ink and colour group — and becomes the edited layer. A part has none (a division
+// keeps its parts as they are cut).
+export function duplicateLayer(i) {
+  const L = state.layers;
+  if (!L || !L.items[i] || L.items[i].part) return;
+  syncActiveLayer();
+  const copy = JSON.parse(JSON.stringify(L.items[i]));
+  copy.id = newLayerId();
+  L.items.splice(i + 1, 0, copy);
+  L.active = i + 1;
+  rt.partSel = new Set([copy.id]); rt.layerAnchor = i + 1;
+  applyPanelSeedRaw(layerPanelSeed(L, copy));
+  showLayerStyle(copy);
+  layersChanged();
+}
 export function moveLayer(i, dir) {
   const L = state.layers, j = i + dir;
   if (!L || j < 0 || j >= L.items.length) return;
@@ -419,6 +435,7 @@ export const LAYER_ICONS = {
   eye: Organica.icons.get('eye', { size: 'sm' }),
   eyeOff: Organica.icons.get('eye-off', { size: 'sm' }),
   trash: Organica.icons.get('trash', { size: 'sm' }),
+  copy: Organica.icons.get('copy', { size: 'sm' }),
   // role pictograms: solid disc = Filled · disc keeping stripes inside = Subtraction mask · square with a disc hole = Mask
   fill: Organica.icons.get('role-fill', { size: 'sm' }),
   container: Organica.icons.get('role-container', { size: 'sm' }),
@@ -464,6 +481,7 @@ export function renderLayersUI() {
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="eye" aria-pressed="${!l.hidden}" aria-label="${l.hidden ? 'Show' : 'Hide'} layer" title="${l.hidden ? 'Hidden — click to show' : 'Hide this layer'}">${l.hidden ? LAYER_ICONS.eyeOff : LAYER_ICONS.eye}</button>
       <button type="button" class="org-btn org-btn--sm org-btn--icon" data-layer-act="role" aria-label="Role: ${LAYER_ROLES[role]} — click to change" title="${LAYER_ROLES[role]} — ${role === 'fill' ? 'paints its own ink' : role === 'mask' ? 'cuts its shape out of the layers below' : role === 'pattern' ? 'cuts its pattern out of the layers below' : 'keeps the layers below only inside its shape'}. Click: ${LAYER_ROLES[LAYER_ROLE_ORDER[(LAYER_ROLE_ORDER.indexOf(role) + 1) % LAYER_ROLE_ORDER.length]]}">${LAYER_ICONS[role]}</button>
       <button type="button" class="fvs-layer__swatch${cell ? ' is-cell' : ''}" data-layer-act="ink" style="--sw:${isFill ? layerInkColor(l, colorAt(0)) : 'var(--border)'}" aria-label="Colour: ${cell ? 'follow cell colour' : 'Ink ' + (l.ink + 1)}" title="${isFill ? (cell ? 'Follows the cell colour' : 'Ink ' + (l.ink + 1)) + ' — click to change' : 'Mask layers have no colour'}"${isFill ? '' : ' disabled'}></button>
+      ${l.part ? '' : `<button type="button" class="org-btn org-btn--sm org-btn--icon fvs-layer__dup" data-layer-act="dup" aria-label="Duplicate layer" title="Duplicate layer">${LAYER_ICONS.copy}</button>`}
       ${l.part ? '' : `<button type="button" class="org-btn org-btn--sm org-btn--icon fvs-layer__del" data-layer-act="del" aria-label="Delete layer" title="Delete layer">${LAYER_ICONS.trash}</button>`}
       </div>
     </div>`;
@@ -622,6 +640,7 @@ ctrl('layers-list').addEventListener('click', e => {
   else if (act === 'eye') toggleLayerHidden(i);
   else if (act === 'role') cycleLayerRole(i);
   else if (act === 'ink') openLayerInkPop(i, b);
+  else if (act === 'dup') duplicateLayer(i);
   else if (act === 'del') removeLayer(i);
 });
 // Keyboard: ⌥↑ / ⌥↓ on a row moves the layer up / down the stack.

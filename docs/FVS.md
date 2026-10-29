@@ -119,7 +119,9 @@ is gone); the candidates sit on the board at 2×.
   icon tinted with its ink + its name (click = edit it) · **eye** to hide it (a hidden layer is
   skipped everywhere, exports and colour variants included) · **role icon** — click cycles
   Filled → Subtraction mask → Mask → Pattern (§6a) · **colour dot** — opens the palette: *follow cell
-  colour* or an ink (off for mask layers) · **bin** on hover. The active row opens **X / Y /
+  colour* or an ink (off for mask layers) · **copy** on hover — *Duplicate layer*: the copy right above it, same shape,
+  look, place, role, ink and colour group, a new id, and it becomes the edited layer (not on a division's parts; Oct 29,
+  2026) · **bin** on hover. The active row opens **X / Y /
   Size / Rot** (the layer's own placement) right under it, followed by the layer's own
   **Style, Stroke W, Rounded caps, Width and Length** — with layers these controls sit in the
   layer's card, not in Look & place. Look & place then keeps only what acts on the **whole
