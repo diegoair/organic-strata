@@ -144,6 +144,10 @@ creati"*). Try in both themes, console open:
 - [ ] Wire a Palette into it: the Components recolour. Add Variations: palette / rule changes only (never the grid or the cells).
 - [ ] Compose on it (double-click): region rules work on the Symbol's cells.
 - [ ] A graph saved before today (Canvas · Grid · Content → Figure) opens and draws as before; the Symbols' Figures are added beside it.
+- [ ] A Symbol whose cells hold a layered (Stack) Element: its Figure draws, no *reading 'geometry'* error (`12a4b99`).
+- [ ] Zoom the Figure board onto Symbol 1's Figure only, go to Symbol and back: the view fits so Symbol 2's Figure shows too (`ef098e9`).
+
+Automated half, Oct 29: `scripts/gate-figure.sh eca779f` → AUTOMATED GATE PASSED on `77898ef` (figure graph · eval · board light + dark · regression · QA · fvs ui · Rhizome · atlas · perf).
 
 ## 4. Record
 
