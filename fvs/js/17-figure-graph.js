@@ -1010,6 +1010,7 @@ function renderInspectorBody(box, ids) {
       bind: () => box.querySelectorAll('[data-compose]').forEach(b => b.addEventListener('click', () => enterCompose(b.dataset.compose))) });
   } else if (node.type === 'figure') {
     const cur = foundationOf(node);
+    if (node.params.symbolId) rows.push({ html: `<button type="button" class="panel-btn fg-block" id="fgi-on-symbol">Edit on the Symbol step</button>`, bind: () => ctrl('fgi-on-symbol').addEventListener('click', () => openOnSymbolStep(node)) });   // a Symbol's Figure: what its double-click does, first (REVIEW Oct 30)
     rows.push({ html: `<button type="button" class="panel-btn fg-block" id="fgi-compose">Compose</button>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });   // the node's main verb
     const fromSymbol = !!p.symbolId;   // a Symbol's Figure: its canvas, grid and cells are the Symbol's (no Canvas · Grid · Content, no Fit · Clip)
     if (!fromSymbol && !ctl.model.edges.some(e => e.to.node === node.id && e.to.port === 'content')) rows.push({ html: `<p class="org-empty">${savedEntries().element.length + savedEntries().component.length ? 'No content yet — add an Element or a Component from Content nodes on the left, then connect it to this Figure.' : 'No content yet — save an Element or a Component in its step first, or start from a built-in Figure with New Figure…'}</p>` });
@@ -1153,6 +1154,8 @@ function renderInspectorBody(box, ids) {
     if ((p.pins || []).length) rows.push({ html: `<p class="org-panel__hint">${p.pins.length} pinned${hidden ? ` — ${hidden} not shown${mode === 'random' ? `: raise Variations to see ${hidden === 1 ? 'it' : 'them'}` : ''}` : ''}</p>` });   // a Series / Table has no count to raise (review N2)
   }
   if (node.type === 'figure-var') {
+    { const root = rootFigureOf(node), en = ctl.engine.get(node.id), vr = en && en.value && en.value.figure && en.value.figure.variations[0];   // a Symbol's variation: what its double-click does, first (REVIEW Oct 30)
+      if (root && root.params.symbolId && vr) { const kept = keptSymbolOf(node, vr); rows.push({ html: `<button type="button" class="panel-btn fg-block" id="fgi-on-symbol">${esc(kept ? 'Open ' + kept.name : 'Edit as a new Symbol')}</button>`, bind: () => ctrl('fgi-on-symbol').addEventListener('click', () => openOnSymbolStep(node)) }); } }
     rows.push({ html: `<button type="button" class="panel-btn fg-block" id="fgi-compose">Compose</button>`, bind: () => ctrl('fgi-compose').addEventListener('click', () => enterCompose(node.id)) });   // as the Figure's: the node's main verb
     const par = parentNode(node), en = ctl.engine.get(node.id), v = en && en.value && en.value.figure ? en.value.figure.variations[0] : null;
     const own = ctl.model.edges.filter(e => e.to.node === node.id && e.to.port !== 'from').map(e => registry.inputsOf(node).find(q => q.name === e.to.port).label);
@@ -1424,7 +1427,7 @@ const keptKey = (node, vr) => ((sourceOf(node) || {}).id || '') + '|' + vr.slot 
 const ruleCopies = nodes => nodes.map(n => ({ type: n.type, params: JSON.parse(JSON.stringify(n.params || {})) }));
 function keptSymbolOf(node, vr) { const k = keptKey(node, vr); return boardSymbols().find(s => s.from && s.from.key === k) || null; }
 function openOnSymbolStep(node) {
-  if (node.type === 'figure' && node.params && node.params.symbolId) {
+  if ((node.type === 'figure' || node.type === 'symbol') && node.params && node.params.symbolId) {   // the Symbol node too (REVIEW Oct 30: its card says "Edit it on the Symbol step")
     if (!boardSymbols().some(s => s.id === node.params.symbolId)) return false;
     setTier('symbol'); hooks.boardActivateSymbol(node.params.symbolId); announce(`${nodeLabel(node)} — on the Symbol step`); return true;
   }
@@ -1433,14 +1436,15 @@ function openOnSymbolStep(node) {
   const en = ctl.engine.get(node.id), f = en && en.value && en.value.figure, vr = f && f.variations && f.variations[0];
   if (!f || !vr || !f.symbolWork) { Organica.notice(`${nodeLabel(node)} has not drawn yet`); return true; }
   const kept = keptSymbolOf(node, vr);
-  if (kept) { setTier('symbol'); hooks.boardActivateSymbol(kept.id); return true; }
+  if (kept) { setTier('symbol'); hooks.boardActivateSymbol(kept.id); announce(`${kept.name} — on the Symbol step`); return true; }
   const fig = parentNode(node), own = ctl.model.edges.find(e => e.to.node === node.id && e.to.port === 'composition'), comp = ctl.model.edges.find(e => e.to.node === (fig || root).id && e.to.port === 'composition');
   const compNode = own ? NC.findNode(ctl.model, own.from.node) : comp ? NC.findNode(ctl.model, comp.from.node) : null;
   const from = { symbolId: (fig && fig.params && fig.params.symbolId) || root.params.symbolId, slot: variationNo(node), key: keptKey(node, vr),
     rules: ruleCopies(chainNodesOf(fig || root).concat(chainNodesOf(node))), composition: compNode ? JSON.parse(JSON.stringify(compNode.params || {})) : null };
   if (!vr.pinned) variationAction(node.id, 'pin');   // kept: a new seed does not take it away
   setTier('symbol');
-  hooks.openSymbolDraft({ work: f.symbolWork, from });
+  const d = hooks.openSymbolDraft({ work: f.symbolWork, from });
+  if (d) announce(`${d.name} — draft on the Symbol step, kept at its first edit`);
   return true;
 }
 function enterCompose(figId) {

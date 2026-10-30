@@ -1112,9 +1112,9 @@ function mountSymbolBoard() {
       const on = s.id === active();
       sh.el.classList.toggle('is-active', on && state.symbols.length > 1);
       lab.textContent = s.name;
-      lab.setAttribute('aria-label', s.name + (on && state.symbols.length > 1 ? ' · editing' : '') + ' — drag to move, double-click to rename');
+      const fromLine = fromWords(s);   // a Symbol made from a Figure's variation: where it came from (a draft until its first edit) — in the name too (REVIEW Oct 30)
+      lab.setAttribute('aria-label', s.name + (on && state.symbols.length > 1 ? ' · editing' : '') + (fromLine ? ' · ' + fromLine : '') + ' — drag to move, double-click to rename');
       if (on && state.symbols.length > 1) lab.append(el('span', 'fvs-board-sheet__state', { textContent: ' · editing' }));
-      const fromLine = fromWords(s);   // a Symbol made from a Figure's variation: where it came from (a draft until its first edit)
       if (fromLine) lab.append(el('span', 'fvs-board-sheet__state', { textContent: ' · ' + fromLine }));
       const body = !on && sh.el.querySelector('.fvs-board-symbol--static');
       if (body) body.setAttribute('aria-label', s.name + ' — click or press Enter to edit');
@@ -1310,7 +1310,7 @@ function mountSymbolBoard() {
   const variantName = mother => { const used = new Set(state.symbols.map(x => x.name)); for (let k = 0; k < 26; k++) { const n = mother + '.' + String.fromCharCode(97 + k); if (!used.has(n)) return n; } return nextName(); };
   openSymbolDraft = ({ work, from }) => {
     const kept = state.symbols.find(x => x.from && x.from.key === from.key && !x.draft);
-    if (kept) { activate(kept.id); return kept.id; }
+    if (kept) { activate(kept.id); return { id: kept.id, name: kept.name }; }
     clearTimeout(saveT); snap();
     const old = state.symbols.find(x => x.draft); if (old && old.id !== active()) { state.symbols.splice(state.symbols.indexOf(old), 1); removeSheet(B, sheetId(old.id)); }
     const m = find(from.symbolId), w = clone(work);
@@ -1322,7 +1322,7 @@ function mountSymbolBoard() {
     if (mp) mountStatic(s, mp.x + (SW + GAP) * (1 + beside), mp.y); else { const lp = posOf(lowestId()); mountStatic(s, lp.x, lp.y + SW + GAP); }
     activate(s.id);
     placeAdd(); requestAnimationFrame(() => B.fit());
-    return s.id;
+    return { id: s.id, name: s.name };
   };
   boardActivateSymbol = id => { if (!find(id)) return false; activate(id); return true; };
   dropSymbolDraft = () => { const d = find(active()); if (!d || !d.draft) return; const back = find(d.from && d.from.symbolId) || state.symbols.find(x => !x.draft); if (back) activate(back.id); };

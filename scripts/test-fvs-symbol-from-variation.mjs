@@ -36,13 +36,26 @@ const rows = await P.ev(`const F = window.__fvs, NC = Organica.nodeCanvas, q = i
   // 1 · the mother
   dbl(fig.id); await w(1200);
   check('a double-click on Symbol 1’s Figure: the Symbol step, Symbol 1 edited, no Symbol added', F.state.activeTier === 'symbol' && F.state.activeSymbol === motherId && F.state.symbols.length === nSym, F.state.activeTier + ' ' + F.state.symbols.length);
+  // the panel says it too (REVIEW Oct 30): the Figure's first button; the Symbol node opens it as well
+  tab('figure').click(); await w(3000);
+  { const c = card(fig.id); c.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); c.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 })); await w(400);
+    const b = q('fgi-on-symbol'), first = document.querySelector('#fg-inspector .fg-block');
+    check('a Symbol’s Figure panel: first button “Edit on the Symbol step”, Compose after it', b && b.textContent === 'Edit on the Symbol step' && first === b && !!q('fgi-compose'), b && b.textContent);
+    b.click(); await w(1200);
+    check('…which opens Symbol 1 on the Symbol step', F.state.activeTier === 'symbol' && F.state.activeSymbol === motherId, F.state.activeTier); }
+  tab('figure').click(); await w(3000);
+  dbl(M().nodes.find(n => n.type === 'symbol' && n.params.symbolId === motherId).id); await w(1200);
+  check('a double-click on the Symbol node: the Symbol step, Symbol 1', F.state.activeTier === 'symbol' && F.state.activeSymbol === motherId, F.state.activeTier);
   // 2 · a variation → a draft
   tab('figure').click(); await w(3000);
+  { const c = card(v2.id); c.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); c.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 })); await w(400);
+    const b = q('fgi-on-symbol');
+    check('a variation’s panel: “Edit as a new Symbol” first', b && b.textContent === 'Edit as a new Symbol', b && b.textContent); }
   dbl(v2.id); await w(1500);
   const d = F.state.symbols.find(s => s.id === F.state.activeSymbol);
   check('a double-click on variation 2: the Symbol step on a draft “Symbol 1.a”, beside Symbol 1', F.state.activeTier === 'symbol' && d && d.draft && d.name === 'Symbol 1.a' && d.from.symbolId === motherId && F.state.symbols.length === nSym + 1, d && JSON.stringify({ n: d.name, draft: d.draft }));
   const lab = [...document.querySelectorAll('.fvs-board-sheet__state')].map(e => e.textContent).join('|');
-  check('…its sheet says “Draft from Symbol 1 · variation 2”', /Draft from Symbol 1 · variation 2/.test(lab), lab);
+  check('…its sheet says “Draft from Symbol 1 · variation 2”, in its name too', /Draft from Symbol 1 · variation 2/.test(lab) && [...document.querySelectorAll('[aria-label]')].some(e => /^Symbol 1\.a · editing · Draft from Symbol 1 · variation 2 —/.test(e.getAttribute('aria-label'))), lab);
   check('…its cells are the variation’s (16, Components), its palette its own', F.state.symbolCells.length === 16 && F.state.symbolCells.every(c => c.source === 'component') && d.work.palette && d.work.palette.own, F.state.symbolCells.length);
   // 3 · left untouched
   tab('figure').click(); await w(3000);
@@ -63,8 +76,8 @@ const rows = await P.ev(`const F = window.__fvs, NC = Organica.nodeCanvas, q = i
   check('in Figure: Symbol 1.a → its Figure → Variations, the Symbol node says “From Symbol 1 · variation 2”', sn && f2 && M().edges.some(e => e.from.node === f2.id && M().nodes.find(n => n.id === e.to.node && n.type === 'variations')) && sn.params.from === 'From Symbol 1 · variation 2', sn && sn.params.from);
   check('…its Figure has a copy of the mother’s Rotate & mirror (its own node)', chain.length === 1 && chain[0].type === 'transform' && +chain[0].params.rotate === 45 && !M().edges.some(e => e.from.node === chain[0].id && e.to.node === fig.id), JSON.stringify(chain.map(c => c && c.type)));
   for (let t = 0; t < 40 && !(card(f2.id) && card(f2.id).querySelector('.fg-card__img')); t++) await w(250);
-  let f2svg = ''; for (let t = 0; t < 60; t++) { f2svg = K(F.figureNodeSVG(f2.id) || ''); if (f2svg === v2svg) break; await w(250); }   // computed off the main path under load
-  check('…and draws as variation 2 did', f2svg && f2svg === v2svg, 'differs');
+  let f2svg = '', v2now = ''; for (let t = 0; t < 80; t++) { f2svg = K(F.figureNodeSVG(f2.id) || ''); v2now = K(F.figureNodeSVG(v2.id) || ''); if (f2svg && f2svg === v2now) break; await w(250); }   // both read now: under load either may still be computing
+  check('…and draws as variation 2 does', f2svg && f2svg === v2now, 'differs' + (v2now === v2svg ? '' : ' (variation 2 changed since the start)'));
   const cap = card(v2.id) ? card(v2.id).querySelector('.fg-var__label').textContent : '';
   check('variation 2 is pinned and says “Kept as Symbol 1.a”', /Kept as Symbol 1\\.a/.test(cap) && (M().nodes.find(n => n.id === vn.id).params.pins || []).some(p => p.slot === v2.params.slot), cap);
   // 7 · again: opens it
