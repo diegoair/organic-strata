@@ -1657,10 +1657,20 @@ creati"*; *"Symbol si sostituisce a quello che oggi è la canvas figure, le logi
   repeating motif, as on the Symbol step (`carrySymbolCells`); a lattice, or a Symbol grid with no canvas of its own, is
   fitted on the page. The variation's own change is still made on top. The Figure itself keeps no Canvas / Grid input,
   and its Variations panel lists no Grid or Content row (a variation never changes them by itself).
+- **The Symbol's saved selections in its Figure** (Oct 30, 2026 — Diego: *"Ponte 1 e 2"*, after the analysis that the
+  selection rules should not be copied as Figure nodes). They travel in the Symbol node's snapshot (`work.zones`) and are
+  applied again, before the Figure's own rules, by the same evaluator (`applyZones`, level field `zones`, 16-figure-eval):
+  (1) on a variation's **new Grid** — the cells as a motif first, then every saved selection takes its cells again (a whole
+  column stays a column, a Symmetry is drawn again on the new grid), as the Symbol step does after a rebuild; (2) when a
+  variation **changed one of them** — Vary **Selections** › **Rule** (another rule of the same family: a wallpaper group,
+  a rosette, a Field signal or photo drive, Continuity's contents, a Rhythm sequence or walk, an arrangement, a Symbol
+  rule) · **Random draw** (a new seed); *New seeds only* redraws them too. Caption *Selection: Edge · Symmetry p31m*.
+  Otherwise the cells already hold them and nothing is applied again (the Figure as before). Only on a Symbol's Figure
+  whose Symbol has such a selection; classic Figures never list it and draw as before. Words: O-81.
 - Rule nodes (Cell rules · Component rule · Rotate & mirror · Repeat in grid · Composition) on a Symbol's Figure change it
   and every variation of it; on one variation, that one only — checked, they already worked.
-- Tests: `scripts/test-fvs-figure-symbols.sh` (16) and `scripts/test-fvs-figure-symbol-vars.sh` (27: Canvas / Grid on a
-  variation, every rule node on the Figure and on a variation, an Element with a duplicated layer and a Segment with a Wave
+- Tests: `scripts/test-fvs-figure-symbols.sh` (16) and `scripts/test-fvs-figure-symbol-vars.sh` (35: Canvas / Grid on a
+  variation, the saved selections on a new Grid and varied, every rule node on the Figure and on a variation, an Element with a duplicated layer and a Segment with a Wave
   through Element → Figure → Variations); the Figure board and QA suites fill a Symbol first.
 
 ### 12.3 The old Figure UI, retired (end of Phase 3, Oct 2026)

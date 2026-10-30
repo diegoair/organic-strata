@@ -128,6 +128,9 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
   state.symbolCells = first.cells.map(c => withPlacementDefaults(clone(c)));
   state.symbolClipEnabled = first.clip !== false;
   if (first.overlap) state.symbolOverlap = { amount: 0, blend: 'under', drawnBy: 'nearest', ...first.overlap };   // a Symbol's own Overlap & blend (a Figure of a Symbol, Oct 29, 2026)
+  // a Symbol's saved selections, applied again before the Figure's own rules (Oct 30, 2026): on a variation's new Grid, or
+  // with a rule a variation changed — as the Symbol step does after a grid rebuild (applySelectionsNow); rings derived
+  if (first.zones && first.zones.length) state.symbolCells = applyZones(state.symbolCells, getSymbolGrid(), first.zones, { cw: first.paletteColourway }).cells;
   if (first.rules && first.rules.length) applyRulesToContent(first.rules, first.paletteColourway);
 }
 const COMPOSE_CELL_FIELDS = ['source', 'seedType', 'componentName', 'colourway', 'rotation', 'flipH', 'flipV', 'fitMode', 'coverAxis', 'scale', 'fixedSize', 'color', 'padding', 'pad', 'seedParams', 'anchorX', 'anchorY'];

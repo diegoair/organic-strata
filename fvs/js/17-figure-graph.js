@@ -48,7 +48,7 @@ import {
   plateSVG
 } from './engine/15-export-library-view.js';
 import {
-  CHANGE_OF, isOptIn, seriesAxes, seriesCount, FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
+  CHANGE_OF, selectionVaryKeys, isOptIn, seriesAxes, seriesCount, FIGURE_LATTICES, FIT_LABEL, FIT_PRESET, MIRRORS, REPEAT_LATTICES, VARY_KEYS, gridVaryKeys, settingsOf, specModeOf, migrateVariationParams, whenOf, varyInputs, chainOf, canvasOf, canvasSummary, elementEntryFromRecipe, entrySnapshot, figureNodeTypes,
   exportPlan, exportSummary, graphFromRecipe, gridDefaults, gridPreviewModel, gridSpec, gridSummary, recipeElementKey, sameItem, childKey, itemName, FIGURE_RENDER_CAP
 } from './engine/17-figure-nodes.js';
 import {
@@ -1092,7 +1092,10 @@ function renderInspectorBody(box, ids) {
     // with no Palette node its palette is the Symbol's own (what Order reads)
     const symSrc = fig && fig.params && fig.params.symbolId ? ctl.model.edges.filter(e => e.to.node === fig.id && e.to.port === 'symbol').map(e => NC.findNode(ctl.model, e.from.node)).find(Boolean) : null;
     const symInks = symSrc && symSrc.params.snapshot && symSrc.params.snapshot.work ? ((symSrc.params.snapshot.work.palette || {}).colors || []).length : 0;
-    const VARY_ROWS = [['grid', 'Grid', 'grid'], ['palette', 'Palette', 'palette'], ['content', 'Content', 'content'], ['cells', 'Cell rules', 'rule'], ['transform', 'Rotate & mirror', 'rule']].filter(([k]) => !(fig && fig.params && fig.params.symbolId && (k === 'grid' || k === 'content')));
+    // + Selections: what the Symbol's saved selections do (a rule of the same family, a new draw) — only when one has a rule
+    const selKeys = symSrc && symSrc.params.snapshot && symSrc.params.snapshot.work ? selectionVaryKeys(symSrc.params.snapshot.work.zones) : [];
+    const VARY_ROWS = [['grid', 'Grid', 'grid'], ['palette', 'Palette', 'palette'], ['content', 'Content', 'content'], ['cells', 'Cell rules', 'rule'], ['transform', 'Rotate & mirror', 'rule'], ['selections', 'Selections', 'rule']]
+      .filter(([k]) => !(fig && fig.params && fig.params.symbolId && (k === 'grid' || k === 'content')) && (k !== 'selections' || selKeys.length));
     const [, gridNode] = fig ? foundationOf(fig) : [null, null], gridGen = gridNode && gridNode.params ? gridNode.params.gen : 'rectangular';
     // the parameters that apply to this Figure, per input (one rule, O-62: a row opens when more than one applies; a parameter that never applies here is not listed)
     const [, , palNode] = fig ? foundationOf(fig) : [null, null, null], chainN = fig ? chainNodesOf(fig) : [];
@@ -1104,6 +1107,7 @@ function renderInspectorBody(box, ids) {
       palette: key => key === 'order' ? (palNode ? (palNode.params.colors || []).length > 1 : symInks > 1) : key === 'paper' ? !(palNode && palNode.params.transparent) : key === 'lib' ? (Organica.palette && Organica.palette.library ? Organica.palette.library() : []).some(q => q && q.colors && q.colors.length >= (palNode ? (palNode.params.colors || []).length : 1)) : true,
       content: key => key === 'spread' ? nContent > 1 : key === 'item' ? hasSetN && !(hasSet && p.fanOut !== false) : hasEl,
       cells: key => key === 'angle' ? cellRules.some(r => [90, 180, 270].includes((r.do || {}).rotate)) : key === 'parity' ? cellRules.some(r => (r.when || {}).parity) : cellRules.length > 0,
+      selections: key => selKeys.includes(key),
       transform: key => !!tNode && (tOnCells ? (key === 'draw' ? !!tNode.params.randomAmount : key !== 'mirror') : key === 'turn' || key === 'mirror'),
     };
     const applOf = k => k === 'grid' ? gridVaryKeys(gridGen) : (VARY_KEYS[k] || []).filter(([key]) => applies[k](key));
@@ -1144,7 +1148,7 @@ function renderInspectorBody(box, ids) {
     // Changes (Phase D, Oct 9, 2026): one row per change the variation made — its input's colour as a dot, the parameter,
     // the value; a number can be set by hand (the variation is then pinned and keeps the value — O-60 f); Use variation applies it
     if (par && v && v.spec && v.changes && v.changes.length) {
-      const nested = par.type === 'figure-var', INK = { grid: 'grid', palette: 'palette', content: 'content', cells: 'rule', transform: 'rule' }, edits = v.spec.edits || {};
+      const nested = par.type === 'figure-var', INK = { grid: 'grid', palette: 'palette', content: 'content', cells: 'rule', transform: 'rule', selections: 'rule' }, edits = v.spec.edits || {};
       const shown = c => c.shown != null ? c.shown : ['flip', 'off', 'parity'].includes(c.key) ? String(c.value) : c.text;   // a read-only change: its own word (O-62), on / off / odd / even, else the caption's words
       rows.push({ html: `<div class="sub-label">Changes</div>` + v.changes.map((c, i) => {
         const k = c.kind + ':' + c.key, name = `${CHANGE_OF[c.kind]}: ${c.label}`, val = edits[k] != null ? edits[k] : c.value;

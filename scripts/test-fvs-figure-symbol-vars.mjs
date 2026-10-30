@@ -21,15 +21,25 @@ const rows = await P.ev(`const F = window.__fvs, NC = Organica.nodeCanvas, q = i
   const names = Object.keys(F.LIBRARY.read());
   F.setTier('symbol'); await w(800); set('sel-symgrid-gen', 'rectangular'); await w(400); set('symgen-cols', 4); set('symgen-rows', 4); await w(700);
   F.state.symbolCells.forEach((c, i) => F.patchCell(c, { source: 'component', componentName: names[i % 3 === 0 ? 0 : 1] })); F.renderSymbol(); await w(900);
+  // two saved selections (bridges 1 and 2): the last column holds Component A; the whole Symbol follows Symmetry p4m
+  const lib = F.LIBRARY.read(), A = { kind: 'component', name: names[0], entry: lib[names[0]] };
+  F.state.symbolZones = [{ name: 'Edge', when: { sel: 'col', k: -1 }, fill: { content: A }, rule: null },
+    { name: 'All', when: { all: true }, fill: null, rule: { follow: { id: 'wallpaper', params: { group: 'p4m', n: 2 } } } }];
+  F.applySelectionsNow({ quiet: true }); F.renderSymbol(); await w(600);
   document.querySelector('#tier-tabs [data-tier="figure"]').click(); await w(3000);
   const sn0 = F.figureGraphModel().nodes.find(n => n.type === 'symbol');
   if (!sn0) return ['✗ no Symbol node on the Figure step'];
+  check('the Symbol’s saved selections travel with its Symbol node', (sn0.params.snapshot.work.zones || []).length === 2, JSON.stringify(sn0.params.snapshot.work.zones && sn0.params.snapshot.work.zones.map(z => z.name)));
+  { const vEl = document.querySelector('#fg-graph .nc-node[data-node-id="' + F.figureGraphModel().nodes.find(n => n.type === 'variations').id + '"]');
+    vEl.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); vEl.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 })); await w(300);
+    const rowsV = [...document.querySelectorAll('#fg-inspector [data-vary-row]')].map(r => r.dataset.varyRow);
+    check('its Variations panel has a Selections row (a selection with a rule)', rowsV.includes('selections'), JSON.stringify(rowsV)); }
   // an engine of its own: Symbol → Figure → Variations (3, palette Order / Another palette) → its 3 variations
   const reg = NC.createRegistry(F.figureNodeTypes()), m = NC.createModel(), eng = NC.createEngine({ registry: reg });
   const sym = NC.addNode(m, { type: 'symbol', params: JSON.parse(JSON.stringify(sn0.params)) });
   const fig = NC.addNode(m, { type: 'figure', params: { ...reg.defaults('figure'), symbolId: sn0.params.symbolId } });
   NC.addEdge(m, { node: sym.id, port: 'symbol' }, { node: fig.id, port: 'symbol' });
-  const vn = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), seed: 11, vary: { palette: ['order', 'lib'] } } });
+  const vn = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), seed: 11, vary: { palette: ['order', 'lib'], selections: false } } });   // the palette only: the checks below read it
   NC.addEdge(m, { node: fig.id, port: 'figure' }, { node: vn.id, port: 'figure' });
   const kids = [1, 2, 3].map(slot => { const k = NC.addNode(m, { type: 'figure-var', params: { ...reg.defaults('figure-var'), parent: vn.id, slot } }); NC.addEdge(m, { node: vn.id, port: 'figure' }, { node: k.id, port: 'from' }, true); return k; });
   const K = svg => svg.replace(/"exportedAt":"[^"]*"/g, '').replace(/(stk[0-9a-z]+)-[0-9a-z]+-(\\d+)/g, '$1-$2').replace(/-d[0-9a-z]+(?=["')])/g, '');
@@ -53,8 +63,8 @@ const rows = await P.ev(`const F = window.__fvs, NC = Organica.nodeCanvas, q = i
   const gr = NC.addNode(m, { type: 'grid', params: { gen: 'rectangular', params: { ...F.gridDefaults('rectangular'), cols: 6, rows: 6 } } });
   NC.addEdge(m, { node: gr.id, port: 'grid' }, { node: kids[1].id, port: 'grid' }); await run();
   const k1 = val(kids[1]), lv = k1 && k1.recipe.levels[0];
-  const motif = lv && lv.cells.every((c, i) => { const r = Math.floor(i / 6), col = i % 6; return c.componentName === names[((r % 4) * 4 + (col % 4)) % 3 === 0 ? 0 : 1]; });
-  check('a Grid on Variation 2 (Rectangular 6 × 6): 36 cells, the Symbol’s cells repeated as a motif', k1 && k1.cells === 36 && motif, why(kids[1]) + ' ' + (k1 && k1.cells) + ' motif ' + motif);
+  const own0 = sn0.params.snapshot.work.cells, motif = lv && lv.cells.every((c, i) => { const r = Math.floor(i / 6), col = i % 6; return c.componentName === own0[(r % 4) * 4 + (col % 4)].componentName; });
+  check('a Grid on Variation 2 (Rectangular 6 × 6): 36 cells, the Symbol’s cells repeated as a motif (in the recipe, before its selections)', k1 && k1.cells === 36 && motif, why(kids[1]) + ' ' + (k1 && k1.cells) + ' motif ' + motif);
   check('…in the Symbol’s own canvas (1080 × 1080)', box(k1) === '0 0 1080 1080', box(k1));
   gr.params = { gen: 'hexagonal', params: F.gridDefaults('hexagonal') }; await run();
   check('…a Hexagonal Grid: drawn, every cell filled', val(kids[1]) && val(kids[1]).cells > 16 && val(kids[1]).recipe.levels[0].cells.every(c => c.source === 'component'), why(kids[1]));
@@ -93,6 +103,27 @@ const rows = await P.ev(`const F = window.__fvs, NC = Organica.nodeCanvas, q = i
   const cr = NC.addNode(m, { type: 'cell-rules', params: { rules: [{ when: { parity: 'odd' }, do: { rotate: 90 } }] } });
   NC.removeNode(m, own.id); NC.addEdge(m, { node: cr.id, port: 'rules' }, { node: kids[2].id, port: 'rules' }); await run();
   check('…Cell rules on Variation 3 too', val(kids[2]) && K(val(kids[2]).svg) !== base.kids[2], why(kids[2]));
+  // ── bridge 1: on a variation's new Grid the saved selections take their cells again ──
+  { NC.addEdge(m, { node: gr.id, port: 'grid' }, { node: kids[1].id, port: 'grid' }); gr.params = { gen: 'rectangular', params: { ...F.gridDefaults('rectangular'), cols: 6, rows: 6 } };
+    const zs = sym.params.snapshot.work.zones; sym.params.snapshot.work.zones = [zs[0]]; await run();   // the Edge selection only: a column, clear to read
+    const r6 = val(kids[1]), with6 = r6 && K(r6.svg);
+    check('a Grid 6 × 6 on a variation: the saved selections go with it (the recipe carries them)', r6 && r6.cells === 36 && (r6.recipe.levels[0].zones || []).length === 1, why(kids[1]) + ' ' + JSON.stringify(r6 && r6.recipe.levels[0].zones));
+    sym.params.snapshot.work.zones = []; await run();
+    check('…and change the drawing: the last column is the Edge selection’s again (not the motif’s column 2)', val(kids[1]) && K(val(kids[1]).svg) !== with6, 'same svg');
+    sym.params.snapshot.work.zones = zs; m.edges.filter(e => e.to.node === kids[1].id && e.to.port === 'grid').forEach(e => NC.removeEdge(m, e.id)); await run(); }
+  // ── bridge 2: a Variations that varies the selections only ──
+  { const vs = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 4, seed: 21, vary: { palette: false, cells: false, transform: false, selections: true } } });
+    NC.addEdge(m, { node: fig.id, port: 'figure' }, { node: vs.id, port: 'figure' }); await run();
+    const vv = val(vs), list = vv ? vv.variations.slice(1) : [];
+    check('a Variations on Selections: 4 variations, each saying which selection changed', list.length === 4 && list.every(v => /^Selection: (Edge|All) · /.test(v.label)), why(vs) + ' ' + JSON.stringify(list.map(v => v.label)));
+    check('…each drawn different from the Figure and from each other', list.length && new Set([K(vv.variations[0].svg), ...list.map(v => K(v.svg))]).size === list.length + 1, JSON.stringify(list.map(v => v.label)));
+    check('…the Figure itself stays as it was', K(val(fig).svg) === base.fig, 'changed');
+    const zs2 = sym.params.snapshot.work.zones; sym.params.snapshot.work.zones = [zs2[0], { ...zs2[1], rule: { follow: { id: 'field', params: { signal: 'noise', seed: 1, scale: 3, drive: 'turn' } } } }];
+    vs.params.onlyRandom = true; await run();
+    const vr = val(vs);
+    check('…a Field on noise + New seeds only: every variation is a new noise', vr && vr.variations.slice(1).length === 4 && vr.variations.slice(1).every(v => v.label === 'Selection: All · new noise'), vr && JSON.stringify(vr.variations.map(v => v.label)));
+    sym.params.snapshot.work.zones = zs2;
+    NC.removeNode(m, vs.id); await run(); }
   // ── borders dragged on the Symbol's grid: a Canvas alone keeps them ──
   { const snap = JSON.parse(JSON.stringify(sn0.params.snapshot)), gm = snap.work.gridModel;
     gm.grid.params.colWeights = '3,1,1,1'; delete gm.grid.params.cols;

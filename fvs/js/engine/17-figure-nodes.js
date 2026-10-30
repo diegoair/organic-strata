@@ -35,6 +35,8 @@ import {
 import {
   componentCellsFromRule, ruleMatches, squareCR
 } from './13-figure-engine.js';
+import { WALLPAPER } from './03-symmetry.js';
+import { SEL_SEQS } from './11-zones.js';
 import { hooks } from '../hooks.js';
 import {
   FG_HUE_TURNS, describeRule
@@ -294,6 +296,10 @@ async function figureGroup(inputs, p, item, checks = true, keys = null) {
 // A Figure made from a Symbol (Diego, Oct 29, 2026: "Symbol si sostituisce a quello che oggi è la canvas figure, le
 // logiche rimangono invariate"): the Symbol's canvas, grid and cells take the place of Canvas + Grid + Content; the
 // Palette (optional — else the Symbol's own), Rules and Composition work on those cells as on any Figure's.
+// A Symbol's saved selections ({name, when, fill, rule, off}; the Zones of Oct 27 as {when, do}) → region rules, fill first
+// (11-selection-ui rulesOf).
+export const selectionRules = zones => (zones || []).flatMap(z => z.do ? [{ when: z.when, do: z.do, off: z.off }]
+  : [z.fill && { when: z.when, do: z.fill, off: z.off }, z.rule && { when: z.when, do: z.rule, off: z.off }]).filter(Boolean);
 async function compileFromSymbol(inputs, params, opts) {
   const sy = inputs.symbol, w = sy.work, pal = inputs.palette, rules = chainOf(inputs.rules);
   const { cellRules, compRule, repeats, transform: final } = chainPlan(rules);
@@ -309,6 +315,7 @@ async function compileFromSymbol(inputs, params, opts) {
   // Variation 1 changed nothing): the Symbol's grid is built again — its own generator and settings in the new Canvas,
   // or the new Grid in the Symbol's own canvas — and its cells follow as a repeating motif, as on the Symbol step
   const page = inputs.canvas && !inputs.canvas.fit ? inputs.canvas : null;
+  let rebuilt = false;
   if (page || inputs.grid) {
     const fr = symbolCanvasOf(model), { generator, params: gp0, ...frame } = fr || {};
     const cvOwn = { margin: 0, ...frame, W: +model.canvas.width || 1080, H: +model.canvas.height || 1080 };
@@ -324,7 +331,7 @@ async function compileFromSymbol(inputs, params, opts) {
       if (!next.cells.length) throw new Error('No cells — enlarge the Canvas, or lower the Grid’s counts');
       if (next.cells.length > SYMBOL_CELL_CAP) throw new Error(`${next.cells.length.toLocaleString('en')} cells — a Symbol holds at most ${SYMBOL_CELL_CAP.toLocaleString('en')}: lower the Grid’s counts`);
       cells = carrySymbolCells(Organica.loadLoomGrid(clone(model)), cells, Organica.loadLoomGrid(clone(next)));
-      model = next;
+      model = next; rebuilt = true;
     }
   }
   if (pal && pal.colors && pal.colors.length && !params.keepOwn) cells.forEach(c => { if (c.source === 'component') c.colourway = { colors: colors.slice(), paper }; });
@@ -345,7 +352,11 @@ async function compileFromSymbol(inputs, params, opts) {
   const first = { kind: 'symbol', lattice: { type: 'loomModel', model }, cells, componentEntries, colors, colorRule: params.keepOwn ? { ...DEFAULT_COLOR_RULE, ...(own.colorRule || {}) } : colorRule, paperColor: paper, clip: w.clipEnabled !== false };
   if (w.overlap && +w.overlap.amount > 0) first.overlap = clone(w.overlap);
   if (cellRules.length || composeRules.length) first.rules = clone(cellRules.concat(composeRules));
-  if (composeRules.length && pal && pal.colors && !params.keepOwn) first.paletteColourway = { colors: colors.slice(), paper };
+  // the Symbol's saved selections take the cells again on a new grid (a whole column stays a column), or when a variation
+  // changed one of their rules (sy.zonesVaried); otherwise the cells already hold them, as the Symbol step saved them
+  const zoneRules = rebuilt || sy.zonesVaried ? selectionRules(w.zones) : [];
+  if (zoneRules.length) first.zones = clone(zoneRules);
+  if ((composeRules.length || zoneRules.length) && pal && pal.colors && !params.keepOwn) first.paletteColourway = { colors: colors.slice(), paper };
   const recipe = { tool: 'fvs-recipe', version: 2, element, levels: [first, ...repeats] };
   if (final) recipe.transform = clone(final);
   const r = evalFigure(recipe, opts);
@@ -441,7 +452,7 @@ export async function compileFigure(inputs, params, opts) {
 // settings every spec draws as it did before Vary / Amount existed (same rng calls, same formulas), so a saved pin
 // comes back identical.
 export const MIRRORS = { none: 'None', v: 'Over the right edge', h: 'Over the bottom edge', vh: 'Over both edges' };   // the mirror options, as the UI says them
-export const KEEP_KEYS = ['content', 'palette', 'cells', 'grid', 'transform'];   // UI-COPY §2: Content · Palette · Cell rules · Grid · Rotate & mirror
+export const KEEP_KEYS = ['content', 'palette', 'cells', 'grid', 'transform', 'selections'];   // UI-COPY §2: Content · Palette · Cell rules · Grid · Rotate & mirror · Selections (a Symbol's Figure only, Oct 30, 2026)
 // What a variation may change, per category (the Vary section, Oct 9, 2026): `vary[k]` = true (any of its parameters)
 // · false (never) · an array of its parameter keys (only those). The keys per category, in the panel's words:
 export const VARY_KEYS = {
@@ -450,6 +461,7 @@ export const VARY_KEYS = {
   content: [['spread', 'Spread'], ['rotation', 'Rotation'], ['flipH', 'Flip horizontal'], ['flipV', 'Flip vertical'], ['style', 'Style'], ['strokeW', 'Stroke width'], ['scale', 'Scale'], ['item', 'Item']],   // rotation … item: opt-in (phase H)
   cells: [['off', 'On / off'], ['angle', 'Angle'], ['parity', 'Odd / even']],
   transform: [['turn', 'Rotation'], ['flip', 'Flip'], ['per', 'Rotation per cell'], ['draw', 'Random draw'], ['mirror', 'Mirror']],   // mirror: after a Repeat in grid
+  selections: [['rule', 'Rule'], ['draw', 'Random draw']],   // a Symbol's saved selections: another rule of the same family · a new seed
 };
 export function gridVaryKeys(gen) { return gridSpec(gen).params.filter(x => x[2] !== 'text').map(x => [x[0], x[1]]); }
 const normVary = v => v == null || v === true ? true : Array.isArray(v) ? (v.length ? v.slice() : false) : !!v;
@@ -594,6 +606,61 @@ function changeCells(inp, rng, st, spec, only) {
 }
 // Rotate & mirror, either mode: after a Repeat in grid a quarter turn or another Mirror; on the cells a turn of
 // 15–90° either way, one Flip on / off, Rotation per cell, or a new random draw — said in the panel's own words
+// ── Selections (Oct 30, 2026 — Diego, bridge 2: "Ponte 1 e 2"): a variation of a Symbol's Figure may change what one of
+// the Symbol's saved selections does — another rule of the same family (a wallpaper group, a rosette, a Field signal,
+// Continuity's contents, a Rhythm sequence or walk, an arrangement, a Symbol rule) or a new random draw (a seed). The
+// selection keeps its cells; the Symbol's saved selections are then applied again (compileFromSymbol, `zonesVaried`).
+const SEL_RULES = ['rows', 'columns', 'checkerboard', 'oscillator', 'radial', 'wave'];
+const SEL_RULE_PARAMS = { rows: { step: 90, mode: 'alternate' }, columns: { step: 90, mode: 'alternate' }, checkerboard: { rotA: 0, rotB: 90, swap: false, flip: false },
+  oscillator: { angle: 90, shift: 1, period: 3, phase: 1 }, radial: { snap: true, chir: 1 }, wave: { amp: 90, freq: 1, phase: 0, snap: true } };
+const SEL_ARRANGE = ['checker', 'rows', 'columns', 'diagonal', 'blocks', 'rings', 'sectors', 'wave', 'random', 'rhythm'];
+const SEL_WALKS = ['reading', 'snake', 'spiral', 'diagonal', 'rings'];
+const SEL_SIGNALS = [{ signal: 'gradient', angle: 0 }, { signal: 'gradient', angle: 45 }, { signal: 'gradient', angle: 90 }, { signal: 'centre' }, { signal: 'rings', rings: 3 }, { signal: 'noise', seed: 1, scale: 3 }];
+const SIG_WORD = p => p.signal === 'gradient' ? 'gradient ' + (p.angle || 0) + '°' : p.signal === 'rings' ? (p.rings || 3) + ' rings' : p.signal === 'centre' ? 'from the centre' : p.signal;
+const otherOf = (list, cur, rng) => { const o = list.filter(x => JSON.stringify(x) !== JSON.stringify(cur)); return o.length ? pick(o, rng) : null; };
+// What a saved selection does that a variation may change: [{ part: 'fill' | 'rule', key: 'rule' | 'draw' }]
+function selectionDials(z) {
+  if (!z || z.off) return [];
+  const out = [], a = z.fill && z.fill.arrange, f = z.rule && z.rule.follow, sr = z.rule && z.rule.symbolRule;
+  if (a && (a.pool || []).length > 1) { out.push({ part: 'fill', key: 'rule' }); if (a.rule === 'random') out.push({ part: 'fill', key: 'draw' }); }
+  if (f && ['wallpaper', 'rosette', 'field', 'continuity', 'rhythm'].includes(f.id)) { out.push({ part: 'rule', key: 'rule' }); if (f.id === 'field' && (f.params || {}).signal === 'noise') out.push({ part: 'rule', key: 'draw' }); }
+  if (sr) { out.push({ part: 'rule', key: 'rule' }); out.push({ part: 'rule', key: 'draw' }); }
+  return out;
+}
+export const selectionVaryKeys = zones => [...new Set((zones || []).flatMap(z => selectionDials(z).map(d => d.key)))];   // what Vary lists under Selections
+export const selectionsVariable = inp => !!(inp.symbol && inp.symbol.work && (inp.symbol.work.zones || []).some(z => selectionDials(z).length));
+function changeSelections(inp, rng, st, spec, only) {
+  const zones = clone((inp.symbol && inp.symbol.work && inp.symbol.work.zones) || []);
+  const opts = [];
+  zones.forEach((z, zi) => selectionDials(z).forEach(d => { if (only ? only === d.key : allowed(st, 'selections', d.key)) opts.push({ zi, ...d }); }));
+  if (!opts.length) return null;
+  const o = only ? opts[0] : pick(opts, rng), z = zones[o.zi], name = z.name || 'Selection ' + (o.zi + 1);
+  let text = null;
+  if (o.part === 'fill') {
+    const a = z.fill.arrange;
+    if (o.key === 'draw') { a.seed = 1 + Math.floor(rng() * 1e6); text = 'new random draw'; }
+    else if (a.rule === 'rhythm' && rng() < 0.5) {
+      if (rng() < 0.5) { const q = otherOf(Object.keys(SEL_SEQS), a.seq || 'ABC', rng); a.seq = q; text = 'Rhythm ' + q.split('').join(' '); }
+      else { const q = otherOf(SEL_WALKS, a.walk || 'reading', rng); a.walk = q; text = 'Rhythm along ' + q; }
+    } else { const q = otherOf(SEL_ARRANGE, a.rule, rng); a.rule = q; if (q === 'rhythm') a.walk = a.walk || 'snake'; text = q === 'rhythm' ? 'Rhythm along ' + a.walk : q === 'checker' ? 'Checkerboard' : cap(q); }
+  } else if (z.rule.symbolRule) {
+    const sr = z.rule.symbolRule;
+    if (o.key === 'draw') { sr.seed = 1 + Math.floor(rng() * 1e6); text = 'new random draw'; }
+    else { const q = otherOf(SEL_RULES, sr.name, rng); sr.name = q; sr.params = clone(SEL_RULE_PARAMS[q]); text = cap(q === 'oscillator' ? 'rhythm' : q); }
+  } else {
+    const f = z.rule.follow, p = f.params = { ...(f.params || {}) };
+    if (o.key === 'draw') { p.seed = 1 + Math.floor(rng() * 1e6); text = 'new noise'; }
+    else if (f.id === 'wallpaper') { p.group = otherOf(Object.keys(WALLPAPER), p.group, rng); if (+p.n === 4 && !['p4m', 'p4g', 'cmm', 'pmg', 'pgg', 'cm'].includes(p.group)) p.n = 2; text = 'Symmetry ' + p.group; }
+    else if (f.id === 'rosette') { p.m = otherOf([2, 3, 4, 6, 8], +p.m, rng); p.mirror = rng() < 0.5; text = (p.mirror ? 'D' : 'C') + p.m + ' rosette'; }
+    else if (f.id === 'continuity') { p.content = p.content === 'pool' ? 'keep' : 'pool'; text = p.content === 'pool' ? 'Continuity · contents and turns' : 'Continuity · turns'; }
+    else if (f.id === 'rhythm') { if (rng() < 0.5) { p.seq = otherOf(['AB', 'ABB', 'ABC', 'AABB'], p.seq, rng); text = 'Rhythm ' + p.seq.split('').join(' '); } else { p.walk = otherOf(['snake', 'spiral', 'diagonal', 'rings'], p.walk, rng); text = 'Rhythm along ' + p.walk; } }
+    else if (p.signal === 'photo') { p.drive = otherOf(['content', 'turn', 'scale', 'empty'], p.drive, rng); text = 'Field · photo → ' + p.drive; }
+    else { const cur = SEL_SIGNALS.find(x => x.signal === p.signal && (x.angle == null || x.angle === p.angle)) || null, q = otherOf(SEL_SIGNALS, cur, rng); Object.keys(p).filter(k => !['drive', 'threshold'].includes(k)).forEach(k => delete p[k]); Object.assign(p, q); text = 'Field · ' + SIG_WORD(p); }
+  }
+  if (text == null) return null;
+  inp.symbol = { ...inp.symbol, work: { ...inp.symbol.work, zones }, zonesVaried: true };
+  return { kind: 'selections', key: o.key, label: o.key === 'draw' ? 'Random draw' : 'Rule', value: text, text: name + ' · ' + text, edit: null };
+}
 function changeTransform(inp, rng, st, spec, only) {
   const rules = (inp.rules || []).slice(), kinds = rules.map(r => r.kind), ok = key => only ? only === key : allowed(st, 'transform', key), ed = key => editOf(spec, 'transform', key);
   const at = kinds.map((k, i) => k === 'transform' ? i : -1).filter(i => i >= 0); if (!at.length) return null;
@@ -627,7 +694,7 @@ function changeTransform(inp, rng, st, spec, only) {
   }
   rules[i] = r; inp.rules = rules; return out;
 }
-export const CHANGE_OF = { grid: 'Grid', palette: 'Palette', content: 'Content', cells: 'Cell rules', transform: 'Rotate & mirror' };   // UI-COPY §2 names
+export const CHANGE_OF = { grid: 'Grid', palette: 'Palette', content: 'Content', cells: 'Cell rules', transform: 'Rotate & mirror', selections: 'Selection' };   // UI-COPY §2 names
 // Content (phase H): the spread of several contents over the cells (as before), or — opt-in — the first Element turned a
 // quarter in every cell (rotation), flipped (flipH / flipV), its Style swapped fill ↔ stroke, its stroke width or scale
 // changed, or — a wired Set — one of its items as the whole content (item; never in a fan-out). Words: O-62.
@@ -678,7 +745,7 @@ function changeContent(inp, rng, st, spec, only, extra) {
   if (pc !== cur) put({ ...entry, appearance: { ...a, scale: pc / 100 } });
   return { kind: 'content', key: 'scale', label: 'Scale', value: pc, from: cur, text: `Scale ${pc}%`, edit: { type: 'number', min: 10, max: 500, step: 10, unit: '%' } };
 }
-const CHANGES = { grid: changeGrid, palette: changePalette, content: changeContent, cells: changeCells, transform: changeTransform };
+const CHANGES = { grid: changeGrid, palette: changePalette, content: changeContent, cells: changeCells, transform: changeTransform, selections: changeSelections };
 const contentCount = inp => (inp.content || []).filter(Boolean).reduce((n, c) => n + (c.kind === 'set' ? c.items.length : 1), 0);   // a Set counts its items
 // `settings`: a Variations node's params (`vary`, `amount`) or an older `keep` object — see settingsOf().
 // → { inputs, extra, label, changes } — `changes` the records above (each with `text`; the label = the records' texts,
@@ -701,6 +768,7 @@ export function varyInputs(inputs, spec, settings) {
       inp.rules = inp.rules.map(r => r.kind === 'transform' && r.cells && r.cells.turnRandom ? { ...r, cells: { ...r.cells, turnRandom: { ...r.cells.turnRandom, seed } } } : r);
       changes.push({ kind: 'transform', key: 'draw', label: 'Random draw', value: seed, text: 'New random draw', edit: null }); did = true;
     }
+    if (allowed(st, 'selections', 'draw') && selectionsVariable(inp)) { const c = changeSelections(inp, rng, st, spec, 'draw'); if (c) { changes.push(c); did = true; } }   // a saved selection's own luck (a Symbol's Figure)
     return did;
   };
   const done = () => ({ inputs: inp, extra, changes, label: changes.map(c => CHANGE_OF[c.kind] + ': ' + c.text).join(' · ') || 'No change' });   // every change prefixed with its input, Content too (O-62)
@@ -709,7 +777,7 @@ export function varyInputs(inputs, spec, settings) {
     Object.keys(spec.set || {}).forEach(k => { const [kind, key] = k.split(':'); const f = CHANGES[kind]; const c = f ? f(inp, rng, st, sp, key, extra) : null; if (c) changes.push(c); });
     return done();
   }
-  const kinds = KEEP_KEYS.filter(k => allowed(st, k) && (k !== 'content' || (contentCount(inp) > 1 && allowed(st, 'content', 'spread')) || OPT_IN.content.some(key => allowed(st, 'content', key))));
+  const kinds = KEEP_KEYS.filter(k => allowed(st, k) && (k !== 'selections' || selectionsVariable(inp)) && (k !== 'content' || (contentCount(inp) > 1 && allowed(st, 'content', 'spread')) || OPT_IN.content.some(key => allowed(st, 'content', key))));
   if (spec.mode === 'seed' && reseed()) return done();
   const want = spec.mode === 'several' ? 2 + Math.floor(rng() * 2) : spec.mode === 'changes' ? Math.max(1, Math.min(3, +spec.changes || 1)) : 1;
   for (let tries = 0; tries < 12 && changes.length < want && kinds.length; tries++) {
