@@ -1667,6 +1667,25 @@ creati"*; *"Symbol si sostituisce a quello che oggi è la canvas figure, le logi
   rule) · **Random draw** (a new seed); *New seeds only* redraws them too. Caption *Selection: Edge · Symmetry p31m*.
   Otherwise the cells already hold them and nothing is applied again (the Figure as before). Only on a Symbol's Figure
   whose Symbol has such a selection; classic Figures never list it and draw as before. Words: O-81.
+- **A Symbol's Figure or variation, double-clicked → the Symbol step** (Oct 30, 2026 — Diego: *"al doppio click sulla
+  figure, in symbol variant dovrebbe andare su symbol edit … Symbol 1.a, che se si modifica diventa un symbolo nuovo"*;
+  answers: born at the first edit · Symbol + rules in Figure · independent with a link · the mother opens on Symbol).
+  | Action | Result | New Symbol? |
+  |---|---|---|
+  | Double-click Symbol 1's Figure | Symbol step, Symbol 1 edited (Compose: the panel's Compose button) | No |
+  | Double-click a variation | a **draft *Symbol 1.a*** beside Symbol 1 (sheet: *Draft from Symbol 1 · variation 2*) — the variation's grid (its own Canvas / Grid too), its cells after the selections, its palette (own), its selections | Not yet |
+  | …left untouched (another step, another Symbol) | the draft goes; Figure unchanged | No |
+  | …its first edit | **Symbol 1.a** is kept; notice *Symbol 1.a is a Symbol now — it gets its own Figure*; in Figure: Symbol node (*From Symbol 1 · variation 2*) → Figure with **copies** of the mother's Rules chain + Composition (+ the variation's own rules) → Variations; it draws as the variation did | **Yes** |
+  | ⌘Z after it | the edit goes back, Symbol 1.a stays | (stays) |
+  | Double-click that variation again | opens Symbol 1.a (the variation is pinned, caption *· Kept as Symbol 1.a*) | No |
+  | A variation of Symbol 1.a | draft *Symbol 1.a.a* (one letter per level; 1.b, 1.c … for siblings) | At its first edit |
+  | A classic Figure / its variation; Use variation · New Figure from this · Pin | as before (Compose; in Figure) | No |
+  Versions: 1.a is a fork — no change reaches it from Symbol 1 or back. The link (`from` on the board record: mother id,
+  variation, key = Variations node | slot | seed, a fingerprint of the mother, the rules copied) reads *From an earlier
+  Symbol 1 · variation 2* once Symbol 1 changes, *From Symbol 1 (deleted) · …* once it is gone. A draft is never saved.
+  Code: `engine/16-figure-eval.js` (`symbolCells`, the cells before the Figure's rules), `engine/17-figure-nodes.js`
+  (`symbolWork` on a Symbol Figure's result), `18-step-boards.js` (`openSymbolDraft`, birth in `noteEdit`, `dropSymbolDraft`
+  on leaving), `17-figure-graph.js` (`openOnSymbolStep`, the sync's copied rules). Test `test-fvs-symbol-from-variation` (15).
 - Rule nodes (Cell rules · Component rule · Rotate & mirror · Repeat in grid · Composition) on a Symbol's Figure change it
   and every variation of it; on one variation, that one only — checked, they already worked.
 - Tests: `scripts/test-fvs-figure-symbols.sh` (16) and `scripts/test-fvs-figure-symbol-vars.sh` (35: Canvas / Grid on a

@@ -7,7 +7,7 @@
 import { rt } from './rt.js';
 import { hooks, provide } from './hooks.js';
 import { bindCellProps, cellPropsHTML, openCellContentOverlay, syncCellProps, syncStartSegs } from './11-symbol-ui.js';
-import { syncExportButton } from './12-shell.js';
+import { setTier, syncExportButton } from './12-shell.js';
 import { syncRailTier } from './15-export-library-view.js';
 import { exportablePhotoSVG } from './04-appearance.js';
 import { RHYTHM_DEFAULTS } from './engine/03-rules.js';
@@ -103,6 +103,7 @@ function symbolSnapshot(s) {
   return { work: JSON.parse(JSON.stringify(s.work)), components };
 }
 export function figureGraphModel() { return ctl ? ctl.model : null; }   // the graph on screen (tests)
+export function figureNodeSVG(id) { const e = ctl && ctl.engine.get(id); return e && e.value && e.value.figure ? e.value.figure.svg : null; }   // a node's drawing (tests)
 export function figureSetView(v) { if (ctl) ctl.zoomPan.setView(v); }   // tests: a saved view
 export function figureUseModel(m) { if (!ctl) return; ctl.setModel(ensureNames(m)); ctl.commit('load'); renderInspector([]); syncButtons(); requestAnimationFrame(() => ctl.fitAll()); }   // tests: put a graph on screen
 export function boardSymbols() { return hooks.boardSymbols ? hooks.boardSymbols() : []; }
@@ -138,10 +139,24 @@ function syncSymbolFigures(m) {
       // Symbol (the default) Hue and Lightness draw nothing you can see
       const vn = NC.addNode(m, { type: 'variations', name: nextName(m, 'variations'), x: 40 + COL_STEP + 416 + LABEL_ROOM, y, params: { ...registry.defaults('variations'), seed: newSeed(), vary: { palette: ['order', 'lib'] } } });
       NC.addEdge(m, { node: fg.id, port: 'figure' }, { node: vn.id, port: 'figure' });
+      // a Symbol made from a variation (Oct 30, 2026): its Figure gets copies of the rules that variation was drawn with — a
+      // chain of its own (editing one never changes the other) — so it draws as the variation did
+      if (s.from) {
+        let prev = null;
+        (s.from.rules || []).forEach((r, k) => {
+          const rn = NC.addNode(m, { type: r.type, name: nextName(m, r.type), x: 40 + COL_STEP - 220, y: y + 120 + 64 * k, params: JSON.parse(JSON.stringify(r.params)) });
+          if (prev) NC.addEdge(m, { node: prev.id, port: 'rules' }, { node: rn.id, port: 'rules' });
+          prev = rn;
+        });
+        if (prev) NC.addEdge(m, { node: prev.id, port: 'rules' }, { node: fg.id, port: 'rules' });
+        if (s.from.composition) { const cn = NC.addNode(m, { type: 'composition', name: nextName(m, 'composition'), x: 40 + COL_STEP - 220, y: y + 120 + 64 * (s.from.rules || []).length, params: JSON.parse(JSON.stringify(s.from.composition)) }); NC.addEdge(m, { node: cn.id, port: 'composition' }, { node: fg.id, port: 'composition' }); }
+      }
+      sn.params.from = s.fromWords || null;
       y += ROW; changed = true; return;
     }
     if (sn.name !== s.name) { sn.name = s.name; sn.params.name = s.name; m.nodes.filter(f => f.type === 'figure' && f.params.symbolId === s.id).forEach(f => { f.name = s.name; }); changed = true; }
     if (snap && !same(sn.params.snapshot, snap)) { sn.params.snapshot = snap; changed = true; syncSymbolFigures.touched.push(sn.id); }
+    if ((sn.params.from || null) !== (s.fromWords || null)) { sn.params.from = s.fromWords || null; changed = true; }   // From Symbol 1 · variation 2 (an earlier …, deleted)
   });
   return changed;
 }
@@ -226,7 +241,7 @@ function renderBody(node, entry, el) {
     const vr = f.variations[0], item = vr.item != null ? itemName(vr.item) : null;
     el.innerHTML = `<figure class="fg-var${vr.pinned ? ' is-pinned' : ''}">
         <div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id, f.svg)}"></div>
-        <figcaption class="fg-var__label">${item ? esc(item) + ' · ' : ''}${esc(vr.slot === 0 ? 'As set up' : vr.label)}</figcaption>
+        <figcaption class="fg-var__label">${item ? esc(item) + ' · ' : ''}${esc(vr.slot === 0 ? 'As set up' : vr.label)}${(kept => kept ? ' · ' + esc('Kept as ' + kept.name) : '')(vr.spec && rootFigureOf(node) && rootFigureOf(node).params.symbolId ? keptSymbolOf(node, vr) : null)}</figcaption>
         ${vr.spec ? `<div class="fg-var__tools">
           <button type="button" class="icon-btn" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node) : ''}">${Organica.icons.get('pin')}</button>${(parentNode(node) || {}).type === 'figure-var' ? '' : `
           <button type="button" class="icon-btn" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node) : ''}">${Organica.icons.get('figure-from')}</button>
@@ -272,7 +287,7 @@ function renderBody(node, entry, el) {
     el.innerHTML = NC.body.line(bits.length ? bits.join(' · ').replace(/^./, c => c.toUpperCase()) : 'No change');
   } else if (node.type === 'symbol') {   // the Symbol step's Symbol, kept in step by the sync (Oct 29, 2026)
     const w = p.snapshot && p.snapshot.work;
-    el.innerHTML = w ? NC.body.thumb(symbolWorkThumb(w), 'Edit it on the Symbol step') : NC.body.thumb('', 'Fill a cell of this Symbol on the Symbol step');
+    el.innerHTML = w ? NC.body.thumb(symbolWorkThumb(w), p.from || 'Edit it on the Symbol step') : NC.body.thumb('', 'Fill a cell of this Symbol on the Symbol step');
   } else if (node.type === 'element' || node.type === 'component') {
     const gone = p.name && !(node.type === 'element' ? ELEMENT_LIB.peek() : LIBRARY.peek())[p.name];
     el.innerHTML = p.snapshot ? NC.body.thumb(entryThumb(node.type, p.name, p.snapshot), gone ? `${p.name} is no longer in the library — drawn from the copy kept in this graph` : p.name) : NC.body.thumb('', 'Pick a saved ' + node.type);
@@ -1399,6 +1414,35 @@ function copyComposition() {   // this Figure gets its own copy; the other Figur
   composing.comp = copy.id; ctl.touch(fig.id); ctl.refresh(); ctl.commit('compose'); save();
   Organica.notice(`${nodeLabel(fig)} now has its own ${copy.name}`); renderComposeInspector('#fgc-fill');
 }
+// ── A Symbol's Figure on the Symbol step (Oct 30, 2026 — Diego: "al doppio click sulla figure, in symbol variant dovrebbe
+// andare su symbol edit. La variation diventa editabile come se fosse un nuovo symbol … Symbol 1.a, che se si modifica
+// diventa un symbolo nuovo"). A Symbol's Figure: its Symbol, edited. A variation of it: a draft Symbol beside it, with the
+// variation's grid, cells, palette and selections — a Symbol at its first edit, with a Figure that gets copies of this
+// Figure's rules (and the variation's own); kept, the variation is pinned and says so, and opens that Symbol again.
+function rootFigureOf(n) { let f = n; for (let k = 0; f && f.type === 'figure-var' && k < 20; k++) f = parentNode(f); return f && f.type === 'figure' ? f : null; }
+const keptKey = (node, vr) => ((sourceOf(node) || {}).id || '') + '|' + vr.slot + '|' + (vr.spec ? vr.spec.seed : '');
+const ruleCopies = nodes => nodes.map(n => ({ type: n.type, params: JSON.parse(JSON.stringify(n.params || {})) }));
+function keptSymbolOf(node, vr) { const k = keptKey(node, vr); return boardSymbols().find(s => s.from && s.from.key === k) || null; }
+function openOnSymbolStep(node) {
+  if (node.type === 'figure' && node.params && node.params.symbolId) {
+    if (!boardSymbols().some(s => s.id === node.params.symbolId)) return false;
+    setTier('symbol'); hooks.boardActivateSymbol(node.params.symbolId); announce(`${nodeLabel(node)} — on the Symbol step`); return true;
+  }
+  if (node.type !== 'figure-var') return false;
+  const root = rootFigureOf(node); if (!root || !root.params.symbolId) return false;
+  const en = ctl.engine.get(node.id), f = en && en.value && en.value.figure, vr = f && f.variations && f.variations[0];
+  if (!f || !vr || !f.symbolWork) { Organica.notice(`${nodeLabel(node)} has not drawn yet`); return true; }
+  const kept = keptSymbolOf(node, vr);
+  if (kept) { setTier('symbol'); hooks.boardActivateSymbol(kept.id); return true; }
+  const fig = parentNode(node), own = ctl.model.edges.find(e => e.to.node === node.id && e.to.port === 'composition'), comp = ctl.model.edges.find(e => e.to.node === (fig || root).id && e.to.port === 'composition');
+  const compNode = own ? NC.findNode(ctl.model, own.from.node) : comp ? NC.findNode(ctl.model, comp.from.node) : null;
+  const from = { symbolId: (fig && fig.params && fig.params.symbolId) || root.params.symbolId, slot: variationNo(node), key: keptKey(node, vr),
+    rules: ruleCopies(chainNodesOf(fig || root).concat(chainNodesOf(node))), composition: compNode ? JSON.parse(JSON.stringify(compNode.params || {})) : null };
+  if (!vr.pinned) variationAction(node.id, 'pin');   // kept: a new seed does not take it away
+  setTier('symbol');
+  hooks.openSymbolDraft({ work: f.symbolWork, from });
+  return true;
+}
 function enterCompose(figId) {
   const fig = NC.findNode(ctl.model, figId); if (!fig) return;
   if (fig.type === 'figure-var') inheritComposition(fig);
@@ -1992,7 +2036,7 @@ export function renderFigureGraph() {
     onPortDblClick: (node, port, dir) => spawnFor(node, port, dir),
     nameCopy: (copy, model) => { if (copy.type === 'variations') { copy.params.seed = newSeed(); copy.params.pins = []; } return NUMBERED.includes(copy.type) ? nextName(model, copy.type) : copy.name; },
     keyScope: t => !!(t && t.closest && t.closest('#fb-figure-actions, #fg-nodebar-dock') && !t.closest('input, select, textarea')),   // not the panel: Delete on a panel button must not delete the node
-    onNodeDblClick: node => { if (node.type === 'figure' || node.type === 'figure-var') enterCompose(node.id); },   // a variation composes too (Diego, Oct 8 — O-56 a)
+    onNodeDblClick: node => { if (openOnSymbolStep(node)) return; if (node.type === 'figure' || node.type === 'figure-var') enterCompose(node.id); },   // a Symbol's Figure or variation: the Symbol step (Oct 30, 2026)   // a variation composes too (Diego, Oct 8 — O-56 a)
     keepActive: n => !!(composing && n.id === composing.fig) || (ctl && (n.type === 'figure' || n.type === 'figure-var' || n.type === 'variations') && [n, n.type === 'figure-var' && sourceOf(n)].some(x => x && ctl.model.edges.some(e => e.from.node === x.id && e.to.port === 'figures'))),   // a Figure / Variations wired to Export is computed off screen too, with the children (they draw its variations)
   });
   try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null'); if (v) ctl.zoomPan.setView({ zoom: v.zoom, panX: v.x, panY: v.y }); else requestAnimationFrame(() => ctl.fitAll()); } catch (e) { requestAnimationFrame(() => ctl.fitAll()); }

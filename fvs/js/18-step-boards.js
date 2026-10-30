@@ -66,7 +66,8 @@ provide({
   elementPalettes: () => elementPalettes, boardSymbolDrawn: () => symbolDrawn,
   boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries,
   syncCeCellProps: () => syncCeCellProps, symbolPaletteSwap: () => symbolPaletteSwap, syncSymbolPaletteHint: () => syncSymbolPaletteHint,
-  elementSheetResized: () => sheetResized, symbolFromVariation: () => symbolFromVariation, boardSymbols: () => boardSymbols
+  elementSheetResized: () => sheetResized, symbolFromVariation: () => symbolFromVariation, boardSymbols: () => boardSymbols,
+  openSymbolDraft: () => openSymbolDraft, boardActivateSymbol: () => boardActivateSymbol
 });
 
 const escAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -77,6 +78,7 @@ let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {}, 
 let sheetResized = () => {};
 let rebaseSymbolEdits = () => {};   // the Symbol board's undo baseline, taken again when the Symbol step is entered
 let symbolFromVariation = () => {};
+let openSymbolDraft = () => null, boardActivateSymbol = () => false, dropSymbolDraft = () => {};   // a Figure's variation opened on the Symbol step (Oct 30, 2026)
 let boardSymbols = () => [];   // the Symbol board's Symbols as kept ({id, name, work}) — the Figure step's sync reads them   // a variation as a new Symbol under the lowest (the Symbol board)
 let symbolDrawn = () => {}, boardActivate = () => {}, restoreGalleries = () => {}, elementBoard = null, elementSaveNow = () => {};
 
@@ -144,6 +146,7 @@ function symbolPaletteSwap(from, to) {
     showGroundControls(p.ground || null);
     rebaseSymbolEdits();
   } else {
+    dropSymbolDraft();   // a variation opened here and never changed: it goes (a Symbol is born at its first edit)
     const now = livePaletteWithGround(), was = state.symbolPalette;
     state.symbolPalette = { ...now, own: !!(was && was.own) || paletteKey(now) !== symbolPaletteIn };
     const e = state.elements.find(x => x.id === state.activeElement);
@@ -1038,7 +1041,7 @@ function mountSymbolBoard() {
   function readSymbols() {
     const obj = WORK.read() || {};
     let items = Object.entries(obj).filter(([k, v]) => k !== BOARD_ROW && k !== LEGACY && v && v.work && v.work.gridModel)
-      .map(([id, v]) => ({ id, name: v.name, custom: !!v.custom, work: v.work, n: v.n || 0 })).sort((a, b) => a.n - b.n);
+      .map(([id, v]) => ({ id, name: v.name, custom: !!v.custom, work: v.work, n: v.n || 0, ...(v.from ? { from: v.from } : {}) })).sort((a, b) => a.n - b.n);
     let act = obj[BOARD_ROW] && obj[BOARD_ROW].active;
     if (!items.length && obj[LEGACY] && obj[LEGACY].gridModel) { items = [{ id: 's-current', name: 'Symbol 1', custom: false, work: obj[LEGACY] }]; act = items[0].id; }
     items.forEach(s => { delete s.n; });
@@ -1049,10 +1052,12 @@ function mountSymbolBoard() {
   const snap = () => { const s = find(active()); if (s && state.activeTier !== 'figure') { const w = workOf(); if (w) s.work = w; } };
   function save() {
     const obj = {};
-    state.symbols.forEach((s, i) => { if (s.work) obj[s.id] = { name: s.name, custom: !!s.custom, work: s.work, n: i }; });
-    obj[BOARD_ROW] = { active: active() };
-    const a = find(active()); if (a && a.work) obj[LEGACY] = a.work;   // the single Symbol an older page reads
+    state.symbols.forEach((s, i) => { if (s.work && !s.draft) obj[s.id] = { name: s.name, custom: !!s.custom, work: s.work, n: i, ...(s.from ? { from: s.from } : {}) }; });   // a draft is not kept
+    const act = find(active()), kept = act && act.draft ? (find(act.from && act.from.symbolId) || state.symbols.find(x => !x.draft)) : act;
+    obj[BOARD_ROW] = { active: kept ? kept.id : active() };
+    const a = kept; if (a && a.work) obj[LEGACY] = a.work;   // the single Symbol an older page reads
     try { WORK.write(obj); } catch (err) {}
+    if (state.symbols.some(x => x.from)) relabel();   // a mother changed: its children's link reads "an earlier"
     syncFigureTab();   // a Symbol added, emptied or deleted: the Figure step opens or closes
   }
   const saveWork = () => { snap(); save(); };
@@ -1091,6 +1096,15 @@ function mountSymbolBoard() {
     } catch (err) { return ''; }
   };
   const nameLabel = id => B.sheets[sheetId(id)] && B.sheets[sheetId(id)].label;
+  // the link a Symbol made from a variation keeps (Oct 30, 2026 — independent, with a link): its mother by id, the variation,
+  // and a fingerprint of the mother as it was, so a later change to the mother reads "an earlier"
+  const fingerprint = w => { const t = JSON.stringify([w && w.gridModel, w && w.cells, w && w.palette, w && w.zones]); let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+  function fromWords(s) {
+    const f = s.from; if (!f) return '';
+    const m = find(f.symbolId), was = m ? m.name : f.name, v = 'variation ' + f.slot;
+    const where = !m ? `${was} (deleted) · ${v}` : fingerprint(m.work) !== f.hash ? `an earlier ${was} · ${v}` : `${was} · ${v}`;
+    return (s.draft ? 'Draft from ' : 'From ') + where;
+  }
   function relabel() {
     state.symbols.forEach(s => {
       const sh = B.sheets[sheetId(s.id)], lab = nameLabel(s.id);
@@ -1100,6 +1114,8 @@ function mountSymbolBoard() {
       lab.textContent = s.name;
       lab.setAttribute('aria-label', s.name + (on && state.symbols.length > 1 ? ' · editing' : '') + ' — drag to move, double-click to rename');
       if (on && state.symbols.length > 1) lab.append(el('span', 'fvs-board-sheet__state', { textContent: ' · editing' }));
+      const fromLine = fromWords(s);   // a Symbol made from a Figure's variation: where it came from (a draft until its first edit)
+      if (fromLine) lab.append(el('span', 'fvs-board-sheet__state', { textContent: ' · ' + fromLine }));
       const body = !on && sh.el.querySelector('.fvs-board-symbol--static');
       if (body) body.setAttribute('aria-label', s.name + ' — click or press Enter to edit');
     });
@@ -1146,6 +1162,7 @@ function mountSymbolBoard() {
   function activate(id, keepVariations) {
     if (id === active() || !find(id)) return;
     clearTimeout(saveT); snap();
+    const left = find(active()), leftDraft = left && left.draft ? left : null;
     const prev = find(active()), next = find(id), pp = posOf(prev.id), np = posOf(next.id);
     removeSheet(B, sheetId(next.id));          // its drawing goes: the live sheet takes its place
     removeSheet(B, sheetId(prev.id), true);    // the live sheet leaves the Symbol it showed (kept in the page)
@@ -1155,6 +1172,7 @@ function mountSymbolBoard() {
     if (!keepVariations) { state.symbolSuggestions = []; renderSuggestGallery(); }   // the variations were the other Symbol's
     applyWork(next.work);
     placeVariations(); selectSheets(B, [sheetId(id)]);
+    if (leftDraft) { state.symbols.splice(state.symbols.indexOf(leftDraft), 1); removeSheet(B, sheetId(leftDraft.id)); delete B.pos[sheetId(leftDraft.id)]; placeAdd(); }   // never changed: it goes
     relabel(); save(); B.save(); rebase();
   }
   function add(cells) {
@@ -1188,6 +1206,8 @@ function mountSymbolBoard() {
     const w = workOf();
     if (!w) return;
     if (editBase && editBase.id === active() && editKey(editBase.work) !== editKey(w)) {
+      const d = find(active());
+      if (d && d.draft) { delete d.draft; clearTimeout(saveT); snap(); save(); relabel(); announceBirth(d); }   // the first edit: the draft is a Symbol now
       undoStack.push({ kind: 'edit', id: editBase.id, work: editBase.work });
       if (undoStack.length > UNDO_MAX) undoStack.shift();
       syncUndo();
@@ -1282,7 +1302,31 @@ function mountSymbolBoard() {
   // sotto modificabile"): the Symbol you made stays as it is, the variation becomes a new Symbol below it, edited
   symbolFromVariation = cells => { if (cells && find(active())) add(cells); };
   // the Figure step's Symbols (Oct 29, 2026): the one being edited taken again first (outside the Figure's sandbox)
-  boardSymbols = () => { if (state.activeTier !== 'figure') { clearTimeout(saveT); snap(); } return state.symbols.map(x => ({ id: x.id, name: x.name, work: x.work })); };
+  boardSymbols = () => { if (state.activeTier !== 'figure') { clearTimeout(saveT); snap(); } return state.symbols.filter(x => !x.draft).map(x => ({ id: x.id, name: x.name, work: x.work, ...(x.from ? { from: x.from, fromWords: fromWords(x) } : {}) })); };
+  // A Figure's variation opened here (Oct 30, 2026 — Diego: "La variation diventa editabile come se fosse un nuovo symbol …
+  // Symbol 1.a, che se si modifica diventa un symbolo nuovo"): a draft beside its mother, edited; it becomes a Symbol at its
+  // first edit (noteEdit) and goes if left untouched. The same variation kept before opens its Symbol instead.
+  // → the Symbol's id. from = { symbolId, slot, key, rules, composition } (the Figure's rules, copied onto its Figure)
+  const variantName = mother => { const used = new Set(state.symbols.map(x => x.name)); for (let k = 0; k < 26; k++) { const n = mother + '.' + String.fromCharCode(97 + k); if (!used.has(n)) return n; } return nextName(); };
+  openSymbolDraft = ({ work, from }) => {
+    const kept = state.symbols.find(x => x.from && x.from.key === from.key && !x.draft);
+    if (kept) { activate(kept.id); return kept.id; }
+    clearTimeout(saveT); snap();
+    const old = state.symbols.find(x => x.draft); if (old && old.id !== active()) { state.symbols.splice(state.symbols.indexOf(old), 1); removeSheet(B, sheetId(old.id)); }
+    const m = find(from.symbolId), w = clone(work);
+    w.palette = { ...(w.palette || {}), own: true };   // the colours the variation drew with are this Symbol's own
+    const s = { id: newId(), name: variantName(m ? m.name : 'Symbol'), custom: false, work: w, draft: true,
+      from: { ...from, name: m ? m.name : from.name || '', hash: m ? fingerprint(m.work) : '', at: new Date().toISOString().slice(0, 10) } };
+    state.symbols.push(s);
+    const mp = m && B.sheets[sheetId(m.id)] ? posOf(m.id) : null, beside = state.symbols.filter(x => x.from && x.from.symbolId === from.symbolId && x.id !== s.id).length;
+    if (mp) mountStatic(s, mp.x + (SW + GAP) * (1 + beside), mp.y); else { const lp = posOf(lowestId()); mountStatic(s, lp.x, lp.y + SW + GAP); }
+    activate(s.id);
+    placeAdd(); requestAnimationFrame(() => B.fit());
+    return s.id;
+  };
+  boardActivateSymbol = id => { if (!find(id)) return false; activate(id); return true; };
+  dropSymbolDraft = () => { const d = find(active()); if (!d || !d.draft) return; const back = find(d.from && d.from.symbolId) || state.symbols.find(x => !x.draft); if (back) activate(back.id); };
+  const announceBirth = d => { if (Organica.notice) Organica.notice(`${d.name} is a Symbol now — it gets its own Figure`); };
   // the account's copy: taken while the Symbols here are still the ones the page opened with
   const opened = JSON.stringify(first.items), openedHere = JSON.stringify(state.symbols);
   WORK.pull().then(() => {

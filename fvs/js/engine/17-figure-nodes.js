@@ -365,7 +365,12 @@ async function compileFromSymbol(inputs, params, opts) {
   const cv = page || { W: +(model.canvas && model.canvas.width) || 1080, H: +(model.canvas && model.canvas.height) || 1080, margin: 0 };
   const fitted = repeats.length || (page && !symbolCanvasOf(model));
   const lost = composeLost(composeRules, r.compose ? r.compose.ctxs : null, r.cells);
-  return { svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv,
+  // the Symbol this Figure draws, as a Symbol step work (Oct 30, 2026 — a variation opened on the Symbol step): its grid, its
+  // cells after the selections (before the Figure's rules, which stay rules), the palette it was drawn with, its selections
+  const symbolWork = r.symbolCells ? { ...clone(w), gridModel: clone(model), cells: r.symbolCells,
+    palette: { ...(w.palette || {}), colors: colors.slice(), colorRule: clone(first.colorRule), paperColor: paper, ...(ground ? { ground: clone(ground) } : {}) },
+    ...(w.zones ? { zones: clone(w.zones) } : {}) } : null;
+  return { symbolWork, svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv,
     base: r.levels.symbol || '', compose: r.compose, lost, checks: r.checks, colors: colors.slice(), paper };
 }
 export async function compileFigure(inputs, params, opts) {

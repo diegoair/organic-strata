@@ -113,6 +113,7 @@ function tileSelected() {   // tileSelectedInGrid(): the Component becomes the G
   all[name] = { ...buildLibraryEntry(), auto: true }; LIBRARY.write(all);
   state.fvsGridComponentName = name;
 }
+let symbolCellsSeen = null;   // set by sealedSymbolLevel, read once by evalFigure
 function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
   const l = first.lattice;
   if (!l || l.type !== 'loomModel' || !l.model) throw new Error('An adopted Symbol needs its Loom grid (lattice.type "loomModel")');
@@ -131,6 +132,7 @@ function sealedSymbolLevel(first) {   // runSealedSymbolLevel()
   // a Symbol's saved selections, applied again before the Figure's own rules (Oct 30, 2026): on a variation's new Grid, or
   // with a rule a variation changed — as the Symbol step does after a grid rebuild (applySelectionsNow); rings derived
   if (first.zones && first.zones.length) state.symbolCells = applyZones(state.symbolCells, getSymbolGrid(), first.zones, { cw: first.paletteColourway }).cells;
+  symbolCellsSeen = clone(state.symbolCells);   // the Symbol's cells before the Figure's rules: what a Symbol made from this Figure holds (Oct 30, 2026)
   if (first.rules && first.rules.length) applyRulesToContent(first.rules, first.paletteColourway);
 }
 const COMPOSE_CELL_FIELDS = ['source', 'seedType', 'componentName', 'colourway', 'rotation', 'flipH', 'flipV', 'fitMode', 'coverAxis', 'scale', 'fixedSize', 'color', 'padding', 'pad', 'seedParams', 'anchorX', 'anchorY'];
@@ -215,6 +217,7 @@ export function evalFigure(def, opts) {
     // the Figure checks (engine/14 figureChecks), read from this run's own state — only when asked (they draw again)
     let checks = null;
     if (opts && opts.checks) { try { checks = figureChecks(def, svg); } catch (e) { checks = [{ ok: false, label: 'Checks could not run', detail: e.message }]; } }
-    return { svg, tier, levels, metas, stats, shapes, cells, compose, checks };
+    const symbolCells = isSealedSymbol(first) ? symbolCellsSeen : null; symbolCellsSeen = null;
+    return { svg, tier, levels, metas, stats, shapes, cells, compose, checks, ...(symbolCells ? { symbolCells } : {}) };
   });
 }
