@@ -45,6 +45,7 @@ const JOBS = {
   'segment':            node('test-fvs-segment.mjs'),   // Element: Segment's bar = the line's own stroke where it folds (Wave, Repeat, a thick bar) (Oct 29, 2026)
   'layer-duplicate':    node('test-fvs-layer-duplicate.mjs'),   // Element: Duplicate a layer — the copy above it, the edited one (Oct 29, 2026)
   'figure-symbols':     node('test-fvs-figure-symbols.mjs'),   // Figure ← Symbol: one Figure per filled Symbol, synced; the Figure tab waits for a filled Symbol (Oct 29, 2026)
+  'figure-symbol-vars': node('test-fvs-figure-symbol-vars.mjs'),   // a Symbol's Figure: a variation's own Canvas / Grid, every rule node on it and its variations, recent Element changes via nodes (Oct 30, 2026)
   'brush':              node('test-fvs-brush.mjs'),       // Symbol Brush: take a rail tile, paint, turn / flip on a click again, Esc (Oct 28, 2026)
   'symmetry':           node('test-fvs-symmetry.mjs'),   // Zones › Symmetry: 12 wallpaper groups + rosettes, invariance (Oct 27, 2026)
   'continuity':         node('test-fvs-continuity.mjs'),   // Zones › Continuity: edge matching along a walk (Oct 27, 2026)

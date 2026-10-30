@@ -1088,7 +1088,11 @@ function renderInspectorBody(box, ids) {
       bind: () => { ctrl('fgi-seed').addEventListener('change', e => { p.seed = Math.max(1, Math.round(+e.target.value) || 1); edited(node, true); }); ctrl('fgi-renew').addEventListener('click', () => { p.seed = (+p.seed || 1) + 1; edited(node, true); renderInspector(ids); }); } });
     // Vary — which inputs a variation may change (the positive form of the old Keep; `vary[k]` true · false · an array of
     // parameter keys). One row per input with its port colour as a dot; Grid and Palette open to their parameters.
-    const VARY_ROWS = [['grid', 'Grid', 'grid'], ['palette', 'Palette', 'palette'], ['content', 'Content', 'content'], ['cells', 'Cell rules', 'rule'], ['transform', 'Rotate & mirror', 'rule']];
+    // a Symbol's Figure: its grid and cells are the Symbol step's (varyInputs never changes them) — no Grid or Content row;
+    // with no Palette node its palette is the Symbol's own (what Order reads)
+    const symSrc = fig && fig.params && fig.params.symbolId ? ctl.model.edges.filter(e => e.to.node === fig.id && e.to.port === 'symbol').map(e => NC.findNode(ctl.model, e.from.node)).find(Boolean) : null;
+    const symInks = symSrc && symSrc.params.snapshot && symSrc.params.snapshot.work ? ((symSrc.params.snapshot.work.palette || {}).colors || []).length : 0;
+    const VARY_ROWS = [['grid', 'Grid', 'grid'], ['palette', 'Palette', 'palette'], ['content', 'Content', 'content'], ['cells', 'Cell rules', 'rule'], ['transform', 'Rotate & mirror', 'rule']].filter(([k]) => !(fig && fig.params && fig.params.symbolId && (k === 'grid' || k === 'content')));
     const [, gridNode] = fig ? foundationOf(fig) : [null, null], gridGen = gridNode && gridNode.params ? gridNode.params.gen : 'rectangular';
     // the parameters that apply to this Figure, per input (one rule, O-62: a row opens when more than one applies; a parameter that never applies here is not listed)
     const [, , palNode] = fig ? foundationOf(fig) : [null, null, null], chainN = fig ? chainNodesOf(fig) : [];
@@ -1097,7 +1101,7 @@ function renderInspectorBody(box, ids) {
     const nContent = contentNodes.filter(n => n.type !== 'set').length + setItems.length, hasEl = contentNodes.some(n => n.type === 'element') || setItems.some(x => x.kind === 'element'), hasSetN = contentNodes.some(n => n.type === 'set' && (n.params.items || []).length > 1);
     const cellRules = chainN.filter(n => n.type === 'cell-rules').flatMap(n => n.params.rules || []), tNode = chainN.find(n => n.type === 'transform'), tOnCells = tNode && !repeatBefore(tNode);
     const applies = {
-      palette: key => key === 'order' ? (palNode && (palNode.params.colors || []).length > 1) : key === 'paper' ? !(palNode && palNode.params.transparent) : key === 'lib' ? (Organica.palette && Organica.palette.library ? Organica.palette.library() : []).some(q => q && q.colors && q.colors.length >= (palNode ? (palNode.params.colors || []).length : 1)) : true,
+      palette: key => key === 'order' ? (palNode ? (palNode.params.colors || []).length > 1 : symInks > 1) : key === 'paper' ? !(palNode && palNode.params.transparent) : key === 'lib' ? (Organica.palette && Organica.palette.library ? Organica.palette.library() : []).some(q => q && q.colors && q.colors.length >= (palNode ? (palNode.params.colors || []).length : 1)) : true,
       content: key => key === 'spread' ? nContent > 1 : key === 'item' ? hasSetN && !(hasSet && p.fanOut !== false) : hasEl,
       cells: key => key === 'angle' ? cellRules.some(r => [90, 180, 270].includes((r.do || {}).rotate)) : key === 'parity' ? cellRules.some(r => (r.when || {}).parity) : cellRules.length > 0,
       transform: key => !!tNode && (tOnCells ? (key === 'draw' ? !!tNode.params.randomAmount : key !== 'mirror') : key === 'turn' || key === 'mirror'),

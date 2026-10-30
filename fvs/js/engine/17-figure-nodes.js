@@ -24,7 +24,7 @@ import {
   elementVariantSVG, getElementAppearance, orientedElementTile, tileSig
 } from './04-appearance.js';
 import {
-  PX_PER_MM, SYMCANVAS_PRESETS, SYMGRID_GENS, hexLoomModel, squareLoomModel, symbolGridModel, triangleLoomModel
+  PX_PER_MM, SYMBOL_CELL_CAP, SYMCANVAS_PRESETS, SYMGRID_GENS, carrySymbolCells, hexLoomModel, squareLoomModel, symbolCanvasOf, symbolGridModel, triangleLoomModel
 } from './08-symbol-grid.js';
 import {
   mulberry32, rhythmConnectViews
@@ -303,8 +303,30 @@ async function compileFromSymbol(inputs, params, opts) {
   const paper = pal && pal.paper ? pal.paper : (own.paperColor || '#ffffff');
   const composeRules = (inputs.composition && inputs.composition.rules ? inputs.composition.rules : [])
     .map(r => r.do && r.do.ink != null ? { ...r, do: { ...r.do, color: colors[r.do.ink % colors.length] } } : r);
-  const model = clone(w.gridModel);
+  let model = clone(w.gridModel);
   let cells = (w.cells || []).map(c => clone(c));
+  // A variation's own Canvas or Grid (Oct 30, 2026 — Diego: "quello si cambia solo nelle variations"; a Canvas on
+  // Variation 1 changed nothing): the Symbol's grid is built again — its own generator and settings in the new Canvas,
+  // or the new Grid in the Symbol's own canvas — and its cells follow as a repeating motif, as on the Symbol step
+  const page = inputs.canvas && !inputs.canvas.fit ? inputs.canvas : null;
+  if (page || inputs.grid) {
+    const fr = symbolCanvasOf(model), { generator, params: gp0, ...frame } = fr || {};
+    const cvOwn = { margin: 0, ...frame, W: +model.canvas.width || 1080, H: +model.canvas.height || 1080 };
+    let g = inputs.grid || (generator ? { gen: generator, params: { ...(gp0 || {}) } } : null);
+    // only the Canvas changes: borders dragged on a Rectangular grid stay (same Columns and Rows), as on the Symbol step
+    const was = !inputs.grid && generator === 'rectangular' && model.grid && model.grid.params, n = x => String(x || '').split(',').filter(v => v.trim() !== '').length;
+    if (was && !g.params.square && !g.params.overflow) {
+      if (n(was.colWeights) === +g.params.cols) { g.params.colWeights = was.colWeights; delete g.params.cols; }
+      if (n(was.rowWeights) === +g.params.rows) { g.params.rowWeights = was.rowWeights; delete g.params.rows; }
+    }
+    if (g) {
+      const next = isLattice(g.gen) ? latticeModel(latticeOf(g)) : await symbolGridModel(g.gen, { ...(inputs.grid ? gridDefaults(g.gen) : {}), ...(g.params || {}) }, page || cvOwn);
+      if (!next.cells.length) throw new Error('No cells — enlarge the Canvas, or lower the Grid’s counts');
+      if (next.cells.length > SYMBOL_CELL_CAP) throw new Error(`${next.cells.length.toLocaleString('en')} cells — a Symbol holds at most ${SYMBOL_CELL_CAP.toLocaleString('en')}: lower the Grid’s counts`);
+      cells = carrySymbolCells(Organica.loadLoomGrid(clone(model)), cells, Organica.loadLoomGrid(clone(next)));
+      model = next;
+    }
+  }
   if (pal && pal.colors && pal.colors.length && !params.keepOwn) cells.forEach(c => { if (c.source === 'component') c.colourway = { colors: colors.slice(), paper }; });
   if (compRule) {   // a Component rule poses every cell by the place its centre has in the space, as on any non-square grid
     const posed = componentCellsFromRule(compRule.rule, compRule.params, spatialCR(Organica.loadLoomGrid(clone(model)).cells, compRule.rule), null);
@@ -327,9 +349,12 @@ async function compileFromSymbol(inputs, params, opts) {
   const recipe = { tool: 'fvs-recipe', version: 2, element, levels: [first, ...repeats] };
   if (final) recipe.transform = clone(final);
   const r = evalFigure(recipe, opts);
-  const cv = { W: +(model.canvas && model.canvas.width) || 1080, H: +(model.canvas && model.canvas.height) || 1080, margin: 0 };
+  // the page: a variation's own Canvas (Screen / Print, bleed — what the Export reads), else the Symbol's; a lattice or
+  // a Symbol grid loaded with no canvas of its own is fitted on that page
+  const cv = page || { W: +(model.canvas && model.canvas.width) || 1080, H: +(model.canvas && model.canvas.height) || 1080, margin: 0 };
+  const fitted = repeats.length || (page && !symbolCanvasOf(model));
   const lost = composeLost(composeRules, r.compose ? r.compose.ctxs : null, r.cells);
-  return { svg: repeats.length ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv,
+  return { svg: fitted ? fitOnPage(r.svg, cv, paper) : r.svg, recipe, cells: r.cells, shapes: r.shapes, canvas: cv,
     base: r.levels.symbol || '', compose: r.compose, lost, checks: r.checks, colors: colors.slice(), paper };
 }
 export async function compileFigure(inputs, params, opts) {

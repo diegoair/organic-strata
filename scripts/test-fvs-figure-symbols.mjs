@@ -44,6 +44,10 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     for (let t = 0; t < 40 && !kids.every(isDrawn); t++) await w(250);
     const drawn = kids.filter(k => { const c = document.querySelector('#fg-graph [data-node-id="' + k.id + '"]'); return c && c.querySelector('.fg-card__img') && !c.classList.contains('is-error'); });
     check('…each Symbol’s Figure has one Variations, its variations drawn', v1.length === 1 && v2.length === 1 && kids.length >= 1 && drawn.length === kids.length, [v1.length, v2.length, kids.length, drawn.length].join(' ')); }
+  { const vEl = document.querySelector('#fg-graph [data-node-id="' + varsOf(ids[0])[0].id + '"]');
+    vEl.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 })); vEl.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 })); await w(300);
+    const rowsV = [...document.querySelectorAll('#fg-inspector [data-vary-row]')].map(r => r.dataset.varyRow);
+    check('…its panel’s Vary has no Grid or Content row (the Symbol step’s), Palette is there', rowsV.length && !rowsV.includes('grid') && !rowsV.includes('content') && rowsV.includes('palette'), JSON.stringify(rowsV)); }
   const fig = figsOf(ids[0])[0] || {};
   check('…its Figure takes the Symbol, not Canvas + Grid + Content (cells: 16)', !!document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]') && /16 cells/.test(document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]').textContent), document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]') && document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]').textContent.slice(0, 80));
   // a saved view that leaves Symbol 2's Figure off screen: entering the step fits the view (Diego, Oct 29 — "se ci sono due

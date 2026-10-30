@@ -1650,7 +1650,18 @@ creati"*; *"Symbol si sostituisce a quello che oggi è la canvas figure, le logi
   ⌘Z until Element / Component was visited (`snap` / `editable` read `preFigureSnapshot`) — now they read the active step.
 - The recipe's base Element is a plain Shape, never a Stack or a drawn one (each seed cell draws from its own
   seedParams; a Stack set as the panel's type alone threw — Diego's Symbol with Stack cells, Oct 29, 2026).
-- Tests: `scripts/test-fvs-figure-symbols.sh` (12); the Figure board and QA suites fill a Symbol first.
+- **A variation's own Canvas and Grid** (Oct 30, 2026 — Diego: *"I tried canvas on the variation 1 and it doesn't change the
+  symbol … grid no"*; before, `compileFromSymbol` ignored both). A Variation's Canvas is its page (Screen / Print, bleed —
+  what the Export reads) and the Symbol's grid is built again in it with its own generator and settings (borders dragged on
+  a Rectangular grid stay); a Grid builds the new grid in the Symbol's canvas (or that Canvas). The cells follow as a
+  repeating motif, as on the Symbol step (`carrySymbolCells`); a lattice, or a Symbol grid with no canvas of its own, is
+  fitted on the page. The variation's own change is still made on top. The Figure itself keeps no Canvas / Grid input,
+  and its Variations panel lists no Grid or Content row (a variation never changes them by itself).
+- Rule nodes (Cell rules · Component rule · Rotate & mirror · Repeat in grid · Composition) on a Symbol's Figure change it
+  and every variation of it; on one variation, that one only — checked, they already worked.
+- Tests: `scripts/test-fvs-figure-symbols.sh` (16) and `scripts/test-fvs-figure-symbol-vars.sh` (27: Canvas / Grid on a
+  variation, every rule node on the Figure and on a variation, an Element with a duplicated layer and a Segment with a Wave
+  through Element → Figure → Variations); the Figure board and QA suites fill a Symbol first.
 
 ### 12.3 The old Figure UI, retired (end of Phase 3, Oct 2026)
 
