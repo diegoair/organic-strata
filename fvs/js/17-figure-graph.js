@@ -116,10 +116,13 @@ function syncSymbolFigures(m) {
   // gone from the Symbol board: its Symbol node and its Figure go
   const ids = new Set(syms.map(s => s.id));
   m.nodes.filter(n => n.type === 'symbol' && !ids.has(n.params.symbolId)).forEach(n => {
-    m.nodes.filter(f => f.type === 'figure' && f.params.symbolId === n.params.symbolId).forEach(f => NC.removeNode(m, f.id));
+    m.nodes.filter(f => f.type === 'figure' && f.params.symbolId === n.params.symbolId).forEach(f => {
+      variationsOf(f.id, m).forEach(v => NC.removeNode(m, v.id));   // its Variations go with it (their children follow on syncChildren)
+      NC.removeNode(m, f.id);
+    });
     NC.removeNode(m, n.id); changed = true;
   });
-  const ROW = 720;   // board units between two Symbols' Figures: a Figure card is about as tall as wide
+  const ROW = 1680;   // board units between two Symbols' Figures: room for its Variations' three variations, stacked (a card ≈ 500 tall)
   let y = m.nodes.length ? Math.max(...m.nodes.map(n => (n.y || 0) + ROW)) : 40;
   syms.forEach(s => {
     let sn = m.nodes.find(n => n.type === 'symbol' && n.params.symbolId === s.id);
@@ -129,6 +132,12 @@ function syncSymbolFigures(m) {
       sn = NC.addNode(m, { type: 'symbol', x: 40, y, params: { symbolId: s.id, name: s.name, snapshot: snap }, name: s.name });
       const fg = NC.addNode(m, { type: 'figure', x: 40 + COL_STEP, y, params: { ...registry.defaults('figure'), symbolId: s.id }, name: s.name });
       NC.addEdge(m, { node: sn.id, port: 'symbol' }, { node: fg.id, port: 'symbol' });
+      // and a Variations of it, from the start (Diego, Oct 30, 2026: "metti di default una variations generata sempre in
+      // automatico per facilitare la comprensione del tool"). A Symbol's grid and cells are the Symbol step's, so it varies the
+      // palette — the Symbol's own when no Palette node is wired — by Order and Another palette only: on a one-ink black
+      // Symbol (the default) Hue and Lightness draw nothing you can see
+      const vn = NC.addNode(m, { type: 'variations', name: nextName(m, 'variations'), x: 40 + COL_STEP + 416 + LABEL_ROOM, y, params: { ...registry.defaults('variations'), seed: newSeed(), vary: { palette: ['order', 'lib'] } } });
+      NC.addEdge(m, { node: fg.id, port: 'figure' }, { node: vn.id, port: 'figure' });
       y += ROW; changed = true; return;
     }
     if (sn.name !== s.name) { sn.name = s.name; sn.params.name = s.name; m.nodes.filter(f => f.type === 'figure' && f.params.symbolId === s.id).forEach(f => { f.name = s.name; }); changed = true; }
@@ -1955,7 +1964,7 @@ function initGraphMenu() {
 }
 
 export function renderFigureGraph() {
-  if (ctl && !composing && syncSymbolFigures(ctl.model)) { ctl.commit('sync', { amend: false }); syncSymbolFigures.touched.forEach(id => ctl.touch(id)); }   // the Symbols, as they are now
+  if (ctl && !composing && syncSymbolFigures(ctl.model)) { syncChildren(); ctl.commit('sync', { amend: false }); syncSymbolFigures.touched.forEach(id => ctl.touch(id)); }   // the Symbols, as they are now (+ a new Variations' children)
   if (ctl) { if (composing) { ctrl('fb-figure-actions').hidden = true; ctrl('fb-compose-actions').hidden = false; drawCompose(); renderComposeInspector(); } else { ctl.refresh(); showSymbolFigures(); } return; }
   rt.figureGraph = true;
   document.querySelector('.tier-view[data-tier="figure"]').classList.add('is-graph');

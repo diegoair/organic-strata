@@ -33,8 +33,17 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   tab().click(); await w(4000);
   const ids = F.state.symbols.map(s => s.id);
   check('3 Symbols, 2 filled: 2 Symbol nodes, each into its own Figure, named as the Symbol', symNodes().length === 2 && figsOf(ids[0]).length === 1 && figsOf(ids[1]).length === 1 && figsOf(ids[2]).length === 0 && figsOf(ids[0])[0].name === 'Symbol 1', JSON.stringify(symNodes().map(n => n.name)));
-  const imgs = () => [...document.querySelectorAll('#fg-graph .fg-card__img')];
+  const imgs = () => [...document.querySelectorAll('#fg-graph .fg-card__img')].filter(el => { const c = el.closest('[data-node-id]'); return c && symNodes().length && stored().nodes.some(n => n.id === c.dataset.nodeId && n.type === 'figure'); });
   check('…each Figure draws', imgs().length === 2 && !document.querySelector('#fg-graph .nc-node.is-error'), imgs().length);
+  // a Variations of each Symbol's Figure from the start (Diego, Oct 30, 2026: "metti di default una variations generata sempre
+  // in automatico per facilitare la comprensione del tool")
+  const varsOf = id => { const m = stored(), f = figsOf(id)[0]; return f ? m.edges.filter(e => e.from.node === f.id && e.to.port === 'figure').map(e => m.nodes.find(n => n.id === e.to.node)).filter(n => n && n.type === 'variations') : []; };
+  const kidsOf = v => stored().nodes.filter(n => n.type === 'figure-var' && n.params.parent === v.id);
+  { const v1 = varsOf(ids[0]), v2 = varsOf(ids[1]), kids = v1[0] ? kidsOf(v1[0]) : [];
+    const isDrawn = k => { const c = document.querySelector('#fg-graph [data-node-id="' + k.id + '"]'); return c && c.querySelector('.fg-card__img') && !c.classList.contains('is-error'); };
+    for (let t = 0; t < 40 && !kids.every(isDrawn); t++) await w(250);
+    const drawn = kids.filter(k => { const c = document.querySelector('#fg-graph [data-node-id="' + k.id + '"]'); return c && c.querySelector('.fg-card__img') && !c.classList.contains('is-error'); });
+    check('…each Symbol’s Figure has one Variations, its variations drawn', v1.length === 1 && v2.length === 1 && kids.length >= 1 && drawn.length === kids.length, [v1.length, v2.length, kids.length, drawn.length].join(' ')); }
   const fig = figsOf(ids[0])[0] || {};
   check('…its Figure takes the Symbol, not Canvas + Grid + Content (cells: 16)', !!document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]') && /16 cells/.test(document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]').textContent), document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]') && document.querySelector('#fg-graph [data-node-id="' + fig.id + '"]').textContent.slice(0, 80));
   // a saved view that leaves Symbol 2's Figure off screen: entering the step fits the view (Diego, Oct 29 — "se ci sono due
@@ -69,6 +78,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   F.state.symbols.splice(1, 1); F.renderSymbol(); await w(900);
   tab().click(); await w(3500);
   check('a Symbol deleted on the board: its Symbol node and its Figure go, the other stays', !symNodes().some(n => n.params.symbolId === ids[1]) && !figsOf(ids[1]).length && figsOf(ids[0]).length === 1, JSON.stringify(symNodes().map(n => n.name)));
+  check('…its Variations and their variations too; Symbol 1 keeps its own', stored().nodes.filter(n => n.type === 'variations').length === 1 && varsOf(ids[0]).length === 1 && stored().nodes.filter(n => n.type === 'figure-var').every(k => k.params.parent === varsOf(ids[0])[0].id), stored().nodes.map(n => n.type).join(','));
   // a Symbol whose cells hold a Stack Element (layers): the recipe's base Shape is a plain one, never the Stack (Oct 29, 2026 —
   // Diego's Symbol drew "Cannot read properties of undefined (reading 'geometry')")
   { const seed = JSON.parse(JSON.stringify(F.seedForSnapshot())), look = { fillMode: 'fill', strokeW: 4, rounded: true, w: 1, l: 1 };

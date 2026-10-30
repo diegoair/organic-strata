@@ -1634,6 +1634,14 @@ creati"*; *"Symbol si sostituisce a quello che oggi è la canvas figure, le logi
   Figure makes a copy the sync does not follow. **Every Symbol's Figure on screen** (`showSymbolFigures`): entering the step,
   a Symbol's Figure less than a quarter inside the view (the saved view can leave one added later below the floatbar)
   makes the view fit all (Diego, Oct 29: *"se ci sono due symbol in symbol dobbiamo ritrovarle anche in Figure"*).
+- **A Variations from the start** (Oct 30, 2026 — Diego: *"metti di default una variations generata sempre in automatico per
+  facilitare la comprensione del tool"*; on Canvas and Grid connectors for a Symbol's Figure: *"lascia così perché quello si
+  cambia solo nelle variations"*): a new Symbol → Figure pair also gets a Variations node wired to the Figure, its three
+  variations drawn beside it; rows are 1680 board units apart so each Symbol's variations keep their own column. Its Vary is
+  **Palette › Order · Another palette** (`vary: {palette: ['order', 'lib']}`) — a variation never changes a Symbol's grid or
+  cells, and on a one-ink black Symbol (the default) Hue and Lightness draw nothing visible. With no Palette node wired,
+  `varyInputs` varies the **Symbol's own palette** (before, every draw was *No visible change*). It is an ordinary
+  Variations node (edit, delete); a Symbol deleted on the board takes it too. Pairs made before keep what they had.
 - **The starter graph**: the Symbols' Figures; with none filled, the classic Canvas · Grid · Palette → Figure 1
   (`classicStarter`, also what the Figure board test draws on). Graphs saved before keep their Figures; the Symbols' are added.
 - **The Figure step button** (`syncFigureTab`, `12-shell.js`): `aria-disabled` + *Figure — fill a cell on the Symbol step

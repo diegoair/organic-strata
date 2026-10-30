@@ -662,6 +662,10 @@ export function varyInputs(inputs, spec, settings) {
   const st = settingsOf(settings);
   if (inputs.symbol) { st.vary.grid = false; st.vary.content = false; }   // a Symbol's grid and cells are the Symbol step's
   const inp = { ...inputs, rules: chainOf(inputs.rules) }, rng = mulberry32((spec.seed * 2654435761) >>> 0), changes = [], extra = {};
+  // a Symbol's Figure with no Palette node varies the Symbol's own palette (Oct 30, 2026: its Figure gets a Variations from
+  // the start, which otherwise had nothing to change — "No visible change" three times)
+  const own = inputs.symbol && !(inputs.palette && inputs.palette.colors && inputs.palette.colors.length) && inputs.symbol.work ? inputs.symbol.work.palette || {} : null;
+  if (own && own.colors && own.colors.length) inp.palette = { colors: own.colors.slice(), paper: own.paperColor || '#ffffff', rule: { ...(own.colorRule || {}) }, ...(own.ground ? { ground: clone(own.ground) } : {}) };
   const spread = () => { extra.contentSeed = Math.floor(rng() * 1e9); changes.push({ kind: 'content', key: 'spread', label: 'Spread', value: extra.contentSeed, text: 'New spread', shown: 'new', edit: null }); };
   const reseed = () => {   // what is random: a Grid's own seed, how several contents spread over the cells, a rule's Random rotation
     let did = false;
