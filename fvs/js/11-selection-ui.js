@@ -30,7 +30,8 @@ import {
   ASSET_LIBRARY, SYMBOL_LIBRARY, SYMBOL_RULES, assetPastePlan, buildAssetEntry, contentKey, symbolLetterKeys, symbolPastePlan
 } from './engine/11-symbol-ui.js';
 import {
-  SEL_ARRANGE, SEL_SEQS, SEL_WALKS, ZONE_FOLLOW, applyZones, arrangeLetters, contentOfCell, contentPatch, whenFromCells, zoneCells, zoneContexts
+  SEL_ARRANGE, SEL_SEQS, SEL_WALKS, ZONE_FOLLOW, applyZones, arrangeLetters, contentOfCell, contentPatch, whenFromCells, zoneCells, zoneContexts,
+  ARR_LABEL, WALK_LABEL,
 } from './engine/11-zones.js';
 import {
   ctrl
@@ -167,8 +168,6 @@ export function assetPaste(name, idx, opts) {
 const thumbOf = it => { try { if (it.tpl) return it.tpl.source === 'component' ? componentThumbSVG(it.tpl.componentName) : ''; if (it.kind === 'element') return it.entry && !it.entry.thumb && it.entry.seed ? savedElementEntrySVG(it.entry) : savedElementThumb(it.entry); return componentThumbSVG(it.name); } catch (e) { return ''; } };
 
 // ── Arrange ──────────────────────────────────────────────────
-const ARR_LABEL = { checker: 'Checkerboard', rows: 'Rows', columns: 'Columns', diagonal: 'Diagonal', blocks: '2 × 2 blocks', rings: 'Rings', sectors: 'Sectors', wave: 'Wave', random: 'Random' };
-const WALK_LABEL = { reading: 'Reading', snake: 'Snake', spiral: 'Spiral', diagonal: 'Diagonal', rings: 'Rings' };
 const SEQ_LABEL = { ABC: 'A B C', ABB: 'A B B', AABB: 'A A B B', ABCB: 'A B C B' };
 const arrKey = a => (a.rule === 'rhythm' ? 'rhythm:' + (a.walk || 'reading') : a.rule);
 const specOf = key => (key.startsWith('rhythm:') ? { rule: 'rhythm', walk: key.slice(7) } : { rule: key });

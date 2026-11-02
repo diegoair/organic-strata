@@ -241,7 +241,7 @@ function renderBody(node, entry, el) {
     const vr = f.variations[0], item = vr.item != null ? itemName(vr.item) : null;
     el.innerHTML = `<figure class="fg-var${vr.pinned ? ' is-pinned' : ''}">
         <div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id, f.svg)}"></div>
-        <figcaption class="fg-var__label">${item ? esc(item) + ' · ' : ''}${esc(vr.slot === 0 ? 'As set up' : vr.label)}${(kept => kept ? ' · ' + esc('Kept as ' + kept.name) : '')(vr.spec && rootFigureOf(node) && rootFigureOf(node).params.symbolId ? keptSymbolOf(node, vr) : null)}</figcaption>
+        <figcaption class="fg-var__label">${item ? esc(item) + ' · ' : ''}${esc(vr.slot === 0 ? 'As set up' : vr.label)}${(kept => kept ? ' · ' + esc('Opens ' + kept.name) : '')(vr.spec && rootFigureOf(node) && rootFigureOf(node).params.symbolId ? keptSymbolOf(node, vr) : null)}</figcaption>
         ${vr.spec ? `<div class="fg-var__tools">
           <button type="button" class="icon-btn" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node) : ''}">${Organica.icons.get('pin')}</button>${(parentNode(node) || {}).type === 'figure-var' ? '' : `
           <button type="button" class="icon-btn" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node) : ''}">${Organica.icons.get('figure-from')}</button>

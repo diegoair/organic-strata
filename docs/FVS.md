@@ -1677,7 +1677,7 @@ creati"*; *"Symbol si sostituisce a quello che oggi è la canvas figure, le logi
   | …left untouched (another step, another Symbol) | the draft goes; Figure unchanged | No |
   | …its first edit | **Symbol 1.a** is kept; notice *Symbol 1.a is a Symbol now — it gets its own Figure*; in Figure: Symbol node (*From Symbol 1 · variation 2*) → Figure with **copies** of the mother's Rules chain + Composition (+ the variation's own rules) → Variations; it draws as the variation did | **Yes** |
   | ⌘Z after it | the edit goes back, Symbol 1.a stays | (stays) |
-  | Double-click that variation again | opens Symbol 1.a (the variation is pinned, caption *· Kept as Symbol 1.a*) | No |
+  | Double-click that variation again | opens Symbol 1.a (the variation is pinned, caption *· Opens Symbol 1.a*) | No |
   | A variation of Symbol 1.a | draft *Symbol 1.a.a* (one letter per level; 1.b, 1.c … for siblings) | At its first edit |
   | A classic Figure / its variation; Use variation · New Figure from this · Pin | as before (Compose; in Figure) | No |
   Versions: 1.a is a fork — no change reaches it from Symbol 1 or back. The link (`from` on the board record: mother id,

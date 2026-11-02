@@ -242,6 +242,9 @@ export function arrangeLetters(idxs, sctx, ctxs, n, spec, rng) {
 // ZONE_FOLLOW[id] = { label, applies(grid, idxs, ctxs) → bool, build(cells, idxs, params, rng, env) → cells (in
 // place), caption(params) }. `do.follow = {id, params, seed}` runs one on the zone's cells.
 export const ZONE_FOLLOW = {};
+// The Selection section's words for an arrangement and a Rhythm walk — shared with the Figure's Vary › Selections captions.
+export const ARR_LABEL = { checker: 'Checkerboard', rows: 'Rows', columns: 'Columns', diagonal: 'Diagonal', blocks: '2 × 2 blocks', rings: 'Rings', sectors: 'Sectors', wave: 'Wave', random: 'Random' };
+export const WALK_LABEL = { reading: 'Reading', snake: 'Snake', spiral: 'Spiral', diagonal: 'Diagonal', rings: 'Rings' };
 // A map {i → {rep, pose}} applied: every cell takes its representative's content, posed by the group's operation.
 function applyOrbitMap(cells, M) {
   const src = new Map();

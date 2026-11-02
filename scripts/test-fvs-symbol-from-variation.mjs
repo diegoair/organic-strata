@@ -76,10 +76,10 @@ const rows = await P.ev(`const F = window.__fvs, NC = Organica.nodeCanvas, q = i
   check('in Figure: Symbol 1.a → its Figure → Variations, the Symbol node says “From Symbol 1 · variation 2”', sn && f2 && M().edges.some(e => e.from.node === f2.id && M().nodes.find(n => n.id === e.to.node && n.type === 'variations')) && sn.params.from === 'From Symbol 1 · variation 2', sn && sn.params.from);
   check('…its Figure has a copy of the mother’s Rotate & mirror (its own node)', chain.length === 1 && chain[0].type === 'transform' && +chain[0].params.rotate === 45 && !M().edges.some(e => e.from.node === chain[0].id && e.to.node === fig.id), JSON.stringify(chain.map(c => c && c.type)));
   for (let t = 0; t < 40 && !(card(f2.id) && card(f2.id).querySelector('.fg-card__img')); t++) await w(250);
-  let f2svg = '', v2now = ''; for (let t = 0; t < 80; t++) { f2svg = K(F.figureNodeSVG(f2.id) || ''); v2now = K(F.figureNodeSVG(v2.id) || ''); if (f2svg && f2svg === v2now) break; await w(250); }   // both read now: under load either may still be computing
-  check('…and draws as variation 2 does', f2svg && f2svg === v2now, 'differs' + (v2now === v2svg ? '' : ' (variation 2 changed since the start)'));
+  let f2svg = '', v2now = ''; for (let t = 0; t < 200; t++) { f2svg = K(F.figureNodeSVG(f2.id) || ''); v2now = K(F.figureNodeSVG(v2.id) || ''); if (f2svg && f2svg === v2now) break; await w(250); }   // both read now: under load either may still be computing
+  check('…and draws as variation 2 does', f2svg && f2svg === v2now, 'differs' + (v2now === v2svg ? '' : ' (variation 2 changed since the start)') + ' — ' + f2svg.length + ' vs ' + v2now.length + ' chars');
   const cap = card(v2.id) ? card(v2.id).querySelector('.fg-var__label').textContent : '';
-  check('variation 2 is pinned and says “Kept as Symbol 1.a”', /Kept as Symbol 1\\.a/.test(cap) && (M().nodes.find(n => n.id === vn.id).params.pins || []).some(p => p.slot === v2.params.slot), cap);
+  check('variation 2 is pinned and says “Opens Symbol 1.a”', /Opens Symbol 1\\.a/.test(cap) && (M().nodes.find(n => n.id === vn.id).params.pins || []).some(p => p.slot === v2.params.slot), cap);
   // 7 · again: opens it
   dbl(v2.id); await w(1500);
   check('a double-click on variation 2 again opens Symbol 1.a — no new draft', F.state.activeSymbol === did && !F.state.symbols.some(s => s.draft) && F.state.symbols.length === nSym + 1, F.state.activeSymbol + ' ' + F.state.symbols.length);

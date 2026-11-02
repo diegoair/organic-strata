@@ -36,7 +36,7 @@ import {
   componentCellsFromRule, ruleMatches, squareCR
 } from './13-figure-engine.js';
 import { WALLPAPER } from './03-symmetry.js';
-import { SEL_SEQS } from './11-zones.js';
+import { SEL_SEQS, ZONE_FOLLOW, ARR_LABEL, WALK_LABEL } from './11-zones.js';
 import { hooks } from '../hooks.js';
 import {
   FG_HUE_TURNS, describeRule
@@ -621,7 +621,9 @@ const SEL_RULE_PARAMS = { rows: { step: 90, mode: 'alternate' }, columns: { step
 const SEL_ARRANGE = ['checker', 'rows', 'columns', 'diagonal', 'blocks', 'rings', 'sectors', 'wave', 'random', 'rhythm'];
 const SEL_WALKS = ['reading', 'snake', 'spiral', 'diagonal', 'rings'];
 const SEL_SIGNALS = [{ signal: 'gradient', angle: 0 }, { signal: 'gradient', angle: 45 }, { signal: 'gradient', angle: 90 }, { signal: 'centre' }, { signal: 'rings', rings: 3 }, { signal: 'noise', seed: 1, scale: 3 }];
-const SIG_WORD = p => p.signal === 'gradient' ? 'gradient ' + (p.angle || 0) + '°' : p.signal === 'rings' ? (p.rings || 3) + ' rings' : p.signal === 'centre' ? 'from the centre' : p.signal;
+// A caption in the Selection section's own words (O-81, REVIEW Oct 30): the follow's caption under its family's label.
+const followWords = f => { const G = ZONE_FOLLOW[f.id], c = G && G.caption ? G.caption(f.params || {}) : (G ? G.label : f.id); return G && !c.startsWith(G.label) ? G.label + ' · ' + c : c; };
+const arrangeWords = a => a.rule === 'rhythm' ? 'Rhythm · ' + (WALK_LABEL[a.walk] || 'Reading') + (a.seq ? ' · ' + a.seq.split('').join(' ') : '') : ARR_LABEL[a.rule] || cap(a.rule);
 const otherOf = (list, cur, rng) => { const o = list.filter(x => JSON.stringify(x) !== JSON.stringify(cur)); return o.length ? pick(o, rng) : null; };
 // What a saved selection does that a variation may change: [{ part: 'fill' | 'rule', key: 'rule' | 'draw' }]
 function selectionDials(z) {
@@ -645,22 +647,26 @@ function changeSelections(inp, rng, st, spec, only) {
     const a = z.fill.arrange;
     if (o.key === 'draw') { a.seed = 1 + Math.floor(rng() * 1e6); text = 'new random draw'; }
     else if (a.rule === 'rhythm' && rng() < 0.5) {
-      if (rng() < 0.5) { const q = otherOf(Object.keys(SEL_SEQS), a.seq || 'ABC', rng); a.seq = q; text = 'Rhythm ' + q.split('').join(' '); }
-      else { const q = otherOf(SEL_WALKS, a.walk || 'reading', rng); a.walk = q; text = 'Rhythm along ' + q; }
-    } else { const q = otherOf(SEL_ARRANGE, a.rule, rng); a.rule = q; if (q === 'rhythm') a.walk = a.walk || 'snake'; text = q === 'rhythm' ? 'Rhythm along ' + a.walk : q === 'checker' ? 'Checkerboard' : cap(q); }
+      if (rng() < 0.5) a.seq = otherOf(Object.keys(SEL_SEQS), a.seq || 'ABC', rng);
+      else a.walk = otherOf(SEL_WALKS, a.walk || 'reading', rng);
+      text = arrangeWords(a);
+    } else { const q = otherOf(SEL_ARRANGE, a.rule, rng); a.rule = q; if (q === 'rhythm') a.walk = a.walk || 'snake'; text = arrangeWords(a); }
   } else if (z.rule.symbolRule) {
     const sr = z.rule.symbolRule;
     if (o.key === 'draw') { sr.seed = 1 + Math.floor(rng() * 1e6); text = 'new random draw'; }
     else { const q = otherOf(SEL_RULES, sr.name, rng); sr.name = q; sr.params = clone(SEL_RULE_PARAMS[q]); text = cap(q === 'oscillator' ? 'rhythm' : q); }
   } else {
     const f = z.rule.follow, p = f.params = { ...(f.params || {}) };
-    if (o.key === 'draw') { p.seed = 1 + Math.floor(rng() * 1e6); text = 'new noise'; }
-    else if (f.id === 'wallpaper') { p.group = otherOf(Object.keys(WALLPAPER), p.group, rng); if (+p.n === 4 && !['p4m', 'p4g', 'cmm', 'pmg', 'pgg', 'cm'].includes(p.group)) p.n = 2; text = 'Symmetry ' + p.group; }
-    else if (f.id === 'rosette') { p.m = otherOf([2, 3, 4, 6, 8], +p.m, rng); p.mirror = rng() < 0.5; text = (p.mirror ? 'D' : 'C') + p.m + ' rosette'; }
-    else if (f.id === 'continuity') { p.content = p.content === 'pool' ? 'keep' : 'pool'; text = p.content === 'pool' ? 'Continuity · contents and turns' : 'Continuity · turns'; }
-    else if (f.id === 'rhythm') { if (rng() < 0.5) { p.seq = otherOf(['AB', 'ABB', 'ABC', 'AABB'], p.seq, rng); text = 'Rhythm ' + p.seq.split('').join(' '); } else { p.walk = otherOf(['snake', 'spiral', 'diagonal', 'rings'], p.walk, rng); text = 'Rhythm along ' + p.walk; } }
-    else if (p.signal === 'photo') { p.drive = otherOf(['content', 'turn', 'scale', 'empty'], p.drive, rng); text = 'Field · photo → ' + p.drive; }
-    else { const cur = SEL_SIGNALS.find(x => x.signal === p.signal && (x.angle == null || x.angle === p.angle)) || null, q = otherOf(SEL_SIGNALS, cur, rng); Object.keys(p).filter(k => !['drive', 'threshold'].includes(k)).forEach(k => delete p[k]); Object.assign(p, q); text = 'Field · ' + SIG_WORD(p); }
+    if (o.key === 'draw') { p.seed = 1 + Math.floor(rng() * 1e6); text = 'new random draw'; }
+    else {
+      if (f.id === 'wallpaper') { p.group = otherOf(Object.keys(WALLPAPER), p.group, rng); if (+p.n === 4 && !['p4m', 'p4g', 'cmm', 'pmg', 'pgg', 'cm'].includes(p.group)) p.n = 2; }
+      else if (f.id === 'rosette') { p.m = otherOf([2, 3, 4, 6, 8], +p.m, rng); p.mirror = rng() < 0.5; }
+      else if (f.id === 'continuity') p.content = p.content === 'pool' ? 'keep' : 'pool';
+      else if (f.id === 'rhythm') { if (rng() < 0.5) p.seq = otherOf(['AB', 'ABB', 'ABC', 'AABB'], p.seq, rng); else p.walk = otherOf(['snake', 'spiral', 'diagonal', 'rings'], p.walk, rng); }
+      else if (p.signal === 'photo') p.drive = otherOf(['content', 'turn', 'scale', 'empty'], p.drive, rng);
+      else { const cur = SEL_SIGNALS.find(x => x.signal === p.signal && (x.angle == null || x.angle === p.angle)) || null, q = otherOf(SEL_SIGNALS, cur, rng); Object.keys(p).filter(k => !['drive', 'threshold'].includes(k)).forEach(k => delete p[k]); Object.assign(p, q); }
+      text = followWords(f);
+    }
   }
   if (text == null) return null;
   inp.symbol = { ...inp.symbol, work: { ...inp.symbol.work, zones }, zonesVaried: true };
@@ -699,7 +705,7 @@ function changeTransform(inp, rng, st, spec, only) {
   }
   rules[i] = r; inp.rules = rules; return out;
 }
-export const CHANGE_OF = { grid: 'Grid', palette: 'Palette', content: 'Content', cells: 'Cell rules', transform: 'Rotate & mirror', selections: 'Selection' };   // UI-COPY §2 names
+export const CHANGE_OF = { grid: 'Grid', palette: 'Palette', content: 'Content', cells: 'Cell rules', transform: 'Rotate & mirror', selections: 'Selections' };   // UI-COPY §2 names
 // Content (phase H): the spread of several contents over the cells (as before), or — opt-in — the first Element turned a
 // quarter in every cell (rotation), flipped (flipH / flipV), its Style swapped fill ↔ stroke, its stroke width or scale
 // changed, or — a wired Set — one of its items as the whole content (item; never in a fan-out). Words: O-62.

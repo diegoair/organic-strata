@@ -115,13 +115,14 @@ const rows = await P.ev(`const F = window.__fvs, NC = Organica.nodeCanvas, q = i
   { const vs = NC.addNode(m, { type: 'variations', params: { ...reg.defaults('variations'), variations: 4, seed: 21, vary: { palette: false, cells: false, transform: false, selections: true } } });
     NC.addEdge(m, { node: fig.id, port: 'figure' }, { node: vs.id, port: 'figure' }); await run();
     const vv = val(vs), list = vv ? vv.variations.slice(1) : [];
-    check('a Variations on Selections: 4 variations, each saying which selection changed', list.length === 4 && list.every(v => /^Selection: (Edge|All) · /.test(v.label)), why(vs) + ' ' + JSON.stringify(list.map(v => v.label)));
+    check('a Variations on Selections: 4 variations, each saying which selection changed', list.length === 4 && list.every(v => /^Selections: (Edge|All) · /.test(v.label)), why(vs) + ' ' + JSON.stringify(list.map(v => v.label)));
+    check('…in the Selection section’s own words (O-81)', list.every(v => !/Rhythm along|→ (scale|empty)\b|· Blocks|new noise/.test(v.label)), JSON.stringify(list.map(v => v.label)));
     check('…each drawn different from the Figure and from each other', list.length && new Set([K(vv.variations[0].svg), ...list.map(v => K(v.svg))]).size === list.length + 1, JSON.stringify(list.map(v => v.label)));
     check('…the Figure itself stays as it was', K(val(fig).svg) === base.fig, 'changed');
     const zs2 = sym.params.snapshot.work.zones; sym.params.snapshot.work.zones = [zs2[0], { ...zs2[1], rule: { follow: { id: 'field', params: { signal: 'noise', seed: 1, scale: 3, drive: 'turn' } } } }];
     vs.params.onlyRandom = true; await run();
     const vr = val(vs);
-    check('…a Field on noise + New seeds only: every variation is a new noise', vr && vr.variations.slice(1).length === 4 && vr.variations.slice(1).every(v => v.label === 'Selection: All · new noise'), vr && JSON.stringify(vr.variations.map(v => v.label)));
+    check('…a Field on noise + New seeds only: every variation is a new random draw', vr && vr.variations.slice(1).length === 4 && vr.variations.slice(1).every(v => v.label === 'Selections: All · new random draw'), vr && JSON.stringify(vr.variations.map(v => v.label)));
     sym.params.snapshot.work.zones = zs2;
     NC.removeNode(m, vs.id); await run(); }
   // ── borders dragged on the Symbol's grid: a Canvas alone keeps them ──
