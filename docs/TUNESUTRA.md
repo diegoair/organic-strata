@@ -98,36 +98,81 @@ One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
 
 ## 3. Gradient + grain
 
-One definition, two renderings (the **Output** switch):
+One definition per palette (`state.grad`, saved with it), two renderings (the
+**Output** switch). The gradient lives inside the palette — Diego, Nov 2, 2026
+(not a library item of its own).
 
 | | Screen | Print |
 |---|---|---|
-| What it is | a smooth gradient, interpolated in OKLab, with luminance grain on top | the same gradient as a grid of cells, each one pure ink |
-| Grain | **Grain** (strength) + **Grain size** | **Grain size** = cell size (min 3) + **Pattern**: Noise (stochastic) or Ordered (Bayer 8×8) |
-| Output | raster — PNG, or a PNG inside the SVG | vector — one path per ink |
+| What it is | a smooth fill, mixed in the chosen space, with grain on top | the same fill as a grid of cells, each one pure ink |
+| Grain | Tone (lightness jitter) or Shadow (one ink) | Shadow only — the blend itself is already ink cells |
+| Output | raster (PNG, or a PNG inside the SVG) — **vector** `<linearGradient>` / `<radialGradient>` when there is no grain and the type is Flat / Linear / Radial | vector — one path per ink |
 | Plates | — | one SVG per ink, black on transparent |
 
-- **Type** linear / radial / conic. **Angle** follows CSS: 0° = to top,
+### Gradient
+
+- **Type** Flat · Linear · Radial · Conic. **Flat** is one colour (the first
+  stop) — for grain on a flat colour. **Angle** follows CSS: 0° = to top,
   90° = to right; a conic gradient starts there and turns clockwise.
-- **Stops** 2–5. The ▦ button on the strip lists *This palette* first, then
-  every saved palette and the built-in sets. Stops are colours in their own
+- **Stops** 2–8, each with a position. The **stop bar** (the gradient itself as
+  the track) shows where they sit: click the bar to add a stop in the colour
+  the gradient has there, drag a stop to move it (it cannot pass its
+  neighbours), ←/→ move the selected stop 1% (Shift 10%), Home / End to the
+  ends, Delete removes it (2 at least). The chips under the bar carry the
+  colours and the palette library (▦: *This palette* first, then every saved
+  palette and the built-in sets); a chip added with + goes in the widest gap,
+  a palette loaded whole is spaced evenly. Stops are colours in their own
   right: reordering the palette does not reorder them.
-- **Fade to paper** adds the paper as the last stop. In Print the last ink
-  thins out to bare paper and the paper gets no plate.
+- **Reverse** flips the stops and their positions; **Space evenly** forgets
+  the positions.
+- **Mix in** — how the colours between two stops are made: **OKLab** (even to
+  the eye, the default), **OKLCH** (lightness and chroma move straight, hue the
+  short way round — keeps a complementary pair saturated through the middle; a
+  grey end takes the other end's hue), **sRGB** (channel by channel, what a
+  plain CSS gradient does). `Organica.color.mixIn(space, a, b, t)`.
+- **Fade to paper** adds the paper as the last stop; the colours' positions
+  are scaled to make room for it. In Print the last ink thins out to bare
+  paper and the paper gets no plate.
+
+Palettes saved before Nov 2, 2026 have no positions (`pos: null`) and load
+evenly spaced, OKLab, Tone grain — exactly as before.
+
+### Grain
+
+Works on any type, Flat included.
+
+- **Grain colour** — **Tone**: the fill's own colour, lighter and darker (the
+  grain before Nov 2, 2026; screen only). **Shadow**: speckle of one ink, the
+  **Shadow** colour — the shadow-noise look, and the grain that prints.
+- **Grain** — strength (Tone) or density (Shadow), 0–100. **Grain size** — the
+  cell, in sheet units (Print: 3 at least).
+- **Pattern** — how the cells are chosen: **Noise** (at random), **Ordered**
+  (Bayer 8 × 8, `Organica.dither.bayerThresholds`), **Dots** (round dots,
+  evenly spread: a 64 × 64 blue-noise mask, `Organica.dither.blueNoise`).
+  Shown for Shadow grain and in Print, where it is also the blend's own dither.
+- **Grain in** — where it gathers: **Everywhere**; **Shadows** / **Highlights**
+  (the fill's own lightness range — a fill with one lightness, a flat colour,
+  gets it everywhere alike and the hint says so); **Away from a light** with
+  **Light from** (0° = the top, 90° = the right): none on the lit edge, full on
+  the opposite one.
+- **Falloff** — 50 = the grain grows evenly across; higher keeps it to the far
+  end, lower spreads it further (an exponent 4^((f − 50) / 50)).
 - **Seed** fixes the grain / the cell pattern.
 
-In Print every cell belongs to exactly one ink: plates never overlap and
-together cover the whole block (verified: 0 uncovered, 0 doubly covered pixels;
-plates re-composited in their inks = the print PNG, 0 differing pixels).
+In Print every cell belongs to exactly one ink: Shadow cells take their cells
+from the other inks, and each Shadow dot is cut out of the one ink under it (a
+circle inside that ink's rectangle, filled even-odd; dots only in whole cells).
+Plates never overlap and together cover the whole block (measured Nov 2,
+2026, with Dots: 0 uncovered pixels; the overlap is antialiasing only).
 
 ## 4. Export
 
 | Button | What you get |
 |---|---|
 | PNG / SVG | the whole sheet. The SVG carries its own paint and font on every element — no page CSS needed |
-| CSS | `--tunesutra-<name>-<step>` for every scale step + `--tunesutra-gradient` (smooth gradient only — grain is not expressible in CSS) |
-| JSON | the same as design tokens (DTCG `$value` / `$type`), incl. a `gradient` token |
-| Gradient only → PNG / SVG | the gradient block alone, 860×300 units |
+| CSS | `--tunesutra-<name>-<step>` for every scale step + `--tunesutra-gradient` (the smooth fill only — grain is not expressible in CSS): positions as percentages and the blend's space, `linear-gradient(90deg in oklch, #… 0%, #… 45%, …)`; a Flat fill is its colour |
+| JSON | the same as design tokens (DTCG `$value` / `$type`), incl. a `gradient` token with each stop's real position |
+| Gradient only → PNG / SVG | the gradient block alone, 860×300 units; the SVG is a real vector gradient when Screen has no grain (not Conic — SVG has none) |
 | Gradient only → Plates | Print output only: one SVG per ink |
 
 SVG text names the page font (IBM Plex Mono) with fallbacks; a machine without
@@ -136,7 +181,8 @@ it shows the fallback.
 ## 5. Saving, and the palette library
 
 **Save** stores the palette in `Organica.store('tunesutra')` (cloud-synced when
-signed in): `{ n, harmony, spread, colors, names, ids, locks, gradient }`.
+signed in): `{ n, harmony, spread, colors, names, ids, locks, gradient }` —
+`gradient` = `{ type, angle, stops, pos, space, paper, out, kind, ink, amount, size, pattern, dist, light, falloff, seed }`.
 Palettes saved before names / gradients existed still load.
 
 Every colour control in the suite (`Organica.palette.swatch`) has a small ▦
@@ -195,6 +241,10 @@ the Bar view) now live in `shared/color.js`; TuneSutra reads them from there. Se
 `docs/FVS.md` §6b.
 
 ## 7. Not built yet
+
+- A midpoint / easing handle per span of the gradient; a movable radial
+  centre; repeating gradients. Gradients as library items of their own (Diego
+  kept them in the palette, Nov 2, 2026).
 
 - A real physical size / DPI for the gradient (the shared Screen/Print size
   panel) and registration marks on plates.

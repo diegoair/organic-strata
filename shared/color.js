@@ -22,6 +22,9 @@
  *   inGamut(l, c, h)           → bool — is it a real sRGB colour
  *   maxChroma(l, h)            → the largest c that still fits sRGB
  *   mix(hexA, hexB, t)         → hex, interpolated in OKLab (no muddy middle)
+ *   mixIn(space, hexA, hexB, t) → hex, interpolated in 'oklab' (= mix) | 'oklch'
+ *                                (hue the short way round) | 'srgb' (channel by
+ *                                channel, the browser's old default)
  *   luminance(hex)             → WCAG relative luminance 0..1
  *   contrast(hexA, hexB)       → WCAG contrast ratio 1..21
  *   deltaE(hexA, hexB)         → OKLab distance ×100 (≈2 = just noticeable)
@@ -131,6 +134,25 @@
     const A = color.hexToOklab(hexA), B = color.hexToOklab(hexB);
     t = clamp(t, 0, 1);
     return color.oklabToHex(A.L + (B.L - A.L) * t, A.a + (B.a - A.a) * t, A.b + (B.b - A.b) * t);
+  };
+
+  // OKLCH keeps the chroma up through the middle of a pair far apart in hue
+  // (OKLab cuts across the wheel and greys it); a grey end has no hue of its
+  // own and takes the other end's, so grey → red does not swing through green.
+  // sRGB is there to match what a plain CSS / SVG gradient does.
+  color.mixIn = function (space, hexA, hexB, t) {
+    t = clamp(t, 0, 1);
+    if (space === 'srgb') {
+      const a = Organica.hexToRGB255(hexA), b = Organica.hexToRGB255(hexB);
+      return Organica.rgbToHex(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
+    }
+    if (space !== 'oklch') return color.mix(hexA, hexB, t);
+    const A = color.hexToOklch(hexA), B = color.hexToOklch(hexB);
+    const ha = A.c < 0.02 ? B.h : A.h, hb = B.c < 0.02 ? A.h : B.h;
+    let dh = hb - ha;
+    if (dh > 180) dh -= 360;
+    if (dh < -180) dh += 360;
+    return color.oklchToHex(A.l + (B.l - A.l) * t, A.c + (B.c - A.c) * t, (ha + dh * t + 360) % 360);
   };
 
   // ── WCAG 2.x ───────────────────────────────────────────────────────────────

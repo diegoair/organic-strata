@@ -83,11 +83,34 @@
      (palette + gradient stops: 30×26, rounded, strong border) through the
      documented custom props, set on the strip so the add / library buttons
      follow the chips. No local .rmx-* rule. */
-  #rmx-palette, #grad-stops { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
+  #rmx-palette, #grad-stops, #grad-flat { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
     --rmx-cell-radius: var(--radius-sm);
     --rmx-cell-border: var(--border-strong, var(--border)); }
 
   .role-name { font-size: var(--fs-small); color: var(--mid); margin-bottom: var(--space-2); }
+
+  /* The stop bar (Gradient › Stops): the gradient itself as the track, one knob per stop at its
+     position. Local — the first use of the colour component's `stops` kind (ledger O-20); built
+     from Organica.dualRange's track and knob (panel.css .org-dual). The track and the knobs are
+     content colour (the stops); their outline is chrome, so pale and dark stops both show. */
+  .ts-stopbar {
+    position: relative; height: var(--slo-h); margin: var(--space-2) 0 var(--space-3);
+    border: 1px solid var(--border-strong); border-radius: var(--slo-r);
+    cursor: copy; touch-action: none;
+  }
+  .ts-stopbar.is-dragging { cursor: grabbing; }
+  .ts-stopbar__rail { position: absolute; top: 0; bottom: 0; left: calc(var(--knob-size) / 2); right: calc(var(--knob-size) / 2); }
+  .ts-stopbar__stop {
+    position: absolute; top: 50%;
+    width: var(--knob-size); height: var(--knob-size); margin: calc(var(--knob-size) / -2) 0 0 calc(var(--knob-size) / -2);
+    box-sizing: border-box; border: 2px solid var(--paper); border-radius: 999px;
+    box-shadow: 0 0 0 1px var(--border-strong), 0 0 var(--space-3) rgba(0, 0, 0, 0.4);
+    cursor: grab; outline: none;
+  }
+  /* the knob is under --hit-min: the pointer target is a wider ring round it */
+  .ts-stopbar__stop::before { content: ''; position: absolute; inset: calc((var(--hit-min) - var(--knob-size)) / -2); border-radius: 999px; }
+  .ts-stopbar__stop.is-active { outline: 2px solid var(--tool, var(--ink)); outline-offset: 1px; }
+  .ts-stopbar__stop:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent); }   /* the dual-range knob's ring */
   .seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
 <script src="/shared/pattern-init.js"></script>
@@ -213,9 +236,10 @@
 
     <div class="panel-section">
       <h3>Gradient</h3>
+      <div class="sub-label">Type</div>
       <div class="ctrl-row">
-        <span class="ctrl-label">Type</span>
-        <div class="seg-ctrl" id="seg-gtype">
+        <div class="seg-ctrl" id="seg-gtype" role="group" aria-label="Type">
+          <button class="seg-btn" data-v="flat" title="One colour, no blend — for grain on a flat colour">Flat</button>
           <button class="seg-btn active" data-v="linear">Linear</button>
           <button class="seg-btn" data-v="radial">Radial</button>
           <button class="seg-btn" data-v="conic">Conic</button>
@@ -226,18 +250,53 @@
         <input type="range" id="rg-gangle" min="0" max="360" step="1" value="90">
         <span class="ctrl-val" id="v-gangle">90</span>
       </div>
-      <div class="sub-label">Stops</div>
-      <div class="rmx-palette" id="grad-stops"></div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="Adds the paper as the last stop: on screen the gradient fades to the sheet, in print the last ink thins out to bare paper and gets no plate of its own.">Fade to paper</div>
-        <input type="checkbox" id="ck-gpaper">
+      <div id="grad-blend">
+        <div class="sub-label">Stops</div>
+        <div class="ts-stopbar" id="grad-bar" role="group" aria-label="Stops"><div class="ts-stopbar__rail"></div></div>
+        <div class="rmx-palette" id="grad-stops"></div>
+        <p class="org-panel__hint" id="grad-bar-hint">Click the bar to add a stop; drag a stop to move it. Arrow keys move the selected stop, Delete removes it.</p>
+        <div class="row-btns">
+          <button class="mini-btn" id="btn-grad-reverse">Reverse</button>
+          <button class="mini-btn" id="btn-grad-even">Space evenly</button>
+        </div>
+        <div class="ctrl-row">
+          <span class="ctrl-label" title="How the colours between two stops are made. OKLab: even to the eye. OKLCH: keeps the colour saturated, hue the short way round. sRGB: what a plain CSS gradient does.">Mix in</span>
+          <div class="seg-ctrl" id="seg-gspace" role="group" aria-label="Mix in">
+            <button class="seg-btn active" data-v="oklab">OKLab</button>
+            <button class="seg-btn" data-v="oklch">OKLCH</button>
+            <button class="seg-btn" data-v="srgb">sRGB</button>
+          </div>
+        </div>
+        <label class="check-row org-switch" title="Adds the paper as the last stop: on screen the gradient fades to the sheet, in print the last ink thins out to bare paper and gets no plate of its own."><input type="checkbox" id="ck-gpaper"><span>Fade to paper</span></label>
+      </div>
+      <div class="ctrl-row" id="row-gflat">
+        <span class="ctrl-label">Colour</span>
+        <div class="rmx-palette" id="grad-flat"></div>
       </div>
       <div class="ctrl-row">
-        <span class="ctrl-label" title="Screen: a smooth gradient with grain on top. Print: the same gradient as flat cells of pure ink, one plate per ink.">Output</span>
-        <div class="seg-ctrl" id="seg-gout">
+        <span class="ctrl-label" title="Screen: a smooth fill with grain on top. Print: the same fill as flat cells of pure ink, one plate per ink.">Output</span>
+        <div class="seg-ctrl" id="seg-gout" role="group" aria-label="Output">
           <button class="seg-btn active" data-v="screen">Screen</button>
           <button class="seg-btn" data-v="print">Print</button>
         </div>
+      </div>
+      <p class="org-panel__hint" id="grad-hint"></p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Grain</h3>
+      <div class="ctrl-row">
+        <span class="ctrl-label" title="Tone: the fill’s own colour, lighter and darker. Shadow: speckle of one ink — the shadow-noise look, and the one that prints.">Grain colour</span>
+        <div class="seg-ctrl" id="seg-gkind" role="group" aria-label="Grain colour">
+          <button class="seg-btn active" data-v="grain">Tone</button>
+          <button class="seg-btn" data-v="speckle">Shadow</button>
+        </div>
+      </div>
+      <div class="color-row" id="row-gink">
+        <span class="color-name">Shadow</span>
+        <div class="color-swatch-wrap"><input type="color" id="cp-gink" value="#2a1430"></div>
+        <button class="color-swatch" id="sw-gink" aria-label="Shadow colour"></button>
+        <input class="color-hex" id="hex-gink" value="#2a1430" maxlength="7" aria-label="Shadow hex">
       </div>
       <div class="ctrl-row" id="row-gamount">
         <div class="ctrl-label">Grain</div>
@@ -249,18 +308,40 @@
         <input type="range" id="rg-gsize" min="1" max="12" step="1" value="3">
         <span class="ctrl-val" id="v-gsize">3</span>
       </div>
-      <div class="ctrl-row" id="row-gpattern">
-        <span class="ctrl-label">Pattern</span>
-        <div class="seg-ctrl" id="seg-gpattern">
-          <button class="seg-btn active" data-v="noise">Noise</button>
-          <button class="seg-btn" data-v="ordered">Ordered</button>
+      <div id="row-gpattern">
+        <div class="sub-label" title="Noise: cells at random. Ordered: a regular 8 × 8 screen. Dots: round dots, evenly spread (blue noise).">Pattern</div>
+        <div class="ctrl-row">
+          <div class="seg-ctrl" id="seg-gpattern" role="group" aria-label="Pattern">
+            <button class="seg-btn active" data-v="noise">Noise</button>
+            <button class="seg-btn" data-v="ordered">Ordered</button>
+            <button class="seg-btn" data-v="dots">Dots</button>
+          </div>
         </div>
+      </div>
+      <div class="ctrl-row" id="row-gdist">
+        <span class="ctrl-label" title="Where the grain gathers: everywhere alike, where the fill is darkest or lightest, or away from a light.">Grain in</span>
+        <select class="panel-select" id="sel-gdist" aria-label="Grain in">
+          <option value="even">Everywhere</option>
+          <option value="shadows">Shadows</option>
+          <option value="highlights">Highlights</option>
+          <option value="light">Away from a light</option>
+        </select>
+      </div>
+      <div class="ctrl-row" id="row-glight">
+        <div class="ctrl-label" title="Where the light comes from: 0° = the top, 90° = the right. The grain thickens toward the opposite side.">Light from</div>
+        <input type="range" id="rg-glight" min="0" max="360" step="1" value="315">
+        <span class="ctrl-val" id="v-glight">315</span>
+      </div>
+      <div class="ctrl-row" id="row-gfalloff">
+        <div class="ctrl-label" title="50 = the grain grows evenly across the fill. Higher keeps it to the shadow end; lower spreads it further.">Falloff</div>
+        <input type="range" id="rg-gfalloff" min="0" max="100" step="1" value="50">
+        <span class="ctrl-val" id="v-gfalloff">50</span>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label">Seed</div>
         <input type="number" class="panel-input" id="in-gseed" min="0" max="9999" step="1" value="1">
       </div>
-      <p class="org-panel__hint" id="grad-hint"></p>
+      <p class="org-panel__hint" id="grain-hint"></p>
     </div>
 
     <div class="panel-section">
@@ -430,14 +511,21 @@ const state = {
   // The gradient: stops are colours in their own right (picked from this
   // palette or any saved one), so reordering the palette never reorders them.
   grad: {
-    type: 'linear',   // 'linear' | 'radial' | 'conic'
+    type: 'linear',   // 'flat' (the first stop only) | 'linear' | 'radial' | 'conic'
     angle: 90,        // CSS convention: 0 = to top, 90 = to right; conic starts here
     stops: ['#c93ed6', '#c9863e'],
+    pos: null,        // a 0..1 position per stop, ascending; null = evenly spaced (palettes saved before Nov 2, 2026)
+    space: 'oklab',   // what the blend is mixed in: 'oklab' | 'oklch' | 'srgb'
     paper: false,     // fade to paper: the sheet's paper as a last, plate-less stop
     out: 'screen',    // 'screen' (smooth + grain) | 'print' (cells of pure ink)
-    amount: 25,       // screen grain strength, 0–100
+    kind: 'grain',    // the grain's colour: 'grain' (Tone — lightness jitter, screen only) | 'speckle' (Shadow — one ink)
+    ink: '#2a1430',   // the Shadow ink
+    amount: 25,       // grain strength / speckle density, 0–100
     size: 3,          // grain / cell size in sheet units
-    pattern: 'noise', // print threshold: 'noise' (stochastic) | 'ordered' (Bayer 8×8)
+    pattern: 'noise', // threshold: 'noise' (stochastic) | 'ordered' (Bayer 8×8) | 'dots' (blue noise, round dots)
+    dist: 'even',     // Grain in: 'even' | 'shadows' | 'highlights' | 'light'
+    light: 315,       // Light from, degrees (0 = the top)
+    falloff: 50,      // 50 = straight; higher keeps the grain to the far end
     seed: 1,
   },
   // The System view: how the interface's own tokens are derived from this palette.
@@ -739,16 +827,23 @@ function zoneRole(z, n) { return z.trim && n === 4 ? 3 : z.role; }
 function paleOnPaper(hex) { return C.contrast(hex, '#ffffff') < 1.12; }
 function isGarmentView() { return state.view === 'garment' && garmentFits(count()); }
 
-// ── GRADIENT + GRAIN ──
+// ── GRADIENT + NOISE ──
 // One definition (state.grad), two renderings:
-//   Screen — a smooth gradient interpolated in OKLab, with luminance grain on
-//            top. A raster: it exports as PNG (or a PNG inside the SVG).
-//   Print  — the same gradient as a grid of cells, each one PURE ink: between
+//   Screen — a smooth gradient (or a flat colour) interpolated in the chosen
+//            space, with noise on top. A raster: PNG, or a PNG inside the SVG
+//            — except a linear / radial / flat fill with no noise, which the
+//            SVG carries as a real <linearGradient> / <radialGradient>.
+//   Print  — the same fill as a grid of cells, each one PURE ink: between
 //            two stops a cell takes the nearer or the farther ink by a
 //            threshold, so the blend is made of dots, not of mixed colour.
 //            Real vector, and one path per ink — which is exactly a plate.
+// Noise is either Grain (lightness jitter, screen only) or Speckle (cells or
+// dots of one ink — the shadow-noise look). How much of it lands where is the
+// Distribution: even, following the fill's own tone (shadows / highlights),
+// or away from a light. In Print, cell speckle takes its cells from the other
+// inks (plates still never overlap); dots print over them.
 // Kept local: TuneSutra is the only consumer (promote at the second one).
-const GRAD_W = BAR_X1 - BAR_X0, GRAD_H = 300, GRAD_LEGEND_H = 18, PRINT_MIN_CELL = 3;
+const GRAD_W = BAR_X1 - BAR_X0, GRAD_H = 300, GRAD_LEGEND_H = 18, PRINT_MIN_CELL = 3, GRAD_SPACES = ['oklab', 'oklch', 'srgb'];
 
 // Integer-lattice hash → 0..1. (shared/noise.js's hash2 is built for
 // continuous coordinates; on whole-number cells it repeats every 50.)
@@ -757,81 +852,183 @@ function cellHash(x, y, seed) {
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
-const BAYER8 = [
-  [0, 32, 8, 40, 2, 34, 10, 42], [48, 16, 56, 24, 50, 18, 58, 26], [12, 44, 4, 36, 14, 46, 6, 38], [60, 28, 52, 20, 62, 30, 54, 22],
-  [3, 35, 11, 43, 1, 33, 9, 41], [51, 19, 59, 27, 49, 17, 57, 25], [15, 47, 7, 39, 13, 45, 5, 37], [63, 31, 55, 23, 61, 29, 53, 21],
-];
+// The threshold 0..1 of cell (c, r) for a pattern; `layer` decorrelates the
+// gradient's own dither from the speckle on top of it.
+function patternThr(pattern, c, r, seed, layer) {
+  if (pattern === 'ordered') return Organica.dither.bayerThresholds(8)[((r + layer * 4) & 7) * 8 + ((c + layer * 3) & 7)];
+  if (pattern === 'dots') {
+    const N = 64, ox = Math.floor(cellHash(seed, layer, 91) * N), oy = Math.floor(cellHash(layer, seed, 37) * N);
+    return Organica.dither.blueNoise(N)[((r + oy) % N) * N + ((c + ox) % N)];
+  }
+  return cellHash(c, r, seed + layer * 7919);
+}
 
-// The stops actually drawn: the chosen colours, plus the paper when fading.
+// Stop positions 0..1, one per colour; missing or stale → evenly spaced.
+function evenPos(n) { return Array.from({ length: n }, (_, i) => n > 1 ? i / (n - 1) : 0); }
+function stopPos(g) {
+  const n = g.stops.length;
+  return g.pos && g.pos.length === n ? g.pos.slice() : evenPos(n);
+}
+// The stops actually drawn, with their positions: the chosen colours (only the
+// first for a flat fill), plus the paper at the end when fading. The paper
+// takes the last step of an even spacing, so the colours move up to make room.
 function gradStops() {
-  const stops = state.grad.stops.map(hex => ({ hex: hex, paper: false }));
-  if (state.grad.paper) stops.push({ hex: Organica.contentColor('--paper'), paper: true });
+  const g = state.grad;
+  if (g.type === 'flat') return [{ hex: g.stops[0], paper: false, at: 0 }];
+  const pos = stopPos(g), n = pos.length, f = g.paper ? (n - 1) / n || 0 : 1;
+  const stops = g.stops.map((hex, i) => ({ hex: hex, paper: false, at: pos[i] * f }));
+  if (g.paper) stops.push({ hex: Organica.contentColor('--paper'), paper: true, at: 1 });
   return stops;
 }
+// Which two stops a position falls between: { a, f } — f the 0..1 share of the way to a + 1.
+function segAt(stops, t) {
+  const k = stops.length;
+  if (k < 2 || t <= stops[0].at) return { a: 0, f: 0 };
+  for (let a = 0; a < k - 1; a++) {
+    if (t <= stops[a + 1].at) { const span = stops[a + 1].at - stops[a].at; return { a: a, f: span > 1e-6 ? (t - stops[a].at) / span : 1 }; }
+  }
+  return { a: k - 2, f: 1 };
+}
+function colourAt(stops, space, t) {
+  if (stops.length < 2) return stops[0].hex;
+  const s = segAt(stops, t);
+  return C.mixIn(space, stops[s.a].hex, stops[s.a + 1].hex, s.f);
+}
+
 // Position along the gradient, 0..1, for a point of a w×h box.
 function gradField(g, w, h) {
   const cx = w / 2, cy = h / 2;
+  if (g.type === 'flat') return () => 0;
   if (g.type === 'radial') { const r = Math.hypot(w, h) / 2; return (x, y) => Math.hypot(x - cx, y - cy) / r; }
   if (g.type === 'conic') {
     return (x, y) => { const a = Math.atan2(x - cx, -(y - cy)) * 180 / Math.PI - g.angle; return (((a % 360) + 360) % 360) / 360; };
   }
-  const rad = g.angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad);
+  return linearField(g.angle, w, h);
+}
+function linearField(angle, w, h) {
+  const cx = w / 2, cy = h / 2, rad = angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad);
   const len = Math.abs(w * dx) + Math.abs(h * dy) || 1;
   return (x, y) => ((x - cx) * dx + (y - cy) * dy) / len + 0.5;
 }
 
-// Screen: a canvas of w×h sheet units at `scale` pixels per unit. The grain
+// One lookup table along the gradient: colour + OKLab lightness at 512 steps.
+const LUT_N = 512;
+function gradLUT(g) {
+  const stops = gradStops(), rgb = new Uint8Array(LUT_N * 3), L = new Float32Array(LUT_N);
+  let lo = 1, hi = 0;
+  for (let i = 0; i < LUT_N; i++) {
+    const hex = colourAt(stops, g.space, i / (LUT_N - 1)), c = Organica.hexToRGB255(hex);
+    rgb[i * 3] = c[0]; rgb[i * 3 + 1] = c[1]; rgb[i * 3 + 2] = c[2];
+    L[i] = C.hexToOklab(hex).L; lo = Math.min(lo, L[i]); hi = Math.max(hi, L[i]);
+  }
+  return { rgb: rgb, L: L, lo: lo, hi: hi, stops: stops };
+}
+
+// Distribution → how much noise lands at a point, 0..1, before Amount.
+//   even       — everywhere alike
+//   shadows    — where the fill is darkest (its own lightness range); a fill
+//                with no range (a flat colour) gets it evenly — use Light
+//   highlights — the reverse
+//   light      — away from a light that comes from `light` degrees (0 = from
+//                the top, CSS convention): none on the lit edge, full opposite
+// Falloff bends it: 50 = straight, higher keeps the noise to the far end.
+function noiseWeight(g, w, h, lut) {
+  const bend = Math.pow(4, (g.falloff - 50) / 50), shape = v => Math.pow(clamp(v, 0, 1), bend);
+  if (g.dist === 'light') { const f = linearField(g.light + 180, w, h); return (x, y) => shape(f(x, y)); }
+  const range = lut.hi - lut.lo;
+  if ((g.dist === 'shadows' || g.dist === 'highlights') && range > 0.02) {
+    const dark = g.dist === 'shadows';
+    return (x, y, i) => shape(dark ? (lut.hi - lut.L[i]) / range : (lut.L[i] - lut.lo) / range);
+  }
+  return () => 1;
+}
+function hasNoise(g) { return g.amount > 0 && (g.kind === 'speckle' || g.out !== 'print'); }
+
+// Screen: a canvas of w×h sheet units at `scale` pixels per unit. The noise
 // cell scales with it, so ×1 and ×4 show the same grain, only sharper.
-function gradCanvas(g, w, h, scale) {
+// `bare` leaves the noise out (the base under a vector export).
+function gradCanvas(g, w, h, scale, bare) {
   const W = Math.round(w * scale), H = Math.round(h * scale);
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d'), img = ctx.createImageData(W, H), px = img.data;
-  const stops = gradStops(), k = stops.length, N = 512, lut = new Uint8Array(N * 3);
-  for (let i = 0; i < N; i++) {
-    const pos = i / (N - 1) * (k - 1), a = Math.min(k - 2, Math.floor(pos));
-    const rgb = Organica.hexToRGB255(C.mix(stops[a].hex, stops[a + 1].hex, pos - a));
-    lut[i * 3] = rgb[0]; lut[i * 3 + 1] = rgb[1]; lut[i * 3 + 2] = rgb[2];
-  }
-  const field = gradField(g, w, h), cell = Math.max(1, g.size * scale), amp = g.amount / 100 * 72;
+  const lut = gradLUT(g), field = gradField(g, w, h), weight = noiseWeight(g, w, h, lut);
+  const cell = Math.max(1, g.size * scale), noise = !bare && hasNoise(g), amt = g.amount / 100;
+  const ink = Organica.hexToRGB255(g.ink), dots = g.pattern === 'dots', speckle = g.kind === 'speckle';
   for (let y = 0, o = 0; y < H; y++) {
-    const gy = Math.floor(y / cell);
+    const gy = Math.floor(y / cell), uy = (y + 0.5) / scale;
     for (let x = 0; x < W; x++, o += 4) {
-      const t = clamp(field((x + 0.5) / scale, (y + 0.5) / scale), 0, 1), i = Math.round(t * (N - 1)) * 3;
-      const n = amp ? (cellHash(Math.floor(x / cell), gy, g.seed) - 0.5) * 2 * amp : 0;
-      px[o] = lut[i] + n; px[o + 1] = lut[i + 1] + n; px[o + 2] = lut[i + 2] + n; px[o + 3] = 255;   // Uint8ClampedArray clamps
+      const ux = (x + 0.5) / scale, i = Math.round(clamp(field(ux, uy), 0, 1) * (LUT_N - 1)), j = i * 3;
+      let r = lut.rgb[j], gg = lut.rgb[j + 1], b = lut.rgb[j + 2];
+      if (noise) {
+        const gx = Math.floor(x / cell), wv = weight(ux, uy, i) * amt;
+        if (!speckle) {
+          const n = (cellHash(gx, gy, g.seed) - 0.5) * 2 * 72 * wv;
+          r += n; gg += n; b += n;   // Uint8ClampedArray clamps
+        } else if (dots) {
+          // a dot per cell whose threshold passes — weighed at the cell centre, so the dot is whole
+          const cxu = (gx + 0.5) * cell / scale, cyu = (gy + 0.5) * cell / scale;
+          const ci = Math.round(clamp(field(cxu, cyu), 0, 1) * (LUT_N - 1));
+          if ((gx + 1) * cell <= W && (gy + 1) * cell <= H && patternThr('dots', gx, gy, g.seed, 1) < weight(cxu, cyu, ci) * amt) {
+            const d = dotAt(gx, gy, g.seed), ddx = x + 0.5 - (gx + 0.5 + d.jx) * cell, ddy = y + 0.5 - (gy + 0.5 + d.jy) * cell;
+            if (ddx * ddx + ddy * ddy <= Math.pow(d.r * cell, 2)) { r = ink[0]; gg = ink[1]; b = ink[2]; }
+          }
+        } else if (patternThr(g.pattern, gx, gy, g.seed, 1) < wv) { r = ink[0]; gg = ink[1]; b = ink[2]; }
+      }
+      px[o] = r; px[o + 1] = gg; px[o + 2] = b; px[o + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
   return cv;
 }
+// A dot's own radius and offset in its cell (in cells): a little irregular, so
+// the dots read as stipple, not as a screen — but always whole inside their
+// cell, so in Print a dot can be cut out of the one ink under it.
+function dotAt(c, r, seed) {
+  const rad = 0.34 + 0.14 * cellHash(c, r, seed + 31), room = 0.5 - rad;
+  return { r: rad, jx: (cellHash(c, r, seed + 53) - 0.5) * 2 * room, jy: (cellHash(c, r, seed + 71) - 0.5) * 2 * room };
+}
 
-// Print: → [{ hex, paper, d, cells }] — one entry per stop, `d` the SVG path
+// Print: → [{ hex, paper, d, cells }] — one entry per ink, `d` the SVG path
 // of every cell that ink owns (rows run-length merged), in w×h sheet units.
+// Speckle adds its ink last: with cells it takes them from the others; with
+// dots each dot is also cut out of the ink under it (a circle inside that
+// ink's rectangle, filled even-odd) — so plates never overlap either way.
 function gradPlates(g, w, h) {
-  const stops = gradStops(), k = stops.length, cell = Math.max(PRINT_MIN_CELL, g.size);
-  const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h);
-  const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], cells: 0 }));
+  const lut = gradLUT(g), stops = lut.stops, k = stops.length, cell = Math.max(PRINT_MIN_CELL, g.size);
+  const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h), weight = noiseWeight(g, w, h, lut);
+  const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
+  const speckle = hasNoise(g) && g.kind === 'speckle', dots = speckle && g.pattern === 'dots', amt = g.amount / 100;
+  const spk = speckle ? { hex: g.ink, paper: false, d: [], holes: [], cells: 0 } : null;
+  const dither = g.pattern;
   for (let r = 0; r < rows; r++) {
     const y0 = r * cell, y1 = Math.min(h, y0 + cell);
     let run = -1, c0 = 0;
     for (let c = 0; c <= cols; c++) {
       let ink = -1;
       if (c < cols) {
-        const t = clamp(field(Math.min(w, (c + 0.5) * cell), (y0 + y1) / 2), 0, 1);
-        const pos = t * (k - 1), a = Math.min(k - 2, Math.floor(pos));
-        const thr = g.pattern === 'ordered' ? (BAYER8[r & 7][c & 7] + 0.5) / 64 : cellHash(c, r, g.seed);
-        ink = (pos - a) > thr ? a + 1 : a;
+        const ux = Math.min(w, (c + 0.5) * cell), uy = (y0 + y1) / 2, t = clamp(field(ux, uy), 0, 1);
+        const s = segAt(stops, t);
+        ink = k < 2 ? 0 : (s.f > patternThr(dither, c, r, g.seed, 0) ? s.a + 1 : s.a);
+        if (speckle) {
+          const hit = patternThr(g.pattern, c, r, g.seed, 1) < weight(ux, uy, Math.round(t * (LUT_N - 1))) * amt;
+          if (hit && dots && (c + 1) * cell <= w && (r + 1) * cell <= h) {   // a dot only in a whole cell
+            const d = dotAt(c, r, g.seed), dot = circleD((c + 0.5 + d.jx) * cell, (r + 0.5 + d.jy) * cell, d.r * cell);
+            spk.d.push(dot); spk.cells++; out[ink].holes.push(dot);
+          } else if (hit && !dots) ink = k;   // the speckle's own index, after the stops
+        }
       }
       if (ink !== run) {
-        if (run >= 0) { out[run].d.push(`M${c0 * cell} ${y0}H${Math.min(w, c * cell)}V${y1}H${c0 * cell}Z`); out[run].cells += c - c0; }
+        if (run >= 0) { const p = run === k ? spk : out[run]; p.d.push(`M${c0 * cell} ${y0}H${Math.min(w, c * cell)}V${y1}H${c0 * cell}Z`); p.cells += c - c0; }
         run = ink; c0 = c;
       }
     }
   }
-  out.forEach(p => { p.d = p.d.join(''); });
+  if (spk) out.push(spk);
+  out.forEach(p => { p.d = p.d.join('') + p.holes.join(''); delete p.holes; });
   return out;
 }
+function circleD(x, y, r) { return `M${num(x - r)} ${num(y)}a${num(r)} ${num(r)} 0 1 0 ${num(2 * r)} 0a${num(r)} ${num(r)} 0 1 0 ${num(-2 * r)} 0Z`; }
 
 // Both renderings are cached on the definition: selecting a colour or
 // renaming one re-renders the sheet, but must not re-run 250k pixels.
@@ -847,38 +1044,96 @@ function gradPrintPlates() {
   if (gradCache.key !== key) { gradCache.key = key; gradCache.plates = gradPlates(state.grad, GRAD_W, GRAD_H); }
   return gradCache.plates;
 }
+const SPACE_LABEL = { oklab: 'OKLab', oklch: 'OKLCH', srgb: 'sRGB' };
+const DIST_LABEL = { even: 'even', shadows: 'toward shadows', highlights: 'toward highlights', light: 'away from the light' };
 function gradLegend() {
-  const g = state.grad, kind = g.type === 'radial' ? 'Radial' : (g.type === 'conic' ? 'Conic from ' + g.angle + '°' : 'Linear ' + g.angle + '°');
-  return kind + ' · ' + gradStops().map(s => s.paper ? 'paper' : s.hex).join(' → ') + ' · ' +
-    (g.out === 'print' ? 'print, ' + g.pattern + ' cells of ' + Math.max(PRINT_MIN_CELL, g.size) : 'screen, grain ' + g.amount + ' at ' + g.size) + ' · seed ' + g.seed;
+  const g = state.grad, stops = gradStops();
+  const kind = g.type === 'flat' ? 'Flat' : g.type === 'radial' ? 'Radial' : (g.type === 'conic' ? 'Conic from ' + g.angle + '°' : 'Linear ' + g.angle + '°');
+  const list = g.type === 'flat' ? stops[0].hex : stops.map(s => (s.paper ? 'paper' : s.hex) + ' ' + Math.round(s.at * 100) + '%').join(' → ') + ' · ' + SPACE_LABEL[g.space];
+  const noise = !hasNoise(g) ? 'no noise'
+    : (g.kind === 'speckle' ? g.pattern + ' speckle ' + g.ink : 'grain') + ' ' + g.amount + ', ' + DIST_LABEL[g.dist] + (g.dist === 'light' ? ' ' + g.light + '°' : '');
+  return kind + ' · ' + list + ' · ' + (g.out === 'print' ? 'print, ' + g.pattern + ' cells of ' + Math.max(PRINT_MIN_CELL, g.size) : 'screen, size ' + g.size) + ' · ' + noise + ' · seed ' + g.seed;
+}
+// A linear / radial / flat fill with no noise on screen is a real vector
+// gradient: SVG interpolates in sRGB, so an OKLab / OKLCH span is sampled
+// into sub-stops close enough that the eye cannot tell (16 per span).
+function gradVector() {
+  const g = state.grad;
+  return g.out !== 'print' && !hasNoise(g) && g.type !== 'conic';
+}
+function vectorStops() {
+  const g = state.grad, stops = gradStops(), out = [];
+  stops.forEach((s, i) => {
+    out.push([s.at, s.hex]);
+    if (i === stops.length - 1 || g.space === 'srgb') return;
+    for (let k = 1; k < 16; k++) out.push([s.at + (stops[i + 1].at - s.at) * k / 16, C.mixIn(g.space, s.hex, stops[i + 1].hex, k / 16)]);
+  });
+  return out;
+}
+function vectorGradMarkup(id) {
+  const g = state.grad;
+  if (g.type === 'flat') return `<rect width="${GRAD_W}" height="${GRAD_H}" fill="${gradStops()[0].hex}"/>`;
+  const st = vectorStops().map(([at, hex]) => `<stop offset="${num(at)}" stop-color="${hex}"/>`).join('');
+  let el;
+  if (g.type === 'radial') el = `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${GRAD_W / 2}" cy="${GRAD_H / 2}" r="${num(Math.hypot(GRAD_W, GRAD_H) / 2)}">${st}</radialGradient>`;
+  else {
+    const rad = g.angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad), len = Math.abs(GRAD_W * dx) + Math.abs(GRAD_H * dy) || 1;
+    el = `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${num(GRAD_W / 2 - dx * len / 2)}" y1="${num(GRAD_H / 2 - dy * len / 2)}" x2="${num(GRAD_W / 2 + dx * len / 2)}" y2="${num(GRAD_H / 2 + dy * len / 2)}">${st}</linearGradient>`;
+  }
+  return `<defs>${el}</defs><rect width="${GRAD_W}" height="${GRAD_H}" fill="url(#${id})"/>`;
 }
 // The gradient's inner SVG / canvas drawing, in its own 0..GRAD_W × 0..GRAD_H box.
-function gradMarkup(screenScale, plateOnly) {
-  if (state.grad.out !== 'print') return `<image width="${GRAD_W}" height="${GRAD_H}" preserveAspectRatio="none" href="${gradScreenURL(screenScale)}"/>`;
-  return '<g shape-rendering="crispEdges">' + gradPrintPlates().map((p, i) =>
+// `id` names the vector gradient in <defs> (the sheet and the export file each carry one).
+function gradMarkup(screenScale, plateOnly, id) {
+  if (state.grad.out !== 'print') {
+    if (gradVector()) return vectorGradMarkup(id || 'ts-grad');
+    return `<image width="${GRAD_W}" height="${GRAD_H}" preserveAspectRatio="none" href="${gradScreenURL(screenScale)}"/>`;
+  }
+  return '<g shape-rendering="crispEdges" fill-rule="evenodd">' + gradPrintPlates().map((p, i) =>
     (p.paper || !p.d || (plateOnly != null && plateOnly !== i)) ? '' : `<path fill="${plateOnly != null ? '#000000' : p.hex}" d="${p.d}"/>`).join('') + '</g>';
 }
 function drawGrad(c, scale) {
   if (state.grad.out !== 'print') { c.drawImage(gradCanvas(state.grad, GRAD_W, GRAD_H, scale), 0, 0, GRAD_W, GRAD_H); return; }
-  gradPrintPlates().forEach(p => { if (p.paper || !p.d) return; c.fillStyle = p.hex; c.fill(new Path2D(p.d)); });
+  gradPrintPlates().forEach(p => { if (p.paper || !p.d) return; c.fillStyle = p.hex; c.fill(new Path2D(p.d), 'evenodd'); });
 }
 
 function syncGradControls() {
   const g = state.grad, seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
-  seg('seg-gtype', g.type); seg('seg-gout', g.out); seg('seg-gpattern', g.pattern);
+  const flat = g.type === 'flat', speckle = g.kind === 'speckle', print = g.out === 'print';
+  seg('seg-gtype', g.type); seg('seg-gout', g.out); seg('seg-gpattern', g.pattern); seg('seg-gspace', g.space); seg('seg-gkind', g.kind);
   ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle;
   ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
   ctrl('rg-gsize').value = g.size; ctrl('v-gsize').textContent = g.size;
+  ctrl('rg-glight').value = g.light; ctrl('v-glight').textContent = g.light;
+  ctrl('rg-gfalloff').value = g.falloff; ctrl('v-gfalloff').textContent = g.falloff;
+  ctrl('sel-gdist').value = g.dist;
   ctrl('in-gseed').value = g.seed;
   ctrl('ck-gpaper').checked = g.paper;
-  ctrl('row-gangle').hidden = !!(g.type === 'radial');
-  ctrl('row-gamount').hidden = !!(g.out === 'print');
-  ctrl('row-gpattern').hidden = !(g.out === 'print');
-  ctrl('btn-export-plates').disabled = g.out !== 'print';
-  const inks = g.stops.length;
-  ctrl('grad-hint').textContent = g.out === 'print'
-    ? inks + (inks === 1 ? ' ink' : ' inks') + ' → ' + inks + ' plates. Every cell is one pure ink' + (g.paper ? ', or bare paper.' : '.')
-    : 'A smooth blend with grain on top — a raster. Switch to Print for flat inks you can separate.';
+  ctrl('row-gangle').hidden = flat || g.type === 'radial';
+  ctrl('grad-blend').hidden = flat;
+  ctrl('row-gflat').hidden = !flat;
+  ctrl('row-gink').hidden = !speckle;
+  // Tone grain has no pattern of its own on screen; in Print the pattern is also the blend's dither
+  ctrl('row-gpattern').hidden = !(speckle || print);
+  const grainOn = hasNoise(g);
+  ctrl('row-glight').hidden = !(grainOn && g.dist === 'light');
+  ctrl('row-gfalloff').hidden = !(grainOn && g.dist !== 'even');
+  ctrl('btn-export-plates').disabled = !print;
+  gradSel = Math.min(gradSel, g.stops.length - 1);
+  if (inkSwatch && inkSwatch.get() !== g.ink) inkSwatch.set(g.ink);
+  if (gradChips && JSON.stringify(gradChips.getColors()) !== JSON.stringify(g.stops)) gradChips.setColors(g.stops);
+  if (gradChips) gradChips.setActive(gradSel);
+  if (flatChip && flatChip.get() !== g.stops[0]) flatChip.setColors([g.stops[0]]);
+  renderStopBar();
+  const inks = (flat ? 1 : g.stops.length) + (speckle && g.amount > 0 ? 1 : 0);
+  ctrl('grad-hint').textContent = print
+    ? inks + (inks === 1 ? ' ink' : ' inks') + ' → ' + inks + (inks === 1 ? ' plate' : ' plates') + '. Every cell is one pure ink' + (g.paper && !flat ? ', or bare paper.' : '.')
+    : (gradVector() ? 'A smooth fill — the SVG keeps it as a vector gradient.' : 'A smooth fill with grain on top — a raster. Switch to Print for flat inks you can separate.');
+  ctrl('grain-hint').textContent = !speckle && print ? 'Tone grain is a screen effect: in Print the blend is already made of ink cells. Choose Shadow for grain that prints.'
+    : (g.dist !== 'even' && g.dist !== 'light' && (flat || gradLUT(g).hi - gradLUT(g).lo <= 0.02)) ? 'This fill has one lightness, so the grain falls everywhere alike. Choose Away from a light to shade it.'
+    : (speckle && print && g.pattern === 'dots' ? 'Each dot is cut out of the ink under it: the plates never overlap.'
+    : (hasNoise(g) && g.dist === 'light' ? 'Light from: 0° is the top, 90° the right — the grain thickens toward the opposite side. Falloff 50 grows it evenly; higher keeps it to the far side.'
+    : (hasNoise(g) && g.dist !== 'even' ? 'Falloff 50 grows the grain evenly across the fill; higher keeps it to the far end, lower spreads it further.' : '')));
 }
 // Any gradient control shows the gradient: adjusting one you cannot see is no use.
 function gradChanged() {
@@ -888,31 +1143,188 @@ function gradChanged() {
   renderStage();
   syncUndo();
 }
-let gradChips = null;
+
+// ── the stop bar — where each stop sits along the gradient ──
+// The chips under it carry the colours (and the palette library); the bar
+// carries the positions. Stops stay in order: a stop cannot pass its
+// neighbours. Built here, the first use of the colour component's `stops`
+// kind (ledger O-20); promote it at the second tool that needs one.
+let gradSel = 0;
+function ensurePos() {
+  const g = state.grad;
+  if (!g.pos || g.pos.length !== g.stops.length) g.pos = evenPos(g.stops.length);
+  return g.pos;
+}
+function selectStop(i) {
+  gradSel = clamp(i, 0, state.grad.stops.length - 1);
+  if (gradChips) gradChips.setActive(gradSel);
+  ctrl('grad-bar').querySelectorAll('.ts-stopbar__stop').forEach((k, j) => k.classList.toggle('is-active', j === gradSel));
+}
+// Adds a stop at `at` (0..1) in the colour the gradient has there; returns its index.
+function addStopAt(at, hex) {
+  const g = state.grad, pos = ensurePos();
+  let i = pos.findIndex(p => p > at);
+  if (i < 0) i = pos.length;
+  const stops = gradStops().filter(s => !s.paper);
+  hex = hex || colourAt(stops.map((s, k) => ({ hex: s.hex, at: pos[k] })), g.space, at);
+  g.stops.splice(i, 0, hex); pos.splice(i, 0, at);
+  return i;
+}
+function widestGap() {
+  const pos = ensurePos();
+  let best = 0, at = 0.5;
+  for (let i = 0; i < pos.length - 1; i++) if (pos[i + 1] - pos[i] > best) { best = pos[i + 1] - pos[i]; at = (pos[i] + pos[i + 1]) / 2; }
+  return at;
+}
+function removeStop(i) {
+  const g = state.grad;
+  if (g.stops.length <= 2) return;
+  pushUndo('grad-stop');
+  ensurePos().splice(i, 1); g.stops.splice(i, 1);
+  gradSel = Math.max(0, i - 1);
+  gradChanged();
+}
+function stopBarCSS() {
+  // the bar's own background is the gradient (content colour, sampled the same way as the SVG)
+  return 'linear-gradient(to right, ' + vectorStops().map(([at, hex]) => hex + ' ' + num(at * 100) + '%').join(', ') + ')';
+}
+function renderStopBar() {
+  const bar = ctrl('grad-bar'), rail = bar.firstElementChild, g = state.grad;
+  if (g.type === 'flat') return;
+  const pos = ensurePos(), f = g.paper ? (pos.length - 1) / pos.length : 1;
+  bar.style.background = stopBarCSS();
+  if (rail.children.length !== pos.length) {
+    rail.innerHTML = pos.map((_, i) => `<span class="ts-stopbar__stop" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" data-i="${i}"></span>`).join('');
+  }
+  Array.prototype.forEach.call(rail.children, (k, i) => {
+    const pct = Math.round(pos[i] * 100);
+    k.style.left = (pos[i] * f * 100) + '%';
+    k.style.background = g.stops[i];
+    k.setAttribute('aria-valuenow', pct);
+    k.setAttribute('aria-valuetext', pct + '%, ' + g.stops[i]);
+    k.setAttribute('aria-label', 'Stop ' + (i + 1));
+    k.classList.toggle('is-active', i === gradSel);
+  });
+}
+function bindStopBar() {
+  const bar = ctrl('grad-bar'), rail = bar.firstElementChild;
+  // a position 0..1 of the stops' own span from a pointer x (the paper, when fading, sits past it)
+  const posFrom = x => {
+    const r = rail.getBoundingClientRect(), g = state.grad, f = g.paper ? (g.stops.length - 1) / g.stops.length : 1;
+    return clamp((x - r.left) / r.width / f, 0, 1);
+  };
+  let drag = null;
+  bar.addEventListener('pointerdown', e => {
+    const knob = e.target.closest('.ts-stopbar__stop');
+    let i;
+    if (knob) i = +knob.dataset.i;
+    else {
+      if (state.grad.stops.length >= GRAD_MAX_STOPS) return;
+      pushUndo('grad-stop');
+      i = addStopAt(posFrom(e.clientX));
+    }
+    selectStop(i);
+    if (!knob) gradChanged();
+    drag = { i: i, id: e.pointerId };
+    bar.setPointerCapture(e.pointerId);
+    bar.classList.add('is-dragging');
+    const k = rail.children[i];
+    if (k) k.focus({ preventScroll: true });
+    e.preventDefault();
+  });
+  bar.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    moveStop(drag.i, posFrom(e.clientX));
+  });
+  const end = e => { if (drag && e.pointerId === drag.id) { drag = null; bar.classList.remove('is-dragging'); } };
+  bar.addEventListener('pointerup', end);
+  bar.addEventListener('pointercancel', end);
+  bar.addEventListener('keydown', e => {
+    const knob = e.target.closest('.ts-stopbar__stop');
+    if (!knob) return;
+    const i = +knob.dataset.i, pos = ensurePos(), step = e.shiftKey ? 0.1 : 0.01;
+    let to = null;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') to = pos[i] - step;
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') to = pos[i] + step;
+    else if (e.key === 'Home') to = 0;
+    else if (e.key === 'End') to = 1;
+    else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeStop(i); focusStop(gradSel); return; }
+    else return;
+    e.preventDefault();
+    selectStop(i);
+    moveStop(i, to);
+  });
+  bar.addEventListener('focusin', e => { const k = e.target.closest('.ts-stopbar__stop'); if (k) selectStop(+k.dataset.i); });
+}
+function focusStop(i) { const k = ctrl('grad-bar').firstElementChild.children[i]; if (k) k.focus({ preventScroll: true }); }
+function moveStop(i, to) {
+  const pos = ensurePos(), lo = i > 0 ? pos[i - 1] : 0, hi = i < pos.length - 1 ? pos[i + 1] : 1;
+  to = Math.round(clamp(to, lo, hi) * 1000) / 1000;
+  if (to === pos[i]) return;
+  pushUndo('grad');
+  pos[i] = to;
+  gradChanged();
+}
+
+const GRAD_MAX_STOPS = 8;
+let gradChips = null, flatChip = null, inkSwatch = null;
 function initGradient() {
   gradChips = Organica.palette.swatch(ctrl('grad-stops'), {
     colors: state.grad.stops,
     min: 2,
-    max: 5,
+    max: GRAD_MAX_STOPS,
     palettes: () => [{ name: 'This palette', colors: state.items.map((it, i) => ({ name: dispName(i), hex: it.hex })) }],
-    onChange: cols => { pushUndo('grad'); state.grad.stops = cols; gradChanged(); },
+    onChange: (cols, index, action, removedAt) => {
+      const g = state.grad;
+      pushUndo(action === 'edit' ? 'grad' : 'grad-stop');
+      if (action === 'add') {
+        // the chip strip appends; the stop goes in the widest gap, in the colour the gradient has there
+        // (a colour picked from a palette keeps its own)
+        const picked = cols[cols.length - 1], at = widestGap();
+        gradSel = addStopAt(at, picked === '#888888' ? null : picked);
+      } else if (action === 'remove') {
+        ensurePos().splice(removedAt, 1); g.stops = cols; gradSel = index;
+      } else if (action === 'set') {
+        g.stops = cols; g.pos = null; gradSel = 0;   // a palette loaded whole: evenly spaced
+      } else { g.stops = cols; gradSel = index; }
+      gradChanged();
+    },
   });
+  flatChip = Organica.palette.swatch(ctrl('grad-flat'), {
+    colors: [state.grad.stops[0]], max: 1,
+    palettes: () => [{ name: 'This palette', colors: state.items.map((it, i) => ({ name: dispName(i), hex: it.hex })) }],
+    onChange: cols => { pushUndo('grad'); state.grad.stops[0] = cols[0]; gradChanged(); },
+  });
+  inkSwatch = Organica.palette.swatch('gink', {
+    initial: state.grad.ink,
+    onChange: hex => { if (hex === state.grad.ink) return; pushUndo('grad'); state.grad.ink = hex; gradChanged(); },
+  });
+  bindStopBar();
   const segBind = (id, key) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
     if (state.grad[key] === b.dataset.v) return;
     pushUndo('grad-' + key); state.grad[key] = b.dataset.v; gradChanged();
   }));
-  segBind('seg-gtype', 'type'); segBind('seg-gout', 'out'); segBind('seg-gpattern', 'pattern');
-  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gsize', 'size']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
+  segBind('seg-gtype', 'type'); segBind('seg-gout', 'out'); segBind('seg-gpattern', 'pattern'); segBind('seg-gspace', 'space'); segBind('seg-gkind', 'kind');
+  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gsize', 'size'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
     pushUndo('grad'); state.grad[key] = +e.target.value; gradChanged();
   }));
+  ctrl('sel-gdist').addEventListener('change', e => { pushUndo('grad-dist'); state.grad.dist = e.target.value; gradChanged(); });
   ctrl('in-gseed').addEventListener('input', e => { pushUndo('grad'); state.grad.seed = clamp(Math.round(+e.target.value || 0), 0, 9999); gradChanged(); });
   ctrl('ck-gpaper').addEventListener('change', e => { pushUndo('grad-paper'); state.grad.paper = e.target.checked; gradChanged(); });
+  ctrl('btn-grad-reverse').addEventListener('click', () => {
+    pushUndo('grad-stop');
+    const g = state.grad, pos = ensurePos();
+    g.stops.reverse(); g.pos = pos.map(p => Math.round((1 - p) * 1000) / 1000).reverse();
+    gradSel = g.stops.length - 1 - gradSel;
+    gradChanged();
+  });
+  ctrl('btn-grad-even').addEventListener('click', () => { pushUndo('grad-stop'); state.grad.pos = null; gradChanged(); });
 }
 
 // ── gradient-only exports ──
 function gradSVGString(plateOnly) {
   const meta = plateOnly == null ? `<metadata id="organica">${esc(JSON.stringify({ tool: 'tunesutra', kind: 'gradient', gradient: state.grad }))}</metadata>` : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${GRAD_W} ${GRAD_H}" width="${GRAD_W}" height="${GRAD_H}">${meta}${gradMarkup(4, plateOnly)}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${GRAD_W} ${GRAD_H}" width="${GRAD_W}" height="${GRAD_H}">${meta}${gradMarkup(4, plateOnly, 'tunesutra-gradient')}</svg>`;
 }
 function exportGradSVG() { Organica.downloadText(gradSVGString(null), Organica.stamp('tunesutra-gradient', 'svg'), 'image/svg+xml'); }
 function gradPNGCanvas(scale) {
@@ -939,11 +1351,15 @@ function exportPlates() {
       : { blob: new Blob([gradSVGString(i)], { type: 'image/svg+xml' }), filename: 'tunesutra-' + t + '-plate' + (i + 1) + '-' + plates[i].hex.slice(1) + '.svg' },
   });
 }
+// CSS: the smooth fill only — grain is not expressible in CSS. Positions as
+// percentages, and the blend's own space (`in oklab` / `in oklch` / `in srgb`).
 function gradCSS() {
-  const g = state.grad, list = gradStops().map(s => s.hex).join(', ');
-  if (g.type === 'radial') return `radial-gradient(circle farthest-corner at center in oklab, ${list})`;
-  if (g.type === 'conic') return `conic-gradient(from ${g.angle}deg in oklab, ${list})`;
-  return `linear-gradient(${g.angle}deg in oklab, ${list})`;
+  const g = state.grad, stops = gradStops();
+  if (g.type === 'flat') return stops[0].hex;
+  const list = stops.map(s => s.hex + ' ' + num(s.at * 100) + '%').join(', '), sp = 'in ' + g.space;
+  if (g.type === 'radial') return `radial-gradient(circle farthest-corner at center ${sp}, ${list})`;
+  if (g.type === 'conic') return `conic-gradient(from ${g.angle}deg ${sp}, ${list})`;
+  return `linear-gradient(${g.angle}deg ${sp}, ${list})`;
 }
 
 
@@ -1470,7 +1886,7 @@ function exportJSON() {
     });
   });
   const stops = gradStops();
-  obj.tunesutra.gradient = { $type: 'gradient', $value: stops.map((st, i) => ({ color: st.hex, position: +(i / (stops.length - 1)).toFixed(4) })) };
+  obj.tunesutra.gradient = { $type: 'gradient', $value: stops.map(st => ({ color: st.hex, position: +st.at.toFixed(4) })) };
   Organica.downloadText(JSON.stringify(obj, null, 2), Organica.stamp('tunesutra', 'json'), 'application/json');
 }
 function sendToFigma() { Organica.sendToFigma(svgString(1), 'TuneSutra'); }

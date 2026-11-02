@@ -597,6 +597,47 @@
     }
     return _bayerCache[n];
   };
+  // Blue-noise thresholds (void-and-cluster, Ulichney 1993; TuneSutra's
+  // Dots grain, Nov 2, 2026): n×n ranks 0..1, each new rank in the largest
+  // void left so far, so any threshold gives evenly spread, clump-free cells
+  // — the stipple look, without Bayer's cross-hatch. Same tiling contract as
+  // bayerThresholds (row-major Float32Array, n a power of two, toroidal).
+  // Deterministic: the start pattern comes from a fixed integer hash, so
+  // every machine gets the same mask. Built once per n (64: a few tens of ms).
+  const _blueCache = {};
+  Organica.dither.blueNoise = function blueNoise(n) {
+    n = n || 64;
+    if (_blueCache[n]) return _blueCache[n];
+    const S = n * n, R = 4, sigma2 = 2 * 1.5 * 1.5, rank = new Float32Array(S), energy = new Float64Array(S), on = new Uint8Array(S);
+    const ker = [];
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) ker.push(dx, dy, Math.exp(-(dx * dx + dy * dy) / sigma2));
+    const splat = (i, s) => {
+      const x = i % n, y = (i / n) | 0;
+      for (let k = 0; k < ker.length; k += 3) energy[((y + ker[k + 1] + n) % n) * n + ((x + ker[k] + n) % n)] += s * ker[k + 2];
+    };
+    const extreme = (want, max) => {
+      let best = -1, v = max ? -Infinity : Infinity;
+      for (let i = 0; i < S; i++) if (on[i] === want && (max ? energy[i] > v : energy[i] < v)) { v = energy[i]; best = i; }
+      return best;
+    };
+    const hash = i => { let h = Math.imul(i, 374761393) ^ 1274126177; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+    for (let i = 0; i < S; i++) if (hash(i) < 0.1) { on[i] = 1; splat(i, 1); }
+    // relax: move the tightest cluster into the largest void until they coincide
+    for (let guard = 0; guard < S; guard++) {
+      const c = extreme(1, true); on[c] = 0; splat(c, -1);
+      const v = extreme(0, false);
+      on[v] = 1; splat(v, 1);
+      if (v === c) break;
+    }
+    const seedOn = on.slice(), seedE = energy.slice();
+    let ones = 0;
+    for (let i = 0; i < S; i++) ones += on[i];
+    for (let r = ones - 1; r >= 0; r--) { const c = extreme(1, true); on[c] = 0; splat(c, -1); rank[c] = r; }
+    on.set(seedOn); energy.set(seedE);
+    for (let r = ones; r < S; r++) { const v = extreme(0, false); on[v] = 1; splat(v, 1); rank[v] = r; }
+    for (let i = 0; i < S; i++) rank[i] = (rank[i] + 0.5) / S;
+    return (_blueCache[n] = rank);
+  };
   // Shared tiling loop — Bayer's own recursive matrix and a user-authored
   // custom Pattern (Colornet's Pattern mode) both end up as a plain
   // Float32Array of n*n thresholds in [0,1]; this is the one loop that
