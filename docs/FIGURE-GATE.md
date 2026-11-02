@@ -149,6 +149,27 @@ creati"*). Try in both themes, console open:
 
 Automated half, Oct 29: `scripts/gate-figure.sh eca779f` → AUTOMATED GATE PASSED on `77898ef` (figure graph · eval · board light + dark · regression · QA · fvs ui · Rhizome · atlas · perf).
 
+## 3 (Oct 30 – Nov 2, 2026). Manual half — Figure ↔ Symbol: Variations, selections, a Symbol from a variation
+
+Work of these days (`fbe1737` … `d6e025e`): every Symbol's Figure comes with a Variations; a variation's own Canvas / Grid
+reach the Symbol; the Symbol's saved selections live in its Figure (Vary › Selections); a double-click takes a Symbol's
+Figure to the Symbol step and makes a variation a new Symbol 1.a at its first edit. Try in both themes, console open:
+
+- [ ] A new Symbol (fill a cell) → Figure: Symbol → Figure → **Variations** with three variations beside it, each a palette change (`fbe1737`).
+- [ ] On variation 1 wire a **Canvas** (Print, 100 × 100 mm, bleed 3): the Symbol sits on that page. Wire a **Grid** (6 × 6): the Symbol's cells repeat as a motif on the new grid (`a786878`).
+- [ ] The Vary panel of a Symbol's Figure has no Grid or Content row.
+- [ ] On the Symbol step save a selection with a rule (Symmetry, Field, Rhythm or an arrangement) → Figure: Vary shows **Selections** (Rule · Random draw); the captions read *Selections: ‹name› · …* in the Selection section's words (*Symmetry · p31m*, *2 × 2 blocks*, *Rhythm · Spiral*) (`f6e6555`, `31816d1`).
+- [ ] A variation with its own Grid: a saved selection on a column stays a column on the new grid.
+- [ ] Double-click **Symbol 1's Figure** (or its Symbol node, or the panel's first button *Edit on the Symbol step*): the Symbol step, Symbol 1 being edited (`e450059`, `ee1daa0`).
+- [ ] Double-click **variation 2**: the Symbol step, a draft *Symbol 1.a* beside Symbol 1, its sheet says *Draft from Symbol 1 · variation 2*. Leave the step without changing anything: the draft is gone, Figure has nothing new.
+- [ ] Again, then change one cell: *Symbol 1.a is a Symbol now*; ⌘Z brings the cell back and 1.a stays. Figure: Symbol 1.a → its Figure (with a copy of the mother's rules) → Variations; its Figure draws like variation 2, a turn or flip that variation drew included (`d6e025e`).
+- [ ] Variation 2 is pinned and its caption ends *· Opens Symbol 1.a*; a double-click opens 1.a, no new draft.
+- [ ] Change Symbol 1: 1.a stays as it was, its line reads *From an earlier Symbol 1 · variation 2*. A variation of 1.a makes *Symbol 1.a.a*.
+- [ ] A classic Figure (Canvas · Grid · Content): a double-click still opens Compose.
+- [ ] Dark theme: the draft sheet and its *Draft from …* line are readable; at a low board zoom the line is cut with an ellipsis, not overlapping.
+
+Automated half, Nov 2: `scripts/gate-figure.sh 280a732` → AUTOMATED GATE PASSED on `d6e025e` (figure graph · eval · board light + dark · regression · QA · fvs ui · Rhizome · atlas · perf).
+
 ## 4. Record
 
 Tick each commit in the **Organica test log** artifact (https://claude.ai/artifact/FsEoGMwKmWeKinrXfUhvyh) as you go. It lists every commit of the day with a "try this" and a link, and its note field is where a failure goes. Then:
