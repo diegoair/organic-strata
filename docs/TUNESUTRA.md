@@ -159,6 +159,14 @@ Works on any type, Flat included.
   end, lower spreads it further (an exponent 4^((f − 50) / 50)).
 - **Seed** fixes the grain / the cell pattern.
 
+The panel shows a control only while it changes the drawing (`gradUses()`,
+which the legend under the gradient reads too — checked Nov 2, 2026 over every
+Type × Output × Grain colour × Pattern × Grain in): Tone grain in Print hides
+Grain and Grain in (a screen effect); a Flat fill in Print hides the whole
+grain block bar the Shadow grain; Mix in is hidden in Print (a cell is one pure
+ink); Seed is hidden while the pattern is Ordered (a fixed screen); Falloff is
+hidden for Shadows / Highlights on a fill with one lightness.
+
 In Print every cell belongs to exactly one ink: Shadow cells take their cells
 from the other inks, and each Shadow dot is cut out of the one ink under it (a
 circle inside that ink's rectangle, filled even-odd; dots only in whole cells).

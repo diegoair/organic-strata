@@ -259,7 +259,7 @@
           <button class="mini-btn" id="btn-grad-reverse">Reverse</button>
           <button class="mini-btn" id="btn-grad-even">Space evenly</button>
         </div>
-        <div class="ctrl-row">
+        <div class="ctrl-row" id="row-gspace">
           <span class="ctrl-label" title="How the colours between two stops are made. OKLab: even to the eye. OKLCH: keeps the colour saturated, hue the short way round. sRGB: what a plain CSS gradient does.">Mix in</span>
           <div class="seg-ctrl" id="seg-gspace" role="group" aria-label="Mix in">
             <button class="seg-btn active" data-v="oklab">OKLab</button>
@@ -303,7 +303,7 @@
         <input type="range" id="rg-gamount" min="0" max="100" step="1" value="25">
         <span class="ctrl-val" id="v-gamount">25</span>
       </div>
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="row-gsize">
         <div class="ctrl-label">Grain size</div>
         <input type="range" id="rg-gsize" min="1" max="12" step="1" value="3">
         <span class="ctrl-val" id="v-gsize">3</span>
@@ -337,7 +337,7 @@
         <input type="range" id="rg-gfalloff" min="0" max="100" step="1" value="50">
         <span class="ctrl-val" id="v-gfalloff">50</span>
       </div>
-      <div class="ctrl-row">
+      <div class="ctrl-row" id="row-gseed">
         <div class="ctrl-label">Seed</div>
         <input type="number" class="panel-input" id="in-gseed" min="0" max="9999" step="1" value="1">
       </div>
@@ -735,6 +735,7 @@ function setActiveColor(hex) {
   state.items[state.activeIndex].hex = hex;
   commit(true);
 }
+const FIELD_GROUPS = [['f-r', 'f-g', 'f-b'], ['f-h', 'f-s', 'f-br'], ['f-c', 'f-m', 'f-y', 'f-k']];
 function refreshFieldEditor() {
   const it = state.items[state.activeIndex], hex = it.hex;
   const [r, g, b] = Organica.hexToRGB255(hex);
@@ -751,9 +752,14 @@ function refreshFieldEditor() {
   ctrl('cp-active').value = hex;
   ctrl('hex-active').value = hex;
   ctrl('sw-active').style.background = hex;
-  ctrl('f-r').value = r; ctrl('f-g').value = g; ctrl('f-b').value = b;
-  ctrl('f-h').value = hsb.h; ctrl('f-s').value = hsb.s; ctrl('f-br').value = hsb.b;
-  ctrl('f-c').value = cmyk.c; ctrl('f-m').value = cmyk.m; ctrl('f-y').value = cmyk.y; ctrl('f-k').value = cmyk.k;
+  // The group being typed in is left alone: HSB and CMYK pass through 8-bit
+  // RGB, so writing them back mid-typing turned a typed 200 into 0 on a dark
+  // grey. It is re-read when the field is left (change).
+  const typing = FIELD_GROUPS.find(gr => gr.includes(document.activeElement && document.activeElement.id));
+  const put = (vals, ids) => { if (typing !== ids) ids.forEach((id, i) => { ctrl(id).value = vals[i]; }); };
+  put([r, g, b], FIELD_GROUPS[0]);
+  put([hsb.h, hsb.s, hsb.b], FIELD_GROUPS[1]);
+  put([cmyk.c, cmyk.m, cmyk.y, cmyk.k], FIELD_GROUPS[2]);
   writing = false;
 }
 function bindFieldEditor() {
@@ -775,19 +781,22 @@ function bindFieldEditor() {
     state.items[state.activeIndex].lock = e.target.checked;
   });
 
+  // A field cleared to type a new number changes nothing until a digit comes;
+  // leaving a field writes every group back from the colour.
+  FIELD_GROUPS.flat().forEach(id => ctrl(id).addEventListener('blur', refreshFieldEditor));
   ['f-r', 'f-g', 'f-b'].forEach(id => ctrl(id).addEventListener('input', () => {
-    if (writing) return;
+    if (writing || ctrl(id).value === '') return;
     const r = clamp(+ctrl('f-r').value || 0, 0, 255), g = clamp(+ctrl('f-g').value || 0, 0, 255), b = clamp(+ctrl('f-b').value || 0, 0, 255);
     setActiveColor(hexFromRgb(r, g, b));
   }));
   ['f-h', 'f-s', 'f-br'].forEach(id => ctrl(id).addEventListener('input', () => {
-    if (writing) return;
+    if (writing || ctrl(id).value === '') return;
     const h = clamp(+ctrl('f-h').value || 0, 0, 360), s = clamp(+ctrl('f-s').value || 0, 0, 100), v = clamp(+ctrl('f-br').value || 0, 0, 100);
     const rgb = hsbToRgb(h, s, v);
     setActiveColor(hexFromRgb(rgb.r, rgb.g, rgb.b));
   }));
   ['f-c', 'f-m', 'f-y', 'f-k'].forEach(id => ctrl(id).addEventListener('input', () => {
-    if (writing) return;
+    if (writing || ctrl(id).value === '') return;
     const c = clamp(+ctrl('f-c').value || 0, 0, 100), m = clamp(+ctrl('f-m').value || 0, 0, 100), y = clamp(+ctrl('f-y').value || 0, 0, 100), k = clamp(+ctrl('f-k').value || 0, 0, 100);
     const rgb = cmykToRgb(c, m, y, k);
     setActiveColor(hexFromRgb(rgb.r, rgb.g, rgb.b));
@@ -943,6 +952,25 @@ function noiseWeight(g, w, h, lut) {
   return () => 1;
 }
 function hasNoise(g) { return g.amount > 0 && (g.kind === 'speckle' || g.out !== 'print'); }
+function gradOneLightness(g) { if (g.type === 'flat') return true; const lut = gradLUT(g); return lut.hi - lut.lo <= 0.02; }
+// Which gradient controls change the drawing right now — the panel shows only
+// these, and the legend names only these. Tone grain is a screen effect (in
+// Print its amount and Grain in do nothing); a print cell is one pure ink, so
+// Mix in never shows there; a Flat fill in Print is one ink with no blend to
+// dither; Ordered is a fixed screen, so the seed moves only random cells and dots.
+function gradUses(g) {
+  const print = g.out === 'print', speckle = g.kind === 'speckle', grainOn = hasNoise(g), blend = print && g.type !== 'flat';
+  return {
+    space: !print && g.type !== 'flat',
+    amount: speckle || !print,
+    dist: grainOn,
+    size: grainOn || blend,
+    pattern: (speckle && grainOn) || blend,
+    seed: (grainOn && !(speckle && g.pattern === 'ordered')) || (blend && g.pattern !== 'ordered'),
+    light: grainOn && g.dist === 'light',
+    falloff: grainOn && (g.dist === 'light' || (g.dist !== 'even' && !gradOneLightness(g))),
+  };
+}
 
 // Screen: a canvas of w×h sheet units at `scale` pixels per unit. The noise
 // cell scales with it, so ×1 and ×4 show the same grain, only sharper.
@@ -995,7 +1023,7 @@ function dotAt(c, r, seed) {
 // dots each dot is also cut out of the ink under it (a circle inside that
 // ink's rectangle, filled even-odd) — so plates never overlap either way.
 function gradPlates(g, w, h) {
-  const lut = gradLUT(g), stops = lut.stops, k = stops.length, cell = Math.max(PRINT_MIN_CELL, g.size);
+  const lut = gradLUT(Object.assign({}, g, { space: 'oklab' })), stops = lut.stops, k = stops.length, cell = Math.max(PRINT_MIN_CELL, g.size);
   const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h), weight = noiseWeight(g, w, h, lut);
   const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
   const speckle = hasNoise(g) && g.kind === 'speckle', dots = speckle && g.pattern === 'dots', amt = g.amount / 100;
@@ -1049,10 +1077,11 @@ const DIST_LABEL = { even: 'even', shadows: 'toward shadows', highlights: 'towar
 function gradLegend() {
   const g = state.grad, stops = gradStops();
   const kind = g.type === 'flat' ? 'Flat' : g.type === 'radial' ? 'Radial' : (g.type === 'conic' ? 'Conic from ' + g.angle + '°' : 'Linear ' + g.angle + '°');
-  const list = g.type === 'flat' ? stops[0].hex : stops.map(s => (s.paper ? 'paper' : s.hex) + ' ' + Math.round(s.at * 100) + '%').join(' → ') + ' · ' + SPACE_LABEL[g.space];
+  const uses = gradUses(g);
+  const list = g.type === 'flat' ? stops[0].hex : stops.map(s => (s.paper ? 'paper' : s.hex) + ' ' + Math.round(s.at * 100) + '%').join(' → ') + (uses.space ? ' · ' + SPACE_LABEL[g.space] : '');
   const noise = !hasNoise(g) ? 'no noise'
     : (g.kind === 'speckle' ? g.pattern + ' speckle ' + g.ink : 'grain') + ' ' + g.amount + ', ' + DIST_LABEL[g.dist] + (g.dist === 'light' ? ' ' + g.light + '°' : '');
-  return kind + ' · ' + list + ' · ' + (g.out === 'print' ? 'print, ' + g.pattern + ' cells of ' + Math.max(PRINT_MIN_CELL, g.size) : 'screen, size ' + g.size) + ' · ' + noise + ' · seed ' + g.seed;
+  return kind + ' · ' + list + ' · ' + (g.out === 'print' ? 'print' + (uses.pattern ? ', ' + g.pattern + ' cells of ' + Math.max(PRINT_MIN_CELL, g.size) : '') : 'screen' + (uses.size ? ', size ' + g.size : '')) + ' · ' + noise + (uses.seed ? ' · seed ' + g.seed : '');
 }
 // A linear / radial / flat fill with no noise on screen is a real vector
 // gradient: SVG interpolates in sRGB, so an OKLab / OKLCH span is sampled
@@ -1101,23 +1130,20 @@ function syncGradControls() {
   const g = state.grad, seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   const flat = g.type === 'flat', speckle = g.kind === 'speckle', print = g.out === 'print';
   seg('seg-gtype', g.type); seg('seg-gout', g.out); seg('seg-gpattern', g.pattern); seg('seg-gspace', g.space); seg('seg-gkind', g.kind);
-  ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle;
+  ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle + '°';
   ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
   ctrl('rg-gsize').value = g.size; ctrl('v-gsize').textContent = g.size;
-  ctrl('rg-glight').value = g.light; ctrl('v-glight').textContent = g.light;
+  ctrl('rg-glight').value = g.light; ctrl('v-glight').textContent = g.light + '°';
   ctrl('rg-gfalloff').value = g.falloff; ctrl('v-gfalloff').textContent = g.falloff;
   ctrl('sel-gdist').value = g.dist;
-  ctrl('in-gseed').value = g.seed;
+  if (document.activeElement !== ctrl('in-gseed')) ctrl('in-gseed').value = g.seed;   // never rewrite a field while it is typed in
   ctrl('ck-gpaper').checked = g.paper;
   ctrl('row-gangle').hidden = flat || g.type === 'radial';
   ctrl('grad-blend').hidden = flat;
   ctrl('row-gflat').hidden = !flat;
   ctrl('row-gink').hidden = !speckle;
-  // Tone grain has no pattern of its own on screen; in Print the pattern is also the blend's dither
-  ctrl('row-gpattern').hidden = !(speckle || print);
-  const grainOn = hasNoise(g);
-  ctrl('row-glight').hidden = !(grainOn && g.dist === 'light');
-  ctrl('row-gfalloff').hidden = !(grainOn && g.dist !== 'even');
+  const grainOn = hasNoise(g), oneL = gradOneLightness(g), uses = gradUses(g);
+  ['space', 'amount', 'dist', 'size', 'pattern', 'seed', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
   ctrl('btn-export-plates').disabled = !print;
   gradSel = Math.min(gradSel, g.stops.length - 1);
   if (inkSwatch && inkSwatch.get() !== g.ink) inkSwatch.set(g.ink);
@@ -1130,7 +1156,7 @@ function syncGradControls() {
     ? inks + (inks === 1 ? ' ink' : ' inks') + ' → ' + inks + (inks === 1 ? ' plate' : ' plates') + '. Every cell is one pure ink' + (g.paper && !flat ? ', or bare paper.' : '.')
     : (gradVector() ? 'A smooth fill — the SVG keeps it as a vector gradient.' : 'A smooth fill with grain on top — a raster. Switch to Print for flat inks you can separate.');
   ctrl('grain-hint').textContent = !speckle && print ? 'Tone grain is a screen effect: in Print the blend is already made of ink cells. Choose Shadow for grain that prints.'
-    : (g.dist !== 'even' && g.dist !== 'light' && (flat || gradLUT(g).hi - gradLUT(g).lo <= 0.02)) ? 'This fill has one lightness, so the grain falls everywhere alike. Choose Away from a light to shade it.'
+    : (grainOn && g.dist !== 'even' && g.dist !== 'light' && oneL) ? 'This fill has one lightness, so the grain falls everywhere alike. Choose Away from a light to shade it.'
     : (speckle && print && g.pattern === 'dots' ? 'Each dot is cut out of the ink under it: the plates never overlap.'
     : (hasNoise(g) && g.dist === 'light' ? 'Light from: 0° is the top, 90° the right — the grain thickens toward the opposite side. Falloff 50 grows it evenly; higher keeps it to the far side.'
     : (hasNoise(g) && g.dist !== 'even' ? 'Falloff 50 grows the grain evenly across the fill; higher keeps it to the far end, lower spreads it further.' : '')));
@@ -1309,7 +1335,13 @@ function initGradient() {
     pushUndo('grad'); state.grad[key] = +e.target.value; gradChanged();
   }));
   ctrl('sel-gdist').addEventListener('change', e => { pushUndo('grad-dist'); state.grad.dist = e.target.value; gradChanged(); });
-  ctrl('in-gseed').addEventListener('input', e => { pushUndo('grad'); state.grad.seed = clamp(Math.round(+e.target.value || 0), 0, 9999); gradChanged(); });
+  ctrl('in-gseed').addEventListener('input', e => {
+    if (e.target.value === '') return;   // cleared to type a new number
+    const v = clamp(Math.round(+e.target.value || 0), 0, 9999);
+    if (v === state.grad.seed) return;
+    pushUndo('grad'); state.grad.seed = v; gradChanged();
+  });
+  ctrl('in-gseed').addEventListener('change', e => { e.target.value = state.grad.seed; });
   ctrl('ck-gpaper').addEventListener('change', e => { pushUndo('grad-paper'); state.grad.paper = e.target.checked; gradChanged(); });
   ctrl('btn-grad-reverse').addEventListener('click', () => {
     pushUndo('grad-stop');
