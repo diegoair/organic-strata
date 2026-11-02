@@ -1424,7 +1424,9 @@ function copyComposition() {   // this Figure gets its own copy; the other Figur
 // Figure's rules (and the variation's own); kept, the variation is pinned and says so, and opens that Symbol again.
 function rootFigureOf(n) { let f = n; for (let k = 0; f && f.type === 'figure-var' && k < 20; k++) f = parentNode(f); return f && f.type === 'figure' ? f : null; }
 const keptKey = (node, vr) => ((sourceOf(node) || {}).id || '') + '|' + vr.slot + '|' + (vr.spec ? vr.spec.seed : '');
-const ruleCopies = nodes => nodes.map(n => ({ type: n.type, params: JSON.parse(JSON.stringify(n.params || {})) }));
+// varied = the chain the variation drew (its src inputs): each copy takes the variation's rule (writeRule, as Use variation
+// does), so Symbol 1.a's Figure draws as the variation did — a flip or turn it drew included
+const ruleCopies = (nodes, varied) => { const ch = chainOf(varied), same = ch.length === nodes.length && ch.every(Boolean); return nodes.map((n, k) => { const c = { type: n.type, params: JSON.parse(JSON.stringify(n.params || {})) }; if (same) writeRule(c, ch[k]); return c; }); };
 function keptSymbolOf(node, vr) { const k = keptKey(node, vr); return boardSymbols().find(s => s.from && s.from.key === k) || null; }
 function openOnSymbolStep(node) {
   if ((node.type === 'figure' || node.type === 'symbol') && node.params && node.params.symbolId) {   // the Symbol node too (REVIEW Oct 30: its card says "Edit it on the Symbol step")
@@ -1440,7 +1442,7 @@ function openOnSymbolStep(node) {
   const fig = parentNode(node), own = ctl.model.edges.find(e => e.to.node === node.id && e.to.port === 'composition'), comp = ctl.model.edges.find(e => e.to.node === (fig || root).id && e.to.port === 'composition');
   const compNode = own ? NC.findNode(ctl.model, own.from.node) : comp ? NC.findNode(ctl.model, comp.from.node) : null;
   const from = { symbolId: (fig && fig.params && fig.params.symbolId) || root.params.symbolId, slot: variationNo(node), key: keptKey(node, vr),
-    rules: ruleCopies(chainNodesOf(fig || root).concat(chainNodesOf(node))), composition: compNode ? JSON.parse(JSON.stringify(compNode.params || {})) : null };
+    rules: ruleCopies(chainNodesOf(fig || root).concat(chainNodesOf(node)), vr.src && vr.src.inputs && vr.src.inputs.rules), composition: compNode ? JSON.parse(JSON.stringify(compNode.params || {})) : null };
   if (!vr.pinned) variationAction(node.id, 'pin');   // kept: a new seed does not take it away
   setTier('symbol');
   const d = hooks.openSymbolDraft({ work: f.symbolWork, from });
