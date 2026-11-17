@@ -1673,30 +1673,8 @@ function buildScene() {
     y += GRAD_H + GRAD_LEGEND_H + 30;
   }
 
-  // Colour cards — one per colour: the colour, its name and hex — and under
-  // each card that colour's own 0–900 scale. Clicking a card selects it.
-  const cw = Math.min(CARD_MAX_W, (BAR_X1 - BAR_X0 - (n - 1) * CARD_GAP) / n), cx0 = (VB_W - (n * cw + (n - 1) * CARD_GAP)) / 2;
-  const fit = (str, w, size) => { const max = Math.max(3, Math.floor(w / (size * 0.62))); return str.length > max ? str.slice(0, max - 1) + '…' : str; };
-  cols.forEach((hex, i) => {
-    const x = cx0 + i * (cw + CARD_GAP), r = CARD_R;
-    rect(x, y, cw, CARD_H, T.panel, { r: r });
-    items.push({
-      t: 'path', tf: { x: 0, y: 0, s: 1 }, fill: hex, role: i, title: `${dispName(i)} ${hex}`,
-      d: `M${num(x)} ${y + CARD_COLOUR_H}V${y + r}Q${num(x)} ${y} ${num(x + r)} ${y}H${num(x + cw - r)}Q${num(x + cw)} ${y} ${num(x + cw)} ${y + r}V${y + CARD_COLOUR_H}Z`,
-    });
-    text(x + 12, y + CARD_COLOUR_H + 16, fit(dispName(i), cw - 24, 11), 11, T.ink);
-    text(x + 12, y + CARD_COLOUR_H + 29, hex, 10, T.mid);
-    const sy = y + CARD_H + 12;
-    tokenScale(hex).forEach((st, j) => {
-      const ry = sy + j * (STEP_H + STEP_GAP), on = readableOn(st.hex, T);
-      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: `${dispName(i)} ${st.step} — ${st.hex}` }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
-      text(x + 8, ry + 14, st.step, 9, on);
-      text(x + cw - 8, ry + 14, st.hex, 9, on, 'end');
-    });
-  });
-  y += CARD_H + 12 + 10 * (STEP_H + STEP_GAP) + 30;
-
-  // An example of the palette in use: in proportion, or on the garment.
+  // An example of the palette in use: in proportion, or on a figure — first, above the
+  // colour cards (Diego, Nov 17, 2026: "sposta la figura sopra e … i colori sotto").
   if (!gradient) {
     const fig = currentFigure();
     text(BAR_X0, y, garment ? 'Example — ' + fig.name.toLowerCase() : 'Example — in proportion', 11, T.mid);
@@ -1739,6 +1717,29 @@ function buildScene() {
       y += BAR_H + 34;
     }
   }
+
+  // Colour cards — one per colour: the colour, its name and hex — and under
+  // each card that colour's own 0–900 scale. Clicking a card selects it.
+  const cw = Math.min(CARD_MAX_W, (BAR_X1 - BAR_X0 - (n - 1) * CARD_GAP) / n), cx0 = (VB_W - (n * cw + (n - 1) * CARD_GAP)) / 2;
+  const fit = (str, w, size) => { const max = Math.max(3, Math.floor(w / (size * 0.62))); return str.length > max ? str.slice(0, max - 1) + '…' : str; };
+  cols.forEach((hex, i) => {
+    const x = cx0 + i * (cw + CARD_GAP), r = CARD_R;
+    rect(x, y, cw, CARD_H, T.panel, { r: r });
+    items.push({
+      t: 'path', tf: { x: 0, y: 0, s: 1 }, fill: hex, role: i, title: `${dispName(i)} ${hex}`,
+      d: `M${num(x)} ${y + CARD_COLOUR_H}V${y + r}Q${num(x)} ${y} ${num(x + r)} ${y}H${num(x + cw - r)}Q${num(x + cw)} ${y} ${num(x + cw)} ${y + r}V${y + CARD_COLOUR_H}Z`,
+    });
+    text(x + 12, y + CARD_COLOUR_H + 16, fit(dispName(i), cw - 24, 11), 11, T.ink);
+    text(x + 12, y + CARD_COLOUR_H + 29, hex, 10, T.mid);
+    const sy = y + CARD_H + 12;
+    tokenScale(hex).forEach((st, j) => {
+      const ry = sy + j * (STEP_H + STEP_GAP), on = readableOn(st.hex, T);
+      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: `${dispName(i)} ${st.step} — ${st.hex}` }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
+      text(x + 8, ry + 14, st.step, 9, on);
+      text(x + cw - 8, ry + 14, st.hex, 9, on, 'end');
+    });
+  });
+  y += CARD_H + 12 + 10 * (STEP_H + STEP_GAP) + 30;
 
   // Contrast grid — each cell sets the row's colour as text on the column's.
   const gridY = y;

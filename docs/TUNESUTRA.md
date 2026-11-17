@@ -66,6 +66,11 @@ in-app photo reader.
 
 One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
 
+First, since Nov 17, 2026 (Diego: the figure above, the colours below), an
+**example** of the palette in use, chosen by the View switch: *Bar* (the
+colours in the Garment's proportions) or *Figure* (3 to 5 colours). In the
+*Gradient* view the gradient comes first and there is no example. Then:
+
 1. **Colour cards** — one rounded card per colour: the colour, its name and
    hex. Click a card to select that colour.
 2. **Scales** — under each card, that colour's ten steps, 0–900. Every step
@@ -73,26 +78,26 @@ One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
    is the same lightness for every colour. The picked colour is kept unchanged
    on its nearest step (outlined). Chroma keeps the pick's share of the gamut at
    each lightness and never exceeds the pick's own.
-   Then an **example** of the palette in use, chosen by the View switch: *Bar*
-   (the colours in 60/…-style proportions) or *Figure* (3 or 4 colours). In the
-   *Gradient* view the gradient comes first and there is no example.
 
    **Figures** (`tunesutra/figures.js`, data) show the palette in proportion on a
    drawing: each colour owns zones of a fixed share of the visible area. The
    **Garment** is the reference, measured: Base 52.0% · Secondary 32.2% ·
    Accent 10.9% · trim 4.8% (with 3 colours the trim takes the Accent:
-   52 / 32 / 16). The others were drawn from a few parameters and tuned to the
-   same shares, within 0.2 points:
-   - **House** (isometric) — walls / roof / door and windows / chimney and plinth
-   - **Room** (isometric corner) — walls / floor / sofa / cushion and picture
-   - **Poster** — ground / disc / band / dot and rule
+   52 / 32 / 16). The Figure menu holds two (Diego, Nov 17, 2026 — Room and
+   Poster retired):
+   - **Garment** — body / hem / V collar / two trim triangles
+   - **House** — a box in isometric axonometry, after Diego's photo of a
+     wooden model house: walls (Base) / flat roof (Secondary) / an open side
+     and a window band (Accent) / a step and the roof edge (trim). Built from a few
+     model parameters and tuned to the Garment's shares, within 0.2 points.
+   A palette saved on Room or Poster opens on the Garment. At 5 colours the
+   figure is always the Scene.
 
    The line under the figure gives the shares as measured from the drawing
    (`TUNESUTRA_FIGURE_SHARES`), and `node scripts/test-figures.mjs` fails if a
    figure drifts more than 1 point. The chosen figure is saved with the palette
    and drawn on its library card. A zone too pale to see on the paper gets a
-   hairline. This is a trial: the garment stays beside the new figures until one
-   is chosen to replace it.
+   hairline.
 3. **Contrast grid** — each cell sets the row's colour as text on the column's,
    with the WCAG ratio under it (`· close` marks a pair under ΔE 6).
 
