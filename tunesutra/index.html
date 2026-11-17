@@ -2078,7 +2078,7 @@ function route() {
   let h = '';
   try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { h = ''; }
   let p = null, name = '', suggest = '';
-  if (h === 'new') p = { colors: ['#c93ed6', '#c9863e', '#3ec9a8'] };
+  if (h === 'new') p = { colors: ['#ffffff', '#ffffff', '#ffffff'] };   // a blank start: three white colours (Diego, Nov 17, 2026)
   else if (h.indexOf('p=') === 0) { name = h.slice(2); p = userPresets()[name]; }
   else if (h.indexOf('c=') === 0) {
     const parts = h.slice(2).split('/'), col = (window.TUNESUTRA_COLLECTIONS || []).find(c => c.id === parts[0]);
