@@ -1,9 +1,14 @@
 name: Supabase keep-alive
 
-# Free-tier Supabase projects pause after 7 days with no API activity.
+# Free-tier Supabase projects pause after 7 days with no activity.
 # This pings the project once a day so it never sleeps. The key below is the
 # public anon key (already shipped in shared/supabase.js) — safe to inline;
 # row-level security is the real guard.
+#
+# The ping must reach the DATABASE: until Nov 2026 it only hit the REST root
+# (/rest/v1/) and /auth/v1/health, which answer without a query, and the
+# project was paused anyway (Nov 11–12, 2026). It now reads one row of
+# base_seeds (anon has SELECT on it) and fails unless that read succeeds.
 
 on:
   schedule:
@@ -14,13 +19,20 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping REST + Auth
+      - name: Query the database + ping Auth
         run: |
           BASE="https://dgzxsqdrktqgpnewxtwf.supabase.co"
           KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnenhzcWRya3RxZ3BuZXd4dHdmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzMzU1MjcsImV4cCI6MjEwMzkxMTUyN30.zdLNQFzdh28PmjCAeUkS9jqcjGX8B2txkJ5nL-MvRTs"
-          rest=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/rest/v1/?apikey=$KEY" -H "Authorization: Bearer $KEY")
-          auth=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/auth/v1/health" -H "apikey: $KEY")
-          echo "rest=$rest auth=$auth"
-          # any HTTP response from the project counts as activity; only a network
-          # failure (000) is a problem
-          [ "$rest" != "000" ] && [ "$auth" != "000" ]
+          body=$(curl -sS --retry 3 --retry-delay 10 -w "\n%{http_code}" \
+            "$BASE/rest/v1/base_seeds?select=seed_id&limit=1" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY") || true
+          code=$(printf '%s' "$body" | tail -n1)
+          rows=$(printf '%s' "$body" | sed '$d')
+          auth=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/auth/v1/health" -H "apikey: $KEY") || true
+          echo "db=$code auth=$auth rows=$(printf '%s' "$rows" | head -c 200)"
+          # A paused project does not resolve (curl 000). Fail unless the
+          # database answered with a row, so a pause is reported the same day.
+          if [ "$code" != "200" ] || ! printf '%s' "$rows" | grep -q '"seed_id"'; then
+            echo "::error::Database query failed (HTTP $code). Is the Supabase project paused? Restore it from the dashboard."
+            exit 1
+          fi
