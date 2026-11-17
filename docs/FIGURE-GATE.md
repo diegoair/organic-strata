@@ -170,6 +170,21 @@ Figure to the Symbol step and makes a variation a new Symbol 1.a at its first ed
 
 Automated half, Nov 2: `scripts/gate-figure.sh 280a732` → AUTOMATED GATE PASSED on `d6e025e` (figure graph · eval · board light + dark · regression · QA · fvs ui · Rhizome · atlas · perf).
 
+## 3 (Nov 17, 2026). Manual half — Compose: a saved Set on the cells
+
+Work of the day (`ec80c45`): while composing, the Library rail has a **Sets** group; a Set on the cells becomes a Fill ›
+Arrange region rule of its items. Try in both themes, console open:
+
+- [ ] Make a Set with two or more items (a Set node), open a classic Figure in **Compose**: the rail shows a **Sets** group, one tile per Set with items, its first item as the thumbnail; the group is not there outside Compose.
+- [ ] Select some cells, click the Set's tile: the region list gets *Arrange: ‹rule› · ‹Set›, ‹n› items* and the selected cells are filled with the Set's items, arranged.
+- [ ] Drag the tile onto one cell with no selection: only that cell gets the rule; onto a cell inside the selection: the whole selection.
+- [ ] Change the rule's arrangement (Rows, Checkerboard …): the cells follow; ⌘Z takes the rule back.
+- [ ] The Figure's export (SVG / PNG) draws the Set's items as Compose shows them.
+- [ ] Dark theme: the Sets group's label and tiles are readable.
+- [ ] Words still open as O-84: the tile's verb (*Arrange* or *Place*) and whether the list line names the Set.
+
+Automated half, Nov 17: `scripts/gate-figure.sh 12f0abf` → AUTOMATED GATE PASSED on `ec80c45` (figure graph · eval · board light + dark · regression 619/619 · QA · fvs ui · Rhizome · atlas · perf).
+
 ## 4. Record
 
 Tick each commit in the **Organica test log** artifact (https://claude.ai/artifact/FsEoGMwKmWeKinrXfUhvyh) as you go. It lists every commit of the day with a "try this" and a link, and its note field is where a failure goes. Then:
