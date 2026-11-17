@@ -1703,10 +1703,11 @@ function buildScene() {
       const k = FIG_H / fig.h, fx = (VB_W - fig.w * k) / 2, shares = figureShares(fig, n);
       fig.zones.forEach(z => {
         const r = zoneRole(z, n), pale = paleOnPaper(cols[r]);
-        items.push({
-          t: 'path', d: zoneD(z), tf: { x: fx, y: y, s: k }, fill: cols[r], stroke: pale ? T.border : T.paper, sw: (pale ? 1.125 : 1.5) / k,
+        // No outline between zones (Diego, Nov 17, 2026) — only a near-white zone keeps a hairline, or it vanishes on the paper.
+        items.push(Object.assign({
+          t: 'path', d: zoneD(z), tf: { x: fx, y: y, s: k }, fill: cols[r],
           role: r, quiet: true, title: `${dispName(r)}, ${shares[r].toFixed(0)}% of the figure, ${cols[r]}`,
-        });
+        }, pale ? { stroke: T.border, sw: 1.125 / k } : null));
       });
       y += FIG_H + 18;
       // The shares are measured from the drawing, not declared.
@@ -2045,7 +2046,7 @@ function paletteArt(p) {
   if (p.view === 'garment' && garmentFits(cols.length)) {
     const fig = figureById(p.figure), pad = fig.h * 0.06;
     return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}" aria-hidden="true">` +
-      fig.zones.map(z => { const hex = cols[zoneRole(z, cols.length)]; return `<path d="${zoneD(z)}" fill="${hex}" stroke="${paleOnPaper(hex) ? 'var(--border)' : 'var(--paper)'}" stroke-width="${fig.h / 220}"/>`; }).join('') + '</svg>';
+      fig.zones.map(z => { const hex = cols[zoneRole(z, cols.length)]; return `<path d="${zoneD(z)}" fill="${hex}"${paleOnPaper(hex) ? ` stroke="var(--border)" stroke-width="${fig.h / 220}"` : ''}/>`; }).join('') + '</svg>';
   }
   const w = roleWeights(cols.length);
   return cols.map((c, i) => `<span style="flex:${w[i].toFixed(2)};background:${c}"></span>`).join('');
