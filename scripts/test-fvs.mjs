@@ -47,6 +47,7 @@ const JOBS = {
   'figure-symbols':     node('test-fvs-figure-symbols.mjs'),   // Figure ← Symbol: one Figure per filled Symbol, synced; the Figure tab waits for a filled Symbol (Oct 29, 2026)
   'figure-symbol-vars': node('test-fvs-figure-symbol-vars.mjs'),   // a Symbol's Figure: a variation's own Canvas / Grid, every rule node on it and its variations, recent Element changes via nodes (Oct 30, 2026)
   'symbol-from-variation': node('test-fvs-symbol-from-variation.mjs'),   // a Symbol's Figure / variation double-clicked → the Symbol step; a draft Symbol 1.a born at its first edit (Oct 30, 2026)
+  'compose-set': node('test-fvs-compose-set.mjs'),   // a saved Set on a Compose cell = an Arrange of its items, the rail's Sets group (O-54, Nov 17, 2026)
   'brush':              node('test-fvs-brush.mjs'),       // Symbol Brush: take a rail tile, paint, turn / flip on a click again, Esc (Oct 28, 2026)
   'symmetry':           node('test-fvs-symmetry.mjs'),   // Zones › Symmetry: 12 wallpaper groups + rosettes, invariance (Oct 27, 2026)
   'continuity':         node('test-fvs-continuity.mjs'),   // Zones › Continuity: edge matching along a walk (Oct 27, 2026)

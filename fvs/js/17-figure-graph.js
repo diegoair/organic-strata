@@ -1459,7 +1459,7 @@ function enterCompose(figId) {
   ctrl('fb-figure-actions').hidden = true; ctrl('fb-compose-actions').hidden = false;
   setNodebar(null); renderComposeBar();
   // the left side is the Symbol step's Library rail: drag a saved Element / Component onto a cell, or click it for the selection
-  rt.railTarget = { apply: composeRailApply }; live.railCompose = true; ctrl('fg-nodebar-dock').hidden = true; syncRailTier('figure');
+  rt.railTarget = { apply: composeRailApply, sets: composeRailSets }; live.railCompose = true; ctrl('fg-nodebar-dock').hidden = true; syncRailTier('figure');
   ctrl('fg-compose-title').textContent = 'Compose ' + nodeLabel(fig);
   ctl.run(); drawCompose(); renderComposeInspector();
   ctrl('fg-compose-back').focus({ preventScroll: true });
@@ -1533,6 +1533,8 @@ function cellsWhen(ids) {
 const COMPOSE_FILLS = [['arrange', 'Arrange'], ['manual', 'Manual'], ['rule', 'Rule'], ['pattern', 'Pattern']];   // Symbol's order, then Pattern; the default is Manual
 const fillOf = r => { const d = (r && r.do) || {}; return d.symbolRule ? 'rule' : d.arrange ? 'arrange' : d.pattern ? 'pattern' : 'manual'; };
 const newSeedNum = () => 1 + Math.floor(Math.random() * 99999);
+// Fill › Arrange's new rule: the Symbol step's Arrange and Fit, the Figure's content (live), a new seed — a Set dropped on a cell starts from it too (O-54)
+const arrangeDefault = () => ({ rule: pv('sel-sym-arrange') || Object.keys(SYMBOL_ARRANGE)[0], live: true, pool: [], fit: pv('sel-sym-arrange-fit') || 'fill', seed: newSeedNum() });
 function editedOfKind(comp, kind) {   // the picked region rule, if it is this kind and still covers the selection
   const rs = comp ? comp.params.rules || [] : [], r = composing.edit != null ? rs[composing.edit] : null, w = selectionWhen();
   return r && fillOf(r) === kind && w && JSON.stringify(r.when) === JSON.stringify(w) ? r : null;
@@ -1542,7 +1544,7 @@ function composeDraft(comp, kind) {
   if (composing.draft[kind]) return composing.draft[kind];
   const r = editedOfKind(comp, kind), d = r && r.do;
   const v = kind === 'rule' ? (d ? JSON.parse(JSON.stringify(d.symbolRule)) : { name: pv('sel-symbol-rule') || 'oscillator', params: null, seed: newSeedNum(), vary: { rotation: pc('chk-rule-rotation'), flip: pc('chk-rule-flip'), scale: pc('chk-rule-scale') } })
-    : kind === 'arrange' ? (d ? JSON.parse(JSON.stringify(d.arrange)) : { rule: pv('sel-sym-arrange') || Object.keys(SYMBOL_ARRANGE)[0], live: true, pool: [], fit: pv('sel-sym-arrange-fit') || 'fill', seed: newSeedNum() })
+    : kind === 'arrange' ? (d ? JSON.parse(JSON.stringify(d.arrange)) : arrangeDefault())
     : (d ? JSON.parse(JSON.stringify(d.pattern)) : { patType: 'lines', patSpacing: 8, patWeight: 2, patAngle: 45 });
   if (kind === 'rule' && !v.params) v.params = SYMBOL_RULES[v.name].read();
   return (composing.draft[kind] = v);
@@ -1584,7 +1586,7 @@ function mountComposeFill(host, kind, comp) {
     host.innerHTML = `<div class="ctrl-row"><div class="ctrl-label">Arrange</div><select class="panel-select" id="fgc-arrange" aria-label="Arrangement">${Object.entries(SYMBOL_ARRANGE).map(([k, a]) => `<option value="${k}"${k === draft.rule ? ' selected' : ''}>${esc(a.label)}</option>`).join('')}</select></div>
       <div class="ctrl-row"><div class="ctrl-label">Fit</div><select class="panel-select" id="fgc-arrange-fit" aria-label="Fit in cell">${[...fit.options].map(o => `<option value="${o.value}"${o.value === draft.fit ? ' selected' : ''}>${esc(o.textContent)}</option>`).join('')}</select></div>
       ${seedRow}${apply('Arrange')}
-      <p class="org-panel__hint">Places the content feeding the Figure by a rule — which one goes in each cell follows its column / row, ring, sector or band. Random picks by weight.</p>`;
+      <p class="org-panel__hint">Places ${draft.set ? `the items of ${esc(draft.set)}` : 'the content feeding the Figure'} by a rule — which one goes in each cell follows its column / row, ring, sector or band. Random picks by weight.</p>`;
     ctrl('fgc-arrange').addEventListener('change', e => { draft.rule = e.target.value; push(); });
     ctrl('fgc-arrange-fit').addEventListener('change', e => { draft.fit = e.target.value; push(); });
   } else {
@@ -1720,7 +1722,7 @@ function describeComposeRule(r, inks) {
   const ink = d.color && inks ? inks.indexOf(d.color) : -1;
   const what = d.content && typeof d.content === 'object' ? d.content.name : d.toggle ? 'Swap empty / filled' : d.ink != null ? 'Ink ' + (d.ink + 1) : d.color ? (ink >= 0 ? 'Ink ' + (ink + 1) : inks ? 'Colour ' + d.color : 'Colour')
     : d.symbolRule ? 'Symbol rule: ' + (SYMBOL_RULE_LABELS[d.symbolRule.name] || d.symbolRule.name)
-    : d.arrange ? 'Arrange: ' + ((SYMBOL_ARRANGE[d.arrange.rule] || {}).label || d.arrange.rule) + (d.arrange.live ? ' · the Figure’s content' : ' · ' + d.arrange.pool.length + ' items')
+    : d.arrange ? 'Arrange: ' + ((SYMBOL_ARRANGE[d.arrange.rule] || {}).label || d.arrange.rule) + (d.arrange.live ? ' · the Figure’s content' : ' · ' + (d.arrange.set ? d.arrange.set + ', ' : '') + d.arrange.pool.length + (d.arrange.pool.length === 1 ? ' item' : ' items'))
     : d.paste ? 'Symbol: ' + d.paste.name
     : d.pattern ? 'Pattern: ' + (PATTERN_LABELS[d.pattern.patType] || d.pattern.patType) : describeRule({ when: {}, do: d }).split(' → ')[1];
   return where + ' → ' + what;
@@ -1891,10 +1893,21 @@ function composeRailApply(kind, name, idx) {
     addComposeRule({ paste: { name, at, entry: { gridModel: entry.gridModel, cells: entry.cells }, components } }, cellsWhen(plan.map(p => p[0])));
     return;
   }
+  if (kind === 'set') {   // a saved Set (O-54, Diego, Nov 17, 2026): an Arrange of its items over the cells, as Fill › Arrange makes it
+    const e = SETS.read()[name], pool = e ? (e.items || []).filter(x => x && x.snapshot).map(x => ({ kind: x.kind, name: x.name, entry: x.snapshot })) : [];
+    const when = idx != null && !composing.sel.has(idx) ? cellsWhen([idx]) : selectionWhen(); if (!when || !pool.length) return;
+    addComposeRule({ arrange: { ...arrangeDefault(), live: false, pool, set: name } }, when);
+    return;
+  }
   if (kind !== 'element' && kind !== 'component') return;
   const when = idx != null && !composing.sel.has(idx) ? cellsWhen([idx]) : selectionWhen(); if (!when) return;   // no cell selected: a click does nothing, as in Symbol
   const c = addContent(kind, name); if (!c.params.snapshot) return;
   addComposeRule({ content: { kind, name, entry: c.params.snapshot } }, when);
+}
+// The Library rail's Sets group while composing (O-54): one tile per saved Set, newest first.
+function composeRailSets() {
+  const all = SETS.read();
+  return Object.keys(all).sort((a, b) => String((all[b] || {}).savedAt || '').localeCompare(String((all[a] || {}).savedAt || ''))).filter(n => ((all[n] || {}).items || []).some(x => x && x.snapshot)).map(n => { const it = all[n].items.find(x => x && x.snapshot); return ['set', n, entryThumb(it.kind, it.name, it.snapshot)]; });   // its first item's thumbnail; an empty Set has no tile
 }
 function composeDrop(spec, clientX, clientY) {
   if (!composing || !spec || (spec.type !== 'element' && spec.type !== 'component')) return false;

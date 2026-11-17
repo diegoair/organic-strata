@@ -339,7 +339,7 @@ export function railTile(kind, name, svg, w, h) {
   x.type = 'button'; x.className = 'rmx-x'; x.dataset.railRemove = '1';
   x.innerHTML = Organica.icons.get('trash', { size: 'xs' });
   x.setAttribute('aria-label', 'Delete ' + name);   // one click, no confirm (Diego, Oct 6, 2026)
-  if (kind === 'pose') { tile.append(b); return tile; }   // the live Element: nothing to rename or delete
+  if (kind === 'pose' || kind === 'set') { tile.append(b); return tile; }   // the live Element: nothing to rename or delete; a Set is edited in its Set node
   tile.append(b, ren, x);
   return tile;
 }
@@ -391,8 +391,10 @@ export function renderLibraryRail() {
   syncRailGroup(syms, sNames.map(n => ['symbol', n, symbolEntryThumbSVG(sAll[n])]));
   const aAll = ASSET_LIBRARY.read(), aNames = Object.keys(aAll || {}).sort(newestFirst(aAll));
   syncRailGroup(ctrl('rail-assets'), aNames.map(n => ['asset', n, assetThumbSVG(aAll[n])]));
+  const sets = rt.railTarget && rt.railTarget.sets ? rt.railTarget.sets() : [];   // Compose only (O-54): the saved Sets, given by 17-figure-graph
+  syncRailGroup(ctrl('rail-sets'), sets);
   // An empty group is not shown (no "None saved yet"); Components stays on its own tab for Save all.
-  const onComp = state.activeTier === 'component', visible = [['poses', poses.length], ['elements', elNames.length || live], ['components', cNames.length || onComp], ['symbols', sNames.length], ['assets', aNames.length]];
+  const onComp = state.activeTier === 'component', visible = [['poses', poses.length], ['elements', elNames.length || live], ['components', cNames.length || onComp], ['symbols', sNames.length], ['assets', aNames.length], ['sets', sets.length]];
   visible.forEach(([k, on]) => { ctrl('rail-g-' + k).hidden = !on; });
   ctrl('btn-rail-save-all').hidden = !onComp;
   // nothing to show at all (and no Save footer) → no empty glass box beside the toggle
@@ -564,7 +566,7 @@ railPanel.addEventListener('click', e => {
   const it = tile.querySelector('.fvs-library-item'), kind = it.dataset.railKind, name = it.dataset.railName;
   if (e.target.closest('[data-rail-remove]')) { railRemove(kind, name); return; }
   if (e.target.closest('[data-rail-rename]')) { railRename(kind, name); return; }
-  if (kind === 'symbol' || e.detail === 0) { railUse(kind, name); return; }   // a Symbol / Enter on a focused tile
+  if (kind === 'symbol' || kind === 'set' || e.detail === 0) { railUse(kind, name); return; }   // a Symbol, a Set (Compose) / Enter on a focused tile
   clearTimeout(railClickTimer);
   if (e.detail >= 2) { if (kind === 'asset') return; if (kind === 'pose') setTier('element'); else (kind === 'element' ? openSavedElement : openSavedComponent)(name); return; }
   railClickTimer = setTimeout(() => (rt.brush && brushable(kind) ? setBrush({ kind, name }) : railUse(kind, name)), RAIL_DBL_MS);   // Brush on: a click takes the tile as the Brush; Select: it goes in the selected cells

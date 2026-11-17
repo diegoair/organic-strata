@@ -1395,7 +1395,9 @@ onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeL
   - **in Compose** (Oct 8, 2026) the rail is the left side (the node bar is hidden while composing,
     `rt.railTarget`): an Element / Component tile dragged onto a cell, or clicked for the selection, becomes a
     content region rule added after the others (so it wins); a Symbol tile dragged onto a cell, or clicked
-    (= at the first selected cell), becomes a **paste** region rule (below).
+    (= at the first selected cell), becomes a **paste** region rule (below); a saved **Set** (the rail's **Sets**
+    group, shown only while composing — Nov 17, 2026, O-54) dragged onto a cell, or clicked for the selection,
+    becomes an **Arrange** region rule of its items (below).
 - **Newest first** (Oct 5, 2026) — each group (Elements, Components, Symbols) lists the most recently
   saved at the top, so a save is in view at once (at the end it sat below the panel's fold). A
   one-click save (the quick-save circle) shows no notice — its ✓ says it (Diego, Oct 6, 2026: the
@@ -1728,6 +1730,7 @@ Diego, Oct 8, 2026: Compose has "exactly the same" design and features as the Sy
 - **Floatbar** — Done · Undo · Redo, then Symbol's **Fit in cell** (Contain · Stretch · Cover · Fixed size · Match cell + Anchor; on the selection, or on every cell when none is selected — the names say which) and **View** (*Show grid* = cell outlines — renamed from *Show loaded grid* in both steps, Oct 8, *Clip to cell* = the Figure node's own Clip, an undo step). Not in Compose: guides, track drag, *Show cover crop* (needs the Figure to draw it), Suggest, Variations, Generate, Clear.
 - **Left side = the Library rail** (Oct 8, 2026, `8a35de0`): the node bar is hidden while composing; drag or click a saved item as on the Symbol step (§ Library rail). Dropped on a cell outside the selection it takes that cell only; inside it, the whole selection.
 - **A saved Symbol in a Figure's cells** (`a2ec72f`): region rule `do.paste = {name, at: [row, col], entry: {gridModel, cells}, components}` — the Symbol's 4 central cells start at `at`, the rest keep their relative place, the outside is cut (`symbolPastePlan`, recomputed at every evaluation); its Components travel inside the rule (`components`, read by `evalFigure` like the Figure's own). Described *‹n› cells → Symbol: ‹name›*.
+- **A saved Set on the cells** (Nov 17, 2026 — O-54, Diego: *an Arrange of its items*): the rail's **Sets** group (`#rail-g-sets`, only while composing: `rt.railTarget.sets` = `composeRailSets`, one tile per Set that has items, its first item's thumbnail, no rename / delete — a Set is edited in its Set node; tile name *Arrange Set in the selected cells — ‹name›*). A click with cells selected, or a drag onto a cell (that cell only, or the selection it is in), adds one region rule `do.arrange = { …arrangeDefault(), live: false, pool: [the Set's items as {kind, name, entry}], set: ‹name› }` — Fill › Arrange's own rule, edited there (its hint says *Places the items of ‹Set›…*); the list reads *Arrange: ‹rule› · ‹Set›, ‹n› items*. The pool is a copy: a later edit of the saved Set does not reach the rule. The engine carries a non-live Arrange's Components into `componentEntries` (`engine/17-figure-nodes.js`). No cell selected: nothing happens, as for Elements. Test `scripts/test-fvs-compose-set.sh` (13).
 - **Not built**: the Scale range row under Vary in Compose's Rule; the cover-crop view. C8 (selection tools in Symbol) was dropped Oct 8, 2026.
 
 ### 12.6 Export (Phase 6)

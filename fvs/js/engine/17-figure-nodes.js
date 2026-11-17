@@ -341,6 +341,7 @@ async function compileFromSymbol(inputs, params, opts) {
   }
   const componentEntries = clone(sy.components || {});
   composeRules.forEach(r => { const c = r.do && r.do.content; if (c && typeof c === 'object' && c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
+  composeRules.forEach(r => { const a = r.do && r.do.arrange; if (a && !a.live) (a.pool || []).forEach(c => { if (c && c.kind === 'component' && c.entry && !componentEntries[c.name]) componentEntries[c.name] = c.entry; }); });   // a Set's Arrange (O-54): its Components travel with it
   // the recipe's base Element is only the panel's starting Shape — every seed cell draws from its own seedParams. A plain
   // shape type only: a Stack (layers) or a drawn shape set as the panel's type alone throws (Oct 29, 2026 — Diego's Symbol
   // with Element cells drew "Cannot read properties of undefined (reading 'geometry')")
@@ -432,6 +433,7 @@ export async function compileFigure(inputs, params, opts) {
     const componentEntries = {};
     contents.forEach(c => { if (c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
     composeRules.forEach(r => { const c = r.do && r.do.content; if (c && typeof c === 'object' && c.kind === 'component' && c.entry) componentEntries[c.name] = c.entry; });
+    composeRules.forEach(r => { const a = r.do && r.do.arrange; if (a && !a.live) (a.pool || []).forEach(c => { if (c && c.kind === 'component' && c.entry && !componentEntries[c.name]) componentEntries[c.name] = c.entry; }); });   // a Set's Arrange (O-54): its Components travel with it
     composeRules.forEach(r => { const p = r.do && r.do.paste; if (p && p.components) Object.entries(p.components).forEach(([n, e]) => { if (e && !componentEntries[n]) componentEntries[n] = e; }); });   // a pasted Symbol's Components travel with it
     element = { type: firstEl && SEED_TYPES[firstEl.entry.seed.type] ? firstEl.entry.seed.type : 'triangle', style: 'fill', colors: colors || ['#000000'], paper };
     if (pal && pal.ground) element.ground = clone(pal.ground);

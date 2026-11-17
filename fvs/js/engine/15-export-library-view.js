@@ -86,6 +86,7 @@ export function plateSVG(svg, colors, i, paper) {
 // What a click on a tile does depends on the tab: the aria-label says which.
 export function railTileVerb(kind) {
   const t = state.activeTier;
+  if (live.railCompose && kind === 'set') return 'Arrange Set in the selected cells —';   // O-54
   if (live.railCompose) return kind === 'symbol' ? 'Place Symbol at the first selected cell —' : 'Place ' + (kind === 'element' ? 'Element' : 'Component') + ' in the selected cells —';   // Compose (17-figure-graph sets it)
   if (kind === 'pose') return 'Place the Element in the selected cells —';
   if (kind === 'asset') return 'Place the asset from the selected cell —';   // the Element group (Symbol step only, Oct 28, 2026)
