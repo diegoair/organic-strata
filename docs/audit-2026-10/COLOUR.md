@@ -273,3 +273,4 @@ besides the dev server's favicon 404. Not verified: Safari / Firefox.
 - **Oct 4, 2026 — FVS, rectangular Components take their modular block** in a regular
   rectangular Symbol grid (cols × rows reduced; square = 1 cell; does not fit → one cell,
   reduced); Fit / Anchor / overflow measure the block (commits `d2a1d91`, `d160d2c`).
+- **Nov 17, 2026 — O-20, O-21, O-22, O-23 answered: every open decision as recommended** (D1–D4, D6–D12; P1–P8; T1–T13; N1–N3, N5, N7–N16; N4 extended to the suite). Ledger §2 (Nov 17) and §4 (*Colour migration*, *Names migration*); glossary rows in `docs/UI-COPY.md`. Not built yet.
