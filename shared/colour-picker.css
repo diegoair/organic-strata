@@ -1,0 +1,184 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+ * colour-picker.css — Organica's own popover colour picker (O-21, Nov 17, 2026).
+ * Paired with shared/colour-picker.js. Link after header.css + panel.css.
+ * The popover is .org-popover (look, radius, shadow, open state) made fixed and
+ * placed by JS from the anchor's rect. The square and hue strip are painted by JS
+ * (their gradients are the colours being picked — content, not chrome).
+ * Its cursor is THE knob (--knob-size), as the slider's handle and the switch.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.org-cpick {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: auto;
+  width: 268px;                       /* .org-popover's own min-width */
+  padding: var(--space-4);
+  z-index: 300;                        /* above the panel's own popovers and menus */
+}
+.org-cpick[hidden] { display: none; }
+
+/* top: Recent + Palettes */
+.org-cpick__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+.org-cpick__label,
+.org-cpick__palname {
+  font-size: var(--fs-micro);
+  color: var(--mid);
+}
+.org-cpick__palname { margin: var(--space-2) 0 var(--space-1); }
+.org-cpick__more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+.org-cpick__more[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.org-cpick__more .chev { transition: transform var(--dur-fast) var(--ease-standard); }
+.org-cpick__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-height: 18px;                    /* one .color-swatch row, so the layout holds when empty */
+}
+.org-cpick__empty { font-size: var(--fs-micro); color: var(--mid); align-self: center; }
+.org-cpick__pals {
+  max-height: 140px;
+  overflow-y: auto;
+  margin-top: var(--space-1);
+}
+.org-cpick__top { margin-bottom: var(--space-3); }
+
+/* the saturation / brightness square */
+.org-cpick__sv {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--radius-md);
+  cursor: crosshair;
+  touch-action: none;
+  outline: none;
+  margin-bottom: var(--space-4);
+}
+.org-cpick__sv:focus-visible,
+.org-cpick__hue:focus-visible {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent);
+}
+
+/* the hue strip — the slider's track measures */
+.org-cpick__hue {
+  position: relative;
+  height: var(--slo-h);
+  border-radius: var(--slo-r);
+  margin: 0 0 var(--space-4);
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+
+/* THE knob, filled with the colour it points at */
+.org-cpick__knob {
+  position: absolute;
+  top: 50%;
+  width: var(--knob-size);
+  height: var(--knob-size);
+  margin: calc(var(--knob-size) / -2) 0 0 calc(var(--knob-size) / -2);
+  box-sizing: border-box;
+  border: 2px solid var(--paper);
+  border-radius: 999px;                /* a droplet */
+  box-shadow: 0 0 0 1px var(--border-strong), 0 0 var(--space-3) rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+.org-cpick__sv .org-cpick__knob { top: auto; }   /* the square sets top from brightness */
+
+/* the value row: fields + the colour sample */
+.org-cpick__value {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.org-cpick__fields { flex: 1; min-width: 0; }
+.org-cpick__hex { width: 100%; }
+.org-cpick__nums { display: flex; gap: var(--space-1); }
+.org-cpick__num { flex: 1; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.org-cpick__tag { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
+.org-cpick__num input { width: 100%; text-align: center; padding: 0 var(--space-1); }
+.org-cpick__sample {
+  flex-shrink: 0;
+  width: var(--row-h);
+  height: var(--row-h);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+/* footer: the mode menu + Pick from screen + Copy */
+.org-cpick__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.org-cpick__tools { display: flex; gap: var(--space-1); }
+.org-cpick__modewrap { position: relative; }
+.org-cpick__mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--slo-h);
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-base);
+  cursor: pointer;
+}
+@media (hover: hover) { .org-cpick__mode:hover { background: var(--track-bg); } }
+.org-cpick__mode { transition: background-color var(--dur-fast) var(--ease-standard); }
+.org-cpick__mode[aria-expanded="true"] { background: var(--track-bg); }
+.org-cpick__mode[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.org-cpick__menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--space-1));
+  min-width: 120px;
+  padding: var(--space-1);
+  background: var(--paper);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.14);
+}
+.org-cpick__menu[hidden] { display: none; }
+.org-cpick__opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: var(--row-h);
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-base);
+  text-align: left;
+  cursor: pointer;
+}
+.org-cpick__opt .ico { visibility: hidden; }
+.org-cpick__opt[aria-selected="true"] .ico { visibility: visible; }
+@media (hover: hover) { .org-cpick__opt:hover { background: var(--track-bg); } }
+.org-cpick__opt:focus-visible { outline: none; background: var(--track-bg); }

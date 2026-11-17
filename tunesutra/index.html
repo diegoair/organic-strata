@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/colour-picker.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
   :root {
@@ -72,12 +73,6 @@
   .ts-card__meta { font-size: var(--fs-micro); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ts-card--new { border-style: dashed; background: none; }
   .ts-card--new .ts-card__art { background: none; align-items: center; justify-content: center; font-size: var(--fs-xl); color: var(--mid); }
-
-  /* ── PANEL — colour field groups not covered by panel.css ── */
-  .field-group { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
-  .field-mini { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-  .field-mini__tag { font-size: var(--fs-micro); color: var(--mid); text-align: center; }
-  .field-mini input { width: 100%; text-align: center; padding: 0 2px; }
 
   /* RMX chip CSS is shared/palette.css. TuneSutra tunes both strips
      (palette + gradient stops: 30×26, rounded, strong border) through the
@@ -144,8 +139,6 @@
           <button class="seg-btn" data-v="3">3</button>
           <button class="seg-btn" data-v="4">4</button>
           <button class="seg-btn" data-v="5">5</button>
-          <button class="seg-btn" data-v="6">6</button>
-          <button class="seg-btn" data-v="7">7</button>
         </div>
       </div>
       <div class="sub-label">View</div>
@@ -206,32 +199,20 @@
 
       <div class="color-row">
         <span class="color-name">Hex</span>
-        <div class="color-swatch-wrap"><input type="color" id="cp-active" value="#c93ed6"></div>
-        <button class="color-swatch" id="sw-active" aria-label="Open colour picker" onclick="ctrl('cp-active').click()"></button>
+        <button class="color-swatch" id="sw-active" aria-label="Edit colour" aria-haspopup="dialog"></button>
         <input class="color-hex" id="hex-active" value="#c93ed6" maxlength="7" aria-label="Hex value">
       </div>
 
-      <div class="sub-label">RGB</div>
-      <div class="field-group">
-        <label class="field-mini"><span class="field-mini__tag">R</span><input type="number" class="panel-input" id="f-r" min="0" max="255" step="1" aria-label="Red, 0 to 255"></label>
-        <label class="field-mini"><span class="field-mini__tag">G</span><input type="number" class="panel-input" id="f-g" min="0" max="255" step="1" aria-label="Green, 0 to 255"></label>
-        <label class="field-mini"><span class="field-mini__tag">B</span><input type="number" class="panel-input" id="f-b" min="0" max="255" step="1" aria-label="Blue, 0 to 255"></label>
+      <div class="org-tiles" id="value-tiles" role="group" aria-label="Values">
+        <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="hsb"><span class="org-tile__label">HSB</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="cmyk"><span class="org-tile__label">CMYK</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="oklch"><span class="org-tile__label">OKLCH</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value"></span><span class="org-tile__note"></span></button>
       </div>
+      <p class="org-panel__hint">Click a value to copy it. RAL matches are approximate.</p>
 
-      <div class="sub-label">HSB</div>
-      <div class="field-group">
-        <label class="field-mini"><span class="field-mini__tag">H</span><input type="number" class="panel-input" id="f-h" min="0" max="360" step="1" aria-label="Hue, 0 to 360"></label>
-        <label class="field-mini"><span class="field-mini__tag">S</span><input type="number" class="panel-input" id="f-s" min="0" max="100" step="1" aria-label="Saturation, 0 to 100 percent"></label>
-        <label class="field-mini"><span class="field-mini__tag">B</span><input type="number" class="panel-input" id="f-br" min="0" max="100" step="1" aria-label="Brightness, 0 to 100 percent"></label>
-      </div>
-
-      <div class="sub-label">CMYK</div>
-      <div class="field-group">
-        <label class="field-mini"><span class="field-mini__tag">C</span><input type="number" class="panel-input" id="f-c" min="0" max="100" step="1" aria-label="Cyan, 0 to 100 percent"></label>
-        <label class="field-mini"><span class="field-mini__tag">M</span><input type="number" class="panel-input" id="f-m" min="0" max="100" step="1" aria-label="Magenta, 0 to 100 percent"></label>
-        <label class="field-mini"><span class="field-mini__tag">Y</span><input type="number" class="panel-input" id="f-y" min="0" max="100" step="1" aria-label="Yellow, 0 to 100 percent"></label>
-        <label class="field-mini"><span class="field-mini__tag">K</span><input type="number" class="panel-input" id="f-k" min="0" max="100" step="1" aria-label="Key/black, 0 to 100 percent"></label>
-      </div>
     </div>
 
     <div class="panel-section">
@@ -389,20 +370,13 @@
     </div>
 
     <div class="panel-section">
-      <h3>Save</h3>
+      <h3>Saved palettes</h3>
       <div id="preset-picker"></div>
       <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)"></select>
       <div class="row-btns">
-        <button class="mini-btn" id="btn-preset-save">Save</button>
         <button class="mini-btn" id="btn-preset-delete" data-armed="Confirm?">Delete</button>
       </div>
-      <div id="preset-save-row" class="ctrl-row" hidden style="margin-top:var(--space-3)">
-        <input type="text" class="panel-select" id="txt-preset-name" placeholder="Name this palette" aria-label="Name this palette" style="flex:1">
-      </div>
-      <div id="preset-save-actions" class="row-btns" hidden>
-        <button class="mini-btn" id="btn-preset-confirm">Save</button>
-        <button class="mini-btn" id="btn-preset-cancel">Cancel</button>
-      </div>
+      <p class="org-panel__hint">Save is in the bar below the sheet. A saved palette is on the home page and in every tool’s palette library.</p>
     </div>
   </div>
 </div>
@@ -412,6 +386,22 @@
      popover tab once that's rebuilt. sendToFigma() stays defined below,
      ready to reuse, same convention as Loom/Camo Turing/FVS. ══ -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn" id="btn-save-open" aria-label="Save palette">
+      <svg class="ico" data-icon="save" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h8l2 2v8a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M5 2.5V6h5V2.5M5.5 10.5h5"/></svg>
+    </button>
+    <div class="org-popover" id="save-popover" aria-label="Save palette">
+      <div class="org-popover__title">Save palette</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="txt-preset-name">Name</label>
+        <input type="text" class="panel-input panel-input--full" id="txt-preset-name">
+      </div>
+      <div class="org-popover__row">
+        <button class="org-btn" id="btn-preset-confirm">Save</button>
+      </div>
+    </div>
+  </div>
+  <div class="org-floatbar__sep"></div>
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
       <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
@@ -457,7 +447,9 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/color.js"></script>
+<script src="/shared/colour-picker.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/vendor/ral-classic.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script src="/shared/plate-export.js"></script>
 <script src="/tunesutra/collections.js"></script>
@@ -553,7 +545,24 @@ function makeItem(hex, i) { return { id: newId(), name: freshName(i), hex: hex, 
 function colors() { return state.items.map(it => it.hex); }
 function count() { return state.items.length; }
 function dispName(i) { return (state.items[i].name || '').trim() || roleName(i); }
-function roleWeights(n) { return C.roleShares(n); }
+// The share each colour takes in the Bar and on the home cards = the Garment's own proportions
+// (Diego, Nov 17, 2026: "align the bar"), measured from its drawing (figures.js): 3 colours
+// 52 / 32 / 16, 4 colours 52.0 / 32.2 / 10.9 / 4.9 — Base : Secondary is the golden ratio.
+// 5 colours: the Scene's measured shares (wall 71.8 · floor 20.0 · body 4.6 · hem 2.8 · collar
+// 1.0 — the book's proportions). 6–7 can no longer be chosen (Nov 17, 2026) but a palette saved with them still opens
+// whole: Base and Secondary as the Garment's, its Accent + trim share split over the rest, each
+// 0.6 of the one before. TuneSutra only — C.roleShares (the 0.6 rule) also drives FVS Suggest
+// and stays as it is.
+function roleWeights(n) {
+  const g = figureShares(figureById('garment'), 4);   // [base, secondary, accent, trim], sums to 100
+  if (n === 3 || n === 4) return figureShares(figureById('garment'), n).slice();
+  if (n === 5) return figureShares(SCENE5, 5).slice();   // the Scene's measured shares (Diego, Nov 17, 2026)
+  if (n < 3) return C.roleShares(n);
+  const tail = g[2] + g[3], k = n - 2, raw = [];
+  for (let i = 0; i < k; i++) raw.push(Math.pow(0.6, i));
+  const sum = raw.reduce((a, b) => a + b, 0);
+  return [g[0], g[1]].concat(raw.map(v => v / sum * tail));
+}
 state.items = ['#c93ed6', '#c9863e', '#3ec9a8'].map(makeItem);
 
 // ── TOKEN SCALE (0–900) — Organica.color.scale: fixed perceptual lightness
@@ -659,13 +668,14 @@ function initChips() {
   chips = Organica.palette.swatch(ctrl('rmx-palette'), {
     colors: colors(),
     min: 3,
-    max: 7,
+    max: 5,   // 3–5 colours (Diego, Nov 17, 2026: 6 and 7 removed for now)
     library: false,   // this tool is where palettes are made — its own Save section loads them, with their names
+    // A chip opens Organica's own picker (shared/colour-picker.js, O-21 — Diego, Nov 17, 2026)
+    // and makes its colour the one the Colour section edits.
+    picker: 'organica',
+    nameOf: i => dispName(i),
+    onOpen: i => { if (i !== state.activeIndex) selectRole(i); },
     onChange: (cols, index, kind, removedAt) => {
-      // Role selection happens by clicking a bar segment (renderStage()'s
-      // .bar-seg handlers), not the chips — a chip's native colour input
-      // covers its whole clickable area, so a chip-level click handler
-      // can never fire (e.target is always the input).
       if (kind === 'set') return;
       pushUndo(kind);
       if (kind === 'edit') {
@@ -691,7 +701,7 @@ function highlightActiveChip() { chips.setActive(state.activeIndex); }
 // One refresh path for every change. rebuildChips=false only while a chip's
 // own native picker is the thing being dragged.
 function commit(rebuildChips) {
-  if (!garmentFits(count()) && state.view === 'garment') state.view = 'bar';   // the garment view only exists at 3 or 4 colours
+  if (!garmentFits(count()) && state.view === 'garment') state.view = 'bar';   // the figure view exists at 3–5 colours
   if (rebuildChips) { chips.setColors(colors()); gradChips.setColors(state.grad.stops); }
   highlightActiveChip();
   scaleCache.clear();
@@ -735,13 +745,21 @@ function setActiveColor(hex) {
   state.items[state.activeIndex].hex = hex;
   commit(true);
 }
-const FIELD_GROUPS = [['f-r', 'f-g', 'f-b'], ['f-h', 'f-s', 'f-br'], ['f-c', 'f-m', 'f-y', 'f-k']];
+// Hex · RGB · HSB · CMYK · Nearest RAL are read-only tiles (Diego, Nov 17, 2026) — values are typed in the picker.
+function refreshTiles(hex) {
+  const P = Organica.colorPicker, ral = P.nearestRal(hex);
+  ctrl('value-tiles').querySelectorAll('.org-tile').forEach(t => {
+    const k = t.dataset.v;
+    const text = k === 'ral' ? (ral ? ral.code : '—') : P.valueText(hex, k);
+    t.querySelector('.org-tile__value').textContent = text;
+    if (k === 'ral') t.querySelector('.org-tile__note').textContent = ral ? ral.name : '';
+    // OKLCH copies as CSS, ready for code: oklch(42% 0.15 312)
+    t.dataset.copy = k === 'ral' ? (ral ? ral.code + ' ' + ral.name : '') : k === 'oklch' ? 'oklch(' + text.replace(/,/g, '') + ')' : text;
+    if (!t.classList.contains('is-copied')) t.setAttribute('aria-label', 'Copy ' + t.querySelector('.org-tile__label').textContent + ' ' + t.dataset.copy);
+  });
+}
 function refreshFieldEditor() {
   const it = state.items[state.activeIndex], hex = it.hex;
-  const [r, g, b] = Organica.hexToRGB255(hex);
-  const hsb = rgbToHsb(r, g, b);
-  const cmyk = rgbToCmyk(r, g, b);
-
   writing = true;
   ctrl('active-role-label').textContent = dispName(state.activeIndex);
   if (document.activeElement !== ctrl('txt-name')) ctrl('txt-name').value = it.name;
@@ -749,23 +767,27 @@ function refreshFieldEditor() {
   // The first colour is the seed every harmony is built from — always kept.
   ctrl('ck-lock').checked = state.activeIndex === 0 || it.lock;
   ctrl('ck-lock').disabled = state.activeIndex === 0;
-  ctrl('cp-active').value = hex;
   ctrl('hex-active').value = hex;
   ctrl('sw-active').style.background = hex;
-  // The group being typed in is left alone: HSB and CMYK pass through 8-bit
-  // RGB, so writing them back mid-typing turned a typed 200 into 0 on a dark
-  // grey. It is re-read when the field is left (change).
-  const typing = FIELD_GROUPS.find(gr => gr.includes(document.activeElement && document.activeElement.id));
-  const put = (vals, ids) => { if (typing !== ids) ids.forEach((id, i) => { ctrl(id).value = vals[i]; }); };
-  put([r, g, b], FIELD_GROUPS[0]);
-  put([hsb.h, hsb.s, hsb.b], FIELD_GROUPS[1]);
-  put([cmyk.c, cmyk.m, cmyk.y, cmyk.k], FIELD_GROUPS[2]);
+  refreshTiles(hex);
   writing = false;
 }
 function bindFieldEditor() {
-  ctrl('cp-active').addEventListener('input', e => setActiveColor(e.target.value));
   ctrl('hex-active').addEventListener('change', e => setActiveColor(e.target.value));
-  ctrl('sw-active').addEventListener('click', () => ctrl('cp-active').click());
+  ctrl('sw-active').addEventListener('click', () => Organica.colorPicker.open(ctrl('sw-active'), {
+    value: state.items[state.activeIndex].hex,
+    label: dispName(state.activeIndex),
+    onInput: hex => { if (hex !== state.items[state.activeIndex].hex) setActiveColor(hex); },
+  }));
+  // a tile copies its value; its name says "Copied" for a moment
+  ctrl('value-tiles').addEventListener('click', e => {
+    const t = e.target.closest('.org-tile');
+    if (!t || !t.dataset.copy || !navigator.clipboard) return;
+    navigator.clipboard.writeText(t.dataset.copy).then(() => {
+      t.classList.add('is-copied'); t.setAttribute('aria-label', 'Copied');
+      setTimeout(() => { t.classList.remove('is-copied'); refreshTiles(state.items[state.activeIndex].hex); }, 1200);
+    }, () => {});
+  });
 
   ctrl('txt-name').addEventListener('input', e => {
     if (writing) return;
@@ -780,27 +802,6 @@ function bindFieldEditor() {
     pushUndo('lock');
     state.items[state.activeIndex].lock = e.target.checked;
   });
-
-  // A field cleared to type a new number changes nothing until a digit comes;
-  // leaving a field writes every group back from the colour.
-  FIELD_GROUPS.flat().forEach(id => ctrl(id).addEventListener('blur', refreshFieldEditor));
-  ['f-r', 'f-g', 'f-b'].forEach(id => ctrl(id).addEventListener('input', () => {
-    if (writing || ctrl(id).value === '') return;
-    const r = clamp(+ctrl('f-r').value || 0, 0, 255), g = clamp(+ctrl('f-g').value || 0, 0, 255), b = clamp(+ctrl('f-b').value || 0, 0, 255);
-    setActiveColor(hexFromRgb(r, g, b));
-  }));
-  ['f-h', 'f-s', 'f-br'].forEach(id => ctrl(id).addEventListener('input', () => {
-    if (writing || ctrl(id).value === '') return;
-    const h = clamp(+ctrl('f-h').value || 0, 0, 360), s = clamp(+ctrl('f-s').value || 0, 0, 100), v = clamp(+ctrl('f-br').value || 0, 0, 100);
-    const rgb = hsbToRgb(h, s, v);
-    setActiveColor(hexFromRgb(rgb.r, rgb.g, rgb.b));
-  }));
-  ['f-c', 'f-m', 'f-y', 'f-k'].forEach(id => ctrl(id).addEventListener('input', () => {
-    if (writing || ctrl(id).value === '') return;
-    const c = clamp(+ctrl('f-c').value || 0, 0, 100), m = clamp(+ctrl('f-m').value || 0, 0, 100), y = clamp(+ctrl('f-y').value || 0, 0, 100), k = clamp(+ctrl('f-k').value || 0, 0, 100);
-    const rgb = cmykToRgb(c, m, y, k);
-    setActiveColor(hexFromRgb(rgb.r, rgb.g, rgb.b));
-  }));
 }
 
 // ── STAGE — one scene list feeds the preview and every export (WYSIWYG) ──
@@ -821,16 +822,19 @@ const GRID_HEAD_H = 14, GRID_ROW_H = SW_H + 22;
 // (The view's stored id stays 'garment' — saved palettes and the built-in
 // collections carry it — and which figure is drawn is state.figure.)
 const FIGURES = window.TUNESUTRA_FIGURES, FIG_H = 502.5;
-function currentFigure() { return FIGURES.find(f => f.id === state.figure) || FIGURES[0]; }
+// 5 colours: always the Scene (window.TUNESUTRA_SCENE5) — the picker's figures are 3–4 colour drawings.
+const SCENE5 = window.TUNESUTRA_SCENE5;
+function figureFor(id, n) { return n === 5 ? SCENE5 : (FIGURES.find(f => f.id === id) || FIGURES[0]); }
+function currentFigure() { return figureFor(state.figure, count()); }
 function figureById(id) { return FIGURES.find(f => f.id === id) || FIGURES[0]; }
 function zoneD(z) { return z.d || (z.d = 'M' + z.pts.map(p => p[0] + ' ' + p[1]).join('L') + 'Z'); }
 // Measured once per figure: [base, secondary, accent, trim] in % of the visible area.
 const shareCache = {};
 function figureShares(fig, n) {
   const s4 = shareCache[fig.id] || (shareCache[fig.id] = window.TUNESUTRA_FIGURE_SHARES(fig));
-  return n === 4 ? s4 : [s4[0], s4[1], s4[2] + s4[3]];
+  return s4.length === 5 || n === 4 ? s4 : [s4[0], s4[1], s4[2] + s4[3]];   // the Scene measures its 5 roles
 }
-function garmentFits(n) { return n === 3 || n === 4; }
+function garmentFits(n) { return n >= 3 && n <= 5; }   // 3–4: the picker's figures; 5: the Scene
 function zoneRole(z, n) { return z.trim && n === 4 ? 3 : z.role; }
 // A zone too pale to see on the paper gets a hairline, as the book draws it.
 function paleOnPaper(hex) { return C.contrast(hex, '#ffffff') < 1.12; }
@@ -1715,13 +1719,23 @@ function buildScene() {
       y += 34;
     } else {
       let x = BAR_X0;
-      const barW = BAR_X1 - BAR_X0;
+      const barW = BAR_X1 - BAR_X0, below = [];
       weights.forEach((w, i) => {
         const segW = (w / 100) * barW, hex = cols[i];
         rect(x, y, segW, BAR_H, hex, { stroke: T.paper, sw: 2, role: i, title: `${dispName(i)}, ${w.toFixed(0)}%, ${hex}` });
         if (segW > 46) text(x + segW / 2, y + BAR_H / 2 + 4, w.toFixed(0) + '%', 12, readableOn(hex, T), 'middle');
+        else below.push({ cx: x + segW / 2, s: (w < 0.5 ? '<1' : w.toFixed(0)) + '%' });   // too narrow to hold its number: it goes under the bar
         x += segW;
       });
+      // Labels under the bar, centred on their segment; when two would touch they are pushed apart,
+      // right to left (the narrow segments sit at the end), never past the bar's right edge.
+      const CH = 6.2, GAP = 6;   // a character of the 10px sheet mono, the air between two labels
+      for (let k = below.length - 1, right = BAR_X1; k >= 0; k--) {
+        const half = below[k].s.length * CH / 2;
+        below[k].cx = Math.min(below[k].cx, right - half);
+        right = below[k].cx - half - GAP;
+      }
+      below.forEach(b => text(b.cx, y + BAR_H + 14, b.s, 10, T.mid, 'middle'));
       y += BAR_H + 34;
     }
   }
@@ -1793,9 +1807,25 @@ function renderStage() {
   const svg = ctrl('stage-svg');
   svg.setAttribute('viewBox', `0 0 ${scene.W} ${scene.H}`);
   svg.innerHTML = sceneMarkup(scene, true);
+  // The cards and the figure's zones (paths) open the picker; the proportion bar's segments
+  // (rects) only select their colour (Diego, Nov 17, 2026).
   svg.querySelectorAll('.bar-seg').forEach(el => {
-    el.addEventListener('click', () => selectRole(+el.dataset.i));
-    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectRole(+el.dataset.i); } });
+    const act = () => (el.tagName.toLowerCase() === 'rect' ? selectRole(+el.dataset.i) : pickOnSheet(el));
+    el.addEventListener('click', act);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
+  });
+}
+// A colour on the sheet (card, bar segment, figure zone) selects it AND opens the picker on it
+// (Diego, Nov 17, 2026). selectRole() redraws the sheet, so the anchor is found again at the
+// same place in the new drawing.
+function pickOnSheet(el) {
+  const i = +el.dataset.i, r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  if (i !== state.activeIndex) selectRole(i);
+  const hit = document.elementFromPoint(cx, cy), anchor = (hit && hit.closest && hit.closest('.bar-seg')) || el;
+  Organica.colorPicker.open(anchor, {
+    value: state.items[i].hex,
+    label: dispName(i),
+    onInput: hex => { if (state.activeIndex === i && hex !== state.items[i].hex) setActiveColor(hex); },
   });
 }
 function selectRole(i) {
@@ -1813,8 +1843,8 @@ function syncViewSeg() {
   ctrl('seg-view').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === state.view));
   const garmentBtn = ctrl('btn-view-garment');
   garmentBtn.disabled = !garmentFits(count());
-  garmentBtn.title = garmentFits(count()) ? '' : 'Available at 3 or 4 colours';
-  ctrl('row-figure').hidden = !(garmentFits(count()));
+  garmentBtn.title = garmentFits(count()) ? '' : 'Available at 3 to 5 colours';
+  ctrl('row-figure').hidden = !(garmentFits(count()) && count() !== 5);   // 5 colours: the Scene, nothing to pick
   if (ctrl('sel-figure').value !== state.figure) { ctrl('sel-figure').value = state.figure; if (figurePicker) figurePicker.refresh(); }
 }
 function setView(view) {
@@ -1825,7 +1855,7 @@ function setView(view) {
   renderStage();
 }
 function setCount(n) {
-  n = clamp(n, 3, 7);
+  n = clamp(n, 3, 5);
   if (n === count()) return;
   pushUndo('count');
   while (count() < n) state.items.push(makeItem(nextColour(), count()));
@@ -1979,19 +2009,22 @@ function applyPreset(name) {
   syncControls();
   commit(true);
 }
-function beginSavePreset() {
-  Organica.display(ctrl('preset-save-row'), 'flex');
-  Organica.display(ctrl('preset-save-actions'), 'flex');
-  ctrl('txt-preset-name').value = currentName || suggestedName;   // saving again under the same name overwrites it
-  ctrl('txt-preset-name').focus();
+// Save lives in the floatbar (Diego, Nov 17, 2026): #btn-save-open → #save-popover.
+// Saving under the name of ANOTHER saved palette asks first — the Save button arms
+// (Organica.armed, "Replace?"); saving the palette that is open under its own name doesn't.
+let savePopover = null;
+function syncSaveArm() {
+  const name = ctrl('txt-preset-name').value.trim(), b = ctrl('btn-preset-confirm');
+  const clash = !!name && name !== currentName && Object.prototype.hasOwnProperty.call(userPresets(), name);
+  if (clash) b.setAttribute('data-armed', 'Replace?'); else b.removeAttribute('data-armed');
 }
-function cancelSavePreset() {
-  ctrl('preset-save-row').hidden = true;
-  ctrl('preset-save-actions').hidden = true;
+function beginSavePreset() {
+  ctrl('txt-preset-name').value = currentName || suggestedName;
+  syncSaveArm();
 }
 function confirmSavePreset() {
   const name = ctrl('txt-preset-name').value.trim();
-  if (!name) return;
+  if (!name) { ctrl('txt-preset-name').focus(); return; }
   const all = userPresets();
   all[name] = {
     n: count(),
@@ -2010,7 +2043,7 @@ function confirmSavePreset() {
   PRESETS.write(all);
   setCurrent(name, '');
   populatePresets(name);
-  cancelSavePreset();
+  if (savePopover) savePopover.close();
 }
 function deletePreset() {
   const name = ctrl('preset-select').value;
@@ -2044,7 +2077,7 @@ function refreshTitle() {
 function paletteArt(p) {
   const cols = (p.colors || []).map(c => Organica.normalizeHex(c, '#888888'));
   if (p.view === 'garment' && garmentFits(cols.length)) {
-    const fig = figureById(p.figure), pad = fig.h * 0.06;
+    const fig = figureFor(p.figure, cols.length), pad = fig.h * 0.06;
     return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}" aria-hidden="true">` +
       fig.zones.map(z => { const hex = cols[zoneRole(z, cols.length)]; return `<path d="${zoneD(z)}" fill="${hex}"${paleOnPaper(hex) ? ` stroke="var(--border)" stroke-width="${fig.h / 220}"` : ''}/>`; }).join('') + '</svg>';
   }
@@ -2157,11 +2190,12 @@ ctrl('btn-export-plates').addEventListener('click', exportPlates);
 ctrl('btn-export-sys-css').addEventListener('click', exportSystemCSS);
 ctrl('btn-export-sys-json').addEventListener('click', exportSystemJSON);
 
-ctrl('btn-preset-save').addEventListener('click', beginSavePreset);
+ctrl('btn-save-open').addEventListener('click', beginSavePreset, true);   // capture: the name is filled before the popover opens and focuses it
+savePopover = Organica.popover(ctrl('btn-save-open'), ctrl('save-popover'));
 ctrl('btn-preset-delete').addEventListener('click', deletePreset);
 ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
-ctrl('btn-preset-cancel').addEventListener('click', cancelSavePreset);
-ctrl('txt-preset-name').addEventListener('keydown', e => { if (e.key === 'Enter') confirmSavePreset(); if (e.key === 'Escape') cancelSavePreset(); });
+ctrl('txt-preset-name').addEventListener('input', syncSaveArm);
+ctrl('txt-preset-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ctrl('btn-preset-confirm').click(); } });   // through the button, so "Replace?" still asks
 
 ctrl('btn-home').addEventListener('click', goHome);
 window.addEventListener('hashchange', route);

@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/node-canvas.css">
 <link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/colour-picker.css">
 <link rel="stylesheet" href="/shared/seeds-panel.css">
 <style>
   :root {
@@ -575,6 +576,7 @@
       <a href="#toggle">Checkbox &amp; switch</a>
       <a href="#panel-controls">Fields — input, select &amp; color row</a>
       <a href="#palette-chips">Palette — RMX chip strip</a>
+      <a href="#colour-picker">Colour picker &amp; value tiles</a>
       <a href="#select-picker">Picker</a>
       <a href="#seg-ctrl">Segmented control</a>
       <a href="#dual-range">Two-handle slider</a>
@@ -1583,6 +1585,33 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
 });</pre>
       <p class="ds-note"><strong>Icons, not glyphs</strong> (Oct 3, 2026). The remove button on a chip (<code>.rmx-x</code>, 13px) carries <code>close</code> at <code>xs</code> (10px) and the add button (<code>.rmx-add</code>) <code>plus</code> at <code>sm</code> (12px), both from <code>Organica.icons</code>, flex-centred — <code>palette.css</code> no longer sets a font size there. Load <code>shared/icons.js</code> before <code>palette.js</code>: without it the buttons render empty (their <code>aria-label</code> stays). The remove button has no <code>title</code> and no <code>data-armed</code> — one click removes a colour, and it can be added back.</p>
       <p class="ds-note"><strong>A colour with a texture — <code>opts.pattern</code></strong> (attach mode, opt-in, Oct 3, 2026). <code>Organica.palette.swatch('paper', { pattern: { panel, on, onToggle(on), label, title } })</code> adds a <strong>Pattern</strong> icon button (<code>pattern</code> from the registry, <code>org-btn org-btn--sm org-btn--icon</code>, <code>aria-pressed</code> — pressed is the shared ink fill) at the end of the <code>.color-row</code>, moves the tool’s own <code>panel</code> right under the row and toggles its <code>hidden</code> attribute; the returned object gains <code>setPattern(on)</code> (sets the state without calling <code>onToggle</code>, for loading a saved one). The component owns the toggle and the placement; the tool owns the pattern’s controls and draws it. Tools that don’t pass it are unchanged. Used by: Flexible Visual System’s Paper (Paper = colour + texture).</p>
+    </section>
+
+    <section class="ds-entry" id="colour-picker">
+      <h2>Colour picker &amp; value tiles</h2>
+      <p class="ds-desc">Organica’s own popover colour picker (O-21, Nov 17, 2026; phase 3 of the colour migration, piloted in TuneSutra). <code>Organica.colorPicker.open(anchorEl, { value, label, onInput(hex), onChange(hex) })</code> → <code>{ close, set(hex) }</code>. Top to bottom: <strong>Recent</strong> (shared by every tool, <code>organica.color.recent</code>, 10) + <strong>Palettes</strong> (saved TuneSutra palettes and the built-in sets, opened in place) · the <em>Saturation and brightness</em> square · the <em>Hue</em> strip (slider track measures, THE knob) · the value row (Hex, RGB or CMYK fields + the sample) · a footer with the <strong>Values</strong> menu (Hex · RGB · CMYK, <code>role="listbox"</code>, built inside the picker so it does not fire <code>organica:dropdown-open</code>; the mode is remembered in <code>organica.color.picker-mode</code>), <strong>Pick from screen</strong> (<code>eyedropper</code>, hidden where the EyeDropper API is missing) and <strong>Copy ‹mode› value</strong>. It is an <code>.org-popover</code> made <code>position: fixed</code> from the anchor’s rect, in <code>&lt;body&gt;</code>; it joins the one-dropdown-open contract; Esc closes it and gives focus back to the anchor. A palette strip opts in with <code>Organica.palette.swatch(el, { picker: 'organica', nameOf(i), onOpen(i) })</code> — each chip becomes a <code>button.rmx-color__pick</code> named “‹Name›, edit colour”. The square and hue gradients are content, not chrome.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/colour-picker.css</span><span>shared/colour-picker.js</span><span>shared/vendor/ral-classic.js</span><span>shared/panel.css (.org-tiles)</span><strong>Used in</strong><span>every tool that loads palette.js (the default since Nov 17, 2026)</span><span>any remaining input[type=color] on those pages</span><strong>Opt out</strong><span>picker: 'native'</span><span>data-picker="native"</span></div>
+      <div class="ds-example" style="max-width:280px">
+        <div class="color-row" style="margin-bottom:var(--space-3)">
+          <button class="color-swatch" id="ds-cpick-open" type="button" aria-label="Edit colour" aria-haspopup="dialog" style="background:#6a3387"></button>
+          <span class="ctrl-label">Open the picker</span>
+        </div>
+        <div class="org-tiles" id="ds-cpick-tiles" role="group" aria-label="Values">
+          <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value">#6A3387</span></button>
+          <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value">106 51 135</span></button>
+          <button type="button" class="org-tile" data-v="cmyk"><span class="org-tile__label">CMYK</span><span class="org-tile__value">21 62 0 47</span></button>
+          <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value">RAL 4008</span><span class="org-tile__note">Signal violet</span></button>
+        </div>
+        <p class="org-panel__hint">Click a value to copy it. RAL matches are approximate.</p>
+      </div>
+      <pre class="ds-code">Organica.colorPicker.open(swatchEl, {
+  value: state.hex, label: 'Base',          <span class="attr">/* dialog name: "Base colour" */</span>
+  onInput: hex =&gt; setColor(hex),
+});
+&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-tiles"</span> <span class="attr">role</span>=<span class="str">"group"</span> <span class="attr">aria-label</span>=<span class="str">"Values"</span>&gt;
+  &lt;<span class="tag">button</span> <span class="attr">class</span>=<span class="str">"org-tile"</span>&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-tile__label"</span>&gt;Hex&lt;/…&gt;&lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-tile__value"</span>&gt;…&lt;/…&gt;&lt;/<span class="tag">button</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
+      <p class="ds-note"><strong>Value tiles — <code>.org-tiles</code> &gt; <code>button.org-tile</code></strong> (<code>panel.css</code>, shared from the start — Diego, Nov 17, 2026). Read-only cards in a 2-column grid (the 248px panel is too narrow for 3): label above (<code>--fs-micro</code>, <code>--mid</code>), value below (display face, <code>--fs-medium</code>, ellipsis), optional <code>.org-tile__note</code>. A click copies the value — the tool’s handler; <code>.is-copied</code> while it says <em>Copied</em>. Name each tile “Copy ‹label› ‹value›”. <code>--paper</code> card, <code>--border</code> edge, both themes. <strong>Nearest RAL</strong>: RAL Classic, 210 screen approximations from Wikipedia (CC BY-SA 4.0, <code>THIRD-PARTY-NOTICES.md</code>); RAL is a trademark of RAL gGmbH, no affiliation. No Pantone data. Picking a colour in this demo adds it to your real Recent list.</p>
     </section>
 
     <section class="ds-entry" id="select-picker">
@@ -2658,7 +2687,28 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 <script src="/shared/dual-range.js"></script>
 <!-- fvs-field.js is standalone; color → palette are loaded only so the #fvs-field demo's palette picker shows the live library -->
 <script src="/shared/color.js"></script>
+<script src="/shared/colour-picker.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/vendor/ral-classic.js"></script>
+<script>
+(function(){
+  var P=window.Organica&&Organica.colorPicker, btn=document.getElementById('ds-cpick-open'), tiles=document.getElementById('ds-cpick-tiles');
+  if(!P||!btn||!tiles) return;
+  var hex='#6a3387';
+  function paint(){
+    btn.style.background=hex;
+    var ral=P.nearestRal(hex);
+    tiles.querySelectorAll('.org-tile').forEach(function(t){
+      var k=t.dataset.v, v=k==='ral'?(ral?ral.code:'—'):P.valueText(hex,k);
+      t.querySelector('.org-tile__value').textContent=v;
+      if(k==='ral') t.querySelector('.org-tile__note').textContent=ral?ral.name:'';
+      t.setAttribute('aria-label','Copy '+t.querySelector('.org-tile__label').textContent+' '+(k==='ral'&&ral?ral.code+' '+ral.name:v));
+    });
+  }
+  btn.addEventListener('click',function(){ P.open(btn,{ value:hex, onInput:function(h){ hex=h; paint(); } }); });
+  paint();
+})();
+</script>
 <script src="/shared/fvs-field.js"></script>
 <script src="/shared/node-canvas.js"></script>
 <script>
@@ -3258,7 +3308,7 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
 </script>
 <script>
 (function(){
-  var GROUPS=[['General',/^(plus|minus|close|check|chevron-.*|arrow-.*)$/],['File / IO',/^(download|upload|folder-open|video)$/],['History / run',/^(undo|redo|refresh|reset|loop|dice|play|pause|stop)$/],['Edit',/^(trash|eraser|pencil|pointer|brush|copy|swap|eye|eye-off|grip|invert)$/],['Views',/^(grid|full-family|sun|moon|mirror|align-.*)$/],['Glyph editor',/^(edit-points|add-point|handles|outline|legible)$/],['Node graph',/^(node-.*|palette|fit-view|fit-selection|pin|alert|select-(row|column|class|range))$/],['Flexible Visual System',/^fvs-/],['Living Path phrases · layer roles',/^(phrase|role)-/],['Other',/./]]; /* catch-all: a registry name no group matches is still shown */
+  var GROUPS=[['General',/^(plus|minus|close|check|chevron-.*|arrow-.*)$/],['File / IO',/^(save|download|upload|folder-open|video)$/],['History / run',/^(undo|redo|refresh|reset|loop|dice|play|pause|stop)$/],['Edit',/^(trash|eraser|pencil|pointer|brush|copy|swap|eye|eye-off|grip|invert)$/],['Views',/^(grid|full-family|sun|moon|mirror|align-.*)$/],['Glyph editor',/^(edit-points|add-point|handles|outline|legible)$/],['Node graph',/^(node-.*|palette|fit-view|fit-selection|pin|alert|select-(row|column|class|range))$/],['Flexible Visual System',/^fvs-/],['Living Path phrases · layer roles',/^(phrase|role)-/],['Other',/./]]; /* catch-all: a registry name no group matches is still shown */
   var host=document.getElementById('ds-icon-groups'); if(!host||!window.Organica||!Organica.icons) return;
   var names=Organica.icons.names(), used={};
   host.innerHTML=GROUPS.map(function(g){

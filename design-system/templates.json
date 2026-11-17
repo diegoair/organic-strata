@@ -54,6 +54,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "mobile-gate"
@@ -80,6 +81,7 @@
       "floatbar",
       "shell",
       "palette",
+      "colour-picker",
       "seeds-panel",
       "mobile-gate"
      ],
@@ -102,6 +104,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "mobile-gate"
@@ -151,6 +154,7 @@
       "floatbar",
       "node-canvas",
       "palette",
+      "colour-picker",
       "mobile-gate"
      ],
      "modules": true,
@@ -194,6 +198,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "mobile-gate"
@@ -217,6 +222,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "mobile-gate"
@@ -240,6 +246,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "mobile-gate"
@@ -289,6 +296,7 @@
       "floatbar",
       "shell",
       "palette",
+      "colour-picker",
       "seeds-panel",
       "mobile-gate"
      ],
@@ -314,6 +322,7 @@
       "floatbar",
       "shell",
       "palette",
+      "colour-picker",
       "mobile-gate"
      ],
      "modules": false,
@@ -335,6 +344,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "mobile-gate"
@@ -384,6 +394,7 @@
       "floatbar",
       "shell",
       "palette",
+      "colour-picker",
       "mobile-gate"
      ],
      "modules": false,
@@ -405,6 +416,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "mobile-gate"
@@ -428,6 +440,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "mobile-gate"
@@ -474,6 +487,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "seeds-panel",
@@ -501,6 +515,7 @@
       "floatbar",
       "shell",
       "palette",
+      "colour-picker",
       "mobile-gate"
      ],
      "modules": false,
@@ -525,6 +540,7 @@
       "floatbar",
       "shell",
       "palette",
+      "colour-picker",
       "mobile-gate"
      ],
      "modules": false,
@@ -549,6 +565,7 @@
       "floatbar",
       "shell",
       "palette",
+      "colour-picker",
       "mobile-gate"
      ],
      "modules": false,
@@ -596,6 +613,7 @@
       "floatbar",
       "shell",
       "palette",
+      "colour-picker",
       "mobile-gate"
      ],
      "modules": true,
@@ -617,6 +635,7 @@
       "icons",
       "header",
       "panel",
+      "colour-picker",
       "floatbar",
       "shell",
       "mobile-gate"
@@ -692,6 +711,7 @@
       "shell",
       "node-canvas",
       "palette",
+      "colour-picker",
       "seeds-panel"
      ],
      "modules": false,

@@ -407,7 +407,8 @@ async function symbolBoard(mode) {
 async function elementPalettes(mode) {
   const C = (n, ok, d) => check(mode, 'Palette · ' + n, ok, d);
   await step('element');
-  const setInk = hex => ev(h => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = h; i.dispatchEvent(new Event('input', { bubbles: true })); }, hex);
+  // the first ink chip is set through Organica's own picker (shared/colour-picker.js — the chips have no native input since Nov 17, 2026)
+  const setInk = hex => ev(h => { { const b = document.querySelector('#fvs-palette .rmx-color__pick'); b.click(); const x = document.querySelector('.org-cpick__hex'); x.value = h; x.dispatchEvent(new Event('input', { bubbles: true })); x.dispatchEvent(new Event('change', { bubbles: true })); Organica.colorPicker.close(); } }, hex);
   const live = () => ev(() => ({ colors: __t.F.state.colors.slice(), paper: __t.F.state.paperColor, active: __t.F.state.activeElement }));
   await setInk('#d01c1c'); await settle();
   const e1 = await live();
@@ -455,7 +456,7 @@ async function generatedPerElement(mode) {
   const setType = t => ev(async t => { const s = document.getElementById('sel-seed-type'); s.value = t; s.dispatchEvent(new Event('change', { bubbles: true })); await new Promise(r => setTimeout(r, 400)); }, t);
   await setType('star');
   for (const t of ['cross', 'drop']) { await press('Digit1', '!', 49, SHIFT); await click(await ev(() => __t.box('#btn-board-new-element'))); await setType(t); }
-  await ev(() => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = '#c0392b'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await settle();
+  await ev(() => { { const b = document.querySelector('#fvs-palette .rmx-color__pick'); b.click(); const x = document.querySelector('.org-cpick__hex'); x.value = '#c0392b'; x.dispatchEvent(new Event('input', { bubbles: true })); x.dispatchEvent(new Event('change', { bubbles: true })); Organica.colorPicker.close(); } }); await settle();
   await step('component');
   const areas = () => ev(() => [...document.querySelectorAll('#canvas-wrap .tier-view[data-tier="component"] [data-sheet]')].filter(s => s.dataset.sheet === 'gallery' || s.dataset.sheet.startsWith('gl-')).map(s => ({ id: s.dataset.sheet, label: (s.querySelector('.fvs-board-sheet__label') || {}).textContent, n: s.querySelectorAll('.fvs-thumb').length, red: s.querySelector('.fvs-thumb') ? s.querySelector('.fvs-thumb').innerHTML.toLowerCase().includes('#c0392b') : null, el: !!s.querySelector('.fvs-board-gallery__el-box svg') })));
   const a0 = await areas();
@@ -537,7 +538,7 @@ async function symbolKept(mode) {
   await ev(() => document.getElementById('btn-symbol-generate').click()); await settle();
   const sig = () => ev(() => ({ cells: (__t.F.state.symbolCells || []).length, names: (__t.F.state.symbolCells || []).map(c => c.componentName || c.seedType || '').join(','), grid: JSON.stringify(__t.F.state.symbolGrid && __t.F.state.symbolGrid.canvas && __t.F.state.symbolGrid.canvas.fvsFrame || null) }));
   const s0 = await sig();
-  await ev(() => { const i = document.querySelector('#fvs-palette input[type="color"]'); i.value = '#2e86c1'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await settle();
+  await ev(() => { { const b = document.querySelector('#fvs-palette .rmx-color__pick'); b.click(); const x = document.querySelector('.org-cpick__hex'); x.value = '#2e86c1'; x.dispatchEvent(new Event('input', { bubbles: true })); x.dispatchEvent(new Event('change', { bubbles: true })); Organica.colorPicker.close(); } }); await settle();
   await reloadFvs();
   await step('symbol');
   const s1 = await sig();

@@ -38,6 +38,18 @@
   padding: 0;
   cursor: pointer;
 }
+/* opts.picker: 'organica' — the chip is a button that opens shared/colour-picker.js */
+.rmx-color__pick {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.rmx-color__pick:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 /* Active-chip marker — Organica.palette.swatch(...).setActive(i) toggles this. */
 .rmx-color.chip-active {
   outline: 2px solid var(--tool, var(--ink));

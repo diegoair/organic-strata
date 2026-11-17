@@ -1825,7 +1825,9 @@
       if (e.defaultPrevented || (e.key !== 'Enter' && e.key !== ' ')) return;
       var el = e.target;
       if (!el || el.tagName === 'BUTTON' || el.getAttribute('role') !== 'button') return;
-      e.preventDefault(); el.click();
+      e.preventDefault();
+      if (typeof el.click === 'function') el.click();
+      else el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));   // an SVG role="button" has no .click()
     });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
     return { enhance: enhance };

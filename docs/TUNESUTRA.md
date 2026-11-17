@@ -244,8 +244,22 @@ tool's `--tool`, then run `/design-system/_dark-audit.html` on every page.
 FVS builds its **Colourways** from a palette's main colours and their shade scales
 (`Organica.color.scale`), and scores colour in **Suggest** (`contrast`, `deltaE`). It
 copies hex values — it keeps no link to the palette, so changing a palette here does not
-change saved FVS work. `DISTINCT_MIN` and the role shares (`roleShares`, the 0.6 rule of
-the Bar view) now live in `shared/color.js`; TuneSutra reads them from there. See
+change saved FVS work. `DISTINCT_MIN` and the role shares (`roleShares`, the 0.6 rule) live in `shared/color.js`; FVS
+Suggest reads them there. Since Nov 17, 2026 TuneSutra's **Bar view and home cards** use the
+**Garment's measured proportions** instead (`roleWeights()`, Diego: *align the bar*): 3 colours
+52 / 32 / 16, 4 colours 52.0 / 32.2 / 10.9 / 4.9 (Base : Secondary = the golden ratio); 5–7 keep
+Base 52 and Secondary 32.2 and split the Garment's Accent + trim share (15.8) over the rest, each
+0.6 of the one before — superseded the same day for 5 colours, see below.
+
+**3 to 5 colours** (Nov 17, 2026: *per 5 facciamo così · elimina 6 e 7 per ora*). The Colours control is
+3 · 4 · 5. At **5 colours** the Figure view draws the **Scene** (`window.TUNESUTRA_SCENE5` in
+`tunesutra/figures.js`): a back wall, a floor in perspective and the Garment standing on it (body,
+hem, V collar) — our own drawing after a book page of small figures in a room. Its measured shares
+— **wall 71.8 · floor 20.0 · body 4.6 · hem 2.8 · collar 1.0 %**, retuned to the book's page (its yellow
+panel measured ~72 / 20 / 5 / 3 / 0.7: wall 1.29 : 1, floor 0.29 of the wall deep, body 18.5 % of the
+wall wide) — are the Bar's at 5 colours too: a small figure in a large space. The figure picker is hidden at 5 (one figure). A palette saved with
+6–7 colours still opens with all of them (its Bar falls back to the tail rule above); the chip strip
+shows the first 5. `scripts/test-figures.mjs` checks the Scene (5 roles, largest first, in its box). See
 `docs/FVS.md` §6b.
 
 ## 7. Not built yet

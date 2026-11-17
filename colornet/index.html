@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/colour-picker.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
@@ -377,6 +378,7 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 
+<script src="/shared/colour-picker.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script src="/shared/print-size.js"></script>
@@ -1692,7 +1694,8 @@ function buildChannelUI() {
     card.querySelector('[data-act=del]').addEventListener('click', () => removeChannel(ch.id));
 
     const cp = card.querySelector('input[type=color]');
-    card.querySelector('.color-swatch').addEventListener('click', () => cp.click());
+    if (Organica.colorPicker) Organica.colorPicker.drive(card.querySelector('.color-swatch'), cp, { label: ch.name });   // Organica's picker (Nov 17, 2026)
+    else card.querySelector('.color-swatch').addEventListener('click', () => cp.click());
     cp.addEventListener('input', e => {
       ch.color = Organica.normalizeHex(e.target.value, ch.color);
       buildChannelUI(); render();

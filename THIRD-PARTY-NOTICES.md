@@ -83,4 +83,11 @@ directly against the license banner in each vendored file, August 27, 2026.
 
 ---
 
+### RAL Classic colour table (data)
+- **File**: `shared/vendor/ral-classic.js`
+- **License**: CC BY-SA 4.0 — https://creativecommons.org/licenses/by-sa/4.0/ (applies to this data file only)
+- **Source**: Wikipedia, "List of RAL colours" — https://en.wikipedia.org/wiki/List_of_RAL_colours (retrieved Nov 17, 2026; 210 RAL Classic codes, names and sRGB hex)
+- **Used by**: the shared colour picker's *Nearest RAL* value (`shared/colour-picker.js`), TuneSutra first.
+- **Note**: screen approximations, not official RAL references. RAL is a trademark of RAL gGmbH; no affiliation. RAL lists online configurators among its licensable uses — on the pre-launch licence checklist (Diego, Nov 17, 2026). No Pantone data is bundled.
+
 No other third-party code is vendored in this repository. `shared/*.js` / `.css` and every tool's own code are original work.

@@ -15,7 +15,7 @@
      pts    a closed polygon, [x, y] pairs
 
    window.TUNESUTRA_FIGURE_SHARES(fig) → [base, secondary, accent, trim] in % of
-   the visible area — measured, so the legend on the sheet and
+   the visible area ([wall, floor, body, hem, collar] for TUNESUTRA_SCENE5) — measured, so the legend on the sheet and
    scripts/test-figures.mjs read the same numbers.
 
    Garment: from a vector Diego supplied ("Group 34.svg") — a body, a flared hem,
@@ -91,6 +91,28 @@ window.TUNESUTRA_FIGURES = [
   },
 ];
 
+// The 5-colour figure (Diego, Nov 17, 2026: "per 5 facciamo così", after a book page of
+// small figures standing in a room — our own drawing, not a copy): a back wall (Base), a floor
+// in perspective (Secondary) and the Garment standing on it — its body, hem and V collar
+// (zones 0–2 of the Garment). Retuned the same day to the book's proportions, measured on its
+// yellow panel (~72 / 20 / 5 / 3 / 0.7 %): wall 387 × 300 (1.29 : 1), floor 0.29 of the wall's
+// height deep and skewed a quarter of its width, the garment's body 18.5 % of the wall's width
+// (scale 0.3113), centred on the wall, its hem resting half way down the floor. Measured:
+//     Wall 71.8 · Floor 20.0 · Body 4.6 · Hem 2.8 · Collar 1.0 %
+// Not in TUNESUTRA_FIGURES (the 3–4 colour picker); used whenever the palette has 5 colours.
+// PORT AS DATA.
+window.TUNESUTRA_SCENE5 = {
+  id: 'scene', name: 'Scene', note: 'A wall, a floor and the garment standing on it. Five colours.',
+  w: 484, h: 387,
+  zones: [
+    { role: 0, pts: [[96.75, 0], [483.75, 0], [483.75, 300], [96.75, 300]] },
+    { role: 1, pts: [[96.75, 300], [483.75, 300], [387, 387], [0, 387]] },
+    { role: 2, pts: [[254.45, 180.7], [326.05, 180.7], [326.05, 307.08], [254.45, 307.08]] },
+    { role: 3, pts: [[254.5, 294.94], [326, 294.94], [340.99, 343.5], [239.51, 343.5]] },
+    { role: 4, pts: [[290.09, 236.73], [264.89, 180.47], [315.3, 180.47]] },
+  ],
+};
+
 window.TUNESUTRA_FIGURE_SHARES = function (fig) {
   const zones = fig.zones.map(function (z) {
     const xs = z.pts.map(function (p) { return p[0]; }), ys = z.pts.map(function (p) { return p[1]; });
@@ -104,7 +126,8 @@ window.TUNESUTRA_FIGURE_SHARES = function (fig) {
     }
     return c;
   }
-  const count = [0, 0, 0, 0];
+  const roles = Math.max(4, 1 + Math.max.apply(null, zones.map(function (z) { return z.role; })));   // 4 for the 3–4 colour figures, 5 for the Scene
+  const count = []; for (let r = 0; r < roles; r++) count.push(0);
   for (let y = 0.5; y < fig.h; y++) {
     for (let x = 0.5; x < fig.w; x++) {
       let top = -1;
@@ -115,6 +138,6 @@ window.TUNESUTRA_FIGURE_SHARES = function (fig) {
       if (top >= 0) count[top]++;
     }
   }
-  const total = count[0] + count[1] + count[2] + count[3];
+  const total = count.reduce(function (a, b) { return a + b; }, 0);
   return count.map(function (c) { return 100 * c / total; });
 };

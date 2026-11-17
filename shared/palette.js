@@ -147,7 +147,20 @@
     cp.addEventListener('input', e => set(e.target.value));
     hexEl.addEventListener('input', e => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) set(e.target.value); });
     if (randomBtn) randomBtn.addEventListener('click', () => set(Organica.randomHex()));
-    if (sw) sw.addEventListener('click', () => cp.click());
+    // The swatch opens Organica's picker (the default where shared/colour-picker.js is loaded;
+    // opts.picker: 'native' keeps the browser's). It drives the hidden native input and fires
+    // its 'input' / 'change' events, so a tool that listens on #cp-<prefix> itself still hears it.
+    if (sw) sw.addEventListener('click', () => {
+      if (opts.picker === 'native' || !Organica.colorPicker) { if (opts.picker === 'native') cp.dataset.picker = 'native'; cp.click(); return; }
+      const label = nameEl ? nameEl.textContent.trim() : '';
+      Organica.colorPicker.open(sw, {
+        value: hexEl.value,
+        label: label || null,
+        onInput: hex => { if (hex === cp.value) return; cp.value = hex; cp.dispatchEvent(new Event('input', { bubbles: true })); },
+        onChange: () => cp.dispatchEvent(new Event('change', { bubbles: true })),
+      });
+    });
+    if (sw) sw.setAttribute('aria-haspopup', 'dialog');
     // One tab stop per colour: the swatch button is the keyboard control (it
     // forwards to the native picker), so the invisible native input leaves the
     // tab order and the accessibility tree.
@@ -222,15 +235,36 @@
     function rebuild() {
       wrap.innerHTML = '';
       colors.forEach((col, i) => {
-        const chip = document.createElement('label');
+        // Organica's own popover picker (shared/colour-picker.js) is the DEFAULT wherever it is
+        // loaded (Diego, Nov 17, 2026: "everywhere"); opts.picker: 'native' keeps the browser's.
+        const own = opts.picker !== 'native' && Organica.colorPicker;
+        const chip = document.createElement(own ? 'div' : 'label');
         chip.className = 'rmx-color' + (i === activeIndex ? ' chip-active' : '');
         chip.style.background = col;
-        const input = document.createElement('input');
-        input.type = 'color';
-        input.value = col;
-        input.setAttribute('aria-label', 'Palette colour ' + (i + 1));
-        input.addEventListener('input', e => setColor(i, e.target.value));
-        chip.appendChild(input);
+        if (own) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'rmx-color__pick';
+          btn.setAttribute('aria-label', (opts.nameOf ? opts.nameOf(i) : 'Palette colour ' + (i + 1)) + ', edit colour');
+          btn.setAttribute('aria-haspopup', 'dialog');
+          btn.addEventListener('click', () => {
+            if (opts.onOpen) opts.onOpen(i);
+            Organica.colorPicker.open(btn, {
+              value: colors[i],
+              label: opts.nameOf ? opts.nameOf(i) : null,
+              onInput: hex => { if (hex !== colors[i]) setColor(i, hex); },
+            });
+          });
+          chip.appendChild(btn);
+        } else {
+          const input = document.createElement('input');
+          input.type = 'color';
+          input.value = col;
+          input.setAttribute('aria-label', 'Palette colour ' + (i + 1));
+          if (opts.picker === 'native') input.dataset.picker = 'native';   // opted out: the page-wide hook leaves it alone
+          input.addEventListener('input', e => setColor(i, e.target.value));
+          chip.appendChild(input);
+        }
         if (colors.length > min) {
           const x = document.createElement('button');
           x.type = 'button';
