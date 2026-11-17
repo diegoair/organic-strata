@@ -16,8 +16,9 @@
  *
  * Layout, top to bottom: Recent colours (+ Palettes, the saved TuneSutra palettes
  * and the built-in sets, opened in place) · the saturation / brightness square ·
- * the hue strip · the value row (Hex, RGB or CMYK fields + the colour sample) ·
- * a footer with the mode menu (Hex · RGB · CMYK — Diego, Nov 17), Pick from
+ * the hue strip · the value row (the current mode's fields + the colour sample) ·
+ * a footer with the mode menu (Hex · RGB · HSB · CMYK · OKLCH · Nearest RAL —
+ * Diego, Nov 17; the same six as TuneSutra's value tiles), Pick from
  * screen (EyeDropper API, hidden where it is missing) and Copy.
  *
  * One instance, in <body>, position:fixed from the anchor's rect (as
@@ -26,14 +27,24 @@
  * The square and hue gradients are CONTENT (the colours being picked), not
  * chrome, so they are written here, not tokenised.
  *
- * LOAD ORDER: core.js → icons.js → this → palette.js (palette.js decides per chip at build time). color.js +
- * vendor/ral-classic.js only for nearestRal().
+ * LOAD ORDER: core.js → icons.js → this → palette.js (palette.js decides per chip at build time).
+ * OKLCH and Nearest RAL need color.js (+ vendor/ral-classic.js for RAL): where a page does
+ * not load them, the picker loads them itself the first time it opens (ensureExtras).
  * ───────────────────────────────────────────────────────────────────────────── */
 (function (global) {
   'use strict';
   const Organica = global.Organica || (global.Organica = {});
   const RECENT_KEY = 'organica.color.recent', RECENT_MAX = 10;
-  const MODES = [['hex', 'Hex'], ['rgb', 'RGB'], ['cmyk', 'CMYK']];
+  const MODES = [['hex', 'Hex'], ['rgb', 'RGB'], ['hsb', 'HSB'], ['cmyk', 'CMYK'], ['oklch', 'OKLCH'], ['ral', 'Nearest RAL']];
+  // the number fields per mode: [tag, accessible name, max, step]
+  const NUMS = {
+    rgb: [['R', 'Red, 0 to 255', 255, 1], ['G', 'Green, 0 to 255', 255, 1], ['B', 'Blue, 0 to 255', 255, 1]],
+    hsb: [['H', 'Hue, 0 to 360 degrees', 360, 1], ['S', 'Saturation, 0 to 100 percent', 100, 1], ['B', 'Brightness, 0 to 100 percent', 100, 1]],
+    cmyk: [['C', 'Cyan, 0 to 100 percent', 100, 1], ['M', 'Magenta, 0 to 100 percent', 100, 1], ['Y', 'Yellow, 0 to 100 percent', 100, 1], ['K', 'Key/black, 0 to 100 percent', 100, 1]],
+    oklch: [['L', 'Lightness, 0 to 100 percent', 100, 1], ['C', 'Chroma, 0 to 0.4', 0.4, 0.01], ['H', 'Hue, 0 to 360 degrees', 360, 1]],
+  };
+  // where this file is served from, to load color.js / the RAL data next to it
+  const BASE = (document.currentScript && document.currentScript.src || '').replace(/[^/]*$/, '');
   const MODE_KEY = 'organica.color.picker-mode';
 
   let root = null, els = {}, anchor = null, opts = {}, open = false;
@@ -43,6 +54,21 @@
   const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
   const ico = (n, o) => (Organica.icons ? Organica.icons.get(n, o) : '');
   function store(k, val) { try { if (val === undefined) return global.localStorage.getItem(k); global.localStorage.setItem(k, val); } catch (e) { return null; } return null; }
+
+  // ── OKLCH / RAL need color.js + the RAL data: load them once if the page did not ──
+  let extras = null;
+  function loadScript(src) {
+    return new Promise(res => { const t = document.createElement('script'); t.src = src; t.onload = t.onerror = () => res(); document.head.appendChild(t); });
+  }
+  function ensureExtras() {
+    if (extras || !BASE) return extras;
+    const need = [];
+    if (!(Organica.color && Organica.color.hexToOklch)) need.push(BASE + 'color.js');
+    if (!global.ORGANICA_RAL_CLASSIC) need.push(BASE + 'vendor/ral-classic.js');
+    extras = need.reduce((p, src) => p.then(() => loadScript(src)), Promise.resolve());
+    extras.then(() => { if (open && (mode === 'oklch' || mode === 'ral')) writeFields(hexOf()); });
+    return extras;
+  }
 
   // ── colour maths (HSB floats ↔ hex) ──
   // Its own HSB → RGB, so every tool can load the picker without shared/color.js
@@ -91,16 +117,18 @@
     const [r, g, b] = Organica.hexToRGB255(hex);
     if (m === 'rgb') return r + ', ' + g + ', ' + b;
     if (m === 'cmyk') { const c = Organica.rgbToCmyk(r, g, b); return c.c + ', ' + c.m + ', ' + c.y + ', ' + c.k; }
-    if (m === 'hsb') {   // display only (TuneSutra's HSB tile) — not a picker mode
+    if (m === 'hsb') {
       const R = r / 255, G = g / 255, B = b / 255, max = Math.max(R, G, B), d = max - Math.min(R, G, B);
       let hh = 0;
       if (d > 0) { hh = max === R ? 60 * (((G - B) / d) % 6) : max === G ? 60 * ((B - R) / d + 2) : 60 * ((R - G) / d + 4); if (hh < 0) hh += 360; }
       return Math.round(hh) % 360 + ', ' + Math.round(max ? d / max * 100 : 0) + ', ' + Math.round(max * 100);
     }
-    if (m === 'oklch' && Organica.color && Organica.color.hexToOklch) {   // display only (TuneSutra's OKLCH tile); needs color.js
+    if (m === 'oklch') {   // needs color.js
+      if (!(Organica.color && Organica.color.hexToOklch)) return '';
       const o = Organica.color.hexToOklch(hex);
       return Math.round(o.l * 100) + '%, ' + o.c.toFixed(2) + ', ' + Math.round(o.h) % 360;
     }
+    if (m === 'ral') { const n = nearestRal(hex); return n ? n.code + ' ' + n.name : ''; }
     return hex.toUpperCase();
   }
 
@@ -175,28 +203,33 @@
   }
   function writeFields(hex) {
     const inputs = els.fields.querySelectorAll('input');
-    if (mode === 'hex') { if (document.activeElement !== inputs[0]) inputs[0].value = hex.toUpperCase(); return; }
-    const vals = valueText(hex, mode).split(', ');
-    inputs.forEach((inp, i) => { if (document.activeElement !== inp) inp.value = vals[i]; });
+    if (mode === 'hex' || mode === 'ral') {
+      if (document.activeElement !== inputs[0]) inputs[0].value = mode === 'hex' ? hex.toUpperCase() : valueText(hex, 'ral');
+      return;
+    }
+    const vals = valueText(hex, mode).split(', ').map(x => x.replace('%', ''));
+    inputs.forEach((inp, i) => { if (document.activeElement !== inp) inp.value = vals[i] || ''; });
   }
   function buildFields() {
     els.fields.innerHTML = '';
     if (mode === 'hex') {
       const i = el('input', 'color-hex org-cpick__hex', { type: 'text', maxlength: '7', 'aria-label': 'Hex value', spellcheck: 'false' });
       els.fields.appendChild(i);
+    } else if (mode === 'ral') {
+      // the nearest RAL Classic shade (a screen approximation); typing a code jumps to it
+      const i = el('input', 'panel-input org-cpick__hex', { type: 'text', 'aria-label': 'Nearest RAL, approximate. Type a RAL code to use it', spellcheck: 'false' });
+      els.fields.appendChild(i);
     } else {
-      const spec = mode === 'rgb'
-        ? [['R', 'Red, 0 to 255', 255], ['G', 'Green, 0 to 255', 255], ['B', 'Blue, 0 to 255', 255]]
-        : [['C', 'Cyan, 0 to 100 percent', 100], ['M', 'Magenta, 0 to 100 percent', 100], ['Y', 'Yellow, 0 to 100 percent', 100], ['K', 'Key/black, 0 to 100 percent', 100]];
-      spec.forEach(([tag, name, max]) => {
+      NUMS[mode].forEach(([tag, name, max, step]) => {
         const lab = el('label', 'org-cpick__num');
         lab.innerHTML = '<span class="org-cpick__tag">' + tag + '</span>';
-        const i = el('input', 'panel-input', { type: 'number', min: '0', max: String(max), step: '1', 'aria-label': name });
+        const i = el('input', 'panel-input', { type: 'number', min: '0', max: String(max), step: String(step), 'aria-label': name });
         lab.appendChild(i);
         els.fields.appendChild(lab);
       });
     }
-    els.fields.className = 'org-cpick__fields' + (mode === 'hex' ? '' : ' org-cpick__nums');
+    els.fields.className = 'org-cpick__fields' + (NUMS[mode] ? ' org-cpick__nums' : '');
+    if (mode === 'oklch' || mode === 'ral') ensureExtras();
     const name = MODES.find(m => m[0] === mode)[1];
     els.modeBtn.innerHTML = '<span>' + name + '</span>' + ico('chevron-down', { size: 'sm', cls: 'chev' });
     els.modeBtn.setAttribute('aria-label', 'Values: ' + name);
@@ -211,9 +244,19 @@
       if (/^#[0-9a-f]{3}$/i.test(t)) t = '#' + t.slice(1).split('').map(c => c + c).join('');
       return /^#[0-9a-f]{6}$/i.test(t) ? t.toLowerCase() : null;
     }
+    if (mode === 'ral') {
+      const m = inputs[0].value.match(/\d{4}/), list = global.ORGANICA_RAL_CLASSIC || [];
+      const hit = m && list.find(e => e[0] === 'RAL ' + m[0]);
+      return hit ? hit[2].toLowerCase() : null;
+    }
     if (inputs.some(i => i.value === '')) return null;
     const n = inputs.map(i => +i.value || 0);
     if (mode === 'rgb') return Organica.rgbToHex(clamp(n[0], 0, 255), clamp(n[1], 0, 255), clamp(n[2], 0, 255)).toLowerCase();
+    if (mode === 'hsb') { h = clamp(n[0], 0, 360) % 360; s = clamp(n[1], 0, 100); v = clamp(n[2], 0, 100); return hexOf(); }
+    if (mode === 'oklch') {
+      if (!(Organica.color && Organica.color.oklchToHex)) return null;
+      return Organica.color.oklchToHex(clamp(n[0], 0, 100) / 100, clamp(n[1], 0, 0.4), clamp(n[2], 0, 360) % 360).toLowerCase();
+    }
     const rgb = Organica.cmykToRgb(clamp(n[0], 0, 100), clamp(n[1], 0, 100), clamp(n[2], 0, 100), clamp(n[3], 0, 100));
     return Organica.rgbToHex(rgb.r, rgb.g, rgb.b).toLowerCase();
   }
@@ -370,7 +413,10 @@
     });
     // copy the value as the current mode shows it
     els.copy.addEventListener('click', () => {
-      const text = valueText(hexOf(), mode), b = els.copy, label = b.getAttribute('aria-label');
+      const hx = hexOf(), b = els.copy, label = b.getAttribute('aria-label');
+      let text = valueText(hx, mode);
+      if (mode === 'oklch' && text) text = 'oklch(' + text.replace(/, /g, ' ') + ')';
+      if (!text) return;
       const done = () => {
         b.innerHTML = ico('check', { size: 'sm' }); b.setAttribute('aria-label', 'Copied');
         setTimeout(() => { b.innerHTML = ico('copy', { size: 'sm' }); b.setAttribute('aria-label', label); }, 1200);
