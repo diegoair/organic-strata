@@ -2110,6 +2110,7 @@ const GRAD_DEFAULT = JSON.stringify(state.grad), SYS_DEFAULT = JSON.stringify(st
 initChips();
 initGradient();
 initSystem();
+Organica.enhanceSliders(document);   // the Slosh fill on every slider, liquid switches, click-to-edit values
 initFigurePicker();
 bindFieldEditor();
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
