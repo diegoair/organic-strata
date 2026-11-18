@@ -223,7 +223,7 @@
     </div>
 
     <div class="panel-section">
-      <h3>Gradient &amp; grain <span class="hint" id="grad-target"></span></h3>
+      <h3>Gradient &amp; grain</h3>
       <div class="row-btns"><button class="mini-btn" id="btn-shade-reset" hidden title="Forget this colour’s own shading: it takes the preset on the house again">Back to preset</button></div>
       <div class="sub-label">Type</div>
       <div class="ctrl-row">
@@ -250,8 +250,8 @@
         <label class="check-row org-switch" title="Adds the paper as the last stop: the last ink thins out to bare paper and gets no plate of its own."><input type="checkbox" id="ck-gpaper"><span>Fade to paper</span></label>
       </div>
       <div class="ctrl-row">
-        <div class="ctrl-label" title="The size of one grain, in sheet units. Every grain is one pure ink.">Grain size</div>
-        <input type="range" id="rg-gsize" min="1" max="12" step="0.5" value="2">
+        <div class="ctrl-label" title="The size of one grain, in sheet units. 0 = no grain: the gradient blends smoothly.">Grain size</div>
+        <input type="range" id="rg-gsize" min="0" max="12" step="0.5" value="0">
         <span class="ctrl-val" id="v-gsize">2</span>
       </div>
       <div id="row-gpattern">
@@ -719,7 +719,7 @@ function shadeDefs(hex) {
   const sc = tokenScale(hex), a = Math.max(0, sc.findIndex(st => st.anchor)), dir = a <= 7 ? 1 : -1;   // darker, unless already near black
   const shade = sc[clamp(a + 3 * dir, 0, 9)].hex, deep = sc[clamp(a + 5 * dir, 0, 9)].hex;
   const base = { type: 'linear', angle: 180, stops: [hex, shade], pos: [0.2, 1], paper: false,
-    ink: deep, amount: 0, size: 1.5, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
+    ink: deep, amount: 0, size: 0, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
   // Flat draws only the first stop; the second is there so that switching it to Linear / Radial blends at once.
   const speckle = Object.assign({}, base, { type: 'flat', amount: 70, size: 2, falloff: 65 });
   return { soft: base, speckle: speckle, print: Object.assign({}, speckle, { pattern: 'dots', size: 3 }) };
@@ -808,7 +808,7 @@ function hasNoise(g) { return g.amount > 0; }
 // The blend is a dither of the stops (it needs Pattern and Seed); the shadow is
 // one more ink on top (Spread, Light from, Falloff only when it is there).
 function gradUses(g) {
-  const blend = g.type !== 'flat', shadow = hasNoise(g), light = shadow && g.dist === 'light';
+  const blend = g.type !== 'flat' && g.size > 0, shadow = hasNoise(g), light = shadow && g.dist === 'light';   // a smooth blend (grain 0) needs no pattern or seed
   return {
     angle: g.type === 'linear',
     pattern: blend || shadow,
@@ -835,7 +835,31 @@ function dotAt(c, r, seed) {
 // also cut out of the ink under it (a circle inside that ink's rectangle, filled
 // even-odd) — so the inks never overlap either way.
 const MIN_CELL = 1;
+// Grain 0 (Diego, Nov 18, 2026: "quando lavoro su un gradient c'è solo il gradient senza necessariamente
+// il grain … se non modificato è 0 di default"): the blend is a smooth vector gradient, not cells —
+// still vector in the SVG (a linear / radial gradient, OKLab sampled), but no longer one plate per ink.
+// The shadow, if any, keeps its cells (SHADOW_CELL when the grain is 0), drawn on top.
+const SHADOW_CELL = 2;
+function smoothGrad(g) { return g.size === 0 && g.type !== 'flat' && gradStops(g).length > 1; }
+// The smooth fill's stops, sampled in OKLab (16 sub-stops a span, as the stop bar) — for SVG and canvas alike.
+function smoothStops(g) {
+  const stops = gradStops(g), out = [];
+  stops.forEach((st, i) => {
+    out.push([st.at, st.hex]);
+    if (i === stops.length - 1) return;
+    for (let k = 1; k < 16; k++) out.push([st.at + (stops[i + 1].at - st.at) * k / 16, C.mixIn('oklab', st.hex, stops[i + 1].hex, k / 16)]);
+  });
+  return out;
+}
+// Its geometry in the w×h box: the line along which t runs 0 → 1 (linear), or the circle (radial).
+function smoothGeom(g, w, h) {
+  const cx = w / 2, cy = h / 2;
+  if (g.type === 'radial') return { radial: true, cx: cx, cy: cy, r: Math.hypot(w, h) / 2 };
+  const rad = g.angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad), len = Math.abs(w * dx) + Math.abs(h * dy) || 1;
+  return { x1: cx - dx * len / 2, y1: cy - dy * len / 2, x2: cx + dx * len / 2, y2: cy + dy * len / 2 };
+}
 function gradPlates(g, w, h) {
+  if (smoothGrad(g)) return smoothPlates(g, w, h);
   const stops = gradStops(g), k = stops.length, cell = Math.max(MIN_CELL, g.size);
   const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h), weight = noiseWeight(g, w, h);
   const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
@@ -871,6 +895,33 @@ function gradPlates(g, w, h) {
   out.forEach(p => { p.d = p.d.join('') + p.holes.join(''); delete p.holes; });
   return out;
 }
+// Grain 0: [the first stop (painted by the shape), the smooth fill over the box, the shadow's cells].
+function smoothPlates(g, w, h) {
+  const stops = gradStops(g), out = [{ hex: stops[0].hex, paper: false, d: '', cells: 0 },
+    { hex: stops[stops.length - 1].hex, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0, smooth: { geom: smoothGeom(g, w, h), stops: smoothStops(g) } }];
+  if (!hasNoise(g)) return out;
+  const cell = SHADOW_CELL, cols = Math.floor(w / cell), rows = Math.floor(h / cell), weight = noiseWeight(g, w, h), amt = g.amount / 100, d = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const ux = (c + 0.5) * cell, uy = (r + 0.5) * cell;
+    if (patternThr(g.pattern, c, r, g.seed, 1) >= weight(ux, uy) * amt) continue;
+    if (g.pattern === 'dots') { const o = dotAt(c, r, g.seed); d.push(circleD((c + 0.5 + o.jx) * cell, (r + 0.5 + o.jy) * cell, o.r * cell)); }
+    else d.push(`M${num(c * cell)} ${num(r * cell)}h${cell}v${cell}h-${cell}z`);
+  }
+  out.push({ hex: g.ink, paper: false, d: d.join(''), cells: d.length });
+  return out;
+}
+// A smooth plate as SVG: its gradient (user space of the box) and the box filled with it.
+function smoothMarkup(pl, id) {
+  const sp = pl.smooth, g = sp.geom, st = sp.stops.map(([at, hex]) => `<stop offset="${num(clamp(at, 0, 1))}" stop-color="${hex}"/>`).join('');
+  const def = g.radial ? `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${num(g.cx)}" cy="${num(g.cy)}" r="${num(g.r)}">${st}</radialGradient>`
+    : `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${num(g.x1)}" y1="${num(g.y1)}" x2="${num(g.x2)}" y2="${num(g.y2)}">${st}</linearGradient>`;
+  return `<defs>${def}</defs><path fill="url(#${id})" d="${pl.d}"/>`;
+}
+function smoothFill(c, pl) {
+  const g = pl.smooth.geom, gr = g.radial ? c.createRadialGradient(g.cx, g.cy, 0, g.cx, g.cy, g.r) : c.createLinearGradient(g.x1, g.y1, g.x2, g.y2);
+  pl.smooth.stops.forEach(([at, hex]) => gr.addColorStop(clamp(at, 0, 1), hex));
+  return gr;
+}
 function circleD(x, y, r) { return `M${num(x - r)} ${num(y)}a${num(r)} ${num(r)} 0 1 0 ${num(2 * r)} 0a${num(r)} ${num(r)} 0 1 0 ${num(-2 * r)} 0Z`; }
 // The stop bar's preview: a smooth CSS gradient sampled in OKLab (16 sub-stops a span).
 function vectorStops() {
@@ -882,7 +933,7 @@ function vectorStops() {
   });
   return out;
 }
-function drawPlates(c, plates) { plates.forEach(p => { if (!p.d) return; c.fillStyle = p.hex; c.fill(new Path2D(p.d), 'evenodd'); }); }
+function drawPlates(c, plates) { plates.forEach(p => { if (!p.d) return; c.fillStyle = p.smooth ? smoothFill(c, p) : p.hex; c.fill(new Path2D(p.d), 'evenodd'); }); }
 
 // ── What the Gradient & grain section edits (Diego, Nov 18, 2026: on the house, a click on a
 // shape / colour and its gradient is edited there, the house staying in view). On the Gradient
@@ -990,10 +1041,12 @@ function syncGradControls() {
   renderStopBar();
   const inks = inkCount(g), it = state.items[state.activeIndex], sz = selZone(), zone = sz != null;
   const own = zone ? !!state.zoneShades[zoneKey(sz)] : !!it.shade;
-  ctrl('grad-target').textContent = dispName(state.activeIndex) + (zone ? ', shape ' + (sz + 1) : ', every shape') + (own ? '' : ' · ' + (zone ? 'as its colour' : SHADE_NAME[draftMode()]));
+  // no title hint naming the colour / shape (Diego, Nov 18, 2026: "elimina Base, shape 1") — the selection on the sheet says it
   ctrl('btn-shade-reset').hidden = !own;
   const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
-  ctrl('grad-hint').textContent = 'Each cell is one pure ink' + (g.paper && !flat ? ' or bare paper' : '') + ': the export is vector, one plate per ink (' +
+  ctrl('grad-hint').textContent = smoothGrad(g)
+    ? 'No grain: the gradient blends smoothly. The export is vector, but a blend is not one plate per ink — raise Grain size for print plates.'
+    : 'Each cell is one pure ink' + (g.paper && !flat ? ' or bare paper' : '') + ': the export is vector, one plate per ink (' +
     (words[inks] || inks) + (inks === 1 ? ' plate' : ' plates') + ').' +
     (hasNoise(g) && g.pattern === 'dots' ? ' Each dot is cut out of the ink under it: the plates never overlap.' : '');
 }
@@ -1007,7 +1060,7 @@ function normalizeGrad(g) {
   if (g.pattern !== 'dots') g.pattern = 'noise';
   if (g.kind && g.kind !== 'speckle') g.amount = 0;
   if (g.dist !== 'light') g.dist = 'even';   // Shadows / Highlights → everywhere
-  g.size = clamp(+g.size || 2, 1, 12);
+  g.size = +g.size === 0 ? 0 : clamp(+g.size || 2, 1, 12);   // 0 = no grain, a smooth blend
   delete g.out; delete g.kind; delete g.space;
   return g;
 }
@@ -1388,7 +1441,7 @@ function sceneMarkup(scene, interactive) {
       const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
       const ring = it.tile && it.active ? `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" fill="none" stroke="${sheetTheme().ink}" stroke-width="2" pointer-events="none"/>` : '';
       // the shape (or the tile's rect) already paints the first ink: only the other inks' cells go on it
-      const cells = shadePlates(it.def, bw, bh).slice(1).map(pl => pl.d ? `<path fill="${pl.hex}" d="${pl.d}"/>` : '').join('');
+      const cells = shadePlates(it.def, bw, bh).slice(1).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, id + 'g' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('');
       const hit = it.tile ? `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" fill="none" pointer-events="all"/>` : '';
       return `${clip}<g clip-path="url(#${id})"${tile}>${title}${hit}<g transform="translate(${num(bx)},${num(by)})" shape-rendering="crispEdges" fill-rule="evenodd">${cells}</g></g>${ring}`;
     }

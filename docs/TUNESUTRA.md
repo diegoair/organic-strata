@@ -108,7 +108,7 @@ Print). Every colour gets three gradient definitions (`shadeDefs`), drawn by the
 engine of §3 in each shape's own box, the light from its top — all three are ink cells,
 vector in every export:
 - **Soft** — linear, the colour dithering into its own tint 3 steps darker (its 0–900
-  scale) from 20% of the box down, grain 1.5
+  scale) from 20% of the box down, no grain (a smooth blend; grain 1.5 until Nov 18, 2026)
 - **Speckle** — the colour flat, square specks of a tint 5 steps darker gathering away from
   the light (falloff 65)
 - **Stipple** — Speckle as round dots (stored key `print`, its label until Nov 18, 2026)
@@ -221,8 +221,14 @@ file), while the plates keep the exact partition.
   the positions.
 - **Fade to paper** adds the paper as the last stop: the last ink thins out to
   bare paper, and the paper gets no plate.
-- **Grain size** — one cell, in sheet units, 1–12 (step 0.5). At 1 the gradient block
-  is ~1.4 MB of SVG, at 2 ~350 KB, at 3 ~150 KB (measured Nov 18, 2026).
+- **Grain size** — one cell, in sheet units, **0**–12 (step 0.5). **0 = no grain, the default
+  for a gradient** (Nov 18, 2026: Diego, *quando lavoro su un gradient c'è solo il gradient senza
+  necessariamente il grain … se non modificato è 0 di default*): the blend is a smooth vector
+  gradient — an SVG `linearGradient` / `radialGradient` in the shape's box, OKLab sampled (16
+  sub-stops a span), a canvas gradient in the PNG — so it is no longer one plate per ink (the hint
+  says so); Pattern and Seed hide unless a shadow uses them; a shadow keeps its cells (2 units) on
+  top. From 0.5 up the blend is cells again — at 1 a full-width block is ~1.4 MB of SVG, at 2 ~350 KB,
+  at 3 ~150 KB (measured Nov 18, 2026).
 - **Pattern** — how the cells are chosen: **Noise** (at random) or **Dots** (round
   dots, evenly spread: a 64 × 64 blue-noise mask, `Organica.dither.blueNoise`).
 - **Seed** fixes the cells.
@@ -238,9 +244,8 @@ file), while the plates keep the exact partition.
 The panel shows a control only while it changes the drawing (`gradUses()`).
 
 **What the section edits** (Diego, Nov 18, 2026: on the house, a click on a shape / colour
-and its gradient is edited there, the house staying in view): the selected colour's shading — the
-title says whose (*Secondary · Speckle* while it is still the preset, *Secondary* once it is
-its own). The first edit turns the preset into the colour's own definition (`item.shade`,
+and its gradient is edited there, the house staying in view): the selected colour's shading (or the selected shape's) — the section title no longer names it
+(Diego, Nov 18, 2026: *elimina "Base, shape 1"*); the selection on the sheet says whose. The first edit turns the preset into the colour's own definition (`item.shade`,
 saved with the palette as `shades`; ⌘Z returns to the preset); its first stop is always the
 colour itself (the Flat *Colour* row went with the Gradient view). **Back to preset** forgets it; a click
 on one of that colour's tiles does too, and puts that preset on the house. No control
