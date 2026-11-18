@@ -40,9 +40,18 @@ in-app photo reader.
 
 ## 1. The palette
 
-- **Colours** 3–5 (6–7 only in palettes saved before). Each colour is an item `{ id, name, hex, lock }`. The `id` is
-  stable for the colour's life; the **name** is what the token key is built
-  from (`Warm Clay` → `warm-clay`; a repeated name gets `-2`, `-3`).
+- **Colours** 3–5 (6–7 only in palettes saved before). Each colour is an item `{ id, name, hex, lock }`; the `id` is
+  stable for the colour's life. **A colour is named by its role** (Nov 18, 2026: Diego, *we don't
+  want to change the name as it should be semantic and tokenized*) — one word, largest share
+  first, the set following the count (`ROLE_SETS`): 3 *Base · Secondary · Accent*, 4 *Base ·
+  Secondary · Tertiary · Accent*, 5 *… · Accent · Highlight*; a 6th / 7th is *Extra 1 / 2*. So
+  adding a 4th colour renames the third Tertiary: the role follows the share. The Name field is
+  gone; a name saved before stays in the data, unread.
+- **Tokens** — `‹palette›-‹role›-‹step›`: the prefix is the palette's own name (*Violet 01* →
+  `violet-01`, accents stripped; unsaved or not starting with a letter → `palette…`), so several
+  palettes live in one project; steps **50** · 100 … 900 (the lightest is called 50 in TuneSutra —
+  `stepName()`; the shared scale keeps 0 for FVS). CSS `--violet-01-accent-500`, JSON
+  `{ "violet-01": { "accent": { "500": { "$value", "$type": "color" } } } }`.
 - **Add / remove a colour on the sheet** (Nov 18, 2026: Diego, *togliere Colours 3 4 5 dalla barra
   di destra … un più su una scheda vuota che può generare al massimo altre 2 schede*). After the
   last card a dashed **+ card** — *Add a colour*, *2 left* / *1 left* — adds the next colour
@@ -52,8 +61,8 @@ in-app photo reader.
   panel's Colours 3 · 4 · 5 and its colour chips are gone.
 - **Select a colour** by clicking its card on the sheet (or a house shape); a card click also
   opens the picker.
-- **Harmony** + **Generate** rebuild every colour except the first and any
-  marked **Keep on Generate**. The first colour is the seed. Hue is rotated in
+- **Harmony** + **Generate** rebuild every colour except the first (**Keep on Generate** was
+  removed Nov 18, 2026 — a saved lock is ignored). The first colour is the seed. Hue is rotated in
   OKLCH, so every generated colour has the seed's perceived lightness and as
   much of its chroma as that hue can hold. Pressing Generate twice gives the
   same set.
@@ -115,7 +124,7 @@ Then:
 
 1. **Colour cards** — one rounded card per colour: the colour, its name and
    hex. Click a card to select that colour (and open the picker).
-2. **Scales** — under each card, that colour's ten steps, 0–900. Every step
+2. **Scales** — under each card, that colour's ten steps, 50–900. Every step
    sits at a fixed perceived lightness (`Organica.color.SCALE_L`), so step 500
    is the same lightness for every colour. The picked colour is kept unchanged
    on its nearest step (outlined). Chroma keeps the pick's share of the gamut at
@@ -176,10 +185,11 @@ Then:
    name in the other, and under it *‹Text› on ‹Background›* and *‹ratio›:1 · AAA / AA / Large
    text only / Not for text*. The full grid (every colour on every other) is gone.
    The pairs take the left of the row; on its right sits the **Colour** section (Nov 18, 2026:
-   Diego, *metti la parte colour al fianco destro di dove è ora contrast*) — Name, Keep on
-   Generate, Hex and the value tiles, moved out of the panel: HTML laid over the sheet
-   (`#colour-dock`, scaled with it), light in both themes, never in an export. Name, Keep and
-   Hex edit the colour; the tiles show the selected tint (else the colour).
+   Diego, *metti la parte colour al fianco destro di dove è ora contrast*) — since Nov 18, 2026
+   only the **six value tiles** (Diego: *leave only the 6 boxes*; Name, Keep on Generate, Hex and
+   the box removed — a colour changes from its card's picker), level with the pairs: HTML laid over
+   the sheet (`#colour-dock`, scaled with it), light in both themes, never in an export. They show
+   the selected tint, else the colour.
 
 ## 3. Gradient & grain
 
@@ -260,7 +270,7 @@ Noise, a Tone grain → no shadow, Shadows / Highlights → everywhere; `out`, `
 | Button | What you get |
 |---|---|
 | PNG / SVG | the whole sheet. The SVG carries its own paint and font on every element — no page CSS needed |
-| CSS | `--tunesutra-<name>-<step>` for every scale step + `--tunesutra-gradient` (the smooth fill only — grain is not expressible in CSS): positions as percentages and the blend's space, `linear-gradient(90deg in oklch, #… 0%, #… 45%, …)`; a Flat fill is its colour |
+| CSS | `--‹palette›-‹role›-‹step›` for every scale step + `--‹palette›-gradient` (the smooth fill only — grain is not expressible in CSS): positions as percentages and the blend's space, `linear-gradient(90deg in oklch, #… 0%, #… 45%, …)`; a Flat fill is its colour |
 | JSON | the same as design tokens (DTCG `$value` / `$type`), incl. a `gradient` token with each stop's real position |
 
 SVG text names the page font (IBM Plex Mono) with fallbacks; a machine without

@@ -50,11 +50,9 @@
   .ts-add:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .ts-add__name { font-family: var(--font-display); font-size: var(--fs-small); }
   /* the Colour section, right of the Contrast pairs: drawn at the sheet's own scale (renderStage) */
-  .ts-colour-dock {
-    position: absolute; transform-origin: 0 0;
-    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md);
-  }
-  .ts-colour-dock .panel-section { border-bottom: 0; }
+  .ts-colour-dock { position: absolute; transform-origin: 0 0; }   /* the six value tiles alone (Diego, Nov 18, 2026: "leave only the 6 boxes") */
+  .ts-colour-dock .panel-section { border-bottom: 0; padding: 0; }
+  .ts-colour-dock .org-tiles { margin: 0; }
   .ts-colour-dock :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: var(--radius-sm); }   /* the panel's ring is scoped to #panel */
   .ts-tint { cursor: pointer; }
   .ts-tint:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -167,23 +165,6 @@
       <div class="ts-sheet-ctrls" id="sheet-ctrls"></div>
       <div class="ts-colour-dock" id="colour-dock" hidden>
         <div class="panel-section">
-          <h3>Colour <span class="hint" id="active-role-label">Base</span></h3>
-        
-          <div class="ctrl-row">
-            <div class="ctrl-label">Name</div>
-            <input type="text" class="panel-select" id="txt-name" aria-label="Colour name" maxlength="40" style="flex:1">
-          </div>
-          <div class="ctrl-row">
-            <div class="ctrl-label" title="A kept colour is not replaced when you press Generate.">Keep on Generate</div>
-            <input type="checkbox" id="ck-lock">
-          </div>
-        
-          <div class="color-row">
-            <span class="color-name">Hex</span>
-            <button class="color-swatch" id="sw-active" aria-label="Edit colour" aria-haspopup="dialog"></button>
-            <input class="color-hex" id="hex-active" value="#c93ed6" maxlength="7" aria-label="Hex value">
-          </div>
-        
           <div class="org-tiles" id="value-tiles" role="group" aria-label="Values">
             <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value"></span></button>
             <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value"></span></button>
@@ -192,7 +173,6 @@
             <button type="button" class="org-tile" data-v="oklch"><span class="org-tile__label">OKLCH</span><span class="org-tile__value"></span></button>
             <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value"></span><span class="org-tile__note"></span></button>
           </div>
-          <p class="org-panel__hint">Click a value to copy it. RAL matches are approximate.</p>
         
         </div>
       </div>
@@ -232,7 +212,7 @@
         <span class="ctrl-val" id="v-spread">0</span>
       </div>
       <div class="row-btns">
-        <button class="mini-btn" id="btn-generate" title="Rebuild every unlocked colour from the first one">Generate</button>
+        <button class="mini-btn" id="btn-generate" title="Rebuild every colour from the first one">Generate</button>
         <button class="mini-btn" id="btn-undo" title="Undo (⌘Z)" disabled>Undo</button>
       </div>
       <p class="org-panel__hint" id="distinct-hint"></p>
@@ -424,11 +404,21 @@ function hslToRgb(h, s, l) { return Organica.color.hslToRgb(h, s, l); }
 function hexFromRgb(r, g, b) { return Organica.rgbToHex(r, g, b); }
 
 // ── STATE ──
-// One item per colour. `id` is stable for the colour's whole life (renaming
-// or reordering never changes it); `name` is what the designer calls it and
-// what the token key is built from; `lock` keeps it through Generate.
+// One item per colour. `id` is stable for the colour's whole life (reordering never changes it).
+// `name` and `lock` are still saved but unread since Nov 18, 2026: a colour is named by its ROLE,
+// and only the base is kept through Generate.
 const C = Organica.color;
-const ROLE_NAMES = ['Base', 'Secondary', 'Accent', 'Accent 2', 'Accent 3', 'Accent 4', 'Accent 5'];
+// The roles — semantic, one word each, largest share first (Diego, Nov 18, 2026: "each color has a
+// token name that is built correctly … go with more colours and variants"). The set follows the
+// count, so the smallest colour is always the Accent (and at 5 the Highlight below it); a 6th or
+// 7th (palettes saved before) is Extra 1, Extra 2.
+const ROLE_SETS = {
+  3: ['Base', 'Secondary', 'Accent'],
+  4: ['Base', 'Secondary', 'Tertiary', 'Accent'],
+  5: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight'],
+};
+// The lightest tint is called 50 in TuneSutra (Diego, Nov 18, 2026 — the shared scale keeps 0 for FVS).
+const stepName = st => st.step || 50;
 const DISTINCT_MIN = C.DISTINCT_MIN;   // OKLab ΔE×100 — below this two swatches read as one colour at a glance
 const state = {
   harmony: 'analogous',
@@ -461,18 +451,15 @@ const state = {
 };
 
 function newId() { return 'c-' + Math.random().toString(36).slice(2, 8); }
-function roleName(i) { return ROLE_NAMES[i] || ('Accent ' + (i - 1)); }
+function roleName(i, n) { const set = ROLE_SETS[n || count()] || ROLE_SETS[5]; return set[i] || ('Extra ' + (i - 4)); }
 // A new colour takes the first role name nobody is using — after a removal,
 // position i's own role name may already belong to a colour further along.
-function freshName(i) {
-  const used = state.items.map(it => it.name);
-  for (let k = i; k < i + 20; k++) if (used.indexOf(roleName(k)) < 0) return roleName(k);
-  return roleName(i);
-}
-function makeItem(hex, i) { return { id: newId(), name: freshName(i), hex: hex, lock: false }; }
+function makeItem(hex) { return { id: newId(), name: '', hex: hex, lock: false }; }
 function colors() { return state.items.map(it => it.hex); }
 function count() { return state.items.length; }
-function dispName(i) { return (state.items[i].name || '').trim() || roleName(i); }
+// A colour's name is its role (Diego, Nov 18, 2026: the name is semantic and tokenized, not edited) —
+// a name saved before is kept in the data, unread.
+function dispName(i) { return roleName(i); }
 // The share each colour takes in the Bar, on the home cards and on the figure = HOUSE.SHARES
 // (tunesutra/house.js): 3 colours 52 / 32.2 / 15.8, 4 colours 52.0 / 32.2 / 10.9 / 4.9 — the
 // Garment's measured proportions (Diego, Nov 17, 2026: "align the bar"; Base : Secondary is the
@@ -557,7 +544,7 @@ function generateHarmony() {
 }
 function applyHarmony() {
   const gen = generateHarmony();
-  state.items.forEach((it, i) => { if (i && !it.lock) it.hex = gen[i]; });
+  state.items.forEach((it, i) => { if (i) it.hex = gen[i]; });   // only the base is kept (Keep on Generate removed Nov 18, 2026; a saved lock is ignored)
 }
 
 // ── UNDO — JSON snapshots, checkpoints only. Bursts of the same continuous
@@ -625,7 +612,6 @@ function refreshHints() {
 }
 
 // ── ACTIVE-COLOUR FIELD EDITOR ──
-let writing = false; // re-entrancy guard against the .value= triggering our own listeners
 function setActiveColor(hex) {
   hex = Organica.normalizeHex(hex, state.items[state.activeIndex].hex);
   pushUndo('edit');
@@ -645,50 +631,20 @@ function refreshTiles(hex) {
     if (!t.classList.contains('is-copied')) t.setAttribute('aria-label', 'Copy ' + t.querySelector('.org-tile__label').textContent + ' ' + t.dataset.copy);
   });
 }
+// The tiles show the selected tint, else the colour itself.
 function refreshFieldEditor() {
-  const it = state.items[state.activeIndex], hex = it.hex;
-  writing = true;
-  const tint = tintSel != null ? tokenScale(hex)[tintSel] : null;
-  ctrl('active-role-label').textContent = dispName(state.activeIndex) + (tint ? ' · ' + tint.step : '');
-  if (document.activeElement !== ctrl('txt-name')) ctrl('txt-name').value = it.name;
-  ctrl('txt-name').placeholder = roleName(state.activeIndex);
-  // The first colour is the seed every harmony is built from — always kept.
-  ctrl('ck-lock').checked = state.activeIndex === 0 || it.lock;
-  ctrl('ck-lock').disabled = state.activeIndex === 0;
-  ctrl('hex-active').value = hex;
-  ctrl('sw-active').style.background = hex;
+  const hex = state.items[state.activeIndex].hex, tint = tintSel != null ? tokenScale(hex)[tintSel] : null;
   refreshTiles(tint ? tint.hex : hex);
-  writing = false;
 }
 function bindFieldEditor() {
-  ctrl('hex-active').addEventListener('change', e => setActiveColor(e.target.value));
-  ctrl('sw-active').addEventListener('click', () => Organica.colorPicker.open(ctrl('sw-active'), {
-    value: state.items[state.activeIndex].hex,
-    label: dispName(state.activeIndex),
-    onInput: hex => { if (hex !== state.items[state.activeIndex].hex) setActiveColor(hex); },
-  }));
   // a tile copies its value; its name says "Copied" for a moment
   ctrl('value-tiles').addEventListener('click', e => {
     const t = e.target.closest('.org-tile');
     if (!t || !t.dataset.copy || !navigator.clipboard) return;
     navigator.clipboard.writeText(t.dataset.copy).then(() => {
       t.classList.add('is-copied'); t.setAttribute('aria-label', 'Copied');
-      setTimeout(() => { t.classList.remove('is-copied'); refreshTiles(state.items[state.activeIndex].hex); }, 1200);
+      setTimeout(() => { t.classList.remove('is-copied'); refreshFieldEditor(); }, 1200);
     }, () => {});
-  });
-
-  ctrl('txt-name').addEventListener('input', e => {
-    if (writing) return;
-    pushUndo('name');
-    state.items[state.activeIndex].name = e.target.value;
-    ctrl('active-role-label').textContent = dispName(state.activeIndex);
-    renderStage();
-    refreshHints();
-  });
-  ctrl('ck-lock').addEventListener('change', e => {
-    if (writing) return;
-    pushUndo('lock');
-    state.items[state.activeIndex].lock = e.target.checked;
   });
 }
 
@@ -1277,7 +1233,7 @@ function readableOn(hex, T) { return C.contrast(hex, T.ink) >= C.contrast(hex, T
 // screen=true: the on-screen sheet — it also reserves room for the controls laid over it (the +
 // card, the Colour section); the export calls it without, and gets the same drawing.
 const DOCK_W = 280;   // the Colour section on the sheet, right of the Contrast pairs (sheet units)
-let dockH = 420;      // its height, measured after each render (renderStage)
+let dockH = 200;      // its height, measured after each render (renderStage)
 function buildScene(screen) {
   const T = sheetTheme(), n = count(), cols = colors(), items = [], removeAt = [];
   let addAt = null, dockAt = null;
@@ -1354,13 +1310,13 @@ function buildScene(screen) {
     const sy = y + CARD_H + 12;
     tokenScale(hex).forEach((st, j) => {
       const ry = sy + j * (STEP_H + STEP_GAP), on = readableOn(st.hex, T);
-      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: `${dispName(i)} ${st.step} — ${st.hex}`, tint: j, ci: i }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
+      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: `${dispName(i)} ${stepName(st)} — ${st.hex}`, tint: j, ci: i }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
       // the selected tint: the selected house shape's ring — paper under dashed ink, screen only
       if (i === state.activeIndex && j === tintSel) {
         rect(x - 3, ry - 3, cw + 6, STEP_H + 6, 'none', { r: 5, stroke: T.paper, sw: 4, screenOnly: true });
         rect(x - 3, ry - 3, cw + 6, STEP_H + 6, 'none', { r: 5, stroke: T.ink, sw: 2, dash: [6, 4], screenOnly: true });
       }
-      text(x + 8, ry + 14, st.step, 9, on);
+      text(x + 8, ry + 14, stepName(st), 9, on);
       text(x + cw - 8, ry + 14, st.hex, 9, on, 'end');
     });
     // this colour's shading set: Soft · Speckle · Print — a click puts it on the house
@@ -1392,9 +1348,9 @@ function buildScene(screen) {
   // The pairs take the left of the row; its right is the Colour section's (on screen), so the export
   // keeps the same places.
   const pairsX1 = BAR_X1 - DOCK_W - CARD_GAP;
-  dockAt = [BAR_X1 - DOCK_W, y - 11];
   text(BAR_X0, y, 'Contrast — the pairs that read best, text on background', 11, T.mid);
   y += 16;
+  dockAt = [BAR_X1 - DOCK_W, y];   // the value tiles, level with the pairs
   {
     const k = best.length, pw = Math.min(PAIR_W, (pairsX1 - BAR_X0 - (k - 1) * CARD_GAP) / k), px0 = BAR_X0;
     best.forEach((p, m) => {
@@ -1738,42 +1694,36 @@ function exportPNG() {
   const url = pngCanvas(+ctrl('sel-export-scale').value).toDataURL('image/png');
   Organica.download(Organica.dataURLToBlob(url), Organica.stamp('tunesutra', 'png'));
 }
-// Token keys come from the colour names: "Warm Clay" → warm-clay. Two colours
-// with the same name get -2, -3 … so no key is ever written twice.
-function tokenKeys() {
-  const used = {};
-  return state.items.map((it, i) => {
-    const base = dispName(i).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || ('colour-' + (i + 1));
-    let key = base;
-    for (let k = 2; used[key]; k++) key = base + '-' + k;
-    used[key] = true;
-    return key;
-  });
-}
+// Tokens (Diego, Nov 18, 2026): ‹palette›-‹role›-‹step› — the prefix is the palette's own name, so
+// several palettes live side by side in one project ("Violet 01" → violet-01; unsaved: palette); the
+// role is semantic (ROLE_SETS); the steps 50 · 100 … 900. CSS --violet-01-accent-500, JSON
+// { "violet-01": { "accent": { "500": … } } } (DTCG).
+const slug = str => String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+function tokenPrefix() { const k = slug(currentName || suggestedName); return /^[a-z]/.test(k) ? k : 'palette' + (k ? '-' + k : ''); }
+function tokenKeys() { return state.items.map((it, i) => slug(roleName(i))); }
 function exportCSS() {
-  const keys = tokenKeys();
+  const keys = tokenKeys(), pre = tokenPrefix();
   let css = ':root {\n';
   keys.forEach((key, i) => {
     tokenScale(state.items[i].hex).forEach(s => {
-      css += `  --tunesutra-${key}-${s.step}: ${s.hex};\n`;
+      css += `  --${pre}-${key}-${stepName(s)}: ${s.hex};\n`;
     });
   });
   // Grain is not expressible in CSS — this is the smooth gradient only.
-  css += `  --tunesutra-gradient: ${gradCSS()};\n`;
+  css += `  --${pre}-gradient: ${gradCSS()};\n`;
   css += '}\n';
   Organica.downloadText(css, Organica.stamp('tunesutra', 'css'), 'text/css');
 }
 function exportJSON() {
-  const keys = tokenKeys();
-  const obj = { tunesutra: {} };
+  const keys = tokenKeys(), pre = tokenPrefix(), set = {}, obj = { [pre]: set };
   keys.forEach((key, i) => {
-    obj.tunesutra[key] = {};
+    set[key] = {};
     tokenScale(state.items[i].hex).forEach(s => {
-      obj.tunesutra[key][s.step] = { $value: s.hex, $type: 'color' };
+      set[key][stepName(s)] = { $value: s.hex, $type: 'color' };
     });
   });
   const stops = gradStops();
-  obj.tunesutra.gradient = { $type: 'gradient', $value: stops.map(st => ({ color: st.hex, position: +st.at.toFixed(4) })) };
+  set.gradient = { $type: 'gradient', $value: stops.map(st => ({ color: st.hex, position: +st.at.toFixed(4) })) };
   Organica.downloadText(JSON.stringify(obj, null, 2), Organica.stamp('tunesutra', 'json'), 'application/json');
 }
 function sendToFigma() { Organica.sendToFigma(svgString(1), 'TuneSutra'); }
