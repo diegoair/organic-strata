@@ -66,10 +66,39 @@ in-app photo reader.
 
 One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
 
-First, since Nov 17, 2026 (Diego: the figure above, the colours below), an
-**example** of the palette in use, chosen by the View switch: *Bar* (the
-colours in the Garment's proportions) or *Figure* (3 to 5 colours). In the
-*Gradient* view the gradient comes first and there is no example. Then:
+First (since Nov 17, 2026: the figure above, the colours below) the palette
+in use: **the house** (3 to 5 colours), then the shares as a **thin tube over
+each colour card** — 10 px, filled in that colour to its share (the full tube
+is 100%), the share above it as *52.0%* (Diego, Nov 18, 2026: the bar went
+under the house that morning, then *metti le proporzioni della barra sopra i
+colori come se fosse un istogramma* — mockups on the design canvas, his pick
+*3 · Thin tube*). On screen the tubes **pour like a liquid** when a palette
+opens or the colour count changes: a damped spring (overshoots, settles), one
+tube after another, the number counting up — never on a colour edit, not with
+reduced motion, never in an export (the SVG/PNG get them full). The View section keeps only
+**Gradient**, one toggle button (`org-btn`, `aria-pressed`): pressed again, the sheet goes back to the house. A palette saved
+with 6–7 colours shows the tubes alone.
+
+**Shading — each colour's shadow noise** (Nov 18, 2026; Diego: *per ogni palette … per ogni
+colore un set di gradient con noise predefinito che mi crei delle sorte di shadow noise sulle
+forme*; his answers: on the house + tiles · a set of 3 · each shape its own light · Screen and
+Print). Every colour gets three gradient definitions (`shadeDefs`), drawn by the gradient
+engine of §3 in each shape's own box, the light from its top — all three are ink cells,
+vector in every export:
+- **Soft** — linear, the colour dithering into its own tint 3 steps darker (its 0–900
+  scale) from 20% of the box down, grain 1.5
+- **Speckle** — the colour flat, square specks of a tint 5 steps darker gathering away from
+  the light (falloff 65)
+- **Stipple** — Speckle as round dots (stored key `print`, its label until Nov 18, 2026)
+A colour already at 800–900 takes lighter tints instead. The panel's **Shading** row
+(None · Soft · Speckle · Stipple, default Speckle, saved with the palette as `shading`) puts one
+on every shape of the house (each zone clipped to its shape, its box the shape's visible part —
+`bb` in `house.js`); under each colour's scale a row of three **tiles** shows its set, the
+one on the house outlined, a click puts that one on the house. The shape itself paints the
+colour; only the darker cells go on it, clipped to the shape (a house ~200–500 KB of SVG).
+Rendered once per
+colour × box and cached, so selecting or renaming does not redraw the grain.
+In the *Gradient* view the gradient comes first and there is no example. Then:
 
 1. **Colour cards** — one rounded card per colour: the colour, its name and
    hex. Click a card to select that colour.
@@ -79,104 +108,115 @@ colours in the Garment's proportions) or *Figure* (3 to 5 colours). In the
    on its nearest step (outlined). Chroma keeps the pick's share of the gamut at
    each lightness and never exceeds the pick's own.
 
-   **Figures** (`tunesutra/figures.js`, data) show the palette in proportion on a
-   drawing: each colour owns zones of a fixed share of the visible area. The
-   **Garment** is the reference, measured: Base 52.0% · Secondary 32.2% ·
-   Accent 10.9% · trim 4.8% (with 3 colours the trim takes the Accent:
-   52 / 32 / 16). The Figure menu holds two (Diego, Nov 17, 2026 — Room and
-   Poster retired):
-   - **Garment** — body / hem / V collar / two trim triangles
-   - **House** — a box in isometric axonometry, after Diego's photo of a
-     wooden model house: walls (Base) / flat roof (Secondary) / an open side
-     and a window band (Accent) / a step and the roof edge (trim). Built from a few
-     model parameters and tuned to the Garment's shares, within 0.2 points.
-   A palette saved on Room or Poster opens on the Garment. At 5 colours the
-   figure is always the Scene.
+   **The figure** (since Nov 18, 2026 — Diego: *la Figura rimane unica generata
+   da questo*) is a **house generated from a seed** (`tunesutra/house.js`,
+   `TUNESUTRA_HOUSE.generate(seed, n)`). It replaced the Garment, the isometric
+   House and the 5-colour Scene of the retired `figures.js`. Every part is an FVS
+   shape (`Organica.shapes`, polygonal only + the circle): the roof a triangle,
+   a 4–8 sided polygon centred on the eaves line (its lower half behind the
+   wall) or a rectangle slab; the door a rectangle or a pentagon; the windows a
+   circle, a polygon of 3–8 sides or a rectangle (one, or two either side of the
+   door at 4 colours). The wall is drawn at random; the roof height, door and
+   windows are then **solved** so every role covers exactly its share — the
+   Bar's weights (`TUNESUTRA_HOUSE.SHARES`):
+   - 3 colours — wall 52.0 · roof 32.2 · door (+ window) 15.8, the house alone on white
+   - 4 colours — wall 52.0 · roof 32.2 · door 10.9 · windows 4.9
+   - 5 colours — background 71.6 · ground 20.0 · wall 4.6 · roof 2.8 · door 1.0,
+     a small house in a landscape (flat or sloping ground)
 
-   The line under the figure gives the shares as measured from the drawing
-   (`TUNESUTRA_FIGURE_SHARES`), and `node scripts/test-figures.mjs` fails if a
-   figure drifts more than 1 point. The chosen figure is saved with the palette
-   and drawn on its library card. A zone too pale to see on the paper gets a
-   hairline.
+   **One house per palette, a carousel for others.** The seed (`house`, 1–9999)
+   is saved with the palette and drawn on its library card; two arrows on the
+   sheet, either side of the house (*Previous house* / *Next house*, Figure view
+   only, HTML over the sheet so never exported), step the seed to the next or
+   previous house at the same number of colours, with Undo; the caption reads
+   *Example — house no. 8274*. Another colour count is another house of the same
+   seed. A palette saved before Nov 18 (with `figure: 'garment'` …) and every
+   built-in palette get a fixed seed from their colours / id, so they always
+   open on the same house; a New palette gets a random one.
+
+   The line under the figure gives the shares as computed from the geometry
+   (exact, polygon areas and πr²), and `node scripts/test-figures.mjs`
+   generates 300 houses per colour count and fails if a share is off by more
+   than 0.15, a shape leaves the box, or a seed does not repeat. A zone too pale
+   to see on the paper gets a hairline (3–4 colours). The generator was first
+   built on the design canvas *House illustration* (claude.ai artifact).
 3. **Contrast grid** — each cell sets the row's colour as text on the column's,
    with the WCAG ratio under it (`· close` marks a pair under ΔE 6).
 
-## 3. Gradient + grain
+## 3. Gradient & grain
 
-One definition per palette (`state.grad`, saved with it), two renderings (the
-**Output** switch). The gradient lives inside the palette — Diego, Nov 2, 2026
-(not a library item of its own).
+One definition per palette (`state.grad`, saved with it), one section in the panel
+(**Gradient & grain**, merged Nov 18, 2026). The gradient lives inside the palette —
+Diego, Nov 2, 2026 (not a library item of its own).
 
-| | Screen | Print |
-|---|---|---|
-| What it is | a smooth fill, mixed in the chosen space, with grain on top | the same fill as a grid of cells, each one pure ink |
-| Grain | Tone (lightness jitter) or Shadow (one ink) | Shadow only — the blend itself is already ink cells |
-| Output | raster (PNG, or a PNG inside the SVG) — **vector** `<linearGradient>` / `<radialGradient>` when there is no grain and the type is Flat / Linear / Radial | vector — one path per ink |
-| Plates | — | one SVG per ink, black on transparent |
+**Everything is ink cells, so everything is vector** (Diego, Nov 18, 2026: *tutto deve
+essere esportato in vettoriale quindi anche con il noise e shadow*; the target look is
+flat shapes with fine grain-gradient shadows, a riso / screenprint stipple). Every cell
+of the drawing is one pure ink — a stop or the shadow ink. The blend between two stops is
+a **dither**: the share of the way between them decides how many cells take the next ink.
+Nothing is mixed, nothing is a raster: the sheet, the SVG, the PNG and the plates all draw
+the same cells (`gradPlates`). Rows of one ink are merged into one rectangle; in the
+composite drawing the first ink is a single rectangle and the others sit on it (half the
+file), while the plates keep the exact partition.
 
-### Gradient
-
-- **Type** Flat · Linear · Radial · Conic. **Flat** is one colour (the first
-  stop) — for grain on a flat colour. **Angle** follows CSS: 0° = to top,
-  90° = to right; a conic gradient starts there and turns clockwise.
-- **Stops** 2–8, each with a position. The **stop bar** (the gradient itself as
-  the track) shows where they sit: click the bar to add a stop in the colour
-  the gradient has there, drag a stop to move it (it cannot pass its
+- **Type** Flat · Linear · Radial. **Flat** is one colour (the first stop) — for a
+  shadow on a flat colour. **Angle** (Linear) follows CSS: 0° = to top, 90° = to right.
+- **Stops** 2–8, each with a position. The **stop bar** (a smooth preview of the
+  blend as the track) shows where they sit: click the bar to add a stop in the
+  colour the gradient has there, drag a stop to move it (it cannot pass its
   neighbours), ←/→ move the selected stop 1% (Shift 10%), Home / End to the
   ends, Delete removes it (2 at least). The chips under the bar carry the
-  colours and the palette library (▦: *This palette* first, then every saved
-  palette and the built-in sets); a chip added with + goes in the widest gap,
+  colours and the palette library; a chip added with + goes in the widest gap,
   a palette loaded whole is spaced evenly. Stops are colours in their own
   right: reordering the palette does not reorder them.
 - **Reverse** flips the stops and their positions; **Space evenly** forgets
   the positions.
-- **Mix in** — how the colours between two stops are made: **OKLab** (even to
-  the eye, the default), **OKLCH** (lightness and chroma move straight, hue the
-  short way round — keeps a complementary pair saturated through the middle; a
-  grey end takes the other end's hue), **sRGB** (channel by channel, what a
-  plain CSS gradient does). `Organica.color.mixIn(space, a, b, t)`.
-- **Fade to paper** adds the paper as the last stop; the colours' positions
-  are scaled to make room for it. In Print the last ink thins out to bare
-  paper and the paper gets no plate.
+- **Fade to paper** adds the paper as the last stop: the last ink thins out to
+  bare paper, and the paper gets no plate.
+- **Grain size** — one cell, in sheet units, 1–12 (step 0.5). At 1 the gradient block
+  is ~1.4 MB of SVG, at 2 ~350 KB, at 3 ~150 KB (measured Nov 18, 2026).
+- **Pattern** — how the cells are chosen: **Noise** (at random) or **Dots** (round
+  dots, evenly spread: a 64 × 64 blue-noise mask, `Organica.dither.blueNoise`).
+- **Seed** fixes the cells.
+- **Shadow** — one more ink on top: **Ink**, **Amount** (density, 0 = no shadow),
+  **Away from a light** (switch; off = everywhere alike) with **Light from** (0° = the
+  top, 90° = the right: none on the lit edge, full on the opposite one) and **Falloff**
+  (50 = grows evenly; higher keeps it to the far side — an exponent 4^((f − 50) / 50)).
+  Square shadow cells take their cells from the other inks; each shadow dot is cut out
+  of the one ink under it (a circle inside that ink's rectangle, filled even-odd; dots
+  only in whole cells), so the plates never overlap. A shadow ink equal to a stop is
+  that stop's ink — one plate, not two.
 
-Palettes saved before Nov 2, 2026 have no positions (`pos: null`) and load
-evenly spaced, OKLab, Tone grain — exactly as before.
+The panel shows a control only while it changes the drawing (`gradUses()`).
 
-### Grain
+**What the section edits** (Diego, Nov 18, 2026: on the house, a click on a shape / colour
+and its gradient is edited there, the house staying in view). On the **Gradient** view: the
+palette's gradient (`state.grad`). On the **house**: the selected colour's shading — the
+title says whose (*Secondary · Speckle* while it is still the preset, *Secondary* once it is
+its own). The first edit turns the preset into the colour's own definition (`item.shade`,
+saved with the palette as `shades`; ⌘Z returns to the preset); its first stop is always the
+colour itself, so the Flat *Colour* row is hidden there. **Back to preset** forgets it; a click
+on one of that colour's tiles does too, and puts that preset on the house. No control
+switches the view any more.
 
-Works on any type, Flat included.
+**Every shape its own** (Diego, Nov 18, 2026: *ogni forma nella casa deve avere una gestione
+separata del gradient e grain*). A click on a shape of the house selects that **shape** (a double-click opens the colour picker on it; from the keyboard Enter selects, Enter again opens the picker — a colour card still opens the picker in one click)
+(dashed outline, paper under ink, on screen only) and the section edits it alone — title
+*‹Colour›, shape ‹n›* (*· as its colour* until edited). Its definition is kept under
+`house/count/shape` (`state.zoneShades`, saved as `zoneShades`), so stepping the carousel
+away and back finds it again. A colour card or chip selects the colour: *‹Colour›, every
+shape* — the colour's own definition, which every shape of that colour without its own
+follows. Order on the house: the shape's own → the colour's own → the Shading preset.
+**Back to preset** forgets the selected one's own; a click on a colour's tile puts that
+preset back on the colour and on all its shapes of this house.
 
-- **Grain colour** — **Tone**: the fill's own colour, lighter and darker (the
-  grain before Nov 2, 2026; screen only). **Shadow**: speckle of one ink, the
-  **Shadow** colour — the shadow-noise look, and the grain that prints.
-- **Grain** — strength (Tone) or density (Shadow), 0–100. **Grain size** — the
-  cell, in sheet units (Print: 3 at least).
-- **Pattern** — how the cells are chosen: **Noise** (at random), **Ordered**
-  (Bayer 8 × 8, `Organica.dither.bayerThresholds`), **Dots** (round dots,
-  evenly spread: a 64 × 64 blue-noise mask, `Organica.dither.blueNoise`).
-  Shown for Shadow grain and in Print, where it is also the blend's own dither.
-- **Grain in** — where it gathers: **Everywhere**; **Shadows** / **Highlights**
-  (the fill's own lightness range — a fill with one lightness, a flat colour,
-  gets it everywhere alike and the hint says so); **Away from a light** with
-  **Light from** (0° = the top, 90° = the right): none on the lit edge, full on
-  the opposite one.
-- **Falloff** — 50 = the grain grows evenly across; higher keeps it to the far
-  end, lower spreads it further (an exponent 4^((f − 50) / 50)).
-- **Seed** fixes the grain / the cell pattern.
-
-The panel shows a control only while it changes the drawing (`gradUses()`,
-which the legend under the gradient reads too — checked Nov 2, 2026 over every
-Type × Output × Grain colour × Pattern × Grain in): Tone grain in Print hides
-Grain and Grain in (a screen effect); a Flat fill in Print hides the whole
-grain block bar the Shadow grain; Mix in is hidden in Print (a cell is one pure
-ink); Seed is hidden while the pattern is Ordered (a fixed screen); Falloff is
-hidden for Shadows / Highlights on a fill with one lightness.
-
-In Print every cell belongs to exactly one ink: Shadow cells take their cells
-from the other inks, and each Shadow dot is cut out of the one ink under it (a
-circle inside that ink's rectangle, filled even-odd; dots only in whole cells).
-Plates never overlap and together cover the whole block (measured Nov 2,
-2026, with Dots: 0 uncovered pixels; the overlap is antialiasing only).
+**Removed on Nov 18, 2026** (they only made sense for a raster): Output (Screen ·
+Print — everything is ink cells now), Mix in (a dither of pure inks mixes nothing),
+Grain colour Tone · Shadow (Tone was a raster lightness jitter), Pattern Ordered,
+Type Conic, Grain in Shadows / Highlights (the dither between stops already is that).
+Palettes saved before read forward (`normalizeGrad`): Conic → Linear, Ordered →
+Noise, a Tone grain → no shadow, Shadows / Highlights → everywhere; `out`, `kind`,
+`space` are dropped.
 
 ## 4. Export
 
@@ -185,8 +225,8 @@ Plates never overlap and together cover the whole block (measured Nov 2,
 | PNG / SVG | the whole sheet. The SVG carries its own paint and font on every element — no page CSS needed |
 | CSS | `--tunesutra-<name>-<step>` for every scale step + `--tunesutra-gradient` (the smooth fill only — grain is not expressible in CSS): positions as percentages and the blend's space, `linear-gradient(90deg in oklch, #… 0%, #… 45%, …)`; a Flat fill is its colour |
 | JSON | the same as design tokens (DTCG `$value` / `$type`), incl. a `gradient` token with each stop's real position |
-| Gradient only → PNG / SVG | the gradient block alone, 860×300 units; the SVG is a real vector gradient when Screen has no grain (not Conic — SVG has none) |
-| Gradient only → Plates | Print output only: one SVG per ink |
+| Gradient only → PNG / SVG | the gradient block alone, 860×300 units; the SVG is the ink cells, vector |
+| Gradient only → Plates | one SVG per ink, black on transparent (the paper gets none) |
 
 SVG text names the page font (IBM Plex Mono) with fallbacks; a machine without
 it shows the fallback.
@@ -212,60 +252,14 @@ Built-in: three combinations available in every tool without saving them first
 approximations of real inks (public riso-colors list); check them against your
 printer's own chart before relying on them.
 
-## 6. System — the interface's own colours
+## 6. System — archived
 
-The **System** view proposes Organica's chrome tokens from the palette and shows
-them beside today's. It writes nothing: the result is a file to review.
-
-- **Neutral** — which colour's hue tints the greys (panel, borders, labels), or
-  *Today's warm grey*. **Tint** 0–100: 50 = today's amount, 0 = pure grey.
-- **Canvas dot** — the hue of the dot grid behind the sheet.
-- The ten existing roles are derived for **light and dark** (`--ink`, `--paper`,
-  `--mid`, `--accent`, `--accent-hover`, `--panel`, `--border`,
-  `--border-strong`, `--danger`, `--canvas-dot`) at today's own lightness
-  levels; text and boundary roles are then pushed until they clear the rule
-  (text ≥ 4.5:1, boundaries ≥ 3:1, on both `--paper` and `--panel`). Light
-  `--paper` stays `#ffffff` (it is also the sheet). No new token names.
-  With *Today's warm grey* at Tint 50 the proposal is today's palette (every
-  role within ΔE 0.7).
-- **Tool accents** — every tool page's own `--tool`, read live. *Keep hues*
-  gives them all one **Lightness** and **Chroma** and keeps each hue; *Even hues*
-  also spaces the hues evenly, in today's order. The sheet lists each accent's
-  contrast on light and on dark paper; `*` marks one that is under 3:1 today
-  (six were on Oct 1, 2026: Flexible Visual System, Pollen, Komorebi, Living
-  Path, Apostate, Dapple).
-- **Preview on this page** applies the proposal to TuneSutra's own interface, in
-  whichever theme is on. Not saved; no other page changes. The sheet stays light.
-- **Export → System proposal → CSS** gives the two theme rules for
-  `shared/tokens.css` (each changed value with its old one in a comment) and a
-  commented list of `--tool` per tool. **JSON** gives the same as tokens.
-
-To adopt a proposal: paste the values over the same properties in the THEMES
-rules of `shared/tokens.css`, mirror them in `shared/tokens.json`, set each
-tool's `--tool`, then run `/design-system/_dark-audit.html` on every page.
-
-### Used by Flexible Visual System (Oct 2, 2026)
-
-FVS builds its **Colourways** from a palette's main colours and their shade scales
-(`Organica.color.scale`), and scores colour in **Suggest** (`contrast`, `deltaE`). It
-copies hex values — it keeps no link to the palette, so changing a palette here does not
-change saved FVS work. `DISTINCT_MIN` and the role shares (`roleShares`, the 0.6 rule) live in `shared/color.js`; FVS
-Suggest reads them there. Since Nov 17, 2026 TuneSutra's **Bar view and home cards** use the
-**Garment's measured proportions** instead (`roleWeights()`, Diego: *align the bar*): 3 colours
-52 / 32 / 16, 4 colours 52.0 / 32.2 / 10.9 / 4.9 (Base : Secondary = the golden ratio); 5–7 keep
-Base 52 and Secondary 32.2 and split the Garment's Accent + trim share (15.8) over the rest, each
-0.6 of the one before — superseded the same day for 5 colours, see below.
-
-**3 to 5 colours** (Nov 17, 2026: *per 5 facciamo così · elimina 6 e 7 per ora*). The Colours control is
-3 · 4 · 5. At **5 colours** the Figure view draws the **Scene** (`window.TUNESUTRA_SCENE5` in
-`tunesutra/figures.js`): a back wall, a floor in perspective and the Garment standing on it (body,
-hem, V collar) — our own drawing after a book page of small figures in a room. Its measured shares
-— **wall 71.8 · floor 20.0 · body 4.6 · hem 2.8 · collar 1.0 %**, retuned to the book's page (its yellow
-panel measured ~72 / 20 / 5 / 3 / 0.7: wall 1.29 : 1, floor 0.29 of the wall deep, body 18.5 % of the
-wall wide) — are the Bar's at 5 colours too: a small figure in a large space. The figure picker is hidden at 5 (one figure). A palette saved with
-6–7 colours still opens with all of them (its Bar falls back to the tail rule above); the chip strip
-shows the first 5. `scripts/test-figures.mjs` checks the Scene (5 roles, largest first, in its box). See
-`docs/FVS.md` §6b.
+The **System** view (Oct 1 – Nov 18, 2026) proposed Organica's own interface colours from a
+palette — ten chrome roles in light + dark, every tool's `--tool` accent, a CSS / JSON export,
+a this-page preview. Removed from the tool on Nov 18, 2026 (Diego: *il system per ora
+togliamolo ma teniamolo in un archivio*) and frozen with its whole page and this section's old
+text in `archive/tunesutra-system/` (its README says how to bring it back). Palettes saved
+with a `system` field keep it; the tool no longer reads or writes it.
 
 ## 7. Not built yet
 

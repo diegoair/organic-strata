@@ -80,7 +80,7 @@ organic-strata/          ← GitHub repo name (diegoair/organic-strata)
 ├── tunesutra/            ← The colour source: palette library (home) + palette editor (cards, scales, contrast, gradient + grain, System) (single-file, vanilla)
 │   ├── index.html
 │   ├── collections.js   ← built-in palette collections, as data (`window.TUNESUTRA_COLLECTIONS`) — PORT AS DATA
-│   └── figures.js       ← the figures a palette is shown on, as data (`window.TUNESUTRA_FIGURES`: polygon zones per colour role) + `TUNESUTRA_FIGURE_SHARES(fig)` (measured area share per role) — PORT AS DATA
+│   └── house.js         ← the figure: `TUNESUTRA_HOUSE.generate(seed, n)` — a house built from FVS shapes (`shared/shapes.js`), sized so each colour role covers its exact share (`SHARES`); replaced figures.js on Nov 18, 2026
 ├── livingpath/           ← Font-only — font input → type-tester canvas (editable specimen, SIZE/TRACK/align/CAPS/night bar) → OTF export. Auto-loads shared/vendor/archivo-black.ttf (OFL) on boot. Raster engine in shared/pathfx.js (single-file, web port)
 │   └── index.html
 ├── sinew/                ← Split from Living Path Sep 5, 2026 — the generic SVG/Genesis half of the same shared/pathfx.js engine (single-file)

@@ -91,7 +91,7 @@ organic-strata/            ← GitHub diegoair/organic-strata (private)
 ├── fvs/                   ← index.html + fvs.css + js/ (ES modules; js/engine/ = model, no DOM UI — docs/FVS.md §11)
 │                            + _test-regression.html and the *-baseline.json files the headless suites read
 ├── genesis/               ← the seed library; forms.js + defs.js are DATA; animations.css append-only (archive support)
-├── tunesutra/             ← + collections.js, figures.js (DATA)
+├── tunesutra/             ← + collections.js (DATA), house.js (the figure: a seeded house from FVS shapes)
 ├── gallery/ + samples/    ← the test gallery (budget: gallery/budget.json)
 ├── archive/               ← frozen: hub-bento/, fvs-single-file/ (never edited)
 ├── shared/                ← cross-tool system, named by role (no organica- prefix); JS global window.Organica.*

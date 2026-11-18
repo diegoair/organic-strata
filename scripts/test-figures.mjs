@@ -1,31 +1,52 @@
-// Headless check for tunesutra/figures.js: every figure shows the palette in the
-// Garment's proportions. Run: node scripts/test-figures.mjs — exits 1 on a miss.
+// Headless check for tunesutra/house.js — TuneSutra's one figure, a house generated from a seed.
+// For many seeds and each colour count (3, 4, 5): the house is drawn, every role lands on its
+// share (TUNESUTRA_HOUSE.SHARES, the same weights as the Bar), every zone stays inside the
+// figure's box, and the same seed gives the same house twice.
+// Run: node scripts/test-figures.mjs — exits 1 on a miss.
 import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ctx = vm.createContext({ Math, window: {} });
-vm.runInContext(fs.readFileSync(path.join(root, 'tunesutra/figures.js'), 'utf8'), ctx);
-const FIGS = ctx.window.TUNESUTRA_FIGURES, shares = ctx.window.TUNESUTRA_FIGURE_SHARES;
+const ctx = vm.createContext({ Math, Number, Array, Object, JSON, String, Error, console });
+ctx.window = ctx; ctx.globalThis = ctx;
+// core.js's mulberry32 is all house.js needs from core (core itself wants a DOM)
+const core = fs.readFileSync(path.join(root, 'shared/core.js'), 'utf8');
+const m = core.match(/Organica\.mulberry32 = function \(seed\) \{[\s\S]*?\n  \};/);
+if (!m) { console.error('FAIL  could not find Organica.mulberry32 in shared/core.js'); process.exit(1); }
+vm.runInContext('var Organica = window.Organica = {}; ' + m[0], ctx);
+vm.runInContext(fs.readFileSync(path.join(root, 'shared/shapes.js'), 'utf8'), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, 'tunesutra/house.js'), 'utf8'), ctx);
+const H = ctx.TUNESUTRA_HOUSE;
 
-const TARGET = [52.0, 32.2, 10.9, 4.8], TOL = 1;   // the Garment's own shares; ±1 point for the others
+const SEEDS = 300, TOL = 0.15;
 let failed = 0;
-FIGS.forEach(fig => {
-  const s = shares(fig), tol = fig.id === 'garment' ? 0.15 : TOL;
-  const ok = s.every((v, i) => Math.abs(v - TARGET[i]) <= tol) && fig.zones.every(z => z.pts.every(p => p[0] >= -0.01 && p[0] <= fig.w + 0.01 && p[1] >= -0.01 && p[1] <= fig.h + 0.01));
-  if (!ok) failed++;
-  console.log((ok ? '  ok   ' : '  FAIL ') + fig.id.padEnd(8) + s.map(v => v.toFixed(1)).join(' / ') + '   3 colours: ' + [s[0], s[1], s[2] + s[3]].map(v => v.toFixed(1)).join(' / ') + '   ' + fig.zones.length + ' zones');
-});
-console.log(failed ? '\n' + failed + ' figure(s) off target' : '\nall figures within tolerance of ' + TARGET.join(' / '));
-// The 5-colour Scene (Nov 17, 2026): its own proportions — 5 roles, largest first, inside its box.
-const SC = ctx.window.TUNESUTRA_SCENE5;
-if (SC) {
-  const s = shares(SC);
-  const ok = s.length === 5 && Math.abs(s.reduce((a, b) => a + b, 0) - 100) < 1e-6 && s.every((v, i) => i === 0 || v < s[i - 1]) && s[4] > 0
-    && SC.zones.every(z => z.pts.every(p => p[0] >= -0.01 && p[0] <= SC.w + 0.01 && p[1] >= -0.01 && p[1] <= SC.h + 0.01));
-  if (!ok) failed++;
-  console.log((ok ? '  ok   ' : '  FAIL ') + 'scene    ' + s.map(v => v.toFixed(1)).join(' / ') + '   (5 colours, its own proportions)');
+const kinds = {};
+for (const n of [3, 4, 5]) {
+  let worst = 0, misses = 0;
+  for (let seed = 1; seed <= SEEDS; seed++) {
+    let fig;
+    try { fig = H.generate(seed, n); } catch (e) { misses++; console.log(`  FAIL  n=${n} seed=${seed}: ${e.message}`); continue; }
+    const target = H.SHARES[n];
+    const dev = Math.max(...fig.shares.map((v, i) => Math.abs(v - target[i])));
+    worst = Math.max(worst, dev);
+    const sum = fig.shares.reduce((a, b) => a + b, 0);
+    const nums = fig.zones.flatMap(z => (z.d.match(/-?\d+(\.\d+)?/g) || []).map(Number));
+    // every end point of every command (M / L: x y; A: the last two of its seven numbers)
+    const ends = d => (d.match(/[MLA][^MLAZ]*/g) || []).map(c => { const v = c.slice(1).trim().split(/[\s,]+/).map(Number); return v.slice(-2); });
+    const inBox = fig.zones.every(z => ends(z.d).every(([x, y]) => x >= -0.6 && x <= fig.w + 0.6 && y >= -0.6 && y <= fig.h + 0.6));
+    const again = JSON.stringify(H.generate(seed, n)) === JSON.stringify(fig);
+    const roles = new Set(fig.zones.map(z => z.role));
+    // every zone carries its own box (for its shading): real, inside the figure
+    const bbOk = fig.zones.every(z => z.bb && z.bb[2] > z.bb[0] && z.bb[3] > z.bb[1] && z.bb[0] >= -0.6 && z.bb[1] >= -0.6 && z.bb[2] <= fig.w + 0.6 && z.bb[3] <= fig.h + 0.6);
+    const ok = dev <= TOL && Math.abs(sum - 100) < 1e-6 && inBox && again && nums.every(Number.isFinite) && roles.size === n && bbOk;
+    if (!ok) { misses++; if (misses <= 5) console.log(`  FAIL  n=${n} seed=${seed}: shares ${fig.shares.map(v => v.toFixed(2)).join(' / ')} · in box ${inBox} · boxes ${bbOk} · repeatable ${again} · roles ${roles.size}`); }
+    fig.parts.split(' · ').forEach(p => { const k = p.replace(/^window 2 × /, 'window ').replace(/ \d+$/, ''); kinds[k] = (kinds[k] || 0) + 1; });
+  }
+  if (misses) failed += misses;
+  console.log(`${misses ? '  FAIL ' : '  ok   '} ${n} colours · ${SEEDS} seeds · worst share off by ${worst.toFixed(3)} points (target ${H.SHARES[n].join(' / ')})`);
 }
+console.log('  parts drawn: ' + Object.keys(kinds).sort().map(k => `${k} ${kinds[k]}`).join(' · '));
+console.log(failed ? `\n${failed} house(s) off the rules` : '\nevery house lands on its shares');
 process.exit(failed ? 1 : 0);

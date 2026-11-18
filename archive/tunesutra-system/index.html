@@ -1,0 +1,2233 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-support>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<title>TuneSutra — Organica</title>
+
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<link rel="stylesheet" href="/shared/floatbar.css">
+<link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/colour-picker.css">
+<link rel="stylesheet" href="/shared/mobile-gate.css">
+<style>
+  :root {
+    /* Only --tool. The surface palette comes from tokens.css; redeclaring it
+       here at its own default values was pure noise. See docs/CSS-RULES.md (a). */
+    --tool: #c93ed6;   /* identity colour — vivid orchid/magenta, see index.html's own hue-gap note */
+  }
+
+
+  /* Reset, body, #app and the canvas region come from shell.css (.org-canvas-wrap).
+     Deltas: the area scrolls, and is NOT align-items:center — a sheet taller than the area
+     would overflow upward, where scrolling cannot reach. margin:auto on the sheet centres it
+     when there is room and starts it at the top when there is not. */
+  #stage-wrap { align-items: flex-start; justify-content: flex-start; padding: var(--space-8); overflow: auto; }
+  /* The sheet + the house carousel laid over it (Nov 18, 2026): HTML on top of the SVG, so
+     the arrows are never part of an export. The wrapper takes the sheet's margin:auto. */
+  .ts-sheet { position: relative; margin: auto; width: 100%; }   /* full width, as the bare SVG had: a shrink-to-fit box would collapse it */
+  .ts-house-nav { position: absolute; inset: 0; pointer-events: none; }
+  .ts-house-nav .org-btn { position: absolute; top: var(--house-cy, 30%); transform: translateY(-50%); pointer-events: auto; }
+  .ts-house-nav #house-prev { left: var(--space-4); }
+  .ts-house-nav #house-next { right: var(--space-4); }
+  .ts-house-nav__live { position: absolute; clip-path: inset(50%); white-space: nowrap; }   /* read aloud, never seen */
+  #stage-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: var(--paper);
+    box-shadow: var(--stage-shadow);
+  }
+  /* Everything drawn on the sheet carries its own fill / stroke / font as
+     attributes (see buildScene) so the export is self-contained. Only the
+     on-screen selection state lives here. */
+  .bar-seg { cursor: pointer; }
+  .bar-seg.role-active { stroke: var(--ink); stroke-width: 3; }
+  .bar-seg:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  #stage-svg text { pointer-events: none; }
+
+  /* ── HOME — the palette library: every saved palette and built-in
+     collection as a card. The page opens here; a card opens the editor. ── */
+  #home {
+    flex: 1;
+    overflow: auto;
+    background: var(--canvas-grid), var(--canvas-bg);
+    padding: var(--space-8);
+  }
+  .ts-group { margin-bottom: var(--space-8); }
+  .ts-group__title { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: var(--w-medium); margin-bottom: var(--space-2); }
+  .ts-group__note { font-size: var(--fs-small); color: var(--mid); margin-bottom: var(--space-5); }
+  .ts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-8) * 5), 1fr)); gap: var(--space-5); }
+  .ts-card {
+    display: flex; flex-direction: column; overflow: hidden;
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--panel); color: var(--ink); text-decoration: none;
+  }
+  .ts-card:hover { border-color: var(--ink); }
+  .ts-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* The art is the palette itself — content, so it stays on light paper in dark mode. */
+  .ts-card__art { display: flex; aspect-ratio: 1 / 1; overflow: hidden; background: var(--paper); }   /* overflow: a tall house must not stretch the square */
+  .ts-card__art svg { width: 100%; height: 100%; }
+  .ts-card--new .ts-card__art svg { width: var(--icon-xl); height: var(--icon-xl); }
+  .ts-card__label { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-4); }
+  .ts-card__name { font-family: var(--font-display); font-size: var(--fs-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-card__meta { font-size: var(--fs-micro); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-card--new { border-style: dashed; background: none; }
+  .ts-card--new .ts-card__art { background: none; align-items: center; justify-content: center; font-size: var(--fs-xl); color: var(--mid); }
+
+  /* RMX chip CSS is shared/palette.css. TuneSutra tunes both strips
+     (palette + gradient stops: 30×26, rounded, strong border) through the
+     documented custom props, set on the strip so the add / library buttons
+     follow the chips. No local .rmx-* rule. */
+  #rmx-palette, #grad-stops, #grad-flat { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
+    --rmx-cell-radius: var(--radius-sm);
+    --rmx-cell-border: var(--border-strong, var(--border)); }
+
+  .role-name { font-size: var(--fs-small); color: var(--mid); margin-bottom: var(--space-2); }
+
+  /* The stop bar (Gradient › Stops): the gradient itself as the track, one knob per stop at its
+     position. Local — the first use of the colour component's `stops` kind (ledger O-20); built
+     from Organica.dualRange's track and knob (panel.css .org-dual). The track and the knobs are
+     content colour (the stops); their outline is chrome, so pale and dark stops both show. */
+  .ts-stopbar {
+    position: relative; height: var(--slo-h); margin: var(--space-2) 0 var(--space-3);
+    border: 1px solid var(--border-strong); border-radius: var(--slo-r);
+    cursor: copy; touch-action: none;
+  }
+  .ts-stopbar.is-dragging { cursor: grabbing; }
+  .ts-stopbar__rail { position: absolute; top: 0; bottom: 0; left: calc(var(--knob-size) / 2); right: calc(var(--knob-size) / 2); }
+  .ts-stopbar__stop {
+    position: absolute; top: 50%;
+    width: var(--knob-size); height: var(--knob-size); margin: calc(var(--knob-size) / -2) 0 0 calc(var(--knob-size) / -2);
+    box-sizing: border-box; border: 2px solid var(--paper); border-radius: 999px;
+    box-shadow: 0 0 0 1px var(--border-strong), 0 0 var(--space-3) rgba(0, 0, 0, 0.4);
+    cursor: grab; outline: none;
+  }
+  /* the knob is under --hit-min: the pointer target is a wider ring round it */
+  .ts-stopbar__stop::before { content: ''; position: absolute; inset: calc((var(--hit-min) - var(--knob-size)) / -2); border-radius: 999px; }
+  .ts-stopbar__stop.is-active { outline: 2px solid var(--tool, var(--ink)); outline-offset: 1px; }
+  .ts-stopbar__stop:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent); }   /* the dual-range knob's ring */
+  .seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+</style>
+<script src="/shared/pattern-init.js"></script>
+</head>
+<body>
+<div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
+
+<header class="org-header" role="banner">
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ TuneSutra</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<main id="home" hidden aria-label="Palettes"></main>
+
+<div id="app">
+  <div id="stage-wrap" class="org-canvas-wrap">
+    <div class="ts-sheet" data-theme="light">
+      <svg id="stage-svg" data-theme="light" viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="ts-house-nav" id="house-nav" role="group" aria-label="House" hidden>
+        <button type="button" class="org-btn org-btn--icon org-btn--lg" id="house-prev" aria-label="Previous house"></button>
+        <button type="button" class="org-btn org-btn--icon org-btn--lg" id="house-next" aria-label="Next house"></button>
+        <span class="ts-house-nav__live" id="house-no" aria-live="polite"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel" class="org-panel">
+    <div class="panel-section">
+      <button class="mini-btn" id="btn-home">← All palettes</button>
+      <p class="org-panel__hint" id="palette-title"></p>
+    </div>
+    <div class="panel-section">
+      <h3>Palette</h3>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Colours</span>
+        <div class="seg-ctrl" id="seg-count">
+          <button class="seg-btn" data-v="3">3</button>
+          <button class="seg-btn" data-v="4">4</button>
+          <button class="seg-btn" data-v="5">5</button>
+        </div>
+      </div>
+      <div class="sub-label">View</div>
+      <div id="seg-view" role="group" aria-label="View">
+        <div class="ctrl-row">
+          <div class="seg-ctrl">
+            <button class="seg-btn" data-v="gradient" aria-pressed="false">Gradient</button>
+            <button class="seg-btn" data-v="system" aria-pressed="false" title="The interface’s own colours, derived from this palette">System</button>
+          </div>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Harmony</span>
+        <select class="panel-select" id="sel-harmony" aria-label="Harmony algorithm">
+          <option value="monochromatic">Monochromatic</option>
+          <option value="analogous" selected>Analogous</option>
+          <option value="complementary">Complementary</option>
+          <option value="splitComplementary">Split-complementary</option>
+          <option value="triadic">Triadic</option>
+          <option value="tetradic">Tetradic (square)</option>
+        </select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="How far apart in lightness the generated colours sit. 0 = every colour at the base colour’s own lightness.">Lightness spread</div>
+        <input type="range" id="rg-spread" min="0" max="30" step="1" value="0">
+        <span class="ctrl-val" id="v-spread">0</span>
+      </div>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-generate" title="Rebuild every unlocked colour from the first one">Generate</button>
+        <button class="mini-btn" id="btn-undo" title="Undo (⌘Z)" disabled>Undo</button>
+      </div>
+      <div class="rmx-palette" id="rmx-palette"></div>
+      <p class="org-panel__hint" id="distinct-hint"></p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Colour <span class="hint" id="active-role-label">Base</span></h3>
+
+      <div class="ctrl-row">
+        <div class="ctrl-label">Name</div>
+        <input type="text" class="panel-select" id="txt-name" aria-label="Colour name" maxlength="40" style="flex:1">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="A kept colour is not replaced when you press Generate.">Keep on Generate</div>
+        <input type="checkbox" id="ck-lock">
+      </div>
+
+      <div class="color-row">
+        <span class="color-name">Hex</span>
+        <button class="color-swatch" id="sw-active" aria-label="Edit colour" aria-haspopup="dialog"></button>
+        <input class="color-hex" id="hex-active" value="#c93ed6" maxlength="7" aria-label="Hex value">
+      </div>
+
+      <div class="org-tiles" id="value-tiles" role="group" aria-label="Values">
+        <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="hsb"><span class="org-tile__label">HSB</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="cmyk"><span class="org-tile__label">CMYK</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="oklch"><span class="org-tile__label">OKLCH</span><span class="org-tile__value"></span></button>
+        <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value"></span><span class="org-tile__note"></span></button>
+      </div>
+      <p class="org-panel__hint">Click a value to copy it. RAL matches are approximate.</p>
+
+    </div>
+
+    <div class="panel-section">
+      <h3>Gradient</h3>
+      <div class="sub-label">Type</div>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-gtype" role="group" aria-label="Type">
+          <button class="seg-btn" data-v="flat" title="One colour, no blend — for grain on a flat colour">Flat</button>
+          <button class="seg-btn active" data-v="linear">Linear</button>
+          <button class="seg-btn" data-v="radial">Radial</button>
+          <button class="seg-btn" data-v="conic">Conic</button>
+        </div>
+      </div>
+      <div class="ctrl-row" id="row-gangle">
+        <div class="ctrl-label">Angle</div>
+        <input type="range" id="rg-gangle" min="0" max="360" step="1" value="90">
+        <span class="ctrl-val" id="v-gangle">90</span>
+      </div>
+      <div id="grad-blend">
+        <div class="sub-label">Stops</div>
+        <div class="ts-stopbar" id="grad-bar" role="group" aria-label="Stops"><div class="ts-stopbar__rail"></div></div>
+        <div class="rmx-palette" id="grad-stops"></div>
+        <p class="org-panel__hint" id="grad-bar-hint">Click the bar to add a stop; drag a stop to move it. Arrow keys move the selected stop, Delete removes it.</p>
+        <div class="row-btns">
+          <button class="mini-btn" id="btn-grad-reverse">Reverse</button>
+          <button class="mini-btn" id="btn-grad-even">Space evenly</button>
+        </div>
+        <div class="ctrl-row" id="row-gspace">
+          <span class="ctrl-label" title="How the colours between two stops are made. OKLab: even to the eye. OKLCH: keeps the colour saturated, hue the short way round. sRGB: what a plain CSS gradient does.">Mix in</span>
+          <div class="seg-ctrl" id="seg-gspace" role="group" aria-label="Mix in">
+            <button class="seg-btn active" data-v="oklab">OKLab</button>
+            <button class="seg-btn" data-v="oklch">OKLCH</button>
+            <button class="seg-btn" data-v="srgb">sRGB</button>
+          </div>
+        </div>
+        <label class="check-row org-switch" title="Adds the paper as the last stop: on screen the gradient fades to the sheet, in print the last ink thins out to bare paper and gets no plate of its own."><input type="checkbox" id="ck-gpaper"><span>Fade to paper</span></label>
+      </div>
+      <div class="ctrl-row" id="row-gflat">
+        <span class="ctrl-label">Colour</span>
+        <div class="rmx-palette" id="grad-flat"></div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label" title="Screen: a smooth fill with grain on top. Print: the same fill as flat cells of pure ink, one plate per ink.">Output</span>
+        <div class="seg-ctrl" id="seg-gout" role="group" aria-label="Output">
+          <button class="seg-btn active" data-v="screen">Screen</button>
+          <button class="seg-btn" data-v="print">Print</button>
+        </div>
+      </div>
+      <p class="org-panel__hint" id="grad-hint"></p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Grain</h3>
+      <div class="ctrl-row">
+        <span class="ctrl-label" title="Tone: the fill’s own colour, lighter and darker. Shadow: speckle of one ink — the shadow-noise look, and the one that prints.">Grain colour</span>
+        <div class="seg-ctrl" id="seg-gkind" role="group" aria-label="Grain colour">
+          <button class="seg-btn active" data-v="grain">Tone</button>
+          <button class="seg-btn" data-v="speckle">Shadow</button>
+        </div>
+      </div>
+      <div class="color-row" id="row-gink">
+        <span class="color-name">Shadow</span>
+        <div class="color-swatch-wrap"><input type="color" id="cp-gink" value="#2a1430"></div>
+        <button class="color-swatch" id="sw-gink" aria-label="Shadow colour"></button>
+        <input class="color-hex" id="hex-gink" value="#2a1430" maxlength="7" aria-label="Shadow hex">
+      </div>
+      <div class="ctrl-row" id="row-gamount">
+        <div class="ctrl-label">Grain</div>
+        <input type="range" id="rg-gamount" min="0" max="100" step="1" value="25">
+        <span class="ctrl-val" id="v-gamount">25</span>
+      </div>
+      <div class="ctrl-row" id="row-gsize">
+        <div class="ctrl-label">Grain size</div>
+        <input type="range" id="rg-gsize" min="1" max="12" step="1" value="3">
+        <span class="ctrl-val" id="v-gsize">3</span>
+      </div>
+      <div id="row-gpattern">
+        <div class="sub-label" title="Noise: cells at random. Ordered: a regular 8 × 8 screen. Dots: round dots, evenly spread (blue noise).">Pattern</div>
+        <div class="ctrl-row">
+          <div class="seg-ctrl" id="seg-gpattern" role="group" aria-label="Pattern">
+            <button class="seg-btn active" data-v="noise">Noise</button>
+            <button class="seg-btn" data-v="ordered">Ordered</button>
+            <button class="seg-btn" data-v="dots">Dots</button>
+          </div>
+        </div>
+      </div>
+      <div class="ctrl-row" id="row-gdist">
+        <span class="ctrl-label" title="Where the grain gathers: everywhere alike, where the fill is darkest or lightest, or away from a light.">Grain in</span>
+        <select class="panel-select" id="sel-gdist" aria-label="Grain in">
+          <option value="even">Everywhere</option>
+          <option value="shadows">Shadows</option>
+          <option value="highlights">Highlights</option>
+          <option value="light">Away from a light</option>
+        </select>
+      </div>
+      <div class="ctrl-row" id="row-glight">
+        <div class="ctrl-label" title="Where the light comes from: 0° = the top, 90° = the right. The grain thickens toward the opposite side.">Light from</div>
+        <input type="range" id="rg-glight" min="0" max="360" step="1" value="315">
+        <span class="ctrl-val" id="v-glight">315</span>
+      </div>
+      <div class="ctrl-row" id="row-gfalloff">
+        <div class="ctrl-label" title="50 = the grain grows evenly across the fill. Higher keeps it to the shadow end; lower spreads it further.">Falloff</div>
+        <input type="range" id="rg-gfalloff" min="0" max="100" step="1" value="50">
+        <span class="ctrl-val" id="v-gfalloff">50</span>
+      </div>
+      <div class="ctrl-row" id="row-gseed">
+        <div class="ctrl-label">Seed</div>
+        <input type="number" class="panel-input" id="in-gseed" min="0" max="9999" step="1" value="1">
+      </div>
+      <p class="org-panel__hint" id="grain-hint"></p>
+    </div>
+
+    <div class="panel-section">
+      <h3>System</h3>
+      <p class="org-panel__hint">A proposal for Organica’s own interface colours, shown beside today’s. Nothing changes until the exported file is reviewed and pasted into the tokens.</p>
+      <div class="ctrl-row">
+        <span class="ctrl-label" title="Which colour’s hue tints the greys: panel, borders, labels.">Neutral</span>
+        <select class="panel-select" id="sel-sys-neutral" aria-label="Neutral hue from"></select>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="How much of that hue the greys carry. 50 = today’s amount, 0 = pure grey.">Tint</div>
+        <input type="range" id="rg-sys-tint" min="0" max="100" step="1" value="50">
+        <span class="ctrl-val" id="v-sys-tint">50</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label" title="The hue of the dot grid behind the sheet.">Canvas dot</span>
+        <select class="panel-select" id="sel-sys-dot" aria-label="Canvas dot hue from"></select>
+      </div>
+      <div class="sub-label">Tool accents</div>
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-sys-mode" role="group" aria-label="Tool accent hues">
+          <button class="seg-btn active" data-v="keep" title="Each tool keeps its own hue; lightness and chroma become the same">Keep hues</button>
+          <button class="seg-btn" data-v="even" title="Hues are also spaced evenly round the wheel, in today’s order">Even hues</button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Lightness</div>
+        <input type="range" id="rg-sys-accl" min="45" max="75" step="1" value="60">
+        <span class="ctrl-val" id="v-sys-accl">60</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label">Chroma</div>
+        <input type="range" id="rg-sys-accc" min="4" max="22" step="1" value="13">
+        <span class="ctrl-val" id="v-sys-accc">13</span>
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label" title="Shows the proposal on this page’s own interface, in whichever theme is on. Not saved, and no other page is affected.">Preview on this page</div>
+        <input type="checkbox" id="ck-sys-preview">
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Scale</h3>
+      <p class="org-panel__hint">Ten steps under each colour, 0–900. A step is the same perceived lightness for every colour, so colours are interchangeable step for step. Your colour sits unchanged on its nearest step (outlined).</p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Saved palettes</h3>
+      <div id="preset-picker"></div>
+      <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)"></select>
+      <div class="row-btns">
+        <button class="mini-btn" id="btn-preset-delete" data-armed="Confirm?">Delete</button>
+      </div>
+      <p class="org-panel__hint">Save is in the bar below the sheet. A saved palette is on the home page and in every tool’s palette library.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FLOATBAR — export only. No Figma button: removed product-wide
+     (see camo-turing/index.html's own note), coming back as an Export-
+     popover tab once that's rebuilt. sendToFigma() stays defined below,
+     ready to reuse, same convention as Loom/Camo Turing/FVS. ══ -->
+<div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn" id="btn-save-open" aria-label="Save palette">
+      <svg class="ico" data-icon="save" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h8l2 2v8a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M5 2.5V6h5V2.5M5.5 10.5h5"/></svg>
+    </button>
+    <div class="org-popover" id="save-popover" aria-label="Save palette">
+      <div class="org-popover__title">Save palette</div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="txt-preset-name">Name</label>
+        <input type="text" class="panel-input panel-input--full" id="txt-preset-name">
+      </div>
+      <div class="org-popover__row">
+        <button class="org-btn" id="btn-preset-confirm">Save</button>
+      </div>
+    </div>
+  </div>
+  <div class="org-floatbar__sep"></div>
+  <div class="org-popover-wrap">
+    <button class="org-floatbar__btn org-floatbar__btn--wide" id="btn-export" aria-label="Export">
+      <svg class="ico" data-icon="download" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v7.2M5.3 6.7 8 9.4l2.7-2.7"/><path d="M2.5 11v1.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V11"/></svg>
+      <svg class="ico chev" data-icon="chevron-down" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+    </button>
+    <div class="org-popover" id="export-popover" aria-label="Export options">
+      <div class="org-popover__title">Format</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-export-png">PNG</button>
+        <button class="org-btn" id="btn-export-svg">SVG</button>
+        <button class="org-btn" id="btn-export-css">CSS</button>
+        <button class="org-btn" id="btn-export-json">JSON</button>
+      </div>
+      <div class="org-popover__title">Gradient only</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-export-grad-png">PNG</button>
+        <button class="org-btn" id="btn-export-grad-svg">SVG</button>
+        <button class="org-btn" id="btn-export-plates" title="One SVG per ink, black on transparent. Print output only.">Plates</button>
+      </div>
+      <div class="org-popover__title">System proposal</div>
+      <div class="org-formats">
+        <button class="org-btn" id="btn-export-sys-css" title="The two theme rules for shared/tokens.css + one --tool per tool">CSS</button>
+        <button class="org-btn" id="btn-export-sys-json">JSON</button>
+      </div>
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__row">
+        <label class="org-popover__label" for="sel-export-scale">Scale</label>
+        <select class="org-select" id="sel-export-scale">
+          <option value="1">&times;1</option>
+          <option value="2" selected>&times;2</option>
+          <option value="4">&times;4</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/shared/vendor/supabase-js.min.js"></script>
+<script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
+<script src="/shared/supabase.js"></script>
+<script src="/shared/auth.js"></script>
+<script src="/shared/auth-badge.js"></script>
+<script src="/shared/store.js"></script>
+<script src="/shared/color.js"></script>
+<script src="/shared/colour-picker.js"></script>
+<script src="/shared/palette.js"></script>
+<script src="/shared/vendor/ral-classic.js"></script>
+<script src="/shared/select-picker.js"></script>
+<script src="/shared/plate-export.js"></script>
+<script src="/tunesutra/collections.js"></script>
+<script src="/shared/shapes.js"></script>
+<script src="/tunesutra/house.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────
+// TuneSutra — colour-harmony palette generator.
+//
+// WYSIWYG rule: buildScene() returns one list of plain shapes and text;
+// the on-screen SVG, the exported SVG and the PNG are all drawn from that
+// list (sceneMarkup / drawScene). Every item carries its own paint and font,
+// so an exported file needs nothing from this page's CSS. If an export can
+// disagree with the on-screen stage, the tool is broken.
+//
+// Colour-space conversions (rgbToHsb/hsbToRgb/rgbToCmyk/cmykToRgb/
+// rgbToHsl/hslToRgb) were all written here first: the repo had hex<->RGB
+// shared already, but no RGB->HSB, no HSL either direction, no CMYK
+// anywhere. All of them have since been PROMOTED — CMYK to core.js
+// (2026-08-27, Colornet the second consumer), HSB/HSL to shared/color.js
+// (2026-10-01, Membrane the second consumer) — and the functions below are
+// thin aliases, so every call site here is untouched.
+// ─────────────────────────────────────────────────────────────
+
+function ctrl(id) { return document.getElementById(id); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function round(v) { return Math.round(v); }
+
+// ── COLOUR CONVERSIONS — aliases onto the shared implementations ──
+function rgbToHsb(r, g, b) { return Organica.color.rgbToHsb(r, g, b); }
+function hsbToRgb(h, s, v) { return Organica.color.hsbToRgb(h, s, v); }
+function rgbToCmyk(r, g, b) { return Organica.rgbToCmyk(r, g, b); }
+function cmykToRgb(c, m, y, k) { return Organica.cmykToRgb(c, m, y, k); }
+function rgbToHsl(r, g, b) { return Organica.color.rgbToHsl(r, g, b); }
+function hslToRgb(h, s, l) { return Organica.color.hslToRgb(h, s, l); }
+function hexFromRgb(r, g, b) { return Organica.rgbToHex(r, g, b); }
+
+// ── STATE ──
+// One item per colour. `id` is stable for the colour's whole life (renaming
+// or reordering never changes it); `name` is what the designer calls it and
+// what the token key is built from; `lock` keeps it through Generate.
+const C = Organica.color;
+const ROLE_NAMES = ['Base', 'Secondary', 'Accent', 'Accent 2', 'Accent 3', 'Accent 4', 'Accent 5'];
+const DISTINCT_MIN = C.DISTINCT_MIN;   // OKLab ΔE×100 — below this two swatches read as one colour at a glance
+const state = {
+  harmony: 'analogous',
+  spread: 0,          // lightness spread, in OKLCH L points (0–30)
+  activeIndex: 0,
+  view: 'garment',    // 'garment' (the house + the bar — the main view) | 'gradient' | 'system' (Gradient / System toggle off it, Nov 18, 2026)
+  house: 1,           // the figure's seed (tunesutra/house.js): saved with the palette, stepped by the carousel
+  items: [],
+  // The gradient: stops are colours in their own right (picked from this
+  // palette or any saved one), so reordering the palette never reorders them.
+  grad: {
+    type: 'linear',   // 'flat' (the first stop only) | 'linear' | 'radial' | 'conic'
+    angle: 90,        // CSS convention: 0 = to top, 90 = to right; conic starts here
+    stops: ['#c93ed6', '#c9863e'],
+    pos: null,        // a 0..1 position per stop, ascending; null = evenly spaced (palettes saved before Nov 2, 2026)
+    space: 'oklab',   // what the blend is mixed in: 'oklab' | 'oklch' | 'srgb'
+    paper: false,     // fade to paper: the sheet's paper as a last, plate-less stop
+    out: 'screen',    // 'screen' (smooth + grain) | 'print' (cells of pure ink)
+    kind: 'grain',    // the grain's colour: 'grain' (Tone — lightness jitter, screen only) | 'speckle' (Shadow — one ink)
+    ink: '#2a1430',   // the Shadow ink
+    amount: 25,       // grain strength / speckle density, 0–100
+    size: 3,          // grain / cell size in sheet units
+    pattern: 'noise', // threshold: 'noise' (stochastic) | 'ordered' (Bayer 8×8) | 'dots' (blue noise, round dots)
+    dist: 'even',     // Grain in: 'even' | 'shadows' | 'highlights' | 'light'
+    light: 315,       // Light from, degrees (0 = the top)
+    falloff: 50,      // 50 = straight; higher keeps the grain to the far end
+    seed: 1,
+  },
+  // The System view: how the interface's own tokens are derived from this palette.
+  sys: {
+    neutral: 'today', // a colour id (its hue tints the greys) | 'today' = the current warm grey
+    tint: 50,         // 0–100; 50 = today's amount of tint
+    dot: 'today',     // a colour id for the canvas dot grid | 'today' = the current cyan
+    mode: 'keep',     // tool accents: 'keep' each tool's hue | 'even' re-space them round the wheel
+    accL: 60,         // tool-accent lightness (OKLCH L ×100)
+    accC: 13,         // tool-accent chroma (OKLCH C ×100)
+    preview: false,   // apply the proposal to this page only — never saved
+  },
+};
+
+function newId() { return 'c-' + Math.random().toString(36).slice(2, 8); }
+function roleName(i) { return ROLE_NAMES[i] || ('Accent ' + (i - 1)); }
+// A new colour takes the first role name nobody is using — after a removal,
+// position i's own role name may already belong to a colour further along.
+function freshName(i) {
+  const used = state.items.map(it => it.name);
+  for (let k = i; k < i + 20; k++) if (used.indexOf(roleName(k)) < 0) return roleName(k);
+  return roleName(i);
+}
+function makeItem(hex, i) { return { id: newId(), name: freshName(i), hex: hex, lock: false }; }
+function colors() { return state.items.map(it => it.hex); }
+function count() { return state.items.length; }
+function dispName(i) { return (state.items[i].name || '').trim() || roleName(i); }
+// The share each colour takes in the Bar, on the home cards and on the figure = HOUSE.SHARES
+// (tunesutra/house.js): 3 colours 52 / 32.2 / 15.8, 4 colours 52.0 / 32.2 / 10.9 / 4.9 — the
+// Garment's measured proportions (Diego, Nov 17, 2026: "align the bar"; Base : Secondary is the
+// golden ratio) — and 5 colours 71.6 / 20.0 / 4.6 / 2.8 / 1.0, the book page's (the Scene's 71.8
+// less the rounding). 6–7 can no longer be chosen (Nov 17, 2026) but a palette saved with them
+// still opens whole: Base and Secondary as at 4, the Accent + trim share split over the rest, each
+// 0.6 of the one before. TuneSutra only — C.roleShares (the 0.6 rule) also drives FVS Suggest
+// and stays as it is.
+function roleWeights(n) {
+  const g = HOUSE.SHARES[4];   // [base, secondary, accent, trim], sums to 100
+  if (n >= 3 && n <= 5) return HOUSE.SHARES[n].slice();   // the house is generated on these (tunesutra/house.js)
+  if (n < 3) return C.roleShares(n);
+  const tail = g[2] + g[3], k = n - 2, raw = [];
+  for (let i = 0; i < k; i++) raw.push(Math.pow(0.6, i));
+  const sum = raw.reduce((a, b) => a + b, 0);
+  return [g[0], g[1]].concat(raw.map(v => v / sum * tail));
+}
+state.items = ['#c93ed6', '#c9863e', '#3ec9a8'].map(makeItem);
+
+// ── TOKEN SCALE (0–900) — Organica.color.scale: fixed perceptual lightness
+//    per step, the picked colour kept on its nearest step (the anchor). ──
+const scaleCache = new Map();
+function tokenScale(hex) {
+  if (!scaleCache.has(hex)) scaleCache.set(hex, C.scale(hex));
+  return scaleCache.get(hex);
+}
+// Scale indices ordered by distance from the anchor — the "next shade of
+// this colour" sequence used for extra roles and for Monochromatic.
+function around(anchor, lighterFirst) {
+  const out = [];
+  for (let d = 1; d <= 9; d++) {
+    const lighter = anchor - d, darker = anchor + d;
+    (lighterFirst ? [lighter, darker] : [darker, lighter]).forEach(i => { if (i >= 0 && i <= 9) out.push(i); });
+  }
+  return out;
+}
+function derive(hex, k, lighterFirst) {
+  const sc = tokenScale(hex), order = around(sc.findIndex(s => s.anchor), lighterFirst);
+  return sc[order[k % order.length]].hex;
+}
+function nextColour() {
+  const cols = colors(), last = cols[cols.length - 1];
+  for (let k = 0; k < 9; k++) { const hex = derive(last, k, false); if (cols.indexOf(hex) < 0) return hex; }
+  return derive(last, 0, false);
+}
+
+// ── HARMONY GENERATION — hue rotated in OKLCH, so every generated colour has
+//    the base colour's perceived lightness (plus the Lightness spread, if any)
+//    and as much of its chroma as that hue can hold. The first colour is the
+//    seed and is never rewritten: pressing Generate twice gives the same set. ──
+const HARMONY_HUES = {
+  complementary: [0, 180],
+  splitComplementary: [0, 150, 210],
+  triadic: [0, 120, 240],
+  tetradic: [0, 90, 180, 270],
+};
+function generateHarmony() {
+  const n = count(), baseHex = state.items[0].hex, base = C.hexToOklch(baseHex);
+  if (state.harmony === 'monochromatic') {
+    return Array.from({ length: n }, (_, i) => i === 0 ? baseHex : derive(baseHex, i - 1, true));
+  }
+  // Analogous fans out either side of the base (0, +15, −15, +30, −30 …).
+  const offs = state.harmony === 'analogous'
+    ? Array.from({ length: n }, (_, i) => (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 15)
+    : (HARMONY_HUES[state.harmony] || [0]);
+  const m = offs.length, kmax = Math.max(1, Math.ceil((m - 1) / 2)), dir = base.l > 0.6 ? -1 : 1;
+  const hueAt = i => (base.h + offs[i] + 360) % 360;
+  const natural = offs.map((off, i) => {
+    if (i === 0) return baseHex;
+    const k = Math.ceil(i / 2) / kmax, sign = (i % 2 ? 1 : -1) * dir;
+    const l = state.spread ? clamp(base.l + sign * k * state.spread / 100, 0.25, 0.95) : base.l;
+    return C.oklchToHex(l, base.c, hueAt(i));
+  });
+  // Roles beyond the rule's own hue count reuse those hues in turn, each one
+  // a further step along that hue's scale, so no two come out identical.
+  return Array.from({ length: n }, (_, i) => {
+    if (i < m) return natural[i];
+    const extra = i - m, hi = extra % m;
+    const seed = hi === 0 ? baseHex : C.oklchToHex(base.l, base.c, hueAt(hi));
+    return derive(seed, Math.floor(extra / m), false);
+  });
+}
+function applyHarmony() {
+  const gen = generateHarmony();
+  state.items.forEach((it, i) => { if (i && !it.lock) it.hex = gen[i]; });
+}
+
+// ── UNDO — JSON snapshots, checkpoints only. Bursts of the same continuous
+//    edit (dragging the picker, typing a name, the spread slider) coalesce. ──
+const undoStack = [];
+let lastUndo = { kind: '', t: 0 };
+function snapshot() {
+  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, house: state.house, activeIndex: state.activeIndex, grad: state.grad, sys: state.sys });
+}
+function pushUndo(kind) {
+  const now = Date.now();
+  const burst = (kind === 'edit' || kind === 'name' || kind === 'spread' || kind === 'grad' || kind === 'sys') && lastUndo.kind === kind && now - lastUndo.t < 1200;
+  lastUndo = { kind: kind, t: now };
+  if (burst) return;
+  undoStack.push(snapshot());
+  if (undoStack.length > 60) undoStack.shift();
+  if (!dirty) { setDirty(true); refreshTitle(); }
+  syncUndo();
+}
+function undo() {
+  const s = undoStack.pop();
+  if (!s) return;
+  const preview = state.sys.preview;   // a view setting, not a change to undo
+  Object.assign(state, JSON.parse(s));
+  state.sys.preview = preview;
+  lastUndo = { kind: '', t: 0 };
+  syncControls();
+  commit(true);
+}
+function syncUndo() { ctrl('btn-undo').disabled = !undoStack.length; }
+
+// ── PALETTE CHIPS (shared component) ──
+let chips = null;
+function initChips() {
+  chips = Organica.palette.swatch(ctrl('rmx-palette'), {
+    colors: colors(),
+    min: 3,
+    max: 5,   // 3–5 colours (Diego, Nov 17, 2026: 6 and 7 removed for now)
+    library: false,   // this tool is where palettes are made — its own Save section loads them, with their names
+    // A chip opens Organica's own picker (shared/colour-picker.js, O-21 — Diego, Nov 17, 2026)
+    // and makes its colour the one the Colour section edits.
+    picker: 'organica',
+    nameOf: i => dispName(i),
+    onOpen: i => { if (i !== state.activeIndex) selectRole(i); },
+    onChange: (cols, index, kind, removedAt) => {
+      if (kind === 'set') return;
+      pushUndo(kind);
+      if (kind === 'edit') {
+        state.items[index].hex = cols[index];
+        commit(false);   // no chip rebuild: it would close the open native picker mid-drag
+        return;
+      }
+      if (kind === 'add') {
+        state.items.push(makeItem(nextColour(), state.items.length));
+        state.activeIndex = state.items.length - 1;
+      } else if (kind === 'remove') {
+        state.items.splice(removedAt, 1);
+        state.activeIndex = clamp(state.activeIndex, 0, state.items.length - 1);
+      }
+      commit(true);
+    },
+  });
+}
+// The shared Palette component owns the .chip-active class — setActive(i)
+// toggles it and re-applies it after any rebuild().
+function highlightActiveChip() { chips.setActive(state.activeIndex); }
+
+// One refresh path for every change. rebuildChips=false only while a chip's
+// own native picker is the thing being dragged.
+function commit(rebuildChips) {
+  if (rebuildChips) { chips.setColors(colors()); gradChips.setColors(state.grad.stops); }
+  highlightActiveChip();
+  scaleCache.clear();
+  syncCountSeg();
+  syncViewSeg();
+  refreshFieldEditor();
+  syncSysControls();
+  renderStage();
+  refreshHints();
+  applySysPreview();
+  syncUndo();
+}
+function syncControls() {
+  ctrl('sel-harmony').value = state.harmony;
+  ctrl('rg-spread').value = state.spread;
+  ctrl('v-spread').textContent = state.spread;
+  syncGradControls();
+}
+
+// ── DISTINCTNESS — which pairs are too close to tell apart ──
+function closePairs() {
+  const cols = colors(), out = [];
+  for (let i = 0; i < cols.length; i++) for (let j = i + 1; j < cols.length; j++) {
+    const d = C.deltaE(cols[i], cols[j]);
+    if (d < DISTINCT_MIN) out.push({ i: i, j: j, d: d });
+  }
+  return out;
+}
+function refreshHints() {
+  const pairs = closePairs();
+  ctrl('distinct-hint').textContent = pairs.length
+    ? 'Hard to tell apart: ' + pairs.map(p => dispName(p.i) + ' and ' + dispName(p.j)).join('; ') + '.'
+    : 'Every colour is distinct from the others.';
+}
+
+// ── ACTIVE-COLOUR FIELD EDITOR ──
+let writing = false; // re-entrancy guard against the .value= triggering our own listeners
+function setActiveColor(hex) {
+  hex = Organica.normalizeHex(hex, state.items[state.activeIndex].hex);
+  pushUndo('edit');
+  state.items[state.activeIndex].hex = hex;
+  commit(true);
+}
+// Hex · RGB · HSB · CMYK · Nearest RAL are read-only tiles (Diego, Nov 17, 2026) — values are typed in the picker.
+function refreshTiles(hex) {
+  const P = Organica.colorPicker, ral = P.nearestRal(hex);
+  ctrl('value-tiles').querySelectorAll('.org-tile').forEach(t => {
+    const k = t.dataset.v;
+    const text = k === 'ral' ? (ral ? ral.code : '—') : P.valueText(hex, k);
+    t.querySelector('.org-tile__value').textContent = text;
+    if (k === 'ral') t.querySelector('.org-tile__note').textContent = ral ? ral.name : '';
+    // OKLCH copies as CSS, ready for code: oklch(42% 0.15 312)
+    t.dataset.copy = k === 'ral' ? (ral ? ral.code + ' ' + ral.name : '') : k === 'oklch' ? 'oklch(' + text.replace(/,/g, '') + ')' : text;
+    if (!t.classList.contains('is-copied')) t.setAttribute('aria-label', 'Copy ' + t.querySelector('.org-tile__label').textContent + ' ' + t.dataset.copy);
+  });
+}
+function refreshFieldEditor() {
+  const it = state.items[state.activeIndex], hex = it.hex;
+  writing = true;
+  ctrl('active-role-label').textContent = dispName(state.activeIndex);
+  if (document.activeElement !== ctrl('txt-name')) ctrl('txt-name').value = it.name;
+  ctrl('txt-name').placeholder = roleName(state.activeIndex);
+  // The first colour is the seed every harmony is built from — always kept.
+  ctrl('ck-lock').checked = state.activeIndex === 0 || it.lock;
+  ctrl('ck-lock').disabled = state.activeIndex === 0;
+  ctrl('hex-active').value = hex;
+  ctrl('sw-active').style.background = hex;
+  refreshTiles(hex);
+  writing = false;
+}
+function bindFieldEditor() {
+  ctrl('hex-active').addEventListener('change', e => setActiveColor(e.target.value));
+  ctrl('sw-active').addEventListener('click', () => Organica.colorPicker.open(ctrl('sw-active'), {
+    value: state.items[state.activeIndex].hex,
+    label: dispName(state.activeIndex),
+    onInput: hex => { if (hex !== state.items[state.activeIndex].hex) setActiveColor(hex); },
+  }));
+  // a tile copies its value; its name says "Copied" for a moment
+  ctrl('value-tiles').addEventListener('click', e => {
+    const t = e.target.closest('.org-tile');
+    if (!t || !t.dataset.copy || !navigator.clipboard) return;
+    navigator.clipboard.writeText(t.dataset.copy).then(() => {
+      t.classList.add('is-copied'); t.setAttribute('aria-label', 'Copied');
+      setTimeout(() => { t.classList.remove('is-copied'); refreshTiles(state.items[state.activeIndex].hex); }, 1200);
+    }, () => {});
+  });
+
+  ctrl('txt-name').addEventListener('input', e => {
+    if (writing) return;
+    pushUndo('name');
+    state.items[state.activeIndex].name = e.target.value;
+    ctrl('active-role-label').textContent = dispName(state.activeIndex);
+    renderStage();
+    refreshHints();
+  });
+  ctrl('ck-lock').addEventListener('change', e => {
+    if (writing) return;
+    pushUndo('lock');
+    state.items[state.activeIndex].lock = e.target.checked;
+  });
+}
+
+// ── STAGE — one scene list feeds the preview and every export (WYSIWYG) ──
+// Top: one card per colour with its 0–900 scale beneath it. Then an example
+// of the palette in use — the proportional bar (any N) or the figure (a house
+// generated from a seed; 3 to 5 colours) — then the contrast grid. In the Gradient view the
+// gradient comes first and there is no example.
+const VB_W = 900, BAR_Y = 24, BAR_H = 44, BAR_X0 = 20, BAR_X1 = 880;
+const CARD_MAX_W = 150, CARD_GAP = 14, CARD_COLOUR_H = 96, CARD_H = 134, CARD_R = 14, STEP_H = 20, STEP_GAP = 2;
+const TUBE_H = 10, TUBE_ROW = 40;   // the share tube over each card, and the row it takes
+const SW_W = 76, SW_GAP = 6, SW_H = 40, SW_PITCH = SW_W + SW_GAP;
+const GRID_HEAD_H = 14, GRID_ROW_H = SW_H + 22;
+
+// The figure — the palette shown IN PROPORTION on a house generated from a seed
+// (tunesutra/house.js, Nov 18, 2026: it replaces the Garment, the House and the
+// 5-colour Scene). Each role covers exactly its share (HOUSE.SHARES, the Bar's
+// weights); 3 and 4 colours draw the house alone, 5 a house in a landscape
+// (background, ground, wall, roof, door). A palette keeps its house by keeping
+// state.house; the carousel steps it. The view's stored id stays 'garment'.
+const HOUSE = window.TUNESUTRA_HOUSE, FIG_H = 502.5;
+const houseCache = new Map();
+function houseFig(seed, n) {
+  const key = seed + ':' + n;
+  if (!houseCache.has(key)) { houseCache.set(key, HOUSE.generate(seed, n)); if (houseCache.size > 200) houseCache.delete(houseCache.keys().next().value); }
+  return houseCache.get(key);
+}
+function currentFigure() { return houseFig(state.house, count()); }
+// A palette saved before the house (or a built-in one) gets a seed from its colours, so it keeps one house.
+function seedOf(text) { let h = 2166136261; for (const ch of String(text)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 9999) + 1; }
+function newSeed() { return 1 + Math.floor(Math.random() * 9999); }
+function garmentFits(n) { return n >= 3 && n <= 5; }
+// A zone too pale to see on the paper gets a hairline, as the book draws it.
+function paleOnPaper(hex) { return C.contrast(hex, '#ffffff') < 1.12; }
+function isGarmentView() { return state.view === 'garment' && garmentFits(count()); }
+
+// ── GRADIENT + NOISE ──
+// One definition (state.grad), two renderings:
+//   Screen — a smooth gradient (or a flat colour) interpolated in the chosen
+//            space, with noise on top. A raster: PNG, or a PNG inside the SVG
+//            — except a linear / radial / flat fill with no noise, which the
+//            SVG carries as a real <linearGradient> / <radialGradient>.
+//   Print  — the same fill as a grid of cells, each one PURE ink: between
+//            two stops a cell takes the nearer or the farther ink by a
+//            threshold, so the blend is made of dots, not of mixed colour.
+//            Real vector, and one path per ink — which is exactly a plate.
+// Noise is either Grain (lightness jitter, screen only) or Speckle (cells or
+// dots of one ink — the shadow-noise look). How much of it lands where is the
+// Distribution: even, following the fill's own tone (shadows / highlights),
+// or away from a light. In Print, cell speckle takes its cells from the other
+// inks (plates still never overlap); dots print over them.
+// Kept local: TuneSutra is the only consumer (promote at the second one).
+const GRAD_W = BAR_X1 - BAR_X0, GRAD_H = 300, GRAD_LEGEND_H = 18, PRINT_MIN_CELL = 3, GRAD_SPACES = ['oklab', 'oklch', 'srgb'];
+
+// Integer-lattice hash → 0..1. (shared/noise.js's hash2 is built for
+// continuous coordinates; on whole-number cells it repeats every 50.)
+function cellHash(x, y, seed) {
+  let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(seed + 1, 1274126177);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+// The threshold 0..1 of cell (c, r) for a pattern; `layer` decorrelates the
+// gradient's own dither from the speckle on top of it.
+function patternThr(pattern, c, r, seed, layer) {
+  if (pattern === 'ordered') return Organica.dither.bayerThresholds(8)[((r + layer * 4) & 7) * 8 + ((c + layer * 3) & 7)];
+  if (pattern === 'dots') {
+    const N = 64, ox = Math.floor(cellHash(seed, layer, 91) * N), oy = Math.floor(cellHash(layer, seed, 37) * N);
+    return Organica.dither.blueNoise(N)[((r + oy) % N) * N + ((c + ox) % N)];
+  }
+  return cellHash(c, r, seed + layer * 7919);
+}
+
+// Stop positions 0..1, one per colour; missing or stale → evenly spaced.
+function evenPos(n) { return Array.from({ length: n }, (_, i) => n > 1 ? i / (n - 1) : 0); }
+function stopPos(g) {
+  const n = g.stops.length;
+  return g.pos && g.pos.length === n ? g.pos.slice() : evenPos(n);
+}
+// The stops actually drawn, with their positions: the chosen colours (only the
+// first for a flat fill), plus the paper at the end when fading. The paper
+// takes the last step of an even spacing, so the colours move up to make room.
+function gradStops() {
+  const g = state.grad;
+  if (g.type === 'flat') return [{ hex: g.stops[0], paper: false, at: 0 }];
+  const pos = stopPos(g), n = pos.length, f = g.paper ? (n - 1) / n || 0 : 1;
+  const stops = g.stops.map((hex, i) => ({ hex: hex, paper: false, at: pos[i] * f }));
+  if (g.paper) stops.push({ hex: Organica.contentColor('--paper'), paper: true, at: 1 });
+  return stops;
+}
+// Which two stops a position falls between: { a, f } — f the 0..1 share of the way to a + 1.
+function segAt(stops, t) {
+  const k = stops.length;
+  if (k < 2 || t <= stops[0].at) return { a: 0, f: 0 };
+  for (let a = 0; a < k - 1; a++) {
+    if (t <= stops[a + 1].at) { const span = stops[a + 1].at - stops[a].at; return { a: a, f: span > 1e-6 ? (t - stops[a].at) / span : 1 }; }
+  }
+  return { a: k - 2, f: 1 };
+}
+function colourAt(stops, space, t) {
+  if (stops.length < 2) return stops[0].hex;
+  const s = segAt(stops, t);
+  return C.mixIn(space, stops[s.a].hex, stops[s.a + 1].hex, s.f);
+}
+
+// Position along the gradient, 0..1, for a point of a w×h box.
+function gradField(g, w, h) {
+  const cx = w / 2, cy = h / 2;
+  if (g.type === 'flat') return () => 0;
+  if (g.type === 'radial') { const r = Math.hypot(w, h) / 2; return (x, y) => Math.hypot(x - cx, y - cy) / r; }
+  if (g.type === 'conic') {
+    return (x, y) => { const a = Math.atan2(x - cx, -(y - cy)) * 180 / Math.PI - g.angle; return (((a % 360) + 360) % 360) / 360; };
+  }
+  return linearField(g.angle, w, h);
+}
+function linearField(angle, w, h) {
+  const cx = w / 2, cy = h / 2, rad = angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad);
+  const len = Math.abs(w * dx) + Math.abs(h * dy) || 1;
+  return (x, y) => ((x - cx) * dx + (y - cy) * dy) / len + 0.5;
+}
+
+// One lookup table along the gradient: colour + OKLab lightness at 512 steps.
+const LUT_N = 512;
+function gradLUT(g) {
+  const stops = gradStops(), rgb = new Uint8Array(LUT_N * 3), L = new Float32Array(LUT_N);
+  let lo = 1, hi = 0;
+  for (let i = 0; i < LUT_N; i++) {
+    const hex = colourAt(stops, g.space, i / (LUT_N - 1)), c = Organica.hexToRGB255(hex);
+    rgb[i * 3] = c[0]; rgb[i * 3 + 1] = c[1]; rgb[i * 3 + 2] = c[2];
+    L[i] = C.hexToOklab(hex).L; lo = Math.min(lo, L[i]); hi = Math.max(hi, L[i]);
+  }
+  return { rgb: rgb, L: L, lo: lo, hi: hi, stops: stops };
+}
+
+// Distribution → how much noise lands at a point, 0..1, before Amount.
+//   even       — everywhere alike
+//   shadows    — where the fill is darkest (its own lightness range); a fill
+//                with no range (a flat colour) gets it evenly — use Light
+//   highlights — the reverse
+//   light      — away from a light that comes from `light` degrees (0 = from
+//                the top, CSS convention): none on the lit edge, full opposite
+// Falloff bends it: 50 = straight, higher keeps the noise to the far end.
+function noiseWeight(g, w, h, lut) {
+  const bend = Math.pow(4, (g.falloff - 50) / 50), shape = v => Math.pow(clamp(v, 0, 1), bend);
+  if (g.dist === 'light') { const f = linearField(g.light + 180, w, h); return (x, y) => shape(f(x, y)); }
+  const range = lut.hi - lut.lo;
+  if ((g.dist === 'shadows' || g.dist === 'highlights') && range > 0.02) {
+    const dark = g.dist === 'shadows';
+    return (x, y, i) => shape(dark ? (lut.hi - lut.L[i]) / range : (lut.L[i] - lut.lo) / range);
+  }
+  return () => 1;
+}
+function hasNoise(g) { return g.amount > 0 && (g.kind === 'speckle' || g.out !== 'print'); }
+function gradOneLightness(g) { if (g.type === 'flat') return true; const lut = gradLUT(g); return lut.hi - lut.lo <= 0.02; }
+// Which gradient controls change the drawing right now — the panel shows only
+// these, and the legend names only these. Tone grain is a screen effect (in
+// Print its amount and Grain in do nothing); a print cell is one pure ink, so
+// Mix in never shows there; a Flat fill in Print is one ink with no blend to
+// dither; Ordered is a fixed screen, so the seed moves only random cells and dots.
+function gradUses(g) {
+  const print = g.out === 'print', speckle = g.kind === 'speckle', grainOn = hasNoise(g), blend = print && g.type !== 'flat';
+  return {
+    space: !print && g.type !== 'flat',
+    amount: speckle || !print,
+    dist: grainOn,
+    size: grainOn || blend,
+    pattern: (speckle && grainOn) || blend,
+    seed: (grainOn && !(speckle && g.pattern === 'ordered')) || (blend && g.pattern !== 'ordered'),
+    light: grainOn && g.dist === 'light',
+    falloff: grainOn && (g.dist === 'light' || (g.dist !== 'even' && !gradOneLightness(g))),
+  };
+}
+
+// Screen: a canvas of w×h sheet units at `scale` pixels per unit. The noise
+// cell scales with it, so ×1 and ×4 show the same grain, only sharper.
+// `bare` leaves the noise out (the base under a vector export).
+function gradCanvas(g, w, h, scale, bare) {
+  const W = Math.round(w * scale), H = Math.round(h * scale);
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d'), img = ctx.createImageData(W, H), px = img.data;
+  const lut = gradLUT(g), field = gradField(g, w, h), weight = noiseWeight(g, w, h, lut);
+  const cell = Math.max(1, g.size * scale), noise = !bare && hasNoise(g), amt = g.amount / 100;
+  const ink = Organica.hexToRGB255(g.ink), dots = g.pattern === 'dots', speckle = g.kind === 'speckle';
+  for (let y = 0, o = 0; y < H; y++) {
+    const gy = Math.floor(y / cell), uy = (y + 0.5) / scale;
+    for (let x = 0; x < W; x++, o += 4) {
+      const ux = (x + 0.5) / scale, i = Math.round(clamp(field(ux, uy), 0, 1) * (LUT_N - 1)), j = i * 3;
+      let r = lut.rgb[j], gg = lut.rgb[j + 1], b = lut.rgb[j + 2];
+      if (noise) {
+        const gx = Math.floor(x / cell), wv = weight(ux, uy, i) * amt;
+        if (!speckle) {
+          const n = (cellHash(gx, gy, g.seed) - 0.5) * 2 * 72 * wv;
+          r += n; gg += n; b += n;   // Uint8ClampedArray clamps
+        } else if (dots) {
+          // a dot per cell whose threshold passes — weighed at the cell centre, so the dot is whole
+          const cxu = (gx + 0.5) * cell / scale, cyu = (gy + 0.5) * cell / scale;
+          const ci = Math.round(clamp(field(cxu, cyu), 0, 1) * (LUT_N - 1));
+          if ((gx + 1) * cell <= W && (gy + 1) * cell <= H && patternThr('dots', gx, gy, g.seed, 1) < weight(cxu, cyu, ci) * amt) {
+            const d = dotAt(gx, gy, g.seed), ddx = x + 0.5 - (gx + 0.5 + d.jx) * cell, ddy = y + 0.5 - (gy + 0.5 + d.jy) * cell;
+            if (ddx * ddx + ddy * ddy <= Math.pow(d.r * cell, 2)) { r = ink[0]; gg = ink[1]; b = ink[2]; }
+          }
+        } else if (patternThr(g.pattern, gx, gy, g.seed, 1) < wv) { r = ink[0]; gg = ink[1]; b = ink[2]; }
+      }
+      px[o] = r; px[o + 1] = gg; px[o + 2] = b; px[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return cv;
+}
+// A dot's own radius and offset in its cell (in cells): a little irregular, so
+// the dots read as stipple, not as a screen — but always whole inside their
+// cell, so in Print a dot can be cut out of the one ink under it.
+function dotAt(c, r, seed) {
+  const rad = 0.34 + 0.14 * cellHash(c, r, seed + 31), room = 0.5 - rad;
+  return { r: rad, jx: (cellHash(c, r, seed + 53) - 0.5) * 2 * room, jy: (cellHash(c, r, seed + 71) - 0.5) * 2 * room };
+}
+
+// Print: → [{ hex, paper, d, cells }] — one entry per ink, `d` the SVG path
+// of every cell that ink owns (rows run-length merged), in w×h sheet units.
+// Speckle adds its ink last: with cells it takes them from the others; with
+// dots each dot is also cut out of the ink under it (a circle inside that
+// ink's rectangle, filled even-odd) — so plates never overlap either way.
+function gradPlates(g, w, h) {
+  const lut = gradLUT(Object.assign({}, g, { space: 'oklab' })), stops = lut.stops, k = stops.length, cell = Math.max(PRINT_MIN_CELL, g.size);
+  const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h), weight = noiseWeight(g, w, h, lut);
+  const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
+  const speckle = hasNoise(g) && g.kind === 'speckle', dots = speckle && g.pattern === 'dots', amt = g.amount / 100;
+  const spk = speckle ? { hex: g.ink, paper: false, d: [], holes: [], cells: 0 } : null;
+  const dither = g.pattern;
+  for (let r = 0; r < rows; r++) {
+    const y0 = r * cell, y1 = Math.min(h, y0 + cell);
+    let run = -1, c0 = 0;
+    for (let c = 0; c <= cols; c++) {
+      let ink = -1;
+      if (c < cols) {
+        const ux = Math.min(w, (c + 0.5) * cell), uy = (y0 + y1) / 2, t = clamp(field(ux, uy), 0, 1);
+        const s = segAt(stops, t);
+        ink = k < 2 ? 0 : (s.f > patternThr(dither, c, r, g.seed, 0) ? s.a + 1 : s.a);
+        if (speckle) {
+          const hit = patternThr(g.pattern, c, r, g.seed, 1) < weight(ux, uy, Math.round(t * (LUT_N - 1))) * amt;
+          if (hit && dots && (c + 1) * cell <= w && (r + 1) * cell <= h) {   // a dot only in a whole cell
+            const d = dotAt(c, r, g.seed), dot = circleD((c + 0.5 + d.jx) * cell, (r + 0.5 + d.jy) * cell, d.r * cell);
+            spk.d.push(dot); spk.cells++; out[ink].holes.push(dot);
+          } else if (hit && !dots) ink = k;   // the speckle's own index, after the stops
+        }
+      }
+      if (ink !== run) {
+        if (run >= 0) { const p = run === k ? spk : out[run]; p.d.push(`M${c0 * cell} ${y0}H${Math.min(w, c * cell)}V${y1}H${c0 * cell}Z`); p.cells += c - c0; }
+        run = ink; c0 = c;
+      }
+    }
+  }
+  if (spk) out.push(spk);
+  out.forEach(p => { p.d = p.d.join('') + p.holes.join(''); delete p.holes; });
+  return out;
+}
+function circleD(x, y, r) { return `M${num(x - r)} ${num(y)}a${num(r)} ${num(r)} 0 1 0 ${num(2 * r)} 0a${num(r)} ${num(r)} 0 1 0 ${num(-2 * r)} 0Z`; }
+
+// Both renderings are cached on the definition: selecting a colour or
+// renaming one re-renders the sheet, but must not re-run 250k pixels.
+const gradCache = { key: '', url: '', plates: null };
+function gradKey(scale) { return JSON.stringify([state.grad, gradStops(), scale]); }
+function gradScreenURL(scale) {
+  const key = 'screen' + gradKey(scale);
+  if (gradCache.key !== key) { gradCache.key = key; gradCache.url = gradCanvas(state.grad, GRAD_W, GRAD_H, scale).toDataURL('image/png'); }
+  return gradCache.url;
+}
+function gradPrintPlates() {
+  const key = 'print' + gradKey(1);
+  if (gradCache.key !== key) { gradCache.key = key; gradCache.plates = gradPlates(state.grad, GRAD_W, GRAD_H); }
+  return gradCache.plates;
+}
+const SPACE_LABEL = { oklab: 'OKLab', oklch: 'OKLCH', srgb: 'sRGB' };
+const DIST_LABEL = { even: 'even', shadows: 'toward shadows', highlights: 'toward highlights', light: 'away from the light' };
+function gradLegend() {
+  const g = state.grad, stops = gradStops();
+  const kind = g.type === 'flat' ? 'Flat' : g.type === 'radial' ? 'Radial' : (g.type === 'conic' ? 'Conic from ' + g.angle + '°' : 'Linear ' + g.angle + '°');
+  const uses = gradUses(g);
+  const list = g.type === 'flat' ? stops[0].hex : stops.map(s => (s.paper ? 'paper' : s.hex) + ' ' + Math.round(s.at * 100) + '%').join(' → ') + (uses.space ? ' · ' + SPACE_LABEL[g.space] : '');
+  const noise = !hasNoise(g) ? 'no noise'
+    : (g.kind === 'speckle' ? g.pattern + ' speckle ' + g.ink : 'grain') + ' ' + g.amount + ', ' + DIST_LABEL[g.dist] + (g.dist === 'light' ? ' ' + g.light + '°' : '');
+  return kind + ' · ' + list + ' · ' + (g.out === 'print' ? 'print' + (uses.pattern ? ', ' + g.pattern + ' cells of ' + Math.max(PRINT_MIN_CELL, g.size) : '') : 'screen' + (uses.size ? ', size ' + g.size : '')) + ' · ' + noise + (uses.seed ? ' · seed ' + g.seed : '');
+}
+// A linear / radial / flat fill with no noise on screen is a real vector
+// gradient: SVG interpolates in sRGB, so an OKLab / OKLCH span is sampled
+// into sub-stops close enough that the eye cannot tell (16 per span).
+function gradVector() {
+  const g = state.grad;
+  return g.out !== 'print' && !hasNoise(g) && g.type !== 'conic';
+}
+function vectorStops() {
+  const g = state.grad, stops = gradStops(), out = [];
+  stops.forEach((s, i) => {
+    out.push([s.at, s.hex]);
+    if (i === stops.length - 1 || g.space === 'srgb') return;
+    for (let k = 1; k < 16; k++) out.push([s.at + (stops[i + 1].at - s.at) * k / 16, C.mixIn(g.space, s.hex, stops[i + 1].hex, k / 16)]);
+  });
+  return out;
+}
+function vectorGradMarkup(id) {
+  const g = state.grad;
+  if (g.type === 'flat') return `<rect width="${GRAD_W}" height="${GRAD_H}" fill="${gradStops()[0].hex}"/>`;
+  const st = vectorStops().map(([at, hex]) => `<stop offset="${num(at)}" stop-color="${hex}"/>`).join('');
+  let el;
+  if (g.type === 'radial') el = `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${GRAD_W / 2}" cy="${GRAD_H / 2}" r="${num(Math.hypot(GRAD_W, GRAD_H) / 2)}">${st}</radialGradient>`;
+  else {
+    const rad = g.angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad), len = Math.abs(GRAD_W * dx) + Math.abs(GRAD_H * dy) || 1;
+    el = `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${num(GRAD_W / 2 - dx * len / 2)}" y1="${num(GRAD_H / 2 - dy * len / 2)}" x2="${num(GRAD_W / 2 + dx * len / 2)}" y2="${num(GRAD_H / 2 + dy * len / 2)}">${st}</linearGradient>`;
+  }
+  return `<defs>${el}</defs><rect width="${GRAD_W}" height="${GRAD_H}" fill="url(#${id})"/>`;
+}
+// The gradient's inner SVG / canvas drawing, in its own 0..GRAD_W × 0..GRAD_H box.
+// `id` names the vector gradient in <defs> (the sheet and the export file each carry one).
+function gradMarkup(screenScale, plateOnly, id) {
+  if (state.grad.out !== 'print') {
+    if (gradVector()) return vectorGradMarkup(id || 'ts-grad');
+    return `<image width="${GRAD_W}" height="${GRAD_H}" preserveAspectRatio="none" href="${gradScreenURL(screenScale)}"/>`;
+  }
+  return '<g shape-rendering="crispEdges" fill-rule="evenodd">' + gradPrintPlates().map((p, i) =>
+    (p.paper || !p.d || (plateOnly != null && plateOnly !== i)) ? '' : `<path fill="${plateOnly != null ? '#000000' : p.hex}" d="${p.d}"/>`).join('') + '</g>';
+}
+function drawGrad(c, scale) {
+  if (state.grad.out !== 'print') { c.drawImage(gradCanvas(state.grad, GRAD_W, GRAD_H, scale), 0, 0, GRAD_W, GRAD_H); return; }
+  gradPrintPlates().forEach(p => { if (p.paper || !p.d) return; c.fillStyle = p.hex; c.fill(new Path2D(p.d), 'evenodd'); });
+}
+
+function syncGradControls() {
+  const g = state.grad, seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
+  const flat = g.type === 'flat', speckle = g.kind === 'speckle', print = g.out === 'print';
+  seg('seg-gtype', g.type); seg('seg-gout', g.out); seg('seg-gpattern', g.pattern); seg('seg-gspace', g.space); seg('seg-gkind', g.kind);
+  ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle + '°';
+  ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
+  ctrl('rg-gsize').value = g.size; ctrl('v-gsize').textContent = g.size;
+  ctrl('rg-glight').value = g.light; ctrl('v-glight').textContent = g.light + '°';
+  ctrl('rg-gfalloff').value = g.falloff; ctrl('v-gfalloff').textContent = g.falloff;
+  ctrl('sel-gdist').value = g.dist;
+  if (document.activeElement !== ctrl('in-gseed')) ctrl('in-gseed').value = g.seed;   // never rewrite a field while it is typed in
+  ctrl('ck-gpaper').checked = g.paper;
+  ctrl('row-gangle').hidden = flat || g.type === 'radial';
+  ctrl('grad-blend').hidden = flat;
+  ctrl('row-gflat').hidden = !flat;
+  ctrl('row-gink').hidden = !speckle;
+  const grainOn = hasNoise(g), oneL = gradOneLightness(g), uses = gradUses(g);
+  ['space', 'amount', 'dist', 'size', 'pattern', 'seed', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
+  ctrl('btn-export-plates').disabled = !print;
+  gradSel = Math.min(gradSel, g.stops.length - 1);
+  if (inkSwatch && inkSwatch.get() !== g.ink) inkSwatch.set(g.ink);
+  if (gradChips && JSON.stringify(gradChips.getColors()) !== JSON.stringify(g.stops)) gradChips.setColors(g.stops);
+  if (gradChips) gradChips.setActive(gradSel);
+  if (flatChip && flatChip.get() !== g.stops[0]) flatChip.setColors([g.stops[0]]);
+  renderStopBar();
+  const inks = (flat ? 1 : g.stops.length) + (speckle && g.amount > 0 ? 1 : 0);
+  ctrl('grad-hint').textContent = print
+    ? inks + (inks === 1 ? ' ink' : ' inks') + ' → ' + inks + (inks === 1 ? ' plate' : ' plates') + '. Every cell is one pure ink' + (g.paper && !flat ? ', or bare paper.' : '.')
+    : (gradVector() ? 'A smooth fill — the SVG keeps it as a vector gradient.' : 'A smooth fill with grain on top — a raster. Switch to Print for flat inks you can separate.');
+  ctrl('grain-hint').textContent = !speckle && print ? 'Tone grain is a screen effect: in Print the blend is already made of ink cells. Choose Shadow for grain that prints.'
+    : (grainOn && g.dist !== 'even' && g.dist !== 'light' && oneL) ? 'This fill has one lightness, so the grain falls everywhere alike. Choose Away from a light to shade it.'
+    : (speckle && print && g.pattern === 'dots' ? 'Each dot is cut out of the ink under it: the plates never overlap.'
+    : (hasNoise(g) && g.dist === 'light' ? 'Light from: 0° is the top, 90° the right — the grain thickens toward the opposite side. Falloff 50 grows it evenly; higher keeps it to the far side.'
+    : (hasNoise(g) && g.dist !== 'even' ? 'Falloff 50 grows the grain evenly across the fill; higher keeps it to the far end, lower spreads it further.' : '')));
+}
+// Any gradient control shows the gradient: adjusting one you cannot see is no use.
+function gradChanged() {
+  if (state.view !== 'gradient') state.view = 'gradient';
+  syncGradControls();
+  syncViewSeg();
+  renderStage();
+  syncUndo();
+}
+
+// ── the stop bar — where each stop sits along the gradient ──
+// The chips under it carry the colours (and the palette library); the bar
+// carries the positions. Stops stay in order: a stop cannot pass its
+// neighbours. Built here, the first use of the colour component's `stops`
+// kind (ledger O-20); promote it at the second tool that needs one.
+let gradSel = 0;
+function ensurePos() {
+  const g = state.grad;
+  if (!g.pos || g.pos.length !== g.stops.length) g.pos = evenPos(g.stops.length);
+  return g.pos;
+}
+function selectStop(i) {
+  gradSel = clamp(i, 0, state.grad.stops.length - 1);
+  if (gradChips) gradChips.setActive(gradSel);
+  ctrl('grad-bar').querySelectorAll('.ts-stopbar__stop').forEach((k, j) => k.classList.toggle('is-active', j === gradSel));
+}
+// Adds a stop at `at` (0..1) in the colour the gradient has there; returns its index.
+function addStopAt(at, hex) {
+  const g = state.grad, pos = ensurePos();
+  let i = pos.findIndex(p => p > at);
+  if (i < 0) i = pos.length;
+  const stops = gradStops().filter(s => !s.paper);
+  hex = hex || colourAt(stops.map((s, k) => ({ hex: s.hex, at: pos[k] })), g.space, at);
+  g.stops.splice(i, 0, hex); pos.splice(i, 0, at);
+  return i;
+}
+function widestGap() {
+  const pos = ensurePos();
+  let best = 0, at = 0.5;
+  for (let i = 0; i < pos.length - 1; i++) if (pos[i + 1] - pos[i] > best) { best = pos[i + 1] - pos[i]; at = (pos[i] + pos[i + 1]) / 2; }
+  return at;
+}
+function removeStop(i) {
+  const g = state.grad;
+  if (g.stops.length <= 2) return;
+  pushUndo('grad-stop');
+  ensurePos().splice(i, 1); g.stops.splice(i, 1);
+  gradSel = Math.max(0, i - 1);
+  gradChanged();
+}
+function stopBarCSS() {
+  // the bar's own background is the gradient (content colour, sampled the same way as the SVG)
+  return 'linear-gradient(to right, ' + vectorStops().map(([at, hex]) => hex + ' ' + num(at * 100) + '%').join(', ') + ')';
+}
+function renderStopBar() {
+  const bar = ctrl('grad-bar'), rail = bar.firstElementChild, g = state.grad;
+  if (g.type === 'flat') return;
+  const pos = ensurePos(), f = g.paper ? (pos.length - 1) / pos.length : 1;
+  bar.style.background = stopBarCSS();
+  if (rail.children.length !== pos.length) {
+    rail.innerHTML = pos.map((_, i) => `<span class="ts-stopbar__stop" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" data-i="${i}"></span>`).join('');
+  }
+  Array.prototype.forEach.call(rail.children, (k, i) => {
+    const pct = Math.round(pos[i] * 100);
+    k.style.left = (pos[i] * f * 100) + '%';
+    k.style.background = g.stops[i];
+    k.setAttribute('aria-valuenow', pct);
+    k.setAttribute('aria-valuetext', pct + '%, ' + g.stops[i]);
+    k.setAttribute('aria-label', 'Stop ' + (i + 1));
+    k.classList.toggle('is-active', i === gradSel);
+  });
+}
+function bindStopBar() {
+  const bar = ctrl('grad-bar'), rail = bar.firstElementChild;
+  // a position 0..1 of the stops' own span from a pointer x (the paper, when fading, sits past it)
+  const posFrom = x => {
+    const r = rail.getBoundingClientRect(), g = state.grad, f = g.paper ? (g.stops.length - 1) / g.stops.length : 1;
+    return clamp((x - r.left) / r.width / f, 0, 1);
+  };
+  let drag = null;
+  bar.addEventListener('pointerdown', e => {
+    const knob = e.target.closest('.ts-stopbar__stop');
+    let i;
+    if (knob) i = +knob.dataset.i;
+    else {
+      if (state.grad.stops.length >= GRAD_MAX_STOPS) return;
+      pushUndo('grad-stop');
+      i = addStopAt(posFrom(e.clientX));
+    }
+    selectStop(i);
+    if (!knob) gradChanged();
+    drag = { i: i, id: e.pointerId };
+    bar.setPointerCapture(e.pointerId);
+    bar.classList.add('is-dragging');
+    const k = rail.children[i];
+    if (k) k.focus({ preventScroll: true });
+    e.preventDefault();
+  });
+  bar.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    moveStop(drag.i, posFrom(e.clientX));
+  });
+  const end = e => { if (drag && e.pointerId === drag.id) { drag = null; bar.classList.remove('is-dragging'); } };
+  bar.addEventListener('pointerup', end);
+  bar.addEventListener('pointercancel', end);
+  bar.addEventListener('keydown', e => {
+    const knob = e.target.closest('.ts-stopbar__stop');
+    if (!knob) return;
+    const i = +knob.dataset.i, pos = ensurePos(), step = e.shiftKey ? 0.1 : 0.01;
+    let to = null;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') to = pos[i] - step;
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') to = pos[i] + step;
+    else if (e.key === 'Home') to = 0;
+    else if (e.key === 'End') to = 1;
+    else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeStop(i); focusStop(gradSel); return; }
+    else return;
+    e.preventDefault();
+    selectStop(i);
+    moveStop(i, to);
+  });
+  bar.addEventListener('focusin', e => { const k = e.target.closest('.ts-stopbar__stop'); if (k) selectStop(+k.dataset.i); });
+}
+function focusStop(i) { const k = ctrl('grad-bar').firstElementChild.children[i]; if (k) k.focus({ preventScroll: true }); }
+function moveStop(i, to) {
+  const pos = ensurePos(), lo = i > 0 ? pos[i - 1] : 0, hi = i < pos.length - 1 ? pos[i + 1] : 1;
+  to = Math.round(clamp(to, lo, hi) * 1000) / 1000;
+  if (to === pos[i]) return;
+  pushUndo('grad');
+  pos[i] = to;
+  gradChanged();
+}
+
+const GRAD_MAX_STOPS = 8;
+let gradChips = null, flatChip = null, inkSwatch = null;
+function initGradient() {
+  gradChips = Organica.palette.swatch(ctrl('grad-stops'), {
+    colors: state.grad.stops,
+    min: 2,
+    max: GRAD_MAX_STOPS,
+    palettes: () => [{ name: 'This palette', colors: state.items.map((it, i) => ({ name: dispName(i), hex: it.hex })) }],
+    onChange: (cols, index, action, removedAt) => {
+      const g = state.grad;
+      pushUndo(action === 'edit' ? 'grad' : 'grad-stop');
+      if (action === 'add') {
+        // the chip strip appends; the stop goes in the widest gap, in the colour the gradient has there
+        // (a colour picked from a palette keeps its own)
+        const picked = cols[cols.length - 1], at = widestGap();
+        gradSel = addStopAt(at, picked === '#888888' ? null : picked);
+      } else if (action === 'remove') {
+        ensurePos().splice(removedAt, 1); g.stops = cols; gradSel = index;
+      } else if (action === 'set') {
+        g.stops = cols; g.pos = null; gradSel = 0;   // a palette loaded whole: evenly spaced
+      } else { g.stops = cols; gradSel = index; }
+      gradChanged();
+    },
+  });
+  flatChip = Organica.palette.swatch(ctrl('grad-flat'), {
+    colors: [state.grad.stops[0]], max: 1,
+    palettes: () => [{ name: 'This palette', colors: state.items.map((it, i) => ({ name: dispName(i), hex: it.hex })) }],
+    onChange: cols => { pushUndo('grad'); state.grad.stops[0] = cols[0]; gradChanged(); },
+  });
+  inkSwatch = Organica.palette.swatch('gink', {
+    initial: state.grad.ink,
+    onChange: hex => { if (hex === state.grad.ink) return; pushUndo('grad'); state.grad.ink = hex; gradChanged(); },
+  });
+  bindStopBar();
+  const segBind = (id, key) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
+    if (state.grad[key] === b.dataset.v) return;
+    pushUndo('grad-' + key); state.grad[key] = b.dataset.v; gradChanged();
+  }));
+  segBind('seg-gtype', 'type'); segBind('seg-gout', 'out'); segBind('seg-gpattern', 'pattern'); segBind('seg-gspace', 'space'); segBind('seg-gkind', 'kind');
+  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gsize', 'size'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
+    pushUndo('grad'); state.grad[key] = +e.target.value; gradChanged();
+  }));
+  ctrl('sel-gdist').addEventListener('change', e => { pushUndo('grad-dist'); state.grad.dist = e.target.value; gradChanged(); });
+  ctrl('in-gseed').addEventListener('input', e => {
+    if (e.target.value === '') return;   // cleared to type a new number
+    const v = clamp(Math.round(+e.target.value || 0), 0, 9999);
+    if (v === state.grad.seed) return;
+    pushUndo('grad'); state.grad.seed = v; gradChanged();
+  });
+  ctrl('in-gseed').addEventListener('change', e => { e.target.value = state.grad.seed; });
+  ctrl('ck-gpaper').addEventListener('change', e => { pushUndo('grad-paper'); state.grad.paper = e.target.checked; gradChanged(); });
+  ctrl('btn-grad-reverse').addEventListener('click', () => {
+    pushUndo('grad-stop');
+    const g = state.grad, pos = ensurePos();
+    g.stops.reverse(); g.pos = pos.map(p => Math.round((1 - p) * 1000) / 1000).reverse();
+    gradSel = g.stops.length - 1 - gradSel;
+    gradChanged();
+  });
+  ctrl('btn-grad-even').addEventListener('click', () => { pushUndo('grad-stop'); state.grad.pos = null; gradChanged(); });
+}
+
+// ── gradient-only exports ──
+function gradSVGString(plateOnly) {
+  const meta = plateOnly == null ? `<metadata id="organica">${esc(JSON.stringify({ tool: 'tunesutra', kind: 'gradient', gradient: state.grad }))}</metadata>` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${GRAD_W} ${GRAD_H}" width="${GRAD_W}" height="${GRAD_H}">${meta}${gradMarkup(4, plateOnly, 'tunesutra-gradient')}</svg>`;
+}
+function exportGradSVG() { Organica.downloadText(gradSVGString(null), Organica.stamp('tunesutra-gradient', 'svg'), 'image/svg+xml'); }
+function gradPNGCanvas(scale) {
+  if (state.grad.out !== 'print') return gradCanvas(state.grad, GRAD_W, GRAD_H, scale);
+  const cv = document.createElement('canvas');
+  cv.width = GRAD_W * scale; cv.height = GRAD_H * scale;
+  const c = cv.getContext('2d');
+  c.fillStyle = Organica.contentColor('--paper');
+  c.fillRect(0, 0, cv.width, cv.height);
+  c.scale(scale, scale);
+  drawGrad(c, scale);
+  return cv;
+}
+function exportGradPNG() {
+  const url = gradPNGCanvas(+ctrl('sel-export-scale').value).toDataURL('image/png');
+  Organica.download(Organica.dataURLToBlob(url), Organica.stamp('tunesutra-gradient', 'png'));
+}
+// One SVG per ink, black on transparent — the paper stop gets none.
+function exportPlates() {
+  if (state.grad.out !== 'print') return;
+  const plates = gradPrintPlates(), t = Date.now();
+  Organica.plateExport.run(plates.length, {
+    build: i => (plates[i].paper || !plates[i].d) ? null
+      : { blob: new Blob([gradSVGString(i)], { type: 'image/svg+xml' }), filename: 'tunesutra-' + t + '-plate' + (i + 1) + '-' + plates[i].hex.slice(1) + '.svg' },
+  });
+}
+// CSS: the smooth fill only — grain is not expressible in CSS. Positions as
+// percentages, and the blend's own space (`in oklab` / `in oklch` / `in srgb`).
+function gradCSS() {
+  const g = state.grad, stops = gradStops();
+  if (g.type === 'flat') return stops[0].hex;
+  const list = stops.map(s => s.hex + ' ' + num(s.at * 100) + '%').join(', '), sp = 'in ' + g.space;
+  if (g.type === 'radial') return `radial-gradient(circle farthest-corner at center ${sp}, ${list})`;
+  if (g.type === 'conic') return `conic-gradient(from ${g.angle}deg ${sp}, ${list})`;
+  return `linear-gradient(${g.angle}deg ${sp}, ${list})`;
+}
+
+
+// ── SYSTEM — the interface's own colours, derived from this palette ──
+// A PROPOSAL, shown beside today's values. Nothing here is loaded by any page:
+// the output is a file to review and paste into shared/tokens.css (and one
+// --tool per tool page). The chrome must paint before any store or network,
+// and a saved palette must never be able to break the interface.
+//
+// Roles are the existing ones — no new token names. Lightness targets are
+// today's own (measured in OKLCH), so with Neutral = "Today's warm grey" and
+// Tint 50 the proposal lands on today's palette; the text and boundary roles
+// are then pushed until they clear the contrast rule (text ≥ 4.5:1,
+// boundaries ≥ 3:1, on both --paper and --panel).
+const SYS_ROLES = ['ink', 'paper', 'mid', 'accent', 'accent-hover', 'panel', 'border', 'border-strong', 'danger', 'canvas-dot'];
+const SYS_RULE = { ink: 4.5, mid: 4.5, accent: 4.5, danger: 4.5, 'border-strong': 3 };   // role → required contrast; the rest are decorative
+const SYS_ACCENT_MIN = 3;   // a tool accent draws focus rings and active outlines: a boundary
+
+let sysProbes = null;
+function sysToday() {
+  if (!sysProbes) {
+    sysProbes = ['light', 'dark'].map(theme => {
+      const el = document.createElement('span');
+      el.setAttribute('data-theme', theme);
+      el.hidden = true;
+      document.body.appendChild(el);
+      return el;
+    });
+  }
+  const read = el => { const cs = getComputedStyle(el), o = {}; SYS_ROLES.forEach(r => { o[r] = Organica.normalizeHex(cs.getPropertyValue('--' + r).trim(), '#000000'); }); return o; };
+  return { light: read(sysProbes[0]), dark: read(sysProbes[1]) };
+}
+function sysHueOf(ref, fallbackHex) {
+  const it = state.items.find(x => x.id === ref);
+  return C.hexToOklch(it ? it.hex : fallbackHex).h;
+}
+// Walk lightness away from the surfaces until the contrast rule holds on all of them.
+function sysSolve(l, c, h, surfaces, target, dir) {
+  for (let i = 0; i < 70 && l > 0.02 && l < 0.98; i++, l += dir * 0.01) {
+    const hex = C.oklchToHex(l, c, h);
+    if (Math.min.apply(null, surfaces.map(s => C.contrast(hex, s))) >= target) return hex;
+  }
+  return C.oklchToHex(clamp(l, 0, 1), c, h);
+}
+function sysProposed() {
+  const s = state.sys, today = sysToday(), t = s.tint / 50;   // 1 = today's amount of tint
+  const nh = sysHueOf(s.neutral, today.light.panel), dh = sysHueOf(s.dot, today.light['canvas-dot']);
+  const n = (l, c) => C.oklchToHex(l, c * t, nh);
+  const light = { paper: '#ffffff', panel: n(0.937, 0.008), ink: n(0.145, 0.004), accent: n(0.285, 0.004), 'accent-hover': n(0.321, 0.004), border: n(0.835, 0.024) };
+  const lightS = [light.paper, light.panel];
+  light['border-strong'] = sysSolve(0.62, 0.052 * t, nh, lightS, 3, -1);
+  light.mid = sysSolve(0.50, 0.021 * t, nh, lightS, 4.5, -1);
+  light.danger = sysSolve(0.487, 0.141, 31, lightS, 4.5, -1);
+  light['canvas-dot'] = C.oklchToHex(0.871, 0.061, dh);
+  const dark = { paper: n(0.181, 0.004), panel: n(0.235, 0.008), ink: n(0.937, 0.008), accent: n(0.876, 0.010), 'accent-hover': n(0.784, 0.015), border: n(0.335, 0.013) };
+  const darkS = [dark.paper, dark.panel];
+  dark['border-strong'] = sysSolve(0.557, 0.033 * t, nh, darkS, 3, 1);
+  dark.mid = sysSolve(0.695, 0.019 * t, nh, darkS, 4.5, 1);
+  dark.danger = sysSolve(0.677, 0.140, 32, darkS, 4.5, 1);
+  dark['canvas-dot'] = C.oklchToHex(0.392, 0.038, dh);
+  return { light: light, dark: dark };
+}
+function sysWorst(hex, set) { return Math.min(C.contrast(hex, set.paper), C.contrast(hex, set.panel)); }
+
+// Tool accents: read each tool page's own --tool (same-origin fetch, once).
+let toolAccents = null, toolAccentsLoading = false;
+function loadToolAccents() {
+  if (toolAccents || toolAccentsLoading) return;
+  toolAccentsLoading = true;
+  const list = [];
+  (Organica.tools || []).forEach(g => g.items.forEach(it => list.push(it)));
+  if (Organica.toolsPipeline) list.push(Organica.toolsPipeline);
+  const get = url => fetch(url).then(r => r.ok ? r.text() : '').catch(() => '');
+  const ACC = /--tool:\s*(#[0-9a-fA-F]{6})/;
+  Promise.all(list.map(it => get(it[1]).then(html => {
+    if (ACC.test(html)) return html;
+    // a tool whose own CSS moved to its own sheet (/fvs/fvs.css, O-27): read the accent there
+    const own = html.match(/<link[^>]+href="(\/([^/"]+)\/\2\.css)"/);
+    return own ? get(own[1]) : html;
+  }).then(text => {
+    const m = text.match(ACC);
+    return m ? { name: it[0], href: it[1], hex: m[1].toLowerCase() } : null;
+  }))).then(found => {
+    toolAccents = found.filter(Boolean);
+    toolAccentsLoading = false;
+    if (state.view === 'system') renderStage();
+    if (state.sys.preview) applySysPreview();
+  });
+}
+// keep: every tool keeps its own hue; only lightness and chroma are made the
+// same. even: hues are also re-spaced evenly round the wheel, in today's order.
+function sysAccents() {
+  if (!toolAccents) return [];
+  const s = state.sys, L = s.accL / 100, Cc = s.accC / 100;
+  const hues = toolAccents.map(a => C.hexToOklch(a.hex).h);
+  let target = hues;
+  if (s.mode === 'even') {
+    const order = hues.map((h, i) => i).sort((a, b) => hues[a] - hues[b]), step = 360 / hues.length;
+    target = hues.slice();
+    order.forEach((idx, k) => { target[idx] = (hues[order[0]] + k * step) % 360; });
+  }
+  return toolAccents.map((a, i) => Object.assign({ proposed: C.oklchToHex(L, Cc, target[i]) }, a));
+}
+
+// The System sheet: role table (light + dark, today beside proposed), a small
+// mock of the chrome in each theme, then the tool accents.
+function buildSystemScene(T) {
+  const items = [], today = sysToday(), prop = sysProposed();
+  const rect = (x, y, w, h, fill, extra) => items.push(Object.assign({ t: 'rect', x: x, y: y, w: w, h: h, fill: fill }, extra));
+  const text = (x, y, s, size, fill, anchor) => items.push({ t: 'text', x: x, y: y, s: String(s), size: size, fill: fill, anchor: anchor || 'start' });
+  const edge = { stroke: T.mid, sw: 0.5 };
+  const COLS = [{ key: 'light', x: 150, label: 'Light' }, { key: 'dark', x: 520, label: 'Dark' }];
+
+  text(BAR_X0, 36, 'Interface colours — today beside the proposal', 13, T.ink);
+  COLS.forEach(col => { text(col.x, 50, col.label, 11, T.ink); text(col.x, 63, 'today', 9, T.mid); text(col.x + 70, 63, 'proposed', 9, T.mid); });
+  SYS_ROLES.forEach((role, r) => {
+    const y = 70 + r * 30;
+    text(BAR_X0, y + 15, '--' + role, 11, T.ink);
+    COLS.forEach(col => {
+      const was = today[col.key][role], now = prop[col.key][role], rule = SYS_RULE[role];
+      rect(col.x, y, 62, 22, was, Object.assign({ title: `--${role} today ${was}` }, edge));
+      rect(col.x + 70, y, 62, 22, now, Object.assign({ title: `--${role} proposed ${now}` }, edge));
+      text(col.x + 142, y + 10, now + (now === was ? ' · same' : ''), 10, T.ink);
+      if (rule) {
+        const a = sysWorst(was, today[col.key]), b = sysWorst(now, prop[col.key]);
+        text(col.x + 142, y + 21, `${a.toFixed(1)} → ${b.toFixed(1)}:1 (needs ${rule})` + (a < rule ? ' · today fails' : ''), 9, T.mid);
+      }
+    });
+  });
+
+  // Mock chrome
+  const mockY = 70 + SYS_ROLES.length * 30 + 26;
+  text(BAR_X0, mockY - 8, 'How the proposal looks', 11, T.mid);
+  const mine = sysAccents().find(a => a.href === '/tunesutra/');
+  [{ set: prop.light, x: BAR_X0 }, { set: prop.dark, x: BAR_X0 + 440 }].forEach(m => {
+    const s = m.set, x = m.x, w = 420, h = 132, px = x + w - 150;
+    rect(x, mockY, w, h, s.paper, { stroke: s['border-strong'], sw: 1 });
+    for (let dy = 14; dy < h; dy += 16) for (let dx = 14; dx < w - 150; dx += 16) rect(x + dx, mockY + dy, 1.6, 1.6, s['canvas-dot']);
+    rect(px, mockY, 150, h, s.panel);
+    rect(px, mockY, 1, h, s.border);
+    text(px + 12, mockY + 22, 'Section', 12, s.ink);
+    text(px + 12, mockY + 42, 'label', 10, s.mid);
+    rect(px + 60, mockY + 31, 78, 16, Organica.palette.mix(s.paper, s.ink, 0.05), { stroke: s['border-strong'], sw: 1 });
+    text(px + 66, mockY + 42, '#0a0a0a', 9, s.ink);
+    rect(px + 12, mockY + 58, 126, 22, s.accent);
+    text(px + 75, mockY + 73, 'Button', 10, s.paper, 'middle');
+    text(px + 12, mockY + 100, 'Not a valid colour', 10, s.danger);
+    rect(px + 12, mockY + 108, 126, 14, 'none', { stroke: mine ? mine.proposed : s.ink, sw: 2 });
+    rect(x + 60, mockY + 30, 150, 72, '#ffffff', { stroke: s.border, sw: 1 });   // the sheet stays light in both themes
+  });
+
+  // Tool accents
+  const accY = mockY + 132 + 36, acc = sysAccents();
+  text(BAR_X0, accY - 8, 'Tool accents — today, then proposed (contrast on light paper · on dark paper, needs ' + SYS_ACCENT_MIN + ')', 11, T.mid);
+  if (!acc.length) text(BAR_X0, accY + 16, 'Reading each tool’s accent…', 10, T.mid);
+  const cw = 172, ch = 42, per = 5;
+  acc.forEach((a, i) => {
+    const x = BAR_X0 + (i % per) * cw, y = accY + Math.floor(i / per) * ch;
+    rect(x, y, 26, 26, a.hex, { title: a.name + ' today ' + a.hex });
+    rect(x + 28, y, 26, 26, a.proposed, { title: a.name + ' proposed ' + a.proposed });
+    text(x + 60, y + 10, a.name.length > 17 ? a.name.slice(0, 16) + '…' : a.name, 10, T.ink);
+    const wasL = C.contrast(a.hex, today.light.paper), wasD = C.contrast(a.hex, today.dark.paper);
+    text(x + 60, y + 22, a.proposed + ' · ' + C.contrast(a.proposed, prop.light.paper).toFixed(1) + ' · ' + C.contrast(a.proposed, prop.dark.paper).toFixed(1) +
+      (Math.min(wasL, wasD) < SYS_ACCENT_MIN ? ' *' : ''), 9, T.mid);
+  });
+  const endY = accY + Math.ceil(Math.max(1, acc.length) / per) * ch;
+  text(BAR_X0, endY + 10, '* today’s accent is under ' + SYS_ACCENT_MIN + ':1 in one of the two themes', 9, T.mid);
+  return { W: VB_W, H: endY + 28, paper: T.paper, font: T.font, items: items };
+}
+
+// ── System outputs ──
+function systemCSS() {
+  const p = sysProposed(), today = sysToday(), acc = sysAccents();
+  const block = (set, was) => SYS_ROLES.map(r => `  --${r}: ${set[r]};${set[r] === was[r] ? '' : '   /* was ' + was[r] + ' */'}`).join('\n');
+  return '/* Generated by TuneSutra · System, ' + new Date().toISOString().slice(0, 10) + '.\n' +
+    '   A proposal: review it, then paste these values over the same properties in\n' +
+    '   shared/tokens.css (the THEMES rules) and set each tool page\'s own --tool. */\n\n' +
+    ':root,\n[data-theme="light"],\n[data-theme="dark"] .org-stage {\n' + block(p.light, today.light) + '\n}\n\n' +
+    ':root[data-theme="dark"],\n[data-theme="dark"] {\n' + block(p.dark, today.dark) + '\n}\n\n' +
+    '/* Tool accents — one --tool in each tool page\'s own :root\n' +
+    acc.map(a => `   ${a.href.padEnd(18)} --tool: ${a.proposed};   was ${a.hex}`).join('\n') + '\n*/\n';
+}
+function systemJSON() {
+  const p = sysProposed(), tok = hex => ({ $type: 'color', $value: hex }), group = set => { const o = {}; SYS_ROLES.forEach(r => { o[r] = tok(set[r]); }); return o; };
+  const accent = {};
+  sysAccents().forEach(a => { accent[a.href.replace(/\//g, '')] = tok(a.proposed); });
+  return JSON.stringify({ color: { light: group(p.light), dark: group(p.dark), accent: accent } }, null, 2);
+}
+function exportSystemCSS() { Organica.downloadText(systemCSS(), Organica.stamp('tunesutra-system', 'css'), 'text/css'); }
+function exportSystemJSON() { Organica.downloadText(systemJSON(), Organica.stamp('tunesutra-system', 'json'), 'application/json'); }
+
+// Preview on this page only: the proposal as inline custom properties on
+// <html>, for whichever theme is showing. The sheet is marked
+// data-theme="light", so it keeps the real light palette. Never saved.
+function applySysPreview() {
+  const root = document.documentElement, on = state.sys.preview;
+  const set = on ? sysProposed()[root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'] : null;
+  SYS_ROLES.forEach(r => { if (on) root.style.setProperty('--' + r, set[r]); else root.style.removeProperty('--' + r); });
+  const mine = on && sysAccents().find(a => a.href === '/tunesutra/');
+  if (mine) root.style.setProperty('--tool', mine.proposed); else root.style.removeProperty('--tool');
+}
+
+function syncSysControls() {
+  const s = state.sys;
+  const fill = (id, first, cur) => {
+    ctrl(id).innerHTML = `<option value="today">${first}</option>` + state.items.map((it, i) => `<option value="${it.id}">${esc(dispName(i))}</option>`).join('');
+    ctrl(id).value = state.items.some(it => it.id === cur) ? cur : 'today';
+  };
+  fill('sel-sys-neutral', 'Today’s warm grey', s.neutral);
+  fill('sel-sys-dot', 'Today’s cyan', s.dot);
+  ctrl('rg-sys-tint').value = s.tint; ctrl('v-sys-tint').textContent = s.tint;
+  ctrl('rg-sys-accl').value = s.accL; ctrl('v-sys-accl').textContent = s.accL;
+  ctrl('rg-sys-accc').value = s.accC; ctrl('v-sys-accc').textContent = s.accC;
+  ctrl('seg-sys-mode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === s.mode));
+  ctrl('ck-sys-preview').checked = s.preview;
+}
+function sysChanged() {
+  if (state.view !== 'system') state.view = 'system';
+  loadToolAccents();
+  syncSysControls();
+  syncViewSeg();
+  renderStage();
+  applySysPreview();
+  syncUndo();
+}
+function initSystem() {
+  [['sel-sys-neutral', 'neutral'], ['sel-sys-dot', 'dot']].forEach(([id, key]) => ctrl(id).addEventListener('change', e => {
+    pushUndo('sys-' + key); state.sys[key] = e.target.value; sysChanged();
+  }));
+  [['rg-sys-tint', 'tint'], ['rg-sys-accl', 'accL'], ['rg-sys-accc', 'accC']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
+    pushUndo('sys'); state.sys[key] = +e.target.value; sysChanged();
+  }));
+  ctrl('seg-sys-mode').querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
+    if (state.sys.mode === b.dataset.v) return;
+    pushUndo('sys-mode'); state.sys.mode = b.dataset.v; sysChanged();
+  }));
+  ctrl('ck-sys-preview').addEventListener('change', e => { state.sys.preview = e.target.checked; sysChanged(); });
+  // The header's theme button flips <html data-theme>: re-apply for the other theme.
+  new MutationObserver(() => { if (state.sys.preview) applySysPreview(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
+
+// The sheet is always drawn in the light theme's colours, whatever the
+// chrome theme (Organica.contentColor), and its text in the page's own font
+// resolved to a literal family list so an exported file carries it.
+function sheetTheme() {
+  return {
+    ink: Organica.contentColor('--ink'),
+    mid: Organica.contentColor('--mid'),
+    paper: Organica.contentColor('--paper'),
+    panel: Organica.contentColor('--panel'),
+    border: Organica.contentColor('--border'),
+    font: getComputedStyle(document.body).fontFamily,
+  };
+}
+function readableOn(hex, T) { return C.contrast(hex, T.ink) >= C.contrast(hex, T.paper) ? T.ink : T.paper; }
+
+// → { W, H, paper, font, items[] }. Items are plain data:
+//   { t:'rect', x, y, w, h, fill, r?, stroke?, sw?, role?, title? }   (r = corner radius)
+//   { t:'path', d, tf:{x,y,s}, fill, stroke?, sw?, role?, quiet?, title? }
+//   { t:'text', x, y, s, size, fill, anchor }
+//   { t:'grad', x, y } — the gradient block, drawn by gradMarkup / drawGrad
+// `role` marks a shape that selects a colour when clicked on screen.
+function buildScene() {
+  const T = sheetTheme(), n = count(), cols = colors(), items = [];
+  if (state.view === 'system') return buildSystemScene(T);
+  const rect = (x, y, w, h, fill, extra) => items.push(Object.assign({ t: 'rect', x: x, y: y, w: w, h: h, fill: fill }, extra));
+  const text = (x, y, s, size, fill, anchor) => items.push({ t: 'text', x: x, y: y, s: String(s), size: size, fill: fill, anchor: anchor || 'start' });
+  const weights = roleWeights(n);
+  let houseBand = null, tubeY = null;
+  const garment = isGarmentView(), gradient = state.view === 'gradient';
+  let y = BAR_Y;
+
+  if (gradient) {
+    items.push({ t: 'grad', x: BAR_X0, y: y });
+    text(BAR_X0, y + GRAD_H + 14, gradLegend(), 10, T.mid);
+    y += GRAD_H + GRAD_LEGEND_H + 30;
+  }
+
+  // An example of the palette in use: in proportion, or on a figure — first, above the
+  // colour cards (Diego, Nov 17, 2026: "sposta la figura sopra e … i colori sotto").
+  if (!gradient) {
+    const fig = currentFigure();
+    // The house (3–5 colours; Diego, Nov 18, 2026: "elimina bar e figure … sempre … sotto
+    // l'illustrazione della casa"), then the share tubes over the cards. 6–7 colours: tubes only.
+    if (garment) {
+      text(BAR_X0, y, 'Example — house no. ' + state.house, 11, T.mid);
+      y += 12;
+      houseBand = [y, y + FIG_H];   // where the carousel arrows sit (renderStage)
+      // Same height for every figure; strokes are set in the figure's own units
+      // so they come out the same weight on the sheet whatever its scale.
+      const k = FIG_H / fig.h, fx = (VB_W - fig.w * k) / 2, shares = fig.shares;
+      fig.zones.forEach(z => {
+        const r = z.role, pale = n < 5 && paleOnPaper(cols[r]);   // 5 colours: the background frames the house
+        // No outline between zones (Diego, Nov 17, 2026) — only a near-white zone keeps a hairline, or it vanishes on the paper.
+        items.push(Object.assign({
+          t: 'path', d: z.d, tf: { x: fx, y: y, s: k }, fill: cols[r],
+          role: r, quiet: true, title: `${dispName(r)}, ${shares[r].toFixed(1)}% of the house, ${cols[r]}`,
+        }, pale ? { stroke: T.border, sw: 1.125 / k } : null));
+      });
+      y += FIG_H + 24;
+    }
+    // The shares: a thin tube over each colour card, filled to that colour's share — the
+    // full tube is 100% (Diego, Nov 18, 2026, mockup 3 "Thin tube"; it replaced the bar).
+    // On screen it pours (pour()); the export gets it full.
+    tubeY = y;
+    y += TUBE_ROW;
+  }
+
+  // Colour cards — one per colour: the colour, its name and hex — and under
+  // each card that colour's own 0–900 scale. Clicking a card selects it.
+  const cw = Math.min(CARD_MAX_W, (BAR_X1 - BAR_X0 - (n - 1) * CARD_GAP) / n), cx0 = (VB_W - (n * cw + (n - 1) * CARD_GAP)) / 2;
+  const fit = (str, w, size) => { const max = Math.max(3, Math.floor(w / (size * 0.62))); return str.length > max ? str.slice(0, max - 1) + '…' : str; };
+  cols.forEach((hex, i) => {
+    const x = cx0 + i * (cw + CARD_GAP), r = CARD_R;
+    rect(x, y, cw, CARD_H, T.panel, { r: r });
+    items.push({
+      t: 'path', tf: { x: 0, y: 0, s: 1 }, fill: hex, role: i, title: `${dispName(i)} ${hex}`,
+      d: `M${num(x)} ${y + CARD_COLOUR_H}V${y + r}Q${num(x)} ${y} ${num(x + r)} ${y}H${num(x + cw - r)}Q${num(x + cw)} ${y} ${num(x + cw)} ${y + r}V${y + CARD_COLOUR_H}Z`,
+    });
+    if (tubeY != null) {
+      const w = weights[i];
+      items.push({ t: 'text', x: x + cw, y: tubeY + 10, s: w.toFixed(1) + '%', size: 11, fill: T.ink, anchor: 'end', pourText: w });
+      rect(x, tubeY + 16, cw, TUBE_H, T.panel, { r: TUBE_H / 2, title: `${dispName(i)}, ${w.toFixed(1)}% of the house` });   // the title on the track: the fill is 0 wide mid-pour
+      rect(x, tubeY + 16, cw * w / 100, TUBE_H, hex, Object.assign({ r: TUBE_H / 2, pour: w }, paleOnPaper(hex) ? { stroke: T.border, sw: 1 } : null));
+    }
+    text(x + 12, y + CARD_COLOUR_H + 16, fit(dispName(i), cw - 24, 11), 11, T.ink);
+    text(x + 12, y + CARD_COLOUR_H + 29, hex, 10, T.mid);
+    const sy = y + CARD_H + 12;
+    tokenScale(hex).forEach((st, j) => {
+      const ry = sy + j * (STEP_H + STEP_GAP), on = readableOn(st.hex, T);
+      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: `${dispName(i)} ${st.step} — ${st.hex}` }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
+      text(x + 8, ry + 14, st.step, 9, on);
+      text(x + cw - 8, ry + 14, st.hex, 9, on, 'end');
+    });
+  });
+  y += CARD_H + 12 + 10 * (STEP_H + STEP_GAP) + 30;
+
+  // Contrast grid — each cell sets the row's colour as text on the column's.
+  const gridY = y;
+  text(BAR_X0, gridY, 'Contrast — text colour (rows) on background (columns)', 11, T.mid);
+  const gx0 = (VB_W - ((n + 1) * SW_PITCH - SW_GAP)) / 2, headY = gridY + 16, rowsY = headY + GRID_HEAD_H + SW_GAP;
+  cols.forEach((hex, j) => rect(gx0 + (j + 1) * SW_PITCH, headY, SW_W, GRID_HEAD_H, hex));
+  cols.forEach((fg, i) => {
+    const ry = rowsY + i * GRID_ROW_H;
+    rect(gx0, ry, SW_W, SW_H, fg);
+    cols.forEach((bg, j) => {
+      if (i === j) return;
+      const cx = gx0 + (j + 1) * SW_PITCH;
+      rect(cx, ry, SW_W, SW_H, bg, { title: `${dispName(i)} on ${dispName(j)} — ${C.contrast(fg, bg).toFixed(2)}:1` });
+      text(cx + SW_W / 2, ry + SW_H / 2 + 5, 'Aa', 15, fg, 'middle');
+      text(cx + SW_W / 2, ry + SW_H + 12, C.contrast(fg, bg).toFixed(1) + ':1' + (C.deltaE(fg, bg) < DISTINCT_MIN ? ' · close' : ''), 9, T.mid, 'middle');
+    });
+  });
+
+  return { W: VB_W, H: rowsY + n * GRID_ROW_H + 8, paper: T.paper, font: T.font, items: items, houseBand: houseBand };
+}
+
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function num(v) { return +(+v).toFixed(2); }
+// interactive=true adds what only the on-screen sheet needs (selection class,
+// keyboard focus, tooltips); the export gets geometry and paint, nothing else.
+function sceneMarkup(scene, interactive) {
+  const font = esc(scene.font.replace(/"/g, "'"));
+  return scene.items.map(it => {
+    if (it.t === 'grad') return `<g transform="translate(${it.x},${it.y})">${gradMarkup(interactive ? 1 : 2)}</g>`;
+    if (it.t === 'text') {
+      return `<text x="${num(it.x)}" y="${num(it.y)}" font-family="${font}" font-size="${it.size}" fill="${it.fill}"${it.anchor !== 'start' ? ` text-anchor="${it.anchor}"` : ''}${interactive && it.pourText != null ? ` data-pour-text="${it.pourText}"` : ''}>${esc(it.s)}</text>`;
+    }
+    // quiet: clickable, but never outlined as the selection — a figure has many zones per colour
+    const live = interactive && it.role != null, active = it.role === state.activeIndex && !it.quiet;
+    const attrs = `fill="${it.fill}"` + (it.stroke ? ` stroke="${it.stroke}" stroke-width="${it.sw}"` : '') +
+      (live ? ` class="bar-seg${active ? ' role-active' : ''}" data-i="${it.role}" tabindex="0" role="button" aria-pressed="${active}"` : '');
+    const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
+    if (it.t === 'path') return `<path d="${it.d}" transform="translate(${num(it.tf.x)},${num(it.tf.y)}) scale(${it.tf.s})" ${attrs}>${title}</path>`;
+    const pourAttr = interactive && it.pour != null ? ` data-pour="${num(it.w)}"` : '';
+    return `<rect x="${num(it.x)}" y="${num(it.y)}" width="${num(it.w)}" height="${num(it.h)}"${it.r ? ` rx="${it.r}"` : ''} ${attrs}${pourAttr}>${title}</rect>`;
+  }).join('');
+}
+function drawScene(scene, c, scale) {
+  c.fillStyle = scene.paper;
+  c.fillRect(0, 0, scene.W, scene.H);
+  scene.items.forEach(it => {
+    if (it.t === 'grad') { c.save(); c.translate(it.x, it.y); drawGrad(c, scale || 1); c.restore(); return; }
+    if (it.t === 'text') {
+      c.font = `${it.size}px ${scene.font}`;
+      c.textAlign = it.anchor === 'middle' ? 'center' : (it.anchor === 'end' ? 'right' : 'left');
+      c.fillStyle = it.fill;
+      c.fillText(it.s, it.x, it.y);
+      return;
+    }
+    c.save();
+    let p;
+    if (it.t === 'path') { c.translate(it.tf.x, it.tf.y); c.scale(it.tf.s, it.tf.s); p = new Path2D(it.d); }
+    else { p = new Path2D(); if (it.r && p.roundRect) p.roundRect(it.x, it.y, it.w, it.h, it.r); else p.rect(it.x, it.y, it.w, it.h); }
+    if (it.fill !== 'none') { c.fillStyle = it.fill; c.fill(p); }
+    if (it.stroke) { c.strokeStyle = it.stroke; c.lineWidth = it.sw; c.stroke(p); }
+    c.restore();
+  });
+}
+
+// The share tubes pour like a liquid — a damped spring that overshoots and settles, one tube
+// after another — when a palette opens or the number of colours changes; never on a colour
+// edit, never with reduced motion, never in an export (the scene draws them full).
+let pourNext = true, pourRaf = 0;
+function pour(svg) {
+  const fills = [...svg.querySelectorAll('[data-pour]')], nums = [...svg.querySelectorAll('[data-pour-text]')];
+  cancelAnimationFrame(pourRaf);
+  if (!fills.length) return;
+  fills.forEach(r => r.setAttribute('width', '0'));   // empty before the first frame, or it flashes full
+  nums.forEach(x => { x.textContent = '0.0%'; });
+  // The spring has no token (an oscillating curve is not a cubic-bezier); its time base is POUR_MS.
+  // The stagger is two --dur-stagger steps, so it follows the motion tokens.
+  const POUR_MS = 1000, SETTLE_MS = 1200;
+  const stagger = 2 * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-stagger')) || 80);
+  const spring = s => s <= 0 ? 0 : 1 - Math.exp(-4.2 * s) * Math.cos(7.5 * s), t0 = performance.now();
+  const frame = now => {
+    const t = now - t0, done = t > POUR_MS + stagger * fills.length + SETTLE_MS;
+    fills.forEach((r, i) => { const k = done ? 1 : Math.max(0, spring((t - i * stagger) / POUR_MS)); r.setAttribute('width', (+r.dataset.pour * k).toFixed(2)); });
+    nums.forEach((x, i) => { const w = +x.dataset.pourText, k = done ? 1 : Math.max(0, spring((t - i * stagger) / POUR_MS)); x.textContent = Math.min(w, w * k).toFixed(1) + '%'; });
+    if (!done) pourRaf = requestAnimationFrame(frame);
+  };
+  pourRaf = requestAnimationFrame(frame);
+}
+function renderStage() {
+  const scene = buildScene();
+  const svg = ctrl('stage-svg');
+  svg.setAttribute('viewBox', `0 0 ${scene.W} ${scene.H}`);
+  svg.innerHTML = sceneMarkup(scene, true);
+  if (pourNext) { pourNext = false; if (!matchMedia('(prefers-reduced-motion: reduce)').matches) pour(svg); }
+  else cancelAnimationFrame(pourRaf);   // a re-render mid-pour shows the tubes full
+  // the carousel arrows: beside the house, at the middle of its band
+  const nav = ctrl('house-nav');
+  nav.hidden = !scene.houseBand;
+  if (scene.houseBand) nav.style.setProperty('--house-cy', ((scene.houseBand[0] + scene.houseBand[1]) / 2 / scene.H * 100).toFixed(2) + '%');
+  // The cards and the figure's zones (paths) open the picker; the proportion bar's segments
+  // (rects) only select their colour (Diego, Nov 17, 2026).
+  svg.querySelectorAll('.bar-seg').forEach(el => {
+    const act = () => (el.tagName.toLowerCase() === 'rect' ? selectRole(+el.dataset.i) : pickOnSheet(el));
+    el.addEventListener('click', act);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
+  });
+}
+// A colour on the sheet (card, bar segment, figure zone) selects it AND opens the picker on it
+// (Diego, Nov 17, 2026). selectRole() redraws the sheet, so the anchor is found again at the
+// same place in the new drawing.
+function pickOnSheet(el) {
+  const i = +el.dataset.i, r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  if (i !== state.activeIndex) selectRole(i);
+  const hit = document.elementFromPoint(cx, cy), anchor = (hit && hit.closest && hit.closest('.bar-seg')) || el;
+  Organica.colorPicker.open(anchor, {
+    value: state.items[i].hex,
+    label: dispName(i),
+    onInput: hex => { if (state.activeIndex === i && hex !== state.items[i].hex) setActiveColor(hex); },
+  });
+}
+function selectRole(i) {
+  state.activeIndex = i;
+  refreshFieldEditor();
+  highlightActiveChip();
+  renderStage();
+}
+
+// ── MODE / HARMONY / VIEW CONTROLS ──
+function syncCountSeg() {
+  ctrl('seg-count').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', +b.dataset.v === count()));
+}
+function syncViewSeg() {
+  ctrl('seg-view').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.v === state.view; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+  ctrl('house-no').textContent = 'House no. ' + state.house;   // announced; the sheet's caption shows it
+}
+// Gradient and System are toggles: pressed again, the sheet goes back to the house and its bar.
+function setView(view) {
+  if (view === state.view) view = 'garment';
+  if (view === 'system') loadToolAccents();
+  state.view = view;
+  syncViewSeg();
+  renderStage();
+}
+function setCount(n) {
+  n = clamp(n, 3, 5);
+  if (n === count()) return;
+  pourNext = true;
+  pushUndo('count');
+  while (count() < n) state.items.push(makeItem(nextColour(), count()));
+  while (count() > n) state.items.pop();
+  state.activeIndex = clamp(state.activeIndex, 0, n - 1);
+  commit(true);
+}
+
+// The house carousel — ‹ › step the seed: the next or previous house for this
+// palette, at the same number of colours. The palette keeps the one on show.
+function stepHouse(d) {
+  pushUndo('house');
+  state.house = ((state.house - 1 + d) % 9999 + 9999) % 9999 + 1;
+  syncViewSeg();
+  renderStage();
+  syncUndo();
+}
+function initHouseCarousel() {
+  [['house-prev', 'chevron-left', -1], ['house-next', 'chevron-right', 1]].forEach(([id, icon, d]) => {
+    const b = ctrl(id);
+    b.innerHTML = Organica.icons.get(icon, { size: 'lg' });
+    b.addEventListener('click', () => stepHouse(d));
+  });
+}
+
+// ── EXPORT ──
+function svgString(scale) {
+  scale = scale || 1;
+  const scene = buildScene();
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${scene.W} ${scene.H}" width="${scene.W * scale}" height="${scene.H * scale}"><rect x="0" y="0" width="${scene.W}" height="${scene.H}" fill="${scene.paper}"/>${sceneMarkup(scene, false)}</svg>`;
+}
+function exportSVG() {
+  Organica.downloadText(svgString(1), Organica.stamp('tunesutra', 'svg'), 'image/svg+xml');
+}
+function pngCanvas(scale) {
+  const scene = buildScene();
+  const canvas = document.createElement('canvas');
+  canvas.width = scene.W * scale;
+  canvas.height = scene.H * scale;
+  const c = canvas.getContext('2d');
+  c.scale(scale, scale);
+  drawScene(scene, c, scale);
+  return canvas;
+}
+function exportPNG() {
+  const url = pngCanvas(+ctrl('sel-export-scale').value).toDataURL('image/png');
+  Organica.download(Organica.dataURLToBlob(url), Organica.stamp('tunesutra', 'png'));
+}
+// Token keys come from the colour names: "Warm Clay" → warm-clay. Two colours
+// with the same name get -2, -3 … so no key is ever written twice.
+function tokenKeys() {
+  const used = {};
+  return state.items.map((it, i) => {
+    const base = dispName(i).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || ('colour-' + (i + 1));
+    let key = base;
+    for (let k = 2; used[key]; k++) key = base + '-' + k;
+    used[key] = true;
+    return key;
+  });
+}
+function exportCSS() {
+  const keys = tokenKeys();
+  let css = ':root {\n';
+  keys.forEach((key, i) => {
+    tokenScale(state.items[i].hex).forEach(s => {
+      css += `  --tunesutra-${key}-${s.step}: ${s.hex};\n`;
+    });
+  });
+  // Grain is not expressible in CSS — this is the smooth gradient only.
+  css += `  --tunesutra-gradient: ${gradCSS()};\n`;
+  css += '}\n';
+  Organica.downloadText(css, Organica.stamp('tunesutra', 'css'), 'text/css');
+}
+function exportJSON() {
+  const keys = tokenKeys();
+  const obj = { tunesutra: {} };
+  keys.forEach((key, i) => {
+    obj.tunesutra[key] = {};
+    tokenScale(state.items[i].hex).forEach(s => {
+      obj.tunesutra[key][s.step] = { $value: s.hex, $type: 'color' };
+    });
+  });
+  const stops = gradStops();
+  obj.tunesutra.gradient = { $type: 'gradient', $value: stops.map(st => ({ color: st.hex, position: +st.at.toFixed(4) })) };
+  Organica.downloadText(JSON.stringify(obj, null, 2), Organica.stamp('tunesutra', 'json'), 'application/json');
+}
+function sendToFigma() { Organica.sendToFigma(svgString(1), 'TuneSutra'); }
+
+// ── PRESETS ──
+const PRESETS = Organica.store('tunesutra');
+function userPresets() { return PRESETS.read(); }
+// ── Preset picker — preview thumbnails (Organica.selectPicker): a saved
+//    palette IS its colours, so its thumbnail is the colours themselves —
+//    one band per colour, in order, true hex (a name like "Autumn 3" says
+//    nothing; the bands say everything). An SVG, sharp at any size. ──
+function paletteThumb(cols) {
+  const cs = (cols || []).filter(Boolean);
+  if (!cs.length) return '';
+  const w = 40 / cs.length;
+  return '<svg viewBox="0 0 40 40" preserveAspectRatio="none">' +
+    cs.map((c, i) => `<rect x="${(i * w).toFixed(2)}" y="0" width="${(w + 0.05).toFixed(2)}" height="40" fill="${String(c).replace(/[^#\w(),.% ]/g, '')}"/>`).join('') + '</svg>';
+}
+const presetRegistry = {};
+let presetPicker = null;
+function populatePresets(select) {
+  const sel = ctrl('preset-select');
+  const all = userPresets();
+  sel.innerHTML = '<option value="">Presets…</option>' + Object.keys(all).map(name =>
+    `<option value="${esc(name)}"${name === select ? ' selected' : ''}>${esc(name)}</option>`).join('');
+  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
+  Object.entries(all).forEach(([n, p]) => { presetRegistry[n] = { name: esc(n), icon: paletteThumb(p.colors) }; });
+  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
+  else presetPicker.refresh();
+}
+// A preset saved before names / ids / locks existed has only { n, harmony,
+// colors } — it loads with the default role names and fresh ids.
+function loadPaletteData(p) {
+  state.items = p.colors.slice(0, 7).map((hex, i) => ({
+    id: (p.ids && p.ids[i]) || newId(),
+    name: (p.names && p.names[i]) || roleName(i),
+    hex: Organica.normalizeHex(hex, '#888888'),
+    lock: !!(p.locks && p.locks[i]),
+  }));
+  state.harmony = p.harmony || 'analogous';
+  state.spread = p.spread || 0;
+  state.activeIndex = 0;
+  state.view = 'garment';   // every palette opens on its house + bar (a 'bar' saved before Nov 18 too)
+  state.house = p.house >= 1 && p.house <= 9999 ? Math.round(p.house) : seedOf(p.colors.join(''));   // older palettes: a house from their colours
+  // A palette saved before gradients existed gets one between its first two colours.
+  state.grad = Object.assign(JSON.parse(GRAD_DEFAULT), p.gradient || { stops: colors().slice(0, 2) });
+  state.sys = Object.assign(JSON.parse(SYS_DEFAULT), p.system || {}, { preview: state.sys.preview });
+}
+// The panel's own preset picker: swap to another saved palette in place.
+function applyPreset(name) {
+  if (!name) return;
+  const p = userPresets()[name];
+  if (!p || !p.colors || p.colors.length < 3) return;
+  pushUndo('preset');
+  loadPaletteData(p);
+  setCurrent(name, '');
+  syncControls();
+  commit(true);
+}
+// Save lives in the floatbar (Diego, Nov 17, 2026): #btn-save-open → #save-popover.
+// Saving under the name of ANOTHER saved palette asks first — the Save button arms
+// (Organica.armed, "Replace?"); saving the palette that is open under its own name doesn't.
+let savePopover = null;
+function syncSaveArm() {
+  const name = ctrl('txt-preset-name').value.trim(), b = ctrl('btn-preset-confirm');
+  const clash = !!name && name !== currentName && Object.prototype.hasOwnProperty.call(userPresets(), name);
+  if (clash) b.setAttribute('data-armed', 'Replace?'); else b.removeAttribute('data-armed');
+}
+function beginSavePreset() {
+  ctrl('txt-preset-name').value = currentName || suggestedName;
+  syncSaveArm();
+}
+function confirmSavePreset() {
+  const name = ctrl('txt-preset-name').value.trim();
+  if (!name) { ctrl('txt-preset-name').focus(); return; }
+  const all = userPresets();
+  all[name] = {
+    n: count(),
+    harmony: state.harmony,
+    spread: state.spread,
+    colors: colors(),
+    names: state.items.map((it, i) => dispName(i)),
+    ids: state.items.map(it => it.id),
+    locks: state.items.map(it => !!it.lock),
+    gradient: JSON.parse(JSON.stringify(state.grad)),
+    system: Object.assign(JSON.parse(JSON.stringify(state.sys)), { preview: false }),
+    view: 'garment',
+    house: state.house,
+    savedAt: new Date().toISOString(),
+  };
+  PRESETS.write(all);
+  setCurrent(name, '');
+  populatePresets(name);
+  if (savePopover) savePopover.close();
+}
+function deletePreset() {
+  const name = ctrl('preset-select').value;
+  if (!name) return;
+  const all = userPresets();
+  delete all[name];
+  PRESETS.write(all);
+  populatePresets();
+  if (name === currentName) { setDirty(false); location.hash = ''; }   // the palette on screen is gone — back to the library
+}
+
+// ── HOME + ROUTING ──
+// The page has two faces: the library (every palette as a card) and the
+// editor (one palette). The hash says which:
+//   (none)        the library
+//   #new          the editor on a fresh palette
+//   #p=<name>     the editor on a saved palette
+//   #c=<col>/<id> the editor on a COPY of a built-in palette (Save keeps it)
+let currentName = '', suggestedName = '', dirty = false;
+function setDirty(v) { dirty = v; Organica.dirty.set('palette', v); }
+function setCurrent(name, suggest) {
+  currentName = name; suggestedName = suggest; setDirty(false);
+  if (name) history.replaceState(null, '', '#p=' + encodeURIComponent(name));
+  refreshTitle();
+}
+function refreshTitle() {
+  ctrl('palette-title').textContent = currentName ? currentName + (dirty ? ' — unsaved changes' : '')
+    : (suggestedName ? suggestedName + ' — a copy, not saved yet' : 'New palette — not saved yet');
+  ctrl('btn-home').textContent = '← All palettes';
+}
+function paletteArt(p) {
+  const cols = (p.colors || []).map(c => Organica.normalizeHex(c, '#888888'));
+  if (garmentFits(cols.length)) {   // every card shows its house (3–5 colours); 6–7 the bar
+    const n = cols.length, fig = houseFig(p.house >= 1 ? Math.round(p.house) : seedOf(cols.join('')), n), pad = n === 5 ? 0 : fig.h * 0.06;
+    return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}" aria-hidden="true">` +
+      fig.zones.map(z => { const hex = cols[z.role]; return `<path d="${z.d}" fill="${hex}"${n < 5 && paleOnPaper(hex) ? ` stroke="var(--border)" stroke-width="${fig.h / 220}"` : ''}/>`; }).join('') + '</svg>';
+  }
+  const w = roleWeights(cols.length);
+  return cols.map((c, i) => `<span style="flex:${w[i].toFixed(2)};background:${c}"></span>`).join('');
+}
+function cardHTML(href, name, p) {
+  return `<a class="ts-card" href="${href}"><span class="ts-card__art" data-theme="light">${paletteArt(p)}</span>` +
+    `<span class="ts-card__label"><span class="ts-card__name">${esc(name)}</span><span class="ts-card__meta">${esc(p.colors.join(' '))}</span></span></a>`;
+}
+function renderHome() {
+  const all = userPresets();
+  const mine = Object.keys(all).filter(n => all[n] && Array.isArray(all[n].colors) && all[n].colors.length >= 3)
+    .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')));
+  let html = '<section class="ts-group"><h2 class="ts-group__title">Your palettes</h2>' +
+    `<p class="ts-group__note">${mine.length ? mine.length + (mine.length === 1 ? ' palette' : ' palettes') + ', newest first.' : 'None yet. Start a new one, or open a built-in palette and save your own copy.'}</p><div class="ts-grid">` +
+    '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>' +
+    mine.map(n => cardHTML('#p=' + encodeURIComponent(n), n, all[n])).join('') + '</div></section>';
+  (window.TUNESUTRA_COLLECTIONS || []).forEach(col => {
+    html += `<section class="ts-group"><h2 class="ts-group__title">${esc(col.name)}</h2><p class="ts-group__note">${esc(col.note || '')}</p><div class="ts-grid">` +
+      col.palettes.map(pal => cardHTML('#c=' + encodeURIComponent(col.id + '/' + pal.id), pal.name, { colors: pal.colors, view: col.view, house: seedOf(col.id + '/' + pal.id) })).join('') + '</div></section>';
+  });
+  ctrl('home').innerHTML = html;
+}
+function showHome(home) {
+  ctrl('home').hidden = !home;
+  ctrl('app').hidden = !!(home);
+  document.querySelector('.org-floatbar').hidden = !!(home);
+}
+function route() {
+  let h = '';
+  try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { h = ''; }
+  let p = null, name = '', suggest = '';
+  if (h === 'new') p = { colors: ['#ffffff', '#ffffff', '#ffffff'], house: newSeed() };   // a blank start: three white colours (Diego, Nov 17, 2026)
+  else if (h.indexOf('p=') === 0) { name = h.slice(2); p = userPresets()[name]; }
+  else if (h.indexOf('c=') === 0) {
+    const parts = h.slice(2).split('/'), col = (window.TUNESUTRA_COLLECTIONS || []).find(c => c.id === parts[0]);
+    const pal = col && col.palettes.find(x => x.id === parts[1]);
+    if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view, house: seedOf(col.id + '/' + pal.id) }; suggest = pal.name; }
+  }
+  if (!p || !Array.isArray(p.colors) || p.colors.length < 3) { showHome(true); renderHome(); return; }
+  loadPaletteData(p);
+  pourNext = true;
+  undoStack.length = 0;
+  lastUndo = { kind: '', t: 0 };
+  currentName = name; suggestedName = suggest; setDirty(false);
+  showHome(false);
+  ctrl('panel').scrollTop = 0;
+  ctrl('stage-wrap').scrollTop = 0;
+  syncControls();
+  populatePresets(name);
+  commit(true);
+  refreshTitle();
+}
+// Leaving with unsaved changes takes two clicks: the first one says so.
+let leaveArmed = 0;
+function goHome() {
+  if (dirty && Date.now() - leaveArmed > 4000) { leaveArmed = Date.now(); ctrl('btn-home').textContent = 'Unsaved changes — click again to leave'; return; }
+  setDirty(false);
+  location.hash = '';
+}
+
+// ── INIT ──
+const GRAD_DEFAULT = JSON.stringify(state.grad), SYS_DEFAULT = JSON.stringify(state.sys);
+initChips();
+initGradient();
+initSystem();
+Organica.enhanceSliders(document);   // the Slosh fill on every slider, liquid switches, click-to-edit values
+initHouseCarousel();
+bindFieldEditor();
+Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
+
+ctrl('seg-count').querySelectorAll('.seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => setCount(+btn.dataset.v));
+});
+ctrl('seg-view').querySelectorAll('.seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => setView(btn.dataset.v));
+});
+ctrl('sel-harmony').addEventListener('change', () => { state.harmony = ctrl('sel-harmony').value; });
+ctrl('btn-generate').addEventListener('click', () => {
+  state.harmony = ctrl('sel-harmony').value;
+  pushUndo('generate');
+  applyHarmony();
+  commit(true);
+});
+// The spread slider regenerates as it moves — a slider that waited for
+// Generate would feel dead. Kept colours are untouched, as with Generate.
+ctrl('rg-spread').addEventListener('input', e => {
+  pushUndo('spread');
+  state.spread = +e.target.value;
+  ctrl('v-spread').textContent = state.spread;
+  applyHarmony();
+  commit(true);
+});
+Organica.shortcuts.add({ keys: '⌘Z', label: 'Undo', group: 'Edit' });
+ctrl('btn-undo').addEventListener('click', undo);
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && e.target.type !== 'range' && e.target.type !== 'checkbox') return;   // let a text field undo its own typing
+  e.preventDefault();
+  undo();
+});
+
+ctrl('btn-export-png').addEventListener('click', exportPNG);
+ctrl('btn-export-svg').addEventListener('click', exportSVG);
+ctrl('btn-export-css').addEventListener('click', exportCSS);
+ctrl('btn-export-json').addEventListener('click', exportJSON);
+ctrl('btn-export-grad-png').addEventListener('click', exportGradPNG);
+ctrl('btn-export-grad-svg').addEventListener('click', exportGradSVG);
+ctrl('btn-export-plates').addEventListener('click', exportPlates);
+ctrl('btn-export-sys-css').addEventListener('click', exportSystemCSS);
+ctrl('btn-export-sys-json').addEventListener('click', exportSystemJSON);
+
+ctrl('btn-save-open').addEventListener('click', beginSavePreset, true);   // capture: the name is filled before the popover opens and focuses it
+savePopover = Organica.popover(ctrl('btn-save-open'), ctrl('save-popover'));
+ctrl('btn-preset-delete').addEventListener('click', deletePreset);
+ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
+ctrl('txt-preset-name').addEventListener('input', syncSaveArm);
+ctrl('txt-preset-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ctrl('btn-preset-confirm').click(); } });   // through the button, so "Replace?" still asks
+
+ctrl('btn-home').addEventListener('click', goHome);
+window.addEventListener('hashchange', route);
+syncControls();
+commit(false);
+populatePresets();
+route();
+Organica.autoLabelPanel(document);
+
+// Cloud sync (shared/store.js): auth.js auto-gates the page; here we just
+// hydrate presets from Supabase and re-render the list whenever a pull /
+// background flush lands.
+// A palette opened by link may not be in this device's cache yet: once the
+// pull lands, try the route again if we fell back to the library.
+const onLibrary = () => !ctrl('home').hidden;
+PRESETS.pull().then(() => { populatePresets(currentName); if (onLibrary()) route(); });
+PRESETS.onSync(() => { populatePresets(currentName); if (onLibrary()) renderHome(); });
+</script>
+<script src="/shared/tools.js"></script>
+<script src="/shared/menu-icon.js"></script>
+<script src="/shared/header.js"></script>
+</body>
+</html>
