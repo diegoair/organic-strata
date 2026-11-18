@@ -196,7 +196,7 @@ Then:
 
 One definition behind three panel sections — **Gradient** (how the colour fills each
 shape: Type, Angle, Stops, Fade to paper), **Grain** (the gradient broken into cells of pure
-ink, for print plates: Size, Pattern, Seed — on Flat only *Flat has no gradient to grain.*) and
+ink, for print plates: Size, Pattern, Seed — **hidden entirely on Flat**, Nov 18, 2026) and
 **Shadow** (specks of a second ink on top: a switch, then Ink, Amount, Size, Specks, the
 light, its own Seed). Split Nov 18, 2026 (Diego: *dobbiamo far capire bene cosa è per gradient,
 cosa è per grain, e cosa è shadow*; mockup A, three sections, `explorations/tunesutra-gradient-panel/`);

@@ -246,10 +246,9 @@
       </div>
     </div>
 
-    <div class="panel-section">
+    <div class="panel-section" id="sec-grain">
       <h3>Grain</h3>
       <p class="org-panel__hint">Breaks the gradient into cells of pure ink — for print plates.</p>
-      <p class="org-panel__hint" id="grain-none">Flat has no gradient to grain.</p>
       <div id="grain-ctl">
         <div class="ctrl-row" id="row-gsize">
           <div class="ctrl-label" title="The size of one grain, in sheet units. 0 = no grain: the gradient blends smoothly.">Size</div>
@@ -1209,7 +1208,7 @@ function syncGradControls() {
   if (document.activeElement !== ctrl('in-gseed')) ctrl('in-gseed').value = g.seed;   // never rewrite a field while it is typed in
   ctrl('ck-gpaper').checked = g.paper;
   ctrl('grad-blend').hidden = flat;
-  ctrl('grain-none').hidden = !flat; ctrl('grain-ctl').hidden = flat;   // Flat has no blend to grain (Diego, Nov 18, 2026)
+  ctrl('sec-grain').hidden = flat;   // Flat has no blend to grain: the whole section goes (Diego, Nov 18, 2026)
   ctrl('grain-smooth').hidden = flat || g.size > 0;
   ['angle', 'pattern', 'seed', 'speck', 'sseed', 'dist', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
   gradSel = Math.min(gradSel, g.stops.length - 1);
