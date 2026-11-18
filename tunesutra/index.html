@@ -321,11 +321,6 @@
     </div>
 
     <div class="panel-section">
-      <h3>Scale</h3>
-      <p class="org-panel__hint">Ten steps under each colour, 50–900. A step is the same perceived lightness for every colour, so colours are interchangeable step for step. Your colour sits unchanged on its nearest step (outlined).</p>
-    </div>
-
-    <div class="panel-section">
       <h3>Saved palettes</h3>
       <div id="preset-picker"></div>
       <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)"></select>
@@ -1745,17 +1740,53 @@ function selectRole(i, z) {
 
 // ── MODE / HARMONY / VIEW CONTROLS ──
 function syncViewSeg() {
-  ctrl('seg-shading').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.v === state.shading; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+  // the row says what a click would change: the selected shape's preset, else the house's
+  const sz = selZone(), shown = sz != null ? presetOf(state.zoneShades[zoneKey(sz)] || colourDef(state.activeIndex) || shapeShadeDef(state.items[state.activeIndex].hex, 'none'), state.items[state.activeIndex].hex) : state.shading;
+  ctrl('seg-shading').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.v === shown; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
   ctrl('house-no').textContent = 'House no. ' + state.house;   // announced; the sheet's caption shows it
 }
+// Shading (Diego, Nov 18, 2026: "quando clicco shading e nulla è selezionato applica lo shading a tutte le
+// forme, se seleziono una forma e clicco shading lo applica solo alla selezione"):
+//   a house shape selected → that preset becomes that shape's own (None = the shape flat);
+//   nothing selected       → the preset on every shape: the house's Shading, and every colour's /
+//                            shape's own shading forgotten so all of them take it (one ⌘Z step).
+function shapeShadeDef(hex, mode) {
+  return JSON.parse(JSON.stringify(mode === 'none' ? Object.assign({}, shadeDefs(hex).soft, { type: 'flat', shadow: false }) : shadeDefs(hex)[mode]));
+}
+// The preset a definition is (for the Shading row's state on a selected shape), or null.
+function presetOf(def, hex) {
+  if (!def) return null;
+  const k = JSON.stringify(def);
+  return ['none'].concat(SHADE_MODES).find(m => JSON.stringify(withColour(shapeShadeDef(hex, m), hex)) === k) || null;
+}
 function setShading(mode) {
-  if (mode === state.shading) return;
-  pushUndo('shading');
-  state.shading = mode;
+  const sz = selZone();
+  if (sz != null) {
+    const hex = state.items[state.activeIndex].hex;
+    pushUndo('shading');
+    state.zoneShades[zoneKey(sz)] = shapeShadeDef(hex, mode);
+    shadeDraft.key = '';
+  } else {
+    const own = state.items.some(it => it.shade) || Object.keys(state.zoneShades).length > 0;
+    if (mode === state.shading && !own) return;
+    pushUndo('shading');
+    state.shading = mode;
+    state.items.forEach(it => { delete it.shade; });
+    state.zoneShades = {};
+    shadeDraft.key = '';
+  }
   syncViewSeg();
   syncGradControls();
   renderStage();
   syncUndo();
+}
+// Nothing selected: Esc, or a click on the bare sheet, lets go of the house shape (the colour stays active).
+function clearShapeSelection() {
+  if (state.zone == null) return;
+  state.zone = null;
+  syncViewSeg();
+  syncGradControls();
+  renderStage();
 }
 // The number of colours (Diego, Nov 18, 2026: "togliere Colours 3 4 5 dalla barra di destra … un più su
 // una scheda vuota che può generare al massimo altre 2 schede"): the + card after the last colour card
@@ -2090,6 +2121,12 @@ bindFieldEditor();
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
 ctrl('seg-shading').querySelectorAll('.seg-btn').forEach(btn => btn.addEventListener('click', () => setShading(btn.dataset.v)));
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || e.defaultPrevented || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if ([...document.querySelectorAll('[role=dialog], .org-popover')].some(d => d.offsetParent !== null)) return;   // Esc closes an open picker / popover first
+  clearShapeSelection();
+});
+ctrl('stage-svg').addEventListener('click', e => { if (!e.target.closest('.bar-seg, .ts-tint, .shade-tile')) clearShapeSelection(); });
 ctrl('sel-harmony').addEventListener('change', () => { state.harmony = ctrl('sel-harmony').value; });
 ctrl('btn-generate').addEventListener('click', () => {
   state.harmony = ctrl('sel-harmony').value;

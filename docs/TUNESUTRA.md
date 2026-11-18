@@ -114,8 +114,8 @@ vector in every export:
   the light (falloff 65)
 - **Stipple** — Speckle as round dots (stored key `print`, its label until Nov 18, 2026)
 A colour already at 800–900 takes lighter tints instead. The panel's **Shading** row
-(None · Soft · Speckle · Stipple, default **None** — flat, as the home shows it, since Nov 18, 2026; saved with the palette as `shading`) puts one
-on every shape of the house (each zone clipped to its shape, its box the shape's visible part —
+(None · Soft · Speckle · Stipple, default **None** — flat, as the home shows it, since Nov 18, 2026; saved with the palette as `shading`) acts on the selection (Nov 18, 2026: Diego, *quando clicco shading e nulla è selezionato applica lo shading a tutte le forme, se seleziono una forma … solo alla selezione*): **a house shape selected** → that preset becomes the shape's own (None = the shape flat), and the row shows that shape's preset; **nothing selected** (Esc or a click on the bare sheet lets go of a shape) → it puts one
+on every shape of the house — every colour's / shape's own shading forgotten, one ⌘Z step (each zone clipped to its shape, its box the shape's visible part —
 `bb` in `house.js`); under each colour's scale a row of three **tiles** shows its set, the
 one on the house outlined, a click puts that one on the house. The shape itself paints the
 colour; only the darker cells go on it, clipped to the shape (a house ~200–500 KB of SVG).
