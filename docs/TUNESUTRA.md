@@ -80,7 +80,7 @@ in-app photo reader.
 
 ## 2. The sheet
 
-Above the sheet, as wide as it, the **palette bar** (Nov 18, 2026: Diego, *sposta il back … sopra a Example — house no. … con una barra che lo racchiude della stessa larghezza della canvas*): **← All palettes** on the left, on the right *Unsaved changes* for a saved palette edited since (nothing otherwise — *Not saved yet* removed, Diego, Nov 18, 2026); attached to the sheet, no gap. The palette's **name** is on the sheet itself, where *Example* was: *‹Name› — house no. ‹n›* (also in the export) — moved out of the panel; chrome (`--panel`, both themes), not part of the sheet or its exports.
+Above the sheet, as wide as it, the **palette bar** (Nov 18, 2026: Diego, *sposta il back … sopra a Example — house no. … con una barra che lo racchiude della stessa larghezza della canvas*): **← All palettes** on the left, on the right *Unsaved changes* for a saved palette edited since (nothing otherwise — *Not saved yet* removed, Diego, Nov 18, 2026); attached to the sheet, no gap, on the sheet's own paper (light in both themes, as the sheet). The palette's **name** is on the sheet itself, where *Example* was: *‹Name› — house no. ‹n›* (also in the export) — moved out of the panel; chrome (`--panel`, both themes), not part of the sheet or its exports.
 
 One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
 
@@ -248,6 +248,7 @@ file), while the plates keep the exact partition.
 - **Pattern** — how the cells are chosen: **Noise** (at random) or **Dots** (round
   dots, evenly spread: a 64 × 64 blue-noise mask, `Organica.dither.blueNoise`).
 - **Seed** fixes the cells.
+- **Shading, at the top of Shadow** (Nov 18, 2026, late): **None · Soft · Speckle** for the whole figure (or the selected shape), default None, in place of the Shadow switch — Soft or Speckle turn the shadow on and show the parameters below. **Soft = a smooth shadow, no specks** (Diego: *soft non dovrebbe avere il noise* — one vector gradient along the light, from nothing on the lit side through the Halftone ink to the Core ink; vector, but not one plate per ink; Size / Seed hidden), **Speckle** = square specks (one ink per cell, plates); Stipple, and the Pattern row's Dots / Bands, were removed (a saved one still draws).
 - **Shadow — the painter's shadow** (Nov 18, 2026: Diego, *lo voglio tutte così come opzioni in shadow con un
   focus su specks e dots … allineare le parti ai colori definiti come token*; from the Shadow lab,
   `explorations/tunesutra-shadow-ink/`). Its own **switch** (`shadow`), then:

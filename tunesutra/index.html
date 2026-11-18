@@ -37,7 +37,7 @@
   .ts-palbar {
     display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
     padding: var(--space-2) var(--space-3);   /* attached to the sheet below it: no gap, square bottom */
-    background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius-md) var(--radius-md) 0 0;
+    background: var(--paper); border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius-md) var(--radius-md) 0 0;   /* the sheet's own paper, light in both themes like the sheet (Diego, Nov 18, 2026) */
   }
   .ts-palbar .mini-btn { flex: none; }   /* its own width, not the row's (mini-btn is flex: 1 in a row of buttons) */
   .ts-palbar__title { margin: 0; font-size: var(--fs-small); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* full width up to the sheet's own size (max-width set by renderStage): a shrink-to-fit box would collapse it */
@@ -162,7 +162,7 @@
     <!-- the column: the palette bar over the sheet, both the sheet's width (Diego, Nov 18, 2026: "sposta il back … sopra
          a Example — house no. … con una barra che lo racchiude della stessa larghezza della canvas") -->
     <div class="ts-column" id="ts-column">
-      <div class="ts-palbar">
+      <div class="ts-palbar" data-theme="light">
         <button class="mini-btn" id="btn-home">← All palettes</button>
         <p class="ts-palbar__title" id="palette-title"></p>
       </div>
@@ -197,15 +197,6 @@
   <div id="panel" class="org-panel">
     <div class="panel-section">
       <h3>Palette</h3>
-      <div class="sub-label">Shading</div>
-      <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-shading" role="group" aria-label="Shading">
-          <button class="seg-btn" data-v="none">None</button>
-          <button class="seg-btn" data-v="soft" title="Each colour fading to its own darker tint, with fine grain">Soft</button>
-          <button class="seg-btn" data-v="speckle" title="Each colour flat, with specks of its own darker tint gathering away from the light">Speckle</button>
-          <button class="seg-btn" data-v="print" title="Each colour flat, with round dots of its own darker tint gathering away from the light">Stipple</button>
-        </div>
-      </div>
       <div class="ctrl-row">
         <span class="ctrl-label">Harmony</span>
         <select class="panel-select" id="sel-harmony" aria-label="Harmony algorithm">
@@ -281,16 +272,16 @@
     <div class="panel-section">
       <h3>Shadow</h3>
       <p class="org-panel__hint">Two inks over the colour — halftone and core — where the light does not reach.</p>
-      <label class="check-row org-switch"><input type="checkbox" id="ck-gshadow"><span>Shadow</span></label>
-      <div id="grad-shadow">
-        <div class="sub-label">Pattern</div>
-        <div class="ctrl-row">
-          <div class="seg-ctrl" id="seg-gspecks" role="group" aria-label="Shadow pattern">
-            <button class="seg-btn active" data-v="specks" title="Square cells mixing the two inks">Specks</button>
-            <button class="seg-btn" data-v="dots" title="Round dots of the next ink, sized by the shadow">Dots</button>
-            <button class="seg-btn" data-v="bands" title="Hard steps, one ink each">Bands</button>
-          </div>
+      <!-- Shading, for the whole figure (or the selected shape): None · Soft · Speckle — Soft or Speckle turn the
+           shadow on and show its parameters (Diego, Nov 18, 2026: "togli il toggle") -->
+      <div class="ctrl-row">
+        <div class="seg-ctrl" id="seg-shading" role="group" aria-label="Shading">
+          <button class="seg-btn" data-v="none" title="No shadow">None</button>
+          <button class="seg-btn" data-v="soft" title="A gentle shadow: fine dots of the colour’s own darker tints">Soft</button>
+          <button class="seg-btn" data-v="speckle" title="Square specks of the colour’s own darker tints, away from the light">Speckle</button>
         </div>
+      </div>
+      <div id="grad-shadow">
         <div class="ctrl-row" id="row-gspeck">
           <div class="ctrl-label" title="The size of one speck or dot, in sheet units. On a grained gradient the specks are the grain’s cells.">Size</div>
           <input type="range" id="rg-gspeck" min="1" max="12" step="0.5" value="2" aria-label="Shadow size">
@@ -359,7 +350,6 @@
         <label class="check-row org-switch"><input type="checkbox" id="ck-gcore"><span>Core shadow</span></label>
         <label class="check-row org-switch"><input type="checkbox" id="ck-grefl"><span>Reflected light</span></label>
         <label class="check-row org-switch"><input type="checkbox" id="ck-ghigh"><span>Highlight</span></label>
-        <p class="org-panel__hint" id="shadow-hint" hidden>Each dot is cut out of the ink under it: the plates never overlap.</p>
       </div>
     </div>
 
@@ -492,7 +482,7 @@ const state = {
   house: 1,           // the figure's seed (tunesutra/house.js): saved with the palette, stepped by the carousel
   zone: null,         // the house shape selected (its index in the figure), or null — a colour card / chip selects the colour
   zoneShades: {},     // a shape's own shading, keyed 'house/count/shape' (saved with the palette)
-  shading: 'none',    // flat by default, as the home shows it (Diego, Nov 18, 2026) — the house's shadow noise: 'none' | 'soft' | 'speckle' | 'print' (labelled Stipple) — each colour's preset (shadeDefs)
+  shading: 'none',    // flat by default, as the home shows it (Diego, Nov 18, 2026) — the figure's shadow: 'none' | 'soft' | 'speckle' ('print', the old Stipple, reads as Soft)
   items: [],
   // The gradient: stops are colours in their own right (picked from this
   // palette or any saved one), so reordering the palette never reorders them.
@@ -796,8 +786,10 @@ function isGarmentView() { return state.view === 'garment' && garmentFits(count(
 // (Diego, Nov 18: "tutto deve essere esportato in vettoriale quindi anche con il noise e shadow").
 // The tints are the colour's own scale (tokenScale), 3 and 5 steps darker (capped at 900) —
 // lighter only for a colour already at 800–900.
-// The third keeps its stored key 'print' (its label until Nov 18, 2026) — saved palettes read it as they are.
-const SHADE_MODES = ['soft', 'speckle', 'print'], SHADE_NAME = { soft: 'Soft', speckle: 'Speckle', print: 'Stipple' };
+// Two presets since Nov 18, 2026 (Diego: Shading moves into Shadow — None · Soft · Speckle; Stipple out, Pattern ›
+// Dots does it): SOFT a gentle shadow (fine halftone dots, shallow), SPECKLE square specks. 'print' (Stipple) is
+// still read, as Soft — palettes and undo steps saved before keep working.
+const SHADE_MODES = ['soft', 'speckle'], SHADE_NAME = { soft: 'Soft', speckle: 'Speckle', print: 'Soft' };
 function shadeDefs(hex) {
   const sc = tokenScale(hex), a = Math.max(0, sc.findIndex(st => st.anchor)), dir = a <= 7 ? 1 : -1;   // darker, unless already near black
   const deep = sc[clamp(a + 5 * dir, 0, 9)].hex;
@@ -808,7 +800,8 @@ function shadeDefs(hex) {
     parts: { half: true, term: false, core: true, refl: false, high: false }, snap: true, inkMid: null, inkCore: null, size: 0, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
   // Flat draws only the first stop; the second is there so that switching it to Linear / Radial blends at once.
   const speckle = Object.assign({}, base, { type: 'flat', shadow: true, amount: 70, speck: 2, falloff: 65 });
-  return { soft: base, speckle: speckle, print: Object.assign({}, speckle, { specks: 'dots', speck: 4 }) };
+  const soft = Object.assign({}, base, { type: 'flat', shadow: true, specks: 'smooth', amount: 60, depth: 25, falloff: 50 });   // a smooth shadow, no specks
+  return { soft: soft, speckle: speckle, print: soft, base: base };
 }
 // Rendered once per definition and box size: a colour edit re-renders only that colour's shapes.
 const shadeCache = new Map();
@@ -900,7 +893,7 @@ function gradUses(g) {
     angle: g.type === 'linear',
     pattern: blend,
     seed: blend,
-    speck: shadow && !blend && g.specks !== 'bands',   // on a grained blend the specks are the grain's cells; Bands use a fine grid
+    speck: shadow && !blend && (g.specks === 'specks' || g.specks === 'dots'),   // on a grained blend the specks are the grain's cells; Bands use a fine grid
     sseed: shadow && g.specks === 'specks',   // only Specks are random
     dist: shadow,
     light: light,
@@ -943,18 +936,37 @@ function shadowInks(g, hex) {
 // The shadow's own grid: Bands on a fine one (its edges follow the light, not Size's steps), else Size.
 function shadowGrid(g) { return hasNoise(g) && g.specks === 'bands' ? 1 : (g.speck || SHADOW_CELL); }
 // Shadow level at a point: v 0 (none) … 1 (halftone ink) … 2 (core ink), and a highlight flag.
+// The shadow amount 0..1 for a light weight w0 (0 = the lit edge … 1 = the far side), by the parts.
+function shadowAt(g, w0) {
+  const amt = g.amount / 100, P = g.parts || {};
+  let s = P.half !== false ? clamp((w0 - 0.2) / 0.65, 0, 1) : (w0 > 0.5 ? 1 : 0);
+  s = s * s * (3 - 2 * s) * amt;
+  if (P.core === false) s = Math.min(s, 0.5);
+  if (P.term) s = Math.min(1, s + Math.exp(-Math.pow((w0 - 0.5) / 0.1, 2)) * 0.3 * amt);
+  if (P.refl && w0 > 0.82) s = Math.max(0, s - (w0 - 0.82) / 0.18 * 0.5);
+  return s;
+}
 function shadowLevel(g, w, h) {
-  const weight = noiseWeight(g, w, h), amt = g.amount / 100, P = g.parts || {};
+  const weight = noiseWeight(g, w, h), P = g.parts || {};
   return (ux, uy, c, r) => {
     const w0 = weight(ux, uy);
-    let s = P.half !== false ? clamp((w0 - 0.2) / 0.65, 0, 1) : (w0 > 0.5 ? 1 : 0);
-    s = s * s * (3 - 2 * s) * amt;
-    if (P.core === false) s = Math.min(s, 0.5);
-    if (P.term) s = Math.min(1, s + Math.exp(-Math.pow((w0 - 0.5) / 0.1, 2)) * 0.3 * amt);
-    if (P.refl && w0 > 0.82) s = Math.max(0, s - (w0 - 0.82) / 0.18 * 0.5);
     const hi = !!P.high && w0 < 0.15 && cellHash(c, r, g.sseed + 5) < (0.15 - w0) / 0.15 * 0.7;
-    return { v: s * 2, hi: hi };
+    return { v: shadowAt(g, w0) * 2, hi: hi };
   };
+}
+// SMOOTH shadow (Soft; Diego, Nov 18, 2026: "soft … non dovrebbe avere il noise"): no specks — one vector gradient
+// over the shape along the light, transparent where lit, the halftone ink, then the core ink. Vector, but (like
+// a grain-0 blend) not one plate per ink.
+function smoothShadow(g) { return hasNoise(g) && g.specks === 'smooth'; }
+function smoothShadowPlate(g, w, h) {
+  const [mid, core] = shadowInks(g, g.stops[colourStop(g)]), bend = Math.pow(4, (g.falloff - 50) / 50), even = g.dist !== 'light';
+  const stops = [];
+  for (let k = 0; k <= 24; k++) {
+    const t = k / 24, w0 = even ? 1 : Math.pow(t, bend), v = shadowAt(g, w0) * 2;
+    stops.push(v <= 1 ? [t, mid, Math.max(0, v)] : [t, C.mixIn('oklab', mid, core, v - 1), 1]);
+  }
+  return { hex: core, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0,
+    smooth: { geom: smoothGeom({ type: 'linear', angle: g.light + 180 }, w, h), stops: stops } };
 }
 // One cell of the shadow over base ink `base` (an index; -1 = none, the smooth fill): → { ink, dot? }.
 // I = { mid, core, paper } — the plates' indices of the two inks and the highlight.
@@ -1022,7 +1034,7 @@ function gradPlates(g, w, h) {
   const stops = gradStops(g), k = stops.length, cell = Math.max(MIN_CELL, g.type === 'flat' ? shadowGrid(g) : g.size);
   const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h);
   const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
-  const shadow = hasNoise(g), level = shadow ? shadowLevel(g, w, h) : null, I = {};
+  const shadow = hasNoise(g) && !smoothShadow(g), level = shadow ? shadowLevel(g, w, h) : null, I = {};
   if (shadow) {
     // a shadow ink that is one of the stops is that stop's ink: one plate, not two of the same colour
     const add = hex => { const at = out.findIndex(p => !p.paper && p.hex.toLowerCase() === hex.toLowerCase()); if (at >= 0) return at; out.push({ hex: hex, paper: false, d: [], holes: [], cells: 0 }); return out.length - 1; };
@@ -1056,6 +1068,7 @@ function gradPlates(g, w, h) {
     }
   }
   out.forEach(p => { p.d = p.d.join('') + p.holes.join(''); delete p.holes; });
+  if (smoothShadow(g)) out.push(smoothShadowPlate(g, w, h));
   return out;
 }
 // Grain 0: [the first stop (painted by the shape), the smooth fill over the box, the shadow's cells].
@@ -1063,6 +1076,7 @@ function smoothPlates(g, w, h) {
   const stops = gradStops(g), out = [{ hex: stops[0].hex, paper: false, d: '', cells: 0 },
     { hex: stops[stops.length - 1].hex, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0, smooth: { geom: smoothGeom(g, w, h), stops: smoothStops(g) } }];
   if (!hasNoise(g)) return out;
+  if (smoothShadow(g)) { out.push(smoothShadowPlate(g, w, h)); return out; }
   // the shadow over the smooth fill: its own grid; a cell with no shadow shows the fill (-1)
   const cell = shadowGrid(g), cols = Math.floor(w / cell), rows = Math.floor(h / cell), level = shadowLevel(g, w, h);
   const [mid, core] = shadowInks(g, g.stops[colourStop(g)]), P = [{ hex: mid, d: [], holes: [] }, { hex: core, d: [], holes: [] }, { hex: Organica.contentColor('--paper'), paper: true, d: [], holes: [] }];
@@ -1110,7 +1124,7 @@ function draftMode() { return state.shading === 'none' ? 'flat' : state.shading;
 // What the section starts from with nothing of the colour's own: the Shading preset on the house, or —
 // with Shading None — the flat colour (Diego, Nov 18, 2026: "by default in gradient & grain Type is always
 // flat"). Its second stop is the 900, so Linear / Radial blend at once.
-function draftDef(hex) { return state.shading === 'none' ? Object.assign({}, shadeDefs(hex).soft, { type: 'flat' }) : shadeDefs(hex)[state.shading]; }
+function draftDef(hex) { return state.shading === 'none' ? Object.assign({}, shadeDefs(hex).base, { type: 'flat', shadow: false }) : shadeDefs(hex)[state.shading]; }
 function zoneKey(z) { return state.house + '/' + count() + '/' + z; }
 // The selected shape, only while it still is one: on the house, in this figure, of the active
 // colour. A colour removed / added, another house, another view — the selection lapses to the colour.
@@ -1186,7 +1200,7 @@ function clearColourShades(i) {
 function syncGradControls() {
   const g = G(), seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   const flat = g.type === 'flat', uses = gradUses(g);
-  seg('seg-gtype', g.type); seg('seg-gpattern', g.pattern); seg('seg-gspecks', g.specks); ctrl('sel-ghue').value = g.hue;
+  seg('seg-gtype', g.type); seg('seg-gpattern', g.pattern); ctrl('sel-ghue').value = g.hue;
   ['shift', 'depth', 'lose', 'glow'].forEach(k => { ctrl('rg-g' + k).value = g[k]; ctrl('v-g' + k).textContent = g[k]; });
   ctrl('ck-gsnap').checked = !!g.snap;
   const P = g.parts || {};
@@ -1199,7 +1213,6 @@ function syncGradControls() {
   ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
   ctrl('rg-gsize').value = g.size; ctrl('v-gsize').textContent = g.size;
   ctrl('rg-gspeck').value = g.speck; ctrl('v-gspeck').textContent = g.speck;
-  ctrl('ck-gshadow').checked = !!g.shadow;
   ctrl('grad-shadow').hidden = !g.shadow;
   if (document.activeElement !== ctrl('in-gsseed')) ctrl('in-gsseed').value = g.sseed;
   ctrl('rg-glight').value = g.light; ctrl('v-glight').textContent = g.light + '°';
@@ -1211,7 +1224,6 @@ function syncGradControls() {
   ['angle', 'pattern', 'speck', 'sseed', 'dist', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
   gradSel = Math.min(gradSel, g.stops.length - 1);
   renderStopBar();
-  ctrl('shadow-hint').hidden = !(hasNoise(g) && g.specks === 'dots');   // the shadow's own note, in its section
 }
 // Saved before Nov 18, 2026: the raster options are gone — Conic becomes Linear,
 // Ordered becomes Noise, a Tone grain (a raster jitter) is dropped, Grain in
@@ -1424,9 +1436,8 @@ function initGradient() {
     if (G()[key] === b.dataset.v) return;
     pushUndo('grad-' + key); G()[key] = b.dataset.v; gradChanged();
   }));
-  segBind('seg-gtype', 'type'); segBind('seg-gpattern', 'pattern'); segBind('seg-gspecks', 'specks');
+  segBind('seg-gtype', 'type'); segBind('seg-gpattern', 'pattern');
   ctrl('sel-ghue').addEventListener('change', e => { pushUndo('grad-hue'); G().hue = e.target.value; gradChanged(); });
-  ctrl('ck-gshadow').addEventListener('change', e => { pushUndo('grad-shadow'); const g = G(); g.shadow = e.target.checked; if (g.shadow && !(g.amount > 0)) g.amount = 70; gradChanged(); });
   ctrl('in-gsseed').addEventListener('input', e => {
     if (e.target.value === '') return;
     const v = clamp(Math.round(+e.target.value || 0), 0, 9999);
@@ -1578,7 +1589,7 @@ function buildScene(screen) {
       text(x + cw - 8, ry + 14, st.hex, 9, on, 'end');
     });
     // this colour's shading set: Soft · Speckle · Print — a click puts it on the house
-    const ty = sy + 10 * (STEP_H + STEP_GAP) + 8, tw = (cw - 2 * TILE_GAP) / 3, defs = shadeDefs(hex);
+    const ty = sy + 10 * (STEP_H + STEP_GAP) + 8, tw = (cw - (SHADE_MODES.length - 1) * TILE_GAP) / SHADE_MODES.length, defs = shadeDefs(hex);
     SHADE_MODES.forEach((m, j) => {
       const tx = x + j * (tw + TILE_GAP), d = `M${num(tx)} ${num(ty)}H${num(tx + tw)}V${num(ty + TILE_H)}H${num(tx)}Z`;
       rect(tx, ty, tw, TILE_H, hex);   // the colour itself: the tile's cells go on it, as they go on a shape of the house
@@ -1902,7 +1913,7 @@ function syncViewSeg() {
 //   nothing selected       → the preset on every shape: the house's Shading, and every colour's /
 //                            shape's own shading forgotten so all of them take it (one ⌘Z step).
 function shapeShadeDef(hex, mode) {
-  return JSON.parse(JSON.stringify(mode === 'none' ? Object.assign({}, shadeDefs(hex).soft, { type: 'flat', shadow: false }) : shadeDefs(hex)[mode]));
+  return JSON.parse(JSON.stringify(mode === 'none' ? Object.assign({}, shadeDefs(hex).base, { type: 'flat', shadow: false }) : shadeDefs(hex)[mode]));
 }
 // The preset a definition is (for the Shading row's state on a selected shape), or null.
 function presetOf(def, hex) {
