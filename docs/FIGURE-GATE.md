@@ -185,6 +185,17 @@ Arrange region rule of its items. Try in both themes, console open:
 
 Automated half, Nov 17: `scripts/gate-figure.sh 12f0abf` → AUTOMATED GATE PASSED on `ec80c45` (figure graph · eval · board light + dark · regression 619/619 · QA · fvs ui · Rhizome · atlas · perf).
 
+## 3 (Nov 18, 2026). Manual half — the Transparent icon renamed
+
+Work of the day (`0b6f0b4`, a TuneSutra change that reached FVS): the icon `fvs-transparent` is now `transparent`
+(shared with the colour picker's new Transparent button). Nothing else in the Figure changed. Both themes, console open:
+
+- [ ] In a Figure the Paper row's **Transparent paper** button shows its checkerboard icon (not blank), and toggling it still clears the paper in the preview and the export.
+- [ ] The FVS header's **Transparent paper** button (any step) shows the same icon.
+- [ ] Dark theme: both icons are readable.
+
+Automated half, Nov 18: the full `scripts/test-fvs.sh` before the push (49/49 — figure graph · eval · board light + dark · regression 619/619 · QA · Rhizome · atlas · dark audit) and `scripts/gate-figure.sh 08e81e7` (see the test log).
+
 ## 4. Record
 
 Tick each commit in the **Organica test log** artifact (https://claude.ai/artifact/FsEoGMwKmWeKinrXfUhvyh) as you go. It lists every commit of the day with a "try this" and a link, and its note field is where a failure goes. Then:
