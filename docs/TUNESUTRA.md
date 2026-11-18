@@ -55,8 +55,8 @@ in-app photo reader.
 - **Add / remove a colour on the sheet** (Nov 18, 2026: Diego, *togliere Colours 3 4 5 dalla barra
   di destra … un più su una scheda vuota che può generare al massimo altre 2 schede*). After the
   last card a dashed **+ card** — *Add a colour*, *2 left* / *1 left* — adds the next colour
-  (`nextColour()`), up to 5; a card past the third has a **remove** button (close icon, *Remove
-  ‹name›*). Both are HTML laid over the sheet (`#sheet-ctrls`), never in an export; the cards keep
+  (`nextColour()`), up to 5; a card past the third has a **remove** button (close icon on a paper chip, so it reads on any
+  colour; *Remove ‹name›*). Both are HTML laid over the sheet (`#sheet-ctrls`), never in an export; the cards keep
   the export's places, the + card narrower at 4 colours to stay on the sheet. ⌘Z undoes both. The
   panel's Colours 3 · 4 · 5 and its colour chips are gone.
 - **Select a colour** by clicking its card on the sheet (or a house shape); a card click also
@@ -113,7 +113,7 @@ vector in every export:
   the light (falloff 65)
 - **Stipple** — Speckle as round dots (stored key `print`, its label until Nov 18, 2026)
 A colour already at 800–900 takes lighter tints instead. The panel's **Shading** row
-(None · Soft · Speckle · Stipple, default Speckle, saved with the palette as `shading`) puts one
+(None · Soft · Speckle · Stipple, default **None** — flat, as the home shows it, since Nov 18, 2026; saved with the palette as `shading`) puts one
 on every shape of the house (each zone clipped to its shape, its box the shape's visible part —
 `bb` in `house.js`); under each colour's scale a row of three **tiles** shows its set, the
 one on the house outlined, a click puts that one on the house. The shape itself paints the
@@ -279,9 +279,21 @@ it shows the fallback.
 ## 5. Saving, and the palette library
 
 **Save** stores the palette in `Organica.store('tunesutra')` (cloud-synced when
-signed in): `{ n, harmony, spread, colors, names, ids, locks, gradient }` —
-`gradient` = `{ type, angle, stops, pos, space, paper, out, kind, ink, amount, size, pattern, dist, light, falloff, seed }`.
-Palettes saved before names / gradients existed still load.
+signed in) **under a name — always** (an empty name does not save; a new palette has no
+suggestion, a built-in copy suggests its own): `{ n, harmony, spread, colors, names, ids, locks,
+shades, zoneShades, gradient, house, shading, set, savedAt }` — `names` are the roles,
+`locks` / `gradient` / `shading` are kept for older readers. A palette **always opens flat**, as the home
+shows it (`shading` is not restored — its shadings are in the set).
+
+**The base set** (`set`, Nov 18, 2026 — Diego: *si salvano sia le tinte piatte che quelle con le
+shadow, gradient e grain in modo d'aver un set di base che ci permetta di fare tutto*;
+`paletteSet()`, `v: 1`): `{ v, prefix, colours: [{ role, key, hex, tints, shading, own }] }` —
+`prefix` the token prefix from the palette's name, `tints` the ten flat tints `{ 50: hex … 900: hex }`,
+`shading` the three definitions `{ soft, speckle, stipple }` (the gradient engine's own: type,
+angle, stops, pos, ink, amount, size, pattern, dist, light, falloff, seed), `own` the colour's edited
+shading or null. About 3 KB for 3 colours. The editor rebuilds the same from the colours; the set is
+for whatever needs the palette whole without TuneSutra's code (tokens, other tools).
+Palettes saved before names / gradients / the set existed still load.
 
 Every colour control in the suite (`Organica.palette.swatch`) has a small ▦
 button — **Pick from a palette** — listing these saved palettes and the

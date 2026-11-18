@@ -49,6 +49,10 @@
   .ts-add:hover { color: var(--ink); border-color: var(--ink); }
   .ts-add:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .ts-add__name { font-family: var(--font-display); font-size: var(--fs-small); }
+  /* the remove button sits on the colour itself: a paper chip, so it reads on any colour (a bare
+     ink icon vanished on dark colours — Diego, Nov 18, 2026) */
+  .ts-remove { background: var(--paper); border: 1px solid var(--border-strong); color: var(--ink); }
+  @media (hover: hover) { .ts-remove:hover { border-color: var(--ink); } }
   /* the Colour section, right of the Contrast pairs: drawn at the sheet's own scale (renderStage) */
   .ts-colour-dock { position: absolute; transform-origin: 0 0; }   /* the six value tiles alone (Diego, Nov 18, 2026: "leave only the 6 boxes") */
   .ts-colour-dock .panel-section { border-bottom: 0; padding: 0; }
@@ -428,7 +432,7 @@ const state = {
   house: 1,           // the figure's seed (tunesutra/house.js): saved with the palette, stepped by the carousel
   zone: null,         // the house shape selected (its index in the figure), or null — a colour card / chip selects the colour
   zoneShades: {},     // a shape's own shading, keyed 'house/count/shape' (saved with the palette)
-  shading: 'speckle', // the house's shadow noise: 'none' | 'soft' | 'speckle' | 'print' (labelled Stipple) — each colour's preset (shadeDefs)
+  shading: 'none',    // flat by default, as the home shows it (Diego, Nov 18, 2026) — the house's shadow noise: 'none' | 'soft' | 'speckle' | 'print' (labelled Stipple) — each colour's preset (shadeDefs)
   items: [],
   // The gradient: stops are colours in their own right (picked from this
   // palette or any saved one), so reordering the palette never reorders them.
@@ -1561,7 +1565,7 @@ function placeSheetCtrls(scene, svg) {
   }
   scene.removeAt.forEach(r => {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'org-btn org-btn--icon'; b.dataset.k = 'rm' + r.i;
+    b.type = 'button'; b.className = 'org-btn org-btn--icon ts-remove'; b.dataset.k = 'rm' + r.i;
     b.setAttribute('aria-label', 'Remove ' + dispName(r.i));
     b.innerHTML = Organica.icons.get('close');
     b.addEventListener('click', () => removeColour(r.i));
@@ -1699,7 +1703,8 @@ function exportPNG() {
 // role is semantic (ROLE_SETS); the steps 50 · 100 … 900. CSS --violet-01-accent-500, JSON
 // { "violet-01": { "accent": { "500": … } } } (DTCG).
 const slug = str => String(str).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-function tokenPrefix() { const k = slug(currentName || suggestedName); return /^[a-z]/.test(k) ? k : 'palette' + (k ? '-' + k : ''); }
+function prefixOf(name) { const k = slug(name); return /^[a-z]/.test(k) ? k : 'palette' + (k ? '-' + k : ''); }
+function tokenPrefix() { return prefixOf(currentName || suggestedName); }
 function tokenKeys() { return state.items.map((it, i) => slug(roleName(i))); }
 function exportCSS() {
   const keys = tokenKeys(), pre = tokenPrefix();
@@ -1769,7 +1774,7 @@ function loadPaletteData(p) {
   state.spread = p.spread || 0;
   state.activeIndex = 0;
   state.view = 'garment';   // every palette opens on its house + bar (a 'bar' saved before Nov 18 too)
-  state.shading = SHADE_MODES.indexOf(p.shading) >= 0 || p.shading === 'none' ? p.shading : 'speckle';
+  state.shading = 'none';   // a palette always opens flat, as the home shows it: its shadings are in its set (Diego, Nov 18, 2026)
   state.zone = null;
   state.zoneShades = {};
   if (p.zoneShades) Object.keys(p.zoneShades).forEach(k => { state.zoneShades[k] = normalizeGrad(p.zoneShades[k]); });
@@ -1801,6 +1806,27 @@ function beginSavePreset() {
   ctrl('txt-preset-name').value = currentName || suggestedName;
   syncSaveArm();
 }
+// The palette's base set (Diego, Nov 18, 2026: "si salvano sia le tinte piatte che quelle con le shadow,
+// gradient e grain in modo d'aver un set di base che ci permetta di fare tutto"). Saved with every palette,
+// whatever the house shows: per colour its role, token key, hex, the ten flat tints (50–900) and its three
+// shading definitions (Soft · Speckle · Stipple — the gradient engine's own: type, stops, grain, shadow),
+// plus its own shading when edited. Read by whatever needs the palette whole (tokens, other tools); the
+// editor rebuilds the same from the colours.
+const SET_VERSION = 1;
+function paletteSet(name) {
+  const pre = prefixOf(name);
+  return {
+    v: SET_VERSION, prefix: pre,
+    colours: state.items.map((it, i) => {
+      const defs = shadeDefs(it.hex), shading = {};
+      SHADE_MODES.forEach(m => { shading[SHADE_NAME[m].toLowerCase()] = JSON.parse(JSON.stringify(defs[m])); });
+      const tints = {};
+      tokenScale(it.hex).forEach(st => { tints[stepName(st)] = st.hex; });
+      return { role: roleName(i), key: slug(roleName(i)), hex: it.hex, tints: tints, shading: shading,
+        own: it.shade ? JSON.parse(JSON.stringify(it.shade)) : null };
+    }),
+  };
+}
 function confirmSavePreset() {
   const name = ctrl('txt-preset-name').value.trim();
   if (!name) { ctrl('txt-preset-name').focus(); return; }
@@ -1819,6 +1845,7 @@ function confirmSavePreset() {
     view: 'garment',
     house: state.house,
     shading: state.shading,
+    set: paletteSet(name),   // the base set: flat tints + every shading, per colour
     savedAt: new Date().toISOString(),
   };
   PRESETS.write(all);
