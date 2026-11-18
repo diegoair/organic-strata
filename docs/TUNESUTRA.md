@@ -80,6 +80,8 @@ in-app photo reader.
 
 ## 2. The sheet
 
+Above the sheet, as wide as it, the **palette bar** (Nov 18, 2026: Diego, *sposta il back … sopra a Example — house no. … con una barra che lo racchiude della stessa larghezza della canvas*): **← All palettes** on the left, on the right *Unsaved changes* for a saved palette edited since (nothing otherwise — *Not saved yet* removed, Diego, Nov 18, 2026); attached to the sheet, no gap. The palette's **name** is on the sheet itself, where *Example* was: *‹Name› — house no. ‹n›* (also in the export) — moved out of the panel; chrome (`--panel`, both themes), not part of the sheet or its exports.
+
 One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
 
 **Size** (Nov 18, 2026): the sheet is 900 units wide and is shown at its own size — one unit =
@@ -315,6 +317,8 @@ SVG text names the page font (IBM Plex Mono) with fallbacks; a machine without
 it shows the fallback.
 
 ## 5. Saving, and the palette library
+
+Save, and since Nov 18, 2026 **Delete palette** (armed *Delete?*, only for a saved palette), live in the floatbar's Save popover; the panel's **Saved palettes** section (a preset menu, Delete and a hint) was removed (Diego: *deve essere eliminato in quanto ne abbiamo uno simile nella floatbar*) — palettes are opened from the home page.
 
 **Save** stores the palette in `Organica.store('tunesutra')` (cloud-synced when
 signed in) **under a name — always** (an empty name does not save; a new palette has no

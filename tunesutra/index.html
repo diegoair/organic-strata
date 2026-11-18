@@ -32,7 +32,15 @@
   #stage-wrap { align-items: flex-start; justify-content: flex-start; padding: var(--space-8); overflow: auto; }
   /* The sheet + the house carousel laid over it (Nov 18, 2026): HTML on top of the SVG, so
      the arrows are never part of an export. The wrapper takes the sheet's margin:auto. */
-  .ts-sheet { position: relative; margin: auto; width: 100%; }   /* full width up to the sheet's own size (max-width set by renderStage): a shrink-to-fit box would collapse it */
+  .ts-column { margin: auto; width: 100%; }   /* the palette bar + the sheet: max-width = the sheet's own size (renderStage) */
+  .ts-sheet { position: relative; width: 100%; }   /* full width up to the sheet's own size: a shrink-to-fit box would collapse it */
+  .ts-palbar {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);   /* attached to the sheet below it: no gap, square bottom */
+    background: var(--panel); border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+  .ts-palbar .mini-btn { flex: none; }   /* its own width, not the row's (mini-btn is flex: 1 in a row of buttons) */
+  .ts-palbar__title { margin: 0; font-size: var(--fs-small); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* full width up to the sheet's own size (max-width set by renderStage): a shrink-to-fit box would collapse it */
   .ts-house-nav { position: absolute; inset: 0; pointer-events: none; }
   .ts-house-nav .org-btn { position: absolute; top: var(--house-cy, 30%); transform: translateY(-50%); pointer-events: auto; }
   .ts-house-nav #house-prev { left: var(--space-4); }
@@ -151,38 +159,42 @@
 
 <div id="app">
   <div id="stage-wrap" class="org-canvas-wrap">
-    <div class="ts-sheet" data-theme="light">
-      <svg id="stage-svg" data-theme="light" viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div class="ts-house-nav" id="house-nav" role="group" aria-label="House" hidden>
-        <button type="button" class="org-btn org-btn--icon org-btn--lg" id="house-prev" aria-label="Previous house"></button>
-        <button type="button" class="org-btn org-btn--icon org-btn--lg" id="house-next" aria-label="Next house"></button>
-        <span class="ts-house-nav__live" id="house-no" aria-live="polite"></span>
+    <!-- the column: the palette bar over the sheet, both the sheet's width (Diego, Nov 18, 2026: "sposta il back … sopra
+         a Example — house no. … con una barra che lo racchiude della stessa larghezza della canvas") -->
+    <div class="ts-column" id="ts-column">
+      <div class="ts-palbar">
+        <button class="mini-btn" id="btn-home">← All palettes</button>
+        <p class="ts-palbar__title" id="palette-title"></p>
       </div>
-      <!-- On-sheet controls (Nov 18, 2026: Diego, "togliere Colours 3 4 5 … un più su una scheda vuota" ·
-           "metti la parte colour al fianco destro di dove è ora contrast"): HTML laid over the SVG
-           like the house arrows, placed by scene coordinates, so none of it reaches an export. -->
-      <div class="ts-sheet-ctrls" id="sheet-ctrls"></div>
-      <div class="ts-colour-dock" id="colour-dock" hidden>
-        <div class="panel-section">
-          <div class="org-tiles" id="value-tiles" role="group" aria-label="Values">
-            <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value"></span></button>
-            <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value"></span></button>
-            <button type="button" class="org-tile" data-v="hsb"><span class="org-tile__label">HSB</span><span class="org-tile__value"></span></button>
-            <button type="button" class="org-tile" data-v="cmyk"><span class="org-tile__label">CMYK</span><span class="org-tile__value"></span></button>
-            <button type="button" class="org-tile" data-v="oklch"><span class="org-tile__label">OKLCH</span><span class="org-tile__value"></span></button>
-            <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value"></span><span class="org-tile__note"></span></button>
-          </div>
+      <div class="ts-sheet" data-theme="light">
+        <svg id="stage-svg" data-theme="light" viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="ts-house-nav" id="house-nav" role="group" aria-label="House" hidden>
+          <button type="button" class="org-btn org-btn--icon org-btn--lg" id="house-prev" aria-label="Previous house"></button>
+          <button type="button" class="org-btn org-btn--icon org-btn--lg" id="house-next" aria-label="Next house"></button>
+          <span class="ts-house-nav__live" id="house-no" aria-live="polite"></span>
+        </div>
+        <!-- On-sheet controls (Nov 18, 2026: Diego, "togliere Colours 3 4 5 … un più su una scheda vuota" ·
+             "metti la parte colour al fianco destro di dove è ora contrast"): HTML laid over the SVG
+             like the house arrows, placed by scene coordinates, so none of it reaches an export. -->
+        <div class="ts-sheet-ctrls" id="sheet-ctrls"></div>
+        <div class="ts-colour-dock" id="colour-dock" hidden>
+          <div class="panel-section">
+            <div class="org-tiles" id="value-tiles" role="group" aria-label="Values">
+              <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value"></span></button>
+              <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value"></span></button>
+              <button type="button" class="org-tile" data-v="hsb"><span class="org-tile__label">HSB</span><span class="org-tile__value"></span></button>
+              <button type="button" class="org-tile" data-v="cmyk"><span class="org-tile__label">CMYK</span><span class="org-tile__value"></span></button>
+              <button type="button" class="org-tile" data-v="oklch"><span class="org-tile__label">OKLCH</span><span class="org-tile__value"></span></button>
+              <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value"></span><span class="org-tile__note"></span></button>
+            </div>
         
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <div id="panel" class="org-panel">
-    <div class="panel-section">
-      <button class="mini-btn" id="btn-home">← All palettes</button>
-      <p class="org-panel__hint" id="palette-title"></p>
-    </div>
     <div class="panel-section">
       <h3>Palette</h3>
       <div class="sub-label">Shading</div>
@@ -351,15 +363,6 @@
       </div>
     </div>
 
-    <div class="panel-section">
-      <h3>Saved palettes</h3>
-      <div id="preset-picker"></div>
-      <select class="panel-select" id="preset-select" aria-label="Preset" onchange="applyPreset(this.value)"></select>
-      <div class="row-btns">
-        <button class="mini-btn" id="btn-preset-delete" data-armed="Confirm?">Delete</button>
-      </div>
-      <p class="org-panel__hint">Save is in the bar below the sheet. A saved palette is on the home page and in every tool’s palette library.</p>
-    </div>
   </div>
 </div>
 
@@ -384,6 +387,7 @@
       </div>
       <div class="org-popover__row">
         <button class="org-btn" id="btn-preset-confirm">Save</button>
+        <button class="org-btn" id="btn-preset-delete" data-armed="Delete?" hidden>Delete palette</button>
       </div>
     </div>
   </div>
@@ -1500,7 +1504,7 @@ function buildScene(screen) {
     // The house (3–5 colours; Diego, Nov 18, 2026: "elimina bar e figure … sempre … sotto
     // l'illustrazione della casa"), then the share tubes over the cards. 6–7 colours: tubes only.
     if (garment) {
-      text(BAR_X0, y, 'Example — house no. ' + state.house, 11, T.mid);
+      text(BAR_X0, y, paletteName() + ' — house no. ' + state.house, 11, T.mid);   // the palette's name where 'Example' was (Diego, Nov 18, 2026) — in the export too
       y += 12;
       houseBand = [y, y + FIG_H];   // where the carousel arrows sit (renderStage)
       // Same height for every figure; strokes are set in the figure's own units
@@ -1723,6 +1727,7 @@ function renderStage() {
   // the area is narrower. Never scaled up: on a wide screen it stays its size, centred, and the grain
   // keeps its own fineness. The sheet's natural size, like an image's — not a layout token.
   svg.parentElement.style.maxWidth = scene.W + 'px';
+  ctrl('ts-column').style.maxWidth = scene.W + 'px';   // the palette bar takes the sheet's width
   // the transparency checkerboard (screen only), fine — 2-unit squares — and in each colour's own lightest tints
   // (Diego, Nov 18, 2026: "molto più piccola e che usa i colori della selezione colore"), one pattern per colour
   const checkers = colors().map((hex, i) => { const sc = tokenScale(hex);
@@ -2048,29 +2053,6 @@ function sendToFigma() { Organica.sendToFigma(svgString(1), 'TuneSutra'); }
 // ── PRESETS ──
 const PRESETS = Organica.store('tunesutra');
 function userPresets() { return PRESETS.read(); }
-// ── Preset picker — preview thumbnails (Organica.selectPicker): a saved
-//    palette IS its colours, so its thumbnail is the colours themselves —
-//    one band per colour, in order, true hex (a name like "Autumn 3" says
-//    nothing; the bands say everything). An SVG, sharp at any size. ──
-function paletteThumb(cols) {
-  const cs = (cols || []).filter(Boolean);
-  if (!cs.length) return '';
-  const w = 40 / cs.length;
-  return '<svg viewBox="0 0 40 40" preserveAspectRatio="none">' +
-    cs.map((c, i) => `<rect x="${(i * w).toFixed(2)}" y="0" width="${(w + 0.05).toFixed(2)}" height="40" fill="${String(c).replace(/[^#\w(),.% ]/g, '')}"/>`).join('') + '</svg>';
-}
-const presetRegistry = {};
-let presetPicker = null;
-function populatePresets(select) {
-  const sel = ctrl('preset-select');
-  const all = userPresets();
-  sel.innerHTML = '<option value="">Presets…</option>' + Object.keys(all).map(name =>
-    `<option value="${esc(name)}"${name === select ? ' selected' : ''}>${esc(name)}</option>`).join('');
-  Object.keys(presetRegistry).forEach(k => delete presetRegistry[k]);
-  Object.entries(all).forEach(([n, p]) => { presetRegistry[n] = { name: esc(n), icon: paletteThumb(p.colors) }; });
-  if (!presetPicker) presetPicker = Organica.selectPicker(sel, ctrl('preset-picker'), { registry: presetRegistry, size: 'preview', ariaLabel: 'Preset' });
-  else presetPicker.refresh();
-}
 // A preset saved before names / ids / locks existed has only { n, harmony,
 // colors } — it loads with the default role names and fresh ids.
 function loadPaletteData(p) {
@@ -2094,17 +2076,6 @@ function loadPaletteData(p) {
   // A palette saved before gradients existed gets one between its first two colours.
   state.grad = normalizeGrad(p.gradient || { stops: colors().slice(0, 2) });
 }
-// The panel's own preset picker: swap to another saved palette in place.
-function applyPreset(name) {
-  if (!name) return;
-  const p = userPresets()[name];
-  if (!p || !p.colors || p.colors.length < 3) return;
-  pushUndo('preset');
-  loadPaletteData(p);
-  setCurrent(name, '');
-  syncControls();
-  commit(true);
-}
 // Save lives in the floatbar (Diego, Nov 17, 2026): #btn-save-open → #save-popover.
 // Saving under the name of ANOTHER saved palette asks first — the Save button arms
 // (Organica.armed, "Replace?"); saving the palette that is open under its own name doesn't.
@@ -2116,6 +2087,7 @@ function syncSaveArm() {
 }
 function beginSavePreset() {
   ctrl('txt-preset-name').value = currentName || suggestedName;
+  ctrl('btn-preset-delete').hidden = !currentName;   // the panel's Saved palettes went (Diego, Nov 18, 2026): delete lives here
   syncSaveArm();
 }
 // The palette's base set (Diego, Nov 18, 2026: "si salvano sia le tinte piatte che quelle con le shadow,
@@ -2162,17 +2134,16 @@ function confirmSavePreset() {
   };
   PRESETS.write(all);
   setCurrent(name, '');
-  populatePresets(name);
   if (savePopover) savePopover.close();
 }
 function deletePreset() {
-  const name = ctrl('preset-select').value;
+  const name = currentName;
   if (!name) return;
   const all = userPresets();
   delete all[name];
   PRESETS.write(all);
-  populatePresets();
-  if (name === currentName) { setDirty(false); location.hash = ''; }   // the palette on screen is gone — back to the library
+  if (savePopover) savePopover.close();
+  setDirty(false); location.hash = '';   // the palette on screen is gone — back to the library
 }
 
 // ── HOME + ROUTING ──
@@ -2186,12 +2157,14 @@ let currentName = '', suggestedName = '', dirty = false;
 function setDirty(v) { dirty = v; Organica.dirty.set('palette', v); }
 function setCurrent(name, suggest) {
   currentName = name; suggestedName = suggest; setDirty(false);
+  renderStage();   // the sheet shows the name
   if (name) history.replaceState(null, '', '#p=' + encodeURIComponent(name));
   refreshTitle();
 }
+function paletteName() { return currentName || suggestedName || 'New palette'; }
+// The name is on the sheet now; the bar keeps only the state (nothing when saved and unchanged).
 function refreshTitle() {
-  ctrl('palette-title').textContent = currentName ? currentName + (dirty ? ' — unsaved changes' : '')
-    : (suggestedName ? suggestedName + ' — a copy, not saved yet' : 'New palette — not saved yet');
+  ctrl('palette-title').textContent = currentName && dirty ? 'Unsaved changes' : '';   // no 'not saved yet' (Diego, Nov 18, 2026)
   ctrl('btn-home').textContent = '← All palettes';
 }
 function paletteArt(p) {
@@ -2249,7 +2222,6 @@ function route() {
   ctrl('panel').scrollTop = 0;
   ctrl('stage-wrap').scrollTop = 0;
   syncControls();
-  populatePresets(name);
   commit(true);
   refreshTitle();
 }
@@ -2318,7 +2290,6 @@ ctrl('btn-home').addEventListener('click', goHome);
 window.addEventListener('hashchange', route);
 syncControls();
 commit(false);
-populatePresets();
 route();
 Organica.autoLabelPanel(document);
 
@@ -2328,8 +2299,8 @@ Organica.autoLabelPanel(document);
 // A palette opened by link may not be in this device's cache yet: once the
 // pull lands, try the route again if we fell back to the library.
 const onLibrary = () => !ctrl('home').hidden;
-PRESETS.pull().then(() => { populatePresets(currentName); if (onLibrary()) route(); });
-PRESETS.onSync(() => { populatePresets(currentName); if (onLibrary()) renderHome(); });
+PRESETS.pull().then(() => { if (onLibrary()) route(); });
+PRESETS.onSync(() => { if (onLibrary()) renderHome(); });
 </script>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>
