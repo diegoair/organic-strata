@@ -32,7 +32,7 @@
   #stage-wrap { align-items: flex-start; justify-content: flex-start; padding: var(--space-8); overflow: auto; }
   /* The sheet + the house carousel laid over it (Nov 18, 2026): HTML on top of the SVG, so
      the arrows are never part of an export. The wrapper takes the sheet's margin:auto. */
-  .ts-sheet { position: relative; margin: auto; width: 100%; }   /* full width, as the bare SVG had: a shrink-to-fit box would collapse it */
+  .ts-sheet { position: relative; margin: auto; width: 100%; }   /* full width up to the sheet's own size (max-width set by renderStage): a shrink-to-fit box would collapse it */
   .ts-house-nav { position: absolute; inset: 0; pointer-events: none; }
   .ts-house-nav .org-btn { position: absolute; top: var(--house-cy, 30%); transform: translateY(-50%); pointer-events: auto; }
   .ts-house-nav #house-prev { left: var(--space-4); }
@@ -745,7 +745,7 @@ const GRID_HEAD_H = 14, GRID_ROW_H = SW_H + 22;
 // weights); 3 and 4 colours draw the house alone, 5 a house in a landscape
 // (background, ground, wall, roof, door). A palette keeps its house by keeping
 // state.house; the carousel steps it. The view's stored id stays 'garment'.
-const HOUSE = window.TUNESUTRA_HOUSE, FIG_H = 502.5;
+const HOUSE = window.TUNESUTRA_HOUSE, FIG_H = 360;   // the house's height on the sheet (Diego, Nov 18, 2026: 360 — was 502.5)
 const houseCache = new Map();
 function houseFig(seed, n) {
   const key = seed + ':' + n;
@@ -1587,6 +1587,11 @@ function renderStage() {
   const scene = buildScene();
   const svg = ctrl('stage-svg');
   svg.setAttribute('viewBox', `0 0 ${scene.W} ${scene.H}`);
+  // The sheet's size (Diego, Nov 18, 2026: "la casa è troppo grande, definiamo una size"): drawn at
+  // its own size, one sheet unit = one CSS pixel (900 wide — the house 360 tall, FIG_H), smaller only when
+  // the area is narrower. Never scaled up: on a wide screen it stays its size, centred, and the grain
+  // keeps its own fineness. The sheet's natural size, like an image's — not a layout token.
+  svg.parentElement.style.maxWidth = scene.W + 'px';
   svg.innerHTML = sceneMarkup(scene, true);
   svg.querySelectorAll('.shade-tile').forEach(el => {
     const act = () => {

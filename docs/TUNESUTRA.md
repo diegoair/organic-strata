@@ -66,6 +66,11 @@ in-app photo reader.
 
 One scene list (`buildScene()`) draws the preview, the SVG and the PNG.
 
+**Size** (Nov 18, 2026): the sheet is 900 units wide and is shown at its own size — one unit =
+one CSS pixel — never enlarged on a wide screen, smaller only when the area is narrower
+(`max-width` set in `renderStage`). The house is 360 units tall (`FIG_H`), so the house, the
+share tubes and the colour cards fit an 800-px laptop screen.
+
 First (since Nov 17, 2026: the figure above, the colours below) the palette
 in use: **the house** (3 to 5 colours), then the shares as a **thin tube over
 each colour card** — 10 px, filled in that colour to its share (the full tube
