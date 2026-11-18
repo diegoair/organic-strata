@@ -44,6 +44,8 @@
   cursor: pointer;
 }
 .org-cpick__more[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.org-cpick__headend { display: inline-flex; align-items: center; gap: var(--space-3); }
+
 .org-cpick__more .chev { transition: transform var(--dur-fast) var(--ease-standard); }
 .org-cpick__swatches {
   display: flex;

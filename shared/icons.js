@@ -164,7 +164,7 @@
     'fvs-cell-rectangle': '<rect x="4" y="2" width="8" height="12" rx="1"/>',
     'fvs-diamond':   '<path d="M1.5 12.5h8l5-9h-8z"/>',
     'fvs-match':     '<path d="M1.5 8 4.75 2.4h6.5L14.5 8l-3.25 5.6h-6.5z"/><path d="M5 8l1.5-2.6h3L11 8l-1.5 2.6h-3z"/>',
-    'fvs-transparent': '<path d="M2 2h4v4H2zM10 2h4v4h-4zM6 6h4v4H6zM2 10h4v4H2zM10 10h4v4h-4z"/><rect x="2" y="2" width="12" height="12"/>'
+    'transparent':     '<path d="M2 2h4v4H2zM10 2h4v4h-4zM6 6h4v4H6zM2 10h4v4H2zM10 10h4v4h-4z"/><rect x="2" y="2" width="12" height="12"/>'
   };
   var SIZES = { xs: 1, sm: 1, md: 1, lg: 1, xl: 1 };
 

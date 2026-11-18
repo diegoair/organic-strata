@@ -226,11 +226,15 @@ file), while the plates keep the exact partition.
   reordering the palette does not reorder them.
 - **Reverse** flips the stops and their positions, **keeping every colour** (Nov 18, 2026: Diego, *quando clicco reverse, deve mantenere i color scelti*): the stop that is the colour itself moves with it (`colourAt`) instead of being forced back to first; Flat and the drawing follow it. Until a stop is chosen by hand (picker, add, remove — `auto2`), the other stop of two stays the colour's **900** and follows a colour change. Fade to paper sits a `--space-3` below the buttons; **Space evenly** forgets
   the positions.
-- **Fade to paper** adds the paper as the last stop: the last ink thins out to
-  bare paper, and the paper gets no plate. **The paper is transparent, not white** (Nov 18, 2026: Diego, *dovrebbe essere
-  sul trasparente non bianco*): a shape fading to paper has no solid fill under it — every ink is drawn, the paper's share
-  left empty (cells: no paper cells drawn; smooth: the last ink with `stop-opacity` → 0; the stop bar shows it fading out).
-  The shape keeps its click (`pointer-events: all`).
+- **Transparent stops** (Nov 18, 2026: Diego, *togliamo il fade to paper e aggiungiamo il trasparente al picker*): the
+  picker opened from a stop (never the colour's own) has a **Transparent** button; that stop is then no ink at all
+  (`'transparent'` in `stops`) — anywhere along the bar, at the start, the end or in between (Reverse keeps it). The ink
+  next to it fades in or out to nothing; the paper's share takes no plate and is left **empty, not white**: a shape
+  with a transparent stop has no solid fill under it (cells: its empty cells undrawn; smooth: `stop-opacity` → 0); it
+  keeps its click (`pointer-events: all`). On screen the empty part shows a **checkerboard** (screen only, inside the
+  shape — fine 2-unit squares in that colour's own 50 and 200 tints, `#ts-checker-‹i›`); its knob on the stop bar is a
+  checkerboard too. In a file it is empty only with **Export › Transparent paper** on. The **Fade to paper**
+  switch is gone; a palette saved with it gets a transparent last stop (positions squeezed as they were drawn).
 - **Grain size** — one cell, in sheet units, **0**–12 (step 0.5); **hidden on Flat** (Nov 18, 2026: Diego, *when Gradient & grain is on flat Grain size is hidden* — a Flat shadow keeps the size it has, 2 for Speckle, 3 for Stipple). **0 = no grain, the default
   for a gradient** (Nov 18, 2026: Diego, *quando lavoro su un gradient c'è solo il gradient senza
   necessariamente il grain … se non modificato è 0 di default*): the blend is a smooth vector
@@ -303,6 +307,7 @@ Noise, a Tone grain → no shadow, Shadows / Highlights → everywhere; `out`, `
 | Button | What you get |
 |---|---|
 | PNG / SVG | the whole sheet. The SVG carries its own paint and font on every element — no page CSS needed |
+| Transparent paper (switch) | PNG / SVG without the sheet's white paper rect: what fades to paper is empty in the file |
 | CSS | `--‹palette›-‹role›-‹step›` for every scale step + `--‹palette›-gradient` (the smooth fill only — grain is not expressible in CSS): positions as percentages and the blend's space, `linear-gradient(90deg in oklch, #… 0%, #… 45%, …)`; a Flat fill is its colour |
 | JSON | the same as design tokens (DTCG `$value` / `$type`), incl. a `gradient` token with each stop's real position |
 

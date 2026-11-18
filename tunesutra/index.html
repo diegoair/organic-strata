@@ -56,7 +56,6 @@
   @media (hover: none) { .ts-remove { opacity: 1; } }
   @media (hover: hover) { .ts-remove:hover { border-color: var(--ink); } }
   /* the Colour section, right of the Contrast pairs: drawn at the sheet's own scale (renderStage) */
-  #grad-blend .row-btns + .check-row { margin-top: var(--space-3); }   /* Fade to paper: room below Reverse · Space evenly (Diego, Nov 18, 2026) */
   .ts-colour-dock { position: absolute; transform-origin: 0 0; }   /* the six value tiles alone (Diego, Nov 18, 2026: "leave only the 6 boxes") */
   .ts-colour-dock .panel-section { border-bottom: 0; padding: 0; }
   .ts-colour-dock .org-tiles { margin: 0; }
@@ -133,6 +132,7 @@
   /* the knob is under --hit-min: the pointer target is a wider ring round it */
   .ts-stopbar__stop::before { content: ''; position: absolute; inset: calc((var(--hit-min) - var(--knob-size)) / -2); border-radius: 999px; }
   .ts-stopbar__stop.is-active { outline: 2px solid var(--tool, var(--ink)); outline-offset: 1px; }
+  .ts-stopbar__stop.is-clear { background: conic-gradient(var(--border) 25%, var(--paper) 0 50%, var(--border) 0 75%, var(--paper) 0) 0 0 / 50% 50%; }   /* a transparent stop: the checkerboard */
   .ts-stopbar__stop:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent); }   /* the dual-range knob's ring */
   .seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
@@ -242,7 +242,6 @@
           <button class="mini-btn" id="btn-grad-reverse">Reverse</button>
           <button class="mini-btn" id="btn-grad-even">Space evenly</button>
         </div>
-        <label class="check-row org-switch" title="Adds the paper as the last stop: the last ink thins out to bare paper and gets no plate of its own."><input type="checkbox" id="ck-gpaper"><span>Fade to paper</span></label>
       </div>
     </div>
 
@@ -403,6 +402,7 @@
         <button class="org-btn" id="btn-export-json">JSON</button>
       </div>
       <div class="org-popover__divider"></div>
+      <label class="check-row org-switch" title="No paper behind the drawing: transparent stops stay empty in the file."><input type="checkbox" id="ck-export-clear"><span>Transparent paper</span></label>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-export-scale">Scale</label>
         <select class="org-select" id="sel-export-scale">
@@ -840,11 +840,12 @@ function stopPos(g) {
 function gradStops(g) {
   g = g || G();   // any gradient definition — the one the panel edits by default (G), or a given one
   if (g.type === 'flat') return [{ hex: g.stops[colourStop(g)], paper: false, at: 0 }];   // Flat = the colour itself, wherever Reverse put it
-  const pos = stopPos(g), n = pos.length, f = g.paper ? (n - 1) / n || 0 : 1;
-  const stops = g.stops.map((hex, i) => ({ hex: hex, paper: false, at: pos[i] * f }));
-  if (g.paper) stops.push({ hex: Organica.contentColor('--paper'), paper: true, at: 1 });
-  return stops;
+  // a stop can be TRANSPARENT (Nov 18, 2026: Diego, "togliamo il fade to paper e aggiungiamo il trasparente al
+  // picker") — no ink there: it takes no plate and leaves the shape empty (`paper`: the support shows)
+  const pos = stopPos(g);
+  return g.stops.map((hex, i) => isClear(hex) ? { hex: Organica.contentColor('--paper'), paper: true, clear: true, at: pos[i] } : { hex: hex, paper: false, at: pos[i] });
 }
+function isClear(v) { return v === 'transparent'; }
 // Which two stops a position falls between: { a, f } — f the 0..1 share of the way to a + 1.
 function segAt(stops, t) {
   const k = stops.length;
@@ -989,12 +990,18 @@ function smoothGrad(g) { return g.size === 0 && g.type !== 'flat' && gradStops(g
 // [at, hex, opacity]: the paper stop is the last ink fading out (transparent, not white).
 function smoothStops(g) {
   const stops = gradStops(g), out = [];
+  const inkNear = i => { for (let d = 1; d < stops.length; d++) { const a = stops[i - d], b = stops[i + d]; if (a && !a.paper) return a.hex; if (b && !b.paper) return b.hex; } return stops[i].hex; };
   stops.forEach((st, i) => {
-    if (st.paper) { out.push([st.at, stops[i - 1] ? stops[i - 1].hex : st.hex, 0]); return; }
-    out.push([st.at, st.hex, 1]);
+    out.push([st.at, st.paper ? inkNear(i) : st.hex, st.paper ? 0 : 1]);
     if (i === stops.length - 1) return;
     const nx = stops[i + 1];
-    for (let k = 1; k < 16; k++) out.push([st.at + (nx.at - st.at) * k / 16, nx.paper ? st.hex : C.mixIn('oklab', st.hex, nx.hex, k / 16), nx.paper ? 1 - k / 16 : 1]);
+    if (st.paper && nx.paper) return;
+    for (let k = 1; k < 16; k++) {
+      const u = k / 16, at = st.at + (nx.at - st.at) * u;
+      if (nx.paper) out.push([at, st.hex, 1 - u]);          // the ink fading out
+      else if (st.paper) out.push([at, nx.hex, u]);        // fading in
+      else out.push([at, C.mixIn('oklab', st.hex, nx.hex, u), 1]);
+    }
   });
   return out;
 }
@@ -1120,7 +1127,7 @@ function shapeInks(def, w, h, all) {
   if (all) return plates.filter(pl => !pl.paper);
   return plates.filter((pl, pi) => pi > 0 || String(pl.hex).toLowerCase() !== own);
 }
-function fadesToPaper(def) { return !!def.paper && def.type !== 'flat'; }
+function fadesToPaper(def) { return def.type !== 'flat' && def.stops.some(isClear); }
 function colourStop(def) { const i = def.colourAt | 0; return i >= 0 && i < def.stops.length ? i : 0; }
 function withColour(def, hex) {
   if (def.stops.length < 2) { def.colourAt = 0; def.stops = [hex, shadeDefs(hex).soft.stops[1]]; return def; }
@@ -1194,7 +1201,6 @@ function syncGradControls() {
   ctrl('rg-glight').value = g.light; ctrl('v-glight').textContent = g.light + '°';
   ctrl('rg-gfalloff').value = g.falloff; ctrl('v-gfalloff').textContent = g.falloff;
   ctrl('ck-glight').checked = g.dist === 'light';
-  ctrl('ck-gpaper').checked = g.paper;
   ctrl('grad-blend').hidden = flat;
   ctrl('sec-grain').hidden = flat;   // Flat has no blend to grain: the whole section goes (Diego, Nov 18, 2026)
   ctrl('grain-smooth').hidden = flat || g.size > 0;
@@ -1226,7 +1232,13 @@ function normalizeGrad(g) {
   if (had.ink && had.inkCore === undefined) g.inkCore = had.ink;
   delete g.ink;
   g.parts = Object.assign({ half: true, term: false, core: true, refl: false, high: false }, had.parts || {});
-  g.auto2 = had.auto2 === true;   // a definition saved before Nov 18, 2026 keeps the second stop it has
+  g.auto2 = had.auto2 === true;
+  // Fade to paper (until Nov 18, 2026, late) → a transparent last stop, the others squeezed as they were drawn
+  if (g.paper && g.stops.length) {
+    const n = g.stops.length, f = n > 1 ? (n - 1) / n : 0, pos = (g.pos && g.pos.length === n ? g.pos : evenPos(n)).map(p => Math.round(p * f * 1000) / 1000);
+    g.stops = g.stops.concat('transparent'); g.pos = pos.concat(1);
+  }
+  g.paper = false;   // a definition saved before Nov 18, 2026 keeps the second stop it has
   if (g.type === 'conic') g.type = 'linear';
   if (g.pattern !== 'dots') g.pattern = 'noise';
   if (g.dist !== 'light') g.dist = 'even';   // Shadows / Highlights → everywhere
@@ -1291,7 +1303,7 @@ function stopBarCSS() {
 function renderStopBar() {
   const bar = ctrl('grad-bar'), rail = bar.firstElementChild, g = G();
   if (g.type === 'flat') return;
-  const pos = ensurePos(), f = g.paper ? (pos.length - 1) / pos.length : 1;
+  const pos = ensurePos(), f = 1;
   bar.style.background = stopBarCSS();
   if (rail.children.length !== pos.length) {
     rail.innerHTML = pos.map((_, i) => `<span class="ts-stopbar__stop" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" data-i="${i}"></span>`).join('');
@@ -1299,7 +1311,8 @@ function renderStopBar() {
   Array.prototype.forEach.call(rail.children, (k, i) => {
     const pct = Math.round(pos[i] * 100);
     k.style.left = (pos[i] * f * 100) + '%';
-    k.style.background = g.stops[i];
+    k.style.background = isClear(g.stops[i]) ? '' : g.stops[i];
+    k.classList.toggle('is-clear', isClear(g.stops[i]));
     k.setAttribute('aria-valuenow', pct);
     k.setAttribute('aria-valuetext', pct + '%, ' + g.stops[i]);
     k.setAttribute('aria-label', 'Stop ' + (i + 1));
@@ -1310,7 +1323,7 @@ function bindStopBar() {
   const bar = ctrl('grad-bar'), rail = bar.firstElementChild;
   // a position 0..1 of the stops' own span from a pointer x (the paper, when fading, sits past it)
   const posFrom = x => {
-    const r = rail.getBoundingClientRect(), g = G(), f = g.paper ? (g.stops.length - 1) / g.stops.length : 1;
+    const r = rail.getBoundingClientRect(), f = 1;
     return clamp((x - r.left) / r.width / f, 0, 1);
   };
   let drag = null;
@@ -1369,8 +1382,10 @@ function pickStop(i) {
   if (!k) return;
   if (i === colourStop(G())) return pickOnSheetColour(k);   // the colour's own stop: the picker edits the colour
   Organica.colorPicker.open(k, {
-    value: G().stops[i], label: 'Stop ' + (i + 1),
+    value: isClear(G().stops[i]) ? '#ffffff' : G().stops[i], label: 'Stop ' + (i + 1),
     onInput: hex => { if (G().stops[i] === hex) return; pushUndo('grad'); const g = G(); g.auto2 = false; g.stops[i] = hex; gradChanged(); },
+    transparent: true,
+    onTransparent: () => { const g = G(); if (isClear(g.stops[i])) return; pushUndo('grad'); g.auto2 = false; g.stops[i] = 'transparent'; gradChanged(); },
   });
 }
 function pickOnSheetColour(anchor) {
@@ -1419,7 +1434,6 @@ function initGradient() {
     pushUndo('grad'); G()[key] = +e.target.value; gradChanged();
   }));
   ctrl('ck-glight').addEventListener('change', e => { pushUndo('grad-dist'); G().dist = e.target.checked ? 'light' : 'even'; gradChanged(); });
-  ctrl('ck-gpaper').addEventListener('change', e => { pushUndo('grad-paper'); G().paper = e.target.checked; gradChanged(); });
   ctrl('btn-grad-reverse').addEventListener('click', () => {
     pushUndo('grad-stop');
     const g = G(), pos = ensurePos();
@@ -1497,6 +1511,8 @@ function buildScene(screen) {
         // Fade to paper ends TRANSPARENT (Diego, Nov 18, 2026: "dovrebbe essere sul trasparente non bianco"): the
         // shape then has no solid fill under it — its inks are all drawn, the paper's share left empty.
         const def = z.bb && houseDef(r, zi), clear = !!def && fadesToPaper(def);
+        // its empty part shown as transparency — a checkerboard inside the shape, on screen only (Diego, Nov 18, 2026)
+        if (clear) items.push({ t: 'path', d: z.d, tf: { x: fx, y: y, s: k }, fill: `url(#ts-checker-${r})`, screenOnly: true });
         // No outline between zones (Diego, Nov 17, 2026) — only a near-white zone keeps a hairline, or it vanishes on the paper.
         items.push(Object.assign({
           t: 'path', d: z.d, tf: { x: fx, y: y, s: k }, fill: clear ? 'none' : cols[r], hit: clear, zone: zi,
@@ -1646,8 +1662,7 @@ function sceneMarkup(scene, interactive) {
   }).join('');
 }
 function drawScene(scene, c, scale) {
-  c.fillStyle = scene.paper;
-  c.fillRect(0, 0, scene.W, scene.H);
+  if (!clearExport()) { c.fillStyle = scene.paper; c.fillRect(0, 0, scene.W, scene.H); }
   scene.items.forEach(it => {
     if (it.t === 'shade') {
       const [bx, by, bw, bh] = it.box;
@@ -1708,7 +1723,11 @@ function renderStage() {
   // the area is narrower. Never scaled up: on a wide screen it stays its size, centred, and the grain
   // keeps its own fineness. The sheet's natural size, like an image's — not a layout token.
   svg.parentElement.style.maxWidth = scene.W + 'px';
-  svg.innerHTML = sceneMarkup(scene, true);
+  // the transparency checkerboard (screen only), fine — 2-unit squares — and in each colour's own lightest tints
+  // (Diego, Nov 18, 2026: "molto più piccola e che usa i colori della selezione colore"), one pattern per colour
+  const checkers = colors().map((hex, i) => { const sc = tokenScale(hex);
+    return `<pattern id="ts-checker-${i}" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="${sc[0].hex}"/><path d="M0 0h2v2H0zM2 2h2v2H2z" fill="${sc[2].hex}"/></pattern>`; }).join('');
+  svg.innerHTML = `<defs>${checkers}</defs>` + sceneMarkup(scene, true);
   svg.querySelectorAll('.shade-tile').forEach(el => {
     const act = () => {
       const i = +el.dataset.ci;
@@ -1966,10 +1985,13 @@ function initHouseCarousel() {
 }
 
 // ── EXPORT ──
+// Export › Transparent paper (Diego, Nov 18, 2026; the suite's word — FVS): the sheet's paper is left out of the SVG / PNG.
+function clearExport() { const el = document.getElementById('ck-export-clear'); return !!(el && el.checked); }
 function svgString(scale) {
   scale = scale || 1;
   const scene = buildScene();
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${scene.W} ${scene.H}" width="${scene.W * scale}" height="${scene.H * scale}"><rect x="0" y="0" width="${scene.W}" height="${scene.H}" fill="${scene.paper}"/>${sceneMarkup(scene, false)}</svg>`;
+  const bg = clearExport() ? '' : `<rect x="0" y="0" width="${scene.W}" height="${scene.H}" fill="${scene.paper}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${scene.W} ${scene.H}" width="${scene.W * scale}" height="${scene.H * scale}">${bg}${sceneMarkup(scene, false)}</svg>`;
 }
 function exportSVG() {
   Organica.downloadText(svgString(1), Organica.stamp('tunesutra', 'svg'), 'image/svg+xml');

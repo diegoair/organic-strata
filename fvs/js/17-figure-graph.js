@@ -899,7 +899,7 @@ function renderInspectorBody(box, ids) {
     });
   } else if (node.type === 'palette') {
     rows.push({ html: `<div id="fgi-inks" class="rmx-palette"></div>
-      <div class="color-row"><span class="color-name">Paper</span><span class="color-swatch-wrap"><button class="color-swatch" id="sw-fgi-paper" style="background:${esc(p.paper)}"></button><input type="color" id="cp-fgi-paper" value="${esc(p.paper)}"></span><input class="color-hex" id="hex-fgi-paper" value="${esc(p.paper)}" maxlength="7"><button type="button" class="icon-btn" id="fgi-paper-clear" aria-pressed="${!!p.transparent}" aria-label="Transparent paper">${Organica.icons.get('fvs-transparent', { size: 'sm' })}</button></div>
+      <div class="color-row"><span class="color-name">Paper</span><span class="color-swatch-wrap"><button class="color-swatch" id="sw-fgi-paper" style="background:${esc(p.paper)}"></button><input type="color" id="cp-fgi-paper" value="${esc(p.paper)}"></span><input class="color-hex" id="hex-fgi-paper" value="${esc(p.paper)}" maxlength="7"><button type="button" class="icon-btn" id="fgi-paper-clear" aria-pressed="${!!p.transparent}" aria-label="Transparent paper">${Organica.icons.get('transparent', { size: 'sm' })}</button></div>
       <div id="fgi-pattern-block"${p.pattern ? '' : ' hidden'}>${paperPatternRows(p)}</div>`,
       bind: () => {
         // the strip's own Pick from a palette (as the Palette section); Start at follows the inks without a rebuild

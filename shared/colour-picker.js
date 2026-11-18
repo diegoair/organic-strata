@@ -8,7 +8,11 @@
  *     label: 'Base',                 // optional, names the dialog: "Base colour"
  *     onInput(hex),                  // live: dragging the square / hue, typing
  *     onChange(hex),                 // committed: pointer up, a field left, Enter,
- *   })                               //   the eyedropper, a recent / palette colour
+ *                                    //   the eyedropper, a recent / palette colour
+ *     transparent: true,             // opt-in (Nov 18, 2026, TuneSutra's gradient stops): a
+ *     onTransparent(),               //   "Transparent" button at the top; a click closes the picker (focus back
+ *                                    //   on the anchor, no onChange) and then calls this
+ *   })
  *   → { close, set(hex) }
  *   Organica.colorPicker.close()
  *   Organica.colorPicker.recent()    → the recent colours (shared by every tool)
@@ -147,7 +151,11 @@
     els.recentLabel = el('div', 'org-cpick__label'); els.recentLabel.textContent = 'Recent';
     els.palBtn = el('button', 'org-cpick__more', { type: 'button', 'aria-expanded': 'false' });
     els.palBtn.innerHTML = '<span>Palettes</span>' + ico('chevron-down', { size: 'sm', cls: 'chev' });
-    const head = el('div', 'org-cpick__head'); head.append(els.recentLabel, els.palBtn);
+    els.clearBtn = el('button', 'org-cpick__more org-cpick__clear', { type: 'button' });
+    els.clearBtn.innerHTML = ico('transparent', { size: 'sm' }) + '<span>Transparent</span>';   // the registry's checkerboard (was fvs-transparent, renamed Nov 18, 2026)
+    els.clearBtn.hidden = true;
+    const headEnd = el('div', 'org-cpick__headend'); headEnd.append(els.clearBtn, els.palBtn);
+    const head = el('div', 'org-cpick__head'); head.append(els.recentLabel, headEnd);
     els.recent = el('div', 'org-cpick__swatches', { role: 'group', 'aria-label': 'Recent colours' });
     els.pals = el('div', 'org-cpick__pals'); els.pals.hidden = true;
     top.append(head, els.recent, els.pals);
@@ -378,6 +386,12 @@
       const sw = e.target.closest('.org-cpick__swatch');
       if (sw && root.contains(sw)) setHex(Organica.normalizeHex(sw.dataset.hex, hexOf()), true);
     });
+    els.clearBtn.addEventListener('click', () => {
+      const fn = opts.onTransparent;
+      committed = '';   // nothing to commit on close: the choice is transparency, not a colour
+      close(true);
+      if (fn) fn();
+    });
     els.palBtn.addEventListener('click', () => {
       const on = els.pals.hidden;
       if (on) paintPalettes();
@@ -459,6 +473,7 @@
     mode = MODES.some(m => m[0] === store(MODE_KEY)) ? store(MODE_KEY) : 'hex';
     fromHex(hex);
     root.setAttribute('aria-label', opts.label ? opts.label + ' colour' : 'Colour');
+    els.clearBtn.hidden = !opts.transparent;
     els.pals.hidden = true; els.palBtn.setAttribute('aria-expanded', 'false');
     closeMenu();
     buildFields(); paintTop(); paint();
