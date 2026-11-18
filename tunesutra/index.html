@@ -944,11 +944,15 @@ function drawPlates(c, plates) { plates.forEach(p => { if (!p.d) return; c.fillS
 // shape / colour and its gradient is edited there, the house staying in view). On the Gradient
 // view: the palette's gradient (state.grad). On the house: the selected colour's shading — its
 // own definition (`item.shade`, saved with the palette) once edited, until then a draft copy of
-// the preset on the house (Shading row; Soft when it is None). The first edit keeps the draft as
+// the preset on the house (Shading row; the flat colour when it is None — draftDef). The first edit keeps the draft as
 // the colour's own (keepEdit, from pushUndo — after the snapshot, so ⌘Z returns to the preset).
 // The first stop is always the colour itself.
 const shadeDraft = { key: '', def: null };
-function draftMode() { return state.shading === 'none' ? 'soft' : state.shading; }
+function draftMode() { return state.shading === 'none' ? 'flat' : state.shading; }
+// What the section starts from with nothing of the colour's own: the Shading preset on the house, or —
+// with Shading None — the flat colour (Diego, Nov 18, 2026: "by default in gradient & grain Type is always
+// flat"). Its second stop is the 900, so Linear / Radial blend at once.
+function draftDef(hex) { return state.shading === 'none' ? Object.assign({}, shadeDefs(hex).soft, { type: 'flat' }) : shadeDefs(hex)[state.shading]; }
 function zoneKey(z) { return state.house + '/' + count() + '/' + z; }
 // The selected shape, only while it still is one: on the house, in this figure, of the active
 // colour. A colour removed / added, another house, another view — the selection lapses to the colour.
@@ -977,7 +981,7 @@ function G() {
     const key = zoneKey(sz), own = state.zoneShades[key];
     if (own) return withColour(own, it.hex);
     const dkey = 'z|' + key + '|' + JSON.stringify(colourDef(state.activeIndex));
-    if (shadeDraft.key !== dkey) { shadeDraft.key = dkey; shadeDraft.def = JSON.parse(JSON.stringify(colourDef(state.activeIndex) || shadeDefs(it.hex).soft)); }
+    if (shadeDraft.key !== dkey) { shadeDraft.key = dkey; shadeDraft.def = JSON.parse(JSON.stringify(colourDef(state.activeIndex) || draftDef(it.hex))); }
     return withColour(shadeDraft.def, it.hex);
   }
   if (it.shade) {
@@ -986,7 +990,7 @@ function G() {
     return it.shade;
   }
   const key = it.id + '|' + draftMode() + '|' + it.hex;
-  if (shadeDraft.key !== key) { shadeDraft.key = key; shadeDraft.def = JSON.parse(JSON.stringify(shadeDefs(it.hex)[draftMode()])); }
+  if (shadeDraft.key !== key) { shadeDraft.key = key; shadeDraft.def = JSON.parse(JSON.stringify(draftDef(it.hex))); }
   return shadeDraft.def;
 }
 function keepEdit() {

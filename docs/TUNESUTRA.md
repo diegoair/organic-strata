@@ -250,7 +250,7 @@ and its gradient is edited there, the house staying in view): the selected colou
 (Diego, Nov 18, 2026: *elimina "Base, shape 1"*); the selection on the sheet says whose. The first edit turns the preset into the colour's own definition (`item.shade`,
 saved with the palette as `shades`; ⌘Z returns to the preset); its first stop is always the
 colour itself (the Flat *Colour* row went with the Gradient view). A click on one of that colour's
-tiles forgets it and puts that preset on the house. **Back to preset** became the floatbar's
+tiles forgets it and puts that preset on the house. With nothing of its own the section starts from the Shading preset on the house — with Shading **None**, from **Flat** (Nov 18, 2026: Diego, *by default in gradient & grain Type is always flat*; was Soft), its second stop already the 900 so Linear / Radial blend at once. **Back to preset** became the floatbar's
 **Reset** (Nov 18, 2026: Diego, *sposta back to preset nella floatbar come se fosse un reset alla
 palette iniziale*): the palette as it was opened — colours, every shading of its own, the house —
 one ⌘Z step. No control
