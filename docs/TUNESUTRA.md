@@ -60,23 +60,12 @@ in-app photo reader.
   panel's Colours 3 · 4 · 5 and its colour chips are gone.
 - **Select a colour** by clicking its card on the sheet (or a house shape); a card click also
   opens the picker.
-- **Harmony** + **Generate** rebuild every colour except the first (**Keep on Generate** was
-  removed Nov 18, 2026 — a saved lock is ignored). The first colour is the seed. Hue is rotated in
-  OKLCH, so every generated colour has the seed's perceived lightness and as
-  much of its chroma as that hue can hold. Pressing Generate twice gives the
-  same set.
-  - The default rule is **Complementary** (Nov 18, 2026; was Analogous); a saved palette keeps its own.
-  - Analogous fans out ±15° per step either side of the seed.
-  - Complementary / Split / Triadic / Tetradic have 2–4 hues of their own;
-    extra colours reuse those hues at further steps of their scale.
-  - Monochromatic walks the seed's own scale, lighter first.
-- **Lightness spread** (0–30) moves the generated colours apart in lightness,
-  alternately lighter and darker. At 0 they all share the seed's lightness —
-  balanced, but with almost no contrast between them (the contrast pairs show
-  it). It regenerates as you drag.
-- **Undo** (button or ⌘Z) covers every change, including gradient settings.
-- The hint at the foot of the Palette section names any two colours closer than ΔE 6 (OKLab ×100)
-  — too close to tell apart at a glance.
+- **The Palette section is gone** (Nov 18, 2026, night: Diego, *gli ink free devono essere quelli generati da regole di
+  armonia, in modo da poter poi togliere da sopra* → *Sì, toglila*). Harmony, Lightness spread, Generate and the
+  ΔE hint went with it; the harmony rules now live in Shadow › Ink › *Free* (§3). `generateHarmony()` stays for the
+  **+ card**: a new colour follows the palette's `harmony` — **Complementary** by default, a saved palette its own
+  (and its saved `spread`). Generating a whole palette from the seed is no longer in the UI.
+- **Undo** — the floatbar's first button (`undo` icon, *Undo (⌘Z)*, as in FVS) or ⌘Z; covers every change.
 
 ## 2. The sheet
 
@@ -194,7 +183,9 @@ Then:
    the sheet (`#colour-dock`, scaled with it), light in both themes, never in an export. They show
    the selected tint, else the colour.
 
-## 3. Gradient · Grain · Shadow
+## 3. Gradient · Shadow
+
+> **Nov 18, 2026 (night) — Grain removed, Shadow = type + Ink** (Diego: *togli il grain definitivamente visto che abbiamo le shadow complete con i presets* · *la dropdown di shadow così sceglie il tipo di ombra mentre Hue come la colora*). The panel is **Palette · Gradient · Shadow**. Every gradient is a smooth vector blend (`g.size` forced to 0 by `normalizeGrad`; a palette saved with a grain opens smooth). The Grain paragraphs below (Size, Pattern, Seed, the dithered blend) are history: the cell renderer remains only for Flat shadows. In Shadow, **Shading** picks the shadow and **Ink** (a thumbnail dropdown, `#sel-gink`) picks how it is coloured — *On the palette* Same · Cool · Warm · Complement (inks snapped to the palette's tints) or *Free* — **the Palette's harmony rules** (Diego: *gli ink free devono essere quelli generati da regole di armonia*): Monochromatic · Analogous · Complementary · Split-complementary · Triadic · Tetradic, the halftone ink on the rule's first hue away from the colour, the core on its second (`HARMONY_INK`: 15/30°, 180°, 150/210°, 120/240°, 90/180°), Shift scaling the turn (100 = the rule's own angle); a saved free Cool / Warm moves on the palette, Impressionist becomes Analogous; it replaces the Hue select and the Snap to palette switch. **Shift** sits right under Ink (hidden on *Same* and when both inks are hand-picked — it then changes nothing). Halftone / Core stay for a hand pick. The *Away from a light* switch, **Chroma**, **Parts** and the **More** disclosure are gone (saved values still read).
 
 One definition behind three panel sections — **Gradient** (how the colour fills each
 shape: Type, Angle, Stops, Fade to paper), **Grain** (the gradient broken into cells of pure
@@ -248,6 +239,7 @@ file), while the plates keep the exact partition.
 - **Pattern** — how the cells are chosen: **Noise** (at random) or **Dots** (round
   dots, evenly spread: a 64 × 64 blue-noise mask, `Organica.dither.blueNoise`).
 - **Seed** fixes the cells.
+- **Shading — a dropdown with thumbnails** (Nov 18, 2026, night: Diego, *una dropdown con thumb per tutti incluso gli 11 scelti e None e Soft*; the 11 chosen in `explorations/tunesutra-shadow-types/`). `Organica.selectPicker` (size *preview*) over `#sel-shading`: **None · Soft**, then **Specks** *Speckle · Mottle* (not *Grain*: that is the section above), **Dither** *Serpentine · Blue noise · Bayer*, **Pollen** *Dot · Stroke · Cross-hatch*, **Camo** *Spots · Maze*, **Cells**. Each row has a one-line hint; each thumbnail is that preset drawn by the tool's own renderer on the active colour (a disc), lazily, redrawn when the colour or the theme changes. The textures come from **`shared/shade-marks.js`** (`Organica.shadeMarks`): Mottle = Speckle × simplex fbm; Serpentine = Floyd–Steinberg, serpentine + blue-noise jitter; Blue noise / Bayer = ordered dithers (`Organica.dither`); Pollen = its variable-density Poisson disk (synchronous, on the shadow field) — dots, strokes across the light, or brush strokes in three directions each with its own points, fading in by depth; Camo = Camo Turing's Gray-Scott on the CPU (72², 3000 steps, cached, pre-run when idle — `warm()`), tiled; Cells = Worley. All use the same light, Parts and two palette inks; cell types are one ink per cell, Pollen marks overprint. Each has a minimum Size (`minSize`: Pollen Cross-hatch 3, Pollen / Dither 2) to keep the files light. **Visible controls** (a test — Diego: *lascia i 6 comandi … probabile che li togliamo dopo*): Amount, Size, Light from, Falloff, Ink, Depth (+ the Halftone / Core rows); Shift in a closed **More** disclosure (Inks, Snap, Chroma, Parts there until the same night). **Seed** removed (fixed at 7).
 - **Shading, at the top of Shadow** (Nov 18, 2026, late): **None · Soft · Speckle** for the whole figure (or the selected shape), default None, in place of the Shadow switch — Soft or Speckle turn the shadow on and show the parameters below. **Soft = a smooth shadow, no specks** (Diego: *soft non dovrebbe avere il noise* — one vector gradient along the light, from nothing on the lit side through the Halftone ink to the Core ink; vector, but not one plate per ink; Size / Seed hidden), **Speckle** = square specks (one ink per cell, plates); Stipple, and the Pattern row's Dots / Bands, were removed (a saved one still draws).
 - **Shadow — the painter's shadow** (Nov 18, 2026: Diego, *lo voglio tutte così come opzioni in shadow con un
   focus su specks e dots … allineare le parti ai colori definiti come token*; from the Shadow lab,

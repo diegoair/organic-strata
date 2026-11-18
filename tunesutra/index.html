@@ -37,7 +37,8 @@
   .ts-palbar {
     display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
     padding: var(--space-2) var(--space-3);   /* attached to the sheet below it: no gap, square bottom */
-    background: var(--paper); border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius-md) var(--radius-md) 0 0;   /* the sheet's own paper, light in both themes like the sheet (Diego, Nov 18, 2026) */
+    background: var(--paper); border: 0; border-radius: var(--radius-md) var(--radius-md) 0 0;   /* the sheet's own paper, light in both themes; no border — one piece with the sheet (Diego, Nov 18, 2026) */
+    position: relative; z-index: 1;   /* above the sheet's own shadow (--stage-shadow), which otherwise greys its bottom */
   }
   .ts-palbar .mini-btn { flex: none; }   /* its own width, not the row's (mini-btn is flex: 1 in a row of buttons) */
   .ts-palbar__title { margin: 0; font-size: var(--fs-small); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* full width up to the sheet's own size (max-width set by renderStage): a shrink-to-fit box would collapse it */
@@ -195,30 +196,8 @@
   </div>
 
   <div id="panel" class="org-panel">
-    <div class="panel-section">
-      <h3>Palette</h3>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Harmony</span>
-        <select class="panel-select" id="sel-harmony" aria-label="Harmony algorithm">
-          <option value="monochromatic">Monochromatic</option>
-          <option value="analogous">Analogous</option>
-          <option value="complementary" selected>Complementary</option>
-          <option value="splitComplementary">Split-complementary</option>
-          <option value="triadic">Triadic</option>
-          <option value="tetradic">Tetradic (square)</option>
-        </select>
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="How far apart in lightness the generated colours sit. 0 = every colour at the base colour’s own lightness.">Lightness spread</div>
-        <input type="range" id="rg-spread" min="0" max="30" step="1" value="0">
-        <span class="ctrl-val" id="v-spread">0</span>
-      </div>
-      <div class="row-btns">
-        <button class="mini-btn" id="btn-generate" title="Rebuild every colour from the first one">Generate</button>
-        <button class="mini-btn" id="btn-undo" title="Undo (⌘Z)" disabled>Undo</button>
-      </div>
-      <p class="org-panel__hint" id="distinct-hint"></p>
-    </div>
+    <!-- Palette section removed (Diego, Nov 18, 2026, night): Harmony, Lightness spread, Generate went once the
+         Shadow's Free inks took the harmony rules; a new colour follows Complementary; Undo is in the floatbar. -->
 
     <!-- Gradient · Grain · Shadow — three sections (Nov 18, 2026: Diego, "dobbiamo far capire bene cosa è per
          gradient, cosa è per grain, e cosa è shadow"; mockup A). One definition (G()) behind all three. -->
@@ -248,55 +227,34 @@
       </div>
     </div>
 
-    <div class="panel-section" id="sec-grain">
-      <h3>Grain</h3>
-      <div id="grain-ctl">
-        <div class="ctrl-row" id="row-gsize">
-          <div class="ctrl-label" title="The size of one grain, in sheet units. 0 = no grain: the gradient blends smoothly.">Size</div>
-          <input type="range" id="rg-gsize" min="0" max="12" step="0.5" value="0" aria-label="Grain size">
-          <span class="ctrl-val" id="v-gsize">0</span>
-        </div>
-        <p class="org-panel__hint" id="grain-smooth">0 = no grain: a smooth blend.</p>
-        <div id="row-gpattern">
-          <div class="sub-label" title="Noise: cells at random. Dots: round dots, evenly spread.">Pattern</div>
-          <div class="ctrl-row">
-            <div class="seg-ctrl" id="seg-gpattern" role="group" aria-label="Pattern">
-              <button class="seg-btn active" data-v="noise">Noise</button>
-              <button class="seg-btn" data-v="dots">Dots</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="panel-section">
       <h3>Shadow</h3>
-      <p class="org-panel__hint">Two inks over the colour — halftone and core — where the light does not reach.</p>
-      <!-- Shading, for the whole figure (or the selected shape): None · Soft · Speckle — Soft or Speckle turn the
-           shadow on and show its parameters (Diego, Nov 18, 2026: "togli il toggle") -->
+      <!-- Shading (Nov 18, 2026: Diego — "una dropdown con thumb per tutti", the 11 picked in
+           explorations/tunesutra-shadow-types/ + None and Soft): a preset for the whole figure, or the selected
+           shape; once picked, its parameters change it. Thumbnails drawn on the active colour (renderer = the tool's). -->
       <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-shading" role="group" aria-label="Shading">
-          <button class="seg-btn" data-v="none" title="No shadow">None</button>
-          <button class="seg-btn" data-v="soft" title="A gentle shadow: fine dots of the colour’s own darker tints">Soft</button>
-          <button class="seg-btn" data-v="speckle" title="Square specks of the colour’s own darker tints, away from the light">Speckle</button>
-        </div>
+        <select id="sel-shading" aria-label="Shading">
+          <option value="none">None</option>
+          <option value="soft">Soft</option>
+          <optgroup label="Specks"><option value="speckle">Speckle</option><option value="mottle">Mottle</option></optgroup>
+          <optgroup label="Dither"><option value="dither-fs">Serpentine</option><option value="dither-blue">Blue noise</option><option value="dither-bayer">Bayer</option></optgroup>
+          <optgroup label="Pollen"><option value="pollen-dot">Dot</option><option value="pollen-stroke">Stroke</option><option value="pollen-cross">Cross-hatch</option></optgroup>
+          <optgroup label="Camo"><option value="camo-spots">Spots</option><option value="camo-maze">Maze</option></optgroup>
+          <option value="cells">Cells</option>
+        </select>
+        <div id="shading-picker"></div>
       </div>
       <div id="grad-shadow">
-        <div class="ctrl-row" id="row-gspeck">
-          <div class="ctrl-label" title="The size of one speck or dot, in sheet units. On a grained gradient the specks are the grain’s cells.">Size</div>
-          <input type="range" id="rg-gspeck" min="1" max="12" step="0.5" value="2" aria-label="Shadow size">
-          <span class="ctrl-val" id="v-gspeck">2</span>
-        </div>
         <div class="ctrl-row" id="row-gamount">
           <div class="ctrl-label" title="How strong the shadow is.">Amount</div>
           <input type="range" id="rg-gamount" min="1" max="100" step="1" value="70">
           <span class="ctrl-val" id="v-gamount">70</span>
         </div>
-        <div class="ctrl-row" id="row-gsseed">
-          <div class="ctrl-label">Seed</div>
-          <input type="number" class="panel-input" id="in-gsseed" min="0" max="9999" step="1" value="1" aria-label="Shadow seed">
+        <div class="ctrl-row" id="row-gspeck">
+          <div class="ctrl-label" title="The size of one speck or dot, in sheet units.">Size</div>
+          <input type="range" id="rg-gspeck" min="1" max="12" step="0.5" value="2" aria-label="Shadow size">
+          <span class="ctrl-val" id="v-gspeck">2</span>
         </div>
-        <label class="check-row org-switch" id="row-gdist" title="On: the shadow gathers away from a light. Off: everywhere alike."><input type="checkbox" id="ck-glight"><span>Away from a light</span></label>
         <div class="ctrl-row" id="row-glight">
           <div class="ctrl-label" title="Where the light comes from: 0° = the top, 90° = the right. The shadow thickens toward the opposite side.">Light from</div>
           <input type="range" id="rg-glight" min="0" max="360" step="1" value="315">
@@ -307,49 +265,34 @@
           <input type="range" id="rg-gfalloff" min="0" max="100" step="1" value="50">
           <span class="ctrl-val" id="v-gfalloff">50</span>
         </div>
-        <div class="sub-label">Inks</div>
-        <div class="color-row"><span class="color-name">Halftone</span><button class="color-swatch" id="sw-gmid" aria-label="Halftone ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gmid"></span></div>
-        <div class="color-row"><span class="color-name">Core</span><button class="color-swatch" id="sw-gcore" aria-label="Core ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gcore"></span></div>
-        <div class="row-btns"><button class="mini-btn" id="btn-ginks-auto" hidden title="Forget the hand-picked inks: they are made from the colour again">Reset inks</button></div>
-        <label class="check-row org-switch"><input type="checkbox" id="ck-gsnap"><span>Snap to palette</span></label>
-        <p class="org-panel__hint">Snap moves each ink to the nearest of the palette’s own tints.</p>
-        <div class="sub-label">Hue</div>
+        <!-- Ink (Nov 18, 2026: Diego, "Hue e Shadow Ink devono essere collegati … presets per creare dei colori,
+             alcuni on palette altri no … togli il toggle"): one preset = a hue rule + on the palette's tints or free;
+             its two inks shown right under it -->
+        <div class="sub-label">Ink</div>
         <div class="ctrl-row">
-          <select class="panel-select" id="sel-ghue" aria-label="Hue" title="Same: only darker · Cool: toward blue-violet (warm light) · Warm: toward red-orange (cool light) · Complement: toward the opposite hue · Impressionist: blue-violet and more colourful">
-            <option value="same">Same</option>
-            <option value="cool">Cool</option>
-            <option value="warm">Warm</option>
-            <option value="complement">Complement</option>
-            <option value="impressionist">Impressionist</option>
+          <select id="sel-gink" aria-label="Ink">
+            <optgroup label="On the palette">
+              <option value="same|p">Same</option><option value="cool|p">Cool</option><option value="warm|p">Warm</option><option value="complement|p">Complement</option>
+            </optgroup>
+            <optgroup label="Free">
+              <option value="same|f">Monochromatic</option><option value="analogous|f">Analogous</option><option value="complement|f">Complementary</option><option value="split|f">Split-complementary</option><option value="triadic|f">Triadic</option><option value="tetradic|f">Tetradic</option>
+            </optgroup>
           </select>
+          <div id="gink-picker"></div>
         </div>
         <div class="ctrl-row" id="row-gshift">
-          <div class="ctrl-label" title="How far the shadow turns toward that hue.">Shift</div>
+          <div class="ctrl-label" title="How far the shadow turns toward the Ink’s hue.">Shift</div>
           <input type="range" id="rg-gshift" min="0" max="100" step="1" value="60">
           <span class="ctrl-val" id="v-gshift">60</span>
         </div>
+        <div class="color-row"><span class="color-name">Halftone</span><button class="color-swatch" id="sw-gmid" aria-label="Halftone ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gmid"></span></div>
+        <div class="color-row"><span class="color-name">Core</span><button class="color-swatch" id="sw-gcore" aria-label="Core ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gcore"></span></div>
+        <div class="row-btns"><button class="mini-btn" id="btn-ginks-auto" hidden title="Forget the hand-picked inks: they are made from the preset again">Reset inks</button></div>
         <div class="ctrl-row" id="row-gdepth">
           <div class="ctrl-label" title="How dark the core shadow gets.">Depth</div>
           <input type="range" id="rg-gdepth" min="10" max="90" step="1" value="35">
           <span class="ctrl-val" id="v-gdepth">35</span>
         </div>
-        <div class="sub-label">Chroma</div>
-        <div class="ctrl-row" id="row-glose">
-          <div class="ctrl-label" title="How much colour the shadow loses.">Loss</div>
-          <input type="range" id="rg-glose" min="0" max="100" step="1" value="0">
-          <span class="ctrl-val" id="v-glose">0</span>
-        </div>
-        <div class="ctrl-row" id="row-gglow">
-          <div class="ctrl-label" title="How much colour the halftone gains at the turning edge.">Edge glow</div>
-          <input type="range" id="rg-gglow" min="0" max="100" step="1" value="0">
-          <span class="ctrl-val" id="v-gglow">0</span>
-        </div>
-        <div class="sub-label">Parts</div>
-        <label class="check-row org-switch"><input type="checkbox" id="ck-ghalf"><span>Halftone</span></label>
-        <label class="check-row org-switch"><input type="checkbox" id="ck-gterm"><span>Terminator</span></label>
-        <label class="check-row org-switch"><input type="checkbox" id="ck-gcore"><span>Core shadow</span></label>
-        <label class="check-row org-switch"><input type="checkbox" id="ck-grefl"><span>Reflected light</span></label>
-        <label class="check-row org-switch"><input type="checkbox" id="ck-ghigh"><span>Highlight</span></label>
       </div>
     </div>
 
@@ -361,6 +304,9 @@
      popover tab once that's rebuilt. sendToFigma() stays defined below,
      ready to reuse, same convention as Loom/Camo Turing/FVS. ══ -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-undo" aria-label="Undo (⌘Z)" disabled>
+    <svg class="ico" data-icon="undo" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3 2.5 6l3 3"/><path d="M3 6h6.5a3.5 3.5 0 0 1 0 7H6"/></svg>
+  </button>
   <button class="org-floatbar__btn" id="btn-reset" aria-label="Reset palette">
     <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
   </button>
@@ -417,6 +363,8 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/color.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
 <script src="/shared/colour-picker.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/vendor/ral-classic.js"></script>
@@ -502,7 +450,7 @@ const state = {
     specks: 'specks', // RENDER: 'specks' (square cells) | 'dots' (a halftone screen) | 'bands' (hard steps)
     sseed: 1,         // the shadow's own seed
     // the painter's shadow (Nov 18, 2026 — the Shadow lab): two inks made by these rules, snapped to the palette
-    hue: 'same',      // 'same' | 'cool' | 'warm' | 'complement' | 'impressionist'
+    hue: 'same',      // on the palette: 'same' | 'cool' | 'warm' | 'complement'; free: the harmony rules — 'same' (Monochromatic) | 'analogous' | 'complement' | 'split' | 'triadic' | 'tetradic'
     shift: 60,        // how far toward that hue, 0–100
     depth: 35,        // how dark the core gets, in OKLCH lightness ×100
     lose: 0,          // chroma lost in the shadow, 0–100
@@ -609,10 +557,6 @@ function generateHarmony() {
     return derive(seed, Math.floor(extra / m), false);
   });
 }
-function applyHarmony() {
-  const gen = generateHarmony();
-  state.items.forEach((it, i) => { if (i) it.hex = gen[i]; });   // only the base is kept (Keep on Generate removed Nov 18, 2026; a saved lock is ignored)
-}
 
 // ── UNDO — JSON snapshots, checkpoints only. Bursts of the same continuous
 //    edit (dragging the picker, typing a name, the spread slider) coalesce. ──
@@ -666,9 +610,6 @@ function commit(rebuildChips) {
   syncUndo();
 }
 function syncControls() {
-  ctrl('sel-harmony').value = state.harmony;
-  ctrl('rg-spread').value = state.spread;
-  ctrl('v-spread').textContent = state.spread;
   syncGradControls();
 }
 
@@ -682,8 +623,9 @@ function closePairs() {
   return out;
 }
 function refreshHints() {
-  const pairs = closePairs();
-  ctrl('distinct-hint').textContent = pairs.length
+  const pairs = closePairs(), el = ctrl('distinct-hint');
+  if (!el) return;   // the Palette section and its hint went (Nov 18, 2026, night)
+  el.textContent = pairs.length
     ? 'Hard to tell apart: ' + pairs.map(p => dispName(p.i) + ' and ' + dispName(p.j)).join('; ') + '.'
     : 'Every colour is distinct from the others.';
 }
@@ -801,7 +743,11 @@ function shadeDefs(hex) {
   // Flat draws only the first stop; the second is there so that switching it to Linear / Radial blends at once.
   const speckle = Object.assign({}, base, { type: 'flat', shadow: true, amount: 70, speck: 2, falloff: 65 });
   const soft = Object.assign({}, base, { type: 'flat', shadow: true, specks: 'smooth', amount: 60, depth: 25, falloff: 50 });   // a smooth shadow, no specks
-  return { soft: soft, speckle: speckle, print: soft, base: base };
+  const out = { soft: soft, speckle: speckle, print: soft, base: base };
+  // the shadow types from the lab (Organica.shadeMarks): flat colour + that texture, a size it reads at
+  const SIZE = { mottle: 3, 'dither-fs': 3, 'dither-blue': 3, 'dither-bayer': 3, 'pollen-dot': 4, 'pollen-stroke': 4, 'pollen-cross': 5, 'camo-spots': 4, 'camo-maze': 4, cells: 4 };
+  Object.keys(SIZE).forEach(t => { out[t] = Object.assign({}, speckle, { specks: t, speck: SIZE[t], amount: 80 }); });
+  return out;
 }
 // Rendered once per definition and box size: a colour edit re-renders only that colour's shapes.
 const shadeCache = new Map();
@@ -893,8 +839,7 @@ function gradUses(g) {
     angle: g.type === 'linear',
     pattern: blend,
     seed: blend,
-    speck: shadow && !blend && (g.specks === 'specks' || g.specks === 'dots'),   // on a grained blend the specks are the grain's cells; Bands use a fine grid
-    sseed: shadow && g.specks === 'specks',   // only Specks are random
+    speck: shadow && g.specks !== 'smooth' && g.specks !== 'bands' && (!blend || markShadow(g)),   // Speckle on a grained blend uses the grain's cells; the shade-marks types have their own size   // on a grained blend the specks are the grain's cells; Bands use a fine grid
     dist: shadow,
     light: light,
     falloff: light,
@@ -912,6 +857,10 @@ function gradUses(g) {
 //    cells mixing two inks), Dots (a halftone screen — the lower ink as ground, the next as a dot sized
 //    by the share), Bands (hard steps). Every cell / dot one ink: still vector, still one plate per ink.
 const SHADOW_HUE = { cool: 285, warm: 35 };
+// Free inks follow the Palette's harmony rules (Diego, Nov 18, 2026: "gli ink free devono essere quelli generati
+// da regole di armonia"): the halftone ink takes the rule's first hue away from the colour, the core its second
+// (HARMONY_HUES, Analogous one side at 15° / 30°); Shift scales the turn (100 = the rule's own angle).
+const HARMONY_INK = { analogous: [15, 30], split: [150, 210], triadic: [120, 240], tetradic: [90, 180] };
 const towardHue = (h, t, k) => h + ((((t - h) % 360) + 540) % 360 - 180) * k;
 function paletteTints() { return [].concat.apply([], state.items.map(it => tokenScale(it.hex).map(st => st.hex))); }
 function ruleInk(g, hex, s) {
@@ -919,6 +868,7 @@ function ruleInk(g, hex, s) {
   let L = O.l - s * g.depth / 100, c = O.c, h = O.h;
   if (g.hue === 'cool' || g.hue === 'warm') { const t = SHADOW_HUE[g.hue]; h = grey ? t : towardHue(O.h, t, k); if (grey) c = 0.05 * k; }
   else if (g.hue === 'complement') { h = (grey ? 105 : O.h) + 180 * k; if (grey) c = 0.04 * k; }
+  else if (HARMONY_INK[g.hue]) { h = (grey ? 105 : O.h) + HARMONY_INK[g.hue][s < 1 ? 0 : 1] * g.shift / 100; if (grey) c = 0.05 * g.shift / 100; }   // the palette's harmony rules, one hue per ink
   else if (g.hue === 'impressionist') { h = towardHue(grey ? 285 : O.h, 285, Math.min(1, k * 1.2)); c = Math.max(c, 0.09) * (1 + 0.6 * k); }
   c *= 1 - (g.lose / 100) * s;
   if (s < 1) c *= 1 + (g.glow / 100) * 1.4;   // the edge glow lives in the halftone ink
@@ -958,6 +908,13 @@ function shadowLevel(g, w, h) {
 // over the shape along the light, transparent where lit, the halftone ink, then the core ink. Vector, but (like
 // a grain-0 blend) not one plate per ink.
 function smoothShadow(g) { return hasNoise(g) && g.specks === 'smooth'; }
+// a shadow from Organica.shadeMarks (Mottle, the Dithers, Pollen, Camo, Cells): its own marks over the fill
+function markShadow(g) { return hasNoise(g) && !!(Organica.shadeMarks && Organica.shadeMarks.has(g.specks)); }
+function markPlates(g, w, h) {
+  const SM = Organica.shadeMarks, weight = noiseWeight(g, w, h), [mid, core] = shadowInks(g, g.stops[colourStop(g)]);
+  const res = SM.render(g.specks, { w: w, h: h, level: (x, y) => shadowAt(g, weight(x, y)), size: Math.max(SM.minSize(g.specks), g.speck || SHADOW_CELL), angle: g.light + 90, seed: 7 });
+  return [{ hex: mid, paper: false, d: res.mid.join(''), cells: res.mid.length }, { hex: core, paper: false, d: res.core.join(''), cells: res.core.length }];
+}
 function smoothShadowPlate(g, w, h) {
   const [mid, core] = shadowInks(g, g.stops[colourStop(g)]), bend = Math.pow(4, (g.falloff - 50) / 50), even = g.dist !== 'light';
   const stops = [];
@@ -1034,7 +991,7 @@ function gradPlates(g, w, h) {
   const stops = gradStops(g), k = stops.length, cell = Math.max(MIN_CELL, g.type === 'flat' ? shadowGrid(g) : g.size);
   const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h);
   const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
-  const shadow = hasNoise(g) && !smoothShadow(g), level = shadow ? shadowLevel(g, w, h) : null, I = {};
+  const shadow = hasNoise(g) && !smoothShadow(g) && !markShadow(g), level = shadow ? shadowLevel(g, w, h) : null, I = {};
   if (shadow) {
     // a shadow ink that is one of the stops is that stop's ink: one plate, not two of the same colour
     const add = hex => { const at = out.findIndex(p => !p.paper && p.hex.toLowerCase() === hex.toLowerCase()); if (at >= 0) return at; out.push({ hex: hex, paper: false, d: [], holes: [], cells: 0 }); return out.length - 1; };
@@ -1069,6 +1026,7 @@ function gradPlates(g, w, h) {
   }
   out.forEach(p => { p.d = p.d.join('') + p.holes.join(''); delete p.holes; });
   if (smoothShadow(g)) out.push(smoothShadowPlate(g, w, h));
+  if (markShadow(g)) out.push.apply(out, markPlates(g, w, h));
   return out;
 }
 // Grain 0: [the first stop (painted by the shape), the smooth fill over the box, the shadow's cells].
@@ -1077,6 +1035,7 @@ function smoothPlates(g, w, h) {
     { hex: stops[stops.length - 1].hex, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0, smooth: { geom: smoothGeom(g, w, h), stops: smoothStops(g) } }];
   if (!hasNoise(g)) return out;
   if (smoothShadow(g)) { out.push(smoothShadowPlate(g, w, h)); return out; }
+  if (markShadow(g)) { out.push.apply(out, markPlates(g, w, h)); return out; }
   // the shadow over the smooth fill: its own grid; a cell with no shadow shows the fill (-1)
   const cell = shadowGrid(g), cols = Math.floor(w / cell), rows = Math.floor(h / cell), level = shadowLevel(g, w, h);
   const [mid, core] = shadowInks(g, g.stops[colourStop(g)]), P = [{ hex: mid, d: [], holes: [] }, { hex: core, d: [], holes: [] }, { hex: Organica.contentColor('--paper'), paper: true, d: [], holes: [] }];
@@ -1200,28 +1159,21 @@ function clearColourShades(i) {
 function syncGradControls() {
   const g = G(), seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   const flat = g.type === 'flat', uses = gradUses(g);
-  seg('seg-gtype', g.type); seg('seg-gpattern', g.pattern); ctrl('sel-ghue').value = g.hue;
-  ['shift', 'depth', 'lose', 'glow'].forEach(k => { ctrl('rg-g' + k).value = g[k]; ctrl('v-g' + k).textContent = g[k]; });
-  ctrl('ck-gsnap').checked = !!g.snap;
-  const P = g.parts || {};
-  [['half', 'half'], ['term', 'term'], ['core', 'core'], ['refl', 'refl'], ['high', 'high']].forEach(([id, k]) => { ctrl('ck-g' + id).checked = P[k] !== false && (P[k] || id === 'half' || id === 'core'); });
+  seg('seg-gtype', g.type); syncInkPicker(g);
+  ['shift', 'depth'].forEach(k => { ctrl('rg-g' + k).value = g[k]; ctrl('v-g' + k).textContent = g[k]; });
   const inks = shadowInks(g, g.stops[colourStop(g)]);
   ctrl('sw-gmid').style.background = inks[0]; ctrl('v-gmid').textContent = inks[0];
   ctrl('sw-gcore').style.background = inks[1]; ctrl('v-gcore').textContent = inks[1];
   ctrl('btn-ginks-auto').hidden = !g.inkMid && !g.inkCore;
+  ctrl('row-gshift').hidden = g.hue === 'same' || (!!g.inkMid && !!g.inkCore);   // Same keeps the hue; hand-picked inks ignore the rule
   ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle + '°';
   ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
-  ctrl('rg-gsize').value = g.size; ctrl('v-gsize').textContent = g.size;
   ctrl('rg-gspeck').value = g.speck; ctrl('v-gspeck').textContent = g.speck;
   ctrl('grad-shadow').hidden = !g.shadow;
-  if (document.activeElement !== ctrl('in-gsseed')) ctrl('in-gsseed').value = g.sseed;
   ctrl('rg-glight').value = g.light; ctrl('v-glight').textContent = g.light + '°';
   ctrl('rg-gfalloff').value = g.falloff; ctrl('v-gfalloff').textContent = g.falloff;
-  ctrl('ck-glight').checked = g.dist === 'light';
   ctrl('grad-blend').hidden = flat;
-  ctrl('sec-grain').hidden = flat;   // Flat has no blend to grain: the whole section goes (Diego, Nov 18, 2026)
-  ctrl('grain-smooth').hidden = flat || g.size > 0;
-  ['angle', 'pattern', 'speck', 'sseed', 'dist', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
+  ['angle', 'speck', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
   gradSel = Math.min(gradSel, g.stops.length - 1);
   renderStopBar();
 }
@@ -1257,8 +1209,14 @@ function normalizeGrad(g) {
   g.paper = false;   // a definition saved before Nov 18, 2026 keeps the second stop it has
   if (g.type === 'conic') g.type = 'linear';
   if (g.pattern !== 'dots') g.pattern = 'noise';
-  if (g.dist !== 'light') g.dist = 'even';   // Shadows / Highlights → everywhere
-  g.size = +g.size === 0 ? 0 : clamp(+g.size || 2, 1, 12);   // 0 = no grain, a smooth blend
+  // Free Cool / Warm / Impressionist went (Nov 18, 2026, night — Free = the harmony rules): Cool / Warm move
+  // on the palette, Impressionist becomes Analogous (its look changes: no more forced blue-violet).
+  if (!g.snap && (g.hue === 'cool' || g.hue === 'warm')) g.snap = true;
+  if (g.hue === 'impressionist') g.hue = 'analogous';
+  g.dist = 'light';   // the shadow always gathers away from the light (Diego, Nov 18, 2026: the Away from a light switch went; Light from stays)
+  // Grain removed (Diego, Nov 18, 2026: "togli il grain definitivamente visto che abbiamo le shadow complete
+  // con i presets"): every blend is smooth. A palette saved with a grain opens smooth; its size stays unread.
+  g.size = 0;
   delete g.out; delete g.kind; delete g.space;
   return g;
 }
@@ -1427,28 +1385,20 @@ function initGradient() {
       onInput: hex => { const g = G(); if (g[key] === hex) return; pushUndo('grad'); g[key] = hex; gradChanged(); } });
   }));
   ctrl('btn-ginks-auto').addEventListener('click', () => { pushUndo('grad-inks'); const g = G(); g.inkMid = null; g.inkCore = null; gradChanged(); });
-  ctrl('ck-gsnap').addEventListener('change', e => { pushUndo('grad-snap'); G().snap = e.target.checked; gradChanged(); });
-  [['half', 'half'], ['term', 'term'], ['core', 'core'], ['refl', 'refl'], ['high', 'high']].forEach(([id, k]) => ctrl('ck-g' + id).addEventListener('change', e => {
-    pushUndo('grad-part'); const g = G(); g.parts = Object.assign({}, g.parts, { [k]: e.target.checked }); gradChanged();
-  }));
   bindStopBar();
   const segBind = (id, key) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
     if (G()[key] === b.dataset.v) return;
     pushUndo('grad-' + key); G()[key] = b.dataset.v; gradChanged();
   }));
-  segBind('seg-gtype', 'type'); segBind('seg-gpattern', 'pattern');
-  ctrl('sel-ghue').addEventListener('change', e => { pushUndo('grad-hue'); G().hue = e.target.value; gradChanged(); });
-  ctrl('in-gsseed').addEventListener('input', e => {
-    if (e.target.value === '') return;
-    const v = clamp(Math.round(+e.target.value || 0), 0, 9999);
-    if (v === G().sseed) return;
-    pushUndo('grad'); G().sseed = v; gradChanged();
+  segBind('seg-gtype', 'type');
+  ctrl('sel-gink').addEventListener('change', e => {
+    const [hue, mode] = e.target.value.split('|'), g = G();
+    if (g.hue === hue && !!g.snap === (mode === 'p')) return;
+    pushUndo('grad-ink'); g.hue = hue; g.snap = mode === 'p'; gradChanged();
   });
-  ctrl('in-gsseed').addEventListener('change', e => { e.target.value = G().sseed; });
-  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gsize', 'size'], ['rg-gspeck', 'speck'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff'], ['rg-gshift', 'shift'], ['rg-gdepth', 'depth'], ['rg-glose', 'lose'], ['rg-gglow', 'glow']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
+  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gspeck', 'speck'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff'], ['rg-gshift', 'shift'], ['rg-gdepth', 'depth']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
     pushUndo('grad'); G()[key] = +e.target.value; gradChanged();
   }));
-  ctrl('ck-glight').addEventListener('change', e => { pushUndo('grad-dist'); G().dist = e.target.checked ? 'light' : 'even'; gradChanged(); });
   ctrl('btn-grad-reverse').addEventListener('click', () => {
     pushUndo('grad-stop');
     const g = G(), pos = ensurePos();
@@ -1904,7 +1854,7 @@ function selectRole(i, z) {
 function syncViewSeg() {
   // the row says what a click would change: the selected shape's preset, else the house's
   const sz = selZone(), shown = sz != null ? presetOf(state.zoneShades[zoneKey(sz)] || colourDef(state.activeIndex) || shapeShadeDef(state.items[state.activeIndex].hex, 'none'), state.items[state.activeIndex].hex) : state.shading;
-  ctrl('seg-shading').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.v === shown; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+  syncShadingPicker(shown);
   ctrl('house-no').textContent = 'House no. ' + state.house;   // announced; the sheet's caption shows it
 }
 // Shading (Diego, Nov 18, 2026: "quando clicco shading e nulla è selezionato applica lo shading a tutte le
@@ -1919,7 +1869,7 @@ function shapeShadeDef(hex, mode) {
 function presetOf(def, hex) {
   if (!def) return null;
   const k = JSON.stringify(def);
-  return ['none'].concat(SHADE_MODES).find(m => JSON.stringify(withColour(shapeShadeDef(hex, m), hex)) === k) || null;
+  return [...ctrl('sel-shading').options].map(o => o.value).find(m => JSON.stringify(withColour(shapeShadeDef(hex, m), hex)) === k) || null;
 }
 function setShading(mode) {
   const sz = selZone();
@@ -1941,6 +1891,65 @@ function setShading(mode) {
   syncGradControls();
   renderStage();
   syncUndo();
+}
+// The Shading picker: a thumbnail dropdown (Organica.selectPicker, size 'preview'); each thumbnail is that preset
+// drawn by the tool's own renderer on the active colour (a disc, light from the top-left), lazily, then cached
+// until the colour changes.
+let shadingPicker = null, shadingThumbHex = '';
+const SHADING_HINT = {
+  none: 'No shadow', soft: 'A smooth shadow, no marks', speckle: 'Square specks', mottle: 'Specks in organic clumps',
+  'dither-fs': 'Error diffusion, even grain', 'dither-blue': 'The smoothest grain', 'dither-bayer': 'A printed cross pattern',
+  'pollen-dot': 'Dots, denser in shadow', 'pollen-stroke': 'Short strokes across the light', 'pollen-cross': 'Brush strokes, crossing as it darkens',
+  'camo-spots': 'Spots that grow into the shadow', 'camo-maze': 'A labyrinth that thickens', cells: 'Cells filling from their centre',
+};
+let thumbSeq = 0;
+function shadingThumb(mode) {
+  // drawn in a 72-unit box: at 120 a size-3 speck shrank under a pixel in a 40-px thumbnail (every type alike), at
+  // 44 the marks turned to blocks; the disc is cut by covering its outside with
+  // the paper (an even-odd frame), no <clipPath id> (the picker shows the markup twice)
+  const hex = state.items[state.activeIndex].hex, S = 72, R = 32, c = S / 2, paper = sheetTheme().paper;
+  // the thumbnail's own light: diagonal from the top-left with a wide falloff, as in the test page, so the texture shows
+  const def = mode === 'none' ? null : withColour(Object.assign(JSON.parse(JSON.stringify(shadeDefs(hex)[mode])), { light: 315, falloff: 45, amount: 90 }), hex);
+  const u = mode + '-' + (++thumbSeq);
+  const inks = def ? shapeInks(def, S, S, false).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, 'tth-' + u + '-' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('') : '';
+  const disc = `M${c - R} ${c}a${R} ${R} 0 1 0 ${2 * R} 0a${R} ${R} 0 1 0 ${-2 * R} 0Z`;
+  return `<svg viewBox="0 0 ${S} ${S}"><rect width="${S}" height="${S}" fill="${hex}"/>` +
+    `<g shape-rendering="crispEdges" fill-rule="evenodd">${inks}</g>` +
+    `<path fill="${paper}" fill-rule="evenodd" d="M0 0H${S}V${S}H0Z${disc}"/></svg>`;
+}
+function syncShadingPicker(shown) {
+  const sel = ctrl('sel-shading');
+  if (!shadingPicker) {
+    const reg = {};
+    [...sel.options].forEach(o => { reg[o.value] = { name: o.textContent, thumb: () => shadingThumb(o.value), rowHtml: esc(o.textContent) + (SHADING_HINT[o.value] ? ` <span class="pi-hint">${esc(SHADING_HINT[o.value])}</span>` : '') }; });
+    shadingPicker = Organica.selectPicker(sel, ctrl('shading-picker'), { registry: reg, size: 'preview', ariaLabel: 'Shading' });
+  }
+  const hex = state.items[state.activeIndex].hex;
+  const key = hex + '|' + document.documentElement.dataset.theme;
+  if (key !== shadingThumbHex) { shadingThumbHex = key; shadingPicker.invalidate(); }   // drawn on the active colour, on the paper of the theme
+  sel.value = shown || '';
+  shadingPicker.refresh();
+}
+// The Ink picker: a preset = a hue rule (Same · Cool · Warm · Complement · Impressionist) on the palette's tints or
+// free; each thumbnail shows what it gives the active colour — the colour, then its Halftone and Core inks.
+let inkPicker = null, inkThumbKey = '';
+function inkThumb(value) {
+  const [hue, mode] = value.split('|'), g = Object.assign({}, G(), { hue: hue, snap: mode === 'p', inkMid: null, inkCore: null });
+  const hex = g.stops[colourStop(g)], [mid, core] = shadowInks(g, hex);
+  return `<svg viewBox="0 0 30 30"><rect width="10" height="30" fill="${hex}"/><rect x="10" width="10" height="30" fill="${mid}"/><rect x="20" width="10" height="30" fill="${core}"/></svg>`;
+}
+function syncInkPicker(g) {
+  const sel = ctrl('sel-gink');
+  if (!inkPicker) {
+    const reg = {}, hint = { same: 'only darker', cool: 'toward blue-violet', warm: 'toward red-orange', complement: 'toward the opposite hue', analogous: 'the neighbouring hues', split: 'either side of the opposite', triadic: 'a third of the wheel apart', tetradic: 'a quarter of the wheel apart' };
+    [...sel.options].forEach(o => { const [h, m] = o.value.split('|'); reg[o.value] = { name: o.textContent + (m === 'p' ? ' · palette' : ''), thumb: () => inkThumb(o.value), rowHtml: esc(o.textContent) + ` <span class="pi-hint">${esc(hint[h] + (m === 'p' ? ', from the palette' : ''))}</span>` }; });
+    inkPicker = Organica.selectPicker(sel, ctrl('gink-picker'), { registry: reg, size: 'preview', ariaLabel: 'Ink' });
+  }
+  const key = g.stops[colourStop(g)] + '|' + colors().join('') + '|' + g.depth + '|' + g.shift + '|' + g.lose + '|' + g.glow;
+  if (key !== inkThumbKey) { inkThumbKey = key; inkPicker.invalidate(); }   // the swatches follow the colour, the palette and the rules
+  sel.value = g.hue + '|' + (g.snap ? 'p' : 'f');
+  if (!sel.value) sel.value = 'same|p';
+  inkPicker.refresh();
 }
 // Nothing selected: Esc, or a click on the bare sheet, lets go of the house shape (the colour stays active).
 function clearShapeSelection() {
@@ -2252,29 +2261,14 @@ initHouseCarousel();
 bindFieldEditor();
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
-ctrl('seg-shading').querySelectorAll('.seg-btn').forEach(btn => btn.addEventListener('click', () => setShading(btn.dataset.v)));
+ctrl('sel-shading').addEventListener('change', e => setShading(e.target.value));
+if (Organica.shadeMarks) Organica.shadeMarks.warm(7);   // Camo's simulations, ahead of the first pick
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || e.defaultPrevented || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
   if ([...document.querySelectorAll('[role=dialog], .org-popover')].some(d => d.offsetParent !== null)) return;   // Esc closes an open picker / popover first
   clearShapeSelection();
 });
 ctrl('stage-svg').addEventListener('click', e => { if (!e.target.closest('.bar-seg, .ts-tint, .shade-tile')) clearShapeSelection(); });
-ctrl('sel-harmony').addEventListener('change', () => { state.harmony = ctrl('sel-harmony').value; });
-ctrl('btn-generate').addEventListener('click', () => {
-  state.harmony = ctrl('sel-harmony').value;
-  pushUndo('generate');
-  applyHarmony();
-  commit(true);
-});
-// The spread slider regenerates as it moves — a slider that waited for
-// Generate would feel dead. Kept colours are untouched, as with Generate.
-ctrl('rg-spread').addEventListener('input', e => {
-  pushUndo('spread');
-  state.spread = +e.target.value;
-  ctrl('v-spread').textContent = state.spread;
-  applyHarmony();
-  commit(true);
-});
 Organica.shortcuts.add({ keys: '⌘Z', label: 'Undo', group: 'Edit' });
 ctrl('btn-undo').addEventListener('click', undo);
 document.addEventListener('keydown', e => {
