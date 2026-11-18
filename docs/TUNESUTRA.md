@@ -107,8 +107,9 @@ vector in every export:
 A colour already at 800–900 takes lighter tints instead. The panel's **Shading** row
 (None · Soft · Speckle · Stipple, default **None** — flat, as the home shows it, since Nov 18, 2026; saved with the palette as `shading`) acts on the selection (Nov 18, 2026: Diego, *quando clicco shading e nulla è selezionato applica lo shading a tutte le forme, se seleziono una forma … solo alla selezione*): **a house shape selected** → that preset becomes the shape's own (None = the shape flat), and the row shows that shape's preset; **nothing selected** (Esc or a click on the bare sheet lets go of a shape) → it puts one
 on every shape of the house — every colour's / shape's own shading forgotten, one ⌘Z step (each zone clipped to its shape, its box the shape's visible part —
-`bb` in `house.js`); under each colour's scale a row of three **tiles** shows its set, the
-one on the house outlined, a click puts that one on the house. The shape itself paints the
+`bb` in `house.js`); the row of **tiles** under each colour's scale (its set, the one on the house outlined) was
+removed Nov 18, 2026, night (Diego: *togli questi visto che li abbiamo nella dropdown specifica* — the Shadow
+dropdown's thumbnails show every preset); the sheet and its exports end at the 900 tint. The shape itself paints the
 colour; only the darker cells go on it, clipped to the shape (a house ~200–500 KB of SVG).
 Rendered once per
 colour × box and cached, so selecting or renaming does not redraw the grain.
@@ -271,8 +272,7 @@ The panel shows a control only while it changes the drawing (`gradUses()`).
 and its gradient is edited there, the house staying in view): the selected colour's shading (or the selected shape's) — the section title no longer names it
 (Diego, Nov 18, 2026: *elimina "Base, shape 1"*); the selection on the sheet says whose. The first edit turns the preset into the colour's own definition (`item.shade`,
 saved with the palette as `shades`; ⌘Z returns to the preset); its first stop is always the
-colour itself (the Flat *Colour* row went with the Gradient view). A click on one of that colour's
-tiles forgets it and puts that preset on the house. With nothing of its own the section starts from the Shading preset on the house — with Shading **None**, from **Flat** (Nov 18, 2026: Diego, *by default in gradient & grain Type is always flat*; was Soft), its second stop already the 900 so Linear / Radial blend at once. **Back to preset** became the floatbar's
+colour itself (the Flat *Colour* row went with the Gradient view). With nothing of its own the section starts from the Shading preset on the house — with Shading **None**, from **Flat** (Nov 18, 2026: Diego, *by default in gradient & grain Type is always flat*; was Soft), its second stop already the 900 so Linear / Radial blend at once. **Back to preset** became the floatbar's
 **Reset** (Nov 18, 2026: Diego, *sposta back to preset nella floatbar come se fosse un reset alla
 palette iniziale*): the palette as it was opened — colours, every shading of its own, the house —
 one ⌘Z step. No control

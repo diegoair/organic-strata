@@ -85,8 +85,6 @@
   .bar-seg { cursor: pointer; }
   .bar-seg.role-active { stroke: var(--ink); stroke-width: 3; }
   .bar-seg:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
-  .shade-tile { cursor: pointer; }
-  .shade-tile:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   #stage-svg text { pointer-events: none; }
 
   /* ── HOME — the palette library: every saved palette and built-in
@@ -674,7 +672,6 @@ function bindFieldEditor() {
 // gradient comes first and there is no example.
 const VB_W = 900, BAR_Y = 24, BAR_H = 44, BAR_X0 = 20, BAR_X1 = 880;
 const CARD_MAX_W = 150, CARD_GAP = 14, CARD_COLOUR_H = 96, CARD_H = 134, CARD_R = 14, STEP_H = 20, STEP_GAP = 2;
-const TILE_H = 34, TILE_GAP = 4;   // the shading tiles under each scale
 const TUBE_H = 10, TUBE_ROW = 40;   // the share tube over each card, and the row it takes
 const PAIR_W = 180, PAIR_H = 96, PAIR_MIN = 3, PAIR_MAX = 4;   // the contrast pairs: tile size, how many at least / at most
 
@@ -1538,20 +1535,12 @@ function buildScene(screen) {
       text(x + 8, ry + 14, stepName(st), 9, on);
       text(x + cw - 8, ry + 14, st.hex, 9, on, 'end');
     });
-    // this colour's shading set: Soft · Speckle · Print — a click puts it on the house
-    const ty = sy + 10 * (STEP_H + STEP_GAP) + 8, tw = (cw - (SHADE_MODES.length - 1) * TILE_GAP) / SHADE_MODES.length, defs = shadeDefs(hex);
-    SHADE_MODES.forEach((m, j) => {
-      const tx = x + j * (tw + TILE_GAP), d = `M${num(tx)} ${num(ty)}H${num(tx + tw)}V${num(ty + TILE_H)}H${num(tx)}Z`;
-      rect(tx, ty, tw, TILE_H, hex);   // the colour itself: the tile's cells go on it, as they go on a shape of the house
-      items.push({ t: 'shade', d: d, tf: { x: 0, y: 0, s: 1 }, box: [tx, ty, tw, TILE_H], def: defs[m], tile: m, ci: i, active: m === state.shading && !state.items[i].shade,
-        title: `${dispName(i)}, ${SHADE_NAME[m]} shading${m === state.shading ? ' (on the house)' : ''}` });
-      text(tx, ty + TILE_H + 12, SHADE_NAME[m], 9, m === state.shading ? T.ink : T.mid);
-    });
+    // (the Soft · Speckle tiles under each scale went, Nov 18, 2026, night — Diego: the Shadow dropdown has them)
   });
   // The + card: after the last card, on screen only. The cards keep the export's places; at 4 colours
   // the + card is narrower, to stay on the sheet.
   if (screen && n < COUNT_MAX) { const ax = cx0 + n * (cw + CARD_GAP); addAt = [ax, y, Math.min(cw, BAR_X1 - ax), CARD_H]; }
-  y += CARD_H + 12 + 10 * (STEP_H + STEP_GAP) + 8 + TILE_H + 16 + 30;
+  y += CARD_H + 12 + 10 * (STEP_H + STEP_GAP) + 30;
 
   // Contrast — only the pairs that work best (Diego, Nov 18, 2026: "una versione molto più semplice,
   // mostriamo solo quelli che funzionano meglio come coppia" · "mostra sempre come minimo 3
@@ -1598,13 +1587,9 @@ function sceneMarkup(scene, interactive) {
       // clipped to its shape: Screen a raster (×2 in a file), Print the plates' vector cells
       const id = (interactive ? 'ts-sh' : 'ts-shx') + (clipN++), [bx, by, bw, bh] = it.box;
       const clip = `<clipPath id="${id}"><path d="${it.d}" transform="translate(${num(it.tf.x)},${num(it.tf.y)}) scale(${it.tf.s})"/></clipPath>`;
-      const tile = interactive && it.tile ? ` class="shade-tile${it.active ? ' is-on' : ''}" data-mode="${it.tile}" data-ci="${it.ci}" tabindex="0" role="button" aria-pressed="${it.active}" aria-label="${esc(it.title)}"` : ' pointer-events="none"';
-      const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
-      const ring = it.tile && it.active ? `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" fill="none" stroke="${sheetTheme().ink}" stroke-width="2" pointer-events="none"/>` : '';
-      // the shape (or the tile's rect) already paints the first ink: only the other inks' cells go on it
+      // the shape already paints the first ink: only the other inks' cells go on it
       const cells = shapeInks(it.def, bw, bh, it.all).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, id + 'g' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('');
-      const hit = it.tile ? `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" fill="none" pointer-events="all"/>` : '';
-      return `${clip}<g clip-path="url(#${id})"${tile}>${title}${hit}<g transform="translate(${num(bx)},${num(by)})" shape-rendering="crispEdges" fill-rule="evenodd">${cells}</g></g>${ring}`;
+      return `${clip}<g clip-path="url(#${id})" pointer-events="none"><g transform="translate(${num(bx)},${num(by)})" shape-rendering="crispEdges" fill-rule="evenodd">${cells}</g></g>`;
     }
     if (it.t === 'text') {
       return `<text x="${num(it.x)}" y="${num(it.y)}" font-family="${font}" font-size="${it.size}" fill="${it.fill}"${it.anchor !== 'start' ? ` text-anchor="${it.anchor}"` : ''}${interactive && it.pourText != null ? ` data-pour-text="${it.pourText}"` : ''}>${esc(it.s)}</text>`;
@@ -1635,7 +1620,6 @@ function drawScene(scene, c, scale) {
       c.translate(it.tf.x, it.tf.y); c.scale(it.tf.s, it.tf.s); c.clip(new Path2D(it.d)); c.scale(1 / it.tf.s, 1 / it.tf.s); c.translate(-it.tf.x, -it.tf.y);
       c.translate(bx, by); drawPlates(c, shapeInks(it.def, bw, bh, it.all));
       c.restore();
-      if (it.tile && it.active) { c.strokeStyle = sheetTheme().ink; c.lineWidth = 2; c.strokeRect(bx, by, bw, bh); }
       return;
     }
     if (it.screenOnly) return;
@@ -1694,15 +1678,6 @@ function renderStage() {
   const checkers = colors().map((hex, i) => { const sc = tokenScale(hex);
     return `<pattern id="ts-checker-${i}" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="${sc[0].hex}"/><path d="M0 0h2v2H0zM2 2h2v2H2z" fill="${sc[2].hex}"/></pattern>`; }).join('');
   svg.innerHTML = `<defs>${checkers}</defs>` + sceneMarkup(scene, true);
-  svg.querySelectorAll('.shade-tile').forEach(el => {
-    const act = () => {
-      const i = +el.dataset.ci;
-      if (state.items[i]) { pushUndo('shading'); clearColourShades(i); }
-      if (el.dataset.mode === state.shading) { syncGradControls(); renderStage(); syncUndo(); } else setShading(el.dataset.mode);
-    };
-    el.addEventListener('click', act);
-    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
-  });
   placeSheetCtrls(scene, svg);
   svg.querySelectorAll('.ts-tint').forEach(el => {
     el.addEventListener('click', () => selectTint(+el.dataset.i, +el.dataset.t));
@@ -2268,7 +2243,7 @@ document.addEventListener('keydown', e => {
   if ([...document.querySelectorAll('[role=dialog], .org-popover')].some(d => d.offsetParent !== null)) return;   // Esc closes an open picker / popover first
   clearShapeSelection();
 });
-ctrl('stage-svg').addEventListener('click', e => { if (!e.target.closest('.bar-seg, .ts-tint, .shade-tile')) clearShapeSelection(); });
+ctrl('stage-svg').addEventListener('click', e => { if (!e.target.closest('.bar-seg, .ts-tint')) clearShapeSelection(); });
 Organica.shortcuts.add({ keys: '⌘Z', label: 'Undo', group: 'Edit' });
 ctrl('btn-undo').addEventListener('click', undo);
 document.addEventListener('keydown', e => {
