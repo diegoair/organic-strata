@@ -51,7 +51,9 @@
   .ts-add__name { font-family: var(--font-display); font-size: var(--fs-small); }
   /* the remove button sits on the colour itself: a paper chip, so it reads on any colour (a bare
      ink icon vanished on dark colours — Diego, Nov 18, 2026) */
-  .ts-remove { background: var(--paper); border: 1px solid var(--border-strong); color: var(--ink); }
+  .ts-remove { background: var(--paper); border: 1px solid var(--border-strong); color: var(--ink); opacity: 0; transition: opacity var(--dur-fast) var(--ease-standard); }
+  .ts-remove.is-shown, .ts-remove:hover, .ts-remove:focus-visible { opacity: 1; }
+  @media (hover: none) { .ts-remove { opacity: 1; } }
   @media (hover: hover) { .ts-remove:hover { border-color: var(--ink); } }
   /* the Colour section, right of the Contrast pairs: drawn at the sheet's own scale (renderStage) */
   .ts-colour-dock { position: absolute; transform-origin: 0 0; }   /* the six value tiles alone (Diego, Nov 18, 2026: "leave only the 6 boxes") */
@@ -195,8 +197,8 @@
         <span class="ctrl-label">Harmony</span>
         <select class="panel-select" id="sel-harmony" aria-label="Harmony algorithm">
           <option value="monochromatic">Monochromatic</option>
-          <option value="analogous" selected>Analogous</option>
-          <option value="complementary">Complementary</option>
+          <option value="analogous">Analogous</option>
+          <option value="complementary" selected>Complementary</option>
           <option value="splitComplementary">Split-complementary</option>
           <option value="triadic">Triadic</option>
           <option value="tetradic">Tetradic (square)</option>
@@ -452,7 +454,7 @@ const ROLE_SETS = {
 const stepName = st => st.step || 50;
 const DISTINCT_MIN = C.DISTINCT_MIN;   // OKLab ΔE×100 — below this two swatches read as one colour at a glance
 const state = {
-  harmony: 'analogous',
+  harmony: 'complementary',   // the default rule (Diego, Nov 18, 2026; was Analogous)
   spread: 0,          // lightness spread, in OKLCH L points (0–30)
   activeIndex: 0,
   view: 'garment',    // the house + the share tubes; 'gradient' (a view off it) was removed Nov 18, 2026 — read as 'garment'
@@ -1417,7 +1419,8 @@ function buildScene(screen) {
       rect(x, tubeY + 16, cw, TUBE_H, T.panel, { r: TUBE_H / 2, title: `${dispName(i)}, ${w.toFixed(1)}% of the house` });   // the title on the track: the fill is 0 wide mid-pour
       rect(x, tubeY + 16, cw * w / 100, TUBE_H, hex, Object.assign({ r: TUBE_H / 2, pour: w }, paleOnPaper(hex) ? { stroke: T.border, sw: 1 } : null));
     }
-    if (i >= COUNT_MIN) removeAt.push({ i: i, x: x + cw - 8, y: y + 8 });   // its top-right corner
+    // every card can go while there are more than 3 (Diego, Nov 18, 2026); the button at its top-right corner, `box` its hover area
+    if (n > COUNT_MIN) removeAt.push({ i: i, x: x + cw - 8, y: y + 8, box: [x, y, cw, CARD_H] });
     text(x + 12, y + CARD_COLOUR_H + 16, fit(dispName(i), cw - 24, 11), 11, T.ink);
     text(x + 12, y + CARD_COLOUR_H + 29, hex, 10, T.mid);
     const sy = y + CARD_H + 12;
@@ -1679,8 +1682,25 @@ function placeSheetCtrls(scene, svg) {
     b.addEventListener('click', () => removeColour(r.i));
     at(b, r.x, r.y);
     b.style.transform = 'translateX(-100%)';
+    b.dataset.box = r.box.join(',');
+    b.addEventListener('pointerleave', () => b.classList.remove('is-shown'));   // back on the card, the sheet's pointermove shows it again
     box.appendChild(b);
   });
+  // The remove button shows only while the pointer is over its card (Diego, Nov 18, 2026: "la X per
+  // eliminarlo solo al mouse over") — or it has the keyboard focus; on a touch screen it always shows (CSS).
+  if (!svg.dataset.hoverBound) {
+    svg.dataset.hoverBound = '1';
+    const show = e => {
+      const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, k = vb.width / r.width;
+      const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
+      ctrl('sheet-ctrls').querySelectorAll('.ts-remove').forEach(b => {
+        const [bx, by, bw, bh] = b.dataset.box.split(',').map(Number);
+        b.classList.toggle('is-shown', e.type !== 'pointerleave' && x >= bx && x <= bx + bw && y >= by && y <= by + bh);
+      });
+    };
+    svg.addEventListener('pointermove', show);
+    svg.addEventListener('pointerleave', e => { if (!(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.ts-remove'))) show(e); });
+  }
   const want = ctrlFocus || had;
   ctrlFocus = null;
   if (want) {
@@ -1746,19 +1766,23 @@ function addColour() {
   pourNext = true;
   pushUndo('count');
   state.zone = null;
-  state.items.push(makeItem(nextColour(), count()));
+  state.items.push(makeItem(nextColour()));
+  // the new colour follows the harmony rule (Diego, Nov 18, 2026) — what Generate would put in its place;
+  // the colours already there stay as they are. Already in the palette → the next tint of the last one.
+  const gen = generateHarmony()[count() - 1];
+  if (gen && colors().slice(0, -1).indexOf(gen) < 0) state.items[count() - 1].hex = gen;
   state.activeIndex = count() - 1;
   tintSel = null;
   ctrlFocus = count() < COUNT_MAX ? 'add' : 'card' + (count() - 1);   // the keyboard stays where it was
   commit(true);
 }
 function removeColour(i) {
-  if (count() <= COUNT_MIN || i < COUNT_MIN || i >= count()) return;
+  if (count() <= COUNT_MIN || i < 0 || i >= count()) return;
   pourNext = true;
   pushUndo('count');
   state.zone = null;
   state.items.splice(i, 1);
-  ctrlFocus = i - 1 >= COUNT_MIN ? 'rm' + (i - 1) : 'add';
+  ctrlFocus = count() > COUNT_MIN ? 'rm' + Math.min(i, count() - 1) : 'add';   // the next card's remove, or the + card
   state.activeIndex = clamp(state.activeIndex >= i ? state.activeIndex - 1 : state.activeIndex, 0, count() - 1);
   tintSel = null;
   commit(true);
@@ -1878,7 +1902,7 @@ function loadPaletteData(p) {
     shade: p.shades && p.shades[i] ? normalizeGrad(p.shades[i]) : undefined,
   }));
   state.items.forEach(it => { if (!it.shade) delete it.shade; });
-  state.harmony = p.harmony || 'analogous';
+  state.harmony = p.harmony || 'complementary';
   state.spread = p.spread || 0;
   state.activeIndex = 0;
   state.view = 'garment';   // every palette opens on its house + bar (a 'bar' saved before Nov 18 too)

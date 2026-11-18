@@ -55,8 +55,7 @@ in-app photo reader.
 - **Add / remove a colour on the sheet** (Nov 18, 2026: Diego, *togliere Colours 3 4 5 dalla barra
   di destra … un più su una scheda vuota che può generare al massimo altre 2 schede*). After the
   last card a dashed **+ card** — *Add a colour*, *2 left* / *1 left* — adds the next colour
-  (`nextColour()`), up to 5; a card past the third has a **remove** button (close icon on a paper chip, so it reads on any
-  colour; *Remove ‹name›*). Both are HTML laid over the sheet (`#sheet-ctrls`), never in an export; the cards keep
+  — **following the Harmony rule** (Nov 18, 2026: Diego, *il nuovo colore segue la regola dell'harmony, di default è complementary*): the colour Generate would put in that place, the others untouched (a duplicate falls back to the next tint, `nextColour()`) — up to 5; **every card has a remove button while there are more than 3** (Nov 18, 2026: Diego, *ogni colore card si può eliminare fino a rimanere 3*) — a close icon on a paper chip, *Remove ‹name›*, shown **only while the pointer is over that card** (*la X per eliminarlo solo al mouse over*), or when it has the keyboard focus; always on a touch screen. Removing the Base makes the next colour the base. Both are HTML laid over the sheet (`#sheet-ctrls`), never in an export; the cards keep
   the export's places, the + card narrower at 4 colours to stay on the sheet. ⌘Z undoes both. The
   panel's Colours 3 · 4 · 5 and its colour chips are gone.
 - **Select a colour** by clicking its card on the sheet (or a house shape); a card click also
@@ -66,6 +65,7 @@ in-app photo reader.
   OKLCH, so every generated colour has the seed's perceived lightness and as
   much of its chroma as that hue can hold. Pressing Generate twice gives the
   same set.
+  - The default rule is **Complementary** (Nov 18, 2026; was Analogous); a saved palette keeps its own.
   - Analogous fans out ±15° per step either side of the seed.
   - Complementary / Split / Triadic / Tetradic have 2–4 hues of their own;
     extra colours reuse those hues at further steps of their scale.
