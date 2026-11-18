@@ -201,7 +201,6 @@
          gradient, cosa è per grain, e cosa è shadow"; mockup A). One definition (G()) behind all three. -->
     <div class="panel-section">
       <h3>Gradient</h3>
-      <p class="org-panel__hint">How the colour fills each shape.</p>
       <div class="sub-label">Type</div>
       <div class="ctrl-row">
         <div class="seg-ctrl" id="seg-gtype" role="group" aria-label="Type">
@@ -285,7 +284,6 @@
         </div>
         <div class="color-row"><span class="color-name">Halftone</span><button class="color-swatch" id="sw-gmid" aria-label="Halftone ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gmid"></span></div>
         <div class="color-row"><span class="color-name">Core</span><button class="color-swatch" id="sw-gcore" aria-label="Core ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gcore"></span></div>
-        <div class="row-btns"><button class="mini-btn" id="btn-ginks-auto" hidden title="Forget the hand-picked inks: they are made from the preset again">Reset inks</button></div>
         <div class="ctrl-row" id="row-gdepth">
           <div class="ctrl-label" title="How dark the core shadow gets.">Depth</div>
           <input type="range" id="rg-gdepth" min="10" max="90" step="1" value="35">
@@ -862,7 +860,7 @@ const towardHue = (h, t, k) => h + ((((t - h) % 360) + 540) % 360 - 180) * k;
 function paletteTints() { return [].concat.apply([], state.items.map(it => tokenScale(it.hex).map(st => st.hex))); }
 function ruleInk(g, hex, s) {
   const O = C.hexToOklch(hex), grey = O.c < 0.02, k = s * g.shift / 100;
-  let L = O.l - s * g.depth / 100, c = O.c, h = O.h;
+  let L = O.l * (1 - s * g.depth / 100), c = O.c, h = O.h;   // Depth = the share of the colour's lightness lost at the core (was subtracted outright: a mid colour went black, Nov 18, 2026)
   if (g.hue === 'cool' || g.hue === 'warm') { const t = SHADOW_HUE[g.hue]; h = grey ? t : towardHue(O.h, t, k); if (grey) c = 0.05 * k; }
   else if (g.hue === 'complement') { h = (grey ? 105 : O.h) + 180 * k; if (grey) c = 0.04 * k; }
   else if (HARMONY_INK[g.hue]) { h = (grey ? 105 : O.h) + HARMONY_INK[g.hue][s < 1 ? 0 : 1] * g.shift / 100; if (grey) c = 0.05 * g.shift / 100; }   // the palette's harmony rules, one hue per ink
@@ -875,7 +873,7 @@ function ruleInk(g, hex, s) {
 function shadowInks(g, hex) {
   const want = [g.inkMid || ruleInk(g, hex, 0.5), g.inkCore || ruleInk(g, hex, 1)];
   if (!g.snap) return want;
-  const pool = paletteTints().filter(t => C.deltaE(t, hex) >= 4);   // never the colour itself: the shadow would vanish
+  const pool = (g.hue === 'same' ? tokenScale(hex).map(st => st.hex) : paletteTints()).filter(t => C.deltaE(t, hex) >= 4);   // Same: the colour's own tints only; never the colour itself: the shadow would vanish
   const near = (x, not) => pool.filter(t => t !== not).reduce((b, t) => C.deltaE(t, x) < C.deltaE(b, x) ? t : b, pool[0] || x);
   const mid = g.inkMid || near(want[0]), core = g.inkCore || near(want[1], mid);   // the core never the halftone's tint
   return [mid, core];
@@ -1161,8 +1159,7 @@ function syncGradControls() {
   const inks = shadowInks(g, g.stops[colourStop(g)]);
   ctrl('sw-gmid').style.background = inks[0]; ctrl('v-gmid').textContent = inks[0];
   ctrl('sw-gcore').style.background = inks[1]; ctrl('v-gcore').textContent = inks[1];
-  ctrl('btn-ginks-auto').hidden = !g.inkMid && !g.inkCore;
-  ctrl('row-gshift').hidden = g.hue === 'same' || (!!g.inkMid && !!g.inkCore);   // Same keeps the hue; hand-picked inks ignore the rule
+  ctrl('row-gshift').hidden = g.hue === 'same' || g.snap || (!!g.inkMid && !!g.inkCore);   // Same keeps the hue; on the palette the inks snap to its tints, so Shift could only jump between them (often not at all); hand-picked inks ignore the rule
   ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle + '°';
   ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
   ctrl('rg-gspeck').value = g.speck; ctrl('v-gspeck').textContent = g.speck;
@@ -1381,7 +1378,6 @@ function initGradient() {
     Organica.colorPicker.open(ctrl(id), { value: shadowInks(g0, g0.stops[colourStop(g0)])[k], label: label,
       onInput: hex => { const g = G(); if (g[key] === hex) return; pushUndo('grad'); g[key] = hex; gradChanged(); } });
   }));
-  ctrl('btn-ginks-auto').addEventListener('click', () => { pushUndo('grad-inks'); const g = G(); g.inkMid = null; g.inkCore = null; gradChanged(); });
   bindStopBar();
   const segBind = (id, key) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
     if (G()[key] === b.dataset.v) return;
@@ -1390,8 +1386,8 @@ function initGradient() {
   segBind('seg-gtype', 'type');
   ctrl('sel-gink').addEventListener('change', e => {
     const [hue, mode] = e.target.value.split('|'), g = G();
-    if (g.hue === hue && !!g.snap === (mode === 'p')) return;
-    pushUndo('grad-ink'); g.hue = hue; g.snap = mode === 'p'; gradChanged();
+    if (g.hue === hue && !!g.snap === (mode === 'p') && !g.inkMid && !g.inkCore) return;
+    pushUndo('grad-ink'); g.hue = hue; g.snap = mode === 'p'; g.inkMid = null; g.inkCore = null; gradChanged();   // an Ink preset replaces hand-picked inks (Reset inks removed, Nov 18, 2026)
   });
   [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gspeck', 'speck'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff'], ['rg-gshift', 'shift'], ['rg-gdepth', 'depth']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
     pushUndo('grad'); G()[key] = +e.target.value; gradChanged();
@@ -1843,8 +1839,14 @@ function shapeShadeDef(hex, mode) {
 // The preset a definition is (for the Shading row's state on a selected shape), or null.
 function presetOf(def, hex) {
   if (!def) return null;
-  const k = JSON.stringify(def);
-  return [...ctrl('sel-shading').options].map(o => o.value).find(m => JSON.stringify(withColour(shapeShadeDef(hex, m), hex)) === k) || null;
+  const k = JSON.stringify(def), modes = [...ctrl('sel-shading').options].map(o => o.value);
+  const exact = modes.find(m => JSON.stringify(withColour(shapeShadeDef(hex, m), hex)) === k);
+  if (exact) return exact;
+  // edited since (Ink, Amount …): still that type of shadow — the menu names the type, not the exact settings
+  // (debug Nov 18, 2026: Diego, "quando clicco Ink, Shadow scompare" — the menu went blank on a selected shape)
+  if (!hasNoise(def)) return 'none';
+  const type = def.specks === 'smooth' ? 'soft' : def.specks === 'specks' ? 'speckle' : def.specks;
+  return modes.indexOf(type) >= 0 ? type : null;
 }
 function setShading(mode) {
   const sz = selZone();
