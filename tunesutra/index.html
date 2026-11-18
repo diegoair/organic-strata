@@ -992,12 +992,15 @@ const MIN_CELL = 1;
 const SHADOW_CELL = 2;
 function smoothGrad(g) { return g.size === 0 && g.type !== 'flat' && gradStops(g).length > 1; }
 // The smooth fill's stops, sampled in OKLab (16 sub-stops a span, as the stop bar) — for SVG and canvas alike.
+// [at, hex, opacity]: the paper stop is the last ink fading out (transparent, not white).
 function smoothStops(g) {
   const stops = gradStops(g), out = [];
   stops.forEach((st, i) => {
-    out.push([st.at, st.hex]);
+    if (st.paper) { out.push([st.at, stops[i - 1] ? stops[i - 1].hex : st.hex, 0]); return; }
+    out.push([st.at, st.hex, 1]);
     if (i === stops.length - 1) return;
-    for (let k = 1; k < 16; k++) out.push([st.at + (stops[i + 1].at - st.at) * k / 16, C.mixIn('oklab', st.hex, stops[i + 1].hex, k / 16)]);
+    const nx = stops[i + 1];
+    for (let k = 1; k < 16; k++) out.push([st.at + (nx.at - st.at) * k / 16, nx.paper ? st.hex : C.mixIn('oklab', st.hex, nx.hex, k / 16), nx.paper ? 1 - k / 16 : 1]);
   });
   return out;
 }
@@ -1073,26 +1076,20 @@ function smoothPlates(g, w, h) {
 }
 // A smooth plate as SVG: its gradient (user space of the box) and the box filled with it.
 function smoothMarkup(pl, id) {
-  const sp = pl.smooth, g = sp.geom, st = sp.stops.map(([at, hex]) => `<stop offset="${num(clamp(at, 0, 1))}" stop-color="${hex}"/>`).join('');
+  const sp = pl.smooth, g = sp.geom, st = sp.stops.map(([at, hex, op]) => `<stop offset="${num(clamp(at, 0, 1))}" stop-color="${hex}"${op < 1 ? ` stop-opacity="${num(op)}"` : ''}/>`).join('');
   const def = g.radial ? `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${num(g.cx)}" cy="${num(g.cy)}" r="${num(g.r)}">${st}</radialGradient>`
     : `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${num(g.x1)}" y1="${num(g.y1)}" x2="${num(g.x2)}" y2="${num(g.y2)}">${st}</linearGradient>`;
   return `<defs>${def}</defs><path fill="url(#${id})" d="${pl.d}"/>`;
 }
 function smoothFill(c, pl) {
   const g = pl.smooth.geom, gr = g.radial ? c.createRadialGradient(g.cx, g.cy, 0, g.cx, g.cy, g.r) : c.createLinearGradient(g.x1, g.y1, g.x2, g.y2);
-  pl.smooth.stops.forEach(([at, hex]) => gr.addColorStop(clamp(at, 0, 1), hex));
+  pl.smooth.stops.forEach(([at, hex, op]) => { const v = Organica.hexToRGB255(hex); gr.addColorStop(clamp(at, 0, 1), op < 1 ? `rgba(${v[0]},${v[1]},${v[2]},${num(op)})` : hex); });
   return gr;
 }
 function circleD(x, y, r) { return `M${num(x - r)} ${num(y)}a${num(r)} ${num(r)} 0 1 0 ${num(2 * r)} 0a${num(r)} ${num(r)} 0 1 0 ${num(-2 * r)} 0Z`; }
 // The stop bar's preview: a smooth CSS gradient sampled in OKLab (16 sub-stops a span).
-function vectorStops() {
-  const stops = gradStops(), out = [];
-  stops.forEach((s, i) => {
-    out.push([s.at, s.hex]);
-    if (i === stops.length - 1) return;
-    for (let k = 1; k < 16; k++) out.push([s.at + (stops[i + 1].at - s.at) * k / 16, C.mixIn('oklab', s.hex, stops[i + 1].hex, k / 16)]);
-  });
-  return out;
+function vectorStops() {   // the paper as the last ink fading out, as on the sheet (#rrggbbaa)
+  return smoothStops(G()).map(([at, hex, op]) => [at, op < 1 ? hex + Math.round(op * 255).toString(16).padStart(2, '0') : hex]);
 }
 function drawPlates(c, plates) { plates.forEach(p => { if (!p.d) return; c.fillStyle = p.smooth ? smoothFill(c, p) : p.hex; c.fill(new Path2D(p.d), 'evenodd'); }); }
 
@@ -1123,10 +1120,13 @@ function selZone() {
 // "quando clicco reverse, deve mantenere i color scelti").
 // The inks drawn over a shape: its first stop's ink is the shape's own fill, unless Reverse made the first
 // stop another colour — then that ink is drawn too.
-function shapeInks(def, w, h) {
+// all: the shape has no fill of its own (fading to paper) — every ink is drawn, and the paper never (it is the empty part)
+function shapeInks(def, w, h, all) {
   const plates = shadePlates(def, w, h), own = String(def.stops[colourStop(def)]).toLowerCase();
+  if (all) return plates.filter(pl => !pl.paper);
   return plates.filter((pl, pi) => pi > 0 || String(pl.hex).toLowerCase() !== own);
 }
+function fadesToPaper(def) { return !!def.paper && def.type !== 'flat'; }
 function colourStop(def) { const i = def.colourAt | 0; return i >= 0 && i < def.stops.length ? i : 0; }
 function withColour(def, hex) {
   if (def.stops.length < 2) { def.colourAt = 0; def.stops = [hex, shadeDefs(hex).soft.stops[1]]; return def; }
@@ -1519,16 +1519,18 @@ function buildScene(screen) {
       const k = FIG_H / fig.h, fx = (VB_W - fig.w * k) / 2, shares = fig.shares;
       fig.zones.forEach((z, zi) => {
         const r = z.role, pale = n < 5 && paleOnPaper(cols[r]);   // 5 colours: the background frames the house
+        // Fade to paper ends TRANSPARENT (Diego, Nov 18, 2026: "dovrebbe essere sul trasparente non bianco"): the
+        // shape then has no solid fill under it — its inks are all drawn, the paper's share left empty.
+        const def = z.bb && houseDef(r, zi), clear = !!def && fadesToPaper(def);
         // No outline between zones (Diego, Nov 17, 2026) — only a near-white zone keeps a hairline, or it vanishes on the paper.
         items.push(Object.assign({
-          t: 'path', d: z.d, tf: { x: fx, y: y, s: k }, fill: cols[r], zone: zi,
+          t: 'path', d: z.d, tf: { x: fx, y: y, s: k }, fill: clear ? 'none' : cols[r], hit: clear, zone: zi,
           role: r, quiet: true, title: `${dispName(r)}, shape ${zi + 1}, ${shares[r].toFixed(1)}% of the house, ${cols[r]}`,
         }, pale ? { stroke: T.border, sw: 1.125 / k } : null));
         // its shadow noise, in the shape's own box (the zone path above stays for the click and the hairline)
-        const def = z.bb && houseDef(r, zi);
         if (def) {
           const bx = fx + z.bb[0] * k, by = y + z.bb[1] * k;
-          items.push({ t: 'shade', d: z.d, tf: { x: fx, y: y, s: k }, box: [bx, by, (z.bb[2] - z.bb[0]) * k, (z.bb[3] - z.bb[1]) * k], def: def });
+          items.push({ t: 'shade', d: z.d, tf: { x: fx, y: y, s: k }, box: [bx, by, (z.bb[2] - z.bb[0]) * k, (z.bb[3] - z.bb[1]) * k], def: def, all: clear });
         }
       });
       // the selected shape, outlined on screen only (never in an export)
@@ -1644,7 +1646,7 @@ function sceneMarkup(scene, interactive) {
       const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
       const ring = it.tile && it.active ? `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" fill="none" stroke="${sheetTheme().ink}" stroke-width="2" pointer-events="none"/>` : '';
       // the shape (or the tile's rect) already paints the first ink: only the other inks' cells go on it
-      const cells = shapeInks(it.def, bw, bh).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, id + 'g' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('');
+      const cells = shapeInks(it.def, bw, bh, it.all).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, id + 'g' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('');
       const hit = it.tile ? `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" fill="none" pointer-events="all"/>` : '';
       return `${clip}<g clip-path="url(#${id})"${tile}>${title}${hit}<g transform="translate(${num(bx)},${num(by)})" shape-rendering="crispEdges" fill-rule="evenodd">${cells}</g></g>${ring}`;
     }
@@ -1661,7 +1663,7 @@ function sceneMarkup(scene, interactive) {
     const live = interactive && it.role != null, active = it.role === state.activeIndex && !it.quiet;
     const attrs = `fill="${it.fill}"` + (it.stroke ? ` stroke="${it.stroke}" stroke-width="${it.sw}"` : '') + (it.dash ? ` stroke-dasharray="${it.dash.map(num).join(' ')}"` : '') +
       (live ? ` class="bar-seg${active ? ' role-active' : ''}" data-i="${it.role}"${it.zone != null ? ` data-z="${it.zone}"` : ''} tabindex="0" role="button" aria-pressed="${it.zone != null ? String(it.zone === selZone()) : active}"` : '') +
-      (it.screenOnly ? ' pointer-events="none"' : '');
+      (it.screenOnly ? ' pointer-events="none"' : it.hit && interactive ? ' pointer-events="all"' : '');   // a shape with no fill still takes the click
     const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
     if (it.t === 'path') return `<path d="${it.d}" transform="translate(${num(it.tf.x)},${num(it.tf.y)}) scale(${it.tf.s})" ${attrs}>${title}</path>`;
     const pourAttr = interactive && it.pour != null ? ` data-pour="${num(it.w)}"` : '';
@@ -1676,7 +1678,7 @@ function drawScene(scene, c, scale) {
       const [bx, by, bw, bh] = it.box;
       c.save();
       c.translate(it.tf.x, it.tf.y); c.scale(it.tf.s, it.tf.s); c.clip(new Path2D(it.d)); c.scale(1 / it.tf.s, 1 / it.tf.s); c.translate(-it.tf.x, -it.tf.y);
-      c.translate(bx, by); drawPlates(c, shapeInks(it.def, bw, bh));
+      c.translate(bx, by); drawPlates(c, shapeInks(it.def, bw, bh, it.all));
       c.restore();
       if (it.tile && it.active) { c.strokeStyle = sheetTheme().ink; c.lineWidth = 2; c.strokeRect(bx, by, bw, bh); }
       return;

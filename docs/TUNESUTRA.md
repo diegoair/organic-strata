@@ -227,7 +227,10 @@ file), while the plates keep the exact partition.
 - **Reverse** flips the stops and their positions, **keeping every colour** (Nov 18, 2026: Diego, *quando clicco reverse, deve mantenere i color scelti*): the stop that is the colour itself moves with it (`colourAt`) instead of being forced back to first; Flat and the drawing follow it. Until a stop is chosen by hand (picker, add, remove — `auto2`), the other stop of two stays the colour's **900** and follows a colour change. Fade to paper sits a `--space-3` below the buttons; **Space evenly** forgets
   the positions.
 - **Fade to paper** adds the paper as the last stop: the last ink thins out to
-  bare paper, and the paper gets no plate.
+  bare paper, and the paper gets no plate. **The paper is transparent, not white** (Nov 18, 2026: Diego, *dovrebbe essere
+  sul trasparente non bianco*): a shape fading to paper has no solid fill under it — every ink is drawn, the paper's share
+  left empty (cells: no paper cells drawn; smooth: the last ink with `stop-opacity` → 0; the stop bar shows it fading out).
+  The shape keeps its click (`pointer-events: all`).
 - **Grain size** — one cell, in sheet units, **0**–12 (step 0.5); **hidden on Flat** (Nov 18, 2026: Diego, *when Gradient & grain is on flat Grain size is hidden* — a Flat shadow keeps the size it has, 2 for Speckle, 3 for Stipple). **0 = no grain, the default
   for a gradient** (Nov 18, 2026: Diego, *quando lavoro su un gradient c'è solo il gradient senza
   necessariamente il grain … se non modificato è 0 di default*): the blend is a smooth vector
