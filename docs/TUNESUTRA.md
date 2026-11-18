@@ -40,11 +40,18 @@ in-app photo reader.
 
 ## 1. The palette
 
-- **Colours** 3–7. Each colour is an item `{ id, name, hex, lock }`. The `id` is
+- **Colours** 3–5 (6–7 only in palettes saved before). Each colour is an item `{ id, name, hex, lock }`. The `id` is
   stable for the colour's life; the **name** is what the token key is built
   from (`Warm Clay` → `warm-clay`; a repeated name gets `-2`, `-3`).
-- **Select a colour** by clicking its card on the sheet (or a bar segment / garment zone).
-  The chips in the panel open the system colour picker directly.
+- **Add / remove a colour on the sheet** (Nov 18, 2026: Diego, *togliere Colours 3 4 5 dalla barra
+  di destra … un più su una scheda vuota che può generare al massimo altre 2 schede*). After the
+  last card a dashed **+ card** — *Add a colour*, *2 left* / *1 left* — adds the next colour
+  (`nextColour()`), up to 5; a card past the third has a **remove** button (close icon, *Remove
+  ‹name›*). Both are HTML laid over the sheet (`#sheet-ctrls`), never in an export; the cards keep
+  the export's places, the + card narrower at 4 colours to stay on the sheet. ⌘Z undoes both. The
+  panel's Colours 3 · 4 · 5 and its colour chips are gone.
+- **Select a colour** by clicking its card on the sheet (or a house shape); a card click also
+  opens the picker.
 - **Harmony** + **Generate** rebuild every colour except the first and any
   marked **Keep on Generate**. The first colour is the seed. Hue is rotated in
   OKLCH, so every generated colour has the seed's perceived lightness and as
@@ -59,7 +66,7 @@ in-app photo reader.
   balanced, but with almost no contrast between them (the contrast pairs show
   it). It regenerates as you drag.
 - **Undo** (button or ⌘Z) covers every change, including gradient settings.
-- The hint under the chips names any two colours closer than ΔE 6 (OKLab ×100)
+- The hint at the foot of the Palette section names any two colours closer than ΔE 6 (OKLab ×100)
   — too close to tell apart at a glance.
 
 ## 2. The sheet
@@ -80,8 +87,9 @@ colori come se fosse un istogramma* — mockups on the design canvas, his pick
 *3 · Thin tube*). On screen the tubes **pour like a liquid** when a palette
 opens or the colour count changes: a damped spring (overshoots, settles), one
 tube after another, the number counting up — never on a colour edit, not with
-reduced motion, never in an export (the SVG/PNG get them full). The View section keeps only
-**Gradient**, one toggle button (`org-btn`, `aria-pressed`): pressed again, the sheet goes back to the house. A palette saved
+reduced motion, never in an export (the SVG/PNG get them full). The **Gradient view was removed** (Nov 18, 2026,
+Diego: *elimina view gradient*) with its Gradient-only exports; a palette saved on it opens on the
+house (`view` is read as `garment`; `state.grad` is still saved, unused). A palette saved
 with 6–7 colours shows the tubes alone.
 
 **Shading — each colour's shadow noise** (Nov 18, 2026; Diego: *per ogni palette … per ogni
@@ -103,15 +111,20 @@ one on the house outlined, a click puts that one on the house. The shape itself 
 colour; only the darker cells go on it, clipped to the shape (a house ~200–500 KB of SVG).
 Rendered once per
 colour × box and cached, so selecting or renaming does not redraw the grain.
-In the *Gradient* view the gradient comes first and there is no example. Then:
+Then:
 
 1. **Colour cards** — one rounded card per colour: the colour, its name and
-   hex. Click a card to select that colour.
+   hex. Click a card to select that colour (and open the picker).
 2. **Scales** — under each card, that colour's ten steps, 0–900. Every step
    sits at a fixed perceived lightness (`Organica.color.SCALE_L`), so step 500
    is the same lightness for every colour. The picked colour is kept unchanged
    on its nearest step (outlined). Chroma keeps the pick's share of the gamut at
    each lightness and never exceeds the pick's own.
+   **The tints are selectable** (Nov 18, 2026: Diego, *rendi le shades selezionabili*): a click
+   selects one — the ring the selected house shape has (paper under dashed ink, screen only) —
+   and the Colour section shows its values (*‹Name› · ‹step›*). It never changes the palette, is
+   not saved and not in ⌘Z; a card click goes back to the colour itself. Keyboard: one tab stop
+   per column, ↑ ↓ move along it.
 
    **The figure** (since Nov 18, 2026 — Diego: *la Figura rimane unica generata
    da questo*) is a **house generated from a seed** (`tunesutra/house.js`,
@@ -162,6 +175,11 @@ In the *Gradient* view the gradient comes first and there is no example. Then:
    in the background colour (the one with the larger share) with *Aa* and the text colour's
    name in the other, and under it *‹Text› on ‹Background›* and *‹ratio›:1 · AAA / AA / Large
    text only / Not for text*. The full grid (every colour on every other) is gone.
+   The pairs take the left of the row; on its right sits the **Colour** section (Nov 18, 2026:
+   Diego, *metti la parte colour al fianco destro di dove è ora contrast*) — Name, Keep on
+   Generate, Hex and the value tiles, moved out of the panel: HTML laid over the sheet
+   (`#colour-dock`, scaled with it), light in both themes, never in an export. Name, Keep and
+   Hex edit the colour; the tiles show the selected tint (else the colour).
 
 ## 3. Gradient & grain
 
@@ -210,12 +228,11 @@ file), while the plates keep the exact partition.
 The panel shows a control only while it changes the drawing (`gradUses()`).
 
 **What the section edits** (Diego, Nov 18, 2026: on the house, a click on a shape / colour
-and its gradient is edited there, the house staying in view). On the **Gradient** view: the
-palette's gradient (`state.grad`). On the **house**: the selected colour's shading — the
+and its gradient is edited there, the house staying in view): the selected colour's shading — the
 title says whose (*Secondary · Speckle* while it is still the preset, *Secondary* once it is
 its own). The first edit turns the preset into the colour's own definition (`item.shade`,
 saved with the palette as `shades`; ⌘Z returns to the preset); its first stop is always the
-colour itself, so the Flat *Colour* row is hidden there. **Back to preset** forgets it; a click
+colour itself (the Flat *Colour* row went with the Gradient view). **Back to preset** forgets it; a click
 on one of that colour's tiles does too, and puts that preset on the house. No control
 switches the view any more.
 
@@ -245,8 +262,6 @@ Noise, a Tone grain → no shadow, Shadows / Highlights → everywhere; `out`, `
 | PNG / SVG | the whole sheet. The SVG carries its own paint and font on every element — no page CSS needed |
 | CSS | `--tunesutra-<name>-<step>` for every scale step + `--tunesutra-gradient` (the smooth fill only — grain is not expressible in CSS): positions as percentages and the blend's space, `linear-gradient(90deg in oklch, #… 0%, #… 45%, …)`; a Flat fill is its colour |
 | JSON | the same as design tokens (DTCG `$value` / `$type`), incl. a `gradient` token with each stop's real position |
-| Gradient only → PNG / SVG | the gradient block alone, 860×300 units; the SVG is the ink cells, vector |
-| Gradient only → Plates | one SVG per ink, black on transparent (the paper gets none) |
 
 SVG text names the page font (IBM Plex Mono) with fallbacks; a machine without
 it shows the fallback.

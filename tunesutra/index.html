@@ -37,6 +37,27 @@
   .ts-house-nav .org-btn { position: absolute; top: var(--house-cy, 30%); transform: translateY(-50%); pointer-events: auto; }
   .ts-house-nav #house-prev { left: var(--space-4); }
   .ts-house-nav #house-next { right: var(--space-4); }
+  /* the + card and the remove buttons, over the card row */
+  .ts-sheet-ctrls { position: absolute; inset: 0; pointer-events: none; }
+  .ts-sheet-ctrls > * { position: absolute; pointer-events: auto; }
+  .ts-add {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1);
+    border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: none;
+    color: var(--mid); font: inherit; font-size: var(--fs-micro); cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
+  }
+  .ts-add:hover { color: var(--ink); border-color: var(--ink); }
+  .ts-add:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .ts-add__name { font-family: var(--font-display); font-size: var(--fs-small); }
+  /* the Colour section, right of the Contrast pairs: drawn at the sheet's own scale (renderStage) */
+  .ts-colour-dock {
+    position: absolute; transform-origin: 0 0;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md);
+  }
+  .ts-colour-dock .panel-section { border-bottom: 0; }
+  .ts-colour-dock :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: var(--radius-sm); }   /* the panel's ring is scoped to #panel */
+  .ts-tint { cursor: pointer; }
+  .ts-tint:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .ts-house-nav__live { position: absolute; clip-path: inset(50%); white-space: nowrap; }   /* read aloud, never seen */
   #stage-svg {
     display: block;
@@ -85,10 +106,10 @@
   .ts-card--new .ts-card__art { background: none; align-items: center; justify-content: center; font-size: var(--fs-xl); color: var(--mid); }
 
   /* RMX chip CSS is shared/palette.css. TuneSutra tunes both strips
-     (palette + gradient stops: 30×26, rounded, strong border) through the
+     (the gradient stops: 30×26, rounded, strong border) through the
      documented custom props, set on the strip so the add / library buttons
      follow the chips. No local .rmx-* rule. */
-  #rmx-palette, #grad-stops, #grad-flat { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
+  #grad-stops { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
     --rmx-cell-radius: var(--radius-sm);
     --rmx-cell-border: var(--border-strong, var(--border)); }
 
@@ -140,6 +161,41 @@
         <button type="button" class="org-btn org-btn--icon org-btn--lg" id="house-next" aria-label="Next house"></button>
         <span class="ts-house-nav__live" id="house-no" aria-live="polite"></span>
       </div>
+      <!-- On-sheet controls (Nov 18, 2026: Diego, "togliere Colours 3 4 5 … un più su una scheda vuota" ·
+           "metti la parte colour al fianco destro di dove è ora contrast"): HTML laid over the SVG
+           like the house arrows, placed by scene coordinates, so none of it reaches an export. -->
+      <div class="ts-sheet-ctrls" id="sheet-ctrls"></div>
+      <div class="ts-colour-dock" id="colour-dock" hidden>
+        <div class="panel-section">
+          <h3>Colour <span class="hint" id="active-role-label">Base</span></h3>
+        
+          <div class="ctrl-row">
+            <div class="ctrl-label">Name</div>
+            <input type="text" class="panel-select" id="txt-name" aria-label="Colour name" maxlength="40" style="flex:1">
+          </div>
+          <div class="ctrl-row">
+            <div class="ctrl-label" title="A kept colour is not replaced when you press Generate.">Keep on Generate</div>
+            <input type="checkbox" id="ck-lock">
+          </div>
+        
+          <div class="color-row">
+            <span class="color-name">Hex</span>
+            <button class="color-swatch" id="sw-active" aria-label="Edit colour" aria-haspopup="dialog"></button>
+            <input class="color-hex" id="hex-active" value="#c93ed6" maxlength="7" aria-label="Hex value">
+          </div>
+        
+          <div class="org-tiles" id="value-tiles" role="group" aria-label="Values">
+            <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value"></span></button>
+            <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value"></span></button>
+            <button type="button" class="org-tile" data-v="hsb"><span class="org-tile__label">HSB</span><span class="org-tile__value"></span></button>
+            <button type="button" class="org-tile" data-v="cmyk"><span class="org-tile__label">CMYK</span><span class="org-tile__value"></span></button>
+            <button type="button" class="org-tile" data-v="oklch"><span class="org-tile__label">OKLCH</span><span class="org-tile__value"></span></button>
+            <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value"></span><span class="org-tile__note"></span></button>
+          </div>
+          <p class="org-panel__hint">Click a value to copy it. RAL matches are approximate.</p>
+        
+        </div>
+      </div>
     </div>
   </div>
 
@@ -150,14 +206,6 @@
     </div>
     <div class="panel-section">
       <h3>Palette</h3>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Colours</span>
-        <div class="seg-ctrl" id="seg-count">
-          <button class="seg-btn" data-v="3">3</button>
-          <button class="seg-btn" data-v="4">4</button>
-          <button class="seg-btn" data-v="5">5</button>
-        </div>
-      </div>
       <div class="sub-label">Shading</div>
       <div class="ctrl-row">
         <div class="seg-ctrl" id="seg-shading" role="group" aria-label="Shading">
@@ -165,12 +213,6 @@
           <button class="seg-btn" data-v="soft" title="Each colour fading to its own darker tint, with fine grain">Soft</button>
           <button class="seg-btn" data-v="speckle" title="Each colour flat, with specks of its own darker tint gathering away from the light">Speckle</button>
           <button class="seg-btn" data-v="print" title="Each colour flat, with round dots of its own darker tint gathering away from the light">Stipple</button>
-        </div>
-      </div>
-      <div class="sub-label">View</div>
-      <div id="seg-view" role="group" aria-label="View">
-        <div class="ctrl-row">
-          <button type="button" class="org-btn org-btn--block" data-v="gradient" aria-pressed="false">Gradient</button>
         </div>
       </div>
       <div class="ctrl-row">
@@ -193,38 +235,7 @@
         <button class="mini-btn" id="btn-generate" title="Rebuild every unlocked colour from the first one">Generate</button>
         <button class="mini-btn" id="btn-undo" title="Undo (⌘Z)" disabled>Undo</button>
       </div>
-      <div class="rmx-palette" id="rmx-palette"></div>
       <p class="org-panel__hint" id="distinct-hint"></p>
-    </div>
-
-    <div class="panel-section">
-      <h3>Colour <span class="hint" id="active-role-label">Base</span></h3>
-
-      <div class="ctrl-row">
-        <div class="ctrl-label">Name</div>
-        <input type="text" class="panel-select" id="txt-name" aria-label="Colour name" maxlength="40" style="flex:1">
-      </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="A kept colour is not replaced when you press Generate.">Keep on Generate</div>
-        <input type="checkbox" id="ck-lock">
-      </div>
-
-      <div class="color-row">
-        <span class="color-name">Hex</span>
-        <button class="color-swatch" id="sw-active" aria-label="Edit colour" aria-haspopup="dialog"></button>
-        <input class="color-hex" id="hex-active" value="#c93ed6" maxlength="7" aria-label="Hex value">
-      </div>
-
-      <div class="org-tiles" id="value-tiles" role="group" aria-label="Values">
-        <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value"></span></button>
-        <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value"></span></button>
-        <button type="button" class="org-tile" data-v="hsb"><span class="org-tile__label">HSB</span><span class="org-tile__value"></span></button>
-        <button type="button" class="org-tile" data-v="cmyk"><span class="org-tile__label">CMYK</span><span class="org-tile__value"></span></button>
-        <button type="button" class="org-tile" data-v="oklch"><span class="org-tile__label">OKLCH</span><span class="org-tile__value"></span></button>
-        <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value"></span><span class="org-tile__note"></span></button>
-      </div>
-      <p class="org-panel__hint">Click a value to copy it. RAL matches are approximate.</p>
-
     </div>
 
     <div class="panel-section">
@@ -253,10 +264,6 @@
           <button class="mini-btn" id="btn-grad-even">Space evenly</button>
         </div>
         <label class="check-row org-switch" title="Adds the paper as the last stop: the last ink thins out to bare paper and gets no plate of its own."><input type="checkbox" id="ck-gpaper"><span>Fade to paper</span></label>
-      </div>
-      <div class="ctrl-row" id="row-gflat">
-        <span class="ctrl-label">Colour</span>
-        <div class="rmx-palette" id="grad-flat"></div>
       </div>
       <div class="ctrl-row">
         <div class="ctrl-label" title="The size of one grain, in sheet units. Every grain is one pure ink.">Grain size</div>
@@ -355,12 +362,6 @@
         <button class="org-btn" id="btn-export-css">CSS</button>
         <button class="org-btn" id="btn-export-json">JSON</button>
       </div>
-      <div class="org-popover__title">Gradient only</div>
-      <div class="org-formats">
-        <button class="org-btn" id="btn-export-grad-png">PNG</button>
-        <button class="org-btn" id="btn-export-grad-svg">SVG</button>
-        <button class="org-btn" id="btn-export-plates" title="One SVG per ink, black on transparent.">Plates</button>
-      </div>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
         <label class="org-popover__label" for="sel-export-scale">Scale</label>
@@ -433,7 +434,7 @@ const state = {
   harmony: 'analogous',
   spread: 0,          // lightness spread, in OKLCH L points (0–30)
   activeIndex: 0,
-  view: 'garment',    // 'garment' (the house + the share tubes — the main view) | 'gradient' (a toggle off it)
+  view: 'garment',    // the house + the share tubes; 'gradient' (a view off it) was removed Nov 18, 2026 — read as 'garment'
   house: 1,           // the figure's seed (tunesutra/house.js): saved with the palette, stepped by the carousel
   zone: null,         // the house shape selected (its index in the figure), or null — a colour card / chip selects the colour
   zoneShades: {},     // a shape's own shading, keyed 'house/count/shape' (saved with the palette)
@@ -588,49 +589,11 @@ function undo() {
 }
 function syncUndo() { ctrl('btn-undo').disabled = !undoStack.length; }
 
-// ── PALETTE CHIPS (shared component) ──
-let chips = null;
-function initChips() {
-  chips = Organica.palette.swatch(ctrl('rmx-palette'), {
-    colors: colors(),
-    min: 3,
-    max: 5,   // 3–5 colours (Diego, Nov 17, 2026: 6 and 7 removed for now)
-    library: false,   // this tool is where palettes are made — its own Save section loads them, with their names
-    // A chip opens Organica's own picker (shared/colour-picker.js, O-21 — Diego, Nov 17, 2026)
-    // and makes its colour the one the Colour section edits.
-    picker: 'organica',
-    nameOf: i => dispName(i),
-    onOpen: i => { if (i !== state.activeIndex) selectRole(i); },
-    onChange: (cols, index, kind, removedAt) => {
-      if (kind === 'set') return;
-      pushUndo(kind);
-      if (kind === 'edit') {
-        state.items[index].hex = cols[index];
-        commit(false);   // no chip rebuild: it would close the open native picker mid-drag
-        return;
-      }
-      if (kind === 'add') {
-        state.items.push(makeItem(nextColour(), state.items.length));
-        state.activeIndex = state.items.length - 1;
-      } else if (kind === 'remove') {
-        state.items.splice(removedAt, 1);
-        state.activeIndex = clamp(state.activeIndex, 0, state.items.length - 1);
-      }
-      commit(true);
-    },
-  });
-}
-// The shared Palette component owns the .chip-active class — setActive(i)
-// toggles it and re-applies it after any rebuild().
-function highlightActiveChip() { chips.setActive(state.activeIndex); }
-
 // One refresh path for every change. rebuildChips=false only while a chip's
 // own native picker is the thing being dragged.
 function commit(rebuildChips) {
-  if (rebuildChips) { chips.setColors(colors()); gradChips.setColors(G().stops); }
-  highlightActiveChip();
+  if (rebuildChips) gradChips.setColors(G().stops);
   scaleCache.clear();
-  syncCountSeg();
   syncViewSeg();
   refreshFieldEditor();
   syncGradControls();   // what Gradient & grain edits can change with the colours (a shape lapses, a stop is the colour)
@@ -685,7 +648,8 @@ function refreshTiles(hex) {
 function refreshFieldEditor() {
   const it = state.items[state.activeIndex], hex = it.hex;
   writing = true;
-  ctrl('active-role-label').textContent = dispName(state.activeIndex);
+  const tint = tintSel != null ? tokenScale(hex)[tintSel] : null;
+  ctrl('active-role-label').textContent = dispName(state.activeIndex) + (tint ? ' · ' + tint.step : '');
   if (document.activeElement !== ctrl('txt-name')) ctrl('txt-name').value = it.name;
   ctrl('txt-name').placeholder = roleName(state.activeIndex);
   // The first colour is the seed every harmony is built from — always kept.
@@ -693,7 +657,7 @@ function refreshFieldEditor() {
   ctrl('ck-lock').disabled = state.activeIndex === 0;
   ctrl('hex-active').value = hex;
   ctrl('sw-active').style.background = hex;
-  refreshTiles(hex);
+  refreshTiles(tint ? tint.hex : hex);
   writing = false;
 }
 function bindFieldEditor() {
@@ -777,7 +741,6 @@ function isGarmentView() { return state.view === 'garment' && garmentFits(count(
 // or away from a light. In Print, cell speckle takes its cells from the other
 // inks (plates still never overlap); dots print over them.
 // Kept local: TuneSutra is the only consumer (promote at the second one).
-const GRAD_W = BAR_X1 - BAR_X0, GRAD_H = 300, GRAD_LEGEND_H = 18;
 
 // Integer-lattice hash → 0..1. (shared/noise.js's hash2 is built for
 // continuous coordinates; on whole-number cells it repeats every 50.)
@@ -949,30 +912,6 @@ function gradPlates(g, w, h) {
   return out;
 }
 function circleD(x, y, r) { return `M${num(x - r)} ${num(y)}a${num(r)} ${num(r)} 0 1 0 ${num(2 * r)} 0a${num(r)} ${num(r)} 0 1 0 ${num(-2 * r)} 0Z`; }
-// For the composite drawing (sheet, SVG, PNG) the first ink is one rectangle and
-// every other ink sits on it — half the file of drawing the first ink's cells too.
-// The plates (one file per ink) keep the exact partition.
-function layeredPlates(plates, w, h) {
-  if (!plates.length) return plates;
-  return [Object.assign({}, plates[0], { d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z` })].concat(plates.slice(1));
-}
-
-// Cached on the definition: selecting a colour or renaming one re-renders the
-// sheet, but must not re-run the cells.
-const gradCache = { key: '', plates: null };
-function gradPrintPlates() {
-  const key = JSON.stringify([state.grad, gradStops(state.grad)]);
-  if (gradCache.key !== key) { gradCache.key = key; gradCache.plates = gradPlates(state.grad, GRAD_W, GRAD_H); }
-  return gradCache.plates;
-}
-const DIST_LABEL = { even: 'everywhere', light: 'away from the light' };
-function gradLegend() {
-  const g = state.grad, stops = gradStops(g), uses = gradUses(g);
-  const kind = g.type === 'flat' ? 'Flat' : g.type === 'radial' ? 'Radial' : 'Linear ' + g.angle + '°';
-  const list = g.type === 'flat' ? stops[0].hex : stops.map(s => (s.paper ? 'paper' : s.hex) + ' ' + Math.round(s.at * 100) + '%').join(' → ');
-  const shadow = !hasNoise(g) ? 'no shadow' : 'shadow ' + g.ink + ' ' + g.amount + ', ' + DIST_LABEL[g.dist] + (g.dist === 'light' ? ' ' + g.light + '°' : '');
-  return kind + ' · ' + list + (uses.pattern ? ' · ' + g.pattern + ' grain ' + Math.max(MIN_CELL, g.size) : '') + ' · ' + shadow + (uses.seed ? ' · seed ' + g.seed : '');
-}
 // The stop bar's preview: a smooth CSS gradient sampled in OKLab (16 sub-stops a span).
 function vectorStops() {
   const stops = gradStops(), out = [];
@@ -983,18 +922,7 @@ function vectorStops() {
   });
   return out;
 }
-// The gradient's inner SVG / canvas drawing, in its own 0..GRAD_W × 0..GRAD_H box.
-// plateOnly = an ink's index: that ink's cells alone, in black (a plate file).
-function plateGroup(plates, plateOnly) {
-  return '<g shape-rendering="crispEdges" fill-rule="evenodd">' + plates.map((p, i) =>
-    (!p.d || (plateOnly == null ? false : (p.paper || plateOnly !== i))) ? '' : `<path fill="${plateOnly != null ? '#000000' : p.hex}" d="${p.d}"/>`).join('') + '</g>';
-}
-function gradMarkup(plateOnly) {
-  const plates = gradPrintPlates();
-  return plateGroup(plateOnly == null ? layeredPlates(plates, GRAD_W, GRAD_H) : plates, plateOnly);
-}
 function drawPlates(c, plates) { plates.forEach(p => { if (!p.d) return; c.fillStyle = p.hex; c.fill(new Path2D(p.d), 'evenodd'); }); }
-function drawGrad(c) { drawPlates(c, layeredPlates(gradPrintPlates(), GRAD_W, GRAD_H)); }
 
 // ── What the Gradient & grain section edits (Diego, Nov 18, 2026: on the house, a click on a
 // shape / colour and its gradient is edited there, the house staying in view). On the Gradient
@@ -1004,14 +932,13 @@ function drawGrad(c) { drawPlates(c, layeredPlates(gradPrintPlates(), GRAD_W, GR
 // the colour's own (keepEdit, from pushUndo — after the snapshot, so ⌘Z returns to the preset).
 // The first stop is always the colour itself.
 const shadeDraft = { key: '', def: null };
-function onHouse() { return state.view !== 'gradient'; }
 function draftMode() { return state.shading === 'none' ? 'soft' : state.shading; }
 function zoneKey(z) { return state.house + '/' + count() + '/' + z; }
 // The selected shape, only while it still is one: on the house, in this figure, of the active
 // colour. A colour removed / added, another house, another view — the selection lapses to the colour.
 function selZone() {
   const z = state.zone;
-  if (z == null || !onHouse() || !garmentFits(count()) || state.zoneAt !== state.house + '/' + count()) return null;   // picked on another house
+  if (z == null || !garmentFits(count()) || state.zoneAt !== state.house + '/' + count()) return null;   // picked on another house
   const f = currentFigure(), zone = f && f.zones[z];
   return zone && zone.role === state.activeIndex ? z : null;
 }
@@ -1028,7 +955,6 @@ function colourDef(r) {
   return state.shading === 'none' ? null : shadeDefs(it.hex)[state.shading];
 }
 function G() {
-  if (!onHouse()) return state.grad;
   const it = state.items[state.activeIndex];
   const sz = selZone();
   if (sz != null) {   // one shape of the house (Diego, Nov 18, 2026: "ogni forma … una gestione separata")
@@ -1048,7 +974,6 @@ function G() {
   return shadeDraft.def;
 }
 function keepEdit() {
-  if (!onHouse()) return;
   const it = state.items[state.activeIndex];
   const sz = selZone();
   if (sz != null) { const key = zoneKey(sz); if (!state.zoneShades[key]) { state.zoneShades[key] = G(); shadeDraft.key = ''; } return; }
@@ -1097,18 +1022,15 @@ function syncGradControls() {
   if (document.activeElement !== ctrl('in-gseed')) ctrl('in-gseed').value = g.seed;   // never rewrite a field while it is typed in
   ctrl('ck-gpaper').checked = g.paper;
   ctrl('grad-blend').hidden = flat;
-  ctrl('row-gflat').hidden = !flat || onHouse();   // on the house a Flat fill is the shape's own colour
   ['angle', 'pattern', 'seed', 'dist', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
   gradSel = Math.min(gradSel, g.stops.length - 1);
   if (inkSwatch && inkSwatch.get() !== g.ink) inkSwatch.set(g.ink);
   if (gradChips && JSON.stringify(gradChips.getColors()) !== JSON.stringify(g.stops)) gradChips.setColors(g.stops);
   if (gradChips) gradChips.setActive(gradSel);
-  if (flatChip && flatChip.get() !== g.stops[0]) flatChip.setColors([g.stops[0]]);
   renderStopBar();
   const inks = inkCount(g), it = state.items[state.activeIndex], sz = selZone(), zone = sz != null;
-  const own = onHouse() && (zone ? !!state.zoneShades[zoneKey(sz)] : !!it.shade);
-  ctrl('grad-target').textContent = !onHouse() ? 'Gradient view'
-    : dispName(state.activeIndex) + (zone ? ', shape ' + (sz + 1) : ', every shape') + (own ? '' : ' · ' + (zone ? 'as its colour' : SHADE_NAME[draftMode()]));
+  const own = zone ? !!state.zoneShades[zoneKey(sz)] : !!it.shade;
+  ctrl('grad-target').textContent = dispName(state.activeIndex) + (zone ? ', shape ' + (sz + 1) : ', every shape') + (own ? '' : ' · ' + (zone ? 'as its colour' : SHADE_NAME[draftMode()]));
   ctrl('btn-shade-reset').hidden = !own;
   const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
   ctrl('grad-hint').textContent = 'Each cell is one pure ink' + (g.paper && !flat ? ' or bare paper' : '') + ': the export is vector, one plate per ink (' +
@@ -1261,7 +1183,7 @@ function moveStop(i, to) {
 }
 
 const GRAD_MAX_STOPS = 8;
-let gradChips = null, flatChip = null, inkSwatch = null;
+let gradChips = null, inkSwatch = null;
 function initGradient() {
   gradChips = Organica.palette.swatch(ctrl('grad-stops'), {
     colors: G().stops,
@@ -1283,11 +1205,6 @@ function initGradient() {
       } else { g.stops = cols; gradSel = index; }
       gradChanged();
     },
-  });
-  flatChip = Organica.palette.swatch(ctrl('grad-flat'), {
-    colors: [G().stops[0]], max: 1,
-    palettes: () => [{ name: 'This palette', colors: state.items.map((it, i) => ({ name: dispName(i), hex: it.hex })) }],
-    onChange: cols => { pushUndo('grad'); G().stops[0] = cols[0]; gradChanged(); },
   });
   inkSwatch = Organica.palette.swatch('gink', {
     initial: G().ink,
@@ -1322,34 +1239,6 @@ function initGradient() {
   ctrl('btn-grad-even').addEventListener('click', () => { pushUndo('grad-stop'); G().pos = null; gradChanged(); });
 }
 
-// ── gradient-only exports ──
-function gradSVGString(plateOnly) {
-  const meta = plateOnly == null ? `<metadata id="organica">${esc(JSON.stringify({ tool: 'tunesutra', kind: 'gradient', gradient: state.grad }))}</metadata>` : '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${GRAD_W} ${GRAD_H}" width="${GRAD_W}" height="${GRAD_H}">${meta}${gradMarkup(plateOnly)}</svg>`;
-}
-function exportGradSVG() { Organica.downloadText(gradSVGString(null), Organica.stamp('tunesutra-gradient', 'svg'), 'image/svg+xml'); }
-function gradPNGCanvas(scale) {
-  const cv = document.createElement('canvas');
-  cv.width = GRAD_W * scale; cv.height = GRAD_H * scale;
-  const c = cv.getContext('2d');
-  c.fillStyle = Organica.contentColor('--paper');
-  c.fillRect(0, 0, cv.width, cv.height);
-  c.scale(scale, scale);
-  drawGrad(c);
-  return cv;
-}
-function exportGradPNG() {
-  const url = gradPNGCanvas(+ctrl('sel-export-scale').value).toDataURL('image/png');
-  Organica.download(Organica.dataURLToBlob(url), Organica.stamp('tunesutra-gradient', 'png'));
-}
-// One SVG per ink, black on transparent — the paper stop gets none.
-function exportPlates() {
-  const plates = gradPrintPlates(), t = Date.now();
-  Organica.plateExport.run(plates.length, {
-    build: i => (plates[i].paper || !plates[i].d) ? null
-      : { blob: new Blob([gradSVGString(i)], { type: 'image/svg+xml' }), filename: 'tunesutra-' + t + '-plate' + (i + 1) + '-' + plates[i].hex.slice(1) + '.svg' },
-  });
-}
 // CSS: the smooth fill only — grain is not expressible in CSS. Positions as
 // percentages, and the blend's own space (`in oklab` / `in oklch` / `in srgb`).
 function gradCSS() {
@@ -1384,26 +1273,24 @@ function readableOn(hex, T) { return C.contrast(hex, T.ink) >= C.contrast(hex, T
 //   { t:'rect', x, y, w, h, fill, r?, stroke?, sw?, role?, title? }   (r = corner radius)
 //   { t:'path', d, tf:{x,y,s}, fill, stroke?, sw?, role?, quiet?, title? }
 //   { t:'text', x, y, s, size, fill, anchor }
-//   { t:'grad', x, y } — the gradient block, drawn by gradMarkup / drawGrad
 // `role` marks a shape that selects a colour when clicked on screen.
-function buildScene() {
-  const T = sheetTheme(), n = count(), cols = colors(), items = [];
+// screen=true: the on-screen sheet — it also reserves room for the controls laid over it (the +
+// card, the Colour section); the export calls it without, and gets the same drawing.
+const DOCK_W = 280;   // the Colour section on the sheet, right of the Contrast pairs (sheet units)
+let dockH = 420;      // its height, measured after each render (renderStage)
+function buildScene(screen) {
+  const T = sheetTheme(), n = count(), cols = colors(), items = [], removeAt = [];
+  let addAt = null, dockAt = null;
   const rect = (x, y, w, h, fill, extra) => items.push(Object.assign({ t: 'rect', x: x, y: y, w: w, h: h, fill: fill }, extra));
   const text = (x, y, s, size, fill, anchor) => items.push({ t: 'text', x: x, y: y, s: String(s), size: size, fill: fill, anchor: anchor || 'start' });
   const weights = roleWeights(n);
   let houseBand = null, tubeY = null;
-  const garment = isGarmentView(), gradient = state.view === 'gradient';
+  const garment = isGarmentView();
   let y = BAR_Y;
-
-  if (gradient) {
-    items.push({ t: 'grad', x: BAR_X0, y: y });
-    text(BAR_X0, y + GRAD_H + 14, gradLegend(), 10, T.mid);
-    y += GRAD_H + GRAD_LEGEND_H + 30;
-  }
 
   // An example of the palette in use: in proportion, or on a figure — first, above the
   // colour cards (Diego, Nov 17, 2026: "sposta la figura sopra e … i colori sotto").
-  if (!gradient) {
+  {
     const fig = currentFigure();
     // The house (3–5 colours; Diego, Nov 18, 2026: "elimina bar e figure … sempre … sotto
     // l'illustrazione della casa"), then the share tubes over the cards. 6–7 colours: tubes only.
@@ -1461,12 +1348,18 @@ function buildScene() {
       rect(x, tubeY + 16, cw, TUBE_H, T.panel, { r: TUBE_H / 2, title: `${dispName(i)}, ${w.toFixed(1)}% of the house` });   // the title on the track: the fill is 0 wide mid-pour
       rect(x, tubeY + 16, cw * w / 100, TUBE_H, hex, Object.assign({ r: TUBE_H / 2, pour: w }, paleOnPaper(hex) ? { stroke: T.border, sw: 1 } : null));
     }
+    if (i >= COUNT_MIN) removeAt.push({ i: i, x: x + cw - 8, y: y + 8 });   // its top-right corner
     text(x + 12, y + CARD_COLOUR_H + 16, fit(dispName(i), cw - 24, 11), 11, T.ink);
     text(x + 12, y + CARD_COLOUR_H + 29, hex, 10, T.mid);
     const sy = y + CARD_H + 12;
     tokenScale(hex).forEach((st, j) => {
       const ry = sy + j * (STEP_H + STEP_GAP), on = readableOn(st.hex, T);
-      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: `${dispName(i)} ${st.step} — ${st.hex}` }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
+      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: `${dispName(i)} ${st.step} — ${st.hex}`, tint: j, ci: i }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
+      // the selected tint: the selected house shape's ring — paper under dashed ink, screen only
+      if (i === state.activeIndex && j === tintSel) {
+        rect(x - 3, ry - 3, cw + 6, STEP_H + 6, 'none', { r: 5, stroke: T.paper, sw: 4, screenOnly: true });
+        rect(x - 3, ry - 3, cw + 6, STEP_H + 6, 'none', { r: 5, stroke: T.ink, sw: 2, dash: [6, 4], screenOnly: true });
+      }
       text(x + 8, ry + 14, st.step, 9, on);
       text(x + cw - 8, ry + 14, st.hex, 9, on, 'end');
     });
@@ -1480,6 +1373,9 @@ function buildScene() {
       text(tx, ty + TILE_H + 12, SHADE_NAME[m], 9, m === state.shading ? T.ink : T.mid);
     });
   });
+  // The + card: after the last card, on screen only. The cards keep the export's places; at 4 colours
+  // the + card is narrower, to stay on the sheet.
+  if (screen && n < COUNT_MAX) { const ax = cx0 + n * (cw + CARD_GAP); addAt = [ax, y, Math.min(cw, BAR_X1 - ax), CARD_H]; }
   y += CARD_H + 12 + 10 * (STEP_H + STEP_GAP) + 8 + TILE_H + 16 + 30;
 
   // Contrast — only the pairs that work best (Diego, Nov 18, 2026: "una versione molto più semplice,
@@ -1493,10 +1389,14 @@ function buildScene() {
   let best = pairs.filter(p => p.r >= 4.5).slice(0, PAIR_MAX);
   if (best.length < PAIR_MIN) best = pairs.slice(0, PAIR_MIN);
   const grade = r => r >= 7 ? 'AAA' : r >= 4.5 ? 'AA' : r >= 3 ? 'Large text only' : 'Not for text';
+  // The pairs take the left of the row; its right is the Colour section's (on screen), so the export
+  // keeps the same places.
+  const pairsX1 = BAR_X1 - DOCK_W - CARD_GAP;
+  dockAt = [BAR_X1 - DOCK_W, y - 11];
   text(BAR_X0, y, 'Contrast — the pairs that read best, text on background', 11, T.mid);
   y += 16;
   {
-    const k = best.length, pw = Math.min(PAIR_W, (BAR_X1 - BAR_X0 - (k - 1) * CARD_GAP) / k), px0 = (VB_W - (k * pw + (k - 1) * CARD_GAP)) / 2;
+    const k = best.length, pw = Math.min(PAIR_W, (pairsX1 - BAR_X0 - (k - 1) * CARD_GAP) / k), px0 = BAR_X0;
     best.forEach((p, m) => {
       const x = px0 + m * (pw + CARD_GAP), bg = cols[p.bg], fg = cols[p.fg];
       rect(x, y, pw, PAIR_H, bg, Object.assign({ r: CARD_R, title: `${dispName(p.fg)} on ${dispName(p.bg)} — ${p.r.toFixed(2)}:1, ${grade(p.r)}` }, paleOnPaper(bg) ? { stroke: T.border, sw: 1 } : null));
@@ -1508,7 +1408,8 @@ function buildScene() {
     y += PAIR_H + 30;
   }
 
-  return { W: VB_W, H: y + 16, paper: T.paper, font: T.font, items: items, houseBand: houseBand };
+  if (screen) y = Math.max(y, dockAt[1] + dockH);
+  return { W: VB_W, H: y + 16, paper: T.paper, font: T.font, items: items, houseBand: houseBand, addAt: addAt, removeAt: removeAt, dockAt: dockAt };
 }
 
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -1531,12 +1432,16 @@ function sceneMarkup(scene, interactive) {
       const hit = it.tile ? `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" fill="none" pointer-events="all"/>` : '';
       return `${clip}<g clip-path="url(#${id})"${tile}>${title}${hit}<g transform="translate(${num(bx)},${num(by)})" shape-rendering="crispEdges" fill-rule="evenodd">${cells}</g></g>${ring}`;
     }
-    if (it.t === 'grad') return `<g transform="translate(${it.x},${it.y})">${gradMarkup()}</g>`;
     if (it.t === 'text') {
       return `<text x="${num(it.x)}" y="${num(it.y)}" font-family="${font}" font-size="${it.size}" fill="${it.fill}"${it.anchor !== 'start' ? ` text-anchor="${it.anchor}"` : ''}${interactive && it.pourText != null ? ` data-pour-text="${it.pourText}"` : ''}>${esc(it.s)}</text>`;
     }
     if (it.screenOnly && !interactive) return '';
     // quiet: clickable, but never outlined as the selection — a figure has many zones per colour (the selected shape gets its own outline item)
+    if (interactive && it.tint != null) {
+      // a tint: one tab stop per column (the selected tint, else the colour's own), ↑↓ move (renderStage)
+      const on = it.ci === state.activeIndex && it.tint === tintSel, stop = it.ci === state.activeIndex && tintSel != null ? on : !!it.stroke;
+      return `<rect x="${num(it.x)}" y="${num(it.y)}" width="${num(it.w)}" height="${num(it.h)}" rx="${it.r}" fill="${it.fill}"${it.stroke ? ` stroke="${it.stroke}" stroke-width="${it.sw}"` : ''} class="ts-tint" data-i="${it.ci}" data-t="${it.tint}" tabindex="${stop ? 0 : -1}" role="button" aria-pressed="${on}" aria-label="${esc(it.title)}"><title>${esc(it.title)}</title></rect>`;
+    }
     const live = interactive && it.role != null, active = it.role === state.activeIndex && !it.quiet;
     const attrs = `fill="${it.fill}"` + (it.stroke ? ` stroke="${it.stroke}" stroke-width="${it.sw}"` : '') + (it.dash ? ` stroke-dasharray="${it.dash.map(num).join(' ')}"` : '') +
       (live ? ` class="bar-seg${active ? ' role-active' : ''}" data-i="${it.role}"${it.zone != null ? ` data-z="${it.zone}"` : ''} tabindex="0" role="button" aria-pressed="${it.zone != null ? String(it.zone === selZone()) : active}"` : '') +
@@ -1551,7 +1456,6 @@ function drawScene(scene, c, scale) {
   c.fillStyle = scene.paper;
   c.fillRect(0, 0, scene.W, scene.H);
   scene.items.forEach(it => {
-    if (it.t === 'grad') { c.save(); c.translate(it.x, it.y); drawGrad(c); c.restore(); return; }
     if (it.t === 'shade') {
       const [bx, by, bw, bh] = it.box;
       c.save();
@@ -1603,7 +1507,7 @@ function pour(svg) {
   pourRaf = requestAnimationFrame(frame);
 }
 function renderStage() {
-  const scene = buildScene();
+  const scene = buildScene(true);
   const svg = ctrl('stage-svg');
   svg.setAttribute('viewBox', `0 0 ${scene.W} ${scene.H}`);
   // The sheet's size (Diego, Nov 18, 2026: "la casa è troppo grande, definiamo una size"): drawn at
@@ -1620,6 +1524,19 @@ function renderStage() {
     };
     el.addEventListener('click', act);
     el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
+  });
+  placeSheetCtrls(scene, svg);
+  svg.querySelectorAll('.ts-tint').forEach(el => {
+    el.addEventListener('click', () => selectTint(+el.dataset.i, +el.dataset.t));
+    el.addEventListener('keydown', e => {
+      const i = +el.dataset.i, t = +el.dataset.t;
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTint(i, t, true); }
+      else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const nt = clamp(t + (e.key === 'ArrowDown' ? 1 : -1), 0, 9);
+        if (nt !== t) selectTint(i, nt, true);
+      }
+    });
   });
   if (pourNext) { pourNext = false; if (!matchMedia('(prefers-reduced-motion: reduce)').matches) pour(svg); }
   else cancelAnimationFrame(pourRaf);   // a re-render mid-pour shows the tubes full
@@ -1656,6 +1573,66 @@ function renderStage() {
 // same place in the new drawing.
 const DBL_MS = 400;
 let shapeClick = { z: null, t: 0 };
+// The selected tint (Diego, Nov 18, 2026: "rendi le shades selezionabili"): a step 0–9 of the active
+// colour's scale, or null = the colour itself. Only what the Colour section's values show — it never
+// changes the palette, is not saved and not in ⌘Z. Selecting a colour any other way clears it.
+let tintSel = null;
+function selectTint(i, t, key) {
+  const anchor = tokenScale(state.items[i].hex).findIndex(s => s.anchor);
+  if (i !== state.activeIndex || state.zone != null) selectRole(i);
+  tintSel = t === anchor ? null : t;
+  refreshFieldEditor();
+  renderStage();
+  if (key) { const el = ctrl('stage-svg').querySelector(`.ts-tint[data-i="${i}"][data-t="${t}"]`); if (el) el.focus({ preventScroll: true }); }
+}
+// The controls laid over the sheet, at the scene's own coordinates: the + card, a remove button on each
+// card past the third, and the Colour section right of the Contrast pairs — none of it in an export.
+let sheetRO = null, ctrlFocus = null;   // ctrlFocus: what takes the focus after the controls are rebuilt
+function placeSheetCtrls(scene, svg) {
+  const box = ctrl('sheet-ctrls'), dock = ctrl('colour-dock');
+  const had = box.contains(document.activeElement) ? document.activeElement.dataset.k : null;
+  const pct = (v, of) => (v / of * 100).toFixed(3) + '%';
+  const at = (el, x, y, w, h) => { el.style.left = pct(x, scene.W); el.style.top = pct(y, scene.H); if (w != null) el.style.width = pct(w, scene.W); if (h != null) el.style.height = pct(h, scene.H); };
+  box.innerHTML = '';
+  if (scene.addAt) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'ts-add'; b.dataset.k = 'add';
+    const left = COUNT_MAX - count();
+    b.innerHTML = Organica.icons.get('plus', { size: 'lg' }) + '<span class="ts-add__name">Add a colour</span><span>' + left + ' left</span>';
+    b.addEventListener('click', addColour);
+    at(b, ...scene.addAt);
+    box.appendChild(b);
+  }
+  scene.removeAt.forEach(r => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'org-btn org-btn--icon'; b.dataset.k = 'rm' + r.i;
+    b.setAttribute('aria-label', 'Remove ' + dispName(r.i));
+    b.innerHTML = Organica.icons.get('close');
+    b.addEventListener('click', () => removeColour(r.i));
+    at(b, r.x, r.y);
+    b.style.transform = 'translateX(-100%)';
+    box.appendChild(b);
+  });
+  const want = ctrlFocus || had;
+  ctrlFocus = null;
+  if (want) {
+    const el = want.startsWith('card') ? svg.querySelector(`.bar-seg[data-i="${want.slice(4)}"]:not([data-z])`) : box.querySelector(`[data-k="${want}"]`);
+    if (el) el.focus({ preventScroll: true });
+  }
+  dock.hidden = !scene.dockAt;
+  if (!scene.dockAt) return;
+  at(dock, scene.dockAt[0], scene.dockAt[1]);
+  const fit = () => {
+    const k = svg.getBoundingClientRect().width / scene.W || 1;
+    dock.style.width = DOCK_W + 'px';
+    dock.style.transform = 'scale(' + k.toFixed(4) + ')';
+    // the scene keeps room for it: when it grows taller than that room, draw the sheet again
+    const h = Math.ceil(dock.offsetHeight);
+    if (Math.abs(h - dockH) > 1) { dockH = h; renderStage(); }
+  };
+  fit();
+  if (!sheetRO) { sheetRO = new ResizeObserver(() => { const sc = buildScene(true); if (!ctrl('colour-dock').hidden) placeSheetCtrls(sc, ctrl('stage-svg')); }); sheetRO.observe(svg); }
+}
 function pickOnSheet(el) {
   const i = +el.dataset.i, r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   const z = el.dataset.z != null ? +el.dataset.z : null;
@@ -1670,30 +1647,18 @@ function pickOnSheet(el) {
 // `z` = the house shape clicked; anything else (a card, a chip) selects the colour as a whole.
 function selectRole(i, z) {
   state.activeIndex = i;
+  tintSel = null;
   state.zone = z == null ? null : z;
   state.zoneAt = state.house + '/' + count();   // the house it was picked on
   refreshFieldEditor();
-  highlightActiveChip();
   syncGradControls();
   renderStage();
 }
 
 // ── MODE / HARMONY / VIEW CONTROLS ──
-function syncCountSeg() {
-  ctrl('seg-count').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', +b.dataset.v === count()));
-}
 function syncViewSeg() {
-  ctrl('seg-view').querySelectorAll('[data-v]').forEach(b => { const on = b.dataset.v === state.view; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
   ctrl('seg-shading').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.v === state.shading; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
   ctrl('house-no').textContent = 'House no. ' + state.house;   // announced; the sheet's caption shows it
-}
-// Gradient is a toggle: pressed again, the sheet goes back to the house.
-function setView(view) {
-  if (view === state.view) view = 'garment';
-  state.view = view;
-  syncViewSeg();
-  syncGradControls();
-  renderStage();
 }
 function setShading(mode) {
   if (mode === state.shading) return;
@@ -1704,15 +1669,30 @@ function setShading(mode) {
   renderStage();
   syncUndo();
 }
-function setCount(n) {
-  n = clamp(n, 3, 5);
-  if (n === count()) return;
+// The number of colours (Diego, Nov 18, 2026: "togliere Colours 3 4 5 dalla barra di destra … un più su
+// una scheda vuota che può generare al massimo altre 2 schede"): the + card after the last colour card
+// adds one (up to 5); a card past the third has its own remove button. Never fewer than 3.
+const COUNT_MIN = 3, COUNT_MAX = 5;
+function addColour() {
+  if (count() >= COUNT_MAX) return;
   pourNext = true;
   pushUndo('count');
   state.zone = null;
-  while (count() < n) state.items.push(makeItem(nextColour(), count()));
-  while (count() > n) state.items.pop();
-  state.activeIndex = clamp(state.activeIndex, 0, n - 1);
+  state.items.push(makeItem(nextColour(), count()));
+  state.activeIndex = count() - 1;
+  tintSel = null;
+  ctrlFocus = count() < COUNT_MAX ? 'add' : 'card' + (count() - 1);   // the keyboard stays where it was
+  commit(true);
+}
+function removeColour(i) {
+  if (count() <= COUNT_MIN || i < COUNT_MIN || i >= count()) return;
+  pourNext = true;
+  pushUndo('count');
+  state.zone = null;
+  state.items.splice(i, 1);
+  ctrlFocus = i - 1 >= COUNT_MIN ? 'rm' + (i - 1) : 'add';
+  state.activeIndex = clamp(state.activeIndex >= i ? state.activeIndex - 1 : state.activeIndex, 0, count() - 1);
+  tintSel = null;
   commit(true);
 }
 
@@ -1993,20 +1973,13 @@ function goHome() {
 
 // ── INIT ──
 const GRAD_DEFAULT = JSON.stringify(state.grad);
-initChips();
 initGradient();
 Organica.enhanceSliders(document);   // the Slosh fill on every slider, liquid switches, click-to-edit values
 initHouseCarousel();
 bindFieldEditor();
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
-ctrl('seg-count').querySelectorAll('.seg-btn').forEach(btn => {
-  btn.addEventListener('click', () => setCount(+btn.dataset.v));
-});
 ctrl('seg-shading').querySelectorAll('.seg-btn').forEach(btn => btn.addEventListener('click', () => setShading(btn.dataset.v)));
-ctrl('seg-view').querySelectorAll('[data-v]').forEach(btn => {
-  btn.addEventListener('click', () => setView(btn.dataset.v));
-});
 ctrl('sel-harmony').addEventListener('change', () => { state.harmony = ctrl('sel-harmony').value; });
 ctrl('btn-generate').addEventListener('click', () => {
   state.harmony = ctrl('sel-harmony').value;
@@ -2036,9 +2009,6 @@ ctrl('btn-export-png').addEventListener('click', exportPNG);
 ctrl('btn-export-svg').addEventListener('click', exportSVG);
 ctrl('btn-export-css').addEventListener('click', exportCSS);
 ctrl('btn-export-json').addEventListener('click', exportJSON);
-ctrl('btn-export-grad-png').addEventListener('click', exportGradPNG);
-ctrl('btn-export-grad-svg').addEventListener('click', exportGradSVG);
-ctrl('btn-export-plates').addEventListener('click', exportPlates);
 
 ctrl('btn-save-open').addEventListener('click', beginSavePreset, true);   // capture: the name is filled before the popover opens and focuses it
 savePopover = Organica.popover(ctrl('btn-save-open'), ctrl('save-popover'));
