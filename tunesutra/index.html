@@ -276,31 +276,30 @@
 
     <div class="panel-section">
       <h3>Shadow</h3>
-      <p class="org-panel__hint">Specks of a second ink on top, gathering away from the light.</p>
+      <p class="org-panel__hint">Two inks over the colour — halftone and core — where the light does not reach.</p>
       <label class="check-row org-switch"><input type="checkbox" id="ck-gshadow"><span>Shadow</span></label>
       <div id="grad-shadow">
-        <div class="color-row" id="row-gink">
-          <span class="color-name">Ink</span>
-          <div class="color-swatch-wrap"><input type="color" id="cp-gink" value="#2a1430"></div>
-          <button class="color-swatch" id="sw-gink" aria-label="Shadow ink colour"></button>
-          <input class="color-hex" id="hex-gink" value="#2a1430" maxlength="7" aria-label="Shadow ink hex">
-        </div>
-        <div class="ctrl-row" id="row-gamount">
-          <div class="ctrl-label" title="How dense the specks are.">Amount</div>
-          <input type="range" id="rg-gamount" min="1" max="100" step="1" value="70">
-          <span class="ctrl-val" id="v-gamount">70</span>
+        <div class="sub-label">Pattern</div>
+        <div class="ctrl-row">
+          <div class="seg-ctrl" id="seg-gspecks" role="group" aria-label="Shadow pattern">
+            <button class="seg-btn active" data-v="specks" title="Square cells mixing the two inks">Specks</button>
+            <button class="seg-btn" data-v="dots" title="Round dots of the next ink, sized by the shadow">Dots</button>
+            <button class="seg-btn" data-v="bands" title="Hard steps, one ink each">Bands</button>
+          </div>
         </div>
         <div class="ctrl-row" id="row-gspeck">
-          <div class="ctrl-label" title="The size of one speck, in sheet units. On a grained gradient the specks are the grain’s cells.">Size</div>
+          <div class="ctrl-label" title="The size of one speck or dot, in sheet units. On a grained gradient the specks are the grain’s cells.">Size</div>
           <input type="range" id="rg-gspeck" min="1" max="12" step="0.5" value="2" aria-label="Shadow size">
           <span class="ctrl-val" id="v-gspeck">2</span>
         </div>
-        <div class="sub-label">Specks</div>
-        <div class="ctrl-row">
-          <div class="seg-ctrl" id="seg-gspecks" role="group" aria-label="Specks">
-            <button class="seg-btn active" data-v="noise">Square</button>
-            <button class="seg-btn" data-v="dots">Round</button>
-          </div>
+        <div class="ctrl-row" id="row-gamount">
+          <div class="ctrl-label" title="How strong the shadow is.">Amount</div>
+          <input type="range" id="rg-gamount" min="1" max="100" step="1" value="70">
+          <span class="ctrl-val" id="v-gamount">70</span>
+        </div>
+        <div class="ctrl-row" id="row-gsseed">
+          <div class="ctrl-label">Seed</div>
+          <input type="number" class="panel-input" id="in-gsseed" min="0" max="9999" step="1" value="1" aria-label="Shadow seed">
         </div>
         <label class="check-row org-switch" id="row-gdist" title="On: the shadow gathers away from a light. Off: everywhere alike."><input type="checkbox" id="ck-glight"><span>Away from a light</span></label>
         <div class="ctrl-row" id="row-glight">
@@ -313,11 +312,50 @@
           <input type="range" id="rg-gfalloff" min="0" max="100" step="1" value="50">
           <span class="ctrl-val" id="v-gfalloff">50</span>
         </div>
+        <div class="sub-label">Inks</div>
+        <div class="color-row"><span class="color-name">Halftone</span><button class="color-swatch" id="sw-gmid" aria-label="Halftone ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gmid"></span></div>
+        <div class="color-row"><span class="color-name">Core</span><button class="color-swatch" id="sw-gcore" aria-label="Core ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gcore"></span></div>
+        <div class="row-btns"><button class="mini-btn" id="btn-ginks-auto" hidden title="Forget the hand-picked inks: they are made from the colour again">Reset inks</button></div>
+        <label class="check-row org-switch"><input type="checkbox" id="ck-gsnap"><span>Snap to palette</span></label>
+        <p class="org-panel__hint">Snap moves each ink to the nearest of the palette’s own tints.</p>
+        <div class="sub-label">Hue</div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Seed</div>
-          <input type="number" class="panel-input" id="in-gsseed" min="0" max="9999" step="1" value="1" aria-label="Shadow seed">
+          <select class="panel-select" id="sel-ghue" aria-label="Hue" title="Same: only darker · Cool: toward blue-violet (warm light) · Warm: toward red-orange (cool light) · Complement: toward the opposite hue · Impressionist: blue-violet and more colourful">
+            <option value="same">Same</option>
+            <option value="cool">Cool</option>
+            <option value="warm">Warm</option>
+            <option value="complement">Complement</option>
+            <option value="impressionist">Impressionist</option>
+          </select>
         </div>
-        <p class="org-panel__hint" id="shadow-hint" hidden>Each round speck is cut out of the ink under it: the plates never overlap.</p>
+        <div class="ctrl-row" id="row-gshift">
+          <div class="ctrl-label" title="How far the shadow turns toward that hue.">Shift</div>
+          <input type="range" id="rg-gshift" min="0" max="100" step="1" value="60">
+          <span class="ctrl-val" id="v-gshift">60</span>
+        </div>
+        <div class="ctrl-row" id="row-gdepth">
+          <div class="ctrl-label" title="How dark the core shadow gets.">Depth</div>
+          <input type="range" id="rg-gdepth" min="10" max="90" step="1" value="35">
+          <span class="ctrl-val" id="v-gdepth">35</span>
+        </div>
+        <div class="sub-label">Chroma</div>
+        <div class="ctrl-row" id="row-glose">
+          <div class="ctrl-label" title="How much colour the shadow loses.">Loss</div>
+          <input type="range" id="rg-glose" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-glose">0</span>
+        </div>
+        <div class="ctrl-row" id="row-gglow">
+          <div class="ctrl-label" title="How much colour the halftone gains at the turning edge.">Edge glow</div>
+          <input type="range" id="rg-gglow" min="0" max="100" step="1" value="0">
+          <span class="ctrl-val" id="v-gglow">0</span>
+        </div>
+        <div class="sub-label">Parts</div>
+        <label class="check-row org-switch"><input type="checkbox" id="ck-ghalf"><span>Halftone</span></label>
+        <label class="check-row org-switch"><input type="checkbox" id="ck-gterm"><span>Terminator</span></label>
+        <label class="check-row org-switch"><input type="checkbox" id="ck-gcore"><span>Core shadow</span></label>
+        <label class="check-row org-switch"><input type="checkbox" id="ck-grefl"><span>Reflected light</span></label>
+        <label class="check-row org-switch"><input type="checkbox" id="ck-ghigh"><span>Highlight</span></label>
+        <p class="org-panel__hint" id="shadow-hint" hidden>Each dot is cut out of the ink under it: the plates never overlap.</p>
       </div>
     </div>
 
@@ -472,11 +510,19 @@ const state = {
     pattern: 'noise', // the grain: 'noise' (square cells at random) | 'dots' (round dots, evenly spread)
     // SHADOW — its own switch, speck size, specks and seed since Nov 18, 2026 (Diego: Gradient · Grain · Shadow)
     shadow: false,    // on / off
-    ink: '#2a1430',   // the shadow ink
-    amount: 70,       // shadow density, 1–100
-    speck: 2,         // speck size, when the shadow has its own grid (Flat, or grain 0); on a grained blend it follows the grain
-    specks: 'noise',  // 'noise' (square specks) | 'dots' (round)
+    amount: 70,       // how strong, 1–100
+    speck: 2,         // speck / dot size, when the shadow has its own grid (Flat, or grain 0); on a grained blend it follows the grain
+    specks: 'specks', // RENDER: 'specks' (square cells) | 'dots' (a halftone screen) | 'bands' (hard steps)
     sseed: 1,         // the shadow's own seed
+    // the painter's shadow (Nov 18, 2026 — the Shadow lab): two inks made by these rules, snapped to the palette
+    hue: 'same',      // 'same' | 'cool' | 'warm' | 'complement' | 'impressionist'
+    shift: 60,        // how far toward that hue, 0–100
+    depth: 35,        // how dark the core gets, in OKLCH lightness ×100
+    lose: 0,          // chroma lost in the shadow, 0–100
+    glow: 0,          // chroma gained at the turning edge (in the halftone ink), 0–100
+    parts: { half: true, term: false, core: true, refl: false, high: false },
+    snap: true,       // each ink → the nearest of the palette's own tints
+    inkMid: null, inkCore: null,   // a hand-picked ink (null = the rule's)
     dist: 'light',    // the shadow's spread: 'light' (away from a light) | 'even' (everywhere)
     light: 315,       // Light from, degrees (0 = the top)
     falloff: 50,      // 50 = straight; higher keeps the shadow to the far side
@@ -761,15 +807,16 @@ function shadeDefs(hex) {
   // the gradient's second stop is the colour's own 900 (Diego, Nov 18, 2026) — its 50 when the colour is the 900
   const shade = a === 9 ? sc[0].hex : sc[9].hex;
   const base = { type: 'linear', angle: 180, stops: [hex, shade], auto2: true, pos: [0.2, 1], paper: false,
-    ink: deep, shadow: false, amount: 70, speck: 2, specks: 'noise', sseed: 7, size: 0, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
+    shadow: false, amount: 70, speck: 2, specks: 'specks', sseed: 7, hue: 'same', shift: 60, depth: 35, lose: 0, glow: 0,
+    parts: { half: true, term: false, core: true, refl: false, high: false }, snap: true, inkMid: null, inkCore: null, size: 0, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
   // Flat draws only the first stop; the second is there so that switching it to Linear / Radial blends at once.
   const speckle = Object.assign({}, base, { type: 'flat', shadow: true, amount: 70, speck: 2, falloff: 65 });
-  return { soft: base, speckle: speckle, print: Object.assign({}, speckle, { specks: 'dots', speck: 3 }) };
+  return { soft: base, speckle: speckle, print: Object.assign({}, speckle, { specks: 'dots', speck: 4 }) };
 }
 // Rendered once per definition and box size: a colour edit re-renders only that colour's shapes.
 const shadeCache = new Map();
 function shadePlates(def, w, h) {
-  const key = JSON.stringify(def) + [num(w), num(h)];
+  const key = JSON.stringify(def) + [num(w), num(h)] + (def.shadow ? colors().join('') : '');   // snapped shadow inks follow the palette
   if (!shadeCache.has(key)) { shadeCache.set(key, gradPlates(def, w, h)); if (shadeCache.size > 120) shadeCache.delete(shadeCache.keys().next().value); }
   return shadeCache.get(key);
 }
@@ -855,18 +902,79 @@ function gradUses(g) {
     angle: g.type === 'linear',
     pattern: blend,
     seed: blend,
-    speck: shadow && !blend,   // on a grained blend the specks are the grain's cells
+    speck: shadow && !blend && g.specks !== 'bands',   // on a grained blend the specks are the grain's cells; Bands use a fine grid
+    sseed: shadow && g.specks === 'specks',   // only Specks are random
     dist: shadow,
     light: light,
     falloff: light,
   };
 }
-// A dot's own radius and offset in its cell (in cells): a little irregular, so
-// the dots read as stipple, not as a screen — but always whole inside their
-// cell, so a dot can be cut out of the one ink under it.
-function dotAt(c, r, seed) {
-  const rad = 0.34 + 0.14 * cellHash(c, r, seed + 31), room = 0.5 - rad;
-  return { r: rad, jx: (cellHash(c, r, seed + 53) - 0.5) * 2 * room, jy: (cellHash(c, r, seed + 71) - 0.5) * 2 * room };
+
+// ── THE SHADOW (Nov 18, 2026: Diego, "lo voglio tutte così come opzioni in shadow con un focus su specks e
+//    dots … allineare le parti ai colori definiti come token") — the painter's shadow from the Shadow lab
+//    (explorations/tunesutra-shadow-ink/). Two inks over the colour: HALFTONE and CORE, made by the rules
+//    (Hue · Shift · Depth · Lose · Edge glow) and, with Snap to palette, each moved to the nearest of the
+//    palette's own 50–900 tints — so a shadow is always made of the palette's tokens. The PARTS decide
+//    where they fall, from the light across the shape: Halftone (a ramp, else a hard edge), Terminator
+//    (a darker, richer band at the turn), Core shadow (else it stops at the halftone), Reflected light
+//    (lighter at the far edge), Highlight (paper-white specks on the lit edge). RENDER: Specks (square
+//    cells mixing two inks), Dots (a halftone screen — the lower ink as ground, the next as a dot sized
+//    by the share), Bands (hard steps). Every cell / dot one ink: still vector, still one plate per ink.
+const SHADOW_HUE = { cool: 285, warm: 35 };
+const towardHue = (h, t, k) => h + ((((t - h) % 360) + 540) % 360 - 180) * k;
+function paletteTints() { return [].concat.apply([], state.items.map(it => tokenScale(it.hex).map(st => st.hex))); }
+function ruleInk(g, hex, s) {
+  const O = C.hexToOklch(hex), grey = O.c < 0.02, k = s * g.shift / 100;
+  let L = O.l - s * g.depth / 100, c = O.c, h = O.h;
+  if (g.hue === 'cool' || g.hue === 'warm') { const t = SHADOW_HUE[g.hue]; h = grey ? t : towardHue(O.h, t, k); if (grey) c = 0.05 * k; }
+  else if (g.hue === 'complement') { h = (grey ? 105 : O.h) + 180 * k; if (grey) c = 0.04 * k; }
+  else if (g.hue === 'impressionist') { h = towardHue(grey ? 285 : O.h, 285, Math.min(1, k * 1.2)); c = Math.max(c, 0.09) * (1 + 0.6 * k); }
+  c *= 1 - (g.lose / 100) * s;
+  if (s < 1) c *= 1 + (g.glow / 100) * 1.4;   // the edge glow lives in the halftone ink
+  return C.oklchToHex(clamp(L, 0.04, 0.99), Math.max(0, c), ((h % 360) + 360) % 360);
+}
+// The two inks for colour `hex`: [halftone, core] — a manual one wins; else the rule, snapped to the palette.
+function shadowInks(g, hex) {
+  const want = [g.inkMid || ruleInk(g, hex, 0.5), g.inkCore || ruleInk(g, hex, 1)];
+  if (!g.snap) return want;
+  const pool = paletteTints().filter(t => C.deltaE(t, hex) >= 4);   // never the colour itself: the shadow would vanish
+  const near = (x, not) => pool.filter(t => t !== not).reduce((b, t) => C.deltaE(t, x) < C.deltaE(b, x) ? t : b, pool[0] || x);
+  const mid = g.inkMid || near(want[0]), core = g.inkCore || near(want[1], mid);   // the core never the halftone's tint
+  return [mid, core];
+}
+// The shadow's own grid: Bands on a fine one (its edges follow the light, not Size's steps), else Size.
+function shadowGrid(g) { return hasNoise(g) && g.specks === 'bands' ? 1 : (g.speck || SHADOW_CELL); }
+// Shadow level at a point: v 0 (none) … 1 (halftone ink) … 2 (core ink), and a highlight flag.
+function shadowLevel(g, w, h) {
+  const weight = noiseWeight(g, w, h), amt = g.amount / 100, P = g.parts || {};
+  return (ux, uy, c, r) => {
+    const w0 = weight(ux, uy);
+    let s = P.half !== false ? clamp((w0 - 0.2) / 0.65, 0, 1) : (w0 > 0.5 ? 1 : 0);
+    s = s * s * (3 - 2 * s) * amt;
+    if (P.core === false) s = Math.min(s, 0.5);
+    if (P.term) s = Math.min(1, s + Math.exp(-Math.pow((w0 - 0.5) / 0.1, 2)) * 0.3 * amt);
+    if (P.refl && w0 > 0.82) s = Math.max(0, s - (w0 - 0.82) / 0.18 * 0.5);
+    const hi = !!P.high && w0 < 0.15 && cellHash(c, r, g.sseed + 5) < (0.15 - w0) / 0.15 * 0.7;
+    return { v: s * 2, hi: hi };
+  };
+}
+// One cell of the shadow over base ink `base` (an index; -1 = none, the smooth fill): → { ink, dot? }.
+// I = { mid, core, paper } — the plates' indices of the two inks and the highlight.
+function shadowCell(g, lv, base, I, c, r, cell, whole) {
+  if (lv.hi) return { ink: I.paper };
+  const v = lv.v, mode = g.specks;
+  if (mode === 'dots') {
+    // a halftone screen (AM, as in print): the share f of the next ink covers exactly f of the cell — up to
+    // half, a dot of it on the lower ink; past half the cell takes it and a dot of the lower ink is left —
+    // so the tone runs 0 → 100% with no jump, and no dot ever leaves its cell (plates never overlap)
+    const lo = Math.min(1, Math.floor(v)), f = clamp(v - lo, 0, 1), under = lo === 0 ? base : I.mid, over = lo === 0 ? I.mid : I.core;
+    if (!whole) return { ink: f > 0.5 ? over : under };
+    if (f <= 0.5) { const r = Math.sqrt(f / Math.PI) * cell; return { ink: under, dot: r > 0.06 * cell ? { ink: over, r: r } : null }; }
+    const r = Math.sqrt((1 - f) / Math.PI) * cell;
+    return { ink: over, dot: r > 0.06 * cell ? { ink: under, r: r } : null };
+  }
+  const lvl = mode === 'bands' ? Math.round(v) : (() => { const lo = Math.floor(v); return cellHash(c, r, g.sseed + 11) < v - lo ? lo + 1 : lo; })();
+  return { ink: lvl <= 0 ? base : lvl === 1 ? I.mid : I.core };
 }
 
 // The drawing: → [{ hex, paper, d, cells }] — one entry per ink, `d` the SVG path
@@ -904,13 +1012,17 @@ function smoothGeom(g, w, h) {
 function gradPlates(g, w, h) {
   if (smoothGrad(g)) return smoothPlates(g, w, h);
   // one grid: the grain's when the blend is grained, else the shadow's own (Flat)
-  const stops = gradStops(g), k = stops.length, cell = Math.max(MIN_CELL, g.type === 'flat' ? (g.speck || SHADOW_CELL) : g.size);
-  const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h), weight = noiseWeight(g, w, h);
+  const stops = gradStops(g), k = stops.length, cell = Math.max(MIN_CELL, g.type === 'flat' ? shadowGrid(g) : g.size);
+  const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h);
   const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
-  const shadow = hasNoise(g), dots = shadow && g.specks === 'dots', amt = g.amount / 100;
-  // a shadow ink that is one of the stops is that stop's ink: one plate, not two of the same colour
-  const same = shadow ? stops.findIndex(s => !s.paper && s.hex.toLowerCase() === g.ink.toLowerCase()) : -1;
-  const spk = shadow ? { hex: g.ink, paper: false, d: [], holes: [], cells: 0 } : null, sk = same >= 0 ? same : k;
+  const shadow = hasNoise(g), level = shadow ? shadowLevel(g, w, h) : null, I = {};
+  if (shadow) {
+    // a shadow ink that is one of the stops is that stop's ink: one plate, not two of the same colour
+    const add = hex => { const at = out.findIndex(p => !p.paper && p.hex.toLowerCase() === hex.toLowerCase()); if (at >= 0) return at; out.push({ hex: hex, paper: false, d: [], holes: [], cells: 0 }); return out.length - 1; };
+    const [mid, core] = shadowInks(g, g.stops[colourStop(g)]);
+    I.mid = add(mid); I.core = add(core);
+    out.push({ hex: Organica.contentColor('--paper'), paper: true, d: [], holes: [], cells: 0 }); I.paper = out.length - 1;
+  }
   const rowPath = (c0, c1, y0, y1) => { const x0 = num(c0 * cell), x1 = num(Math.min(w, c1 * cell)); return `M${x0} ${num(y0)}h${num(x1 - x0)}v${num(y1 - y0)}h${num(x0 - x1)}z`; };
   for (let r = 0; r < rows; r++) {
     const y0 = r * cell, y1 = Math.min(h, y0 + cell);
@@ -922,20 +1034,20 @@ function gradPlates(g, w, h) {
         const s = segAt(stops, t);
         ink = k < 2 ? 0 : (s.f > patternThr(g.pattern, c, r, g.seed, 0) ? s.a + 1 : s.a);
         if (shadow) {
-          const hit = patternThr(g.specks, c, r, g.sseed, 1) < weight(ux, uy) * amt;
-          if (hit && dots && (c + 1) * cell <= w && (r + 1) * cell <= h) {   // a dot only in a whole cell
-            const d = dotAt(c, r, g.sseed), dot = circleD((c + 0.5 + d.jx) * cell, (r + 0.5 + d.jy) * cell, d.r * cell);
-            if (ink !== same) { (same >= 0 ? out[same] : spk).d.push(dot); spk.cells++; out[ink].holes.push(dot); }
-          } else if (hit && !dots) ink = sk;   // the shadow's own index, after the stops (or the stop it equals)
+          const sc = shadowCell(g, level(ux, uy, c, r), ink, I, c, r, cell, (c + 1) * cell <= w && (r + 1) * cell <= h);
+          ink = sc.ink;
+          if (sc.dot && sc.dot.ink !== ink) {   // a dot only in a whole cell, cut out of the ink under it
+            const dot = circleD((c + 0.5) * cell, (r + 0.5) * cell, sc.dot.r);
+            out[sc.dot.ink].d.push(dot); out[sc.dot.ink].cells++; out[ink].holes.push(dot);
+          }
         }
       }
       if (ink !== run) {
-        if (run >= 0) { const p = run === k ? spk : out[run]; p.d.push(rowPath(c0, c, y0, y1)); p.cells += c - c0; }
+        if (run >= 0) { const p = out[run]; p.d.push(rowPath(c0, c, y0, y1)); p.cells += c - c0; }
         run = ink; c0 = c;
       }
     }
   }
-  if (spk && same < 0) out.push(spk);
   out.forEach(p => { p.d = p.d.join('') + p.holes.join(''); delete p.holes; });
   return out;
 }
@@ -944,14 +1056,20 @@ function smoothPlates(g, w, h) {
   const stops = gradStops(g), out = [{ hex: stops[0].hex, paper: false, d: '', cells: 0 },
     { hex: stops[stops.length - 1].hex, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0, smooth: { geom: smoothGeom(g, w, h), stops: smoothStops(g) } }];
   if (!hasNoise(g)) return out;
-  const cell = g.speck || SHADOW_CELL, cols = Math.floor(w / cell), rows = Math.floor(h / cell), weight = noiseWeight(g, w, h), amt = g.amount / 100, d = [];
+  // the shadow over the smooth fill: its own grid; a cell with no shadow shows the fill (-1)
+  const cell = shadowGrid(g), cols = Math.floor(w / cell), rows = Math.floor(h / cell), level = shadowLevel(g, w, h);
+  const [mid, core] = shadowInks(g, g.stops[colourStop(g)]), P = [{ hex: mid, d: [], holes: [] }, { hex: core, d: [], holes: [] }, { hex: Organica.contentColor('--paper'), paper: true, d: [], holes: [] }];
+  const I = { mid: 0, core: 1, paper: 2 };
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-    const ux = (c + 0.5) * cell, uy = (r + 0.5) * cell;
-    if (patternThr(g.specks, c, r, g.sseed, 1) >= weight(ux, uy) * amt) continue;
-    if (g.specks === 'dots') { const o = dotAt(c, r, g.sseed); d.push(circleD((c + 0.5 + o.jx) * cell, (r + 0.5 + o.jy) * cell, o.r * cell)); }
-    else d.push(`M${num(c * cell)} ${num(r * cell)}h${cell}v${cell}h-${cell}z`);
+    const sc = shadowCell(g, level((c + 0.5) * cell, (r + 0.5) * cell, c, r), -1, I, c, r, cell, true);
+    if (sc.ink >= 0) {   // run-length: a cell continuing the same ink on its row widens the last rect
+      const pl = P[sc.ink], last = pl.run;
+      if (last && last.r === r && last.c1 === c) { last.c1 = c + 1; pl.d[pl.d.length - 1] = `M${num(last.c0 * cell)} ${num(r * cell)}h${num((c + 1 - last.c0) * cell)}v${cell}h${num(-(c + 1 - last.c0) * cell)}z`; }
+      else { pl.run = { r: r, c0: c, c1: c + 1 }; pl.d.push(`M${num(c * cell)} ${num(r * cell)}h${cell}v${cell}h-${cell}z`); }
+    }
+    if (sc.dot && sc.dot.ink !== sc.ink) { const dot = circleD((c + 0.5) * cell, (r + 0.5) * cell, sc.dot.r); if (sc.dot.ink >= 0) P[sc.dot.ink].d.push(dot); if (sc.ink >= 0) P[sc.ink].holes.push(dot); }
   }
-  out.push({ hex: g.ink, paper: false, d: d.join(''), cells: d.length });
+  P.forEach(p => out.push({ hex: p.hex, paper: !!p.paper, d: p.d.join('') + p.holes.join(''), cells: p.d.length }));
   return out;
 }
 // A smooth plate as SVG: its gradient (user space of the box) and the box filled with it.
@@ -1062,14 +1180,22 @@ function clearColourShades(i) {
 }
 function inkCount(g) {
   const inks = gradStops(g).filter(s => !s.paper).map(s => s.hex.toLowerCase());
-  if (hasNoise(g) && inks.indexOf(g.ink.toLowerCase()) < 0) inks.push(g.ink);
+  if (hasNoise(g)) shadowInks(g, g.stops[colourStop(g)]).forEach(x => { if (inks.indexOf(x.toLowerCase()) < 0) inks.push(x.toLowerCase()); });
   return new Set(inks).size;
 }
 
 function syncGradControls() {
   const g = G(), seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   const flat = g.type === 'flat', uses = gradUses(g);
-  seg('seg-gtype', g.type); seg('seg-gpattern', g.pattern); seg('seg-gspecks', g.specks);
+  seg('seg-gtype', g.type); seg('seg-gpattern', g.pattern); seg('seg-gspecks', g.specks); ctrl('sel-ghue').value = g.hue;
+  ['shift', 'depth', 'lose', 'glow'].forEach(k => { ctrl('rg-g' + k).value = g[k]; ctrl('v-g' + k).textContent = g[k]; });
+  ctrl('ck-gsnap').checked = !!g.snap;
+  const P = g.parts || {};
+  [['half', 'half'], ['term', 'term'], ['core', 'core'], ['refl', 'refl'], ['high', 'high']].forEach(([id, k]) => { ctrl('ck-g' + id).checked = P[k] !== false && (P[k] || id === 'half' || id === 'core'); });
+  const inks = shadowInks(g, g.stops[colourStop(g)]);
+  ctrl('sw-gmid').style.background = inks[0]; ctrl('v-gmid').textContent = inks[0];
+  ctrl('sw-gcore').style.background = inks[1]; ctrl('v-gcore').textContent = inks[1];
+  ctrl('btn-ginks-auto').hidden = !g.inkMid && !g.inkCore;
   ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle + '°';
   ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
   ctrl('rg-gsize').value = g.size; ctrl('v-gsize').textContent = g.size;
@@ -1085,17 +1211,16 @@ function syncGradControls() {
   ctrl('grad-blend').hidden = flat;
   ctrl('grain-none').hidden = !flat; ctrl('grain-ctl').hidden = flat;   // Flat has no blend to grain (Diego, Nov 18, 2026)
   ctrl('grain-smooth').hidden = flat || g.size > 0;
-  ['angle', 'pattern', 'seed', 'speck', 'dist', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
+  ['angle', 'pattern', 'seed', 'speck', 'sseed', 'dist', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
   gradSel = Math.min(gradSel, g.stops.length - 1);
-  if (inkSwatch && inkSwatch.get() !== g.ink) inkSwatch.set(g.ink);
   renderStopBar();
-  const inks = inkCount(g);   // no title hint naming the colour / shape (Diego, Nov 18, 2026: "elimina Base, shape 1")
+  const inkN = inkCount(g);   // no title hint naming the colour / shape (Diego, Nov 18, 2026: "elimina Base, shape 1")
   const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
   ctrl('grad-hint').textContent = smoothGrad(g)
     ? 'No grain: the gradient blends smoothly. The export is vector, but a blend is not one plate per ink — raise Grain size for print plates.'
     : 'Each cell is one pure ink' + (g.paper && !flat ? ' or bare paper' : '') + ': the export is vector, one plate per ink (' +
-    (words[inks] || inks) + (inks === 1 ? ' plate' : ' plates') + ').';
-  ctrl('shadow-hint').hidden = !(hasNoise(g) && g.specks === 'dots' && !smoothGrad(g));   // the shadow's own note, in its section
+    (words[inkN] || inkN) + (inkN === 1 ? ' plate' : ' plates') + ').';
+  ctrl('shadow-hint').hidden = !(hasNoise(g) && g.specks === 'dots');   // the shadow's own note, in its section
 }
 // Saved before Nov 18, 2026: the raster options are gone — Conic becomes Linear,
 // Ordered becomes Noise, a Tone grain (a raster jitter) is dropped, Grain in
@@ -1111,9 +1236,15 @@ function normalizeGrad(g) {
     g.shadow = had.amount !== undefined && +g.amount > 0;
     if (!g.shadow) g.amount = 70;
     g.speck = +had.size > 0 ? clamp(+had.size, 1, 12) : SHADOW_CELL;
-    g.specks = had.pattern === 'dots' ? 'dots' : 'noise';
+    g.specks = had.pattern === 'dots' ? 'dots' : 'specks';
     g.sseed = had.seed != null ? had.seed : 1;
   }
+  // Saved before the painter's shadow (Nov 18, 2026, late): one Ink, Specks 'noise' — that ink becomes the core,
+  // hand-picked, so the old look keeps its colour; the halftone comes from the rule.
+  if (g.specks === 'noise') g.specks = 'specks';
+  if (had.ink && had.inkCore === undefined) g.inkCore = had.ink;
+  delete g.ink;
+  g.parts = Object.assign({ half: true, term: false, core: true, refl: false, high: false }, had.parts || {});
   g.auto2 = had.auto2 === true;   // a definition saved before Nov 18, 2026 keeps the second stop it has
   if (g.type === 'conic') g.type = 'linear';
   if (g.pattern !== 'dots') g.pattern = 'noise';
@@ -1276,18 +1407,25 @@ function moveStop(i, to) {
 }
 
 const GRAD_MAX_STOPS = 8;
-let inkSwatch = null;
 function initGradient() {
-  inkSwatch = Organica.palette.swatch('gink', {
-    initial: G().ink,
-    onChange: hex => { if (hex === G().ink) return; pushUndo('grad'); G().ink = hex; gradChanged(); },
-  });
+  // the two shadow inks: a click opens the picker on the ink as it is; a pick makes it hand-picked
+  [['sw-gmid', 'inkMid', 0, 'Halftone ink'], ['sw-gcore', 'inkCore', 1, 'Core ink']].forEach(([id, key, k, label]) => ctrl(id).addEventListener('click', () => {
+    const g0 = G();
+    Organica.colorPicker.open(ctrl(id), { value: shadowInks(g0, g0.stops[colourStop(g0)])[k], label: label,
+      onInput: hex => { const g = G(); if (g[key] === hex) return; pushUndo('grad'); g[key] = hex; gradChanged(); } });
+  }));
+  ctrl('btn-ginks-auto').addEventListener('click', () => { pushUndo('grad-inks'); const g = G(); g.inkMid = null; g.inkCore = null; gradChanged(); });
+  ctrl('ck-gsnap').addEventListener('change', e => { pushUndo('grad-snap'); G().snap = e.target.checked; gradChanged(); });
+  [['half', 'half'], ['term', 'term'], ['core', 'core'], ['refl', 'refl'], ['high', 'high']].forEach(([id, k]) => ctrl('ck-g' + id).addEventListener('change', e => {
+    pushUndo('grad-part'); const g = G(); g.parts = Object.assign({}, g.parts, { [k]: e.target.checked }); gradChanged();
+  }));
   bindStopBar();
   const segBind = (id, key) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
     if (G()[key] === b.dataset.v) return;
     pushUndo('grad-' + key); G()[key] = b.dataset.v; gradChanged();
   }));
   segBind('seg-gtype', 'type'); segBind('seg-gpattern', 'pattern'); segBind('seg-gspecks', 'specks');
+  ctrl('sel-ghue').addEventListener('change', e => { pushUndo('grad-hue'); G().hue = e.target.value; gradChanged(); });
   ctrl('ck-gshadow').addEventListener('change', e => { pushUndo('grad-shadow'); const g = G(); g.shadow = e.target.checked; if (g.shadow && !(g.amount > 0)) g.amount = 70; gradChanged(); });
   ctrl('in-gsseed').addEventListener('input', e => {
     if (e.target.value === '') return;
@@ -1296,7 +1434,7 @@ function initGradient() {
     pushUndo('grad'); G().sseed = v; gradChanged();
   });
   ctrl('in-gsseed').addEventListener('change', e => { e.target.value = G().sseed; });
-  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gsize', 'size'], ['rg-gspeck', 'speck'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
+  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gsize', 'size'], ['rg-gspeck', 'speck'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff'], ['rg-gshift', 'shift'], ['rg-gdepth', 'depth'], ['rg-glose', 'lose'], ['rg-gglow', 'glow']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
     pushUndo('grad'); G()[key] = +e.target.value; gradChanged();
   }));
   ctrl('ck-glight').addEventListener('change', e => { pushUndo('grad-dist'); G().dist = e.target.checked ? 'light' : 'even'; gradChanged(); });

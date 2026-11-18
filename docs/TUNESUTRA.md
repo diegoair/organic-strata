@@ -239,17 +239,29 @@ file), while the plates keep the exact partition.
 - **Pattern** — how the cells are chosen: **Noise** (at random) or **Dots** (round
   dots, evenly spread: a 64 × 64 blue-noise mask, `Organica.dither.blueNoise`).
 - **Seed** fixes the cells.
-- **Shadow** — its own **switch** (`shadow`, saved), then one more ink on top: **Ink**,
-  **Amount** (density 1–100), **Size** (`speck`; *Speck size* until Diego chose *Size* in both sections; shown only when the shadow has its own grid —
-  Flat, or a grain-0 blend; on a grained blend the specks are the grain's cells), **Specks**
-  *Square · Round* (`specks`, its own — the grain's Pattern no longer drives it), **Seed** (`sseed`, its own),
-  **Away from a light** (switch; off = everywhere alike) with **Light from** (0° = the
-  top, 90° = the right: none on the lit edge, full on the opposite one) and **Falloff**
-  (50 = grows evenly; higher keeps it to the far side — an exponent 4^((f − 50) / 50)).
-  Square shadow cells take their cells from the other inks; each shadow dot is cut out
-  of the one ink under it (a circle inside that ink's rectangle, filled even-odd; dots
-  only in whole cells), so the plates never overlap. A shadow ink equal to a stop is
-  that stop's ink — one plate, not two.
+- **Shadow — the painter's shadow** (Nov 18, 2026: Diego, *lo voglio tutte così come opzioni in shadow con un
+  focus su specks e dots … allineare le parti ai colori definiti come token*; from the Shadow lab,
+  `explorations/tunesutra-shadow-ink/`). Its own **switch** (`shadow`), then:
+  - **Pattern** *Specks · Dots · Bands* (`specks`; *Render* until Diego chose Pattern, Nov 18, 2026): Specks = square cells mixing two inks (Seed); Dots = a true
+    AM halftone screen — up to half the next ink is a dot on the lower one, past half the cell takes it and a dot
+    of the lower ink is left, each dot's area exactly the share, so the tone runs 0 → 100% with no jump and no
+    dot leaves its cell (plates never overlap; revised Nov 18, 2026 — Diego: *dots mi sembra diverso da quello di
+    prima*, the first version capped dots at half a cell); Bands = hard steps on a fine 1-unit grid, so their
+    edges follow the light (Size hidden). **Size** (`speck`, its own grid on Flat / a grain-0 blend; on a grained blend
+    the grain's cells), **Amount** (how strong), **Seed** (`sseed`), **Away from a light** · **Light from** ·
+    **Falloff** (the light across each shape's own box).
+  - **Inks** — two, **Halftone** and **Core** (`shadowInks()`): made by the rules below from the colour, or
+    hand-picked from the picker (`inkMid` / `inkCore`; **Reset inks** forgets them). **Snap to palette**
+    (`snap`, on by default) moves each ink to the nearest of the palette's own 50–900 tints (never the colour
+    itself, the core never the halftone's) — so a shadow is made of the palette's tokens; with Complement or Cool
+    it often lands on another palette colour's tint.
+  - **Hue** (a select) *Same · Cool · Warm · Complement · Impressionist* (`hue`) with **Shift** — warm light / cool shadows,
+    the reverse, Chevreul's complement, Monet's coloured shadows; **Depth** (`depth`, lightness of the core).
+  - **Chroma**: **Loss** (colour lost in the shadow), **Edge glow** (colour gained by the halftone ink).
+  - **Parts** (`parts`): **Halftone** (a ramp, else a hard edge), **Terminator** (a darker band at the turn),
+    **Core shadow** (else it stops at the halftone ink), **Reflected light** (lighter at the far edge),
+    **Highlight** (paper-white specks on the lit edge). No cast shadow: the house's shapes are flat on the sheet.
+  A shadow saved before keeps its look: its one Ink becomes the hand-picked Core.
 
 The panel shows a control only while it changes the drawing (`gradUses()`).
 
