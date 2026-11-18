@@ -18,10 +18,13 @@
      4 colours  wall 52.0 · roof 32.2 · door 10.9 · windows 4.9
      5 colours  background 71.6 · ground 20.0 · wall 4.6 · roof 2.8 · door 1.0
    Every part is an FVS shape (Organica.shapes), polygonal only — corner 0,
-   curve 0, irregular 0 — plus the circle for windows:
-     roof     triangleGeometry (apex at random) · polygonGeometry 4–8 sides,
-              centred on the eaves line so its lower half hides behind the wall ·
-              roundedRectGeometry with corner 0 (a slab)
+   curve 0, irregular 0 — plus the circle for windows and the curved roofs:
+     roof     triangleGeometry (apex at random, kept near the middle) · dome · vault · onion · gothic
+              (curved profiles sampled as fine polygons, squashed to the solved height) · the top half of a
+              polygonGeometry 4–8 sides, cut at the eaves line — always above the wall, never
+              hanging beside it, its base the widest part (Nov 18, 2026: Diego, "il tetto dovrebbe
+              in teoria essere sempre sopra, ma delle volte la forma del tetto è strana o troppo
+              grande"). The flat slab was dropped: at the roof's share it could only be a block.
      door     rectangle · polygon 5 (pointed)
      windows  circle · polygon 3–8 sides · rectangle (one, or two either side of the door)
    The wall is drawn at random; the roof height, door and windows are then SOLVED
@@ -57,6 +60,26 @@
     }
     return out;
   }
+  // Curved roofs (Nov 18, 2026: Diego, "tutte e 4, schiacciate"): a profile on a base from x −1 to 1, y up
+  // as negative, sampled finely enough to read as a curve. The drawn path IS the sampled polygon, so its
+  // area — and the shares — stay exact. fit() then stretches it to the eaves × the solved height: on a
+  // wide house that height is under the shape's natural one, so it is squashed (a dome turns elliptic).
+  const ARC_N = 32;
+  const mirror = L => L.concat(L.slice(0, -1).reverse().map(q => [-q[0], q[1]]));   // left half (base → apex) → whole
+  const bez = (a, b, c, d, u) => [0, 1].map(i => (1 - u) ** 3 * a[i] + 3 * (1 - u) ** 2 * u * b[i] + 3 * (1 - u) * u * u * c[i] + u ** 3 * d[i]);
+  const steps = f => Array.from({ length: ARC_N + 1 }, (_, i) => f(i / ARC_N));
+  const CURVED = {
+    // a half circle
+    dome: () => steps(u => [Math.cos(Math.PI * (1 - u)), -Math.sin(Math.PI * (1 - u))]),
+    // a circular segment, rise 0.45 of the half-base: meets the eaves at an angle, not upright
+    vault: () => { const s = 0.45, R = (1 + s * s) / (2 * s), ph = Math.asin(1 / R);
+      return steps(u => { const a = Math.PI / 2 + ph - 2 * ph * u; return [R * Math.cos(a), -(R * Math.sin(a) - (R - s))]; }); },
+    // an ogee bulb with a point
+    onion: () => mirror(steps(u => bez([-1, 0], [-1, -0.62], [0, -0.5], [0, -1], u))),
+    // a pointed arch: two arcs of radius 1.5 half-bases, centred on the base line
+    gothic: () => { const R = 1.5, end = Math.atan2(Math.sqrt(2 * R - 1), 1 - R);
+      return mirror(steps(u => { const a = Math.PI + (end - Math.PI) * u; return [R - 1 + R * Math.cos(a), -R * Math.abs(Math.sin(a))]; })); },
+  };
   const pts = d => d.replace(/[MZ]/g, '').trim().split(/\s*L\s*/).map(s => s.split(',').map(Number));
   const bbox = p => { const xs = p.map(q => q[0]), ys = p.map(q => q[1]); return [Math.min.apply(null, xs), Math.min.apply(null, ys), Math.max.apply(null, xs), Math.max.apply(null, ys)]; };
   const fit = (p, x0, y0, w, h) => { const b = bbox(p); return p.map(q => [x0 + (q[0] - b[0]) / (b[2] - b[0]) * w, y0 + (q[1] - b[1]) / (b[3] - b[1]) * h]); };
@@ -75,11 +98,16 @@
     const pick = arr => arr[Math.floor(rnd() * arr.length)];
     const ri = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
     const roofPick = () => {
-      const k = pick(['triangle', 'triangle', 'polygon', 'polygon', 'slab']);
-      if (k === 'triangle') { const apex = Math.round((rnd() * 2 - 1) * 60); return { label: 'triangle', p: pts(S.triangleGeometry(100, 100, apex).d), over: false }; }
-      if (k === 'slab') return { label: 'rectangle', p: pts(S.roundedRectGeometry(100, ri(30, 60), 0).d), over: false };
+      const k = pick(['triangle', 'triangle', 'polygon', 'polygon', 'dome', 'vault', 'onion', 'gothic']);
+      if (CURVED[k]) return { label: k, p: CURVED[k]() };
+      if (k === 'triangle') { const apex = Math.round((rnd() * 2 - 1) * 30); return { label: 'triangle', p: pts(S.triangleGeometry(100, 100, apex).d) }; }
       const sides = ri(4, 8), up = sides % 2 === 1 || sides === 4 || rnd() < 0.5;
-      return { label: 'polygon ' + sides, p: pts(S.polygonGeometry(sides, 0, 0, 1, 100, up ? undefined : { base: 0 }).d), over: true };
+      // the polygon's top half: fitted to a 1 × 2 box centred on y = 0, cut at y = 0
+      const half = clip(fit(pts(S.polygonGeometry(sides, 0, 0, 1, 100, up ? undefined : { base: 0 }).d), 0, -1, 1, 2), rect(-1, -2, 3, 2));
+      const hb = bbox(half), base = half.filter(q => Math.abs(q[1]) < 1e-6).map(q => q[0]);
+      // its base must be its widest part, or it reads as a mushroom over the wall
+      if (base.length < 2 || Math.max.apply(null, base) - Math.min.apply(null, base) < 0.97 * (hb[2] - hb[0])) return null;
+      return { label: 'polygon ' + sides, p: half };
     };
     const doorPick = () => {
       const k = pick(['rect', 'rect', 'pentagon']);   // a triangle door was tried: at half its box's area it is almost never narrow enough
@@ -95,6 +123,7 @@
     const BW = 300, BH = 240;
     for (let tries = 0; tries < 5000; tries++) {
       const roofS = roofPick(), doorS = doorPick();
+      if (!roofS) continue;
       let W, H, T, R, DA, XA, x0, wallTop, yb = null, gL = 48, gR = 48;
       if (n < 5) {
         W = 60 + rnd() * 80; H = 50 + rnd() * 60; T = W * H / 0.678; R = 0.322 * T; x0 = 0; wallTop = 0;
@@ -107,15 +136,15 @@
         x0 = 24 + rnd() * (BW - 48 - W); wallTop = (yb(x0) + yb(x0 + W)) / 2 - H; R = T * 0.028; DA = T * 0.01; XA = 0;
       }
       const wall = n < 5 ? rect(x0, wallTop, W, H) : [[x0, wallTop], [x0 + W, wallTop], [x0 + W, yb(x0 + W)], [x0, yb(x0)]];
-      const e = rnd() * (n < 5 ? 10 : 5), B = W + 2 * e;
-      const unit = rh => roofS.over ? fit(roofS.p, x0 - e, wallTop - rh, B, 2 * rh) : fit(roofS.p, x0 - e, wallTop - rh, B, rh);
+      // the eaves overhang, in proportion to the wall: a wider roof need not climb. A triangle (half its
+      // box's area) needs more of it to stay under 80% of the wall — the classic gable overhang.
+      const e = (roofS.label === 'triangle' || roofS.label === 'onion' ? 0.1 + rnd() * 0.1 : rnd() * 0.12) * W, B = W + 2 * e;
+      // the roof sits on the eaves line, all of it above the wall: its area grows linearly with its height
+      const unit = rh => fit(roofS.p, x0 - e, wallTop - rh, B, rh);
       const vis1 = area(unit(1)) - area(clip(unit(1), wall));
       const rh = R / vis1, roof = unit(rh);
-      if (rh < (roofS.over ? 0.3 : 0.2) * H || rh > 1.2 * H) continue;
-      if (roofS.label === 'rectangle' && rh > 0.45 * H) continue;   // a slab, not a block
+      if (rh < 0.3 * H || rh > 0.8 * H) continue;   // not flat, not a spire: never taller than 80% of the wall
       if (n === 5 && wallTop - rh < 8) continue;
-      if (roofS.over && n === 5 && wallTop + rh > Math.min(yb(x0 - e), yb(x0 + W + e)) - 2) continue;
-      if (n < 5 && roofS.over && rh > H * 0.95) continue;
       const db = bbox(doorS.p), dFill = area(doorS.p) / ((db[2] - db[0]) * (db[3] - db[1]));
       const dh = H * (0.42 + rnd() * 0.35), dw = DA / (dFill * dh);
       if (dw < 0.12 * W || dw > 0.42 * W) continue;

@@ -564,7 +564,7 @@ function applyHarmony() {
 const undoStack = [];
 let lastUndo = { kind: '', t: 0 };
 function snapshot() {
-  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, house: state.house, shading: state.shading, activeIndex: state.activeIndex, zone: state.zone, zoneShades: state.zoneShades, grad: state.grad });
+  return JSON.stringify({ items: state.items, harmony: state.harmony, spread: state.spread, view: state.view, house: state.house, shading: state.shading, activeIndex: state.activeIndex, zone: state.zone, zoneAt: state.zoneAt, zoneShades: state.zoneShades, grad: state.grad });
 }
 function pushUndo(kind) {
   const now = Date.now();
@@ -633,6 +633,7 @@ function commit(rebuildChips) {
   syncCountSeg();
   syncViewSeg();
   refreshFieldEditor();
+  syncGradControls();   // what Gradient & grain edits can change with the colours (a shape lapses, a stop is the colour)
   renderStage();
   refreshHints();
   syncUndo();
@@ -736,8 +737,7 @@ const VB_W = 900, BAR_Y = 24, BAR_H = 44, BAR_X0 = 20, BAR_X1 = 880;
 const CARD_MAX_W = 150, CARD_GAP = 14, CARD_COLOUR_H = 96, CARD_H = 134, CARD_R = 14, STEP_H = 20, STEP_GAP = 2;
 const TILE_H = 34, TILE_GAP = 4;   // the shading tiles under each scale
 const TUBE_H = 10, TUBE_ROW = 40;   // the share tube over each card, and the row it takes
-const SW_W = 76, SW_GAP = 6, SW_H = 40, SW_PITCH = SW_W + SW_GAP;
-const GRID_HEAD_H = 14, GRID_ROW_H = SW_H + 22;
+const PAIR_W = 180, PAIR_H = 96, PAIR_MIN = 3, PAIR_MAX = 4;   // the contrast pairs: tile size, how many at least / at most
 
 // The figure — the palette shown IN PROPORTION on a house generated from a seed
 // (tunesutra/house.js, Nov 18, 2026: it replaces the Garment, the House and the
@@ -1007,6 +1007,14 @@ const shadeDraft = { key: '', def: null };
 function onHouse() { return state.view !== 'gradient'; }
 function draftMode() { return state.shading === 'none' ? 'soft' : state.shading; }
 function zoneKey(z) { return state.house + '/' + count() + '/' + z; }
+// The selected shape, only while it still is one: on the house, in this figure, of the active
+// colour. A colour removed / added, another house, another view — the selection lapses to the colour.
+function selZone() {
+  const z = state.zone;
+  if (z == null || !onHouse() || !garmentFits(count()) || state.zoneAt !== state.house + '/' + count()) return null;   // picked on another house
+  const f = currentFigure(), zone = f && f.zones[z];
+  return zone && zone.role === state.activeIndex ? z : null;
+}
 // A shape's own definition with its first stop set to the shape's colour (and a second one to blend to).
 function withColour(def, hex) {
   def.stops[0] = hex;
@@ -1022,8 +1030,9 @@ function colourDef(r) {
 function G() {
   if (!onHouse()) return state.grad;
   const it = state.items[state.activeIndex];
-  if (state.zone != null) {   // one shape of the house (Diego, Nov 18, 2026: "ogni forma … una gestione separata")
-    const key = zoneKey(state.zone), own = state.zoneShades[key];
+  const sz = selZone();
+  if (sz != null) {   // one shape of the house (Diego, Nov 18, 2026: "ogni forma … una gestione separata")
+    const key = zoneKey(sz), own = state.zoneShades[key];
     if (own) return withColour(own, it.hex);
     const dkey = 'z|' + key + '|' + JSON.stringify(colourDef(state.activeIndex));
     if (shadeDraft.key !== dkey) { shadeDraft.key = dkey; shadeDraft.def = JSON.parse(JSON.stringify(colourDef(state.activeIndex) || shadeDefs(it.hex).soft)); }
@@ -1041,7 +1050,8 @@ function G() {
 function keepEdit() {
   if (!onHouse()) return;
   const it = state.items[state.activeIndex];
-  if (state.zone != null) { const key = zoneKey(state.zone); if (!state.zoneShades[key]) { state.zoneShades[key] = G(); shadeDraft.key = ''; } return; }
+  const sz = selZone();
+  if (sz != null) { const key = zoneKey(sz); if (!state.zoneShades[key]) { state.zoneShades[key] = G(); shadeDraft.key = ''; } return; }
   if (!it.shade) { it.shade = G(); shadeDraft.key = ''; }
 }
 // The definition drawn on shape `z` (colour `r`) of the house: the shape's own, else the colour's own, else the preset.
@@ -1052,8 +1062,8 @@ function houseDef(r, z) {
 // Back to the preset: the colour's own shading forgotten.
 // On a selected shape: that shape's own. Otherwise the colour's own.
 function resetShade(i) {
-  if (onHouse() && state.zone != null) {
-    const key = zoneKey(state.zone);
+  if (selZone() != null) {
+    const key = zoneKey(selZone());
     if (!state.zoneShades[key]) return;
     pushUndo('shade-reset'); delete state.zoneShades[key]; gradChanged(); return;
   }
@@ -1095,10 +1105,10 @@ function syncGradControls() {
   if (gradChips) gradChips.setActive(gradSel);
   if (flatChip && flatChip.get() !== g.stops[0]) flatChip.setColors([g.stops[0]]);
   renderStopBar();
-  const inks = inkCount(g), it = state.items[state.activeIndex], zone = onHouse() && state.zone != null;
-  const own = onHouse() && (zone ? !!state.zoneShades[zoneKey(state.zone)] : !!it.shade);
+  const inks = inkCount(g), it = state.items[state.activeIndex], sz = selZone(), zone = sz != null;
+  const own = onHouse() && (zone ? !!state.zoneShades[zoneKey(sz)] : !!it.shade);
   ctrl('grad-target').textContent = !onHouse() ? 'Gradient view'
-    : dispName(state.activeIndex) + (zone ? ', shape ' + (state.zone + 1) : ', every shape') + (own ? '' : ' · ' + (zone ? 'as its colour' : SHADE_NAME[draftMode()]));
+    : dispName(state.activeIndex) + (zone ? ', shape ' + (sz + 1) : ', every shape') + (own ? '' : ' · ' + (zone ? 'as its colour' : SHADE_NAME[draftMode()]));
   ctrl('btn-shade-reset').hidden = !own;
   const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
   ctrl('grad-hint').textContent = 'Each cell is one pure ink' + (g.paper && !flat ? ' or bare paper' : '') + ': the export is vector, one plate per ink (' +
@@ -1419,9 +1429,9 @@ function buildScene() {
         }
       });
       // the selected shape, outlined on screen only (never in an export)
-      const sel = state.zone != null && fig.zones[state.zone];
+      const sel = selZone() != null && fig.zones[state.zone];
       // paper under dashed ink, so it reads on any colour and on dark grain
-      if (sel && sel.role === state.activeIndex) {
+      if (sel) {
         items.push({ t: 'path', d: sel.d, tf: { x: fx, y: y, s: k }, fill: 'none', stroke: T.paper, sw: 4 / k, screenOnly: true });
         items.push({ t: 'path', d: sel.d, tf: { x: fx, y: y, s: k }, fill: 'none', stroke: T.ink, sw: 2 / k, dash: [6 / k, 4 / k], screenOnly: true });
       }
@@ -1472,24 +1482,33 @@ function buildScene() {
   });
   y += CARD_H + 12 + 10 * (STEP_H + STEP_GAP) + 8 + TILE_H + 16 + 30;
 
-  // Contrast grid — each cell sets the row's colour as text on the column's.
-  const gridY = y;
-  text(BAR_X0, gridY, 'Contrast — text colour (rows) on background (columns)', 11, T.mid);
-  const gx0 = (VB_W - ((n + 1) * SW_PITCH - SW_GAP)) / 2, headY = gridY + 16, rowsY = headY + GRID_HEAD_H + SW_GAP;
-  cols.forEach((hex, j) => rect(gx0 + (j + 1) * SW_PITCH, headY, SW_W, GRID_HEAD_H, hex));
-  cols.forEach((fg, i) => {
-    const ry = rowsY + i * GRID_ROW_H;
-    rect(gx0, ry, SW_W, SW_H, fg);
-    cols.forEach((bg, j) => {
-      if (i === j) return;
-      const cx = gx0 + (j + 1) * SW_PITCH;
-      rect(cx, ry, SW_W, SW_H, bg, { title: `${dispName(i)} on ${dispName(j)} — ${C.contrast(fg, bg).toFixed(2)}:1` });
-      text(cx + SW_W / 2, ry + SW_H / 2 + 5, 'Aa', 15, fg, 'middle');
-      text(cx + SW_W / 2, ry + SW_H + 12, C.contrast(fg, bg).toFixed(1) + ':1' + (C.deltaE(fg, bg) < DISTINCT_MIN ? ' · close' : ''), 9, T.mid, 'middle');
+  // Contrast — only the pairs that work best (Diego, Nov 18, 2026: "una versione molto più semplice,
+  // mostriamo solo quelli che funzionano meglio come coppia" · "mostra sempre come minimo 3
+  // coppie, dalla migliore alla peggiore"). Every pair of colours once, best first: those that
+  // pass AA for text (4.5:1), up to PAIR_MAX — and never fewer than PAIR_MIN, the next best
+  // filling in whatever their grade. The background is the colour with the larger share.
+  const pairs = [];
+  cols.forEach((a, i) => cols.forEach((b, j) => { if (j > i) pairs.push({ bg: i, fg: j, r: C.contrast(a, b) }); }));
+  pairs.sort((p, q) => q.r - p.r);
+  let best = pairs.filter(p => p.r >= 4.5).slice(0, PAIR_MAX);
+  if (best.length < PAIR_MIN) best = pairs.slice(0, PAIR_MIN);
+  const grade = r => r >= 7 ? 'AAA' : r >= 4.5 ? 'AA' : r >= 3 ? 'Large text only' : 'Not for text';
+  text(BAR_X0, y, 'Contrast — the pairs that read best, text on background', 11, T.mid);
+  y += 16;
+  {
+    const k = best.length, pw = Math.min(PAIR_W, (BAR_X1 - BAR_X0 - (k - 1) * CARD_GAP) / k), px0 = (VB_W - (k * pw + (k - 1) * CARD_GAP)) / 2;
+    best.forEach((p, m) => {
+      const x = px0 + m * (pw + CARD_GAP), bg = cols[p.bg], fg = cols[p.fg];
+      rect(x, y, pw, PAIR_H, bg, Object.assign({ r: CARD_R, title: `${dispName(p.fg)} on ${dispName(p.bg)} — ${p.r.toFixed(2)}:1, ${grade(p.r)}` }, paleOnPaper(bg) ? { stroke: T.border, sw: 1 } : null));
+      text(x + 14, y + 40, 'Aa', 28, fg);
+      text(x + 14, y + PAIR_H - 14, fit(dispName(p.fg), pw - 28, 11), 11, fg);
+      text(x, y + PAIR_H + 16, fit(dispName(p.fg) + ' on ' + dispName(p.bg), pw, 10), 10, T.ink);
+      text(x, y + PAIR_H + 30, p.r.toFixed(1) + ':1 · ' + grade(p.r), 10, T.mid);
     });
-  });
+    y += PAIR_H + 30;
+  }
 
-  return { W: VB_W, H: rowsY + n * GRID_ROW_H + 8, paper: T.paper, font: T.font, items: items, houseBand: houseBand };
+  return { W: VB_W, H: y + 16, paper: T.paper, font: T.font, items: items, houseBand: houseBand };
 }
 
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -1520,7 +1539,7 @@ function sceneMarkup(scene, interactive) {
     // quiet: clickable, but never outlined as the selection — a figure has many zones per colour (the selected shape gets its own outline item)
     const live = interactive && it.role != null, active = it.role === state.activeIndex && !it.quiet;
     const attrs = `fill="${it.fill}"` + (it.stroke ? ` stroke="${it.stroke}" stroke-width="${it.sw}"` : '') + (it.dash ? ` stroke-dasharray="${it.dash.map(num).join(' ')}"` : '') +
-      (live ? ` class="bar-seg${active ? ' role-active' : ''}" data-i="${it.role}"${it.zone != null ? ` data-z="${it.zone}"` : ''} tabindex="0" role="button" aria-pressed="${it.zone != null ? String(it.zone === state.zone && it.role === state.activeIndex) : active}"` : '') +
+      (live ? ` class="bar-seg${active ? ' role-active' : ''}" data-i="${it.role}"${it.zone != null ? ` data-z="${it.zone}"` : ''} tabindex="0" role="button" aria-pressed="${it.zone != null ? String(it.zone === selZone()) : active}"` : '') +
       (it.screenOnly ? ' pointer-events="none"' : '');
     const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
     if (it.t === 'path') return `<path d="${it.d}" transform="translate(${num(it.tf.x)},${num(it.tf.y)}) scale(${it.tf.s})" ${attrs}>${title}</path>`;
@@ -1652,6 +1671,7 @@ function pickOnSheet(el) {
 function selectRole(i, z) {
   state.activeIndex = i;
   state.zone = z == null ? null : z;
+  state.zoneAt = state.house + '/' + count();   // the house it was picked on
   refreshFieldEditor();
   highlightActiveChip();
   syncGradControls();

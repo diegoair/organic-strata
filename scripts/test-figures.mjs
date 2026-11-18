@@ -1,7 +1,8 @@
 // Headless check for tunesutra/house.js — TuneSutra's one figure, a house generated from a seed.
 // For many seeds and each colour count (3, 4, 5): the house is drawn, every role lands on its
 // share (TUNESUTRA_HOUSE.SHARES, the same weights as the Bar), every zone stays inside the
-// figure's box, and the same seed gives the same house twice.
+// figure's box, the roof sits on top of the wall (all above it, its base at least as wide),
+// and the same seed gives the same house twice.
 // Run: node scripts/test-figures.mjs — exits 1 on a miss.
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -40,8 +41,15 @@ for (const n of [3, 4, 5]) {
     const roles = new Set(fig.zones.map(z => z.role));
     // every zone carries its own box (for its shading): real, inside the figure
     const bbOk = fig.zones.every(z => z.bb && z.bb[2] > z.bb[0] && z.bb[3] > z.bb[1] && z.bb[0] >= -0.6 && z.bb[1] >= -0.6 && z.bb[2] <= fig.w + 0.6 && z.bb[3] <= fig.h + 0.6);
-    const ok = dev <= TOL && Math.abs(sum - 100) < 1e-6 && inBox && again && nums.every(Number.isFinite) && roles.size === n && bbOk;
-    if (!ok) { misses++; if (misses <= 5) console.log(`  FAIL  n=${n} seed=${seed}: shares ${fig.shares.map(v => v.toFixed(2)).join(' / ')} · in box ${inBox} · boxes ${bbOk} · repeatable ${again} · roles ${roles.size}`); }
+    // the roof sits on the wall: all of it above the wall's top, its base at least as wide as the wall (Nov 18, 2026)
+    const roofRole = n === 5 ? 3 : 1, wallRole = n === 5 ? 2 : 0;
+    const xy = role => { const z = fig.zones.find(q => q.role === role); return ends(z.d); };
+    const rp = xy(roofRole), wp = xy(wallRole), wallTop = Math.min(...wp.map(q => q[1]));
+    const wallW = Math.max(...wp.map(q => q[0])) - Math.min(...wp.map(q => q[0]));
+    const eaves = rp.filter(q => Math.abs(q[1] - wallTop) < 0.3).map(q => q[0]);
+    const roofOk = rp.every(q => q[1] <= wallTop + 0.3) && eaves.length >= 2 && Math.max(...eaves) - Math.min(...eaves) >= wallW - 0.3;
+    const ok = dev <= TOL && Math.abs(sum - 100) < 1e-6 && inBox && again && nums.every(Number.isFinite) && roles.size === n && bbOk && roofOk;
+    if (!ok) { misses++; if (misses <= 5) console.log(`  FAIL  n=${n} seed=${seed}: shares ${fig.shares.map(v => v.toFixed(2)).join(' / ')} · in box ${inBox} · boxes ${bbOk} · roof on top ${roofOk} · repeatable ${again} · roles ${roles.size}`); }
     fig.parts.split(' · ').forEach(p => { const k = p.replace(/^window 2 × /, 'window ').replace(/ \d+$/, ''); kinds[k] = (kinds[k] || 0) + 1; });
   }
   if (misses) failed += misses;

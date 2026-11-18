@@ -56,7 +56,7 @@ in-app photo reader.
   - Monochromatic walks the seed's own scale, lighter first.
 - **Lightness spread** (0–30) moves the generated colours apart in lightness,
   alternately lighter and darker. At 0 they all share the seed's lightness —
-  balanced, but with almost no contrast between them (the contrast grid shows
+  balanced, but with almost no contrast between them (the contrast pairs show
   it). It regenerates as you drag.
 - **Undo** (button or ⌘Z) covers every change, including gradient settings.
 - The hint under the chips names any two colours closer than ΔE 6 (OKLab ×100)
@@ -117,9 +117,18 @@ In the *Gradient* view the gradient comes first and there is no example. Then:
    da questo*) is a **house generated from a seed** (`tunesutra/house.js`,
    `TUNESUTRA_HOUSE.generate(seed, n)`). It replaced the Garment, the isometric
    House and the 5-colour Scene of the retired `figures.js`. Every part is an FVS
-   shape (`Organica.shapes`, polygonal only + the circle): the roof a triangle,
-   a 4–8 sided polygon centred on the eaves line (its lower half behind the
-   wall) or a rectangle slab; the door a rectangle or a pentagon; the windows a
+   shape (`Organica.shapes`, polygonal + the circle) or a curved roof profile: the roof a triangle
+   (apex near the middle, eaves 10–20% of the wall either side) or the top half of
+   a 4–8 sided polygon cut at the eaves line (a hip or mansard roof, its base its
+   widest part) — always sitting on the wall, all of it above, never wider at the
+   top than at the eaves, and never taller than 80% of the wall (Nov 18, 2026: Diego,
+   *il tetto dovrebbe in teoria essere sempre sopra, ma delle volte la forma del tetto
+   è strana o troppo grande*; the flat slab and the polygon hanging beside the wall
+   were dropped); or, curved, a **dome**, a low **vault**, an **onion** or a pointed
+   **gothic** arch (Nov 18, 2026: Diego, *tutte e 4, schiacciate*) — sampled as fine
+   polygons so the drawn path is what is measured, and stretched to the solved
+   height, so on a wide house they are squashed (a dome turns elliptic); about half
+   of all roofs are curved; the door a rectangle or a pentagon; the windows a
    circle, a polygon of 3–8 sides or a rectangle (one, or two either side of the
    door at 4 colours). The wall is drawn at random; the roof height, door and
    windows are then **solved** so every role covers exactly its share — the
@@ -145,8 +154,14 @@ In the *Gradient* view the gradient comes first and there is no example. Then:
    than 0.15, a shape leaves the box, or a seed does not repeat. A zone too pale
    to see on the paper gets a hairline (3–4 colours). The generator was first
    built on the design canvas *House illustration* (claude.ai artifact).
-3. **Contrast grid** — each cell sets the row's colour as text on the column's,
-   with the WCAG ratio under it (`· close` marks a pair under ΔE 6).
+3. **Contrast — the best pairs** (simplified Nov 18, 2026; Diego: *una versione molto più
+   semplice, mostriamo solo quelli che funzionano meglio come coppia*). Every pair of colours
+   once, best first: those that pass WCAG AA for text (4.5:1), up to 4 (`PAIR_MAX`), and
+   always at least 3 (`PAIR_MIN`; Diego: *mostra sempre come minimo 3 coppie, dalla migliore alla
+   peggiore*) — the next best fill in, whatever their grade. Each pair is a tile
+   in the background colour (the one with the larger share) with *Aa* and the text colour's
+   name in the other, and under it *‹Text› on ‹Background›* and *‹ratio›:1 · AAA / AA / Large
+   text only / Not for text*. The full grid (every colour on every other) is gone.
 
 ## 3. Gradient & grain
 
@@ -211,7 +226,7 @@ separata del gradient e grain*). A click on a shape of the house selects that **
 `house/count/shape` (`state.zoneShades`, saved as `zoneShades`), so stepping the carousel
 away and back finds it again. A colour card or chip selects the colour: *‹Colour›, every
 shape* — the colour's own definition, which every shape of that colour without its own
-follows. Order on the house: the shape's own → the colour's own → the Shading preset.
+follows. Order on the house: the shape's own → the colour's own → the Shading preset. A selection holds only on the house it was picked on (`selZone()`: same house, same colour count, the shape still of the active colour) — a colour removed or added, or the carousel stepped, and the section falls back to the colour; ⌘Z brings it back.
 **Back to preset** forgets the selected one's own; a click on a colour's tile puts that
 preset back on the colour and on all its shapes of this house.
 
