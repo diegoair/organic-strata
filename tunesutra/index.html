@@ -107,14 +107,6 @@
   .ts-card--new { border-style: dashed; background: none; }
   .ts-card--new .ts-card__art { background: none; align-items: center; justify-content: center; font-size: var(--fs-xl); color: var(--mid); }
 
-  /* RMX chip CSS is shared/palette.css. TuneSutra tunes both strips
-     (the gradient stops: 30×26, rounded, strong border) through the
-     documented custom props, set on the strip so the add / library buttons
-     follow the chips. No local .rmx-* rule. */
-  #grad-stops { --rmx-cell-w: 30px; --rmx-cell-h: 26px;
-    --rmx-cell-radius: var(--radius-sm);
-    --rmx-cell-border: var(--border-strong, var(--border)); }
-
   .role-name { font-size: var(--fs-small); color: var(--mid); margin-bottom: var(--space-2); }
 
   /* The stop bar (Gradient › Stops): the gradient itself as the track, one knob per stop at its
@@ -224,7 +216,6 @@
 
     <div class="panel-section">
       <h3>Gradient &amp; grain</h3>
-      <div class="row-btns"><button class="mini-btn" id="btn-shade-reset" hidden title="Forget this colour’s own shading: it takes the preset on the house again">Back to preset</button></div>
       <div class="sub-label">Type</div>
       <div class="ctrl-row">
         <div class="seg-ctrl" id="seg-gtype" role="group" aria-label="Type">
@@ -241,8 +232,6 @@
       <div id="grad-blend">
         <div class="sub-label">Stops</div>
         <div class="ts-stopbar" id="grad-bar" role="group" aria-label="Stops"><div class="ts-stopbar__rail"></div></div>
-        <div class="rmx-palette" id="grad-stops"></div>
-        <p class="org-panel__hint" id="grad-bar-hint">Click the bar to add a stop; drag a stop to move it. Arrow keys move the selected stop, Delete removes it.</p>
         <div class="row-btns">
           <button class="mini-btn" id="btn-grad-reverse">Reverse</button>
           <button class="mini-btn" id="btn-grad-even">Space evenly</button>
@@ -297,7 +286,7 @@
 
     <div class="panel-section">
       <h3>Scale</h3>
-      <p class="org-panel__hint">Ten steps under each colour, 0–900. A step is the same perceived lightness for every colour, so colours are interchangeable step for step. Your colour sits unchanged on its nearest step (outlined).</p>
+      <p class="org-panel__hint">Ten steps under each colour, 50–900. A step is the same perceived lightness for every colour, so colours are interchangeable step for step. Your colour sits unchanged on its nearest step (outlined).</p>
     </div>
 
     <div class="panel-section">
@@ -317,6 +306,10 @@
      popover tab once that's rebuilt. sendToFigma() stays defined below,
      ready to reuse, same convention as Loom/Camo Turing/FVS. ══ -->
 <div class="org-floatbar" role="toolbar" aria-label="Actions">
+  <button class="org-floatbar__btn" id="btn-reset" aria-label="Reset palette">
+    <svg class="ico" data-icon="reset" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.65"/><path d="M3 2.3V6h3.7"/></svg>
+  </button>
+  <div class="org-floatbar__sep"></div>
   <div class="org-popover-wrap">
     <button class="org-floatbar__btn" id="btn-save-open" aria-label="Save palette">
       <svg class="ico" data-icon="save" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.5h8l2 2v8a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M5 2.5V6h5V2.5M5.5 10.5h5"/></svg>
@@ -570,6 +563,17 @@ function pushUndo(kind) {
   }
   if (kind.indexOf('grad') === 0) keepEdit();   // an edit in Gradient & grain: on the house it becomes the colour's own
 }
+// Reset (floatbar; Diego, Nov 18, 2026: "back to preset nella floatbar come se fosse un reset alla palette
+// iniziale"): the palette as it was opened — colours, every shading of its own, the house. One undo step.
+let initialSnap = null;
+function resetPalette() {
+  if (!initialSnap || initialSnap === snapshot()) return;
+  pushUndo('reset');
+  Object.assign(state, JSON.parse(initialSnap));
+  tintSel = null;
+  syncControls();
+  commit(true);
+}
 function undo() {
   const s = undoStack.pop();
   if (!s) return;
@@ -583,7 +587,6 @@ function syncUndo() { ctrl('btn-undo').disabled = !undoStack.length; }
 // One refresh path for every change. rebuildChips=false only while a chip's
 // own native picker is the thing being dragged.
 function commit(rebuildChips) {
-  if (rebuildChips) gradChips.setColors(G().stops);
   scaleCache.clear();
   syncViewSeg();
   refreshFieldEditor();
@@ -717,7 +720,9 @@ function isGarmentView() { return state.view === 'garment' && garmentFits(count(
 const SHADE_MODES = ['soft', 'speckle', 'print'], SHADE_NAME = { soft: 'Soft', speckle: 'Speckle', print: 'Stipple' };
 function shadeDefs(hex) {
   const sc = tokenScale(hex), a = Math.max(0, sc.findIndex(st => st.anchor)), dir = a <= 7 ? 1 : -1;   // darker, unless already near black
-  const shade = sc[clamp(a + 3 * dir, 0, 9)].hex, deep = sc[clamp(a + 5 * dir, 0, 9)].hex;
+  const deep = sc[clamp(a + 5 * dir, 0, 9)].hex;
+  // the gradient's second stop is the colour's own 900 (Diego, Nov 18, 2026) — its 50 when the colour is the 900
+  const shade = a === 9 ? sc[0].hex : sc[9].hex;
   const base = { type: 'linear', angle: 180, stops: [hex, shade], pos: [0.2, 1], paper: false,
     ink: deep, amount: 0, size: 0, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
   // Flat draws only the first stop; the second is there so that switching it to Linear / Radial blends at once.
@@ -997,17 +1002,6 @@ function houseDef(r, z) {
 }
 // Back to the preset: the colour's own shading forgotten.
 // On a selected shape: that shape's own. Otherwise the colour's own.
-function resetShade(i) {
-  if (selZone() != null) {
-    const key = zoneKey(selZone());
-    if (!state.zoneShades[key]) return;
-    pushUndo('shade-reset'); delete state.zoneShades[key]; gradChanged(); return;
-  }
-  if (!state.items[i] || !state.items[i].shade) return;
-  pushUndo('shade-reset');
-  delete state.items[i].shade;
-  gradChanged();
-}
 // A click on a colour's tile: that preset on the house, every shape of that colour back to it.
 function clearColourShades(i) {
   const fig = currentFigure(), pre = state.house + '/' + count() + '/';
@@ -1036,13 +1030,8 @@ function syncGradControls() {
   ['angle', 'pattern', 'seed', 'dist', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
   gradSel = Math.min(gradSel, g.stops.length - 1);
   if (inkSwatch && inkSwatch.get() !== g.ink) inkSwatch.set(g.ink);
-  if (gradChips && JSON.stringify(gradChips.getColors()) !== JSON.stringify(g.stops)) gradChips.setColors(g.stops);
-  if (gradChips) gradChips.setActive(gradSel);
   renderStopBar();
-  const inks = inkCount(g), it = state.items[state.activeIndex], sz = selZone(), zone = sz != null;
-  const own = zone ? !!state.zoneShades[zoneKey(sz)] : !!it.shade;
-  // no title hint naming the colour / shape (Diego, Nov 18, 2026: "elimina Base, shape 1") — the selection on the sheet says it
-  ctrl('btn-shade-reset').hidden = !own;
+  const inks = inkCount(g);   // no title hint naming the colour / shape (Diego, Nov 18, 2026: "elimina Base, shape 1")
   const words = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
   ctrl('grad-hint').textContent = smoothGrad(g)
     ? 'No grain: the gradient blends smoothly. The export is vector, but a blend is not one plate per ink — raise Grain size for print plates.'
@@ -1086,7 +1075,6 @@ function ensurePos() {
 }
 function selectStop(i) {
   gradSel = clamp(i, 0, G().stops.length - 1);
-  if (gradChips) gradChips.setActive(gradSel);
   ctrl('grad-bar').querySelectorAll('.ts-stopbar__stop').forEach((k, j) => k.classList.toggle('is-active', j === gradSel));
 }
 // Adds a stop at `at` (0..1) in the colour the gradient has there; returns its index.
@@ -1154,7 +1142,7 @@ function bindStopBar() {
     }
     selectStop(i);
     if (!knob) gradChanged();
-    drag = { i: i, id: e.pointerId };
+    drag = { i: i, id: e.pointerId, x0: e.clientX, knob: !!knob, moved: false };
     bar.setPointerCapture(e.pointerId);
     bar.classList.add('is-dragging');
     const k = rail.children[i];
@@ -1163,9 +1151,16 @@ function bindStopBar() {
   });
   bar.addEventListener('pointermove', e => {
     if (!drag || e.pointerId !== drag.id) return;
+    if (Math.abs(e.clientX - drag.x0) > 3) drag.moved = true;
     moveStop(drag.i, posFrom(e.clientX));
   });
-  const end = e => { if (drag && e.pointerId === drag.id) { drag = null; bar.classList.remove('is-dragging'); } };
+  // The stops' colours come from the picker (Diego, Nov 18, 2026: the chips under the bar are gone):
+  // a click on a stop that did not move opens it; the first stop is the colour itself.
+  const end = e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag; drag = null; bar.classList.remove('is-dragging');
+    if (e.type === 'pointerup' && d.knob && !d.moved) pickStop(d.i);
+  };
   bar.addEventListener('pointerup', end);
   bar.addEventListener('pointercancel', end);
   bar.addEventListener('keydown', e => {
@@ -1178,12 +1173,26 @@ function bindStopBar() {
     else if (e.key === 'Home') to = 0;
     else if (e.key === 'End') to = 1;
     else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeStop(i); focusStop(gradSel); return; }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickStop(i); return; }
     else return;
     e.preventDefault();
     selectStop(i);
     moveStop(i, to);
   });
   bar.addEventListener('focusin', e => { const k = e.target.closest('.ts-stopbar__stop'); if (k) selectStop(+k.dataset.i); });
+}
+function pickStop(i) {
+  const k = ctrl('grad-bar').firstElementChild.children[i];
+  if (!k) return;
+  if (i === 0) return pickOnSheetColour(k);   // the first stop is the colour: the picker edits the colour
+  Organica.colorPicker.open(k, {
+    value: G().stops[i], label: 'Stop ' + (i + 1),
+    onInput: hex => { if (G().stops[i] === hex) return; pushUndo('grad'); G().stops[i] = hex; gradChanged(); },
+  });
+}
+function pickOnSheetColour(anchor) {
+  const i = state.activeIndex;
+  Organica.colorPicker.open(anchor, { value: state.items[i].hex, label: dispName(i), onInput: hex => { if (hex !== state.items[i].hex) setActiveColor(hex); } });
 }
 function focusStop(i) { const k = ctrl('grad-bar').firstElementChild.children[i]; if (k) k.focus({ preventScroll: true }); }
 function moveStop(i, to) {
@@ -1196,35 +1205,13 @@ function moveStop(i, to) {
 }
 
 const GRAD_MAX_STOPS = 8;
-let gradChips = null, inkSwatch = null;
+let inkSwatch = null;
 function initGradient() {
-  gradChips = Organica.palette.swatch(ctrl('grad-stops'), {
-    colors: G().stops,
-    min: 2,
-    max: GRAD_MAX_STOPS,
-    palettes: () => [{ name: 'This palette', colors: state.items.map((it, i) => ({ name: dispName(i), hex: it.hex })) }],
-    onChange: (cols, index, action, removedAt) => {
-      const g = G();
-      pushUndo(action === 'edit' ? 'grad' : 'grad-stop');
-      if (action === 'add') {
-        // the chip strip appends; the stop goes in the widest gap, in the colour the gradient has there
-        // (a colour picked from a palette keeps its own)
-        const picked = cols[cols.length - 1], at = widestGap();
-        gradSel = addStopAt(at, picked === '#888888' ? null : picked);
-      } else if (action === 'remove') {
-        ensurePos().splice(removedAt, 1); g.stops = cols; gradSel = index;
-      } else if (action === 'set') {
-        g.stops = cols; g.pos = null; gradSel = 0;   // a palette loaded whole: evenly spaced
-      } else { g.stops = cols; gradSel = index; }
-      gradChanged();
-    },
-  });
   inkSwatch = Organica.palette.swatch('gink', {
     initial: G().ink,
     onChange: hex => { if (hex === G().ink) return; pushUndo('grad'); G().ink = hex; gradChanged(); },
   });
   bindStopBar();
-  ctrl('btn-shade-reset').addEventListener('click', () => resetShade(state.activeIndex));
   const segBind = (id, key) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
     if (G()[key] === b.dataset.v) return;
     pushUndo('grad-' + key); G()[key] = b.dataset.v; gradChanged();
@@ -1405,8 +1392,7 @@ function buildScene(screen) {
   // The pairs take the left of the row; its right is the Colour section's (on screen), so the export
   // keeps the same places.
   const pairsX1 = BAR_X1 - DOCK_W - CARD_GAP;
-  text(BAR_X0, y, 'Contrast — the pairs that read best, text on background', 11, T.mid);
-  y += 16;
+  // no heading over the pairs (Diego, Nov 18, 2026: "elimina il text Contrast — …")
   dockAt = [BAR_X1 - DOCK_W, y];   // the value tiles, level with the pairs
   {
     const k = best.length, pw = Math.min(PAIR_W, (pairsX1 - BAR_X0 - (k - 1) * CARD_GAP) / k), px0 = BAR_X0;
@@ -1984,6 +1970,7 @@ function route() {
   pourNext = true;
   undoStack.length = 0;
   lastUndo = { kind: '', t: 0 };
+  initialSnap = snapshot();
   currentName = name; suggestedName = suggest; setDirty(false);
   showHome(false);
   ctrl('panel').scrollTop = 0;
@@ -2035,6 +2022,7 @@ document.addEventListener('keydown', e => {
   undo();
 });
 
+ctrl('btn-reset').addEventListener('click', resetPalette);
 ctrl('btn-export-png').addEventListener('click', exportPNG);
 ctrl('btn-export-svg').addEventListener('click', exportSVG);
 ctrl('btn-export-css').addEventListener('click', exportCSS);

@@ -107,8 +107,9 @@ forme*; his answers: on the house + tiles · a set of 3 · each shape its own li
 Print). Every colour gets three gradient definitions (`shadeDefs`), drawn by the gradient
 engine of §3 in each shape's own box, the light from its top — all three are ink cells,
 vector in every export:
-- **Soft** — linear, the colour dithering into its own tint 3 steps darker (its 0–900
-  scale) from 20% of the box down, no grain (a smooth blend; grain 1.5 until Nov 18, 2026)
+- **Soft** — linear, the colour blending into its own **900** (its 50 when the colour is the 900 —
+  Diego, Nov 18, 2026: *i color (stop) sul gradient di default usano il 900*; was 3 steps darker)
+  from 20% of the box down, no grain (a smooth blend; grain 1.5 until Nov 18, 2026)
 - **Speckle** — the colour flat, square specks of a tint 5 steps darker gathering away from
   the light (falloff 65)
 - **Stipple** — Speckle as round dots (stored key `print`, its label until Nov 18, 2026)
@@ -213,10 +214,11 @@ file), while the plates keep the exact partition.
   blend as the track) shows where they sit: click the bar to add a stop in the
   colour the gradient has there, drag a stop to move it (it cannot pass its
   neighbours), ←/→ move the selected stop 1% (Shift 10%), Home / End to the
-  ends, Delete removes it (2 at least). The chips under the bar carry the
-  colours and the palette library; a chip added with + goes in the widest gap,
-  a palette loaded whole is spaced evenly. Stops are colours in their own
-  right: reordering the palette does not reorder them.
+  ends, Delete removes it (2 at least). **A click on a stop (or Enter) opens the colour picker**
+  for it; the first stop is the colour itself, so there the picker edits the colour (Nov 18, 2026:
+  Diego, *elimina sotto la barra i quadrati con i colori, quelli vengono selezionati dal picker* —
+  the chips under the bar and the bar's hint are gone). Stops are colours in their own right:
+  reordering the palette does not reorder them.
 - **Reverse** flips the stops and their positions; **Space evenly** forgets
   the positions.
 - **Fade to paper** adds the paper as the last stop: the last ink thins out to
@@ -247,8 +249,11 @@ The panel shows a control only while it changes the drawing (`gradUses()`).
 and its gradient is edited there, the house staying in view): the selected colour's shading (or the selected shape's) — the section title no longer names it
 (Diego, Nov 18, 2026: *elimina "Base, shape 1"*); the selection on the sheet says whose. The first edit turns the preset into the colour's own definition (`item.shade`,
 saved with the palette as `shades`; ⌘Z returns to the preset); its first stop is always the
-colour itself (the Flat *Colour* row went with the Gradient view). **Back to preset** forgets it; a click
-on one of that colour's tiles does too, and puts that preset on the house. No control
+colour itself (the Flat *Colour* row went with the Gradient view). A click on one of that colour's
+tiles forgets it and puts that preset on the house. **Back to preset** became the floatbar's
+**Reset** (Nov 18, 2026: Diego, *sposta back to preset nella floatbar come se fosse un reset alla
+palette iniziale*): the palette as it was opened — colours, every shading of its own, the house —
+one ⌘Z step. No control
 switches the view any more.
 
 **Every shape its own** (Diego, Nov 18, 2026: *ogni forma nella casa deve avere una gestione
@@ -259,8 +264,8 @@ separata del gradient e grain*). A click on a shape of the house selects that **
 away and back finds it again. A colour card or chip selects the colour: *‹Colour›, every
 shape* — the colour's own definition, which every shape of that colour without its own
 follows. Order on the house: the shape's own → the colour's own → the Shading preset. A selection holds only on the house it was picked on (`selZone()`: same house, same colour count, the shape still of the active colour) — a colour removed or added, or the carousel stepped, and the section falls back to the colour; ⌘Z brings it back.
-**Back to preset** forgets the selected one's own; a click on a colour's tile puts that
-preset back on the colour and on all its shapes of this house.
+A click on a colour's tile puts that preset back on the colour and on all its shapes of this
+house; the floatbar's **Reset** returns the whole palette to how it was opened.
 
 **Removed on Nov 18, 2026** (they only made sense for a raster): Output (Screen ·
 Print — everything is ink cells now), Mix in (a dither of pure inks mixes nothing),
