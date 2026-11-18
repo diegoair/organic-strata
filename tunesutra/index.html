@@ -214,13 +214,16 @@
       <p class="org-panel__hint" id="distinct-hint"></p>
     </div>
 
+    <!-- Gradient · Grain · Shadow — three sections (Nov 18, 2026: Diego, "dobbiamo far capire bene cosa è per
+         gradient, cosa è per grain, e cosa è shadow"; mockup A). One definition (G()) behind all three. -->
     <div class="panel-section">
-      <h3>Gradient &amp; grain</h3>
+      <h3>Gradient</h3>
+      <p class="org-panel__hint">How the colour fills each shape.</p>
       <div class="sub-label">Type</div>
       <div class="ctrl-row">
         <div class="seg-ctrl" id="seg-gtype" role="group" aria-label="Type">
-          <button class="seg-btn" data-v="flat" title="One colour, no gradient — for a shadow on a flat colour">Flat</button>
-          <button class="seg-btn active" data-v="linear">Linear</button>
+          <button class="seg-btn active" data-v="flat" title="One colour, no gradient">Flat</button>
+          <button class="seg-btn" data-v="linear">Linear</button>
           <button class="seg-btn" data-v="radial">Radial</button>
         </div>
       </div>
@@ -238,25 +241,40 @@
         </div>
         <label class="check-row org-switch" title="Adds the paper as the last stop: the last ink thins out to bare paper and gets no plate of its own."><input type="checkbox" id="ck-gpaper"><span>Fade to paper</span></label>
       </div>
-      <div class="ctrl-row">
-        <div class="ctrl-label" title="The size of one grain, in sheet units. 0 = no grain: the gradient blends smoothly.">Grain size</div>
-        <input type="range" id="rg-gsize" min="0" max="12" step="0.5" value="0">
-        <span class="ctrl-val" id="v-gsize">2</span>
-      </div>
-      <div id="row-gpattern">
-        <div class="sub-label" title="Noise: cells at random. Dots: round dots, evenly spread.">Pattern</div>
-        <div class="ctrl-row">
-          <div class="seg-ctrl" id="seg-gpattern" role="group" aria-label="Pattern">
-            <button class="seg-btn active" data-v="noise">Noise</button>
-            <button class="seg-btn" data-v="dots">Dots</button>
+    </div>
+
+    <div class="panel-section">
+      <h3>Grain</h3>
+      <p class="org-panel__hint">Breaks the gradient into cells of pure ink — for print plates.</p>
+      <p class="org-panel__hint" id="grain-none">Flat has no gradient to grain.</p>
+      <div id="grain-ctl">
+        <div class="ctrl-row" id="row-gsize">
+          <div class="ctrl-label" title="The size of one grain, in sheet units. 0 = no grain: the gradient blends smoothly.">Size</div>
+          <input type="range" id="rg-gsize" min="0" max="12" step="0.5" value="0" aria-label="Grain size">
+          <span class="ctrl-val" id="v-gsize">0</span>
+        </div>
+        <p class="org-panel__hint" id="grain-smooth">0 = no grain: a smooth blend.</p>
+        <div id="row-gpattern">
+          <div class="sub-label" title="Noise: cells at random. Dots: round dots, evenly spread.">Pattern</div>
+          <div class="ctrl-row">
+            <div class="seg-ctrl" id="seg-gpattern" role="group" aria-label="Pattern">
+              <button class="seg-btn active" data-v="noise">Noise</button>
+              <button class="seg-btn" data-v="dots">Dots</button>
+            </div>
           </div>
         </div>
+        <div class="ctrl-row" id="row-gseed">
+          <div class="ctrl-label">Seed</div>
+          <input type="number" class="panel-input" id="in-gseed" min="0" max="9999" step="1" value="1" aria-label="Grain seed">
+        </div>
       </div>
-      <div class="ctrl-row" id="row-gseed">
-        <div class="ctrl-label">Seed</div>
-        <input type="number" class="panel-input" id="in-gseed" min="0" max="9999" step="1" value="1">
-      </div>
-      <div class="sub-label">Shadow</div>
+      <p class="org-panel__hint" id="grad-hint"></p>
+    </div>
+
+    <div class="panel-section">
+      <h3>Shadow</h3>
+      <p class="org-panel__hint">Specks of a second ink on top, gathering away from the light.</p>
+      <label class="check-row org-switch"><input type="checkbox" id="ck-gshadow"><span>Shadow</span></label>
       <div id="grad-shadow">
         <div class="color-row" id="row-gink">
           <span class="color-name">Ink</span>
@@ -265,9 +283,21 @@
           <input class="color-hex" id="hex-gink" value="#2a1430" maxlength="7" aria-label="Shadow ink hex">
         </div>
         <div class="ctrl-row" id="row-gamount">
-          <div class="ctrl-label" title="How dense the shadow is. 0 = no shadow.">Amount</div>
-          <input type="range" id="rg-gamount" min="0" max="100" step="1" value="0" aria-label="Shadow amount">
-          <span class="ctrl-val" id="v-gamount">0</span>
+          <div class="ctrl-label" title="How dense the specks are.">Amount</div>
+          <input type="range" id="rg-gamount" min="1" max="100" step="1" value="70">
+          <span class="ctrl-val" id="v-gamount">70</span>
+        </div>
+        <div class="ctrl-row" id="row-gspeck">
+          <div class="ctrl-label" title="The size of one speck, in sheet units. On a grained gradient the specks are the grain’s cells.">Size</div>
+          <input type="range" id="rg-gspeck" min="1" max="12" step="0.5" value="2" aria-label="Shadow size">
+          <span class="ctrl-val" id="v-gspeck">2</span>
+        </div>
+        <div class="sub-label">Specks</div>
+        <div class="ctrl-row">
+          <div class="seg-ctrl" id="seg-gspecks" role="group" aria-label="Specks">
+            <button class="seg-btn active" data-v="noise">Square</button>
+            <button class="seg-btn" data-v="dots">Round</button>
+          </div>
         </div>
         <label class="check-row org-switch" id="row-gdist" title="On: the shadow gathers away from a light. Off: everywhere alike."><input type="checkbox" id="ck-glight"><span>Away from a light</span></label>
         <div class="ctrl-row" id="row-glight">
@@ -280,8 +310,12 @@
           <input type="range" id="rg-gfalloff" min="0" max="100" step="1" value="50">
           <span class="ctrl-val" id="v-gfalloff">50</span>
         </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Seed</div>
+          <input type="number" class="panel-input" id="in-gsseed" min="0" max="9999" step="1" value="1" aria-label="Shadow seed">
+        </div>
+        <p class="org-panel__hint" id="shadow-hint" hidden>Each round speck is cut out of the ink under it: the plates never overlap.</p>
       </div>
-      <p class="org-panel__hint" id="grad-hint"></p>
     </div>
 
     <div class="panel-section">
@@ -436,10 +470,15 @@ const state = {
     pos: null,        // a 0..1 position per stop, ascending; null = evenly spaced (palettes saved before Nov 2, 2026)
     paper: false,     // fade to paper: the sheet's paper as a last, plate-less stop
     // Every grain is one pure ink — the drawing is vector everywhere (Nov 18, 2026).
-    size: 2,          // grain size in sheet units, 1–12
+    size: 0,          // GRAIN size in sheet units, 0–12 (0 = no grain: a smooth blend)
     pattern: 'noise', // the grain: 'noise' (square cells at random) | 'dots' (round dots, evenly spread)
+    // SHADOW — its own switch, speck size, specks and seed since Nov 18, 2026 (Diego: Gradient · Grain · Shadow)
+    shadow: false,    // on / off
     ink: '#2a1430',   // the shadow ink
-    amount: 0,        // shadow density, 0–100 (0 = no shadow)
+    amount: 70,       // shadow density, 1–100
+    speck: 2,         // speck size, when the shadow has its own grid (Flat, or grain 0); on a grained blend it follows the grain
+    specks: 'noise',  // 'noise' (square specks) | 'dots' (round)
+    sseed: 1,         // the shadow's own seed
     dist: 'light',    // the shadow's spread: 'light' (away from a light) | 'even' (everywhere)
     light: 315,       // Light from, degrees (0 = the top)
     falloff: 50,      // 50 = straight; higher keeps the shadow to the far side
@@ -724,10 +763,10 @@ function shadeDefs(hex) {
   // the gradient's second stop is the colour's own 900 (Diego, Nov 18, 2026) — its 50 when the colour is the 900
   const shade = a === 9 ? sc[0].hex : sc[9].hex;
   const base = { type: 'linear', angle: 180, stops: [hex, shade], pos: [0.2, 1], paper: false,
-    ink: deep, amount: 0, size: 0, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
+    ink: deep, shadow: false, amount: 70, speck: 2, specks: 'noise', sseed: 7, size: 0, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
   // Flat draws only the first stop; the second is there so that switching it to Linear / Radial blends at once.
-  const speckle = Object.assign({}, base, { type: 'flat', amount: 70, size: 2, falloff: 65 });
-  return { soft: base, speckle: speckle, print: Object.assign({}, speckle, { pattern: 'dots', size: 3 }) };
+  const speckle = Object.assign({}, base, { type: 'flat', shadow: true, amount: 70, speck: 2, falloff: 65 });
+  return { soft: base, speckle: speckle, print: Object.assign({}, speckle, { specks: 'dots', speck: 3 }) };
 }
 // Rendered once per definition and box size: a colour edit re-renders only that colour's shapes.
 const shadeCache = new Map();
@@ -808,7 +847,7 @@ function noiseWeight(g, w, h) {
   const bend = Math.pow(4, (g.falloff - 50) / 50), f = linearField(g.light + 180, w, h);
   return (x, y) => Math.pow(clamp(f(x, y), 0, 1), bend);
 }
-function hasNoise(g) { return g.amount > 0; }
+function hasNoise(g) { return !!g.shadow && g.amount > 0; }
 // Which controls change the drawing right now — the panel shows only these.
 // The blend is a dither of the stops (it needs Pattern and Seed); the shadow is
 // one more ink on top (Spread, Light from, Falloff only when it is there).
@@ -816,8 +855,9 @@ function gradUses(g) {
   const blend = g.type !== 'flat' && g.size > 0, shadow = hasNoise(g), light = shadow && g.dist === 'light';   // a smooth blend (grain 0) needs no pattern or seed
   return {
     angle: g.type === 'linear',
-    pattern: blend || shadow,
-    seed: blend || shadow,
+    pattern: blend,
+    seed: blend,
+    speck: shadow && !blend,   // on a grained blend the specks are the grain's cells
     dist: shadow,
     light: light,
     falloff: light,
@@ -865,10 +905,11 @@ function smoothGeom(g, w, h) {
 }
 function gradPlates(g, w, h) {
   if (smoothGrad(g)) return smoothPlates(g, w, h);
-  const stops = gradStops(g), k = stops.length, cell = Math.max(MIN_CELL, g.size);
+  // one grid: the grain's when the blend is grained, else the shadow's own (Flat)
+  const stops = gradStops(g), k = stops.length, cell = Math.max(MIN_CELL, g.type === 'flat' ? (g.speck || SHADOW_CELL) : g.size);
   const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h), weight = noiseWeight(g, w, h);
   const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
-  const shadow = hasNoise(g), dots = shadow && g.pattern === 'dots', amt = g.amount / 100;
+  const shadow = hasNoise(g), dots = shadow && g.specks === 'dots', amt = g.amount / 100;
   // a shadow ink that is one of the stops is that stop's ink: one plate, not two of the same colour
   const same = shadow ? stops.findIndex(s => !s.paper && s.hex.toLowerCase() === g.ink.toLowerCase()) : -1;
   const spk = shadow ? { hex: g.ink, paper: false, d: [], holes: [], cells: 0 } : null, sk = same >= 0 ? same : k;
@@ -883,9 +924,9 @@ function gradPlates(g, w, h) {
         const s = segAt(stops, t);
         ink = k < 2 ? 0 : (s.f > patternThr(g.pattern, c, r, g.seed, 0) ? s.a + 1 : s.a);
         if (shadow) {
-          const hit = patternThr(g.pattern, c, r, g.seed, 1) < weight(ux, uy) * amt;
+          const hit = patternThr(g.specks, c, r, g.sseed, 1) < weight(ux, uy) * amt;
           if (hit && dots && (c + 1) * cell <= w && (r + 1) * cell <= h) {   // a dot only in a whole cell
-            const d = dotAt(c, r, g.seed), dot = circleD((c + 0.5 + d.jx) * cell, (r + 0.5 + d.jy) * cell, d.r * cell);
+            const d = dotAt(c, r, g.sseed), dot = circleD((c + 0.5 + d.jx) * cell, (r + 0.5 + d.jy) * cell, d.r * cell);
             if (ink !== same) { (same >= 0 ? out[same] : spk).d.push(dot); spk.cells++; out[ink].holes.push(dot); }
           } else if (hit && !dots) ink = sk;   // the shadow's own index, after the stops (or the stop it equals)
         }
@@ -905,11 +946,11 @@ function smoothPlates(g, w, h) {
   const stops = gradStops(g), out = [{ hex: stops[0].hex, paper: false, d: '', cells: 0 },
     { hex: stops[stops.length - 1].hex, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0, smooth: { geom: smoothGeom(g, w, h), stops: smoothStops(g) } }];
   if (!hasNoise(g)) return out;
-  const cell = SHADOW_CELL, cols = Math.floor(w / cell), rows = Math.floor(h / cell), weight = noiseWeight(g, w, h), amt = g.amount / 100, d = [];
+  const cell = g.speck || SHADOW_CELL, cols = Math.floor(w / cell), rows = Math.floor(h / cell), weight = noiseWeight(g, w, h), amt = g.amount / 100, d = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     const ux = (c + 0.5) * cell, uy = (r + 0.5) * cell;
-    if (patternThr(g.pattern, c, r, g.seed, 1) >= weight(ux, uy) * amt) continue;
-    if (g.pattern === 'dots') { const o = dotAt(c, r, g.seed); d.push(circleD((c + 0.5 + o.jx) * cell, (r + 0.5 + o.jy) * cell, o.r * cell)); }
+    if (patternThr(g.specks, c, r, g.sseed, 1) >= weight(ux, uy) * amt) continue;
+    if (g.specks === 'dots') { const o = dotAt(c, r, g.sseed); d.push(circleD((c + 0.5 + o.jx) * cell, (r + 0.5 + o.jy) * cell, o.r * cell)); }
     else d.push(`M${num(c * cell)} ${num(r * cell)}h${cell}v${cell}h-${cell}z`);
   }
   out.push({ hex: g.ink, paper: false, d: d.join(''), cells: d.length });
@@ -1021,17 +1062,23 @@ function inkCount(g) {
 function syncGradControls() {
   const g = G(), seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
   const flat = g.type === 'flat', uses = gradUses(g);
-  seg('seg-gtype', g.type); seg('seg-gpattern', g.pattern);
+  seg('seg-gtype', g.type); seg('seg-gpattern', g.pattern); seg('seg-gspecks', g.specks);
   ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle + '°';
   ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
   ctrl('rg-gsize').value = g.size; ctrl('v-gsize').textContent = g.size;
+  ctrl('rg-gspeck').value = g.speck; ctrl('v-gspeck').textContent = g.speck;
+  ctrl('ck-gshadow').checked = !!g.shadow;
+  ctrl('grad-shadow').hidden = !g.shadow;
+  if (document.activeElement !== ctrl('in-gsseed')) ctrl('in-gsseed').value = g.sseed;
   ctrl('rg-glight').value = g.light; ctrl('v-glight').textContent = g.light + '°';
   ctrl('rg-gfalloff').value = g.falloff; ctrl('v-gfalloff').textContent = g.falloff;
   ctrl('ck-glight').checked = g.dist === 'light';
   if (document.activeElement !== ctrl('in-gseed')) ctrl('in-gseed').value = g.seed;   // never rewrite a field while it is typed in
   ctrl('ck-gpaper').checked = g.paper;
   ctrl('grad-blend').hidden = flat;
-  ['angle', 'pattern', 'seed', 'dist', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
+  ctrl('grain-none').hidden = !flat; ctrl('grain-ctl').hidden = flat;   // Flat has no blend to grain (Diego, Nov 18, 2026)
+  ctrl('grain-smooth').hidden = flat || g.size > 0;
+  ['angle', 'pattern', 'seed', 'speck', 'dist', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
   gradSel = Math.min(gradSel, g.stops.length - 1);
   if (inkSwatch && inkSwatch.get() !== g.ink) inkSwatch.set(g.ink);
   renderStopBar();
@@ -1040,18 +1087,28 @@ function syncGradControls() {
   ctrl('grad-hint').textContent = smoothGrad(g)
     ? 'No grain: the gradient blends smoothly. The export is vector, but a blend is not one plate per ink — raise Grain size for print plates.'
     : 'Each cell is one pure ink' + (g.paper && !flat ? ' or bare paper' : '') + ': the export is vector, one plate per ink (' +
-    (words[inks] || inks) + (inks === 1 ? ' plate' : ' plates') + ').' +
-    (hasNoise(g) && g.pattern === 'dots' ? ' Each dot is cut out of the ink under it: the plates never overlap.' : '');
+    (words[inks] || inks) + (inks === 1 ? ' plate' : ' plates') + ').';
+  ctrl('shadow-hint').hidden = !(hasNoise(g) && g.specks === 'dots' && !smoothGrad(g));   // the shadow's own note, in its section
 }
 // Saved before Nov 18, 2026: the raster options are gone — Conic becomes Linear,
 // Ordered becomes Noise, a Tone grain (a raster jitter) is dropped, Grain in
 // Shadows / Highlights becomes Everywhere. Output, Mix in and Grain
 // colour are no longer read.
 function normalizeGrad(g) {
+  const had = g || {};
   g = Object.assign(JSON.parse(GRAD_DEFAULT), g);
+  if (g.kind && g.kind !== 'speckle') g.amount = 0;   // a Tone grain (raster) was no shadow
+  // Saved before Nov 18, 2026 (evening): the shadow had no switch and shared the grain's size, pattern
+  // and seed — it was on when Amount > 0; its specks were the grain's cells.
+  if (had.shadow === undefined) {
+    g.shadow = had.amount !== undefined && +g.amount > 0;
+    if (!g.shadow) g.amount = 70;
+    g.speck = +had.size > 0 ? clamp(+had.size, 1, 12) : SHADOW_CELL;
+    g.specks = had.pattern === 'dots' ? 'dots' : 'noise';
+    g.sseed = had.seed != null ? had.seed : 1;
+  }
   if (g.type === 'conic') g.type = 'linear';
   if (g.pattern !== 'dots') g.pattern = 'noise';
-  if (g.kind && g.kind !== 'speckle') g.amount = 0;
   if (g.dist !== 'light') g.dist = 'even';   // Shadows / Highlights → everywhere
   g.size = +g.size === 0 ? 0 : clamp(+g.size || 2, 1, 12);   // 0 = no grain, a smooth blend
   delete g.out; delete g.kind; delete g.space;
@@ -1220,8 +1277,16 @@ function initGradient() {
     if (G()[key] === b.dataset.v) return;
     pushUndo('grad-' + key); G()[key] = b.dataset.v; gradChanged();
   }));
-  segBind('seg-gtype', 'type'); segBind('seg-gpattern', 'pattern');
-  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gsize', 'size'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
+  segBind('seg-gtype', 'type'); segBind('seg-gpattern', 'pattern'); segBind('seg-gspecks', 'specks');
+  ctrl('ck-gshadow').addEventListener('change', e => { pushUndo('grad-shadow'); const g = G(); g.shadow = e.target.checked; if (g.shadow && !(g.amount > 0)) g.amount = 70; gradChanged(); });
+  ctrl('in-gsseed').addEventListener('input', e => {
+    if (e.target.value === '') return;
+    const v = clamp(Math.round(+e.target.value || 0), 0, 9999);
+    if (v === G().sseed) return;
+    pushUndo('grad'); G().sseed = v; gradChanged();
+  });
+  ctrl('in-gsseed').addEventListener('change', e => { e.target.value = G().sseed; });
+  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gsize', 'size'], ['rg-gspeck', 'speck'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
     pushUndo('grad'); G()[key] = +e.target.value; gradChanged();
   }));
   ctrl('ck-glight').addEventListener('change', e => { pushUndo('grad-dist'); G().dist = e.target.checked ? 'light' : 'even'; gradChanged(); });

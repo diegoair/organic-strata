@@ -192,10 +192,15 @@ Then:
    the sheet (`#colour-dock`, scaled with it), light in both themes, never in an export. They show
    the selected tint, else the colour.
 
-## 3. Gradient & grain
+## 3. Gradient · Grain · Shadow
 
-One definition per palette (`state.grad`, saved with it), one section in the panel
-(**Gradient & grain**, merged Nov 18, 2026). The gradient lives inside the palette —
+One definition behind three panel sections — **Gradient** (how the colour fills each
+shape: Type, Angle, Stops, Fade to paper), **Grain** (the gradient broken into cells of pure
+ink, for print plates: Size, Pattern, Seed — on Flat only *Flat has no gradient to grain.*) and
+**Shadow** (specks of a second ink on top: a switch, then Ink, Amount, Size, Specks, the
+light, its own Seed). Split Nov 18, 2026 (Diego: *dobbiamo far capire bene cosa è per gradient,
+cosa è per grain, e cosa è shadow*; mockup A, three sections, `explorations/tunesutra-gradient-panel/`);
+before that one section, **Gradient & grain** (merged the same morning). The gradient lives inside the palette —
 Diego, Nov 2, 2026 (not a library item of its own).
 
 **Everything is ink cells, so everything is vector** (Diego, Nov 18, 2026: *tutto deve
@@ -223,7 +228,7 @@ file), while the plates keep the exact partition.
   the positions.
 - **Fade to paper** adds the paper as the last stop: the last ink thins out to
   bare paper, and the paper gets no plate.
-- **Grain size** — one cell, in sheet units, **0**–12 (step 0.5). **0 = no grain, the default
+- **Grain size** — one cell, in sheet units, **0**–12 (step 0.5); **hidden on Flat** (Nov 18, 2026: Diego, *when Gradient & grain is on flat Grain size is hidden* — a Flat shadow keeps the size it has, 2 for Speckle, 3 for Stipple). **0 = no grain, the default
   for a gradient** (Nov 18, 2026: Diego, *quando lavoro su un gradient c'è solo il gradient senza
   necessariamente il grain … se non modificato è 0 di default*): the blend is a smooth vector
   gradient — an SVG `linearGradient` / `radialGradient` in the shape's box, OKLab sampled (16
@@ -234,7 +239,10 @@ file), while the plates keep the exact partition.
 - **Pattern** — how the cells are chosen: **Noise** (at random) or **Dots** (round
   dots, evenly spread: a 64 × 64 blue-noise mask, `Organica.dither.blueNoise`).
 - **Seed** fixes the cells.
-- **Shadow** — one more ink on top: **Ink**, **Amount** (density, 0 = no shadow),
+- **Shadow** — its own **switch** (`shadow`, saved), then one more ink on top: **Ink**,
+  **Amount** (density 1–100), **Size** (`speck`; *Speck size* until Diego chose *Size* in both sections; shown only when the shadow has its own grid —
+  Flat, or a grain-0 blend; on a grained blend the specks are the grain's cells), **Specks**
+  *Square · Round* (`specks`, its own — the grain's Pattern no longer drives it), **Seed** (`sseed`, its own),
   **Away from a light** (switch; off = everywhere alike) with **Light from** (0° = the
   top, 90° = the right: none on the lit edge, full on the opposite one) and **Falloff**
   (50 = grows evenly; higher keeps it to the far side — an exponent 4^((f − 50) / 50)).
