@@ -224,7 +224,7 @@ file), while the plates keep the exact partition.
   Diego, *elimina sotto la barra i quadrati con i colori, quelli vengono selezionati dal picker* —
   the chips under the bar and the bar's hint are gone). Stops are colours in their own right:
   reordering the palette does not reorder them.
-- **Reverse** flips the stops and their positions; **Space evenly** forgets
+- **Reverse** flips the stops and their positions, **keeping every colour** (Nov 18, 2026: Diego, *quando clicco reverse, deve mantenere i color scelti*): the stop that is the colour itself moves with it (`colourAt`) instead of being forced back to first; Flat and the drawing follow it. Until a stop is chosen by hand (picker, add, remove — `auto2`), the other stop of two stays the colour's **900** and follows a colour change. Fade to paper sits a `--space-3` below the buttons; **Space evenly** forgets
   the positions.
 - **Fade to paper** adds the paper as the last stop: the last ink thins out to
   bare paper, and the paper gets no plate.

@@ -56,6 +56,7 @@
   @media (hover: none) { .ts-remove { opacity: 1; } }
   @media (hover: hover) { .ts-remove:hover { border-color: var(--ink); } }
   /* the Colour section, right of the Contrast pairs: drawn at the sheet's own scale (renderStage) */
+  #grad-blend .row-btns + .check-row { margin-top: var(--space-3); }   /* Fade to paper: room below Reverse · Space evenly (Diego, Nov 18, 2026) */
   .ts-colour-dock { position: absolute; transform-origin: 0 0; }   /* the six value tiles alone (Diego, Nov 18, 2026: "leave only the 6 boxes") */
   .ts-colour-dock .panel-section { border-bottom: 0; padding: 0; }
   .ts-colour-dock .org-tiles { margin: 0; }
@@ -759,7 +760,7 @@ function shadeDefs(hex) {
   const deep = sc[clamp(a + 5 * dir, 0, 9)].hex;
   // the gradient's second stop is the colour's own 900 (Diego, Nov 18, 2026) — its 50 when the colour is the 900
   const shade = a === 9 ? sc[0].hex : sc[9].hex;
-  const base = { type: 'linear', angle: 180, stops: [hex, shade], pos: [0.2, 1], paper: false,
+  const base = { type: 'linear', angle: 180, stops: [hex, shade], auto2: true, pos: [0.2, 1], paper: false,
     ink: deep, shadow: false, amount: 70, speck: 2, specks: 'noise', sseed: 7, size: 0, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
   // Flat draws only the first stop; the second is there so that switching it to Linear / Radial blends at once.
   const speckle = Object.assign({}, base, { type: 'flat', shadow: true, amount: 70, speck: 2, falloff: 65 });
@@ -798,7 +799,7 @@ function stopPos(g) {
 // takes the last step of an even spacing, so the colours move up to make room.
 function gradStops(g) {
   g = g || G();   // any gradient definition — the one the panel edits by default (G), or a given one
-  if (g.type === 'flat') return [{ hex: g.stops[0], paper: false, at: 0 }];
+  if (g.type === 'flat') return [{ hex: g.stops[colourStop(g)], paper: false, at: 0 }];   // Flat = the colour itself, wherever Reverse put it
   const pos = stopPos(g), n = pos.length, f = g.paper ? (n - 1) / n || 0 : 1;
   const stops = g.stops.map((hex, i) => ({ hex: hex, paper: false, at: pos[i] * f }));
   if (g.paper) stops.push({ hex: Organica.contentColor('--paper'), paper: true, at: 1 });
@@ -1001,9 +1002,22 @@ function selZone() {
   return zone && zone.role === state.activeIndex ? z : null;
 }
 // A shape's own definition with its first stop set to the shape's colour (and a second one to blend to).
+// One stop is the colour itself — the first, unless Reverse moved it (`colourAt`; Diego, Nov 18, 2026:
+// "quando clicco reverse, deve mantenere i color scelti").
+// The inks drawn over a shape: its first stop's ink is the shape's own fill, unless Reverse made the first
+// stop another colour — then that ink is drawn too.
+function shapeInks(def, w, h) {
+  const plates = shadePlates(def, w, h), own = String(def.stops[colourStop(def)]).toLowerCase();
+  return plates.filter((pl, pi) => pi > 0 || String(pl.hex).toLowerCase() !== own);
+}
+function colourStop(def) { const i = def.colourAt | 0; return i >= 0 && i < def.stops.length ? i : 0; }
 function withColour(def, hex) {
-  def.stops[0] = hex;
-  if (def.stops.length < 2) def.stops.push(shadeDefs(hex).soft.stops[1]);
+  if (def.stops.length < 2) { def.colourAt = 0; def.stops = [hex, shadeDefs(hex).soft.stops[1]]; return def; }
+  const ci = colourStop(def);
+  def.stops[ci] = hex;
+  // the other stop of two stays the colour's own 900 while it has not been chosen by hand (`auto2`): a
+  // colour changed after the gradient was made takes its new 900 (Diego, Nov 18, 2026)
+  if (def.auto2 === true && def.stops.length === 2) def.stops[1 - ci] = shadeDefs(hex).soft.stops[1];
   return def;
 }
 // What a shape of colour `r` draws when it has nothing of its own: the colour's own, or the preset.
@@ -1022,11 +1036,7 @@ function G() {
     if (shadeDraft.key !== dkey) { shadeDraft.key = dkey; shadeDraft.def = JSON.parse(JSON.stringify(colourDef(state.activeIndex) || draftDef(it.hex))); }
     return withColour(shadeDraft.def, it.hex);
   }
-  if (it.shade) {
-    it.shade.stops[0] = it.hex;
-    if (it.shade.stops.length < 2) it.shade.stops.push(shadeDefs(it.hex).soft.stops[1]);   // a blend needs two
-    return it.shade;
-  }
+  if (it.shade) return withColour(it.shade, it.hex);   // first stop = the colour, second its 900 unless chosen
   const key = it.id + '|' + draftMode() + '|' + it.hex;
   if (shadeDraft.key !== key) { shadeDraft.key = key; shadeDraft.def = JSON.parse(JSON.stringify(draftDef(it.hex))); }
   return shadeDraft.def;
@@ -1104,6 +1114,7 @@ function normalizeGrad(g) {
     g.specks = had.pattern === 'dots' ? 'dots' : 'noise';
     g.sseed = had.seed != null ? had.seed : 1;
   }
+  g.auto2 = had.auto2 === true;   // a definition saved before Nov 18, 2026 keeps the second stop it has
   if (g.type === 'conic') g.type = 'linear';
   if (g.pattern !== 'dots') g.pattern = 'noise';
   if (g.dist !== 'light') g.dist = 'even';   // Shadows / Highlights → everywhere
@@ -1142,7 +1153,8 @@ function addStopAt(at, hex) {
   if (i < 0) i = pos.length;
   const stops = gradStops().filter(s => !s.paper);
   hex = hex || colourAt(stops.map((s, k) => ({ hex: s.hex, at: pos[k] })), at);
-  g.stops.splice(i, 0, hex); pos.splice(i, 0, at);
+  if (i <= colourStop(g)) g.colourAt = colourStop(g) + 1;
+  g.stops.splice(i, 0, hex); pos.splice(i, 0, at); g.auto2 = false;
   return i;
 }
 function widestGap() {
@@ -1153,9 +1165,10 @@ function widestGap() {
 }
 function removeStop(i) {
   const g = G();
-  if (g.stops.length <= 2) return;
+  if (g.stops.length <= 2 || i === colourStop(g)) return;   // the colour's own stop stays
   pushUndo('grad-stop');
-  ensurePos().splice(i, 1); g.stops.splice(i, 1);
+  if (i < colourStop(g)) g.colourAt = colourStop(g) - 1;
+  ensurePos().splice(i, 1); g.stops.splice(i, 1); g.auto2 = false;
   gradSel = Math.max(0, i - 1);
   gradChanged();
 }
@@ -1242,10 +1255,10 @@ function bindStopBar() {
 function pickStop(i) {
   const k = ctrl('grad-bar').firstElementChild.children[i];
   if (!k) return;
-  if (i === 0) return pickOnSheetColour(k);   // the first stop is the colour: the picker edits the colour
+  if (i === colourStop(G())) return pickOnSheetColour(k);   // the colour's own stop: the picker edits the colour
   Organica.colorPicker.open(k, {
     value: G().stops[i], label: 'Stop ' + (i + 1),
-    onInput: hex => { if (G().stops[i] === hex) return; pushUndo('grad'); G().stops[i] = hex; gradChanged(); },
+    onInput: hex => { if (G().stops[i] === hex) return; pushUndo('grad'); const g = G(); g.auto2 = false; g.stops[i] = hex; gradChanged(); },
   });
 }
 function pickOnSheetColour(anchor) {
@@ -1298,7 +1311,7 @@ function initGradient() {
   ctrl('btn-grad-reverse').addEventListener('click', () => {
     pushUndo('grad-stop');
     const g = G(), pos = ensurePos();
-    g.stops.reverse(); g.pos = pos.map(p => Math.round((1 - p) * 1000) / 1000).reverse();
+    g.colourAt = g.stops.length - 1 - colourStop(g); g.stops.reverse(); g.pos = pos.map(p => Math.round((1 - p) * 1000) / 1000).reverse();
     gradSel = g.stops.length - 1 - gradSel;
     gradChanged();
   });
@@ -1494,7 +1507,7 @@ function sceneMarkup(scene, interactive) {
       const title = interactive && it.title ? `<title>${esc(it.title)}</title>` : '';
       const ring = it.tile && it.active ? `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" fill="none" stroke="${sheetTheme().ink}" stroke-width="2" pointer-events="none"/>` : '';
       // the shape (or the tile's rect) already paints the first ink: only the other inks' cells go on it
-      const cells = shadePlates(it.def, bw, bh).slice(1).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, id + 'g' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('');
+      const cells = shapeInks(it.def, bw, bh).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, id + 'g' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('');
       const hit = it.tile ? `<rect x="${num(bx)}" y="${num(by)}" width="${num(bw)}" height="${num(bh)}" fill="none" pointer-events="all"/>` : '';
       return `${clip}<g clip-path="url(#${id})"${tile}>${title}${hit}<g transform="translate(${num(bx)},${num(by)})" shape-rendering="crispEdges" fill-rule="evenodd">${cells}</g></g>${ring}`;
     }
@@ -1526,7 +1539,7 @@ function drawScene(scene, c, scale) {
       const [bx, by, bw, bh] = it.box;
       c.save();
       c.translate(it.tf.x, it.tf.y); c.scale(it.tf.s, it.tf.s); c.clip(new Path2D(it.d)); c.scale(1 / it.tf.s, 1 / it.tf.s); c.translate(-it.tf.x, -it.tf.y);
-      c.translate(bx, by); drawPlates(c, shadePlates(it.def, bw, bh).slice(1));
+      c.translate(bx, by); drawPlates(c, shapeInks(it.def, bw, bh));
       c.restore();
       if (it.tile && it.active) { c.strokeStyle = sheetTheme().ink; c.lineWidth = 2; c.strokeRect(bx, by, bw, bh); }
       return;
