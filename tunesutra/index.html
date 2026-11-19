@@ -163,6 +163,8 @@
   .ts-filters .seg-ctrl--multi .seg-btn { flex: none; padding: 0 var(--space-3); }
   .ts-filters .panel-select { width: 100%; }
   .ts-filters .sub-label { display: block; }   /* on a span / label its margins would not apply */
+  .ts-mi-thumb { display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .ts-mi-thumb[hidden] { display: none; }
   .ts-roles { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin-bottom: var(--space-5); font-size: var(--fs-small); }
   .ts-role { display: inline-flex; align-items: center; gap: var(--space-2); }
   .ts-role__sw { width: var(--space-4); height: var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }   /* the fill is the palette colour, data */
@@ -429,6 +431,7 @@
 <script src="/shared/color.js"></script>
 <script src="/shared/hue-tone.js"></script>
 <script src="/shared/dual-range.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/shade-marks.js"></script>
 <script src="/shared/colour-picker.js"></script>
@@ -2416,7 +2419,6 @@ function yourPalettesHTML() {
     '<div class="ts-grid">' + (homeShow === 'starred' ? '' : NEW_CARD) + list.map(c => cardHTML(c.href, c.name, c.p, c.key)).join('') + '</div></section>';
 }
 const LATER = {
-  'make/image': ['From an image', 'Drop an image: its colours become a palette, each one named and given a role.'],
   'explore/moods': ['Moods', 'Palettes by feeling, on the warm–cool and soft–hard map.'],
   'explore/swatches': ['Swatches', 'Every colour, named, on the hue and tone map.'],
   learn: ['How colour works', 'Hue and tone, tone families, roles, and how the palettes are built.']
@@ -2731,8 +2733,133 @@ ctrl('home').addEventListener('click', e => {
     onInput: hex => paintKey(hex),
     onChange: hex => { MK.key = hex; saveMake(); paintKey(hex); renderMake(); } });
 });
+// ── MAKE › FROM AN IMAGE ──
+// An image's own colours as palettes (Nov 19, 2026, redesign step 7, design-system CONSULT): Organica.hueTone.extract
+// groups the pixels of a ~128 px copy in OKLab and gives each colour its share of the image, largest first — the same
+// order as ROLE_PARTS, so the biggest colour paints the biggest part and a card opens in the editor as it is drawn.
+// Picked by Area (the n biggest) or Difference (the most different, weighted by area). The image never leaves the
+// page and is not stored: it stays in memory for the visit; only the settings are kept (MK.img).
+const MI = Object.assign({ n: 5, pick: 'area' }, MK.img && typeof MK.img === 'object' ? MK.img : {});
+if (!(MI.n >= 2 && MI.n <= 9)) MI.n = 5;
+if (MI.pick !== 'spread') MI.pick = 'area';
+MK.img = MI;
+const MI_PICK = { area: 'Area', spread: 'Difference' };
+const MI_HINT = { area: 'The colours that cover most of the image.', spread: 'The most different colours, so a small accent still gets in.' };
+const MI_SIDE = 128;           // the copy the colours are read from, long side in px
+let MI_IMG = null, MI_ERR = false, MI_JOB = 0;
+const MI_CACHE = new Map();    // 'n|pick' → extract result, for the image on show
+const IMG_NAMES = {};          // '#m=' token → its card name, so the editor and the star use the same one
+function miExtract(n) {
+  const k = n + '|' + MI.pick;
+  if (!MI_CACHE.has(k)) MI_CACHE.set(k, HT.extract(MI_IMG.px, { n, pick: MI.pick }));
+  return MI_CACHE.get(k);
+}
+function miCard(n) {
+  const cols = miExtract(n).map(c => c.hex);
+  if (cols.length < 2) return null;
+  const tok = cols.map(mkHex).join('-') + '~1', name = MI_IMG.name + ', ' + cols.length + ' colours';
+  IMG_NAMES[tok] = name;
+  return { colors: cols, house: 1, href: '#m=' + tok, key: 'm:' + tok, name };
+}
+function miOpenBtn(extra) { return `<button type="button" class="org-btn${extra || ''}" data-mi-open>${Organica.icons.get('folder-open')}Open image…</button>`; }
+function makeImagePanelHTML() {
+  return '<div class="panel-section"><h3>Image</h3>' +
+    '<img class="ts-mi-thumb" id="mi-thumb" alt="" hidden><p class="org-panel__hint" id="mi-file" hidden></p>' + miOpenBtn() + '</div>' +
+    '<div class="panel-section"><h3>Palette</h3>' +
+    `<div class="ctrl-row"><div class="ctrl-label">Number of colours</div><input type="range" id="mi-n" min="2" max="9" step="1" value="${MI.n}"><span class="ctrl-val" id="mi-n-val">${MI.n}</span></div>` +
+    '<span class="sub-label" id="mi-pick-label">Picked by</span>' +
+    `<div class="seg-ctrl" role="group" aria-labelledby="mi-pick-label" aria-describedby="mi-pick-hint">${Object.keys(MI_PICK).map(v => `<button type="button" class="seg-btn${MI.pick === v ? ' active' : ''}" data-pick="${v}" aria-pressed="${MI.pick === v}">${MI_PICK[v]}</button>`).join('')}</div>` +
+    `<p class="org-panel__hint" id="mi-pick-hint">${MI_HINT[MI.pick]}</p></div>`;
+}
+function makeImageHTML() {
+  return '<div class="ts-explore" id="mi-drop">' + navHTML(view) + '<div id="mi-results"></div></div>' +
+    '<input type="file" id="mi-input" class="org-file-input" accept="image/*">' +
+    '<aside class="org-panel ts-filters" id="mi-panel" aria-label="Make settings">' + makeImagePanelHTML() + '</aside>';
+}
+function paintThumb() {
+  const t = ctrl('mi-thumb'), f = ctrl('mi-file'); if (!t) return;
+  t.hidden = f.hidden = !MI_IMG;
+  if (!MI_IMG) return;
+  t.src = MI_IMG.url;   // alt stays empty: the caption below names the file
+  f.textContent = MI_IMG.file + ' · ' + MI_IMG.w + ' × ' + MI_IMG.h;
+}
+function renderImage() {
+  const box = ctrl('mi-results'); if (!box) return;
+  const job = ++MI_JOB;
+  if (MI_ERR || !MI_IMG) {
+    box.innerHTML = MI_ERR
+      ? `<div class="org-empty"><p class="org-empty__title">This file can’t be opened as an image</p><p class="org-empty__hint">Try a JPEG, PNG, WebP or GIF.</p>${miOpenBtn(' org-empty__action')}</div>`
+      : `<div class="org-empty"><p class="org-empty__title">Open an image</p><p class="org-empty__hint">Drop an image here, or open one. Its colours become palettes. The image stays on this device.</p>${miOpenBtn(' org-empty__action')}</div>`;
+    return;
+  }
+  const res = miExtract(MI.n), k = res.length, first = miCard(MI.n);
+  if (!first) {
+    box.innerHTML = '<div class="org-empty"><p class="org-empty__title">This image has only one colour</p><p class="org-empty__hint">A palette needs two colours at least. Open another image.</p>' + miOpenBtn(' org-empty__action') + '</div>';
+    return;
+  }
+  box.innerHTML = `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">Roles</h2><span class="ts-filter__count">at ${k} colours · share of the image</span></div>` +
+    '<div class="ts-roles">' + res.map((c, i) => `<span class="ts-role"><span class="ts-role__sw" style="background:${c.hex}"></span>${esc(roleName(i, k))} <span class="ts-filter__count">${c.share.toFixed(1)}%</span></span>`).join('') + '</div>' +
+    (k < MI.n ? `<p class="ts-group__note">This image gives only ${k} different colours.</p>` : '') +
+    `<div class="ts-grid" id="mi-grid">${cardHTML(first.href, first.name, first, first.key)}</div></section>`;
+  // the chosen count first, then the others in order, one per frame — a large photo stays responsive
+  // a count the image cannot reach is left out (asking 8 of a 7-colour image gives another 7 — one name, two palettes)
+  const seen = new Set([first.colors.length]), rest = [2, 3, 4, 5, 6, 7, 8, 9].filter(c => c !== MI.n);
+  const next = () => {
+    if (job !== MI_JOB || !rest.length) return;
+    const want = rest.shift(), p = miCard(want), grid = ctrl('mi-grid');
+    if (!grid) return;
+    if (p && p.colors.length === want && !seen.has(want)) { seen.add(want); grid.insertAdjacentHTML('beforeend', cardHTML(p.href, p.name, p, p.key)); }
+    requestAnimationFrame(next);
+  };
+  requestAnimationFrame(next);
+}
+async function miLoad(file) {
+  if (!file) return;
+  let bmp = null;
+  if (/^image\//.test(file.type)) { try { bmp = await createImageBitmap(file); } catch (e) { bmp = null; } }
+  if (!bmp) {   // the image on show goes too: the panel and the error say the same thing
+    if (MI_IMG) URL.revokeObjectURL(MI_IMG.url);
+    MI_IMG = null; MI_CACHE.clear(); MI_ERR = true; paintThumb(); renderImage(); miRefocus(); return;
+  }
+  const s = Math.min(1, MI_SIDE / Math.max(bmp.width, bmp.height)), w = Math.max(1, Math.round(bmp.width * s)), h = Math.max(1, Math.round(bmp.height * s));
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingQuality = 'high'; g.drawImage(bmp, 0, 0, w, h);
+  if (MI_IMG) URL.revokeObjectURL(MI_IMG.url);
+  MI_IMG = { file: file.name, name: file.name.replace(/\.[^.]+$/, '') || 'Image', w: bmp.width, h: bmp.height, url: URL.createObjectURL(file), px: g.getImageData(0, 0, w, h).data };
+  if (bmp.close) bmp.close();
+  MI_CACHE.clear(); MI_ERR = false;
+  paintThumb(); renderImage(); miRefocus();
+}
+// the empty state's Open button is gone with the redraw: the focus goes to the panel's
+function miRefocus() {
+  const a = document.activeElement;
+  if (!a || a === document.body) { const b = ctrl('mi-panel') && ctrl('mi-panel').querySelector('[data-mi-open]'); if (b) b.focus(); }
+}
+function mountImage() {
+  paintThumb();
+  Organica.enhanceSliders(ctrl('mi-panel'));
+  Organica.autoLabelPanel(ctrl('mi-panel'));
+  const input = ctrl('mi-input');
+  // accept '' — the check is miLoad's, so a file that is not an image gets its error state instead of nothing
+  Organica.canvasDropZone({ wrap: ctrl('mi-drop'), fileInput: input, accept: '', onFile: inp => miLoad(inp.files[0]) });
+  input.addEventListener('change', () => { miLoad(input.files[0]); input.value = ''; });
+  renderImage();
+}
+ctrl('home').addEventListener('input', e => { if (e.target.id === 'mi-n') ctrl('mi-n-val').textContent = e.target.value; });
+ctrl('home').addEventListener('change', e => { if (e.target.id === 'mi-n') { MI.n = +e.target.value; MI_ERR = false; saveMake(); renderImage(); } });
+ctrl('home').addEventListener('click', e => {
+  const open = e.target.closest('[data-mi-open]'), pick = e.target.closest('[data-pick]');
+  if (open) ctrl('mi-input').click();
+  else if (pick) {
+    MI.pick = pick.dataset.pick; MI_ERR = false; saveMake();
+    ctrl('mi-panel').querySelectorAll('[data-pick]').forEach(b => { const on = b.dataset.pick === MI.pick; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+    ctrl('mi-pick-hint').textContent = MI_HINT[MI.pick];
+    renderImage();
+  }
+});
 function renderHome() {
-  const v = view, id = v.sub ? v.tab + '/' + v.sub : v.tab, split = id === 'explore/palettes' || id === 'make/colour';
+  const v = view, id = v.sub ? v.tab + '/' + v.sub : v.tab, split = id === 'explore/palettes' || id === 'make/colour' || id === 'make/image';
   ctrl('home').classList.toggle('ts-home--split', split);
   if (id === 'explore/palettes') {   // built once per visit; a filter change redraws the results only
     if (!ctrl('ts-results')) { ctrl('home').innerHTML = exploreHTML(); mountExplore(); }
@@ -2742,6 +2869,11 @@ function renderHome() {
   if (id === 'make/colour') {
     if (!ctrl('mk-results')) { ctrl('home').innerHTML = makeHTML(); mountMake(); }
     else renderMake();
+    return;
+  }
+  if (id === 'make/image') {
+    if (!ctrl('mi-results')) { ctrl('home').innerHTML = makeImageHTML(); mountImage(); }
+    else renderImage();
     return;
   }
   let body;
@@ -2785,7 +2917,7 @@ function route() {
   }
   else if (h.indexOf('m=') === 0) {   // a palette from Make: #m=<hex>-<hex>…~<house>, in ROLE_PARTS order
     const [c, hs] = h.slice(2).split('~'), cols = (c || '').split('-').filter(x => /^[0-9a-f]{6}$/i.test(x)).map(x => '#' + x.toLowerCase());
-    if (cols.length >= 2 && cols.length <= 9) { p = { colors: cols, parts: HT.ROLE_PARTS[cols.length], house: +hs || newSeed() }; suggest = makeName(cols, +hs || 0); key = 'm:' + h.slice(2); }
+    if (cols.length >= 2 && cols.length <= 9) { p = { colors: cols, parts: HT.ROLE_PARTS[cols.length], house: +hs || newSeed() }; key = 'm:' + h.slice(2); suggest = IMG_NAMES[h.slice(2)] || (favs()[key] && favs()[key].name) || makeName(cols, +hs || 0); }
   }
   else if (h.indexOf('l=') === 0) {   // a library palette: it may be on its way (the bundle loads once)
     const id = h.slice(2), e = LIB && LIB.find(x => x.id === id);

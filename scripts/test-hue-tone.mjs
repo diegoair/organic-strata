@@ -121,5 +121,25 @@ const isHex = h => /^#[0-9a-f]{6}$/.test(h);
   check('generate(hue) reads back as its harmony at 3, 5, 7 colours (16 of 20 seeds at least)', !bad.length, bad.join(', '));
 }
 
+// A palette from an image: a synthetic picture of known areas reads back as those colours and shares.
+{
+  const px = (cols) => {   // cols = [[hex, count]] → rgba
+    const out = []; cols.forEach(([h, k]) => { const [r, g, b] = ctx.Organica.hexToRGB255(h); for (let i = 0; i < k; i++) out.push(r, g, b, 255); }); return Uint8ClampedArray.from(out);
+  };
+  const img = px([['#1a439b', 6000], ['#f4efe4', 3000], ['#e5000d', 800], ['#fff200', 200]]);
+  const a = HT.extract(img, { n: 4 }), sum = a.reduce((s, c) => s + c.share, 0);
+  check('extract finds the four colours, largest first', a.length === 4 && a.every(c => isHex(c.hex)) && C.deltaE(a[0].hex, '#1a439b') < 3 && C.deltaE(a[3].hex, '#fff200') < 3,
+    a.map(c => c.hex + ' ' + c.share.toFixed(1)).join(' · '));
+  check('extract shares sum to 100 and follow the areas', Math.abs(sum - 100) < 1e-6 && Math.abs(a[0].share - 60) < 1, a[0].share.toFixed(2));
+  const blues = px([['#1a439b', 6000], ['#4a78d8', 3000], ['#fff200', 400]]);
+  const two = HT.extract(blues, { n: 2 }), spread = HT.extract(blues, { n: 2, pick: 'spread' });
+  check('pick area keeps the two blues, spread keeps the small yellow', !two.some(c => C.deltaE(c.hex, '#fff200') < 10) && spread.some(c => C.deltaE(c.hex, '#fff200') < 10),
+    'area ' + two.map(c => c.hex).join(' ') + ' · spread ' + spread.map(c => c.hex).join(' '));
+  const flat = HT.extract(px([['#808080', 500], ['#828282', 500]]), { n: 5 });
+  check('near colours merge: a flat image gives fewer colours', flat.length === 1, flat.length + ' colour(s)');
+  check('extract is deterministic', JSON.stringify(HT.extract(img, { n: 3, pick: 'spread' })) === JSON.stringify(HT.extract(img, { n: 3, pick: 'spread' })));
+  check('transparent pixels are left out', HT.extract(Uint8ClampedArray.from([0, 0, 0, 0]), { n: 3 }).length === 0);
+}
+
 console.log(failed ? '\n' + failed + ' check(s) FAILED' : '\nALL PASS');
 process.exit(failed ? 1 : 0);

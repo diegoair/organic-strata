@@ -18,6 +18,7 @@
      WORDS                                          the image-scale words and their positions
      generate(baseHex, opts, seed)                  hue × tone generator (opts: image, hue, tone, purity, n, neutral)
      ROLE_SPEC, ROLE_PARTS, generateRoles(mainHex, n, seed)   the role generator, 2–9 colours, in house.js's role order
+     extract(rgba, { n, pick: 'area' | 'spread', seed }) → [{ hex, share }]   a palette from an image's pixels, largest first
    Deterministic: the same arguments always give the same result. */
 (function (global) {
   'use strict';
@@ -318,9 +319,79 @@
     return parts.map(part => ({ part, hex: got[part] }));
   }
 
+  // ---------- a palette from an image ----------
+  // extract(rgba, { n, pick, seed }) → [{ hex, share }] largest share first (share in %, the lot sums to 100).
+  // rgba = an ImageData's data (the caller downscales; ~128 px a side is plenty). Pixels are counted into a
+  // 5-bit-per-channel histogram, the occupied bins go to OKLab, and a weighted k-means (k-means++ start, seeded)
+  // groups them. Groups closer than C.DISTINCT_MIN read as one colour and are merged. pick 'area' keeps the n
+  // biggest; 'spread' starts from the biggest and adds the group farthest from those kept, weighted by its area —
+  // a small bright accent survives. Every pixel is then given to its nearest kept colour, which sets the shares.
+  // A flat image can give fewer than n colours. Transparent pixels (alpha < 128) are left out.
+  function extract(rgba, opts) {
+    const o = opts || {}, n = Math.max(1, Math.min(9, o.n | 0 || 5)), R = rng(o.seed || 1);
+    const hist = new Map();
+    for (let i = 0; i < rgba.length; i += 4) {
+      if (rgba[i + 3] < 128) continue;
+      const k = (rgba[i] >> 3) << 10 | (rgba[i + 1] >> 3) << 5 | (rgba[i + 2] >> 3);
+      hist.set(k, (hist.get(k) || 0) + 1);
+    }
+    if (!hist.size) return [];
+    const pts = [];   // { L, a, b, w }
+    hist.forEach((w, k) => {
+      const c = v => (v << 3) + 4, lab = C.hexToOklab(hex(c(k >> 10 & 31), c(k >> 5 & 31), c(k & 31)));
+      pts.push({ L: lab.L, a: lab.a, b: lab.b, w });
+    });
+    const d2 = (p, q) => (p.L - q.L) ** 2 + (p.a - q.a) ** 2 + (p.b - q.b) ** 2;
+    const K = Math.min(pts.length, o.pick === 'spread' ? n * 2 + 2 : n + 2);   // a little more than asked: the merge eats some
+    // k-means++ start: the next centre drawn with odds ∝ weight × distance² to the nearest centre
+    const cen = [], first = pts.reduce((m, p) => (p.w > m.w ? p : m), pts[0]);
+    cen.push({ L: first.L, a: first.a, b: first.b });
+    const near = pts.map(p => d2(p, cen[0]));
+    while (cen.length < K) {
+      let tot = 0; pts.forEach((p, i) => { tot += p.w * near[i]; });
+      if (tot <= 0) break;
+      let r = R() * tot, j = 0;
+      for (; j < pts.length - 1; j++) { r -= pts[j].w * near[j]; if (r <= 0) break; }
+      cen.push({ L: pts[j].L, a: pts[j].a, b: pts[j].b });
+      pts.forEach((p, i) => { near[i] = Math.min(near[i], d2(p, cen[cen.length - 1])); });
+    }
+    const assign = cs => pts.map(p => { let bi = 0, bd = Infinity; cs.forEach((c, i) => { const d = d2(p, c); if (d < bd) { bd = d; bi = i; } }); return bi; });
+    const means = (cs, lab) => {   // one pass over the points
+      const s = cs.map(() => ({ L: 0, a: 0, b: 0, w: 0 }));
+      pts.forEach((p, j) => { const t = s[lab[j]]; t.L += p.L * p.w; t.a += p.a * p.w; t.b += p.b * p.w; t.w += p.w; });
+      return s.map((t, i) => t.w ? { L: t.L / t.w, a: t.a / t.w, b: t.b / t.w, w: t.w } : Object.assign({}, cs[i], { w: 0 }));
+    };
+    let groups = cen;
+    for (let it = 0; it < 16; it++) groups = means(groups, assign(groups));
+    groups = groups.filter(g => g.w > 0);
+    // merge what reads as one colour (deltaE ×100 < DISTINCT_MIN), the bigger group absorbing the smaller
+    const lim = (C.DISTINCT_MIN / 100) ** 2;
+    groups.sort((x, y) => y.w - x.w);
+    for (let i = 0; i < groups.length; i++) for (let j = groups.length - 1; j > i; j--) {
+      if (d2(groups[i], groups[j]) >= lim) continue;
+      const A = groups[i], B = groups[j], w = A.w + B.w;
+      groups[i] = { L: (A.L * A.w + B.L * B.w) / w, a: (A.a * A.w + B.a * B.w) / w, b: (A.b * A.w + B.b * B.w) / w, w };
+      groups.splice(j, 1);
+    }
+    let kept;
+    if (o.pick === 'spread') {
+      kept = [groups[0]];
+      const rest = groups.slice(1);
+      while (kept.length < n && rest.length) {
+        let bi = 0, bs = -1;
+        rest.forEach((g, i) => { const s = Math.sqrt(Math.min(...kept.map(k => d2(g, k)))) * Math.sqrt(g.w); if (s > bs) { bs = s; bi = i; } });
+        kept.push(rest.splice(bi, 1)[0]);
+      }
+    } else kept = groups.slice(0, n);
+    // every pixel to its nearest kept colour: the shares, and the colour re-centred on what it now covers
+    const lab = assign(kept), fin = means(kept, lab), tot = fin.reduce((a, g) => a + g.w, 0);
+    return fin.filter(g => g.w > 0).sort((x, y) => y.w - x.w)
+      .map(g => ({ hex: C.oklabToHex(g.L, g.a, g.b), share: g.w / tot * 100 }));
+  }
+
   O.hueTone = {
     HUES, TONES, FAMS, NEUTRALS, METAL, WORDS, ROLE_SPEC, ROLE_PARTS,
     toHex, toneColour, hueIndex, read, toneDist, hueStep, cellName,
-    nameOf, settleNames, readPalette, harmonyOf, imagePos, rng, generate, generateRoles,
+    nameOf, settleNames, readPalette, harmonyOf, imagePos, rng, generate, generateRoles, extract,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
