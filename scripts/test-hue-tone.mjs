@@ -95,5 +95,17 @@ const isHex = h => /^#[0-9a-f]{6}$/.test(h);
   } else console.log('  skip reference data (not on this machine)');
 }
 
+// The hue relation in the editor's harmony words: built from the model's own V colours (hue index → harmony).
+{
+  const V = hi => HT.toneColour(hi, HT.TONES.findIndex(T => T.k === 'V'));
+  const cases = [
+    [[V(0), V(0)], 'monochromatic'], [[V(0), V(1), V(2)], 'analogous'], [[V(0), V(5)], 'complementary'],
+    [[V(0), V(4), V(6)], 'split'], [[V(0), V(3), V(7)], 'triadic'], [[V(0), V(2), V(5), V(7)], 'tetradic'],
+    [[V(0), '#ffffff', '#000000'], null], [[V(0), V(3)], 'varied'],
+  ];
+  const bad = cases.filter(([h, want]) => HT.harmonyOf(h) !== want).map(([h, want]) => want + '→' + HT.harmonyOf(h));
+  check('harmonyOf reads the editor harmonies', !bad.length, bad.join(', '));
+}
+
 console.log(failed ? '\n' + failed + ' check(s) FAILED' : '\nALL PASS');
 process.exit(failed ? 1 : 0);

@@ -175,6 +175,36 @@
     const purity = !ch.length ? '—' : clear === ch.length ? 'all clear' : clear === 0 ? 'all dull' : 'mixed purity';
     return { rs, hueRel, toneRel, purity, pos: imagePos(hexes) };
   }
+  // The hue relation in the editor's own harmony words (Nov 19, 2026, for Explore's filter): the chromatic hues are
+  // grouped on the 10-step circle (neighbours, one step apart, are one group), then the groups' spacing is read.
+  //   monochromatic · analogous · complementary · split (split-complementary) · triadic · tetradic · varied
+  // null when fewer than two colours carry a hue (greys only, or one colour and greys).
+  function harmonyOf(hexes) {
+    const ch = hexes.map(read).filter(r => !r.neutral);
+    if (ch.length < 2) return null;
+    const hs = [...new Set(ch.map(r => r.hi))].sort((a, b) => a - b);
+    if (hs.length === 1) return 'monochromatic';
+    let span = 0;
+    for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) span = Math.max(span, hueStep(hs[i], hs[j]));
+    if (span <= 2) return 'analogous';
+    // groups: start after the widest gap, so a group never wraps past it
+    let start = 0, wide = -1;
+    hs.forEach((h, i) => { const g = (hs[(i + 1) % hs.length] - h + 10) % 10 || 10; if (g > wide) { wide = g; start = (i + 1) % hs.length; } });
+    const order = hs.slice(start).concat(hs.slice(0, start)), groups = [[order[0]]];
+    for (let i = 1; i < order.length; i++) {
+      if ((order[i] - order[i - 1] + 10) % 10 <= 1) groups[groups.length - 1].push(order[i]); else groups.push([order[i]]);
+    }
+    const centre = g => (g[0] + ((g[g.length - 1] - g[0] + 10) % 10) / 2) % 10;
+    const cs = groups.map(centre), gaps = cs.map((c, i) => ((cs[(i + 1) % cs.length] - c) + 10) % 10 || 10);
+    if (groups.length === 2) return hueStep(Math.round(cs[0]), Math.round(cs[1])) >= 4 ? 'complementary' : 'varied';
+    if (groups.length === 3) {
+      if (gaps.every(g => g >= 3)) return 'triadic';
+      if (gaps.some(g => g <= 2) && gaps.filter(g => g >= 4).length === 2) return 'split';
+      return 'varied';
+    }
+    if (groups.length === 4 && gaps.every(g => g >= 2) && hueStep(Math.round(cs[0]), Math.round(cs[2])) >= 4 && hueStep(Math.round(cs[1]), Math.round(cs[3])) >= 4) return 'tetradic';
+    return 'varied';
+  }
   const WORDS = [['pretty', -0.6, 0.75], ['romantic', 0, 0.85], ['natural', 0.05, 0.5], ['clear', 0.75, 0.6], ['casual', -0.75, 0.25], ['elegant', 0.35, 0.2], ['cool casual', 0.8, 0.15], ['dynamic', -0.85, -0.3], ['gorgeous', -0.45, -0.35], ['chic', 0.3, -0.25], ['modern', 0.8, -0.35], ['classic', -0.25, -0.6], ['dandy', 0.3, -0.6], ['wild', -0.6, -0.85], ['classic & dandy', 0, -0.85], ['formal', 0.7, -0.75]];
 
   // ---------- the hue × tone generator ----------
@@ -290,6 +320,6 @@
   O.hueTone = {
     HUES, TONES, FAMS, NEUTRALS, METAL, WORDS, ROLE_SPEC, ROLE_PARTS,
     toHex, toneColour, hueIndex, read, toneDist, hueStep, cellName,
-    nameOf, settleNames, readPalette, imagePos, rng, generate, generateRoles,
+    nameOf, settleNames, readPalette, harmonyOf, imagePos, rng, generate, generateRoles,
   };
 })(typeof window !== 'undefined' ? window : globalThis);
