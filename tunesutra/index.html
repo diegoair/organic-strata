@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/prose.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
@@ -156,6 +157,7 @@
   .ts-group__head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-5); }
   .ts-group__head .ts-group__title { margin-bottom: 0; }
   .ts-group__head .org-btn { margin-left: auto; }
+  .ts-group__head .org-btn + .org-btn { margin-left: 0; }   /* two actions stay together on the right */
   .ts-keys { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   .ts-key { width: var(--row-h); height: var(--row-h); padding: 0; border-radius: 50%; border: 1px solid var(--border-strong); cursor: pointer; }   /* a circle (the stadium exception); the fill is the key colour, data */
   .ts-key[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }   /* a ring, not a colour change */
@@ -165,6 +167,45 @@
   .ts-filters .sub-label { display: block; }   /* on a span / label its margins would not apply */
   .ts-mi-thumb { display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
   .ts-mi-thumb[hidden] { display: none; }
+  /* How colour works: a reading column; the figures are content, on light paper */
+  .ts-learn { max-width: var(--measure); }
+  .ts-learn-sec h2:focus { outline: none; }
+  .ts-learn-lead { color: var(--mid); }
+  .ts-learn-note { display: block; color: var(--mid); font-size: var(--fs-small); }
+  .ts-learn .ts-learn-toc ul { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); list-style: none; padding: 0; }
+  .ts-learn-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); align-items: center; padding: var(--space-3) 0; border-top: 1px solid var(--border); }
+  .ts-learn .ts-learn-row p { margin: 0; }
+  .ts-learn-strip { display: flex; height: calc(var(--space-8) * 1.5); border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: var(--paper); }
+  .ts-learn-sw { flex: 1; }
+  .ts-learn-fig { margin: var(--space-5) 0; padding: var(--space-4); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
+  .ts-learn-fig svg { display: block; width: 100%; max-width: calc(var(--space-8) * 12); height: auto; }
+  .ts-learn-fig text { font-family: var(--font-display); font-size: var(--fs-small); fill: var(--mid); }
+  .ts-learn-fig .ts-learn-word { fill: var(--ink); }
+  .ts-learn-fig figcaption { color: var(--mid); font-size: var(--fs-small); margin-top: var(--space-3); }
+  .ts-learn-roles { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; margin: var(--space-5) 0; }
+  .ts-learn-house { display: block; width: calc(var(--space-8) * 6); aspect-ratio: 1 / 1; background: var(--paper); border-radius: var(--radius-sm); overflow: hidden; }
+  .ts-learn-house svg { width: 100%; height: 100%; }
+  .ts-learn .ts-learn-list { flex-direction: column; list-style: none; padding: 0; margin: 0; }
+  .ts-learn .ts-role { margin: 0; max-width: none; }   /* .org-prose li would add its own */
+  /* Explore › Moods: the image scale, on light paper; the words are buttons laid over the square */
+  .ts-moodmap { position: relative; max-width: calc(var(--space-8) * 16); margin-bottom: var(--space-6); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
+  .ts-moodmap svg { display: block; width: 100%; height: auto; }
+  .ts-moodmap text { font-family: var(--font-display); font-size: var(--fs-small); fill: var(--mid); }
+  .ts-mood { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; }
+  /* Explore › Swatches: the hue × tone grid — the fills are the model's colours (data), on light paper in dark mode */
+  .ts-swatches { display: grid; grid-template-columns: max-content repeat(10, minmax(0, 1fr)); gap: var(--space-1); max-width: calc(var(--space-8) * 22); padding: var(--space-4); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
+  .ts-sw-row { display: contents; }
+  .ts-sw-hue { font-size: var(--fs-small); color: var(--mid); text-align: center; align-self: end; overflow-wrap: anywhere; hyphens: auto; }
+  .ts-sw-tone { font-size: var(--fs-small); color: var(--mid); padding-right: var(--space-3); align-self: center; white-space: nowrap; }
+  .ts-sw-fam { grid-column: 1 / -1; font-family: var(--font-display); font-size: var(--fs-small); margin-top: var(--space-4); }
+  .ts-cell { display: flex; align-items: flex-end; justify-content: flex-end; width: 100%; aspect-ratio: 1 / 1; padding: var(--space-1); border: 0; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+  .ts-cell.is-empty { opacity: 0.35; }
+  .ts-cell[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--paper), inset 0 0 0 3px var(--ink); opacity: 1; }   /* inside: the focus ring stays outside */
+  .ts-sw-hex { color: var(--mid); font-family: var(--font-mono); }
+  .ts-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .ts-sw-big { display: block; height: calc(var(--space-8) * 2); margin: var(--space-3) 0; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+  .ts-sw-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--fs-small); }
+  .ts-sw-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
   .ts-roles { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin-bottom: var(--space-5); font-size: var(--fs-small); }
   .ts-role { display: inline-flex; align-items: center; gap: var(--space-2); }
   .ts-role__sw { width: var(--space-4); height: var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }   /* the fill is the palette colour, data */
@@ -248,14 +289,7 @@
         <div class="ts-sheet-ctrls" id="sheet-ctrls"></div>
         <div class="ts-colour-dock" id="colour-dock" hidden>
           <div class="panel-section">
-            <div class="org-tiles" id="value-tiles" role="group" aria-label="Values">
-              <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="hsb"><span class="org-tile__label">HSB</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="cmyk"><span class="org-tile__label">CMYK</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="oklch"><span class="org-tile__label">OKLCH</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value"></span><span class="org-tile__note"></span></button>
-            </div>
+            <div class="org-tiles" id="value-tiles" role="group" aria-label="Values"></div>
         
           </div>
         </div>
@@ -742,9 +776,14 @@ function setActiveColor(hex) {
   commit(true);
 }
 // Hex · RGB · HSB · CMYK · Nearest RAL are read-only tiles (Diego, Nov 17, 2026) — values are typed in the picker.
-function refreshTiles(hex) {
+// The six tiles' markup, for the editor's dock and the Swatches panel (one builder, one set of words).
+const TILE_KINDS = [['hex', 'Hex'], ['rgb', 'RGB'], ['hsb', 'HSB'], ['cmyk', 'CMYK'], ['oklch', 'OKLCH'], ['ral', 'Nearest RAL']];
+function tilesInner() { return TILE_KINDS.map(([k, t]) => `<button type="button" class="org-tile" data-v="${k}"><span class="org-tile__label">${t}</span><span class="org-tile__value"></span>${k === 'ral' ? '<span class="org-tile__note"></span>' : ''}</button>`).join(''); }
+function tilesHTML(id) { return `<div class="org-tiles" id="${id}" role="group" aria-label="Values">${tilesInner()}</div>`; }
+ctrl('value-tiles').innerHTML = tilesInner();
+function refreshTiles(hex, box) {
   const P = Organica.colorPicker, ral = P.nearestRal(hex);
-  ctrl('value-tiles').querySelectorAll('.org-tile').forEach(t => {
+  (box || ctrl('value-tiles')).querySelectorAll('.org-tile').forEach(t => {
     const k = t.dataset.v;
     const text = k === 'ral' ? (ral ? ral.code : '—') : P.valueText(hex, k);
     t.querySelector('.org-tile__value').textContent = text;
@@ -759,17 +798,18 @@ function refreshFieldEditor() {
   const hex = state.items[state.activeIndex].hex, tint = tintSel != null ? tokenScale(hex)[tintSel] : null;
   refreshTiles(tint ? tint.hex : hex);
 }
-function bindFieldEditor() {
-  // a tile copies its value; its name says "Copied" for a moment
-  ctrl('value-tiles').addEventListener('click', e => {
+// a tile copies its value; its name says "Copied" for a moment, then refresh() puts the values back
+function bindTiles(box, refresh) {
+  box.addEventListener('click', e => {
     const t = e.target.closest('.org-tile');
     if (!t || !t.dataset.copy || !navigator.clipboard) return;
     navigator.clipboard.writeText(t.dataset.copy).then(() => {
       t.classList.add('is-copied'); t.setAttribute('aria-label', 'Copied');
-      setTimeout(() => { t.classList.remove('is-copied'); refreshFieldEditor(); }, 1200);
+      setTimeout(() => { t.classList.remove('is-copied'); refresh(); }, 1200);
     }, () => {});
   });
 }
+function bindFieldEditor() { bindTiles(ctrl('value-tiles'), refreshFieldEditor); }
 
 // ── STAGE — one scene list feeds the preview and every export (WYSIWYG) ──
 // Top: one card per colour with its 0–900 scale beneath it. Then an example
@@ -2418,11 +2458,6 @@ function yourPalettesHTML() {
     (list.length ? '' : `<p class="ts-empty">${empty}</p>`) +
     '<div class="ts-grid">' + (homeShow === 'starred' ? '' : NEW_CARD) + list.map(c => cardHTML(c.href, c.name, c.p, c.key)).join('') + '</div></section>';
 }
-const LATER = {
-  'explore/moods': ['Moods', 'Palettes by feeling, on the warm–cool and soft–hard map.'],
-  'explore/swatches': ['Swatches', 'Every colour, named, on the hue and tone map.'],
-  learn: ['How colour works', 'Hue and tone, tone families, roles, and how the palettes are built.']
-};
 // ── EXPLORE › PALETTES ──
 // The library: the reference palettes and Organica's generated six- and seven-colour set (Supabase `palettes`, public
 // read, owner write — scripts/build-palettes.mjs), Organica's built-in collections and your own palettes. One bundle
@@ -2858,8 +2893,300 @@ ctrl('home').addEventListener('click', e => {
     renderImage();
   }
 });
+// ── EXPLORE › SWATCHES ──
+// The hue × tone grid (Nov 19, 2026, redesign step 8, design-system CONSULT): 10 hues across, the 12 tones down in their
+// four families, then the 10 neutrals — 130 swatches, each the model's colour (Organica.hueTone.toneColour). Every colour
+// of every palette in Explore is read to its swatch (HT.read): a swatch shows how many different colours it holds. Pick one
+// for its values, its colours and the palettes that use it. Keyboard: one Tab stop, the arrows move, Home / End go to the
+// row's ends (a roving tabindex — local, no shared grid helper yet).
+const SW_CELLS = [];   // [{ id, hex, name, code, row, col }] rows 0–11 the tones, 12 the neutrals
+HT.TONES.forEach((T, ti) => HT.HUES.forEach((H, hi) => SW_CELLS.push({ id: hi + ':' + ti, hex: HT.toneColour(hi, ti), name: HT.cellName(hi, ti), code: H.k + '/' + T.k, row: ti, col: hi })));
+HT.NEUTRALS.forEach((N, i) => SW_CELLS.push({ id: 'n' + i, hex: N.hex, name: HT.nameOf(N.hex), code: N.k, row: 12, col: i }));
+const swCellOf = hex => { const R = HT.read(hex); return R.neutral ? 'n' + R.n : R.hi + ':' + R.ti; };
+let SW_SEL = null, SW_DATA = null, swDataFor = null, swFocus = '0:0';
+function swData() {   // cell id → { colours: Map hex → palettes using it, pals: [entries] }; rebuilt when the library arrives
+  const all = exploreAll(), sig = all.length;
+  if (SW_DATA && swDataFor === sig) return SW_DATA;
+  const d = {};
+  SW_CELLS.forEach(c => { d[c.id] = { colours: new Map(), pals: [] }; });
+  all.forEach(e => {
+    const seen = new Set();
+    e.colors.forEach(hex => {
+      const h = hex.toLowerCase(), id = swCellOf(h), cell = d[id];
+      cell.colours.set(h, (cell.colours.get(h) || 0) + 1);
+      if (!seen.has(id)) { seen.add(id); cell.pals.push(e); }
+    });
+  });
+  SW_DATA = d; swDataFor = sig;
+  return d;
+}
+const swCount = n => n === 1 ? '1 colour' : n.toLocaleString('en-GB') + ' colours';
+function swatchesGridHTML() {
+  const d = swData(), T = sheetTheme();
+  const cell = c => {
+    const n = d[c.id].colours.size, on = SW_SEL === c.id;
+    return `<div role="gridcell"><button type="button" class="ts-cell${n ? '' : ' is-empty'}" data-cell="${c.id}" tabindex="${swFocus === c.id ? 0 : -1}" aria-pressed="${on}" ` +
+      `aria-label="${esc(c.name)}, ${n ? swCount(n) + ' in the library' : 'none in the library'}" style="background:${c.hex};color:${readableOn(c.hex, T)}">${n ? '<span class="ts-cell__n" aria-hidden="true">' + n + '</span>' : ''}</button></div>`;
+  };
+  const head = '<div role="row" class="ts-sw-row"><span role="columnheader" class="ts-sw-corner"></span>' +
+    HT.HUES.map(H => `<span role="columnheader" class="ts-sw-hue">${esc(capWord(H.name.replace(/-/g, ' ')))}</span>`).join('') + '</div>';
+  let rows = '', fam = '';
+  HT.TONES.forEach((T, ti) => {
+    if (T.fam !== fam) { fam = T.fam; rows += `<div role="row" class="ts-sw-row"><span role="rowheader" class="ts-sw-fam" aria-colspan="11">${esc(FAM_LABEL(fam))}</span></div>`; }
+    rows += `<div role="row" class="ts-sw-row"><span role="rowheader" class="ts-sw-tone">${esc(T.name)}</span>` + SW_CELLS.filter(c => c.row === ti).map(cell).join('') + '</div>';
+  });
+  rows += '<div role="row" class="ts-sw-row"><span role="rowheader" class="ts-sw-fam" aria-colspan="11">Neutrals</span></div>' +
+    '<div role="row" class="ts-sw-row"><span role="rowheader" class="ts-sw-tone">Greys</span>' + SW_CELLS.filter(c => c.row === 12).map(cell).join('') + '</div>';
+  return `<div class="ts-swatches" role="grid" aria-label="Hue and tone" data-theme="light">${head}${rows}</div>`;
+}
+function swPanelHTML() {
+  const c = SW_CELLS.find(x => x.id === SW_SEL);
+  if (!c) return '<div class="org-empty"><p class="org-empty__title">Pick a swatch</p><p class="org-empty__hint">Each square is a hue in one tone. Pick one to see its colours.</p></div>';
+  const cell = swData()[c.id], cols = [...cell.colours.keys()].sort((a, b) => cell.colours.get(b) - cell.colours.get(a)), np = cell.pals.length;
+  return `<div class="panel-section"><h3>${esc(c.name)}</h3><p class="org-panel__hint">${esc(c.code)}</p>` +
+    `<span class="ts-sw-big" data-theme="light" style="background:${c.hex}" aria-hidden="true"></span>` +
+    tilesHTML('sw-tiles') + '</div>' +
+    '<div class="panel-section"><h3>Library colours</h3>' +
+    (cols.length ? '<ul class="ts-sw-list">' + cols.map(h => `<li class="ts-role"><span class="ts-role__sw" style="background:${h}"></span>${esc(HT.nameOf(h))} <span class="ts-sw-hex">${h.toUpperCase()}</span></li>`).join('') + '</ul>'
+      : '<p class="org-panel__hint">No library colour falls in this swatch.</p>') +
+    (np ? `<p class="org-panel__hint">Used in ${np === 1 ? '1 palette' : np.toLocaleString('en-GB') + ' palettes'}</p>` : '') +
+    `<div class="ts-sw-actions"><a class="org-btn org-btn--primary" href="#make?k=${c.hex.slice(1)}">Make from this colour</a>` +
+    (np ? '<button type="button" class="org-btn" data-sw-show>Show palettes</button>' : '') + '</div></div>';
+}
+function swPalettesHTML() {
+  const c = SW_CELLS.find(x => x.id === SW_SEL);
+  if (!c) return '';
+  const list = swData()[c.id].pals, open = expanded.has('sw:' + c.id), shown = open ? list : list.slice(0, PER_GROUP);
+  if (!list.length) return '';
+  return `<section class="ts-group" id="sw-pals" tabindex="-1"><div class="ts-group__head"><h2 class="ts-group__title">${esc(c.name)} in palettes</h2><span class="ts-filter__count">${list.length.toLocaleString('en-GB')}</span>` +
+    (list.length > PER_GROUP ? `<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-sw-more aria-expanded="${open}" aria-controls="sw-pals-grid" aria-label="${open ? 'Show fewer' : 'Show all'} in ${esc(c.name)} in palettes">${open ? 'Show fewer' : 'Show all'}</button>` : '') +
+    `</div><div class="ts-grid" id="sw-pals-grid">${shown.map(e => cardHTML(e.href, e.name, e, e.key)).join('')}</div></section>`;
+}
+function swatchesHTML() {
+  return '<div class="ts-explore">' + navHTML(view) + '<div id="sw-main"></div></div>' +
+    '<aside class="org-panel ts-filters" id="sw-panel" aria-label="Swatch"></aside>';
+}
+function renderSwatches() {
+  const box = ctrl('sw-main'); if (!box) return;
+  const d = swData(), total = new Set(); Object.keys(d).forEach(k => d[k].colours.forEach((v, h) => total.add(h)));
+  box.innerHTML = `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">Swatches</h2><span class="ts-filter__count">${!LIB && libLoading ? 'Loading the library…' : swCount(total.size) + ' in the library'}</span></div>` +
+    swatchesGridHTML() + '</section>' + swPalettesHTML();
+  ctrl('sw-panel').innerHTML = swPanelHTML();
+  const tb = ctrl('sw-tiles');
+  if (tb) { const hex = SW_CELLS.find(x => x.id === SW_SEL).hex; refreshTiles(hex, tb); bindTiles(tb, () => { if (tb.isConnected) refreshTiles(hex, tb); }); }
+}
+function mountSwatches() {
+  renderSwatches();
+  if (!LIB) loadLibrary().then(() => {
+    SW_DATA = null; if (!ctrl('sw-main')) return;
+    const had = document.activeElement && document.activeElement.classList.contains('ts-cell');
+    renderSwatches(); if (had) swFocusCell(swFocus);   // the grid is redrawn: the focus stays on its cell
+  });
+}
+function swFocusCell(id) {
+  const b = ctrl('sw-main').querySelector(`[data-cell="${id}"]`); if (!b) return;
+  ctrl('sw-main').querySelectorAll('.ts-cell[tabindex="0"]').forEach(x => x.setAttribute('tabindex', '-1'));
+  b.setAttribute('tabindex', '0'); b.focus(); swFocus = id;
+}
+ctrl('home').addEventListener('keydown', e => {
+  const b = e.target.closest && e.target.closest('.ts-cell'); if (!b) return;
+  const c = SW_CELLS.find(x => x.id === b.dataset.cell), last = 12;
+  let row = c.row, col = c.col;
+  if (e.key === 'ArrowRight') col = Math.min(9, col + 1);
+  else if (e.key === 'ArrowLeft') col = Math.max(0, col - 1);
+  else if (e.key === 'ArrowDown') row = Math.min(last, row + 1);
+  else if (e.key === 'ArrowUp') row = Math.max(0, row - 1);
+  else if (e.key === 'Home') col = 0;
+  else if (e.key === 'End') col = 9;
+  else return;
+  e.preventDefault();
+  swFocusCell(SW_CELLS.find(x => x.row === row && x.col === col).id);
+});
+ctrl('home').addEventListener('click', e => {
+  const cellB = e.target.closest('.ts-cell'), show = e.target.closest('[data-sw-show]'), more = e.target.closest('[data-sw-more]');
+  if (cellB) {
+    SW_SEL = SW_SEL === cellB.dataset.cell ? null : cellB.dataset.cell; swFocus = cellB.dataset.cell;
+    renderSwatches(); swFocusCell(swFocus);
+  } else if (show) { const s = ctrl('sw-pals'); if (s) { s.scrollIntoView({ block: 'start' }); s.focus({ preventScroll: true }); } }
+  else if (more) { const k = 'sw:' + SW_SEL; if (expanded.has(k)) expanded.delete(k); else expanded.add(k); renderSwatches(); const again = ctrl('sw-main').querySelector('[data-sw-more]'); if (again) again.focus(); }
+});
+// ── EXPLORE › MOODS ──
+// The image scale as a map (Nov 19, 2026, redesign step 8, design-system CONSULT): warm ← → cool across, soft ↑ ↓ hard
+// down, the 16 mood words where their colours sit (Organica.hueTone.WORDS). Each word's disc grows with how many palettes
+// read as it (a density, not 1,130 dots). The words are buttons; several can be picked. Mood, Number of colours and Source
+// are Explore's own filters (EXP), so a mood picked here is the Mood filter in Palettes too.
+const MOOD_X = x => 210 + x * 180, MOOD_Y = y => 210 - y * 180;   // the lab's square: 360 wide, centred in 420
+function moodHit(e) { return e.n >= EXP.nMin && e.n <= EXP.nMax && (!EXP.source || e.source === EXP.source); }
+// the square, its axes, one disc per word (area ∝ palettes); withWords draws the words as text (the guide's static copy)
+function moodSvg(byMood, withWords) {
+  const max = Math.max(1, ...HT.WORDS.map(w => (byMood[w[0]] || []).length));
+  let svg = '<rect x="30" y="30" width="360" height="360" fill="none" stroke="var(--border-strong)"/><line x1="30" y1="210" x2="390" y2="210" stroke="var(--border)"/><line x1="210" y1="30" x2="210" y2="390" stroke="var(--border)"/>';
+  HT.WORDS.forEach(w => { const n = (byMood[w[0]] || []).length; if (n) svg += `<circle cx="${MOOD_X(w[1])}" cy="${MOOD_Y(w[2])}" r="${(6 + 34 * Math.sqrt(n / max)).toFixed(1)}" fill="currentColor" opacity="0.08"/>`; });
+  svg += '<text x="210" y="20" text-anchor="middle">Soft</text><text x="210" y="410" text-anchor="middle">Hard</text>' +
+    '<text x="24" y="214" text-anchor="end">Warm</text><text x="396" y="214">Cool</text>';
+  if (withWords) HT.WORDS.forEach(w => { svg += `<text x="${MOOD_X(w[1])}" y="${MOOD_Y(w[2]) + 4}" text-anchor="middle" class="ts-learn-word">${esc(capWord(w[0]))}</text>`; });
+  return svg;
+}
+function moodMapHTML(byMood) {
+  const svg = moodSvg(byMood, false);
+  const words = HT.WORDS.map(w => {
+    const n = (byMood[w[0]] || []).length, on = EXP.moods.indexOf(w[0]) >= 0;
+    return `<button type="button" class="org-btn org-btn--sm ts-mood" data-mood-pick="${esc(w[0])}" aria-pressed="${on}" aria-label="${esc(capWord(w[0]))}, ${n === 1 ? '1 palette' : n.toLocaleString('en-GB') + ' palettes'}" ` +
+      `style="left:${(MOOD_X(w[1]) / 420 * 100).toFixed(2)}%;top:${(MOOD_Y(w[2]) / 420 * 100).toFixed(2)}%">${esc(capWord(w[0]))}</button>`;
+  }).join('');
+  return `<div class="ts-moodmap" role="group" aria-label="Mood map" data-theme="light"><svg viewBox="0 0 420 420" aria-hidden="true">${svg}</svg>${words}</div>`;
+}
+function moodsHTML() {
+  const sel = (id, label, cur, opts) => `<label class="sub-label" for="${id}">${label}</label><select class="panel-select" id="${id}" data-f="${id.slice(4)}">` +
+    `<option value="">Any</option>${opts.map(([v, t]) => `<option value="${v}"${cur === v ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+  return '<div class="ts-explore">' + navHTML(view) + '<div id="md-main"></div></div>' +
+    '<aside class="org-panel ts-filters" id="md-panel" aria-label="Filters"><div class="panel-section"><h3>Filters</h3>' +
+    `<div class="ctrl-row"><span class="ctrl-label">Number of colours</span><span class="ctrl-val" id="md-n-val">${EXP.nMin}–${EXP.nMax}</span></div><div id="md-n"></div>` +
+    sel('exp-source', 'Source', EXP.source, Object.keys(SOURCE_LABEL).map(k => [k, SOURCE_LABEL[k]])) + '</div></aside>';
+}
+function renderMoods() {
+  const box = ctrl('md-main'); if (!box) return;
+  const all = exploreAll().filter(moodHit), byMood = {}, nf = n => n.toLocaleString('en-GB');
+  all.forEach(e => { (byMood[e.mood] = byMood[e.mood] || []).push(e); });
+  const hit = EXP.moods.length ? all.filter(e => EXP.moods.indexOf(e.mood) >= 0) : [];
+  let out = `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">Moods</h2><span class="ts-filter__count">${!LIB && libLoading ? 'Loading the library…' : (EXP.moods.length ? nf(hit.length) + ' of ' + nf(all.length) : nf(all.length)) + (all.length === 1 ? ' palette' : ' palettes')}</span>` +
+    (EXP.moods.length ? '<a class="org-btn org-btn--sm" href="#explore">Show in Palettes</a>' : '') +
+    (EXP.moods.length || EXP.nMin > 2 || EXP.nMax < 9 || EXP.source ? '<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-mood-clear>Clear filters</button>' : '') +
+    '</div>' + moodMapHTML(byMood) + '</section>';
+  if (!EXP.moods.length) out += '<div class="org-empty"><p class="org-empty__title">Pick a mood</p><p class="org-empty__hint">Each word sits where its colours feel warm or cool, soft or hard.</p></div>';
+  else if (!hit.length) out += '<div class="org-empty"><p class="org-empty__title">No palette matches these filters</p><p class="org-empty__hint">Remove a filter, or clear them all.</p><button type="button" class="org-empty__action org-btn" data-mood-clear>Clear filters</button></div>';
+  else {
+    const G = GROUPS.structure, by = {};
+    hit.forEach(e => { const k = G.of(e); (by[k] = by[k] || []).push(e); });
+    out += G.order.filter(k => by[k]).map(k => {
+      const list = by[k], key = 'mood:' + k, open = expanded.has(key), shown = open ? list : list.slice(0, PER_GROUP), gid = 'md-g-' + k;
+      return `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">${esc(G.label(k) || k)}</h2><span class="ts-filter__count">${nf(list.length)}</span>` +
+        (list.length > PER_GROUP ? `<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-md-more="${esc(key)}" aria-expanded="${open}" aria-controls="${gid}" aria-label="${open ? 'Show fewer' : 'Show all'} in ${esc(G.label(k) || k)}">${open ? 'Show fewer' : 'Show all'}</button>` : '') +
+        `</div><div class="ts-grid" id="${gid}">${shown.map(e => cardHTML(e.href, e.name, e, e.key)).join('')}</div></section>`;
+    }).join('');
+  }
+  box.innerHTML = out;
+}
+let mdRange = null;
+function mountMoods() {
+  mdRange = Organica.dualRange(ctrl('md-n'), { min: 2, max: 9, from: EXP.nMin, to: EXP.nMax, step: 1, label: 'Number of colours', fmt: v => v + ' colours',
+    onInput: (a, b) => { ctrl('md-n-val').textContent = a + '–' + b; },
+    onChange: (a, b) => { EXP.nMin = a; EXP.nMax = b; ctrl('md-n-val').textContent = a + '–' + b; saveExp(); renderMoods(); } });
+  renderMoods();
+  if (!LIB) loadLibrary().then(() => { if (ctrl('md-main')) renderMoods(); });
+}
+ctrl('home').addEventListener('change', e => { if (ctrl('md-panel') && e.target.id === 'exp-source' && ctrl('md-panel').contains(e.target)) renderMoods(); });
+ctrl('home').addEventListener('click', e => {
+  const w = e.target.closest('[data-mood-pick]'), clr = e.target.closest('[data-mood-clear]'), more = e.target.closest('[data-md-more]');
+  if (w) {
+    const m = w.dataset.moodPick, i = EXP.moods.indexOf(m);
+    if (i >= 0) EXP.moods.splice(i, 1); else EXP.moods.push(m);
+    saveExp(); renderMoods();
+    const again = ctrl('md-main').querySelector(`[data-mood-pick="${CSS.escape(m)}"]`); if (again) again.focus();
+  } else if (clr) {
+    EXP.moods = []; EXP.nMin = 2; EXP.nMax = 9; EXP.source = ''; saveExp();   // every filter this view shows
+    if (mdRange) mdRange.set(2, 9, true); ctrl('md-n-val').textContent = '2–9'; ctrl('md-panel').querySelector('#exp-source').value = '';
+    renderMoods();
+    const first = ctrl('md-main').querySelector('[data-mood-pick]'); if (first) first.focus();
+  } else if (more) {
+    const k = more.dataset.mdMore; if (expanded.has(k)) expanded.delete(k); else expanded.add(k);
+    renderMoods(); const again = ctrl('md-main').querySelector(`[data-md-more="${CSS.escape(k)}"]`); if (again) again.focus();
+  }
+});
+// ── HOW COLOUR WORKS ──
+// A reading page in the home column (Nov 19, 2026, redesign step 8, design-system CONSULT): how TuneSutra thinks about
+// colour, in our own words, each idea with a live figure drawn by the model (Organica.hueTone) and a link to the view
+// that uses it. Figures are content: they sit on light paper in both themes.
+const TONE_AT = k => HT.TONES.findIndex(T => T.k === k);
+const LEARN_KEY = '#e5000d';   // every figure starts from the same red
+function learnStrip(cols, label) {
+  return `<div class="ts-learn-strip" role="img" aria-label="${esc(label)}: ${esc(cols.map(c => HT.nameOf(c)).join(', '))}" data-theme="light">` +
+    cols.map(c => `<span class="ts-learn-sw" style="background:${c}"></span>`).join('') + '</div>';
+}
+function learnRow(title, text, cols) {
+  return `<div class="ts-learn-row"><div><strong>${esc(title)}</strong><p>${text}</p></div>${learnStrip(cols, title)}</div>`;
+}
+// the first seed whose palette reads back as the asked relation — the figure shows what the word means
+function learnGen(opts, ok) {
+  const distinct = p => new Set(p.map(swCellOf)).size === p.length;   // four different swatches: a figure never repeats a colour
+  for (let s = 1; s <= 200; s++) { const p = HT.generate(LEARN_KEY, Object.assign({ image: 'base', tone: 'near', purity: 'any', n: 4, neutral: 'none', hue: 'similar' }, opts), s); if (ok(p) && distinct(p)) return p; }
+  return HT.generate(LEARN_KEY, Object.assign({ image: 'base', tone: 'near', purity: 'any', n: 4, neutral: 'none', hue: 'similar' }, opts), 1);
+}
+function learnTriangle() {
+  const W = [40, 24], K = [40, 296], V = [292, 160], hi = 0;
+  const pt = T => { const v = 1 - T.w - T.b; return [W[0] * T.w + K[0] * T.b + V[0] * v, W[1] * T.w + K[1] * T.b + V[1] * v]; };
+  let s = `<polygon points="${W.join(',')} ${K.join(',')} ${V.join(',')}" fill="none" stroke="var(--border-strong)"/>` +
+    `<text x="${W[0] - 8}" y="${W[1] + 4}" text-anchor="end">White</text><text x="${K[0] - 8}" y="${K[1] + 4}" text-anchor="end">Black</text><text x="${V[0] + 4}" y="${V[1] - 22}" text-anchor="middle">Vivid</text>`;
+  HT.TONES.forEach((T, ti) => { const [x, y] = pt(T); s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="${HT.toneColour(hi, ti)}" stroke="var(--border-strong)"/><text x="${(x + 17).toFixed(1)}" y="${(y + 4).toFixed(1)}">${T.k}</text>`; });
+  return `<figure class="ts-learn-fig" data-theme="light"><svg viewBox="0 0 340 320" role="img" aria-label="The twelve tones of red, between white, black and the vivid colour">${s}</svg>` +
+    '<figcaption>The twelve tones of red. Up: more white. Down: more black. Right: more of the vivid colour.</figcaption></figure>';
+}
+function learnMoods() {
+  const by = {}; exploreAll().forEach(e => { (by[e.mood] = by[e.mood] || []).push(e); });
+  const s = moodSvg(by, true);
+  return `<figure class="ts-learn-fig" data-theme="light"><svg viewBox="0 0 420 420" role="img" aria-label="Mood map: sixteen mood words between warm and cool, soft and hard">${s}</svg></figure>`;
+}
+const LEARN_SECTIONS = [['hue-tone', 'Hue and tone'], ['families', 'Tone families'], ['hue-rel', 'Hue relations'], ['tone-rel', 'Tone relations'], ['purity', 'Purity'], ['roles', 'Roles'], ['moods', 'Moods'], ['sources', 'Where the palettes come from']];
+function learnHTML() {
+  const V = HT.TONES.find(T => T.k === 'V'), vIdx = TONE_AT('V'), sec = (id, title, lead, body, link) =>
+    `<section class="ts-learn-sec" aria-labelledby="ts-l-${id}"><h2 id="ts-l-${id}" tabindex="-1">${title}</h2><p class="ts-learn-lead">${lead}</p>${body}${link ? '<p><a href="' + link[0] + '">' + link[1] + '</a></p>' : ''}</section>`;
+  const vivid = HT.HUES.map((H, hi) => HT.toneColour(hi, vIdx));
+  const famRows = Object.keys(HT.FAMS).map(f => {
+    const tones = HT.TONES.map((T, ti) => [T, ti]).filter(([T]) => T.fam === f);
+    const feel = { casual: 'Full, lively colour: vivid and strong. Loud and direct.', light: 'Colour with white in it: bright, pale, very pale. Airy and gentle.', elegant: 'Colour with grey in it: light greyish, light, greyish, dull. Quiet and refined.', heavy: 'Colour with black in it: deep, dark, dark greyish. Weighty and serious.' }[f];
+    return learnRow(FAM_LABEL(f), feel + ' <span class="ts-learn-note">' + tones.map(([T]) => T.name).join(' · ') + '</span>', tones.map(([, ti]) => HT.toneColour(0, ti)));
+  }).join('');
+  const hueRows = [
+    ['monochromatic', 'One hue in several tones.', ['V', 'B', 'Lgr', 'Dp'].map(k => HT.toneColour(0, TONE_AT(k)))],   // drawn, not generated: generate() repeats a swatch for one hue
+    ['analogous', 'Hues next to each other on the wheel.', learnGen({ hue: 'similar' }, p => HT.harmonyOf(p) === 'analogous')],
+    ['complementary', 'Two hues opposite each other.', learnGen({ hue: 'complement' }, p => HT.harmonyOf(p) === 'complementary')],
+    ['split', 'One hue and the two either side of its opposite.', learnGen({ hue: 'split' }, p => HT.harmonyOf(p) === 'split')],
+    ['triadic', 'Three hues spread evenly round the wheel.', learnGen({ hue: 'triad' }, p => HT.harmonyOf(p) === 'triadic')],
+    ['tetradic', 'Two pairs of opposite hues.', [0, 2, 5, 7].map(hi => HT.toneColour(hi, vIdx))],
+  ].map(([k, t, cols]) => learnRow(HARMONY_LABEL[k], t, cols)).join('');
+  const toneRows = [['same', 'Every colour in one tone: the hues do the talking.'], ['near', 'Neighbouring tones: one family, gently varied.'], ['far', 'Distant tones: light against dark, quiet against loud.']]
+    .map(([k, t]) => learnRow(TONE_LABEL[k], t, learnGen({ hue: 'free', tone: k }, p => ({ 'same tone': 'same', 'near tones': 'near', 'far tones': 'far' })[HT.readPalette(p).toneRel] === k))).join('');
+  const pureT = ['V', 'B', 'S', 'P'], greyT = ['Lgr', 'Gr', 'Dl', 'Dgr'], mixT = ['V', 'Gr', 'B', 'Dl'], his = [0, 4, 6, 8];
+  const purRows = [['clear', 'No grey in any colour: clean and open.', pureT], ['dull', 'Grey in every colour: calm and soft-spoken.', greyT], ['mixed', 'Some of each: the pure colours stand forward.', mixT]]
+    .map(([k, t, ts]) => learnRow(PURITY_LABEL[k], t, ts.map((tk, i) => HT.toneColour(his[i], TONE_AT(tk))))).join('');
+  const roles = HT.generateRoles(LEARN_KEY, 5, 7).map(x => x.hex), w = roleWeights(5);
+  const rolesFig = `<div class="ts-learn-roles"><span class="ts-learn-house" data-theme="light" role="img" aria-label="A five-colour palette drawn on its house">${paletteArt({ colors: roles, house: 7 })}</span>` +
+    '<ul class="ts-roles ts-learn-list">' + roles.map((c, i) => `<li class="ts-role"><span class="ts-role__sw" style="background:${c}"></span>${esc(roleName(i, 5))} <span class="ts-filter__count">${w[i].toFixed(1)}%</span></li>`).join('') + '</ul></div>';
+  return '<div class="ts-explore">' + navHTML(view) + '<article class="org-prose ts-learn">' +
+    '<h1>How colour works</h1><p class="ts-learn-lead">The ideas TuneSutra uses to read, name and make palettes.</p>' +
+    '<nav class="ts-learn-toc" aria-label="On this page"><ul>' + LEARN_SECTIONS.map(([id, t]) => `<li><a href="#learn" data-learn-to="ts-l-${id}">${t}</a></li>`).join('') + '</ul></nav>' +
+    sec('hue-tone', 'Hue and tone', 'A colour is a hue (where it sits on the wheel) and a tone (how light and how pure it is).',
+      '<p>TuneSutra uses ten hues, from red round to red purple, each with twelve tones. A tone is the vivid colour mixed with some white, some black, or both. The same tone looks alike across hues: a pale red and a pale blue belong together. Ten greys from white to black complete the 130 swatches.</p>' +
+      learnStrip(vivid, 'The ten hues at their vivid tone') + learnTriangle(), ['#explore/swatches', 'See them in Swatches']) +
+    sec('families', 'Tone families', 'Twelve tones fall into four families, each with its own feel.', famRows, ['#explore', 'Explore palettes by tone family']) +
+    sec('hue-rel', 'Hue relations', 'How far apart the hues of a palette sit, from the same hue to opposite ones.',
+      hueRows + '<p>A palette whose hues fit none of these reads as <em>Varied</em>. Neutrals (white, greys, black) take no part in the relation.</p>', ['#make', 'Make from a colour']) +
+    sec('tone-rel', 'Tone relations', 'Whether a palette’s colours share a tone, sit near each other or far apart.', toneRows, null) +
+    sec('purity', 'Purity', 'A pure colour has no grey in it; a greyed colour is quieter.', purRows, null) +
+    sec('roles', 'Roles', 'A palette works as parts of one picture: a base, a secondary colour, an accent, and how much of each.',
+      '<p>Every palette is drawn on a house. The largest share is the base; each role after it covers less, down to a spark of the smallest. The same colours read differently when their shares change, so TuneSutra keeps each colour on its part: a palette keeps its look when it opens in the editor.</p>' + rolesFig, ['#make', 'Make from a colour']) +
+    sec('moods', 'Moods', 'Colours feel warm or cool, soft or hard; sixteen words map that space.',
+      '<p>Every palette has a place on the map, from the warmth, lightness and purity of its colours, and takes the mood word nearest to it. The larger the disc, the more palettes share that mood.</p>' + learnMoods(), ['#explore/moods', 'Explore by mood']) +
+    sec('sources', 'Where the palettes come from', 'Reference palettes measured from printed colour samples, and a set Organica generated with the same rules.',
+      '<p>The reference palettes are pairs and threes around twelve key colours, base · secondary · accent sets of three and four, and five-colour scenes. Each colour was measured, read into the hue and tone model and named. Organica’s own set adds six- and seven-colour palettes, built role by role from each key colour. Your saved palettes and the ones you star sit beside them.</p>', ['#explore', 'Explore palettes']) +
+    '</article></div>';
+}
+function mountLearn() {
+  if (!LIB) loadLibrary().then(() => {   // the moods figure needs the library: redraw, keeping the scroll and the focus
+    if (!ctrl('home').querySelector('.ts-learn')) return;
+    const a = document.activeElement, was = a && ctrl('home').contains(a) ? (a.id || (a.dataset && a.dataset.learnTo && '[data-learn-to="' + a.dataset.learnTo + '"]')) : null;
+    const y = ctrl('home').querySelector('.ts-explore').scrollTop;
+    ctrl('home').innerHTML = learnHTML(); ctrl('home').querySelector('.ts-explore').scrollTop = y;
+    const back = was && (was.charAt(0) === '[' ? ctrl('home').querySelector(was) : ctrl(was)); if (back) back.focus({ preventScroll: true });
+  });
+}
+ctrl('home').addEventListener('click', e => {
+  const a = e.target.closest('[data-learn-to]'); if (!a) return;
+  e.preventDefault();   // the hash routes views: the contents scroll inside the page instead
+  const h = ctrl(a.dataset.learnTo); if (h) { h.scrollIntoView({ block: 'start' }); h.focus({ preventScroll: true }); }
+});
 function renderHome() {
-  const v = view, id = v.sub ? v.tab + '/' + v.sub : v.tab, split = id === 'explore/palettes' || id === 'make/colour' || id === 'make/image';
+  const v = view, id = v.sub ? v.tab + '/' + v.sub : v.tab, split = id === 'explore/palettes' || id === 'make/colour' || id === 'make/image' || id === 'explore/swatches' || id === 'explore/moods';
   ctrl('home').classList.toggle('ts-home--split', split);
   if (id === 'explore/palettes') {   // built once per visit; a filter change redraws the results only
     if (!ctrl('ts-results')) { ctrl('home').innerHTML = exploreHTML(); mountExplore(); }
@@ -2871,15 +3198,23 @@ function renderHome() {
     else renderMake();
     return;
   }
+  if (id === 'explore/moods') {
+    if (!ctrl('md-main')) { ctrl('home').innerHTML = moodsHTML(); mountMoods(); }
+    else renderMoods();
+    return;
+  }
+  if (id === 'explore/swatches') {
+    if (!ctrl('sw-main')) { ctrl('home').innerHTML = swatchesHTML(); mountSwatches(); }
+    else renderSwatches();
+    return;
+  }
   if (id === 'make/image') {
     if (!ctrl('mi-results')) { ctrl('home').innerHTML = makeImageHTML(); mountImage(); }
     else renderImage();
     return;
   }
-  let body;
-  if (v.tab === 'palettes') body = yourPalettesHTML();
-  else { const t = LATER[id] || LATER.learn; body = `<section class="ts-group"><h2 class="ts-group__title">${t[0]}</h2><p class="ts-empty">${t[1]}</p></section>`; }
-  ctrl('home').innerHTML = navHTML(v) + body;
+  if (id === 'learn') { ctrl('home').innerHTML = learnHTML(); mountLearn(); return; }
+  ctrl('home').innerHTML = navHTML(v) + yourPalettesHTML();   // Your palettes (every other view returned above)
 }
 // Star and Show work in place: the view redraws, the focus goes back to the control that was used.
 ctrl('home').addEventListener('click', e => {
