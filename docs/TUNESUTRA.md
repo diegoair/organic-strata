@@ -162,6 +162,12 @@ Then:
      frame and to the house) — Nov 19, 2026. 6–7 can be chosen again (Diego, Nov 19: *riattiva*). The rule comes from the Hue × tone lab
      (`explorations/tunesutra-hue-tone/`, *By roles*): the 5-colour space plus a second accent, then a
      middle plane.
+   - 2 · 8 · 9 colours (house.js only, Nov 19, 2026 — TuneSutra still offers 3–7 until the redesign):
+     2 = wall 61.8 · roof 38.2, the house alone without a door; 8 = 47.6 · 20 · 14 · far band 10 · 3.8 · 2.8 · 1 · 0.8,
+     a wider arc behind the hill, solved for what the hill, ground and house leave visible; 9 = 8 + a path 0.6
+     (taken from the ground, 19.4), a trapezoid from the door's foot to the bottom edge.
+   - `node scripts/test-house.mjs` (in `check.py`): every share on target for 500 seeds × 2–9, and the 3–7 houses
+     equal to `scripts/house-golden.json` — a saved palette keeps its house by its seed; re-record only by decision.
 
    **One house per palette, a carousel for others.** The seed (`house`, 1–9999)
    is saved with the palette and drawn on its library card; two arrows on the

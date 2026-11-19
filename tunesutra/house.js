@@ -41,7 +41,7 @@
    LOAD ORDER: core.js (Organica.mulberry32) → shapes.js → this. PORT AS DATA + MATHS. */
 (function (global) {
   'use strict';
-  const SHARES = { 3: [52.0, 32.2, 15.8], 4: [52.0, 32.2, 10.9, 4.9], 5: [71.6, 20.0, 4.6, 2.8, 1.0], 6: [71.6, 20.0, 3.8, 2.8, 1.0, 0.8], 7: [57.6, 20.0, 14.0, 3.8, 2.8, 1.0, 0.8] };   // 5: the Scene's 71.8 / 20.0 / 4.6 / 2.8 / 1.0 summed to 100.2 (rounding); the background takes the difference
+  const SHARES = { 2: [61.8, 38.2], 3: [52.0, 32.2, 15.8], 4: [52.0, 32.2, 10.9, 4.9], 5: [71.6, 20.0, 4.6, 2.8, 1.0], 6: [71.6, 20.0, 3.8, 2.8, 1.0, 0.8], 7: [57.6, 20.0, 14.0, 3.8, 2.8, 1.0, 0.8], 8: [47.6, 20.0, 14.0, 10.0, 3.8, 2.8, 1.0, 0.8], 9: [47.6, 19.4, 14.0, 10.0, 3.8, 2.8, 1.0, 0.8, 0.6] };   // 5: the Scene's 71.8 / 20.0 / 4.6 / 2.8 / 1.0 summed to 100.2 (rounding); the background takes the difference
 
   const area = p => Math.abs(p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0)) / 2;
   const areaOf = p => p.c ? Math.PI * p.c[2] * p.c[2] : area(p);
@@ -98,8 +98,8 @@
   function generate(seed, n) {
     const O = global.Organica, S = O && O.shapes;
     if (!S || !O.mulberry32) throw new Error('house.js needs core.js and shapes.js');
-    n = n >= 7 ? 7 : n >= 6 ? 6 : n >= 5 ? 5 : n <= 3 ? 3 : 4;
-    const scene = n >= 5;   // 5–7: a house in a landscape
+    n = n >= 9 ? 9 : n >= 8 ? 8 : n >= 7 ? 7 : n >= 6 ? 6 : n >= 5 ? 5 : n <= 2 ? 2 : n === 3 ? 3 : 4;
+    const scene = n >= 5;   // 5–9: a house in a landscape (2–4: the house alone)
     const rnd = O.mulberry32(((seed >>> 0) * 31 + n * 7919) >>> 0);
     const pick = arr => arr[Math.floor(rnd() * arr.length)];
     const ri = (lo, hi) => lo + Math.floor(rnd() * (hi - lo + 1));
@@ -131,7 +131,9 @@
       const roofS = roofPick(), doorS = doorPick();
       if (!roofS) continue;
       let W, H, T, R, DA, XA, x0, wallTop, yb = null, gL = 48, gR = 48;
-      if (n < 5) {
+      if (n === 2) {   // wall and roof only (Nov 19, 2026): the golden ratio, no door
+        W = 60 + rnd() * 80; H = 50 + rnd() * 60; T = W * H / 0.618; R = 0.382 * T; x0 = 0; wallTop = 0; DA = 0; XA = 0;
+      } else if (n < 5) {
         W = 60 + rnd() * 80; H = 50 + rnd() * 60; T = W * H / 0.678; R = 0.322 * T; x0 = 0; wallTop = 0;
         const winFrac = n === 3 && rnd() < 0.5 ? 0.25 + rnd() * 0.15 : 0;
         DA = n === 3 ? 0.158 * T * (1 - winFrac) : 0.109 * T; XA = n === 3 ? 0.158 * T * winFrac : 0.049 * T;
@@ -151,13 +153,16 @@
       const rh = R / vis1, roof = unit(rh);
       if (rh < 0.3 * H || rh > 0.8 * H) continue;   // not flat, not a spire: never taller than 80% of the wall
       if (scene && wallTop - rh < 8) continue;
-      const db = bbox(doorS.p), dFill = area(doorS.p) / ((db[2] - db[0]) * (db[3] - db[1]));
-      const dh = H * (0.42 + rnd() * 0.35), dw = DA / (dFill * dh);
-      if (dw < 0.12 * W || dw > 0.42 * W) continue;
-      const dx = x0 + (rnd() < 0.5 ? 0.1 * W + rnd() * 0.15 * W : W - 0.1 * W - dw - rnd() * 0.15 * W);
-      const footY = n < 5 ? wallTop + H : Math.min(yb(dx), yb(dx + dw));
-      if (scene && footY - dh < wallTop + 0.12 * H) continue;
-      const door = fit(doorS.p, dx, footY - dh, dw, dh);
+      let door = null, dx = 0, dw = 0, dh = 0, footY = 0;
+      if (n !== 2) {
+        const db = bbox(doorS.p), dFill = area(doorS.p) / ((db[2] - db[0]) * (db[3] - db[1]));
+        dh = H * (0.42 + rnd() * 0.35); dw = DA / (dFill * dh);
+        if (dw < 0.12 * W || dw > 0.42 * W) continue;
+        dx = x0 + (rnd() < 0.5 ? 0.1 * W + rnd() * 0.15 * W : W - 0.1 * W - dw - rnd() * 0.15 * W);
+        footY = n < 5 ? wallTop + H : Math.min(yb(dx), yb(dx + dw));
+        if (scene && footY - dh < wallTop + 0.12 * H) continue;
+        door = fit(doorS.p, dx, footY - dh, dw, dh);
+      }
       let win = [], winLabel = '';
       if (XA > 0) {
         const ws = winPick(), two = (n === 4 || n >= 6) && rnd() < 0.4, each = two ? XA / 2 : XA;
@@ -169,7 +174,7 @@
         else { const fr = Math.max(freeL, freeR); if (fr < sw * 1.15 + 0.1 * W) continue; win = [place(freeL > freeR ? x0 + freeL / 2 : dx + dw + freeR / 2)]; }
         winLabel = (two ? '2 × ' : '') + ws.label;
       }
-      const roofVis = area(roof) - area(clip(roof, wall)), winA = win.reduce((s, p) => s + areaOf(p), 0), wallVis = area(wall) - area(door) - winA;
+      const roofVis = area(roof) - area(clip(roof, wall)), winA = win.reduce((s, p) => s + areaOf(p), 0), wallVis = area(wall) - (door ? area(door) : 0) - winA;
       // Each zone's own box (bb), for its shading (TuneSutra: every shape lit from its own top).
       // The roof's is its VISIBLE part: a polygon roof's lower half is behind the wall.
       const bbOf = p => p.c ? [p.c[0] - p.c[2], p.c[1] - p.c[2], p.c[0] + p.c[2], p.c[1] + p.c[2]] : bbox(p);
@@ -180,35 +185,69 @@
       const parts = 'roof ' + roofS.label + ' · door ' + doorS.label + (winLabel ? ' · window ' + winLabel : '');
       if (scene) {
         const ground = [[0, BH - gL], [BW, BH - gR], [BW, BH], [0, BH]];
-        const zones = [{ role: 0, d: D([rect(0, 0, BW, BH)]), bb: [0, 0, BW, BH] }];   // painter's order: background, hill, ground, the house
-        const off = n === 7 ? 1 : 0;   // 7: the hill takes role 2, the house's roles move up one
-        let hillVis = 0;
-        if (n === 7) {
-          // a convex arc behind the house (convex, so it can clip the house parts); its height solved for its share
+        // painter's order: background, far band, hill, ground, path, the house
+        const zones = [{ role: 0, d: D([rect(0, 0, BW, BH)]), bb: [0, 0, BW, BH] }];
+        const off = n >= 8 ? 2 : n === 7 ? 1 : 0;   // the planes take roles 2 (hill) and 3 (far band): the house's roles move up
+        const houseParts = [wall].concat(roofParts);
+        // a convex arc standing on the bottom edge, cut to the frame (what is outside does not count)
+        const arcOf = (cx, half) => top => { const p = []; for (let i = 0; i <= 32; i++) { const a = Math.PI * i / 32; p.push([cx - half * Math.cos(a), BH - (BH - top) * Math.sin(a)]); } return clip(p, rect(0, 0, BW, BH)); };
+        // the top y whose visible area hits the target: lower top = taller arc = more area
+        const solve = (arc, visOf, target) => {
+          let lo = 0, hi = Math.min(BH - gL, BH - gR), poly = null, vis = 0;
+          for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2, hp = arc(mid), v = visOf(hp); if (v > target) lo = mid; else hi = mid; poly = hp; vis = v; }
+          return Math.abs(vis - target) > T * 0.001 ? null : { poly, vis };
+        };
+        let hill = null, hillVis = 0, farB = null, farVis = 0, path = null, pathVis = 0;
+        if (n >= 7) {
+          // the hill: in front of everything but the ground and the house (Nov 19, 2026)
           const cx = BW * (0.25 + rnd() * 0.5), half = BW * (0.75 + rnd() * 0.35);
-          const arc = top => { const p = []; for (let i = 0; i <= 32; i++) { const a = Math.PI * i / 32; p.push([cx - half * Math.cos(a), BH - (BH - top) * Math.sin(a)]); } return clip(p, rect(0, 0, BW, BH)); };   // cut to the frame: what is outside does not count
-          const visOf = hp => area(hp) - area(clip(hp, ground)) - area(clip(wall, hp)) - roofParts.reduce((s2, rp) => s2 + area(clip(rp, hp)), 0);
-          let lo = 0, hi = Math.min(BH - gL, BH - gR), hill = null;   // top y: lower = taller hill
-          for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2, hp = arc(mid), v = visOf(hp); if (v > T * 0.14) lo = mid; else hi = mid; hill = hp; hillVis = v; }
-          if (Math.abs(hillVis - T * 0.14) > T * 0.001) continue;   // the house is too big to leave room for the hill
-          zones.push({ role: 2, d: D([hill]), bb: bbOf(hill) });
+          const visOf = hp => area(hp) - area(clip(hp, ground)) - houseParts.reduce((s2, rp) => s2 + area(clip(rp, hp)), 0);
+          const h = solve(arcOf(cx, half), visOf, T * 0.14);
+          if (!h) continue;   // the house is too big to leave room for the hill
+          hill = h.poly; hillVis = h.vis;
         }
+        if (n >= 8) {
+          // the far band: a wider arc behind the hill; what the hill, the ground and the house hide does not count
+          const cx = BW * (0.2 + rnd() * 0.6), half = BW * (0.95 + rnd() * 0.4);
+          const visOf = fp => {
+            const inHill = clip(fp, hill);
+            return area(fp) - area(inHill) - area(clip(fp, ground)) + area(clip(inHill, ground))
+              - houseParts.reduce((s2, rp) => { const f = clip(rp, fp); return s2 + area(f) - area(clip(f, hill)); }, 0);
+          };
+          const f = solve(arcOf(cx, half), visOf, T * 0.10);
+          if (!f) continue;
+          farB = f.poly; farVis = f.vis;
+        }
+        if (n >= 9) {
+          // the path: a trapezoid from the door's foot to the bottom edge, its foot width solved for its share
+          const cxp = dx + dw / 2, tw = dw * 0.5, hgt = BH - footY;
+          const shape = bw => [[cxp - tw / 2, footY], [cxp + tw / 2, footY], [cxp + bw / 2, BH], [cxp - bw / 2, BH]];
+          const visOf = bw => { const p = shape(bw); return area(p) - area(clip(p, wall)); };
+          let lo = 0, hi = BW;
+          if (visOf(lo) > T * 0.006 || visOf(hi) < T * 0.006 || hgt < 10) continue;
+          for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (visOf(mid) > T * 0.006) hi = mid; else lo = mid; }
+          path = shape((lo + hi) / 2); pathVis = visOf((lo + hi) / 2);
+        }
+        if (farB) zones.push({ role: 3, d: D([farB]), bb: bbOf(farB) });
+        if (hill) zones.push({ role: 2, d: D([hill]), bb: bbOf(hill) });
         zones.push({ role: 1, d: D([ground]), bb: bbOf(ground) });
+        if (path) zones.push({ role: 8, d: D([path]), bb: bbOf(path) });
         zones.push({ role: 3 + off, d: D([roof]), bb: roofBB }, { role: 2 + off, d: D([wall]), bb: bbOf(wall) }, { role: 4 + off, d: D([door]), bb: bbOf(door) });
-        win.forEach(w => zones.push({ role: 5 + off, d: D([w.c ? w : w]), bb: bbOf(w) }));   // one zone per window
-        const bg = T - area(ground) - area(wall) - roofVis - hillVis;
-        const sh = [bg, area(ground)].concat(n === 7 ? [hillVis] : [], [wallVis, roofVis, area(door)], n >= 6 ? [winA] : []);
-        return { w: BW, h: BH, parts: parts + (n === 7 ? ' · hill' : ''), shares: sh.map(v => 100 * v / T), zones: zones };
+        win.forEach(w => zones.push({ role: 5 + off, d: D([w]), bb: bbOf(w) }));   // one zone per window
+        const bg = T - area(ground) - area(wall) - roofVis - hillVis - farVis;
+        const sh = [bg, area(ground) - pathVis].concat(hill ? [hillVis] : [], farB ? [farVis] : [], [wallVis, roofVis, area(door)], n >= 6 ? [winA] : [], path ? [pathVis] : []);
+        return { w: BW, h: BH, parts: parts + (hill ? ' · hill' : '') + (farB ? ' · far band' : '') + (path ? ' · path' : ''), shares: sh.map(v => 100 * v / T), zones: zones };
       }
       // the house alone: moved to the origin of its own box
       const b = bbox([].concat(wall, roof)), mv = p => p.c ? { c: [p.c[0] - b[0], p.c[1] - b[1], p.c[2]] } : p.map(q => [q[0] - b[0], q[1] - b[1]]);
       const tot = area(wall) + roofVis;
       const mb = q => [q[0] - b[0], q[1] - b[1], q[2] - b[0], q[3] - b[1]];
-      const zones = [{ role: 1, d: D([mv(roof)]), bb: mb(roofBB) }, { role: 0, d: D([mv(wall)]), bb: mb(bbOf(wall)) }, { role: 2, d: D([mv(door)]), bb: mb(bbOf(door)) }];
+      const zones = [{ role: 1, d: D([mv(roof)]), bb: mb(roofBB) }, { role: 0, d: D([mv(wall)]), bb: mb(bbOf(wall)) }];
+      if (door) zones.push({ role: 2, d: D([mv(door)]), bb: mb(bbOf(door)) });
       win.forEach(w => zones.push({ role: n === 3 ? 2 : 3, d: D([mv(w)]), bb: mb(bbOf(w)) }));   // one zone per window
       return {
         w: b[2] - b[0], h: b[3] - b[1], parts: parts, zones: zones,
-        shares: (n === 3 ? [wallVis, roofVis, area(door) + winA] : [wallVis, roofVis, area(door), winA]).map(v => 100 * v / tot),
+        shares: (n === 2 ? [wallVis, roofVis] : n === 3 ? [wallVis, roofVis, area(door) + winA] : [wallVis, roofVis, area(door), winA]).map(v => 100 * v / tot),
       };
     }
     throw new Error('house.js: no house for seed ' + seed);
