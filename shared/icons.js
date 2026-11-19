@@ -13,6 +13,7 @@
  * Static HTML may carry the markup inline (no flash, no JS needed): keep the
  * data-icon attribute, and scripts/check.py verifies the drawing still equals the
  * registry. Filled shapes carry fill="currentColor" stroke="none" themselves.
+ * A filled twin of an outline icon (star-filled) keeps its stroke, so the two draw at one size.
  * NOT here: the 26-grid thumbnail pictograms (seeds, generators, aspect icons),
  * export serialisers, the Google logo, <menu-icon>.
  * Load AFTER core.js (which creates window.Organica), BEFORE header.js. */
@@ -103,6 +104,8 @@
     'fit-selection': '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/><rect x="6" y="6" width="4" height="4" rx=".5"/>',
     'figure-from':   '<rect x="2.5" y="2.5" width="5" height="5" rx=".8"/><rect x="8.5" y="8.5" width="5" height="5" rx=".8"/><path d="M7.5 5h3.5v3.5"/><path d="M9.3 6.8 11 8.5l1.7-1.7"/>',   // New Figure from this (a variation → its own Figure) — not copy (= Duplicate)
     'pin':           '<path d="M6 2.5h4l-.5 4 2 2v1h-7v-1l2-2z"/><path d="M8 9.5v4"/>',   // Pin a variation (keeps its seed)
+    'star':          '<path d="M8 2.8l1.5 3.4 3.7.4-2.8 2.5.8 3.7L8 10.9l-3.2 1.9.8-3.7-2.8-2.5 3.7-.4z"/>',   // Star a palette (TuneSutra: the Starred filter) — not pin (= keep a variation's seed), not bookmark (= save a selection)
+    'star-filled':   '<path d="M8 2.8l1.5 3.4 3.7.4-2.8 2.5.8 3.7L8 10.9l-3.2 1.9.8-3.7-2.8-2.5 3.7-.4z" fill="currentColor"/>',   // the same star, starred (stroke kept, so both are one size)
     'alert':         '<path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3"/><circle cx="8" cy="11.2" r=".7"' + F + '/>',   // a node error / something to look at
     'select-row':    '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><rect x="2.5" y="6.5" width="11" height="3"' + F + '/>',
     'select-column': '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><rect x="6.5" y="2.5" width="3" height="11"' + F + '/>',

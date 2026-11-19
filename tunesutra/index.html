@@ -40,7 +40,11 @@
     background: var(--paper); border: 0; border-radius: var(--radius-md) var(--radius-md) 0 0;   /* the sheet's own paper, light in both themes; no border — one piece with the sheet (Diego, Nov 18, 2026) */
     position: relative; z-index: 1;   /* above the sheet's own shadow (--stage-shadow), which otherwise greys its bottom */
   }
-  .ts-palbar .mini-btn { flex: none; }   /* its own width, not the row's (mini-btn is flex: 1 in a row of buttons) */
+  .ts-palbar .org-btn { flex: none; }
+  .ts-palbar__crumb { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }   /* ← Your palettes / name ☆ */
+  .ts-palbar__sep { color: var(--border-strong); }
+  .ts-palbar__name { font-family: var(--font-display); font-size: var(--fs-medium); font-weight: var(--w-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-palbar__end { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
   .ts-palbar__title { margin: 0; font-size: var(--fs-small); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* full width up to the sheet's own size (max-width set by renderStage): a shrink-to-fit box would collapse it */
   .ts-house-nav { position: absolute; inset: 0; pointer-events: none; }
   .ts-house-nav .org-btn { position: absolute; top: var(--house-cy, 30%); transform: translateY(-50%); pointer-events: auto; }
@@ -106,6 +110,43 @@
   }
   .ts-card:hover { border-color: var(--ink); }
   .ts-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* A card with a Star button (Nov 19, 2026, design-system CONSULT): the card is an <article>, its name the one link,
+     stretched over the whole card by ::after; the star sits above that layer. Hover and focus belong to the card. */
+  article.ts-card { position: relative; }
+  .ts-card__link { color: inherit; text-decoration: none; outline: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-card__link::after { content: ''; position: absolute; inset: 0; }
+  .ts-card:has(.ts-card__link:hover) { border-color: var(--ink); }
+  .ts-card:has(.ts-card__link:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .ts-card__label.ts-card__label--star { flex-direction: row; align-items: center; gap: var(--space-2); }
+  .ts-card__text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; flex: 1; }
+  .ts-card__star { position: relative; z-index: 1; flex: none; }   /* .org-btn--icon at --row-h already meets --hit-min */
+  /* the star is a ghost toggle: the filled shape is the state, not the shared ink fill of a pressed button */
+  .org-btn.ts-star[aria-pressed="true"] { background: none; color: var(--ink); border-color: transparent; }
+  @media (hover: hover) { .org-btn.ts-star[aria-pressed="true"]:hover { background: var(--track-bg); border-color: transparent; } }
+
+  /* The three tabs (Nov 19, 2026, Diego: Your palettes · Make · Explore). Local until a second tool needs them;
+     the current-page marker is the design system nav's (.ds-nav a.current), turned to sit under the word. */
+  .ts-nav { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-5); margin-bottom: var(--space-6); border-bottom: 1px solid var(--border); }
+  .ts-tabs { display: flex; gap: var(--space-6); }
+  .ts-tabs a {
+    font-family: var(--font-display); font-size: var(--fs-medium); color: var(--mid); text-decoration: none;
+    padding-block: var(--space-3); border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
+  }
+  .ts-tabs a:hover { color: var(--ink); }
+  .ts-tabs a[aria-current="page"] { color: var(--ink); font-weight: var(--w-medium); border-bottom-color: var(--accent-warm); }
+  .ts-tabs a:focus-visible, .ts-nav__learn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .ts-nav__spacer { flex: 1; }
+  .ts-nav__learn { font-size: var(--fs-small); color: var(--ink); }
+  .ts-nav__learn[aria-current="page"] { color: var(--accent-warm); }
+  .ts-nav .org-btn { margin-block: var(--space-2); }
+  .ts-subnav { display: flex; width: max-content; max-width: 100%; margin-bottom: var(--space-6); }   /* .seg-ctrl is flex: 1 — here it keeps its own width */
+  .ts-subnav .seg-btn { flex: none; padding: 0 var(--space-4); text-decoration: none; display: inline-flex; align-items: center; }
+  .ts-filter { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-5); }
+  .ts-filter .seg-ctrl { flex: none; }
+  .ts-filter .seg-btn { flex: none; padding: 0 var(--space-4); }   /* its own width: .seg-btn is flex: 1 from a zero basis */
+  .ts-filter__count { font-size: var(--fs-small); color: var(--mid); }
+  .ts-empty { font-size: var(--fs-small); color: var(--mid); max-width: 60ch; }
   /* The art is the palette itself — content, so it stays on light paper in dark mode. */
   .ts-card__art { display: flex; aspect-ratio: 1 / 1; overflow: hidden; background: var(--paper); }   /* overflow: a tall house must not stretch the square */
   .ts-card__art svg { width: 100%; height: 100%; }
@@ -162,8 +203,16 @@
          a Example — house no. … con una barra che lo racchiude della stessa larghezza della canvas") -->
     <div class="ts-column" id="ts-column">
       <div class="ts-palbar" data-theme="light">
-        <button class="mini-btn" id="btn-home">← All palettes</button>
-        <p class="ts-palbar__title" id="palette-title"></p>
+        <div class="ts-palbar__crumb">
+          <button type="button" class="org-btn org-btn--ghost" id="btn-home"><i data-icon="arrow-left"></i><span id="btn-home-label">Your palettes</span></button>
+          <span class="ts-palbar__sep" aria-hidden="true">/</span>
+          <span class="ts-palbar__name" id="palette-name"></span>
+          <button type="button" class="org-btn org-btn--icon org-btn--ghost ts-star" id="btn-star" aria-pressed="false" aria-label="Star"></button>
+        </div>
+        <div class="ts-palbar__end">
+          <p class="ts-palbar__title" id="palette-title"></p>
+          <a class="org-btn" id="btn-variations" href="#make">Make variations</a>
+        </div>
       </div>
       <div class="ts-sheet" data-theme="light">
         <svg id="stage-svg" data-theme="light" viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -2196,6 +2245,7 @@ function deletePreset() {
   if (!name) return;
   const all = userPresets();
   delete all[name];
+  const f = FAVS.read(); if (f['p:' + name]) { delete f['p:' + name]; FAVS.write(f); }   // its star goes with it
   PRESETS.write(all);
   if (savePopover) savePopover.close();
   setDirty(false); location.hash = '';   // the palette on screen is gone — back to the library
@@ -2208,10 +2258,11 @@ function deletePreset() {
 //   #new          the editor on a fresh palette
 //   #p=<name>     the editor on a saved palette
 //   #c=<col>/<id> the editor on a COPY of a built-in palette (Save keeps it)
-let currentName = '', suggestedName = '', dirty = false;
+let currentName = '', suggestedName = '', dirty = false, leaveArmed = 0;
 function setDirty(v) { dirty = v; Organica.dirty.set('palette', v); }
 function setCurrent(name, suggest) {
   currentName = name; suggestedName = suggest; setDirty(false);
+  if (name) currentKey = 'p:' + name;   // saved: the star is now on your palette
   renderStage();   // the sheet shows the name
   if (name) history.replaceState(null, '', '#p=' + encodeURIComponent(name));
   refreshTitle();
@@ -2220,11 +2271,52 @@ function paletteName() { return currentName || suggestedName || 'New palette'; }
 // The name is on the sheet now; the bar keeps only the state (nothing when saved and unchanged).
 function refreshTitle() {
   ctrl('palette-title').textContent = currentName && dirty ? 'Unsaved changes' : '';   // no 'not saved yet' (Diego, Nov 18, 2026)
-  ctrl('btn-home').textContent = '← All palettes';
+  ctrl('btn-home-label').textContent = 'Your palettes';
+  ctrl('palette-name').textContent = paletteName();
+  leaveArmed = 0;
+  refreshEditorStar();
 }
+
+// ── STARS ──
+// A star is kept by key — 'p:<name>' for one of your palettes, 'c:<col>/<id>' for a built-in one — in its own store
+// (tunesutra-favs, the presets table: same sync, same RLS). It keeps a copy of the colours, so a starred palette draws
+// even when its source is not on this device yet. Starred and Saved are two things (Diego, Nov 19, 2026).
+const FAVS = Organica.store('tunesutra-favs');
+function favs() { return FAVS.peek() || {}; }
+function isStarred(key) { return !!(key && favs()[key]); }
+function toggleStar(key, entry) {
+  const f = FAVS.read();
+  if (f[key]) delete f[key];
+  else f[key] = { name: entry.name, colors: entry.colors.slice(0, 9), house: entry.house, at: new Date().toISOString() };
+  FAVS.write(f);
+  return !!f[key];
+}
+function starHTML(on) { return Organica.icons.get(on ? 'star-filled' : 'star'); }
+function paintStar(btn, on, name) {
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  btn.setAttribute('aria-label', 'Star ' + name);   // the name stays; aria-pressed carries the state (UI-COPY, like Pin variation n)
+  btn.innerHTML = starHTML(on);
+}
+let currentKey = '';
+function refreshEditorStar() {
+  const b = ctrl('btn-star');
+  b.hidden = !currentKey;   // a new, unsaved palette has nothing to star yet
+  if (currentKey) paintStar(b, isStarred(currentKey), paletteName());
+}
+function starCurrent() {
+  if (!currentKey) return;
+  let colors = state.items.map(it => it.hex), house = state.house;
+  if (currentKey.indexOf('c:') === 0) {   // a built-in palette is starred as it is, not with this copy's edits
+    const [cid, pid] = currentKey.slice(2).split('/'), col = (window.TUNESUTRA_COLLECTIONS || []).find(c => c.id === cid), pal = col && col.palettes.find(x => x.id === pid);
+    if (pal) { colors = pal.colors; house = seedOf(cid + '/' + pid); }
+  }
+  toggleStar(currentKey, { name: paletteName(), colors, house });
+  refreshEditorStar();
+}
+
 function paletteArt(p) {
   const cols = (p.colors || []).map(c => Organica.normalizeHex(c, '#888888'));
-  if (garmentFits(cols.length)) {   // every card shows its house (3–7 colours)
+  if (garmentFits(cols.length)) {   // every card shows its house (2–9 colours)
     const n = cols.length, fig = houseFig(p.house >= 1 ? Math.round(p.house) : seedOf(cols.join('')), n), pad = n >= 5 ? 0 : fig.h * 0.06;
     return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}" aria-hidden="true">` +
       fig.zones.map(z => { const hex = cols[z.role]; return `<path d="${z.d}" fill="${hex}"${n < 5 && paleOnPaper(hex) ? ` stroke="var(--border)" stroke-width="${fig.h / 220}"` : ''}/>`; }).join('') + '</svg>';
@@ -2232,24 +2324,109 @@ function paletteArt(p) {
   const w = roleWeights(cols.length);
   return cols.map((c, i) => `<span style="flex:${w[i].toFixed(2)};background:${c}"></span>`).join('');
 }
-function cardHTML(href, name, p) {
-  return `<a class="ts-card" href="${href}"><span class="ts-card__art" data-theme="light">${paletteArt(p)}</span>` +
-    `<span class="ts-card__label"><span class="ts-card__name">${esc(name)}</span><span class="ts-card__meta">${esc(p.colors.join(' '))}</span></span></a>`;
+// A card: the name is the link (stretched over the card), the star a button above it (design-system CONSULT, Nov 19, 2026).
+function cardHTML(href, name, p, key) {
+  const on = isStarred(key);
+  return `<article class="ts-card"><span class="ts-card__art" data-theme="light">${paletteArt(p)}</span>` +
+    `<span class="ts-card__label ts-card__label--star"><span class="ts-card__text"><a class="ts-card__link ts-card__name" href="${href}">${esc(name)}</a>` +
+    `<span class="ts-card__meta">${esc(p.colors.join(' '))}</span></span>` +
+    `<button type="button" class="org-btn org-btn--icon org-btn--ghost ts-star ts-card__star" data-key="${esc(key)}" aria-pressed="${on}" aria-label="Star ${esc(name)}">${starHTML(on)}</button></span></article>`;
 }
+const NEW_CARD = '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>';
+
+// ── VIEWS ──
+// Three tabs (Diego, Nov 19, 2026): Your palettes · Make (From a colour · From an image) · Explore (Palettes · Moods ·
+// Swatches), How colour works as a link, New palette always on the right. Each is a hash, so Back works:
+//   #palettes (or none) · #make · #make/image · #explore · #explore/moods · #explore/swatches · #learn
+// Make, Moods, Swatches and How colour works are filled in later steps (5–8).
+const VIEWS = {
+  palettes: { tab: 'palettes' },
+  make: { tab: 'make', sub: 'colour' }, 'make/colour': { tab: 'make', sub: 'colour' }, 'make/image': { tab: 'make', sub: 'image' },
+  explore: { tab: 'explore', sub: 'palettes' }, 'explore/palettes': { tab: 'explore', sub: 'palettes' },
+  'explore/moods': { tab: 'explore', sub: 'moods' }, 'explore/swatches': { tab: 'explore', sub: 'swatches' },
+  learn: { tab: 'learn' }
+};
+const SUBS = {
+  make: [['colour', '#make', 'From a colour'], ['image', '#make/image', 'From an image']],
+  explore: [['palettes', '#explore', 'Palettes'], ['moods', '#explore/moods', 'Moods'], ['swatches', '#explore/swatches', 'Swatches']]
+};
+let view = VIEWS.palettes;
+function navHTML(v) {
+  const tab = (id, href, label) => `<a href="${href}"${v.tab === id ? ' aria-current="page"' : ''}>${label}</a>`;
+  let html = '<div class="ts-nav"><nav class="ts-tabs" aria-label="TuneSutra">' +
+    tab('palettes', '#palettes', 'Your palettes') + tab('make', '#make', 'Make') + tab('explore', '#explore', 'Explore') + '</nav>' +
+    '<span class="ts-nav__spacer"></span>' +
+    `<a class="ts-nav__learn" href="#learn"${v.tab === 'learn' ? ' aria-current="page"' : ''}>How colour works</a>` +
+    '<a class="org-btn org-btn--primary" href="#new">New palette</a></div>';
+  if (SUBS[v.tab]) html += `<nav class="seg-ctrl ts-subnav" aria-label="${v.tab === 'make' ? 'Make' : 'Explore'}">` +
+    SUBS[v.tab].map(([id, href, label]) => `<a class="seg-btn${v.sub === id ? ' active" aria-current="page' : ''}" href="${href}">${label}</a>`).join('') + '</nav>';
+  return html;
+}
+let homeShow = 'all';
+try { homeShow = localStorage.getItem('organica.tunesutra.home-show') || 'all'; } catch (e) {}
+function yourPalettesHTML() {
+  const all = userPresets(), f = favs();
+  const saved = Object.keys(all).filter(n => all[n] && Array.isArray(all[n].colors) && all[n].colors.length >= 2)
+    .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')))
+    .map(n => ({ key: 'p:' + n, href: '#p=' + encodeURIComponent(n), name: n, p: all[n] }));
+  // a star on one of your palettes draws the palette itself; one on a palette you deleted is skipped
+  const starred = Object.keys(f).sort((a, b) => String(f[b].at || '').localeCompare(String(f[a].at || ''))).map(k => {
+    if (k.indexOf('p:') === 0) { const n = k.slice(2); return all[n] ? { key: k, href: '#p=' + encodeURIComponent(n), name: n, p: all[n] } : null; }
+    const e = f[k]; if (!e || !Array.isArray(e.colors)) return null;
+    return { key: k, href: '#c=' + encodeURIComponent(k.slice(2)), name: e.name || 'Palette', p: { colors: e.colors, house: e.house } };
+  }).filter(Boolean);
+  const list = homeShow === 'starred' ? starred : homeShow === 'saved' ? saved
+    : starred.concat(saved.filter(s => !f[s.key]));   // All: starred first, then the rest, newest first
+  const empty = homeShow === 'starred' ? 'Star a palette to find it here.'
+    : homeShow === 'saved' ? 'No saved palettes yet. Make one, or open a palette in Explore and save your own copy.'
+    : 'No palettes yet. Make one, or star one in Explore.';
+  const seg = [['all', 'All'], ['starred', 'Starred'], ['saved', 'Saved']].map(([id, label]) =>
+    `<button type="button" class="seg-btn${homeShow === id ? ' active' : ''}" data-show="${id}" aria-pressed="${homeShow === id}">${label}</button>`).join('');
+  return '<section class="ts-group"><h2 class="ts-group__title">Your palettes</h2>' +
+    `<div class="ts-filter"><div class="seg-ctrl" role="group" aria-label="Show palettes">${seg}</div>` +
+    `<span class="ts-filter__count">${list.length === 1 ? '1 palette' : list.length + ' palettes'}</span></div>` +
+    (list.length ? '' : `<p class="ts-empty">${empty}</p>`) +
+    '<div class="ts-grid">' + (homeShow === 'starred' ? '' : NEW_CARD) + list.map(c => cardHTML(c.href, c.name, c.p, c.key)).join('') + '</div></section>';
+}
+function explorePalettesHTML() {
+  return (window.TUNESUTRA_COLLECTIONS || []).map(col =>
+    `<section class="ts-group"><h2 class="ts-group__title">${esc(col.name)}</h2><p class="ts-group__note">${esc(col.note || '')}</p><div class="ts-grid">` +
+    col.palettes.map(pal => cardHTML('#c=' + encodeURIComponent(col.id + '/' + pal.id), pal.name, { colors: pal.colors, view: col.view, house: seedOf(col.id + '/' + pal.id) }, 'c:' + col.id + '/' + pal.id)).join('') +
+    '</div></section>').join('');
+}
+const LATER = {
+  'make/colour': ['From a colour', 'New palettes of 2 to 9 colours from a key colour, a tone family and a hue relation.'],
+  'make/image': ['From an image', 'Drop an image: its colours become a palette, each one named and given a role.'],
+  'explore/moods': ['Moods', 'Palettes by feeling, on the warm–cool and soft–hard map.'],
+  'explore/swatches': ['Swatches', 'Every colour, named, on the hue and tone map.'],
+  learn: ['How colour works', 'Hue and tone, tone families, roles, and how the palettes are built.']
+};
 function renderHome() {
-  const all = userPresets();
-  const mine = Object.keys(all).filter(n => all[n] && Array.isArray(all[n].colors) && all[n].colors.length >= 2)
-    .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')));
-  let html = '<section class="ts-group"><h2 class="ts-group__title">Your palettes</h2>' +
-    `<p class="ts-group__note">${mine.length ? mine.length + (mine.length === 1 ? ' palette' : ' palettes') + ', newest first.' : 'None yet. Start a new one, or open a built-in palette and save your own copy.'}</p><div class="ts-grid">` +
-    '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>' +
-    mine.map(n => cardHTML('#p=' + encodeURIComponent(n), n, all[n])).join('') + '</div></section>';
-  (window.TUNESUTRA_COLLECTIONS || []).forEach(col => {
-    html += `<section class="ts-group"><h2 class="ts-group__title">${esc(col.name)}</h2><p class="ts-group__note">${esc(col.note || '')}</p><div class="ts-grid">` +
-      col.palettes.map(pal => cardHTML('#c=' + encodeURIComponent(col.id + '/' + pal.id), pal.name, { colors: pal.colors, view: col.view, house: seedOf(col.id + '/' + pal.id) })).join('') + '</div></section>';
-  });
-  ctrl('home').innerHTML = html;
+  const v = view, id = v.sub ? v.tab + '/' + v.sub : v.tab;
+  let body;
+  if (v.tab === 'palettes') body = yourPalettesHTML();
+  else if (id === 'explore/palettes') body = explorePalettesHTML();
+  else { const t = LATER[id] || LATER.learn; body = `<section class="ts-group"><h2 class="ts-group__title">${t[0]}</h2><p class="ts-empty">${t[1]}</p></section>`; }
+  ctrl('home').innerHTML = navHTML(v) + body;
 }
+// Star and Show work in place: the view redraws, the focus goes back to the control that was used.
+ctrl('home').addEventListener('click', e => {
+  const star = e.target.closest('.ts-card__star'), show = e.target.closest('[data-show]');
+  if (star) {
+    const key = star.dataset.key, card = star.closest('.ts-card'), name = card.querySelector('.ts-card__name').textContent;
+    const src = key.indexOf('p:') === 0 ? userPresets()[key.slice(2)] : null;
+    const colors = src ? src.colors : card.querySelector('.ts-card__meta').textContent.split(' ');
+    toggleStar(key, { name, colors, house: src ? src.house : seedOf(key.slice(2)) });
+    renderHome();
+    const again = [...ctrl('home').querySelectorAll('.ts-card__star')].find(b => b.dataset.key === key);
+    if (again) again.focus(); else { const s = ctrl('home').querySelector('[data-show].active'); if (s) s.focus(); }
+  } else if (show) {
+    homeShow = show.dataset.show;
+    try { localStorage.setItem('organica.tunesutra.home-show', homeShow); } catch (err) {}
+    renderHome();
+    const again = ctrl('home').querySelector(`[data-show="${homeShow}"]`); if (again) again.focus();
+  }
+});
 function showHome(home) {
   ctrl('home').hidden = !home;
   ctrl('app').hidden = !!(home);
@@ -2258,21 +2435,24 @@ function showHome(home) {
 function route() {
   let h = '';
   try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { h = ''; }
-  let p = null, name = '', suggest = '';
+  let p = null, name = '', suggest = '', key = '';
   if (h === 'new') p = { colors: ['#ffffff', '#ffffff', '#ffffff'], house: newSeed() };   // a blank start: three white colours (Diego, Nov 17, 2026)
-  else if (h.indexOf('p=') === 0) { name = h.slice(2); p = userPresets()[name]; }
+  else if (h.indexOf('p=') === 0) { name = h.slice(2); p = userPresets()[name]; key = 'p:' + name; }
   else if (h.indexOf('c=') === 0) {
     const parts = h.slice(2).split('/'), col = (window.TUNESUTRA_COLLECTIONS || []).find(c => c.id === parts[0]);
     const pal = col && col.palettes.find(x => x.id === parts[1]);
-    if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view, house: seedOf(col.id + '/' + pal.id) }; suggest = pal.name; }
+    if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view, house: seedOf(col.id + '/' + pal.id) }; suggest = pal.name; key = 'c:' + col.id + '/' + pal.id; }
   }
-  if (!p || !Array.isArray(p.colors) || p.colors.length < 2) { showHome(true); renderHome(); return; }
+  if (!p || !Array.isArray(p.colors) || p.colors.length < 2) {
+    view = VIEWS[h] || VIEWS.palettes;
+    showHome(true); renderHome(); return;
+  }
   loadPaletteData(p);
   pourNext = true;
   undoStack.length = 0;
   lastUndo = { kind: '', t: 0 };
   initialSnap = snapshot();
-  currentName = name; suggestedName = suggest; setDirty(false);
+  currentName = name; suggestedName = suggest; currentKey = key; setDirty(false);
   showHome(false);
   ctrl('panel').scrollTop = 0;
   ctrl('stage-wrap').scrollTop = 0;
@@ -2280,13 +2460,13 @@ function route() {
   commit(true);
   refreshTitle();
 }
-// Leaving with unsaved changes takes two clicks: the first one says so.
-let leaveArmed = 0;
-function goHome() {
-  if (dirty && Date.now() - leaveArmed > 4000) { leaveArmed = Date.now(); ctrl('btn-home').textContent = 'Unsaved changes — click again to leave'; return; }
+// Leaving with unsaved changes takes two clicks: the first one says so (on the control that was used).
+function leaveTo(hash, labelEl, label) {
+  if (dirty && Date.now() - leaveArmed > 4000) { leaveArmed = Date.now(); labelEl.textContent = 'Unsaved changes — click again to leave'; setTimeout(() => { labelEl.textContent = label; }, 4000); return; }
   setDirty(false);
-  location.hash = '';
+  location.hash = hash;
 }
+function goHome() { leaveTo('palettes', ctrl('btn-home-label'), 'Your palettes'); }
 
 // ── INIT ──
 const GRAD_DEFAULT = JSON.stringify(state.grad);
@@ -2327,6 +2507,8 @@ ctrl('txt-preset-name').addEventListener('input', syncSaveArm);
 ctrl('txt-preset-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ctrl('btn-preset-confirm').click(); } });   // through the button, so "Replace?" still asks
 
 ctrl('btn-home').addEventListener('click', goHome);
+ctrl('btn-star').addEventListener('click', starCurrent);
+ctrl('btn-variations').addEventListener('click', e => { e.preventDefault(); leaveTo('make', ctrl('btn-variations'), 'Make variations'); });   // seeded with this palette in step 6
 window.addEventListener('hashchange', route);
 syncControls();
 commit(false);
@@ -2341,6 +2523,8 @@ Organica.autoLabelPanel(document);
 const onLibrary = () => !ctrl('home').hidden;
 PRESETS.pull().then(() => { if (onLibrary()) route(); });
 PRESETS.onSync(() => { if (onLibrary()) renderHome(); });
+FAVS.pull().then(() => { if (onLibrary()) renderHome(); else refreshEditorStar(); });
+FAVS.onSync(() => { if (onLibrary()) renderHome(); else refreshEditorStar(); });
 </script>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>
