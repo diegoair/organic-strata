@@ -564,6 +564,7 @@
       <a href="#templates">The three templates</a>
       <a href="#template-tool">Tool</a>
       <a href="#template-page">Page</a>
+      <a href="#data-table">Data table</a>
       <a href="#fvs-field">Page on a field (FVS field)</a>
       <a href="#sign-in">Auth card (sign-in)</a>
     </div>
@@ -886,7 +887,7 @@
 
     <section class="ds-entry" id="spacing">
       <h2>Spacing</h2>
-      <p class="ds-desc">4px base grid, 8 steps. Used for gaps, padding, margins — never a raw px value that happens to look right.</p>
+      <p class="ds-desc">4px base grid, 9 steps. Used for gaps, padding, margins — never a raw px value that happens to look right. <code>--space-9</code> (48px) was added on Nov 19, 2026 (Diego) for geometry the old top step could not hold — swatch strips and large sample blocks (first consumer: the Hue × tone lab); utilities <code>.mt-9</code> / <code>.mb-9</code>.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css</span><strong>Used in</strong><span>every component</span></div>
       <div class="ds-example ds-example--column">
         <div class="ds-space-row"><span class="ds-space-tag">--space-1 · 4px</span><div class="ds-space-bar" style="width:4px"></div></div>
@@ -897,8 +898,9 @@
         <div class="ds-space-row"><span class="ds-space-tag">--space-6 · 16px</span><div class="ds-space-bar" style="width:16px"></div></div>
         <div class="ds-space-row"><span class="ds-space-tag">--space-7 · 24px</span><div class="ds-space-bar" style="width:24px"></div></div>
         <div class="ds-space-row"><span class="ds-space-tag">--space-8 · 32px</span><div class="ds-space-bar" style="width:32px"></div></div>
+        <div class="ds-space-row"><span class="ds-space-tag">--space-9 · 48px</span><div class="ds-space-bar" id="ds-space-9" style="width:var(--space-9)"></div></div>
       </div>
-      <p class="ds-note">If the spacing you need isn’t one of these eight, that’s a sign to add a step — not to reach for a raw px value.</p>
+      <p class="ds-note">If the spacing you need isn’t one of these nine, that’s a sign to ask for a step (the owner decides — <code>docs/DESIGN-DECISIONS.md</code>) — not to reach for a raw px value.</p>
     </section>
 
     <section class="ds-entry" id="radius">
@@ -1295,6 +1297,27 @@
       <p><code>body.org-page.org-page--field</code> (in <code>shared/fvs-field.css</code>, linked after <code>page.css</code> / <code>prose.css</code>): the same header, column, card and footer, standing on a full-screen <a href="#fvs-field">FVS field</a> instead of the dot pattern. Two things differ from the plain Page. <strong>The footer leaves the column</strong>: it is a direct child of <code>&lt;body&gt;</code>, after <code>&lt;/main&gt;</code> — a bar across the foot of the page, the header’s counterpart, with the header’s height (<code>--header-h</code>) and side padding (<code>--space-7</code>), so its first element lines up with the header’s; inside the 660 column it did not space correctly against the full-width header. <strong>The header carries no pattern switcher and no theme button</strong>: the field covers the ground the switcher would change, and a palette is the same in both themes. The saved theme still applies — the card and the mega menu follow it; only the controls are gone. The two bars frame the pattern, each on clear ground — no cell lies above the header’s bottom edge or below the footer’s top edge. It is a variant of this template, not a fourth one: the skeleton lint holds it to every Page rule. Used by <code>/404.html</code> only, which loads <code>fvs-field.js</code> alone (the module is standalone — no <code>core.js</code>); markup, options and the colour rule are in the <a href="#fvs-field">next entry</a>.</p>
       <h3>Variant — own layout</h3>
       <table id="ds-tpl-layout"><tr><th>Page</th><th>Why its layout is its own</th></tr></table>
+    </section>
+
+    <section class="ds-entry" id="data-table">
+      <h2>Data table</h2>
+      <p class="ds-desc">Rows of records on a Page — users, presets, colours. <code>.org-table</code>: full width, <code>--fs-small</code>, a <code>--border</code> line under each row, headers in <code>--mid</code> at <code>--w-medium</code>; a number goes in <code>td.num</code> / <code>th.num</code> (right-aligned, <code>--font-display</code>, tabular figures). Promoted Nov 19, 2026 (Diego) from Admin’s local table rules, when the Hue × tone lab became its second consumer. Running text tables inside <code>.org-prose</code> keep the prose look; a <code>.org-table</code> inside prose keeps this one (<code>prose.css</code> reads <code>table:not(.org-table)</code>).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/page.css</span><strong>Used in</strong><span>admin/ (4 tables)</span><span>explorations/tunesutra-hue-tone/ (dev)</span></div>
+      <div class="ds-example ds-example--column">
+        <table class="org-table" id="ds-org-table">
+          <thead><tr><th>Tool</th><th>Name</th><th class="num">Bytes</th><th>Updated</th></tr></thead>
+          <tbody>
+            <tr><td>pollen</td><td>Soft field</td><td class="num">2 418</td><td>Nov 18, 2026</td></tr>
+            <tr><td>fvs</td><td>Leaf wave</td><td class="num">14 702</td><td>Nov 17, 2026</td></tr>
+            <tr><td>tunesutra</td><td>Autumn house</td><td class="num">936</td><td>Nov 12, 2026</td></tr>
+          </tbody>
+        </table>
+        <div class="org-prose"><table class="org-table" id="ds-org-table-prose"><tr><th>Inside .org-prose</th><th class="num">Count</th></tr><tr><td>Keeps the data-table look</td><td class="num">4</td></tr></table></div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">table</span> <span class="attr">class</span>=<span class="str">"org-table"</span>&gt;
+  &lt;<span class="tag">thead</span>&gt;&lt;<span class="tag">tr</span>&gt;&lt;<span class="tag">th</span>&gt;Name&lt;/<span class="tag">th</span>&gt;&lt;<span class="tag">th</span> <span class="attr">class</span>=<span class="str">"num"</span>&gt;Seeds&lt;/<span class="tag">th</span>&gt;&lt;/<span class="tag">tr</span>&gt;&lt;/<span class="tag">thead</span>&gt;
+  &lt;<span class="tag">tbody</span>&gt;&lt;<span class="tag">tr</span>&gt;&lt;<span class="tag">td</span>&gt;…&lt;/<span class="tag">td</span>&gt;&lt;<span class="tag">td</span> <span class="attr">class</span>=<span class="str">"num"</span>&gt;12&lt;/<span class="tag">td</span>&gt;&lt;/<span class="tag">tr</span>&gt;&lt;/<span class="tag">tbody</span>&gt;
+&lt;/<span class="tag">table</span>&gt;   <span class="attr">&lt;!-- a wide table: wrap it in a box with overflow-x: auto --&gt;</span></pre>
     </section>
 
     <section class="ds-entry ds-prose" id="fvs-field">
@@ -2195,8 +2218,8 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
       <h2>Spacing &amp; layout utilities</h2>
       <p class="ds-desc">An audit found the same handful of spacing values — 6/8/10/12/14px — repeated as one-off <code>style="margin-top:Npx"</code> attributes, dozens of times across the suite. These classes are that token spent as a class instead of retyped as a raw number: the class name <em>is</em> the token index. They carry <code>!important</code> on purpose — a utility only does its job if it always wins the cascade, and a panel row’s own class (<code>.row .val</code>) already outranks a single class without it.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/tokens.css</span></div>
-      <pre class="ds-code">.mt-1 … .mt-8   <span class="attr">/* margin-top: var(--space-1…8) */</span>
-.mb-1 … .mb-8   <span class="attr">/* margin-bottom: var(--space-1…8) */</span>
+      <pre class="ds-code">.mt-1 … .mt-9   <span class="attr">/* margin-top: var(--space-1…9) */</span>
+.mb-1 … .mb-9   <span class="attr">/* margin-bottom: var(--space-1…9) */</span>
 .u-flex1        <span class="attr">/* flex: 1 1 auto; min-width: 0 */</span>
 .u-hidden       <span class="attr">/* display: none — an element hidden once, never shown again */</span>
 [hidden]        <span class="attr">/* display: none !important — show / hide with el.hidden;
@@ -2480,7 +2503,7 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <tr><td><code>tokens.css</code></td><td>Typeface, weights, type scale, spacing scale, radius scale, the surface palette (<code>--ink</code>/<code>--paper</code>/<code>--mid</code>/<code>--accent</code>/<code>--panel</code>/<code>--border</code>), <code>--accent-warm</code>, <code>--danger</code>, <code>--track-bg</code>, the <code>.mt-*</code>/<code>.mb-*</code>/<code>.u-flex1</code>/<code>.u-hidden</code> utilities</td><td>nothing — load first, always</td></tr>
         <tr><td><code>icons.css</code></td><td><code>.ico</code> — the stroke and the five sizes of every <a href="#icons">registry icon</a></td><td>tokens.css</td></tr>
         <tr><td><code>header.css</code></td><td>The header shell (identity/context/status/actions), <code>.org-btn</code> and its modifiers, <code>.org-popover</code></td><td>tokens.css</td></tr>
-        <tr><td><code>page.css</code></td><td>The <a href="#template-page">Page template</a>'s skeleton — reset, <code>body.org-page</code>, the <code>.org-page__col</code> column and its widths, <code>.org-page__card</code>, <code>.org-page__foot</code>. Never together with <code>shell.css</code> (this page excepted: it links every sheet to render the examples).</td><td>tokens.css</td></tr>
+        <tr><td><code>page.css</code></td><td>The <a href="#template-page">Page template</a>'s skeleton — reset, <code>body.org-page</code>, the <code>.org-page__col</code> column and its widths, <code>.org-page__card</code>, <code>.org-page__foot</code>, the <a href="#data-table">data table</a> <code>.org-table</code>. Never together with <code>shell.css</code> (this page excepted: it links every sheet to render the examples).</td><td>tokens.css</td></tr>
         <tr><td><code>prose.css</code> <em>(opt-in)</em></td><td><code>.org-prose</code> — bare headings, paragraphs, lists, links, code and tables for pages that read</td><td>tokens.css</td></tr>
         <tr><td><code>auth-card.css</code></td><td>The sign-in card (<code>.org-auth-card</code>) — linked only by <code>/sign-in</code> and this page</td><td>tokens.css</td></tr>
         <tr><td><code>fvs-field.css</code> <em>(opt-in)</em></td><td>The <a href="#fvs-field">FVS field</a> — <code>.org-fvs-field</code>, <code>__band</code>, <code>__svg</code>, <code>__cell</code> — and the Page variant that stands on it, <code>.org-page--field</code>. Paired with <code>shared/fvs-field.js</code>, which is standalone (no other script needed). Linked only by <code>/404.html</code> and this page.</td><td>tokens.css, page.css</td></tr>
@@ -3018,6 +3041,13 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   };
   assert('#ds-page-foot', { display: 'flex', fontSize: '10px' });   // the one footer (page.css)
   assert('#ds-page-card', { borderTopLeftRadius: '8px' });          // --radius-lg
+  assert('#ds-space-9', { width: '48px' });                         // --space-9 (Nov 19, 2026)
+  assert('#ds-org-table', { borderCollapse: 'collapse', fontSize: '10px' });   // .org-table, --fs-small
+  assert('#ds-org-table td', { verticalAlign: 'middle', paddingTop: '6px', paddingLeft: '8px', borderBottomWidth: '1px' });   // --space-2 / --space-3
+  assert('#ds-org-table th', { fontWeight: '500', whiteSpace: 'nowrap' });     // --w-medium
+  assert('#ds-org-table td.num', { textAlign: 'right', fontVariantNumeric: 'tabular-nums' });
+  assert('#ds-org-table th.num', { textAlign: 'right' });
+  assert('#ds-org-table-prose td', { verticalAlign: 'middle', fontSize: '10px' });   // inside .org-prose it keeps the data-table look (prose.css :not(.org-table))
   /* the FVS field (fvs-field.css): the real layer is fixed, under everything, and never takes the pointer —
      probed on a bare element, because the demo in the entry is boxed on purpose */
   {

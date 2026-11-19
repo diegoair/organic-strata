@@ -67,10 +67,10 @@
 
 .org-prose hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-7) 0; }
 
-.org-prose table { border-collapse: collapse; width: 100%; margin: var(--space-3) 0 var(--space-4); }
-.org-prose th, .org-prose td {
+.org-prose table:not(.org-table) { border-collapse: collapse; width: 100%; margin: var(--space-3) 0 var(--space-4); }
+.org-prose table:not(.org-table) :is(th, td) {
   text-align: left; vertical-align: top;
   font-size: var(--t-caption-size); line-height: var(--t-caption-lh);
   padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border);
 }
-.org-prose th { color: var(--mid); font-weight: var(--w-medium); }
+.org-prose table:not(.org-table) th { color: var(--mid); font-weight: var(--w-medium); }

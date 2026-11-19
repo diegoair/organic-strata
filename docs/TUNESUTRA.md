@@ -40,7 +40,7 @@ in-app photo reader.
 
 ## 1. The palette
 
-- **Colours** 3–5 (6–7 only in palettes saved before). Each colour is an item `{ id, name, hex, lock }`; the `id` is
+- **Colours** 3–7 (6–7 were dropped Nov 17 and are back since Nov 19, 2026, each on its own house; roles 6 *Base · Secondary · Tertiary · Accent · Highlight · Spark*, 7 *Base · Secondary · Tertiary · Support · Accent · Highlight · Spark*). Each colour is an item `{ id, name, hex, lock }`; the `id` is
   stable for the colour's life. **A colour is named by its role** (Nov 18, 2026: Diego, *we don't
   want to change the name as it should be semantic and tokenized*) — one word, largest share
   first, the set following the count (`ROLE_SETS`): 3 *Base · Secondary · Accent*, 4 *Base ·
@@ -90,7 +90,7 @@ tube after another, the number counting up — never on a colour edit, not with
 reduced motion, never in an export (the SVG/PNG get them full). The **Gradient view was removed** (Nov 18, 2026,
 Diego: *elimina view gradient*) with its Gradient-only exports; a palette saved on it opens on the
 house (`view` is read as `garment`; `state.grad` is still saved, unused). A palette saved
-with 6–7 colours shows the tubes alone.
+with 6–7 colours shows its house too (since Nov 19, 2026).
 
 **Shading — each colour's shadow noise** (Nov 18, 2026; Diego: *per ogni palette … per ogni
 colore un set di gradient con noise predefinito che mi crei delle sorte di shadow noise sulle
@@ -155,6 +155,13 @@ Then:
    - 4 colours — wall 52.0 · roof 32.2 · door 10.9 · windows 4.9
    - 5 colours — background 71.6 · ground 20.0 · wall 4.6 · roof 2.8 · door 1.0,
      a small house in a landscape (flat or sloping ground)
+   - 6 colours — background 71.6 · ground 20.0 · wall 3.8 · roof 2.8 · door 1.0 · windows 0.8:
+     the 5-colour landscape with windows (one, or two either side of the door) — Nov 19, 2026
+   - 7 colours — background 57.6 · ground 20.0 · hill 14.0 · wall 3.8 · roof 2.8 · door 1.0 · windows 0.8:
+     plus a hill behind the house, a convex arc whose height is solved for its share (clipped to the
+     frame and to the house) — Nov 19, 2026. 6–7 can be chosen again (Diego, Nov 19: *riattiva*). The rule comes from the Hue × tone lab
+     (`explorations/tunesutra-hue-tone/`, *By roles*): the 5-colour space plus a second accent, then a
+     middle plane.
 
    **One house per palette, a carousel for others.** The seed (`house`, 1–9999)
    is saved with the palette and drawn on its library card; two arrows on the

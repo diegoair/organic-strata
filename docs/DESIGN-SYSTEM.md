@@ -1,7 +1,7 @@
 # Organica — Design System
 
 > Studio Rann · Organica · Typography, tokens, and the Figma mapping
-> Last updated: November 17, 2026 — Organica's own colour picker `Organica.colorPicker` (`shared/colour-picker.css/.js`, O-21, colour migration phase 3, piloted in TuneSutra; `palette.swatch({ picker: 'organica' })` → `.rmx-color__pick`), shared value tiles `.org-tiles` / `.org-tile` (`panel.css`), RAL Classic data `shared/vendor/ral-classic.js` (CC BY-SA 4.0), icon `eyedropper` (131 drawings); `/design-system/#colour-picker`; no token changed. Earlier entries: **Revision history** at the end of this file.
+> Last updated: November 19, 2026 — spacing step `--space-9` (48px, + `.mt-9` / `.mb-9`) and the shared data table `.org-table` (`shared/page.css`, promoted from Admin; `prose.css` tables now `:not(.org-table)`), both decided by Diego for the Hue × tone lab (ledger §2); `/design-system/#spacing`, `#data-table`. Earlier entries: **Revision history** at the end of this file.
 >
 > **Source of truth: `shared/tokens.css`** — what the browser runs.
 > `shared/tokens.json` is its mirror for Figma (ledger §2, O-2, Oct 13, 2026);
@@ -260,12 +260,18 @@ are written down now so the next tool doesn't invent its own.
 | `--space-6` | 16px | | | |
 | `--space-7` | 24px | | | |
 | `--space-8` | 32px | | | |
+| `--space-9` | 48px | | | |
 
 Organica's surfaces are flat and near-square — **radius is a whisper, not a
 feature**. `--radius-lg` (8px) is already the loudest the system gets.
 
-**Spacing utility classes** (`shared/tokens.css`): `.mt-1`…`.mt-8` /
-`.mb-1`…`.mb-8` (`margin-top`/`margin-bottom: var(--space-N)`), `.u-flex1`
+`--space-9` (48px) was added on Nov 19, 2026 (Diego, ledger §2) — one step above 32 for geometry the old top
+step could not hold: swatch strips and large sample blocks (first consumer: `explorations/tunesutra-hue-tone/`,
+strips at 48 and a key block at `2.5 × --space-9`). A grid gap smaller than `--space-1` is not a step: use
+`--space-1` (the same lab's 2px gap, decided the same day).
+
+**Spacing utility classes** (`shared/tokens.css`): `.mt-1`…`.mt-9` /
+`.mb-1`…`.mb-9` (`margin-top`/`margin-bottom: var(--space-N)`), `.u-flex1`
 (`flex: 1 1 auto`), `.u-hidden` (`display: none`). All carry `!important` —
 a utility only does its job if it always wins the cascade; a component's own
 compound selector (`.row .val`) already outranks a single class without it.
@@ -453,6 +459,7 @@ Every production page is one of **three templates** (decision O-6, `docs/DESIGN-
 
 - **Variants, not a fourth template.** *Own surface* — tool chrome without `shell.css` (Apostate, Flexible Visual System, Rhizome, Genesis). *Own layout* — page chrome without the `page.css` column (the hub, the design-system reference). Each is an entry with its reason in `OWN_SURFACE` / `OWN_LAYOUT` in `scripts/templates.py` and a line in `docs/DESIGN-DECISIONS.md` §3.
 - **`shared/page.css`** (O-7) — `body.org-page` (the canvas ground — `var(--canvas-grid), var(--canvas-bg)`, like the hub; never `--panel`; `org-page--paper` for flat paper), `.org-page__col` (660, reading) · `--wide` (1040, data) · `--full` (1500, gallery). The widths are the component's own `--page-col-w`, like `--panel-w` and `--auth-card-w` — not steps on a global scale. A page never links `shell.css` (it pins `<body>` to the viewport).
+- **The data table** — `.org-table` in `shared/page.css` (Diego, Nov 19, 2026; promoted from Admin's local `table` / `th` / `td` rules when the Hue × tone lab became its second consumer): full width, `--fs-small`, a `--border` line under each row, cell padding `--space-2` `--space-3`, `vertical-align: middle`; `th` in `--mid` at `--w-medium`, no wrap; a number in `td.num` / `th.num` (right-aligned, `--font-display`, tabular figures). A wide table sits in a box with `overflow-x: auto`. Inside `.org-prose` it keeps its own look: `prose.css` styles `.org-prose table:not(.org-table)`. Consumers: `admin/` (4 tables). `/design-system/#data-table`.
 - **The card and the footer** — `.org-page__card` (a paper sheet for a page that is one block of text) and `.org-page__foot` (the one footer: “© Organica” + Privacy · Terms · Design System, current link `aria-current="page"`; privacy, terms, the 404, the hub). Tools have no footer. **The error page** is `/404.html`: this template, public, card + footer.
 - **A Page on a field** — `body.org-page.org-page--field` + `shared/fvs-field.css` / `shared/fvs-field.js` (`Organica.fvsField.mount(host, opts)` → `{ stop() }`, `.palettes()`, `.MOTIONS`): the Page template standing on a decorative full-screen Flexible Visual System field instead of the dot pattern. A shared component by decision (Oct 2, 2026); its consumers are `/404.html` and `/sign-in/`. **Standalone**: the script needs no other (`ELEMENTS` — the Elements' paths — and `BUILTIN` — the three built-in combinations, resolved — are baked in and kept honest by `node scripts/test-fvs-field.mjs`, run by `scripts/check.py`); the 404 loads it alone, 38 KB of script on the page instead of ~250 KB. `color.js` + `palette.js` (after `core.js`) are needed only to read the live library; `.resolve(entry)` is public. Classes: `.org-fvs-field` (fixed, `inset: 0`, `z-index: -1`, no pointer, `aria-hidden`), `.org-fvs-field__band` (the box the "404" numerals fill; height = the component's own `--fvs-field-band-h`, 42vh), `.org-fvs-field__svg` / `__cell` (written by the script).
   - **Two motions**, both FVS's own: *arrival* (Arc truchet under Checkerboard; cells form blur → contrast → sharp in a scattered order, then one cell at a time takes a quarter turn and re-forms; the numerals are the cells that never finish arriving) and *rules* (Arc; every cell turns in quarter turns as the grid moves Radial → Checkerboard → Pinwheel → Identity; the numerals are the cells that never obey, in the strongest ink). The 404 shows both, alternating per visit, with the next of the three built-in palettes each time (`localStorage['organica.404.visit']`; `?p=a|b` and `?pal=<n>` pin them).
@@ -634,6 +641,7 @@ Typefaces (Sep 29, 2026) — **two families, split by role**:
 
 The "Last updated" chain as it stood until October 13, 2026, moved here verbatim (ledger §2, 2026-10-13: the line at the top is one entry; the history lives here). Newer entries are added at the top of this list.
 
+> Last updated: November 17, 2026 — Organica's own colour picker `Organica.colorPicker` (`shared/colour-picker.css/.js`, O-21, colour migration phase 3, piloted in TuneSutra; `palette.swatch({ picker: 'organica' })` → `.rmx-color__pick`), shared value tiles `.org-tiles` / `.org-tile` (`panel.css`), RAL Classic data `shared/vendor/ral-classic.js` (CC BY-SA 4.0), icon `eyedropper` (131 drawings); `/design-system/#colour-picker`; no token changed.
 > Last updated: November 17, 2026 — icon `save` (keep it in the library: TuneSutra's floatbar *Save palette* + popover `#save-popover`, Genesis *Save to library*; 130 drawings); no token or shared component changed.
 > Last updated: October 28, 2026 — FVS Symbol bar: a *Tool* group (Select · Brush, `aria-pressed`, V / B) first in `#fb-symbol-actions`, the Brush button's thumbnail `.fvs-brush-thumb` (FVS-local, `--icon-xl`); icons `pointer`, `brush` (129 drawings); no token changed.
 > Last updated: October 28, 2026 — floatbar top variant `.org-floatbar--top` (navigation under the header, tooltips and popovers below; FVS's steps, O-63; `/design-system/#floatbar-top`); icon `fvs-letters` (127 drawings); FVS-local `.is-brush` / `.fvs-rail__note.is-info` / `.fvs-sug-bar`; no token changed.

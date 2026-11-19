@@ -414,6 +414,10 @@ const ROLE_SETS = {
   3: ['Base', 'Secondary', 'Accent'],
   4: ['Base', 'Secondary', 'Tertiary', 'Accent'],
   5: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight'],
+  // 6–7 (Diego, Nov 19, 2026: "Spark in coda"): the smallest role is always Spark, so going from 5 to 6
+  // renames nothing (the token keys stay); at 7, ordered by share, the hill is Tertiary and the wall the new Support.
+  6: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight', 'Spark'],
+  7: ['Base', 'Secondary', 'Tertiary', 'Support', 'Accent', 'Highlight', 'Spark'],
 };
 // The lightest tint is called 50 in TuneSutra (Diego, Nov 18, 2026 — the shared scale keeps 0 for FVS).
 const stepName = st => st.step || 50;
@@ -475,13 +479,13 @@ function dispName(i) { return roleName(i); }
 // (tunesutra/house.js): 3 colours 52 / 32.2 / 15.8, 4 colours 52.0 / 32.2 / 10.9 / 4.9 — the
 // Garment's measured proportions (Diego, Nov 17, 2026: "align the bar"; Base : Secondary is the
 // golden ratio) — and 5 colours 71.6 / 20.0 / 4.6 / 2.8 / 1.0, the book page's (the Scene's 71.8
-// less the rounding). 6–7 can no longer be chosen (Nov 17, 2026) but a palette saved with them
-// still opens whole: Base and Secondary as at 4, the Accent + trim share split over the rest, each
-// 0.6 of the one before. TuneSutra only — C.roleShares (the 0.6 rule) also drives FVS Suggest
-// and stays as it is.
+// less the rounding). 6–7 were dropped on Nov 17, 2026 and are back since Nov 19, 2026, on their own house: 6 = the 5-colour scene with windows
+// (71.6 / 20.0 / 3.8 / 2.8 / 1.0 / 0.8), 7 = plus a hill (57.6 / 20.0 / 14.0 / 3.8 / 2.8 / 1.0 / 0.8) —
+// the Hue × tone lab's rule. The 0.6 split below is the fallback past 7. TuneSutra only —
+// C.roleShares (the 0.6 rule) also drives FVS Suggest and stays as it is.
 function roleWeights(n) {
   const g = HOUSE.SHARES[4];   // [base, secondary, accent, trim], sums to 100
-  if (n >= 3 && n <= 5) return HOUSE.SHARES[n].slice();   // the house is generated on these (tunesutra/house.js)
+  if (n >= 3 && n <= 7) return HOUSE.SHARES[n].slice();   // the house is generated on these (tunesutra/house.js; 6–7 since Nov 19, 2026)
   if (n < 3) return C.roleShares(n);
   const tail = g[2] + g[3], k = n - 2, raw = [];
   for (let i = 0; i < k; i++) raw.push(Math.pow(0.6, i));
@@ -699,7 +703,7 @@ function currentFigure() { return houseFig(state.house, count()); }
 // A palette saved before the house (or a built-in one) gets a seed from its colours, so it keeps one house.
 function seedOf(text) { let h = 2166136261; for (const ch of String(text)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 9999) + 1; }
 function newSeed() { return 1 + Math.floor(Math.random() * 9999); }
-function garmentFits(n) { return n >= 3 && n <= 5; }
+function garmentFits(n) { return n >= 3 && n <= 7; }   // 6–7 (Nov 19, 2026): the 5-colour scene + windows, + a hill
 // A zone too pale to see on the paper gets a hairline, as the book draws it.
 function paleOnPaper(hex) { return C.contrast(hex, '#ffffff') < 1.12; }
 function isGarmentView() { return state.view === 'garment' && garmentFits(count()); }
@@ -1959,7 +1963,7 @@ function clearShapeSelection() {
 // The number of colours (Diego, Nov 18, 2026: "togliere Colours 3 4 5 dalla barra di destra … un più su
 // una scheda vuota che può generare al massimo altre 2 schede"): the + card after the last colour card
 // adds one (up to 5); a card past the third has its own remove button. Never fewer than 3.
-const COUNT_MIN = 3, COUNT_MAX = 5;
+const COUNT_MIN = 3, COUNT_MAX = 7;   // 6–7 back (Diego, Nov 19, 2026: "riattiva"), drawn on house.js 6 / 7
 function addColour() {
   if (count() >= COUNT_MAX) return;
   pourNext = true;
@@ -2188,8 +2192,8 @@ function refreshTitle() {
 }
 function paletteArt(p) {
   const cols = (p.colors || []).map(c => Organica.normalizeHex(c, '#888888'));
-  if (garmentFits(cols.length)) {   // every card shows its house (3–5 colours); 6–7 the bar
-    const n = cols.length, fig = houseFig(p.house >= 1 ? Math.round(p.house) : seedOf(cols.join('')), n), pad = n === 5 ? 0 : fig.h * 0.06;
+  if (garmentFits(cols.length)) {   // every card shows its house (3–7 colours)
+    const n = cols.length, fig = houseFig(p.house >= 1 ? Math.round(p.house) : seedOf(cols.join('')), n), pad = n >= 5 ? 0 : fig.h * 0.06;
     return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}" aria-hidden="true">` +
       fig.zones.map(z => { const hex = cols[z.role]; return `<path d="${z.d}" fill="${hex}"${n < 5 && paleOnPaper(hex) ? ` stroke="var(--border)" stroke-width="${fig.h / 220}"` : ''}/>`; }).join('') + '</svg>';
   }

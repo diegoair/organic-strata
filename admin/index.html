@@ -22,10 +22,6 @@
     margin: 0 0 var(--space-4); padding-bottom: var(--space-2);
     border-bottom: 1px solid var(--border);
   }
-  table { border-collapse: collapse; width: 100%; font-size: var(--fs-small); }
-  th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); vertical-align: middle; }
-  th { color: var(--mid); font-weight: var(--w-medium); white-space: nowrap; }
-  td.num { text-align: right; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
   .avatar { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: var(--panel); vertical-align: middle; }
   .tag { display: inline-block; font-size: var(--fs-micro); letter-spacing: var(--ls-wide); color: var(--mid); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 1px var(--space-2); }
   .tag--yes { color: #4a7a4a; border-color: #4a7a4a; }
@@ -68,7 +64,7 @@
     <section>
       <h2>Users <span class="muted" id="user-totals"></span></h2>
       <div style="overflow-x:auto">
-        <table id="users-table">
+        <table class="org-table" id="users-table">
           <thead><tr>
             <th></th><th>Name</th><th>Email</th><th>Provider</th>
             <th>Joined</th><th>Last seen</th><th class="num">Seeds</th>
@@ -89,7 +85,7 @@
         <button class="btn" id="allow-add">Add</button>
       </div>
       <div style="overflow-x:auto">
-        <table id="allow-table">
+        <table class="org-table" id="allow-table">
           <thead><tr><th>Email</th><th>Note</th><th>Added</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
@@ -167,9 +163,9 @@
       var presets = (d.presets || []).map(function (p) { return '<tr><td>' + esc(p.tool) + '</td><td>' + esc(p.name) + '</td><td class="num">' + (p.bytes || 0) + '</td><td>' + fmtDate(p.updated_at) + '</td></tr>'; }).join('') || '<tr><td colspan="4" class="muted">none</td></tr>';
       host.innerHTML =
         '<div class="detail"><h3>Seeds (' + (d.seeds || []).length + ')</h3>' +
-          '<table><thead><tr><th>seed_id</th><th>name</th><th>updated</th></tr></thead><tbody>' + seeds + '</tbody></table></div>' +
+          '<table class="org-table"><thead><tr><th>seed_id</th><th>name</th><th>updated</th></tr></thead><tbody>' + seeds + '</tbody></table></div>' +
         '<div class="detail"><h3>Presets (' + (d.presets || []).length + ')</h3>' +
-          '<table><thead><tr><th>tool</th><th>name</th><th class="num">bytes</th><th>updated</th></tr></thead><tbody>' + presets + '</tbody></table></div>';
+          '<table class="org-table"><thead><tr><th>tool</th><th>name</th><th class="num">bytes</th><th>updated</th></tr></thead><tbody>' + presets + '</tbody></table></div>';
     });
   }
 

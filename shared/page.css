@@ -88,3 +88,11 @@
 .org-page__foot a[aria-current="page"] { color: var(--ink); }
 /* a text link: ink + underline on hover (docs/audit-2026-10/HOVER.md) */
 @media (hover: hover) { .org-page__foot a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 0.18em; } }
+
+/* A data table — rows of records (users, colours, presets). Promoted Nov 19, 2026 (Diego) from
+   Admin's local table rules, when the Hue × tone lab became its second consumer. Numbers go in
+   td.num (right-aligned, tabular). Running text tables inside .org-prose keep .org-prose table. */
+.org-table { border-collapse: collapse; width: 100%; font-size: var(--fs-small); }
+.org-table th, .org-table td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); vertical-align: middle; }
+.org-table th { color: var(--mid); font-weight: var(--w-medium); white-space: nowrap; }
+.org-table td.num, .org-table th.num { text-align: right; font-family: var(--font-display); font-variant-numeric: tabular-nums; }

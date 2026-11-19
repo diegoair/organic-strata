@@ -338,6 +338,7 @@ html {
   --space-6:  16px;
   --space-7:  24px;
   --space-8:  32px;
+  --space-9:  48px;   /* Nov 19, 2026 (Diego): one step above 32 for geometry the old top step could not hold — swatch strips, large sample blocks */
 
   /* ── ICONS ───────────────────────────────────────────────
      Approved Oct 2, 2026. One drawing grid (16×16, live area 2–14), one stroke
@@ -458,6 +459,7 @@ html {
 .mt-6 { margin-top: var(--space-6) !important; } .mb-6 { margin-bottom: var(--space-6) !important; }
 .mt-7 { margin-top: var(--space-7) !important; } .mb-7 { margin-bottom: var(--space-7) !important; }
 .mt-8 { margin-top: var(--space-8) !important; } .mb-8 { margin-bottom: var(--space-8) !important; }
+.mt-9 { margin-top: var(--space-9) !important; } .mb-9 { margin-bottom: var(--space-9) !important; }
 
 /* The two non-spacing one-offs common enough (dozens of occurrences) to
    be worth a name: an element that should just fill the remaining row
