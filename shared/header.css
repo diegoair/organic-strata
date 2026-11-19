@@ -496,6 +496,17 @@
 :is(.org-btn--primary, .panel-btn, .org-btn.on, .org-btn.active, .org-btn[aria-pressed="true"],
     .mini-btn.on, .mini-btn.active, .mini-btn[aria-pressed="true"]):active:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--gray-700); border-color: var(--gray-700); }
 .org-btn--danger:active:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--danger); color: var(--paper); filter: brightness(0.9); }
+/* ICON TOGGLE — an icon-only on/off toggle whose icon IS its state (Diego, Nov 19, 2026: the rule for every icon toggle).
+   Pressed swaps the drawing for its pressed twin (star → star-filled, pin → pin-filled, lock → lock-filled, eye-off → eye)
+   and drops the ink fill: no border, no fill, ink colour; hover / active as a ghost button. A toggle with no pressed twin
+   keeps the ink fill until it gets one. Works on .org-btn--icon and .icon-btn. */
+.org-btn--icon-toggle { border-color: transparent; }
+.org-btn--icon-toggle[aria-pressed="true"] { background: none; color: var(--ink); border-color: transparent; }
+@media (hover: hover) {
+  .org-btn--icon-toggle:hover:where(:not(:disabled):not([aria-disabled="true"])),
+  .org-btn--icon-toggle[aria-pressed="true"]:hover:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--track-bg); border-color: transparent; }
+}
+.org-btn--icon-toggle[aria-pressed="true"]:active:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--gray-200); border-color: transparent; }
 
 /* shapes */
 .org-btn--icon, .icon-btn { width: var(--btn-h); padding: 0; }

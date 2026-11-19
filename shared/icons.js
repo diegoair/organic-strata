@@ -61,6 +61,7 @@
     'pointer':       '<path d="M4 2.5v10.5l3-2.8 2 4.3 1.8-.8-2-4.3h4.2z"/>',   // the Select tool — pick cells (FVS Symbol, Oct 28, 2026); not the select-* commands
     'brush':         '<path d="M13.5 2.5 8 8.5"/><path d="M8.8 9.3 6.7 7.2c-1.6.2-2.6 1.4-2.7 3-.1 1.2-.6 2.1-1.5 2.8 2.3.6 4.8.3 5.9-1 .5-.7.6-1.6.4-2.7Z"/>',   // the Brush tool — place a tile's content by clicking / dragging (FVS Symbol, Oct 28, 2026); not pencil (= edit)
     'lock':          '<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',   // lock cells — rules and Suggest leave them (FVS Selection, Oct 28, 2026)
+    'lock-filled':   '<rect x="3.5" y="7" width="9" height="6.5" rx="1" fill="currentColor"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',   // locked (an icon toggle's pressed twin)
     'save':          '<path d="M3.5 2.5h8l2 2v8a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M5 2.5V6h5V2.5M5.5 10.5h5"/>',   // keep it in the library (TuneSutra palette, Genesis seed, Nov 17, 2026); not download (= Export to a file), not bookmark (= a selection)
     'eyedropper':    '<path d="M8.5 4l3.5 3.5"/><path d="M10.2 5.8l2.1-2.1a1.4 1.4 0 0 0-2-2L8.2 3.8"/><path d="M9.5 5 3.8 10.7l-.8 2.3 2.3-.8L11 6.5"/>',   // Pick from screen — the colour picker (EyeDropper API, Nov 17, 2026)
     'bookmark':      '<path d="M4.5 2.5h7v11L8 10.5l-3.5 3z"/>',   // save a selection — kept with the Symbol; not download (= Export), not pin, not library
@@ -104,6 +105,7 @@
     'fit-selection': '<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/><rect x="6" y="6" width="4" height="4" rx=".5"/>',
     'figure-from':   '<rect x="2.5" y="2.5" width="5" height="5" rx=".8"/><rect x="8.5" y="8.5" width="5" height="5" rx=".8"/><path d="M7.5 5h3.5v3.5"/><path d="M9.3 6.8 11 8.5l1.7-1.7"/>',   // New Figure from this (a variation → its own Figure) — not copy (= Duplicate)
     'pin':           '<path d="M6 2.5h4l-.5 4 2 2v1h-7v-1l2-2z"/><path d="M8 9.5v4"/>',   // Pin a variation (keeps its seed)
+    'pin-filled':    '<path d="M6 2.5h4l-.5 4 2 2v1h-7v-1l2-2z" fill="currentColor"/><path d="M8 9.5v4"/>',   // pinned (an icon toggle's pressed twin)
     'star':          '<path d="M8 2.8l1.5 3.4 3.7.4-2.8 2.5.8 3.7L8 10.9l-3.2 1.9.8-3.7-2.8-2.5 3.7-.4z"/>',   // Star a palette (TuneSutra: the Starred filter) — not pin (= keep a variation's seed), not bookmark (= save a selection)
     'star-filled':   '<path d="M8 2.8l1.5 3.4 3.7.4-2.8 2.5.8 3.7L8 10.9l-3.2 1.9.8-3.7-2.8-2.5 3.7-.4z" fill="currentColor"/>',   // the same star, starred (stroke kept, so both are one size)
     'alert':         '<path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3"/><circle cx="8" cy="11.2" r=".7"' + F + '/>',   // a node error / something to look at

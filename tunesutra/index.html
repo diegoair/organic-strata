@@ -120,9 +120,6 @@
   .ts-card__label.ts-card__label--star { flex-direction: row; align-items: center; gap: var(--space-2); }
   .ts-card__text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; flex: 1; }
   .ts-card__star { position: relative; z-index: 1; flex: none; }   /* .org-btn--icon at --row-h already meets --hit-min */
-  /* the star is a ghost toggle: the filled shape is the state, not the shared ink fill of a pressed button */
-  .org-btn.ts-star[aria-pressed="true"] { background: none; color: var(--ink); border-color: transparent; }
-  @media (hover: hover) { .org-btn.ts-star[aria-pressed="true"]:hover { background: var(--track-bg); border-color: transparent; } }
 
   /* The three tabs (Nov 19, 2026, Diego: Your palettes · Make · Explore). Local until a second tool needs them;
      the current-page marker is the design system nav's (.ds-nav a.current), turned to sit under the word. */
@@ -207,7 +204,7 @@
           <button type="button" class="org-btn org-btn--ghost" id="btn-home"><i data-icon="arrow-left"></i><span id="btn-home-label">Your palettes</span></button>
           <span class="ts-palbar__sep" aria-hidden="true">/</span>
           <span class="ts-palbar__name" id="palette-name"></span>
-          <button type="button" class="org-btn org-btn--icon org-btn--ghost ts-star" id="btn-star" aria-pressed="false" aria-label="Star"></button>
+          <button type="button" class="org-btn org-btn--icon org-btn--icon-toggle ts-star" id="btn-star" aria-pressed="false" aria-label="Star"></button>
         </div>
         <div class="ts-palbar__end">
           <p class="ts-palbar__title" id="palette-title"></p>
@@ -2330,7 +2327,7 @@ function cardHTML(href, name, p, key) {
   return `<article class="ts-card"><span class="ts-card__art" data-theme="light">${paletteArt(p)}</span>` +
     `<span class="ts-card__label ts-card__label--star"><span class="ts-card__text"><a class="ts-card__link ts-card__name" href="${href}">${esc(name)}</a>` +
     `<span class="ts-card__meta">${esc(p.colors.join(' '))}</span></span>` +
-    `<button type="button" class="org-btn org-btn--icon org-btn--ghost ts-star ts-card__star" data-key="${esc(key)}" aria-pressed="${on}" aria-label="Star ${esc(name)}">${starHTML(on)}</button></span></article>`;
+    `<button type="button" class="org-btn org-btn--icon org-btn--icon-toggle ts-star ts-card__star" data-key="${esc(key)}" aria-pressed="${on}" aria-label="Star ${esc(name)}">${starHTML(on)}</button></span></article>`;
 }
 const NEW_CARD = '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>';
 
