@@ -122,11 +122,14 @@ Then:
    is the same lightness for every colour. The picked colour is kept unchanged
    on its nearest step (outlined). Chroma keeps the pick's share of the gamut at
    each lightness and never exceeds the pick's own.
-   **The tints are selectable** (Nov 18, 2026: Diego, *rendi le shades selezionabili*): a click
-   selects one — the ring the selected house shape has (paper under dashed ink, screen only) —
-   and the Colour section shows its values (*‹Name› · ‹step›*). It never changes the palette, is
-   not saved and not in ⌘Z; a card click goes back to the colour itself. Keyboard: one tab stop
-   per column, ↑ ↓ move along it.
+   **A tint picked becomes the card's colour** (Nov 19, 2026: Diego, *quando seleziono una shade voglio che
+   quel colore venga preso dalla card*; from Nov 18 a click only selected it and showed its values). **The column
+   stays as it was** (Nov 19, 2026: Diego, *quando cambio shade non deve ricalcolare gli altri*): only the
+   outline moves to the picked step — the item keeps `scaleFrom`, the colour its column was built from (saved with
+   the palette as `scaleFrom`; picking the original step again drops it; a colour set anew from the picker gets its
+   own column); the other cards never change. The house, the shading and the value tiles follow; one ⌘Z / Undo step returns to the colour before. Each tint's name is *Use ‹step› for
+   ‹Name› — #hex* (the card's own step: *‹Name› ‹step› — #hex*). Keyboard: one tab stop per column, ↑ ↓ walk the
+   colour one step lighter / darker.
 
    **The figure** (since Nov 18, 2026 — Diego: *la Figura rimane unica generata
    da questo*) is a **house generated from a seed** (`tunesutra/house.js`,

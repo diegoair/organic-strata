@@ -493,9 +493,17 @@ state.items = ['#c93ed6', '#c9863e', '#3ec9a8'].map(makeItem);
 // ── TOKEN SCALE (0–900) — Organica.color.scale: fixed perceptual lightness
 //    per step, the picked colour kept on its nearest step (the anchor). ──
 const scaleCache = new Map();
+// A colour moved onto one of its own tints keeps the column it was picked from (Diego, Nov 19, 2026: "quando
+// cambio shade non deve ricalcolare gli altri"): the item remembers `scaleFrom`, the colour the column was built
+// from, and its scale is that column with the anchor on the picked step.
 function tokenScale(hex) {
-  if (!scaleCache.has(hex)) scaleCache.set(hex, C.scale(hex));
-  return scaleCache.get(hex);
+  const it = typeof state !== 'undefined' && state.items ? state.items.find(x => x.hex === hex && x.scaleFrom && x.scaleFrom !== hex) : null;
+  const key = it ? hex + '<' + it.scaleFrom : hex;
+  if (!scaleCache.has(key)) {
+    const from = it ? C.scale(it.scaleFrom) : null, at = from ? from.findIndex(st => st.hex === hex) : -1;
+    scaleCache.set(key, at >= 0 ? from.map((st, j) => Object.assign({}, st, { anchor: j === at })) : C.scale(hex));
+  }
+  return scaleCache.get(key);
 }
 // Scale indices ordered by distance from the anchor — the "next shade of
 // this colour" sequence used for extra roles and for Monochromatic.
@@ -631,6 +639,7 @@ function setActiveColor(hex) {
   hex = Organica.normalizeHex(hex, state.items[state.activeIndex].hex);
   pushUndo('edit');
   state.items[state.activeIndex].hex = hex;
+  delete state.items[state.activeIndex].scaleFrom;   // a colour picked anew gets its own column
   commit(true);
 }
 // Hex · RGB · HSB · CMYK · Nearest RAL are read-only tiles (Diego, Nov 17, 2026) — values are typed in the picker.
@@ -1522,7 +1531,7 @@ function buildScene(screen) {
     const sy = y + CARD_H + 12;
     tokenScale(hex).forEach((st, j) => {
       const ry = sy + j * (STEP_H + STEP_GAP), on = readableOn(st.hex, T);
-      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: `${dispName(i)} ${stepName(st)} — ${st.hex}`, tint: j, ci: i }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
+      rect(x, ry, cw, STEP_H, st.hex, Object.assign({ r: 3, title: st.anchor ? `${dispName(i)} ${stepName(st)} — ${st.hex}` : `Use ${stepName(st)} for ${dispName(i)} — ${st.hex}`, tint: j, ci: i }, st.anchor ? { stroke: T.ink, sw: 2 } : null));
       // the selected tint: the selected house shape's ring — paper under dashed ink, screen only
       if (i === state.activeIndex && j === tintSel) {
         rect(x - 3, ry - 3, cw + 6, STEP_H + 6, 'none', { r: 5, stroke: T.paper, sw: 4, screenOnly: true });
@@ -1726,13 +1735,24 @@ let shapeClick = { z: null, t: 0 };
 // colour's scale, or null = the colour itself. Only what the Colour section's values show — it never
 // changes the palette, is not saved and not in ⌘Z. Selecting a colour any other way clears it.
 let tintSel = null;
+// A tint picked on the scale becomes the card's colour (Diego, Nov 19, 2026: "quando seleziono una shade voglio
+// che quel colore venga preso dalla card"; until then it only showed its values). The scale is rebuilt around
+// it; ⌘Z returns to the colour before. From the keyboard ↑ / ↓ walk the colour lighter / darker.
 function selectTint(i, t, key) {
-  const anchor = tokenScale(state.items[i].hex).findIndex(s => s.anchor);
   if (i !== state.activeIndex || state.zone != null) selectRole(i);
-  tintSel = t === anchor ? null : t;
-  refreshFieldEditor();
-  renderStage();
-  if (key) { const el = ctrl('stage-svg').querySelector(`.ts-tint[data-i="${i}"][data-t="${t}"]`); if (el) el.focus({ preventScroll: true }); }
+  const it = state.items[i], sc = tokenScale(it.hex);
+  tintSel = null;
+  if (sc[t] && !sc[t].anchor) {
+    pushUndo('edit');
+    it.scaleFrom = it.scaleFrom || it.hex;   // the column stays the one it was picked from
+    it.hex = sc[t].hex;
+    if (it.hex === it.scaleFrom) delete it.scaleFrom;
+    commit(true);
+  } else { refreshFieldEditor(); renderStage(); }
+  if (key) {
+    const at = tokenScale(state.items[i].hex).findIndex(s => s.anchor);
+    const el = ctrl('stage-svg').querySelector(`.ts-tint[data-i="${i}"][data-t="${at}"]`); if (el) el.focus({ preventScroll: true });
+  }
 }
 // The controls laid over the sheet, at the scene's own coordinates: the + card, a remove button on each
 // card past the third, and the Colour section right of the Contrast pairs — none of it in an export.
@@ -2059,8 +2079,9 @@ function loadPaletteData(p) {
     hex: Organica.normalizeHex(hex, '#888888'),
     lock: !!(p.locks && p.locks[i]),
     shade: p.shades && p.shades[i] ? normalizeGrad(p.shades[i]) : undefined,
+    scaleFrom: p.scaleFrom && p.scaleFrom[i] ? Organica.normalizeHex(p.scaleFrom[i], '') : undefined,
   }));
-  state.items.forEach(it => { if (!it.shade) delete it.shade; });
+  state.items.forEach(it => { if (!it.shade) delete it.shade; if (!it.scaleFrom) delete it.scaleFrom; });
   state.harmony = p.harmony || 'complementary';
   state.spread = p.spread || 0;
   state.activeIndex = 0;
@@ -2121,6 +2142,7 @@ function confirmSavePreset() {
     ids: state.items.map(it => it.id),
     locks: state.items.map(it => !!it.lock),
     shades: state.items.map(it => it.shade ? JSON.parse(JSON.stringify(it.shade)) : null),   // a colour's own shading (null = the preset)
+    scaleFrom: state.items.map(it => it.scaleFrom || null),   // a colour moved onto a tint: the colour its column comes from
     zoneShades: JSON.parse(JSON.stringify(state.zoneShades)),   // a house shape's own, keyed 'house/count/shape'
     gradient: JSON.parse(JSON.stringify(state.grad)),
     view: 'garment',
