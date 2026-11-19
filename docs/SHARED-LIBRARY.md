@@ -127,6 +127,7 @@ organica.<tool>.<thing>
 | `organica.tunesutra.home-show` | TuneSutra — Your palettes' All · Starred · Saved filter (Nov 19, 2026) | `'all'` · `'starred'` · `'saved'`. Per browser, not synced |
 | `organica.tunesutra.explore` | TuneSutra — Explore › Palettes' filters and Group by (Nov 19, 2026) | `{ q, keys, nMin, nMax, moods, fam, harmony, tone, purity, source, group }`, merged over the defaults on read. Per browser, not synced |
 | `organica.tunesutra.library` | TuneSutra — the palette library cache (Nov 19, 2026) | The `palettes_bundle()` RPC result `{ version, cols, rows }`; re-downloaded only when `palettes_version()` differs. A cache: safe to delete |
+| `organica.tunesutra.make` | TuneSutra — Make › From a colour's settings (Nov 19, 2026) | `{ key, n, by, fam, hue, tone, purity, neutral, seed }`, each value checked on read (an unknown one falls back to its default). Per browser, not synced |
 | `organica.mote.camera` | Mote — the camera picker (`mote/index.html` `CAM_KEY`, Oct 25, 2026) | the `deviceId` of the camera picked last; the next start asks for it (`deviceId: { exact }`) and falls back to the default camera when it is gone. Device ids are this browser's own: plain `localStorage`, not synced |
 
 ### Legacy keys and migration
