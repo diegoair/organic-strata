@@ -216,7 +216,8 @@
       else if (rel === 'similar') out.push(k === 1 ? pm() : [0, 1, -1][Math.floor(R() * 3)]);
       else if (rel === 'complement') out.push(k === 1 ? 5 : (R() < 0.5 ? 0 : 5) + (R() < 0.5 ? 0 : pm()));
       else if (rel === 'opposite') out.push(k === 1 ? opp : (R() < 0.5 ? opp : 0) + (R() < 0.5 ? 0 : pm()));
-      else if (rel === 'triad') out.push([3, -3, 0, 3][(k - 1) % 4] + (k > 2 ? pm() : 0));
+      else if (rel === 'split') out.push([4, -4, 0][(k - 1) % 3]);   // split-complementary: the two hues either side of the complement; more colours repeat them at other tones
+      else if (rel === 'triad') out.push([3, -3, 0][(k - 1) % 3]);   // no jitter: a neighbour would join two groups (Nov 19, 2026 REVIEW)
       else out.push(Math.floor(R() * 10));
     }
     return out;
@@ -231,7 +232,7 @@
     if (!pool.length) pool = inFam.length ? inFam : [baseTi];
     return pool[Math.floor(R() * pool.length)];
   }
-  // opts: { image: 'base'|'casual'|'light'|'elegant'|'heavy', hue: 'same'|'similar'|'complement'|'opposite'|'triad'|'free',
+  // opts: { image: 'base'|'casual'|'light'|'elegant'|'heavy', hue: 'same'|'similar'|'complement'|'split'|'opposite'|'triad'|'free',
   //         tone: 'same'|'near'|'far', purity: 'any'|'same', n: 2–9, neutral: 'none'|'auto'|'white'|'grey'|'black' }
   function generate(baseHex, opts, seed) {
     baseHex = toHex(baseHex);

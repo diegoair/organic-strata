@@ -107,5 +107,19 @@ const isHex = h => /^#[0-9a-f]{6}$/.test(h);
   check('harmonyOf reads the editor harmonies', !bad.length, bad.join(', '));
 }
 
+// The generator's hue relations read back as the harmony they ask for.
+{
+  const key = '#e5000d', ask = { same: 'monochromatic', complement: 'complementary', split: 'split', triad: 'triadic' }, bad = [];
+  Object.keys(ask).forEach(rel => {
+    [3, 5, 7].forEach(n => ['none', 'auto'].forEach(neutral => {
+      if (neutral !== 'none' && n - 1 < 3 && (rel === 'split' || rel === 'triad')) return;   // a neutral leaves two hues: no split or triad to make
+      let ok = 0;
+      for (let s = 1; s <= 20; s++) { const p = HT.generate(key, { image: 'base', hue: rel, tone: 'near', purity: 'any', n, neutral }, s); if (HT.harmonyOf(p) === ask[rel]) ok++; }
+      if (ok < 16) bad.push(rel + ' n' + n + ' ' + neutral + ' ' + ok + '/20');
+    }));
+  });
+  check('generate(hue) reads back as its harmony at 3, 5, 7 colours (16 of 20 seeds at least)', !bad.length, bad.join(', '));
+}
+
 console.log(failed ? '\n' + failed + ' check(s) FAILED' : '\nALL PASS');
 process.exit(failed ? 1 : 0);

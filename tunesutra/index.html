@@ -163,6 +163,9 @@
   .ts-filters .seg-ctrl--multi .seg-btn { flex: none; padding: 0 var(--space-3); }
   .ts-filters .panel-select { width: 100%; }
   .ts-filters .sub-label { display: block; }   /* on a span / label its margins would not apply */
+  .ts-roles { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin-bottom: var(--space-5); font-size: var(--fs-small); }
+  .ts-role { display: inline-flex; align-items: center; gap: var(--space-2); }
+  .ts-role__sw { width: var(--space-4); height: var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }   /* the fill is the palette colour, data */
   /* The art is the palette itself — content, so it stays on light paper in dark mode. */
   .ts-card__art { display: flex; aspect-ratio: 1 / 1; overflow: hidden; background: var(--paper); }   /* overflow: a tall house must not stretch the square */
   .ts-card__art svg { width: 100%; height: 100%; }
@@ -2329,6 +2332,7 @@ function starCurrent() {
   let colors = state.items.map(it => it.hex), house = state.house;
   const lib = currentKey.indexOf('l:') === 0 && LIB && LIB.find(x => x.key === currentKey);
   if (lib) { colors = lib.colors; house = lib.house; }   // a library palette, as it is
+  else if (currentKey.indexOf('m:') === 0) { const [c, hs] = currentKey.slice(2).split('~'); colors = c.split('-').map(x => '#' + x); house = +hs; }   // a Make palette, as it was drawn
   else if (currentKey.indexOf('c:') === 0) {   // a built-in palette is starred as it is, not with this copy's edits
     const [cid, pid] = currentKey.slice(2).split('/'), col = (window.TUNESUTRA_COLLECTIONS || []).find(c => c.id === cid), pal = col && col.palettes.find(x => x.id === pid);
     if (pal) { colors = pal.colors; house = seedOf(cid + '/' + pid); }
@@ -2412,7 +2416,6 @@ function yourPalettesHTML() {
     '<div class="ts-grid">' + (homeShow === 'starred' ? '' : NEW_CARD) + list.map(c => cardHTML(c.href, c.name, c.p, c.key)).join('') + '</div></section>';
 }
 const LATER = {
-  'make/colour': ['From a colour', 'New palettes of 2 to 9 colours from a key colour, a tone family and a hue relation.'],
   'make/image': ['From an image', 'Drop an image: its colours become a palette, each one named and given a role.'],
   'explore/moods': ['Moods', 'Palettes by feeling, on the warm–cool and soft–hard map.'],
   'explore/swatches': ['Swatches', 'Every colour, named, on the hue and tone map.'],
@@ -2617,12 +2620,128 @@ ctrl('home').addEventListener('click', e => {
   if (un || clr) { const s = ctrl('exp-q'); if (s) s.focus(); }   // the chip is gone: the focus goes to the search
   else if (more) { const again = ctrl('ts-results').querySelector(`[data-more="${CSS.escape(more.dataset.more)}"]`); if (again) again.focus(); }
 });
+// ── MAKE › FROM A COLOUR ──
+// Twelve palettes from a key colour (Nov 19, 2026, design-system CONSULT): built by Roles (each colour picked for the
+// part of the house it paints, the odds measured on the reference palettes — Organica.hueTone.generateRoles) or by
+// Hue and tone (Organica.hueTone.generate). Every palette is in ROLE_PARTS order, the key colour on the `main` part,
+// so a card opens in the editor as it was drawn. The same settings give the same twelve; Suggest moves the seed.
+const MK_KEY = 'organica.tunesutra.make';
+const MK_DEFAULT = { key: '#e5000d', n: 5, by: 'roles', fam: 'base', hue: 'similar', tone: 'near', purity: 'any', neutral: 'auto', seed: 1 };
+let MK = Object.assign({}, MK_DEFAULT);
+try { Object.assign(MK, JSON.parse(localStorage.getItem(MK_KEY) || '{}')); } catch (e) {}
+if (!(MK.n >= 2 && MK.n <= 9)) MK.n = MK_DEFAULT.n;
+if (!/^#[0-9a-f]{6}$/i.test(MK.key)) MK.key = MK_DEFAULT.key;
+if (MK.by !== 'ht') MK.by = 'roles';
+if (!(MK.seed >= 1)) MK.seed = 1;
+function saveMake() { try { localStorage.setItem(MK_KEY, JSON.stringify(MK)); } catch (e) {} }
+const MK_HUE = { same: 'Monochromatic', similar: 'Analogous', complement: 'Complementary', split: 'Split-complementary', triad: 'Triadic', free: 'Any' };
+const MK_NEUTRAL = { auto: 'Automatic', none: 'None', white: 'White', grey: 'Grey', black: 'Black' };
+const MK_HINT = { roles: 'Each colour is picked for the part of the house it paints, the way printed palettes do it.', ht: 'You choose how the other colours’ hues and tones relate to the key colour.' };
+const mkHex = c => c.slice(1);
+const makeName = (cols, seed) => HT.nameOf(cols[HT.ROLE_PARTS[cols.length].indexOf('main')]) + ', seed ' + seed;   // one name for the card, the editor and the star
+function makeOne(seed) {
+  const n = MK.n, parts = HT.ROLE_PARTS[n];
+  if (MK.by === 'roles') return HT.generateRoles(MK.key, n, seed).map(x => x.hex);
+  const out = HT.generate(MK.key, { image: MK.fam, hue: MK.hue, tone: MK.tone, purity: MK.purity, n, neutral: MK.neutral }, seed);
+  if (out.length < 2) return null;   // a grey key colour: no hue to build from
+  const cols = new Array(n), mainIdx = parts.indexOf('main'), rest = out.slice(1);   // the key colour on `main`, the others in order
+  cols[mainIdx] = out[0];
+  for (let i = 0; i < n; i++) if (i !== mainIdx) cols[i] = rest.shift() || out[0];
+  return cols;
+}
+function makeSet() {
+  const seen = new Set(), list = [];
+  for (let i = 1; i <= 12; i++) {
+    const seed = MK.seed * 100 + i, cols = makeOne(seed);
+    if (!cols) return null;
+    const sig = cols.join(''); if (seen.has(sig)) continue; seen.add(sig);
+    const tok = cols.map(mkHex).join('-') + '~' + seed;
+    list.push({ colors: cols, house: seed, href: '#m=' + tok, key: 'm:' + tok, name: makeName(cols, seed) });
+  }
+  return list;
+}
+function makePanelHTML() {
+  const opt = (map, cur) => Object.keys(map).map(k => `<option value="${k}"${cur === k ? ' selected' : ''}>${map[k]}</option>`).join('');
+  const row = (id, label, map, cur) => `<label class="sub-label" for="${id}">${label}</label><select class="panel-select" id="${id}" data-mk="${id.slice(3)}">${opt(map, cur)}</select>`;
+  const fams = Object.assign({ base: 'Same as the key colour' }, ...Object.keys(HT.FAMS).map(k => ({ [k]: FAM_LABEL(k) })));
+  return '<div class="panel-section"><h3>Key colour</h3>' +
+    '<div class="color-row"><span class="color-name">Key colour</span><button type="button" class="color-swatch" id="mk-key" aria-label="Key colour" aria-haspopup="dialog"></button><span class="ctrl-val" id="mk-key-hex"></span></div>' +
+    '<p class="org-panel__hint" id="mk-key-name"></p></div>' +
+    '<div class="panel-section"><h3>Palette</h3>' +
+    `<div class="ctrl-row"><div class="ctrl-label">Number of colours</div><input type="range" id="mk-n" min="2" max="9" step="1" value="${MK.n}"><span class="ctrl-val" id="mk-n-val">${MK.n}</span></div>` +
+    '<span class="sub-label" id="mk-by-label">Built by</span>' +
+    `<div class="seg-ctrl" role="group" aria-labelledby="mk-by-label" aria-describedby="mk-by-hint">${[['roles', 'Roles'], ['ht', 'Hue and tone']].map(([v, t]) => `<button type="button" class="seg-btn${MK.by === v ? ' active' : ''}" data-by="${v}" aria-pressed="${MK.by === v}">${t}</button>`).join('')}</div>` +
+    `<p class="org-panel__hint" id="mk-by-hint">${MK_HINT[MK.by]}</p>` +
+    `<div id="mk-ht"${MK.by === 'roles' ? ' hidden' : ''}>` +
+    row('mk-fam', 'Tone family', fams, MK.fam) + row('mk-hue', 'Hue relation', MK_HUE, MK.hue) +
+    row('mk-tone', 'Tone relation', TONE_LABEL, MK.tone) + row('mk-purity', 'Purity', { any: 'Any', same: 'As the key colour' }, MK.purity) +
+    row('mk-neutral', 'Neutral', MK_NEUTRAL, MK.neutral) + '<p class="org-panel__hint">A neutral takes one of the colours.</p></div></div>';
+}
+function paintKey(hex) {
+  ctrl('mk-key').style.background = hex;
+  ctrl('mk-key-hex').textContent = hex.toUpperCase();
+  ctrl('mk-key-name').textContent = HT.nameOf(hex);
+}
+function renderMake() {
+  const box = ctrl('mk-results'); if (!box) return;
+  const list = makeSet(), n = MK.n, w = roleWeights(n);
+  const btn = `<button type="button" class="org-btn" id="mk-suggest">${Organica.icons.get('refresh')}Suggest</button>`;
+  if (!list) {
+    box.innerHTML = '<div class="org-empty"><p class="org-empty__title">A grey has no hue to build from</p><p class="org-empty__hint">Hue and tone needs a colour. Roles works with any colour.</p>' +
+      '<button type="button" class="org-empty__action org-btn" data-by="roles">Use Roles</button></div>';
+    return;
+  }
+  const first = list[0].colors;
+  box.innerHTML = `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">Roles</h2><span class="ts-filter__count">at ${n} colours</span>${btn}</div>` +
+    '<div class="ts-roles">' + first.map((c, i) => `<span class="ts-role"><span class="ts-role__sw" style="background:${c}"></span>${esc(roleName(i, n))} <span class="ts-filter__count">${w[i].toFixed(1)}%</span></span>`).join('') + '</div>' +
+    (list.length < 12 ? `<p class="ts-group__note">Only ${list.length} different palettes with these settings.</p>` : '') +
+    `<div class="ts-grid">${list.map(p => cardHTML(p.href, p.name, p, p.key)).join('')}</div></section>`;
+}
+function makeHTML() {
+  return '<div class="ts-explore">' + navHTML(view) + '<div id="mk-results"></div></div>' +
+    '<aside class="org-panel ts-filters" id="mk-panel" aria-label="Make settings">' + makePanelHTML() + '</aside>';
+}
+function mountMake() {
+  paintKey(MK.key);
+  Organica.enhanceSliders(ctrl('mk-panel'));
+  Organica.autoLabelPanel(ctrl('mk-panel'));
+  renderMake();
+}
+function setBuiltBy(v) {
+  MK.by = v; saveMake();
+  ctrl('mk-panel').querySelectorAll('[data-by]').forEach(b => { const on = b.dataset.by === v; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+  ctrl('mk-ht').hidden = v === 'roles';
+  ctrl('mk-by-hint').textContent = MK_HINT[v];
+  renderMake();
+}
+ctrl('home').addEventListener('input', e => {
+  if (e.target.id !== 'mk-n') return;
+  ctrl('mk-n-val').textContent = e.target.value;
+});
+ctrl('home').addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'mk-n') { MK.n = +t.value; saveMake(); renderMake(); }
+  else if (t.dataset && t.dataset.mk) { MK[t.dataset.mk] = t.value; saveMake(); renderMake(); }
+});
+ctrl('home').addEventListener('click', e => {
+  const by = e.target.closest('[data-by]'), sug = e.target.closest('#mk-suggest'), key = e.target.closest('#mk-key');
+  if (by) setBuiltBy(by.dataset.by);
+  else if (sug) { MK.seed++; saveMake(); renderMake(); const again = ctrl('mk-suggest'); if (again) again.focus(); }
+  else if (key) Organica.colorPicker.open(key, { value: MK.key, label: 'Key',
+    onInput: hex => paintKey(hex),
+    onChange: hex => { MK.key = hex; saveMake(); paintKey(hex); renderMake(); } });
+});
 function renderHome() {
-  const v = view, id = v.sub ? v.tab + '/' + v.sub : v.tab, split = id === 'explore/palettes';
+  const v = view, id = v.sub ? v.tab + '/' + v.sub : v.tab, split = id === 'explore/palettes' || id === 'make/colour';
   ctrl('home').classList.toggle('ts-home--split', split);
-  if (split) {   // built once per visit; a filter change redraws the results only
+  if (id === 'explore/palettes') {   // built once per visit; a filter change redraws the results only
     if (!ctrl('ts-results')) { ctrl('home').innerHTML = exploreHTML(); mountExplore(); }
     else renderResults();
+    return;
+  }
+  if (id === 'make/colour') {
+    if (!ctrl('mk-results')) { ctrl('home').innerHTML = makeHTML(); mountMake(); }
+    else renderMake();
     return;
   }
   let body;
@@ -2637,7 +2756,7 @@ ctrl('home').addEventListener('click', e => {
     const key = star.dataset.key, card = star.closest('.ts-card'), name = card.querySelector('.ts-card__name').textContent;
     const ent = exploreAll().find(x => x.key === key) || {}, fav = favs()[key] || {};   // starred from the grid: the palette as it is
     const colors = ent.colors || fav.colors || card.querySelector('.ts-card__meta').textContent.split(' ');
-    toggleStar(key, { name, colors, house: ent.house != null ? ent.house : fav.house });
+    toggleStar(key, { name, colors, house: ent.house != null ? ent.house : fav.house != null ? fav.house : (key.indexOf('m:') === 0 ? +key.split('~')[1] : undefined) });
     renderHome();
     const again = [...ctrl('home').querySelectorAll('.ts-card__star')].find(b => b.dataset.key === key);
     if (again) again.focus(); else { const s = ctrl('home').querySelector('[data-show].active'); if (s) s.focus(); }
@@ -2664,12 +2783,24 @@ function route() {
     const pal = col && col.palettes.find(x => x.id === parts[1]);
     if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view, house: seedOf(col.id + '/' + pal.id) }; suggest = pal.name; key = 'c:' + col.id + '/' + pal.id; }
   }
+  else if (h.indexOf('m=') === 0) {   // a palette from Make: #m=<hex>-<hex>…~<house>, in ROLE_PARTS order
+    const [c, hs] = h.slice(2).split('~'), cols = (c || '').split('-').filter(x => /^[0-9a-f]{6}$/i.test(x)).map(x => '#' + x.toLowerCase());
+    if (cols.length >= 2 && cols.length <= 9) { p = { colors: cols, parts: HT.ROLE_PARTS[cols.length], house: +hs || newSeed() }; suggest = makeName(cols, +hs || 0); key = 'm:' + h.slice(2); }
+  }
   else if (h.indexOf('l=') === 0) {   // a library palette: it may be on its way (the bundle loads once)
     const id = h.slice(2), e = LIB && LIB.find(x => x.id === id);
     if (e) { p = { colors: e.colors.slice(), parts: e.parts, house: e.house }; suggest = e.name; key = 'l:' + id; }
     else if (!LIB) { loadLibrary().then(() => { if (LIB && location.hash.indexOf('#l=') === 0) route(); }); }
   }
   if (!p || !Array.isArray(p.colors) || p.colors.length < 2) {
+    if (h.indexOf('make') === 0 && h.indexOf('?') > 0) {   // Make variations: #make?k=<hex>&n=<count>
+      const q = new URLSearchParams(h.slice(h.indexOf('?') + 1)), k = q.get('k'), n = +q.get('n');
+      if (k && /^[0-9a-f]{6}$/i.test(k)) MK.key = '#' + k.toLowerCase();
+      if (n >= 2 && n <= 9) MK.n = n;
+      saveMake(); h = h.slice(0, h.indexOf('?'));
+      history.replaceState(null, '', '#' + h);   // applied once: a reload keeps what was changed since
+      if (ctrl('mk-results')) ctrl('home').innerHTML = '';   // rebuild the panel with the new key colour
+    }
     view = VIEWS[h] || VIEWS.palettes;
     showHome(true); renderHome(); return;
   }
@@ -2734,7 +2865,11 @@ ctrl('txt-preset-name').addEventListener('keydown', e => { if (e.key === 'Enter'
 
 ctrl('btn-home').addEventListener('click', goHome);
 ctrl('btn-star').addEventListener('click', starCurrent);
-ctrl('btn-variations').addEventListener('click', e => { e.preventDefault(); leaveTo('make', ctrl('btn-variations'), 'Make variations'); });   // seeded with this palette in step 6
+ctrl('btn-variations').addEventListener('click', e => {   // Make, seeded with this palette's main colour and its count
+  e.preventDefault();
+  const main = state.items.find(it => it.part === 'main') || state.items[0];
+  leaveTo('make?k=' + main.hex.slice(1) + '&n=' + count(), ctrl('btn-variations'), 'Make variations');
+});   // seeded with this palette in step 6
 window.addEventListener('hashchange', route);
 syncControls();
 commit(false);
