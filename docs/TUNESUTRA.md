@@ -40,7 +40,7 @@ in-app photo reader.
 
 ## 1. The palette
 
-- **Colours** 3–7 (6–7 were dropped Nov 17 and are back since Nov 19, 2026, each on its own house; roles 6 *Base · Secondary · Tertiary · Accent · Highlight · Spark*, 7 *Base · Secondary · Tertiary · Support · Accent · Highlight · Spark*). Each colour is an item `{ id, name, hex, lock }`; the `id` is
+- **Colours** 2–9 (branch `tunesutra-redesign`, Nov 19, 2026; `main` offers 3–7), each count on its own house. Roles: 2 *Base · Accent*, 6 *… · Accent · Highlight · Spark*, 7 *… · Support · Accent · Highlight · Spark*, 8 *… · Support · Backdrop · Accent · Highlight · Spark*, 9 *… · Backdrop · Touch · Accent · Highlight · Spark*. **Each colour saves its house part** (`parts[]`: background · ground · middle · far · main · sub · accent · accent2 · accent3 = `Organica.hueTone.ROLE_PARTS[n]`): adding or removing a colour keeps the others on their part, the new one takes the part that appears; a palette saved before gets the parts of its places, as it was drawn. Each colour is an item `{ id, name, hex, lock }`; the `id` is
   stable for the colour's life. **A colour is named by its role** (Nov 18, 2026: Diego, *we don't
   want to change the name as it should be semantic and tokenized*) — one word, largest share
   first, the set following the count (`ROLE_SETS`): 3 *Base · Secondary · Accent*, 4 *Base ·

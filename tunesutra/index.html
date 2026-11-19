@@ -359,6 +359,7 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/color.js"></script>
+<script src="/shared/hue-tone.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/shade-marks.js"></script>
 <script src="/shared/colour-picker.js"></script>
@@ -418,6 +419,10 @@ const ROLE_SETS = {
   // renames nothing (the token keys stay); at 7, ordered by share, the hill is Tertiary and the wall the new Support.
   6: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight', 'Spark'],
   7: ['Base', 'Secondary', 'Tertiary', 'Support', 'Accent', 'Highlight', 'Spark'],
+  // 2, 8, 9 (Nov 19, 2026, content design; the redesign's step 3): Accent · Highlight · Spark stay the smallest three.
+  2: ['Base', 'Accent'],
+  8: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Accent', 'Highlight', 'Spark'],
+  9: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Touch', 'Accent', 'Highlight', 'Spark'],
 };
 // The lightest tint is called 50 in TuneSutra (Diego, Nov 18, 2026 — the shared scale keeps 0 for FVS).
 const stepName = st => st.step || 50;
@@ -470,6 +475,23 @@ function roleName(i, n) { const set = ROLE_SETS[n || count()] || ROLE_SETS[5]; r
 // A new colour takes the first role name nobody is using — after a removal,
 // position i's own role name may already belong to a colour further along.
 function makeItem(hex) { return { id: newId(), name: '', hex: hex, lock: false }; }
+// Each colour keeps the PART of the house it paints (Nov 19, 2026, redesign step 3): background · ground · middle (the hill) ·
+// far · main (the wall) · sub (the roof) · accent (the door) · accent2 (the windows) · accent3 (the path) — the order is
+// Organica.hueTone.ROLE_PARTS[n], largest share first, the same as house.js's roles. Adding or removing a colour keeps the
+// others on their part; the new colour takes the part that appears, a colour whose part has no place at the new count
+// takes one that is free. The list stays sorted by part, so items[i] is still the i-th role everywhere else.
+const PARTS = Organica.hueTone.ROLE_PARTS;
+function placeParts() {
+  const P = PARTS[count()] || PARTS[5], used = {}, keep = state.items.map(it => {
+    if (it.part && P.indexOf(it.part) >= 0 && !used[it.part]) { used[it.part] = 1; return true; }
+    return false;
+  });
+  const free = P.filter(k => !used[k]);
+  state.items.forEach((it, i) => { if (!keep[i]) it.part = free.shift(); });
+  const activeId = state.items[state.activeIndex] && state.items[state.activeIndex].id;
+  state.items.sort((a, b) => P.indexOf(a.part) - P.indexOf(b.part));
+  if (activeId) state.activeIndex = Math.max(0, state.items.findIndex(it => it.id === activeId));
+}
 function colors() { return state.items.map(it => it.hex); }
 function count() { return state.items.length; }
 // A colour's name is its role (Diego, Nov 18, 2026: the name is semantic and tokenized, not edited) —
@@ -485,14 +507,15 @@ function dispName(i) { return roleName(i); }
 // C.roleShares (the 0.6 rule) also drives FVS Suggest and stays as it is.
 function roleWeights(n) {
   const g = HOUSE.SHARES[4];   // [base, secondary, accent, trim], sums to 100
-  if (n >= 3 && n <= 7) return HOUSE.SHARES[n].slice();   // the house is generated on these (tunesutra/house.js; 6–7 since Nov 19, 2026)
-  if (n < 3) return C.roleShares(n);
+  if (n >= 2 && n <= 9) return HOUSE.SHARES[n].slice();   // the house is generated on these (tunesutra/house.js; 6–7, then 2 · 8 · 9 since Nov 19, 2026)
+  if (n < 2) return C.roleShares(n);
   const tail = g[2] + g[3], k = n - 2, raw = [];
   for (let i = 0; i < k; i++) raw.push(Math.pow(0.6, i));
   const sum = raw.reduce((a, b) => a + b, 0);
   return [g[0], g[1]].concat(raw.map(v => v / sum * tail));
 }
 state.items = ['#c93ed6', '#c9863e', '#3ec9a8'].map(makeItem);
+state.items.forEach((it, i) => { it.part = PARTS[3][i]; });
 
 // ── TOKEN SCALE (0–900) — Organica.color.scale: fixed perceptual lightness
 //    per step, the picked colour kept on its nearest step (the anchor). ──
@@ -703,7 +726,7 @@ function currentFigure() { return houseFig(state.house, count()); }
 // A palette saved before the house (or a built-in one) gets a seed from its colours, so it keeps one house.
 function seedOf(text) { let h = 2166136261; for (const ch of String(text)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 9999) + 1; }
 function newSeed() { return 1 + Math.floor(Math.random() * 9999); }
-function garmentFits(n) { return n >= 3 && n <= 7; }   // 6–7 (Nov 19, 2026): the 5-colour scene + windows, + a hill
+function garmentFits(n) { return n >= 2 && n <= 9; }   // Nov 19, 2026: 6–7 (windows, a hill), then 2 (wall · roof), 8 (a far band), 9 (a path)
 // A zone too pale to see on the paper gets a hairline, as the book draws it.
 function paleOnPaper(hex) { return C.contrast(hex, '#ffffff') < 1.12; }
 function isGarmentView() { return state.view === 'garment' && garmentFits(count()); }
@@ -1962,21 +1985,24 @@ function clearShapeSelection() {
 }
 // The number of colours (Diego, Nov 18, 2026: "togliere Colours 3 4 5 dalla barra di destra … un più su
 // una scheda vuota che può generare al massimo altre 2 schede"): the + card after the last colour card
-// adds one (up to 5); a card past the third has its own remove button. Never fewer than 3.
-const COUNT_MIN = 3, COUNT_MAX = 7;   // 6–7 back (Diego, Nov 19, 2026: "riattiva"), drawn on house.js 6 / 7
+// adds one (up to 9 since Nov 19, 2026); a card past the second has its own remove button. Never fewer than 2.
+const COUNT_MIN = 2, COUNT_MAX = 9;   // 2–9 (Nov 19, 2026, redesign step 3), every count drawn on its house (house.js)
 function addColour() {
   if (count() >= COUNT_MAX) return;
   pourNext = true;
   pushUndo('count');
   state.zone = null;
-  state.items.push(makeItem(nextColour()));
+  const fresh = makeItem(nextColour());
+  state.items.push(fresh);
+  placeParts();   // the new colour takes the part that appears at this count; the others keep theirs
+  const at = state.items.indexOf(fresh);
   // the new colour follows the harmony rule (Diego, Nov 18, 2026) — what Generate would put in its place;
   // the colours already there stay as they are. Already in the palette → the next tint of the last one.
-  const gen = generateHarmony()[count() - 1];
-  if (gen && colors().slice(0, -1).indexOf(gen) < 0) state.items[count() - 1].hex = gen;
-  state.activeIndex = count() - 1;
+  const gen = generateHarmony()[at];
+  if (gen && colors().filter((h, j) => j !== at).indexOf(gen) < 0) fresh.hex = gen;
+  state.activeIndex = at;
   tintSel = null;
-  ctrlFocus = count() < COUNT_MAX ? 'add' : 'card' + (count() - 1);   // the keyboard stays where it was
+  ctrlFocus = count() < COUNT_MAX ? 'add' : 'card' + at;   // the keyboard stays where it was
   commit(true);
 }
 function removeColour(i) {
@@ -1985,8 +2011,9 @@ function removeColour(i) {
   pushUndo('count');
   state.zone = null;
   state.items.splice(i, 1);
-  ctrlFocus = count() > COUNT_MIN ? 'rm' + Math.min(i, count() - 1) : 'add';   // the next card's remove, or the + card
   state.activeIndex = clamp(state.activeIndex >= i ? state.activeIndex - 1 : state.activeIndex, 0, count() - 1);
+  placeParts();   // a colour whose part has no place at this count takes a free one
+  ctrlFocus = count() > COUNT_MIN ? 'rm' + Math.min(i, count() - 1) : 'add';   // the next card's remove, or the + card
   tintSel = null;
   commit(true);
 }
@@ -2077,7 +2104,9 @@ function userPresets() { return PRESETS.read(); }
 // A preset saved before names / ids / locks existed has only { n, harmony,
 // colors } — it loads with the default role names and fresh ids.
 function loadPaletteData(p) {
-  state.items = p.colors.slice(0, 7).map((hex, i) => ({
+  const n0 = Math.min(9, p.colors.length);
+  state.items = p.colors.slice(0, 9).map((hex, i) => ({
+    part: (p.parts && p.parts[i]) || (PARTS[n0] || [])[i],   // saved before Nov 19, 2026: the part of its place, as it was drawn
     id: (p.ids && p.ids[i]) || newId(),
     name: (p.names && p.names[i]) || roleName(i),
     hex: Organica.normalizeHex(hex, '#888888'),
@@ -2086,6 +2115,8 @@ function loadPaletteData(p) {
     scaleFrom: p.scaleFrom && p.scaleFrom[i] ? Organica.normalizeHex(p.scaleFrom[i], '') : undefined,
   }));
   state.items.forEach(it => { if (!it.shade) delete it.shade; if (!it.scaleFrom) delete it.scaleFrom; });
+  state.activeIndex = 0;
+  placeParts();
   state.harmony = p.harmony || 'complementary';
   state.spread = p.spread || 0;
   state.activeIndex = 0;
@@ -2144,6 +2175,7 @@ function confirmSavePreset() {
     colors: colors(),
     names: state.items.map((it, i) => dispName(i)),
     ids: state.items.map(it => it.id),
+    parts: state.items.map(it => it.part),   // the house part each colour paints (Nov 19, 2026)
     locks: state.items.map(it => !!it.lock),
     shades: state.items.map(it => it.shade ? JSON.parse(JSON.stringify(it.shade)) : null),   // a colour's own shading (null = the preset)
     scaleFrom: state.items.map(it => it.scaleFrom || null),   // a colour moved onto a tint: the colour its column comes from
@@ -2206,7 +2238,7 @@ function cardHTML(href, name, p) {
 }
 function renderHome() {
   const all = userPresets();
-  const mine = Object.keys(all).filter(n => all[n] && Array.isArray(all[n].colors) && all[n].colors.length >= 3)
+  const mine = Object.keys(all).filter(n => all[n] && Array.isArray(all[n].colors) && all[n].colors.length >= 2)
     .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')));
   let html = '<section class="ts-group"><h2 class="ts-group__title">Your palettes</h2>' +
     `<p class="ts-group__note">${mine.length ? mine.length + (mine.length === 1 ? ' palette' : ' palettes') + ', newest first.' : 'None yet. Start a new one, or open a built-in palette and save your own copy.'}</p><div class="ts-grid">` +
@@ -2234,7 +2266,7 @@ function route() {
     const pal = col && col.palettes.find(x => x.id === parts[1]);
     if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view, house: seedOf(col.id + '/' + pal.id) }; suggest = pal.name; }
   }
-  if (!p || !Array.isArray(p.colors) || p.colors.length < 3) { showHome(true); renderHome(); return; }
+  if (!p || !Array.isArray(p.colors) || p.colors.length < 2) { showHome(true); renderHome(); return; }
   loadPaletteData(p);
   pourNext = true;
   undoStack.length = 0;
