@@ -2259,7 +2259,11 @@ let currentName = '', suggestedName = '', dirty = false, leaveArmed = 0;
 function setDirty(v) { dirty = v; Organica.dirty.set('palette', v); }
 function setCurrent(name, suggest) {
   currentName = name; suggestedName = suggest; setDirty(false);
-  if (name) currentKey = 'p:' + name;   // saved: the star is now on your palette
+  if (name) {   // saved: the star is now on your palette — a starred palette's star comes with it (Diego, Nov 19, 2026)
+    const was = currentKey, key = 'p:' + name;
+    if (was && was !== key && isStarred(was) && !isStarred(key)) toggleStar(key, { name, colors: state.items.map(it => it.hex), house: state.house });
+    currentKey = key;
+  }
   renderStage();   // the sheet shows the name
   if (name) history.replaceState(null, '', '#p=' + encodeURIComponent(name));
   refreshTitle();
