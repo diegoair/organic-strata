@@ -3106,10 +3106,11 @@ function learnRow(title, text, cols) {
   return `<div class="ts-learn-row"><div><strong>${esc(title)}</strong><p>${text}</p></div>${learnStrip(cols, title)}</div>`;
 }
 // the first seed whose palette reads back as the asked relation — the figure shows what the word means
+// (generate never repeats a colour since Nov 20, 2026, so no distinct-swatch check is needed here)
 function learnGen(opts, ok) {
-  const distinct = p => new Set(p.map(swCellOf)).size === p.length;   // four different swatches: a figure never repeats a colour
-  for (let s = 1; s <= 200; s++) { const p = HT.generate(LEARN_KEY, Object.assign({ image: 'base', tone: 'near', purity: 'any', n: 4, neutral: 'none', hue: 'similar' }, opts), s); if (ok(p) && distinct(p)) return p; }
-  return HT.generate(LEARN_KEY, Object.assign({ image: 'base', tone: 'near', purity: 'any', n: 4, neutral: 'none', hue: 'similar' }, opts), 1);
+  const gen = s => HT.generate(LEARN_KEY, Object.assign({ image: 'base', tone: 'near', purity: 'any', n: 4, neutral: 'none', hue: 'similar' }, opts), s);
+  for (let s = 1; s <= 200; s++) { const p = gen(s); if (ok(p)) return p; }
+  return gen(1);
 }
 function learnTriangle() {
   const W = [40, 24], K = [40, 296], V = [292, 160], hi = 0;
@@ -3136,7 +3137,7 @@ function learnHTML() {
     return learnRow(FAM_LABEL(f), feel + ' <span class="ts-learn-note">' + tones.map(([T]) => T.name).join(' · ') + '</span>', tones.map(([, ti]) => HT.toneColour(0, ti)));
   }).join('');
   const hueRows = [
-    ['monochromatic', 'One hue in several tones.', ['V', 'B', 'Lgr', 'Dp'].map(k => HT.toneColour(0, TONE_AT(k)))],   // drawn, not generated: generate() repeats a swatch for one hue
+    ['monochromatic', 'One hue in several tones.', learnGen({ hue: 'same' }, p => HT.harmonyOf(p) === 'monochromatic')],
     ['analogous', 'Hues next to each other on the wheel.', learnGen({ hue: 'similar' }, p => HT.harmonyOf(p) === 'analogous')],
     ['complementary', 'Two hues opposite each other.', learnGen({ hue: 'complement' }, p => HT.harmonyOf(p) === 'complementary')],
     ['split', 'One hue and the two either side of its opposite.', learnGen({ hue: 'split' }, p => HT.harmonyOf(p) === 'split')],
