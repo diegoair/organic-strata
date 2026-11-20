@@ -113,11 +113,17 @@
       });
     }
 
+    // dragleave also fires when the pointer moves onto a child of the zone, so the feedback used to blink.
+    // A depth count (enter +1, leave −1) clears it only when the pointer has really left (Nov 20, 2026).
+    let depth = 0;
+    const clear = () => { depth = 0; wrapEl.classList.remove('drag-over'); };
+    wrapEl.addEventListener('dragenter', (e) => { e.preventDefault(); depth++; wrapEl.classList.add('drag-over'); });
     wrapEl.addEventListener('dragover', (e) => { e.preventDefault(); wrapEl.classList.add('drag-over'); });
-    wrapEl.addEventListener('dragleave', () => wrapEl.classList.remove('drag-over'));
+    wrapEl.addEventListener('dragleave', () => { if (--depth <= 0) clear(); });
+    window.addEventListener('dragend', clear);
     wrapEl.addEventListener('drop', (e) => {
       e.preventDefault();
-      wrapEl.classList.remove('drag-over');
+      clear();
       const file = e.dataTransfer.files[0];
       if (!file || !file.type.startsWith(accept)) return;
       const dt = new DataTransfer();

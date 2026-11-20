@@ -42,9 +42,7 @@
     position: relative; z-index: 1;   /* above the sheet's own shadow (--stage-shadow), which otherwise greys its bottom */
   }
   .ts-palbar .org-btn { flex: none; }
-  .ts-palbar__crumb { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }   /* ← Your palettes / name ☆ */
-  .ts-palbar__sep { color: var(--border-strong); }
-  .ts-palbar__name { font-family: var(--font-display); font-size: var(--fs-medium); font-weight: var(--w-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-palbar__crumb { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }   /* ← ‹the view it came from› ☆ — the name is on the sheet (Nov 20, 2026) */
   .ts-palbar__end { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
   .ts-palbar__title { margin: 0; font-size: var(--fs-small); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* full width up to the sheet's own size (max-width set by renderStage): a shrink-to-fit box would collapse it */
   .ts-house-nav { position: absolute; inset: 0; pointer-events: none; }
@@ -267,8 +265,6 @@
       <div class="ts-palbar" data-theme="light">
         <div class="ts-palbar__crumb">
           <button type="button" class="org-btn org-btn--ghost" id="btn-home"><i data-icon="arrow-left"></i><span id="btn-home-label">Your palettes</span></button>
-          <span class="ts-palbar__sep" aria-hidden="true">/</span>
-          <span class="ts-palbar__name" id="palette-name"></span>
           <button type="button" class="org-btn org-btn--icon org-btn--icon-toggle ts-star" id="btn-star" aria-pressed="false" aria-label="Star"></button>
         </div>
         <div class="ts-palbar__end">
@@ -2338,8 +2334,7 @@ function paletteName() { return currentName || suggestedName || 'New palette'; }
 // The name is on the sheet now; the bar keeps only the state (nothing when saved and unchanged).
 function refreshTitle() {
   ctrl('palette-title').textContent = currentName && dirty ? 'Unsaved changes' : '';   // no 'not saved yet' (Diego, Nov 18, 2026)
-  ctrl('btn-home-label').textContent = 'Your palettes';
-  ctrl('palette-name').textContent = paletteName();
+  ctrl('btn-home-label').textContent = backTo.label;
   leaveArmed = 0;
   refreshEditorStar();
 }
@@ -3030,7 +3025,7 @@ function moodMapHTML(byMood) {
   const svg = moodSvg(byMood, false);
   const words = HT.WORDS.map(w => {
     const n = (byMood[w[0]] || []).length, on = EXP.moods.indexOf(w[0]) >= 0;
-    return `<button type="button" class="org-btn org-btn--sm ts-mood" data-mood-pick="${esc(w[0])}" aria-pressed="${on}" aria-label="${esc(capWord(w[0]))}, ${n === 1 ? '1 palette' : n.toLocaleString('en-GB') + ' palettes'}" ` +
+    return `<button type="button" class="org-btn ts-mood" data-mood-pick="${esc(w[0])}" aria-pressed="${on}" aria-label="${esc(capWord(w[0]))}, ${n === 1 ? '1 palette' : n.toLocaleString('en-GB') + ' palettes'}" ` +
       `style="left:${(MOOD_X(w[1]) / 420 * 100).toFixed(2)}%;top:${(MOOD_Y(w[2]) / 420 * 100).toFixed(2)}%">${esc(capWord(w[0]))}</button>`;
   }).join('');
   return `<div class="ts-moodmap" role="group" aria-label="Mood map" data-theme="light"><svg viewBox="0 0 420 420" aria-hidden="true">${svg}</svg>${words}</div>`;
@@ -3269,6 +3264,7 @@ function route() {
       if (ctrl('mk-results')) ctrl('home').innerHTML = '';   // rebuild the panel with the new key colour
     }
     view = VIEWS[h] || VIEWS.palettes;
+    backTo = { hash: VIEWS[h] ? h : 'palettes', label: backLabel(view) };   // the editor's back button returns here
     showHome(true); renderHome(); return;
   }
   loadPaletteData(p);
@@ -3290,7 +3286,15 @@ function leaveTo(hash, labelEl, label) {
   setDirty(false);
   location.hash = hash;
 }
-function goHome() { leaveTo('palettes', ctrl('btn-home-label'), 'Your palettes'); }
+// The back button names the view the palette was opened from, in the tabs' own words (Nov 20, 2026, CONSULT);
+// a reload or a direct link has no origin and goes back to Your palettes.
+let backTo = { hash: 'palettes', label: 'Your palettes' };
+function backLabel(v) {
+  if (v.tab === 'learn') return 'How colour works';
+  const sub = SUBS[v.tab] && SUBS[v.tab].find(x => x[0] === v.sub);
+  return sub ? sub[2] : 'Your palettes';
+}
+function goHome() { leaveTo(backTo.hash, ctrl('btn-home-label'), backTo.label); }
 
 // ── INIT ──
 const GRAD_DEFAULT = JSON.stringify(state.grad);
