@@ -622,6 +622,12 @@ input[type=range]:focus-visible::-moz-range-track {
 .seg-ctrl--multi { flex-wrap: wrap; gap: var(--space-1); }
 .seg-ctrl--multi .seg-btn { flex: 1 1 0; padding: 0; text-overflow: clip; margin-left: 0; border-radius: var(--radius-sm); font-variant-numeric: tabular-nums; }
 .seg-ctrl--multi .seg-btn[data-locked] { cursor: default; }
+/* .seg-ctrl--fit — the control as wide as its buttons, not the row (Diego, Nov 20, 2026): a tab row in a page,
+   a filter beside other filters, a control in the floatbar. Works in a flex row (flex: none) and in a block
+   (width: max-content), capped at the container; each use keeps its own button padding. After --multi, so a
+   multi set's buttons keep their width too. */
+.seg-ctrl--fit { flex: none; width: max-content; max-width: 100%; }
+.seg-ctrl--fit .seg-btn { flex: none; }
 .seg-btn.active,
 .seg-btn[aria-pressed="true"] {
   background: var(--ink);

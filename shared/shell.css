@@ -73,7 +73,8 @@ body {
   overflow: hidden;
   padding: var(--space-7);
 }
-#canvas-wrap.drag-over, .org-canvas-wrap.drag-over {
+/* any drop target: the canvas, or a drop area outside it (TuneSutra Make › From an image) */
+.drag-over {
   outline: 2px dashed var(--ink);
   outline-offset: -8px;
 }

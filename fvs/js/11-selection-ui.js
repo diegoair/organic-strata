@@ -292,6 +292,7 @@ export function renderSelectionPanel() {
   ctrl('sel-sub').textContent = saved ? n + (n === 1 ? ' cell' : ' cells') : '';
   const locked = [...state.symbolSelection].every(i => state.symbolCells[i] && state.symbolCells[i].locked);
   ctrl('btn-sel-lock').setAttribute('aria-pressed', String(locked));   // the name stays "Lock cells": pressed carries the state
+  ctrl('btn-sel-lock').innerHTML = Organica.icons.get(locked ? 'lock-filled' : 'lock');   // an icon toggle: the drawing shows it
   ctrl('btn-sel-save').hidden = saved;
   ctrl('btn-sel-rename').hidden = !saved;
   ctrl('btn-sel-delete').hidden = !saved;

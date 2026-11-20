@@ -14,33 +14,43 @@ to the eye.
 
 ## 0. The library (home)
 
-`/tunesutra/` opens on the palette library: every palette as a card.
+`/tunesutra/` opens on the library (redesign, Nov 19–20, 2026). Three tabs, a link and a button, each a hash so
+Back works: **Your palettes** (`#palettes`, or no hash) · **Make** (`#make`, `#make/image`) · **Explore**
+(`#explore`, `#explore/moods`, `#explore/swatches`), the link **How colour works** (`#learn`) and **New palette**
+(`#new`, three white colours). The colour model under every view is `Organica.hueTone` (`shared/hue-tone.js`):
+10 hues × 12 tones in four tone families, plus neutrals; the words are in `docs/UI-COPY.md`.
 
-- **Your palettes** — everything you have saved, newest first, plus a
-  **New palette** card.
-- **Built-in collections** (`tunesutra/collections.js`, data) — read-only. Opening
-  one loads a *copy* into the editor; **Save** keeps it with your own palettes.
-  Today: *Garment studies — violet* (12 three-colour studies) and *Garment
-  studies — green* (12 four-colour studies), transcribed from two photographed
-  pages of a colour-scheme book (role order: body, hem, collar, trim).
-  They are the book's own combinations: fine as a working reference, but decide
-  whether they should ship to other users before the tool is opened up.
-- A card shows the palette in proportion, or on its figure when the palette was
-  saved in the Figure view.
+- **Your palettes** — your saved palettes and every palette you starred, filter **All · Starred · Saved**.
+  A star sits on every card (`Organica.store('tunesutra-favs')`, synced with your account).
+- **Make › From a colour** — a key colour, 2–9 colours, **Built by** *Roles* (the role rule: each colour on its
+  part of the house, shares as measured) or *Hue and tone* (tone family, hue relation, tone relation, purity,
+  neutral). **Suggest** draws the next seeds. Settings are remembered (`organica.tunesutra.make`).
+- **Make › From an image** — open or drop an image; its colours become one palette per count (2–9), picked by
+  **Area** or **Difference** (`Organica.hueTone.extract`: OKLab k-means on a 128 px copy, near colours merged).
+  The image stays in memory for the visit, never stored or sent.
+- **Explore › Palettes** — the palette library (Supabase `palettes`, read-all, owner-only write; cached on the
+  device), grouped by structure, key colour, mood or source, with filters for key colour, number of colours,
+  mood, tone family, hue relation, tone relation, purity and source. Facets are read on the device from the
+  colours, so they follow the model.
+- **Explore › Moods** — the mood map (Soft · Hard · Warm · Cool): one disc per mood word, sized by how many
+  palettes have it. A palette's place (`Organica.hueTone.imagePos`): each colour from its hue × tone cell
+  (hue warmth × saturation; whiteness softens, blackness hardens), the mean, harder with a strong light–dark
+  contrast, then each axis through ten fixed steps (the library's deciles, Nov 20, 2026) so every word has palettes. Picking words sets Explore's Mood filter (several at once); **Show in Palettes** lists them.
+- **Explore › Swatches** — the 130 hue × tone swatches; each counts the different library colours that fall in
+  it. The panel shows the swatch's values, its library colours, how many palettes use it, **Make from this
+  colour** and **Show palettes**. Keyboard: one Tab stop, then arrows · Home · End.
+- **How colour works** — a reading view (`shared/prose.css`, ledger §3): hue and tone, tone families, hue and
+  tone relations, purity, roles, moods, where the palettes come from — each with a figure drawn by the model
+  and a link to its view.
 
-The address says where you are: no hash = the library, `#new`, `#p=<name>` (a
-saved palette), `#c=<collection>/<id>` (a copy of a built-in). **← All
-palettes** in the panel goes back; with unsaved changes it asks for a second
-click. Saving again under the same name overwrites; deleting the palette on
-screen returns to the library.
-
-To add a collection from another page of the book: send the photo — the values
-are read from the printed RGB numbers and added to `collections.js`. There is no
-in-app photo reader.
+Opening a palette from any view loads it into the editor: `#p=<name>` (saved), `#l=<id>` (library), `#m=<hex>-…~<house>`
+(made), `#c=<collection>/<id>` (a built-in collection, `tunesutra/collections.js`). Library and made palettes open
+as copies — **Save** keeps them with your own. With unsaved changes, leaving asks for a second click; deleting the
+palette on screen returns to the library.
 
 ## 1. The palette
 
-- **Colours** 3–7 (6–7 were dropped Nov 17 and are back since Nov 19, 2026, each on its own house; roles 6 *Base · Secondary · Tertiary · Accent · Highlight · Spark*, 7 *Base · Secondary · Tertiary · Support · Accent · Highlight · Spark*). Each colour is an item `{ id, name, hex, lock }`; the `id` is
+- **Colours** 2–9 (branch `tunesutra-redesign`, Nov 19, 2026; `main` offers 3–7), each count on its own house. Roles: 2 *Base · Accent*, 6 *… · Accent · Highlight · Spark*, 7 *… · Support · Accent · Highlight · Spark*, 8 *… · Support · Backdrop · Accent · Highlight · Spark*, 9 *… · Backdrop · Touch · Accent · Highlight · Spark*. **Each colour saves its house part** (`parts[]`: background · ground · middle · far · main · sub · accent · accent2 · accent3 = `Organica.hueTone.ROLE_PARTS[n]`): adding or removing a colour keeps the others on their part, the new one takes the part that appears; a palette saved before gets the parts of its places, as it was drawn. Each colour is an item `{ id, name, hex, lock }`; the `id` is
   stable for the colour's life. **A colour is named by its role** (Nov 18, 2026: Diego, *we don't
   want to change the name as it should be semantic and tokenized*) — one word, largest share
   first, the set following the count (`ROLE_SETS`): 3 *Base · Secondary · Accent*, 4 *Base ·
@@ -162,6 +172,12 @@ Then:
      frame and to the house) — Nov 19, 2026. 6–7 can be chosen again (Diego, Nov 19: *riattiva*). The rule comes from the Hue × tone lab
      (`explorations/tunesutra-hue-tone/`, *By roles*): the 5-colour space plus a second accent, then a
      middle plane.
+   - 2 · 8 · 9 colours (house.js only, Nov 19, 2026 — TuneSutra still offers 3–7 until the redesign):
+     2 = wall 61.8 · roof 38.2, the house alone without a door; 8 = 47.6 · 20 · 14 · far band 10 · 3.8 · 2.8 · 1 · 0.8,
+     a wider arc behind the hill, solved for what the hill, ground and house leave visible; 9 = 8 + a path 0.6
+     (taken from the ground, 19.4), a trapezoid from the door's foot to the bottom edge.
+   - `node scripts/test-house.mjs` (in `check.py`): every share on target for 500 seeds × 2–9, and the 3–7 houses
+     equal to `scripts/house-golden.json` — a saved palette keeps its house by its seed; re-record only by decision.
 
    **One house per palette, a carousel for others.** The seed (`house`, 1–9999)
    is saved with the palette and drawn on its library card; two arrows on the

@@ -272,6 +272,16 @@ if r.returncode:
 else:
     ok(r.stdout.strip().split("\n")[0].replace("nodeCanvas: ", ""))
 
+# 6a2. hue × tone model + TuneSutra's house — pure, no browser (Nov 19, 2026). The house test also guards that a
+#      saved palette keeps its house: 3–7 colours must match scripts/house-golden.json (re-record only by decision).
+for label, script in (("hue-tone model", "scripts/test-hue-tone.mjs"), ("tunesutra house", "scripts/test-house.mjs")):
+    print(label)
+    r = subprocess.run(["node", script], capture_output=True, text=True)
+    if r.returncode:
+        fail(label + ":\n" + "\n".join("      " + l for l in r.stdout.strip().split("\n") if "FAIL" in l)[:2000])
+    else:
+        ok(str(sum(1 for l in r.stdout.split("\n") if l.startswith("  ok"))) + " checks pass")
+
 # 6b. copy: typographic apostrophe (docs/UI-COPY.md rule 12 — Diego, Oct 7, 2026). Visible text, copy attributes and
 #     JS string literals use ’, never '; comments / code / <code> samples are not copy. Fix: --fix, or apostrophe-ok.
 print("copy apostrophes")

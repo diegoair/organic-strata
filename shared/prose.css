@@ -7,6 +7,8 @@
 
    Not for tool panels (those run on the panel roles) or for dense data
    pages like /admin/ (use the role tokens directly there).
+   A Tool's reading view may use it too — TuneSutra's How colour works
+   (ledger O-89 f, Nov 19, 2026): link it right after header.css.
 
    Everything is a token; nothing here names a px value. Load AFTER
    tokens.css. Modifier `.org-prose--compact` sets body/md (12px) for dense

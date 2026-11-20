@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/prose.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
@@ -40,7 +41,9 @@
     background: var(--paper); border: 0; border-radius: var(--radius-md) var(--radius-md) 0 0;   /* the sheet's own paper, light in both themes; no border — one piece with the sheet (Diego, Nov 18, 2026) */
     position: relative; z-index: 1;   /* above the sheet's own shadow (--stage-shadow), which otherwise greys its bottom */
   }
-  .ts-palbar .mini-btn { flex: none; }   /* its own width, not the row's (mini-btn is flex: 1 in a row of buttons) */
+  .ts-palbar .org-btn { flex: none; }
+  .ts-palbar__crumb { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }   /* ← ‹the view it came from› ☆ — the name is on the sheet (Nov 20, 2026) */
+  .ts-palbar__end { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
   .ts-palbar__title { margin: 0; font-size: var(--fs-small); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* full width up to the sheet's own size (max-width set by renderStage): a shrink-to-fit box would collapse it */
   .ts-house-nav { position: absolute; inset: 0; pointer-events: none; }
   .ts-house-nav .org-btn { position: absolute; top: var(--house-cy, 30%); transform: translateY(-50%); pointer-events: auto; }
@@ -106,6 +109,105 @@
   }
   .ts-card:hover { border-color: var(--ink); }
   .ts-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* A card with a Star button (Nov 19, 2026, design-system CONSULT): the card is an <article>, its name the one link,
+     stretched over the whole card by ::after; the star sits above that layer. Hover and focus belong to the card. */
+  article.ts-card { position: relative; }
+  .ts-card__link { color: inherit; text-decoration: none; outline: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-card__link::after { content: ''; position: absolute; inset: 0; }
+  .ts-card:has(.ts-card__link:hover) { border-color: var(--ink); }
+  .ts-card:has(.ts-card__link:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .ts-card__label.ts-card__label--star { flex-direction: row; align-items: center; gap: var(--space-2); }
+  .ts-card__text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; flex: 1; }
+  .ts-card__star { position: relative; z-index: 1; flex: none; }   /* .org-btn--icon at --row-h already meets --hit-min */
+
+  /* The three tabs (Nov 19, 2026, Diego: Your palettes · Make · Explore). Local until a second tool needs them;
+     the current-page marker is the design system nav's (.ds-nav a.current), turned to sit under the word. */
+  .ts-nav { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-5); margin-bottom: var(--space-6); border-bottom: 1px solid var(--border); }
+  .ts-tabs { display: flex; gap: var(--space-6); }
+  .ts-tabs a {
+    font-family: var(--font-display); font-size: var(--fs-medium); color: var(--mid); text-decoration: none;
+    padding-block: var(--space-3); border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
+  }
+  .ts-tabs a:hover { color: var(--ink); }
+  .ts-tabs a[aria-current="page"] { color: var(--ink); font-weight: var(--w-medium); border-bottom-color: var(--accent-warm); }
+  .ts-tabs a:focus-visible, .ts-nav__learn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .ts-nav__spacer { flex: 1; }
+  .ts-nav__learn { font-size: var(--fs-small); color: var(--ink); }
+  .ts-nav__learn[aria-current="page"] { color: var(--accent-warm); }
+  .ts-nav .org-btn { margin-block: var(--space-2); }
+  .ts-subnav { margin-bottom: var(--space-6); }   /* .seg-ctrl--fit: its own width */
+  .ts-subnav .seg-btn { padding: 0 var(--space-4); text-decoration: none; display: inline-flex; align-items: center; }
+  .ts-filter { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-5); }
+  .ts-filter .seg-btn { padding: 0 var(--space-4); }
+  .ts-filter__count { font-size: var(--fs-small); color: var(--mid); }
+  .ts-empty { font-size: var(--fs-small); color: var(--mid); max-width: 60ch; }
+  /* Explore › Palettes (Nov 19, 2026, design-system CONSULT): the results on the left, the filters in a panel on the
+     right — the editor's #panel, in the same place. Only this view splits #home; the panel scrolls on its own. */
+  #home.ts-home--split { display: flex; padding: 0; overflow: hidden; }
+  .ts-explore { flex: 1; min-width: 0; overflow: auto; padding: var(--space-8); }
+  .ts-filters { flex: none; overflow: auto; }
+  .ts-find { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-6); }
+  .ts-search { flex: 1 1 calc(var(--space-8) * 6); max-width: calc(var(--space-8) * 10); }
+  .ts-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .ts-find .ts-filter__count { margin-left: auto; }
+  .ts-group__head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-5); }
+  .ts-group__head .ts-group__title { margin-bottom: 0; }
+  .ts-group__head .org-btn { margin-left: auto; }
+  .ts-group__head .org-btn + .org-btn { margin-left: 0; }   /* two actions stay together on the right */
+  .ts-keys { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .ts-key { width: var(--row-h); height: var(--row-h); padding: 0; border-radius: 50%; border: 1px solid var(--border-strong); cursor: pointer; }   /* a circle (the stadium exception); the fill is the key colour, data */
+  .ts-key[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }   /* a ring, not a colour change */
+  .ts-key:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+  .ts-filters .seg-ctrl--multi .seg-btn { padding: 0 var(--space-3); }
+  .ts-filters .panel-select { width: 100%; }
+  .ts-filters .sub-label { display: block; }   /* on a span / label its margins would not apply */
+  .ts-mi-thumb { display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .ts-mi-thumb[hidden] { display: none; }
+  /* How colour works: a reading column; the figures are content, on light paper */
+  .ts-learn { max-width: var(--measure); }
+  .ts-learn-sec h2:focus { outline: none; }
+  .ts-learn-lead { color: var(--mid); }
+  .ts-learn-note { display: block; color: var(--mid); font-size: var(--fs-small); }
+  .ts-learn .ts-learn-toc ul { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); list-style: none; padding: 0; }
+  .ts-learn-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); align-items: center; padding: var(--space-3) 0; border-top: 1px solid var(--border); }
+  .ts-learn .ts-learn-row p { margin: 0; }
+  .ts-learn-strip { display: flex; height: calc(var(--space-8) * 1.5); border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: var(--paper); }
+  .ts-learn-sw { flex: 1; }
+  .ts-learn-fig { margin: var(--space-5) 0; padding: var(--space-4); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
+  .ts-learn-fig svg { display: block; width: 100%; max-width: calc(var(--space-8) * 12); height: auto; }
+  .ts-learn-fig text { font-family: var(--font-display); font-size: var(--fs-small); fill: var(--mid); }
+  .ts-learn-fig .ts-learn-word { fill: var(--ink); }
+  .ts-learn-fig figcaption { color: var(--mid); font-size: var(--fs-small); margin-top: var(--space-3); }
+  .ts-learn-roles { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; margin: var(--space-5) 0; }
+  .ts-learn-house { display: block; width: calc(var(--space-8) * 6); aspect-ratio: 1 / 1; background: var(--paper); border-radius: var(--radius-sm); overflow: hidden; }
+  .ts-learn-house svg { width: 100%; height: 100%; }
+  .ts-learn .ts-learn-list { flex-direction: column; list-style: none; padding: 0; margin: 0; }
+  .ts-learn .ts-role { margin: 0; max-width: none; }   /* .org-prose li would add its own */
+  /* Explore › Moods: the image scale, on light paper; the words are buttons laid over the square */
+  .ts-moodmap { position: relative; max-width: calc(var(--space-8) * 16); margin-bottom: var(--space-6); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
+  .ts-moodmap svg { display: block; width: 100%; height: auto; }
+  .ts-moodmap text { font-family: var(--font-display); font-size: var(--fs-small); fill: var(--mid); }
+  .ts-mood { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; }
+  /* Explore › Swatches: the hue × tone grid — the fills are the model's colours (data), on light paper in dark mode */
+  .ts-swatches { display: grid; grid-template-columns: max-content repeat(10, minmax(0, 1fr)); gap: var(--space-1); max-width: calc(var(--space-8) * 22); padding: var(--space-4); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
+  .ts-sw-row { display: contents; }
+  .ts-sw-hue { font-size: var(--fs-small); color: var(--mid); text-align: center; align-self: end; overflow-wrap: anywhere; hyphens: auto; }
+  .ts-sw-tone { font-size: var(--fs-small); color: var(--mid); padding-right: var(--space-3); align-self: center; white-space: nowrap; }
+  .ts-sw-fam { grid-column: 1 / -1; font-family: var(--font-display); font-size: var(--fs-small); margin-top: var(--space-4); }
+  .ts-cell { display: flex; align-items: flex-end; justify-content: flex-end; width: 100%; aspect-ratio: 1 / 1; padding: var(--space-1); border: 0; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--fs-small); font-variant-numeric: tabular-nums; }
+  .ts-cell.is-empty { opacity: 0.35; }
+  .ts-cell[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--paper), inset 0 0 0 3px var(--ink); opacity: 1; }   /* inside: the focus ring stays outside */
+  .ts-sw-hex { color: var(--mid); font-family: var(--font-mono); }
+  .ts-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .ts-sw-big { display: block; height: calc(var(--space-8) * 2); margin: var(--space-3) 0; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+  .ts-sw-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--fs-small); }
+  .ts-sw-actions { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+  .ts-sw-list .ts-role { display: flex; }
+  .ts-sw-list .ts-sw-hex { margin-left: auto; }
+  .ts-roles { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin-bottom: var(--space-5); font-size: var(--fs-small); }
+  .ts-role { display: inline-flex; align-items: center; gap: var(--space-2); }
+  .ts-role__sw { width: var(--space-4); height: var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }   /* the fill is the palette colour, data */
   /* The art is the palette itself — content, so it stays on light paper in dark mode. */
   .ts-card__art { display: flex; aspect-ratio: 1 / 1; overflow: hidden; background: var(--paper); }   /* overflow: a tall house must not stretch the square */
   .ts-card__art svg { width: 100%; height: 100%; }
@@ -162,8 +264,14 @@
          a Example — house no. … con una barra che lo racchiude della stessa larghezza della canvas") -->
     <div class="ts-column" id="ts-column">
       <div class="ts-palbar" data-theme="light">
-        <button class="mini-btn" id="btn-home">← All palettes</button>
-        <p class="ts-palbar__title" id="palette-title"></p>
+        <div class="ts-palbar__crumb">
+          <button type="button" class="org-btn org-btn--ghost" id="btn-home"><i data-icon="arrow-left"></i><span id="btn-home-label">Your palettes</span></button>
+          <button type="button" class="org-btn org-btn--icon org-btn--icon-toggle ts-star" id="btn-star" aria-pressed="false" aria-label="Star"></button>
+        </div>
+        <div class="ts-palbar__end">
+          <p class="ts-palbar__title" id="palette-title"></p>
+          <a class="org-btn" id="btn-variations" href="#make">Make variations</a>
+        </div>
       </div>
       <div class="ts-sheet" data-theme="light">
         <svg id="stage-svg" data-theme="light" viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -178,14 +286,7 @@
         <div class="ts-sheet-ctrls" id="sheet-ctrls"></div>
         <div class="ts-colour-dock" id="colour-dock" hidden>
           <div class="panel-section">
-            <div class="org-tiles" id="value-tiles" role="group" aria-label="Values">
-              <button type="button" class="org-tile" data-v="hex"><span class="org-tile__label">Hex</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="rgb"><span class="org-tile__label">RGB</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="hsb"><span class="org-tile__label">HSB</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="cmyk"><span class="org-tile__label">CMYK</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="oklch"><span class="org-tile__label">OKLCH</span><span class="org-tile__value"></span></button>
-              <button type="button" class="org-tile" data-v="ral"><span class="org-tile__label">Nearest RAL</span><span class="org-tile__value"></span><span class="org-tile__note"></span></button>
-            </div>
+            <div class="org-tiles" id="value-tiles" role="group" aria-label="Values"></div>
         
           </div>
         </div>
@@ -359,6 +460,9 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/color.js"></script>
+<script src="/shared/hue-tone.js"></script>
+<script src="/shared/dual-range.js"></script>
+<script src="/shared/canvas.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/shade-marks.js"></script>
 <script src="/shared/colour-picker.js"></script>
@@ -418,6 +522,10 @@ const ROLE_SETS = {
   // renames nothing (the token keys stay); at 7, ordered by share, the hill is Tertiary and the wall the new Support.
   6: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight', 'Spark'],
   7: ['Base', 'Secondary', 'Tertiary', 'Support', 'Accent', 'Highlight', 'Spark'],
+  // 2, 8, 9 (Nov 19, 2026, content design; the redesign's step 3): Accent · Highlight · Spark stay the smallest three.
+  2: ['Base', 'Accent'],
+  8: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Accent', 'Highlight', 'Spark'],
+  9: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Touch', 'Accent', 'Highlight', 'Spark'],
 };
 // The lightest tint is called 50 in TuneSutra (Diego, Nov 18, 2026 — the shared scale keeps 0 for FVS).
 const stepName = st => st.step || 50;
@@ -470,6 +578,23 @@ function roleName(i, n) { const set = ROLE_SETS[n || count()] || ROLE_SETS[5]; r
 // A new colour takes the first role name nobody is using — after a removal,
 // position i's own role name may already belong to a colour further along.
 function makeItem(hex) { return { id: newId(), name: '', hex: hex, lock: false }; }
+// Each colour keeps the PART of the house it paints (Nov 19, 2026, redesign step 3): background · ground · middle (the hill) ·
+// far · main (the wall) · sub (the roof) · accent (the door) · accent2 (the windows) · accent3 (the path) — the order is
+// Organica.hueTone.ROLE_PARTS[n], largest share first, the same as house.js's roles. Adding or removing a colour keeps the
+// others on their part; the new colour takes the part that appears, a colour whose part has no place at the new count
+// takes one that is free. The list stays sorted by part, so items[i] is still the i-th role everywhere else.
+const PARTS = Organica.hueTone.ROLE_PARTS;
+function placeParts() {
+  const P = PARTS[count()] || PARTS[5], used = {}, keep = state.items.map(it => {
+    if (it.part && P.indexOf(it.part) >= 0 && !used[it.part]) { used[it.part] = 1; return true; }
+    return false;
+  });
+  const free = P.filter(k => !used[k]);
+  state.items.forEach((it, i) => { if (!keep[i]) it.part = free.shift(); });
+  const activeId = state.items[state.activeIndex] && state.items[state.activeIndex].id;
+  state.items.sort((a, b) => P.indexOf(a.part) - P.indexOf(b.part));
+  if (activeId) state.activeIndex = Math.max(0, state.items.findIndex(it => it.id === activeId));
+}
 function colors() { return state.items.map(it => it.hex); }
 function count() { return state.items.length; }
 // A colour's name is its role (Diego, Nov 18, 2026: the name is semantic and tokenized, not edited) —
@@ -485,14 +610,15 @@ function dispName(i) { return roleName(i); }
 // C.roleShares (the 0.6 rule) also drives FVS Suggest and stays as it is.
 function roleWeights(n) {
   const g = HOUSE.SHARES[4];   // [base, secondary, accent, trim], sums to 100
-  if (n >= 3 && n <= 7) return HOUSE.SHARES[n].slice();   // the house is generated on these (tunesutra/house.js; 6–7 since Nov 19, 2026)
-  if (n < 3) return C.roleShares(n);
+  if (n >= 2 && n <= 9) return HOUSE.SHARES[n].slice();   // the house is generated on these (tunesutra/house.js; 6–7, then 2 · 8 · 9 since Nov 19, 2026)
+  if (n < 2) return C.roleShares(n);
   const tail = g[2] + g[3], k = n - 2, raw = [];
   for (let i = 0; i < k; i++) raw.push(Math.pow(0.6, i));
   const sum = raw.reduce((a, b) => a + b, 0);
   return [g[0], g[1]].concat(raw.map(v => v / sum * tail));
 }
 state.items = ['#c93ed6', '#c9863e', '#3ec9a8'].map(makeItem);
+state.items.forEach((it, i) => { it.part = PARTS[3][i]; });
 
 // ── TOKEN SCALE (0–900) — Organica.color.scale: fixed perceptual lightness
 //    per step, the picked colour kept on its nearest step (the anchor). ──
@@ -647,9 +773,14 @@ function setActiveColor(hex) {
   commit(true);
 }
 // Hex · RGB · HSB · CMYK · Nearest RAL are read-only tiles (Diego, Nov 17, 2026) — values are typed in the picker.
-function refreshTiles(hex) {
+// The six tiles' markup, for the editor's dock and the Swatches panel (one builder, one set of words).
+const TILE_KINDS = [['hex', 'Hex'], ['rgb', 'RGB'], ['hsb', 'HSB'], ['cmyk', 'CMYK'], ['oklch', 'OKLCH'], ['ral', 'Nearest RAL']];
+function tilesInner() { return TILE_KINDS.map(([k, t]) => `<button type="button" class="org-tile" data-v="${k}"><span class="org-tile__label">${t}</span><span class="org-tile__value"></span>${k === 'ral' ? '<span class="org-tile__note"></span>' : ''}</button>`).join(''); }
+function tilesHTML(id) { return `<div class="org-tiles" id="${id}" role="group" aria-label="Values">${tilesInner()}</div>`; }
+ctrl('value-tiles').innerHTML = tilesInner();
+function refreshTiles(hex, box) {
   const P = Organica.colorPicker, ral = P.nearestRal(hex);
-  ctrl('value-tiles').querySelectorAll('.org-tile').forEach(t => {
+  (box || ctrl('value-tiles')).querySelectorAll('.org-tile').forEach(t => {
     const k = t.dataset.v;
     const text = k === 'ral' ? (ral ? ral.code : '—') : P.valueText(hex, k);
     t.querySelector('.org-tile__value').textContent = text;
@@ -664,17 +795,18 @@ function refreshFieldEditor() {
   const hex = state.items[state.activeIndex].hex, tint = tintSel != null ? tokenScale(hex)[tintSel] : null;
   refreshTiles(tint ? tint.hex : hex);
 }
-function bindFieldEditor() {
-  // a tile copies its value; its name says "Copied" for a moment
-  ctrl('value-tiles').addEventListener('click', e => {
+// a tile copies its value; its name says "Copied" for a moment, then refresh() puts the values back
+function bindTiles(box, refresh) {
+  box.addEventListener('click', e => {
     const t = e.target.closest('.org-tile');
     if (!t || !t.dataset.copy || !navigator.clipboard) return;
     navigator.clipboard.writeText(t.dataset.copy).then(() => {
       t.classList.add('is-copied'); t.setAttribute('aria-label', 'Copied');
-      setTimeout(() => { t.classList.remove('is-copied'); refreshFieldEditor(); }, 1200);
+      setTimeout(() => { t.classList.remove('is-copied'); refresh(); }, 1200);
     }, () => {});
   });
 }
+function bindFieldEditor() { bindTiles(ctrl('value-tiles'), refreshFieldEditor); }
 
 // ── STAGE — one scene list feeds the preview and every export (WYSIWYG) ──
 // Top: one card per colour with its 0–900 scale beneath it. Then an example
@@ -703,7 +835,7 @@ function currentFigure() { return houseFig(state.house, count()); }
 // A palette saved before the house (or a built-in one) gets a seed from its colours, so it keeps one house.
 function seedOf(text) { let h = 2166136261; for (const ch of String(text)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 9999) + 1; }
 function newSeed() { return 1 + Math.floor(Math.random() * 9999); }
-function garmentFits(n) { return n >= 3 && n <= 7; }   // 6–7 (Nov 19, 2026): the 5-colour scene + windows, + a hill
+function garmentFits(n) { return n >= 2 && n <= 9; }   // Nov 19, 2026: 6–7 (windows, a hill), then 2 (wall · roof), 8 (a far band), 9 (a path)
 // A zone too pale to see on the paper gets a hairline, as the book draws it.
 function paleOnPaper(hex) { return C.contrast(hex, '#ffffff') < 1.12; }
 function isGarmentView() { return state.view === 'garment' && garmentFits(count()); }
@@ -1962,21 +2094,24 @@ function clearShapeSelection() {
 }
 // The number of colours (Diego, Nov 18, 2026: "togliere Colours 3 4 5 dalla barra di destra … un più su
 // una scheda vuota che può generare al massimo altre 2 schede"): the + card after the last colour card
-// adds one (up to 5); a card past the third has its own remove button. Never fewer than 3.
-const COUNT_MIN = 3, COUNT_MAX = 7;   // 6–7 back (Diego, Nov 19, 2026: "riattiva"), drawn on house.js 6 / 7
+// adds one (up to 9 since Nov 19, 2026); a card past the second has its own remove button. Never fewer than 2.
+const COUNT_MIN = 2, COUNT_MAX = 9;   // 2–9 (Nov 19, 2026, redesign step 3), every count drawn on its house (house.js)
 function addColour() {
   if (count() >= COUNT_MAX) return;
   pourNext = true;
   pushUndo('count');
   state.zone = null;
-  state.items.push(makeItem(nextColour()));
+  const fresh = makeItem(nextColour());
+  state.items.push(fresh);
+  placeParts();   // the new colour takes the part that appears at this count; the others keep theirs
+  const at = state.items.indexOf(fresh);
   // the new colour follows the harmony rule (Diego, Nov 18, 2026) — what Generate would put in its place;
   // the colours already there stay as they are. Already in the palette → the next tint of the last one.
-  const gen = generateHarmony()[count() - 1];
-  if (gen && colors().slice(0, -1).indexOf(gen) < 0) state.items[count() - 1].hex = gen;
-  state.activeIndex = count() - 1;
+  const gen = generateHarmony()[at];
+  if (gen && colors().filter((h, j) => j !== at).indexOf(gen) < 0) fresh.hex = gen;
+  state.activeIndex = at;
   tintSel = null;
-  ctrlFocus = count() < COUNT_MAX ? 'add' : 'card' + (count() - 1);   // the keyboard stays where it was
+  ctrlFocus = count() < COUNT_MAX ? 'add' : 'card' + at;   // the keyboard stays where it was
   commit(true);
 }
 function removeColour(i) {
@@ -1985,8 +2120,9 @@ function removeColour(i) {
   pushUndo('count');
   state.zone = null;
   state.items.splice(i, 1);
-  ctrlFocus = count() > COUNT_MIN ? 'rm' + Math.min(i, count() - 1) : 'add';   // the next card's remove, or the + card
   state.activeIndex = clamp(state.activeIndex >= i ? state.activeIndex - 1 : state.activeIndex, 0, count() - 1);
+  placeParts();   // a colour whose part has no place at this count takes a free one
+  ctrlFocus = count() > COUNT_MIN ? 'rm' + Math.min(i, count() - 1) : 'add';   // the next card's remove, or the + card
   tintSel = null;
   commit(true);
 }
@@ -2077,7 +2213,9 @@ function userPresets() { return PRESETS.read(); }
 // A preset saved before names / ids / locks existed has only { n, harmony,
 // colors } — it loads with the default role names and fresh ids.
 function loadPaletteData(p) {
-  state.items = p.colors.slice(0, 7).map((hex, i) => ({
+  const n0 = Math.min(9, p.colors.length);
+  state.items = p.colors.slice(0, 9).map((hex, i) => ({
+    part: (p.parts && p.parts[i]) || (PARTS[n0] || [])[i],   // saved before Nov 19, 2026: the part of its place, as it was drawn
     id: (p.ids && p.ids[i]) || newId(),
     name: (p.names && p.names[i]) || roleName(i),
     hex: Organica.normalizeHex(hex, '#888888'),
@@ -2086,6 +2224,8 @@ function loadPaletteData(p) {
     scaleFrom: p.scaleFrom && p.scaleFrom[i] ? Organica.normalizeHex(p.scaleFrom[i], '') : undefined,
   }));
   state.items.forEach(it => { if (!it.shade) delete it.shade; if (!it.scaleFrom) delete it.scaleFrom; });
+  state.activeIndex = 0;
+  placeParts();
   state.harmony = p.harmony || 'complementary';
   state.spread = p.spread || 0;
   state.activeIndex = 0;
@@ -2144,6 +2284,7 @@ function confirmSavePreset() {
     colors: colors(),
     names: state.items.map((it, i) => dispName(i)),
     ids: state.items.map(it => it.id),
+    parts: state.items.map(it => it.part),   // the house part each colour paints (Nov 19, 2026)
     locks: state.items.map(it => !!it.lock),
     shades: state.items.map(it => it.shade ? JSON.parse(JSON.stringify(it.shade)) : null),   // a colour's own shading (null = the preset)
     scaleFrom: state.items.map(it => it.scaleFrom || null),   // a colour moved onto a tint: the colour its column comes from
@@ -2164,6 +2305,7 @@ function deletePreset() {
   if (!name) return;
   const all = userPresets();
   delete all[name];
+  const f = FAVS.read(); if (f['p:' + name]) { delete f['p:' + name]; FAVS.write(f); }   // its star goes with it
   PRESETS.write(all);
   if (savePopover) savePopover.close();
   setDirty(false); location.hash = '';   // the palette on screen is gone — back to the library
@@ -2176,10 +2318,15 @@ function deletePreset() {
 //   #new          the editor on a fresh palette
 //   #p=<name>     the editor on a saved palette
 //   #c=<col>/<id> the editor on a COPY of a built-in palette (Save keeps it)
-let currentName = '', suggestedName = '', dirty = false;
+let currentName = '', suggestedName = '', dirty = false, leaveArmed = 0;
 function setDirty(v) { dirty = v; Organica.dirty.set('palette', v); }
 function setCurrent(name, suggest) {
   currentName = name; suggestedName = suggest; setDirty(false);
+  if (name) {   // saved: the star is now on your palette — a starred palette's star comes with it (Diego, Nov 19, 2026)
+    const was = currentKey, key = 'p:' + name;
+    if (was && was !== key && isStarred(was) && !isStarred(key)) toggleStar(key, { name, colors: state.items.map(it => it.hex), house: state.house });
+    currentKey = key;
+  }
   renderStage();   // the sheet shows the name
   if (name) history.replaceState(null, '', '#p=' + encodeURIComponent(name));
   refreshTitle();
@@ -2188,11 +2335,54 @@ function paletteName() { return currentName || suggestedName || 'New palette'; }
 // The name is on the sheet now; the bar keeps only the state (nothing when saved and unchanged).
 function refreshTitle() {
   ctrl('palette-title').textContent = currentName && dirty ? 'Unsaved changes' : '';   // no 'not saved yet' (Diego, Nov 18, 2026)
-  ctrl('btn-home').textContent = '← All palettes';
+  ctrl('btn-home-label').textContent = backTo.label;
+  leaveArmed = 0;
+  refreshEditorStar();
 }
+
+// ── STARS ──
+// A star is kept by key — 'p:<name>' for one of your palettes, 'c:<col>/<id>' for a built-in one — in its own store
+// (tunesutra-favs, the presets table: same sync, same RLS). It keeps a copy of the colours, so a starred palette draws
+// even when its source is not on this device yet. Starred and Saved are two things (Diego, Nov 19, 2026).
+const FAVS = Organica.store('tunesutra-favs');
+function favs() { return FAVS.peek() || {}; }
+function isStarred(key) { return !!(key && favs()[key]); }
+function toggleStar(key, entry) {
+  const f = FAVS.read();
+  if (f[key]) delete f[key];
+  else f[key] = { name: entry.name, colors: entry.colors.slice(0, 9), house: entry.house, at: new Date().toISOString() };
+  FAVS.write(f);
+  return !!f[key];
+}
+function starHTML(on) { return Organica.icons.get(on ? 'star-filled' : 'star'); }
+function paintStar(btn, on, name) {
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  btn.setAttribute('aria-label', 'Star ' + name);   // the name stays; aria-pressed carries the state (UI-COPY, like Pin variation n)
+  btn.innerHTML = starHTML(on);
+}
+let currentKey = '';
+function refreshEditorStar() {
+  const b = ctrl('btn-star');
+  b.hidden = !currentKey;   // a new, unsaved palette has nothing to star yet
+  if (currentKey) paintStar(b, isStarred(currentKey), paletteName());
+}
+function starCurrent() {
+  if (!currentKey) return;
+  let colors = state.items.map(it => it.hex), house = state.house;
+  const lib = currentKey.indexOf('l:') === 0 && LIB && LIB.find(x => x.key === currentKey);
+  if (lib) { colors = lib.colors; house = lib.house; }   // a library palette, as it is
+  else if (currentKey.indexOf('m:') === 0) { const [c, hs] = currentKey.slice(2).split('~'); colors = c.split('-').map(x => '#' + x); house = +hs; }   // a Make palette, as it was drawn
+  else if (currentKey.indexOf('c:') === 0) {   // a built-in palette is starred as it is, not with this copy's edits
+    const [cid, pid] = currentKey.slice(2).split('/'), col = (window.TUNESUTRA_COLLECTIONS || []).find(c => c.id === cid), pal = col && col.palettes.find(x => x.id === pid);
+    if (pal) { colors = pal.colors; house = seedOf(cid + '/' + pid); }
+  }
+  toggleStar(currentKey, { name: paletteName(), colors, house });
+  refreshEditorStar();
+}
+
 function paletteArt(p) {
   const cols = (p.colors || []).map(c => Organica.normalizeHex(c, '#888888'));
-  if (garmentFits(cols.length)) {   // every card shows its house (3–7 colours)
+  if (garmentFits(cols.length)) {   // every card shows its house (2–9 colours)
     const n = cols.length, fig = houseFig(p.house >= 1 ? Math.round(p.house) : seedOf(cols.join('')), n), pad = n >= 5 ? 0 : fig.h * 0.06;
     return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}" aria-hidden="true">` +
       fig.zones.map(z => { const hex = cols[z.role]; return `<path d="${z.d}" fill="${hex}"${n < 5 && paleOnPaper(hex) ? ` stroke="var(--border)" stroke-width="${fig.h / 220}"` : ''}/>`; }).join('') + '</svg>';
@@ -2200,24 +2390,847 @@ function paletteArt(p) {
   const w = roleWeights(cols.length);
   return cols.map((c, i) => `<span style="flex:${w[i].toFixed(2)};background:${c}"></span>`).join('');
 }
-function cardHTML(href, name, p) {
-  return `<a class="ts-card" href="${href}"><span class="ts-card__art" data-theme="light">${paletteArt(p)}</span>` +
-    `<span class="ts-card__label"><span class="ts-card__name">${esc(name)}</span><span class="ts-card__meta">${esc(p.colors.join(' '))}</span></span></a>`;
+// A card: the name is the link (stretched over the card), the star a button above it (design-system CONSULT, Nov 19, 2026).
+function cardHTML(href, name, p, key) {
+  const on = isStarred(key);
+  return `<article class="ts-card"><span class="ts-card__art" data-theme="light">${paletteArt(p)}</span>` +
+    `<span class="ts-card__label ts-card__label--star"><span class="ts-card__text"><a class="ts-card__link ts-card__name" href="${href}">${esc(name)}</a>` +
+    `<span class="ts-card__meta">${esc(p.colors.join(' '))}</span></span>` +
+    `<button type="button" class="org-btn org-btn--icon org-btn--icon-toggle ts-star ts-card__star" data-key="${esc(key)}" aria-pressed="${on}" aria-label="Star ${esc(name)}">${starHTML(on)}</button></span></article>`;
 }
-function renderHome() {
+const NEW_CARD = '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>';
+
+// ── VIEWS ──
+// Three tabs (Diego, Nov 19, 2026): Your palettes · Make (From a colour · From an image) · Explore (Palettes · Moods ·
+// Swatches), How colour works as a link, New palette always on the right. Each is a hash, so Back works:
+//   #palettes (or none) · #make · #make/image · #explore · #explore/moods · #explore/swatches · #learn
+const VIEWS = {
+  palettes: { tab: 'palettes' },
+  make: { tab: 'make', sub: 'colour' }, 'make/colour': { tab: 'make', sub: 'colour' }, 'make/image': { tab: 'make', sub: 'image' },
+  explore: { tab: 'explore', sub: 'palettes' }, 'explore/palettes': { tab: 'explore', sub: 'palettes' },
+  'explore/moods': { tab: 'explore', sub: 'moods' }, 'explore/swatches': { tab: 'explore', sub: 'swatches' },
+  learn: { tab: 'learn' }
+};
+const SUBS = {
+  make: [['colour', '#make', 'From a colour'], ['image', '#make/image', 'From an image']],
+  explore: [['palettes', '#explore', 'Palettes'], ['moods', '#explore/moods', 'Moods'], ['swatches', '#explore/swatches', 'Swatches']]
+};
+let view = VIEWS.palettes;
+function navHTML(v) {
+  const tab = (id, href, label) => `<a href="${href}"${v.tab === id ? ' aria-current="page"' : ''}>${label}</a>`;
+  let html = '<div class="ts-nav"><nav class="ts-tabs" aria-label="TuneSutra">' +
+    tab('palettes', '#palettes', 'Your palettes') + tab('make', '#make', 'Make') + tab('explore', '#explore', 'Explore') + '</nav>' +
+    '<span class="ts-nav__spacer"></span>' +
+    `<a class="ts-nav__learn" href="#learn"${v.tab === 'learn' ? ' aria-current="page"' : ''}>How colour works</a>` +
+    '<a class="org-btn org-btn--primary" href="#new">New palette</a></div>';
+  if (SUBS[v.tab]) html += `<nav class="seg-ctrl seg-ctrl--fit ts-subnav" aria-label="${v.tab === 'make' ? 'Make' : 'Explore'}">` +
+    SUBS[v.tab].map(([id, href, label]) => `<a class="seg-btn${v.sub === id ? ' active" aria-current="page' : ''}" href="${href}">${label}</a>`).join('') + '</nav>';
+  return html;
+}
+let homeShow = 'all';
+try { homeShow = localStorage.getItem('organica.tunesutra.home-show') || 'all'; } catch (e) {}
+function yourPalettesHTML() {
+  const all = userPresets(), f = favs();
+  const saved = Object.keys(all).filter(n => all[n] && Array.isArray(all[n].colors) && all[n].colors.length >= 2)
+    .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')))
+    .map(n => ({ key: 'p:' + n, href: '#p=' + encodeURIComponent(n), name: n, p: all[n] }));
+  // a star on one of your palettes draws the palette itself; one on a palette you deleted is skipped
+  const starred = Object.keys(f).sort((a, b) => String(f[b].at || '').localeCompare(String(f[a].at || ''))).map(k => {
+    if (k.indexOf('p:') === 0) { const n = k.slice(2); return all[n] ? { key: k, href: '#p=' + encodeURIComponent(n), name: n, p: all[n] } : null; }
+    const e = f[k]; if (!e || !Array.isArray(e.colors)) return null;   // c:<col>/<id> (a collection) · l:<id> (the library)
+    return { key: k, href: '#' + k.charAt(0) + '=' + encodeURIComponent(k.slice(2)), name: e.name || 'Palette', p: { colors: e.colors, house: e.house } };
+  }).filter(Boolean);
+  const list = homeShow === 'starred' ? starred : homeShow === 'saved' ? saved
+    : starred.concat(saved.filter(s => !f[s.key]));   // All: starred first, then the rest, newest first
+  const empty = homeShow === 'starred' ? 'Star a palette to find it here.'
+    : homeShow === 'saved' ? 'No saved palettes yet. Make one, or open a palette in Explore and save your own copy.'
+    : 'No palettes yet. Make one, or star one in Explore.';
+  const seg = [['all', 'All'], ['starred', 'Starred'], ['saved', 'Saved']].map(([id, label]) =>
+    `<button type="button" class="seg-btn${homeShow === id ? ' active' : ''}" data-show="${id}" aria-pressed="${homeShow === id}">${label}</button>`).join('');
+  return '<section class="ts-group"><h2 class="ts-group__title">Your palettes</h2>' +
+    `<div class="ts-filter"><div class="seg-ctrl seg-ctrl--fit" role="group" aria-label="Show palettes">${seg}</div>` +
+    `<span class="ts-filter__count">${list.length === 1 ? '1 palette' : list.length + ' palettes'}</span></div>` +
+    (list.length ? '' : `<p class="ts-empty">${empty}</p>`) +
+    '<div class="ts-grid">' + (homeShow === 'starred' ? '' : NEW_CARD) + list.map(c => cardHTML(c.href, c.name, c.p, c.key)).join('') + '</div></section>';
+}
+// ── EXPLORE › PALETTES ──
+// The library: the reference palettes and Organica's generated six- and seven-colour set (Supabase `palettes`, public
+// read, owner write — scripts/build-palettes.mjs), Organica's built-in collections and your own palettes. One bundle
+// call, cached here with its version; the facets are read on the device from the colours (Organica.hueTone), so they
+// follow the model. Filters run here too.
+const HT = Organica.hueTone;
+const LIB_KEY = 'organica.tunesutra.library';
+let LIB = null;
+const KIND_LABEL = { pair: 'Two colours', triad: 'Three colours', bsa: 'Base · secondary · accent', five: 'Five colours', gen: 'Six and seven colours', collection: 'Organica collections', yours: 'Your palettes' };
+const SOURCE_LABEL = { reference: 'Colour studies', organica: 'Organica', yours: 'Your palettes' };
+const HARMONY_LABEL = { monochromatic: 'Monochromatic', analogous: 'Analogous', complementary: 'Complementary', split: 'Split-complementary', triadic: 'Triadic', tetradic: 'Tetradic', varied: 'Varied' };
+const TONE_LABEL = { same: 'Same tone', near: 'Near tones', far: 'Far tones' };
+const PURITY_LABEL = { clear: 'All pure', dull: 'All greyed', mixed: 'Mixed purity' };   // not "clear": a Mood word and the Clear verb
+const FAM_LABEL = k => HT.FAMS[k] + ' tones';   // not bare Casual / Elegant: those are Mood words too
+const capWord = w => w ? w.charAt(0).toUpperCase() + w.slice(1) : '';
+const V_TONE = HT.TONES.findIndex(T => T.k === 'V');
+// 11 key colours: the model's ten hues at their vivid tone, and the greys
+const KEYS = HT.HUES.map((H, hi) => ({ k: H.k, hex: HT.toneColour(hi, V_TONE), name: capWord(HT.cellName(hi, V_TONE).replace(/^Vivid /, '')) }))
+  .concat([{ k: 'N', hex: HT.NEUTRALS[5].hex, name: 'Greys' }]);
+function facets(colors, parts) {
+  const R = HT.readPalette(colors), mainIdx = Math.max(0, (parts || []).indexOf('main')), main = R.rs[mainIdx];
+  const tone = { 'same tone': 'same', 'near tones': 'near', 'far tones': 'far' }[R.toneRel] || '';
+  const purity = { 'all clear': 'clear', 'all dull': 'dull', 'mixed purity': 'mixed' }[R.purity] || '';
+  let mood = HT.WORDS[0][0], bd = 9;
+  HT.WORDS.forEach(w => { const d = Math.hypot(w[1] - R.pos.x, w[2] - R.pos.y); if (d < bd) { bd = d; mood = w[0]; } });
+  return {
+    key: main.neutral ? 'N' : HT.HUES[main.hi].k, mainIdx,
+    fams: [...new Set(R.rs.filter(r => !r.neutral).map(r => HT.TONES[r.ti].fam))],
+    harmony: HT.harmonyOf(colors) || '', tone, purity, mood,
+  };
+}
+function libEntry(o) {   // { id, kind, source, word, name, colors, parts, house, href, key }
+  const f = facets(o.colors, o.parts);
+  return Object.assign(o, f, { n: o.colors.length, name: o.name || (o.word ? capWord(o.word) : HT.nameOf(o.colors[f.mainIdx])) });
+}
+function expandBundle(b) {
+  const at = {}; b.cols.forEach((c, i) => { at[c] = i; });
+  return b.rows.map(r => libEntry({ id: r[at.id], kind: r[at.kind], source: r[at.source], word: r[at.word], colors: r[at.colors], parts: r[at.parts], house: r[at.house],
+    href: '#l=' + encodeURIComponent(r[at.id]), key: 'l:' + r[at.id] }));
+}
+let libLoading = null;
+function loadLibrary() {
+  if (libLoading) return libLoading;
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(LIB_KEY) || 'null'); } catch (e) { cached = null; }
+  if (cached && cached.rows) LIB = expandBundle(cached);
+  const sb = Organica.sb;
+  libLoading = !sb ? Promise.resolve(LIB) : sb.rpc('palettes_version').then(v => {
+    if (v.error || (cached && cached.version === v.data)) return LIB;   // offline or unchanged: the cached copy
+    return sb.rpc('palettes_bundle').then(b => {
+      if (b.error || !b.data) return LIB;
+      try { localStorage.setItem(LIB_KEY, JSON.stringify(b.data)); } catch (e) {}
+      LIB = expandBundle(b.data);
+      return LIB;
+    });
+  }).catch(() => LIB);
+  return libLoading;
+}
+// Everything Explore shows: the library, Organica's collections, your own palettes (read fresh each time).
+let colEntries = null;
+function exploreAll() {
+  if (!colEntries) colEntries = (window.TUNESUTRA_COLLECTIONS || []).flatMap(col => col.palettes.map(pal => libEntry({
+    id: col.id + '/' + pal.id, kind: 'collection', source: 'organica', name: pal.name, colors: pal.colors.slice(), parts: (HT.ROLE_PARTS[pal.colors.length] || []),
+    house: seedOf(col.id + '/' + pal.id), href: '#c=' + encodeURIComponent(col.id + '/' + pal.id), key: 'c:' + col.id + '/' + pal.id })));
   const all = userPresets();
-  const mine = Object.keys(all).filter(n => all[n] && Array.isArray(all[n].colors) && all[n].colors.length >= 3)
-    .sort((a, b) => String(all[b].savedAt || '').localeCompare(String(all[a].savedAt || '')));
-  let html = '<section class="ts-group"><h2 class="ts-group__title">Your palettes</h2>' +
-    `<p class="ts-group__note">${mine.length ? mine.length + (mine.length === 1 ? ' palette' : ' palettes') + ', newest first.' : 'None yet. Start a new one, or open a built-in palette and save your own copy.'}</p><div class="ts-grid">` +
-    '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>' +
-    mine.map(n => cardHTML('#p=' + encodeURIComponent(n), n, all[n])).join('') + '</div></section>';
-  (window.TUNESUTRA_COLLECTIONS || []).forEach(col => {
-    html += `<section class="ts-group"><h2 class="ts-group__title">${esc(col.name)}</h2><p class="ts-group__note">${esc(col.note || '')}</p><div class="ts-grid">` +
-      col.palettes.map(pal => cardHTML('#c=' + encodeURIComponent(col.id + '/' + pal.id), pal.name, { colors: pal.colors, view: col.view, house: seedOf(col.id + '/' + pal.id) })).join('') + '</div></section>';
-  });
-  ctrl('home').innerHTML = html;
+  const yours = Object.keys(all).filter(n => all[n] && Array.isArray(all[n].colors) && all[n].colors.length >= 2).map(n => libEntry({
+    id: n, kind: 'yours', source: 'yours', name: n, colors: all[n].colors.slice(0, 9), parts: all[n].parts || HT.ROLE_PARTS[Math.min(9, all[n].colors.length)],
+    house: all[n].house, href: '#p=' + encodeURIComponent(n), key: 'p:' + n }));
+  return (LIB || []).concat(colEntries, yours);
 }
+
+// The filters: AND across filters, OR inside Key colour and Mood. Remembered per browser.
+const EXP_KEY = 'organica.tunesutra.explore';
+const EXP_DEFAULT = { q: '', keys: [], nMin: 2, nMax: 9, moods: [], fam: '', harmony: '', tone: '', purity: '', source: '', group: 'structure' };
+const freshExp = () => Object.assign({}, EXP_DEFAULT, { keys: [], moods: [] });   // new arrays: a toggle must never reach the defaults
+let EXP = freshExp();
+try { Object.assign(EXP, JSON.parse(localStorage.getItem(EXP_KEY) || '{}')); } catch (e) {}
+function saveExp() { try { localStorage.setItem(EXP_KEY, JSON.stringify(EXP)); } catch (e) {} }
+const expanded = new Set();
+function matches(e) {
+  const q = EXP.q.trim().toLowerCase();
+  if (q && e.name.toLowerCase().indexOf(q) < 0 && !(e.word && e.word.indexOf(q) >= 0)) return false;
+  if (EXP.keys.length && EXP.keys.indexOf(e.key) < 0) return false;
+  if (e.n < EXP.nMin || e.n > EXP.nMax) return false;
+  if (EXP.moods.length && EXP.moods.indexOf(e.mood) < 0) return false;
+  if (EXP.fam && e.fams.indexOf(EXP.fam) < 0) return false;
+  if (EXP.harmony && e.harmony !== EXP.harmony) return false;
+  if (EXP.tone && e.tone !== EXP.tone) return false;
+  if (EXP.purity && e.purity !== EXP.purity) return false;
+  if (EXP.source && e.source !== EXP.source) return false;
+  return true;
+}
+const GROUPS = {
+  structure: { of: e => e.kind, order: ['yours', 'collection', 'pair', 'triad', 'bsa', 'five', 'gen'], label: k => KIND_LABEL[k] },
+  key: { of: e => e.key, order: KEYS.map(k => k.k), label: k => (KEYS.find(x => x.k === k) || {}).name },
+  mood: { of: e => e.mood, order: HT.WORDS.map(w => w[0]), label: capWord },
+  source: { of: e => e.source, order: ['yours', 'organica', 'reference'], label: k => SOURCE_LABEL[k] },
+};
+const palCount = n => n.toLocaleString('en-GB') + (n === 1 ? ' palette' : ' palettes');   // a count always says what it counts (Nov 20, 2026)
+const PER_GROUP = 12;   // two rows on a wide screen; Show all for the rest
+function chipsOf() {
+  const c = [];
+  if (EXP.q.trim()) c.push(['q', '', '“' + EXP.q.trim() + '”']);
+  EXP.keys.forEach(k => c.push(['keys', k, (KEYS.find(x => x.k === k) || {}).name]));
+  if (EXP.nMin > 2 || EXP.nMax < 9) c.push(['n', '', EXP.nMin === EXP.nMax ? EXP.nMin + ' colours' : EXP.nMin + '–' + EXP.nMax + ' colours']);
+  EXP.moods.forEach(m => c.push(['moods', m, capWord(m)]));
+  if (EXP.fam) c.push(['fam', '', FAM_LABEL(EXP.fam)]);
+  if (EXP.harmony) c.push(['harmony', '', HARMONY_LABEL[EXP.harmony]]);
+  if (EXP.tone) c.push(['tone', '', TONE_LABEL[EXP.tone]]);
+  if (EXP.purity) c.push(['purity', '', PURITY_LABEL[EXP.purity]]);
+  if (EXP.source) c.push(['source', '', SOURCE_LABEL[EXP.source]]);
+  return c;
+}
+function renderResults() {
+  const box = ctrl('ts-results'); if (!box) return;
+  const all = exploreAll(), hit = all.filter(matches), nf = n => n.toLocaleString('en-GB');
+  const chips = chipsOf();
+  ctrl('ts-chips').innerHTML = chips.map(([f, v, label]) => `<button type="button" class="org-btn org-btn--sm" data-unchip="${f}" data-val="${esc(v)}" aria-label="Remove ${esc(label)}">${esc(label)}${Organica.icons.get('close', { size: 'sm' })}</button>`).join('') +
+    (chips.length ? '<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-clear>Clear filters</button>' : '');
+  ctrl('ts-count').textContent = !LIB && libLoading ? 'Loading the library…' : (chips.length ? nf(hit.length) + ' of ' + nf(all.length) : nf(all.length)) + (all.length === 1 ? ' palette' : ' palettes');
+  if (!hit.length) {
+    box.innerHTML = `<div class="org-empty"><p class="org-empty__title">${EXP.q.trim() ? 'No palette matches “' + esc(EXP.q.trim()) + '”' : 'No palette matches these filters'}</p>` +
+      '<p class="org-empty__hint">Remove a filter, or clear them all.</p><button type="button" class="org-empty__action org-btn" data-clear>Clear filters</button></div>';
+    return;
+  }
+  const G = GROUPS[EXP.group] || GROUPS.structure, by = {};
+  hit.forEach(e => { const k = G.of(e); (by[k] = by[k] || []).push(e); });
+  box.innerHTML = G.order.filter(k => by[k]).map(k => {
+    const list = by[k], open = expanded.has(EXP.group + ':' + k), shown = open ? list : list.slice(0, PER_GROUP), gid = 'ts-g-' + EXP.group + '-' + String(k).replace(/[^a-z0-9]+/gi, '-');
+    return `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">${esc(G.label(k) || k)}</h2><span class="ts-filter__count">${palCount(list.length)}</span>` +
+      (list.length > PER_GROUP ? `<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-more="${esc(EXP.group + ':' + k)}" aria-expanded="${open}" aria-controls="${gid}" aria-label="${open ? 'Show fewer' : 'Show all'} in ${esc(G.label(k) || k)}">${open ? 'Show fewer' : 'Show all'}</button>` : '') +
+      `</div><div class="ts-grid" id="${gid}">${shown.map(e => cardHTML(e.href, e.name, e, e.key)).join('')}</div></section>`;
+  }).join('');
+}
+function filtersHTML() {
+  const sel = (id, label, cur, opts) => `<label class="sub-label" for="${id}">${label}</label><select class="panel-select" id="${id}" data-f="${id.slice(4)}">` +
+    `<option value="">Any</option>${opts.map(([v, t]) => `<option value="${v}"${cur === v ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+  return '<div class="panel-section"><h3>Group by</h3>' +
+    `<select class="panel-select" id="exp-group" aria-label="Group by">${[['structure', 'Structure'], ['key', 'Key colour'], ['mood', 'Mood'], ['source', 'Source']].map(([v, t]) => `<option value="${v}"${EXP.group === v ? ' selected' : ''}>${t}</option>`).join('')}</select></div>` +
+    '<div class="panel-section"><h3>Filters</h3>' +
+    '<span class="sub-label" id="exp-keys-label">Key colour</span><div class="ts-keys" role="group" aria-labelledby="exp-keys-label">' +
+    KEYS.map(k => `<button type="button" class="ts-key" data-key="${k.k}" aria-pressed="${EXP.keys.indexOf(k.k) >= 0}" aria-label="${esc(k.name)}" style="background:${k.hex}"></button>`).join('') + '</div>' +
+    `<div class="ctrl-row"><span class="ctrl-label">Number of colours</span><span class="ctrl-val" id="exp-n-val">${EXP.nMin}–${EXP.nMax}</span></div><div id="exp-n"></div>` +
+    '<span class="sub-label" id="exp-moods-label">Mood</span><div class="seg-ctrl seg-ctrl--multi seg-ctrl--fit" role="group" aria-labelledby="exp-moods-label">' +
+    HT.WORDS.map(w => `<button type="button" class="seg-btn" data-mood="${w[0]}" aria-pressed="${EXP.moods.indexOf(w[0]) >= 0}">${capWord(w[0])}</button>`).join('') + '</div>' +
+    sel('exp-fam', 'Tone family', EXP.fam, Object.keys(HT.FAMS).map(k => [k, FAM_LABEL(k)])) +
+    sel('exp-harmony', 'Hue relation', EXP.harmony, Object.keys(HARMONY_LABEL).map(k => [k, HARMONY_LABEL[k]])) +
+    sel('exp-tone', 'Tone relation', EXP.tone, Object.keys(TONE_LABEL).map(k => [k, TONE_LABEL[k]])) +
+    sel('exp-purity', 'Purity', EXP.purity, Object.keys(PURITY_LABEL).map(k => [k, PURITY_LABEL[k]])) +
+    sel('exp-source', 'Source', EXP.source, Object.keys(SOURCE_LABEL).map(k => [k, SOURCE_LABEL[k]])) + '</div>';
+}
+let nRange = null;
+function exploreHTML() {
+  return '<div class="ts-explore">' + navHTML(view) +
+    '<div class="ts-find"><input type="search" class="org-field ts-search" id="exp-q" placeholder="Search by name" aria-label="Search by name" autocomplete="off" value="' + esc(EXP.q) + '">' +
+    '<div class="ts-chips" id="ts-chips"></div><span class="ts-filter__count" id="ts-count"></span></div><div id="ts-results"></div></div>' +
+    '<aside class="org-panel ts-filters" id="ts-filters" aria-label="Filters">' + filtersHTML() + '</aside>';
+}
+function mountExplore() {
+  nRange = Organica.dualRange(ctrl('exp-n'), { min: 2, max: 9, from: EXP.nMin, to: EXP.nMax, step: 1, label: 'Number of colours', fmt: v => v + ' colours',
+    onInput: (a, b) => { ctrl('exp-n-val').textContent = a + '–' + b; },
+    onChange: (a, b) => { EXP.nMin = a; EXP.nMax = b; ctrl('exp-n-val').textContent = a + '–' + b; saveExp(); renderResults(); } });
+  renderResults();
+  if (!LIB) loadLibrary().then(() => { if (ctrl('ts-results')) renderResults(); });
+}
+function syncFilters() {   // the panel after a chip or Clear: the controls only, never a rebuild (a drag would break)
+  ctrl('ts-filters').querySelectorAll('.ts-key').forEach(b => b.setAttribute('aria-pressed', String(EXP.keys.indexOf(b.dataset.key) >= 0)));
+  ctrl('ts-filters').querySelectorAll('[data-mood]').forEach(b => b.setAttribute('aria-pressed', String(EXP.moods.indexOf(b.dataset.mood) >= 0)));
+  ctrl('ts-filters').querySelectorAll('select[data-f]').forEach(s => { s.value = EXP[s.dataset.f]; });
+  if (nRange) nRange.set(EXP.nMin, EXP.nMax, true);
+  ctrl('exp-n-val').textContent = EXP.nMin + '–' + EXP.nMax;
+  ctrl('exp-q').value = EXP.q;
+}
+let searchT = 0;
+ctrl('home').addEventListener('input', e => {
+  if (e.target.id !== 'exp-q') return;
+  clearTimeout(searchT);
+  searchT = setTimeout(() => { EXP.q = e.target.value; saveExp(); renderResults(); }, 150);
+});
+ctrl('home').addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'exp-group') { EXP.group = t.value; saveExp(); renderResults(); }
+  else if (t.dataset && t.dataset.f) { EXP[t.dataset.f] = t.value; saveExp(); renderResults(); }
+});
+ctrl('home').addEventListener('click', e => {
+  const key = e.target.closest('.ts-key'), mood = e.target.closest('[data-mood]'), un = e.target.closest('[data-unchip]'), clr = e.target.closest('[data-clear]'), more = e.target.closest('[data-more]');
+  const toggle = (arr, v) => { const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); };
+  if (key) { toggle(EXP.keys, key.dataset.key); key.setAttribute('aria-pressed', String(EXP.keys.indexOf(key.dataset.key) >= 0)); }
+  else if (mood) { toggle(EXP.moods, mood.dataset.mood); mood.setAttribute('aria-pressed', String(EXP.moods.indexOf(mood.dataset.mood) >= 0)); }
+  else if (un) {
+    const f = un.dataset.unchip, v = un.dataset.val;
+    if (f === 'keys' || f === 'moods') toggle(EXP[f], v); else if (f === 'n') { EXP.nMin = 2; EXP.nMax = 9; } else EXP[f] = '';
+    syncFilters();
+  } else if (clr) { EXP = Object.assign(freshExp(), { group: EXP.group }); syncFilters(); }
+  else if (more) { const g = more.dataset.more; if (expanded.has(g)) expanded.delete(g); else expanded.add(g); }
+  else return;
+  saveExp(); renderResults();
+  if (un || clr) { const s = ctrl('exp-q'); if (s) s.focus(); }   // the chip is gone: the focus goes to the search
+  else if (more) { const again = ctrl('ts-results').querySelector(`[data-more="${CSS.escape(more.dataset.more)}"]`); if (again) again.focus(); }
+});
+// ── MAKE › FROM A COLOUR ──
+// Twelve palettes from a key colour (Nov 19, 2026, design-system CONSULT): built by Roles (each colour picked for the
+// part of the house it paints, the odds measured on the reference palettes — Organica.hueTone.generateRoles) or by
+// Hue and tone (Organica.hueTone.generate). Every palette is in ROLE_PARTS order, the key colour on the `main` part,
+// so a card opens in the editor as it was drawn. The same settings give the same twelve; Suggest moves the seed.
+const MK_KEY = 'organica.tunesutra.make';
+const MK_DEFAULT = { key: '#e5000d', n: 5, by: 'roles', fam: 'base', hue: 'similar', tone: 'near', purity: 'any', neutral: 'auto', seed: 1 };
+let MK = Object.assign({}, MK_DEFAULT);
+try { Object.assign(MK, JSON.parse(localStorage.getItem(MK_KEY) || '{}')); } catch (e) {}
+if (!(MK.n >= 2 && MK.n <= 9)) MK.n = MK_DEFAULT.n;
+if (!/^#[0-9a-f]{6}$/i.test(MK.key)) MK.key = MK_DEFAULT.key;
+if (MK.by !== 'ht') MK.by = 'roles';
+if (!(MK.seed >= 1)) MK.seed = 1;
+function saveMake() { try { localStorage.setItem(MK_KEY, JSON.stringify(MK)); } catch (e) {} }
+const MK_HUE = { same: 'Monochromatic', similar: 'Analogous', complement: 'Complementary', split: 'Split-complementary', triad: 'Triadic', free: 'Any' };
+const MK_NEUTRAL = { auto: 'Automatic', none: 'None', white: 'White', grey: 'Grey', black: 'Black' };
+const MK_HINT = { roles: 'Each colour is picked for the part of the house it paints, the way printed palettes do it.', ht: 'You choose how the other colours’ hues and tones relate to the key colour.' };
+const mkHex = c => c.slice(1);
+const makeName = (cols, seed) => HT.nameOf(cols[HT.ROLE_PARTS[cols.length].indexOf('main')]) + ', seed ' + seed;   // one name for the card, the editor and the star
+function makeOne(seed) {
+  const n = MK.n, parts = HT.ROLE_PARTS[n];
+  if (MK.by === 'roles') return HT.generateRoles(MK.key, n, seed).map(x => x.hex);
+  const out = HT.generate(MK.key, { image: MK.fam, hue: MK.hue, tone: MK.tone, purity: MK.purity, n, neutral: MK.neutral }, seed);
+  if (out.length < 2) return null;   // a grey key colour: no hue to build from
+  const cols = new Array(n), mainIdx = parts.indexOf('main'), rest = out.slice(1);   // the key colour on `main`, the others in order
+  cols[mainIdx] = out[0];
+  for (let i = 0; i < n; i++) if (i !== mainIdx) cols[i] = rest.shift() || out[0];
+  return cols;
+}
+function makeSet() {
+  const seen = new Set(), list = [];
+  for (let i = 1; i <= 12; i++) {
+    const seed = MK.seed * 100 + i, cols = makeOne(seed);
+    if (!cols) return null;
+    const sig = cols.join(''); if (seen.has(sig)) continue; seen.add(sig);
+    const tok = cols.map(mkHex).join('-') + '~' + seed;
+    list.push({ colors: cols, house: seed, href: '#m=' + tok, key: 'm:' + tok, name: makeName(cols, seed) });
+  }
+  return list;
+}
+function makePanelHTML() {
+  const opt = (map, cur) => Object.keys(map).map(k => `<option value="${k}"${cur === k ? ' selected' : ''}>${map[k]}</option>`).join('');
+  const row = (id, label, map, cur) => `<label class="sub-label" for="${id}">${label}</label><select class="panel-select" id="${id}" data-mk="${id.slice(3)}">${opt(map, cur)}</select>`;
+  const fams = Object.assign({ base: 'Same as the key colour' }, ...Object.keys(HT.FAMS).map(k => ({ [k]: FAM_LABEL(k) })));
+  return '<div class="panel-section"><h3>Key colour</h3>' +
+    '<div class="color-row"><span class="color-name">Key colour</span><button type="button" class="color-swatch" id="mk-key" aria-label="Key colour" aria-haspopup="dialog"></button><span class="ctrl-val" id="mk-key-hex"></span></div>' +
+    '<p class="org-panel__hint" id="mk-key-name"></p></div>' +
+    '<div class="panel-section"><h3>Palette</h3>' +
+    `<div class="ctrl-row"><div class="ctrl-label">Number of colours</div><input type="range" id="mk-n" min="2" max="9" step="1" value="${MK.n}"><span class="ctrl-val" id="mk-n-val">${MK.n}</span></div>` +
+    '<span class="sub-label" id="mk-by-label">Built by</span>' +
+    `<div class="seg-ctrl" role="group" aria-labelledby="mk-by-label" aria-describedby="mk-by-hint">${[['roles', 'Roles'], ['ht', 'Hue and tone']].map(([v, t]) => `<button type="button" class="seg-btn${MK.by === v ? ' active' : ''}" data-by="${v}" aria-pressed="${MK.by === v}">${t}</button>`).join('')}</div>` +
+    `<p class="org-panel__hint" id="mk-by-hint">${MK_HINT[MK.by]}</p>` +
+    `<div id="mk-ht"${MK.by === 'roles' ? ' hidden' : ''}>` +
+    row('mk-fam', 'Tone family', fams, MK.fam) + row('mk-hue', 'Hue relation', MK_HUE, MK.hue) +
+    row('mk-tone', 'Tone relation', TONE_LABEL, MK.tone) + row('mk-purity', 'Purity', { any: 'Any', same: 'As the key colour' }, MK.purity) +
+    row('mk-neutral', 'Neutral', MK_NEUTRAL, MK.neutral) + '<p class="org-panel__hint">A neutral takes one of the colours.</p></div></div>';
+}
+function paintKey(hex) {
+  ctrl('mk-key').style.background = hex;
+  ctrl('mk-key-hex').textContent = hex.toUpperCase();
+  ctrl('mk-key-name').textContent = HT.nameOf(hex);
+}
+function renderMake() {
+  const box = ctrl('mk-results'); if (!box) return;
+  const list = makeSet(), n = MK.n, w = roleWeights(n);
+  const btn = `<button type="button" class="org-btn" id="mk-suggest">${Organica.icons.get('refresh')}Suggest</button>`;
+  if (!list) {
+    box.innerHTML = '<div class="org-empty"><p class="org-empty__title">A grey has no hue to build from</p><p class="org-empty__hint">Hue and tone needs a colour. Roles works with any colour.</p>' +
+      '<button type="button" class="org-empty__action org-btn" data-by="roles">Use Roles</button></div>';
+    return;
+  }
+  const first = list[0].colors;
+  box.innerHTML = `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">Roles</h2><span class="ts-filter__count">at ${n} colours</span>${btn}</div>` +
+    '<div class="ts-roles">' + first.map((c, i) => `<span class="ts-role"><span class="ts-role__sw" style="background:${c}"></span>${esc(roleName(i, n))} <span class="ts-filter__count">${w[i].toFixed(1)}%</span></span>`).join('') + '</div>' +
+    (list.length < 12 ? `<p class="ts-group__note">Only ${list.length} different palettes with these settings.</p>` : '') +
+    `<div class="ts-grid">${list.map(p => cardHTML(p.href, p.name, p, p.key)).join('')}</div></section>`;
+}
+function makeHTML() {
+  return '<div class="ts-explore">' + navHTML(view) + '<div id="mk-results"></div></div>' +
+    '<aside class="org-panel ts-filters" id="mk-panel" aria-label="Make settings">' + makePanelHTML() + '</aside>';
+}
+function mountMake() {
+  paintKey(MK.key);
+  Organica.enhanceSliders(ctrl('mk-panel'));
+  Organica.autoLabelPanel(ctrl('mk-panel'));
+  renderMake();
+}
+function setBuiltBy(v) {
+  MK.by = v; saveMake();
+  ctrl('mk-panel').querySelectorAll('[data-by]').forEach(b => { const on = b.dataset.by === v; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+  ctrl('mk-ht').hidden = v === 'roles';
+  ctrl('mk-by-hint').textContent = MK_HINT[v];
+  renderMake();
+}
+ctrl('home').addEventListener('input', e => {
+  if (e.target.id !== 'mk-n') return;
+  ctrl('mk-n-val').textContent = e.target.value;
+});
+ctrl('home').addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'mk-n') { MK.n = +t.value; saveMake(); renderMake(); }
+  else if (t.dataset && t.dataset.mk) { MK[t.dataset.mk] = t.value; saveMake(); renderMake(); }
+});
+ctrl('home').addEventListener('click', e => {
+  const by = e.target.closest('[data-by]'), sug = e.target.closest('#mk-suggest'), key = e.target.closest('#mk-key');
+  if (by) setBuiltBy(by.dataset.by);
+  else if (sug) { MK.seed++; saveMake(); renderMake(); const again = ctrl('mk-suggest'); if (again) again.focus(); }
+  else if (key) Organica.colorPicker.open(key, { value: MK.key, label: 'Key',
+    onInput: hex => paintKey(hex),
+    onChange: hex => { MK.key = hex; saveMake(); paintKey(hex); renderMake(); } });
+});
+// ── MAKE › FROM AN IMAGE ──
+// An image's own colours as palettes (Nov 19, 2026, redesign step 7, design-system CONSULT): Organica.hueTone.extract
+// groups the pixels of a ~128 px copy in OKLab and gives each colour its share of the image, largest first — the same
+// order as ROLE_PARTS, so the biggest colour paints the biggest part and a card opens in the editor as it is drawn.
+// Picked by Area (the n biggest) or Difference (the most different, weighted by area). The image never leaves the
+// page and is not stored: it stays in memory for the visit; only the settings are kept (MK.img).
+const MI = Object.assign({ n: 5, pick: 'area' }, MK.img && typeof MK.img === 'object' ? MK.img : {});
+if (!(MI.n >= 2 && MI.n <= 9)) MI.n = 5;
+if (MI.pick !== 'spread') MI.pick = 'area';
+MK.img = MI;
+const MI_PICK = { area: 'Area', spread: 'Difference' };
+const MI_HINT = { area: 'The colours that cover most of the image.', spread: 'The most different colours, so a small accent still gets in.' };
+const MI_SIDE = 128;           // the copy the colours are read from, long side in px
+let MI_IMG = null, MI_ERR = false, MI_JOB = 0;
+const MI_CACHE = new Map();    // 'n|pick' → extract result, for the image on show
+const IMG_NAMES = {};          // '#m=' token → its card name, so the editor and the star use the same one
+function miExtract(n) {
+  const k = n + '|' + MI.pick;
+  if (!MI_CACHE.has(k)) MI_CACHE.set(k, HT.extract(MI_IMG.px, { n, pick: MI.pick }));
+  return MI_CACHE.get(k);
+}
+function miCard(n) {
+  const cols = miExtract(n).map(c => c.hex);
+  if (cols.length < 2) return null;
+  const tok = cols.map(mkHex).join('-') + '~1', name = MI_IMG.name + ', ' + cols.length + ' colours';
+  IMG_NAMES[tok] = name;
+  return { colors: cols, house: 1, href: '#m=' + tok, key: 'm:' + tok, name };
+}
+function miOpenBtn(extra) { return `<button type="button" class="org-btn${extra || ''}" data-mi-open>${Organica.icons.get('folder-open')}Open image…</button>`; }
+function makeImagePanelHTML() {
+  return '<div class="panel-section"><h3>Image</h3>' +
+    '<img class="ts-mi-thumb" id="mi-thumb" alt="" hidden><p class="org-panel__hint" id="mi-file" hidden></p>' + miOpenBtn() + '</div>' +
+    '<div class="panel-section"><h3>Palette</h3>' +
+    `<div class="ctrl-row"><div class="ctrl-label">Number of colours</div><input type="range" id="mi-n" min="2" max="9" step="1" value="${MI.n}"><span class="ctrl-val" id="mi-n-val">${MI.n}</span></div>` +
+    '<span class="sub-label" id="mi-pick-label">Picked by</span>' +
+    `<div class="seg-ctrl" role="group" aria-labelledby="mi-pick-label" aria-describedby="mi-pick-hint">${Object.keys(MI_PICK).map(v => `<button type="button" class="seg-btn${MI.pick === v ? ' active' : ''}" data-pick="${v}" aria-pressed="${MI.pick === v}">${MI_PICK[v]}</button>`).join('')}</div>` +
+    `<p class="org-panel__hint" id="mi-pick-hint">${MI_HINT[MI.pick]}</p></div>`;
+}
+function makeImageHTML() {
+  return '<div class="ts-explore" id="mi-drop">' + navHTML(view) + '<div id="mi-results"></div></div>' +
+    '<input type="file" id="mi-input" class="org-file-input" accept="image/*">' +
+    '<aside class="org-panel ts-filters" id="mi-panel" aria-label="Make settings">' + makeImagePanelHTML() + '</aside>';
+}
+function paintThumb() {
+  const t = ctrl('mi-thumb'), f = ctrl('mi-file'); if (!t) return;
+  t.hidden = f.hidden = !MI_IMG;
+  if (!MI_IMG) return;
+  t.src = MI_IMG.url;   // alt stays empty: the caption below names the file
+  f.textContent = MI_IMG.file + ' · ' + MI_IMG.w + ' × ' + MI_IMG.h;
+}
+function renderImage() {
+  const box = ctrl('mi-results'); if (!box) return;
+  const job = ++MI_JOB;
+  if (MI_ERR || !MI_IMG) {
+    box.innerHTML = MI_ERR
+      ? `<div class="org-empty"><p class="org-empty__title">This file can’t be opened as an image</p><p class="org-empty__hint">Try a JPEG, PNG, WebP or GIF.</p>${miOpenBtn(' org-empty__action')}</div>`
+      : `<div class="org-empty"><p class="org-empty__title">Open an image</p><p class="org-empty__hint">Drop an image here, or open one. Its colours become palettes. The image stays on this device.</p>${miOpenBtn(' org-empty__action')}</div>`;
+    return;
+  }
+  const res = miExtract(MI.n), k = res.length, first = miCard(MI.n);
+  if (!first) {
+    box.innerHTML = '<div class="org-empty"><p class="org-empty__title">This image has only one colour</p><p class="org-empty__hint">A palette needs two colours at least. Open another image.</p>' + miOpenBtn(' org-empty__action') + '</div>';
+    return;
+  }
+  box.innerHTML = `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">Roles</h2><span class="ts-filter__count">at ${k} colours · share of the image</span></div>` +
+    '<div class="ts-roles">' + res.map((c, i) => `<span class="ts-role"><span class="ts-role__sw" style="background:${c.hex}"></span>${esc(roleName(i, k))} <span class="ts-filter__count">${c.share.toFixed(1)}%</span></span>`).join('') + '</div>' +
+    (k < MI.n ? `<p class="ts-group__note">This image gives only ${k} different colours.</p>` : '') +
+    `<div class="ts-grid" id="mi-grid">${cardHTML(first.href, first.name, first, first.key)}</div></section>`;
+  // the chosen count first, then the others in order, one per frame — a large photo stays responsive
+  // a count the image cannot reach is left out (asking 8 of a 7-colour image gives another 7 — one name, two palettes)
+  const seen = new Set([first.colors.length]), rest = [2, 3, 4, 5, 6, 7, 8, 9].filter(c => c !== MI.n);
+  const next = () => {
+    if (job !== MI_JOB || !rest.length) return;
+    const want = rest.shift(), p = miCard(want), grid = ctrl('mi-grid');
+    if (!grid) return;
+    if (p && p.colors.length === want && !seen.has(want)) { seen.add(want); grid.insertAdjacentHTML('beforeend', cardHTML(p.href, p.name, p, p.key)); }
+    requestAnimationFrame(next);
+  };
+  requestAnimationFrame(next);
+}
+async function miLoad(file) {
+  if (!file) return;
+  let bmp = null;
+  if (/^image\//.test(file.type)) { try { bmp = await createImageBitmap(file); } catch (e) { bmp = null; } }
+  if (!bmp) {   // the image on show goes too: the panel and the error say the same thing
+    if (MI_IMG) URL.revokeObjectURL(MI_IMG.url);
+    MI_IMG = null; MI_CACHE.clear(); MI_ERR = true; paintThumb(); renderImage(); miRefocus(); return;
+  }
+  const s = Math.min(1, MI_SIDE / Math.max(bmp.width, bmp.height)), w = Math.max(1, Math.round(bmp.width * s)), h = Math.max(1, Math.round(bmp.height * s));
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingQuality = 'high'; g.drawImage(bmp, 0, 0, w, h);
+  if (MI_IMG) URL.revokeObjectURL(MI_IMG.url);
+  MI_IMG = { file: file.name, name: file.name.replace(/\.[^.]+$/, '') || 'Image', w: bmp.width, h: bmp.height, url: URL.createObjectURL(file), px: g.getImageData(0, 0, w, h).data };
+  if (bmp.close) bmp.close();
+  MI_CACHE.clear(); MI_ERR = false;
+  paintThumb(); renderImage(); miRefocus();
+}
+// the empty state's Open button is gone with the redraw: the focus goes to the panel's
+function miRefocus() {
+  const a = document.activeElement;
+  if (!a || a === document.body) { const b = ctrl('mi-panel') && ctrl('mi-panel').querySelector('[data-mi-open]'); if (b) b.focus(); }
+}
+function mountImage() {
+  paintThumb();
+  Organica.enhanceSliders(ctrl('mi-panel'));
+  Organica.autoLabelPanel(ctrl('mi-panel'));
+  const input = ctrl('mi-input');
+  // accept '' — the check is miLoad's, so a file that is not an image gets its error state instead of nothing
+  Organica.canvasDropZone({ wrap: ctrl('mi-drop'), fileInput: input, accept: '', onFile: inp => miLoad(inp.files[0]) });
+  input.addEventListener('change', () => { miLoad(input.files[0]); input.value = ''; });
+  renderImage();
+}
+ctrl('home').addEventListener('input', e => { if (e.target.id === 'mi-n') ctrl('mi-n-val').textContent = e.target.value; });
+ctrl('home').addEventListener('change', e => { if (e.target.id === 'mi-n') { MI.n = +e.target.value; MI_ERR = false; saveMake(); renderImage(); } });
+ctrl('home').addEventListener('click', e => {
+  const open = e.target.closest('[data-mi-open]'), pick = e.target.closest('[data-pick]');
+  if (open) ctrl('mi-input').click();
+  else if (pick) {
+    MI.pick = pick.dataset.pick; MI_ERR = false; saveMake();
+    ctrl('mi-panel').querySelectorAll('[data-pick]').forEach(b => { const on = b.dataset.pick === MI.pick; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+    ctrl('mi-pick-hint').textContent = MI_HINT[MI.pick];
+    renderImage();
+  }
+});
+// ── EXPLORE › SWATCHES ──
+// The hue × tone grid (Nov 19, 2026, redesign step 8, design-system CONSULT): 10 hues across, the 12 tones down in their
+// four families, then the 10 neutrals — 130 swatches, each the model's colour (Organica.hueTone.toneColour). Every colour
+// of every palette in Explore is read to its swatch (HT.read): a swatch shows how many different colours it holds. Pick one
+// for its values, its colours and the palettes that use it. Keyboard: one Tab stop, the arrows move, Home / End go to the
+// row's ends (a roving tabindex — local, no shared grid helper yet).
+const SW_CELLS = [];   // [{ id, hex, name, code, row, col }] rows 0–11 the tones, 12 the neutrals
+HT.TONES.forEach((T, ti) => HT.HUES.forEach((H, hi) => SW_CELLS.push({ id: hi + ':' + ti, hex: HT.toneColour(hi, ti), name: HT.cellName(hi, ti), code: H.k + '/' + T.k, row: ti, col: hi })));
+HT.NEUTRALS.forEach((N, i) => SW_CELLS.push({ id: 'n' + i, hex: N.hex, name: HT.nameOf(N.hex), code: N.k, row: 12, col: i }));
+const swCellOf = hex => { const R = HT.read(hex); return R.neutral ? 'n' + R.n : R.hi + ':' + R.ti; };
+let SW_SEL = null, SW_DATA = null, swDataFor = null, swFocus = '0:0';
+function swData() {   // cell id → { colours: Map hex → palettes using it, pals: [entries] }; rebuilt when the library arrives
+  const all = exploreAll(), sig = all.length;
+  if (SW_DATA && swDataFor === sig) return SW_DATA;
+  const d = {};
+  SW_CELLS.forEach(c => { d[c.id] = { colours: new Map(), pals: [] }; });
+  all.forEach(e => {
+    const seen = new Set();
+    e.colors.forEach(hex => {
+      const h = hex.toLowerCase(), id = swCellOf(h), cell = d[id];
+      cell.colours.set(h, (cell.colours.get(h) || 0) + 1);
+      if (!seen.has(id)) { seen.add(id); cell.pals.push(e); }
+    });
+  });
+  SW_DATA = d; swDataFor = sig;
+  return d;
+}
+const swCount = n => n === 1 ? '1 colour' : n.toLocaleString('en-GB') + ' colours';
+function swatchesGridHTML() {
+  const d = swData(), T = sheetTheme();
+  const cell = c => {
+    const n = d[c.id].colours.size, on = SW_SEL === c.id;
+    return `<div role="gridcell"><button type="button" class="ts-cell${n ? '' : ' is-empty'}" data-cell="${c.id}" tabindex="${swFocus === c.id ? 0 : -1}" aria-pressed="${on}" ` +
+      `aria-label="${esc(c.name)}, ${n ? swCount(n) + ' in the library' : 'none in the library'}" style="background:${c.hex};color:${readableOn(c.hex, T)}">${n ? '<span class="ts-cell__n" aria-hidden="true">' + n + '</span>' : ''}</button></div>`;
+  };
+  const head = '<div role="row" class="ts-sw-row"><span role="columnheader" class="ts-sw-corner"></span>' +
+    HT.HUES.map(H => `<span role="columnheader" class="ts-sw-hue">${esc(capWord(H.name.replace(/-/g, ' ')))}</span>`).join('') + '</div>';
+  let rows = '', fam = '';
+  HT.TONES.forEach((T, ti) => {
+    if (T.fam !== fam) { fam = T.fam; rows += `<div role="row" class="ts-sw-row"><span role="rowheader" class="ts-sw-fam" aria-colspan="11">${esc(FAM_LABEL(fam))}</span></div>`; }
+    rows += `<div role="row" class="ts-sw-row"><span role="rowheader" class="ts-sw-tone">${esc(T.name)}</span>` + SW_CELLS.filter(c => c.row === ti).map(cell).join('') + '</div>';
+  });
+  rows += '<div role="row" class="ts-sw-row"><span role="rowheader" class="ts-sw-fam" aria-colspan="11">Neutrals</span></div>' +
+    '<div role="row" class="ts-sw-row"><span role="rowheader" class="ts-sw-tone">Greys</span>' + SW_CELLS.filter(c => c.row === 12).map(cell).join('') + '</div>';
+  return `<div class="ts-swatches" role="grid" aria-label="Hue and tone" data-theme="light">${head}${rows}</div>`;
+}
+function swPanelHTML() {
+  const c = SW_CELLS.find(x => x.id === SW_SEL);
+  if (!c) return '<div class="panel-section"><div class="org-empty"><p class="org-empty__title">Pick a swatch</p><p class="org-empty__hint">Each square is a hue in one tone. Pick one to see its colours.</p></div></div>';
+  const cell = swData()[c.id], cols = [...cell.colours.keys()].sort((a, b) => cell.colours.get(b) - cell.colours.get(a)), np = cell.pals.length;
+  return `<div class="panel-section"><h3>${esc(c.name)}</h3><p class="org-panel__hint">${esc(c.code)}</p>` +
+    `<span class="ts-sw-big" data-theme="light" style="background:${c.hex}" aria-hidden="true"></span>` +
+    tilesHTML('sw-tiles') + '</div>' +
+    '<div class="panel-section"><h3>Library colours</h3>' +
+    (cols.length ? '<ul class="ts-sw-list">' + cols.map(h => `<li class="ts-role"><span class="ts-role__sw" style="background:${h}"></span>${esc(HT.nameOf(h))} <span class="ts-sw-hex">${h.toUpperCase()}</span></li>`).join('') + '</ul>'
+      : '<p class="org-panel__hint">No library colour falls in this swatch.</p>') +
+    (np ? `<p class="org-panel__hint">Used in ${np === 1 ? '1 palette' : np.toLocaleString('en-GB') + ' palettes'}</p>` : '') +
+    `<div class="ts-sw-actions"><a class="org-btn org-btn--primary org-btn--block" href="#make?k=${c.hex.slice(1)}">Make from this colour</a>` +
+    (np ? '<button type="button" class="org-btn org-btn--block" data-sw-show>Show palettes</button>' : '') + '</div></div>';
+}
+function swPalettesHTML() {
+  const c = SW_CELLS.find(x => x.id === SW_SEL);
+  if (!c) return '';
+  const list = swData()[c.id].pals, open = expanded.has('sw:' + c.id), shown = open ? list : list.slice(0, PER_GROUP);
+  if (!list.length) return '';
+  return `<section class="ts-group" id="sw-pals" tabindex="-1"><div class="ts-group__head"><h2 class="ts-group__title">${esc(c.name)} in palettes</h2><span class="ts-filter__count">${palCount(list.length)}</span>` +
+    (list.length > PER_GROUP ? `<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-sw-more aria-expanded="${open}" aria-controls="sw-pals-grid" aria-label="${open ? 'Show fewer' : 'Show all'} in ${esc(c.name)} in palettes">${open ? 'Show fewer' : 'Show all'}</button>` : '') +
+    `</div><div class="ts-grid" id="sw-pals-grid">${shown.map(e => cardHTML(e.href, e.name, e, e.key)).join('')}</div></section>`;
+}
+function swatchesHTML() {
+  return '<div class="ts-explore">' + navHTML(view) + '<div id="sw-main"></div></div>' +
+    '<aside class="org-panel ts-filters" id="sw-panel" aria-label="Swatch"></aside>';
+}
+function renderSwatches() {
+  const box = ctrl('sw-main'); if (!box) return;
+  const d = swData(), total = new Set(); Object.keys(d).forEach(k => d[k].colours.forEach((v, h) => total.add(h)));
+  box.innerHTML = `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">Swatches</h2><span class="ts-filter__count">${!LIB && libLoading ? 'Loading the library…' : swCount(total.size) + ' in the library'}</span></div>` +
+    swatchesGridHTML() + '</section>' + swPalettesHTML();
+  ctrl('sw-panel').innerHTML = swPanelHTML();
+  const tb = ctrl('sw-tiles');
+  if (tb) { const hex = SW_CELLS.find(x => x.id === SW_SEL).hex; refreshTiles(hex, tb); bindTiles(tb, () => { if (tb.isConnected) refreshTiles(hex, tb); }); }
+}
+function mountSwatches() {
+  renderSwatches();
+  if (!LIB) loadLibrary().then(() => {
+    SW_DATA = null; if (!ctrl('sw-main')) return;
+    const had = document.activeElement && document.activeElement.classList.contains('ts-cell');
+    renderSwatches(); if (had) swFocusCell(swFocus);   // the grid is redrawn: the focus stays on its cell
+  });
+}
+function swFocusCell(id) {
+  const b = ctrl('sw-main').querySelector(`[data-cell="${id}"]`); if (!b) return;
+  ctrl('sw-main').querySelectorAll('.ts-cell[tabindex="0"]').forEach(x => x.setAttribute('tabindex', '-1'));
+  b.setAttribute('tabindex', '0'); b.focus(); swFocus = id;
+}
+ctrl('home').addEventListener('keydown', e => {
+  const b = e.target.closest && e.target.closest('.ts-cell'); if (!b) return;
+  const c = SW_CELLS.find(x => x.id === b.dataset.cell), last = 12;
+  let row = c.row, col = c.col;
+  if (e.key === 'ArrowRight') col = Math.min(9, col + 1);
+  else if (e.key === 'ArrowLeft') col = Math.max(0, col - 1);
+  else if (e.key === 'ArrowDown') row = Math.min(last, row + 1);
+  else if (e.key === 'ArrowUp') row = Math.max(0, row - 1);
+  else if (e.key === 'Home') col = 0;
+  else if (e.key === 'End') col = 9;
+  else return;
+  e.preventDefault();
+  swFocusCell(SW_CELLS.find(x => x.row === row && x.col === col).id);
+});
+ctrl('home').addEventListener('click', e => {
+  const cellB = e.target.closest('.ts-cell'), show = e.target.closest('[data-sw-show]'), more = e.target.closest('[data-sw-more]');
+  if (cellB) {
+    SW_SEL = SW_SEL === cellB.dataset.cell ? null : cellB.dataset.cell; swFocus = cellB.dataset.cell;
+    renderSwatches(); swFocusCell(swFocus);
+  } else if (show) { const s = ctrl('sw-pals'); if (s) { s.scrollIntoView({ block: 'start' }); s.focus({ preventScroll: true }); } }
+  else if (more) { const k = 'sw:' + SW_SEL; if (expanded.has(k)) expanded.delete(k); else expanded.add(k); renderSwatches(); const again = ctrl('sw-main').querySelector('[data-sw-more]'); if (again) again.focus(); }
+});
+// ── EXPLORE › MOODS ──
+// The image scale as a map (Nov 19, 2026, redesign step 8, design-system CONSULT): warm ← → cool across, soft ↑ ↓ hard
+// down, the 16 mood words where their colours sit (Organica.hueTone.WORDS). Each word's disc grows with how many palettes
+// read as it (a density, not 1,130 dots). The words are buttons; several can be picked. Mood, Number of colours and Source
+// are Explore's own filters (EXP), so a mood picked here is the Mood filter in Palettes too.
+const MOOD_X = x => 210 + x * 180, MOOD_Y = y => 210 - y * 180;   // the lab's square: 360 wide, centred in 420
+function moodHit(e) { return e.n >= EXP.nMin && e.n <= EXP.nMax && (!EXP.source || e.source === EXP.source); }
+// the square, its axes, one disc per word (area ∝ palettes); withWords draws the words as text (the guide's static copy)
+function moodSvg(byMood, withWords) {
+  const max = Math.max(1, ...HT.WORDS.map(w => (byMood[w[0]] || []).length));
+  let svg = '<rect x="30" y="30" width="360" height="360" fill="none" stroke="var(--border-strong)"/><line x1="30" y1="210" x2="390" y2="210" stroke="var(--border)"/><line x1="210" y1="30" x2="210" y2="390" stroke="var(--border)"/>';
+  HT.WORDS.forEach(w => { const n = (byMood[w[0]] || []).length; if (n) svg += `<circle cx="${MOOD_X(w[1])}" cy="${MOOD_Y(w[2])}" r="${(6 + 34 * Math.sqrt(n / max)).toFixed(1)}" fill="currentColor" opacity="0.08"/>`; });
+  svg += '<text x="210" y="20" text-anchor="middle">Soft</text><text x="210" y="410" text-anchor="middle">Hard</text>' +
+    '<text x="24" y="214" text-anchor="end">Warm</text><text x="396" y="214">Cool</text>';
+  if (withWords) HT.WORDS.forEach(w => { svg += `<text x="${MOOD_X(w[1])}" y="${MOOD_Y(w[2]) + 4}" text-anchor="middle" class="ts-learn-word">${esc(capWord(w[0]))}</text>`; });
+  return svg;
+}
+function moodMapHTML(byMood) {
+  const svg = moodSvg(byMood, false);
+  const words = HT.WORDS.map(w => {
+    const n = (byMood[w[0]] || []).length, on = EXP.moods.indexOf(w[0]) >= 0;
+    return `<button type="button" class="org-btn ts-mood" data-mood-pick="${esc(w[0])}" aria-pressed="${on}" aria-label="${esc(capWord(w[0]))}, ${n === 1 ? '1 palette' : n.toLocaleString('en-GB') + ' palettes'}" ` +
+      `style="left:${(MOOD_X(w[1]) / 420 * 100).toFixed(2)}%;top:${(MOOD_Y(w[2]) / 420 * 100).toFixed(2)}%">${esc(capWord(w[0]))}</button>`;
+  }).join('');
+  return `<div class="ts-moodmap" role="group" aria-label="Mood map" data-theme="light"><svg viewBox="0 0 420 420" aria-hidden="true">${svg}</svg>${words}</div>`;
+}
+function moodsHTML() {
+  const sel = (id, label, cur, opts) => `<label class="sub-label" for="${id}">${label}</label><select class="panel-select" id="${id}" data-f="${id.slice(4)}">` +
+    `<option value="">Any</option>${opts.map(([v, t]) => `<option value="${v}"${cur === v ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+  return '<div class="ts-explore">' + navHTML(view) + '<div id="md-main"></div></div>' +
+    '<aside class="org-panel ts-filters" id="md-panel" aria-label="Filters"><div class="panel-section"><h3>Filters</h3>' +
+    `<div class="ctrl-row"><span class="ctrl-label">Number of colours</span><span class="ctrl-val" id="md-n-val">${EXP.nMin}–${EXP.nMax}</span></div><div id="md-n"></div>` +
+    sel('exp-source', 'Source', EXP.source, Object.keys(SOURCE_LABEL).map(k => [k, SOURCE_LABEL[k]])) + '</div></aside>';
+}
+function renderMoods() {
+  const box = ctrl('md-main'); if (!box) return;
+  const all = exploreAll().filter(moodHit), byMood = {}, nf = n => n.toLocaleString('en-GB');
+  all.forEach(e => { (byMood[e.mood] = byMood[e.mood] || []).push(e); });
+  const hit = EXP.moods.length ? all.filter(e => EXP.moods.indexOf(e.mood) >= 0) : [];
+  let out = `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">Moods</h2><span class="ts-filter__count">${!LIB && libLoading ? 'Loading the library…' : (EXP.moods.length ? nf(hit.length) + ' of ' + nf(all.length) : nf(all.length)) + (all.length === 1 ? ' palette' : ' palettes')}</span>` +
+    (EXP.moods.length ? '<a class="org-btn org-btn--sm" href="#explore">Show in Palettes</a>' : '') +
+    (EXP.moods.length || EXP.nMin > 2 || EXP.nMax < 9 || EXP.source ? '<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-mood-clear>Clear filters</button>' : '') +
+    '</div>' + moodMapHTML(byMood) + '</section>';
+  if (!EXP.moods.length) out += '<div class="org-empty"><p class="org-empty__title">Pick a mood</p><p class="org-empty__hint">Each word sits where its colours feel warm or cool, soft or hard.</p></div>';
+  else if (!hit.length) out += '<div class="org-empty"><p class="org-empty__title">No palette matches these filters</p><p class="org-empty__hint">Remove a filter, or clear them all.</p><button type="button" class="org-empty__action org-btn" data-mood-clear>Clear filters</button></div>';
+  else {
+    const G = GROUPS.structure, by = {};
+    hit.forEach(e => { const k = G.of(e); (by[k] = by[k] || []).push(e); });
+    out += G.order.filter(k => by[k]).map(k => {
+      const list = by[k], key = 'mood:' + k, open = expanded.has(key), shown = open ? list : list.slice(0, PER_GROUP), gid = 'md-g-' + k;
+      return `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">${esc(G.label(k) || k)}</h2><span class="ts-filter__count">${palCount(list.length)}</span>` +
+        (list.length > PER_GROUP ? `<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-md-more="${esc(key)}" aria-expanded="${open}" aria-controls="${gid}" aria-label="${open ? 'Show fewer' : 'Show all'} in ${esc(G.label(k) || k)}">${open ? 'Show fewer' : 'Show all'}</button>` : '') +
+        `</div><div class="ts-grid" id="${gid}">${shown.map(e => cardHTML(e.href, e.name, e, e.key)).join('')}</div></section>`;
+    }).join('');
+  }
+  box.innerHTML = out;
+}
+let mdRange = null;
+function mountMoods() {
+  mdRange = Organica.dualRange(ctrl('md-n'), { min: 2, max: 9, from: EXP.nMin, to: EXP.nMax, step: 1, label: 'Number of colours', fmt: v => v + ' colours',
+    onInput: (a, b) => { ctrl('md-n-val').textContent = a + '–' + b; },
+    onChange: (a, b) => { EXP.nMin = a; EXP.nMax = b; ctrl('md-n-val').textContent = a + '–' + b; saveExp(); renderMoods(); } });
+  renderMoods();
+  if (!LIB) loadLibrary().then(() => { if (ctrl('md-main')) renderMoods(); });
+}
+ctrl('home').addEventListener('change', e => { if (ctrl('md-panel') && e.target.id === 'exp-source' && ctrl('md-panel').contains(e.target)) renderMoods(); });
+ctrl('home').addEventListener('click', e => {
+  const w = e.target.closest('[data-mood-pick]'), clr = e.target.closest('[data-mood-clear]'), more = e.target.closest('[data-md-more]');
+  if (w) {
+    const m = w.dataset.moodPick, i = EXP.moods.indexOf(m);
+    if (i >= 0) EXP.moods.splice(i, 1); else EXP.moods.push(m);
+    saveExp(); renderMoods();
+    const again = ctrl('md-main').querySelector(`[data-mood-pick="${CSS.escape(m)}"]`); if (again) again.focus();
+  } else if (clr) {
+    EXP.moods = []; EXP.nMin = 2; EXP.nMax = 9; EXP.source = ''; saveExp();   // every filter this view shows
+    if (mdRange) mdRange.set(2, 9, true); ctrl('md-n-val').textContent = '2–9'; ctrl('md-panel').querySelector('#exp-source').value = '';
+    renderMoods();
+    const first = ctrl('md-main').querySelector('[data-mood-pick]'); if (first) first.focus();
+  } else if (more) {
+    const k = more.dataset.mdMore; if (expanded.has(k)) expanded.delete(k); else expanded.add(k);
+    renderMoods(); const again = ctrl('md-main').querySelector(`[data-md-more="${CSS.escape(k)}"]`); if (again) again.focus();
+  }
+});
+// ── HOW COLOUR WORKS ──
+// A reading page in the home column (Nov 19, 2026, redesign step 8, design-system CONSULT): how TuneSutra thinks about
+// colour, in our own words, each idea with a live figure drawn by the model (Organica.hueTone) and a link to the view
+// that uses it. Figures are content: they sit on light paper in both themes.
+const TONE_AT = k => HT.TONES.findIndex(T => T.k === k);
+const LEARN_KEY = '#e5000d';   // every figure starts from the same red
+function learnStrip(cols, label) {
+  return `<div class="ts-learn-strip" role="img" aria-label="${esc(label)}: ${esc(cols.map(c => HT.nameOf(c)).join(', '))}" data-theme="light">` +
+    cols.map(c => `<span class="ts-learn-sw" style="background:${c}"></span>`).join('') + '</div>';
+}
+function learnRow(title, text, cols) {
+  return `<div class="ts-learn-row"><div><strong>${esc(title)}</strong><p>${text}</p></div>${learnStrip(cols, title)}</div>`;
+}
+// the first seed whose palette reads back as the asked relation — the figure shows what the word means
+// (generate never repeats a colour since Nov 20, 2026, so no distinct-swatch check is needed here)
+function learnGen(opts, ok) {
+  const gen = s => HT.generate(LEARN_KEY, Object.assign({ image: 'base', tone: 'near', purity: 'any', n: 4, neutral: 'none', hue: 'similar' }, opts), s);
+  for (let s = 1; s <= 200; s++) { const p = gen(s); if (ok(p)) return p; }
+  return gen(1);
+}
+function learnTriangle() {
+  const W = [40, 24], K = [40, 296], V = [292, 160], hi = 0;
+  const pt = T => { const v = 1 - T.w - T.b; return [W[0] * T.w + K[0] * T.b + V[0] * v, W[1] * T.w + K[1] * T.b + V[1] * v]; };
+  let s = `<polygon points="${W.join(',')} ${K.join(',')} ${V.join(',')}" fill="none" stroke="var(--border-strong)"/>` +
+    `<text x="${W[0] - 8}" y="${W[1] + 4}" text-anchor="end">White</text><text x="${K[0] - 8}" y="${K[1] + 4}" text-anchor="end">Black</text><text x="${V[0] + 4}" y="${V[1] - 22}" text-anchor="middle">Vivid</text>`;
+  HT.TONES.forEach((T, ti) => { const [x, y] = pt(T); s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="${HT.toneColour(hi, ti)}" stroke="var(--border-strong)"/><text x="${(x + 17).toFixed(1)}" y="${(y + 4).toFixed(1)}">${T.k}</text>`; });
+  return `<figure class="ts-learn-fig" data-theme="light"><svg viewBox="0 0 340 320" role="img" aria-label="The twelve tones of red, between white, black and the vivid colour">${s}</svg>` +
+    '<figcaption>The twelve tones of red. Up: more white. Down: more black. Right: more of the vivid colour.</figcaption></figure>';
+}
+function learnMoods() {
+  const by = {}; exploreAll().forEach(e => { (by[e.mood] = by[e.mood] || []).push(e); });
+  const s = moodSvg(by, true);
+  return `<figure class="ts-learn-fig" data-theme="light"><svg viewBox="0 0 420 420" role="img" aria-label="Mood map: sixteen mood words between warm and cool, soft and hard">${s}</svg></figure>`;
+}
+const LEARN_SECTIONS = [['hue-tone', 'Hue and tone'], ['families', 'Tone families'], ['hue-rel', 'Hue relations'], ['tone-rel', 'Tone relations'], ['purity', 'Purity'], ['roles', 'Roles'], ['moods', 'Moods'], ['sources', 'Where the palettes come from']];
+function learnHTML() {
+  const V = HT.TONES.find(T => T.k === 'V'), vIdx = TONE_AT('V'), sec = (id, title, lead, body, link) =>
+    `<section class="ts-learn-sec" aria-labelledby="ts-l-${id}"><h2 id="ts-l-${id}" tabindex="-1">${title}</h2><p class="ts-learn-lead">${lead}</p>${body}${link ? '<p><a href="' + link[0] + '">' + link[1] + '</a></p>' : ''}</section>`;
+  const vivid = HT.HUES.map((H, hi) => HT.toneColour(hi, vIdx));
+  const famRows = Object.keys(HT.FAMS).map(f => {
+    const tones = HT.TONES.map((T, ti) => [T, ti]).filter(([T]) => T.fam === f);
+    const feel = { casual: 'Full, lively colour: vivid and strong. Loud and direct.', light: 'Colour with white in it: bright, pale, very pale. Airy and gentle.', elegant: 'Colour with grey in it: light greyish, light, greyish, dull. Quiet and refined.', heavy: 'Colour with black in it: deep, dark, dark greyish. Weighty and serious.' }[f];
+    return learnRow(FAM_LABEL(f), feel + ' <span class="ts-learn-note">' + tones.map(([T]) => T.name).join(' · ') + '</span>', tones.map(([, ti]) => HT.toneColour(0, ti)));
+  }).join('');
+  const hueRows = [
+    ['monochromatic', 'One hue in several tones.', learnGen({ hue: 'same' }, p => HT.harmonyOf(p) === 'monochromatic')],
+    ['analogous', 'Hues next to each other on the wheel.', learnGen({ hue: 'similar' }, p => HT.harmonyOf(p) === 'analogous')],
+    ['complementary', 'Two hues opposite each other.', learnGen({ hue: 'complement' }, p => HT.harmonyOf(p) === 'complementary')],
+    ['split', 'One hue and the two either side of its opposite.', learnGen({ hue: 'split' }, p => HT.harmonyOf(p) === 'split')],
+    ['triadic', 'Three hues spread evenly round the wheel.', learnGen({ hue: 'triad' }, p => HT.harmonyOf(p) === 'triadic')],
+    ['tetradic', 'Two pairs of opposite hues.', learnGen({ hue: 'free', tone: 'same' }, p => HT.harmonyOf(p) === 'tetradic')],
+  ].map(([k, t, cols]) => learnRow(HARMONY_LABEL[k], t, cols)).join('');
+  const toneRows = [['same', 'Every colour in one tone: the hues do the talking.'], ['near', 'Neighbouring tones: one family, gently varied.'], ['far', 'Distant tones: light against dark, quiet against loud.']]
+    .map(([k, t]) => learnRow(TONE_LABEL[k], t, learnGen({ hue: 'free', tone: k }, p => ({ 'same tone': 'same', 'near tones': 'near', 'far tones': 'far' })[HT.readPalette(p).toneRel] === k))).join('');
+  const pureT = ['V', 'B', 'S', 'P'], greyT = ['Lgr', 'Gr', 'Dl', 'Dgr'], mixT = ['V', 'Gr', 'B', 'Dl'], his = [0, 4, 6, 8];
+  const purRows = [['clear', 'No grey in any colour: clean and open.', pureT], ['dull', 'Grey in every colour: calm and soft-spoken.', greyT], ['mixed', 'Some of each: the pure colours stand forward.', mixT]]
+    .map(([k, t, ts]) => learnRow(PURITY_LABEL[k], t, ts.map((tk, i) => HT.toneColour(his[i], TONE_AT(tk))))).join('');
+  const roles = HT.generateRoles(LEARN_KEY, 5, 7).map(x => x.hex), w = roleWeights(5);
+  const rolesFig = `<div class="ts-learn-roles"><span class="ts-learn-house" data-theme="light" role="img" aria-label="A five-colour palette drawn on its house">${paletteArt({ colors: roles, house: 7 })}</span>` +
+    '<ul class="ts-roles ts-learn-list">' + roles.map((c, i) => `<li class="ts-role"><span class="ts-role__sw" style="background:${c}"></span>${esc(roleName(i, 5))} <span class="ts-filter__count">${w[i].toFixed(1)}%</span></li>`).join('') + '</ul></div>';
+  return '<div class="ts-explore">' + navHTML(view) + '<article class="org-prose ts-learn">' +
+    '<h1>How colour works</h1><p class="ts-learn-lead">The ideas TuneSutra uses to read, name and make palettes.</p>' +
+    '<nav class="ts-learn-toc" aria-label="On this page"><ul>' + LEARN_SECTIONS.map(([id, t]) => `<li><a href="#learn" data-learn-to="ts-l-${id}">${t}</a></li>`).join('') + '</ul></nav>' +
+    sec('hue-tone', 'Hue and tone', 'A colour is a hue (where it sits on the wheel) and a tone (how light and how pure it is).',
+      '<p>TuneSutra uses ten hues, from red round to red purple, each with twelve tones. A tone is the vivid colour mixed with some white, some black, or both. The same tone looks alike across hues: a pale red and a pale blue belong together. Ten greys from white to black complete the 130 swatches.</p>' +
+      learnStrip(vivid, 'The ten hues at their vivid tone') + learnTriangle(), ['#explore/swatches', 'See them in Swatches']) +
+    sec('families', 'Tone families', 'Twelve tones fall into four families, each with its own feel.', famRows, ['#explore', 'Explore palettes by tone family']) +
+    sec('hue-rel', 'Hue relations', 'How far apart the hues of a palette sit, from the same hue to opposite ones.',
+      hueRows + '<p>A palette whose hues fit none of these reads as <em>Varied</em>. Neutrals (white, greys, black) take no part in the relation.</p>', ['#make', 'Make from a colour']) +
+    sec('tone-rel', 'Tone relations', 'Whether a palette’s colours share a tone, sit near each other or far apart.', toneRows, null) +
+    sec('purity', 'Purity', 'A pure colour has no grey in it; a greyed colour is quieter.', purRows, null) +
+    sec('roles', 'Roles', 'A palette works as parts of one picture: a base, a secondary colour, an accent, and how much of each.',
+      '<p>Every palette is drawn on a house. The largest share is the base; each role after it covers less, down to a spark of the smallest. The same colours read differently when their shares change, so TuneSutra keeps each colour on its part: a palette keeps its look when it opens in the editor.</p>' + rolesFig, ['#make', 'Make from a colour']) +
+    sec('moods', 'Moods', 'Colours feel warm or cool, soft or hard; sixteen words map that space.',
+      '<p>Every palette has a place on the map, from the warmth, lightness and purity of its colours, and takes the mood word nearest to it. The larger the disc, the more palettes share that mood.</p>' + learnMoods(), ['#explore/moods', 'Explore by mood']) +
+    sec('sources', 'Where the palettes come from', 'Colour studies measured into the hue and tone model, and a set Organica generated with the same rules.',
+      '<p>The colour studies are pairs and threes around twelve key colours, base · secondary · accent sets of three and four, and five-colour scenes. Each colour was measured, read into the hue and tone model and named. Organica’s own set adds six- and seven-colour palettes, built role by role from each key colour. Your saved palettes and the ones you star sit beside them.</p>', ['#explore', 'Explore palettes']) +
+    '</article></div>';
+}
+function mountLearn() {
+  if (!LIB) loadLibrary().then(() => {   // the moods figure needs the library: redraw, keeping the scroll and the focus
+    if (!ctrl('home').querySelector('.ts-learn')) return;
+    const a = document.activeElement, was = a && ctrl('home').contains(a) ? (a.id || (a.dataset && a.dataset.learnTo && '[data-learn-to="' + a.dataset.learnTo + '"]')) : null;
+    const y = ctrl('home').querySelector('.ts-explore').scrollTop;
+    ctrl('home').innerHTML = learnHTML(); ctrl('home').querySelector('.ts-explore').scrollTop = y;
+    const back = was && (was.charAt(0) === '[' ? ctrl('home').querySelector(was) : ctrl(was)); if (back) back.focus({ preventScroll: true });
+  });
+}
+ctrl('home').addEventListener('click', e => {
+  const a = e.target.closest('[data-learn-to]'); if (!a) return;
+  e.preventDefault();   // the hash routes views: the contents scroll inside the page instead
+  const h = ctrl(a.dataset.learnTo); if (h) { h.scrollIntoView({ block: 'start' }); h.focus({ preventScroll: true }); }
+});
+function renderHome() {
+  const v = view, id = v.sub ? v.tab + '/' + v.sub : v.tab, split = id === 'explore/palettes' || id === 'make/colour' || id === 'make/image' || id === 'explore/swatches' || id === 'explore/moods';
+  ctrl('home').classList.toggle('ts-home--split', split);
+  if (id === 'explore/palettes') {   // built once per visit; a filter change redraws the results only
+    if (!ctrl('ts-results')) { ctrl('home').innerHTML = exploreHTML(); mountExplore(); }
+    else renderResults();
+    return;
+  }
+  if (id === 'make/colour') {
+    if (!ctrl('mk-results')) { ctrl('home').innerHTML = makeHTML(); mountMake(); }
+    else renderMake();
+    return;
+  }
+  if (id === 'explore/moods') {
+    if (!ctrl('md-main')) { ctrl('home').innerHTML = moodsHTML(); mountMoods(); }
+    else renderMoods();
+    return;
+  }
+  if (id === 'explore/swatches') {
+    if (!ctrl('sw-main')) { ctrl('home').innerHTML = swatchesHTML(); mountSwatches(); }
+    else renderSwatches();
+    return;
+  }
+  if (id === 'make/image') {
+    if (!ctrl('mi-results')) { ctrl('home').innerHTML = makeImageHTML(); mountImage(); }
+    else renderImage();
+    return;
+  }
+  if (id === 'learn') { ctrl('home').innerHTML = learnHTML(); mountLearn(); return; }
+  ctrl('home').innerHTML = navHTML(v) + yourPalettesHTML();   // Your palettes (every other view returned above)
+}
+// Star and Show work in place: the view redraws, the focus goes back to the control that was used.
+ctrl('home').addEventListener('click', e => {
+  const star = e.target.closest('.ts-card__star'), show = e.target.closest('[data-show]');
+  if (star) {
+    const key = star.dataset.key, card = star.closest('.ts-card'), name = card.querySelector('.ts-card__name').textContent;
+    const ent = exploreAll().find(x => x.key === key) || {}, fav = favs()[key] || {};   // starred from the grid: the palette as it is
+    const colors = ent.colors || fav.colors || card.querySelector('.ts-card__meta').textContent.split(' ');
+    toggleStar(key, { name, colors, house: ent.house != null ? ent.house : fav.house != null ? fav.house : (key.indexOf('m:') === 0 ? +key.split('~')[1] : undefined) });
+    renderHome();
+    const again = [...ctrl('home').querySelectorAll('.ts-card__star')].find(b => b.dataset.key === key);
+    if (again) again.focus(); else { const s = ctrl('home').querySelector('[data-show].active'); if (s) s.focus(); }
+  } else if (show) {
+    homeShow = show.dataset.show;
+    try { localStorage.setItem('organica.tunesutra.home-show', homeShow); } catch (err) {}
+    renderHome();
+    const again = ctrl('home').querySelector(`[data-show="${homeShow}"]`); if (again) again.focus();
+  }
+});
 function showHome(home) {
   ctrl('home').hidden = !home;
   ctrl('app').hidden = !!(home);
@@ -2226,21 +3239,42 @@ function showHome(home) {
 function route() {
   let h = '';
   try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { h = ''; }
-  let p = null, name = '', suggest = '';
+  let p = null, name = '', suggest = '', key = '';
   if (h === 'new') p = { colors: ['#ffffff', '#ffffff', '#ffffff'], house: newSeed() };   // a blank start: three white colours (Diego, Nov 17, 2026)
-  else if (h.indexOf('p=') === 0) { name = h.slice(2); p = userPresets()[name]; }
+  else if (h.indexOf('p=') === 0) { name = h.slice(2); p = userPresets()[name]; key = 'p:' + name; }
   else if (h.indexOf('c=') === 0) {
     const parts = h.slice(2).split('/'), col = (window.TUNESUTRA_COLLECTIONS || []).find(c => c.id === parts[0]);
     const pal = col && col.palettes.find(x => x.id === parts[1]);
-    if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view, house: seedOf(col.id + '/' + pal.id) }; suggest = pal.name; }
+    if (pal) { p = { colors: pal.colors, names: pal.names, view: col.view, house: seedOf(col.id + '/' + pal.id) }; suggest = pal.name; key = 'c:' + col.id + '/' + pal.id; }
   }
-  if (!p || !Array.isArray(p.colors) || p.colors.length < 3) { showHome(true); renderHome(); return; }
+  else if (h.indexOf('m=') === 0) {   // a palette from Make: #m=<hex>-<hex>…~<house>, in ROLE_PARTS order
+    const [c, hs] = h.slice(2).split('~'), cols = (c || '').split('-').filter(x => /^[0-9a-f]{6}$/i.test(x)).map(x => '#' + x.toLowerCase());
+    if (cols.length >= 2 && cols.length <= 9) { p = { colors: cols, parts: HT.ROLE_PARTS[cols.length], house: +hs || newSeed() }; key = 'm:' + h.slice(2); suggest = IMG_NAMES[h.slice(2)] || (favs()[key] && favs()[key].name) || makeName(cols, +hs || 0); }
+  }
+  else if (h.indexOf('l=') === 0) {   // a library palette: it may be on its way (the bundle loads once)
+    const id = h.slice(2), e = LIB && LIB.find(x => x.id === id);
+    if (e) { p = { colors: e.colors.slice(), parts: e.parts, house: e.house }; suggest = e.name; key = 'l:' + id; }
+    else if (!LIB) { loadLibrary().then(() => { if (LIB && location.hash.indexOf('#l=') === 0) route(); }); }
+  }
+  if (!p || !Array.isArray(p.colors) || p.colors.length < 2) {
+    if (h.indexOf('make') === 0 && h.indexOf('?') > 0) {   // Make variations: #make?k=<hex>&n=<count>
+      const q = new URLSearchParams(h.slice(h.indexOf('?') + 1)), k = q.get('k'), n = +q.get('n');
+      if (k && /^[0-9a-f]{6}$/i.test(k)) MK.key = '#' + k.toLowerCase();
+      if (n >= 2 && n <= 9) MK.n = n;
+      saveMake(); h = h.slice(0, h.indexOf('?'));
+      history.replaceState(null, '', '#' + h);   // applied once: a reload keeps what was changed since
+      if (ctrl('mk-results')) ctrl('home').innerHTML = '';   // rebuild the panel with the new key colour
+    }
+    view = VIEWS[h] || VIEWS.palettes;
+    backTo = { hash: VIEWS[h] ? h : 'palettes', label: backLabel(view) };   // the editor's back button returns here
+    showHome(true); renderHome(); return;
+  }
   loadPaletteData(p);
   pourNext = true;
   undoStack.length = 0;
   lastUndo = { kind: '', t: 0 };
   initialSnap = snapshot();
-  currentName = name; suggestedName = suggest; setDirty(false);
+  currentName = name; suggestedName = suggest; currentKey = key; setDirty(false);
   showHome(false);
   ctrl('panel').scrollTop = 0;
   ctrl('stage-wrap').scrollTop = 0;
@@ -2248,13 +3282,21 @@ function route() {
   commit(true);
   refreshTitle();
 }
-// Leaving with unsaved changes takes two clicks: the first one says so.
-let leaveArmed = 0;
-function goHome() {
-  if (dirty && Date.now() - leaveArmed > 4000) { leaveArmed = Date.now(); ctrl('btn-home').textContent = 'Unsaved changes — click again to leave'; return; }
+// Leaving with unsaved changes takes two clicks: the first one says so (on the control that was used).
+function leaveTo(hash, labelEl, label) {
+  if (dirty && Date.now() - leaveArmed > 4000) { leaveArmed = Date.now(); labelEl.textContent = 'Unsaved changes — click again to leave'; setTimeout(() => { labelEl.textContent = label; }, 4000); return; }
   setDirty(false);
-  location.hash = '';
+  location.hash = hash;
 }
+// The back button names the view the palette was opened from, in the tabs' own words (Nov 20, 2026, CONSULT);
+// a reload or a direct link has no origin and goes back to Your palettes.
+let backTo = { hash: 'palettes', label: 'Your palettes' };
+function backLabel(v) {
+  if (v.tab === 'learn') return 'How colour works';
+  const sub = SUBS[v.tab] && SUBS[v.tab].find(x => x[0] === v.sub);
+  return sub ? sub[2] : 'Your palettes';
+}
+function goHome() { leaveTo(backTo.hash, ctrl('btn-home-label'), backTo.label); }
 
 // ── INIT ──
 const GRAD_DEFAULT = JSON.stringify(state.grad);
@@ -2295,6 +3337,12 @@ ctrl('txt-preset-name').addEventListener('input', syncSaveArm);
 ctrl('txt-preset-name').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); ctrl('btn-preset-confirm').click(); } });   // through the button, so "Replace?" still asks
 
 ctrl('btn-home').addEventListener('click', goHome);
+ctrl('btn-star').addEventListener('click', starCurrent);
+ctrl('btn-variations').addEventListener('click', e => {   // Make, seeded with this palette's main colour and its count
+  e.preventDefault();
+  const main = state.items.find(it => it.part === 'main') || state.items[0];
+  leaveTo('make?k=' + main.hex.slice(1) + '&n=' + count(), ctrl('btn-variations'), 'Make variations');
+});   // seeded with this palette in step 6
 window.addEventListener('hashchange', route);
 syncControls();
 commit(false);
@@ -2309,6 +3357,8 @@ Organica.autoLabelPanel(document);
 const onLibrary = () => !ctrl('home').hidden;
 PRESETS.pull().then(() => { if (onLibrary()) route(); });
 PRESETS.onSync(() => { if (onLibrary()) renderHome(); });
+FAVS.pull().then(() => { if (onLibrary()) renderHome(); else refreshEditorStar(); });
+FAVS.onSync(() => { if (onLibrary()) renderHome(); else refreshEditorStar(); });
 </script>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>
