@@ -33,7 +33,9 @@ Back works: **Your palettes** (`#palettes`, or no hash) · **Make** (`#make`, `#
   mood, tone family, hue relation, tone relation, purity and source. Facets are read on the device from the
   colours, so they follow the model.
 - **Explore › Moods** — the mood map (Soft · Hard · Warm · Cool): one disc per mood word, sized by how many
-  palettes have it. Picking words sets Explore's Mood filter (several at once); **Show in Palettes** lists them.
+  palettes have it. A palette's place (`Organica.hueTone.imagePos`): each colour from its hue × tone cell
+  (hue warmth × saturation; whiteness softens, blackness hardens), the mean, harder with a strong light–dark
+  contrast, then each axis through ten fixed steps (the library's deciles, Nov 20, 2026) so every word has palettes. Picking words sets Explore's Mood filter (several at once); **Show in Palettes** lists them.
 - **Explore › Swatches** — the 130 hue × tone swatches; each counts the different library colours that fall in
   it. The panel shows the swatch's values, its library colours, how many palettes use it, **Make from this
   colour** and **Show palettes**. Keyboard: one Tab stop, then arrows · Home · End.

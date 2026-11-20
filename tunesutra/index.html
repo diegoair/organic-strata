@@ -2462,7 +2462,7 @@ const HT = Organica.hueTone;
 const LIB_KEY = 'organica.tunesutra.library';
 let LIB = null;
 const KIND_LABEL = { pair: 'Two colours', triad: 'Three colours', bsa: 'Base · secondary · accent', five: 'Five colours', gen: 'Six and seven colours', collection: 'Organica collections', yours: 'Your palettes' };
-const SOURCE_LABEL = { reference: 'Reference', organica: 'Organica', yours: 'Your palettes' };
+const SOURCE_LABEL = { reference: 'Colour studies', organica: 'Organica', yours: 'Your palettes' };
 const HARMONY_LABEL = { monochromatic: 'Monochromatic', analogous: 'Analogous', complementary: 'Complementary', split: 'Split-complementary', triadic: 'Triadic', tetradic: 'Tetradic', varied: 'Varied' };
 const TONE_LABEL = { same: 'Same tone', near: 'Near tones', far: 'Far tones' };
 const PURITY_LABEL = { clear: 'All pure', dull: 'All greyed', mixed: 'Mixed purity' };   // not "clear": a Mood word and the Clear verb
@@ -3164,8 +3164,8 @@ function learnHTML() {
       '<p>Every palette is drawn on a house. The largest share is the base; each role after it covers less, down to a spark of the smallest. The same colours read differently when their shares change, so TuneSutra keeps each colour on its part: a palette keeps its look when it opens in the editor.</p>' + rolesFig, ['#make', 'Make from a colour']) +
     sec('moods', 'Moods', 'Colours feel warm or cool, soft or hard; sixteen words map that space.',
       '<p>Every palette has a place on the map, from the warmth, lightness and purity of its colours, and takes the mood word nearest to it. The larger the disc, the more palettes share that mood.</p>' + learnMoods(), ['#explore/moods', 'Explore by mood']) +
-    sec('sources', 'Where the palettes come from', 'Reference palettes measured from printed colour samples, and a set Organica generated with the same rules.',
-      '<p>The reference palettes are pairs and threes around twelve key colours, base · secondary · accent sets of three and four, and five-colour scenes. Each colour was measured, read into the hue and tone model and named. Organica’s own set adds six- and seven-colour palettes, built role by role from each key colour. Your saved palettes and the ones you star sit beside them.</p>', ['#explore', 'Explore palettes']) +
+    sec('sources', 'Where the palettes come from', 'Colour studies measured into the hue and tone model, and a set Organica generated with the same rules.',
+      '<p>The colour studies are pairs and threes around twelve key colours, base · secondary · accent sets of three and four, and five-colour scenes. Each colour was measured, read into the hue and tone model and named. Organica’s own set adds six- and seven-colour palettes, built role by role from each key colour. Your saved palettes and the ones you star sit beside them.</p>', ['#explore', 'Explore palettes']) +
     '</article></div>';
 }
 function mountLearn() {

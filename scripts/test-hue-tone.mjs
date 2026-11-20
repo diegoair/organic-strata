@@ -158,5 +158,16 @@ const isHex = h => /^#[0-9a-f]{6}$/.test(h);
   check('generate: a single hue stays one hue up to 8 colours', monoOk === mono, monoOk + ' of ' + mono);
 }
 
+// 12. The mood map points the right way (Nov 20, 2026: a rule on the hue × tone cells, calibrated to the library).
+{
+  const at = cols => HT.readPalette(cols).pos;
+  const paleBlue = at(['#c9dcf0', '#e6eef7', '#a9c6e6']), darkWarm = at(['#5a1a0e', '#7a2e12', '#3a1408']);
+  const navyFormal = at(['#0a1a40', '#ffffff', '#000000']), softWarm = at(['#f8d4c8', '#fbe6c4', '#f3c0b5']);
+  check('mood: pale blues are cool and soft', paleBlue.x > 0.3 && paleBlue.y > 0.3, JSON.stringify(paleBlue));
+  check('mood: dark warm browns are warm and hard', darkWarm.x < -0.3 && darkWarm.y < -0.3, JSON.stringify(darkWarm));
+  check('mood: navy, white and black are cool and hard', navyFormal.x > 0.2 && navyFormal.y < -0.3, JSON.stringify(navyFormal));
+  check('mood: pale warm pinks are warm and soft', softWarm.x < -0.2 && softWarm.y > 0.3, JSON.stringify(softWarm));
+}
+
 console.log(failed ? '\n' + failed + ' check(s) FAILED' : '\nALL PASS');
 process.exit(failed ? 1 : 0);

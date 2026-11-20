@@ -152,17 +152,37 @@
   }
 
   // ---------- readings ----------
-  // Image-scale estimate: x −1 warm … +1 cool, y +1 soft … −1 hard.
+  // The mood map: x −1 warm … +1 cool, y +1 soft … −1 hard (Diego, Nov 20, 2026 — replaces an OKLCH formula that
+  // left the cool side almost empty: Clear 3, Cool casual 2, Formal 4, Modern 7 of 1,130 palettes).
+  // 1. Each colour is placed from its own hue × tone cell. x: the hue's warmth (WARMTH, red / orange warmest, blue
+  //    coolest, green and purple near the middle), weakened as the tone loses saturation, plus a little coolness for
+  //    whiteness. y: whiteness softens, blackness hardens, saturation hardens a little. A neutral sits on the cool
+  //    side, from soft (white) to hard (black).
+  // 2. The palette is the mean of its colours, made harder when its light–dark contrast is strong.
+  // 3. Each axis is mapped through ten fixed steps (MOOD_QX / MOOD_QY: the library's deciles on Nov 20, 2026), so the
+  //    map is filled the way the library is spread — every mood word gets palettes. Fixed numbers: a palette's place
+  //    never depends on what else is loaded.
+  const WARMTH = [-1, -1, -0.6, -0.1, 0.35, 0.75, 1, 0.85, 0.15, -0.6];   // R YR Y GY G BG B PB P RP
+  const MOOD_QX = [-1.000, -0.493, -0.332, -0.205, -0.076, 0.018, 0.111, 0.215, 0.340, 0.469, 0.778];
+  const MOOD_QY = [-1.068, -0.600, -0.400, -0.257, -0.146, -0.018, 0.080, 0.218, 0.378, 0.679, 1.277];
+  function colourPos(hex) {
+    const r = read(hex), l = C.hexToOklch(hex).l;
+    if (r.neutral) return { x: 0.45, y: -1 + 2 * Math.max(0, Math.min(1, (l - 0.2) / 0.75)), l };
+    const T = TONES[r.ti], sat = Math.max(0, 1 - T.w - T.b);
+    return { x: WARMTH[r.hi] * (0.35 + 0.65 * sat) + 0.25 * T.w, y: 1.5 * T.w - 1.6 * T.b - 0.25 * sat, l };
+  }
+  function stepMap(v, Q) {
+    if (v <= Q[0]) return -1;
+    if (v >= Q[Q.length - 1]) return 1;
+    let i = 0; while (v > Q[i + 1]) i++;
+    return -1 + (2 / (Q.length - 1)) * (i + (v - Q[i]) / ((Q[i + 1] - Q[i]) || 1));
+  }
   function imagePos(hexes) {
     if (!hexes.length) return { x: 0, y: 0 };
-    const os = hexes.map(h => C.hexToOklch(toHex(h)));
-    let warm = 0;
-    os.forEach(o => { warm += Math.cos((o.h - 45) * Math.PI / 180) * Math.min(1, o.c / 0.08); });
-    const x = -warm / os.length;
-    const Ls = os.map(o => o.l), mL = Ls.reduce((a, b) => a + b) / Ls.length, rL = Math.max.apply(null, Ls) - Math.min.apply(null, Ls);
-    const mC = os.reduce((a, o) => a + o.c, 0) / os.length;
-    const y = 2.6 * (mL - 0.62) - 0.9 * (rL - 0.3) - 1.6 * (mC - 0.1);
-    return { x: Math.max(-1, Math.min(1, x)), y: Math.max(-1, Math.min(1, y)) };
+    const ps = hexes.map(h => colourPos(toHex(h))), n = ps.length, ls = ps.map(p => p.l);
+    const x = ps.reduce((a, p) => a + p.x, 0) / n;
+    const y = ps.reduce((a, p) => a + p.y, 0) / n - 0.6 * (Math.max.apply(null, ls) - Math.min.apply(null, ls) - 0.35);
+    return { x: stepMap(x, MOOD_QX), y: stepMap(y, MOOD_QY) };
   }
   function readPalette(hexes) {
     const rs = hexes.map(read), ch = rs.filter(r => !r.neutral);
