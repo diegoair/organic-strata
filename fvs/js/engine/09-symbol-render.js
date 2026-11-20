@@ -20,7 +20,7 @@ import {
 } from './04-appearance.js';
 import {
   applyElementStretchCanvas, clipToCellShapes, elementPathMarkup, latticeShapePath, nextDrawId,
-  paintGeoCanvas, withEntryInks, cellClipShape, clipCellCanvas, layerPasses
+  paintGeoCanvas, withEntryInks, cellClipShape, clipCellCanvas, layerPasses, registerEntryShades
 } from './05-render-component.js';
 import {
   LIBRARY, fillPaper, isPaperNone
@@ -407,6 +407,7 @@ export function buildSymbolItems() {
       // colorAt(), not any particular saved snapshot's colours.
       // A cell may recolour its Component (cell.colourway, written by Suggest's Recolour).
       const own = cell.colourway ? { ...entry, colors: cell.colourway.colors, paperColor: cell.colourway.paper } : entry;
+      if (!cell.colourway) registerEntryShades(own.colors, entry.inkShades);   // its own shading travels with its colours (Nov 20, 2026)
       let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(own));
       if (reg) nestedItems = modulesToBlockCells(nestedItems, nestedW, nestedH, reg, cell);
       // A cell-shape Component set to Match cell sits on the Symbol's shared small-cell lattice (alignedPlacements).
@@ -428,7 +429,7 @@ export function buildSymbolItems() {
     return {
       type: 'seed', index: i, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: place.rotate != null ? place.rotate : cell.rotation,
       scaleX: place.scaleX * (cell.flipH ? -1 : 1), scaleY: place.scaleY * (cell.flipV ? -1 : 1),
-      color: cellInk(cell, i), geo, inks: cellOwnInks(cell), cellShape: cellShapeOf(cell.seedParams),   // inks: a saved Element's own palette (Colour by → Palette in order, `own`)
+      color: cellInk(cell, i), geo, inks: registerEntryShades(cellOwnInks(cell), cell.ownShades), cellShape: cellShapeOf(cell.seedParams),   // inks: a saved Element's own palette (Colour by → Palette in order, `own`)
       // …and its own Paper (colour + texture), drawn under it in the Element's 0..100 frame, like a Component's paper
       ownPaper: cellOwnInks(cell) && cell.ownPaper ? cell.ownPaper : null, ownAppearance: cellOwnInks(cell) ? cell.ownAppearance : null,
       // the look it draws with: a saved Element's own appearance (Style — Fill / Stroke / Pattern —, stretch, scale) travels

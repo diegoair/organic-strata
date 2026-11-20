@@ -467,7 +467,7 @@ export function componentThumbSVG(name) {
   const items = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(entry));
   // its own look too (Style, stretch, Paper texture — Oct 26, 2026: it drew with the live panel's, so editing the Element
   // changed every saved thumbnail while the Symbol kept drawing the saved one)
-  return withEntryInks(entry.colors, () => withAppearance(entry.appearance, () => buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName, entry.blend)));
+  return withEntryInks(entry.colors, () => withAppearance(entry.appearance, () => buildComponentSVGWithPaper(items, entry.seed, frameDims(entry.grid), entry.paperColor, entry.role, entry.underlyingComponentName, entry.blend)), entry.inkShades);
 }
 export function analyseComponent(name) {
   const entry = LIBRARY.peek()[name];

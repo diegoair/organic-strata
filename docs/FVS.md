@@ -351,8 +351,10 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   makes it the one the **Gradient · Shadow** sections under the Palette edit (`#fvs-shade`, `Organica.shadeEditor`);
   a colour edited keeps its shading (`withColour`). **Save as palette…** writes a NEW TuneSutra palette
   (*‹name› · Flexible Visual System*), never the original. The shading is saved with the Element's Palette (`shades`),
-  saved Components and Symbols (`inkShades`, in `entryVersionKey` only when present); a cell's own colours, colourways
-  and the Figure's Palette node do not carry it yet — they use the live Palette's shading for the same inks.
+  saved Elements, Components and Symbols (`inkShades`, in `entryVersionKey` only when present); a Symbol cell holding a
+  saved Element copies it (`ownShades`), a cell holding a Component reads its entry's — each entry's shading is tied to
+  its colour list (`registerEntryShades`), so every renderer drawing with an entry's colours draws its shading too.
+  Colourways and the Figure's Palette node do not carry it yet — they use the live Palette's shading for the same inks.
   Test: `scripts/test-fvs-palette-shading.mjs` (suite `palette-shading`).
 - **Ink** — 1 to 9 colours (RMX chips; 9 since Nov 20, 2026); **Paper** is the ground for every
   gallery thumbnail, PNG and SVG. The **checkerboard button** next to Paper makes it

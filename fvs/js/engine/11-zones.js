@@ -182,18 +182,18 @@ export function cellTurnOf(d, ctx) {
 // from the copy). Used by the Figure graph's content, by Composition rules and Zones that drop content into cells.
 export function contentPatch(c, fit) {
   const base = { rotation: 0, flipH: false, flipV: false, fitMode: fit || 'contain', scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0, colourway: null };
-  if (c.kind === 'component') return { ...base, source: 'component', componentName: c.name, span: true, ownColors: null, ownPaper: null, ownAppearance: null };
+  if (c.kind === 'component') return { ...base, source: 'component', componentName: c.name, span: true, ownColors: null, ownShades: null, ownPaper: null, ownAppearance: null };
   const e = c.entry || {};
   const sp = clone(e.seed), o = e.orientation || {};
   if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
   return { ...base, source: 'seed', seedType: sp.type, seedParams: sp, color: null,
-    ownColors: e.colors && e.colors.length ? e.colors.slice() : null, ownPaper: e.paperColor || null, ownAppearance: e.appearance || null,
+    ownColors: e.colors && e.colors.length ? e.colors.slice() : null, ownShades: e.colors && e.colors.length && e.inkShades ? clone(e.inkShades) : null, ownPaper: e.paperColor || null, ownAppearance: e.appearance || null,
     rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV };
 }
 
 // A content taken from a cell of the Symbol (Zones' Content from "this Symbol"): the fields that say what the cell holds,
 // put on another cell with its pose reset (a down triangle turned to face its slot) and the zone's Fit.
-export const CONTENT_FIELDS = ['source', 'seedType', 'seedParams', 'componentName', 'ownColors', 'ownPaper', 'ownAppearance', 'appearancePatch', 'color', 'span', 'colourway'];
+export const CONTENT_FIELDS = ['source', 'seedType', 'seedParams', 'componentName', 'ownColors', 'ownShades', 'ownPaper', 'ownAppearance', 'appearancePatch', 'color', 'span', 'colourway'];
 export function contentOfCell(c) { const o = {}; CONTENT_FIELDS.forEach(k => { if (c && c[k] != null) o[k] = clone(c[k]); }); return o; }
 function placeContent(cell, item, fit, ctx) {
   const patch = item.tpl ? { ...contentOfCell(item.tpl), rotation: 0, flipH: false, flipV: false, scale: 1, fitMode: fit || cell.fitMode } : contentPatch(item, fit || cell.fitMode);

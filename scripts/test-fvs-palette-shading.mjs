@@ -47,7 +47,23 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   // a saved Component keeps the Palette's shading
   const entry = F.libraryEntryFromLive(comp);
   check('a saved Component carries the shading (inkShades)', entry.inkShades && entry.inkShades[cols[0]] && entry.inkShades[cols[0]].specks === 'specks', JSON.stringify(Object.keys(entry.inkShades || {})));
-  F.setTier('element'); await w(300);
+  // a Symbol of saved Components and a saved Element, with ANOTHER Palette: each cell draws its entry's own shading
+  // (Diego, Nov 20, 2026: "non vedo gli element e component con le shadow")
+  { F.quickSaveComponentToLibrary(comp.id, 'Shaded comp'); await w(200);
+    F.setTier('element'); await w(300);
+    F.saveElementVariant(0, false, false, 'Shaded', 'Shaded element'); await w(200);
+    const eSaved = JSON.parse(localStorage.getItem('organica.fvs-element.presets') || '{}')['Shaded element'];
+    check('a saved Element carries the shading (inkShades)', eSaved && eSaved.inkShades && eSaved.inkShades[cols[0]], JSON.stringify(eSaved && Object.keys(eSaved.inkShades || {})));
+    F.setTier('symbol'); await w(500);
+    const keep = F.state.inkShades; F.state.inkShades = {};   // the Symbol's own Palette: flat
+    const model = await F.symbolGridModel('rectangular', { cols: 2, rows: 1 }, { ...F.readSymbolCanvas(), margin: 0 }); F.loadSymbolGrid(model); await w(300);
+    const was = F.state.colorRule.mode; F.state.colorRule = { ...F.state.colorRule, mode: 'element' };
+    F.patchCell(F.state.symbolCells[0], F.railPatch('component', 'Shaded comp'));
+    F.patchCell(F.state.symbolCells[1], F.railPatch('element', 'Shaded element'));
+    const sv = F.buildSymbolSVG(), n = (sv.match(/clip-path="url\\(#shd/g) || []).length;
+    check('Symbol: a saved Component and a saved Element draw their shading on a flat Palette (' + n + ')', n >= 5, n);
+    F.state.colorRule = { ...F.state.colorRule, mode: was }; F.state.inkShades = keep;
+    F.setTier('element'); await w(300); }
   // the colour edited in the picker: its shading follows it
   document.querySelector('#fvs-palette .rmx-color__pick').click(); await w(200);
   { const x = document.querySelector('.org-cpick__hex'); x.value = '#1c6b3a'; x.dispatchEvent(new Event('input', { bubbles: true })); x.dispatchEvent(new Event('change', { bubbles: true })); Organica.colorPicker.close(); await w(400); }

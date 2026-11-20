@@ -3,7 +3,7 @@
 // Architecture + file map: docs/FVS.md §11.
 import { rt } from './rt.js';
 import {
-  TILE_PICK_REG, live, pv, state
+  TILE_PICK_REG, live, pv, state, inkShadesSnapshot
 } from './engine/00-core.js';
 import {
   seedForSnapshot
@@ -258,7 +258,7 @@ export function saveElementVariant(rot, flipH, flipV, label, chosen) {
   const all = ELEMENT_LIB.read();
   let name = chosen || defaultElementName(label);
   while (all[name]) name += '′';
-  all[name] = { tile, sig: tileSig(tile), thumb: elementVariantSVG(rot, flipH, flipV), colors: state.colors.slice(), paperColor: state.paperColor, orientation: { rotation: rot, flipH, flipV }, seed: seedForSnapshot(), appearance: getElementAppearance(), savedAt: new Date().toISOString() };
+  all[name] = { tile, sig: tileSig(tile), thumb: elementVariantSVG(rot, flipH, flipV), colors: state.colors.slice(), ...(inkShadesSnapshot() ? { inkShades: inkShadesSnapshot() } : {}), paperColor: state.paperColor, orientation: { rotation: rot, flipH, flipV }, seed: seedForSnapshot(), appearance: getElementAppearance(), savedAt: new Date().toISOString() };
   if (!ELEMENT_LIB.write(all)) return null;   // storage full: the store showed the notice — no ✓, no Paper tile
   elementLibraryChanged();
   return name;

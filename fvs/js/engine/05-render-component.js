@@ -45,8 +45,13 @@ export const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${l
 // as on TuneSutra's house (Diego's answer, Nov 20) — clipped to the shape, over the shape's own flat fill.
 // Every plate is one ink as a path (fill="#hex"), so plates and recolouring keep working; Soft and a smooth blend
 // are one SVG gradient each (as in TuneSutra: vector, not one plate per ink). Empty map = the markup of before.
+// A saved entry's shading, keyed by its colour list (the array the renderers hand to inkPaletteOverride): wherever
+// an entry draws with its own colours — a Component or saved Element in a Symbol cell, SVG or canvas — its own
+// shading comes with them, without threading it through every call.
+const _entryShades = new WeakMap();
+export function registerEntryShades(colors, shades) { if (colors && typeof colors === 'object' && shades) _entryShades.set(colors, shades); return colors; }
 export function inkShade(hex) {
-  const m = live.inkShadesOverride || state.inkShades;
+  const m = live.inkShadesOverride || (live.inkPaletteOverride && _entryShades.get(live.inkPaletteOverride)) || state.inkShades;
   if (!m || !hex || typeof Organica === 'undefined' || !Organica.shading) return null;
   return m[String(hex).toLowerCase()] || null;
 }

@@ -874,7 +874,7 @@ export function elementPosePatch(i) {
   const sp = JSON.parse(JSON.stringify(seedForSnapshot()));
   if (sp.type === 'stack') sp.layers.forEach(l => { if (l.ink == null || l.ink === 'cell') l.ink = 0; });
   return cell => ({
-    source: 'seed', seedType: sp.type, seedParams: JSON.parse(JSON.stringify(sp)), color: cell.color || null, ownColors: null, ownPaper: null, ownAppearance: null, colourway: null,
+    source: 'seed', seedType: sp.type, seedParams: JSON.parse(JSON.stringify(sp)), color: cell.color || null, ownColors: null, ownShades: null, ownPaper: null, ownAppearance: null, colourway: null,
     rotation: r, flipH: fh, flipV: fv,
     fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0,
   });
