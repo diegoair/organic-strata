@@ -99,6 +99,60 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   document.body.click(); await w(1500);
   const els = JSON.parse(localStorage.getItem('organica.fvs-elements.presets') || '{}'), act = els[F.state.activeElement];
   check('the Element saves its Palette with the shading', act && act.palette && act.palette.shades && act.palette.shades['#1c6b3a'] && act.palette.shades['#1c6b3a'].specks === 'cells', JSON.stringify(act && act.palette));
+  // the layers of an Element, one by one (Diego, Nov 20, 2026: "un test di debug sui singoli layers degli elements"):
+  // each fill layer takes its own ink's shading in its own box; a flat ink, a Tonal step, a hidden layer, a Stroke or a
+  // Pattern layer draws none; a mask still cuts the shading; the canvas matches the SVG pixel for pixel
+  { const S2 = Organica.shading, lc = ['#2a3a8c', '#e8b04a', '#c93ed6'];
+    F.setTier('element'); await w(300);
+    while (F.state.layers && F.state.layers.items.length > 1) { F.removeLayer(F.state.layers.items.length - 1); await w(100); }
+    q('btn-layer-add').click(); await w(250); q('btn-layer-add').click(); await w(250); q('btn-layer-add').click(); await w(250);
+    F.state.colors = lc.slice();
+    const L = F.state.layers.items;
+    L[0].ink = 'cell'; L[1].ink = 1; L[1].place = { mx: 20, my: 0, scale: 0.5, rotate: 0 }; L[2].ink = 2; L[2].place = { mx: -25, my: 20, scale: 0.4, rotate: 30 }; L[3].ink = 0; L[3].place = { mx: 10, my: -25, scale: 0.35, rotate: 0 };
+    F.state.inkShades = { [lc[0]]: S2.withColour(JSON.parse(JSON.stringify(S2.defs(lc[0]).speckle)), lc[0]), [lc[2]]: S2.withColour(JSON.parse(JSON.stringify(S2.defs(lc[2])['pollen-dot'])), lc[2]) };
+    F.layersChanged(); await w(300);
+    const shd = () => { const s = F.buildSeedPreviewSVG(F.getSeed(), 0, false, false, 300); return { n: s.split('url(#shd').length - 1, s }; };
+    const where = s => { const d = new DOMParser().parseFromString(s, 'image/svg+xml'); return [...d.querySelectorAll('clipPath[id^="shd"] > path')].map(p => (p.getAttribute('transform') || '').split(' ')[0]); };
+    const a = shd();
+    check('layers: the cell-ink layer, Ink 3 and Ink 1 draw their shading; Ink 2 (flat) none (' + a.n + ')', a.n === 3 && !where(a.s).includes('translate(70.000,50.000)'), where(a.s).join(' '));
+    L[1].ink = 0; L[1].tone = 3; F.layersChanged(); await w(200);
+    check('layers: a Tonal step of a shaded ink draws no shading (another colour)', shd().n === 3, shd().n);
+    delete L[1].tone; L[1].ink = 1;
+    L[2].hidden = true; F.layersChanged(); await w(200);
+    check('layers: a hidden shaded layer draws no shading', shd().n === 2, shd().n);
+    delete L[2].hidden;
+    L[1].role = 'mask'; F.layersChanged(); await w(200);
+    const m = shd().s;
+    check('layers: a mask layer cuts the shading of the layers below it too', (() => { const d = new DOMParser().parseFromString(m, 'image/svg+xml'), g = [...d.querySelectorAll('g[mask]')].pop(); return !!g && !!g.querySelector('g[clip-path^="url(#shd"]'); })(), m.length);
+    L[1].role = 'fill'; F.layersChanged(); await w(200);
+    // Style of the top layer (the active one) through the panel: Stroke, then Pattern
+    F.selectLayer(3); await w(200);
+    const st = q('sel-element-fillmode'), setStyle = async v => { st.value = v; st.dispatchEvent(new Event('change', { bubbles: true })); await w(400); };
+    await setStyle('stroke');
+    check('layers: a Stroke layer of a shaded ink draws no shading', shd().n === 2, shd().n + ' / ' + JSON.stringify(F.layerLook ? F.layerLook(L[3], F.getElementAppearance()).fillMode : ''));
+    await setStyle('pattern');
+    check('layers: a Pattern layer of a shaded ink draws no shading', shd().n === 2, shd().n);
+    await setStyle('fill');
+    // canvas = SVG, pixel for pixel, in the overlap of two shaded layers
+    const s0 = shd().s, svgNow = s0.indexOf('xmlns') > 0 ? s0 : s0.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(new Blob([svgNow], { type: 'image/svg+xml' })); });
+    const ca = document.createElement('canvas'); ca.width = ca.height = 300; ca.getContext('2d').drawImage(img, 0, 0); const A = ca.getContext('2d').getImageData(0, 0, 300, 300).data;
+    const cb = document.createElement('canvas'); cb.width = cb.height = 300;
+    F.drawComponentCanvas(cb.getContext('2d'), F.buildComponentItems({ cells: [{ rotation: 0, flipH: false, flipV: false, scale: 1 }] }, { kind: 'square', cols: 1, rows: 1, cellSize: 300, gap: 0 }), F.getSeed(), 300);
+    const B = cb.getContext('2d').getImageData(0, 0, 300, 300).data;
+    let diff = 0; for (let k = 0; k < A.length; k += 4) if (Math.abs(A[k] - B[k]) + Math.abs(A[k + 1] - B[k + 1]) + Math.abs(A[k + 2] - B[k + 2]) > 60) diff++;
+    const px = (D, ux, uy) => { const k = (Math.round(uy * 3) * 300 + Math.round(ux * 3)) * 4; return '#' + [D[k], D[k + 1], D[k + 2]].map(v => v.toString(16).padStart(2, '0')).join(''); };
+    const core = S2.shadowInks(F.state.inkShades[lc[0]], lc[0], { tints: [].concat.apply([], lc.map(h => Organica.color.scale(h).map(x => x.hex))) })[1];
+    check('layers: canvas = SVG (' + diff + ' px differ); the top layer’s shadow over the gold one below', diff < 900 && px(A, 65, 40) === core && px(B, 65, 40) === core, diff + ' · ' + px(A, 65, 40) + ' / ' + px(B, 65, 40) + ' want ' + core);
+    while (F.state.layers && F.state.layers.items.length > 1) { F.removeLayer(F.state.layers.items.length - 1); await w(100); }
+    // a divided Element: every part is a shape of its own — its own box, its own light
+    const t = q('sel-seed-type'); t.value = 'polygon'; t.dispatchEvent(new Event('change', { bubbles: true })); await w(400);
+    const pm = q('sel-part-method'); pm.value = 'fan'; pm.dispatchEvent(new Event('change', { bubbles: true })); await w(600);
+    F.state.colors = lc.slice(); F.layersChanged(); await w(300);
+    const parts = (F.state.layers ? F.state.layers.items : []).filter(l => l.part).length, ps = shd();
+    check('layers: a divided Element — each of its ' + parts + ' parts draws the shading in its own box', parts >= 3 && ps.n === parts, ps.n + ' / ' + parts);
+    pm.value = 'none'; pm.dispatchEvent(new Event('change', { bubbles: true })); await w(400);
+    F.state.inkShades = {}; }
   // the menu: up to 9 colours
   check('FVS takes up to 9 colours (TuneSutra\\'s palettes)', F.PALETTE_MAX === 9, F.PALETTE_MAX);
   return rows;`);
