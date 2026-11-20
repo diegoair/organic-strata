@@ -202,7 +202,9 @@
   .ts-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .ts-sw-big { display: block; height: calc(var(--space-8) * 2); margin: var(--space-3) 0; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
   .ts-sw-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--fs-small); }
-  .ts-sw-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+  .ts-sw-actions { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3); }
+  .ts-sw-list .ts-role { display: flex; }
+  .ts-sw-list .ts-sw-hex { margin-left: auto; }
   .ts-roles { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin-bottom: var(--space-5); font-size: var(--fs-small); }
   .ts-role { display: inline-flex; align-items: center; gap: var(--space-2); }
   .ts-role__sw { width: var(--space-4); height: var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }   /* the fill is the palette colour, data */
@@ -2549,6 +2551,7 @@ const GROUPS = {
   mood: { of: e => e.mood, order: HT.WORDS.map(w => w[0]), label: capWord },
   source: { of: e => e.source, order: ['yours', 'organica', 'reference'], label: k => SOURCE_LABEL[k] },
 };
+const palCount = n => n.toLocaleString('en-GB') + (n === 1 ? ' palette' : ' palettes');   // a count always says what it counts (Nov 20, 2026)
 const PER_GROUP = 12;   // two rows on a wide screen; Show all for the rest
 function chipsOf() {
   const c = [];
@@ -2579,7 +2582,7 @@ function renderResults() {
   hit.forEach(e => { const k = G.of(e); (by[k] = by[k] || []).push(e); });
   box.innerHTML = G.order.filter(k => by[k]).map(k => {
     const list = by[k], open = expanded.has(EXP.group + ':' + k), shown = open ? list : list.slice(0, PER_GROUP), gid = 'ts-g-' + EXP.group + '-' + String(k).replace(/[^a-z0-9]+/gi, '-');
-    return `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">${esc(G.label(k) || k)}</h2><span class="ts-filter__count">${nf(list.length)}</span>` +
+    return `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">${esc(G.label(k) || k)}</h2><span class="ts-filter__count">${palCount(list.length)}</span>` +
       (list.length > PER_GROUP ? `<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-more="${esc(EXP.group + ':' + k)}" aria-expanded="${open}" aria-controls="${gid}" aria-label="${open ? 'Show fewer' : 'Show all'} in ${esc(G.label(k) || k)}">${open ? 'Show fewer' : 'Show all'}</button>` : '') +
       `</div><div class="ts-grid" id="${gid}">${shown.map(e => cardHTML(e.href, e.name, e, e.key)).join('')}</div></section>`;
   }).join('');
@@ -2934,7 +2937,7 @@ function swatchesGridHTML() {
 }
 function swPanelHTML() {
   const c = SW_CELLS.find(x => x.id === SW_SEL);
-  if (!c) return '<div class="org-empty"><p class="org-empty__title">Pick a swatch</p><p class="org-empty__hint">Each square is a hue in one tone. Pick one to see its colours.</p></div>';
+  if (!c) return '<div class="panel-section"><div class="org-empty"><p class="org-empty__title">Pick a swatch</p><p class="org-empty__hint">Each square is a hue in one tone. Pick one to see its colours.</p></div></div>';
   const cell = swData()[c.id], cols = [...cell.colours.keys()].sort((a, b) => cell.colours.get(b) - cell.colours.get(a)), np = cell.pals.length;
   return `<div class="panel-section"><h3>${esc(c.name)}</h3><p class="org-panel__hint">${esc(c.code)}</p>` +
     `<span class="ts-sw-big" data-theme="light" style="background:${c.hex}" aria-hidden="true"></span>` +
@@ -2943,15 +2946,15 @@ function swPanelHTML() {
     (cols.length ? '<ul class="ts-sw-list">' + cols.map(h => `<li class="ts-role"><span class="ts-role__sw" style="background:${h}"></span>${esc(HT.nameOf(h))} <span class="ts-sw-hex">${h.toUpperCase()}</span></li>`).join('') + '</ul>'
       : '<p class="org-panel__hint">No library colour falls in this swatch.</p>') +
     (np ? `<p class="org-panel__hint">Used in ${np === 1 ? '1 palette' : np.toLocaleString('en-GB') + ' palettes'}</p>` : '') +
-    `<div class="ts-sw-actions"><a class="org-btn org-btn--primary" href="#make?k=${c.hex.slice(1)}">Make from this colour</a>` +
-    (np ? '<button type="button" class="org-btn" data-sw-show>Show palettes</button>' : '') + '</div></div>';
+    `<div class="ts-sw-actions"><a class="org-btn org-btn--primary org-btn--block" href="#make?k=${c.hex.slice(1)}">Make from this colour</a>` +
+    (np ? '<button type="button" class="org-btn org-btn--block" data-sw-show>Show palettes</button>' : '') + '</div></div>';
 }
 function swPalettesHTML() {
   const c = SW_CELLS.find(x => x.id === SW_SEL);
   if (!c) return '';
   const list = swData()[c.id].pals, open = expanded.has('sw:' + c.id), shown = open ? list : list.slice(0, PER_GROUP);
   if (!list.length) return '';
-  return `<section class="ts-group" id="sw-pals" tabindex="-1"><div class="ts-group__head"><h2 class="ts-group__title">${esc(c.name)} in palettes</h2><span class="ts-filter__count">${list.length.toLocaleString('en-GB')}</span>` +
+  return `<section class="ts-group" id="sw-pals" tabindex="-1"><div class="ts-group__head"><h2 class="ts-group__title">${esc(c.name)} in palettes</h2><span class="ts-filter__count">${palCount(list.length)}</span>` +
     (list.length > PER_GROUP ? `<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-sw-more aria-expanded="${open}" aria-controls="sw-pals-grid" aria-label="${open ? 'Show fewer' : 'Show all'} in ${esc(c.name)} in palettes">${open ? 'Show fewer' : 'Show all'}</button>` : '') +
     `</div><div class="ts-grid" id="sw-pals-grid">${shown.map(e => cardHTML(e.href, e.name, e, e.key)).join('')}</div></section>`;
 }
@@ -3053,7 +3056,7 @@ function renderMoods() {
     hit.forEach(e => { const k = G.of(e); (by[k] = by[k] || []).push(e); });
     out += G.order.filter(k => by[k]).map(k => {
       const list = by[k], key = 'mood:' + k, open = expanded.has(key), shown = open ? list : list.slice(0, PER_GROUP), gid = 'md-g-' + k;
-      return `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">${esc(G.label(k) || k)}</h2><span class="ts-filter__count">${nf(list.length)}</span>` +
+      return `<section class="ts-group"><div class="ts-group__head"><h2 class="ts-group__title">${esc(G.label(k) || k)}</h2><span class="ts-filter__count">${palCount(list.length)}</span>` +
         (list.length > PER_GROUP ? `<button type="button" class="org-btn org-btn--sm org-btn--ghost" data-md-more="${esc(key)}" aria-expanded="${open}" aria-controls="${gid}" aria-label="${open ? 'Show fewer' : 'Show all'} in ${esc(G.label(k) || k)}">${open ? 'Show fewer' : 'Show all'}</button>` : '') +
         `</div><div class="ts-grid" id="${gid}">${shown.map(e => cardHTML(e.href, e.name, e, e.key)).join('')}</div></section>`;
     }).join('');
@@ -3136,7 +3139,7 @@ function learnHTML() {
     ['complementary', 'Two hues opposite each other.', learnGen({ hue: 'complement' }, p => HT.harmonyOf(p) === 'complementary')],
     ['split', 'One hue and the two either side of its opposite.', learnGen({ hue: 'split' }, p => HT.harmonyOf(p) === 'split')],
     ['triadic', 'Three hues spread evenly round the wheel.', learnGen({ hue: 'triad' }, p => HT.harmonyOf(p) === 'triadic')],
-    ['tetradic', 'Two pairs of opposite hues.', [0, 2, 5, 7].map(hi => HT.toneColour(hi, vIdx))],
+    ['tetradic', 'Two pairs of opposite hues.', learnGen({ hue: 'free', tone: 'same' }, p => HT.harmonyOf(p) === 'tetradic')],
   ].map(([k, t, cols]) => learnRow(HARMONY_LABEL[k], t, cols)).join('');
   const toneRows = [['same', 'Every colour in one tone: the hues do the talking.'], ['near', 'Neighbouring tones: one family, gently varied.'], ['far', 'Distant tones: light against dark, quiet against loud.']]
     .map(([k, t]) => learnRow(TONE_LABEL[k], t, learnGen({ hue: 'free', tone: k }, p => ({ 'same tone': 'same', 'near tones': 'near', 'far tones': 'far' })[HT.readPalette(p).toneRel] === k))).join('');
