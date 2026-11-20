@@ -14,29 +14,37 @@ to the eye.
 
 ## 0. The library (home)
 
-`/tunesutra/` opens on the palette library: every palette as a card.
+`/tunesutra/` opens on the library (redesign, Nov 19–20, 2026). Three tabs, a link and a button, each a hash so
+Back works: **Your palettes** (`#palettes`, or no hash) · **Make** (`#make`, `#make/image`) · **Explore**
+(`#explore`, `#explore/moods`, `#explore/swatches`), the link **How colour works** (`#learn`) and **New palette**
+(`#new`, three white colours). The colour model under every view is `Organica.hueTone` (`shared/hue-tone.js`):
+10 hues × 12 tones in four tone families, plus neutrals; the words are in `docs/UI-COPY.md`.
 
-- **Your palettes** — everything you have saved, newest first, plus a
-  **New palette** card.
-- **Built-in collections** (`tunesutra/collections.js`, data) — read-only. Opening
-  one loads a *copy* into the editor; **Save** keeps it with your own palettes.
-  Today: *Garment studies — violet* (12 three-colour studies) and *Garment
-  studies — green* (12 four-colour studies), transcribed from two photographed
-  pages of a colour-scheme book (role order: body, hem, collar, trim).
-  They are the book's own combinations: fine as a working reference, but decide
-  whether they should ship to other users before the tool is opened up.
-- A card shows the palette in proportion, or on its figure when the palette was
-  saved in the Figure view.
+- **Your palettes** — your saved palettes and every palette you starred, filter **All · Starred · Saved**.
+  A star sits on every card (`Organica.store('tunesutra-favs')`, synced with your account).
+- **Make › From a colour** — a key colour, 2–9 colours, **Built by** *Roles* (the role rule: each colour on its
+  part of the house, shares as measured) or *Hue and tone* (tone family, hue relation, tone relation, purity,
+  neutral). **Suggest** draws the next seeds. Settings are remembered (`organica.tunesutra.make`).
+- **Make › From an image** — open or drop an image; its colours become one palette per count (2–9), picked by
+  **Area** or **Difference** (`Organica.hueTone.extract`: OKLab k-means on a 128 px copy, near colours merged).
+  The image stays in memory for the visit, never stored or sent.
+- **Explore › Palettes** — the palette library (Supabase `palettes`, read-all, owner-only write; cached on the
+  device), grouped by structure, key colour, mood or source, with filters for key colour, number of colours,
+  mood, tone family, hue relation, tone relation, purity and source. Facets are read on the device from the
+  colours, so they follow the model.
+- **Explore › Moods** — the mood map (Soft · Hard · Warm · Cool): one disc per mood word, sized by how many
+  palettes have it. Picking words sets Explore's Mood filter (several at once); **Show in Palettes** lists them.
+- **Explore › Swatches** — the 130 hue × tone swatches; each counts the different library colours that fall in
+  it. The panel shows the swatch's values, its library colours, how many palettes use it, **Make from this
+  colour** and **Show palettes**. Keyboard: one Tab stop, then arrows · Home · End.
+- **How colour works** — a reading view (`shared/prose.css`, ledger §3): hue and tone, tone families, hue and
+  tone relations, purity, roles, moods, where the palettes come from — each with a figure drawn by the model
+  and a link to its view.
 
-The address says where you are: no hash = the library, `#new`, `#p=<name>` (a
-saved palette), `#c=<collection>/<id>` (a copy of a built-in). **← All
-palettes** in the panel goes back; with unsaved changes it asks for a second
-click. Saving again under the same name overwrites; deleting the palette on
-screen returns to the library.
-
-To add a collection from another page of the book: send the photo — the values
-are read from the printed RGB numbers and added to `collections.js`. There is no
-in-app photo reader.
+Opening a palette from any view loads it into the editor: `#p=<name>` (saved), `#l=<id>` (library), `#m=<hex>-…~<house>`
+(made), `#c=<collection>/<id>` (a built-in collection, `tunesutra/collections.js`). Library and made palettes open
+as copies — **Save** keeps them with your own. With unsaved changes, leaving asks for a second click; deleting the
+palette on screen returns to the library.
 
 ## 1. The palette
 
