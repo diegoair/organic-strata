@@ -115,9 +115,9 @@
   .ts-card__link::after { content: ''; position: absolute; inset: 0; }
   .ts-card:has(.ts-card__link:hover) { border-color: var(--ink); }
   .ts-card:has(.ts-card__link:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
-  .ts-card__label.ts-card__label--star { flex-direction: row; align-items: center; gap: var(--space-2); }
-  .ts-card__text { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; flex: 1; }
-  .ts-card__star { position: relative; z-index: 1; flex: none; }   /* .org-btn--icon at --row-h already meets --hit-min */
+  /* the star sits on the house, top right, on a paper chip so it reads on any colour (Diego, Nov 20, 2026) */
+  .ts-card .ts-card__star { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1; background: var(--paper); }   /* .org-btn--icon at --row-h already meets --hit-min */
+  @media (hover: hover) { .ts-card .ts-card__star:hover { background: var(--track-bg); } }   /* the chip above beats the shared hover: give it back */
 
   /* The three tabs (Nov 19, 2026, Diego: Your palettes · Make · Explore). Local until a second tool needs them;
      the current-page marker is the design system nav's (.ds-nav a.current), turned to sit under the word. */
@@ -189,7 +189,9 @@
   .ts-card--new .ts-card__art svg { width: var(--icon-xl); height: var(--icon-xl); }
   .ts-card__label { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-4); }
   .ts-card__name { font-family: var(--font-display); font-size: var(--fs-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ts-card__meta { font-size: var(--fs-micro); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ts-card__meta { font-size: var(--fs-micro); color: var(--mid); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* the New card's line */
+  .ts-card__bars { display: flex; height: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--paper); }
+  .ts-card__bars > span { flex: 1; }   /* the fill is the palette colour, data */
   .ts-card--new { border-style: dashed; background: none; }
   .ts-card--new .ts-card__art { background: none; align-items: center; justify-content: center; font-size: var(--fs-xl); color: var(--mid); }
 
@@ -2349,9 +2351,11 @@ function paletteArt(p) {
 function cardHTML(href, name, p, key) {
   const on = isStarred(key);
   return `<article class="ts-card"><span class="ts-card__art" data-theme="light">${paletteArt(p)}</span>` +
-    `<span class="ts-card__label ts-card__label--star"><span class="ts-card__text"><a class="ts-card__link ts-card__name" href="${href}">${esc(name)}</a>` +
-    `<span class="ts-card__meta">${esc(p.colors.join(' '))}</span></span>` +
-    `<button type="button" class="org-btn org-btn--icon org-btn--icon-toggle ts-star ts-card__star" data-key="${esc(key)}" aria-pressed="${on}" aria-label="Star ${esc(name)}">${starHTML(on)}</button></span></article>`;
+    `<span class="ts-card__label"><a class="ts-card__link ts-card__name" href="${href}">${esc(name)}</a>` +
+    // the colours as bars, one per colour, all of them always fitting (Diego, Nov 20, 2026 — they were cut-off hex codes)
+    `<span class="ts-card__bars" role="img" aria-label="${esc(p.colors.length + ' colours: ' + p.colors.map(c => HT.nameOf(c)).join('; '))}" data-colors="${esc(p.colors.join(' '))}" data-theme="light">` +
+    p.colors.map(c => `<span style="background:${esc(c)}"></span>`).join('') + '</span></span>' +
+    `<button type="button" class="org-btn org-btn--icon org-btn--icon-toggle ts-star ts-card__star" data-key="${esc(key)}" aria-pressed="${on}" aria-label="Star ${esc(name)}">${starHTML(on)}</button></article>`;
 }
 const NEW_CARD = '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>';
 
@@ -3069,7 +3073,7 @@ ctrl('home').addEventListener('click', e => {
   if (star) {
     const key = star.dataset.key, card = star.closest('.ts-card'), name = card.querySelector('.ts-card__name').textContent;
     const ent = exploreAll().find(x => x.key === key) || {}, fav = favs()[key] || {};   // starred from the grid: the palette as it is
-    const colors = ent.colors || fav.colors || card.querySelector('.ts-card__meta').textContent.split(' ');
+    const colors = ent.colors || fav.colors || card.querySelector('.ts-card__bars').dataset.colors.split(' ');
     toggleStar(key, { name, colors, house: ent.house != null ? ent.house : fav.house != null ? fav.house : (key.indexOf('m:') === 0 ? +key.split('~')[1] : undefined) });
     renderHome();
     const again = [...ctrl('home').querySelectorAll('.ts-card__star')].find(b => b.dataset.key === key);

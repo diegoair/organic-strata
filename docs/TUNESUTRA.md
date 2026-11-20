@@ -23,7 +23,9 @@ works** moved to the design system (`/design-system/colour/`, Nov 20) and TuneSu
 10 hues × 12 tones in four tone families, plus neutrals; the words are in `docs/UI-COPY.md`.
 
 - **Your palettes** — your saved palettes and every palette you starred, filter **All · Starred · Saved**.
-  A star sits on every card (`Organica.store('tunesutra-favs')`, synced with your account).
+  A star sits on every card, top right on the house on a paper chip (`Organica.store('tunesutra-favs')`, synced with
+  your account). Under each card's name, one bar per colour, all of them fitting (Nov 20, 2026 — was the hex codes); a
+  house of 5–9 colours fills the card's square (no paper band above or below).
 - **Make › From a colour** — a key colour, 2–9 colours, **Built by** *Roles* (the role rule: each colour on its
   part of the house, shares as measured) or *Hue and tone* (tone family, hue relation, tone relation, purity,
   neutral). **Suggest** draws the next seeds. Settings are remembered (`organica.tunesutra.make`).

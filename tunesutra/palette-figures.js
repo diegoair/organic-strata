@@ -53,7 +53,8 @@
     const cols = colors.map(c => O.normalizeHex(c, '#888888')), n = cols.length;
     if (n < 2 || n > 9) return null;
     const fig = houseFig(seed, n), pad = n >= 5 ? 0 : fig.h * 0.06;
-    return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}" aria-hidden="true">` +
+    // 5–9 colours have a background: it fills the box (slice), no paper band above or below (Diego, Nov 20, 2026)
+    return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}"${n >= 5 ? ' preserveAspectRatio="xMidYMid slice"' : ''} aria-hidden="true">` +
       fig.zones.map(z => { const hex = cols[z.role]; return `<path d="${z.d}" fill="${hex}"${n < 5 && paleOnPaper(hex) ? ` stroke="var(--border)" stroke-width="${fig.h / 220}"` : ''}/>`; }).join('') + '</svg>';
   }
 
