@@ -368,7 +368,12 @@ from this page — TuneSutra calls it with its own context; `scripts/test-shadin
 the palettes are read through `shared/palettes.js` (`Organica.palettes`: saved, then starred; `get(id)` gives each
 colour with its role, part, tints and own shading). A tool saving a palette back always writes a NEW one in this
 format (`saveAsNew`, named *‹name› · ‹Tool›*, with `pid` and `from`) — it opens here whole. Ledger: DESIGN-DECISIONS
-§2, Nov 20, 2026.
+§2, Nov 20, 2026. The **Gradient + Shadow controls** are shared too since the same day: `shared/shade-editor.js`
+(`Organica.shadeEditor`, with `shared/shade-editor.css` for the stop bar, `.org-stopbar`) — this page mounts it in
+`#ts-shade` in its edit mode (it edits `G()` in place: `pushUndo` before, `gradChanged` after; the Shading menu keeps
+its scope through `onShading` / `shadingShown`; the colour's own stop opens the colour, `onColourStop`). The words,
+ranges and keys of the panel described above are the component's. A palette also gives a tool the house Shading it
+was saved with (`shading`) and each colour's base set (`set`: Soft, Speckle), a starred one too.
 
 Every colour control in the suite (`Organica.palette.swatch`) has a small ▦
 button — **Pick from a palette** — listing these saved palettes, then the starred ones (`Organica.palettes.list()`;

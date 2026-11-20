@@ -733,6 +733,7 @@
       "node-canvas",
       "palette",
       "colour-picker",
+      "shade-editor",
       "seeds-panel"
      ],
      "modules": false,

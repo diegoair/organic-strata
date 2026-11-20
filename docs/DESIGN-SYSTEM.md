@@ -1,7 +1,7 @@
 # Organica — Design System
 
 > Studio Rann · Organica · Typography, tokens, and the Figma mapping
-> Last updated: November 19, 2026 — spacing step `--space-9` (48px, + `.mt-9` / `.mb-9`) and the shared data table `.org-table` (`shared/page.css`, promoted from Admin; `prose.css` tables now `:not(.org-table)`), both decided by Diego for the Hue × tone lab (ledger §2); `/design-system/#spacing`, `#data-table`. Earlier entries: **Revision history** at the end of this file.
+> Last updated: November 20, 2026 — the shade editor `Organica.shadeEditor` (`shared/shade-editor.js`) and its stop bar `.org-stopbar` in a new sheet `shared/shade-editor.css` (promoted from TuneSutra's local `.ts-stopbar`; used by TuneSutra and FVS) — §5h, `/design-system/#shade-editor`; no token changed. Earlier entries: **Revision history** at the end of this file.
 >
 > **Source of truth: `shared/tokens.css`** — what the browser runs.
 > `shared/tokens.json` is its mirror for Figma (ledger §2, O-2, Oct 13, 2026);
@@ -491,6 +491,17 @@ The FVS Figure graph (branch `figure-graph`, `docs/FVS.md` §12) brought two sha
 - **`createZoomPan` for a board** (`core.js`): `infinite` (no snap back to 0,0 at minimum zoom), `dblclickReset: false` (double-click belongs to the board), `setView()` (Fit all / Fit selection, restoring a view). Opt-in; every image tool unchanged.
 - **FVS step boards** (Oct 11, 2026 — ledger §2; `docs/FVS.md` §13): Element, Component and Symbol each on an infinite board the way Figure is — node-canvas.css's `.nc-stage` / `.nc-board` / `.nc-frame__label` / `.nc-marquee` and `Organica.nodeCanvas.chordShim`, no cards or wires; sheets carry the sheet pile (≥120 px on screen, an outline below). FVS-only CSS `.fvs-board-*` (`fvs/fvs.css`), board sizes component-local (`--fvs-board-*-w`). No new token, no new shared class.
 
+## 5h. The shade editor and the stop bar (Nov 20, 2026)
+
+A colour's **Gradient** and **Shadow** controls, one component for every tool that edits a palette colour's shading (Diego, Nov 20, 2026: a starred or saved palette arrives in a tool *whole* — its shading included — and can be changed there; ledger §2). Live: `/design-system/#shade-editor`, both themes, self-checked.
+
+- **`Organica.shadeEditor.mount(host, opts)`** (`shared/shade-editor.js`) → `{ set({ hex, def, label }), sync(), get(), destroy() }`. Options: `hex`, `ctx` (the `Organica.shading` context — the palette's tints, the paper — or a function returning it), `label` (the colour's name, the sections' hint); **either** a value — `def` (an `Organica.shading` definition, `null` = flat, no shadow) + `onChange(def|null)`, one call per edit (a range commits on release, a stop drag once on release: one Undo step for the host; FVS) — **or** the host's own definition edited in place — `edit: { get, before(key), after }` (ranges live; TuneSutra). Optional: `onShading(mode)` / `shadingShown()` (the host applies the Shading menu itself), `onColourStop(anchor)` (a click on the colour's own stop opens the host's colour), `everyColour(def)` (adds **Use on every colour** in a third `.panel-section` after both Gradient and Shadow — it copies this colour's Gradient + Shadow; what exactly is copied is open, ledger §1).
+- **Built from the panel's own parts** — rung 1, no new look: `.panel-section` + `<h3>` with `.hint`, `.sub-label`, `.seg-ctrl` (Type: Flat · Linear · Radial), the slider rows (`Organica.enhanceSliders`), `Organica.selectPicker` (Shading, Ink — preview thumbnails from `Organica.shading`), `.color-row` + `.color-swatch` (Halftone, Core inks; `Organica.colorPicker`), `.mini-btn` in `.row-btns`. `Organica.autoLabelPanel` names the rows. The menus' values, labels and hints are TuneSutra's (exported as `SHADING`, `SHADING_HINT`, `INK`, `RANGES`, `MAX_STOPS` = 8).
+- **The stop bar** — `.org-stopbar` › `.org-stopbar__rail` › `.org-stopbar__stop` (`shared/shade-editor.css`, promoted from TuneSutra's local `.ts-stopbar` on Nov 20, 2026; the class name and the new sheet are provisional, ledger §1). The track is the gradient (content colour, `--slo-h` tall, `--slo-r`, a `--border-strong` edge); one knob per stop at its position, the dual-range knob's size (`--knob-size`) with a `--hit-min` `::before` ring; the knob's rim is chrome (`--paper` border, `--border-strong` ring + a `rgba(0,0,0,.4)` shadow) so pale and dark stops show in both themes. `.is-active` = 2px `--tool` outline; `.is-clear` = a transparent stop, a `--border` / `--paper` checkerboard; focus = the dual-range knob's ring. A disc is a stadium (`999px`), not a corner radius. Behaviour: drag a stop (it cannot pass its neighbours), click the bar to add one (up to 8), Delete removes one (never the colour's own), click / Enter opens its colour (transparent allowed). Each knob `role="slider"`, named *Stop n*, `aria-valuetext` "‹n›%, ‹hex | transparent›". Under the bar: **Reverse** (the colour keeps its stop) · **Space evenly**.
+- **Load order.** Scripts: `core.js` → `color.js` → `noise.js` → `shade-marks.js` → `shading.js` → `select-picker.js` → `shade-editor.js`. Sheets: `tokens.css` → `panel.css` (it defines `--slo-h`, `--slo-r`, `--knob-size`) → `shade-editor.css`.
+- **Shortcuts.** Since the stop knobs are `role="slider"` spans, `Organica.shortcuts`' typing guard now skips every `[role="slider"]` (so ←/→ and Delete on a stop never reach a tool's shortcut) — provisional, ledger §1.
+- **Used in:** TuneSutra (Gradient, Shadow), Flexible Visual System (a palette colour's shading).
+
 ## 6. Accessible names
 
 **Every interactive control needs a name a screen reader can announce.** A
@@ -562,6 +573,9 @@ carries its own equivalent 0-unnamed check in its own session notes.
    aliases kept so old rules render; they all resolve to Manrope.
 5. **Load order matters.** `tokens.css` must come *before* the tool's
    own `<style>`, so a tool can override a token without `!important`.
+   Component sheets that read `panel.css` variables come after it:
+   `panel.css` → `palette.css` → `colour-picker.css` → `shade-editor.css`
+   (the stop bar reads `--slo-h`, `--slo-r`, `--knob-size`; §5h).
 6. **Weights are the four defined stops.** 200, 600 and 800 exist in the font
    but aren't in the system — add them here before using them.
 7. **Live reference:** `/design-system/` (linked from the hub) renders every
@@ -644,6 +658,7 @@ Typefaces (Sep 29, 2026) — **two families, split by role**:
 
 The "Last updated" chain as it stood until October 13, 2026, moved here verbatim (ledger §2, 2026-10-13: the line at the top is one entry; the history lives here). Newer entries are added at the top of this list.
 
+> Last updated: November 19, 2026 — spacing step `--space-9` (48px, + `.mt-9` / `.mb-9`) and the shared data table `.org-table` (`shared/page.css`, promoted from Admin; `prose.css` tables now `:not(.org-table)`), both decided by Diego for the Hue × tone lab (ledger §2); `/design-system/#spacing`, `#data-table`.
 > Last updated: November 17, 2026 — Organica's own colour picker `Organica.colorPicker` (`shared/colour-picker.css/.js`, O-21, colour migration phase 3, piloted in TuneSutra; `palette.swatch({ picker: 'organica' })` → `.rmx-color__pick`), shared value tiles `.org-tiles` / `.org-tile` (`panel.css`), RAL Classic data `shared/vendor/ral-classic.js` (CC BY-SA 4.0), icon `eyedropper` (131 drawings); `/design-system/#colour-picker`; no token changed.
 > Last updated: November 17, 2026 — icon `save` (keep it in the library: TuneSutra's floatbar *Save palette* + popover `#save-popover`, Genesis *Save to library*; 130 drawings); no token or shared component changed.
 > Last updated: October 28, 2026 — FVS Symbol bar: a *Tool* group (Select · Brush, `aria-pressed`, V / B) first in `#fb-symbol-actions`, the Brush button's thumbnail `.fvs-brush-thumb` (FVS-local, `--icon-xl`); icons `pointer`, `brush` (129 drawings); no token changed.

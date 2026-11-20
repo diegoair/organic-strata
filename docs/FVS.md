@@ -344,7 +344,7 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
 - **A TuneSutra palette, whole** (Nov 20, 2026 — Diego; ledger §2): the ▦ menu lists TuneSutra's **Saved**, then
   **Starred** palettes (not the other Elements' any more); a palette's name takes it whole — its inks and each ink's
   **Gradient + Shadow** (`state.inkShades`, hex → an `Organica.shading` definition; empty = flat, the markup of before).
-  Every filled shape of a shaded ink draws the definition's plates **in its own box, clipped to it**, over its flat fill
+  Every filled shape of a shaded ink draws the definition's plates **in a box, clipped to the shape**, over its flat fill
   (`engine/05-render-component.js` `inkShade` / `shadeOverlaySVG` / `shadeOverlayCanvas`; the box by Paper.js, cached) —
   each plate a `fill="#hex"` path, so plates and recolouring keep working; Soft and a smooth blend are one SVG gradient.
   The light turns with the mark — a turned cell turns its shadow (Diego, Nov 20, 2026: *Turns with the cell*). A chip shows its shading; opening a chip's picker
@@ -354,7 +354,17 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   saved Elements, Components and Symbols (`inkShades`, in `entryVersionKey` only when present); a Symbol cell holding a
   saved Element copies it (`ownShades`), a cell holding a Component reads its entry's — each entry's shading is tied to
   its colour list (`registerEntryShades`), so every renderer drawing with an entry's colours draws its shading too.
-  Colourways and the Figure's Palette node do not carry it yet — they use the live Palette's shading for the same inks.
+  **The box — Element › Layers › Light** (Diego, Nov 20, 2026): **Whole element** (default, no key saved) lays every
+  layer and every part of a divided shape out in the Element's own box (`geo.d`, the placed union) — one light across
+  the Element; **Each layer** (`state.layers.light = 'layer'`, in the seed as `light`) gives each layer its own box
+  (`stackShadeBox`). The row shows with 2+ layers and a shaded colour. A single shape uses its own box.
+  **Colourways** (Recolour, the Figure's Palette node) keep the shading by place — colour n takes colour n's,
+  moved onto its own colour (`shadesFollow`, in `withComponentColours` and a Symbol cell's colourway).
+  **Arriving whole**: a saved palette's house Shading (`pal.shading`) goes on every colour without its own; a starred
+  one arrives flat with its base set (`set`: Soft, Speckle). The editor (shared, with TuneSutra) has the **stop bar**
+  and **Use on every colour** (this colour's Gradient + Shadow on all, each on its own colour, hand-picked inks left out).
+  **Plates**: every shadow ink is a plate of its own after the Palette's (`plateInks`), a Soft gradient's stops go on
+  their inks' plates at their opacity (`plateSVG`); the Figure's plates read gradient stops too (`inksOf`).
   Test: `scripts/test-fvs-palette-shading.mjs` (suite `palette-shading`).
 - **Ink** — 1 to 9 colours (RMX chips; 9 since Nov 20, 2026); **Paper** is the ground for every
   gallery thumbnail, PNG and SVG. The **checkerboard button** next to Paper makes it

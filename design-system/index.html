@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="/shared/node-canvas.css">
 <link rel="stylesheet" href="/shared/palette.css">
 <link rel="stylesheet" href="/shared/colour-picker.css">
+<link rel="stylesheet" href="/shared/shade-editor.css">
 <link rel="stylesheet" href="/shared/seeds-panel.css">
 <style>
   :root {
@@ -583,6 +584,7 @@
       <a href="#select-picker">Picker</a>
       <a href="#seg-ctrl">Segmented control</a>
       <a href="#dual-range">Two-handle slider</a>
+      <a href="#shade-editor">Shade editor &amp; stop bar</a>
       <a href="#seeds-panel">Seeds panel</a>
     </div>
     <div class="ds-nav__group">
@@ -1798,6 +1800,25 @@ Organica.dualRange(host, { min: 10, max: 400, from: 75, to: 125, step: 1, detent
   label: 'Sizes', fmt: v =&gt; v + '%', onInput: (a, b) =&gt; { … } });</pre>
     </section>
 
+    <section class="ds-entry" id="shade-editor">
+      <h2>Shade editor &amp; stop bar</h2>
+      <p class="ds-desc">A colour’s <strong>Gradient</strong> and <strong>Shadow</strong> controls, in any panel (Nov 20, 2026 — Diego: a TuneSutra palette arrives in every tool whole, with its shading, and can be changed there). <code>Organica.shadeEditor.mount(host, { hex, ctx, label, def, onChange })</code> → <code>{ set({ hex, def, label }), sync(), get(), destroy() }</code>. Two <code>.panel-section</code>s built from the panel’s own parts — <code>.seg-ctrl</code> (Type: Flat · Linear · Radial), the slider rows, <code>Organica.selectPicker</code> (Shading, Ink), <code>.color-row</code> (Halftone, Core) — and, when the host passes <code>everyColour(def)</code>, a third section after both with <strong>Use on every colour</strong> (this colour’s Gradient + Shadow on all). The drawing and the definition are <code>Organica.shading</code>’s. A value host (FVS) gets one <code>onChange</code> per edit (a range commits on release, a stop drag once on release: one Undo step); TuneSutra edits its own definition in place (<code>edit: { get, before(key), after }</code>).</p>
+      <p class="ds-desc"><strong>The stop bar</strong> — <code>.org-stopbar</code> › <code>.org-stopbar__rail</code> › <code>.org-stopbar__stop</code> (<code>shared/shade-editor.css</code>, promoted from TuneSutra’s local <code>.ts-stopbar</code>). The gradient is the track (content colour); one knob per stop at its position, the dual-range knob’s size (<code>--knob-size</code>) with a <code>--hit-min</code> ring round it; its outline is chrome (<code>--paper</code> rim, <code>--border-strong</code> ring), so pale and dark stops show in both themes. Drag a stop (it cannot pass its neighbours); a click on the bar adds one there (up to 8); Delete removes it (not the colour’s own); a click or Enter opens its colour, which may be <em>transparent</em> (<code>.is-clear</code>: a checkerboard of <code>--border</code> / <code>--paper</code>). The active stop has a 2px <code>--tool</code> outline (<code>.is-active</code>). Each knob is <code>role="slider"</code>, named <em>Stop n</em>, <code>aria-valuetext</code> “50%, transparent”. Under it: <strong>Reverse</strong> (the colour keeps its stop) · <strong>Space evenly</strong>. Below, the real component in both themes: three stops, the first active, the middle one transparent.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/shade-editor.css</span><span>shared/shade-editor.js</span><strong>Needs</strong><span>core.js → color.js → noise.js → shade-marks.js → shading.js → select-picker.js → shade-editor.js</span><span>panel.css (--slo-h, --slo-r, --knob-size) before shade-editor.css</span><strong>Used in</strong><span>TuneSutra (Gradient, Shadow)</span><span>Flexible Visual System (a palette colour’s shading)</span></div>
+      <div class="ds-theme-pair">
+        <div class="ds-example ds-example--column" data-theme="light"><div class="org-panel"><div id="ds-shade-light"></div></div></div>
+        <div class="ds-example ds-example--column" data-theme="dark"><div class="org-panel"><div id="ds-shade-dark"></div></div></div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">link</span> <span class="attr">rel</span>=<span class="str">"stylesheet"</span> <span class="attr">href</span>=<span class="str">"/shared/shade-editor.css"</span>&gt;   <span class="attr">/* after panel.css */</span>
+const ed = Organica.shadeEditor.mount(hostEl, {
+  hex: colour.hex, ctx: () =&gt; ({ paper, tints }), label: colour.name,
+  def: colour.shade || null,                 <span class="attr">/* null = flat, no shadow */</span>
+  onChange: def =&gt; { pushUndo(); colour.shade = def; redraw(); },
+  everyColour: def =&gt; useOnEveryColour(def), <span class="attr">/* optional */</span>
+});</pre>
+      <p class="ds-note"><strong>Words</strong> are TuneSutra’s (<code>docs/UI-COPY.md</code>: Gradient, Shadow, Stops, Reverse, Space evenly, Use on every colour). The open choices around it — the class name, the new sheet, what <em>Use on every colour</em> copies — are in the ledger’s open list (<code>docs/DESIGN-DECISIONS.md</code> §1).</p>
+    </section>
+
     <section class="ds-entry" id="seeds-panel">
       <h2>Seeds panel</h2>
       <p class="ds-desc">The tabbed <strong>Genesis / SVG / Text</strong> (optionally <strong>Image</strong>) source picker + Genesis thumbnail grid. Built by <code>Organica.seedsPanel({ target, tabs, genesis, text, applyMode, onSeed, … })</code> — polymorphic on <code>typeof target</code> (element = generate the markup, string = attach to existing). <code>onSeed(result)</code> hands back <strong>both</strong> <code>result.svgString</code> (the canonical vector) and <code>result.descriptor</code> (raw <code>{kind, formId, text, font, imageEl, …}</code>) so each tool adapts whichever it needs. Custom tabs via <code>slots</code>, tool rows via <code>subControls</code> / <code>extraControls</code>, <code>genesis.bakeGeometry</code> for CSS-driven form geometry, <code>applyMode: 'manual'</code> when the tool has its own Apply step, two panels per page via distinct <code>idPrefix</code>. <code>.seg-ctrl</code> / <code>.upload-btn</code> come from <code>panel.css</code>; this component’s sheet carries only the grid.</p>
@@ -2754,6 +2775,23 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 <script src="/shared/colour-picker.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
+<script src="/shared/shading.js"></script>
+<script src="/shared/shade-editor.js"></script>
+<script>
+/* #shade-editor — the real Organica.shadeEditor, once per theme: a Linear gradient of three stops, the middle one
+   transparent; the first is the active one (the editor's default). Runs before the self-check, which asserts on it. */
+(function(){
+  var S=window.Organica&&Organica.shading, E=Organica.shadeEditor; if(!S||!E) return;
+  var hex='#2a9d8f', ctx={ paper:'#ffffff' };
+  ['ds-shade-light','ds-shade-dark'].forEach(function(id){
+    var host=document.getElementById(id); if(!host) return;
+    var def=Object.assign(S.flatDef(hex,ctx),{ type:'linear', angle:90, auto2:false, stops:[hex,'transparent','#1d3557'], pos:[0,0.5,1], colourAt:0 });
+    E.mount(host,{ hex:hex, ctx:ctx, label:'Teal', def:def, onChange:function(){}, everyColour:function(){} });
+  });
+})();
+</script>
 <script src="/shared/vendor/ral-classic.js"></script>
 <script>
 (function(){
@@ -3114,6 +3152,14 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   }
   assert('#ds-segm > .seg-btn:nth-child(3)', { marginLeft: '0px', borderTopLeftRadius: '2px', paddingLeft: '0px' });   // own corners (--radius-sm), not joined
   assert('#ds-dual-host .org-dual__knob', { position: 'absolute' });   // Organica.dualRange mounted
+  ['light', 'dark'].forEach(t => {   // #shade-editor: the stop bar, mounted by Organica.shadeEditor
+    assert('#ds-shade-' + t + ' .org-stopbar', { position: 'relative', borderTopWidth: '1px', borderTopStyle: 'solid' });
+    assert('#ds-shade-' + t + ' .org-stopbar__stop.is-active', { position: 'absolute', outlineStyle: 'solid', outlineWidth: '2px' });
+    const clr = document.querySelector('#ds-shade-' + t + ' .org-stopbar__stop.is-clear');
+    if (!clr || !getComputedStyle(clr).backgroundImage.startsWith('conic-gradient')) bad('#shade-editor (' + t + '): no transparent stop drawn as the checkerboard (.org-stopbar__stop.is-clear)');
+    const k = document.querySelector('#ds-shade-' + t + ' .org-stopbar__stop:nth-child(2)');
+    if (!k || k.getAttribute('aria-label') !== 'Stop 2' || !/transparent/.test(k.getAttribute('aria-valuetext') || '')) bad('#shade-editor (' + t + '): the transparent stop is not named "Stop 2" / valued "…, transparent"');
+  });
   // panel dividers (panel.css): a line under every section, dropped only where it really ends something
   assert('#ds-pd-a', { borderBottomWidth: '1px' });
   assert('#ds-pd-b', { borderBottomWidth: '1px' });     // last of its wrapper, but another section follows
