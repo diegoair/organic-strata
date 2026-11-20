@@ -2,7 +2,7 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  DEFAULT_COLOR_RULE, pc, pr, pv, state
+  DEFAULT_COLOR_RULE, inkShadesSnapshot, pc, pr, pv, state
 } from './00-core.js';
 import {
   frameDims, frameSize, resolveGridCells
@@ -379,6 +379,7 @@ export function buildSymbolLibraryEntry() {
     gridModel: state.symbolGrid,
     cells: state.symbolCells.map(c => ({ ...c })),
     colors: state.colors.slice(),
+    ...(inkShadesSnapshot() ? { inkShades: inkShadesSnapshot() } : {}),
     colorRule: { ...state.colorRule },
     paperColor: state.paperColor,
     clipEnabled: state.symbolClipEnabled,

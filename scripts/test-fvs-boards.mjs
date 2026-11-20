@@ -402,8 +402,9 @@ async function symbolBoard(mode) {
   C('no gesture state left (Symbol)', (await ev(() => __t.leftovers('symbol'))).length === 0, (await ev(() => __t.leftovers('symbol'))).join(', '));
 }
 
-// A Palette per Element (O-67 c): each Element keeps its inks / Colour by / Paper; a new one is black on white; the
-// others' Palettes are in "Pick from a palette"; a reload keeps them; Clear board leaves the default.
+// A Palette per Element (O-67 c): each Element keeps its inks / Colour by / Paper; a new one is black on white; a reload
+// keeps them; Clear board leaves the default. "Pick from a palette" lists TuneSutra's saved + starred palettes only
+// (Diego, Nov 20, 2026 — the other Elements' Palettes left the menu).
 async function elementPalettes(mode) {
   const C = (n, ok, d) => check(mode, 'Palette · ' + n, ok, d);
   await step('element');
@@ -420,11 +421,11 @@ async function elementPalettes(mode) {
   await setInk('#1c3cd0'); await settle();
   const otherFill = await ev(() => document.querySelector('.fvs-board-el').innerHTML.toLowerCase().includes('#d01c1c'));
   C('the other Element is drawn in its own Palette', otherFill && (await live()).colors[0] === '#1c3cd0');
-  // Pick from a palette lists the other Element's Palette
+  // Pick from a palette: TuneSutra's palettes, not the other Element's Palette
   await ev(() => { const b = [...document.querySelectorAll('#fvs-palette button')].pop(); b.click(); });
   await settle();
-  const listed = await ev(() => [...document.querySelectorAll('.color-swatch')].some(c => getComputedStyle(c).backgroundColor === 'rgb(208, 28, 28)'));
-  C('Pick from a palette offers the other Element\'s Palette', listed);
+  const menu = await ev(() => { const m = document.querySelector('.pal-menu'); return m && !m.hidden ? { other: [...m.querySelectorAll('.color-swatch')].some(c => getComputedStyle(c).backgroundColor === 'rgb(208, 28, 28)'), text: m.innerText } : null; });
+  C('Pick from a palette lists TuneSutra\'s palettes, not the other Element\'s', menu && !menu.other && /TuneSutra/.test(menu.text), JSON.stringify(menu));
   await press('Escape', 'Escape', 27);
   // back to the first Element: its Palette comes back
   await click(await ev(() => __t.box('.fvs-board-el')));

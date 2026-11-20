@@ -39,6 +39,76 @@ export const layerPlace = l => ({ mx: 0, my: 0, scale: 1, rotate: 0, ...(l.place
 // Style, and its Width/Length ride on the Element-wide stretch as they did then.
 // An Export "Variants" row (variantAppearance) still overrides Style/Stroke W.
 export const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${lk.l})` : '');
+// ── SHADING (Nov 20, 2026 — Diego: a TuneSutra palette loads "con tutti i loro shadow, grain e parametri") ──
+// An ink of the Palette can carry a Gradient + Shadow (state.inkShades, hex → an Organica.shading definition).
+// A filled shape of that ink draws the plates of its definition in ITS OWN box — the light falls on each shape,
+// as on TuneSutra's house (Diego's answer, Nov 20) — clipped to the shape, over the shape's own flat fill.
+// Every plate is one ink as a path (fill="#hex"), so plates and recolouring keep working; Soft and a smooth blend
+// are one SVG gradient each (as in TuneSutra: vector, not one plate per ink). Empty map = the markup of before.
+export function inkShade(hex) {
+  const m = live.inkShadesOverride || state.inkShades;
+  if (!m || !hex || typeof Organica === 'undefined' || !Organica.shading) return null;
+  return m[String(hex).toLowerCase()] || null;
+}
+const _shadeCtxCache = { key: null, ctx: null };
+function shadeCtx() {
+  const pal = live.inkPaletteOverride || state.colors, paper = state.paperColor && state.paperColor !== 'none' ? state.paperColor : '#ffffff';
+  const key = pal.join('') + paper;
+  if (_shadeCtxCache.key !== key) {
+    const C = Organica.color;
+    _shadeCtxCache.key = key;
+    _shadeCtxCache.ctx = { tints: [].concat.apply([], pal.map(h => C.scale(h).map(st => st.hex))), paper };
+  }
+  return _shadeCtxCache.ctx;
+}
+// The plates a shape of `hex` draws over its own fill: the first stop's plate is the shape's fill itself (unless
+// Reverse moved another colour there), so it is left out — TuneSutra's shapeInks.
+function shadePlatesFor(def, hex, w, h) {
+  const S = Organica.shading, ctx = shadeCtx(), own = String(hex).toLowerCase();
+  return S.plates(def, w, h, ctx).filter((pl, i) => i > 0 || String(pl.hex).toLowerCase() !== own);
+}
+// A shape's box in its parent's units: its path through `build(m)` (a Paper matrix). Cached by key.
+const _shapeBoxCache = new Map();
+function shapeBox(key, d, build) {
+  if (_shapeBoxCache.has(key)) return _shapeBoxCache.get(key);
+  let b = null;
+  try {
+    const scope = splitPaperScope(), cp = new scope.CompoundPath(d), m = new scope.Matrix();
+    build(m); cp.transform(m);
+    const r = cp.bounds; cp.remove();
+    if (r.width > 0 && r.height > 0) b = { x: r.x, y: r.y, w: r.width, h: r.height };
+  } catch (e) { b = null; }
+  if (_shapeBoxCache.size > 200) _shapeBoxCache.clear();
+  _shapeBoxCache.set(key, b);
+  return b;
+}
+function normBox(geo) {
+  return shapeBox('n|' + geo.normTx + ',' + geo.normTy + ',' + geo.normScale + '|' + geo.d, geo.d, m => { m.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale); m.scale(geo.normScale); });
+}
+function layerBox(l, g) {
+  const pl = layerPlace(l), lk = layerLook(l, {});
+  return shapeBox('l|' + [pl.mx, pl.my, pl.rotate, pl.scale, lk.w, lk.l, g.normTx, g.normTy, g.normScale].join(',') + '|' + g.d, g.d, m => {
+    m.translate(50 + pl.mx, 50 + pl.my); m.rotate(pl.rotate); m.scale(pl.scale); m.scale(lk.w, lk.l); m.translate(-50, -50);
+    m.translate(g.normTx * g.normScale, g.normTy * g.normScale); m.scale(g.normScale);
+  });
+}
+// SVG: the plates in the shape's box, clipped to the shape (its path with transform t, in the same parent space).
+function shadeOverlaySVG(hex, d, t, fillRule, box) {
+  const def = inkShade(hex);
+  if (!def || !box) return '';
+  const plates = shadePlatesFor(def, hex, box.w, box.h);
+  if (!plates.some(p => p.d)) return '';
+  const id = 'shd' + nextDrawId();
+  return `<clipPath id="${id}"><path d="${d}"${t ? ` transform="${t}"` : ''}${fillRule ? ` clip-rule="${fillRule}"` : ''}/></clipPath>`
+    + `<g clip-path="url(#${id})"><g transform="translate(${r2(box.x)},${r2(box.y)})">${Organica.shading.platesSVG(plates, id)}</g></g>`;
+}
+// Canvas: ctx already clipped to the shape; `box` the parent-space transform the box is measured in.
+function shadeOverlayCanvas(ctx, hex, parent, box) {
+  const def = inkShade(hex);
+  if (!def || !box) return;
+  ctx.setTransform(parent.translate(box.x, box.y));
+  Organica.shading.drawPlates(ctx, shadePlatesFor(def, hex, box.w, box.h));
+}
 export const _stackFlatCache = new Map();
 // ── Pattern fill (test) ──────────────────────────────────────────────
 // Lines / Crosshatch / Dots / Concentric as plain vector geometry in the
@@ -136,8 +206,10 @@ export function paintStackCanvas(ctx, geo, color) {
       const plan = photoPlan(lk);
       if (plan) { tc.clip(path, g.fillRule || 'nonzero'); tc.setTransform(box.multiply(photoFrameMatrix(pl.mx, pl.my, pl.rotate, pl.scale, lk.w, lk.l))); paintPhotoCanvas(tc, plan); }
     } else if (role === 'fill') {
-      const op = Organica.shapeAppearance.applyCanvasStyle(tc, { fillMode: lk.fillMode, color: layerInkColor(l, color), strokeW: lk.strokeW, rounded: lk.rounded });
+      const ink = layerInkColor(l, color);
+      const op = Organica.shapeAppearance.applyCanvasStyle(tc, { fillMode: lk.fillMode, color: ink, strokeW: lk.strokeW, rounded: lk.rounded });
       paintPath(tc, op, path, g);
+      if (op === 'fill' && inkShade(ink)) { tc.clip(path, g.fillRule || 'nonzero'); shadeOverlayCanvas(tc, ink, box, layerBox(l, g)); }
     } else {
       tc.globalCompositeOperation = role === 'container' ? 'destination-in' : 'destination-out';
       tc.fillStyle = '#000';
@@ -226,10 +298,13 @@ export function layerTransformAttr(l, g) {
 }
 // A saved Component draws its layers' fixed inks ("Ink 2") from ITS OWN saved palette,
 // like its cell colours (entryInkAt) — never the live one.
-export function withEntryInks(colors, fn) {
-  const prev = live.inkPaletteOverride;
+// `shades` (hex → definition): the entry's own shading, saved with it since Nov 20, 2026. Without it the live
+// Palette's shading still applies to the same inks (by hex).
+export function withEntryInks(colors, fn, shades) {
+  const prev = live.inkPaletteOverride, prevS = live.inkShadesOverride;
   if (colors && colors.length) live.inkPaletteOverride = colors;
-  try { return fn(); } finally { live.inkPaletteOverride = prev; }
+  if (shades) live.inkShadesOverride = shades;
+  try { return fn(); } finally { live.inkPaletteOverride = prev; live.inkShadesOverride = prevS; }
 }
 export function layerInkColor(l, cellColor) {
   // a variant's value: an ink, or {ink, tone} (a Tonal colour group) — the variant decides the tone (Oct 12, 2026)
@@ -339,6 +414,7 @@ export function stackPathMarkup(geo, color, forceFill) {
       const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: fm, color: ink, strokeW: lk.strokeW, rounded: lk.rounded });
       const tag = live.tagParts && l.part ? ` data-part="${l.id}"` : '';   // the Element canvas in Edit parts only — never an export
       out += `<g transform="${t}"${tag}><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
+      if (fm === 'fill' && !forceFill && inkShade(ink)) out += shadeOverlaySVG(ink, g.d, t, g.fillRule, layerBox(l, g));
     }
   });
   if (appearanceIsIdentity(a)) return out;
@@ -373,7 +449,15 @@ export function paintGeoCanvas(ctx, geo, path, color) {
     ctx.restore();
     return;
   }
-  paintPath(ctx, Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded }), path, geo);
+  const op = Organica.shapeAppearance.applyCanvasStyle(ctx, { fillMode: a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded });
+  paintPath(ctx, op, path, geo);
+  if (op === 'fill' && inkShade(color)) {   // ctx = box · stretch · norm: the plates in the box · stretch space, the shape's norm box
+    ctx.save();
+    ctx.clip(path, (geo && geo.fillRule) || 'nonzero');
+    const parent = ctx.getTransform().multiply(new DOMMatrix().translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale).inverse());
+    shadeOverlayCanvas(ctx, color, parent, normBox(geo));
+    ctx.restore();
+  }
 }
 // The inner half of every per-cell/preview <g>: stretch layer (identity, and
 // omitted, at w=l=1) → norm-fit layer → the styled path. `forceFill` is for
@@ -398,8 +482,11 @@ export function elementPathMarkup(geo, color, forceFill) {
     return `<clipPath id="${id}"><path d="${geo.d}" transform="${t}"${geo.fillRule ? ` clip-rule="${geo.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id})"><g transform="${photoFrameAttr(a.mx, a.my, a.rotate, a.scale, a.w, a.l)}">${photoImageTag(plan)}</g></g>`;
   }
   const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded });
-  const norm = `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
+  let norm = `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
     + `<path d="${geo.d}" ${attrs}${geo.fillRule && !forceFill ? ` fill-rule="${geo.fillRule}"` : ''}/></g>`;
+  if (!forceFill && a.fillMode === 'fill' && inkShade(color)) {
+    norm += shadeOverlaySVG(color, geo.d, `translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`, geo.fillRule, normBox(geo));
+  }
   if (appearanceIsIdentity(a)) return norm;
   return `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))}">${norm}</g>`;
 }
@@ -852,6 +939,6 @@ export function savedElementEntrySVG(e) {
   const o = e.orientation || {}, prev = { paper: state.paperColor, colors: state.colors };
   state.paperColor = e.paperColor || '#ffffff';
   if (e.colors && e.colors.length) state.colors = e.colors.slice();   // colorAt(0) reads state.colors, layer inks the override
-  try { return withEntryInks(e.colors, () => withAppearance(e.appearance, () => buildSeedPreviewSVG(e.seed, o.rotation || 0, !!o.flipH, !!o.flipV, 100))); }
+  try { return withEntryInks(e.colors, () => withAppearance(e.appearance, () => buildSeedPreviewSVG(e.seed, o.rotation || 0, !!o.flipH, !!o.flipV, 100)), e.inkShades); }
   finally { state.paperColor = prev.paper; state.colors = prev.colors; }
 }

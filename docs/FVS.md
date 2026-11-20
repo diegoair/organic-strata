@@ -341,7 +341,20 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
 
 ## 4. Palette and colour rules
 
-- **Ink** — 1 to 8 colours (RMX chips); **Paper** is the ground for every
+- **A TuneSutra palette, whole** (Nov 20, 2026 — Diego; ledger §2): the ▦ menu lists TuneSutra's **Saved**, then
+  **Starred** palettes (not the other Elements' any more); a palette's name takes it whole — its inks and each ink's
+  **Gradient + Shadow** (`state.inkShades`, hex → an `Organica.shading` definition; empty = flat, the markup of before).
+  Every filled shape of a shaded ink draws the definition's plates **in its own box, clipped to it**, over its flat fill
+  (`engine/05-render-component.js` `inkShade` / `shadeOverlaySVG` / `shadeOverlayCanvas`; the box by Paper.js, cached) —
+  each plate a `fill="#hex"` path, so plates and recolouring keep working; Soft and a smooth blend are one SVG gradient.
+  The light turns with the mark (a turned cell turns its shadow). A chip shows its shading; opening a chip's picker
+  makes it the one the **Gradient · Shadow** sections under the Palette edit (`#fvs-shade`, `Organica.shadeEditor`);
+  a colour edited keeps its shading (`withColour`). **Save as palette…** writes a NEW TuneSutra palette
+  (*‹name› · Flexible Visual System*), never the original. The shading is saved with the Element's Palette (`shades`),
+  saved Components and Symbols (`inkShades`, in `entryVersionKey` only when present); a cell's own colours, colourways
+  and the Figure's Palette node do not carry it yet — they use the live Palette's shading for the same inks.
+  Test: `scripts/test-fvs-palette-shading.mjs` (suite `palette-shading`).
+- **Ink** — 1 to 9 colours (RMX chips; 9 since Nov 20, 2026); **Paper** is the ground for every
   gallery thumbnail, PNG and SVG. The **checkerboard button** next to Paper makes it
   **transparent** everywhere (every step, thumbnail, saved Component/Symbol and export):
   SVG gets `fill="none"`, PNG keeps the alpha, and the previews show a checkerboard behind.

@@ -9,7 +9,7 @@
 // An ES module of fvs/js/main.js — docs/FVS.md §11, §13.
 import { rt } from './rt.js';
 import {
-  DEFAULT_COLOR_RULE, NEW_COLOR_RULE, pv, state
+  DEFAULT_COLOR_RULE, NEW_COLOR_RULE, pv, state, inkShadesSnapshot
 } from './engine/00-core.js';
 import {
   SEED_ICONS, SYMBOL_SEED_DEFAULTS, seedForSnapshot
@@ -63,7 +63,7 @@ import { hooks, provide } from './hooks.js';
 provide({
   boardElementDrawn: () => elementDrawn, boardGalleryDrawn: () => galleryDrawn,
   boardComponentEdit: () => componentEdit, boardTierShown: () => boardTierShown,
-  elementPalettes: () => elementPalettes, boardSymbolDrawn: () => symbolDrawn,
+  boardSymbolDrawn: () => symbolDrawn,
   boardActivateElement: () => boardActivate, boardRestoreGalleries: () => restoreGalleries,
   syncCeCellProps: () => syncCeCellProps, symbolPaletteSwap: () => symbolPaletteSwap, syncSymbolPaletteHint: () => syncSymbolPaletteHint,
   elementSheetResized: () => sheetResized, symbolFromVariation: () => symbolFromVariation, boardSymbols: () => boardSymbols,
@@ -74,7 +74,7 @@ const escAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/
 const el = (tag, cls, attrs) => { const n = document.createElement(tag); if (cls) n.className = cls; if (attrs) Object.assign(n, attrs); return n; };
 const clone = o => JSON.parse(JSON.stringify(o));
 const overlayOpen = () => !ctrl('symbol-content-overlay').hidden;   // as 12-shell.js reads it
-let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {}, elementPalettes = () => [];
+let elementDrawn = () => {}, galleryDrawn = () => {}, componentEdit = () => {};
 let sheetResized = () => {};
 let rebaseSymbolEdits = () => {};   // the Symbol board's undo baseline, taken again when the Symbol step is entered
 let symbolFromVariation = () => {};
@@ -113,10 +113,13 @@ function applyGallery(g) {
 // offered in the Palette's "Pick from a palette" menu (opts.palettes, 00-core.js buildPalette).
 const DEFAULT_PALETTE = { colors: ['#000000'], colorRule: { ...DEFAULT_COLOR_RULE }, paperColor: '#ffffff' };   // an Element saved with no Palette
 const NEW_PALETTE = { ...DEFAULT_PALETTE, colorRule: { ...NEW_COLOR_RULE } };   // a new Element's (Element's colours, Oct 15, 2026)
-const livePalette = () => clone({ colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor });
+// + `shades` (hex → an Organica.shading definition) when the Palette carries a TuneSutra palette's shading (Nov 20, 2026);
+// absent otherwise, so a flat Palette saves and compares exactly as before.
+const livePalette = () => { const sh = inkShadesSnapshot(); return clone({ colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor, ...(sh ? { shades: sh } : {}) }); };
 function applyPalette(p) {
   p = p || DEFAULT_PALETTE;
   state.colors = p.colors.map(hexKey);
+  state.inkShades = p.shades ? clone(p.shades) : {};
   state.colorRule = { ...DEFAULT_COLOR_RULE, ...(p.colorRule || {}) };
   syncColorRuleUI(); buildPalette();
   setPaperUI(p.paperColor);
@@ -128,7 +131,7 @@ function applyPalette(p) {
 // snap()) and the Symbol's comes in; leaving it, the Symbol's is kept — marked own if it differs from what it came in
 // with — and the edited Element's comes back. While on the Symbol step snap() writes nothing into the Element (idle()).
 const livePaletteWithGround = () => ({ ...livePalette(), ground: clone(getElementAppearance().ground || null) });
-const paletteKey = p => JSON.stringify([p.colors, p.colorRule, p.paperColor, p.ground || null]);
+const paletteKey = p => JSON.stringify([p.colors, p.colorRule, p.paperColor, p.ground || null, ...(p.shades ? [p.shades] : [])]);
 let symbolPaletteIn = null;   // the Palette the Symbol came in with this visit
 // "Palette · Symbol’s own" only while it is: changed on the Symbol step (now, or on an earlier visit)
 function syncSymbolPaletteHint() {
@@ -157,8 +160,8 @@ function symbolPaletteSwap(from, to) {
 }
 function withPalette(p, fn) {
   p = p || DEFAULT_PALETTE;
-  const prev = { colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor };
-  state.colors = p.colors.map(hexKey); state.colorRule = { ...DEFAULT_COLOR_RULE, ...(p.colorRule || {}) }; state.paperColor = p.paperColor;
+  const prev = { colors: state.colors, colorRule: state.colorRule, paperColor: state.paperColor, inkShades: state.inkShades };
+  state.colors = p.colors.map(hexKey); state.colorRule = { ...DEFAULT_COLOR_RULE, ...(p.colorRule || {}) }; state.paperColor = p.paperColor; state.inkShades = p.shades || {};
   try { return fn(); } finally { Object.assign(state, prev); }
 }
 
@@ -511,19 +514,6 @@ function mountElementBoard() {
   const clearBtn = ctrl('btn-board-clear-element');
   const syncClear = () => { snap(); clearBtn.disabled = isClear(); };
   clearBtn.addEventListener('click', () => { pushUndo(); clearAll(); syncClear(); });
-  // the other Elements' Palettes, for the Palette's "Pick from a palette" menu — each by its Element's name, one
-  // entry per distinct set of inks, none equal to the live one
-  elementPalettes = () => {
-    const seen = new Set([JSON.stringify(state.colors)]), out = [];
-    state.elements.forEach(e => {
-      if (e.id === active() || !e.palette) return;
-      const cs = e.palette.colors.map(hexKey), k = JSON.stringify(cs);
-      if (seen.has(k)) return;
-      seen.add(k);
-      out.push({ name: e.name, colors: cs.map(hex => ({ hex })) });
-    });
-    return out;
-  };
   boardActivate = id => activate(id); elementBoard = B; elementSaveNow = () => { snap(); save(); syncClear(); };
   B.afterMove = () => { placeAdd(); };   // New element under the lowest Element
 

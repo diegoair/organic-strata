@@ -54,6 +54,7 @@ const JOBS = {
   'drive':              node('test-fvs-drive.mjs'),   // Zones › Field and Rhythm: signals, walks (Oct 27, 2026)
   'generated':          node('test-fvs-generated.mjs'),   // Suggest › Use generated components: in memory, badge, confirm + save (Oct 27, 2026)
   'paper-tile':         node('test-fvs-paper-tile.mjs'),   // Paper › Element as one <pattern>: same tiles, few nodes (Oct 26, 2026)
+  'palette-shading':    node('test-fvs-palette-shading.mjs'),   // a TuneSutra palette taken whole: shading drawn, edited, saved as new (Nov 20, 2026)
   'pipeline':           node('test-fvs-pipeline.mjs'),   // paper, textures and inks from Element to gallery, saved, Symbol (Oct 26, 2026)      // Style = Photo: Normal · Tone · Dither from the Palette, self-contained files (Oct 23, 2026)
   'axes':               node('test-fvs-axes.mjs'),       // every rule × grid × axis frozen (Tropism Phase 1)   // Component: one Generate after another = a fresh one
   'qa':                 node('test-fvs-qa.mjs'),

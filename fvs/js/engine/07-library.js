@@ -2,7 +2,7 @@
 // Uses no panel control, page element or timer — only the model (state, the saved-item stores), pure Organica maths
 // and the offscreen measuring helpers. Chosen mechanically at the split (Oct 2026); check.py "fvs engine" keeps it so. Map: docs/FVS.md §11.
 import {
-  live, pc, pv, state, val
+  inkShadesSnapshot, live, pc, pv, state, val
 } from './00-core.js';
 import {
   SEED_TYPES, syncPartLayers
@@ -103,6 +103,7 @@ export function libraryEntryFromLive(comp, memo) {
     appearance: memo ? memo.app : appearanceSnapshot(),
     grid: gridOf(comp),
     colors: state.colors.slice(),
+    ...(inkShadesSnapshot() ? { inkShades: inkShadesSnapshot() } : {}),   // the Palette's shading (Nov 20, 2026)
     colorRule: { ...state.colorRule },
     paperColor: state.paperColor,
     component: { ruleSource: comp.ruleSource, cells: comp.cells },
@@ -119,7 +120,7 @@ export function buildLibraryEntry() { return buildLibraryEntryFor(getSelectedCom
 // Everything that changes the drawing; never the name, the time or the rule that made it.
 export function entryVersionKey(e) {
   const s = JSON.stringify([e.seed, e.appearance, e.grid, e.colors, e.colorRule, e.paperColor, e.component && e.component.cells,
-    e.role || 'normal', e.underlyingComponentName || null, e.blend || null, !!e.clip]);
+    e.role || 'normal', e.underlyingComponentName || null, e.blend || null, !!e.clip, ...(e.inkShades ? [e.inkShades] : [])]);
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(36) + ':' + s.length;
