@@ -1188,7 +1188,7 @@ function mountSymbolBoard() {
   // that settles (500 ms after the last redraw — Fill the grid, a drop, a variation, a cell's Fit, the grid) keeps what the
   // Symbol was before it. A selection or a zoom changes nothing kept, so it is no step.
   let editBase = null, editT = 0;
-  const editKey = w => JSON.stringify([w.gridModel, w.cells, w.clipEnabled, w.overlap, w.zones || null, w.palette && [w.palette.colors, w.palette.colorRule, w.palette.paperColor, w.palette.ground]]);
+  const editKey = w => JSON.stringify([w.gridModel, w.cells, w.clipEnabled, w.overlap, w.zones || null, w.palette && [w.palette.colors, w.palette.colorRule, w.palette.paperColor, w.palette.ground, ...(w.palette.shades ? [w.palette.shades] : [])]]);   // + its shading (Nov 20, 2026): a shadow changed is a step
   const editable = () => state.activeTier === 'symbol';   // (after a Figure visit too — Oct 29, 2026)
   function noteEdit() {
     clearTimeout(editT); editT = 0;

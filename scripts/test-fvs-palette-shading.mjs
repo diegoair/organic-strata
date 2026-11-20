@@ -62,6 +62,13 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     F.patchCell(F.state.symbolCells[1], F.railPatch('element', 'Shaded element'));
     const sv = F.buildSymbolSVG(), n = (sv.match(/clip-path="url\\(#shd/g) || []).length;
     check('Symbol: a saved Component and a saved Element draw their shading on a flat Palette (' + n + ')', n >= 5, n);
+    // on the Symbol step a shadow changed is one Undo step (Diego, Nov 20, 2026: "prova in symbol a cambiare colori e shadows")
+    F.state.inkShades = keep; F.state.colorRule = { ...F.state.colorRule, mode: 'index' }; F.renderSymbol(); await w(700);
+    const sel = q('fvs-shade').querySelector('select'); document.querySelector('#fvs-palette .rmx-color__pick').click(); await w(150); Organica.colorPicker.close();
+    const was0 = sel.value; sel.value = 'cells'; sel.dispatchEvent(new Event('change', { bubbles: true })); await w(700);
+    const hex0 = F.state.colors[0], mid = (F.state.inkShades[hex0] || {}).specks;
+    q('btn-board-undo-symbol').click(); await w(700);
+    check('Symbol: a shadow changed, then Undo — back to the shadow before, the colours kept', mid === 'cells' && (F.state.inkShades[hex0] || {}).specks === (was0 === 'speckle' ? 'specks' : undefined) && F.state.colors[0] === hex0 && sel.value === was0, was0 + ' → ' + mid + ' → ' + ((F.state.inkShades[hex0] || {}).specks) + ' / ' + sel.value);
     F.state.colorRule = { ...F.state.colorRule, mode: was }; F.state.inkShades = keep;
     F.setTier('element'); await w(300); }
   // the colour edited in the picker: its shading follows it
