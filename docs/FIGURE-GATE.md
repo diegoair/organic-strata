@@ -196,6 +196,19 @@ Work of the day (`0b6f0b4`, a TuneSutra change that reached FVS): the icon `fvs-
 
 Automated half, Nov 18: the full `scripts/test-fvs.sh` before the push (49/49 — figure graph · eval · board light + dark · regression 619/619 · QA · Rhizome · atlas · dark audit) and `scripts/gate-figure.sh 08e81e7` (see the test log).
 
+## 3 (Nov 20, 2026). Manual half — a shaded palette through the Figure
+
+Automated half PASSED on `d125f59` (base `079cf0c`): repo checks, design-system diff, the headless suites (UI 149, Figure
+board light + dark, graph 25/25, eval 25/25, regression 619/619, QA, Rhizome, atlas), perf. In the Figure tab, with a
+TuneSutra palette taken whole in the Palette (one colour with Speckle or Pollen):
+
+- [ ] A Symbol's Figure: the cells draw the shaded colour shaded, as on the Symbol step.
+- [ ] A Palette node with **Hue** or **Another palette**: the recoloured cells keep the shading on the colour in the same
+  place (colour 1's shadow on the new colour 1).
+- [ ] Export › Plates of a figure with a shaded colour: one file per ink, the shadow inks too; every file black on clear,
+  nothing left in colour.
+- [ ] Light › Each layer on the Element: the figure follows (each layer its own light) after the Symbol is drawn again.
+
 ## 4. Record
 
 Tick each commit in the **Organica test log** artifact (https://claude.ai/artifact/FsEoGMwKmWeKinrXfUhvyh) as you go. It lists every commit of the day with a "try this" and a link, and its note field is where a failure goes. Then:
