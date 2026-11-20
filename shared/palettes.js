@@ -40,8 +40,10 @@
     9: ['background', 'ground', 'middle', 'far', 'main', 'sub', 'accent', 'accent2', 'accent3'],
   };
   function partsFor(n) { return (global.Organica.hueTone && Organica.hueTone.ROLE_PARTS[n]) || ROLE_PARTS[n] || []; }
-  // Role names when a palette carries none (a starred one) — mirrors ROLE_SETS / roleName in
-  // tunesutra/palette-figures.js (colour names are roles, UI-COPY). Keep the two in step.
+  // The roles — semantic, one word each, largest share first (Diego, Nov 18, 2026: "each color has a token name that
+  // is built correctly"). The set follows the count, so the smallest colour is always the Accent (at 5 the Highlight
+  // below it; from 6 the Spark, Nov 19, 2026; 2, 8, 9: content design, the redesign's step 3). The one copy: TuneSutra
+  // and its colour guide read it from here (tunesutra/palette-figures.js); colour names are roles (UI-COPY).
   const ROLE_SETS = {
     2: ['Base', 'Accent'],
     3: ['Base', 'Secondary', 'Accent'],

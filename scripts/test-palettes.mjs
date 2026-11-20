@@ -70,7 +70,7 @@ DB['tunesutra-favs'] = {
   vm.runInContext(fs.readFileSync(path.join(root, 'tunesutra/palette-figures.js'), 'utf8'), ctx, { filename: 'palette-figures.js' });
   const F = ctx.TUNESUTRA_FIG, bad = [];
   for (let n = 2; n <= 9; n++) for (let i = 0; i < n; i++) if (F.roleName(i, n) !== P.roleName(i, n)) bad.push(n + '/' + i);
-  check('role names mirror tunesutra/palette-figures.js', !bad.length, bad.join(', '));
+  check('role names: one copy, palette-figures reads Organica.palettes', !bad.length && F.ROLE_SETS === P.ROLE_SETS, bad.join(', '));
   check('a starred colour is named by its role', P.list().find(p => p.source === 'starred').colors[1].name === 'Accent');
 }
 check('nameFor proposes what saveAsNew writes', P.nameFor(P.get('saved:Dusk'), { tool: 'Flexible Visual System' }) === 'Dusk · Flexible Visual System');

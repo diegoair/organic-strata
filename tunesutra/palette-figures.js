@@ -16,23 +16,9 @@
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const capWord = w => w ? w.charAt(0).toUpperCase() + w.slice(1) : '';
 
-  // The roles — semantic, one word each, largest share first (Diego, Nov 18, 2026: "each color has a token name that
-  // is built correctly … go with more colours and variants"). The set follows the count, so the smallest colour is
-  // always the Accent (and at 5 the Highlight below it).
-  const ROLE_SETS = {
-    3: ['Base', 'Secondary', 'Accent'],
-    4: ['Base', 'Secondary', 'Tertiary', 'Accent'],
-    5: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight'],
-    // 6–7 (Diego, Nov 19, 2026: "Spark in coda"): the smallest role is always Spark, so going from 5 to 6 renames
-    // nothing (the token keys stay); at 7, ordered by share, the hill is Tertiary and the wall the new Support.
-    6: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight', 'Spark'],
-    7: ['Base', 'Secondary', 'Tertiary', 'Support', 'Accent', 'Highlight', 'Spark'],
-    // 2, 8, 9 (Nov 19, 2026, content design; the redesign's step 3): Accent · Highlight · Spark stay the smallest three.
-    2: ['Base', 'Accent'],
-    8: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Accent', 'Highlight', 'Spark'],
-    9: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Touch', 'Accent', 'Highlight', 'Spark'],
-  };
-  function roleName(i, n) { const set = ROLE_SETS[n] || ROLE_SETS[5]; return set[i] || ('Extra ' + (i - 4)); }
+  // The roles — semantic, one word each, largest share first: one copy, in shared/palettes.js
+  // (Organica.palettes.ROLE_SETS / roleName), so every tool names a palette's colours the same way.
+  const ROLE_SETS = O.palettes.ROLE_SETS, roleName = O.palettes.roleName;
 
   const HARMONY_LABEL = { monochromatic: 'Monochromatic', analogous: 'Analogous', complementary: 'Complementary', split: 'Split-complementary', triadic: 'Triadic', tetradic: 'Tetradic', varied: 'Varied' };
   const TONE_LABEL = { same: 'Same tone', near: 'Near tones', far: 'Far tones' };
