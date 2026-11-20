@@ -116,8 +116,12 @@
   .ts-card:has(.ts-card__link:hover) { border-color: var(--ink); }
   .ts-card:has(.ts-card__link:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
   /* the star sits on the house, top right, on a paper chip so it reads on any colour (Diego, Nov 20, 2026) */
-  .ts-card .ts-card__star { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1; background: var(--paper); }   /* .org-btn--icon at --row-h already meets --hit-min */
-  @media (hover: hover) { .ts-card .ts-card__star:hover { background: var(--track-bg); } }   /* the chip above beats the shared hover: give it back */
+  /* the chip has the editor's remove chip's border (.ts-remove), so it shows on a white house too; its focus ring stands on a
+     paper halo, so it reads on any house colour (Diego, Nov 20, 2026 — the ring vanished on 6 of 19 houses in light, 13 in dark) */
+  .ts-card .ts-card__star { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1; background: var(--paper); border-color: var(--border-strong); }   /* .org-btn--icon at --row-h already meets --hit-min */
+  .ts-card .ts-card__star:focus-visible { box-shadow: 0 0 0 var(--space-2) var(--paper); }   /* under the 2px ring at 2px offset */
+  @media (hover: hover) { .ts-card .ts-card__star:hover, .ts-card .ts-card__star[aria-pressed="true"]:hover { background: var(--track-bg); border-color: var(--ink); } }
+  .ts-card .ts-card__star[aria-pressed="true"]:active { border-color: var(--ink); }   /* a starred star keeps its border while pressed (the shared pressed rules clear it) */   /* the chip above beats the shared hover: give it back */
 
   /* The three tabs (Nov 19, 2026, Diego: Your palettes · Make · Explore). Local until a second tool needs them;
      the current-page marker is the design system nav's (.ds-nav a.current), turned to sit under the word. */
