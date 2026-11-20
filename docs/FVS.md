@@ -347,7 +347,7 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   Every filled shape of a shaded ink draws the definition's plates **in its own box, clipped to it**, over its flat fill
   (`engine/05-render-component.js` `inkShade` / `shadeOverlaySVG` / `shadeOverlayCanvas`; the box by Paper.js, cached) —
   each plate a `fill="#hex"` path, so plates and recolouring keep working; Soft and a smooth blend are one SVG gradient.
-  The light turns with the mark (a turned cell turns its shadow). A chip shows its shading; opening a chip's picker
+  The light turns with the mark — a turned cell turns its shadow (Diego, Nov 20, 2026: *Turns with the cell*). A chip shows its shading; opening a chip's picker
   makes it the one the **Gradient · Shadow** sections under the Palette edit (`#fvs-shade`, `Organica.shadeEditor`);
   a colour edited keeps its shading (`withColour`). **Save as palette…** writes a NEW TuneSutra palette
   (*‹name› · Flexible Visual System*), never the original. The shading is saved with the Element's Palette (`shades`),
