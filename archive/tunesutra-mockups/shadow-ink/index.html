@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Shadow lab</title>
+<!-- Mockup v2 (Nov 18, 2026, Diego: "vorrei delle opzioni anche come hai descritto … 1. l'ombra cambia
+     tinta … 2. perde saturazione, poi la ritrova … 3. ha delle parti … usa solo una figura e la sua
+     shadow"). One sphere on the ground, lit from a direction; every option of the painter's shadow on
+     the right. Dev page, not shipped: the shading here is smooth and per pixel (OKLCH), to judge the
+     colour rules — the tool would carry them into its inks. -->
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<style>
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-small); }
+  .bar { padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border); }
+  .bar h1 { font-family: var(--font-display); font-size: var(--fs-medium); margin: 0 0 var(--space-1); }
+  .bar p { margin: 0; color: var(--mid); max-width: 980px; }
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: calc(100vh - 60px); }
+  .stage { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-4); padding: var(--space-5); background: var(--track-bg); }
+  .stage canvas { width: min(100%, 640px); height: auto; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .inks { display: flex; gap: var(--space-3); flex-wrap: wrap; justify-content: center; font-size: var(--fs-micro); color: var(--mid); }
+  .inks span { display: inline-flex; align-items: center; gap: var(--space-1); }
+  .chip { width: 18px; height: 18px; border-radius: var(--radius-sm); border: 1px solid var(--border); display: inline-block; }
+  .panel { border-left: 1px solid var(--border); background: var(--panel); overflow: auto; }
+  .swatches { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .swatches button { width: 26px; height: 26px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); cursor: pointer; padding: 0; }
+  .swatches button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .seg-ctrl { flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>Shadow lab · one figure</h1>
+  <p>A sphere on the ground, lit from one side. Each group on the right is one idea from painting: <b>1</b> the shadow changes hue, <b>2</b> it loses chroma then finds it again at the edge, <b>3</b> it has parts. Turn them on one at a time to see what each does; <b>Show parts</b> names them on the figure.</p>
+</div>
+<div class="wrap">
+  <div class="stage">
+    <canvas id="cv" width="640" height="480"></canvas>
+    <div class="inks" id="inks"></div>
+  </div>
+  <aside class="panel">
+    <div class="panel-section">
+      <h3>Figure</h3>
+      <div class="sub-label">Colour</div>
+      <div class="swatches" id="sw"></div>
+      <div class="sub-label">Ground</div>
+      <div class="swatches" id="gsw"></div>
+      <div class="ctrl-row"><div class="ctrl-label">Light from</div><input type="range" id="light" min="-80" max="80" value="-40"><span class="ctrl-val" id="v-light">-40°</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Depth</div><input type="range" id="depth" min="10" max="90" value="35"><span class="ctrl-val" id="v-depth">35</span></div>
+      <p class="org-panel__hint">Depth: how dark the core shadow gets (in lightness, 0–100).</p>
+      <label class="check-row org-switch"><input type="checkbox" id="labels"><span>Show parts</span></label>
+    </div>
+    <div class="panel-section">
+      <h3>Render</h3>
+      <p class="org-panel__hint">As TuneSutra would print it: Smooth to judge the colours; Bands, Specks and Dots use only the inks listed under the figure.</p>
+      <div class="ctrl-row"><div class="seg-ctrl" id="mode">
+        <button class="seg-btn" data-v="smooth">Smooth</button>
+        <button class="seg-btn" data-v="bands">Bands</button>
+        <button class="seg-btn active" data-v="specks">Specks</button>
+        <button class="seg-btn" data-v="dots">Dots</button>
+      </div></div>
+      <div class="ctrl-row"><div class="ctrl-label">Size</div><input type="range" id="cell" min="2" max="16" value="5"><span class="ctrl-val" id="v-cell">5</span></div>
+    </div>
+    <div class="panel-section">
+      <h3>1 · Hue</h3>
+      <p class="org-panel__hint">The shadow turns toward another hue, not only darker.</p>
+      <div class="ctrl-row"><div class="seg-ctrl" id="hue">
+        <button class="seg-btn active" data-v="same">Same</button>
+        <button class="seg-btn" data-v="cool">Cool</button>
+        <button class="seg-btn" data-v="warm">Warm</button>
+        <button class="seg-btn" data-v="complement">Complement</button>
+        <button class="seg-btn" data-v="impressionist">Impressionist</button>
+      </div></div>
+      <div class="ctrl-row"><div class="ctrl-label">Shift</div><input type="range" id="shift" min="0" max="100" value="60"><span class="ctrl-val" id="v-shift">60</span></div>
+      <p class="org-panel__hint" id="hue-hint"></p>
+    </div>
+    <div class="panel-section">
+      <h3>2 · Chroma</h3>
+      <p class="org-panel__hint">The shadow loses chroma; at the turning edge (the terminator) it can glow.</p>
+      <div class="ctrl-row"><div class="ctrl-label">Lose</div><input type="range" id="lose" min="0" max="100" value="0"><span class="ctrl-val" id="v-lose">0</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Edge glow</div><input type="range" id="glow" min="0" max="100" value="0"><span class="ctrl-val" id="v-glow">0</span></div>
+    </div>
+    <div class="panel-section">
+      <h3>3 · Parts</h3>
+      <p class="org-panel__hint">The classic chiaroscuro: each part on or off.</p>
+      <label class="check-row org-switch"><input type="checkbox" id="p-half" checked><span>Halftone</span></label>
+      <label class="check-row org-switch"><input type="checkbox" id="p-term"><span>Terminator</span></label>
+      <label class="check-row org-switch"><input type="checkbox" id="p-core" checked><span>Core shadow</span></label>
+      <label class="check-row org-switch"><input type="checkbox" id="p-refl"><span>Reflected light</span></label>
+      <label class="check-row org-switch"><input type="checkbox" id="p-cast" checked><span>Cast shadow</span></label>
+      <label class="check-row org-switch"><input type="checkbox" id="p-high"><span>Highlight</span></label>
+    </div>
+  </aside>
+</div>
+<script src="/shared/core.js"></script>
+<script src="/shared/color.js"></script>
+<script>
+(function () {
+  'use strict';
+  const C = Organica.color, $ = id => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const COLOURS = ['#d9622b', '#3a6ea5', '#7a8b4a', '#e0a030', '#8c3b2a', '#c9b7d9', '#f1e4c8'];
+  const GROUNDS = ['#f1e4c8', '#dce8ef', '#e8dcc0', '#2f4b7c', '#ffffff'];
+  const st = { col: COLOURS[0], ground: GROUNDS[0], hue: 'same', mode: 'specks' };
+  const HUE_HINT = {
+    same: 'Today’s rule: the same hue, only darker.',
+    cool: 'Warm light, cool shadows: the shadow turns toward blue-violet.',
+    warm: 'Cool light, warm shadows: the shadow turns toward red-orange.',
+    complement: 'The shadow turns toward the colour’s complement — the eye reads it as natural (Chevreul).',
+    impressionist: 'Monet’s shadows: toward blue-violet AND more colourful, never grey.',
+  };
+  // fast OKLCH → sRGB (no gamut search: clipped; fine for a preview)
+  function lch2rgb(L, c, h) {
+    const a = c * Math.cos(h * Math.PI / 180), b = c * Math.sin(h * Math.PI / 180);
+    const l_ = L + 0.3963377774 * a + 0.2158037573 * b, m_ = L - 0.1055613458 * a - 0.0638541728 * b, s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+    const l = l_ ** 3, m = m_ ** 3, s = s_ ** 3;
+    const r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, bb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+    const gam = x => { x = clamp(x, 0, 1); return Math.round(255 * (x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055)); };
+    return [gam(r), gam(g), gam(bb)];
+  }
+  const toward = (h, t, k) => h + ((((t - h) % 360) + 540) % 360 - 180) * k;
+  // the colour at shadow amount s (0 = lit, 1 = core) and terminator weight tw, per the options
+  function shade(O, s, tw, o, isGround) {
+    let L = O.l - s * o.depth, c = O.c, h = O.h;
+    const grey = O.c < 0.02, k = s * o.shift;
+    if (o.hue === 'cool') { h = grey ? 285 : toward(O.h, 285, k); if (grey) c = 0.05 * k; }
+    else if (o.hue === 'warm') { h = grey ? 35 : toward(O.h, 35, k); if (grey) c = 0.05 * k; }
+    else if (o.hue === 'complement') { h = (grey ? 105 : O.h) + 180 * k; if (grey) c = 0.04 * k; }
+    else if (o.hue === 'impressionist') { h = toward(grey ? 285 : O.h, 285, Math.min(1, k * 1.2)); c = Math.max(c, 0.09) * (1 + 0.6 * k); }
+    c *= 1 - o.lose * s;
+    if (!isGround) c *= 1 + o.glow * tw * 1.4;
+    return [clamp(L, 0.04, 0.99), Math.max(0, c), h];
+  }
+  const hash = (x, y, k) => { let h = (x * 374761393 + y * 668265263 + k * 1442695041) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
+  function render() {
+    const o = {
+      hue: st.hue, shift: +$('shift').value / 100, depth: +$('depth').value / 100, lose: +$('lose').value / 100, glow: +$('glow').value / 100,
+      half: $('p-half').checked, term: $('p-term').checked, core: $('p-core').checked, refl: $('p-refl').checked, cast: $('p-cast').checked, high: $('p-high').checked,
+    };
+    const mode = st.mode, cell = +$('cell').value;
+    const cv = $('cv'), W = cv.width, H = cv.height, c = cv.getContext('2d'), img = c.createImageData(W, H), d = img.data;
+    const O = C.hexToOklch(st.col), G = C.hexToOklch(st.ground);
+    const ang = +$('light').value * Math.PI / 180, lx = Math.sin(ang), ly = -Math.cos(ang) * 0.75, lz = 0.66, ln = Math.hypot(lx, ly, lz), LX = lx / ln, LY = ly / ln, LZ = lz / ln;
+    const cx = W / 2, cy = H * 0.46, R = H * 0.27, groundY = cy + R;
+    const sx = cx - lx * R * 1.1, sw = R * 1.25, sh = R * 0.32;
+    // one point of the figure → its shadow amount s (0 lit … 1 core), terminator weight, bounce, highlight
+    function sample(x, y, onSphere) {
+      if (onSphere) {
+        let dx = (x - cx) / R, dy = (y - cy) / R; const r = Math.hypot(dx, dy); if (r > 0.999) { dx /= r / 0.999; dy /= r / 0.999; }
+        const nz = Math.sqrt(Math.max(0, 1 - dx * dx - dy * dy)), ndl = dx * LX + dy * LY + nz * LZ;
+        let s = o.half ? smooth(0.55, -0.05, ndl) : (ndl > 0.05 ? 0 : 1);
+        if (!o.core) s = Math.min(s, 0.45);
+        const tw = o.term ? Math.exp(-Math.pow(ndl / 0.12, 2)) : 0;
+        if (o.term) s = Math.min(1, s + tw * 0.25);
+        const up = o.refl && ndl < 0 ? clamp(dy * 0.9 + 0.1, 0, 1) * clamp(-ndl * 2, 0, 1) * 0.55 : 0;
+        const hi = o.high ? Math.pow(clamp(ndl, 0, 1), 1) * Math.pow(clamp(1 - Math.hypot(dx - LX * 0.45, dy - LY * 0.45) * 2.2, 0, 1), 3) : 0;
+        return { s: s, tw: tw, up: up, hi: hi };
+      }
+      let s = 0;
+      if (o.cast && y > groundY - sh) {
+        const ex = (x - sx) / sw, ey = (y - groundY) / sh, e = ex * ex + ey * ey;
+        s = (o.half ? 1 - smooth(0.25, 1, e) : (e < 1 ? 1 : 0)) * 0.85;
+      }
+      return { s: s, tw: 0, up: 0, hi: 0 };
+    }
+    const rgbOf = (P, s, tw, ground) => { const [L, cc, h] = shade(P, s, tw, o, ground); return lch2rgb(L, cc, h); };
+    // the inks: sphere lit · halftone · core (+ the paper-white highlight), ground lit · cast
+    const INK = {
+      lit: rgbOf(O, 0, 0, false), mid: rgbOf(O, 0.5, o.term ? 1 : 0, false), core: rgbOf(O, 1, 0, false),
+      glit: rgbOf(G, 0, 0, true), cast: rgbOf(G, 0.85, 0, true), white: [252, 252, 250],
+    };
+    const sphereInks = [INK.lit, INK.mid, INK.core];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const dx = (x - cx) / R, dy = (y - cy) / R, onS = dx * dx + dy * dy <= 1, i = (y * W + x) * 4;
+      let col;
+      if (mode === 'smooth') {
+        const p = sample(x, y, onS);
+        if (onS) {
+          let [L, cc, h] = shade(O, p.s, p.tw, o, false);
+          if (p.up) { L += (G.l - L) * p.up * 0.6; h = toward(h, G.c < 0.02 ? h : G.h, p.up); cc = cc * (1 - p.up) + G.c * p.up; }
+          if (p.hi) { L += (0.98 - L) * p.hi; cc *= 1 - p.hi * 0.8; }
+          col = lch2rgb(L, cc, h);
+        } else col = rgbOf(G, p.s, 0, true);
+      } else {
+        // ink modes: the value is read at the cell's centre; the inks are the five above
+        const gx = Math.floor(x / cell), gy = Math.floor(y / cell), ccx = (gx + 0.5) * cell, ccy = (gy + 0.5) * cell;
+        const p = sample(mode === 'bands' ? x : ccx, mode === 'bands' ? y : ccy, onS);
+        const v = onS ? clamp(p.s - p.up * 0.8, 0, 1) * 2 : p.s / 0.85;   // sphere 0..2 across three inks; ground 0..1 across two
+        const inks = onS ? sphereInks : [INK.glit, INK.cast];
+        if (onS && p.hi > 0.35 && mode !== 'dots') col = INK.white;
+        else if (mode === 'bands') col = inks[clamp(Math.round(v), 0, inks.length - 1)];
+        else if (mode === 'specks') { const lo = Math.floor(v), f = v - lo; col = inks[clamp(hash(gx, gy, 3) < f ? lo + 1 : lo, 0, inks.length - 1)]; }
+        else {   // dots: a halftone screen — the lower ink as the ground, the next one as a dot sized by the share
+          const lo = clamp(Math.floor(v), 0, inks.length - 2), f = clamp(v - lo, 0, 1), rr = Math.sqrt(f) * cell * 0.62;
+          col = Math.hypot(x + 0.5 - ccx, y + 0.5 - ccy) < rr ? inks[lo + 1] : inks[lo];
+          if (onS && p.hi > 0.35 && Math.hypot(x + 0.5 - ccx, y + 0.5 - ccy) < Math.sqrt(p.hi) * cell * 0.62) col = INK.white;
+        }
+      }
+      d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
+    }
+    c.putImageData(img, 0, 0);
+    if ($('labels').checked) labels(c, cx, cy, R, LX, LY, sx, groundY, o);
+    const hex = v => Organica.rgbToHex(v[0], v[1], v[2]);
+    const list = [['Lit', INK.lit], ['Halftone', INK.mid], ['Core', INK.core], ['Ground', INK.glit], ['Cast', INK.cast]].concat(o.high && mode !== 'smooth' ? [['Highlight', INK.white]] : []);
+    $('inks').innerHTML = list.map(([n, v]) => `<span><span class="chip" style="background:${hex(v)}"></span>${n} ${hex(v)}</span>`).join('') +
+      (mode === 'smooth' ? '' : `<span>· ${list.length} inks</span>`);
+    $('hue-hint').textContent = HUE_HINT[st.hue];
+  }
+  function labels(c, cx, cy, R, LX, LY, sx, gy, o) {
+    c.font = '12px ' + getComputedStyle(document.body).fontFamily; c.fillStyle = '#111'; c.strokeStyle = '#111'; c.lineWidth = 1;
+    const tag = (x, y, tx, ty, t) => { const w = c.measureText(t).width, left = tx < cx, ex = left ? tx + w + 6 : tx; c.beginPath(); c.moveTo(x, y); c.lineTo(ex, ty); c.stroke(); c.beginPath(); c.arc(x, y, 2.5, 0, 7); c.fill(); c.fillText(t, left ? tx : tx + 4, ty + 4); };
+    const at = k => [cx + LX * R * k, cy + LY * R * k];
+    let p = at(0.55); tag(p[0], p[1], 16, 40, 'Light');
+    if (o.high) { p = at(0.62); tag(p[0] - 4, p[1] - 4, 16, 80, 'Highlight'); }
+    if (o.half) { p = at(0.05); tag(p[0], p[1], 16, 140, 'Halftone'); }
+    p = [cx - LX * R * 0.2 - LY * R * 0.0, cy - LY * R * 0.2]; tag(cx - LX * R * 0.15, cy - LY * R * 0.15 + 2, 540, 120, o.term ? 'Terminator' : 'Edge of the light');
+    p = at(-0.7); tag(p[0], p[1], 540, 200, 'Core shadow');
+    if (o.refl) tag(cx - LX * R * 0.5, cy + R * 0.85, 520, 300, 'Reflected light');
+    if (o.cast) tag(sx, gy + 4, 540, 420, 'Cast shadow');
+  }
+  function swatches(el, list, key) {
+    el.innerHTML = list.map(h => `<button type="button" style="background:${h}" data-h="${h}" aria-label="${h}" aria-pressed="${h === st[key]}"></button>`).join('');
+    el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; st[key] = b.dataset.h; el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); render(); });
+  }
+  swatches($('sw'), COLOURS, 'col'); swatches($('gsw'), GROUNDS, 'ground');
+  $('mode').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (!b) return; st.mode = b.dataset.v; $('mode').querySelectorAll('.seg-btn').forEach(x => x.classList.toggle('active', x === b)); render(); });
+  $('hue').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (!b) return; st.hue = b.dataset.v; $('hue').querySelectorAll('.seg-btn').forEach(x => x.classList.toggle('active', x === b)); render(); });
+  document.querySelector('.panel').addEventListener('input', e => {
+    const v = $('v-' + e.target.id); if (v) v.textContent = e.target.value + (e.target.id === 'light' ? '°' : '');
+    render();
+  });
+  document.querySelector('.panel').addEventListener('change', render);
+  render();
+})();
+</script>
+</body>
+</html>

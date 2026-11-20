@@ -1,6 +1,6 @@
 /* ─────────────────────────────────────────────────────────────────────────────
  * shade-marks.js — Organica.shadeMarks: the shadow TEXTURES TuneSutra's Shadow draws
- * (Nov 18, 2026 — Diego picked them in explorations/tunesutra-shadow-types/). Pure, vector,
+ * (Nov 18, 2026 — Diego picked them in archive/tunesutra-mockups/shadow-types/). Pure, vector,
  * deterministic: each returns SVG path data for the two shadow inks, in a w×h box.
  *
  *   Organica.shadeMarks.render(type, {

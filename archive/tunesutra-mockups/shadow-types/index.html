@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Shadow types lab</title>
+<!-- Test (Nov 18, 2026, Diego: "facciamo un test per vedere come lavorano sulle shadow e poi decidiamo chi va
+     dentro chi fuori"). One shape, every candidate shadow type side by side, all VECTOR, from the same light
+     and the same two inks (halftone · core) as TuneSutra's Shadow. Reuses Organica.noise (simplex fbm, Worley),
+     the Pollen engine's idea (variable-density Poisson disk — run synchronously here), Genesis seeds as marks,
+     error diffusion (Halide's) and a line screen (Colornet's). Dev page, not shipped. -->
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<style>
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--fs-small); }
+  .bar { padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border); }
+  .bar h1 { font-family: var(--font-display); font-size: var(--fs-medium); margin: 0 0 var(--space-1); }
+  .bar p { margin: 0; color: var(--mid); max-width: 1000px; }
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 280px; min-height: calc(100vh - 70px); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--space-4); padding: var(--space-5); background: var(--track-bg); align-content: start; }
+  .tile { background: var(--paper); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3); }
+  .tile svg { width: 100%; height: auto; display: block; }
+  .tile h2 { font-family: var(--font-display); font-size: var(--fs-small); margin: 0 0 var(--space-1); }
+  .tile p { margin: 0 0 var(--space-2); color: var(--mid); font-size: var(--fs-micro); min-height: 2.6em; }
+  .stats { display: flex; justify-content: space-between; font-size: var(--fs-micro); color: var(--mid); margin-top: var(--space-2); }
+  .panel { border-left: 1px solid var(--border); background: var(--panel); overflow: auto; }
+  .inks { display: flex; gap: var(--space-2); align-items: center; font-size: var(--fs-micro); color: var(--mid); flex-wrap: wrap; }
+  .chip { width: 16px; height: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); display: inline-block; }
+  .swatches { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .swatches button { width: 24px; height: 24px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); cursor: pointer; padding: 0; }
+  .swatches button[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>Shadow types · test</h1>
+  <p>The same shape, light and two inks for every tile; only the way the shadow is drawn changes. All vector. Under each: inks used, SVG size, time to build. Pick which ones go into TuneSutra’s Shadow.</p>
+</div>
+<div class="wrap">
+  <div class="grid" id="grid"></div>
+  <aside class="panel">
+    <div class="panel-section">
+      <h3>Figure</h3>
+      <div class="sub-label">Colour</div>
+      <div class="swatches" id="sw"></div>
+      <div class="sub-label">Shape</div>
+      <div class="ctrl-row"><div class="seg-ctrl" id="shape"><button class="seg-btn active" data-v="circle">Circle</button><button class="seg-btn" data-v="house">House</button><button class="seg-btn" data-v="square">Square</button></div></div>
+    </div>
+    <div class="panel-section">
+      <h3>Shadow</h3>
+      <div class="ctrl-row"><div class="ctrl-label">Amount</div><input type="range" id="amount" min="10" max="100" value="80"><span class="ctrl-val" id="v-amount">80</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Size</div><input type="range" id="size" min="1.5" max="10" step="0.5" value="4"><span class="ctrl-val" id="v-size">4</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Light from</div><input type="range" id="light" min="0" max="360" value="315"><span class="ctrl-val" id="v-light">315</span></div>
+      <div class="ctrl-row"><div class="ctrl-label">Falloff</div><input type="range" id="falloff" min="0" max="100" value="50"><span class="ctrl-val" id="v-falloff">50</span></div>
+      <div class="sub-label">Hue</div>
+      <div class="ctrl-row"><select class="panel-select" id="hue"><option value="same">Same</option><option value="cool" selected>Cool</option><option value="complement">Complement</option></select></div>
+      <div class="ctrl-row"><div class="ctrl-label">Depth</div><input type="range" id="depth" min="10" max="70" value="35"><span class="ctrl-val" id="v-depth">35</span></div>
+      <div class="inks" id="inks"></div>
+    </div>
+  </aside>
+</div>
+<script src="/shared/core.js"></script>
+<script src="/shared/color.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/genesis/forms.js"></script>
+<script>
+(function () {
+  'use strict';
+  const C = Organica.color, N = Organica.noise, $ = id => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), num = v => +(+v).toFixed(2);
+  const COLOURS = ['#d9622b', '#5f238d', '#7a8b4a', '#e9dfc8', '#2f4b7c', '#e0a030'];
+  const st = { col: COLOURS[0], shape: 'circle' };
+  const W = 240, H = 240;
+  const hash = (x, y, k) => { let h = (x * 374761393 + y * 668265263 + k * 1442695041) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; };
+  const SHAPES = {
+    circle: 'M20 120a100 100 0 1 0 200 0a100 100 0 1 0 -200 0Z',
+    square: 'M20 20H220V220H20Z',
+    house: 'M30 110L120 22L210 110V222H30Z',
+  };
+  // ── the two inks: TuneSutra's rule (hue · depth), no palette snap here ──
+  const toward = (h, t, k) => h + ((((t - h) % 360) + 540) % 360 - 180) * k;
+  function inkAt(hex, s, o) {
+    const O = C.hexToOklch(hex), grey = O.c < 0.02, k = s * 0.6;
+    let h = O.h, c = O.c;
+    if (o.hue === 'cool') { h = grey ? 285 : toward(O.h, 285, k); if (grey) c = 0.05 * k; }
+    else if (o.hue === 'complement') { h = (grey ? 105 : O.h) + 180 * k; if (grey) c = 0.04 * k; }
+    return C.oklchToHex(clamp(O.l - s * o.depth, 0.04, 0.99), c, ((h % 360) + 360) % 360);
+  }
+  // ── the light (as TuneSutra's noiseWeight) and the shadow amount (as shadowAt, Halftone + Core on) ──
+  function field(o) {
+    const rad = (o.light + 180) * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad), len = Math.abs(W * dx) + Math.abs(H * dy);
+    const bend = Math.pow(4, (o.falloff - 50) / 50);
+    return (x, y) => {
+      const w0 = Math.pow(clamp(((x - W / 2) * dx + (y - H / 2) * dy) / len + 0.5, 0, 1), bend);
+      let s = clamp((w0 - 0.2) / 0.65, 0, 1); s = s * s * (3 - 2 * s) * o.amount;
+      return s;   // 0 lit … 1 core
+    };
+  }
+  // run-length rows of cells → path per ink
+  function cellPaths(cell, pick) {
+    const cols = Math.ceil(W / cell), rows = Math.ceil(H / cell), d = [[], [], []];
+    for (let r = 0; r < rows; r++) {
+      let run = 0, c0 = 0;
+      for (let c = 0; c <= cols; c++) {
+        const ink = c < cols ? pick(c, r, (c + 0.5) * cell, (r + 0.5) * cell) : 0;
+        if (ink !== run) { if (run) d[run].push(`M${num(c0 * cell)} ${num(r * cell)}h${num((c - c0) * cell)}v${cell}h${num(-(c - c0) * cell)}z`); run = ink; c0 = c; }
+      }
+    }
+    return d;
+  }
+  const lvlDither = (v, c, r, seed) => { const lo = Math.floor(v); return hash(c, r, seed) < v - lo ? lo + 1 : lo; };
+  // ── the candidates: each → { ink1: d, ink2: d, strokeW? } (ink1 = halftone, ink2 = core) ──
+  const TYPES = [
+    { key: 'speckle', name: 'Speckle', note: 'Today: square cells, white-noise threshold (a hash per cell).',
+      draw: (S, o) => { const d = cellPaths(o.size, (c, r, x, y) => Math.min(2, lvlDither(S(x, y) * 2, c, r, o.seed))); return { fill: [d[1], d[2]] }; } },
+    { key: 'mottle', name: 'Mottle', note: 'Speckle × simplex fbm (noise.js): the shadow gathers in organic clumps.',
+      draw: (S, o) => { const f = 1 / 38, sx = o.seed * 7.13;
+        const d = cellPaths(o.size, (c, r, x, y) => { const n = N.simplexFbm2(x * f + sx, y * f - sx, 4, 0.5) * 0.5 + 0.5; return Math.min(2, lvlDither(clamp(S(x, y) * 2 * (0.35 + 1.3 * n), 0, 2), c, r, o.seed)); });
+        return { fill: [d[1], d[2]] }; } },
+    { key: 'dither-fs', name: 'Dither · Serpentine ✦', note: 'Improved: Floyd–Steinberg, rows alternating direction, a touch of blue-noise jitter — no diagonals or worms.',
+      draw: (S, o) => { const cell = o.size, cols = Math.ceil(W / cell), rows = Math.ceil(H / cell), g = new Float32Array(cols * rows), out = new Uint8Array(cols * rows), bn = Organica.dither.blueNoise(64);
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) g[r * cols + c] = S((c + 0.5) * cell, (r + 0.5) * cell) * 2;
+        for (let r = 0; r < rows; r++) { const rtl = r % 2 === 1;
+          for (let k = 0; k < cols; k++) { const c = rtl ? cols - 1 - k : k, i = r * cols + c, j = (bn[((r + o.seed) % 64) * 64 + (c % 64)] - 0.5) * 0.35, v = g[i], q = clamp(Math.round(v + j), 0, 2), e = v - q, dx = rtl ? -1 : 1; out[i] = q;
+            const add = (x, y, f) => { if (x >= 0 && x < cols && y < rows) g[y * cols + x] += e * f; };
+            add(c + dx, r, 7 / 16); add(c - dx, r + 1, 3 / 16); add(c, r + 1, 5 / 16); add(c + dx, r + 1, 1 / 16); } }
+        const d = cellPaths(cell, (c, r) => out[r * cols + c]); return { fill: [d[1], d[2]] }; } },
+    { key: 'dither-blue', name: 'Dither · Blue noise ✦', note: 'Improved: an ordered dither on Organica’s blue-noise mask — the smoothest grain, no pattern, no drift.',
+      draw: (S, o) => { const bn = Organica.dither.blueNoise(64);
+        const d = cellPaths(o.size, (c, r, x, y) => { const v = S(x, y) * 2, lo = Math.floor(v); return Math.min(2, bn[((r + o.seed * 5) % 64) * 64 + ((c + o.seed * 11) % 64)] < v - lo ? lo + 1 : lo); });
+        return { fill: [d[1], d[2]] }; } },
+    { key: 'dither-bayer', name: 'Dither · Bayer ✦', note: 'An ordered 8×8 Bayer matrix: the classic printed cross-pattern, very graphic.',
+      draw: (S, o) => { const bt = Organica.dither.bayerThresholds(8);
+        const d = cellPaths(o.size, (c, r, x, y) => { const v = S(x, y) * 2, lo = Math.floor(v); return Math.min(2, bt[(r % 8) * 8 + (c % 8)] < v - lo ? lo + 1 : lo); });
+        return { fill: [d[1], d[2]] }; } },
+    { key: 'pollen-dot', name: 'Pollen · Dot', note: 'The Pollen engine’s variable-density Poisson disk: no grid, dots packed closer in shadow.',
+      draw: (S, o) => pollen(S, o, 'dot') },
+    { key: 'pollen-stroke', name: 'Pollen · Stroke', note: 'Same points as short strokes across the light — an engraving.',
+      draw: (S, o) => pollen(S, o, 'stroke') },
+    { key: 'pollen-cross', name: 'Pollen · Cross-hatch ✦', note: 'Test: Pollen brush strokes in three directions, each with its own points — they overlap at random as the shadow deepens; curved, tapered, flowing with a noise.',
+      draw: (S, o) => { const parts = [0, 1, 2].map(li => pollen(S, o, 'cross', li)); return { fill: [0, 1].map(k => [].concat.apply([], parts.map(p => p.fill[k]))) }; } },
+    { key: 'camo-spots', name: 'Camo · Spots ✦', note: 'Test: Camo Turing’s Gray-Scott (Self-replicating spots), run on the CPU; the shadow shows the pattern.',
+      draw: (S, o) => camo(S, o, 0.03, 0.063) },
+    { key: 'camo-maze', name: 'Camo · Maze ✦', note: 'Test: Gray-Scott Mazes — a labyrinth that thickens into the shadow.',
+      draw: (S, o) => camo(S, o, 0.029, 0.057) },
+    { key: 'cells', name: 'Cells', note: 'Worley cells (noise.js) that fill from their centre as the shadow deepens — cracked, cellular.',
+      draw: (S, o) => { const sz = o.size * 5, sx = o.seed * 3.7;
+        const d = cellPaths(Math.max(1.5, o.size / 2), (c, r, x, y) => { const [f1] = N.voronoiF1F2(x / sz + sx, y / sz - sx, 0.9), s = S(x, y); return f1 < (s - 0.5) * 1.6 ? 2 : f1 < s * 1.15 ? 1 : 0; });
+        return { fill: [d[1], d[2]] }; } },
+  ];
+  // Camo: Gray-Scott reaction-diffusion (Camo Turing's model: dA 1, dB 0.5, 9-point laplacian), on the CPU at a
+  // low resolution, cached; the grid's resolution follows Size (finer Size = smaller features)
+  const gsCache = new Map();
+  function grayScott(f, k, seed, n, steps) {
+    const key = [f, k, seed, n, steps].join('|'); if (gsCache.has(key)) return gsCache.get(key);
+    let A = new Float32Array(n * n).fill(1), B = new Float32Array(n * n), A2 = new Float32Array(n * n), B2 = new Float32Array(n * n);
+    const rng = Organica.mulberry32(seed * 7919 + 13);
+    // seeded with small squares of B spread over the box (too many and Spots / Mazes die out — measured)
+    for (let s = 0; s < Math.round(n * n / 200); s++) { const cx = (rng() * n) | 0, cy = (rng() * n) | 0; for (let y = -1; y <= 1; y++) for (let x = -1; x <= 1; x++) { const j = ((cy + y + n) % n) * n + ((cx + x + n) % n); B[j] = 0.25 + 0.25 * rng(); A[j] = 0.5; } }
+    for (let it = 0; it < steps; it++) {
+      for (let y = 0; y < n; y++) { const ym = ((y - 1 + n) % n) * n, y0 = y * n, yp = ((y + 1) % n) * n;
+        for (let x = 0; x < n; x++) { const xm = (x - 1 + n) % n, xp = (x + 1) % n, i = y0 + x;
+          const la = -A[i] + 0.2 * (A[y0 + xm] + A[y0 + xp] + A[ym + x] + A[yp + x]) + 0.05 * (A[ym + xm] + A[ym + xp] + A[yp + xm] + A[yp + xp]);
+          const lb = -B[i] + 0.2 * (B[y0 + xm] + B[y0 + xp] + B[ym + x] + B[yp + x]) + 0.05 * (B[ym + xm] + B[ym + xp] + B[yp + xm] + B[yp + xp]);
+          const abb = A[i] * B[i] * B[i];
+          A2[i] = A[i] + (1.0 * la - abb + f * (1 - A[i])); B2[i] = B[i] + (0.5 * lb + abb - (k + f) * B[i]); } }
+      let t = A; A = A2; A2 = t; t = B; B = B2; B2 = t;
+    }
+    let mx = 0; for (let i = 0; i < n * n; i++) mx = Math.max(mx, B[i]);
+    for (let i = 0; i < n * n; i++) B[i] /= mx || 1;
+    gsCache.set(key, B); return B;
+  }
+  function camo(S, o, f, k) {
+    // one fixed 96×96 run (periodic: it tiles seamlessly), repeated over the shape — a tile Size × 24 units wide
+    const n = 96, B = grayScott(f, k, o.seed, n, 5000), cell = Math.max(1.5, o.size / 2), T = o.size * 24;
+    const at = (x, y) => B[(Math.floor(((y % T) + T) % T / T * n)) * n + Math.floor(((x % T) + T) % T / T * n)];
+    const d = cellPaths(cell, (c, r, x, y) => { const s = S(x, y), m = at(x, y); if (s < 0.08) return 0; return m > 1.05 - s * 0.75 ? (s > 0.55 && m > 1.25 - s * 0.6 ? 2 : 1) : 0; });
+    return { fill: [d[1], d[2]] };
+  }
+  // Pollen: a synchronous copy of pollen-engine's computePoints loop, the shadow as its density
+  // layer (cross only): each direction has its OWN points, so its strokes overlap the others' at random — not
+  // crosses on one centre (Diego, Nov 18, 2026)
+  const CROSS = [[0, 0.15, 0], [Math.PI / 2, 0.45, 1], [Math.PI / 4, 0.75, 1]];
+  // a layer fades in: from a few strokes a little before its threshold to full density after it — no cut
+  const crossIn = (s, th) => { const t = Math.max(0, Math.min(1, (s - (th - 0.2)) / 0.45)); return t * t * (3 - 2 * t); };
+  function pollen(S, o, mark, layer) {
+    const rng = Organica.mulberry32(o.seed * 9973 + (layer || 0) * 7717), dense = mark === 'dot' || mark === 'stroke', minSp = o.size * (dense ? 0.55 : 0.9), maxSp = o.size * (dense ? 2.2 : 5), pts = [];   // Dot / Stroke denser (Diego, Nov 18, 2026)
+    const cell = minSp / Math.SQRT2, gw = Math.ceil(W / cell), gh = Math.ceil(H / cell), grid = new Int32Array(gw * gh).fill(-1);
+    const ok = (x, y, rr) => { const cx = (x / cell) | 0, cy = (y / cell) | 0, k = Math.ceil(rr / cell);
+      for (let gy = Math.max(0, cy - k); gy <= Math.min(gh - 1, cy + k); gy++) for (let gx = Math.max(0, cx - k); gx <= Math.min(gw - 1, cx + k); gx++) { const j = grid[gy * gw + gx]; if (j < 0) continue; const p = pts[j]; if ((p.x - x) ** 2 + (p.y - y) ** 2 < rr * rr) return false; } return true; };
+    const tries = Math.min(60000, Math.ceil(W * H / (minSp * minSp)) * 3);
+    for (let a = 0; a < tries; a++) { const x = rng() * W, y = rng() * H, s = S(x, y); if (mark === 'cross' ? rng() > crossIn(s, CROSS[layer][1]) : s < 0.06) continue; const rr = mark === 'cross' ? minSp * 1.25 * (0.55 + 1.1 * (N.simplexFbm2(x / 34 + 3.1 + layer * 9.7, y / 34 - 1.7 - layer * 4.3, 3, 0.5) * 0.5 + 0.5)) : minSp + (maxSp - minSp) * (1 - s); if (!ok(x, y, rr)) continue; grid[((y / cell) | 0) * gw + ((x / cell) | 0)] = pts.length; pts.push({ x, y, s, rnd: rng() }); }
+    const d = [[], []];
+    const ang = (o.light + 90) * Math.PI / 180, ux = Math.cos(ang), uy = Math.sin(ang);
+    pts.forEach(p => {
+      const k = p.s > 0.55 ? 1 : 0, r = o.size * (0.25 + 0.3 * p.s);   // the mark's size follows Size, not the (denser) spacing
+      if (mark === 'dot') d[k].push(`M${num(p.x - r)} ${num(p.y)}a${num(r)} ${num(r)} 0 1 0 ${num(2 * r)} 0a${num(r)} ${num(r)} 0 1 0 ${num(-2 * r)} 0Z`);
+      else if (mark === 'stroke') { const L = o.size * (1.1 + 1.8 * p.s), w = o.size * 0.16 + 0.25, wob = (p.rnd - 0.5) * 0.5, cx = Math.cos(ang + wob), cy = Math.sin(ang + wob);
+        const x0 = p.x - cx * L / 2, y0 = p.y - cy * L / 2, x1 = p.x + cx * L / 2, y1 = p.y + cy * L / 2, nx = -cy * w / 2, ny = cx * w / 2;
+        d[k].push(`M${num(x0 + nx)} ${num(y0 + ny)}L${num(x1 + nx)} ${num(y1 + ny)}L${num(x1 - nx)} ${num(y1 - ny)}L${num(x0 - nx)} ${num(y0 - ny)}Z`); }
+      else if (mark === 'cross') {   // the engraver's cross-hatch as BRUSH strokes: curved, swelling in the middle, tapered ends;
+        // a direction per depth; angle and bend follow a slow noise so the marks flow, not a ruled screen
+        [CROSS[layer]].forEach(([da, th, ink]) => { const li = layer;
+          const nA = N.simplexFbm2(p.x / 60 + li * 5.3, p.y / 60 - li * 2.1, 2, 0.5), nB = N.simplexFbm2(p.x / 25 - li, p.y / 25 + li * 1.7, 2, 0.5);
+          const a2 = ang + da + nA * 0.6 + (p.rnd - 0.5) * 0.2, L = minSp * (1.4 + 0.9 * p.rnd), bend = nB * L * 0.45, wmax = minSp * 0.16 + 0.35;
+          const cx = Math.cos(a2), cy = Math.sin(a2), nx = -cy, ny = cx;
+          const P0 = [p.x - cx * L / 2, p.y - cy * L / 2], P2 = [p.x + cx * L / 2, p.y + cy * L / 2], P1 = [p.x + nx * bend, p.y + ny * bend];
+          const left = [], right = [];
+          for (let q = 0; q <= 6; q++) {
+            const t = q / 6, u = 1 - t, x = u * u * P0[0] + 2 * u * t * P1[0] + t * t * P2[0], y = u * u * P0[1] + 2 * u * t * P1[1] + t * t * P2[1];
+            const tx = 2 * u * (P1[0] - P0[0]) + 2 * t * (P2[0] - P1[0]), ty = 2 * u * (P1[1] - P0[1]) + 2 * t * (P2[1] - P1[1]), tl = Math.hypot(tx, ty) || 1;
+            const w = wmax * Math.pow(Math.sin(Math.PI * t), 0.7) / 2 + 0.05;   // the brush: swells in the middle, tapers at both ends
+            left.push([x - ty / tl * w, y + tx / tl * w]); right.push([x + ty / tl * w, y - tx / tl * w]);
+          }
+          d[ink].push('M' + left.concat(right.reverse()).map(pt => pt[0].toFixed(1) + ' ' + pt[1].toFixed(1)).join('L') + 'Z');   // 1 decimal: brush marks, light files
+        });
+      }
+      else d[k].push({ x: p.x, y: p.y, r: r * 1.5, rot: p.rnd * 360 });
+    });
+    if (mark !== 'seed') return { fill: [d[0], d[1]] };
+    return { seeds: [d[0], d[1]] };
+  }
+  // lines(): the improved screen. opts: sp spacing · lo/hi the shadow levels (0..2) over which a line grows ·
+  // max = the widest a line gets (a share of sp: < 0.5 keeps a gap) · fixed = constant width (a share of sp) that
+  // only fades in over lo→hi · wave = a hand wobble (in units of sp)
+  function lines(S, o, deg, op) {
+    const a = deg * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux, sp = op.sp, R = Math.hypot(W, H) / 2 + sp, out = [];
+    let li = 0;
+    for (let t = -R; t <= R; t += sp, li++) {
+      const L = [], Rt = [], ph = hash(li, 3, o.seed) * 6.28;
+      const flush = () => { if (L.length > 1) out.push('M' + L.concat(Rt.reverse()).map(p => num(p[0]) + ' ' + num(p[1])).join('L') + 'Z'); L.length = 0; Rt.length = 0; };
+      for (let u = -R; u <= R; u += 5) {
+        const wob = (op.wave || 0) * sp * Math.sin(u / (sp * 6) + ph) * 0.5;
+        const x = W / 2 + nx * (t + wob) + ux * u, y = H / 2 + ny * (t + wob) + uy * u;
+        if (x < -2 || x > W + 2 || y < -2 || y > H + 2) { flush(); continue; }
+        const v = clamp((S(x, y) * 2 - op.lo) / (op.hi - op.lo), 0, 1);
+        const w = op.fixed != null ? (v > 0 ? op.fixed * sp * Math.min(1, v * 3) : 0) : Math.sqrt(v) * op.max * sp;
+        if (w < 0.12) { flush(); continue; }
+        L.push([x + nx * w, y + ny * w]); Rt.push([x - nx * w, y - ny * w]);
+      }
+      flush();
+    }
+    return out;
+  }
+  // a line screen: lines at `deg`, spaced by Size; each line a ribbon whose width ∝ the shadow (from level lo to hi)
+  function hatch(S, o, deg, lo, hi) {
+    const a = deg * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux, sp = o.size * 1.6, R = Math.hypot(W, H) / 2 + sp, out = [];
+    for (let t = -R; t <= R; t += sp) {
+      const L = [], Rt = [];
+      for (let u = -R; u <= R; u += 5) {   // a point every 5 units along the line: light files, still smooth
+        const x = W / 2 + nx * t + ux * u, y = H / 2 + ny * t + uy * u;
+        if (x < -2 || x > W + 2 || y < -2 || y > H + 2) { if (L.length) { flush(); } continue; }
+        const v = clamp((S(x, y) * 2 - lo) / (hi - lo), 0, 1), w = v * sp * 0.48;
+        if (w < 0.15) { if (L.length) flush(); continue; }
+        L.push([x + nx * w, y + ny * w]); Rt.push([x - nx * w, y - ny * w]);
+      }
+      if (L.length) flush();
+      function flush() { if (L.length > 1) out.push('M' + L.concat(Rt.reverse()).map(p => num(p[0]) + ' ' + num(p[1])).join('L') + 'Z'); L.length = 0; Rt.length = 0; }
+    }
+    return out;
+  }
+  function render() {
+    const o = { amount: +$('amount').value / 100, size: +$('size').value, light: +$('light').value, falloff: +$('falloff').value, seed: 7, hue: $('hue').value, depth: +$('depth').value / 100 };
+    const S = field(o), inks = [inkAt(st.col, 0.5, o), inkAt(st.col, 1, o)], shape = SHAPES[st.shape], seedId = 'seed-heartbeat';
+    const seedSvg = (window.ORGANIC_SEEDS[seedId] || {}).svg || '', bb = (window.ORGANIC_SEEDS[seedId] || {}).bbox || [0, 0, 200, 200];
+    const seedInner = hex => seedSvg.replace(/^<svg[^>]*>|<\/svg>$/g, '').replace(/var\(--ink\)/g, hex);
+    $('inks').innerHTML = [['Colour', st.col], ['Halftone', inks[0]], ['Core', inks[1]]].map(([n, h]) => `<span><span class="chip" style="background:${h}"></span> ${n} ${h}</span>`).join(' ');
+    $('grid').innerHTML = TYPES.map((T, ti) => {
+      const t0 = performance.now(), res = T.draw(S, o);
+      let body = '';
+      if (res.fill) body = res.fill.map((ds, k) => ds.length ? `<path fill="${inks[k]}" fill-rule="nonzero" d="${ds.join('')}"/>` : '').join('');
+      if (res.seeds) body = res.seeds.map((list, k) => list.map(p => `<svg x="${num(p.x - p.r)}" y="${num(p.y - p.r)}" width="${num(2 * p.r)}" height="${num(2 * p.r)}" viewBox="${bb.join(' ')}" overflow="visible"><g transform="rotate(${num(p.rot)} ${bb[0] + bb[2] / 2} ${bb[1] + bb[3] / 2})">${seedInner(inks[k])}</g></svg>`).join('')).join('');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}"><defs><clipPath id="cp${ti}"><path d="${shape}"/></clipPath></defs><path d="${shape}" fill="${st.col}"/><g clip-path="url(#cp${ti})">${body}</g></svg>`;
+      const ms = performance.now() - t0, kb = svg.length / 1024, used = new Set([st.col].concat(res.fill ? res.fill.map((ds, k) => ds.length ? inks[k] : null).filter(Boolean) : res.seeds.map((l, k) => l.length ? inks[k] : null).filter(Boolean))).size;
+      return `<div class="tile"><h2>${T.name}</h2><p>${T.note}</p>${svg}<div class="stats"><span>${used} inks</span><span>${kb.toFixed(0)} KB</span><span>${ms.toFixed(0)} ms</span></div></div>`;
+    }).join('');
+  }
+  // controls
+  $('sw').innerHTML = COLOURS.map(h => `<button type="button" style="background:${h}" data-h="${h}" aria-label="${h}" aria-pressed="${h === st.col}"></button>`).join('');
+  $('sw').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; st.col = b.dataset.h; $('sw').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); render(); });
+  $('shape').addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (!b) return; st.shape = b.dataset.v; $('shape').querySelectorAll('.seg-btn').forEach(x => x.classList.toggle('active', x === b)); render(); });
+  document.querySelector('.panel').addEventListener('input', e => { const v = $('v-' + e.target.id); if (v) v.textContent = e.target.value; render(); });
+  document.querySelector('.panel').addEventListener('change', render);
+  render();
+})();
+</script>
+</body>
+</html>

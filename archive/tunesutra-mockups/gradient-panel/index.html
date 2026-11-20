@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gradient panel mockup</title>
+<!-- Mockup (Nov 18, 2026, Diego: "nel pannello Gradient & grain dobbiamo far capire bene cosa è per
+     gradient, cosa è per grain, e cosa è shadow"). Two ways to split today's one section into its
+     three parts. Dev page, not shipped. -->
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/panel.css">
+<style>
+  body { margin: 0; background: var(--track-bg); color: var(--ink); font-family: var(--font); font-size: var(--fs-small); }
+  .bar { padding: var(--space-3) var(--space-5); background: var(--paper); border-bottom: 1px solid var(--border); }
+  .bar h1 { font-family: var(--font-display); font-size: var(--fs-medium); margin: 0 0 var(--space-1); }
+  .bar p { margin: 0; color: var(--mid); }
+  .cols { display: flex; gap: var(--space-6); padding: var(--space-6); align-items: flex-start; flex-wrap: wrap; }
+  .col h2 { font-family: var(--font-display); font-size: var(--fs-small); margin: 0 0 var(--space-2); }
+  .col > p { margin: 0 0 var(--space-3); color: var(--mid); max-width: 280px; }
+  .mock { width: 280px; background: var(--panel); border: 1px solid var(--border); }
+  .group { border-top: 1px solid var(--border); margin-top: var(--space-3); padding-top: var(--space-3); }
+  .group:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+  .group__head { display: flex; justify-content: space-between; align-items: center; }
+  .group__title { font-family: var(--font-display); font-size: var(--fs-small); font-weight: 600; }
+  .stopbar { height: 18px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: linear-gradient(to right, #2f4b7c, #0d1a31); margin: var(--space-1) 0 var(--space-2); }
+  .empty { color: var(--mid); font-size: var(--fs-micro); margin: var(--space-1) 0 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <h1>Gradient &amp; grain · how to split it</h1>
+  <p>Both panels work: change Type, Grain size and the Shadow switch to see what shows. Today Pattern and Seed are shared by grain and shadow; here each part has its own.</p>
+</div>
+<div class="cols">
+
+  <div class="col">
+    <h2>A · Three sections</h2>
+    <p>Gradient, Grain and Shadow are three panel sections, each with its title and one line saying what it does.</p>
+    <div class="mock" data-mock>
+      <div class="panel-section">
+        <h3>Gradient</h3>
+        <p class="org-panel__hint">How the colour fills each shape.</p>
+        <div class="sub-label">Type</div>
+        <div class="ctrl-row"><div class="seg-ctrl" data-type>
+          <button class="seg-btn active" data-v="flat">Flat</button><button class="seg-btn" data-v="linear">Linear</button><button class="seg-btn" data-v="radial">Radial</button>
+        </div></div>
+        <div data-blend hidden>
+          <div class="ctrl-row"><div class="ctrl-label">Angle</div><input type="range" min="0" max="360" value="180"><span class="ctrl-val">180</span></div>
+          <div class="sub-label">Stops</div><div class="stopbar"></div>
+          <div class="row-btns"><button class="mini-btn">Reverse</button><button class="mini-btn">Space evenly</button></div>
+          <label class="check-row org-switch"><input type="checkbox"><span>Fade to paper</span></label>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h3>Grain</h3>
+        <p class="org-panel__hint">Breaks the gradient into cells of pure ink — for print plates.</p>
+        <p class="empty" data-nograin>Flat has no gradient to grain.</p>
+        <div data-grainctl hidden>
+          <div class="ctrl-row"><div class="ctrl-label">Size</div><input type="range" min="0" max="12" step="0.5" value="0" data-gsize><span class="ctrl-val" data-gsizev>0</span></div>
+          <p class="empty" data-smooth>0 = no grain: a smooth blend.</p>
+          <div data-grainmore hidden>
+            <div class="sub-label">Pattern</div>
+            <div class="ctrl-row"><div class="seg-ctrl"><button class="seg-btn active">Noise</button><button class="seg-btn">Dots</button></div></div>
+            <div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" value="7"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel-section">
+        <h3>Shadow</h3>
+        <p class="org-panel__hint">Specks of a second ink on top, gathering away from the light.</p>
+        <label class="check-row org-switch"><input type="checkbox" data-shadow><span>Shadow</span></label>
+        <div data-shadowctl hidden>
+          <div class="color-row"><span class="color-name">Ink</span><button class="color-swatch" style="background:#0d1a31" aria-label="Shadow ink"></button><input class="color-hex" value="#0d1a31"></div>
+          <div class="ctrl-row"><div class="ctrl-label">Amount</div><input type="range" min="1" max="100" value="70"><span class="ctrl-val">70</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">Speck size</div><input type="range" min="1" max="12" step="0.5" value="2"><span class="ctrl-val">2</span></div>
+          <div class="sub-label">Specks</div>
+          <div class="ctrl-row"><div class="seg-ctrl"><button class="seg-btn active">Square</button><button class="seg-btn">Round</button></div></div>
+          <label class="check-row org-switch"><input type="checkbox" checked><span>Away from a light</span></label>
+          <div class="ctrl-row"><div class="ctrl-label">Light from</div><input type="range" min="0" max="360" value="0"><span class="ctrl-val">0°</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">Falloff</div><input type="range" min="0" max="100" value="65"><span class="ctrl-val">65</span></div>
+          <div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" value="7"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h2>B · One section, three groups</h2>
+    <p>One section named <b>Fill</b> keeps everything together, split by three group titles with a line each — the panel stays one block per colour.</p>
+    <div class="mock" data-mock>
+      <div class="panel-section">
+        <h3>Fill</h3>
+        <div class="group">
+          <div class="group__head"><span class="group__title">Gradient</span></div>
+          <p class="org-panel__hint">How the colour fills each shape.</p>
+          <div class="ctrl-row"><div class="seg-ctrl" data-type>
+            <button class="seg-btn active" data-v="flat">Flat</button><button class="seg-btn" data-v="linear">Linear</button><button class="seg-btn" data-v="radial">Radial</button>
+          </div></div>
+          <div data-blend hidden>
+            <div class="ctrl-row"><div class="ctrl-label">Angle</div><input type="range" min="0" max="360" value="180"><span class="ctrl-val">180</span></div>
+            <div class="sub-label">Stops</div><div class="stopbar"></div>
+            <div class="row-btns"><button class="mini-btn">Reverse</button><button class="mini-btn">Space evenly</button></div>
+            <label class="check-row org-switch"><input type="checkbox"><span>Fade to paper</span></label>
+          </div>
+        </div>
+        <div class="group" data-graingroup hidden>
+          <div class="group__head"><span class="group__title">Grain</span></div>
+          <p class="org-panel__hint">Breaks the gradient into cells of pure ink — for print plates.</p>
+          <div data-grainctl>
+            <div class="ctrl-row"><div class="ctrl-label">Size</div><input type="range" min="0" max="12" step="0.5" value="0" data-gsize><span class="ctrl-val" data-gsizev>0</span></div>
+            <p class="empty" data-smooth>0 = no grain: a smooth blend.</p>
+            <div data-grainmore hidden>
+              <div class="sub-label">Pattern</div>
+              <div class="ctrl-row"><div class="seg-ctrl"><button class="seg-btn active">Noise</button><button class="seg-btn">Dots</button></div></div>
+              <div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" value="7"></div>
+            </div>
+          </div>
+        </div>
+        <div class="group">
+          <div class="group__head"><span class="group__title">Shadow</span><label class="check-row org-switch" style="margin:0"><input type="checkbox" data-shadow aria-label="Shadow"></label></div>
+          <p class="org-panel__hint">Specks of a second ink on top, gathering away from the light.</p>
+          <div data-shadowctl hidden>
+            <div class="color-row"><span class="color-name">Ink</span><button class="color-swatch" style="background:#0d1a31" aria-label="Shadow ink"></button><input class="color-hex" value="#0d1a31"></div>
+            <div class="ctrl-row"><div class="ctrl-label">Amount</div><input type="range" min="1" max="100" value="70"><span class="ctrl-val">70</span></div>
+            <div class="ctrl-row"><div class="ctrl-label">Speck size</div><input type="range" min="1" max="12" step="0.5" value="2"><span class="ctrl-val">2</span></div>
+            <div class="sub-label">Specks</div>
+            <div class="ctrl-row"><div class="seg-ctrl"><button class="seg-btn active">Square</button><button class="seg-btn">Round</button></div></div>
+            <label class="check-row org-switch"><input type="checkbox" checked><span>Away from a light</span></label>
+            <div class="ctrl-row"><div class="ctrl-label">Light from</div><input type="range" min="0" max="360" value="0"><span class="ctrl-val">0°</span></div>
+            <div class="ctrl-row"><div class="ctrl-label">Falloff</div><input type="range" min="0" max="100" value="65"><span class="ctrl-val">65</span></div>
+            <div class="ctrl-row"><div class="ctrl-label">Seed</div><input type="number" class="panel-input" value="7"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+document.querySelectorAll('[data-mock]').forEach(m => {
+  const q = s => m.querySelector(s), qa = s => m.querySelectorAll(s);
+  const sync = () => {
+    const type = q('[data-type] .active').dataset.v, flat = type === 'flat', size = +q('[data-gsize]').value;
+    q('[data-blend]').hidden = flat;
+    if (q('[data-nograin]')) { q('[data-nograin]').hidden = !flat; q('[data-grainctl]').hidden = flat; }
+    if (q('[data-graingroup]')) q('[data-graingroup]').hidden = flat;
+    q('[data-gsizev]').textContent = size;
+    q('[data-smooth]').hidden = size > 0;
+    q('[data-grainmore]').hidden = size === 0;
+    q('[data-shadowctl]').hidden = !q('[data-shadow]').checked;
+  };
+  qa('.seg-ctrl').forEach(seg => seg.addEventListener('click', e => {
+    const b = e.target.closest('.seg-btn'); if (!b) return;
+    seg.querySelectorAll('.seg-btn').forEach(x => x.classList.toggle('active', x === b)); sync();
+  }));
+  m.addEventListener('input', e => { const v = e.target.nextElementSibling; if (e.target.type === 'range' && v && v.classList.contains('ctrl-val') && !e.target.hasAttribute('data-gsize')) v.textContent = e.target.value; sync(); });
+  m.addEventListener('change', sync);
+  sync();
+});
+</script>
+</body>
+</html>
