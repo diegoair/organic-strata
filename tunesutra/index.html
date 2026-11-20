@@ -11,7 +11,6 @@
 <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
-<link rel="stylesheet" href="/shared/prose.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
@@ -131,11 +130,7 @@
   }
   .ts-tabs a:hover { color: var(--ink); }
   .ts-tabs a[aria-current="page"] { color: var(--ink); font-weight: var(--w-medium); border-bottom-color: var(--accent-warm); }
-  .ts-tabs a:focus-visible, .ts-nav__learn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-  .ts-nav__spacer { flex: 1; }
-  .ts-nav__learn { font-size: var(--fs-small); color: var(--ink); }
-  .ts-nav__learn[aria-current="page"] { color: var(--accent-warm); }
-  .ts-nav .org-btn { margin-block: var(--space-2); }
+  .ts-tabs a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .ts-subnav { margin-bottom: var(--space-6); }   /* .seg-ctrl--fit: its own width */
   .ts-subnav .seg-btn { padding: 0 var(--space-4); text-decoration: none; display: inline-flex; align-items: center; }
   .ts-filter { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-5); }
@@ -164,26 +159,6 @@
   .ts-filters .sub-label { display: block; }   /* on a span / label its margins would not apply */
   .ts-mi-thumb { display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
   .ts-mi-thumb[hidden] { display: none; }
-  /* How colour works: a reading column; the figures are content, on light paper */
-  .ts-learn { max-width: var(--measure); }
-  .ts-learn-sec h2:focus { outline: none; }
-  .ts-learn-lead { color: var(--mid); }
-  .ts-learn-note { display: block; color: var(--mid); font-size: var(--fs-small); }
-  .ts-learn .ts-learn-toc ul { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); list-style: none; padding: 0; }
-  .ts-learn-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); align-items: center; padding: var(--space-3) 0; border-top: 1px solid var(--border); }
-  .ts-learn .ts-learn-row p { margin: 0; }
-  .ts-learn-strip { display: flex; height: calc(var(--space-8) * 1.5); border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: var(--paper); }
-  .ts-learn-sw { flex: 1; }
-  .ts-learn-fig { margin: var(--space-5) 0; padding: var(--space-4); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
-  .ts-learn-fig svg { display: block; width: 100%; max-width: calc(var(--space-8) * 12); height: auto; }
-  .ts-learn-fig text { font-family: var(--font-display); font-size: var(--fs-small); fill: var(--mid); }
-  .ts-learn-fig .ts-learn-word { fill: var(--ink); }
-  .ts-learn-fig figcaption { color: var(--mid); font-size: var(--fs-small); margin-top: var(--space-3); }
-  .ts-learn-roles { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; margin: var(--space-5) 0; }
-  .ts-learn-house { display: block; width: calc(var(--space-8) * 6); aspect-ratio: 1 / 1; background: var(--paper); border-radius: var(--radius-sm); overflow: hidden; }
-  .ts-learn-house svg { width: 100%; height: 100%; }
-  .ts-learn .ts-learn-list { flex-direction: column; list-style: none; padding: 0; margin: 0; }
-  .ts-learn .ts-role { margin: 0; max-width: none; }   /* .org-prose li would add its own */
   /* Explore › Moods: the image scale, on light paper; the words are buttons laid over the square */
   .ts-moodmap { position: relative; max-width: calc(var(--space-8) * 16); margin-bottom: var(--space-6); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
   .ts-moodmap svg { display: block; width: 100%; height: auto; }
@@ -473,6 +448,7 @@
 <script src="/tunesutra/collections.js"></script>
 <script src="/shared/shapes.js"></script>
 <script src="/tunesutra/house.js"></script>
+<script src="/tunesutra/palette-figures.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // TuneSutra — colour-harmony palette generator.
@@ -514,19 +490,7 @@ const C = Organica.color;
 // token name that is built correctly … go with more colours and variants"). The set follows the
 // count, so the smallest colour is always the Accent (and at 5 the Highlight below it); a 6th or
 // 7th (palettes saved before) is Extra 1, Extra 2.
-const ROLE_SETS = {
-  3: ['Base', 'Secondary', 'Accent'],
-  4: ['Base', 'Secondary', 'Tertiary', 'Accent'],
-  5: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight'],
-  // 6–7 (Diego, Nov 19, 2026: "Spark in coda"): the smallest role is always Spark, so going from 5 to 6
-  // renames nothing (the token keys stay); at 7, ordered by share, the hill is Tertiary and the wall the new Support.
-  6: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight', 'Spark'],
-  7: ['Base', 'Secondary', 'Tertiary', 'Support', 'Accent', 'Highlight', 'Spark'],
-  // 2, 8, 9 (Nov 19, 2026, content design; the redesign's step 3): Accent · Highlight · Spark stay the smallest three.
-  2: ['Base', 'Accent'],
-  8: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Accent', 'Highlight', 'Spark'],
-  9: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Touch', 'Accent', 'Highlight', 'Spark'],
-};
+const FIG = window.TUNESUTRA_FIG, ROLE_SETS = FIG.ROLE_SETS;   // tunesutra/palette-figures.js (shared with the colour guide)
 // The lightest tint is called 50 in TuneSutra (Diego, Nov 18, 2026 — the shared scale keeps 0 for FVS).
 const stepName = st => st.step || 50;
 const DISTINCT_MIN = C.DISTINCT_MIN;   // OKLab ΔE×100 — below this two swatches read as one colour at a glance
@@ -574,7 +538,7 @@ const state = {
 };
 
 function newId() { return 'c-' + Math.random().toString(36).slice(2, 8); }
-function roleName(i, n) { const set = ROLE_SETS[n || count()] || ROLE_SETS[5]; return set[i] || ('Extra ' + (i - 4)); }
+function roleName(i, n) { return FIG.roleName(i, n || count()); }
 // A new colour takes the first role name nobody is using — after a removal,
 // position i's own role name may already belong to a colour further along.
 function makeItem(hex) { return { id: newId(), name: '', hex: hex, lock: false }; }
@@ -825,19 +789,14 @@ const PAIR_W = 180, PAIR_H = 96, PAIR_MIN = 3, PAIR_MAX = 4;   // the contrast p
 // (background, ground, wall, roof, door). A palette keeps its house by keeping
 // state.house; the carousel steps it. The view's stored id stays 'garment'.
 const HOUSE = window.TUNESUTRA_HOUSE, FIG_H = 360;   // the house's height on the sheet (Diego, Nov 18, 2026: 360 — was 502.5)
-const houseCache = new Map();
-function houseFig(seed, n) {
-  const key = seed + ':' + n;
-  if (!houseCache.has(key)) { houseCache.set(key, HOUSE.generate(seed, n)); if (houseCache.size > 200) houseCache.delete(houseCache.keys().next().value); }
-  return houseCache.get(key);
-}
+const houseFig = FIG.houseFig;
 function currentFigure() { return houseFig(state.house, count()); }
 // A palette saved before the house (or a built-in one) gets a seed from its colours, so it keeps one house.
 function seedOf(text) { let h = 2166136261; for (const ch of String(text)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 9999) + 1; }
 function newSeed() { return 1 + Math.floor(Math.random() * 9999); }
 function garmentFits(n) { return n >= 2 && n <= 9; }   // Nov 19, 2026: 6–7 (windows, a hill), then 2 (wall · roof), 8 (a far band), 9 (a path)
 // A zone too pale to see on the paper gets a hairline, as the book draws it.
-function paleOnPaper(hex) { return C.contrast(hex, '#ffffff') < 1.12; }
+const paleOnPaper = FIG.paleOnPaper;
 function isGarmentView() { return state.view === 'garment' && garmentFits(count()); }
 
 // ── GRADIENT + NOISE ──
@@ -2308,7 +2267,7 @@ function deletePreset() {
   const f = FAVS.read(); if (f['p:' + name]) { delete f['p:' + name]; FAVS.write(f); }   // its star goes with it
   PRESETS.write(all);
   if (savePopover) savePopover.close();
-  setDirty(false); location.hash = '';   // the palette on screen is gone — back to the library
+  setDirty(false); location.hash = 'palettes';   // the palette on screen is gone — back to Your palettes
 }
 
 // ── HOME + ROUTING ──
@@ -2382,11 +2341,7 @@ function starCurrent() {
 
 function paletteArt(p) {
   const cols = (p.colors || []).map(c => Organica.normalizeHex(c, '#888888'));
-  if (garmentFits(cols.length)) {   // every card shows its house (2–9 colours)
-    const n = cols.length, fig = houseFig(p.house >= 1 ? Math.round(p.house) : seedOf(cols.join('')), n), pad = n >= 5 ? 0 : fig.h * 0.06;
-    return `<svg viewBox="${-pad} ${-pad} ${fig.w + 2 * pad} ${fig.h + 2 * pad}" aria-hidden="true">` +
-      fig.zones.map(z => { const hex = cols[z.role]; return `<path d="${z.d}" fill="${hex}"${n < 5 && paleOnPaper(hex) ? ` stroke="var(--border)" stroke-width="${fig.h / 220}"` : ''}/>`; }).join('') + '</svg>';
-  }
+  if (garmentFits(cols.length)) return FIG.houseSvg(cols, p.house >= 1 ? Math.round(p.house) : seedOf(cols.join('')));   // every card shows its house (2–9 colours)
   const w = roleWeights(cols.length);
   return cols.map((c, i) => `<span style="flex:${w[i].toFixed(2)};background:${c}"></span>`).join('');
 }
@@ -2401,28 +2356,26 @@ function cardHTML(href, name, p, key) {
 const NEW_CARD = '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>';
 
 // ── VIEWS ──
-// Three tabs (Diego, Nov 19, 2026): Your palettes · Make (From a colour · From an image) · Explore (Palettes · Moods ·
-// Swatches), How colour works as a link, New palette always on the right. Each is a hash, so Back works:
-//   #palettes (or none) · #make · #make/image · #explore · #explore/moods · #explore/swatches · #learn
+// Three tabs (Diego, Nov 19, 2026; order and first view Nov 20): Explore (Palettes · Moods · Swatches) · Make (From a
+// colour · From an image) · Your palettes. Each is a hash, so Back works:
+//   #explore (or none) · #make · #make/image · #explore/moods · #explore/swatches · #palettes
+// How colour works moved to the design system (/design-system/colour/, Nov 20, 2026): an old #learn link goes there.
 const VIEWS = {
   palettes: { tab: 'palettes' },
   make: { tab: 'make', sub: 'colour' }, 'make/colour': { tab: 'make', sub: 'colour' }, 'make/image': { tab: 'make', sub: 'image' },
   explore: { tab: 'explore', sub: 'palettes' }, 'explore/palettes': { tab: 'explore', sub: 'palettes' },
-  'explore/moods': { tab: 'explore', sub: 'moods' }, 'explore/swatches': { tab: 'explore', sub: 'swatches' },
-  learn: { tab: 'learn' }
+  'explore/moods': { tab: 'explore', sub: 'moods' }, 'explore/swatches': { tab: 'explore', sub: 'swatches' }
 };
 const SUBS = {
   make: [['colour', '#make', 'From a colour'], ['image', '#make/image', 'From an image']],
   explore: [['palettes', '#explore', 'Palettes'], ['moods', '#explore/moods', 'Moods'], ['swatches', '#explore/swatches', 'Swatches']]
 };
-let view = VIEWS.palettes;
+let view = VIEWS.explore;
 function navHTML(v) {
   const tab = (id, href, label) => `<a href="${href}"${v.tab === id ? ' aria-current="page"' : ''}>${label}</a>`;
   let html = '<div class="ts-nav"><nav class="ts-tabs" aria-label="TuneSutra">' +
-    tab('palettes', '#palettes', 'Your palettes') + tab('make', '#make', 'Make') + tab('explore', '#explore', 'Explore') + '</nav>' +
-    '<span class="ts-nav__spacer"></span>' +
-    `<a class="ts-nav__learn" href="#learn"${v.tab === 'learn' ? ' aria-current="page"' : ''}>How colour works</a>` +
-    '<a class="org-btn org-btn--primary" href="#new">New palette</a></div>';
+    tab('explore', '#explore', 'Explore') + tab('make', '#make', 'Make') + tab('palettes', '#palettes', 'Your palettes') + '</nav>' +
+'</div>';
   if (SUBS[v.tab]) html += `<nav class="seg-ctrl seg-ctrl--fit ts-subnav" aria-label="${v.tab === 'make' ? 'Make' : 'Explore'}">` +
     SUBS[v.tab].map(([id, href, label]) => `<a class="seg-btn${v.sub === id ? ' active" aria-current="page' : ''}" href="${href}">${label}</a>`).join('') + '</nav>';
   return html;
@@ -2463,11 +2416,11 @@ const LIB_KEY = 'organica.tunesutra.library';
 let LIB = null;
 const KIND_LABEL = { pair: 'Two colours', triad: 'Three colours', bsa: 'Base · secondary · accent', five: 'Five colours', gen: 'Six and seven colours', collection: 'Organica collections', yours: 'Your palettes' };
 const SOURCE_LABEL = { reference: 'Colour studies', organica: 'Organica', yours: 'Your palettes' };
-const HARMONY_LABEL = { monochromatic: 'Monochromatic', analogous: 'Analogous', complementary: 'Complementary', split: 'Split-complementary', triadic: 'Triadic', tetradic: 'Tetradic', varied: 'Varied' };
-const TONE_LABEL = { same: 'Same tone', near: 'Near tones', far: 'Far tones' };
-const PURITY_LABEL = { clear: 'All pure', dull: 'All greyed', mixed: 'Mixed purity' };   // not "clear": a Mood word and the Clear verb
-const FAM_LABEL = k => HT.FAMS[k] + ' tones';   // not bare Casual / Elegant: those are Mood words too
-const capWord = w => w ? w.charAt(0).toUpperCase() + w.slice(1) : '';
+const HARMONY_LABEL = FIG.HARMONY_LABEL;
+const TONE_LABEL = FIG.TONE_LABEL;
+const PURITY_LABEL = FIG.PURITY_LABEL;
+const FAM_LABEL = FIG.FAM_LABEL;
+const capWord = FIG.capWord;
 const V_TONE = HT.TONES.findIndex(T => T.k === 'V');
 // 11 key colours: the model's ten hues at their vivid tone, and the greys
 const KEYS = HT.HUES.map((H, hi) => ({ k: H.k, hex: HT.toneColour(hi, V_TONE), name: capWord(HT.cellName(hi, V_TONE).replace(/^Vivid /, '')) }))
@@ -3011,18 +2964,9 @@ ctrl('home').addEventListener('click', e => {
 // down, the 16 mood words where their colours sit (Organica.hueTone.WORDS). Each word's disc grows with how many palettes
 // read as it (a density, not 1,130 dots). The words are buttons; several can be picked. Mood, Number of colours and Source
 // are Explore's own filters (EXP), so a mood picked here is the Mood filter in Palettes too.
-const MOOD_X = x => 210 + x * 180, MOOD_Y = y => 210 - y * 180;   // the lab's square: 360 wide, centred in 420
+const MOOD_X = FIG.MOOD_X, MOOD_Y = FIG.MOOD_Y;   // the lab's square: 360 wide, centred in 420
 function moodHit(e) { return e.n >= EXP.nMin && e.n <= EXP.nMax && (!EXP.source || e.source === EXP.source); }
-// the square, its axes, one disc per word (area ∝ palettes); withWords draws the words as text (the guide's static copy)
-function moodSvg(byMood, withWords) {
-  const max = Math.max(1, ...HT.WORDS.map(w => (byMood[w[0]] || []).length));
-  let svg = '<rect x="30" y="30" width="360" height="360" fill="none" stroke="var(--border-strong)"/><line x1="30" y1="210" x2="390" y2="210" stroke="var(--border)"/><line x1="210" y1="30" x2="210" y2="390" stroke="var(--border)"/>';
-  HT.WORDS.forEach(w => { const n = (byMood[w[0]] || []).length; if (n) svg += `<circle cx="${MOOD_X(w[1])}" cy="${MOOD_Y(w[2])}" r="${(6 + 34 * Math.sqrt(n / max)).toFixed(1)}" fill="currentColor" opacity="0.08"/>`; });
-  svg += '<text x="210" y="20" text-anchor="middle">Soft</text><text x="210" y="410" text-anchor="middle">Hard</text>' +
-    '<text x="24" y="214" text-anchor="end">Warm</text><text x="396" y="214">Cool</text>';
-  if (withWords) HT.WORDS.forEach(w => { svg += `<text x="${MOOD_X(w[1])}" y="${MOOD_Y(w[2]) + 4}" text-anchor="middle" class="ts-learn-word">${esc(capWord(w[0]))}</text>`; });
-  return svg;
-}
+const moodSvg = FIG.moodSvg;   // the square, its axes, one disc per word (area ∝ palettes) — tunesutra/palette-figures.js
 function moodMapHTML(byMood) {
   const svg = moodSvg(byMood, false);
   const words = HT.WORDS.map(w => {
@@ -3089,99 +3033,6 @@ ctrl('home').addEventListener('click', e => {
     renderMoods(); const again = ctrl('md-main').querySelector(`[data-md-more="${CSS.escape(k)}"]`); if (again) again.focus();
   }
 });
-// ── HOW COLOUR WORKS ──
-// A reading page in the home column (Nov 19, 2026, redesign step 8, design-system CONSULT): how TuneSutra thinks about
-// colour, in our own words, each idea with a live figure drawn by the model (Organica.hueTone) and a link to the view
-// that uses it. Figures are content: they sit on light paper in both themes.
-const TONE_AT = k => HT.TONES.findIndex(T => T.k === k);
-const LEARN_KEY = '#e5000d';   // every figure starts from the same red
-function learnStrip(cols, label) {
-  return `<div class="ts-learn-strip" role="img" aria-label="${esc(label)}: ${esc(cols.map(c => HT.nameOf(c)).join(', '))}" data-theme="light">` +
-    cols.map(c => `<span class="ts-learn-sw" style="background:${c}"></span>`).join('') + '</div>';
-}
-function learnRow(title, text, cols) {
-  return `<div class="ts-learn-row"><div><strong>${esc(title)}</strong><p>${text}</p></div>${learnStrip(cols, title)}</div>`;
-}
-// the first seed whose palette reads back as the asked relation — the figure shows what the word means
-// (generate never repeats a colour since Nov 20, 2026, so no distinct-swatch check is needed here)
-function learnGen(opts, ok) {
-  const gen = s => HT.generate(LEARN_KEY, Object.assign({ image: 'base', tone: 'near', purity: 'any', n: 4, neutral: 'none', hue: 'similar' }, opts), s);
-  for (let s = 1; s <= 200; s++) { const p = gen(s); if (ok(p)) return p; }
-  return gen(1);
-}
-function learnTriangle() {
-  const W = [40, 24], K = [40, 296], V = [292, 160], hi = 0;
-  const pt = T => { const v = 1 - T.w - T.b; return [W[0] * T.w + K[0] * T.b + V[0] * v, W[1] * T.w + K[1] * T.b + V[1] * v]; };
-  let s = `<polygon points="${W.join(',')} ${K.join(',')} ${V.join(',')}" fill="none" stroke="var(--border-strong)"/>` +
-    `<text x="${W[0] - 8}" y="${W[1] + 4}" text-anchor="end">White</text><text x="${K[0] - 8}" y="${K[1] + 4}" text-anchor="end">Black</text><text x="${V[0] + 4}" y="${V[1] - 22}" text-anchor="middle">Vivid</text>`;
-  HT.TONES.forEach((T, ti) => { const [x, y] = pt(T); s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="${HT.toneColour(hi, ti)}" stroke="var(--border-strong)"/><text x="${(x + 17).toFixed(1)}" y="${(y + 4).toFixed(1)}">${T.k}</text>`; });
-  return `<figure class="ts-learn-fig" data-theme="light"><svg viewBox="0 0 340 320" role="img" aria-label="The twelve tones of red, between white, black and the vivid colour">${s}</svg>` +
-    '<figcaption>The twelve tones of red. Up: more white. Down: more black. Right: more of the vivid colour.</figcaption></figure>';
-}
-function learnMoods() {
-  const by = {}; exploreAll().forEach(e => { (by[e.mood] = by[e.mood] || []).push(e); });
-  const s = moodSvg(by, true);
-  return `<figure class="ts-learn-fig" data-theme="light"><svg viewBox="0 0 420 420" role="img" aria-label="Mood map: sixteen mood words between warm and cool, soft and hard">${s}</svg></figure>`;
-}
-const LEARN_SECTIONS = [['hue-tone', 'Hue and tone'], ['families', 'Tone families'], ['hue-rel', 'Hue relations'], ['tone-rel', 'Tone relations'], ['purity', 'Purity'], ['roles', 'Roles'], ['moods', 'Moods'], ['sources', 'Where the palettes come from']];
-function learnHTML() {
-  const V = HT.TONES.find(T => T.k === 'V'), vIdx = TONE_AT('V'), sec = (id, title, lead, body, link) =>
-    `<section class="ts-learn-sec" aria-labelledby="ts-l-${id}"><h2 id="ts-l-${id}" tabindex="-1">${title}</h2><p class="ts-learn-lead">${lead}</p>${body}${link ? '<p><a href="' + link[0] + '">' + link[1] + '</a></p>' : ''}</section>`;
-  const vivid = HT.HUES.map((H, hi) => HT.toneColour(hi, vIdx));
-  const famRows = Object.keys(HT.FAMS).map(f => {
-    const tones = HT.TONES.map((T, ti) => [T, ti]).filter(([T]) => T.fam === f);
-    const feel = { casual: 'Full, lively colour: vivid and strong. Loud and direct.', light: 'Colour with white in it: bright, pale, very pale. Airy and gentle.', elegant: 'Colour with grey in it: light greyish, light, greyish, dull. Quiet and refined.', heavy: 'Colour with black in it: deep, dark, dark greyish. Weighty and serious.' }[f];
-    return learnRow(FAM_LABEL(f), feel + ' <span class="ts-learn-note">' + tones.map(([T]) => T.name).join(' · ') + '</span>', tones.map(([, ti]) => HT.toneColour(0, ti)));
-  }).join('');
-  const hueRows = [
-    ['monochromatic', 'One hue in several tones.', learnGen({ hue: 'same' }, p => HT.harmonyOf(p) === 'monochromatic')],
-    ['analogous', 'Hues next to each other on the wheel.', learnGen({ hue: 'similar' }, p => HT.harmonyOf(p) === 'analogous')],
-    ['complementary', 'Two hues opposite each other.', learnGen({ hue: 'complement' }, p => HT.harmonyOf(p) === 'complementary')],
-    ['split', 'One hue and the two either side of its opposite.', learnGen({ hue: 'split' }, p => HT.harmonyOf(p) === 'split')],
-    ['triadic', 'Three hues spread evenly round the wheel.', learnGen({ hue: 'triad' }, p => HT.harmonyOf(p) === 'triadic')],
-    ['tetradic', 'Two pairs of opposite hues.', learnGen({ hue: 'free', tone: 'same' }, p => HT.harmonyOf(p) === 'tetradic')],
-  ].map(([k, t, cols]) => learnRow(HARMONY_LABEL[k], t, cols)).join('');
-  const toneRows = [['same', 'Every colour in one tone: the hues do the talking.'], ['near', 'Neighbouring tones: one family, gently varied.'], ['far', 'Distant tones: light against dark, quiet against loud.']]
-    .map(([k, t]) => learnRow(TONE_LABEL[k], t, learnGen({ hue: 'free', tone: k }, p => ({ 'same tone': 'same', 'near tones': 'near', 'far tones': 'far' })[HT.readPalette(p).toneRel] === k))).join('');
-  const pureT = ['V', 'B', 'S', 'P'], greyT = ['Lgr', 'Gr', 'Dl', 'Dgr'], mixT = ['V', 'Gr', 'B', 'Dl'], his = [0, 4, 6, 8];
-  const purRows = [['clear', 'No grey in any colour: clean and open.', pureT], ['dull', 'Grey in every colour: calm and soft-spoken.', greyT], ['mixed', 'Some of each: the pure colours stand forward.', mixT]]
-    .map(([k, t, ts]) => learnRow(PURITY_LABEL[k], t, ts.map((tk, i) => HT.toneColour(his[i], TONE_AT(tk))))).join('');
-  const roles = HT.generateRoles(LEARN_KEY, 5, 7).map(x => x.hex), w = roleWeights(5);
-  const rolesFig = `<div class="ts-learn-roles"><span class="ts-learn-house" data-theme="light" role="img" aria-label="A five-colour palette drawn on its house">${paletteArt({ colors: roles, house: 7 })}</span>` +
-    '<ul class="ts-roles ts-learn-list">' + roles.map((c, i) => `<li class="ts-role"><span class="ts-role__sw" style="background:${c}"></span>${esc(roleName(i, 5))} <span class="ts-filter__count">${w[i].toFixed(1)}%</span></li>`).join('') + '</ul></div>';
-  return '<div class="ts-explore">' + navHTML(view) + '<article class="org-prose ts-learn">' +
-    '<h1>How colour works</h1><p class="ts-learn-lead">The ideas TuneSutra uses to read, name and make palettes.</p>' +
-    '<nav class="ts-learn-toc" aria-label="On this page"><ul>' + LEARN_SECTIONS.map(([id, t]) => `<li><a href="#learn" data-learn-to="ts-l-${id}">${t}</a></li>`).join('') + '</ul></nav>' +
-    sec('hue-tone', 'Hue and tone', 'A colour is a hue (where it sits on the wheel) and a tone (how light and how pure it is).',
-      '<p>TuneSutra uses ten hues, from red round to red purple, each with twelve tones. A tone is the vivid colour mixed with some white, some black, or both. The same tone looks alike across hues: a pale red and a pale blue belong together. Ten greys from white to black complete the 130 swatches.</p>' +
-      learnStrip(vivid, 'The ten hues at their vivid tone') + learnTriangle(), ['#explore/swatches', 'See them in Swatches']) +
-    sec('families', 'Tone families', 'Twelve tones fall into four families, each with its own feel.', famRows, ['#explore', 'Explore palettes by tone family']) +
-    sec('hue-rel', 'Hue relations', 'How far apart the hues of a palette sit, from the same hue to opposite ones.',
-      hueRows + '<p>A palette whose hues fit none of these reads as <em>Varied</em>. Neutrals (white, greys, black) take no part in the relation.</p>', ['#make', 'Make from a colour']) +
-    sec('tone-rel', 'Tone relations', 'Whether a palette’s colours share a tone, sit near each other or far apart.', toneRows, null) +
-    sec('purity', 'Purity', 'A pure colour has no grey in it; a greyed colour is quieter.', purRows, null) +
-    sec('roles', 'Roles', 'A palette works as parts of one picture: a base, a secondary colour, an accent, and how much of each.',
-      '<p>Every palette is drawn on a house. The largest share is the base; each role after it covers less, down to a spark of the smallest. The same colours read differently when their shares change, so TuneSutra keeps each colour on its part: a palette keeps its look when it opens in the editor.</p>' + rolesFig, ['#make', 'Make from a colour']) +
-    sec('moods', 'Moods', 'Colours feel warm or cool, soft or hard; sixteen words map that space.',
-      '<p>Every palette has a place on the map, from the warmth, lightness and purity of its colours, and takes the mood word nearest to it. The larger the disc, the more palettes share that mood.</p>' + learnMoods(), ['#explore/moods', 'Explore by mood']) +
-    sec('sources', 'Where the palettes come from', 'Colour studies measured into the hue and tone model, and a set Organica generated with the same rules.',
-      '<p>The colour studies are pairs and threes around twelve key colours, base · secondary · accent sets of three and four, and five-colour scenes. Each colour was measured, read into the hue and tone model and named. Organica’s own set adds six- and seven-colour palettes, built role by role from each key colour. Your saved palettes and the ones you star sit beside them.</p>', ['#explore', 'Explore palettes']) +
-    '</article></div>';
-}
-function mountLearn() {
-  if (!LIB) loadLibrary().then(() => {   // the moods figure needs the library: redraw, keeping the scroll and the focus
-    if (!ctrl('home').querySelector('.ts-learn')) return;
-    const a = document.activeElement, was = a && ctrl('home').contains(a) ? (a.id || (a.dataset && a.dataset.learnTo && '[data-learn-to="' + a.dataset.learnTo + '"]')) : null;
-    const y = ctrl('home').querySelector('.ts-explore').scrollTop;
-    ctrl('home').innerHTML = learnHTML(); ctrl('home').querySelector('.ts-explore').scrollTop = y;
-    const back = was && (was.charAt(0) === '[' ? ctrl('home').querySelector(was) : ctrl(was)); if (back) back.focus({ preventScroll: true });
-  });
-}
-ctrl('home').addEventListener('click', e => {
-  const a = e.target.closest('[data-learn-to]'); if (!a) return;
-  e.preventDefault();   // the hash routes views: the contents scroll inside the page instead
-  const h = ctrl(a.dataset.learnTo); if (h) { h.scrollIntoView({ block: 'start' }); h.focus({ preventScroll: true }); }
-});
 function renderHome() {
   const v = view, id = v.sub ? v.tab + '/' + v.sub : v.tab, split = id === 'explore/palettes' || id === 'make/colour' || id === 'make/image' || id === 'explore/swatches' || id === 'explore/moods';
   ctrl('home').classList.toggle('ts-home--split', split);
@@ -3210,7 +3061,6 @@ function renderHome() {
     else renderImage();
     return;
   }
-  if (id === 'learn') { ctrl('home').innerHTML = learnHTML(); mountLearn(); return; }
   ctrl('home').innerHTML = navHTML(v) + yourPalettesHTML();   // Your palettes (every other view returned above)
 }
 // Star and Show work in place: the view redraws, the focus goes back to the control that was used.
@@ -3239,6 +3089,7 @@ function showHome(home) {
 function route() {
   let h = '';
   try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { h = ''; }
+  if (h === 'learn') { location.replace('/design-system/colour/'); return; }
   let p = null, name = '', suggest = '', key = '';
   if (h === 'new') p = { colors: ['#ffffff', '#ffffff', '#ffffff'], house: newSeed() };   // a blank start: three white colours (Diego, Nov 17, 2026)
   else if (h.indexOf('p=') === 0) { name = h.slice(2); p = userPresets()[name]; key = 'p:' + name; }
@@ -3265,8 +3116,8 @@ function route() {
       history.replaceState(null, '', '#' + h);   // applied once: a reload keeps what was changed since
       if (ctrl('mk-results')) ctrl('home').innerHTML = '';   // rebuild the panel with the new key colour
     }
-    view = VIEWS[h] || VIEWS.palettes;
-    backTo = { hash: VIEWS[h] ? h : 'palettes', label: backLabel(view) };   // the editor's back button returns here
+    view = VIEWS[h] || VIEWS.explore;   // no hash (a first visit) opens on Explore (Diego, Nov 20, 2026)
+    backTo = { hash: VIEWS[h] ? h : 'explore', label: backLabel(view) };   // the editor's back button returns here
     showHome(true); renderHome(); return;
   }
   loadPaletteData(p);
@@ -3289,10 +3140,9 @@ function leaveTo(hash, labelEl, label) {
   location.hash = hash;
 }
 // The back button names the view the palette was opened from, in the tabs' own words (Nov 20, 2026, CONSULT);
-// a reload or a direct link has no origin and goes back to Your palettes.
-let backTo = { hash: 'palettes', label: 'Your palettes' };
+// a reload or a direct link has no origin and goes back to Explore › Palettes, TuneSutra's first view.
+let backTo = { hash: 'explore', label: 'Palettes' };
 function backLabel(v) {
-  if (v.tab === 'learn') return 'How colour works';
   const sub = SUBS[v.tab] && SUBS[v.tab].find(x => x[0] === v.sub);
   return sub ? sub[2] : 'Your palettes';
 }

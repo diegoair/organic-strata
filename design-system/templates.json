@@ -561,7 +561,6 @@
       "tokens",
       "icons",
       "header",
-      "prose",
       "panel",
       "floatbar",
       "shell",
@@ -692,6 +691,25 @@
      "public": false,
      "column": "wide",
      "prose": false
+    },
+    {
+     "page": "/design-system/colour/",
+     "file": "design-system/colour/index.html",
+     "template": "page",
+     "variant": null,
+     "why": null,
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "page",
+      "prose"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": true,
+     "column": "reading",
+     "prose": true
     },
     {
      "page": "/design-system/",

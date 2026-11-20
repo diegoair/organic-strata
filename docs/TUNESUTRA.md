@@ -14,10 +14,12 @@ to the eye.
 
 ## 0. The library (home)
 
-`/tunesutra/` opens on the library (redesign, Nov 19–20, 2026). Three tabs, a link and a button, each a hash so
-Back works: **Your palettes** (`#palettes`, or no hash) · **Make** (`#make`, `#make/image`) · **Explore**
-(`#explore`, `#explore/moods`, `#explore/swatches`), the link **How colour works** (`#learn`) and **New palette**
-(`#new`, three white colours). The colour model under every view is `Organica.hueTone` (`shared/hue-tone.js`):
+`/tunesutra/` opens on **Explore › Palettes** (redesign, Nov 19–20, 2026; Explore first since Nov 20). Three tabs,
+each a hash so Back works: **Explore** (`#explore`, or no hash; `#explore/moods`, `#explore/swatches`) · **Make**
+(`#make`, `#make/image`) · **Your palettes** (`#palettes`). The nav's **New palette** button went on Nov 20 (Diego);
+a blank palette (`#new`, three white colours) is the dashed **New** card in Your palettes. The guide **How colour
+works** moved to the design system (`/design-system/colour/`, Nov 20) and TuneSutra keeps no link to it; an old
+`#learn` address lands there. The colour model under every view is `Organica.hueTone` (`shared/hue-tone.js`):
 10 hues × 12 tones in four tone families, plus neutrals; the words are in `docs/UI-COPY.md`.
 
 - **Your palettes** — your saved palettes and every palette you starred, filter **All · Starred · Saved**.
@@ -39,9 +41,10 @@ Back works: **Your palettes** (`#palettes`, or no hash) · **Make** (`#make`, `#
 - **Explore › Swatches** — the 130 hue × tone swatches; each counts the different library colours that fall in
   it. The panel shows the swatch's values, its library colours, how many palettes use it, **Make from this
   colour** and **Show palettes**. Keyboard: one Tab stop, then arrows · Home · End.
-- **How colour works** — a reading view (`shared/prose.css`, ledger §3): hue and tone, tone families, hue and
-  tone relations, purity, roles, moods, where the palettes come from — each with a figure drawn by the model
-  and a link to its view.
+- **How colour works** — now a design-system page, `/design-system/colour/` (Page template, Tool references):
+  hue and tone, tone families, hue and tone relations, purity, roles, moods (the words only, no counts), where the
+  palettes come from — each with a figure drawn by the model and a link into TuneSutra. What it shares with
+  TuneSutra (role names, the relation words, the house as SVG, the mood square) is `tunesutra/palette-figures.js`.
 
 Opening a palette from any view loads it into the editor: `#p=<name>` (saved), `#l=<id>` (library), `#m=<hex>-…~<house>`
 (made), `#c=<collection>/<id>` (a built-in collection, `tunesutra/collections.js`). Library and made palettes open

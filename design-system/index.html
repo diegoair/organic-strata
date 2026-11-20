@@ -549,6 +549,8 @@
       <div class="ds-nav__title">Tool references</div>
       <a href="/design-system/_fvs-rules.html">FVS rule atlas</a>
       <a href="#fvs-rules">About the atlas</a>
+      <a href="/design-system/colour/">How colour works</a>
+      <a href="#colour-guide">About the guide</a>
     </div>
     <div class="ds-nav__group">
       <div class="ds-nav__title">Shell</div>
@@ -2700,6 +2702,19 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
         <li><strong>Keep it current.</strong> The data is a capture (7 Oct 2026). When a rule changes, re-capture its candidates and update the page in the same commit; its Findings section lists what reading the code turned up.</li>
       </ol>
       <div class="ds-usage"><strong>Open</strong><span><a href="/design-system/_fvs-rules.html">_fvs-rules.html</a></span><strong>Reads</strong><span>fvs/js/engine/03-rules.js</span><span>fvs/js/engine/11-symbol-ui.js</span><span>fvs/js/engine/10-suggest.js</span><span>fvs/js/engine/00-core.js</span><span>docs/FVS.md</span></div>
+    </section>
+
+    <section class="ds-entry ds-prose" id="colour-guide">
+      <h2>How colour works</h2>
+      <p><a href="/design-system/colour/"><strong>Open How colour works</strong></a></p>
+      <p class="ds-desc">The <strong>colour guide</strong>: the ideas TuneSutra uses to read, name and make palettes — hue and tone, the four tone families, hue and tone relations, purity, roles, moods and where the library’s palettes come from. Moved here from TuneSutra on 20 Nov 2026 (Diego); TuneSutra keeps no link to it, and an old <code>/tunesutra/#learn</code> address lands on the page.</p>
+      <ol>
+        <li><strong>Figures come from the model, not from images.</strong> Every strip, the twelve-tone triangle and the role palette are drawn live by <code>Organica.hueTone</code> and TuneSutra’s house; the relation examples are the first generated palettes that read back as their word. A change to the model shows here at once.</li>
+        <li><strong>The mood map shows the words only.</strong> It loads no library: how many palettes share each word is TuneSutra › Explore › Moods.</li>
+        <li><strong>Figures are content.</strong> They sit on light paper in both themes; the page around them follows the theme.</li>
+        <li><strong>Our own words.</strong> The text names no outside source.</li>
+      </ol>
+      <div class="ds-usage"><strong>Open</strong><span><a href="/design-system/colour/">colour/</a></span><strong>Reads</strong><span>shared/hue-tone.js</span><span>tunesutra/house.js</span><span>tunesutra/palette-figures.js</span></div>
     </section>
 
     <section class="ds-entry ds-prose" id="self-check">

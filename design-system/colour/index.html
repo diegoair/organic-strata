@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme-support>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<title>How colour works — Organica</title>
+<!-- How colour works — the colour guide (Nov 20, 2026). It was a view of TuneSutra (#learn, Nov 19, redesign step 8);
+     Diego moved it into the design system's documentation ("Sposta How colour works nella documentazione del design
+     system"; CONSULT brief: a Page-template page under Tool references, like the FVS rule atlas). TuneSutra keeps no
+     link to it (Diego); an old /tunesutra/#learn link lands here.
+     Every figure is drawn live by the model (shared/hue-tone.js) and TuneSutra's own figures
+     (tunesutra/house.js, tunesutra/palette-figures.js). The mood map shows the words only — no library load
+     (Diego: "Solo parole"); the counts live in TuneSutra › Explore › Moods. The figures are content: they sit on
+     light paper in both themes. Our own words throughout. -->
+<link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
+<link rel="stylesheet" href="/shared/header.css">
+<link rel="stylesheet" href="/shared/page.css">
+<link rel="stylesheet" href="/shared/prose.css">
+<style>
+  .cg-sec h2:focus { outline: none; }
+  .cg-lead { color: var(--mid); }
+  .cg-note { display: block; color: var(--mid); font-size: var(--fs-small); }
+  .cg-toc ul { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); list-style: none; padding: 0; }
+  .cg-toc li { margin: 0; }
+  .cg-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); align-items: center; padding: var(--space-3) 0; border-top: 1px solid var(--border); }
+  .org-prose .cg-row p { margin: 0; }
+  .cg-strip { display: flex; height: calc(var(--space-8) * 1.5); border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); background: var(--paper); }
+  .cg-sw { flex: 1; }
+  .cg-fig { margin: var(--space-5) 0; padding: var(--space-4); background: var(--paper); color: var(--ink); border-radius: var(--radius-sm); }
+  .cg-fig svg { display: block; width: 100%; max-width: calc(var(--space-8) * 12); height: auto; }
+  .cg-fig text { font-family: var(--font-display); font-size: var(--fs-small); fill: var(--mid); }
+  .cg-fig .tf-mood-word { fill: var(--ink); }
+  .cg-fig figcaption { color: var(--mid); font-size: var(--fs-small); margin-top: var(--space-3); }
+  .cg-roles { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center; margin: var(--space-5) 0; }
+  .cg-house { display: block; width: calc(var(--space-8) * 6); aspect-ratio: 1 / 1; background: var(--paper); border-radius: var(--radius-sm); overflow: hidden; }
+  .cg-house svg { width: 100%; height: 100%; }
+  .org-prose .cg-list { display: flex; flex-direction: column; gap: var(--space-2); list-style: none; padding: 0; margin: 0; font-size: var(--fs-small); }
+  .org-prose .cg-list li { display: flex; align-items: center; gap: var(--space-2); margin: 0; max-width: none; }
+  .cg-list__sw { width: var(--space-4); height: var(--space-4); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }   /* the fill is the palette colour, data */
+  .cg-list__share { color: var(--mid); }
+  @media (max-width: 640px) { .cg-row { grid-template-columns: minmax(0, 1fr); } }
+</style>
+<script src="/shared/pattern-init.js"></script>
+</head>
+<body class="org-page">
+<header class="org-header" role="banner">
+  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ How colour works</span></a>
+  <div class="org-header__spacer"></div>
+</header>
+
+<main class="org-page__col">
+  <article class="org-page__card org-prose" id="guide">
+    <p class="org-prose__caption"><a href="/design-system/#colour-guide">Design system</a> · Tool references</p>
+    <h1>How colour works</h1>
+    <p class="cg-lead">The ideas TuneSutra uses to read, name and make palettes.</p>
+    <noscript><p>The figures on this page are drawn by script.</p></noscript>
+  </article>
+</main>
+
+<script src="/shared/core.js"></script>
+<script src="/shared/color.js"></script>
+<script src="/shared/hue-tone.js"></script>
+<script src="/shared/shapes.js"></script>
+<script src="/tunesutra/house.js"></script>
+<script src="/tunesutra/palette-figures.js"></script>
+<script>
+(function () {
+  'use strict';
+  const HT = Organica.hueTone, F = window.TUNESUTRA_FIG, esc = F.esc;
+  const TONE_AT = k => HT.TONES.findIndex(T => T.k === k);
+  const KEY = '#e5000d';   // every figure starts from the same red
+  const TS = '/tunesutra/';
+
+  function strip(cols, label) {
+    return `<div class="cg-strip" role="img" aria-label="${esc(label)}: ${esc(cols.map(c => HT.nameOf(c)).join(', '))}" data-theme="light">` +
+      cols.map(c => `<span class="cg-sw" style="background:${c}"></span>`).join('') + '</div>';
+  }
+  function row(title, text, cols) {
+    return `<div class="cg-row"><div><strong>${esc(title)}</strong><p>${text}</p></div>${strip(cols, title)}</div>`;
+  }
+  // the first seed whose palette reads back as the asked relation — the figure shows what the word means
+  function gen(opts, ok) {
+    const g = s => HT.generate(KEY, Object.assign({ image: 'base', tone: 'near', purity: 'any', n: 4, neutral: 'none', hue: 'similar' }, opts), s);
+    for (let s = 1; s <= 200; s++) { const p = g(s); if (ok(p)) return p; }
+    return g(1);
+  }
+  function triangle() {
+    const W = [40, 24], K = [40, 296], V = [292, 160], hi = 0;
+    const pt = T => { const v = 1 - T.w - T.b; return [W[0] * T.w + K[0] * T.b + V[0] * v, W[1] * T.w + K[1] * T.b + V[1] * v]; };
+    let s = `<polygon points="${W.join(',')} ${K.join(',')} ${V.join(',')}" fill="none" stroke="var(--border-strong)"/>` +
+      `<text x="${W[0] - 8}" y="${W[1] + 4}" text-anchor="end">White</text><text x="${K[0] - 8}" y="${K[1] + 4}" text-anchor="end">Black</text><text x="${V[0] + 4}" y="${V[1] - 22}" text-anchor="middle">Vivid</text>`;
+    HT.TONES.forEach((T, ti) => { const [x, y] = pt(T); s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="${HT.toneColour(hi, ti)}" stroke="var(--border-strong)"/><text x="${(x + 17).toFixed(1)}" y="${(y + 4).toFixed(1)}">${T.name}</text>`; });
+    return `<figure class="cg-fig" data-theme="light"><svg viewBox="0 0 340 320" role="img" aria-label="The twelve tones of red, between white, black and the vivid colour">${s}</svg>` +
+      '<figcaption>The twelve tones of red. Up: more white. Down: more black. Right: more of the vivid colour.</figcaption></figure>';
+  }
+  function moods() {
+    return `<figure class="cg-fig" data-theme="light"><svg viewBox="0 0 420 420" role="img" aria-label="Mood map: sixteen mood words between warm and cool, soft and hard">${F.moodSvg({}, true)}</svg></figure>`;
+  }
+  const SECTIONS = [['hue-tone', 'Hue and tone'], ['families', 'Tone families'], ['hue-rel', 'Hue relations'], ['tone-rel', 'Tone relations'], ['purity', 'Purity'], ['roles', 'Roles'], ['moods', 'Moods'], ['sources', 'Where the palettes come from']];
+  function sec(id, title, lead, body, link) {
+    return `<section class="cg-sec" aria-labelledby="cg-${id}"><h2 id="cg-${id}" tabindex="-1">${title}</h2><p class="cg-lead">${lead}</p>${body}` +
+      (link ? `<p><a href="${TS}${link[0]}">${link[1]}</a></p>` : '') + '</section>';
+  }
+
+  const vivid = HT.HUES.map((H, hi) => HT.toneColour(hi, TONE_AT('V')));
+  const famRows = Object.keys(HT.FAMS).map(f => {
+    const tones = HT.TONES.map((T, ti) => [T, ti]).filter(([T]) => T.fam === f);
+    const feel = { casual: 'Full, lively colour: vivid and strong. Loud and direct.', light: 'Colour with white in it: bright, pale, very pale. Airy and gentle.', elegant: 'Colour with grey in it: light greyish, light, greyish, dull. Quiet and refined.', heavy: 'Colour with black in it: deep, dark, dark greyish. Weighty and serious.' }[f];
+    return row(F.FAM_LABEL(f), feel + ' <span class="cg-note">' + tones.map(([T]) => T.name).join(' · ') + '</span>', tones.map(([, ti]) => HT.toneColour(0, ti)));
+  }).join('');
+  const hueRows = [
+    ['monochromatic', 'One hue in several tones.', gen({ hue: 'same' }, p => HT.harmonyOf(p) === 'monochromatic')],
+    ['analogous', 'Hues next to each other on the wheel.', gen({ hue: 'similar' }, p => HT.harmonyOf(p) === 'analogous')],
+    ['complementary', 'Two hues opposite each other.', gen({ hue: 'complement' }, p => HT.harmonyOf(p) === 'complementary')],
+    ['split', 'One hue and the two either side of its opposite.', gen({ hue: 'split' }, p => HT.harmonyOf(p) === 'split')],
+    ['triadic', 'Three hues spread evenly round the wheel.', gen({ hue: 'triad' }, p => HT.harmonyOf(p) === 'triadic')],
+    ['tetradic', 'Two pairs of opposite hues.', gen({ hue: 'free', tone: 'same' }, p => HT.harmonyOf(p) === 'tetradic')],
+  ].map(([k, t, cols]) => row(F.HARMONY_LABEL[k], t, cols)).join('');
+  const toneRows = [['same', 'Every colour in one tone: the hues do the talking.'], ['near', 'Neighbouring tones: one family, gently varied.'], ['far', 'Distant tones: light against dark, quiet against loud.']]
+    .map(([k, t]) => row(F.TONE_LABEL[k], t, gen({ hue: 'free', tone: k }, p => ({ 'same tone': 'same', 'near tones': 'near', 'far tones': 'far' })[HT.readPalette(p).toneRel] === k))).join('');
+  const pureT = ['V', 'B', 'S', 'P'], greyT = ['Lgr', 'Gr', 'Dl', 'Dgr'], mixT = ['V', 'Gr', 'B', 'Dl'], his = [0, 4, 6, 8];
+  const purRows = [['clear', 'No grey in any colour: clean and open.', pureT], ['dull', 'Grey in every colour: calm and soft-spoken.', greyT], ['mixed', 'Some of each: the pure colours stand forward.', mixT]]
+    .map(([k, t, ts]) => row(F.PURITY_LABEL[k], t, ts.map((tk, i) => HT.toneColour(his[i], TONE_AT(tk))))).join('');
+  const roles = HT.generateRoles(KEY, 5, 7).map(x => x.hex), w = window.TUNESUTRA_HOUSE.SHARES[5];
+  const rolesFig = `<div class="cg-roles"><span class="cg-house" data-theme="light" role="img" aria-label="A five-colour palette drawn on its house">${F.houseSvg(roles, 7)}</span>` +
+    '<ul class="cg-list">' + roles.map((c, i) => `<li><span class="cg-list__sw" style="background:${c}"></span>${esc(F.roleName(i, 5))} <span class="cg-list__share">${w[i].toFixed(1)}%</span></li>`).join('') + '</ul></div>';
+
+  document.getElementById('guide').insertAdjacentHTML('beforeend',
+    '<nav class="cg-toc" aria-label="On this page"><ul>' + SECTIONS.map(([id, t]) => `<li><a href="#cg-${id}">${t}</a></li>`).join('') + '</ul></nav>' +
+    sec('hue-tone', 'Hue and tone', 'A colour is a hue (where it sits on the wheel) and a tone (how light and how pure it is).',
+      '<p>TuneSutra uses ten hues, from red round to red purple, each with twelve tones. A tone is the vivid colour mixed with some white, some black, or both. The same tone looks alike across hues: a pale red and a pale blue belong together. Ten greys from white to black complete the 130 swatches.</p>' +
+      strip(vivid, 'The ten hues at their vivid tone') + triangle(), ['#explore/swatches', 'See them in Swatches']) +
+    sec('families', 'Tone families', 'Twelve tones fall into four families, each with its own feel.', famRows, ['#explore', 'Explore palettes by tone family']) +
+    sec('hue-rel', 'Hue relations', 'How far apart the hues of a palette sit, from the same hue to opposite ones.',
+      hueRows + '<p>A palette whose hues fit none of these reads as <em>Varied</em>. Neutrals (white, greys, black) take no part in the relation.</p>', ['#make', 'Make from a colour']) +
+    sec('tone-rel', 'Tone relations', 'Whether a palette’s colours share a tone, sit near each other or far apart.', toneRows, null) +
+    sec('purity', 'Purity', 'A pure colour has no grey in it; a greyed colour is quieter.', purRows, null) +
+    sec('roles', 'Roles', 'A palette works as parts of one picture: a base, a secondary colour, an accent, and how much of each.',
+      '<p>Every palette is drawn on a house. The largest share is the base; each role after it covers less, down to a spark of the smallest. The same colours read differently when their shares change, so TuneSutra keeps each colour on its part: a palette keeps its look when it opens in the editor.</p>' + rolesFig, ['#make', 'Make from a colour']) +
+    sec('moods', 'Moods', 'Colours feel warm or cool, soft or hard; sixteen words map that space.',
+      '<p>Every palette has a place on the map, from the warmth, lightness and purity of its colours, and takes the mood word nearest to it. TuneSutra’s Moods view shows how many palettes share each word.</p>' + moods(), ['#explore/moods', 'Explore by mood']) +
+    sec('sources', 'Where the palettes come from', 'Colour studies measured into the hue and tone model, and a set Organica generated with the same rules.',
+      '<p>The colour studies are pairs and threes around twelve key colours, base · secondary · accent sets of three and four, and five-colour scenes. Each colour was measured, read into the hue and tone model and named. Organica’s own set adds six- and seven-colour palettes, built role by role from each key colour. Your saved palettes and the ones you star sit beside them.</p>', ['#explore', 'Explore palettes']));
+  // the contents scroll to a section and move the focus there
+  document.querySelector('.cg-toc').addEventListener('click', e => {
+    const a = e.target.closest('a'); if (!a) return;
+    const h = document.getElementById(a.getAttribute('href').slice(1)); if (!h) return;
+    e.preventDefault(); history.replaceState(null, '', a.getAttribute('href'));
+    h.scrollIntoView({ block: 'start' }); h.focus({ preventScroll: true });
+  });
+})();
+</script>
+<script src="/shared/tools.js"></script>
+<script src="/shared/menu-icon.js"></script>
+<script src="/shared/header.js"></script>
+</body>
+</html>
