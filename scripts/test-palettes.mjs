@@ -66,6 +66,15 @@ DB['tunesutra-favs'] = {
   const back = P.get('saved:' + n1);
   check('saveAsNew: reads back whole', back.colours[0].hex === '#d94e66' && back.colours[0].shade.specks === 'specks' && back.colours[1].shade.specks === 'pollen-dot');
 }
+{
+  vm.runInContext(fs.readFileSync(path.join(root, 'tunesutra/palette-figures.js'), 'utf8'), ctx, { filename: 'palette-figures.js' });
+  const F = ctx.TUNESUTRA_FIG, bad = [];
+  for (let n = 2; n <= 9; n++) for (let i = 0; i < n; i++) if (F.roleName(i, n) !== P.roleName(i, n)) bad.push(n + '/' + i);
+  check('role names mirror tunesutra/palette-figures.js', !bad.length, bad.join(', '));
+  check('a starred colour is named by its role', P.list().find(p => p.source === 'starred').colors[1].name === 'Accent');
+}
+check('nameFor proposes what saveAsNew writes', P.nameFor(P.get('saved:Dusk'), { tool: 'Flexible Visual System' }) === 'Dusk · Flexible Visual System');
+check('a chosen name is kept, numbered only when taken', P.saveAsNew(P.get('saved:Dusk'), { name: 'Dusk' }) === 'Dusk 2' && DB.tunesutra['Dusk'].house === 77);
 check('ROLE_PARTS mirrors hue-tone.js', JSON.stringify(P.ROLE_PARTS) === JSON.stringify(ctx.Organica.hueTone.ROLE_PARTS));
 
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks pass');

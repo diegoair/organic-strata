@@ -281,16 +281,29 @@
     b.dataset.hex = hex;
     return b;
   }
+  // The suite's palettes, as the strip's palette menu lists them (Nov 20, 2026): saved in TuneSutra, then starred.
+  // The picker edits one colour, so a palette's name stays a label here (taking a palette whole is the strip's menu).
   function paintPalettes() {
     els.pals.innerHTML = '';
-    const lib = Organica.palette && Organica.palette.library ? Organica.palette.library() : [];
-    lib.forEach(pal => {
+    const P = Organica.palettes;
+    const one = pal => {
       const name = el('div', 'org-cpick__palname'); name.textContent = pal.name;
       const row = el('div', 'org-cpick__swatches');
       pal.colors.forEach(c => row.appendChild(swatchBtn(c.hex, (c.name ? c.name + ' ' : '') + c.hex.toUpperCase())));
       els.pals.append(name, row);
+    };
+    if (!P) { (Organica.palette && Organica.palette.library ? Organica.palette.library() : []).forEach(one); return; }
+    const all = P.list();
+    [['Saved', all.filter(p => p.source === 'saved')], ['Starred', all.filter(p => p.source === 'starred')]].forEach(([label, pals]) => {
+      if (!pals.length) return;
+      const g = el('div', 'org-cpick__label'); g.textContent = label;
+      els.pals.appendChild(g);
+      pals.forEach(one);
     });
+    if (!all.length) { const g = el('div', 'org-cpick__label'); g.textContent = 'No palettes yet \u2014 save or star one in TuneSutra'; els.pals.appendChild(g); }
+    if (!pullAsked) { pullAsked = true; P.pull().then(() => { if (els.pals.isConnected) paintPalettes(); }, () => {}); }
   }
+  let pullAsked = false;
 
   // ── emit ──
   function emitInput(hex) { if (opts.onInput) opts.onInput(hex); }

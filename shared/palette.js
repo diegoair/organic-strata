@@ -240,12 +240,12 @@
         const own = opts.picker !== 'native' && Organica.colorPicker;
         const chip = document.createElement(own ? 'div' : 'label');
         chip.className = 'rmx-color' + (i === activeIndex ? ' chip-active' : '');
-        chip.style.background = col;
+        paintChip(chip, i);
         if (own) {
           const btn = document.createElement('button');
           btn.type = 'button';
           btn.className = 'rmx-color__pick';
-          btn.setAttribute('aria-label', (opts.nameOf ? opts.nameOf(i) : 'Palette colour ' + (i + 1)) + ', edit colour');
+          btn.setAttribute('aria-label', (opts.nameOf ? opts.nameOf(i) : 'Palette colour ' + (i + 1)) + (shadeAt(i) ? ', shaded' : '') + ', edit colour');
           btn.setAttribute('aria-haspopup', 'dialog');
           btn.addEventListener('click', () => {
             if (opts.onOpen) opts.onOpen(i);
@@ -295,11 +295,45 @@
             extra: opts.palettes,
             // one colour: add it while there is room, otherwise it replaces the last chip
             onPick: hex => { if (colors.length < max) { colors.push(hex); rebuild(); onChange(colors.slice(), colors.length - 1, 'add'); } else setColors(colors.slice(0, max - 1).concat(hex), { notify: true }); },
-            onPickAll: hexes => setColors(hexes, { notify: true }),
+            // a palette taken whole: with opts.onPalette the tool gets it WHOLE (Organica.palettes.get — every
+            // colour with its tints and shading, Nov 20, 2026) and sets its own state; otherwise the colours
+            onPickAll: (hexes, pal) => {
+              const whole = opts.onPalette && pal && Organica.palettes ? Organica.palettes.get(pal.id) : null;
+              if (whole) { setColors(whole.colours.map(c => c.hex)); opts.onPalette(whole, colors.slice()); }
+              else setColors(hexes, { notify: true });
+            },
           });
         });
         wrap.appendChild(lib);
       }
+      if (opts.saveAs && Organica.palettes) saveRow();
+    }
+    // Save as palette… (opts.saveAs = { tool: '<the tool's visible name>', get: () => Palette }): always a NEW
+    // palette in TuneSutra (Diego, Nov 20, 2026 — the original never changes), named in a prompt.
+    function saveRow() {
+      // one row per strip, whoever mounted the strip last (a tool remounts it when it swaps palettes)
+      const old = wrap.nextElementSibling;
+      if (old && old.hasAttribute('data-pal-save')) old.remove();
+      const saveRowEl = document.createElement('div');
+      saveRowEl.className = 'row-btns';
+      saveRowEl.setAttribute('data-pal-save', '');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mini-btn';
+      b.textContent = 'Save as palette\u2026';
+      b.addEventListener('click', () => {
+        const P = Organica.palettes, pal = opts.saveAs.get();
+        if (!pal || !pal.colours || !pal.colours.length) return;
+        Organica.prompt({ title: 'Save as palette', label: 'Name', value: P.nameFor(pal, { tool: opts.saveAs.tool }), ok: 'Save' }).then(name => {
+          name = name == null ? '' : String(name).trim();
+          if (!name) return;
+          const saved = P.saveAsNew(pal, { name: name, tool: opts.saveAs.tool });
+          if (saved) Organica.notice('Palette saved as \u201c' + saved + '\u201d', { kind: 'info' });
+          if (saved && opts.saveAs.onSaved) opts.saveAs.onSaved(saved);
+        });
+      });
+      saveRowEl.appendChild(b);
+      wrap.insertAdjacentElement('afterend', saveRowEl);
     }
 
     function setColor(i, hex) {
@@ -307,8 +341,16 @@
       // Repaint the chip's own background — the <input> underneath is opacity:0,
       // so without this every pick after the first looks like a no-op.
       const chip = wrap.children[i];
-      if (chip) chip.style.background = hex;
       onChange(colors.slice(), i, 'edit');
+      if (chip) paintChip(chip, i);   // after onChange: the tool has moved the colour's shading to the new hex
+    }
+    // A chip is its colour — and, when the tool gives it one (opts.shadeOf(i, hex) → { def, ctx }), its shading drawn
+    // small (Diego, Nov 20, 2026: the chip shows its own shadow).
+    function shadeAt(i) { return opts.shadeOf ? opts.shadeOf(i, colors[i]) : null; }
+    function paintChip(chip, i) {
+      chip.style.background = colors[i];
+      const sh = shadeAt(i);
+      if (sh && sh.def) chip.style.backgroundImage = palette.shadeImage(sh.def, colors[i], 36, 28, sh.ctx);
     }
     function addColor() {
       if (colors.length >= max) return;
@@ -446,33 +488,59 @@
       else if (e.key === 'Tab') closeMenu(false);
     });
   }
+  // The menu lists the suite's palettes (Nov 20, 2026 — Diego: only the ones saved in TuneSutra, and the starred ones):
+  // Organica.palettes, grouped Saved · Starred; a tool's own extra palettes (opts.extra) first, unlabelled.
+  function groupLabel(text) { const g = document.createElement('div'); g.className = 'pi-group'; g.textContent = text; return g; }
   function fillMenu(opts) {
     menu.innerHTML = '';
-    (opts.extra ? opts.extra() : []).concat(palette.library()).forEach(pal => {
-      const whole = opts.onPickAll && pal.colors.length <= (opts.max || 8);
-      const head = document.createElement(whole ? 'button' : 'div');
-      head.className = whole ? 'preset-item' : 'pi-group';
-      head.textContent = pal.name;
-      if (whole) {
-        head.type = 'button';
+    const P = Organica.palettes, all = P ? P.list() : palette.library();
+    const groups = [[null, opts.extra ? opts.extra() : []]];
+    if (P) groups.push(['Saved', all.filter(p => p.source === 'saved')], ['Starred', all.filter(p => p.source === 'starred')]);
+    else groups.push([null, all]);
+    if (P && !all.length) menu.appendChild(groupLabel('No palettes yet \u2014 save or star one in TuneSutra'));
+    groups.forEach(([label, pals]) => {
+      if (!pals.length) return;
+      if (label) menu.appendChild(groupLabel(label));
+      pals.forEach(pal => paintMenuPalette(pal, opts));
+    });
+    finishMenu();
+  }
+  function paintMenuPalette(pal, opts) {
+    const max = opts.max || 8, fits = pal.colors.length <= max;
+    const whole = !!opts.onPickAll;
+    const head = document.createElement(whole ? 'button' : 'div');
+    head.className = whole ? 'preset-item' : 'pi-group';
+    head.textContent = pal.name;
+    if (whole) {
+      head.type = 'button';
+      if (fits) {
         head.title = 'Use all ' + pal.colors.length + ' colours';
         head.addEventListener('click', () => { opts.onPickAll(pal.colors.map(c => c.hex), pal); closeMenu(true); });
+      } else {
+        head.setAttribute('aria-disabled', 'true');
+        head.title = 'Has ' + pal.colors.length + ' colours \u2014 up to ' + max + ' here';
+        head.setAttribute('aria-label', pal.name + ', ' + pal.colors.length + ' colours, up to ' + max + ' here');
       }
-      menu.appendChild(head);
-      const chips = document.createElement('div');
-      chips.className = 'pal-chips';
-      pal.colors.forEach(c => {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'color-swatch';
-        chip.style.background = c.hex;
-        chip.title = (c.name ? c.name + ' ' : '') + c.hex;
-        chip.setAttribute('aria-label', chip.title);
-        chip.addEventListener('click', () => { opts.onPick(c.hex, c, pal); closeMenu(true); });
-        chips.appendChild(chip);
-      });
-      menu.appendChild(chips);
+    }
+    menu.appendChild(head);
+    const full = pal.source === 'saved' && Organica.palettes && Organica.shading && Organica.color ? Organica.palettes.get(pal.id) : null;   // its shading, for the chips
+    const chips = document.createElement('div');
+    chips.className = 'pal-chips';
+    pal.colors.forEach((c, ci) => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'color-swatch';
+      chip.style.background = c.hex;
+      const shade = full && full.colours[ci] && full.colours[ci].shade;
+      if (shade) chip.style.backgroundImage = palette.shadeImage(shade, c.hex, 16, 16, Organica.palettes.ctx(full));
+      chip.title = (c.name ? c.name + ' ' : '') + c.hex;
+      chip.setAttribute('aria-label', chip.title);
+      chip.addEventListener('click', () => { opts.onPick(c.hex, c, pal); closeMenu(true); });
+      chips.appendChild(chip);
     });
+    menu.appendChild(chips);
+  }
+  function finishMenu() {
     if (global.location && !/^\/tunesutra\//.test(global.location.pathname)) {
       const link = document.createElement('a');
       link.className = 'pal-link';
@@ -507,12 +575,28 @@
     const first = menu.querySelector('button');
     if (first) first.focus();
     // The cache may be stale or empty on this device: refresh once from the
-    // cloud (a no-op when signed out) and repaint the open menu.
-    const st = libraryStore();
-    if (!pulled && st && st.pull) {
-      pulled = true;
-      st.pull().then(() => { if (!menu.hidden && menuFor === trigger) { fillMenu(opts); placeMenu(trigger); } }, () => {});
+    // cloud (a no-op when signed out) and repaint the open menu — both stores (saved, starred).
+    const repaint = () => { if (!menu.hidden && menuFor === trigger) { fillMenu(opts); placeMenu(trigger); } };
+    if (Organica.palettes) {
+      if (!pulled) { pulled = true; Organica.palettes.pull().then(repaint, () => {}); }
+      if (menuUnsub) menuUnsub();
+      menuUnsub = Organica.palettes.onChange(repaint);
+    } else {
+      const st = libraryStore();
+      if (!pulled && st && st.pull) { pulled = true; st.pull().then(repaint, () => {}); }
     }
+  };
+  let menuUnsub = null;
+
+  // A colour's shading as a CSS background image (an SVG of its plates, w×h): a chip shows what its colour draws.
+  palette.shadeImage = function (def, hex, w, h, ctx) {
+    const S = Organica.shading;
+    if (!S || !def) return '';
+    try {
+      const plates = S.plates(def, w, h, ctx);
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '"><rect width="' + w + '" height="' + h + '" fill="' + hex + '"/>' + S.platesSVG(plates, 'c', true) + '</svg>';
+      return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
+    } catch (e) { return ''; }
   };
 
   Organica.palette = palette;

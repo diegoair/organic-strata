@@ -52,7 +52,7 @@
 .rmx-color__pick:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 /* Active-chip marker — Organica.palette.swatch(...).setActive(i) toggles this. */
 .rmx-color.chip-active {
-  outline: 2px solid var(--tool, var(--ink));
+  outline: 2px solid var(--ink);   /* D12: selection marks are --ink, not --tool */
   outline-offset: 1px;
 }
 

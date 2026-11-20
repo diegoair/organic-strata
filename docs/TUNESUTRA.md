@@ -357,15 +357,22 @@ shows it (`shading` is not restored — its shadings are in the set).
 shadow, gradient e grain in modo d'aver un set di base che ci permetta di fare tutto*;
 `paletteSet()`, `v: 1`): `{ v, prefix, colours: [{ role, key, hex, tints, shading, own }] }` —
 `prefix` the token prefix from the palette's name, `tints` the ten flat tints `{ 50: hex … 900: hex }`,
-`shading` the three definitions `{ soft, speckle, stipple }` (the gradient engine's own: type,
+`shading` the two presets `{ soft, speckle }` (Stipple went Nov 18; the gradient engine's own: type,
 angle, stops, pos, ink, amount, size, pattern, dist, light, falloff, seed), `own` the colour's edited
 shading or null. About 3 KB for 3 colours. The editor rebuilds the same from the colours; the set is
 for whatever needs the palette whole without TuneSutra's code (tokens, other tools).
 Palettes saved before names / gradients / the set existed still load.
 
+**In every tool, whole (Nov 20, 2026).** The engine of §3 is `shared/shading.js` (`Organica.shading`, promoted
+from this page — TuneSutra calls it with its own context; `scripts/test-shading.mjs` keeps it byte-identical), and
+the palettes are read through `shared/palettes.js` (`Organica.palettes`: saved, then starred; `get(id)` gives each
+colour with its role, part, tints and own shading). A tool saving a palette back always writes a NEW one in this
+format (`saveAsNew`, named *‹name› · ‹Tool›*, with `pid` and `from`) — it opens here whole. Ledger: DESIGN-DECISIONS
+§2, Nov 20, 2026.
+
 Every colour control in the suite (`Organica.palette.swatch`) has a small ▦
-button — **Pick from a palette** — listing these saved palettes and the
-built-in sets (`Organica.palette.library()`):
+button — **Pick from a palette** — listing these saved palettes, then the starred ones (`Organica.palettes.list()`;
+the built-in sets left the menu on Nov 20, 2026 — `Organica.palette.library()` still has them):
 
 - on a single colour row: click a colour to use it;
 - on a chip strip: click a colour to add it (or replace the last one when the

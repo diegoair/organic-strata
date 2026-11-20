@@ -40,12 +40,19 @@
     9: ['background', 'ground', 'middle', 'far', 'main', 'sub', 'accent', 'accent2', 'accent3'],
   };
   function partsFor(n) { return (global.Organica.hueTone && Organica.hueTone.ROLE_PARTS[n]) || ROLE_PARTS[n] || []; }
-  // Role names when a palette carries none (a starred one): TuneSutra's (palette-figures.js) when loaded.
-  function roleName(i, n) {
-    const F = global.TUNESUTRA_FIG;
-    if (F && F.roleName) return F.roleName(i, n);
-    return 'Colour ' + (i + 1);
-  }
+  // Role names when a palette carries none (a starred one) — mirrors ROLE_SETS / roleName in
+  // tunesutra/palette-figures.js (colour names are roles, UI-COPY). Keep the two in step.
+  const ROLE_SETS = {
+    2: ['Base', 'Accent'],
+    3: ['Base', 'Secondary', 'Accent'],
+    4: ['Base', 'Secondary', 'Tertiary', 'Accent'],
+    5: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight'],
+    6: ['Base', 'Secondary', 'Tertiary', 'Accent', 'Highlight', 'Spark'],
+    7: ['Base', 'Secondary', 'Tertiary', 'Support', 'Accent', 'Highlight', 'Spark'],
+    8: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Accent', 'Highlight', 'Spark'],
+    9: ['Base', 'Secondary', 'Tertiary', 'Support', 'Backdrop', 'Touch', 'Accent', 'Highlight', 'Spark'],
+  };
+  function roleName(i, n) { const set = ROLE_SETS[n] || ROLE_SETS[5]; return set[i] || ('Extra ' + (i - 4)); }
   function hex(v) { return Organica.normalizeHex ? Organica.normalizeHex(v, '#888888') : String(v).toLowerCase(); }
   function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)); }
   function seedOf(text) { let h = 2166136261; for (const ch of String(text)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 9999) + 1; }
@@ -90,7 +97,7 @@
   // ── get(id): the palette whole ──
   function tintsOf(h) {
     const t = {};
-    Organica.color.scale(h).forEach(st => { t[st.step || 50] = st.hex; });
+    if (Organica.color) Organica.color.scale(h).forEach(st => { t[st.step || 50] = st.hex; });   // color.js: a page without it gets no tints
     return t;
   }
   function get(id) {
@@ -128,7 +135,7 @@
   // The shading context of a palette (or of plain hexes): the pool its shadow inks snap to.
   function ctx(pal) {
     const hexes = !pal ? [] : Array.isArray(pal) ? pal : (pal.colours || []).map(c => c.hex);
-    return { tints: [].concat.apply([], hexes.map(h => Organica.color.scale(h).map(st => st.hex))) };
+    return { tints: Organica.color ? [].concat.apply([], hexes.map(h => Organica.color.scale(h).map(st => st.hex))) : [] };
   }
 
   // ── saveAsNew: always a new palette, in TuneSutra's format ──
@@ -141,6 +148,12 @@
     while (Object.prototype.hasOwnProperty.call(taken, name)) name = root + tail + ' ' + (k++);
     return name;
   }
+  // The name a copy would take: '<name> · <Tool>', numbered while taken (the save dialog proposes it).
+  function nameFor(pal, opts) {
+    opts = opts || {};
+    return freeName(opts.name || (pal && pal.name), opts.tool, readOf(saved()));
+  }
+  // opts.name: the name chosen in the dialog — used as it is, numbered only if it is taken (never overwrites).
   function saveAsNew(pal, opts) {
     opts = opts || {};
     const st = saved();
@@ -148,7 +161,7 @@
     const all = st.read() || {}, S = Organica.shading;
     const cols = (pal.colours || []).slice(0, 9).map(c => Object.assign({}, c, { hex: hex(c.hex) }));
     if (!cols.length) throw new Error('palettes: a palette needs a colour');
-    const n = cols.length, P = partsFor(n), name = freeName(opts.name || pal.name, opts.tool, all);
+    const n = cols.length, P = partsFor(n), name = opts.name ? freeName(opts.name, null, all) : freeName(pal.name, opts.tool, all);
     const names = cols.map((c, i) => c.name || roleName(i, n));
     const shades = cols.map(c => c.shade ? clone(c.shade) : null);
     const prefix = String(name).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -180,7 +193,7 @@
       tool: opts.tool || null,
       savedAt: new Date().toISOString(),
     };
-    st.write(all);
+    if (st.write(all) === false) return null;   // storage full: Organica.storageFull has said so
     emit();
     return name;
   }
@@ -207,5 +220,5 @@
   }
   function onChange(fn) { wire(); subs.add(fn); return () => subs.delete(fn); }
 
-  Organica.palettes = { list: list, get: get, pull: pull, onChange: onChange, saveAsNew: saveAsNew, ctx: ctx, ROLE_PARTS: ROLE_PARTS };
+  Organica.palettes = { list: list, get: get, pull: pull, onChange: onChange, saveAsNew: saveAsNew, nameFor: nameFor, ctx: ctx, roleName: roleName, ROLE_PARTS: ROLE_PARTS, ROLE_SETS: ROLE_SETS };
 })(typeof window !== 'undefined' ? window : this);
