@@ -18,6 +18,7 @@
      WORDS                                          the image-scale words and their positions
      generate(baseHex, opts, seed)                  hue × tone generator (opts: image, hue, tone, purity, n, neutral)
      ROLE_SPEC, ROLE_PARTS, generateRoles(mainHex, n, seed)   the role generator, 2–9 colours, in house.js's role order
+     roleColourFor(part, got, seed)                  one more colour for one role, given the palette's others
      extract(rgba, { n, pick: 'area' | 'spread', seed }) → [{ hex, share }]   a palette from an image's pixels, largest first
    Deterministic: the same arguments always give the same result. */
 (function (global) {
@@ -360,6 +361,17 @@
     });
     return parts.map(part => ({ part, hex: got[part] }));
   }
+  // One colour for one role, in a palette that already has others (TuneSutra's Add a colour, Nov 20, 2026 — Diego: the
+  // role rule, as Make). got = { part: hex } of the colours there; the role is read from its own source role (ROLE_SPEC
+  // .from), else from the main colour, else the first; it keeps ΔE ≥ 8 from every colour there. null for 'main' (it has
+  // no rule: it is the key colour). Same arguments → same colour.
+  function roleColourFor(part, got, seed) {
+    const spec = ROLE_SPEC[part], hexes = Object.keys(got).map(k => toHex(got[k]));
+    if (!spec || !hexes.length) return null;
+    const R = rng((Math.imul(seed | 0, 2654435761) >>> 0) || 1);
+    for (let i = 0; i < 4; i++) R();
+    return roleColour(spec, read(got[spec.from] || got.main || hexes[0]), R, hexes);
+  }
 
   // ---------- a palette from an image ----------
   // extract(rgba, { n, pick, seed }) → [{ hex, share }] largest share first (share in %, the lot sums to 100).
@@ -434,6 +446,6 @@
   O.hueTone = {
     HUES, TONES, FAMS, NEUTRALS, METAL, WORDS, ROLE_SPEC, ROLE_PARTS,
     toHex, toneColour, hueIndex, read, toneDist, hueStep, cellName,
-    nameOf, settleNames, readPalette, harmonyOf, imagePos, rng, generate, generateRoles, extract,
+    nameOf, settleNames, readPalette, harmonyOf, imagePos, rng, generate, generateRoles, roleColourFor, extract,
   };
 })(typeof window !== 'undefined' ? window : globalThis);

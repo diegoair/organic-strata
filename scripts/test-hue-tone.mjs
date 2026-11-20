@@ -169,5 +169,30 @@ const isHex = h => /^#[0-9a-f]{6}$/.test(h);
   check('mood: pale warm pinks are warm and soft', softWarm.x < -0.2 && softWarm.y > 0.3, JSON.stringify(softWarm));
 }
 
+// 13. One more colour for one role (TuneSutra's Add a colour, Nov 20, 2026): distinct from the palette, deterministic,
+// and every role that can be added gets one.
+{
+  let clash = 0, missing = 0, total = 0;
+  ['#e5000d', '#1a439b', '#119352', '#fbaec1', '#963a04'].forEach((key, ki) => {
+    for (let n = 2; n < 9; n++) {
+      for (let s = 1; s <= 10; s++) {
+        const pal = HT.generateRoles(key, n, ki * 100 + s), got = {}; pal.forEach(x => { got[x.part] = x.hex; });
+        const next = HT.ROLE_PARTS[n + 1].filter(p => !(p in got));
+        next.forEach(part => {
+          total++;
+          const hx = HT.roleColourFor(part, got, s * 7 + n);
+          if (!hx) { missing++; return; }
+          if (Object.values(got).some(h => C.deltaE(h, hx) < 8)) clash++;
+        });
+      }
+    }
+  });
+  check('roleColourFor: a colour for every role added (' + total + ')', missing === 0, missing + ' missing');
+  check('roleColourFor: never within ΔE 8 of a colour already there', clash <= total * 0.02, clash + ' of ' + total + ' (a neutral fallback after 20 tries may land close)');
+  const g = { main: '#e5000d', sub: '#1a439b', accent: '#fbaec1' };
+  check('roleColourFor: same arguments, same colour', HT.roleColourFor('accent2', g, 42) === HT.roleColourFor('accent2', g, 42));
+  check('roleColourFor: null for main', HT.roleColourFor('main', g, 1) === null);
+}
+
 console.log(failed ? '\n' + failed + ' check(s) FAILED' : '\nALL PASS');
 process.exit(failed ? 1 : 0);

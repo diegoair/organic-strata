@@ -2060,10 +2060,12 @@ function addColour() {
   state.items.push(fresh);
   placeParts();   // the new colour takes the part that appears at this count; the others keep theirs
   const at = state.items.indexOf(fresh);
-  // the new colour follows the harmony rule (Diego, Nov 18, 2026) — what Generate would put in its place;
-  // the colours already there stay as they are. Already in the palette → the next tint of the last one.
-  const gen = generateHarmony()[at];
-  if (gen && colors().filter((h, j) => j !== at).indexOf(gen) < 0) fresh.hex = gen;
+  // the new colour follows the role rule (Diego, Nov 20, 2026 — was the OKLCH harmony rule, Nov 18): the colour the
+  // role it takes at this count gets in Make › Built by Roles, read from the colours already there (Organica.hueTone
+  // .roleColourFor); they stay as they are. Same palette + same count → the same colour. No rule → the next tint.
+  const got = {}; state.items.forEach((it, j) => { if (j !== at && it.part) got[it.part] = it.hex; });
+  const pick = HT.roleColourFor(fresh.part, got, (state.house || 1) * 10 + count());
+  if (pick) fresh.hex = pick;
   state.activeIndex = at;
   tintSel = null;
   ctrlFocus = count() < COUNT_MAX ? 'add' : 'card' + at;   // the keyboard stays where it was
