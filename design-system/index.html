@@ -1771,6 +1771,17 @@ picker.invalidate('oak');   <span class="attr">/* after the preset is re-saved *
   &lt;<span class="tag">button</span> <span class="attr">type</span>=<span class="str">"button"</span> <span class="attr">class</span>=<span class="str">"seg-btn"</span> <span class="attr">data-aria-own</span> <span class="attr">aria-pressed</span>=<span class="str">"false"</span>&gt;90°&lt;/<span class="tag">button</span>&gt;
 &lt;/<span class="tag">div</span>&gt;
 <span class="attr">/* panel.css */</span> .seg-ctrl--multi { flex-wrap: wrap; gap: var(--space-1); }  .seg-ctrl--multi .seg-btn { flex: 1 1 0; padding: 0; margin-left: 0; border-radius: var(--radius-sm); }</pre>
+      <h3 class="ds-sub">As wide as its buttons — <code>.seg-ctrl--fit</code></h3>
+      <p class="ds-desc">A segmented control fills its row by default (<code>flex: 1</code>, each button <code>flex: 1</code>). <code>--fit</code> keeps it <strong>as wide as its buttons</strong>, capped at the container — for a tab row on a page, a filter beside other filters, a control in the floatbar. It works in a flex row and in a block; each use keeps its own button padding; with <code>--multi</code> the chips keep their own widths and still wrap. Decided by Diego, Nov 20, 2026; consumers: TuneSutra (Make / Explore sub-views, Your palettes filter, Explore’s Mood chips), the type-tester floatbar of Living Path and Apostate, Living Path’s glyph tools.</p>
+      <div class="ds-example">
+        <div class="seg-ctrl seg-ctrl--fit" id="ds-segfit" role="group" aria-label="Show palettes">
+          <button type="button" class="seg-btn active" aria-pressed="true">All</button>
+          <button type="button" class="seg-btn" aria-pressed="false">Starred</button>
+          <button type="button" class="seg-btn" aria-pressed="false">Saved</button>
+        </div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"seg-ctrl seg-ctrl--fit"</span> <span class="attr">role</span>=<span class="str">"group"</span> <span class="attr">aria-label</span>=<span class="str">"Show palettes"</span>&gt;…&lt;/<span class="tag">div</span>&gt;
+<span class="attr">/* panel.css */</span> .seg-ctrl--fit { flex: none; width: max-content; max-width: 100%; }  .seg-ctrl--fit .seg-btn { flex: none; }</pre>
     </section>
 
     <section class="ds-entry" id="dual-range">

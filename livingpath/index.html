@@ -130,7 +130,6 @@
     border:1px solid var(--border); border-radius:var(--radius-md); backdrop-filter:blur(6px);
   }
   #glyphTools[hidden]{display:none}
-  #glyphTools .seg-ctrl{flex:0 0 auto}
   #glyphTools .seg-btn{flex:0 0 auto; overflow:visible; padding:0 var(--space-3); white-space:nowrap}
   #glyphTools .mini-btn{white-space:nowrap}
   #glyphTools .mini-btn.is-armed{background:var(--danger); border-color:var(--danger); color:var(--paper)}
@@ -219,7 +218,7 @@
       <input type="range" id="tbTrack" min="-40" max="400" step="5" value="0">
       <b class="fb-val" id="tbTrackVal">0</b>
     </label>
-    <div class="seg-ctrl" role="group" aria-label="Align">
+    <div class="seg-ctrl seg-ctrl--fit" role="group" aria-label="Align">
       <button class="seg-btn" data-align="left" aria-pressed="false" aria-label="Align left"><svg class="ico" data-icon="align-left" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3.5h14M1 7h9M1 10.5h12"/></svg></button>
       <button class="seg-btn" data-align="center" aria-pressed="true" aria-label="Align centre"><svg class="ico" data-icon="align-center" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3.5h14M3.5 7h9M2 10.5h12"/></svg></button>
       <button class="seg-btn" data-align="right" aria-pressed="false" aria-label="Align right"><svg class="ico" data-icon="align-right" viewBox="0 0 16 16" aria-hidden="true"><path d="M1 3.5h14M6 7h9M3 10.5h12"/></svg></button>
@@ -1306,7 +1305,7 @@ let _resetGlyphArmed=null;
 function buildGlyphTools(){
   const t=document.getElementById('glyphTools');
   t.innerHTML =
-    '<div class="seg-ctrl" role="group" aria-label="Glyph view">'
+    '<div class="seg-ctrl seg-ctrl--fit" role="group" aria-label="Glyph view">'
     +'<button class="seg-btn" data-gm="edit" aria-pressed="true">Edit</button>'
     +'<button class="seg-btn" data-gm="preview" aria-pressed="false">Preview</button>'
     +'</div>'

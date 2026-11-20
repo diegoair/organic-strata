@@ -136,11 +136,10 @@
   .ts-nav__learn { font-size: var(--fs-small); color: var(--ink); }
   .ts-nav__learn[aria-current="page"] { color: var(--accent-warm); }
   .ts-nav .org-btn { margin-block: var(--space-2); }
-  .ts-subnav { display: flex; width: max-content; max-width: 100%; margin-bottom: var(--space-6); }   /* .seg-ctrl is flex: 1 — here it keeps its own width */
-  .ts-subnav .seg-btn { flex: none; padding: 0 var(--space-4); text-decoration: none; display: inline-flex; align-items: center; }
+  .ts-subnav { margin-bottom: var(--space-6); }   /* .seg-ctrl--fit: its own width */
+  .ts-subnav .seg-btn { padding: 0 var(--space-4); text-decoration: none; display: inline-flex; align-items: center; }
   .ts-filter { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-5); }
-  .ts-filter .seg-ctrl { flex: none; }
-  .ts-filter .seg-btn { flex: none; padding: 0 var(--space-4); }   /* its own width: .seg-btn is flex: 1 from a zero basis */
+  .ts-filter .seg-btn { padding: 0 var(--space-4); }
   .ts-filter__count { font-size: var(--fs-small); color: var(--mid); }
   .ts-empty { font-size: var(--fs-small); color: var(--mid); max-width: 60ch; }
   /* Explore › Palettes (Nov 19, 2026, design-system CONSULT): the results on the left, the filters in a panel on the
@@ -160,7 +159,7 @@
   .ts-key { width: var(--row-h); height: var(--row-h); padding: 0; border-radius: 50%; border: 1px solid var(--border-strong); cursor: pointer; }   /* a circle (the stadium exception); the fill is the key colour, data */
   .ts-key[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }   /* a ring, not a colour change */
   .ts-key:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
-  .ts-filters .seg-ctrl--multi .seg-btn { flex: none; padding: 0 var(--space-3); }
+  .ts-filters .seg-ctrl--multi .seg-btn { padding: 0 var(--space-3); }
   .ts-filters .panel-select { width: 100%; }
   .ts-filters .sub-label { display: block; }   /* on a span / label its margins would not apply */
   .ts-mi-thumb { display: block; width: 100%; height: auto; margin-bottom: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
@@ -2422,7 +2421,7 @@ function navHTML(v) {
     '<span class="ts-nav__spacer"></span>' +
     `<a class="ts-nav__learn" href="#learn"${v.tab === 'learn' ? ' aria-current="page"' : ''}>How colour works</a>` +
     '<a class="org-btn org-btn--primary" href="#new">New palette</a></div>';
-  if (SUBS[v.tab]) html += `<nav class="seg-ctrl ts-subnav" aria-label="${v.tab === 'make' ? 'Make' : 'Explore'}">` +
+  if (SUBS[v.tab]) html += `<nav class="seg-ctrl seg-ctrl--fit ts-subnav" aria-label="${v.tab === 'make' ? 'Make' : 'Explore'}">` +
     SUBS[v.tab].map(([id, href, label]) => `<a class="seg-btn${v.sub === id ? ' active" aria-current="page' : ''}" href="${href}">${label}</a>`).join('') + '</nav>';
   return html;
 }
@@ -2447,7 +2446,7 @@ function yourPalettesHTML() {
   const seg = [['all', 'All'], ['starred', 'Starred'], ['saved', 'Saved']].map(([id, label]) =>
     `<button type="button" class="seg-btn${homeShow === id ? ' active' : ''}" data-show="${id}" aria-pressed="${homeShow === id}">${label}</button>`).join('');
   return '<section class="ts-group"><h2 class="ts-group__title">Your palettes</h2>' +
-    `<div class="ts-filter"><div class="seg-ctrl" role="group" aria-label="Show palettes">${seg}</div>` +
+    `<div class="ts-filter"><div class="seg-ctrl seg-ctrl--fit" role="group" aria-label="Show palettes">${seg}</div>` +
     `<span class="ts-filter__count">${list.length === 1 ? '1 palette' : list.length + ' palettes'}</span></div>` +
     (list.length ? '' : `<p class="ts-empty">${empty}</p>`) +
     '<div class="ts-grid">' + (homeShow === 'starred' ? '' : NEW_CARD) + list.map(c => cardHTML(c.href, c.name, c.p, c.key)).join('') + '</div></section>';
@@ -2594,7 +2593,7 @@ function filtersHTML() {
     '<span class="sub-label" id="exp-keys-label">Key colour</span><div class="ts-keys" role="group" aria-labelledby="exp-keys-label">' +
     KEYS.map(k => `<button type="button" class="ts-key" data-key="${k.k}" aria-pressed="${EXP.keys.indexOf(k.k) >= 0}" aria-label="${esc(k.name)}" style="background:${k.hex}"></button>`).join('') + '</div>' +
     `<div class="ctrl-row"><span class="ctrl-label">Number of colours</span><span class="ctrl-val" id="exp-n-val">${EXP.nMin}–${EXP.nMax}</span></div><div id="exp-n"></div>` +
-    '<span class="sub-label" id="exp-moods-label">Mood</span><div class="seg-ctrl seg-ctrl--multi" role="group" aria-labelledby="exp-moods-label">' +
+    '<span class="sub-label" id="exp-moods-label">Mood</span><div class="seg-ctrl seg-ctrl--multi seg-ctrl--fit" role="group" aria-labelledby="exp-moods-label">' +
     HT.WORDS.map(w => `<button type="button" class="seg-btn" data-mood="${w[0]}" aria-pressed="${EXP.moods.indexOf(w[0]) >= 0}">${capWord(w[0])}</button>`).join('') + '</div>' +
     sel('exp-fam', 'Tone family', EXP.fam, Object.keys(HT.FAMS).map(k => [k, FAM_LABEL(k)])) +
     sel('exp-harmony', 'Hue relation', EXP.harmony, Object.keys(HARMONY_LABEL).map(k => [k, HARMONY_LABEL[k]])) +
