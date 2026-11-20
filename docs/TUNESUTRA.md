@@ -68,17 +68,19 @@ palette on screen returns to the library.
   `stepName()`; the shared scale keeps 0 for FVS). CSS `--violet-01-accent-500`, JSON
   `{ "violet-01": { "accent": { "500": { "$value", "$type": "color" } } } }`.
 - **Add / remove a colour on the sheet** (Nov 18, 2026: Diego, *togliere Colours 3 4 5 dalla barra
-  di destra … un più su una scheda vuota che può generare al massimo altre 2 schede*). After the
-  last card a dashed **+ card** — *Add a colour*, *2 left* / *1 left* — adds the next colour
-  — **following the Harmony rule** (Nov 18, 2026: Diego, *il nuovo colore segue la regola dell'harmony, di default è complementary*): the colour Generate would put in that place, the others untouched (a duplicate falls back to the next tint, `nextColour()`) — up to 5; **every card has a remove button while there are more than 3** (Nov 18, 2026: Diego, *ogni colore card si può eliminare fino a rimanere 3*) — a close icon on a paper chip, *Remove ‹name›*, shown **only while the pointer is over that card** (*la X per eliminarlo solo al mouse over*), or when it has the keyboard focus; always on a touch screen. Removing the Base makes the next colour the base. Both are HTML laid over the sheet (`#sheet-ctrls`), never in an export; the cards keep
-  the export's places, the + card narrower at 4 colours to stay on the sheet. ⌘Z undoes both. The
+  di destra … un più su una scheda vuota che può generare al massimo altre 2 schede*). On the
+  last card's right edge, at the card's middle, a **+ circle** (the shared `.org-btn--on-content`; *Add a colour (‹n› left)*
+  as its name and tooltip — Nov 20, 2026, option B: the dashed + card before it had only what was left of the row, a
+  sliver at 5 colours and nothing from 6 on) adds the next colour
+  — **following the Harmony rule** (Nov 18, 2026: Diego, *il nuovo colore segue la regola dell'harmony, di default è complementary*): the colour Generate would put in that place, the others untouched (a duplicate falls back to the next tint, `nextColour()`) — up to 9; **every card has a remove button while there are more than 2** (Nov 18, 2026: Diego, *ogni colore card si può eliminare fino a rimanere 3*) — a close icon on a paper chip, *Remove ‹name›*, shown **only while the pointer is over that card** (*la X per eliminarlo solo al mouse over*), or when it has the keyboard focus; always on a touch screen. Removing the Base makes the next colour the base. Both are HTML laid over the sheet (`#sheet-ctrls`), never in an export; the cards keep
+  the export's places; the + circle sits half on the last card, half in the gap, so it fits at every count up to 9. ⌘Z undoes both. The
   panel's Colours 3 · 4 · 5 and its colour chips are gone.
 - **Select a colour** by clicking its card on the sheet (or a house shape); a card click also
   opens the picker.
 - **The Palette section is gone** (Nov 18, 2026, night: Diego, *gli ink free devono essere quelli generati da regole di
   armonia, in modo da poter poi togliere da sopra* → *Sì, toglila*). Harmony, Lightness spread, Generate and the
   ΔE hint went with it; the harmony rules now live in Shadow › Ink › *Free* (§3). `generateHarmony()` stays for the
-  **+ card**: a new colour follows the palette's `harmony` — **Complementary** by default, a saved palette its own
+  **+ circle**: a new colour follows the palette's `harmony` — **Complementary** by default, a saved palette its own
   (and its saved `spread`). Generating a whole palette from the seed is no longer in the UI.
 - **Undo** — the floatbar's first button (`undo` icon, *Undo (⌘Z)*, as in FVS) or ⌘Z; covers every change.
 

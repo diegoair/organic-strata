@@ -48,18 +48,12 @@
   .ts-house-nav .org-btn { position: absolute; top: var(--house-cy, 30%); transform: translateY(-50%); pointer-events: auto; }
   .ts-house-nav #house-prev { left: var(--space-4); }
   .ts-house-nav #house-next { right: var(--space-4); }
-  /* the + card and the remove buttons, over the card row */
+  /* the + circle and the remove buttons, over the card row */
   .ts-sheet-ctrls { position: absolute; inset: 0; pointer-events: none; }
   .ts-sheet-ctrls > * { position: absolute; pointer-events: auto; }
-  .ts-add {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1);
-    border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: none;
-    color: var(--mid); font: inherit; font-size: var(--fs-micro); cursor: pointer;
-    transition: color var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
-  }
-  .ts-add:hover { color: var(--ink); border-color: var(--ink); }
-  .ts-add:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-  .ts-add__name { font-family: var(--font-display); font-size: var(--fs-small); }
+  /* Add a colour: the shared on-content circle on the last card's right edge, at the card's middle (Diego, Nov 20, 2026 —
+     option B; the dashed + card had only what was left of the row: a sliver at 5 colours, nothing from 6 on) */
+  .ts-add { translate: -50% -50%; }
   /* the remove button sits on the colour itself: the shared on-content circle (.org-btn--on-content, Nov 20, 2026 —
      a paper chip since Nov 18: a bare ink icon vanished on dark colours); shown while the pointer is on its card */
   .ts-remove { opacity: 0; }   /* fades with the shared circle's own transition */
@@ -1638,9 +1632,9 @@ function buildScene(screen) {
     });
     // (the Soft · Speckle tiles under each scale went, Nov 18, 2026, night — Diego: the Shadow dropdown has them)
   });
-  // The + card: after the last card, on screen only. The cards keep the export's places; at 4 colours
-  // the + card is narrower, to stay on the sheet.
-  if (screen && n < COUNT_MAX) { const ax = cx0 + n * (cw + CARD_GAP); addAt = [ax, y, Math.min(cw, BAR_X1 - ax), CARD_H]; }
+  // Add a colour, on screen only: a circle centred on the last card's right edge, half on the card, half in the gap or the
+  // margin, so it fits at every count; the cards keep the export's places (Diego, Nov 20, 2026, option B).
+  if (screen && n < COUNT_MAX) addAt = [cx0 + n * cw + (n - 1) * CARD_GAP, y + CARD_H / 2];
   y += CARD_H + 12 + 10 * (STEP_H + STEP_GAP) + 30;
 
   // Contrast — only the pairs that work best (Diego, Nov 18, 2026: "una versione molto più semplice,
@@ -1850,7 +1844,7 @@ function selectTint(i, t, key) {
     const el = ctrl('stage-svg').querySelector(`.ts-tint[data-i="${i}"][data-t="${at}"]`); if (el) el.focus({ preventScroll: true });
   }
 }
-// The controls laid over the sheet, at the scene's own coordinates: the + card, a remove button on each
+// The controls laid over the sheet, at the scene's own coordinates: the + circle, a remove button on each
 // card past the third, and the Colour section right of the Contrast pairs — none of it in an export.
 let sheetRO = null, ctrlFocus = null;   // ctrlFocus: what takes the focus after the controls are rebuilt
 function placeSheetCtrls(scene, svg) {
@@ -1861,9 +1855,10 @@ function placeSheetCtrls(scene, svg) {
   box.innerHTML = '';
   if (scene.addAt) {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'ts-add'; b.dataset.k = 'add';
-    const left = COUNT_MAX - count();
-    b.innerHTML = Organica.icons.get('plus', { size: 'lg' }) + '<span class="ts-add__name">Add a colour</span><span>' + left + ' left</span>';
+    b.type = 'button'; b.className = 'org-btn org-btn--icon org-btn--on-content ts-add'; b.dataset.k = 'add';
+    const left = COUNT_MAX - count(), name = 'Add a colour (' + left + ' left)';
+    b.setAttribute('aria-label', name); b.title = name;   // the count lives in the name and the tooltip
+    b.innerHTML = Organica.icons.get('plus');
     b.addEventListener('click', addColour);
     at(b, ...scene.addAt);
     box.appendChild(b);
@@ -2053,7 +2048,7 @@ function clearShapeSelection() {
   renderStage();
 }
 // The number of colours (Diego, Nov 18, 2026: "togliere Colours 3 4 5 dalla barra di destra … un più su
-// una scheda vuota che può generare al massimo altre 2 schede"): the + card after the last colour card
+// una scheda vuota che può generare al massimo altre 2 schede"): the + circle on the last colour card (a card until Nov 20, 2026)
 // adds one (up to 9 since Nov 19, 2026); a card past the second has its own remove button. Never fewer than 2.
 const COUNT_MIN = 2, COUNT_MAX = 9;   // 2–9 (Nov 19, 2026, redesign step 3), every count drawn on its house (house.js)
 function addColour() {
@@ -2082,7 +2077,7 @@ function removeColour(i) {
   state.items.splice(i, 1);
   state.activeIndex = clamp(state.activeIndex >= i ? state.activeIndex - 1 : state.activeIndex, 0, count() - 1);
   placeParts();   // a colour whose part has no place at this count takes a free one
-  ctrlFocus = count() > COUNT_MIN ? 'rm' + Math.min(i, count() - 1) : 'add';   // the next card's remove, or the + card
+  ctrlFocus = count() > COUNT_MIN ? 'rm' + Math.min(i, count() - 1) : 'add';   // the next card's remove, or the + circle
   tintSel = null;
   commit(true);
 }
