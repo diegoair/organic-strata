@@ -85,33 +85,19 @@
      (.saved, driven by comp.savedName), where it stays a permanent check-icon
      indicator, visible with no hover needed, that persists across
      re-renders. */
-  .fvs-thumb-quicksave {
-    position: absolute; top: var(--space-1); right: var(--space-1); width: 20px; height: 20px;
-    border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
-    display: flex; align-items: center; justify-content: center;
-    padding: 0; cursor: pointer;
-    opacity: 0; transition: opacity var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
-  }
+  /* The look — circle, size, paper chip, ink on hover, ink fill when saved (aria-pressed), the hit area and the focus
+     halo — is the shared on-content button (.org-btn--on-content, header.css; Diego, Nov 20, 2026: one shared form,
+     the saved state ink instead of --tool). Here: only where it sits and when it shows. */
+  .fvs-thumb-quicksave { position: absolute; top: var(--space-1); right: var(--space-1); opacity: 0; }
   .fvs-thumb-wrap:hover .fvs-thumb-quicksave, .fvs-thumb-quicksave:focus-visible { opacity: 1; }
-  @media (hover: hover) { .fvs-thumb-quicksave:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); } }
-  .fvs-thumb-quicksave.saved { opacity: 1; border-color: var(--tool); background: var(--tool); color: var(--paper); }
-  /* Hovering an already-saved ✓ previews the delete it's about to do. */
-  .fvs-thumb-quicksave.saved.delete-hover { border-color: var(--danger); background: var(--danger); color: var(--paper); }
-  /* Hit area: the 20px circle keeps its size, the target grows to --hit-min (#hit-areas). */
-  .fvs-thumb-quicksave::before, .fvs-thumb-tile::before { content: ''; position: absolute; inset: calc((20px - var(--hit-min)) / 2); }
-  /* "Use as Paper tile" — same hover-reveal circle as quick-save, one slot to
-     its left (4px + 20px + 3px gap), neutral --ink on hover rather than
-     --tool's green so it reads as a distinct action from Save. */
-  .fvs-thumb-tile {
-    position: absolute; top: var(--space-1); right: calc(var(--space-1) + 20px + 3px); width: 20px; height: 20px;
-    border-radius: 50%; border: 1px solid var(--border); background: var(--paper); color: var(--ink);
-    display: flex; align-items: center; justify-content: center;
-    padding: 0; cursor: pointer;
-    opacity: 0; transition: opacity var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
-  }
-  .fvs-thumb-tile:focus-visible { opacity: 1; }
-  .fvs-thumb-tile[aria-pressed="true"] { opacity: 1; border-color: var(--tool); background: var(--tool); color: var(--paper); }
-  .fvs-thumb-tile:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+  .fvs-thumb-quicksave.saved { opacity: 1; }
+  /* Hovering an already-saved ✓ previews the delete it's about to do (a standing exception to the shared hover, ledger §3). */
+  .org-btn.fvs-thumb-quicksave.saved.delete-hover { border-color: var(--danger); background: var(--danger); color: var(--paper); }
+  /* "Use as Paper tile" — the same hover-reveal circle, one slot left of the quick-save. */
+  .fvs-thumb-tile { position: absolute; top: var(--space-1); right: calc(var(--space-1) * 2 + var(--slo-h)); opacity: 0; }
+  .fvs-thumb-tile:focus-visible, .fvs-thumb-tile[aria-pressed="true"] { opacity: 1; }
+  /* a disabled circle (an empty view) stays hidden at rest: .org-btn:disabled's 0.42 would otherwise show it */
+  .org-btn:is(.fvs-thumb-quicksave, .fvs-thumb-tile):disabled:not(.saved) { opacity: 0; }
   .fvs-thumb-caption, .fvs-library-caption { font-size: var(--fs-micro); color: var(--mid); line-height: var(--lh-snug); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fvs-library-caption { display: block; width: 76px; margin-top: var(--space-1); }
 
@@ -536,7 +522,6 @@
   .fg-var__label { font-size: var(--t-caption-size); color: var(--mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .fg-var__error { margin: 0; padding: var(--space-3); font-size: var(--t-caption-size); color: var(--danger); line-height: normal; }
   .fg-var__tools { position: absolute; top: var(--space-1); right: var(--space-1); display: flex; gap: var(--space-1); opacity: 0; transition: opacity var(--dur-fast) var(--ease-standard); }
-  .fg-var__tools .icon-btn { background: var(--paper); }
   .fg-var:hover .fg-var__tools, .fg-var:focus-within .fg-var__tools, .fg-var.is-pinned .fg-var__tools { opacity: 1; }
   @media (hover: none) { .fg-var__tools { opacity: 1; } }
   .fg-block { width: 100%; margin-bottom: var(--space-2); }   /* a node's main action, full width (as Symbol's Generate grid in canvas) */
@@ -579,7 +564,6 @@
   .fg-quick { flex-wrap: wrap; }
   .fg-warn { color: var(--danger); }
   .fg-var__tools { gap: var(--space-2); top: auto; bottom: calc(var(--t-caption-size) * 1.5 + var(--space-2)); }   /* bottom-right of the sheet: the child's output port is on the top-right corner */
-  .fg-var__tools .icon-btn { min-width: var(--hit-min); min-height: var(--hit-min); justify-content: center; }
   #btn-export.is-graph-export .chev { display: none; }   /* on the Figure graph it shows the Export node — no menu */
   .fg-card__checks { margin: 0 0 var(--space-2); display: flex; align-items: center; gap: var(--space-1); font-size: var(--t-caption-size); color: var(--mid); }
   .fg-card__checks.is-bad { color: var(--danger); }

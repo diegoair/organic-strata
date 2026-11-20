@@ -243,9 +243,9 @@ function renderBody(node, entry, el) {
         <div class="fg-card__sheet" data-theme="light"><img class="fg-card__img" alt="${esc(nodeLabel(node))}" src="${figureImg(node.id, f.svg)}"></div>
         <figcaption class="fg-var__label">${item ? esc(item) + ' · ' : ''}${esc(vr.slot === 0 ? 'As set up' : vr.label)}${(kept => kept ? ' · ' + esc('Opens ' + kept.name) : '')(vr.spec && rootFigureOf(node) && rootFigureOf(node).params.symbolId ? keptSymbolOf(node, vr) : null)}</figcaption>
         ${vr.spec ? `<div class="fg-var__tools">
-          <button type="button" class="icon-btn org-btn--icon-toggle" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node) : ''}">${Organica.icons.get(vr.pinned ? 'pin-filled' : 'pin')}</button>${(parentNode(node) || {}).type === 'figure-var' ? '' : `
-          <button type="button" class="icon-btn" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node) : ''}">${Organica.icons.get('figure-from')}</button>
-          <button type="button" class="icon-btn" data-act="use" aria-label="Use variation ${par ? variationNo(node) : ''}">${Organica.icons.get('check')}</button>`}</div>` : ''}
+          <button type="button" class="org-btn org-btn--icon org-btn--icon-toggle org-btn--on-content" data-act="pin" aria-pressed="${!!vr.pinned}" aria-label="Pin variation ${par ? variationNo(node) : ''}">${Organica.icons.get(vr.pinned ? 'pin-filled' : 'pin')}</button>${(parentNode(node) || {}).type === 'figure-var' ? '' : `
+          <button type="button" class="org-btn org-btn--icon org-btn--on-content" data-act="from" aria-label="New Figure from variation ${par ? variationNo(node) : ''}">${Organica.icons.get('figure-from')}</button>
+          <button type="button" class="org-btn org-btn--icon org-btn--on-content" data-act="use" aria-label="Use variation ${par ? variationNo(node) : ''}">${Organica.icons.get('check')}</button>`}</div>` : ''}
       </figure>`;
     el.querySelectorAll('.fg-card__img').forEach(img => img.addEventListener('load', () => { ctl.remeasure(node.id); if (par) restackChildren(par.id); }, { once: true }));
     if (!el._varBound) { el._varBound = true; el.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (!b) return; e.stopPropagation(); variationAction(node.id, b.dataset.act); }); }

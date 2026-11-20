@@ -513,6 +513,26 @@
 .org-btn--icon svg, .icon-btn svg { width: var(--space-5); height: var(--space-5); }
 .org-btn--block, .panel-btn, .upload-btn { width: 100%; }
 
+/* ON CONTENT — an icon button that sits on a picture, a colour or a thumbnail (Diego, Nov 20, 2026: one shared form for
+   the five that did this job — TuneSutra's card star and colour remove, FVS's quick-save and Paper-tile circles and its
+   variation tools). A circle (the pill exception, not a corner radius), the small button's height (--slo-h, 20), a paper
+   chip with a strong border so it reads on any colour; hover fills it with ink; pressed is the ink fill too — except an
+   icon toggle, whose icon is its state (the star stays a star on paper). Its focus ring stands on a paper halo, so the
+   ring reads on any colour (the rule: a focus ring on content stands on a --paper halo). The hit area grows to
+   --hit-min without growing the circle. Placing it (top / right) and showing it only on hover are the caller's job.
+   Use on .org-btn.org-btn--icon. */
+.org-btn--on-content { --btn-h: var(--slo-h); position: relative; border-radius: 50%; border-color: var(--border-strong); background: var(--paper); color: var(--ink);
+  transition: border-color var(--dur-fast), background var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast) var(--ease-standard); }   /* opacity: for the callers that show it on hover */
+.org-btn--on-content svg { width: var(--icon-sm); height: var(--icon-sm); }
+.org-btn--on-content::before { content: ''; position: absolute; inset: calc((var(--btn-h) - var(--hit-min)) / 2); }
+.org-btn--on-content.org-btn--icon-toggle,
+.org-btn--on-content.org-btn--icon-toggle[aria-pressed="true"] { border-color: var(--border-strong); background: var(--paper); color: var(--ink); }
+.org-btn--on-content:focus-visible { box-shadow: 0 0 0 var(--space-2) var(--paper); }
+@media (hover: hover) {
+  .org-btn.org-btn--on-content:hover:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+}
+.org-btn.org-btn--on-content:active:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--gray-700); border-color: var(--gray-700); color: var(--paper); }
+
 /* A disabled control must say WHY (aria-describedby / data-why). Opacity kept
    above 0.4 so the label stays readable; no hover or pressed response (the hover rules above
    exclude it, so the old ":disabled:hover" reset rules are gone). */

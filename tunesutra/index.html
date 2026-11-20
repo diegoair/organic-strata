@@ -60,12 +60,11 @@
   .ts-add:hover { color: var(--ink); border-color: var(--ink); }
   .ts-add:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .ts-add__name { font-family: var(--font-display); font-size: var(--fs-small); }
-  /* the remove button sits on the colour itself: a paper chip, so it reads on any colour (a bare
-     ink icon vanished on dark colours — Diego, Nov 18, 2026) */
-  .ts-remove { background: var(--paper); border: 1px solid var(--border-strong); color: var(--ink); opacity: 0; transition: opacity var(--dur-fast) var(--ease-standard); }
+  /* the remove button sits on the colour itself: the shared on-content circle (.org-btn--on-content, Nov 20, 2026 —
+     a paper chip since Nov 18: a bare ink icon vanished on dark colours); shown while the pointer is on its card */
+  .ts-remove { opacity: 0; }   /* fades with the shared circle's own transition */
   .ts-remove.is-shown, .ts-remove:hover, .ts-remove:focus-visible { opacity: 1; }
   @media (hover: none) { .ts-remove { opacity: 1; } }
-  @media (hover: hover) { .ts-remove:hover { border-color: var(--ink); } }
   /* the Colour section, right of the Contrast pairs: drawn at the sheet's own scale (renderStage) */
   .ts-colour-dock { position: absolute; transform-origin: 0 0; }   /* the six value tiles alone (Diego, Nov 18, 2026: "leave only the 6 boxes") */
   .ts-colour-dock .panel-section { border-bottom: 0; padding: 0; }
@@ -116,12 +115,8 @@
   .ts-card:has(.ts-card__link:hover) { border-color: var(--ink); }
   .ts-card:has(.ts-card__link:focus-visible) { outline: 2px solid var(--ink); outline-offset: 2px; }
   /* the star sits on the house, top right, on a paper chip so it reads on any colour (Diego, Nov 20, 2026) */
-  /* the chip has the editor's remove chip's border (.ts-remove), so it shows on a white house too; its focus ring stands on a
-     paper halo, so it reads on any house colour (Diego, Nov 20, 2026 — the ring vanished on 6 of 19 houses in light, 13 in dark) */
-  .ts-card .ts-card__star { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1; background: var(--paper); border-color: var(--border-strong); }   /* .org-btn--icon at --row-h already meets --hit-min */
-  .ts-card .ts-card__star:focus-visible { box-shadow: 0 0 0 var(--space-2) var(--paper); }   /* under the 2px ring at 2px offset */
-  @media (hover: hover) { .ts-card .ts-card__star:hover, .ts-card .ts-card__star[aria-pressed="true"]:hover { background: var(--track-bg); border-color: var(--ink); } }
-  .ts-card .ts-card__star[aria-pressed="true"]:active { border-color: var(--ink); }   /* a starred star keeps its border while pressed (the shared pressed rules clear it) */   /* the chip above beats the shared hover: give it back */
+  /* the star sits on the house, top right: the shared on-content circle (.org-btn--on-content, header.css; Nov 20, 2026) */
+  .ts-card .ts-card__star { position: absolute; top: var(--space-2); right: var(--space-2); z-index: 1; }
 
   /* The three tabs (Nov 19, 2026, Diego: Your palettes · Make · Explore). Local until a second tool needs them;
      the current-page marker is the design system nav's (.ds-nav a.current), turned to sit under the word. */
@@ -1875,7 +1870,7 @@ function placeSheetCtrls(scene, svg) {
   }
   scene.removeAt.forEach(r => {
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'org-btn org-btn--icon ts-remove'; b.dataset.k = 'rm' + r.i;
+    b.type = 'button'; b.className = 'org-btn org-btn--icon org-btn--on-content ts-remove'; b.dataset.k = 'rm' + r.i;
     b.setAttribute('aria-label', 'Remove ' + dispName(r.i));
     b.innerHTML = Organica.icons.get('close');
     b.addEventListener('click', () => removeColour(r.i));
@@ -2359,7 +2354,7 @@ function cardHTML(href, name, p, key) {
     // the colours as bars, one per colour, all of them always fitting (Diego, Nov 20, 2026 — they were cut-off hex codes)
     `<span class="ts-card__bars" role="img" aria-label="${esc(p.colors.length + ' colours: ' + p.colors.map(c => HT.nameOf(c)).join('; '))}" data-colors="${esc(p.colors.join(' '))}" data-theme="light">` +
     p.colors.map(c => `<span style="background:${esc(c)}"></span>`).join('') + '</span></span>' +
-    `<button type="button" class="org-btn org-btn--icon org-btn--icon-toggle ts-star ts-card__star" data-key="${esc(key)}" aria-pressed="${on}" aria-label="Star ${esc(name)}">${starHTML(on)}</button></article>`;
+    `<button type="button" class="org-btn org-btn--icon org-btn--icon-toggle org-btn--on-content ts-star ts-card__star" data-key="${esc(key)}" aria-pressed="${on}" aria-label="Star ${esc(name)}">${starHTML(on)}</button></article>`;
 }
 const NEW_CARD = '<a class="ts-card ts-card--new" href="#new"><span class="ts-card__art" aria-hidden="true"><svg class="ico ico--xl" data-icon="plus" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></span><span class="ts-card__label"><span class="ts-card__name">New palette</span><span class="ts-card__meta">start from three colours</span></span></a>';
 

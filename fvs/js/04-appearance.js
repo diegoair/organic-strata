@@ -271,7 +271,7 @@ export function elementTileButton(rot, flipH, flipV, label) {
   const g = readGroundControls(), on = !!(savedName && g && g.patType === 'element' && g.src === 'saved:' + savedName);
   const b = document.createElement('button');
   b.type = 'button';
-  b.className = 'fvs-thumb-tile';
+  b.className = 'org-btn org-btn--icon org-btn--on-content fvs-thumb-tile';
   b.setAttribute('aria-pressed', String(on));
   const lbl = on ? 'This view is the Paper tile' : 'Use this view' + (label && label !== '0°' ? ' (' + label + ')' : '') + ' as the Paper tile';
   b.setAttribute('aria-label', lbl); b.title = lbl;
@@ -313,7 +313,8 @@ export function elementQuickSaveButton(rot, flipH, flipV, label) {
 export function quickSaveButton({ savedName, labelSave, labelSaved, labelRemove, onSave, onRemove }) {
   const b = document.createElement('button');
   b.type = 'button';
-  b.className = 'fvs-thumb-quicksave' + (savedName ? ' saved' : '');
+  b.className = 'org-btn org-btn--icon org-btn--on-content fvs-thumb-quicksave' + (savedName ? ' saved' : '');
+  b.setAttribute('aria-pressed', String(!!savedName));   // saved = the shared pressed fill (ink)
   const show = (icon, label) => { b.innerHTML = Organica.icons.get(icon, { size: 'sm' }); b.setAttribute('aria-label', label); b.title = label; };
   show(savedName ? 'check' : 'plus', savedName ? labelSaved : labelSave);
   if (savedName) {
