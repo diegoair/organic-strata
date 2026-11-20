@@ -2449,7 +2449,7 @@ function yourPalettesHTML() {
     `<button type="button" class="seg-btn${homeShow === id ? ' active' : ''}" data-show="${id}" aria-pressed="${homeShow === id}">${label}</button>`).join('');
   return '<section class="ts-group"><h2 class="ts-group__title">Your palettes</h2>' +
     `<div class="ts-filter"><div class="seg-ctrl seg-ctrl--fit" role="group" aria-label="Show palettes">${seg}</div>` +
-    `<span class="ts-filter__count">${list.length === 1 ? '1 palette' : list.length + ' palettes'}</span></div>` +
+    `<span class="ts-filter__count">${palCount(list.length)}</span></div>` +
     (list.length ? '' : `<p class="ts-empty">${empty}</p>`) +
     '<div class="ts-grid">' + (homeShow === 'starred' ? '' : NEW_CARD) + list.map(c => cardHTML(c.href, c.name, c.p, c.key)).join('') + '</div></section>';
 }
@@ -2945,7 +2945,7 @@ function swPanelHTML() {
     '<div class="panel-section"><h3>Library colours</h3>' +
     (cols.length ? '<ul class="ts-sw-list">' + cols.map(h => `<li class="ts-role"><span class="ts-role__sw" style="background:${h}"></span>${esc(HT.nameOf(h))} <span class="ts-sw-hex">${h.toUpperCase()}</span></li>`).join('') + '</ul>'
       : '<p class="org-panel__hint">No library colour falls in this swatch.</p>') +
-    (np ? `<p class="org-panel__hint">Used in ${np === 1 ? '1 palette' : np.toLocaleString('en-GB') + ' palettes'}</p>` : '') +
+    (np ? `<p class="org-panel__hint">Used in ${palCount(np)}</p>` : '') +
     `<div class="ts-sw-actions"><a class="org-btn org-btn--primary org-btn--block" href="#make?k=${c.hex.slice(1)}">Make from this colour</a>` +
     (np ? '<button type="button" class="org-btn org-btn--block" data-sw-show>Show palettes</button>' : '') + '</div></div>';
 }
@@ -3027,7 +3027,7 @@ function moodMapHTML(byMood) {
   const svg = moodSvg(byMood, false);
   const words = HT.WORDS.map(w => {
     const n = (byMood[w[0]] || []).length, on = EXP.moods.indexOf(w[0]) >= 0;
-    return `<button type="button" class="org-btn ts-mood" data-mood-pick="${esc(w[0])}" aria-pressed="${on}" aria-label="${esc(capWord(w[0]))}, ${n === 1 ? '1 palette' : n.toLocaleString('en-GB') + ' palettes'}" ` +
+    return `<button type="button" class="org-btn ts-mood" data-mood-pick="${esc(w[0])}" aria-pressed="${on}" aria-label="${esc(capWord(w[0]))}, ${palCount(n)}" ` +
       `style="left:${(MOOD_X(w[1]) / 420 * 100).toFixed(2)}%;top:${(MOOD_Y(w[2]) / 420 * 100).toFixed(2)}%">${esc(capWord(w[0]))}</button>`;
   }).join('');
   return `<div class="ts-moodmap" role="group" aria-label="Mood map" data-theme="light"><svg viewBox="0 0 420 420" aria-hidden="true">${svg}</svg>${words}</div>`;
