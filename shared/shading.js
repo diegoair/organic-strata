@@ -1,0 +1,485 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+ * shading.js — Organica.shading: a colour's GRADIENT and SHADOW, drawn as vector plates.
+ *
+ * Promoted from TuneSutra (Nov 20, 2026) at its second consumer — FVS — so a palette saved in
+ * TuneSutra draws the same in every tool (Diego: "caricarle con tutti i loro shadow, grain e
+ * parametri"). The engine is TuneSutra's, unchanged; what it read from TuneSutra's state comes
+ * in as a context. scripts/test-shading.mjs keeps it byte-identical to what TuneSutra drew.
+ *
+ * A DEFINITION (GradDef) is one object for the fill and its shadow — see DEFAULT below.
+ * The output is PLATES: [{ hex, paper, d, cells, smooth? }] — one entry per ink, `d` the SVG
+ * path (even-odd) of everything that ink owns in a w×h box. Every cell is one pure ink, so the
+ * drawing is vector everywhere and splits into plates; a `smooth` plate is a real SVG gradient.
+ *
+ *   const S = Organica.shading;
+ *   S.defs(hex, ctx)              → { soft, speckle, base, print, <texture>… }   the presets of a colour
+ *   S.normalize(def)              → def   upgrades a saved definition (TuneSutra's normalizeGrad)
+ *   S.withColour(def, hex, ctx)   → def   the colour's stop set to hex (the 900 follows while auto2)
+ *   S.plates(def, w, h, ctx)      → plates, cached (def + box + palette)
+ *   S.gradPlates(def, w, h, ctx)  → plates, uncached
+ *   S.shadowInks(def, hex, ctx)   → [halftone, core]
+ *   S.smoothMarkup(plate, id) · S.drawPlates(canvasCtx, plates) · S.platesSVG(plates, idPrefix)
+ *
+ * CONTEXT (optional everywhere):
+ *   tints   array, or a function → array: every tint (50–900) of the palette's colours — the pool a
+ *           shadow ink snaps to when its hue rule leaves the colour's own tints
+ *   scale   function(hex) → Organica.color.scale(hex)-shaped steps — a tool's own scale (TuneSutra's
+ *           keeps a moved colour's column, `scaleFrom`); default Organica.color.scale, cached
+ *   paper   the paper colour of a highlight / transparent stop (default Organica.contentColor('--paper'))
+ *
+ * LOAD ORDER: core.js → color.js → noise.js → shade-marks.js → this.
+ * ───────────────────────────────────────────────────────────────────────────── */
+(function (global) {
+  'use strict';
+  const Organica = global.Organica || (global.Organica = {});
+  const C = () => Organica.color;
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function num(v) { return +(+v).toFixed(2); }
+
+  // The default definition — TuneSutra's palette gradient as it starts (tunesutra/index.html state.grad).
+  const DEFAULT = {
+    type: 'linear',   // 'flat' (the first stop only) | 'linear' | 'radial'
+    angle: 90,        // CSS convention: 0 = to top, 90 = to right
+    stops: ['#c93ed6', '#c9863e'],
+    pos: null,        // a 0..1 position per stop, ascending; null = evenly spaced (palettes saved before Nov 2, 2026)
+    paper: false,     // fade to paper: the sheet's paper as a last, plate-less stop
+    // Every grain is one pure ink — the drawing is vector everywhere (Nov 18, 2026).
+    size: 0,          // GRAIN size in sheet units, 0–12 (0 = no grain: a smooth blend)
+    pattern: 'noise', // the grain: 'noise' (square cells at random) | 'dots' (round dots, evenly spread)
+    // SHADOW — its own switch, speck size, specks and seed since Nov 18, 2026 (Diego: Gradient · Grain · Shadow)
+    shadow: false,    // on / off
+    amount: 70,       // how strong, 1–100
+    speck: 2,         // speck / dot size, when the shadow has its own grid (Flat, or grain 0); on a grained blend it follows the grain
+    specks: 'specks', // RENDER: 'specks' (square cells) | 'dots' (a halftone screen) | 'bands' (hard steps) | 'smooth' | a shadeMarks texture
+    sseed: 1,         // the shadow's own seed
+    // the painter's shadow (Nov 18, 2026 — the Shadow lab): two inks made by these rules, snapped to the palette
+    hue: 'same',      // on the palette: 'same' | 'cool' | 'warm' | 'complement'; free: the harmony rules — 'same' (Monochromatic) | 'analogous' | 'complement' | 'split' | 'triadic' | 'tetradic'
+    shift: 60,        // how far toward that hue, 0–100
+    depth: 35,        // how dark the core gets, in OKLCH lightness ×100
+    lose: 0,          // chroma lost in the shadow, 0–100
+    glow: 0,          // chroma gained at the turning edge (in the halftone ink), 0–100
+    parts: { half: true, term: false, core: true, refl: false, high: false },
+    snap: true,       // each ink → the nearest of the palette's own tints
+    inkMid: null, inkCore: null,   // a hand-picked ink (null = the rule's)
+    dist: 'light',    // the shadow's spread: 'light' (away from a light) | 'even' (everywhere)
+    light: 315,       // Light from, degrees (0 = the top)
+    falloff: 50,      // 50 = straight; higher keeps the shadow to the far side
+    seed: 1,
+  };
+  const DEFAULT_JSON = JSON.stringify(DEFAULT);
+
+  // ── the context ──
+  const scaleCache = new Map();
+  function baseScale(hex) {
+    if (!scaleCache.has(hex)) scaleCache.set(hex, C().scale(hex));
+    return scaleCache.get(hex);
+  }
+  function tokenScale(hex, ctx) { return ctx && ctx.scale ? ctx.scale(hex) : baseScale(hex); }
+  function paletteTints(ctx) {
+    const t = ctx && ctx.tints;
+    return (typeof t === 'function' ? t() : t) || [];
+  }
+  function paperOf(ctx) { return ctx && ctx.paper ? ctx.paper : Organica.contentColor('--paper'); }
+
+  // ── SHADING — each colour's shadow noise (Nov 18, 2026; Diego: "per ogni colore un set di
+  // gradient con noise predefinito che mi crei delle sorte di shadow noise sulle forme").
+  // The presets of one colour, each drawn in a shape's own box with the light from its top:
+  // Soft (a smooth shadow), Speckle (square specks of deeper tints), and the shadeMarks textures.
+  // All are ink cells — vector, in every export.
+  // Two presets since Nov 18, 2026 (Diego: Shading moves into Shadow — None · Soft · Speckle; Stipple out, Pattern ›
+  // Dots does it): SOFT a gentle shadow, SPECKLE square specks. 'print' (Stipple) is still read, as Soft.
+  const SHADE_MODES = ['soft', 'speckle'], SHADE_NAME = { soft: 'Soft', speckle: 'Speckle', print: 'Soft' };
+  // the shadow types from the lab (Organica.shadeMarks): flat colour + that texture, a size it reads at
+  const TEXTURE_SIZE = { mottle: 3, 'dither-fs': 3, 'dither-blue': 3, 'dither-bayer': 3, 'pollen-dot': 4, 'pollen-stroke': 4, 'pollen-cross': 5, 'camo-spots': 4, 'camo-maze': 4, cells: 4 };
+  function shadeDefs(hex, ctx) {
+    const sc = tokenScale(hex, ctx), a = Math.max(0, sc.findIndex(st => st.anchor)), dir = a <= 7 ? 1 : -1;   // darker, unless already near black
+    const deep = sc[clamp(a + 5 * dir, 0, 9)].hex;   // eslint-disable-line no-unused-vars
+    // the gradient's second stop is the colour's own 900 (Diego, Nov 18, 2026) — its 50 when the colour is the 900
+    const shade = a === 9 ? sc[0].hex : sc[9].hex;
+    const base = { type: 'linear', angle: 180, stops: [hex, shade], auto2: true, pos: [0.2, 1], paper: false,
+      shadow: false, amount: 70, speck: 2, specks: 'specks', sseed: 7, hue: 'same', shift: 60, depth: 35, lose: 0, glow: 0,
+      parts: { half: true, term: false, core: true, refl: false, high: false }, snap: true, inkMid: null, inkCore: null, size: 0, pattern: 'noise', dist: 'light', light: 0, falloff: 50, seed: 7 };
+    // Flat draws only the first stop; the second is there so that switching it to Linear / Radial blends at once.
+    const speckle = Object.assign({}, base, { type: 'flat', shadow: true, amount: 70, speck: 2, falloff: 65 });
+    const soft = Object.assign({}, base, { type: 'flat', shadow: true, specks: 'smooth', amount: 60, depth: 25, falloff: 50 });   // a smooth shadow, no specks
+    const out = { soft: soft, speckle: speckle, print: soft, base: base };
+    Object.keys(TEXTURE_SIZE).forEach(t => { out[t] = Object.assign({}, speckle, { specks: t, speck: TEXTURE_SIZE[t], amount: 80 }); });
+    return out;
+  }
+  // The flat colour, no shadow — what "None" draws, and where an edit starts from.
+  function flatDef(hex, ctx) { return Object.assign({}, shadeDefs(hex, ctx).base, { type: 'flat', shadow: false }); }
+
+  // Integer-lattice hash → 0..1. (shared/noise.js's hash2 is built for
+  // continuous coordinates; on whole-number cells it repeats every 50.)
+  function cellHash(x, y, seed) {
+    let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(seed + 1, 1274126177);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+  // The threshold 0..1 of cell (c, r) for a pattern; `layer` decorrelates the
+  // blend's own dither from the shadow on top of it.
+  function patternThr(pattern, c, r, seed, layer) {
+    if (pattern === 'dots') {
+      const N = 64, ox = Math.floor(cellHash(seed, layer, 91) * N), oy = Math.floor(cellHash(layer, seed, 37) * N);
+      return Organica.dither.blueNoise(N)[((r + oy) % N) * N + ((c + ox) % N)];
+    }
+    return cellHash(c, r, seed + layer * 7919);
+  }
+
+  // Stop positions 0..1, one per colour; missing or stale → evenly spaced.
+  function evenPos(n) { return Array.from({ length: n }, (_, i) => n > 1 ? i / (n - 1) : 0); }
+  function stopPos(g) {
+    const n = g.stops.length;
+    return g.pos && g.pos.length === n ? g.pos.slice() : evenPos(n);
+  }
+  function colourStop(def) { const i = def.colourAt | 0; return i >= 0 && i < def.stops.length ? i : 0; }
+  function isClear(v) { return v === 'transparent'; }
+  // The stops actually drawn, with their positions: the chosen colours (only the
+  // first for a flat fill). A stop can be TRANSPARENT (Nov 18, 2026) — no ink there:
+  // it takes no plate and leaves the shape empty (`paper`: the support shows).
+  function gradStops(g, ctx) {
+    if (g.type === 'flat') return [{ hex: g.stops[colourStop(g)], paper: false, at: 0 }];   // Flat = the colour itself, wherever Reverse put it
+    const pos = stopPos(g);
+    return g.stops.map((hex, i) => isClear(hex) ? { hex: paperOf(ctx), paper: true, clear: true, at: pos[i] } : { hex: hex, paper: false, at: pos[i] });
+  }
+  // Which two stops a position falls between: { a, f } — f the 0..1 share of the way to a + 1.
+  function segAt(stops, t) {
+    const k = stops.length;
+    if (k < 2 || t <= stops[0].at) return { a: 0, f: 0 };
+    for (let a = 0; a < k - 1; a++) {
+      if (t <= stops[a + 1].at) { const span = stops[a + 1].at - stops[a].at; return { a: a, f: span > 1e-6 ? (t - stops[a].at) / span : 1 }; }
+    }
+    return { a: k - 2, f: 1 };
+  }
+  // A colour along the gradient — only for a new stop and the stop bar's preview:
+  // the drawing itself never mixes, every cell is one of the stops.
+  function colourAt(stops, t) {
+    if (stops.length < 2) return stops[0].hex;
+    const s = segAt(stops, t);
+    return C().mixIn('oklab', stops[s.a].hex, stops[s.a + 1].hex, s.f);
+  }
+
+  // Position along the gradient, 0..1, for a point of a w×h box.
+  function gradField(g, w, h) {
+    const cx = w / 2, cy = h / 2;
+    if (g.type === 'flat') return () => 0;
+    if (g.type === 'radial') { const r = Math.hypot(w, h) / 2; return (x, y) => Math.hypot(x - cx, y - cy) / r; }
+    return linearField(g.angle, w, h);
+  }
+  function linearField(angle, w, h) {
+    const cx = w / 2, cy = h / 2, rad = angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad);
+    const len = Math.abs(w * dx) + Math.abs(h * dy) || 1;
+    return (x, y) => ((x - cx) * dx + (y - cy) * dy) / len + 0.5;
+  }
+
+  // How much shadow lands at a point, 0..1, before Amount:
+  //   light — away from a light that comes from `light` degrees (0 = from the top): none on the lit
+  //           edge, full opposite. Falloff bends it: 50 = straight, higher keeps it to the far side.
+  //   even  — everywhere alike.
+  function noiseWeight(g, w, h) {
+    if (g.dist !== 'light') return () => 1;
+    const bend = Math.pow(4, (g.falloff - 50) / 50), f = linearField(g.light + 180, w, h);
+    return (x, y) => Math.pow(clamp(f(x, y), 0, 1), bend);
+  }
+  function hasNoise(g) { return !!g.shadow && g.amount > 0; }
+  // Which controls change the drawing right now — a panel shows only these.
+  function gradUses(g) {
+    const blend = g.type !== 'flat' && g.size > 0, shadow = hasNoise(g), light = shadow && g.dist === 'light';
+    return {
+      angle: g.type === 'linear',
+      pattern: blend,
+      seed: blend,
+      speck: shadow && g.specks !== 'smooth' && g.specks !== 'bands' && (!blend || markShadow(g)),
+      dist: shadow,
+      light: light,
+      falloff: light,
+    };
+  }
+
+  // ── THE SHADOW (Nov 18, 2026 — the Shadow lab, archive/tunesutra-mockups/shadow-ink/). Two inks over the
+  //    colour: HALFTONE and CORE, made by the rules (Hue · Shift · Depth · Lose · Edge glow) and, with Snap to
+  //    palette, each moved to the nearest of the palette's own 50–900 tints. The PARTS decide where they fall,
+  //    from the light across the shape: Halftone, Terminator, Core shadow, Reflected light, Highlight.
+  //    RENDER: Specks · Dots (a halftone screen) · Bands · Smooth · a shadeMarks texture. Every cell one ink.
+  const SHADOW_HUE = { cool: 285, warm: 35 };
+  // Free inks follow the Palette's harmony rules: the halftone takes the rule's first hue away from the
+  // colour, the core its second; Shift scales the turn (100 = the rule's own angle).
+  const HARMONY_INK = { analogous: [15, 30], split: [150, 210], triadic: [120, 240], tetradic: [90, 180] };
+  const towardHue = (h, t, k) => h + ((((t - h) % 360) + 540) % 360 - 180) * k;
+  function ruleInk(g, hex, s) {
+    const O = C().hexToOklch(hex), grey = O.c < 0.02, k = s * g.shift / 100;
+    let L = O.l * (1 - s * g.depth / 100), c = O.c, h = O.h;   // Depth = the share of the colour's lightness lost at the core
+    if (g.hue === 'cool' || g.hue === 'warm') { const t = SHADOW_HUE[g.hue]; h = grey ? t : towardHue(O.h, t, k); if (grey) c = 0.05 * k; }
+    else if (g.hue === 'complement') { h = (grey ? 105 : O.h) + 180 * k; if (grey) c = 0.04 * k; }
+    else if (HARMONY_INK[g.hue]) { h = (grey ? 105 : O.h) + HARMONY_INK[g.hue][s < 1 ? 0 : 1] * g.shift / 100; if (grey) c = 0.05 * g.shift / 100; }
+    else if (g.hue === 'impressionist') { h = towardHue(grey ? 285 : O.h, 285, Math.min(1, k * 1.2)); c = Math.max(c, 0.09) * (1 + 0.6 * k); }
+    c *= 1 - (g.lose / 100) * s;
+    if (s < 1) c *= 1 + (g.glow / 100) * 1.4;   // the edge glow lives in the halftone ink
+    return C().oklchToHex(clamp(L, 0.04, 0.99), Math.max(0, c), ((h % 360) + 360) % 360);
+  }
+  // The two inks for colour `hex`: [halftone, core] — a manual one wins; else the rule, snapped to the palette.
+  function shadowInks(g, hex, ctx) {
+    const want = [g.inkMid || ruleInk(g, hex, 0.5), g.inkCore || ruleInk(g, hex, 1)];
+    if (!g.snap) return want;
+    const C_ = C();
+    const pool = (g.hue === 'same' ? tokenScale(hex, ctx).map(st => st.hex) : paletteTints(ctx)).filter(t => C_.deltaE(t, hex) >= 4);   // Same: the colour's own tints only; never the colour itself
+    const near = (x, not) => pool.filter(t => t !== not).reduce((b, t) => C_.deltaE(t, x) < C_.deltaE(b, x) ? t : b, pool[0] || x);
+    const mid = g.inkMid || near(want[0]), core = g.inkCore || near(want[1], mid);   // the core never the halftone's tint
+    return [mid, core];
+  }
+  const MIN_CELL = 1;
+  const SHADOW_CELL = 2;
+  // The shadow's own grid: Bands on a fine one (its edges follow the light, not Size's steps), else Size.
+  function shadowGrid(g) { return hasNoise(g) && g.specks === 'bands' ? 1 : (g.speck || SHADOW_CELL); }
+  // The shadow amount 0..1 for a light weight w0 (0 = the lit edge … 1 = the far side), by the parts.
+  function shadowAt(g, w0) {
+    const amt = g.amount / 100, P = g.parts || {};
+    let s = P.half !== false ? clamp((w0 - 0.2) / 0.65, 0, 1) : (w0 > 0.5 ? 1 : 0);
+    s = s * s * (3 - 2 * s) * amt;
+    if (P.core === false) s = Math.min(s, 0.5);
+    if (P.term) s = Math.min(1, s + Math.exp(-Math.pow((w0 - 0.5) / 0.1, 2)) * 0.3 * amt);
+    if (P.refl && w0 > 0.82) s = Math.max(0, s - (w0 - 0.82) / 0.18 * 0.5);
+    return s;
+  }
+  // Shadow level at a point: v 0 (none) … 1 (halftone ink) … 2 (core ink), and a highlight flag.
+  function shadowLevel(g, w, h) {
+    const weight = noiseWeight(g, w, h), P = g.parts || {};
+    return (ux, uy, c, r) => {
+      const w0 = weight(ux, uy);
+      const hi = !!P.high && w0 < 0.15 && cellHash(c, r, g.sseed + 5) < (0.15 - w0) / 0.15 * 0.7;
+      return { v: shadowAt(g, w0) * 2, hi: hi };
+    };
+  }
+  // SMOOTH shadow (Soft): no specks — one vector gradient over the shape along the light.
+  function smoothShadow(g) { return hasNoise(g) && g.specks === 'smooth'; }
+  // a shadow from Organica.shadeMarks (Mottle, the Dithers, Pollen, Camo, Cells): its own marks over the fill
+  function markShadow(g) { return hasNoise(g) && !!(Organica.shadeMarks && Organica.shadeMarks.has(g.specks)); }
+  function markPlates(g, w, h, ctx) {
+    const SM = Organica.shadeMarks, weight = noiseWeight(g, w, h), [mid, core] = shadowInks(g, g.stops[colourStop(g)], ctx);
+    const res = SM.render(g.specks, { w: w, h: h, level: (x, y) => shadowAt(g, weight(x, y)), size: Math.max(SM.minSize(g.specks), g.speck || SHADOW_CELL), angle: g.light + 90, seed: 7 });
+    return [{ hex: mid, paper: false, d: res.mid.join(''), cells: res.mid.length }, { hex: core, paper: false, d: res.core.join(''), cells: res.core.length }];
+  }
+  function smoothShadowPlate(g, w, h, ctx) {
+    const [mid, core] = shadowInks(g, g.stops[colourStop(g)], ctx), bend = Math.pow(4, (g.falloff - 50) / 50), even = g.dist !== 'light';
+    const stops = [];
+    for (let k = 0; k <= 24; k++) {
+      const t = k / 24, w0 = even ? 1 : Math.pow(t, bend), v = shadowAt(g, w0) * 2;
+      stops.push(v <= 1 ? [t, mid, Math.max(0, v)] : [t, C().mixIn('oklab', mid, core, v - 1), 1]);
+    }
+    return { hex: core, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0,
+      smooth: { geom: smoothGeom({ type: 'linear', angle: g.light + 180 }, w, h), stops: stops } };
+  }
+  // One cell of the shadow over base ink `base` (an index; -1 = none, the smooth fill): → { ink, dot? }.
+  // I = { mid, core, paper } — the plates' indices of the two inks and the highlight.
+  function shadowCell(g, lv, base, I, c, r, cell, whole) {
+    if (lv.hi) return { ink: I.paper };
+    const v = lv.v, mode = g.specks;
+    if (mode === 'dots') {
+      // a halftone screen (AM): the share f of the next ink covers exactly f of the cell — no dot ever
+      // leaves its cell (plates never overlap)
+      const lo = Math.min(1, Math.floor(v)), f = clamp(v - lo, 0, 1), under = lo === 0 ? base : I.mid, over = lo === 0 ? I.mid : I.core;
+      if (!whole) return { ink: f > 0.5 ? over : under };
+      if (f <= 0.5) { const r = Math.sqrt(f / Math.PI) * cell; return { ink: under, dot: r > 0.06 * cell ? { ink: over, r: r } : null }; }
+      const r = Math.sqrt((1 - f) / Math.PI) * cell;
+      return { ink: over, dot: r > 0.06 * cell ? { ink: under, r: r } : null };
+    }
+    const lvl = mode === 'bands' ? Math.round(v) : (() => { const lo = Math.floor(v); return cellHash(c, r, g.sseed + 11) < v - lo ? lo + 1 : lo; })();
+    return { ink: lvl <= 0 ? base : lvl === 1 ? I.mid : I.core };
+  }
+
+  // Grain 0: the blend is a smooth vector gradient, not cells. The shadow, if any, keeps its cells.
+  function smoothGrad(g) { return g.size === 0 && g.type !== 'flat' && gradStops(g).length > 1; }
+  // The smooth fill's stops, sampled in OKLab (16 sub-stops a span). [at, hex, opacity]:
+  // the paper stop is the last ink fading out (transparent, not white).
+  function smoothStops(g, ctx) {
+    const stops = gradStops(g, ctx), out = [];
+    const inkNear = i => { for (let d = 1; d < stops.length; d++) { const a = stops[i - d], b = stops[i + d]; if (a && !a.paper) return a.hex; if (b && !b.paper) return b.hex; } return stops[i].hex; };
+    stops.forEach((st, i) => {
+      out.push([st.at, st.paper ? inkNear(i) : st.hex, st.paper ? 0 : 1]);
+      if (i === stops.length - 1) return;
+      const nx = stops[i + 1];
+      if (st.paper && nx.paper) return;
+      for (let k = 1; k < 16; k++) {
+        const u = k / 16, at = st.at + (nx.at - st.at) * u;
+        if (nx.paper) out.push([at, st.hex, 1 - u]);          // the ink fading out
+        else if (st.paper) out.push([at, nx.hex, u]);        // fading in
+        else out.push([at, C().mixIn('oklab', st.hex, nx.hex, u), 1]);
+      }
+    });
+    return out;
+  }
+  // Its geometry in the w×h box: the line along which t runs 0 → 1 (linear), or the circle (radial).
+  function smoothGeom(g, w, h) {
+    const cx = w / 2, cy = h / 2;
+    if (g.type === 'radial') return { radial: true, cx: cx, cy: cy, r: Math.hypot(w, h) / 2 };
+    const rad = g.angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad), len = Math.abs(w * dx) + Math.abs(h * dy) || 1;
+    return { x1: cx - dx * len / 2, y1: cy - dy * len / 2, x2: cx + dx * len / 2, y2: cy + dy * len / 2 };
+  }
+  function circleD(x, y, r) { return `M${num(x - r)} ${num(y)}a${num(r)} ${num(r)} 0 1 0 ${num(2 * r)} 0a${num(r)} ${num(r)} 0 1 0 ${num(-2 * r)} 0Z`; }
+
+  // The drawing: → [{ hex, paper, d, cells }] — one entry per ink, `d` the SVG path of every cell that
+  // ink owns (rows run-length merged), in w×h units. The blend between two stops is a dither; the shadow
+  // adds its ink last: with square cells it takes them from the others; with dots each dot is also cut
+  // out of the ink under it (even-odd) — so the inks never overlap either way.
+  function gradPlates(g, w, h, ctx) {
+    if (smoothGrad(g)) return smoothPlates(g, w, h, ctx);
+    const stops = gradStops(g, ctx), k = stops.length, cell = Math.max(MIN_CELL, g.type === 'flat' ? shadowGrid(g) : g.size);
+    const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h);
+    const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
+    const shadow = hasNoise(g) && !smoothShadow(g) && !markShadow(g), level = shadow ? shadowLevel(g, w, h) : null, I = {};
+    if (shadow) {
+      // a shadow ink that is one of the stops is that stop's ink: one plate, not two of the same colour
+      const add = hex => { const at = out.findIndex(p => !p.paper && p.hex.toLowerCase() === hex.toLowerCase()); if (at >= 0) return at; out.push({ hex: hex, paper: false, d: [], holes: [], cells: 0 }); return out.length - 1; };
+      const [mid, core] = shadowInks(g, g.stops[colourStop(g)], ctx);
+      I.mid = add(mid); I.core = add(core);
+      out.push({ hex: paperOf(ctx), paper: true, d: [], holes: [], cells: 0 }); I.paper = out.length - 1;
+    }
+    const rowPath = (c0, c1, y0, y1) => { const x0 = num(c0 * cell), x1 = num(Math.min(w, c1 * cell)); return `M${x0} ${num(y0)}h${num(x1 - x0)}v${num(y1 - y0)}h${num(x0 - x1)}z`; };
+    for (let r = 0; r < rows; r++) {
+      const y0 = r * cell, y1 = Math.min(h, y0 + cell);
+      let run = -1, c0 = 0;
+      for (let c = 0; c <= cols; c++) {
+        let ink = -1;
+        if (c < cols) {
+          const ux = Math.min(w, (c + 0.5) * cell), uy = (y0 + y1) / 2, t = clamp(field(ux, uy), 0, 1);
+          const s = segAt(stops, t);
+          ink = k < 2 ? 0 : (s.f > patternThr(g.pattern, c, r, g.seed, 0) ? s.a + 1 : s.a);
+          if (shadow) {
+            const sc = shadowCell(g, level(ux, uy, c, r), ink, I, c, r, cell, (c + 1) * cell <= w && (r + 1) * cell <= h);
+            ink = sc.ink;
+            if (sc.dot && sc.dot.ink !== ink) {   // a dot only in a whole cell, cut out of the ink under it
+              const dot = circleD((c + 0.5) * cell, (r + 0.5) * cell, sc.dot.r);
+              out[sc.dot.ink].d.push(dot); out[sc.dot.ink].cells++; out[ink].holes.push(dot);
+            }
+          }
+        }
+        if (ink !== run) {
+          if (run >= 0) { const p = out[run]; p.d.push(rowPath(c0, c, y0, y1)); p.cells += c - c0; }
+          run = ink; c0 = c;
+        }
+      }
+    }
+    out.forEach(p => { p.d = p.d.join('') + p.holes.join(''); delete p.holes; });
+    if (smoothShadow(g)) out.push(smoothShadowPlate(g, w, h, ctx));
+    if (markShadow(g)) out.push.apply(out, markPlates(g, w, h, ctx));
+    return out;
+  }
+  // Grain 0: [the first stop (painted by the shape), the smooth fill over the box, the shadow's cells].
+  function smoothPlates(g, w, h, ctx) {
+    const stops = gradStops(g, ctx), out = [{ hex: stops[0].hex, paper: false, d: '', cells: 0 },
+      { hex: stops[stops.length - 1].hex, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0, smooth: { geom: smoothGeom(g, w, h), stops: smoothStops(g, ctx) } }];
+    if (!hasNoise(g)) return out;
+    if (smoothShadow(g)) { out.push(smoothShadowPlate(g, w, h, ctx)); return out; }
+    if (markShadow(g)) { out.push.apply(out, markPlates(g, w, h, ctx)); return out; }
+    // the shadow over the smooth fill: its own grid; a cell with no shadow shows the fill (-1)
+    const cell = shadowGrid(g), cols = Math.floor(w / cell), rows = Math.floor(h / cell), level = shadowLevel(g, w, h);
+    const [mid, core] = shadowInks(g, g.stops[colourStop(g)], ctx), P = [{ hex: mid, d: [], holes: [] }, { hex: core, d: [], holes: [] }, { hex: paperOf(ctx), paper: true, d: [], holes: [] }];
+    const I = { mid: 0, core: 1, paper: 2 };
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const sc = shadowCell(g, level((c + 0.5) * cell, (r + 0.5) * cell, c, r), -1, I, c, r, cell, true);
+      if (sc.ink >= 0) {   // run-length: a cell continuing the same ink on its row widens the last rect
+        const pl = P[sc.ink], last = pl.run;
+        if (last && last.r === r && last.c1 === c) { last.c1 = c + 1; pl.d[pl.d.length - 1] = `M${num(last.c0 * cell)} ${num(r * cell)}h${num((c + 1 - last.c0) * cell)}v${cell}h${num(-(c + 1 - last.c0) * cell)}z`; }
+        else { pl.run = { r: r, c0: c, c1: c + 1 }; pl.d.push(`M${num(c * cell)} ${num(r * cell)}h${cell}v${cell}h-${cell}z`); }
+      }
+      if (sc.dot && sc.dot.ink !== sc.ink) { const dot = circleD((c + 0.5) * cell, (r + 0.5) * cell, sc.dot.r); if (sc.dot.ink >= 0) P[sc.dot.ink].d.push(dot); if (sc.ink >= 0) P[sc.ink].holes.push(dot); }
+    }
+    P.forEach(p => out.push({ hex: p.hex, paper: !!p.paper, d: p.d.join('') + p.holes.join(''), cells: p.d.length }));
+    return out;
+  }
+  // A smooth plate as SVG: its gradient (user space of the box) and the box filled with it.
+  function smoothMarkup(pl, id) {
+    const sp = pl.smooth, g = sp.geom, st = sp.stops.map(([at, hex, op]) => `<stop offset="${num(clamp(at, 0, 1))}" stop-color="${hex}"${op < 1 ? ` stop-opacity="${num(op)}"` : ''}/>`).join('');
+    const def = g.radial ? `<radialGradient id="${id}" gradientUnits="userSpaceOnUse" cx="${num(g.cx)}" cy="${num(g.cy)}" r="${num(g.r)}">${st}</radialGradient>`
+      : `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${num(g.x1)}" y1="${num(g.y1)}" x2="${num(g.x2)}" y2="${num(g.y2)}">${st}</linearGradient>`;
+    return `<defs>${def}</defs><path fill="url(#${id})" d="${pl.d}"/>`;
+  }
+  function smoothFill(c, pl) {
+    const g = pl.smooth.geom, gr = g.radial ? c.createRadialGradient(g.cx, g.cy, 0, g.cx, g.cy, g.r) : c.createLinearGradient(g.x1, g.y1, g.x2, g.y2);
+    pl.smooth.stops.forEach(([at, hex, op]) => { const v = Organica.hexToRGB255(hex); gr.addColorStop(clamp(at, 0, 1), op < 1 ? `rgba(${v[0]},${v[1]},${v[2]},${num(op)})` : hex); });
+    return gr;
+  }
+  function drawPlates(c, plates) { plates.forEach(p => { if (!p.d) return; c.fillStyle = p.smooth ? smoothFill(c, p) : p.hex; c.fill(new Path2D(p.d), 'evenodd'); }); }
+  // Plates as SVG markup (in the box's own units): one even-odd path per ink, smooth plates as gradients.
+  // skipFirst: the first plate is the shape's own fill (already painted by the shape) — leave it out.
+  function platesSVG(plates, idPrefix, skipFirst) {
+    let n = 0;
+    return plates.map((p, i) => {
+      if (!p.d || (skipFirst && i === 0)) return '';
+      if (p.smooth) return smoothMarkup(p, (idPrefix || 'sh') + '-' + (n++));
+      return `<path fill="${p.hex}" fill-rule="evenodd" d="${p.d}"/>`;
+    }).join('');
+  }
+
+  // Rendered once per definition, box and palette: the same mark repeated is drawn once.
+  const plateCache = new Map();
+  function plates(def, w, h, ctx) {
+    const key = JSON.stringify(def) + [num(w), num(h)] + (def.shadow ? paletteTints(ctx).join('') : '') + (ctx && ctx.paper || '');
+    if (!plateCache.has(key)) { plateCache.set(key, gradPlates(def, w, h, ctx)); if (plateCache.size > 240) plateCache.delete(plateCache.keys().next().value); }
+    return plateCache.get(key);
+  }
+
+  function withColour(def, hex, ctx) {
+    if (def.stops.length < 2) { def.colourAt = 0; def.stops = [hex, shadeDefs(hex, ctx).soft.stops[1]]; return def; }
+    const ci = colourStop(def);
+    def.stops[ci] = hex;
+    // the other stop of two stays the colour's own 900 while it has not been chosen by hand (`auto2`)
+    if (def.auto2 === true && def.stops.length === 2) def.stops[1 - ci] = shadeDefs(hex, ctx).soft.stops[1];
+    return def;
+  }
+  function fadesToPaper(def) { return def.type !== 'flat' && def.stops.some(isClear); }
+
+  // Saved before Nov 18, 2026: the raster options are gone — Conic becomes Linear, Ordered becomes Noise,
+  // a Tone grain (a raster jitter) is dropped, Grain in Shadows / Highlights becomes Everywhere.
+  function normalizeGrad(g) {
+    const had = g || {};
+    g = Object.assign(JSON.parse(DEFAULT_JSON), g);
+    if (g.kind && g.kind !== 'speckle') g.amount = 0;   // a Tone grain (raster) was no shadow
+    // Saved before Nov 18, 2026 (evening): the shadow had no switch and shared the grain's size, pattern and seed.
+    if (had.shadow === undefined) {
+      g.shadow = had.amount !== undefined && +g.amount > 0;
+      if (!g.shadow) g.amount = 70;
+      g.speck = +had.size > 0 ? clamp(+had.size, 1, 12) : SHADOW_CELL;
+      g.specks = had.pattern === 'dots' ? 'dots' : 'specks';
+      g.sseed = had.seed != null ? had.seed : 1;
+    }
+    // Saved before the painter's shadow: one Ink, Specks 'noise' — that ink becomes the core, hand-picked.
+    if (g.specks === 'noise') g.specks = 'specks';
+    if (had.ink && had.inkCore === undefined) g.inkCore = had.ink;
+    delete g.ink;
+    g.parts = Object.assign({ half: true, term: false, core: true, refl: false, high: false }, had.parts || {});
+    g.auto2 = had.auto2 === true;
+    // Fade to paper (until Nov 18, 2026, late) → a transparent last stop, the others squeezed as they were drawn
+    if (g.paper && g.stops.length) {
+      const n = g.stops.length, f = n > 1 ? (n - 1) / n : 0, pos = (g.pos && g.pos.length === n ? g.pos : evenPos(n)).map(p => Math.round(p * f * 1000) / 1000);
+      g.stops = g.stops.concat('transparent'); g.pos = pos.concat(1);
+    }
+    g.paper = false;
+    if (g.type === 'conic') g.type = 'linear';
+    if (g.pattern !== 'dots') g.pattern = 'noise';
+    // Free Cool / Warm / Impressionist went (Free = the harmony rules): Cool / Warm move on the palette,
+    // Impressionist becomes Analogous.
+    if (!g.snap && (g.hue === 'cool' || g.hue === 'warm')) g.snap = true;
+    if (g.hue === 'impressionist') g.hue = 'analogous';
+    g.dist = 'light';   // the shadow always gathers away from the light
+    // Grain removed (Diego, Nov 18, 2026): every blend is smooth. A palette saved with a grain opens smooth.
+    g.size = 0;
+    delete g.out; delete g.kind; delete g.space;
+    return g;
+  }
+
+  // The shadow textures, in menu order: the two presets, then Organica.shadeMarks' types.
+  const TEXTURES = Object.keys(TEXTURE_SIZE);
+
+  Organica.shading = {
+    DEFAULT: DEFAULT, SHADE_MODES: SHADE_MODES, SHADE_NAME: SHADE_NAME, TEXTURES: TEXTURES, TEXTURE_SIZE: TEXTURE_SIZE,
+    SHADOW_CELL: SHADOW_CELL,
+    defs: shadeDefs, flatDef: flatDef, normalize: normalizeGrad, withColour: withColour,
+    plates: plates, gradPlates: gradPlates, smoothPlates: smoothPlates, shadowInks: shadowInks,
+    gradStops: gradStops, smoothStops: smoothStops, smoothGeom: smoothGeom, smoothMarkup: smoothMarkup, smoothFill: smoothFill,
+    drawPlates: drawPlates, platesSVG: platesSVG,
+    gradUses: gradUses, hasNoise: hasNoise, smoothShadow: smoothShadow, markShadow: markShadow,
+    colourStop: colourStop, colourAt: colourAt, segAt: segAt, isClear: isClear, evenPos: evenPos, stopPos: stopPos, fadesToPaper: fadesToPaper,
+  };
+})(typeof window !== 'undefined' ? window : this);
