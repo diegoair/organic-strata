@@ -548,6 +548,14 @@
         <p class="panel-hint" id="layer-group-hint" hidden></p>
       </div>
       <div id="layers-list" class="fvs-layers" role="list" aria-label="Layers, top first"></div>
+      <!-- Light (Nov 20, 2026, Diego): where a shaded colour's light falls — one box for the whole Element (default) or
+           each layer its own. Shown with 2+ layers and a shaded palette colour (renderLayersUI → syncLayerLight). -->
+      <div id="layer-light-row" hidden>
+        <div class="sub-label">Light</div>
+        <div class="ctrl-row"><div class="seg-ctrl" id="seg-layer-light" role="group" aria-label="Light">
+          <button type="button" class="seg-btn" data-v="element">Whole element</button><button type="button" class="seg-btn" data-v="layer">Each layer</button>
+        </div></div>
+      </div>
       <!-- Moved under the ACTIVE layer row by renderLayersUI (the node, so its listeners stay). -->
       <div id="layer-place-block" class="org-layer-card__content fvs-layer__place" hidden>
         <div class="ctrl-row"><div class="ctrl-label" title="Move X — shifts this layer inside the Element; 100 is a full cell.">X</div><input type="range" id="rg-layer-mx" min="-100" max="100" step="0.1" value="0" aria-label="Move X"><span class="ctrl-val" id="v-layer-mx">0</span></div>

@@ -237,7 +237,7 @@ export function seedForSnapshot() {
   if (!state.layers) return withCellShape(panelSeedSnapshot());
   hooks.syncActiveLayer();
   const L = state.layers;
-  return withCellShape({ type: 'stack', active: L.active, layers: L.items.map(l => JSON.parse(JSON.stringify(l))), ...(L.parts ? { parts: JSON.parse(JSON.stringify(L.parts)) } : {}), ...(L.groups && Object.keys(L.groups).length ? { groups: JSON.parse(JSON.stringify(L.groups)) } : {}) });
+  return withCellShape({ type: 'stack', active: L.active, layers: L.items.map(l => JSON.parse(JSON.stringify(l))), ...(L.parts ? { parts: JSON.parse(JSON.stringify(L.parts)) } : {}), ...(L.groups && Object.keys(L.groups).length ? { groups: JSON.parse(JSON.stringify(L.groups)) } : {}), ...(L.light === 'layer' ? { light: 'layer' } : {}) });
 }
 // The first corner's direction of a Polygon / Star (Diego, Oct 10, 2026: 0° = right, so a hexagon sits flat). An
 // Element saved before carries none and keeps −90 (up) — the loader writes it into the hidden input.

@@ -78,6 +78,7 @@ const shadeCtx = () => ({ tints: [].concat.apply([], state.colors.map(h => Organ
 function colourChanged() {
   syncColorRuleUI();
   hooks.syncGroundInkOptions();
+  if (hooks.syncLayerLight) hooks.syncLayerLight();   // Light shows once a colour is shaded
   refreshColourViews();
 }
 function syncShadeEditor() {
@@ -94,6 +95,7 @@ function syncShadeEditor() {
       state.inkShades = m;
       if (paletteStrip) paletteStrip.rebuild();   // the chip draws its new shading
       if (paletteStrip) paletteStrip.setActive(shadeAt);
+      if (hooks.syncLayerLight) hooks.syncLayerLight();
       refreshColourViews();
     },
   }));

@@ -20,7 +20,7 @@ import {
 } from './04-appearance.js';
 import {
   applyElementStretchCanvas, clipToCellShapes, elementPathMarkup, latticeShapePath, nextDrawId,
-  paintGeoCanvas, withEntryInks, cellClipShape, clipCellCanvas, layerPasses, registerEntryShades
+  paintGeoCanvas, withEntryInks, cellClipShape, clipCellCanvas, layerPasses, registerEntryShades, shadesFollow
 } from './05-render-component.js';
 import {
   LIBRARY, fillPaper, isPaperNone
@@ -407,7 +407,10 @@ export function buildSymbolItems() {
       // colorAt(), not any particular saved snapshot's colours.
       // A cell may recolour its Component (cell.colourway, written by Suggest's Recolour).
       const own = cell.colourway ? { ...entry, colors: cell.colourway.colors, paperColor: cell.colourway.paper } : entry;
-      if (!cell.colourway) registerEntryShades(own.colors, entry.inkShades);   // its own shading travels with its colours (Nov 20, 2026)
+      // its own shading travels with its colours (Nov 20, 2026); a colourway (Recolour, a Palette node) keeps it by place —
+      // from the entry's own shading, else the live Palette's for the entry's inks
+      if (!cell.colourway) registerEntryShades(own.colors, entry.inkShades);
+      else registerEntryShades(own.colors, shadesFollow(entry.colors || state.colors, entry.inkShades || state.inkShades, own.colors));
       let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(own));
       if (reg) nestedItems = modulesToBlockCells(nestedItems, nestedW, nestedH, reg, cell);
       // A cell-shape Component set to Match cell sits on the Symbol's shared small-cell lattice (alignedPlacements).

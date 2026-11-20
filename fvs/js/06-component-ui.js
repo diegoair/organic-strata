@@ -1316,7 +1316,7 @@ function splitLayersApply() {
   const status = ctrl('split-status');
   if (!splitLayersOn()) { hooks.syncActiveLayer(); state.splitOriginalLayers = JSON.parse(JSON.stringify(state.layers)); }
   const orig = JSON.parse(JSON.stringify(state.splitOriginalLayers)), plan = currentSplitPlan();
-  const stack = SEED_TYPES.stack.geometry({ type: 'stack', active: orig.active, layers: orig.items, ...(orig.parts ? { parts: orig.parts } : {}), ...(state.cellShape !== 'square' ? { cellShape: state.cellShape } : {}) });
+  const stack = SEED_TYPES.stack.geometry({ type: 'stack', active: orig.active, layers: orig.items, ...(orig.parts ? { parts: orig.parts } : {}), ...(orig.light === 'layer' ? { light: 'layer' } : {}), ...(state.cellShape !== 'square' ? { cellShape: state.cellShape } : {}) });
   const keep = plan.pieces.map(p => p.id).filter(q => state.splitKeep.has(q)), viewDs = [];
   let any = false;
   const items = orig.items.map(item => {

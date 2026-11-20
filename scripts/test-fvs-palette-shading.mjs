@@ -143,15 +143,44 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     let diff = 0; for (let k = 0; k < A.length; k += 4) if (Math.abs(A[k] - B[k]) + Math.abs(A[k + 1] - B[k + 1]) + Math.abs(A[k + 2] - B[k + 2]) > 60) diff++;
     const px = (D, ux, uy) => { const k = (Math.round(uy * 3) * 300 + Math.round(ux * 3)) * 4; return '#' + [D[k], D[k + 1], D[k + 2]].map(v => v.toString(16).padStart(2, '0')).join(''); };
     const core = S2.shadowInks(F.state.inkShades[lc[0]], lc[0], { tints: [].concat.apply([], lc.map(h => Organica.color.scale(h).map(x => x.hex))) })[1];
-    check('layers: canvas = SVG (' + diff + ' px differ); the top layer’s shadow over the gold one below', diff < 900 && px(A, 65, 40) === core && px(B, 65, 40) === core, diff + ' · ' + px(A, 65, 40) + ' / ' + px(B, 65, 40) + ' want ' + core);
+    check('layers: canvas = SVG (' + diff + ' px differ), one light across the whole Element', diff < 900 && px(A, 65, 40) === px(B, 65, 40), diff + ' · ' + px(A, 65, 40) + ' / ' + px(B, 65, 40));
+    // the boxes the shading is laid out in: one for the whole Element (default) — Light › Each layer, every layer its own
+    const boxes = s => { const d = new DOMParser().parseFromString(s, 'image/svg+xml'); return [...d.querySelectorAll('g[clip-path^="url(#shd"] > g[transform]')].map(g => g.getAttribute('transform')); };
+    const uniq = a => a.filter((v, k) => a.indexOf(v) === k).length;
+    check('Light: shown for a shaded stack, Whole element by default', !q('layer-light-row').hidden && q('seg-layer-light').querySelector('.active').dataset.v === 'element', q('layer-light-row').hidden);
+    check('Light › Whole element: every shaded layer in the one box of the Element', uniq(boxes(shd().s)) === 1, boxes(shd().s).join(' '));
+    q('seg-layer-light').querySelector('[data-v="layer"]').click(); await w(300);
+    check('Light › Each layer: every shaded layer in its own box (saved on the layers)', F.state.layers.light === 'layer' && F.getSeed().light === 'layer' && uniq(boxes(shd().s)) === 3, boxes(shd().s).join(' '));
+    { const s1 = shd().s, sv = s1.indexOf('xmlns') > 0 ? s1 : s1.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+      const im = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(new Blob([sv], { type: 'image/svg+xml' })); });
+      const c1 = document.createElement('canvas'); c1.width = c1.height = 300; c1.getContext('2d').drawImage(im, 0, 0); const A1 = c1.getContext('2d').getImageData(0, 0, 300, 300).data;
+      const c2 = document.createElement('canvas'); c2.width = c2.height = 300;
+      F.drawComponentCanvas(c2.getContext('2d'), F.buildComponentItems({ cells: [{ rotation: 0, flipH: false, flipV: false, scale: 1 }] }, { kind: 'square', cols: 1, rows: 1, cellSize: 300, gap: 0 }), F.getSeed(), 300);
+      const B1 = c2.getContext('2d').getImageData(0, 0, 300, 300).data;
+      check('Light › Each layer: canvas = SVG; the top layer’s own shadow over the gold one below', px(A1, 65, 40) === core && px(B1, 65, 40) === core, px(A1, 65, 40) + ' / ' + px(B1, 65, 40) + ' want ' + core); }
+    q('seg-layer-light').querySelector('[data-v="element"]').click(); await w(300);
+    check('Light › Whole element again: no key left on the layers', !('light' in F.state.layers) && !('light' in F.getSeed()), JSON.stringify(F.state.layers.light));
     while (F.state.layers && F.state.layers.items.length > 1) { F.removeLayer(F.state.layers.items.length - 1); await w(100); }
-    // a divided Element: every part is a shape of its own — its own box, its own light
+    // a divided Element: one light across its parts (the Element's box), Each layer = every part its own
     const t = q('sel-seed-type'); t.value = 'polygon'; t.dispatchEvent(new Event('change', { bubbles: true })); await w(400);
     const pm = q('sel-part-method'); pm.value = 'fan'; pm.dispatchEvent(new Event('change', { bubbles: true })); await w(600);
     F.state.colors = lc.slice(); F.layersChanged(); await w(300);
     const parts = (F.state.layers ? F.state.layers.items : []).filter(l => l.part).length, ps = shd();
-    check('layers: a divided Element — each of its ' + parts + ' parts draws the shading in its own box', parts >= 3 && ps.n === parts, ps.n + ' / ' + parts);
+    check('layers: a divided Element — its ' + parts + ' parts draw the shading in one box, the Element’s', parts >= 3 && ps.n === parts && uniq(boxes(ps.s)) === 1, ps.n + ' / ' + parts + ' · ' + uniq(boxes(ps.s)));
+    q('seg-layer-light').querySelector('[data-v="layer"]').click(); await w(300);
+    check('layers: a divided Element with Each layer — every part in its own box', uniq(boxes(shd().s)) === parts, uniq(boxes(shd().s)) + ' / ' + parts);
+    q('seg-layer-light').querySelector('[data-v="element"]').click(); await w(300);
     pm.value = 'none'; pm.dispatchEvent(new Event('change', { bubbles: true })); await w(400);
+    F.state.inkShades = {}; }
+  // a colourway (Recolour, the Figure's Palette node) keeps the shading by place: colour n takes colour n's
+  { const S3 = Organica.shading, pc = ['#2a3a8c', '#e8b04a', '#c93ed6'], cw = ['#aa2222', '#22aa88', '#3355cc'];
+    F.setTier('element'); await w(300);
+    F.state.colors = pc.slice(); F.state.inkShades = { [pc[0]]: S3.withColour(JSON.parse(JSON.stringify(S3.defs(pc[0]).speckle)), pc[0]) };
+    F.layersChanged(); await w(200);
+    const fm = F.shadesFollow(pc, F.state.inkShades, cw);
+    check('a colourway: colour 1 takes colour 1’s shading, on its own colour; the flat ones stay flat', fm && fm['#aa2222'] && fm['#aa2222'].specks === 'specks' && fm['#aa2222'].stops[S3.colourStop(fm['#aa2222'])] === '#aa2222' && !fm['#22aa88'], JSON.stringify(fm && Object.keys(fm)));
+    const svg = F.withComponentColours({ colourway: { colors: cw, colorRule: { mode: 'index', offset: 0 }, paper: '#ffffff' } }, () => F.buildSeedPreviewSVG(F.getSeed(), 0, false, false, 200));
+    check('a colourway draws its colours shaded (Component › colourways)', svg.indexOf('url(#shd') > 0 && svg.indexOf('#aa2222') > 0 && F.state.colors[0] === pc[0] && F.state.inkShades[pc[0]], svg.length);
     F.state.inkShades = {}; }
   // the menu: up to 9 colours
   check('FVS takes up to 9 colours (TuneSutra\\'s palettes)', F.PALETTE_MAX === 9, F.PALETTE_MAX);

@@ -87,7 +87,7 @@ provide({
   applyElementSnapshot: () => applyElementSnapshot, applyPanelSeedRaw: () => applyPanelSeedRaw, applySeedToPanel: () => applySeedToPanel, enterElementEdit: () => enterElementEdit,
   deleteQuickSavedComponent: () => deleteQuickSavedComponent,
   savedVersionOf: () => savedVersionOf, earlierVersionOf: () => earlierVersionOf, savedVersionMemo: () => savedVersionMemo,
-  quickSaveComponentToLibrary: () => quickSaveComponentToLibrary, renderLayersUI: () => renderLayersUI,
+  quickSaveComponentToLibrary: () => quickSaveComponentToLibrary, renderLayersUI: () => renderLayersUI, syncLayerLight: () => syncLayerLight,
   layerPanelSeed: () => layerPanelSeed, showLayerStyle: () => showLayerStyle, syncComponentRoleUI: () => syncComponentRoleUI
 });
 
@@ -247,7 +247,7 @@ export function applySeedToPanel(seed) {
   if (seed && seed.type === 'stack' && Array.isArray(seed.layers) && seed.layers.length) {
     const items = seed.layers.map(l => JSON.parse(JSON.stringify(l)));
     const active = Math.max(0, Math.min(items.length - 1, seed.active | 0));
-    state.layers = { items, active, ...(seed.parts ? { parts: JSON.parse(JSON.stringify(seed.parts)) } : {}), ...(seed.groups ? { groups: JSON.parse(JSON.stringify(seed.groups)) } : {}) };
+    state.layers = { items, active, ...(seed.parts ? { parts: JSON.parse(JSON.stringify(seed.parts)) } : {}), ...(seed.groups ? { groups: JSON.parse(JSON.stringify(seed.groups)) } : {}), ...(seed.light === 'layer' ? { light: 'layer' } : {}) };
     applyPanelSeedRaw(layerPanelSeed(state.layers, items[active]));
   } else {
     state.layers = null;
@@ -442,6 +442,15 @@ export const LAYER_ICONS = {
   mask: Organica.icons.get('role-mask', { size: 'sm' }),
   pattern: Organica.icons.get('role-pattern', { size: 'sm' }),
 };
+// Light (Nov 20, 2026): only when it can change something — a stack of 2+ layers and a palette colour with shading.
+export function syncLayerLight() {
+  const L = state.layers, row = ctrl('layer-light-row');
+  if (!row) return;
+  const shaded = Object.keys(state.inkShades || {}).some(h => state.colors.some(c => String(c).toLowerCase() === h));
+  row.hidden = !(L && L.items.filter(l => !l.hidden).length >= 2 && shaded);
+  const v = L && L.light === 'layer' ? 'layer' : 'element';
+  ctrl('seg-layer-light').querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.v === v; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
+}
 export function renderLayersUI() {
   const list = ctrl('layers-list'), L = state.layers, place = ctrl('layer-place-block');
   closeLayerInkPop();
@@ -460,6 +469,7 @@ export function renderLayersUI() {
   ctrl('layers-hint').textContent = L ? L.items.length + (rt.partSel && rt.partSel.size >= 2 ? ' · ' + rt.partSel.size + ' selected' : ' · top first') : 'Add new layer';
   ctrl('seed-layer-hint').textContent = L ? 'editing ' + layerName(L.items[L.active]) : '';
   renderPartsUI();
+  syncLayerLight();
   if (!L) { list.innerHTML = ''; ctrl('layer-group-row').hidden = true; syncColourGroupRules(); return; }
   pruneColourGroups(L);
   // Top layer first, like every layer panel. The parts of a divided shape are rows like the others (Diego, Oct 12, 2026:

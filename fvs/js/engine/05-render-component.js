@@ -50,6 +50,24 @@ export const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${l
 // shading comes with them, without threading it through every call.
 const _entryShades = new WeakMap();
 export function registerEntryShades(colors, shades) { if (colors && typeof colors === 'object' && shades) _entryShades.set(colors, shades); return colors; }
+// Another set of colours in the same places — a colourway, a Palette node's colours: colour n takes the shading of
+// colour n of the palette it came from, moved onto the new colour (Diego, Nov 20, 2026: the palette arrives whole,
+// so its recolourings keep its shading). `from` = hex → definition (an entry's own, or the live Palette's).
+// Memoised on the new colour list (the same array is drawn every frame).
+const _followMemo = new WeakMap();
+export function shadesFollow(fromColors, from, toColors) {
+  if (!toColors || typeof toColors !== 'object' || !fromColors || !from || typeof Organica === 'undefined' || !Organica.shading) return null;
+  const key = fromColors.join('') + '|' + JSON.stringify(from), hit = _followMemo.get(toColors);
+  if (hit && hit.key === key) return hit.map;
+  const map = {};
+  toColors.forEach((hex, i) => {
+    const src = fromColors[i] && from[String(fromColors[i]).toLowerCase()];
+    if (src && hex) map[String(hex).toLowerCase()] = Organica.shading.withColour(JSON.parse(JSON.stringify(src)), String(hex).toLowerCase());
+  });
+  const out = Object.keys(map).length ? map : null;
+  _followMemo.set(toColors, { key, map: out });
+  return out;
+}
 export function inkShade(hex) {
   const m = live.inkShadesOverride || (live.inkPaletteOverride && _entryShades.get(live.inkPaletteOverride)) || state.inkShades;
   if (!m || !hex || typeof Organica === 'undefined' || !Organica.shading) return null;
@@ -96,6 +114,11 @@ function layerBox(l, g) {
     m.translate(50 + pl.mx, 50 + pl.my); m.rotate(pl.rotate); m.scale(pl.scale); m.scale(lk.w, lk.l); m.translate(-50, -50);
     m.translate(g.normTx * g.normScale, g.normTy * g.normScale); m.scale(g.normScale);
   });
+}
+// The box a stack layer's shading is laid out in: the whole Element's (its placed union, geo.d — one light across
+// every layer and part), or with Light › Each layer the layer's own.
+function stackShadeBox(geo, l, g) {
+  return geo.light === 'layer' ? layerBox(l, g) : shapeBox('e|' + geo.d, geo.d, () => {});
 }
 // SVG: the plates in the shape's box, clipped to the shape (its path with transform t, in the same parent space).
 function shadeOverlaySVG(hex, d, t, fillRule, box) {
@@ -214,7 +237,7 @@ export function paintStackCanvas(ctx, geo, color) {
       const ink = layerInkColor(l, color);
       const op = Organica.shapeAppearance.applyCanvasStyle(tc, { fillMode: lk.fillMode, color: ink, strokeW: lk.strokeW, rounded: lk.rounded });
       paintPath(tc, op, path, g);
-      if (op === 'fill' && inkShade(ink)) { tc.clip(path, g.fillRule || 'nonzero'); shadeOverlayCanvas(tc, ink, box, layerBox(l, g)); }
+      if (op === 'fill' && inkShade(ink)) { tc.clip(path, g.fillRule || 'nonzero'); shadeOverlayCanvas(tc, ink, box, stackShadeBox(geo, l, g)); }
     } else {
       tc.globalCompositeOperation = role === 'container' ? 'destination-in' : 'destination-out';
       tc.fillStyle = '#000';
@@ -366,7 +389,9 @@ export function stackGeometry(p) {
   }
   const layers = all.filter(l => !l.hidden && (!l.part || (parts && parts.byKey[l.part])))
     .map(l => ({ ...l, geo: l.wholeSource ? SEED_TYPES[p.parts.source.type].geometry(p.parts.source) : l.part ? parts.byKey[l.part].geo : SEED_TYPES[l.seed.type].geometry(l.seed) }));
-  return { d: stackFlatD(layers), normTx: 0, normTy: 0, normScale: 1, layers };
+  // light: where a shaded ink's light falls — 'layer' = each layer in its own box; absent = the whole Element's box
+  // (Diego, Nov 20, 2026: "di default stessa luce sull'element, … con un'opzione si può dividere per layer")
+  return { d: stackFlatD(layers), normTx: 0, normTy: 0, normScale: 1, layers, ...(p && p.light === 'layer' ? { light: 'layer' } : {}) };
 }
 export function stackUid(geo) {
   let h = 2166136261;
@@ -419,7 +444,7 @@ export function stackPathMarkup(geo, color, forceFill) {
       const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: fm, color: ink, strokeW: lk.strokeW, rounded: lk.rounded });
       const tag = live.tagParts && l.part ? ` data-part="${l.id}"` : '';   // the Element canvas in Edit parts only — never an export
       out += `<g transform="${t}"${tag}><path d="${g.d}" ${attrs}${g.fillRule && fm === 'fill' ? ` fill-rule="${g.fillRule}"` : ''}/></g>`;
-      if (fm === 'fill' && !forceFill && inkShade(ink)) out += shadeOverlaySVG(ink, g.d, t, g.fillRule, layerBox(l, g));
+      if (fm === 'fill' && !forceFill && inkShade(ink)) out += shadeOverlaySVG(ink, g.d, t, g.fillRule, stackShadeBox(geo, l, g));
     }
   });
   if (appearanceIsIdentity(a)) return out;

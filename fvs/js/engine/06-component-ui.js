@@ -18,6 +18,7 @@ import {
 import {
   drawRank, getElementAppearance
 } from './04-appearance.js';
+import { shadesFollow } from './05-render-component.js';
 // The big canvas: buildComponentSVGBody's normal visual output plus an
 // invisible (or, for the selected cell, outlined) hit-rect per cell —
 // exactly Symbol's own data-cell-index pattern, just built as an overlay
@@ -189,9 +190,11 @@ export function buildColourways(base, grid, count, limit) {
 export function withComponentColours(comp, fn) {
   const cw = comp && comp.colourway;
   if (!cw) return fn();
-  const prev = { colors: state.colors, rule: state.colorRule, paper: state.paperColor };
-  state.colors = cw.colors; state.colorRule = cw.colorRule; state.paperColor = cw.paper;
-  try { return fn(); } finally { state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; }
+  const prev = { colors: state.colors, rule: state.colorRule, paper: state.paperColor, shades: state.inkShades };
+  // its shading follows the colours by place (colour n keeps colour n's shading, Nov 20, 2026)
+  const shades = shadesFollow(state.colors, state.inkShades, cw.colors);
+  state.colors = cw.colors; state.colorRule = cw.colorRule; state.paperColor = cw.paper; state.inkShades = shades || {};
+  try { return fn(); } finally { state.colors = prev.colors; state.colorRule = prev.rule; state.paperColor = prev.paper; state.inkShades = prev.shades; }
 }
 export const liveColourKey = () => JSON.stringify([state.colors, state.colorRule.mode, state.colorRule.offset || 0, state.paperColor]);
 export const cwColourKey = cw => JSON.stringify([cw.colors, cw.colorRule.mode, cw.colorRule.offset || 0, cw.paper]);

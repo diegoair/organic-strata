@@ -55,7 +55,7 @@ import {
   syncExhaustiveHint, syncGenerateButton, noteGenerateReference, generateBlock, rulePicker, syncRuleSaveUI, saveRule, syncUserRules, RULES, syncRuleAvailability, syncRuleAxisNote, syncRuleUI, syncSeedUI, toggleSplitQuadrant, syncAxisValuesUI, syncRuleAxesUI, turnsChanged
 } from './06-component-ui.js';
 import {
-  renderLayersUI, renderLibrary, restoreComponentElementState, syncColourGroupRules
+  renderLayersUI, renderLibrary, restoreComponentElementState, syncColourGroupRules, layersChanged
 } from './07-library.js';
 import {
   buildEmptySymbolGrid, buildFitAllAnchorGrid, exportFvsGrid, handleSymbolGridUpload, runComponentArrival, syncFitAnchorUI
@@ -966,6 +966,13 @@ ctrl('seg-mirror-span').addEventListener('click', e => { const b = e.target.clos
 // Clip to cell (Component, Oct 12, 2026): each cell cut to its own frame — kept with the edited Element's Generated components
 ctrl('chk-component-clip').addEventListener('change', e => { state.componentClip = e.target.checked; ctrl('btn-component-view-clip').setAttribute('aria-pressed', String(state.componentClip)); renderGallery(); if (state.componentEditMode) renderComponentEditCanvas(); });
 ctrl('btn-component-view-clip').addEventListener('click', () => { const c = ctrl('chk-component-clip'); c.checked = !c.checked; c.dispatchEvent(new Event('change', { bubbles: true })); });
+// Light: the whole Element's box (default, no key saved) or each layer's own (Nov 20, 2026)
+ctrl('seg-layer-light').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn'), L = state.layers;
+  if (!b || !L || (L.light === 'layer') === (b.dataset.v === 'layer')) return;
+  if (b.dataset.v === 'layer') L.light = 'layer'; else delete L.light;
+  layersChanged();
+});
 ctrl('chk-layer-inks').addEventListener('change', e => {
   const L = state.layers;   // a divided Element keeps its own switch on its Division (saved with it)
   if (L && L.parts) { if (e.target.checked) L.parts.layerInks = true; else delete L.parts.layerInks; }
