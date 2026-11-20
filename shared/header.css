@@ -528,6 +528,9 @@
 .org-btn--on-content.org-btn--icon-toggle,
 .org-btn--on-content.org-btn--icon-toggle[aria-pressed="true"] { border-color: var(--border-strong); background: var(--paper); color: var(--ink); }
 .org-btn--on-content:focus-visible { box-shadow: 0 0 0 var(--space-2) var(--paper); }
+/* pressed (the ink fill) keeps a paper rim, so the circle shows on dark content too (Diego, Nov 20, 2026: on a black
+   Element the saved ✓ merged with the picture); an icon toggle is already on paper. Before :hover, so hover still inks it. */
+.org-btn--on-content[aria-pressed="true"]:not(.org-btn--icon-toggle) { border-color: var(--paper); }
 @media (hover: hover) {
   .org-btn.org-btn--on-content:hover:where(:not(:disabled):not([aria-disabled="true"])) { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 }
