@@ -873,11 +873,11 @@ export function composeLost(rules, ctxs, n) {
   });
   return out;
 }
-// The distinct solid inks of a drawing (fill / stroke hexes), paper left out — what a plate separates.
+// The distinct solid inks of a drawing (fill / stroke hexes, a smooth shading's stops), paper left out — what a plate separates.
 export function inksOf(svg, paper) {
   const norm = h => { h = h.toLowerCase(); return h.length === 4 ? '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3] : h.slice(0, 7); };
   const out = [], pk = paper ? norm(paper) : null;
-  String(svg || '').replace(/(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, c) => { const k = norm(c); if (k !== pk && !out.includes(k)) out.push(k); return m; });
+  String(svg || '').replace(/(?:fill|stroke|stop-color)="(#[0-9a-fA-F]{3,8})"/g, (m, c) => { const k = norm(c); if (k !== pk && !out.includes(k)) out.push(k); return m; });
   return out;
 }
 export function exportPlan(figs, p) {

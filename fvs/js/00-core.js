@@ -89,6 +89,19 @@ function syncShadeEditor() {
   if (shadeEd && host.firstChild) { shadeEd.set(o); return; }
   shadeEd = Organica.shadeEditor.mount(host, Object.assign(o, {
     ctx: shadeCtx,
+    // the colour's own stop on the bar: the chip's colour, picked as on the chip
+    onColourStop: anchor => Organica.colorPicker.open(anchor, { value: state.colors[shadeAt], label: 'Palette colour ' + (shadeAt + 1), onChange: h => { if (paletteStrip && h !== state.colors[shadeAt]) paletteStrip.setColor(shadeAt, h); } }),
+    // Use on every colour: this colour's Gradient + Shadow on all of them, each on its own colour (hand-picked inks
+    // left out, so each colour's inks come from its own rule) — one step, like TuneSutra's Shading with nothing selected
+    everyColour: d => {
+      const S = Organica.shading, m = {};
+      if (d && (d.type !== 'flat' || S.hasNoise(d))) state.colors.forEach((h, j) => { m[h] = j === shadeAt ? d : S.withColour(Object.assign(JSON.parse(JSON.stringify(d)), { inkMid: null, inkCore: null }), h, shadeCtx()); });
+      state.inkShades = m;
+      if (paletteStrip) { paletteStrip.rebuild(); paletteStrip.setActive(shadeAt); }
+      if (hooks.syncLayerLight) hooks.syncLayerLight();
+      refreshColourViews();
+      syncShadeEditor();
+    },
     onChange: def => {
       const h = state.colors[shadeAt], m = { ...state.inkShades };
       if (def) m[h] = def; else delete m[h];
@@ -127,7 +140,13 @@ export function buildPalette() {
     onPalette: (pal, colors) => {
       state.colors = colors.map(hexKey);
       const m = {};
-      pal.colours.slice(0, colors.length).forEach(c => { if (c.shade) m[hexKey(c.hex)] = c.shade; });
+      // its own shading per colour; a colour with none takes the Shading the house showed when it was saved
+      const mode = pal.shading && pal.shading !== 'none' && Organica.shading ? pal.shading : null;
+      pal.colours.slice(0, colors.length).forEach(c => {
+        const h = hexKey(c.hex);
+        if (c.shade) m[h] = c.shade;
+        else if (mode) { const d = Organica.shading.defs(h, shadeCtx())[mode]; if (d) m[h] = JSON.parse(JSON.stringify(d)); }
+      });
       state.inkShades = m;
       paletteName = pal.name; paletteHouse = pal.house || null;
       shadeAt = 0;

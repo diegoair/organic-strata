@@ -182,6 +182,61 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     const svg = F.withComponentColours({ colourway: { colors: cw, colorRule: { mode: 'index', offset: 0 }, paper: '#ffffff' } }, () => F.buildSeedPreviewSVG(F.getSeed(), 0, false, false, 200));
     check('a colourway draws its colours shaded (Component › colourways)', svg.indexOf('url(#shd') > 0 && svg.indexOf('#aa2222') > 0 && F.state.colors[0] === pc[0] && F.state.inkShades[pc[0]], svg.length);
     F.state.inkShades = {}; }
+  // Nov 20, 2026 (Diego: "le palette starred and saved devono arrivare con tutto"): a palette saved with a Shading on
+  // the house arrives with it on every colour of its own; a starred one arrives with its base set; the shared editor's
+  // stop bar and Use on every colour
+  { const S4 = Organica.shading, pc = ['#2a3a8c', '#e8b04a', '#c93ed6'];
+    F.setTier('element'); await w(300);
+    while (F.state.layers && F.state.layers.items.length > 1) { F.removeLayer(F.state.layers.items.length - 1); await w(100); }
+    const all = ts.read(); all['House speckle'] = { n: 3, colors: pc, shading: 'speckle', house: 7 }; ts.write(all);
+    Organica.store('tunesutra-favs').write({ 'l:test': { name: 'A star', colors: ['#d94e66', '#f2c14e', '#1f6f8b'], house: 9 } });
+    const pick = async name => { [...document.querySelectorAll('#fvs-palette button')].pop().click(); await w(300); [...document.querySelector('.pal-menu').querySelectorAll('.preset-item')].find(b => b.textContent === name).click(); await w(500); };
+    await pick('House speckle');
+    check('a palette saved with Shading › Speckle arrives with it on every colour', pc.every(h => F.state.inkShades[h] && F.state.inkShades[h].specks === 'specks'), JSON.stringify(Object.keys(F.state.inkShades)));
+    const st = Organica.palettes.get('star:l:test');
+    check('a starred palette arrives whole: tints, role names, its base set (Soft, Speckle) per colour', st && st.shading === 'none' && st.colours.every(c => c.tints[500] && c.set.soft && c.set.speckle && c.set.speckle.specks === 'specks') && st.colours[0].name === 'Base', JSON.stringify(st && st.colours[0].set && Object.keys(st.colours[0].set)));
+    await pick('A star');
+    check('…taken from the menu: its colours, flat', F.state.colors[0] === '#d94e66' && !Object.keys(F.state.inkShades).length, JSON.stringify(F.state.inkShades));
+    const host = q('fvs-shade'), ssel = host.querySelector('select[aria-label="Shading"]');
+    ssel.value = 'pollen-dot'; ssel.dispatchEvent(new Event('change', { bubbles: true })); await w(300);
+    host.querySelector('[data-act="every"]').click(); await w(400);
+    check('Use on every colour: this colour’s Shading on all of them, each on its own colour', F.state.colors.every(h => F.state.inkShades[h] && F.state.inkShades[h].specks === 'pollen-dot' && F.state.inkShades[h].stops[S4.colourStop(F.state.inkShades[h])] === h), JSON.stringify(Object.keys(F.state.inkShades)));
+    // the stop bar: Linear shows it; a click on the bar adds a stop, Delete on a stop removes it (and never reaches the board)
+    host.querySelector('[data-seg="type"] [data-v="linear"]').click(); await w(300);
+    const bar = host.querySelector('.org-stopbar'), h0 = F.state.colors[0];
+    check('the stop bar shows with a Linear gradient, one knob per stop', !host.querySelector('[data-block="stops"]').hidden && bar.querySelectorAll('.org-stopbar__stop').length === F.state.inkShades[h0].stops.length, bar.querySelectorAll('.org-stopbar__stop').length);
+    const rb = bar.getBoundingClientRect(), pe = (t, x) => bar.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: rb.top + rb.height / 2, pointerId: 9 }));
+    pe('pointerdown', rb.left + rb.width * 0.5); pe('pointerup', rb.left + rb.width * 0.5); await w(300);
+    check('a click on the bar adds a stop there', F.state.inkShades[h0].stops.length === 3 && Math.abs(F.state.inkShades[h0].pos[1] - 0.5) < 0.08, JSON.stringify(F.state.inkShades[h0].pos));
+    { const kb = bar.querySelectorAll('.org-stopbar__stop')[1].getBoundingClientRect(), x0 = kb.left + kb.width / 2, p0 = F.state.inkShades[h0].pos[1];
+      const kev = (t, x, el) => (el || bar).dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: rb.top + rb.height / 2, pointerId: 11 }));
+      kev('pointerdown', x0, bar.querySelectorAll('.org-stopbar__stop')[1]); kev('pointermove', x0 + 20); kev('pointermove', x0 + 40); await w(100);
+      const mid = F.state.inkShades[h0].pos[1];
+      kev('pointerup', x0 + 40); await w(300);
+      check('a stop dragged: the palette changes once, on release (one Undo step)', mid === p0 && F.state.inkShades[h0].pos[1] > p0, p0 + ' → ' + mid + ' → ' + F.state.inkShades[h0].pos[1]); }
+    const elsBefore = Object.keys(F.state.elements || {}).length, k1 = bar.querySelectorAll('.org-stopbar__stop')[1];
+    k1.focus(); k1.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true })); await w(300);
+    check('Delete on a stop removes it — not the Element', F.state.inkShades[h0].stops.length === 2 && Object.keys(F.state.elements || {}).length === elsBefore, F.state.inkShades[h0].stops.length);
+    F.state.inkShades = {}; F.buildPalette(); await w(200); }
+  // Plates (Export › Plates): a shaded palette separates into its colours AND every shadow ink, a plate each; on every
+  // plate only black (or clear) is left — no ink stays in colour; a Soft shading's gradient goes on its inks' plates
+  { const S5 = Organica.shading, pc = ['#2a3a8c', '#e8b04a', '#c93ed6'];
+    F.setTier('element'); await w(300);
+    F.state.colors = pc.slice();
+    F.state.inkShades = { [pc[0]]: S5.withColour(JSON.parse(JSON.stringify(S5.defs(pc[0]).speckle)), pc[0]), [pc[2]]: S5.withColour(JSON.parse(JSON.stringify(S5.defs(pc[2]).soft)), pc[2]) };
+    F.layersChanged(); await w(300);
+    const svg = F.buildSeedPreviewSVG(F.getSeed(), 0, false, false, 300), inks = F.plateInks(svg, F.state.colors, '#ffffff');
+    const sh0 = S5.shadowInks(F.state.inkShades[pc[0]], pc[0], { tints: [].concat.apply([], pc.map(h => Organica.color.scale(h).map(x => x.hex))) });
+    check('Plates: the palette’s inks first, then the shadow inks (' + inks.length + ')', inks.slice(0, 3).join() === pc.join() && inks.length > 3 && sh0.some(h => inks.includes(h.toLowerCase())), inks.join(' '));
+    const bad = [];
+    inks.forEach((ink, i) => {
+      const pl = F.plateSVG(svg, inks, i, '#ffffff');
+      const left = (pl.match(/(?:fill|stroke|stop-color)="#[0-9a-fA-F]{6}"/g) || []).map(x => x.slice(-8, -1).toLowerCase()).filter(h => h !== '#000000' && h !== '#ffffff');
+      if (left.length) bad.push(ink + ': ' + left.slice(0, 3).join(','));
+      if (svg.toLowerCase().indexOf('"' + ink + '"') >= 0 && !/="#000000"/.test(pl)) bad.push(ink + ': empty');   // an ink the drawing uses has something on its plate
+    });
+    check('Plates: on every plate only its own ink, in black — none left in colour; a Soft gradient on its plate', !bad.length, bad.slice(0, 4).join(' | '));
+    F.state.inkShades = {}; F.buildPalette(); await w(200); }
   // the menu: up to 9 colours
   check('FVS takes up to 9 colours (TuneSutra\\'s palettes)', F.PALETTE_MAX === 9, F.PALETTE_MAX);
   return rows;`);

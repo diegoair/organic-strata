@@ -1943,7 +1943,7 @@
      focused button / link / summary for Space & Enter) and `?` opens the list in a dialog. */
   Organica.shortcuts = (function () {
     var list = [];
-    var typing = function (t) { return !!(t && t.closest && t.closest('input, select, textarea, [contenteditable=""], [contenteditable="true"]')); };
+    var typing = function (t) { return !!(t && t.closest && t.closest('input, select, textarea, [contenteditable=""], [contenteditable="true"], [role="slider"]')); };   // a slider knob (the stop bar's) has the keys
     var onControl = function (t) { return !!(t && t.closest && t.closest('button, a[href], summary, [role="button"]')); };
     function match(s, e) {
       var k = s.keys, mod = /^(⌘|Ctrl\+)/.test(k), key = k.replace(/^(⌘|Ctrl\+)(Shift\+)?/, '');

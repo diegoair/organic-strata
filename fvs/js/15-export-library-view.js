@@ -37,7 +37,7 @@ import {
 } from './engine/11-symbol-ui.js';
 import {
   DEFAULT_VARIANTS, KIND_WORD, LIBVIEW_KINDS, RAIL_DBL_MS, componentUsage, dupName, elementInLivePaper,
-  fileSlug, libviewBlock, libviewItems, libviewSVG, libviewVerb, plateSVG, railBlock, railPatch,
+  fileSlug, libviewBlock, libviewItems, libviewSVG, libviewVerb, plateSVG, plateInks, railBlock, railPatch,
   railTileVerb, renderVariant, svgBaseDims, svgInnerOf, tierSVG
 } from './engine/15-export-library-view.js';
 import {
@@ -188,7 +188,7 @@ export function syncPlatesBlock() { ctrl('plates-block').hidden = state.colors.l
 ctrl('btn-export').addEventListener('click', syncPlatesBlock);
 ctrl('btn-plates-export').addEventListener('click', () => {
   const svg = exportablePhotoSVG(tierSVG()); if (!svg) return;
-  const colors = state.colors.slice(), paper = state.paperColor;
+  const paper = state.paperColor, colors = plateInks(svg, state.colors, paper);   // + a shaded colour's own inks, a plate each
   const scales = outputScales(), format = pv('sel-variant-format');
   const jobs = [];
   colors.forEach((c, i) => scales.forEach(sc => jobs.push({ i, sc })));

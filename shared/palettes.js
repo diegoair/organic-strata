@@ -19,7 +19,10 @@
  *
  * A Palette:
  *   { id: 'saved:<name>' | 'star:<key>', name, source: 'saved' | 'starred', pid, house,
- *     colours: [{ id, hex, name, part, tints: { 50: hex, 100: hex … 900: hex }, shade: GradDef | null }] }
+ *     shading: 'none' | a preset ('soft', 'speckle', 'pollen-dot' …) — the house's Shading when it was saved,
+ *     colours: [{ id, hex, name, part, tints: { 50: hex, 100: hex … 900: hex }, shade: GradDef | null,
+ *                 set: { soft: GradDef, speckle: GradDef } }] }   // shade = its own; set = its base set (always there)
+ * A starred palette comes out the same, with shading 'none' and no own shade: its base set is all there is.
  *
  * LOAD ORDER: core.js → (store.js) → color.js → shading.js → this → palette.js.
  * ───────────────────────────────────────────────────────────────────────────── */
@@ -102,6 +105,26 @@
     if (Organica.color) Organica.color.scale(h).forEach(st => { t[st.step || 50] = st.hex; });   // color.js: a page without it gets no tints
     return t;
   }
+  // The palette's base set, per colour (TuneSutra's `set`, Nov 18, 2026: "un set di base che ci permetta di fare
+  // tutto"): its Soft and Speckle shadings — the saved ones when the record carries them, else the engine's for the
+  // colour. Every other texture comes from Organica.shading.defs(hex) — the shade editor's Shading menu.
+  function baseSet(h, saved) {
+    const S = Organica.shading, out = {};
+    if (!S) return out;
+    let D = null;
+    ['soft', 'speckle'].forEach(k => {
+      if (saved && saved[k]) out[k] = S.withColour(S.normalize(clone(saved[k])), h);
+      else { D = D || S.defs(h, {}); if (D[k]) out[k] = clone(D[k]); }
+    });
+    return out;
+  }
+  // The Shading the house showed when the palette was saved (TuneSutra's `shading`): a tool may use it on every colour
+  // with nothing of its own; 'none' when there was none (or a value this engine does not know).
+  function shadingOf(v) {
+    const S = Organica.shading;
+    if (!v || v === 'none' || !S) return 'none';
+    return S.defs('#808080', {})[v] ? v : 'none';
+  }
   function get(id) {
     if (!id) return null;
     const S = Organica.shading;
@@ -109,15 +132,17 @@
       const name = id.slice(6), rec = readOf(saved())[name];
       if (!rec || !Array.isArray(rec.colors)) return null;
       const n = rec.colors.length, P = partsFor(n), set = rec.set && Array.isArray(rec.set.colours) ? rec.set.colours : [];
+      const mode = shadingOf(rec.shading);
       return {
-        id: id, name: name, source: 'saved', pid: rec.pid || null,
+        id: id, name: name, source: 'saved', pid: rec.pid || null, shading: mode,
         house: rec.house >= 1 && rec.house <= 9999 ? Math.round(rec.house) : seedOf(rec.colors.join('')),
         colours: rec.colors.map((h0, i) => {
-          const h = hex(h0), own = rec.shades && rec.shades[i];
-          const tints = set[i] && set[i].hex && set[i].hex.toLowerCase() === h && set[i].tints ? Object.assign({}, set[i].tints) : tintsOf(h);
+          const h = hex(h0), own = rec.shades && rec.shades[i], same = set[i] && set[i].hex && set[i].hex.toLowerCase() === h;
+          const tints = same && set[i].tints ? Object.assign({}, set[i].tints) : tintsOf(h);
           return { id: (rec.ids && rec.ids[i]) || null, hex: h, name: (rec.names && rec.names[i]) || roleName(i, n),
             part: (rec.parts && rec.parts[i]) || P[i] || null, tints: tints,
-            shade: own && S ? S.withColour(S.normalize(clone(own)), h) : null };
+            shade: own && S ? S.withColour(S.normalize(clone(own)), h) : null,
+            set: baseSet(h, same ? set[i].shading : null) };
         }),
       };
     }
@@ -128,7 +153,8 @@
       return {
         id: id, name: rec.name || 'Starred palette', source: 'starred', pid: null,
         house: rec.house >= 1 && rec.house <= 9999 ? Math.round(rec.house) : seedOf(rec.colors.join('')),
-        colours: rec.colors.map((h0, i) => { const h = hex(h0); return { id: null, hex: h, name: roleName(i, n), part: P[i] || null, tints: tintsOf(h), shade: null }; }),
+        shading: 'none',
+        colours: rec.colors.map((h0, i) => { const h = hex(h0); return { id: null, hex: h, name: roleName(i, n), part: P[i] || null, tints: tintsOf(h), shade: null, set: baseSet(h) }; }),
       };
     }
     return null;

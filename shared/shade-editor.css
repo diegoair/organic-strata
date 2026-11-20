@@ -1,0 +1,30 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+ * shade-editor.css — Organica.shadeEditor's own parts: the stop bar (Gradient › Stops).
+ *
+ * Promoted from TuneSutra on Nov 20, 2026 (design-system CONSULT: the colour component's `stops` kind,
+ * O-20 D1) so TuneSutra and every tool that edits a colour's shading draw the same bar. The gradient
+ * itself is the track, one knob per stop at its position, built from Organica.dualRange's track and
+ * knob (panel.css .org-dual). The track and the knobs are content colour (the stops); their outline
+ * is chrome, so pale and dark stops both show in either theme.
+ *
+ * LOAD ORDER: tokens.css → panel.css (it defines --slo-h, --slo-r, --knob-size) → this.
+ * ───────────────────────────────────────────────────────────────────────────── */
+.org-stopbar {
+  position: relative; height: var(--slo-h); margin: var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--border-strong); border-radius: var(--slo-r);
+  cursor: copy; touch-action: none;
+}
+.org-stopbar.is-dragging { cursor: grabbing; }
+.org-stopbar__rail { position: absolute; top: 0; bottom: 0; left: calc(var(--knob-size) / 2); right: calc(var(--knob-size) / 2); }
+.org-stopbar__stop {
+  position: absolute; top: 50%;
+  width: var(--knob-size); height: var(--knob-size); margin: calc(var(--knob-size) / -2) 0 0 calc(var(--knob-size) / -2);
+  box-sizing: border-box; border: 2px solid var(--paper); border-radius: 999px;   /* a disc: a stadium, not a corner radius */
+  box-shadow: 0 0 0 1px var(--border-strong), 0 0 var(--space-3) rgba(0, 0, 0, 0.4);
+  cursor: grab; outline: none;
+}
+/* the knob is under --hit-min: the pointer target is a wider ring round it */
+.org-stopbar__stop::before { content: ''; position: absolute; inset: calc((var(--hit-min) - var(--knob-size)) / -2); border-radius: 999px; }
+.org-stopbar__stop.is-active { outline: 2px solid var(--tool, var(--ink)); outline-offset: 1px; }
+.org-stopbar__stop.is-clear { background: conic-gradient(var(--border) 25%, var(--paper) 0 50%, var(--border) 0 75%, var(--paper) 0) 0 0 / 50% 50%; }   /* a transparent stop: the checkerboard */
+.org-stopbar__stop:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent); }   /* the dual-range knob's ring */

@@ -382,6 +382,7 @@
     return {
       get: () => colors[0],
       set: hex => setColor(0, hex),
+      setColor: (i, hex) => setColor(i, hex),   // one chip, as a pick on it (onChange 'edit')
       getColors: () => colors.slice(),
       setColors,
       setActive,

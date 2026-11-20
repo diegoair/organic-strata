@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/shade-editor.css">
 <link rel="stylesheet" href="/shared/colour-picker.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
@@ -190,30 +191,7 @@
 
   .role-name { font-size: var(--fs-small); color: var(--mid); margin-bottom: var(--space-2); }
 
-  /* The stop bar (Gradient › Stops): the gradient itself as the track, one knob per stop at its
-     position. Local — the first use of the colour component's `stops` kind (ledger O-20); built
-     from Organica.dualRange's track and knob (panel.css .org-dual). The track and the knobs are
-     content colour (the stops); their outline is chrome, so pale and dark stops both show. */
-  .ts-stopbar {
-    position: relative; height: var(--slo-h); margin: var(--space-2) 0 var(--space-3);
-    border: 1px solid var(--border-strong); border-radius: var(--slo-r);
-    cursor: copy; touch-action: none;
-  }
-  .ts-stopbar.is-dragging { cursor: grabbing; }
-  .ts-stopbar__rail { position: absolute; top: 0; bottom: 0; left: calc(var(--knob-size) / 2); right: calc(var(--knob-size) / 2); }
-  .ts-stopbar__stop {
-    position: absolute; top: 50%;
-    width: var(--knob-size); height: var(--knob-size); margin: calc(var(--knob-size) / -2) 0 0 calc(var(--knob-size) / -2);
-    box-sizing: border-box; border: 2px solid var(--paper); border-radius: 999px;
-    box-shadow: 0 0 0 1px var(--border-strong), 0 0 var(--space-3) rgba(0, 0, 0, 0.4);
-    cursor: grab; outline: none;
-  }
-  /* the knob is under --hit-min: the pointer target is a wider ring round it */
-  .ts-stopbar__stop::before { content: ''; position: absolute; inset: calc((var(--hit-min) - var(--knob-size)) / -2); border-radius: 999px; }
-  .ts-stopbar__stop.is-active { outline: 2px solid var(--tool, var(--ink)); outline-offset: 1px; }
-  .ts-stopbar__stop.is-clear { background: conic-gradient(var(--border) 25%, var(--paper) 0 50%, var(--border) 0 75%, var(--paper) 0) 0 0 / 50% 50%; }   /* a transparent stop: the checkerboard */
-  .ts-stopbar__stop:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--ink) 40%, transparent); }   /* the dual-range knob's ring */
-  .seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  /* The stop bar (Gradient › Stops) is shared since Nov 20, 2026: shared/shade-editor.css (.org-stopbar). */
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -268,100 +246,11 @@
     <!-- Palette section removed (Diego, Nov 18, 2026, night): Harmony, Lightness spread, Generate went once the
          Shadow's Free inks took the harmony rules; a new colour follows Complementary; Undo is in the floatbar. -->
 
-    <!-- Gradient · Grain · Shadow — three sections (Nov 18, 2026: Diego, "dobbiamo far capire bene cosa è per
-         gradient, cosa è per grain, e cosa è shadow"; mockup A). One definition (G()) behind all three. -->
-    <div class="panel-section">
-      <h3>Gradient</h3>
-      <div class="sub-label">Type</div>
-      <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-gtype" role="group" aria-label="Type">
-          <button class="seg-btn active" data-v="flat" title="One colour, no gradient">Flat</button>
-          <button class="seg-btn" data-v="linear">Linear</button>
-          <button class="seg-btn" data-v="radial">Radial</button>
-        </div>
-      </div>
-      <div class="ctrl-row" id="row-gangle">
-        <div class="ctrl-label">Angle</div>
-        <input type="range" id="rg-gangle" min="0" max="360" step="1" value="90">
-        <span class="ctrl-val" id="v-gangle">90</span>
-      </div>
-      <div id="grad-blend">
-        <div class="sub-label">Stops</div>
-        <div class="ts-stopbar" id="grad-bar" role="group" aria-label="Stops"><div class="ts-stopbar__rail"></div></div>
-        <div class="row-btns">
-          <button class="mini-btn" id="btn-grad-reverse">Reverse</button>
-          <button class="mini-btn" id="btn-grad-even">Space evenly</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="panel-section">
-      <h3>Shadow</h3>
-      <!-- Shading (Nov 18, 2026: Diego — "una dropdown con thumb per tutti", the 11 picked in
-           archive/tunesutra-mockups/shadow-types/ + None and Soft): a preset for the whole figure, or the selected
-           shape; once picked, its parameters change it. Thumbnails drawn on the active colour (renderer = the tool's). -->
-      <div class="ctrl-row">
-        <select id="sel-shading" aria-label="Shading">
-          <option value="none">None</option>
-          <option value="soft">Soft</option>
-          <optgroup label="Specks"><option value="speckle">Speckle</option><option value="mottle">Mottle</option></optgroup>
-          <optgroup label="Dither"><option value="dither-fs">Serpentine</option><option value="dither-blue">Blue noise</option><option value="dither-bayer">Bayer</option></optgroup>
-          <optgroup label="Pollen"><option value="pollen-dot">Dot</option><option value="pollen-stroke">Stroke</option><option value="pollen-cross">Cross-hatch</option></optgroup>
-          <optgroup label="Camo"><option value="camo-spots">Spots</option><option value="camo-maze">Maze</option></optgroup>
-          <option value="cells">Cells</option>
-        </select>
-        <div id="shading-picker"></div>
-      </div>
-      <div id="grad-shadow">
-        <div class="ctrl-row" id="row-gamount">
-          <div class="ctrl-label" title="How strong the shadow is.">Amount</div>
-          <input type="range" id="rg-gamount" min="1" max="100" step="1" value="70">
-          <span class="ctrl-val" id="v-gamount">70</span>
-        </div>
-        <div class="ctrl-row" id="row-gspeck">
-          <div class="ctrl-label" title="The size of one speck or dot, in sheet units.">Size</div>
-          <input type="range" id="rg-gspeck" min="1" max="12" step="0.5" value="2" aria-label="Shadow size">
-          <span class="ctrl-val" id="v-gspeck">2</span>
-        </div>
-        <div class="ctrl-row" id="row-glight">
-          <div class="ctrl-label" title="Where the light comes from: 0° = the top, 90° = the right. The shadow thickens toward the opposite side.">Light from</div>
-          <input type="range" id="rg-glight" min="0" max="360" step="1" value="315">
-          <span class="ctrl-val" id="v-glight">315</span>
-        </div>
-        <div class="ctrl-row" id="row-gfalloff">
-          <div class="ctrl-label" title="50 = the shadow grows evenly across the fill. Higher keeps it to the far side; lower takes it further.">Falloff</div>
-          <input type="range" id="rg-gfalloff" min="0" max="100" step="1" value="50">
-          <span class="ctrl-val" id="v-gfalloff">50</span>
-        </div>
-        <!-- Ink (Nov 18, 2026: Diego, "Hue e Shadow Ink devono essere collegati … presets per creare dei colori,
-             alcuni on palette altri no … togli il toggle"): one preset = a hue rule + on the palette's tints or free;
-             its two inks shown right under it -->
-        <div class="sub-label">Ink</div>
-        <div class="ctrl-row">
-          <select id="sel-gink" aria-label="Ink">
-            <optgroup label="On the palette">
-              <option value="same|p">Same</option><option value="cool|p">Cool</option><option value="warm|p">Warm</option><option value="complement|p">Complement</option>
-            </optgroup>
-            <optgroup label="Free">
-              <option value="same|f">Monochromatic</option><option value="analogous|f">Analogous</option><option value="complement|f">Complementary</option><option value="split|f">Split-complementary</option><option value="triadic|f">Triadic</option><option value="tetradic|f">Tetradic</option>
-            </optgroup>
-          </select>
-          <div id="gink-picker"></div>
-        </div>
-        <div class="ctrl-row" id="row-gshift">
-          <div class="ctrl-label" title="How far the shadow turns toward the Ink’s hue.">Shift</div>
-          <input type="range" id="rg-gshift" min="0" max="100" step="1" value="60">
-          <span class="ctrl-val" id="v-gshift">60</span>
-        </div>
-        <div class="color-row"><span class="color-name">Halftone</span><button class="color-swatch" id="sw-gmid" aria-label="Halftone ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gmid"></span></div>
-        <div class="color-row"><span class="color-name">Core</span><button class="color-swatch" id="sw-gcore" aria-label="Core ink" aria-haspopup="dialog"></button><span class="ctrl-val" id="v-gcore"></span></div>
-        <div class="ctrl-row" id="row-gdepth">
-          <div class="ctrl-label" title="How dark the core shadow gets.">Depth</div>
-          <input type="range" id="rg-gdepth" min="10" max="90" step="1" value="35">
-          <span class="ctrl-val" id="v-gdepth">35</span>
-        </div>
-      </div>
-    </div>
+    <!-- Gradient · Shadow (Nov 18, 2026: Diego, "dobbiamo far capire bene cosa è per gradient, cosa è per grain, e cosa
+         è shadow"; mockup A): one definition (G()) behind both sections. Since Nov 20, 2026 the controls are the shared
+         Organica.shadeEditor (shared/shade-editor.js) — the same ones every tool shows for a palette colour — mounted
+         here by initGradient(), editing G() in place. -->
+    <div id="ts-shade"></div>
 
   </div>
 </div>
@@ -441,6 +330,7 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/vendor/ral-classic.js"></script>
 <script src="/shared/select-picker.js"></script>
+<script src="/shared/shade-editor.js"></script>
 <script src="/shared/plate-export.js"></script>
 <script src="/tunesutra/collections.js"></script>
 <script src="/shared/shapes.js"></script>
@@ -819,9 +709,6 @@ function gradUses(g) { return SH.gradUses(g); }
 function smoothMarkup(pl, id) { return SH.smoothMarkup(pl, id); }
 function drawPlates(c, plates) { SH.drawPlates(c, plates); }
 // The stop bar's preview: a smooth CSS gradient sampled in OKLab (16 sub-stops a span).
-function vectorStops() {   // the paper as the last ink fading out, as on the sheet (#rrggbbaa)
-  return smoothStops(G()).map(([at, hex, op]) => [at, op < 1 ? hex + Math.round(op * 255).toString(16).padStart(2, '0') : hex]);
-}
 
 // ── What the Gradient & grain section edits (Diego, Nov 18, 2026: on the house, a click on a
 // shape / colour and its gradient is edited there, the house staying in view). On the Gradient
@@ -900,25 +787,15 @@ function clearColourShades(i) {
   fig.zones.forEach((z, j) => { if (z.role === i) delete state.zoneShades[pre + j]; });
 }
 
+// The Gradient + Shadow controls: Organica.shadeEditor (shared/shade-editor.js, Nov 20, 2026 — one module with every
+// tool), editing G() in place. An edit is an Undo step first (pushUndo: its kind as before — a drag is one 'grad'
+// burst, a stop / Type / Ink its own step — and the first one keeps the draft as the colour's own, keepEdit), then
+// gradChanged(). The Shading menu keeps TuneSutra's scope (setShading: a selected shape, else the whole house).
+let shadeEd = null;
+const SHADING_VALUES = [].concat.apply([], Organica.shadeEditor.SHADING.map(gr => gr[1].map(o => o[0])));
 function syncGradControls() {
-  const g = G(), seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === v));
-  const flat = g.type === 'flat', uses = gradUses(g);
-  seg('seg-gtype', g.type); syncInkPicker(g);
-  ['shift', 'depth'].forEach(k => { ctrl('rg-g' + k).value = g[k]; ctrl('v-g' + k).textContent = g[k]; });
-  const inks = shadowInks(g, g.stops[colourStop(g)]);
-  ctrl('sw-gmid').style.background = inks[0]; ctrl('v-gmid').textContent = inks[0];
-  ctrl('sw-gcore').style.background = inks[1]; ctrl('v-gcore').textContent = inks[1];
-  ctrl('row-gshift').hidden = g.hue === 'same' || g.snap || (!!g.inkMid && !!g.inkCore);   // Same keeps the hue; on the palette the inks snap to its tints, so Shift could only jump between them (often not at all); hand-picked inks ignore the rule
-  ctrl('rg-gangle').value = g.angle; ctrl('v-gangle').textContent = g.angle + '°';
-  ctrl('rg-gamount').value = g.amount; ctrl('v-gamount').textContent = g.amount;
-  ctrl('rg-gspeck').value = g.speck; ctrl('v-gspeck').textContent = g.speck;
-  ctrl('grad-shadow').hidden = !g.shadow;
-  ctrl('rg-glight').value = g.light; ctrl('v-glight').textContent = g.light + '°';
-  ctrl('rg-gfalloff').value = g.falloff; ctrl('v-gfalloff').textContent = g.falloff;
-  ctrl('grad-blend').hidden = flat;
-  ['angle', 'speck', 'light', 'falloff'].forEach(k => { ctrl('row-g' + k).hidden = !uses[k]; });
-  gradSel = Math.min(gradSel, g.stops.length - 1);
-  renderStopBar();
+  if (!shadeEd) return;
+  shadeEd.set({ hex: state.items[state.activeIndex].hex });
 }
 // Saved before Nov 18, 2026: the raster options are gone — Conic becomes Linear,
 // Ordered becomes Noise, a Tone grain (a raster jitter) is dropped, Grain in
@@ -934,184 +811,23 @@ function gradChanged() {
   renderStage();
   syncUndo();
 }
-
-// ── the stop bar — where each stop sits along the gradient ──
-// The chips under it carry the colours (and the palette library); the bar
-// carries the positions. Stops stay in order: a stop cannot pass its
-// neighbours. Built here, the first use of the colour component's `stops`
-// kind (ledger O-20); promote it at the second tool that needs one.
-let gradSel = 0;
-function ensurePos() {
-  const g = G();
-  if (!g.pos || g.pos.length !== g.stops.length) g.pos = evenPos(g.stops.length);
-  return g.pos;
-}
-function selectStop(i) {
-  gradSel = clamp(i, 0, G().stops.length - 1);
-  ctrl('grad-bar').querySelectorAll('.ts-stopbar__stop').forEach((k, j) => k.classList.toggle('is-active', j === gradSel));
-}
-// Adds a stop at `at` (0..1) in the colour the gradient has there; returns its index.
-function addStopAt(at, hex) {
-  const g = G(), pos = ensurePos();
-  let i = pos.findIndex(p => p > at);
-  if (i < 0) i = pos.length;
-  const stops = gradStops().filter(s => !s.paper);
-  hex = hex || colourAt(stops.map((s, k) => ({ hex: s.hex, at: pos[k] })), at);
-  if (i <= colourStop(g)) g.colourAt = colourStop(g) + 1;
-  g.stops.splice(i, 0, hex); pos.splice(i, 0, at); g.auto2 = false;
-  return i;
-}
-function widestGap() {
-  const pos = ensurePos();
-  let best = 0, at = 0.5;
-  for (let i = 0; i < pos.length - 1; i++) if (pos[i + 1] - pos[i] > best) { best = pos[i + 1] - pos[i]; at = (pos[i] + pos[i + 1]) / 2; }
-  return at;
-}
-function removeStop(i) {
-  const g = G();
-  if (g.stops.length <= 2 || i === colourStop(g)) return;   // the colour's own stop stays
-  pushUndo('grad-stop');
-  if (i < colourStop(g)) g.colourAt = colourStop(g) - 1;
-  ensurePos().splice(i, 1); g.stops.splice(i, 1); g.auto2 = false;
-  gradSel = Math.max(0, i - 1);
-  gradChanged();
-}
-function stopBarCSS() {
-  // the bar's own background is the gradient (content colour, sampled the same way as the SVG)
-  return 'linear-gradient(to right, ' + vectorStops().map(([at, hex]) => hex + ' ' + num(at * 100) + '%').join(', ') + ')';
-}
-function renderStopBar() {
-  const bar = ctrl('grad-bar'), rail = bar.firstElementChild, g = G();
-  if (g.type === 'flat') return;
-  const pos = ensurePos(), f = 1;
-  bar.style.background = stopBarCSS();
-  if (rail.children.length !== pos.length) {
-    rail.innerHTML = pos.map((_, i) => `<span class="ts-stopbar__stop" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" data-i="${i}"></span>`).join('');
-  }
-  Array.prototype.forEach.call(rail.children, (k, i) => {
-    const pct = Math.round(pos[i] * 100);
-    k.style.left = (pos[i] * f * 100) + '%';
-    k.style.background = isClear(g.stops[i]) ? '' : g.stops[i];
-    k.classList.toggle('is-clear', isClear(g.stops[i]));
-    k.setAttribute('aria-valuenow', pct);
-    k.setAttribute('aria-valuetext', pct + '%, ' + g.stops[i]);
-    k.setAttribute('aria-label', 'Stop ' + (i + 1));
-    k.classList.toggle('is-active', i === gradSel);
-  });
-}
-function bindStopBar() {
-  const bar = ctrl('grad-bar'), rail = bar.firstElementChild;
-  // a position 0..1 of the stops' own span from a pointer x (the paper, when fading, sits past it)
-  const posFrom = x => {
-    const r = rail.getBoundingClientRect(), f = 1;
-    return clamp((x - r.left) / r.width / f, 0, 1);
-  };
-  let drag = null;
-  bar.addEventListener('pointerdown', e => {
-    const knob = e.target.closest('.ts-stopbar__stop');
-    let i;
-    if (knob) i = +knob.dataset.i;
-    else {
-      if (G().stops.length >= GRAD_MAX_STOPS) return;
-      pushUndo('grad-stop');
-      i = addStopAt(posFrom(e.clientX));
-    }
-    selectStop(i);
-    if (!knob) gradChanged();
-    drag = { i: i, id: e.pointerId, x0: e.clientX, knob: !!knob, moved: false };
-    bar.setPointerCapture(e.pointerId);
-    bar.classList.add('is-dragging');
-    const k = rail.children[i];
-    if (k) k.focus({ preventScroll: true });
-    e.preventDefault();
-  });
-  bar.addEventListener('pointermove', e => {
-    if (!drag || e.pointerId !== drag.id) return;
-    if (Math.abs(e.clientX - drag.x0) > 3) drag.moved = true;
-    moveStop(drag.i, posFrom(e.clientX));
-  });
-  // The stops' colours come from the picker (Diego, Nov 18, 2026: the chips under the bar are gone):
-  // a click on a stop that did not move opens it; the first stop is the colour itself.
-  const end = e => {
-    if (!drag || e.pointerId !== drag.id) return;
-    const d = drag; drag = null; bar.classList.remove('is-dragging');
-    if (e.type === 'pointerup' && d.knob && !d.moved) pickStop(d.i);
-  };
-  bar.addEventListener('pointerup', end);
-  bar.addEventListener('pointercancel', end);
-  bar.addEventListener('keydown', e => {
-    const knob = e.target.closest('.ts-stopbar__stop');
-    if (!knob) return;
-    const i = +knob.dataset.i, pos = ensurePos(), step = e.shiftKey ? 0.1 : 0.01;
-    let to = null;
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') to = pos[i] - step;
-    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') to = pos[i] + step;
-    else if (e.key === 'Home') to = 0;
-    else if (e.key === 'End') to = 1;
-    else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeStop(i); focusStop(gradSel); return; }
-    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickStop(i); return; }
-    else return;
-    e.preventDefault();
-    selectStop(i);
-    moveStop(i, to);
-  });
-  bar.addEventListener('focusin', e => { const k = e.target.closest('.ts-stopbar__stop'); if (k) selectStop(+k.dataset.i); });
-}
-function pickStop(i) {
-  const k = ctrl('grad-bar').firstElementChild.children[i];
-  if (!k) return;
-  if (i === colourStop(G())) return pickOnSheetColour(k);   // the colour's own stop: the picker edits the colour
-  Organica.colorPicker.open(k, {
-    value: isClear(G().stops[i]) ? '#ffffff' : G().stops[i], label: 'Stop ' + (i + 1),
-    onInput: hex => { if (G().stops[i] === hex) return; pushUndo('grad'); const g = G(); g.auto2 = false; g.stops[i] = hex; gradChanged(); },
-    transparent: true,
-    onTransparent: () => { const g = G(); if (isClear(g.stops[i])) return; pushUndo('grad'); g.auto2 = false; g.stops[i] = 'transparent'; gradChanged(); },
-  });
-}
 function pickOnSheetColour(anchor) {
   const i = state.activeIndex;
   Organica.colorPicker.open(anchor, { value: state.items[i].hex, label: dispName(i), onInput: hex => { if (hex !== state.items[i].hex) setActiveColor(hex); } });
 }
-function focusStop(i) { const k = ctrl('grad-bar').firstElementChild.children[i]; if (k) k.focus({ preventScroll: true }); }
-function moveStop(i, to) {
-  const pos = ensurePos(), lo = i > 0 ? pos[i - 1] : 0, hi = i < pos.length - 1 ? pos[i + 1] : 1;
-  to = Math.round(clamp(to, lo, hi) * 1000) / 1000;
-  if (to === pos[i]) return;
-  pushUndo('grad');
-  pos[i] = to;
-  gradChanged();
-}
-
-const GRAD_MAX_STOPS = 8;
 function initGradient() {
-  // the two shadow inks: a click opens the picker on the ink as it is; a pick makes it hand-picked
-  [['sw-gmid', 'inkMid', 0, 'Halftone ink'], ['sw-gcore', 'inkCore', 1, 'Core ink']].forEach(([id, key, k, label]) => ctrl(id).addEventListener('click', () => {
-    const g0 = G();
-    Organica.colorPicker.open(ctrl(id), { value: shadowInks(g0, g0.stops[colourStop(g0)])[k], label: label,
-      onInput: hex => { const g = G(); if (g[key] === hex) return; pushUndo('grad'); g[key] = hex; gradChanged(); } });
-  }));
-  bindStopBar();
-  const segBind = (id, key) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
-    if (G()[key] === b.dataset.v) return;
-    pushUndo('grad-' + key); G()[key] = b.dataset.v; gradChanged();
-  }));
-  segBind('seg-gtype', 'type');
-  ctrl('sel-gink').addEventListener('change', e => {
-    const [hue, mode] = e.target.value.split('|'), g = G();
-    if (g.hue === hue && !!g.snap === (mode === 'p') && !g.inkMid && !g.inkCore) return;
-    pushUndo('grad-ink'); g.hue = hue; g.snap = mode === 'p'; g.inkMid = null; g.inkCore = null; gradChanged();   // an Ink preset replaces hand-picked inks (Reset inks removed, Nov 18, 2026)
+  shadeEd = Organica.shadeEditor.mount(ctrl('ts-shade'), {
+    hex: state.items[state.activeIndex].hex,
+    ctx: () => ({ tints: paletteTints(), paper: sheetTheme().paper }),
+    edit: {
+      get: G,
+      before: key => pushUndo(key === 'stop' || key === 'type' || key === 'ink' ? 'grad-' + key : 'grad'),
+      after: gradChanged,
+    },
+    onShading: mode => { setShading(mode); return true; },
+    shadingShown: shadingShown,
+    onColourStop: pickOnSheetColour,
   });
-  [['rg-gangle', 'angle'], ['rg-gamount', 'amount'], ['rg-gspeck', 'speck'], ['rg-glight', 'light'], ['rg-gfalloff', 'falloff'], ['rg-gshift', 'shift'], ['rg-gdepth', 'depth']].forEach(([id, key]) => ctrl(id).addEventListener('input', e => {
-    pushUndo('grad'); G()[key] = +e.target.value; gradChanged();
-  }));
-  ctrl('btn-grad-reverse').addEventListener('click', () => {
-    pushUndo('grad-stop');
-    const g = G(), pos = ensurePos();
-    g.colourAt = g.stops.length - 1 - colourStop(g); g.stops.reverse(); g.pos = pos.map(p => Math.round((1 - p) * 1000) / 1000).reverse();
-    gradSel = g.stops.length - 1 - gradSel;
-    gradChanged();
-  });
-  ctrl('btn-grad-even').addEventListener('click', () => { pushUndo('grad-stop'); G().pos = null; gradChanged(); });
 }
 
 // CSS: the smooth fill only — grain is not expressible in CSS. Positions as
@@ -1546,10 +1262,13 @@ function selectRole(i, z) {
 }
 
 // ── MODE / HARMONY / VIEW CONTROLS ──
+function shadingShown() {
+  const sz = selZone();
+  return sz != null ? presetOf(state.zoneShades[zoneKey(sz)] || colourDef(state.activeIndex) || shapeShadeDef(state.items[state.activeIndex].hex, 'none'), state.items[state.activeIndex].hex) : state.shading;
+}
 function syncViewSeg() {
   // the row says what a click would change: the selected shape's preset, else the house's
-  const sz = selZone(), shown = sz != null ? presetOf(state.zoneShades[zoneKey(sz)] || colourDef(state.activeIndex) || shapeShadeDef(state.items[state.activeIndex].hex, 'none'), state.items[state.activeIndex].hex) : state.shading;
-  syncShadingPicker(shown);
+  if (shadeEd) shadeEd.sync();   // its Shading menu reads shadingShown()
   ctrl('house-no').textContent = 'House no. ' + state.house;   // announced; the sheet's caption shows it
 }
 // Shading (Diego, Nov 18, 2026: "quando clicco shading e nulla è selezionato applica lo shading a tutte le
@@ -1563,7 +1282,7 @@ function shapeShadeDef(hex, mode) {
 // The preset a definition is (for the Shading row's state on a selected shape), or null.
 function presetOf(def, hex) {
   if (!def) return null;
-  const k = JSON.stringify(def), modes = [...ctrl('sel-shading').options].map(o => o.value);
+  const k = JSON.stringify(def), modes = SHADING_VALUES;
   const exact = modes.find(m => JSON.stringify(withColour(shapeShadeDef(hex, m), hex)) === k);
   if (exact) return exact;
   // edited since (Ink, Amount …): still that type of shadow — the menu names the type, not the exact settings
@@ -1592,65 +1311,6 @@ function setShading(mode) {
   syncGradControls();
   renderStage();
   syncUndo();
-}
-// The Shading picker: a thumbnail dropdown (Organica.selectPicker, size 'preview'); each thumbnail is that preset
-// drawn by the tool's own renderer on the active colour (a disc, light from the top-left), lazily, then cached
-// until the colour changes.
-let shadingPicker = null, shadingThumbHex = '';
-const SHADING_HINT = {
-  none: 'No shadow', soft: 'A smooth shadow, no marks', speckle: 'Square specks', mottle: 'Specks in organic clumps',
-  'dither-fs': 'Error diffusion, even grain', 'dither-blue': 'The smoothest grain', 'dither-bayer': 'A printed cross pattern',
-  'pollen-dot': 'Dots, denser in shadow', 'pollen-stroke': 'Short strokes across the light', 'pollen-cross': 'Brush strokes, crossing as it darkens',
-  'camo-spots': 'Spots that grow into the shadow', 'camo-maze': 'A labyrinth that thickens', cells: 'Cells filling from their centre',
-};
-let thumbSeq = 0;
-function shadingThumb(mode) {
-  // drawn in a 72-unit box: at 120 a size-3 speck shrank under a pixel in a 40-px thumbnail (every type alike), at
-  // 44 the marks turned to blocks; the disc is cut by covering its outside with
-  // the paper (an even-odd frame), no <clipPath id> (the picker shows the markup twice)
-  const hex = state.items[state.activeIndex].hex, S = 72, R = 32, c = S / 2, paper = sheetTheme().paper;
-  // the thumbnail's own light: diagonal from the top-left with a wide falloff, as in the test page, so the texture shows
-  const def = mode === 'none' ? null : withColour(Object.assign(JSON.parse(JSON.stringify(shadeDefs(hex)[mode])), { light: 315, falloff: 45, amount: 90 }), hex);
-  const u = mode + '-' + (++thumbSeq);
-  const inks = def ? shapeInks(def, S, S, false).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, 'tth-' + u + '-' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('') : '';
-  const disc = `M${c - R} ${c}a${R} ${R} 0 1 0 ${2 * R} 0a${R} ${R} 0 1 0 ${-2 * R} 0Z`;
-  return `<svg viewBox="0 0 ${S} ${S}"><rect width="${S}" height="${S}" fill="${hex}"/>` +
-    `<g shape-rendering="crispEdges" fill-rule="evenodd">${inks}</g>` +
-    `<path fill="${paper}" fill-rule="evenodd" d="M0 0H${S}V${S}H0Z${disc}"/></svg>`;
-}
-function syncShadingPicker(shown) {
-  const sel = ctrl('sel-shading');
-  if (!shadingPicker) {
-    const reg = {};
-    [...sel.options].forEach(o => { reg[o.value] = { name: o.textContent, thumb: () => shadingThumb(o.value), rowHtml: esc(o.textContent) + (SHADING_HINT[o.value] ? ` <span class="pi-hint">${esc(SHADING_HINT[o.value])}</span>` : '') }; });
-    shadingPicker = Organica.selectPicker(sel, ctrl('shading-picker'), { registry: reg, size: 'preview', ariaLabel: 'Shading' });
-  }
-  const hex = state.items[state.activeIndex].hex;
-  const key = hex + '|' + document.documentElement.dataset.theme;
-  if (key !== shadingThumbHex) { shadingThumbHex = key; shadingPicker.invalidate(); }   // drawn on the active colour, on the paper of the theme
-  sel.value = shown || '';
-  shadingPicker.refresh();
-}
-// The Ink picker: a preset = a hue rule (Same · Cool · Warm · Complement · Impressionist) on the palette's tints or
-// free; each thumbnail shows what it gives the active colour — the colour, then its Halftone and Core inks.
-let inkPicker = null, inkThumbKey = '';
-function inkThumb(value) {
-  const [hue, mode] = value.split('|'), g = Object.assign({}, G(), { hue: hue, snap: mode === 'p', inkMid: null, inkCore: null });
-  const hex = g.stops[colourStop(g)], [mid, core] = shadowInks(g, hex);
-  return `<svg viewBox="0 0 30 30"><rect width="10" height="30" fill="${hex}"/><rect x="10" width="10" height="30" fill="${mid}"/><rect x="20" width="10" height="30" fill="${core}"/></svg>`;
-}
-function syncInkPicker(g) {
-  const sel = ctrl('sel-gink');
-  if (!inkPicker) {
-    const reg = {}, hint = { same: 'only darker', cool: 'toward blue-violet', warm: 'toward red-orange', complement: 'toward the opposite hue', analogous: 'the neighbouring hues', split: 'either side of the opposite', triadic: 'a third of the wheel apart', tetradic: 'a quarter of the wheel apart' };
-    [...sel.options].forEach(o => { const [h, m] = o.value.split('|'); reg[o.value] = { name: o.textContent + (m === 'p' ? ' · palette' : ''), thumb: () => inkThumb(o.value), rowHtml: esc(o.textContent) + ` <span class="pi-hint">${esc(hint[h] + (m === 'p' ? ', from the palette' : ''))}</span>` }; });
-    inkPicker = Organica.selectPicker(sel, ctrl('gink-picker'), { registry: reg, size: 'preview', ariaLabel: 'Ink' });
-  }
-  const key = g.stops[colourStop(g)] + '|' + colors().join('') + '|' + g.depth + '|' + g.shift + '|' + g.lose + '|' + g.glow;
-  if (key !== inkThumbKey) { inkThumbKey = key; inkPicker.invalidate(); }   // the swatches follow the colour, the palette and the rules
-  sel.value = g.hue + '|' + (g.snap ? 'p' : 'f');
-  if (!sel.value) sel.value = 'same|p';
-  inkPicker.refresh();
 }
 // Nothing selected: Esc, or a click on the bare sheet, lets go of the house shape (the colour stays active).
 function clearShapeSelection() {
@@ -2768,7 +2428,6 @@ initHouseCarousel();
 bindFieldEditor();
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
-ctrl('sel-shading').addEventListener('change', e => setShading(e.target.value));
 if (Organica.shadeMarks) Organica.shadeMarks.warm(7);   // Camo's simulations, ahead of the first pick
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || e.defaultPrevented || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
