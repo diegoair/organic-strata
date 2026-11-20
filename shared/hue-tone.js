@@ -223,15 +223,36 @@
     }
     return out;
   }
-  function pickTone(baseTi, rel, fam, purity, k, R) {
-    const inFam = TONES.map((T, i) => i).filter(i => fam === 'any' || TONES[i].fam === fam);
+  const ALL_TONES = TONES.map((T, i) => i);
+  function tonePool(baseTi, rel, fam, purity, k) {
+    const inFam = ALL_TONES.filter(i => fam === 'any' || TONES[i].fam === fam);
     const pur = i => purity !== 'same' || TONES[i].clear === TONES[baseTi].clear;
     let pool;
     if (rel === 'same') pool = [baseTi];
     else if (rel === 'near') pool = inFam.filter(i => toneDist(i, baseTi) < 0.4 && pur(i));
-    else pool = k === 1 ? TONES.map((T, i) => i).filter(i => toneDist(i, baseTi) >= 0.45 && pur(i)) : inFam.filter(i => toneDist(i, baseTi) < 0.4 && pur(i));
-    if (!pool.length) pool = inFam.length ? inFam : [baseTi];
+    else pool = k === 1 ? ALL_TONES.filter(i => toneDist(i, baseTi) >= 0.45 && pur(i)) : inFam.filter(i => toneDist(i, baseTi) < 0.4 && pur(i));
+    return pool.length ? pool : inFam.length ? inFam : [baseTi];
+  }
+  function pickTone(baseTi, rel, fam, purity, k, R) {
+    const pool = tonePool(baseTi, rel, fam, purity, k);
     return pool[Math.floor(R() * pool.length)];
+  }
+  function shuffled(a, R) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+  const isFresh = (out, hx) => out.every(o => C.deltaE(o, hx) >= C.DISTINCT_MIN);
+  // A colour of hue hi that no colour in out already reads as (Nov 20, 2026: the generator used to retry 12 random
+  // tones from the same small pool and then keep the duplicate — a third of the palettes had one). The pools widen
+  // step by step, so the asked relation holds as long as it can: the asked tones, then the family, then every tone
+  // of the same purity, then every tone; only past that does the hue move, one step at a time (a 9-colour single
+  // hue palette cannot fit in one family of three tones).
+  function freshColour(out, hi, baseTi, fam, purity, rel, k, R) {
+    const pur = i => TONES[i].clear === TONES[baseTi].clear;
+    const pools = [tonePool(baseTi, rel, fam, purity, k), ALL_TONES.filter(i => TONES[i].fam === fam && (purity !== 'same' || pur(i))),
+      ALL_TONES.filter(i => purity !== 'same' || pur(i)), ALL_TONES];
+    for (const pool of pools) for (const ti of shuffled(pool, R)) { const hx = toneColour(hi, ti); if (isFresh(out, hx)) return hx; }
+    for (let d = 1; d <= 5; d++) for (const s of [d, -d]) for (const ti of shuffled(ALL_TONES, R)) {
+      const hx = toneColour((hi + s + 10) % 10, ti); if (isFresh(out, hx)) return hx;
+    }
+    return toneColour(hi, pools[0][0]);
   }
   // opts: { image: 'base'|'casual'|'light'|'elegant'|'heavy', hue: 'same'|'similar'|'complement'|'split'|'opposite'|'triad'|'free',
   //         tone: 'same'|'near'|'far', purity: 'any'|'same', n: 2–9, neutral: 'none'|'auto'|'white'|'grey'|'black' }
@@ -250,14 +271,15 @@
     const out = [TONES[baseTi].fam === TONES[b.ti].fam ? baseHex : toneColour(b.hi, baseTi)];
     for (let k = 1; k < offs.length; k++) {
       const hi = (b.hi + offs[k] + 20) % 10;
-      let ti = pickTone(baseTi, opts.tone, fam, opts.purity, k, R), hx = toneColour(hi, ti), tries = 0;
-      while (out.some(o => C.deltaE(o, hx) < 6) && tries++ < 12) { ti = pickTone(baseTi, opts.tone === 'same' ? 'near' : opts.tone, fam, opts.purity, k, R); hx = toneColour(hi, ti); }
-      out.push(hx);
+      const hx = toneColour(hi, pickTone(baseTi, opts.tone, fam, opts.purity, k, R));   // the first draw as before: a palette that had no clash stays the same
+      out.push(isFresh(out, hx) ? hx : freshColour(out, hi, baseTi, fam, opts.purity, opts.tone, k, R));
     }
     if (opts.neutral !== 'none') {
       const mL = out.reduce((a, h) => a + C.hexToOklch(h).l, 0) / out.length;
       const nk = opts.neutral === 'auto' ? (mL > 0.7 ? 'grey' : mL < 0.45 ? 'white' : (R() < 0.5 ? 'white' : 'black')) : opts.neutral;
-      out.push(nk === 'white' ? '#ffffff' : nk === 'black' ? '#000000' : NEUTRALS[4].hex);
+      let nx = nk === 'white' ? '#ffffff' : nk === 'black' ? '#000000' : NEUTRALS[4].hex;
+      if (!isFresh(out, nx)) nx = (NEUTRALS.map(N => N.hex).filter(h => isFresh(out, h)).sort((a, b) => C.deltaE(a, nx) - C.deltaE(b, nx))[0]) || nx;   // the nearest grey not already there
+      out.push(nx);
     }
     return out;
   }

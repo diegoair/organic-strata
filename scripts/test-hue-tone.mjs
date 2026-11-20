@@ -141,5 +141,22 @@ const isHex = h => /^#[0-9a-f]{6}$/.test(h);
   check('transparent pixels are left out', HT.extract(Uint8ClampedArray.from([0, 0, 0, 0]), { n: 3 }).length === 0);
 }
 
+// 11. generate never repeats a colour (Nov 20, 2026: it kept a duplicate after 12 retries — a third of the palettes).
+{
+  const keys = ['#e5000d', '#2a6fdb', '#f2c94c', '#3a7d44', '#7b3fa0', '#f4a7b9', '#5a3e2b'];
+  let total = 0, dup = 0, mono = 0, monoOk = 0, first = '';
+  for (const hue of ['same', 'similar', 'complement', 'split', 'opposite', 'triad', 'free'])
+    for (const tone of ['same', 'near', 'far']) for (const image of ['base', 'casual', 'heavy']) for (const neutral of ['none', 'auto'])
+      for (const n of [2, 4, 6, 9]) for (const k of keys) for (let s = 1; s <= 3; s++) {
+        const p = HT.generate(k, { image, hue, tone, purity: 'any', n, neutral }, s); total++;
+        let clash = p.length !== n;
+        for (let i = 0; i < p.length; i++) for (let j = i + 1; j < p.length; j++) if (C.deltaE(p[i], p[j]) < C.DISTINCT_MIN) clash = true;
+        if (clash) { dup++; if (!first) first = [k, hue, tone, image, neutral, n, s].join(' '); }
+        if (hue === 'same' && neutral === 'none' && n <= 8) { mono++; if (HT.harmonyOf(p) === 'monochromatic') monoOk++; }
+      }
+  check('generate: n distinct colours in every palette', dup === 0, dup + ' of ' + total + ' clash' + (first ? ' (first: ' + first + ')' : ''));
+  check('generate: a single hue stays one hue up to 8 colours', monoOk === mono, monoOk + ' of ' + mono);
+}
+
 console.log(failed ? '\n' + failed + ' check(s) FAILED' : '\nALL PASS');
 process.exit(failed ? 1 : 0);
