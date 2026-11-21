@@ -68,6 +68,14 @@
     shift: { label: 'Shift', min: 0, max: 100, step: 1, title: 'How far the shadow turns toward the Ink’s hue.' },
     depth: { label: 'Depth', min: 10, max: 90, step: 1, title: 'How dark the core shadow gets.' },
   };
+  // Wash (Nov 21, 2026; type 'field' in the model): its own settings live on def.field (Organica.shading.FIELD_DEFAULT).
+  // The visible names are provisional (design-system CONSULT: Field and Spread were taken) — the ledger's O-92.
+  const FIELD_RANGES = {
+    size: { label: 'Size', min: 8, max: 120, step: 1, aria: 'Wash size', title: 'The size of the clouds.' },
+    slope: { label: 'Slope', min: 0, max: 100, step: 1, unit: '%', title: 'How much the colour runs along the Angle: 0 = only the clouds, 100 = a straight gradient.' },
+    wave: { label: 'Ripple', min: 0, max: 40, step: 1, unit: '%', title: 'A slight ripple across the slope.' },
+    seed: { label: 'Seed', min: 0, max: 99, step: 1, aria: 'Wash seed' },
+  };
 
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
@@ -79,8 +87,8 @@
       return g ? `<optgroup label="${esc(g)}">${o}</optgroup>` : o;
     }).join('');
   }
-  function rangeRow(p, key) {
-    const r = RANGES[key];
+  function rangeRow(p, key, table) {
+    const r = (table || RANGES)[key];
     return `<div class="ctrl-row" data-row="${key}"><div class="ctrl-label"${r.title ? ` title="${esc(r.title)}"` : ''}>${esc(r.label)}</div>`
       + `<input type="range" id="${p}-${key}" min="${r.min}" max="${r.max}" step="${r.step}"${r.aria ? ` aria-label="${esc(r.aria)}"` : ''}>`
       + `<span class="ctrl-val" id="${p}-v-${key}"></span></div>`;
@@ -99,8 +107,11 @@
     host.innerHTML =
       `<div class="panel-section org-shade-editor" data-part="gradient"><h3>Gradient <span class="hint" data-hint></span></h3>`
       + `<div class="sub-label">Type</div><div class="ctrl-row"><div class="seg-ctrl" data-seg="type" role="group" aria-label="Type">`
-      + `<button type="button" class="seg-btn" data-v="flat" title="One colour, no gradient">Flat</button><button type="button" class="seg-btn" data-v="linear">Linear</button><button type="button" class="seg-btn" data-v="radial">Radial</button></div></div>`
+      + `<button type="button" class="seg-btn" data-v="flat" title="One colour, no gradient">Flat</button><button type="button" class="seg-btn" data-v="linear">Linear</button><button type="button" class="seg-btn" data-v="radial">Radial</button><button type="button" class="seg-btn" data-v="field" title="Soft clouds coloured through the stops">Wash</button></div></div>`
       + rangeRow(p, 'angle')
+      + `<div data-block="field">` + Object.keys(FIELD_RANGES).map(k => rangeRow(p + '-f', k, FIELD_RANGES)).join('')
+      + `<div data-row="span"><div class="sub-label">Wash over</div><div class="ctrl-row"><div class="seg-ctrl" data-seg="span" role="group" aria-label="Wash over">`
+      + `<button type="button" class="seg-btn" data-v="shape" title="The whole wash in every shape">Each shape</button><button type="button" class="seg-btn" data-v="sheet" title="One wash over the sheet, cut by the shapes">All the shapes</button></div></div></div></div>`
       + `<div data-block="stops"><div class="sub-label">Stops</div>`
       + `<div class="org-stopbar" data-bar role="group" aria-label="Stops"><div class="org-stopbar__rail"></div></div>`
       + `<div class="row-btns"><button type="button" class="mini-btn" data-act="reverse">Reverse</button><button type="button" class="mini-btn" data-act="even">Space evenly</button></div></div>`
@@ -304,8 +315,21 @@
     host.querySelectorAll('[data-seg="type"] .seg-btn').forEach(b => b.addEventListener('click', () => {
       const v = b.dataset.v;
       if (cur().type === v) return;
-      edit('type', g => { g.type = v; });
+      edit('type', g => { g.type = v; if (v === 'field' && !g.field) g.field = clone(S.FIELD_DEFAULT); });
     }));
+    host.querySelectorAll('[data-seg="span"] .seg-btn').forEach(b => b.addEventListener('click', () => {
+      if (S.fieldParams(cur()).span === b.dataset.v) return;
+      edit('field-span', g => { g.field = Object.assign(S.fieldParams(g), { span: b.dataset.v }); });
+    }));
+    Object.keys(FIELD_RANGES).forEach(k => {
+      const r = $('#' + p + '-f-' + k), v = $('#' + p + '-f-v-' + k), u = FIELD_RANGES[k].unit || '';
+      const set = () => edit('field-' + k, g => { g.field = Object.assign(S.fieldParams(g), { [k]: +r.value }); });
+      r.addEventListener('input', () => {
+        v.textContent = r.value + u;
+        if (liveMode && S.fieldParams(cur())[k] !== +r.value) set();
+      });
+      if (!liveMode) r.addEventListener('change', set);
+    });
     $('[data-act="reverse"]').addEventListener('click', () => {
       edit('stop', g => {
         const ci = S.colourStop(g), pos = ensurePos(g);
@@ -355,6 +379,18 @@
         if (g[k] != null) $('#' + p + '-v-' + k).textContent = g[k] + (RANGES[k].unit || '');
       });
       $('[data-row="angle"]').hidden = !uses.angle;
+      $('[data-block="field"]').hidden = !uses.field;
+      if (uses.field) {
+        const F = S.fieldParams(g);
+        Object.keys(FIELD_RANGES).forEach(k => {
+          const r = $('#' + p + '-f-' + k);
+          if (document.activeElement !== r && +r.value !== +F[k]) { r.value = F[k]; r.dispatchEvent(new Event('input')); }
+          $('#' + p + '-f-v-' + k).textContent = F[k] + (FIELD_RANGES[k].unit || '');
+        });
+        host.querySelectorAll('[data-seg="span"] .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === F.span));
+        // a tool that gives no sheet (ctx.sheet) draws each shape's own wash: the row would do nothing there
+        $('[data-row="span"]').hidden = !ctxOf().sheet;
+      }
       $('[data-block="stops"]').hidden = g.type === 'flat';
       $('[data-block="shadow"]').hidden = !shadow;
       ['speck', 'light', 'falloff'].forEach(k => { $('[data-row="' + k + '"]').hidden = !uses[k]; });
@@ -386,5 +422,5 @@
     };
   }
 
-  Organica.shadeEditor = { mount: mount, SHADING: SHADING, SHADING_HINT: SHADING_HINT, INK: INK, RANGES: RANGES, MAX_STOPS: MAX_STOPS };
+  Organica.shadeEditor = { mount: mount, SHADING: SHADING, SHADING_HINT: SHADING_HINT, INK: INK, RANGES: RANGES, FIELD_RANGES: FIELD_RANGES, MAX_STOPS: MAX_STOPS };
 })(typeof window !== 'undefined' ? window : this);

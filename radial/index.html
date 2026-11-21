@@ -469,7 +469,7 @@ const swatches = {};
 // The ink's shading (an Organica.shading definition, or null = flat) and the ink it was made for: a palette taken
 // whole brings it along; an ink changed by hand keeps it, re-coloured (Organica.shading.withColour). Saved in presets as `inkshade`.
 let inkShade = null, inkShadeHex = null, inkShadeEd = null;
-const inkShadeCtx = () => Organica.paletteKit.ctxOf([ctrl('hex-ink').value.toLowerCase()], ctrl('hex-paper').value);
+const inkShadeCtx = () => Object.assign({}, Organica.paletteKit.ctxOf([ctrl('hex-ink').value.toLowerCase()], ctrl('hex-paper').value), { sheet: { x: 0, y: 0, w: SIZE, h: SIZE } });   // the sheet: Wash › All the shapes is offered (shared/radial.js passes the W × H it draws on)
 function setInkShade(def, hex) {
   inkShade = def ? JSON.parse(JSON.stringify(def)) : null;
   inkShadeHex = def ? String(hex).toLowerCase() : null;

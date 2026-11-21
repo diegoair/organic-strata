@@ -413,11 +413,20 @@ function buildInkChips() {
     tool: 'Trellis', max: 9,
     get: () => ({ colors: inkColors, shades: inkShades }),
     paper: () => ctrl('hex-paper').value,
+    sheet: () => ({ x: 0, y: 0, w: SIZE, h: SIZE }),   // Wash › All the shapes is offered
     set: (p, why) => { if (p.colors) inkColors = p.colors; if (p.shades) inkShades = p.shades; else if (why === 'palette') inkShades = {}; scheduleStill(); },
   });
 }
 // a colour's shading on one shape (its own box, in the shape's 0..100 space; the light turns with the cell)
 const shadeCtx = () => Organica.paletteKit.ctxOf(inkColors, ctrl('hex-paper').value);
+// Wash › All the shapes (Nov 21, 2026): one wash over the frame, seen from each cell — the frame's square in the cell's
+// own 0..100 units (it is drawn translated and scaled, never turned), so the engine reads the frame's wash at the cell
+function cellCtx(it, origin, unit, side) {
+  const sx = it.scaleX * unit, sy = it.scaleY * unit;
+  if (!sx || !sy) return shadeCtx();
+  const tx = origin + (it.cx + it.offsetX) * unit, ty = origin + (it.cy + it.offsetY) * unit;
+  return Object.assign({}, shadeCtx(), { sheet: { x: -tx / sx + 50, y: -ty / sy + 50, w: side / sx, h: side / sy } });
+}
 function shadeOf(colour) { return Organica.shading && inkShades[String(colour).toLowerCase()] || null; }
 function colorAt(i) { return inkColors[i % inkColors.length]; }
 
@@ -773,7 +782,7 @@ function drawList(gctx, list, originX, originY, unit) {
     const path = new Path2D(it.d);
     gctx.fill(path);
     const def = shadeOf(it.colour);
-    if (def) Organica.shading.overlayCanvas(gctx, def, it.colour, path, Organica.shading.boxOf(it.d), shadeCtx());
+    if (def) Organica.shading.overlayCanvas(gctx, def, it.colour, path, Organica.shading.boxOf(it.d), cellCtx(it, originX, unit, 2 * originX));
     gctx.restore();
   }
 }
@@ -881,7 +890,7 @@ function buildSVG() {
   let body = '';
   for (const it of list) {
     const x = (originX + it.cx + it.offsetX).toFixed(2), y = (originY + it.cy + it.offsetY).toFixed(2);
-    const def = shadeOf(it.colour), shade = def ? Organica.shading.overlaySVG(def, it.colour, it.d, { ctx: shadeCtx(), idPrefix: 'tsh' }) : '';
+    const def = shadeOf(it.colour), shade = def ? Organica.shading.overlaySVG(def, it.colour, it.d, { ctx: cellCtx(it, originX, 1, F), idPrefix: 'tsh' }) : '';
     body += `<g transform="translate(${x} ${y}) scale(${it.scaleX.toFixed(4)} ${it.scaleY.toFixed(4)}) translate(-50 -50)"><path d="${it.d}" fill="${it.colour}"/>${shade}</g>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${F} ${F}"><rect width="${F}" height="${F}" fill="${ctrl('hex-paper').value}"/>${body}</svg>`;

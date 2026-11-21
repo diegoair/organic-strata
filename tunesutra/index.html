@@ -1580,16 +1580,18 @@ function renderModePreview(m) {
   cv.width = Math.round(Wc * k); cv.height = Math.round((RAMP + FIELD) * k);
   const c = cv.getContext('2d'), img = c.createImageData(cv.width, cv.height), D = img.data;
   const ramp = m.order.map(i => hexes[i]), ink = hexes[m.pair[0]], paper = hexes[m.pair[1]];
-  const N = Organica.noise, rgb = {}, toRGB = h => rgb[h] || (rgb[h] = Organica.hexToRGB255(h));
+  const rgb = {}, toRGB = h => rgb[h] || (rgb[h] = Organica.hexToRGB255(h));
   const hash = (x, y) => { let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
   const opts = { mode: m.mode, submode: m.submode, colors: ramp, ink: ink, paper: paper, space: m.space, rnd: 0 };
+  // the field below the ramp: the shared Wash (Organica.shading.fieldValue, Nov 21, 2026) on the 213 × 96 reference
+  const SH = Organica.shading, wash = SH.fieldValue({ angle: 90, field: SH.FIELD_DEFAULT }, { x: 0, y: 0, w: MODE_REF, h: 96 });
   for (let y = 0; y < cv.height; y++) {
     const yc = y / k, ry = yc * s;   // CSS px, reference units
     for (let x = 0; x < cv.width; x++) {
       const xc = x / k, rx = xc * s, t = x / (cv.width - 1);
       let score;
       if (yc < RAMP) score = t;
-      else { const fy = (yc - RAMP) * s + RAMP, f = N && N.fbm ? N.fbm(rx / 38, fy / 38) : 0.5; score = Math.max(0, Math.min(1, 0.55 * f + 0.45 * t + 0.1 * Math.sin(fy / 9))); }
+      else score = wash(rx, (yc - RAMP) * s);   // the Wash of Organica.shading, its defaults: the preview IS the fill
       opts.rnd = hash(Math.floor(rx / 2), Math.floor(ry / 2));   // Random draws per reference cell: the same picture at any size
       const v = toRGB(Organica.palette.colorAt(score, opts)), o = (y * cv.width + x) * 4;
       D[o] = v[0]; D[o + 1] = v[1]; D[o + 2] = v[2]; D[o + 3] = 255;

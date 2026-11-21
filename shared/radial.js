@@ -268,11 +268,13 @@
   //    the ink, drawn on the FILL mode's cells only, each cell lit in its own box (SVG and canvas alike). Unset / null
   //    = flat, the output byte-identical to before. P.shadeCtx (optional) is the shading context; default: the ink's
   //    tints over the paper. Other modes (rings, spokes, mesh, marks, arcs, loops) stay flat.
-  function inkShading(P) {
+  // W, H: the sheet the cells are drawn on — a Wash over All the shapes reads it (ctx.sheet)
+  function inkShading(P, W, H) {
     if (!P.inkShade || !Organica.shading) return null;
     const ctx = P.shadeCtx || (Organica.paletteKit ? Organica.paletteKit.ctxOf([P.ink], P.paper) : { paper: P.paper });
-    return { def: P.inkShade, ctx: ctx };
+    return { def: P.inkShade, ctx: Object.assign({}, ctx, { sheet: { x: 0, y: 0, w: W, h: H } }) };
   }
+  const washOver = def => Organica.shading.isField(def) && Organica.shading.fieldParams(def).span === 'sheet';
   function polyD(poly) { return 'M' + poly.map(p => n2(p[0]) + ' ' + n2(p[1])).join('L') + 'Z'; }
   function polyBox(poly) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -314,12 +316,15 @@
       s += '</g>';
     }
     if (polygonsFill.length) {
-      const sh = inkShading(P);
+      const sh = inkShading(P, W, H);
       s += `<g fill="${P.ink}" stroke="none">`;
+      const one = sh && washOver(sh.def);
       polygonsFill.forEach(poly => {
         s += `<polygon points="${ptsStr(poly)}"/>`;
-        if (sh) s += Organica.shading.overlaySVG(sh.def, P.ink, polyD(poly), { box: polyBox(poly), ctx: sh.ctx, idPrefix: 'rsh' });
+        if (sh && !one) s += Organica.shading.overlaySVG(sh.def, P.ink, polyD(poly), { box: polyBox(poly), ctx: sh.ctx, idPrefix: 'rsh' });
       });
+      // a Wash over All the shapes: one wash over the sheet, clipped by every cell at once (not a piece per cell)
+      if (one) s += Organica.shading.overlaySVG(sh.def, P.ink, polygonsFill.map(polyD).join(''), { box: { x: 0, y: 0, w: W, h: H }, ctx: sh.ctx, idPrefix: 'rsh' });
       s += '</g>';
     }
     arcs.forEach(a => {
@@ -368,11 +373,13 @@
     polylines.forEach(l => { trace(l, false); ctx.stroke(); });
     lines.forEach(l => { trace(l, false); ctx.stroke(); });
     ctx.fillStyle = P.ink;
-    const sh = polygonsFill.length ? inkShading(P) : null;
+    const sh = polygonsFill.length ? inkShading(P, W, H) : null;
+    const one = sh && washOver(sh.def);
     polygonsFill.forEach(poly => {
       trace(poly, true); ctx.fill();
-      if (sh) Organica.shading.overlayCanvas(ctx, sh.def, P.ink, new Path2D(polyD(poly)), polyBox(poly), sh.ctx);
+      if (sh && !one) Organica.shading.overlayCanvas(ctx, sh.def, P.ink, new Path2D(polyD(poly)), polyBox(poly), sh.ctx);
     });
+    if (one) Organica.shading.overlayCanvas(ctx, sh.def, P.ink, new Path2D(polygonsFill.map(polyD).join('')), { x: 0, y: 0, w: W, h: H }, sh.ctx);
     arcs.forEach(a => { ctx.lineWidth = Math.max(a.sw, LW); ctx.stroke(new Path2D(a.d)); });
     ctx.lineWidth = LW;
     marks.forEach(m => {

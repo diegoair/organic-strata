@@ -506,6 +506,69 @@
   };
 
   // ═══════════════════════════════════════════════════════════
+  // ISO-CONTOURS (Nov 21, 2026 — the smooth sibling of traceContours, first used by Organica.shading's Field):
+  // the outline of "value ≥ t" on a grid of samples V (dx × dy, row-major), in sample units (sample i at i), as closed
+  // rings — marching squares, the crossing placed where the value reaches t between two samples, so the outline is a
+  // smooth line, not the grid's steps, and two thresholds never cross. Pad the grid with a value below t so every
+  // ring closes. The d3-contour algorithm (Mike Bostock, ISC —
+  // THIRD-PARTY-NOTICES.md), made standalone.
+  const ISO_CASES = [[], [[[1, 1.5], [0.5, 1]]], [[[1.5, 1], [1, 1.5]]], [[[1.5, 1], [0.5, 1]]], [[[1, 0.5], [1.5, 1]]],
+    [[[1, 1.5], [0.5, 1]], [[1, 0.5], [1.5, 1]]], [[[1, 0.5], [1, 1.5]]], [[[1, 0.5], [0.5, 1]]], [[[0.5, 1], [1, 0.5]]],
+    [[[1, 1.5], [1, 0.5]]], [[[0.5, 1], [1, 0.5]], [[1.5, 1], [1, 1.5]]], [[[1.5, 1], [1, 0.5]]], [[[0.5, 1], [1.5, 1]]],
+    [[[1, 1.5], [1.5, 1]]], [[[0.5, 1], [1, 1.5]]], []];
+  Organica.isoContours = function (V, dx, dy, t) {
+    const rings = [], byStart = new Map(), byEnd = new Map(), ab = i => V[i] >= t ? 1 : 0, key = p => p[0] * 2 + p[1] * (dx + 1) * 4;
+    let x, y, t0, t1, t2, t3;
+    function join(f, g, h) { byStart.set(h.start, h); byEnd.set(h.end, h); }
+    function stitch(line) {
+      const s = [line[0][0] + x, line[0][1] + y], e = [line[1][0] + x, line[1][1] + y], si = key(s), ei = key(e);
+      let f, g;
+      if ((f = byEnd.get(si))) {
+        if ((g = byStart.get(ei))) {
+          byEnd.delete(f.end); byStart.delete(g.start);
+          if (f === g) { f.ring.push(e); rings.push(f.ring); } else join(f, g, { start: f.start, end: g.end, ring: f.ring.concat(g.ring) });
+        } else { byEnd.delete(f.end); f.ring.push(e); byEnd.set(f.end = ei, f); }
+      } else if ((f = byStart.get(ei))) {
+        if ((g = byEnd.get(si))) {
+          byStart.delete(f.start); byEnd.delete(g.end);
+          if (f === g) { f.ring.push(e); rings.push(f.ring); } else join(f, g, { start: g.start, end: f.end, ring: g.ring.concat(f.ring) });
+        } else { byStart.delete(f.start); f.ring.unshift(s); byStart.set(f.start = si, f); }
+      } else { const h = { start: si, end: ei, ring: [s, e] }; byStart.set(si, h); byEnd.set(ei, h); }
+    }
+    x = y = -1; t1 = ab(0); ISO_CASES[t1 << 1].forEach(stitch);
+    while (++x < dx - 1) { t0 = t1; t1 = ab(x + 1); ISO_CASES[t0 | t1 << 1].forEach(stitch); }
+    ISO_CASES[t1].forEach(stitch);
+    while (++y < dy - 1) {
+      x = -1; t1 = ab(y * dx + dx); t2 = ab(y * dx); ISO_CASES[t1 << 1 | t2 << 2].forEach(stitch);
+      while (++x < dx - 1) { t0 = t1; t1 = ab(y * dx + dx + x + 1); t3 = t2; t2 = ab(y * dx + x + 1); ISO_CASES[t0 | t1 << 1 | t2 << 2 | t3 << 3].forEach(stitch); }
+      ISO_CASES[t1 | t2 << 3].forEach(stitch);
+    }
+    x = -1; t2 = ab(y * dx); ISO_CASES[t2 << 2].forEach(stitch);
+    while (++x < dx - 1) { t3 = t2; t2 = ab(y * dx + x + 1); ISO_CASES[t2 << 2 | t3 << 3].forEach(stitch); }
+    ISO_CASES[t2 << 3].forEach(stitch);
+    const lin = (p, v0, v1) => { const d = (t - v0) / (v1 - v0); return isFinite(d) ? p - 1 + d : p; };
+    rings.forEach(r => r.forEach(p => {
+      const xt = p[0] | 0, yt = p[1] | 0, v1 = V[yt * dx + xt];
+      if (p[0] > 0 && p[0] < dx && xt === p[0]) p[0] = lin(p[0], V[yt * dx + xt - 1], v1);
+      if (p[1] > 0 && p[1] < dy && yt === p[1]) p[1] = lin(p[1], V[(yt - 1) * dx + xt], v1);
+    }));
+    return rings;
+  };
+  // simplifyRing: fewer points (Douglas–Peucker, within tol units) — a closed ring is split at its middle so each half has a chord.
+  Organica.simplifyRing = function (pts, tol) {
+    if (pts.length < 5) return pts;
+    const h = pts.length >> 1, keep = new Uint8Array(pts.length), t2 = tol * tol, st = [[0, h], [h, pts.length - 1]];
+    keep[0] = keep[h] = keep[pts.length - 1] = 1;
+    while (st.length) {
+      const [a, b] = st.pop(), A = pts[a], B = pts[b], ex = B[0] - A[0], ey = B[1] - A[1], L = ex * ex + ey * ey || 1e-9;
+      let m = -1, md = t2;
+      for (let i = a + 1; i < b; i++) { const c = (pts[i][0] - A[0]) * ey - (pts[i][1] - A[1]) * ex, d = c * c / L; if (d > md) { md = d; m = i; } }
+      if (m > 0) { keep[m] = 1; st.push([a, m], [m, b]); }
+    }
+    return pts.filter((_, i) => keep[i]);
+  };
+
+  // ═══════════════════════════════════════════════════════════
   // DITHER — promoted from Halide (halide/index.html), which had the only
   // copy. Colornet is the second consumer (its own 'dither' screen mode).
   // Takes a 0..1 "gray" field, returns a Uint8Array of 0/1 ink flags

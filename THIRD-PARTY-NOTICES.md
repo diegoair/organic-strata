@@ -83,6 +83,13 @@ directly against the license banner in each vendored file, August 27, 2026.
 
 ---
 
+### d3-contour (algorithm, re-typed)
+- **Used in**: `shared/core.js` — `Organica.isoContours` (marching squares with linear crossings, the stitching of segments into rings) — for the Wash fill of `shared/shading.js` (Nov 21, 2026). Re-typed in plain JS, made standalone (no d3 dependency); the 16-case table and the stitch logic follow d3-contour's `contours.js`. Nothing is vendored.
+- **Source**: https://github.com/d3/d3-contour — Copyright 2012–2023 Mike Bostock.
+- **License**: ISC — Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies. THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+---
+
 ### RAL Classic colour table (data)
 - **File**: `shared/vendor/ral-classic.js`
 - **License**: CC BY-SA 4.0 — https://creativecommons.org/licenses/by-sa/4.0/ (applies to this data file only)
@@ -90,4 +97,4 @@ directly against the license banner in each vendored file, August 27, 2026.
 - **Used by**: the shared colour picker's *Nearest RAL* value (`shared/colour-picker.js`), TuneSutra first.
 - **Note**: screen approximations, not official RAL references. RAL is a trademark of RAL gGmbH; no affiliation. RAL lists online configurators among its licensable uses — on the pre-launch licence checklist (Diego, Nov 17, 2026). No Pantone data is bundled.
 
-No other third-party code is vendored in this repository. `shared/*.js` / `.css` and every tool's own code are original work.
+No other third-party code is vendored in this repository. `shared/*.js` / `.css` and every tool's own code are original work, except the re-typed algorithms credited above.

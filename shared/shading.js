@@ -26,8 +26,13 @@
  *   scale   function(hex) → Organica.color.scale(hex)-shaped steps — a tool's own scale (TuneSutra's
  *           keeps a moved colour's column, `scaleFrom`); default Organica.color.scale, cached
  *   paper   the paper colour of a highlight / transparent stop (default Organica.contentColor('--paper'))
+ *   sheet   { x, y, w, h }: the tool's sheet in the units the shape is drawn in — a Wash (type 'field') over All the
+ *           shapes reads the sheet's wash at each shape's place (shapePlates sets ctx.origin); without it, each shape's own
  *
- * LOAD ORDER: core.js → color.js → noise.js → shade-marks.js → this.
+ * WASH (type 'field', Nov 21, 2026): soft clouds + a slope + a wave, coloured through the stops — see FIELD below.
+ *   S.fieldValue(def, region) → (x, y) → 0..1   ·   S.fieldPlates(def, w, h, ctx)   ·   S.fieldParams(def)
+ *
+ * LOAD ORDER: core.js (isoContours) → color.js → noise.js → shade-marks.js → this.
  * ───────────────────────────────────────────────────────────────────────────── */
 (function (global) {
   'use strict';
@@ -36,10 +41,11 @@
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function num(v) { return +(+v).toFixed(2); }
+  function n1(v) { return Math.round(v * 10) / 10; }   // a Field's outlines: a tenth of a unit is finer than any print
 
   // The default definition — TuneSutra's palette gradient as it starts (tunesutra/index.html state.grad).
   const DEFAULT = {
-    type: 'linear',   // 'flat' (the first stop only) | 'linear' | 'radial'
+    type: 'linear',   // 'flat' (the first stop only) | 'linear' | 'radial' | 'field' (+ def.field, see FIELD below)
     angle: 90,        // CSS convention: 0 = to top, 90 = to right
     stops: ['#c93ed6', '#c9863e'],
     pos: null,        // a 0..1 position per stop, ascending; null = evenly spaced (palettes saved before Nov 2, 2026)
@@ -187,7 +193,8 @@
   function gradUses(g) {
     const blend = g.type !== 'flat' && g.size > 0, shadow = hasNoise(g), light = shadow && g.dist === 'light';
     return {
-      angle: g.type === 'linear',
+      angle: g.type === 'linear' || g.type === 'field',
+      field: g.type === 'field',
       pattern: blend,
       seed: blend,
       speck: shadow && g.specks !== 'smooth' && g.specks !== 'bands' && (!blend || markShadow(g)),
@@ -365,9 +372,71 @@
     if (markShadow(g)) out.push.apply(out, markPlates(g, w, h, ctx));
     return out;
   }
+  // ── FIELD — shown as WASH (Nov 21, 2026; the visible name is the ledger's O-92 — Diego, on TuneSutra's Colour mode preview: "lo trovo bellissimo", then "quello che vediamo
+  //    sia uguale anche in SVG export"). A value 0..1 at every point — soft noise + a slope along `angle` + a slight
+  //    wave across it — coloured through the stops (OKLab), the preview's own picture. Laid out on the preview's
+  //    213-unit width, so a shape of any size shows the same picture. The drawing stays vector: the value is cut into
+  //    bands wherever the colour has moved by a just-visible step (ΔE 1), each band's outline traced where the field
+  //    reaches it (marching squares, linear crossings), the bands stacked dark → bright — on screen and in the file it
+  //    reads as one smooth fill (explorations/field-fill: under 0.2% of pixels off by more than 6/255).
+  //    def.field = { size, slope, wave, seed, span }; span 'sheet' = one field over ctx.sheet that the shapes cut (a
+  //    tool that gives no sheet draws each shape's own). Stacked bands overprint: Bands for exact plates is a later step.
+  const FIELD_DEFAULT = { size: 38, slope: 45, wave: 10, seed: 0, span: 'shape' }, FIELD_REF = 213, FIELD_JND = 1;
+  function fieldParams(g) { return Object.assign({}, FIELD_DEFAULT, g.field || {}); }
+  function isField(g) { return g && g.type === 'field'; }
+  // The value at a point of region R ({ x, y, w, h }, the units the shape is drawn in) → 0..1
+  function fieldValue(g, R) {
+    const F = fieldParams(g), N = Organica.noise, rad = g.angle * Math.PI / 180, dx = Math.sin(rad), dy = -Math.cos(rad);
+    const cx = R.x + R.w / 2, cy = R.y + R.h / 2, half = (Math.abs(R.w * dx) + Math.abs(R.h * dy)) / 2 || 1;
+    const ref = FIELD_REF / Math.max(1e-6, R.w), so = F.seed * 13.7, size = Math.max(1, F.size), slope = F.slope / 100, wave = F.wave / 100;
+    return (x, y) => {
+      const ox = x - cx, oy = y - cy, t = (ox * dx + oy * dy) / half * 0.5 + 0.5, across = (oy * dx - ox * dy) * ref;
+      const f = N && N.fbm ? N.fbm((x - R.x) * ref / size + so, (y - R.y) * ref / size + so * 0.61) : 0.5;
+      return clamp((1 - slope) * f + slope * t + wave * Math.sin(across / 9), 0, 1);
+    };
+  }
+  // Where to cut: a new band each time the colour has moved by FIELD_JND; each band takes the colour at its middle.
+  const _cuts = new Map();
+  function fieldCuts(stops) {
+    const key = JSON.stringify(stops);
+    if (_cuts.has(key)) return _cuts.get(key);
+    const N = 1024, cuts = [];
+    let ref = colourAt(stops, 0);
+    for (let i = 1; i < N; i++) { const s = i / N, c = colourAt(stops, s); if (C().deltaE(ref, c) >= FIELD_JND) { cuts.push(s); ref = c; } }
+    const at = [0].concat(cuts, [1]), out = { cuts: cuts, colours: at.slice(0, -1).map((a, i) => colourAt(stops, (a + at[i + 1]) / 2)) };
+    if (_cuts.size > 60) _cuts.clear();
+    _cuts.set(key, out);
+    return out;
+  }
+  // The field's plates in a w×h box: [band 0 over the whole box, then each band "value ≥ cut" on the one under it].
+  // ctx.origin (the box's place) + ctx.sheet: span 'sheet' reads the field of the whole sheet at the box's place.
+  function fieldPlates(g, w, h, ctx) {
+    const stops = gradStops(g, ctx), { cuts, colours } = fieldCuts(stops), F = fieldParams(g);
+    const across = F.span === 'sheet' && ctx && ctx.sheet && ctx.sheet.w > 0 && ctx.origin;
+    const o = across ? ctx.origin : { x: 0, y: 0 }, R = across ? ctx.sheet : { x: 0, y: 0, w: w, h: h };
+    const val = fieldValue(g, R);
+    // the grid follows the picture, not the units: ~16 samples across the smallest thing in it (a patch, or the wave's
+    // half period) — the same file at any sheet size — at least 0.5 units, never more than ~160k samples
+    const unit = R.w / FIELD_REF, cell = Math.max(Math.min(F.size, F.wave > 0 ? 28 : 1e9) * unit / 16, 0.5, Math.sqrt(w * h / 160000));
+    const dx = Math.ceil(w / cell) + 4, dy = Math.ceil(h / cell) + 4, V = new Float32Array(dx * dy), x0 = -2 * cell, y0 = -2 * cell;
+    for (let j = 0; j < dy; j++) for (let i = 0; i < dx; i++)
+      V[j * dx + i] = i === 0 || j === 0 || i === dx - 1 || j === dy - 1 ? -1 : val(o.x + x0 + (i + 0.5) * cell, o.y + y0 + (j + 0.5) * cell);
+    const out = [{ hex: colours[0], paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0 }], tol = cell * 0.1;
+    cuts.forEach((t, k) => {
+      let d = '';
+      Organica.isoContours(V, dx, dy, t).forEach(r => {
+        const pts = Organica.simplifyRing(r.map(p => [x0 + (p[0] + 0.5) * cell, y0 + (p[1] + 0.5) * cell]), tol);
+        if (pts.length >= 3) d += 'M' + pts.map(p => n1(p[0]) + ' ' + n1(p[1])).join('L') + 'Z';
+      });
+      if (d) out.push({ hex: colours[k + 1], paper: false, d: d, cells: 0, band: k + 1 });
+    });
+    return out;
+  }
+
   // Grain 0: [the first stop (painted by the shape), the smooth fill over the box, the shadow's cells].
+  // Field: [its bands] in place of the smooth fill.
   function smoothPlates(g, w, h, ctx) {
-    const stops = gradStops(g, ctx), out = [{ hex: stops[0].hex, paper: false, d: '', cells: 0 },
+    const stops = gradStops(g, ctx), out = isField(g) ? fieldPlates(g, w, h, ctx) : [{ hex: stops[0].hex, paper: false, d: '', cells: 0 },
       { hex: stops[stops.length - 1].hex, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0, smooth: { geom: smoothGeom(g, w, h), stops: smoothStops(g, ctx) } }];
     if (!hasNoise(g)) return out;
     if (smoothShadow(g)) { out.push(smoothShadowPlate(g, w, h, ctx)); return out; }
@@ -400,7 +469,8 @@
     pl.smooth.stops.forEach(([at, hex, op]) => { const v = Organica.hexToRGB255(hex); gr.addColorStop(clamp(at, 0, 1), op < 1 ? `rgba(${v[0]},${v[1]},${v[2]},${num(op)})` : hex); });
     return gr;
   }
-  function drawPlates(c, plates) { plates.forEach(p => { if (!p.d) return; c.fillStyle = p.smooth ? smoothFill(c, p) : p.hex; c.fill(new Path2D(p.d), 'evenodd'); }); }
+  // the Path2D kept on the (cached) plate: a Field's bands are drawn every frame
+  function drawPlates(c, plates) { plates.forEach(p => { if (!p.d) return; c.fillStyle = p.smooth ? smoothFill(c, p) : p.hex; if (!p._p2d) Object.defineProperty(p, '_p2d', { value: new Path2D(p.d), writable: true }); c.fill(p._p2d, 'evenodd'); }); }
   // Plates as SVG markup (in the box's own units): one even-odd path per ink, smooth plates as gradients.
   // skipFirst: the first plate is the shape's own fill (already painted by the shape) — leave it out.
   function platesSVG(plates, idPrefix, skipFirst) {
@@ -415,7 +485,8 @@
   // Rendered once per definition, box and palette: the same mark repeated is drawn once.
   const plateCache = new Map();
   function plates(def, w, h, ctx) {
-    const key = JSON.stringify(def) + [num(w), num(h)] + (def.shadow ? paletteTints(ctx).join('') : '') + (ctx && ctx.paper || '');
+    const key = JSON.stringify(def) + [num(w), num(h)] + (def.shadow ? paletteTints(ctx).join('') : '') + (ctx && ctx.paper || '')
+      + (isField(def) && ctx && ctx.sheet && ctx.sheet.w > 0 && ctx.origin ? JSON.stringify([ctx.sheet, num(ctx.origin.x), num(ctx.origin.y)]) : '');
     if (!plateCache.has(key)) { plateCache.set(key, gradPlates(def, w, h, ctx)); if (plateCache.size > 240) plateCache.delete(plateCache.keys().next().value); }
     return plateCache.get(key);
   }
@@ -457,6 +528,7 @@
     }
     g.paper = false;
     if (g.type === 'conic') g.type = 'linear';
+    if (g.type === 'field') g.field = fieldParams(had); else delete g.field;
     if (g.pattern !== 'dots') g.pattern = 'noise';
     // Free Cool / Warm / Impressionist went (Free = the harmony rules): Cool / Warm move on the palette,
     // Impressionist becomes Analogous.
@@ -502,6 +574,8 @@
   }
   function shapePlates(def, hex, box, ctx) {
     const own = String(hex).toLowerCase();
+    // a Field across the sheet reads the sheet's field at the box's place
+    if (isField(def) && ctx && ctx.sheet && ctx.sheet.w > 0 && fieldParams(def).span === 'sheet') ctx = Object.assign({}, ctx, { origin: { x: box.x, y: box.y } });
     return plates(def, box.w, box.h, ctx).filter((pl, i) => i > 0 || String(pl.hex).toLowerCase() !== own);
   }
   let _ovl = 0;
@@ -537,6 +611,7 @@
     plates: plates, gradPlates: gradPlates, smoothPlates: smoothPlates, shadowInks: shadowInks,
     gradStops: gradStops, smoothStops: smoothStops, smoothGeom: smoothGeom, smoothMarkup: smoothMarkup, smoothFill: smoothFill,
     drawPlates: drawPlates, platesSVG: platesSVG, boxOf: boxOf, overlaySVG: overlaySVG, overlayCanvas: overlayCanvas, shapePlates: shapePlates,
+    FIELD_DEFAULT: FIELD_DEFAULT, fieldParams: fieldParams, fieldValue: fieldValue, fieldPlates: fieldPlates, isField: isField,
     gradUses: gradUses, hasNoise: hasNoise, smoothShadow: smoothShadow, markShadow: markShadow,
     colourStop: colourStop, colourAt: colourAt, segAt: segAt, isClear: isClear, evenPos: evenPos, stopPos: stopPos, fadesToPaper: fadesToPaper,
   };

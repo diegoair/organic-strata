@@ -16,6 +16,8 @@
  *                               // a tool with Inks reads the strip dark → bright). Default 'palette'.
  *     mapping: () => mapping,   // optional: the tool's own Colour mode now (saved by Save as palette…)
  *     shading: true,            // false: colours only (the editor, the chips' shading and the shades are left out)
+ *     sheet: () => rect,        // optional: the tool's sheet — the editor then offers Wash › All the shapes (each draw
+ *                               // passes the sheet in the shape's own units as ctx.sheet; Organica.shading, FIELD)
  *   });
  *   kit.rebuild()   kit.setActive(i)   kit.name()   kit.strip (the palette.swatch handle)
  *
@@ -69,7 +71,7 @@
     const K = stripHost.__paletteKit || (stripHost.__paletteKit = { at: 0, name: '', house: null, ed: null });
     K.o = o;
     const paper = () => (K.o.paper ? K.o.paper() : null) || '#ffffff';
-    const ctx = () => ctxOf(K.o.get().colors, paper());
+    const ctx = () => { const c = ctxOf(K.o.get().colors, paper()); return K.o.sheet ? Object.assign({}, c, { sheet: K.o.sheet() }) : c; };
     const label = i => 'Palette colour ' + (i + 1);   // the chip's own name (palette.js)
     function repaint() { if (K.sw) { K.sw.rebuild(); K.sw.setActive(withShading ? K.at : null); } }
     function syncEditor() {

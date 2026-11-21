@@ -35,5 +35,27 @@ check('withColour matches', JSON.stringify(snap.withColour) === JSON.stringify(b
   const svg = S.platesSVG(pl, 't', true);
   check('platesSVG skips the shape\'s own fill', !svg.includes('fill="' + pl[0].hex + '"') && (svg.match(/<path /g) || []).length === pl.slice(1).filter(p => p.d).length);
 }
+// Field (Nov 21, 2026): bands of the stops' colours, stacked, a new band every just-visible step; a field across the
+// sheet reads the sheet at the box's place (cached apart); normalize keeps its settings. The pixel match against the
+// smooth field is scripts/test-shading-field.mjs (headless).
+{
+  const def = S.normalize({ type: 'field', angle: 90, stops: ['#2b1d16', '#b5642f', '#f3e2b8'], field: { size: 38 } });
+  check('normalize keeps a field', def.type === 'field' && def.field.size === 38 && def.field.slope === 45 && def.field.span === 'shape');
+  check('normalize drops field settings off a field', !('field' in S.normalize({ type: 'linear', field: { size: 9 } })));
+  const pl = S.gradPlates(def, 120, 80, {});
+  const dE = pl.slice(1).map((p, i) => C.deltaE(pl[i].hex, p.hex));
+  check('field: base + stacked bands', pl.length > 20 && pl[0].d === 'M0 0h120v80h-120z' && pl.slice(1).every(p => p.band > 0 && /^M[\d.\- L]+Z/.test(p.d)), pl.length + ' plates');
+  check('field: each band a just-visible step (ΔE ≤ 2.5)', dE.every(d => d <= 2.5), 'max ΔE ' + Math.max(...dE).toFixed(2));
+  check('field: first band ≈ the first stop', C.deltaE(pl[0].hex, '#2b1d16') < 2);
+  const F = S.fieldValue(def, { x: 0, y: 0, w: 120, h: 80 });
+  let lo = 1, hi = 0; for (let x = 0; x <= 120; x += 4) for (let y = 0; y <= 80; y += 4) { const v = F(x, y); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  check('field value in 0..1 and spread', lo >= 0 && hi <= 1 && hi - lo > 0.4, lo.toFixed(2) + '…' + hi.toFixed(2));
+  const sheet = Object.assign({}, def, { field: Object.assign({}, def.field, { span: 'sheet' }) }), c2 = { sheet: { x: 0, y: 0, w: 600, h: 400 } };
+  const a = S.shapePlates(sheet, '#2b1d16', { x: 0, y: 0, w: 120, h: 80 }, c2), b = S.shapePlates(sheet, '#2b1d16', { x: 300, y: 200, w: 120, h: 80 }, c2);
+  check('field across the sheet: two places, two drawings', JSON.stringify(a) !== JSON.stringify(b));
+  const e = S.shapePlates(def, '#2b1d16', { x: 0, y: 0, w: 120, h: 80 }, c2), f = S.shapePlates(def, '#2b1d16', { x: 300, y: 200, w: 120, h: 80 }, c2);
+  check('field in each shape: the same drawing anywhere', JSON.stringify(e) === JSON.stringify(f));
+  check('gradUses: field shows Angle and its rows', S.gradUses(def).angle && S.gradUses(def).field && !S.gradUses(S.normalize({ type: 'radial' })).field);
+}
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks pass');
 process.exit(failed ? 1 : 0);
