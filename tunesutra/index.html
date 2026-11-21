@@ -1563,27 +1563,46 @@ function syncModeControls() {
 }
 // The preview: what a tool draws with this palette — a tone ramp (0 → 1, left to right) above a field of soft noise
 // rising left to right, so every tone shows. Random draws come from a fixed hash: the same picture every time.
+// Drawn at the panel's own width × the screen's density, so it is sharp (Diego, Nov 21, 2026: the first version was
+// drawn at 213 px and stretched). The picture is laid out on a 213-unit reference — the field as tall and its noise
+// as large, relative to the width, at any panel size — and redrawn when the panel changes width; a redraw with
+// nothing changed is skipped.
+let modePreviewKey = '';
+const MODE_REF = 213;   // the reference width the picture is laid out on
 function renderModePreview(m) {
-  const cv = ctrl('map-preview'), W = Math.max(120, Math.round(cv.parentElement.clientWidth || 240)), RAMP = 14, FIELD = 96;
-  const k = 1;   // drawn at CSS pixels: a preview, not an export
-  cv.width = W * k; cv.height = (RAMP + FIELD) * k;
+  m = m || mappingNow();
+  const cv = ctrl('map-preview'), Wc = Math.max(120, Math.round(cv.parentElement.clientWidth || 240));
+  const k = Math.min(3, Math.max(1, global_dpr())), s = MODE_REF / Wc;   // s: CSS px → reference units
+  const RAMP = 14, FIELD = Math.round(96 / s);
+  const hexes = colors(), key = JSON.stringify([m, hexes, Wc, k]);
+  if (key === modePreviewKey) return;
+  modePreviewKey = key;
+  cv.width = Math.round(Wc * k); cv.height = Math.round((RAMP + FIELD) * k);
   const c = cv.getContext('2d'), img = c.createImageData(cv.width, cv.height), D = img.data;
-  const hexes = colors(), ramp = m.order.map(i => hexes[i]), ink = hexes[m.pair[0]], paper = hexes[m.pair[1]];
+  const ramp = m.order.map(i => hexes[i]), ink = hexes[m.pair[0]], paper = hexes[m.pair[1]];
   const N = Organica.noise, rgb = {}, toRGB = h => rgb[h] || (rgb[h] = Organica.hexToRGB255(h));
   const hash = (x, y) => { let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-  for (let y = 0; y < cv.height; y++) for (let x = 0; x < cv.width; x++) {
-    let score;
-    if (y < RAMP * k) score = x / (cv.width - 1);
-    else { const f = N && N.fbm ? N.fbm(x / 38, y / 38) : 0.5; score = Math.max(0, Math.min(1, 0.55 * f + 0.45 * x / (cv.width - 1) + 0.1 * Math.sin(y / 9))); }
-    const hex = Organica.palette.colorAt(score, { mode: m.mode, submode: m.submode, colors: ramp, ink: ink, paper: paper, space: m.space, rnd: hash(x >> 1, y >> 1) });
-    const v = toRGB(hex), o = (y * cv.width + x) * 4;
-    D[o] = v[0]; D[o + 1] = v[1]; D[o + 2] = v[2]; D[o + 3] = 255;
+  const opts = { mode: m.mode, submode: m.submode, colors: ramp, ink: ink, paper: paper, space: m.space, rnd: 0 };
+  for (let y = 0; y < cv.height; y++) {
+    const yc = y / k, ry = yc * s;   // CSS px, reference units
+    for (let x = 0; x < cv.width; x++) {
+      const xc = x / k, rx = xc * s, t = x / (cv.width - 1);
+      let score;
+      if (yc < RAMP) score = t;
+      else { const fy = (yc - RAMP) * s + RAMP, f = N && N.fbm ? N.fbm(rx / 38, fy / 38) : 0.5; score = Math.max(0, Math.min(1, 0.55 * f + 0.45 * t + 0.1 * Math.sin(fy / 9))); }
+      opts.rnd = hash(Math.floor(rx / 2), Math.floor(ry / 2));   // Random draws per reference cell: the same picture at any size
+      const v = toRGB(Organica.palette.colorAt(score, opts)), o = (y * cv.width + x) * 4;
+      D[o] = v[0]; D[o + 1] = v[1]; D[o + 2] = v[2]; D[o + 3] = 255;
+    }
   }
   c.putImageData(img, 0, 0);
   const by = { tone: 'Tone', posterize: 'Posterize', random: 'Random', tonernd: 'Tone + random' }[m.submode];
   cv.setAttribute('aria-label', 'Preview, ' + (m.mode === 'rmx' ? 'Inks by ' + by : m.mode === 'adaptive' ? 'Adaptive' : 'Solid'));
 }
+function global_dpr() { return window.devicePixelRatio || 1; }
 function initModeControls() {
+  // the panel's width changes (the window, the panel's own resize): draw again at the new width
+  if (window.ResizeObserver) { let raf = 0; new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => renderModePreview()); }).observe(ctrl('map-preview').parentElement); }
   const segBind = (id, key) => ctrl(id).addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) setMapping({ [key]: b.dataset.v }); });
   segBind('seg-map-mode', 'mode'); segBind('seg-map-mix', 'space');
   ctrl('sel-map-by').addEventListener('change', e => setMapping({ submode: e.target.value }));
