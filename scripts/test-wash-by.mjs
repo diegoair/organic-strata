@@ -4,7 +4,7 @@
 //   engine  — Posterize = one band per stop, solid (no halftone mark); Random / Tone + random = specks of the stops only;
 //             Mix sRGB draws other colours than OKLab; specks over All the shapes share the sheet's grid
 //   editor  — Colour by + Mix in the Wash block, Mix only with Tone
-//   TuneSutra — the house is a sheet: Wash over is shown, All the shapes draws other pieces than Each shape
+//   TuneSutra — the house is a sheet: Wash over is shown, All the shapes draws other pieces than Each shape; no Colour mode
 //   FVS     — Wash over shown; in a Component, All the shapes = one wash over the frame (every cell a different piece,
 //             drawn back through the cell's inverse), Each shape = the same wash in every cell; the canvas draws it
 // Run: node --experimental-websocket scripts/test-wash-by.mjs   — exits 1 when a check fails.
@@ -87,10 +87,9 @@ const T = await P.ev(`
   // the house view, a shape picked
   const seg = document.querySelector('.bar-seg[data-z]'); out.house = !!seg;
   if (seg) { seg.dispatchEvent(new MouseEvent('click', { bubbles: true })); await w(300); }
-  const mb = document.getElementById('sel-map-by'); mb.value = 'random'; mb.dispatchEvent(new Event('change', { bubbles: true })); await w(300);
+  out.noMode = !document.getElementById('ts-mode') && !document.getElementById('sel-map-by');
   ed.querySelector('[data-seg="type"] [data-v="field"]').click(); await w(300);
   out.fromMode = ed.querySelector('[data-sel="by"]').value;
-  ed.querySelector('[data-sel="by"]').value = 'tone'; ed.querySelector('[data-sel="by"]').dispatchEvent(new Event('change')); await w(300);
   out.over = !ed.querySelector('[data-row="span"]').hidden;
   out.by = !!ed.querySelector('[data-sel="by"]') && !ed.querySelector('[data-row="by"]').hidden;
   const shades = () => [...document.querySelectorAll('#stage-svg g[clip-path^="url(#ts-sh"]')].map(g => g.innerHTML.replace(/ts-sh\\d+/g, '')).join('|');
@@ -101,7 +100,7 @@ const T = await P.ev(`
   ed.querySelector('[data-seg="span"] [data-v="shape"]').click(); await w(300);
   return out;`);
 check('TuneSutra: on the house the Wash shows Colour by and Wash over', T.house && T.over && T.by, JSON.stringify(T));
-check('TuneSutra: the Wash starts from the Colour mode (Colour by Random there → Random here)', T.fromMode === 'random', T.fromMode);
+check('TuneSutra: no Colour mode section (the tone tools\' own); a Wash starts from its own defaults (Tone)', T.noMode && T.fromMode === 'tone', JSON.stringify(T));
 check('TuneSutra: All the shapes draws other pieces than Each shape', T.changed, JSON.stringify(T));
 check('TuneSutra: no page errors', !P.errors.length, P.errors.splice(0).join(' | '));
 

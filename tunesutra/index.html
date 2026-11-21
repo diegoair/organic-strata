@@ -192,17 +192,6 @@
   .role-name { font-size: var(--fs-small); color: var(--mid); margin-bottom: var(--space-2); }
 
   /* The stop bar (Gradient › Stops) is shared since Nov 20, 2026: shared/shade-editor.css (.org-stopbar). */
-  /* Colour mode › Order: the palette's colours, dark → bright, moved by drag or ⌥← / ⌥→ (Organica.reorder). Each chip
-     is its colour (content), its frame chrome. A local part: a sortable row of colour chips exists nowhere else. */
-  .ts-order { display: flex; gap: var(--space-1); margin: var(--space-2) 0; }
-  .ts-order__chip {
-    flex: 1 1 0; min-width: 0; height: var(--hit-min); padding: 0;
-    border: 1px solid var(--border-strong); border-radius: var(--radius-sm); cursor: grab; touch-action: none;
-  }
-  .ts-order__chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-  /* the preview is a work surface: light in both themes (data-theme="light"), drawn in the palette's own colours */
-  .ts-mode-preview { margin-top: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--paper); }
-  .ts-mode-preview canvas { display: block; width: 100%; height: auto; }
 </style>
 <script src="/shared/pattern-init.js"></script>
 </head>
@@ -261,40 +250,9 @@
          è shadow"; mockup A): one definition (G()) behind both sections. Since Nov 20, 2026 the controls are the shared
          Organica.shadeEditor (shared/shade-editor.js) — the same ones every tool shows for a palette colour — mounted
          here by initGradient(), editing G() in place. -->
-    <!-- Colour mode (Diego, Nov 21, 2026): how the tools lay this palette on a tone — the Colour mode of Pollen, Spore,
-         Mote, Camo Turing, Membrane; saved with the palette (mapping). Words: UI-COPY D7 (Solid · Adaptive · Inks,
-         Colour by), design-system CONSULT Nov 21. Palette-wide, so above the active colour's Gradient + Shadow. -->
-    <div class="panel-section" id="ts-mode">
-      <h3>Colour mode <span class="hint">in the tools</span></h3>
-      <div class="ctrl-row">
-        <div class="ctrl-label">Mode</div>
-        <div class="seg-ctrl seg-ctrl--fit" id="seg-map-mode" role="group" aria-label="Mode">
-          <button type="button" class="seg-btn" data-v="solid">Solid</button><button type="button" class="seg-btn" data-v="adaptive">Adaptive</button><button type="button" class="seg-btn" data-v="rmx">Inks</button>
-        </div>
-      </div>
-      <div class="ctrl-row" id="row-map-by">
-        <div class="ctrl-label">Colour by</div>
-        <select class="panel-select" id="sel-map-by" aria-label="Colour by">
-          <option value="tone">Tone</option><option value="posterize">Posterize</option><option value="random">Random</option><option value="tonernd">Tone + random</option>
-        </select>
-      </div>
-      <div class="ctrl-row" id="row-map-mix">
-        <div class="ctrl-label">Mix</div>
-        <div class="seg-ctrl" id="seg-map-mix" role="group" aria-label="Mix">
-          <button type="button" class="seg-btn" data-v="srgb">sRGB</button><button type="button" class="seg-btn" data-v="oklab">OKLab</button>
-        </div>
-      </div>
-      <div id="row-map-order">
-        <div class="sub-label">Order <span class="hint">dark → bright</span></div>
-        <div class="ts-order" id="map-order" role="group" aria-label="Order"></div>
-        <div class="row-btns"><button type="button" class="mini-btn" id="btn-map-sort">Sort by lightness</button></div>
-      </div>
-      <div id="row-map-pair">
-        <div class="ctrl-row"><div class="ctrl-label">Ink</div><select id="sel-map-ink" aria-label="Ink"></select><div id="map-ink-picker"></div></div>
-        <div class="ctrl-row" id="row-map-paper"><div class="ctrl-label">Paper</div><select id="sel-map-paper" aria-label="Paper"></select><div id="map-paper-picker"></div></div>
-      </div>
-      <div class="ts-mode-preview" data-theme="light"><canvas id="map-preview" role="img" aria-label="Preview"></canvas></div>
-    </div>
+    <!-- The Colour mode left TuneSutra (Diego, Nov 21, 2026: "eliminiamo il colour mode da tunesutra perché non è il suo
+         posto"): it is the tone tools' own (Pollen first). A palette's saved mapping is kept as it was (mappingFromRecord →
+         mappingRecord), never shown or changed here. -->
     <div id="ts-shade"></div>
 
   </div>
@@ -375,7 +333,6 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/vendor/ral-classic.js"></script>
 <script src="/shared/select-picker.js"></script>
-<script src="/shared/reorder.js"></script>
 <script src="/shared/shade-editor.js"></script>
 <script src="/shared/plate-export.js"></script>
 <script src="/tunesutra/collections.js"></script>
@@ -437,7 +394,8 @@ const state = {
   zoneShades: {},     // a shape's own shading, keyed 'house/count/shape' (saved with the palette)
   // The Mapping (Diego, Nov 21, 2026): how a tool lays the palette on a value 0..1 — Colour Mode, RMX Mapping, Blend,
   // the order (colour ids, dark → bright; null = by lightness, following every edit) and the Adaptive pair (ids;
-  // null = the darkest and the lightest). Saved as indices (Organica.palettes.mappingFor).
+  // null = the darkest and the lightest). Saved as indices (Organica.palettes.mappingFor). Since Nov 21, 2026 (evening) no
+  // control here (the Colour mode is the tone tools' own): a palette's mapping is carried through as it was saved.
   mapping: { mode: 'rmx', submode: 'tone', space: 'oklab', order: null, pair: null },
   shading: 'none',    // flat by default, as the home shows it (Diego, Nov 18, 2026) — the figure's shadow: 'none' | 'soft' | 'speckle' ('print', the old Stipple, reads as Soft)
   items: [],
@@ -640,14 +598,12 @@ function commit(rebuildChips) {
   syncViewSeg();
   refreshFieldEditor();
   syncGradControls();   // what Gradient & grain edits can change with the colours (a shape lapses, a stop is the colour)
-  syncModeControls();   // the order and the preview follow the colours
   renderStage();
   refreshHints();
   syncUndo();
 }
 function syncControls() {
   syncGradControls();
-  syncModeControls();
 }
 
 // ── DISTINCTNESS — which pairs are too close to tell apart ──
@@ -877,7 +833,7 @@ function pickOnSheetColour(anchor) {
 function initGradient() {
   shadeEd = Organica.shadeEditor.mount(ctrl('ts-shade'), {
     hex: state.items[state.activeIndex].hex,
-    ctx: () => ({ tints: paletteTints(), paper: sheetTheme().paper, sheet: isGarmentView() ? houseSheet : null, wash: washFromMode() }),
+    ctx: () => ({ tints: paletteTints(), paper: sheetTheme().paper, sheet: isGarmentView() ? houseSheet : null }),
     edit: {
       get: G,
       before: key => pushUndo(key === 'stop' || key === 'type' || key === 'ink' ? 'grad-' + key : 'grad'),
@@ -1523,111 +1479,6 @@ function mappingNow() {
 }
 function mappingRecord() { return mappingNow(); }
 // The Wash starts from this Colour mode (Diego, Nov 21, 2026: "il wash parte dal colour mode") — shade-editor washStart
-function washFromMode() { return Organica.palettes.washOf(colors(), mappingNow()); }
-// The Colour mode section: its controls show state.mapping; a change is one Undo step ('mode'); the preview draws the
-// palette as a tool would (Organica.palette.colorAt — the tools' own math), a 0 → 1 tone ramp over a noise field.
-const MODE_PICK = {};   // the Ink / Paper pickers' registry: '0'…'8' → the palette's colours, refreshed in syncModeControls
-let modeInkPicker = null, modePaperPicker = null, modeReorder = null, modePickKey = '';
-function setMapping(patch) {
-  const next = Object.assign({}, state.mapping, patch);
-  if (JSON.stringify(next) === JSON.stringify(state.mapping)) return;
-  pushUndo('mode');
-  state.mapping = next;
-  syncModeControls();
-  syncUndo();
-}
-function modeChipSVG(hex) { return `<svg viewBox="0 0 30 30"><rect width="30" height="30" fill="${hex}"/></svg>`; }
-function syncModeControls() {
-  const m = mappingNow(), n = count(), seg = (id, v) => ctrl(id).querySelectorAll('.seg-btn').forEach(b => { const on = b.dataset.v === v; b.classList.toggle('active', on); b.setAttribute('aria-pressed', String(on)); });
-  seg('seg-map-mode', m.mode); seg('seg-map-mix', m.space);
-  ctrl('sel-map-by').value = m.submode;
-  ctrl('row-map-by').hidden = m.mode !== 'rmx';
-  ctrl('row-map-order').hidden = m.mode !== 'rmx';
-  ctrl('row-map-mix').hidden = m.mode === 'solid' || (m.mode === 'rmx' && (m.submode === 'posterize' || m.submode === 'random'));   // only a blend mixes
-  ctrl('row-map-pair').hidden = m.mode === 'rmx';
-  ctrl('row-map-paper').hidden = m.mode !== 'adaptive';
-  ctrl('btn-map-sort').disabled = !state.mapping.order;   // already by lightness
-  // the order: the colours dark → bright, each a chip named by its role
-  const box = ctrl('map-order'), had = box.contains(document.activeElement) ? [...box.children].indexOf(document.activeElement) : -1;
-  box.innerHTML = m.order.map((i, k) => `<button type="button" class="ts-order__chip" data-i="${i}" style="background:${state.items[i].hex}" aria-label="${esc(dispName(i))}, ${k + 1} of ${n}" aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"></button>`).join('');
-  if (had >= 0 && box.children[had]) box.children[had].focus({ preventScroll: true });
-  // Ink / Paper: the palette's colours, by name, with their swatch
-  const key = state.items.map((it, i) => it.hex + dispName(i)).join('|');
-  ['sel-map-ink', 'sel-map-paper'].forEach(id => {
-    const sel = ctrl(id);
-    if (sel.options.length !== n || key !== modePickKey) sel.innerHTML = state.items.map((it, i) => `<option value="${i}">${esc(dispName(i))}</option>`).join('');
-  });
-  if (key !== modePickKey) {
-    modePickKey = key;
-    Object.keys(MODE_PICK).forEach(k => { delete MODE_PICK[k]; });
-    state.items.forEach((it, i) => { MODE_PICK[i] = { name: dispName(i), icon: modeChipSVG(it.hex) }; });
-    [modeInkPicker, modePaperPicker].forEach(pk => { if (pk) pk.invalidate(); });
-  }
-  ctrl('sel-map-ink').value = String(m.pair[0]); ctrl('sel-map-paper').value = String(m.pair[1]);
-  if (!modeInkPicker && Organica.selectPicker) {
-    modeInkPicker = Organica.selectPicker(ctrl('sel-map-ink'), ctrl('map-ink-picker'), { registry: MODE_PICK, size: 'preview', ariaLabel: 'Ink' });
-    modePaperPicker = Organica.selectPicker(ctrl('sel-map-paper'), ctrl('map-paper-picker'), { registry: MODE_PICK, size: 'preview', ariaLabel: 'Paper' });
-  }
-  if (modeInkPicker) { modeInkPicker.refresh(); modePaperPicker.refresh(); }
-  renderModePreview(m);
-}
-// The preview: what a tool draws with this palette — a tone ramp (0 → 1, left to right) above a field of soft noise
-// rising left to right, so every tone shows. Random draws come from a fixed hash: the same picture every time.
-// Drawn at the panel's own width × the screen's density, so it is sharp (Diego, Nov 21, 2026: the first version was
-// drawn at 213 px and stretched). The picture is laid out on a 213-unit reference — the field as tall and its noise
-// as large, relative to the width, at any panel size — and redrawn when the panel changes width; a redraw with
-// nothing changed is skipped.
-let modePreviewKey = '';
-const MODE_REF = 213;   // the reference width the picture is laid out on
-function renderModePreview(m) {
-  m = m || mappingNow();
-  const cv = ctrl('map-preview'), Wc = Math.max(120, Math.round(cv.parentElement.clientWidth || 240));
-  const k = Math.min(3, Math.max(1, global_dpr())), s = MODE_REF / Wc;   // s: CSS px → reference units
-  const RAMP = 14, FIELD = Math.round(96 / s);
-  const hexes = colors(), key = JSON.stringify([m, hexes, Wc, k]);
-  if (key === modePreviewKey) return;
-  modePreviewKey = key;
-  cv.width = Math.round(Wc * k); cv.height = Math.round((RAMP + FIELD) * k);
-  const c = cv.getContext('2d'), img = c.createImageData(cv.width, cv.height), D = img.data;
-  const ramp = m.order.map(i => hexes[i]), ink = hexes[m.pair[0]], paper = hexes[m.pair[1]];
-  const rgb = {}, toRGB = h => rgb[h] || (rgb[h] = Organica.hexToRGB255(h));
-  const hash = (x, y) => { let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-  const opts = { mode: m.mode, submode: m.submode, colors: ramp, ink: ink, paper: paper, space: m.space, rnd: 0 };
-  // the field below the ramp: the shared Wash (Organica.shading.fieldValue, Nov 21, 2026) on the 213 × 96 reference
-  const SH = Organica.shading, wash = SH.fieldValue({ angle: 90, field: SH.FIELD_DEFAULT }, { x: 0, y: 0, w: MODE_REF, h: 96 });
-  for (let y = 0; y < cv.height; y++) {
-    const yc = y / k, ry = yc * s;   // CSS px, reference units
-    for (let x = 0; x < cv.width; x++) {
-      const xc = x / k, rx = xc * s, t = x / (cv.width - 1);
-      let score;
-      if (yc < RAMP) score = t;
-      else score = wash(rx, (yc - RAMP) * s);   // the Wash of Organica.shading, its defaults: the preview IS the fill
-      opts.rnd = hash(Math.floor(rx / 2), Math.floor(ry / 2));   // Random draws per reference cell: the same picture at any size
-      const v = toRGB(Organica.palette.colorAt(score, opts)), o = (y * cv.width + x) * 4;
-      D[o] = v[0]; D[o + 1] = v[1]; D[o + 2] = v[2]; D[o + 3] = 255;
-    }
-  }
-  c.putImageData(img, 0, 0);
-  const by = { tone: 'Tone', posterize: 'Posterize', random: 'Random', tonernd: 'Tone + random' }[m.submode];
-  cv.setAttribute('aria-label', 'Preview, ' + (m.mode === 'rmx' ? 'Inks by ' + by : m.mode === 'adaptive' ? 'Adaptive' : 'Solid'));
-}
-function global_dpr() { return window.devicePixelRatio || 1; }
-function initModeControls() {
-  // the panel's width changes (the window, the panel's own resize): draw again at the new width
-  if (window.ResizeObserver) { let raf = 0; new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => renderModePreview()); }).observe(ctrl('map-preview').parentElement); }
-  const segBind = (id, key) => ctrl(id).addEventListener('click', e => { const b = e.target.closest('.seg-btn'); if (b) setMapping({ [key]: b.dataset.v }); });
-  segBind('seg-map-mode', 'mode'); segBind('seg-map-mix', 'space');
-  ctrl('sel-map-by').addEventListener('change', e => setMapping({ submode: e.target.value }));
-  ctrl('btn-map-sort').addEventListener('click', () => setMapping({ order: null }));
-  // a pair kept by colour id, so moving or adding a colour keeps it
-  const pairSet = (k, v) => { const m = mappingNow(), p = m.pair.slice(); p[k] = +v; setMapping({ pair: p.map(i => state.items[i].id) }); };
-  ctrl('sel-map-ink').addEventListener('change', e => pairSet(0, e.target.value));
-  ctrl('sel-map-paper').addEventListener('change', e => pairSet(1, e.target.value));
-  modeReorder = Organica.reorder(ctrl('map-order'), {
-    item: '.ts-order__chip', axis: 'x',
-    onMove: (from, to) => { const o = mappingNow().order.slice(), [x] = o.splice(from, 1); o.splice(to, 0, x); setMapping({ order: o.map(i => state.items[i].id) }); },
-  });
-}
 function loadPaletteData(p) {
   const n0 = Math.min(9, p.colors.length);
   state.items = p.colors.slice(0, 9).map((hex, i) => ({
@@ -2611,7 +2462,6 @@ function goHome() { leaveTo(backTo.hash, ctrl('btn-home-label'), backTo.label); 
 
 // ── INIT ──
 initGradient();
-initModeControls();
 Organica.enhanceSliders(document);   // the Slosh fill on every slider, liquid switches, click-to-edit values
 initHouseCarousel();
 bindFieldEditor();

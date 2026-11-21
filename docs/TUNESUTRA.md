@@ -219,6 +219,12 @@ Then:
 
 ## 2b. Colour mode — how the tools lay the palette on a tone (Nov 21, 2026)
 
+> **Removed from TuneSutra — Nov 21, 2026 (evening).** Diego: *eliminiamo il colour mode da tunesutra perché non è il
+> suo posto, poi testiamo su Pollen come fare*. The section, its preview and `shared/reorder.js`'s use here are gone; the
+> Colour mode is the tone tools' own (Pollen first). A palette's saved `mapping` is still read and saved back unchanged
+> (`mappingFromRecord` → `mappingRecord`), so palettes saved with one keep it and the tools that read it still do. A Wash
+> here starts from its own defaults (Tone, OKLab). What follows is the section as it was.
+
 Diego, Nov 21, 2026: the Colour mode the tools share (Pollen, Spore, Mote, Camo Turing, Membrane) **starts here and
 travels with the palette**. A tool that lays colours on a value 0..1 (a photo's darkness, a field) reads it when it
 takes the palette (ledger §2, 2026-11-21; words provisional, O-91). The section **Colour mode** (hint *in the tools*,
