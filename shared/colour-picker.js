@@ -18,8 +18,8 @@
  *   Organica.colorPicker.recent()    → the recent colours (shared by every tool)
  *   Organica.colorPicker.nearestRal(hex) → { code, name, hex, dE } | null
  *
- * Layout, top to bottom: Recent colours (+ Palettes, the saved TuneSutra palettes
- * and the built-in sets, opened in place) · the saturation / brightness square ·
+ * Layout, top to bottom: Recent colours (+ Palettes, TuneSutra's saved then starred
+ * palettes, opened in place — no built-ins since Nov 21, 2026) · the saturation / brightness square ·
  * the hue strip · the value row (the current mode's fields + the colour sample) ·
  * a footer with the mode menu (Hex · RGB · HSB · CMYK · OKLCH · Nearest RAL —
  * Diego, Nov 17; the same six as TuneSutra's value tiles), Pick from

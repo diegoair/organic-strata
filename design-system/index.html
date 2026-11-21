@@ -585,6 +585,7 @@
       <a href="#seg-ctrl">Segmented control</a>
       <a href="#dual-range">Two-handle slider</a>
       <a href="#shade-editor">Shade editor &amp; stop bar</a>
+      <a href="#reorder">Reorder — drag &amp; keys</a>
       <a href="#seeds-panel">Seeds panel</a>
     </div>
     <div class="ds-nav__group">
@@ -1595,7 +1596,7 @@ data-viscosity  data-momentum  data-tilt</pre>
     <section class="ds-entry" id="palette-chips">
       <h2>Palette — RMX chip strip</h2>
       <p class="ds-desc">A variable-length list of colours — add, remove, recolour. The other half of the Palette component (the <code>.color-row</code> above is the single-swatch half). Built by <code>Organica.palette.swatch(&lt;element&gt;, { colors, min, max, onChange })</code>; the single swatch is the same call with a string prefix. Tune a strip with <code>--rmx-cell-w/h/radius/border</code> set <em>on the strip</em> (its id or <code>.rmx-palette</code>): the chips and the add / library buttons all read them (TuneSutra, since Oct 4). In a single row the native input is out of the tab order (the swatch is the control) and the swatch / hex are named “‹Label› colour” / “‹Label› hex” — call <code>palette.swatch</code> before <code>Organica.autoLabelPanel</code>.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/palette.css</span><span>shared/palette.js</span><strong>Used in</strong><span>Camo Turing, Membrane, Vortex, Flexible Visual System, TuneSutra, Pollen, Spore</span><strong>Under review</strong><span><a href="/design-system/_colour-audit.html">Colour &amp; naming audit</a></span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/palette.css</span><span>shared/palette.js</span><strong>Used in</strong><span>Camo Turing, Membrane, Vortex, Flexible Visual System, TuneSutra, Pollen, Spore, Mote, Trellis</span><strong>Under review</strong><span><a href="/design-system/_colour-audit.html">Colour &amp; naming audit</a></span></div>
       <div class="ds-example" style="max-width:280px">
         <div class="rmx-palette">
           <label class="rmx-color" style="background:#1a1a2e"></label>
@@ -1608,16 +1609,17 @@ data-viscosity  data-momentum  data-tilt</pre>
 &lt;<span class="tag">div</span> <span class="attr">id</span>=<span class="str">"rmx-palette"</span>&gt;&lt;/<span class="tag">div</span>&gt;
 
 Organica.palette.swatch(<span class="attr">wrapEl</span>, {
-  colors: state.colors, min: 2, max: 8,
+  colors: state.colors, min: 2, max: 9,   <span class="attr">/* 9 = a TuneSutra palette (default) */</span>
   onChange: (colors) =&gt; { state.colors = colors; render(); }
 });</pre>
       <p class="ds-note"><strong>Icons, not glyphs</strong> (Oct 3, 2026). The remove button on a chip (<code>.rmx-x</code>, 13px) carries <code>close</code> at <code>xs</code> (10px) and the add button (<code>.rmx-add</code>) <code>plus</code> at <code>sm</code> (12px), both from <code>Organica.icons</code>, flex-centred — <code>palette.css</code> no longer sets a font size there. Load <code>shared/icons.js</code> before <code>palette.js</code>: without it the buttons render empty (their <code>aria-label</code> stays). The remove button has no <code>title</code> and no <code>data-armed</code> — one click removes a colour, and it can be added back.</p>
       <p class="ds-note"><strong>A colour with a texture — <code>opts.pattern</code></strong> (attach mode, opt-in, Oct 3, 2026). <code>Organica.palette.swatch('paper', { pattern: { panel, on, onToggle(on), label, title } })</code> adds a <strong>Pattern</strong> icon button (<code>pattern</code> from the registry, <code>org-btn org-btn--sm org-btn--icon</code>, <code>aria-pressed</code> — pressed is the shared ink fill) at the end of the <code>.color-row</code>, moves the tool’s own <code>panel</code> right under the row and toggles its <code>hidden</code> attribute; the returned object gains <code>setPattern(on)</code> (sets the state without calling <code>onToggle</code>, for loading a saved one). The component owns the toggle and the placement; the tool owns the pattern’s controls and draws it. Tools that don’t pass it are unchanged. Used by: Flexible Visual System’s Paper (Paper = colour + texture).</p>
+      <p class="ds-note"><strong>A palette, whole — <code>Organica.paletteKit</code></strong> (<code>shared/palette-kit.js</code>, Nov 21, 2026). Every chip strip and colour row has <strong>Pick from a palette</strong> (▦): TuneSutra’s <em>Saved</em>, then <em>Starred</em> palettes — no built-in sets since Nov 21, 2026. A tool with a strip builds it with <code>Organica.paletteKit.strip(stripHost, editorHost, { get, set, tool, max: 9, order, mapping })</code>: a palette’s name brings its colours, each colour’s shading and its Colour mode, and <strong>Save as palette…</strong> gives it back as a new TuneSutra palette. A tool with fixed rows passes <code>onPalette: Organica.paletteKit.roles({ slots, onRoles })</code> to each <code>palette.swatch(id, …)</code>: a palette’s name in any row fills every row by the house role; a single colour still sets that row. What ▦ fills, per row: <code>docs/UI-COPY.md</code>.</p>
     </section>
 
     <section class="ds-entry" id="colour-picker">
       <h2>Colour picker &amp; value tiles</h2>
-      <p class="ds-desc">Organica’s own popover colour picker (O-21, Nov 17, 2026; phase 3 of the colour migration, piloted in TuneSutra). <code>Organica.colorPicker.open(anchorEl, { value, label, onInput(hex), onChange(hex) })</code> → <code>{ close, set(hex) }</code>. Top to bottom: <strong>Recent</strong> (shared by every tool, <code>organica.color.recent</code>, 10) + <strong>Palettes</strong> (saved TuneSutra palettes and the built-in sets, opened in place) · the <em>Saturation and brightness</em> square · the <em>Hue</em> strip (slider track measures, THE knob) · the value row (the mode’s fields + the sample) · a footer with the <strong>Values</strong> menu (Hex · RGB · HSB · CMYK · OKLCH · Nearest RAL — OKLCH and RAL load <code>color.js</code> and the RAL data on first use where a page has not; <code>role="listbox"</code>, built inside the picker so it does not fire <code>organica:dropdown-open</code>; the mode is remembered in <code>organica.color.picker-mode</code>), <strong>Pick from screen</strong> (<code>eyedropper</code>, hidden where the EyeDropper API is missing) and <strong>Copy ‹mode› value</strong>. It is an <code>.org-popover</code> made <code>position: fixed</code> from the anchor’s rect, in <code>&lt;body&gt;</code>; it joins the one-dropdown-open contract; Esc closes it and gives focus back to the anchor. A palette strip opts in with <code>Organica.palette.swatch(el, { picker: 'organica', nameOf(i), onOpen(i) })</code> — each chip becomes a <code>button.rmx-color__pick</code> named “‹Name›, edit colour”. The square and hue gradients are content, not chrome.</p>
+      <p class="ds-desc">Organica’s own popover colour picker (O-21, Nov 17, 2026; phase 3 of the colour migration, piloted in TuneSutra). <code>Organica.colorPicker.open(anchorEl, { value, label, onInput(hex), onChange(hex) })</code> → <code>{ close, set(hex) }</code>. Top to bottom: <strong>Recent</strong> (shared by every tool, <code>organica.color.recent</code>, 10) + <strong>Palettes</strong> (TuneSutra’s saved and starred palettes, opened in place — no built-in sets since Nov 21, 2026) · the <em>Saturation and brightness</em> square · the <em>Hue</em> strip (slider track measures, THE knob) · the value row (the mode’s fields + the sample) · a footer with the <strong>Values</strong> menu (Hex · RGB · HSB · CMYK · OKLCH · Nearest RAL — OKLCH and RAL load <code>color.js</code> and the RAL data on first use where a page has not; <code>role="listbox"</code>, built inside the picker so it does not fire <code>organica:dropdown-open</code>; the mode is remembered in <code>organica.color.picker-mode</code>), <strong>Pick from screen</strong> (<code>eyedropper</code>, hidden where the EyeDropper API is missing) and <strong>Copy ‹mode› value</strong>. It is an <code>.org-popover</code> made <code>position: fixed</code> from the anchor’s rect, in <code>&lt;body&gt;</code>; it joins the one-dropdown-open contract; Esc closes it and gives focus back to the anchor. A palette strip opts in with <code>Organica.palette.swatch(el, { picker: 'organica', nameOf(i), onOpen(i) })</code> — each chip becomes a <code>button.rmx-color__pick</code> named “‹Name›, edit colour”. The square and hue gradients are content, not chrome.</p>
       <div class="ds-usage"><strong>Defined in</strong><span>shared/colour-picker.css</span><span>shared/colour-picker.js</span><span>shared/vendor/ral-classic.js</span><span>shared/panel.css (.org-tiles)</span><strong>Used in</strong><span>every tool that loads palette.js (the default since Nov 17, 2026)</span><span>any remaining input[type=color] on those pages</span><strong>Opt out</strong><span>picker: 'native'</span><span>data-picker="native"</span></div>
       <div class="ds-example" style="max-width:280px">
         <div class="color-row" style="margin-bottom:var(--space-3)">
@@ -1804,7 +1806,7 @@ Organica.dualRange(host, { min: 10, max: 400, from: 75, to: 125, step: 1, detent
       <h2>Shade editor &amp; stop bar</h2>
       <p class="ds-desc">A colour’s <strong>Gradient</strong> and <strong>Shadow</strong> controls, in any panel (Nov 20, 2026 — Diego: a TuneSutra palette arrives in every tool whole, with its shading, and can be changed there). <code>Organica.shadeEditor.mount(host, { hex, ctx, label, def, onChange })</code> → <code>{ set({ hex, def, label }), sync(), get(), destroy() }</code>. Two <code>.panel-section</code>s built from the panel’s own parts — <code>.seg-ctrl</code> (Type: Flat · Linear · Radial), the slider rows, <code>Organica.selectPicker</code> (Shading, Ink), <code>.color-row</code> (Halftone, Core) — and, when the host passes <code>everyColour(def)</code>, a third section after both with <strong>Use on every colour</strong> (this colour’s Gradient + Shadow on all). The drawing and the definition are <code>Organica.shading</code>’s. A value host (FVS) gets one <code>onChange</code> per edit (a range commits on release, a stop drag once on release: one Undo step); TuneSutra edits its own definition in place (<code>edit: { get, before(key), after }</code>).</p>
       <p class="ds-desc"><strong>The stop bar</strong> — <code>.org-stopbar</code> › <code>.org-stopbar__rail</code> › <code>.org-stopbar__stop</code> (<code>shared/shade-editor.css</code>, promoted from TuneSutra’s local <code>.ts-stopbar</code>). The gradient is the track (content colour); one knob per stop at its position, the dual-range knob’s size (<code>--knob-size</code>) with a <code>--hit-min</code> ring round it; its outline is chrome (<code>--paper</code> rim, <code>--border-strong</code> ring), so pale and dark stops show in both themes. Drag a stop (it cannot pass its neighbours); a click on the bar adds one there (up to 8); Delete removes it (not the colour’s own); a click or Enter opens its colour, which may be <em>transparent</em> (<code>.is-clear</code>: a checkerboard of <code>--border</code> / <code>--paper</code>). The active stop has a 2px <code>--tool</code> outline (<code>.is-active</code>). Each knob is <code>role="slider"</code>, named <em>Stop n</em>, <code>aria-valuetext</code> “50%, transparent”. Under it: <strong>Reverse</strong> (the colour keeps its stop) · <strong>Space evenly</strong>. Below, the real component in both themes: three stops, the first active, the middle one transparent.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/shade-editor.css</span><span>shared/shade-editor.js</span><strong>Needs</strong><span>core.js → color.js → noise.js → shade-marks.js → shading.js → select-picker.js → shade-editor.js</span><span>panel.css (--slo-h, --slo-r, --knob-size) before shade-editor.css</span><strong>Used in</strong><span>TuneSutra (Gradient, Shadow)</span><span>Flexible Visual System (a palette colour’s shading)</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/shade-editor.css</span><span>shared/shade-editor.js</span><strong>Needs</strong><span>core.js → color.js → noise.js → shade-marks.js → shading.js → select-picker.js → shade-editor.js</span><span>panel.css (--slo-h, --slo-r, --knob-size) before shade-editor.css</span><strong>Used in</strong><span>TuneSutra (Gradient, Shadow)</span><span>Flexible Visual System, Trellis, Spore (the active strip colour, via <code>Organica.paletteKit</code>)</span><span>Halide, Radial, Living Path, Sinew (Ink)</span><span>Blob Boundary (Mask)</span><span>Colornet (the active channel)</span></div>
       <div class="ds-theme-pair">
         <div class="ds-example ds-example--column" data-theme="light"><div class="org-panel"><div id="ds-shade-light"></div></div></div>
         <div class="ds-example ds-example--column" data-theme="dark"><div class="org-panel"><div id="ds-shade-dark"></div></div></div>
@@ -1817,6 +1819,22 @@ const ed = Organica.shadeEditor.mount(hostEl, {
   everyColour: def =&gt; useOnEveryColour(def), <span class="attr">/* optional */</span>
 });</pre>
       <p class="ds-note"><strong>Words</strong> are TuneSutra’s (<code>docs/UI-COPY.md</code>: Gradient, Shadow, Stops, Reverse, Space evenly, Use on every colour). The open choices around it — the class name, the new sheet, what <em>Use on every colour</em> copies — are in the ledger’s open list (<code>docs/DESIGN-DECISIONS.md</code> §1).</p>
+      <p class="ds-note"><strong>Between sections, never inside one</strong> (Nov 21, 2026). The editor builds its own <code>.panel-section</code>s, so its host is a bare <code>&lt;div&gt;</code> placed <em>between</em> the panel’s sections — after the section of the colour it shades — never inside a <code>.panel-section</code>. In a strip tool <code>Organica.paletteKit.strip(stripHost, editorHost, …)</code> mounts it for the active chip; a role tool mounts it itself for the one colour it shades (Ink, Mask, a channel). Shapes draw the shading with <code>Organica.shading.overlaySVG</code> / <code>overlayCanvas</code> (the colour’s plates in the shape’s box, clipped to it).</p>
+    </section>
+
+    <section class="ds-entry" id="reorder">
+      <h2>Reorder — drag &amp; keys</h2>
+      <p class="ds-desc">Move the items of a list by <strong>pointer drag</strong> or <strong>⌥ + arrows</strong>, on either axis (Nov 21, 2026 — FVS’s layer drag made generic at the third list reorder; ledger §2). <code>Organica.reorder(listEl, { item, axis: 'x' | 'y', onMove(from, to), say(i, n) })</code> → <code>{ destroy() }</code>. Press an item and move 4px, drop on another: its first half = before it, its second half = after. Not native drag and drop — it would not start from a <code>&lt;button&gt;</code> in Safari or Firefox. ⌥← / ⌥→ (⌥↑ / ⌥↓ on <code>'y'</code>) move the focused item; focus follows it; a polite live region says “‹n› of ‹m›” (or <code>say</code>’s words). The host moves its own data and redraws — the component never reorders the DOM itself. Each item is a focusable element with its own accessible name; give it <code>aria-keyshortcuts</code>. Try it below, in both themes.</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/reorder.js</span><span>shared/panel.css (.org-reorder)</span><strong>Needs</strong><span>core.js → reorder.js</span><strong>Used in</strong><span>TuneSutra (Colour mode › Order)</span><strong>To move onto it</strong><span>Flexible Visual System (layers)</span><span>Living Path (layers)</span></div>
+      <div class="ds-theme-pair">
+        <div class="ds-example" data-theme="light"><div class="row-btns" id="ds-reorder-light" role="group" aria-label="Order" style="flex:none;margin:0"></div></div>
+        <div class="ds-example" data-theme="dark"><div class="row-btns" id="ds-reorder-dark" role="group" aria-label="Order" style="flex:none;margin:0"></div></div>
+      </div>
+      <pre class="ds-code">Organica.reorder(<span class="attr">listEl</span>, {
+  item: <span class="str">'.my-chip'</span>, axis: <span class="str">'x'</span>,
+  onMove: (from, to) =&gt; { const [c] = state.order.splice(from, 1); state.order.splice(to, 0, c); redraw(); },
+});</pre>
+      <p class="ds-note"><strong>Classes it sets</strong> (tokens only): <code>.org-reorder</code> + <code>.org-reorder--x</code> / <code>--y</code> on the list; <code>.is-dragging</code> on the dragged item (opacity 0.5); <code>.drop-before</code> / <code>.drop-after</code> on the target — a 3px inset bar in <code>--tool</code> on the side the item lands, as the layer cards show it; <code>.org-reorder__live</code>, the visually hidden live region placed right after the list.</p>
     </section>
 
     <section class="ds-entry" id="seeds-panel">
@@ -2779,6 +2797,20 @@ Organica.notice('Preset loaded', { kind: 'info' });</pre>
 <script src="/shared/shade-marks.js"></script>
 <script src="/shared/shading.js"></script>
 <script src="/shared/shade-editor.js"></script>
+<script src="/shared/reorder.js"></script>
+<script>
+/* #reorder — the real Organica.reorder, once per theme: four buttons; the host moves its data and redraws. */
+(function(){
+  if(!window.Organica||!Organica.reorder) return;
+  ['ds-reorder-light','ds-reorder-dark'].forEach(function(id){
+    var list=document.getElementById(id); if(!list) return;
+    var items=['One','Two','Three','Four'];
+    function draw(){ list.innerHTML=items.map(function(t){ return '<button type="button" class="org-btn org-btn--sm ds-reorder-item" aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight">'+t+'</button>'; }).join(''); }
+    draw();
+    Organica.reorder(list,{ item:'.ds-reorder-item', axis:'x', onMove:function(from,to){ var t=items.splice(from,1)[0]; items.splice(to,0,t); draw(); } });
+  });
+})();
+</script>
 <script>
 /* #shade-editor — the real Organica.shadeEditor, once per theme: a Linear gradient of three stops, the middle one
    transparent; the first is the active one (the editor's default). Runs before the self-check, which asserts on it. */
@@ -3122,6 +3154,7 @@ Organica.selectPicker(document.getElementById('ds-selpick-sel'), document.getEle
   assert('#ds-page-foot', { display: 'flex', fontSize: '10px' });   // the one footer (page.css)
   assert('#ds-page-card', { borderTopLeftRadius: '8px' });          // --radius-lg
   assert('#ds-space-9', { width: '48px' });                         // --space-9 (Nov 19, 2026)
+  assert('#ds-reorder-light + .org-reorder__live', { position: 'absolute', width: '1px', height: '1px' });   // Organica.reorder's live region, visually hidden (Nov 21, 2026)
   assert('#ds-org-table', { borderCollapse: 'collapse', fontSize: '10px' });   // .org-table, --fs-small
   assert('#ds-org-table td', { verticalAlign: 'middle', paddingTop: '6px', paddingLeft: '8px', borderBottomWidth: '1px' });   // --space-2 / --space-3
   assert('#ds-org-table th', { fontWeight: '500', whiteSpace: 'nowrap' });     // --w-medium

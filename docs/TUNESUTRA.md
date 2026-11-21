@@ -217,6 +217,30 @@ Then:
    the sheet (`#colour-dock`, scaled with it), light in both themes, never in an export. They show
    the selected tint, else the colour.
 
+## 2b. Colour mode — how the tools lay the palette on a tone (Nov 21, 2026)
+
+Diego, Nov 21, 2026: the Colour mode the tools share (Pollen, Spore, Mote, Camo Turing, Membrane) **starts here and
+travels with the palette**. A tool that lays colours on a value 0..1 (a photo's darkness, a field) reads it when it
+takes the palette (ledger §2, 2026-11-21; words provisional, O-91). The section **Colour mode** (hint *in the tools*,
+`#ts-mode`) sits above the active colour's Gradient + Shadow, since it is palette-wide.
+
+- **Mode** — *Solid · Adaptive · Inks* (UI-COPY D7). **Solid**: one colour, the pair's **Ink**. **Adaptive**: the
+  **Ink → Paper** blend. **Inks** (the tools' RMX): every colour on the tone, in the **Order**.
+- **Colour by** (Inks only) — *Tone · Posterize · Random · Tone + random*: the math is `Organica.palette.colorAt`,
+  the same in every tool since Nov 21 (one RMX math, Pollen's).
+- **Mix** — *sRGB · OKLab*, the blend space; shown only where colours blend (Adaptive, Inks › Tone / Tone + random).
+- **Order** (Inks only, hint *dark → bright*) — the palette's colours as chips; drag one, or ⌥← / ⌥→ on the focused
+  chip (`Organica.reorder`, `shared/reorder.js`). **Sort by lightness** puts them back by lightness (disabled while
+  they already are). Until it is moved, the order follows the colours' lightness through every edit.
+- **Ink**, **Paper** (Solid: Ink; Adaptive: both) — thumbnail pickers (`Organica.selectPicker`) over the palette's
+  colours, by name; default the darkest and the lightest.
+- **Preview** — a strip drawn by `Organica.palette.colorAt` with these settings (light in both themes).
+
+Editing it is one Undo step (`pushUndo('mode')`). The order and the pair are held **by colour id** while you edit (a
+colour changed or moved keeps its place) and **saved as indices** (`mapping`, §5). A starred or older palette has
+none: the defaults are Inks · Tone · by lightness · OKLab, the darkest as Ink, the lightest as Paper
+(`Organica.palettes.mappingFor`).
+
 ## 3. Gradient · Shadow
 
 > **Nov 18, 2026 (night) — Grain removed, Shadow = type + Ink** (Diego: *togli il grain definitivamente visto che abbiamo le shadow complete con i presets* · *la dropdown di shadow così sceglie il tipo di ombra mentre Hue come la colora*). The panel is **Palette · Gradient · Shadow**. Every gradient is a smooth vector blend (`g.size` forced to 0 by `normalizeGrad`; a palette saved with a grain opens smooth). The Grain paragraphs below (Size, Pattern, Seed, the dithered blend) are history: the cell renderer remains only for Flat shadows. In Shadow, **Shading** picks the shadow and **Ink** (a thumbnail dropdown, `#sel-gink`) picks how it is coloured — *On the palette* Same · Cool · Warm · Complement (inks snapped to the palette's tints) or *Free* — **the Palette's harmony rules** (Diego: *gli ink free devono essere quelli generati da regole di armonia*): Monochromatic · Analogous · Complementary · Split-complementary · Triadic · Tetradic, the halftone ink on the rule's first hue away from the colour, the core on its second (`HARMONY_INK`: 15/30°, 180°, 150/210°, 120/240°, 90/180°), Shift scaling the turn (100 = the rule's own angle); a saved free Cool / Warm moves on the palette, Impressionist becomes Analogous; it replaces the Hue select and the Snap to palette switch. **Shift** sits right under Ink, **only for Free inks** (on the palette the inks snap to its tints, so it could only jump; hidden on Monochromatic and when both inks are hand-picked). **Depth** is the share of the colour's own lightness lost at the core (halftone half of it) — no longer subtracted outright, which sent a mid colour's inks to black; **Same** on the palette snaps to the colour's own tints. Halftone / Core stay for a hand pick; picking an Ink preset forgets them (**Reset inks** removed). With a shape selected the Shading menu names the shadow's type even after an edit. The Gradient section has no hint. The *Away from a light* switch, **Chroma**, **Parts** and the **More** disclosure are gone (saved values still read).
@@ -349,8 +373,8 @@ Save, and since Nov 18, 2026 **Delete palette** (armed *Delete?*, only for a sav
 **Save** stores the palette in `Organica.store('tunesutra')` (cloud-synced when
 signed in) **under a name — always** (an empty name does not save; a new palette has no
 suggestion, a built-in copy suggests its own): `{ n, harmony, spread, colors, names, ids, locks,
-shades, zoneShades, gradient, house, shading, set, savedAt }` — `names` are the roles,
-`locks` / `gradient` / `shading` are kept for older readers. A palette **always opens flat**, as the home
+shades, zoneShades, gradient, house, shading, set, mapping, savedAt }` — `names` are the roles,
+`locks` / `gradient` / `shading` are kept for older readers. `mapping` (Nov 21, 2026) is the Colour mode of §2b: `{ mode: 'solid'|'adaptive'|'rmx', submode: 'tone'|'posterize'|'random'|'tonernd', order: [colour indices, dark → bright] | null (= by lightness), pair: [ink i, paper i] | null, space: 'oklab'|'srgb' }`; a palette without it reads the defaults. A palette **always opens flat**, as the home
 shows it (`shading` is not restored — its shadings are in the set).
 
 **The base set** (`set`, Nov 18, 2026 — Diego: *si salvano sia le tinte piatte che quelle con le
@@ -377,17 +401,17 @@ was saved with (`shading`) and each colour's base set (`set`: Soft, Speckle), a 
 
 Every colour control in the suite (`Organica.palette.swatch`) has a small ▦
 button — **Pick from a palette** — listing these saved palettes, then the starred ones (`Organica.palettes.list()`;
-the built-in sets left the menu on Nov 20, 2026 — `Organica.palette.library()` still has them):
+no built-in sets since Nov 21, 2026 — `Organica.palette.library()` lists the same):
 
 - on a single colour row: click a colour to use it;
 - on a chip strip: click a colour to add it (or replace the last one when the
-  strip is full), or a palette's name to load it whole.
+  strip is full), or a palette's name to load it whole — colours, each colour's shading where the tool has filled
+  shapes, and the Colour mode (`Organica.paletteKit.strip`; a tool with Inks takes the colours dark → bright);
+- on a tool's fixed colour rows (Ink · Paper, Komorebi's Sun · Sky · Ground · Shadow …): a palette's name fills
+  every row by the house role (`Organica.paletteKit.roles`; the table per tool is in the ledger, §2 2026-11-21).
 
-Built-in: three combinations available in every tool without saving them first
-— **Violet 06**, **Stimulating**, **Violet 07** — and **Riso standard inks
-(approx.)** — 21 inks. The hex values are screen
-approximations of real inks (public riso-colors list); check them against your
-printer's own chart before relying on them.
+The built-in sets (the three combinations Violet 06 · Stimulating · Violet 07 and the 21 Riso standard inks)
+were **removed everywhere on Nov 21, 2026** (Diego: one model, one list) — save or star a palette to use it in a tool.
 
 ## 6. System — archived
 
