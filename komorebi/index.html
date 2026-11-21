@@ -340,8 +340,10 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script>
@@ -1519,7 +1521,17 @@ function deletePreset() {
 // INIT
 // ─────────────────────────────────────────────
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
-COLORS.forEach(c => { swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: scheduleRender }); });
+// A TuneSutra palette's name in any colour row fills all four by the house role (Organica.paletteKit.roles).
+const takeRoles = Organica.paletteKit.roles({
+  slots: [
+    { key: 'sun', parts: ['accent', 'sub'], fallback: 0 },
+    { key: 'sky', parts: ['background'], fallback: 'lightest' },
+    { key: 'ground', parts: ['ground', 'main'], fallback: 1 },
+    { key: 'shadow', parts: [], fallback: 'darkest' },
+  ],
+  onRoles: r => COLORS.forEach(c => swatches[c].set(r[c].hex)),
+});
+COLORS.forEach(c => { swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: scheduleRender, onPalette: takeRoles }); });
 syncConditionalRows();
 applyPatternLabels();
 resizeCanvas();

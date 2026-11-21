@@ -534,8 +534,10 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/plate-export.js"></script>
@@ -583,6 +585,7 @@ function setStrokeStyle(v) { strokeStyle = v; segActive('strokestyle-seg', v); r
 // ── RMX COLORS: a palette of up to 9 colours, assigned by a chosen mapping ──
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
 let rmxColorMap = 'tone';            // 'tone' | 'posterize' | 'random' | 'tonernd'
+let rmxSpace = null;                 // a palette's blend space ('oklab' | 'srgb'), set when one is taken whole; null = sRGB, as before
 const RMX_COLORS_MAX = 9;
 
 // ── SHAPE LIBRARY ──
@@ -773,13 +776,28 @@ function setColorMode(m) {
 }
 
 // ── RMX COLORS palette UI ──
+// A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours dark → bright and its Colour
+// mode — Mode, Mapping, the Point / BG pair and the blend space; Save as palette… gives the tool's own mode back.
+let rmxKit = null;
 function buildRmxPalette() {
-  Organica.palette.swatch(document.getElementById('rmx-palette'), {
-    colors: rmxColors,
-    min: 2,
-    max: RMX_COLORS_MAX,
-    onChange: (colors) => { rmxColors = colors; syncPlatesUI(); render(); },
+  if (rmxKit) { rmxKit.rebuild(); return; }
+  rmxKit = Organica.paletteKit.strip(document.getElementById('rmx-palette'), null, {
+    tool: 'Pollen', min: 2, max: RMX_COLORS_MAX, order: 'ramp', shading: false,
+    get: () => ({ colors: rmxColors }),
+    mapping: () => Organica.palettes.mappingFor(rmxColors, { mode: colorMode, submode: rmxColorMap, order: rmxColors.map((_, i) => i), space: rmxSpace || 'srgb' }),
+    set: (p, why) => {
+      if (p.colors) rmxColors = p.colors;
+      if (why === 'palette' && p.mapping) applyPaletteMapping(p.mapping);
+      syncPlatesUI(); render();
+    },
   });
+}
+// A palette's Colour mode on the tool: Mode, Mapping, Point (pair[0]) and, in Adaptive, BG (pair[1]), the space.
+function applyPaletteMapping(m) {
+  rmxSpace = m.space || null;
+  rmxColorMap = m.submode; const ms = document.getElementById('sel-rmx-map'); if (ms) ms.value = m.submode;
+  if (m.mode !== 'rmx') { swatches.ink.set(rmxColors[m.pair[0]]); if (m.mode === 'adaptive') swatches.bg.set(rmxColors[m.pair[1]]); }
+  if (m.mode !== colorMode) setColorMode(m.mode);
 }
 
 // Shows/hides the Plates section — only meaningful for RMX mode with a
@@ -841,6 +859,7 @@ function getState() {
   const s = { pointType, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value,
               alpha255: ctrl('a-ink').value, rotation: ctrl('sel-rotation').value, scale: ctrl('sel-scale').value,
               rmxOn, rmxForms: rmxForms.slice(), rmxColors: rmxColors.slice(), rmxColorMap, strokeStyle };
+  if (rmxSpace) s.rmxSpace = rmxSpace;
   PRESET_SLIDERS.forEach(id => s[id] = ctrl(id).value);
   PRESET_CHECKS.forEach(id => s[id] = ctrl(id).checked);
   return s;
@@ -855,6 +874,7 @@ function setState(s) {
   PRESET_CHECKS.forEach(id => { if (s[id] !== undefined) { ctrl(id).checked = s[id]; if (RANGE_ROWS[id]) toggleRow(RANGE_ROWS[id], s[id]); } });
   // RMX (shapes + colours) — restore before colour mode so palette/slots reflect
   if (Array.isArray(s.rmxColors)) rmxColors = s.rmxColors.slice(0, RMX_COLORS_MAX);   // an older or hand-made preset never holds more than the strip takes
+  rmxSpace = s.rmxSpace || null;   // a preset without one blends in sRGB, as before
   if (s.rmxColorMap) { rmxColorMap = s.rmxColorMap; const ms = document.getElementById('sel-rmx-map'); if (ms) ms.value = rmxColorMap; }
   if (Array.isArray(s.rmxForms)) rmxForms = s.rmxForms.slice();
   if (s.rmxOn !== undefined) {
@@ -1165,6 +1185,7 @@ function pointParams(s) {
     alpha: clamp255(s ? (s.alpha255 !== undefined ? s.alpha255 : ctrl('a-ink').defaultValue) : ctrl('a-ink').value) / 255,
     palette: cm === 'rmx' ? (s ? (s.rmxColors || rmxColors) : rmxColors).slice() : null,
     rmxMap: s ? (s.rmxColorMap || 'tone') : rmxColorMap,
+    space: (s ? s.rmxSpace : rmxSpace) || undefined,   // read by pollen-engine's pointRGBA once it passes P.space to colorAt
     overpaint: s ? ck('ck-overpaint') : undefined,   // undefined → paintPoints reads the live checkbox
   };
 }
@@ -1746,8 +1767,19 @@ PRESETS.onSync(() => populatePresets());
 buildShapeGrid();
 updatePtPreview();   // show the point shape preview before any image is loaded
 
+// A palette's name in the Point or BG row fills both by the house role (and the RMX strip with its colours).
+const takeRoles = Organica.paletteKit.roles({
+  slots: [{ key: 'ink', parts: ['main', 'sub'], fallback: 'darkest' }, { key: 'bg', parts: ['background', 'ground'], fallback: 'lightest' }],
+  onRoles: (r, pal) => {
+    swatches.ink.set(r.ink.hex); swatches.bg.set(r.bg.hex);
+    rmxColors = Organica.palettes.rampOf(pal).map(h => h.toLowerCase()).slice(0, RMX_COLORS_MAX);
+    if (rmxColors.length < 2) rmxColors = rmxColors.concat(rmxColors[0] || '#888888');
+    if (rmxKit) rmxKit.rebuild();
+    syncPlatesUI(); render();
+  },
+});
 ['ink', 'bg'].forEach(c => {
-  swatches[c] = Organica.palette.swatch(c, { initial: document.getElementById('hex-' + c).value, onChange: render });
+  swatches[c] = Organica.palette.swatch(c, { initial: document.getElementById('hex-' + c).value, onChange: render, onPalette: takeRoles });
 });
 
 Organica.popover(document.getElementById('btn-export'), document.getElementById('export-popover'));

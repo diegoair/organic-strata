@@ -76,6 +76,7 @@ export const state = {
   colorSrc: 'ink',           // 'ink' | 'rainbow' | 'image' | 'rmx'
   rmxColors: ['#f6e8c3', '#c15b4a', '#0a0a0a'],   // mark ink / tool identity / mark accent — an on-brand default triple
   rmxColorMap: 'tone',       // 'tone' | 'posterize' | 'random' | 'tonernd' — see color.js's own rmxColorAt
+  rmxSpace: null,            // a TuneSutra palette's blend space ('oklab' | 'srgb'), set when one is taken whole; null = sRGB
   strokeW: 0.75,
   strokeAlpha: 50,
   fillEachFrame: false,

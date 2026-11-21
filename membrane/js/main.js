@@ -359,11 +359,7 @@ ctrl('rg-brushsize').addEventListener('input', e => {
 });
 
 // ── Ink ──
-ctrl('sel-colorsrc').addEventListener('change', e => {
-  state.colorSrc = e.target.value;
-  ctrl('row-fill').hidden = !(state.colorSrc === 'ink');   // Fill only ever applies to Single ink's own one-shape path
-  ctrl('rmx-color-block').hidden = !(state.colorSrc === 'rmx');
-});
+ctrl('sel-colorsrc').addEventListener('change', e => setColorSrc(e.target.value));   // Fill only ever applies to Single ink's own one-shape path
 ctrl('rg-weight').addEventListener('input', e => { state.strokeW = parseFloat(e.target.value); ctrl('v-weight').textContent = state.strokeW.toFixed(2); });
 ctrl('rg-alpha').addEventListener('input', e => { state.strokeAlpha = parseInt(e.target.value, 10); ctrl('v-alpha').textContent = state.strokeAlpha; });
 ctrl('chk-fill').addEventListener('change', e => { state.fillEachFrame = e.target.checked; });
@@ -374,12 +370,26 @@ ctrl('chk-fill').addEventListener('change', e => { state.fillEachFrame = e.targe
 // own original). state
 // stays the live source of truth (render.js/svgexport.js read
 // state.rmxColors directly each frame), kept in sync via onChange.
+// A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours dark → bright and, from its
+// Colour mode, RMX (Membrane's only one of the three), the Mapping and the blend space.
 const RMX_COLORS_MAX = 9;
-Organica.palette.swatch(ctrl('rmx-palette'), {
-  colors: state.rmxColors,
-  min: 2,
-  max: RMX_COLORS_MAX,
-  onChange: (colors) => { state.rmxColors = colors; },
+function setColorSrc(v) {
+  state.colorSrc = v; ctrl('sel-colorsrc').value = v;
+  ctrl('row-fill').hidden = !(v === 'ink');
+  ctrl('rmx-color-block').hidden = !(v === 'rmx');
+}
+const rmxKit = Organica.paletteKit.strip(ctrl('rmx-palette'), null, {
+  tool: 'Membrane', min: 2, max: RMX_COLORS_MAX, order: 'ramp', shading: false,
+  get: () => ({ colors: state.rmxColors }),
+  mapping: () => Organica.palettes.mappingFor(state.rmxColors, { mode: 'rmx', submode: state.rmxColorMap, order: state.rmxColors.map((_, i) => i), space: state.rmxSpace || 'srgb' }),
+  set: (p, why) => {
+    if (p.colors) state.rmxColors = p.colors;
+    if (why === 'palette' && p.mapping) {
+      state.rmxSpace = p.mapping.space || null;
+      state.rmxColorMap = p.mapping.submode; ctrl('sel-rmx-map').value = p.mapping.submode;
+      if (p.mapping.mode === 'rmx' && state.colorSrc !== 'rmx') setColorSrc('rmx');
+    }
+  },
 });
 ctrl('sel-rmx-map').addEventListener('change', e => { state.rmxColorMap = e.target.value; });
 
@@ -478,13 +488,25 @@ ctrl('num-canvas-height').addEventListener('change', e => {
 // `initial` syncs the visible swatch/hex fields to state.js's own
 // defaults immediately; `onChange` is this tool's own side effect
 // (state.*RGB, plus a full repaint for Background).
+// A palette's name in the Ink or Background row fills both by the house role (and the RMX strip with its colours).
+const takeRoles = Organica.paletteKit.roles({
+  slots: [{ key: 'ink', parts: ['main', 'sub'], fallback: 'darkest' }, { key: 'bg', parts: ['background', 'ground'], fallback: 'lightest' }],
+  onRoles: (r, pal) => {
+    inkSwatch.set(r.ink.hex); bgSwatch.set(r.bg.hex);
+    state.rmxColors = Organica.palettes.rampOf(pal).map(h => h.toLowerCase()).slice(0, RMX_COLORS_MAX);
+    if (state.rmxColors.length < 2) state.rmxColors = state.rmxColors.concat(state.rmxColors[0] || '#888888');
+    rmxKit.rebuild();
+  },
+});
 const inkSwatch = Organica.palette.swatch('ink', {
   initial: Organica.rgbToHex(...state.inkRGB),
   onChange: (hex, rgb) => { state.inkRGB = rgb; },
+  onPalette: takeRoles,
 });
 const bgSwatch = Organica.palette.swatch('bg', {
   initial: Organica.rgbToHex(...state.canvasBgRGB),
   onChange: (hex, rgb) => { state.canvasBgRGB = rgb; paintBackground(); },
+  onPalette: takeRoles,
 });
 
 // ── Export: SVG (real vector geometry of the current shape/path — see

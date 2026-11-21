@@ -92,7 +92,7 @@ function buildHistorySVG() {
 function pathColorAt(i) {
   const n = state.textPathPoints.length;
   if (state.colorSrc === 'rainbow') return hsbToRgb255((i / n) * 360, 85, 100);
-  if (state.colorSrc === 'rmx') return rmxColorAt(i / n, state.rmxColors, state.rmxColorMap, i);
+  if (state.colorSrc === 'rmx') return rmxColorAt(i / n, state.rmxColors, state.rmxColorMap, i, state.rmxSpace);
   if (state.colorSrc === 'image' && state.imgFit) {
     const pt = state.textPathPoints[i];
     return imgColorAt(state.imgPixelsCache, state.inkRGB, state.imgFit.refX + (pt[0] - state.W / 2) / state.imgFit.scale, state.imgFit.refY + (pt[1] - state.H / 2) / state.imgFit.scale);

@@ -366,8 +366,10 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/pollen-engine.js"></script>
 <script src="/shared/select-picker.js"></script>
@@ -404,6 +406,7 @@ let mode = 'A', colorMode = 'solid', pointShape = 'dot';
 let rmxColors = ['#2a1a12', '#8c3b1e', '#d9822b', '#f2c14e', '#f6e8c3'];
 const RMX_COLORS_MAX = 9;   // every tool takes up to 9 colours (Diego, Nov 21, 2026); an older or hand-made preset is clamped to it
 let rmxChips = null;
+let rmxSpace = null;   // a palette's blend space ('oklab' | 'srgb'), set when one is taken whole; null = sRGB, as before
 let basePoints = null, points = [], targetCount = 0, lastC = [], lastPaintedPts = [];
 let running = false, loopId = 0, curField = null, recording = false;
 let stippleFrozen = false, stipplePending = false, stippleEditId = '', stippleT = 0;
@@ -465,6 +468,7 @@ function pointParams() {
     alpha: (parseFloat($('a-ink').value) || 100) / 100,
     minInk: (val('sl-minink') || 0) / 100,
     rmxColors: rmxColors.slice(), rmxMap: $('sel-rmx-map').value,
+    space: rmxSpace || undefined,   // read by pollen-engine's pointRGBA once it passes P.space to colorAt
     strokeLen: val('sl-stroke-len'), strokeSeg: Math.round(val('sl-stroke-seg')),
     strokeWarp: val('sl-stroke-warp'), strokeRound: $('ck-stroke-round').checked,
     angleFlow: $('ck-angle-flow').checked, angleRandom: $('ck-angle-random').checked,
@@ -1275,7 +1279,7 @@ function presetToParams(P) {
     lightDropout: (P.dropout || 0) / 100,
     colorMode: P.cm || 'solid', ink: P.ink || '#0a0a0a', bg: P.bg || '#f4f1e8', alpha: 1,
     minInk: (P.minInk || 0) / 100,
-    rmxColors: (P.rmx || rmxColors).slice(0, RMX_COLORS_MAX), rmxMap: P.map || 'tone',
+    rmxColors: (P.rmx || rmxColors).slice(0, RMX_COLORS_MAX), rmxMap: P.map || 'tone', space: P.space || undefined,
     strokeLen: P.strokeLen || 12, strokeSeg: P.strokeSeg || 8, strokeWarp: P.strokeWarp || 0.2,
     strokeRound: P.round !== false,
     angleFlow: !!P.flow, angleRandom: !!P.rndAngle, angleRange: !!P.angleRange,
@@ -1337,7 +1341,8 @@ function applyPreset(key) {
   if (P.detail != null) $('sl-detail').value = P.detail;
   if (P.ink) { $('cp-ink').value = P.ink; $('hex-ink').value = P.ink; swInk.set(P.ink); }
   if (P.bg)  { $('cp-paper').value = P.bg; $('hex-paper').value = P.bg; swPaper.set(P.bg); }
-  if (P.rmx) { rmxColors = P.rmx.slice(0, RMX_COLORS_MAX); if (rmxChips) rmxChips.setColors(rmxColors); }
+  if (P.rmx) { rmxColors = P.rmx.slice(0, RMX_COLORS_MAX); if (rmxChips) rmxChips.rebuild(); }
+  rmxSpace = P.space || null;   // a preset without one blends in sRGB, as before
   if (P.map) $('sel-rmx-map').value = P.map;
   setShape(P.shape || 'dot');
   if (pointShape === 'line') {
@@ -1375,7 +1380,7 @@ function commitPreset() {
     strokeLen: +$('sl-stroke-len').value, strokeSeg: +$('sl-stroke-seg').value, strokeWarp: +$('sl-stroke-warp').value,
     round: $('ck-stroke-round').checked, flow: $('ck-angle-flow').checked, rndAngle: $('ck-angle-random').checked, angleRange: $('ck-angle-range').checked,
     dropout: +$('sl-dropout').value, minInk: +$('sl-minink').value, cm: colorMode, map: $('sel-rmx-map').value,
-    ink: $('hex-ink').value, bg: $('hex-paper').value, rmx: rmxColors.slice(),
+    ink: $('hex-ink').value, bg: $('hex-paper').value, rmx: rmxColors.slice(), space: rmxSpace || undefined,
     contrast: +$('sl-contrast').value, gamma: +$('sl-gamma').value,
   };
   STORE.write(all);
@@ -1403,11 +1408,35 @@ const zoomPan = Organica.canvasZoomHud({
 function resetZoom() { zoomPan.reset(); }
 
 // ── SWATCHES ──────────────────────────────────────────────────
-const swInk = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: repaintStill });
-const swPaper = Organica.palette.swatch('paper', { initial: '#f4f1e8', onChange: repaintStill });
-rmxChips = Organica.palette.swatch($('rmx-palette'), {
-  colors: rmxColors, min: 2, max: RMX_COLORS_MAX,
-  onChange: c => { rmxColors = c; repaintStill(); },
+// A palette's name in the Point or Paper row fills both by the house role (and the RMX strip with its colours).
+const takeRoles = Organica.paletteKit.roles({
+  slots: [{ key: 'ink', parts: ['main', 'sub'], fallback: 'darkest' }, { key: 'paper', parts: ['background', 'ground'], fallback: 'lightest' }],
+  onRoles: (r, pal) => {
+    swInk.set(r.ink.hex); swPaper.set(r.paper.hex);
+    rmxColors = Organica.palettes.rampOf(pal).map(h => h.toLowerCase()).slice(0, RMX_COLORS_MAX);
+    if (rmxColors.length < 2) rmxColors = rmxColors.concat(rmxColors[0] || '#888888');
+    rmxChips.rebuild(); repaintStill();
+  },
+});
+const swInk = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: repaintStill, onPalette: takeRoles });
+const swPaper = Organica.palette.swatch('paper', { initial: '#f4f1e8', onChange: repaintStill, onPalette: takeRoles });
+// A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours dark → bright and its Colour
+// mode — Mode, Mapping, the Point / Paper pair and the blend space; Save as palette… gives the tool's own mode back.
+rmxChips = Organica.paletteKit.strip($('rmx-palette'), null, {
+  tool: 'Mote', min: 2, max: RMX_COLORS_MAX, order: 'ramp', shading: false,
+  get: () => ({ colors: rmxColors }),
+  mapping: () => Organica.palettes.mappingFor(rmxColors, { mode: colorMode === 'video' ? 'rmx' : colorMode, submode: $('sel-rmx-map').value, order: rmxColors.map((_, i) => i), space: rmxSpace || 'srgb' }),
+  set: (p, why) => {
+    if (p.colors) rmxColors = p.colors;
+    if (why === 'palette' && p.mapping) {
+      const m = p.mapping;
+      rmxSpace = m.space || null;
+      $('sel-rmx-map').value = m.submode;
+      if (m.mode !== 'rmx') { swInk.set(rmxColors[m.pair[0]]); if (m.mode === 'adaptive') swPaper.set(rmxColors[m.pair[1]]); }
+      if (m.mode !== colorMode) setColor(m.mode);
+    }
+    repaintStill();
+  },
 });
 
 // ── GENERAL WIRING ────────────────────────────────────────────

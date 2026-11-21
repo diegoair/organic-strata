@@ -196,6 +196,7 @@
       mode: P.colorMode === 'video' ? 'solid' : P.colorMode,
       ink: P.ink, paper: P.bg, colors: P.palette || P.rmxColors,
       submode: P.rmxMap, rnd: rnd || 0,
+      space: P.space || undefined,   // a palette's Colour mode mix (Nov 21, 2026); none = sRGB, as before
     });
     const [r, g, bl] = Organica.hexToRGB255(hex);
     return { r, g, b: bl, a: P.alpha };

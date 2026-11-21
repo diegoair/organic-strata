@@ -52,8 +52,9 @@ function hash1(n) {
 // Turing's old floor / ±1.5-blend lineage before). `t` is the point's own position along the curve/path
 // (i/n, 0..1 — exactly what Rainbow already uses for its hue cycle); `seedIndex` drives the Random /
 // Tone+Random `rnd` through hash1, so the jitter is index-stable rather than re-rolled every frame.
+// `space` ('oklab' | 'srgb' | undefined = sRGB): a TuneSutra palette's blend space, kept when one is taken whole.
 // Returns [r, g, b] 0-255, the shape render.js / svgexport.js read.
-export function rmxColorAt(t, colors, mapping, seedIndex) {
+export function rmxColorAt(t, colors, mapping, seedIndex, space) {
   if (!colors || colors.length <= 1) return hexToRgb((colors && colors[0]) || '#888888');
-  return hexToRgb(Organica.palette.colorAt(t, { mode: 'rmx', colors, submode: mapping, rnd: hash1(seedIndex) }));
+  return hexToRgb(Organica.palette.colorAt(t, { mode: 'rmx', colors, submode: mapping, rnd: hash1(seedIndex), space: space || undefined }));
 }

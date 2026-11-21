@@ -601,8 +601,10 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/seeds-panel.js"></script>
 <!-- Transformer — centralized raster effect-stack module (see the file's
@@ -1921,6 +1923,16 @@ function toggleDiffOverlay() {
 // uniform + re-renders (dispMat may not exist yet on first paint — guarded,
 // and initGL seeds uInk/uPaper from the hex fields anyway).
 const swatches = {};
+// A palette's name in the Ink or Paper row fills both by the house role (and the RMX strip with its colours).
+const takeRoles = Organica.paletteKit.roles({
+  slots: [{ key: 'ink', parts: ['main', 'sub'], fallback: 'darkest' }, { key: 'paper', parts: ['background', 'ground'], fallback: 'lightest' }],
+  onRoles: (r, pal) => {
+    swatches.ink.set(r.ink.hex); swatches.paper.set(r.paper.hex);
+    rmxColors = Organica.palettes.rampOf(pal).map(h => h.toLowerCase()).slice(0, RMX_COLORS_MAX);
+    if (rmxColors.length < 2) rmxColors = rmxColors.concat(rmxColors[0] || '#888888');
+    if (rmxChips) { rmxChips.rebuild(); syncRmxUniforms(); }
+  },
+});
 ['ink', 'paper'].forEach(c => {
   swatches[c] = Organica.palette.swatch(c, {
     initial: ctrl('hex-' + c).value,
@@ -1928,15 +1940,21 @@ const swatches = {};
       if (dispMat) dispMat.uniforms[c === 'ink' ? 'uInk' : 'uPaper'].value = new THREE.Color(hex);
       scheduleRender();
     },
+    onPalette: takeRoles,
   });
 });
 
 // ── COLOR MODE — Solid / Adaptive / RMX, Pollen's own three modes. ──
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];
 let rmxColorMap = 'tone';
+// A palette's blend space, kept when one is taken whole (and given back by Save as palette…). Not applied yet: the
+// shader blends in sRGB, and the SVG export (colorAt) must stay equal to it — an OKLab blend needs the shader too.
+let rmxSpace = null;
+let colorModeNow = 'solid';
 const RMX_COLORS_MAX = 9;
 
 function setColorMode(mode) {
+  colorModeNow = mode;
   ctrl('seg-colormode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === mode));
   Organica.display(ctrl('rmx-color-block'), mode === 'rmx' ? 'block' : 'none');
   Organica.display(ctrl('row-point'), mode === 'rmx' ? 'none' : 'flex');   // RMX supplies its own colours — Ink/Paper become dead controls otherwise, not silently ignored
@@ -1951,12 +1969,24 @@ function setColorMode(mode) {
 // array (SVG export at buildRandomGridSVG/rmxAt reads it directly),
 // kept in sync via the chip factory's onChange.
 let rmxChips = null;
+// A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours dark → bright and its Colour
+// mode — Mode, Mapping, the Ink / Paper pair; Save as palette… gives the tool's own mode back.
 function buildRmxPalette() {
-  rmxChips = Organica.palette.swatch(ctrl('rmx-palette'), {
-    colors: rmxColors,
-    min: 2,
-    max: RMX_COLORS_MAX,
-    onChange: (colors) => { rmxColors = colors; syncRmxUniforms(); },
+  rmxChips = Organica.paletteKit.strip(ctrl('rmx-palette'), null, {
+    tool: 'Camo Turing', min: 2, max: RMX_COLORS_MAX, order: 'ramp', shading: false,
+    get: () => ({ colors: rmxColors }),
+    mapping: () => Organica.palettes.mappingFor(rmxColors, { mode: colorModeNow, submode: rmxColorMap, order: rmxColors.map((_, i) => i), space: rmxSpace || 'srgb' }),
+    set: (p, why) => {
+      if (p.colors) rmxColors = p.colors;
+      if (why === 'palette' && p.mapping) {
+        const m = p.mapping;
+        rmxSpace = m.space || null;
+        rmxColorMap = m.submode; ctrl('sel-rmx-map').value = m.submode;
+        if (m.mode !== 'rmx') { swatches.ink.set(rmxColors[m.pair[0]]); if (m.mode === 'adaptive') swatches.paper.set(rmxColors[m.pair[1]]); }
+        if (m.mode !== colorModeNow) setColorMode(m.mode);
+      }
+      syncRmxUniforms();
+    },
   });
 }
 function syncRmxUniforms() {

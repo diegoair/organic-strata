@@ -21,7 +21,7 @@
 import { state } from './state.js';
 import { applySeed } from './geometry.js';
 import { renderFrame, seedLineBounds } from './render.js';
-import { buildPalette } from './palette.js';
+import { buildPalette, COLORS_MAX } from './palette.js';
 import { CANVAS_PRESETS, clampCanvasSize } from './canvas.js';
 import { buildExportSVGString } from './svgexport.js';
 
@@ -234,10 +234,20 @@ ctrl('num-canvas-height').addEventListener('change', e => {
 
 // ── Palette + Seed ──
 ctrl('rmx-palette').addEventListener('dragstart', e => e.preventDefault());   // no-op guard, keeps the chip grid inert to accidental drag
-buildPalette();
+const paletteKit = buildPalette();
+// A palette's name in the Background row fills it by the house role (the lightest of background / ground) and the
+// palette strip with the palette's colours.
 const bgSwatch = Organica.palette.swatch('bg', {
   initial: Organica.rgbToHex(...state.bgRGB),
   onChange: (hex, rgb) => { state.bgRGB = rgb; },
+  onPalette: Organica.paletteKit.roles({
+    slots: [{ key: 'bg', parts: ['background', 'ground'], fallback: 'lightest' }],
+    onRoles: (r, pal) => {
+      bgSwatch.set(r.bg.hex);
+      const cols = (pal.colours || []).map(c => c.hex.toLowerCase()).slice(0, COLORS_MAX);
+      if (cols.length) { state.colors = cols.length < 2 ? cols.concat(cols[0]) : cols; paletteKit.rebuild(); }
+    },
+  }),
 });
 ctrl('num-seed').addEventListener('change', e => {
   state.seed = parseInt(e.target.value, 10) || 0;

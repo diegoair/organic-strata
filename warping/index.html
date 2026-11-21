@@ -263,8 +263,10 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script>
@@ -726,7 +728,12 @@ function deletePreset() {
 
 // ── INIT ──
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
-['ink', 'paper'].forEach(c => { swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: scheduleRender }); });
+// A TuneSutra palette's name in the Ink or Paper row fills both by the house role (Organica.paletteKit.roles).
+const takeRoles = Organica.paletteKit.roles({
+  slots: [{ key: 'ink', parts: ['main'], fallback: 'darkest' }, { key: 'paper', parts: ['background'], fallback: 'lightest' }],
+  onRoles: r => { swatches.ink.set(r.ink.hex); swatches.paper.set(r.paper.hex); },
+});
+['ink', 'paper'].forEach(c => { swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: scheduleRender, onPalette: takeRoles }); });
 applyState(BUILTIN_PRESETS['Oak plank']);   // panel's raw HTML values are placeholders only — this is the real default
 resizeCanvas();
 populatePresets('Oak plank');

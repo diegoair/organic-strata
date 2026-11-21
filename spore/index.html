@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/shared/shell.css">
   <link rel="stylesheet" href="/shared/palette.css">
   <link rel="stylesheet" href="/shared/colour-picker.css">
+  <link rel="stylesheet" href="/shared/shade-editor.css">
   <link rel="stylesheet" href="/shared/mobile-gate.css">
   <style>
   :root {
@@ -354,6 +355,10 @@
       </div>
     </div>
 
+    <!-- A palette colour's Gradient + Shadow (Nov 21, 2026: TuneSutra palettes whole) — the chip last opened;
+         every mark of that colour draws it in its own box, where the mark is a filled shape. Shown in RMX only. -->
+    <div id="spore-shade" hidden></div>
+
   </div><!-- /panel -->
 </div><!-- /app -->
 
@@ -367,8 +372,15 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/select-picker.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
+<script src="/shared/shading.js"></script>
+<script src="/shared/shade-editor.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/plate-export.js"></script>
@@ -395,26 +407,75 @@ let selectedMarkId = 'seed-breath';
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
 let rmxColorMap = 'tone';            // 'tone' | 'posterize' | 'random' | 'tonernd'
 const RMX_COLORS_MAX = 9;
+// A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours dark → bright, each colour's
+// shading (rmxShades, hex → Organica.shading definition, edited under the strip) and its Colour mode — the mode
+// (Solid / Adaptive / RMX), the Mapping, the ink + paper pair and the mix space (rmxSpace; Spore has no Mix control,
+// so it is kept as the palette gave it; null = sRGB, as before). Save as palette… gives all of it back.
+let rmxShades = {}, rmxSpace = null, rmxKit = null;
 // Colour math now lives in shared/palette.js (Organica.palette.colorAt) —
 // see the 'rmx'/'adaptive' branch in drawBatch().
 function buildRmxPalette() {
-  Organica.palette.swatch(document.getElementById('rmx-palette'), {
-    colors: rmxColors,
-    min: 2,
-    max: RMX_COLORS_MAX,
-    onChange: (colors) => { rmxColors = colors; syncPlatesUI(); liveUpdate(); },
+  if (rmxKit) { rmxKit.rebuild(); return; }
+  rmxKit = Organica.paletteKit.strip(document.getElementById('rmx-palette'), document.getElementById('spore-shade'), {
+    tool: 'Spore', min: 2, max: RMX_COLORS_MAX, order: 'ramp',
+    get: () => ({ colors: rmxColors, shades: rmxShades }),
+    paper: () => document.getElementById('hex-bg').value,
+    mapping: currentMapping,
+    set: (p, why) => {
+      if (p.colors) rmxColors = p.colors;
+      if (p.shades) rmxShades = p.shades; else if (why === 'palette') rmxShades = {};
+      if (p.mapping && why === 'palette') applyMapping(p.mapping);
+      syncPlatesUI(); liveUpdate();
+    },
   });
 }
+// Spore's Colour mode now, as a palette's mapping (the strip is already dark → bright: its order is the strip's)
+function currentMapping() {
+  const at = id => rmxColors.indexOf(String(document.getElementById(id).value).toLowerCase());
+  return {
+    mode: ['solid', 'adaptive', 'rmx'].indexOf(colorMode) >= 0 ? colorMode : 'rmx',
+    submode: rmxColorMap,
+    order: rmxColors.map((_, i) => i),
+    pair: [at('hex-mark'), at('hex-bg')],   // a colour not in the strip: the palette's defaults (darkest · lightest)
+    space: rmxSpace || 'srgb',
+  };
+}
+// A palette's Colour mode on Spore (Image and Multi are Spore's own: a palette never sets them)
+function applyMapping(m) {
+  rmxSpace = m.space || null;
+  if (m.submode) { rmxColorMap = m.submode; document.getElementById('sel-rmx-map').value = m.submode; }
+  if ((m.mode === 'solid' || m.mode === 'adaptive') && m.pair) {
+    const ink = rmxColors[m.pair[0]], paper = rmxColors[m.pair[1]];
+    if (ink) swatches.mark.set(ink);
+    if (paper) swatches.bg.set(paper);
+  }
+  if (m.mode && m.mode !== colorMode) {
+    const btn = document.querySelector(`.cm-btn[onclick*="'${m.mode}'"]`);
+    if (btn) setColorMode(m.mode, btn);
+  }
+}
+// A mark's shading: the palette colour it is drawn in, when that colour is shaded
+const shadeCtx = () => Organica.paletteKit.ctxOf(rmxColors, document.getElementById('hex-bg').value);
+function shadeOf(colour) { return Organica.shading && typeof colour === 'string' && rmxShades[colour.toLowerCase()] || null; }
 
 // Shows/hides the Plates section — only meaningful for RMX mode with a
 // discrete submode (posterize/random/tonernd); 'tone' is a continuous
 // blend with no single ink per mark, so it can't be split into plates.
+// The plates a drawing splits into: the strip's colours, then the shadow inks of the shaded ones (each its own plate)
+function plateInkCount() {
+  const inks = rmxColors.map(h => h.toLowerCase()), S = Organica.shading, paper = document.getElementById('hex-bg').value.toLowerCase();
+  if (S) rmxColors.forEach(h => {
+    const def = shadeOf(h);
+    if (def) S.shapePlates(def, h, { x: 0, y: 0, w: 100, h: 100 }, shadeCtx()).forEach(pl => { const k = String(pl.hex).toLowerCase(); if (pl.d && k !== paper && inks.indexOf(k) < 0) inks.push(k); });
+  });
+  return inks.length;
+}
 function syncPlatesUI() {
   const on = Organica.palette.isSplittable(colorMode, rmxColorMap);
   document.getElementById('plates-divider').hidden = !on;
   document.getElementById('plates-section').hidden = !on;
   if (on) {
-    const n = rmxColors.length;
+    const n = plateInkCount();
     document.getElementById('btn-plates-png').textContent = 'PNG (' + n + ')';
     document.getElementById('btn-plates-svg').textContent = 'SVG (' + n + ')';
   }
@@ -494,7 +555,7 @@ function updateSymbolPreview() {
   const reach = 66;
   function stamp(x, y, size) {
     g.save(); g.translate(x, y);
-    drawMark(g, svgEl, size, vbW, vbH, ink);
+    drawMark(g, svgEl, size, vbW, vbH, ink, shadeOf(ink));
     g.restore();
   }
   for (let i = 0; i < 6; i++) {
@@ -574,6 +635,7 @@ function setColorMode(mode, btn) {
   btn.classList.add('active');
   const rmx = mode === 'rmx';
   document.getElementById('rmx-color-block').hidden = !rmx;
+  document.getElementById('spore-shade').hidden = !rmx;
   document.getElementById('row-mark').hidden = !!(rmx);
   if (rmx) buildRmxPalette();
   syncPlatesUI();
@@ -735,7 +797,7 @@ async function doRender() {
         // One colour mapping for the suite: Organica.palette.colorAt (Solid = the mark colour).
         fillColor = Organica.palette.colorAt(luma, {
           mode: colorMode, ink: markColor, paper: bgColor,
-          colors: rmxColors, submode: rmxColorMap, rnd,
+          colors: rmxColors, submode: rmxColorMap, rnd, space: rmxSpace || undefined,
         });
       }
       else if (colorMode === 'multi') fillColor = `hsl(${Math.random()*360},60%,40%)`;
@@ -746,7 +808,7 @@ async function doRender() {
       ctx.translate(x, y);
       ctx.rotate(angle);
       ctx.globalAlpha = opacity * (0.6 + 0.4 * darkness);
-      drawMark(ctx, svgEl, sz, vbW, vbH, fillColor);
+      drawMark(ctx, svgEl, sz, vbW, vbH, fillColor, shadeOf(fillColor));
       ctx.restore();
 
       // Store for SVG export
@@ -791,7 +853,67 @@ function markBBox(svgEl) {
   return _markBBoxCache[key];
 }
 
-function drawMark(ctx, svgEl, size, vbW, vbH, color) {
+// A mark's FILLED part (Nov 21, 2026 — a shaded palette colour draws its shading there): every shape whose fill is
+// not none (its own, or the nearest group's; lines and strokes are left out), flattened with its groups' transforms —
+// as clipPath markup (SVG), one Path2D (canvas) and the box of the two, in the mark's own units. Cached per mark.
+const _markFillCache = {};
+const FILL_TAGS = { path: 1, circle: 1, ellipse: 1, rect: 1, polygon: 1 };
+function markFill(svgEl) {
+  const key = (svgEl.getAttribute('viewBox') || '') + '|' + svgEl.innerHTML;
+  if (key in _markFillCache) return _markFillCache[key];
+  let clip = '';
+  const path = new Path2D();
+  const walk = (el, fill, tfs, mats) => {
+    const tag = el.tagName.toLowerCase(), f = el.getAttribute('fill') || fill;
+    const tf = el.getAttribute('transform'), t2 = tf ? tfs.concat(tf) : tfs;
+    let m = null;
+    try { const c = el.transform && el.transform.baseVal.consolidate(); m = c ? c.matrix : null; } catch (e) { m = null; }
+    const m2 = m ? mats.concat(m) : mats;
+    if (tag === 'g') { Array.from(el.children).forEach(ch => walk(ch, f, t2, m2)); return; }
+    if (!FILL_TAGS[tag] || f === 'none') return;
+    const A = n => el.getAttribute(n), N = (n, d) => (A(n) != null ? +A(n) : d);
+    let d = '';
+    if (tag === 'path') d = A('d') || '';
+    else if (tag === 'circle' || tag === 'ellipse') {
+      const cx = N('cx', 0), cy = N('cy', 0), rx = tag === 'circle' ? N('r', 0) : N('rx', 0), ry = tag === 'circle' ? N('r', 0) : N('ry', 0);
+      if (rx > 0 && ry > 0) d = `M${cx - rx} ${cy}a${rx} ${ry} 0 1 0 ${2 * rx} 0a${rx} ${ry} 0 1 0 ${-2 * rx} 0Z`;
+    } else if (tag === 'rect') {
+      const x = N('x', 0), y = N('y', 0), w = N('width', 0), h = N('height', 0);
+      if (w > 0 && h > 0) d = `M${x} ${y}h${w}v${h}h${-w}Z`;
+    } else {
+      const pts = (A('points') || '').trim().split(/[\s,]+/).map(Number);
+      if (pts.length >= 4) d = 'M' + pts.join(' ') + 'Z';
+    }
+    if (!d) return;
+    clip += `<path d="${d}"${t2.length ? ` transform="${t2.join(' ')}"` : ''}${A('fill-rule') ? ` clip-rule="${A('fill-rule')}"` : ''}/>`;
+    let mat = new DOMMatrix();
+    m2.forEach(mm => { mat = mat.multiply(new DOMMatrix([mm.a, mm.b, mm.c, mm.d, mm.e, mm.f])); });
+    path.addPath(new Path2D(d), mat);
+  };
+  Array.from(svgEl.children).forEach(ch => walk(ch, null, [], []));
+  let box = null;
+  if (clip) {
+    try {
+      if (!_markMeasureSvg) markBBox(svgEl);   // makes the hidden measuring <svg>
+      _markMeasureSvg.setAttribute('viewBox', svgEl.getAttribute('viewBox') || '0 0 20 20');
+      _markMeasureSvg.innerHTML = '<g>' + clip + '</g>';
+      const bb = _markMeasureSvg.firstChild.getBBox();
+      if (bb && bb.width > 0.01 && bb.height > 0.01) box = { x: bb.x, y: bb.y, w: bb.width, h: bb.height };
+    } catch (e) { box = null; }
+  }
+  return (_markFillCache[key] = box ? { clip, path, box } : null);
+}
+// SVG: a shaded mark's shading, in the mark's own group (it turns and scales with the mark) — its plates in the
+// filled part's box, clipped to it; the plate of the mark's own colour is the mark's fill, left out.
+let _shadeId = 0;
+function markShadeSVG(info, def, hex) {
+  const S = Organica.shading, pl = S.shapePlates(def, hex, info.box, shadeCtx());
+  if (!pl.some(p => p.d)) return '';
+  const id = 'sshd' + (++_shadeId).toString(36);
+  return `<clipPath id="${id}">${info.clip}</clipPath><g clip-path="url(#${id})"><g transform="translate(${r2(info.box.x)},${r2(info.box.y)})">${S.platesSVG(pl, id)}</g></g>`;
+}
+
+function drawMark(ctx, svgEl, size, vbW, vbH, color, shade) {
   const bb = markBBox(svgEl) || { x: 0, y: 0, w: vbW, h: vbH };
   const scale = size / Math.max(bb.w, bb.h);
 
@@ -803,6 +925,9 @@ function drawMark(ctx, svgEl, size, vbW, vbH, color) {
 
   // Draw each child element
   Array.from(svgEl.children).forEach(el => drawSvgElement(ctx, el, color, scale));
+  // a shaded palette colour: its shading over the mark's filled part
+  const info = shade && markFill(svgEl);
+  if (info) Organica.shading.overlayCanvas(ctx, shade, color, info.path, info.box, shadeCtx());
   ctx.restore();
 }
 
@@ -899,7 +1024,7 @@ function paintSporeMarksScaled(octx, marks, svgEl, vbW, vbH, scale, offX, offY, 
     octx.translate(m.x * scale + offX, m.y * scale + offY);
     octx.rotate(m.angle);
     octx.globalAlpha = forceColor ? 1 : m.opacity;
-    drawMark(octx, svgEl, m.sz * scale, vbW, vbH, forceColor || m.color);
+    drawMark(octx, svgEl, m.sz * scale, vbW, vbH, forceColor || m.color, forceColor ? null : shadeOf(m.color));
     octx.restore();
   });
 }
@@ -1075,9 +1200,10 @@ function exportJPG() {
 // Just the per-mark <g> markup, no outer <svg>/background — the piece
 // both buildSporeSVG() (Screen mode + Figma) and buildPrintSporeSVG()
 // (Print mode) wrap.
-// opts.forceColor (plate export): every mark's fill is the forced colour,
-// full opacity, instead of its real resolved colour/opacity.
-function buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, opts) {
+// opts.forceColor: every mark's fill is the forced colour, full opacity, instead of its real resolved colour/opacity
+// (and no shading). opts.opaque (plate export): full opacity, the real colours — plateSVG splits them by ink.
+// A mark in a shaded palette colour carries its shading inside its group (markShadeSVG); fill = the mark's filled part.
+function buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, opts, fill0) {
   opts = opts || {};
   let s = '';
   marks.forEach(m => {
@@ -1089,12 +1215,13 @@ function buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, opts) {
     const tf = `translate(${m.x.toFixed(2)} ${m.y.toFixed(2)}) rotate(${deg}) `
              + `scale(${scale.toFixed(4)}) translate(${(-(bb.x + bb.w/2)).toFixed(2)} ${(-(bb.y + bb.h/2)).toFixed(2)})`;
     const fill = opts.forceColor || m.color;
-    const op = opts.forceColor ? 1 : m.opacity;
+    const op = opts.forceColor || opts.opaque ? 1 : m.opacity;
+    const def = opts.forceColor ? null : shadeOf(m.color), shade = def && fill0 ? markShadeSVG(fill0, def, m.color) : '';
     // Genesis forms colour via CSS classes (no inline fill) → set fill on the
-    // group; the Line's inline stroke="currentColor" is resolved here too.
-    let shapes = innerSVG.replace(/currentColor/g, fill).replace(/ xmlns="[^"]*"/g, '');
+    // group; an inline currentColor / var(--ink) (the base seeds paint with it) is resolved here too.
+    let shapes = innerSVG.replace(/currentColor|var\(--ink\)/g, fill).replace(/ xmlns="[^"]*"/g, '');
     shapes = shapes.replace(/stroke-width="([\d.]+)"/g, (mm, w) => `stroke-width="${Math.max(parseFloat(w), minSW).toFixed(2)}"`);
-    s += `<g transform="${tf}" fill="${fill}" opacity="${op.toFixed(2)}">${shapes}</g>`;
+    s += `<g transform="${tf}" fill="${fill}" opacity="${op.toFixed(2)}">${shapes}${shade}</g>`;
   });
   return s;
 }
@@ -1107,7 +1234,7 @@ function sporeMarksContext(d) {
   const parsedSvg = parser.parseFromString(d.markSvg, 'image/svg+xml').querySelector('svg');
   const innerSVG = parsedSvg.innerHTML;
   const bb = markBBox(parsedSvg) || { x: 0, y: 0, w: vbW, h: vbH };
-  return { innerSVG, bb, bbMax: Math.max(bb.w, bb.h) };
+  return { innerSVG, bb, bbMax: Math.max(bb.w, bb.h), fill: markFill(parsedSvg) };
 }
 
 // ─────────────────────────────────────────────
@@ -1117,22 +1244,23 @@ function sporeMarksContext(d) {
 // pixel-for-pixel and imports correctly into Figma. No <symbol>/<use>,
 // no currentColor (which importers fail to resolve).
 // ─────────────────────────────────────────────
-// overrides (plate export): {marks, forceColor} — marks substitutes for
+// overrides: {marks, forceColor, noPaper, opaque} — marks substitutes for
 // d.marks (a filtered subset), forceColor forces every mark's fill and
-// omits the background rect (transparent), matching Colornet's own
-// "ink black on transparent" plate convention.
+// omits the background rect (transparent); noPaper + opaque are the plate
+// export's drawing (no background, full opacity, the real inks — split by
+// Organica.plateExport.plateSVG into "ink black on transparent" plates).
 function buildSporeSVG(overrides) {
   overrides = overrides || {};
   const d = window._lastRenderData;
   if (!d) return null;
   const { W, H, bgColor } = d;
   const marks = overrides.marks || d.marks;
-  const { innerSVG, bb, bbMax } = sporeMarksContext(d);
+  const { innerSVG, bb, bbMax, fill } = sporeMarksContext(d);
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
   svg += `<metadata id="organica">${JSON.stringify({ tool: 'spore' })}</metadata>`;   // Murmur reads this
-  if (!overrides.forceColor) svg += `<rect width="${W}" height="${H}" fill="${bgColor}"/>`;
-  svg += buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, overrides);
+  if (!overrides.forceColor && !overrides.noPaper) svg += `<rect width="${W}" height="${H}" fill="${bgColor}"/>`;
+  svg += buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, overrides, fill);
   svg += '</svg>';
   return svg;
 }
@@ -1142,17 +1270,17 @@ function r2(n) { return Math.round(n * 100) / 100; }
 // scale(trimWmm/W) group wrapping the SAME per-mark markup buildSporeSVG
 // uses, plus crop marks at the trim corners when bleed > 0. Same
 // "always-wrap" discipline as Loom/Pollen's own print SVG builders.
-// overrides: {marks, forceColor, registrationMarks} — see buildSporeSVG's
-// own comment for marks/forceColor; registrationMarks (plate export only
-// — meaningless on a single non-separated image) adds registration marks
-// alongside the existing crop marks.
+// overrides: {marks, forceColor, noPaper, opaque, noMarks} — see buildSporeSVG's
+// own comment; noMarks leaves the crop marks out (the plate export adds
+// them, with registration marks, to every plate once it is split).
 function buildPrintSporeSVG(overrides) {
   overrides = overrides || {};
   const d = window._lastRenderData;
   if (!d) return null;
   const { W, bgColor } = d;
   const marks = overrides.marks || d.marks;
-  const { innerSVG, bb, bbMax } = sporeMarksContext(d);
+  const { innerSVG, bb, bbMax, fill } = sporeMarksContext(d);
+  const noBg = overrides.forceColor || overrides.noPaper;
 
   const unit = printSizePanel.getUnit();
   const size = printSizePanel.getSize();
@@ -1163,16 +1291,21 @@ function buildPrintSporeSVG(overrides) {
   const sc = W ? trimWmm / W : 1;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${r2(bw)}mm" height="${r2(bh)}mm" viewBox="0 0 ${r2(bw)} ${r2(bh)}">`;
-  if (!overrides.forceColor) svg += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
+  if (!noBg) svg += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
   svg += `<g transform="translate(${r2(bleedMm)},${r2(bleedMm)})">`;
-  if (!overrides.forceColor) svg += `<rect width="${r2(trimWmm)}" height="${r2(trimHmm)}" fill="${bgColor}"/>`;
-  svg += `<g transform="scale(${sc})">${buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, overrides)}</g>`;
-  if (bleedMm > 0) {
-    svg += Organica.printSize.cropMarksSVG(trimWmm, trimHmm, {}, '#000');
-    if (overrides.registrationMarks) svg += Organica.printSize.registrationMarksSVG(trimWmm, trimHmm, { bleed: bleedMm }, '#000');
-  }
+  if (!noBg) svg += `<rect width="${r2(trimWmm)}" height="${r2(trimHmm)}" fill="${bgColor}"/>`;
+  svg += `<g transform="scale(${sc})">${buildSporeMarksMarkup(marks, innerSVG, bb, bbMax, overrides, fill)}</g>`;
+  if (bleedMm > 0 && !overrides.noMarks) svg += printMarksSVG(false);
   svg += '</g></svg>';
   return svg;
+}
+// Crop marks at the trim corners (+ registration marks on a plate), in the print SVG's trim space
+function printMarksSVG(registration) {
+  const unit = printSizePanel.getUnit(), size = printSizePanel.getSize(), bleedMm = printSizePanel.getBleed();
+  const trimWmm = Organica.printSize.toMM(size.width, unit) || 0, trimHmm = Organica.printSize.toMM(size.height, unit) || 0;
+  let s = Organica.printSize.cropMarksSVG(trimWmm, trimHmm, {}, '#000');
+  if (registration) s += Organica.printSize.registrationMarksSVG(trimWmm, trimHmm, { bleed: bleedMm }, '#000');
+  return s;
 }
 
 // ─────────────────────────────────────────────
@@ -1193,65 +1326,76 @@ function exportSVG() {
   URL.revokeObjectURL(a.href);
 }
 
-// ── PLATES — one file per RMX ink colour, for screen/riso separation.
+// ── PLATES — one file per ink, for screen/riso separation.
 // Only meaningful for colorMode 'rmx' with a discrete submode (see
-// Organica.palette.isSplittable/syncPlatesUI). Classification is a plain
-// colour-equality filter — posterize/random/tonernd always store one of
-// the literal rmxColors[] strings unchanged into m.color at mark-creation
-// time, so no re-derivation via rmxIndex is needed (unlike Pollen, which
-// never stores a resolved colour per point).
-function exportPlatesSVG() {
+// Organica.palette.isSplittable/syncPlatesUI): every mark is one of the
+// strip's colours. The inks are the strip's, in its order, then a shaded
+// colour's shadow inks (Organica.plateExport.inksOf); plate i is the drawing
+// with ink i in black and every other ink gone, matched by INDEX
+// (Organica.plateExport.plateSVG — two equal hexes never land on two plates).
+// Since Nov 21, 2026 (the string-equality filter per mark could not see the
+// shadow inks). The raster plates are the same SVG plates, drawn.
+function platePlan() {
   const d = window._lastRenderData;
-  if (!d || !Organica.palette.isSplittable(colorMode, rmxColorMap)) return;
+  if (!d || !Organica.palette.isSplittable(colorMode, rmxColorMap)) return null;
+  const isPrint = printSizePanel.getMode() === 'print';
+  const svg = isPrint ? buildPrintSporeSVG({ noPaper: true, opaque: true, noMarks: true }) : buildSporeSVG({ noPaper: true, opaque: true });
+  // the paper is no ink: a shading that fades to paper leaves it clear (unless the paper is one of the strip's inks)
+  const inks = Organica.plateExport.inksOf(svg, rmxColors, d.bgColor);
+  return { d, isPrint, svg, inks, paper: String(d.bgColor).toLowerCase() };
+}
+// plate i as SVG: ink i black on transparent, or null when that ink draws nothing; print adds crop + registration marks
+function plateSVGAt(plan, i) {
+  let out = Organica.plateExport.plateSVG(plan.svg, plan.inks, i, null);
+  if (plan.inks.indexOf(plan.paper) < 0) out = out.replace(new RegExp('(fill|stroke)="' + plan.paper + '"', 'gi'), '$1="none"');
+  if (!/(?:fill|stroke|stop-color)="#000000"/.test(out)) return null;
+  if (plan.isPrint && printSizePanel.getBleed() > 0) out = out.replace(/<\/g><\/svg>\s*$/, printMarksSVG(true) + '</g></svg>');
+  return out;
+}
+function exportPlatesSVG() {
+  const plan = platePlan();
+  if (!plan) return;
   const t = Date.now();
-  Organica.plateExport.run(rmxColors.length, {
+  Organica.plateExport.run(plan.inks.length, {
     build: (i) => {
-      const plateMarks = d.marks.filter(m => m.color === rmxColors[i]);
-      if (!plateMarks.length) return null;
-      const svg = printSizePanel.getMode() === 'print'
-        ? buildPrintSporeSVG({ marks: plateMarks, forceColor: '#000000', registrationMarks: true })
-        : buildSporeSVG({ marks: plateMarks, forceColor: '#000000' });
+      const svg = plateSVGAt(plan, i);
+      if (!svg) return null;
       return { blob: new Blob([svg], { type: 'image/svg+xml' }), filename: 'spore-' + t + '-plate' + (i + 1) + '.svg' };
     },
-    onDone: () => setStatus('active', rmxColors.length + ' plate SVGs exported'),
+    onDone: () => setStatus('active', plan.inks.length + ' plate SVGs exported'),
   });
 }
 
 function exportPlatesRaster() {
-  const d = window._lastRenderData;
-  if (!d || !Organica.palette.isSplittable(colorMode, rmxColorMap)) return;
-  const { W, markSvg } = d;
-  const parser = new DOMParser();
-  const svgEl = parser.parseFromString(markSvg, 'image/svg+xml').querySelector('svg');
-  const vb = svgEl.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 20, 20];
+  const plan = platePlan();
+  if (!plan) return;
+  const { d, isPrint } = plan;
   const t = Date.now();
-  Organica.plateExport.run(rmxColors.length, {
+  Organica.plateExport.run(plan.inks.length, {
     build: (i) => {
-      const plateMarks = d.marks.filter(m => m.color === rmxColors[i]);
-      if (!plateMarks.length) return null;
-      const isPrint = printSizePanel.getMode() === 'print';
-      const p = isPrint ? printRasterDims(W) : null;
-      const outW = isPrint ? p.outW : W, outH = isPrint ? p.outH : d.H;
-      const scale = isPrint ? p.scale : 1;
-      const offX = isPrint ? p.bleedPx : 0, offY = isPrint ? p.bleedPx : 0;
-      const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
-      const octx = oc.getContext('2d');
-      paintSporeMarksScaled(octx, plateMarks, svgEl, vb[2], vb[3], scale, offX, offY, '#000000');
-      if (isPrint && p.bleedPx > 0) {
-        octx.save(); octx.translate(p.bleedPx, p.bleedPx);
-        Organica.printSize.drawCropMarksCanvas(octx, p.trimWpx, p.trimHpx, {}, '#000');
-        Organica.printSize.drawRegistrationMarksCanvas(octx, p.trimWpx, p.trimHpx, { bleed: p.bleedPx }, '#000');
-        octx.restore();
-      }
-      return new Promise(res => oc.toBlob(async b => {
-        if (isPrint) {
-          const bytes = Organica.printSize.embedPngDpi(await b.arrayBuffer(), p.dpi);
-          b = new Blob([bytes], { type: 'image/png' });
-        }
-        res({ blob: b, filename: 'spore-' + t + '-plate' + (i + 1) + '.png' });
-      }, 'image/png'));
+      const svg = plateSVGAt(plan, i);
+      if (!svg) return null;
+      const p = isPrint ? printRasterDims(d.W) : null;
+      const outW = isPrint ? p.outW : d.W, outH = isPrint ? p.outH : d.H;
+      return new Promise(res => {
+        const img = new Image(), url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+        img.onload = () => {
+          const oc = document.createElement('canvas'); oc.width = outW; oc.height = outH;
+          oc.getContext('2d').drawImage(img, 0, 0, outW, outH);
+          URL.revokeObjectURL(url);
+          oc.toBlob(async b => {
+            if (isPrint) {
+              const bytes = Organica.printSize.embedPngDpi(await b.arrayBuffer(), p.dpi);
+              b = new Blob([bytes], { type: 'image/png' });
+            }
+            res({ blob: b, filename: 'spore-' + t + '-plate' + (i + 1) + '.png' });
+          }, 'image/png');
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+        img.src = url;
+      });
     },
-    onDone: () => setStatus('active', rmxColors.length + ' plates exported'),
+    onDone: () => setStatus('active', plan.inks.length + ' plates exported'),
   });
 }
 

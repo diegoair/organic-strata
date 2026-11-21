@@ -19,11 +19,13 @@ export function colorAt(i) {
 
 function ctrl(id) { return document.getElementById(id); }
 
+// A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours, in its own order (Vortex cycles
+// them by segment, it has no Colour mode). Returns the kit — its rebuild() redraws the strip after state.colors changes.
 export function buildPalette() {
-  Organica.palette.swatch(ctrl('rmx-palette'), {
-    colors: state.colors,
-    min: 2,
-    max: COLORS_MAX,
-    onChange: (colors) => { state.colors = colors; },
+  return Organica.paletteKit.strip(ctrl('rmx-palette'), null, {
+    tool: 'Vortex', min: 2, max: COLORS_MAX, order: 'palette', shading: false,
+    get: () => ({ colors: state.colors }),
+    set: (p) => { if (p.colors) state.colors = p.colors; },
   });
 }
+export { COLORS_MAX };
