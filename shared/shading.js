@@ -109,7 +109,10 @@
     // Flat draws only the first stop; the second is there so that switching it to Linear / Radial blends at once.
     const speckle = Object.assign({}, base, { type: 'flat', shadow: true, amount: 70, speck: 2, falloff: 65 });
     const soft = Object.assign({}, base, { type: 'flat', shadow: true, specks: 'smooth', amount: 60, depth: 25, falloff: 50 });   // a smooth shadow, no specks
-    const out = { soft: soft, speckle: speckle, print: soft, base: base };
+    // Wash (Nov 21, 2026, evening — Diego: "mettilo in shadow … come se fosse un camo dither etc"): a Shading preset now,
+    // not a Gradient Type. The colour and its 900 washed as soft clouds; it is the fill (type 'field'), no shadow on it.
+    const wash = Object.assign({}, base, { type: 'field', angle: 90, auto2: true, pos: null, field: Object.assign({}, FIELD_DEFAULT) });
+    const out = { soft: soft, speckle: speckle, print: soft, base: base, wash: wash };
     Object.keys(TEXTURE_SIZE).forEach(t => { out[t] = Object.assign({}, speckle, { specks: t, speck: TEXTURE_SIZE[t], amount: 80 }); });
     return out;
   }

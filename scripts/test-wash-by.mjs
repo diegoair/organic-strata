@@ -3,7 +3,7 @@
 // FVS può essere applicato ad un elemento o componente intero"). Checks:
 //   engine  — Posterize = one band per stop, solid (no halftone mark); Random / Tone + random = specks of the stops only;
 //             Mix sRGB draws other colours than OKLab; specks over All the shapes share the sheet's grid
-//   editor  — Colour by + Mix in the Wash block, Mix only with Tone
+//   editor  — since Nov 21, 2026 (evening) the Wash is a Shading: out of Gradient › Type, its rows in the Shadow section
 //   TuneSutra — the house is a sheet: Wash over is shown, All the shapes draws other pieces than Each shape; no Colour mode
 //   FVS     — Wash over shown; in a Component, All the shapes = one wash over the frame (every cell a different piece,
 //             drawn back through the cell's inverse), Each shape = the same wash in every cell; the canvas draws it
@@ -42,41 +42,36 @@ const E = await P.ev(`
   const sh = wash('random', { span: 'sheet' });
   const a = S.fieldPlates(sh, 50, 50, { sheet: { x: 0, y: 0, w: 213, h: 213 }, origin: { x: 7, y: 0 } });
   out.gridOff = (a.find(p => p.cells) || {}).d ? /^M-1 /.test(a.find(p => p.cells).d) || /M-1 /.test(a.find(p => p.cells).d) : false;
-  // the editor
+  // the editor: the Wash is a Shading (Nov 21, 2026, evening) — gone from Gradient › Type, in the Shading menu; chosen,
+  // the Gradient section steps aside and its rows sit in the Shadow section
   const host = document.createElement('div'); document.body.appendChild(host);
-  let def = wash('tone');
-  const ed = Organica.shadeEditor.mount(host, { hex: stops[0], ctx: {}, edit: { get: () => def, before: () => {}, after: () => {} } });
-  ed.sync && ed.sync();
-  const q = s => host.querySelector(s);
-  out.by = !!q('[data-sel="by"]') && [...q('[data-sel="by"]').options].map(o => o.textContent).join(' · ');
-  out.mixTone = !q('[data-row="space"]').hidden;
-  const sel = q('[data-sel="by"]'); sel.value = 'random'; sel.dispatchEvent(new Event('change'));
-  out.byEdit = S.fieldParams(def).by; ed.sync && ed.sync();
-  out.mixRandom = q('[data-row="space"]').hidden;
-  out.overNoSheet = q('[data-row="span"]').hidden;
-  // the Wash starts from the Colour mode: a flat colour turned to Wash takes ctx.wash (by, space, stops; the colour kept)
-  const host2 = document.createElement('div'); document.body.appendChild(host2);
-  let d2 = S.normalize({ type: 'flat', stops: ['#b5642f', '#3a1a08'] });
-  const wctx = { wash: Organica.palettes.washOf(['#f3e2b8', '#b5642f', '#2b1d16'], { mode: 'rmx', submode: 'posterize', space: 'srgb' }) };
-  const ed2 = Organica.shadeEditor.mount(host2, { hex: '#b5642f', ctx: wctx, edit: { get: () => d2, before: () => {}, after: () => {} } });
-  host2.querySelector('[data-seg="type"] [data-v="field"]').click();
-  out.start = { by: S.fieldParams(d2).by, space: S.fieldParams(d2).space, stops: d2.stops.join(' '), own: d2.stops[S.colourStop(d2)] };
-  // Adaptive: the pair, the colour put in by lightness
-  let d3 = S.normalize({ type: 'flat', stops: ['#b5642f', '#3a1a08'] });
-  const ed3 = Organica.shadeEditor.mount(document.body.appendChild(document.createElement('div')), { hex: '#b5642f', ctx: { wash: Organica.palettes.washOf(['#f3e2b8', '#b5642f', '#2b1d16', '#ffffff'], { mode: 'adaptive', pair: [2, 3] }) }, edit: { get: () => d3, before: () => {}, after: () => {} } });
-  document.body.lastChild.querySelector('[data-seg="type"] [data-v="field"]').click();
-  out.adaptive = d3.stops.join(' ') + ' @' + S.colourStop(d3);
+  let flat = S.normalize({ type: 'flat', stops: ['#b5642f', '#3a1a08'] });
+  Organica.shadeEditor.mount(host, { hex: '#b5642f', ctx: { sheet: { x: 0, y: 0, w: 1, h: 1 } }, edit: { get: () => flat, before: () => {}, after: () => {} } });
+  const q = s => host.querySelector(s), shSel = q('select[aria-label="Shading"]');
+  out.inType = !!q('[data-seg="type"] [data-v="field"]');
+  out.inMenu = [...shSel.options].some(o => o.value === 'wash');
+  shSel.value = 'wash'; shSel.dispatchEvent(new Event('change'));
+  const shadowPart = q('[data-part="shadow"]');
+  out.chosen = flat.type === 'field' && !flat.shadow && q('[data-part="gradient"]').hidden && shSel.value === 'wash';
+  out.rowsInShadow = ['[data-row="by"]', '[data-row="angle"]', '[data-row="size"]', '[data-row="span"]', '[data-block="stops"]'].every(k => shadowPart.contains(q(k)) && !q(k).hidden);
+  const bySel = q('[data-sel="by"]'); bySel.value = 'posterize'; bySel.dispatchEvent(new Event('change'));
+  out.byEdit = S.fieldParams(flat).by;
+  shSel.value = 'camo-maze'; shSel.dispatchEvent(new Event('change'));
+  out.leave = flat.type === 'flat' && flat.shadow && flat.specks === 'camo-maze' && !q('[data-part="gradient"]').hidden && q('[data-part="gradient"]').contains(q('[data-block="stops"]')) && q('[data-block="field"]').hidden;
+  // Organica.palettes.washOf (kept for the Wash's new place): Inks dark → bright, Adaptive Ink → Paper, Solid none
+  const W = Organica.palettes.washOf, hx = ['#f3e2b8', '#b5642f', '#2b1d16', '#ffffff'];
+  out.washOf = [W(hx, { mode: 'rmx', submode: 'posterize' }), W(hx, { mode: 'adaptive', pair: [2, 3] }), W(hx, { mode: 'solid' })].map(x => x.by + ':' + (x.stops ? x.stops.join(',') : '-')).join(' | ');
   return out;`);
-check('the Wash starts from the Colour mode: its Colour by, Mix and colours dark → bright, the colour kept', E.start.by === 'posterize' && E.start.space === 'srgb' && E.start.stops === '#2b1d16 #b5642f #f3e2b8' && E.start.own === '#b5642f', JSON.stringify(E.start));
-check('…Adaptive: Ink → Paper, the colour put in by lightness', E.adaptive === '#2b1d16 #b5642f #ffffff @1', E.adaptive);
+check('Wash is gone from Gradient › Type and is in the Shading menu', !E.inType && E.inMenu, JSON.stringify({ inType: E.inType, inMenu: E.inMenu }));
+check('…chosen: the fill is a Wash, no shadow on it, the Gradient section steps aside', E.chosen);
+check('…its rows (Colour by, Angle, Size, Wash over, Stops) sit in the Shadow section, and edit it', E.rowsInShadow && E.byEdit === 'posterize', JSON.stringify({ rows: E.rowsInShadow, by: E.byEdit }));
+check('…another Shading (Camo › Maze) takes it off: a Flat fill with that shadow, the Gradient back', E.leave);
+check('Organica.palettes.washOf: Inks dark → bright, Adaptive Ink → Paper, Solid none', E.washOf === 'posterize:#2b1d16,#b5642f,#f3e2b8,#ffffff | tone:#2b1d16,#ffffff | tone:-', E.washOf);
 check('Posterize: one band per stop, the stops\' own inks, no halftone mark', E.postBands === 4 && E.postInks.length === 4 && !E.postMix, E.postBands + ' bands (Tone ' + E.toneBands + '): ' + E.postInks.join(' '));
 check('Random and Tone + random: specks of the stops only', E.onlyStops && E.rndInks.length === 4 && E.trInks.length >= 3 && E.rndCells > 100, E.rndInks.length + ' / ' + E.trInks.length + ' inks, ' + E.rndCells + ' runs');
 check('Mix sRGB draws other colours than OKLab', E.mixDiffers);
 check('Posterize separates into its stops, solid (no dot screen)', E.postPlates === 4 && !E.postScreen, E.postPlates + ' plates, screen ' + E.postScreen);
 check('Random over All the shapes: specks on the sheet\'s grid', E.gridOff, '');
-check('the editor: Colour by with the four words, writes def.field.by', E.by === 'Tone · Posterize · Random · Tone + random' && E.byEdit === 'random', E.by + ' → ' + E.byEdit);
-check('the editor: Mix shown with Tone only', E.mixTone && E.mixRandom, JSON.stringify({ tone: E.mixTone, randomHidden: E.mixRandom }));
-check('the editor: no sheet, no Wash over', E.overNoSheet);
 check('engine + editor: no page errors', !P.errors.length, P.errors.splice(0).join(' | '));
 
 // ── TuneSutra: the house is the Wash's sheet
@@ -88,20 +83,23 @@ const T = await P.ev(`
   const seg = document.querySelector('.bar-seg[data-z]'); out.house = !!seg;
   if (seg) { seg.dispatchEvent(new MouseEvent('click', { bubbles: true })); await w(300); }
   out.noMode = !document.getElementById('ts-mode') && !document.getElementById('sel-map-by');
-  ed.querySelector('[data-seg="type"] [data-v="field"]').click(); await w(300);
-  out.fromMode = ed.querySelector('[data-sel="by"]').value;
-  out.over = !ed.querySelector('[data-row="span"]').hidden;
-  out.by = !!ed.querySelector('[data-sel="by"]') && !ed.querySelector('[data-row="by"]').hidden;
-  const shades = () => [...document.querySelectorAll('#stage-svg g[clip-path^="url(#ts-sh"]')].map(g => g.innerHTML.replace(/ts-sh\\d+/g, '')).join('|');
-  const a = shades();
-  ed.querySelector('[data-seg="span"] [data-v="sheet"]').click(); await w(400);
-  const b = shades();
+  // a colour saved with a Wash (set as the palette would bring it): Each shape vs All the shapes on the house
+  const i = +seg.dataset.i, hex = state.items[i].hex, S = Organica.shading;
+  const mk = span => S.withColour(S.normalize({ type: 'field', angle: 90, stops: [hex, '#f3e2b8'], field: { span: span } }), hex);
+  const shades = () => [...document.querySelectorAll('#stage-svg g[clip-path^="url(#ts-sh"]')].map(g => g.innerHTML.replace(/ts-sh\d+/g, '')).join('|');
+  state.items[i].shade = mk('shape'); renderStage(); await w(300); const a = shades();
+  state.items[i].shade = mk('sheet'); renderStage(); await w(300); const b = shades();
   out.changed = a.length > 0 && a !== b;
-  ed.querySelector('[data-seg="span"] [data-v="shape"]').click(); await w(300);
+  delete state.items[i].shade; renderStage();
+  // the Shading menu: Wash on the selected shape
+  const shSel = ed.querySelector('select[aria-label="Shading"]');
+  shSel.value = 'wash'; shSel.dispatchEvent(new Event('change')); await w(400);
+  out.picked = shSel.value === 'wash' && ed.querySelector('[data-part="gradient"]').hidden && !ed.querySelector('[data-row="span"]').hidden;
+  out.drawn = document.querySelectorAll('#stage-svg g[clip-path^="url(#ts-sh"]').length;
+  shSel.value = 'none'; shSel.dispatchEvent(new Event('change')); await w(300);
   return out;`);
-check('TuneSutra: on the house the Wash shows Colour by and Wash over', T.house && T.over && T.by, JSON.stringify(T));
-check('TuneSutra: no Colour mode section (the tone tools\' own); a Wash starts from its own defaults (Tone)', T.noMode && T.fromMode === 'tone', JSON.stringify(T));
-check('TuneSutra: All the shapes draws other pieces than Each shape', T.changed, JSON.stringify(T));
+check('TuneSutra: no Colour mode section; Shading › Wash on a shape draws it, its rows in the Shadow section (Wash over: the house)', T.noMode && T.picked && T.drawn > 0, JSON.stringify(T));
+check('TuneSutra: a saved Wash still draws — All the shapes (the house as its sheet) other pieces than Each shape', T.changed, JSON.stringify(T));
 check('TuneSutra: no page errors', !P.errors.length, P.errors.splice(0).join(' | '));
 
 // ── FVS: a Component of 2 × 2 cells, the first ink washed
@@ -109,7 +107,6 @@ await P.goto('/fvs/', 'window.__fvs && window.__fvs.isReady');
 const F = await P.ev(`
   const F = window.__fvs, q = id => document.getElementById(id), w = ms => new Promise(r => setTimeout(r, ms)), S = Organica.shading, out = {};
   F.setTier('component'); await w(400); q('btn-generate').click(); await w(1000);
-  out.over = !document.querySelector('#fvs-shade [data-row="span"]').hidden || 'hidden';
   const comp = F.state.components[0], grid = { kind: 'square', cols: 2, rows: 2, cellSize: 100, gap: 0 };
   const items = F.buildComponentItems(comp, grid);
   const washOf = span => { const m = {}; F.state.colors.forEach(h => { m[h] = S.withColour(S.normalize({ type: 'field', angle: 90, stops: [h, '#f3e2b8'], field: { span: span } }), h); }); return m; };
@@ -122,21 +119,9 @@ const F = await P.ev(`
   try { F.drawComponentCanvas ? F.drawComponentCanvas(g, items, F.getSeed(), 200) : null; } catch (e) { err = String(e); }
   out.canvasErr = err; out.canvasFn = !!F.drawComponentCanvas;
   F.state.inkShades = {}; F.buildPalette && F.buildPalette();
-  // a TuneSutra palette taken whole, its Colour mode Tone + random: a colour turned to Wash starts from it
-  Organica.store('tunesutra').write({ 'Wash mode test': { n: 3, colors: ['#f3e2b8', '#2b1d16', '#b5642f'], names: ['Base', 'Secondary', 'Accent'], ids: ['a', 'b', 'c'], parts: ['main', 'sub', 'accent'], mapping: { mode: 'rmx', submode: 'tonernd', space: 'srgb' } } });
-  F.setTier('element'); await w(300);
-  [...document.querySelectorAll('#fvs-palette button')].pop().click(); await w(300);
-  const it = [...document.querySelectorAll('.pal-menu .preset-item')].find(b => b.textContent === 'Wash mode test');
-  if (it) { it.click(); await w(500); }
-  document.querySelector('#fvs-shade [data-seg="type"] [data-v="field"]').click(); await w(300);
-  const d = F.state.inkShades[F.state.colors[0]];
-  out.mode = d ? S.fieldParams(d).by + ' ' + S.fieldParams(d).space + ' ' + d.stops.join(' ') : 'none (' + !!it + ')';
-  F.state.inkShades = {}; F.buildPalette && F.buildPalette();
   return out;`);
-check('FVS: Wash over is shown', F.over === true, String(F.over));
 check('FVS: Each shape = the same wash in every cell', F.cells >= 4 && F.eachSame === 1, F.cells + ' pieces, ' + F.eachSame + ' distinct');
 check('FVS: All the shapes = one wash over the Component, a different piece per cell, drawn back through the cell', F.acrossDiffer >= 4 && F.matrix, F.acrossDiffer + ' distinct, matrix ' + F.matrix);
-check('FVS: a palette taken whole — a Wash starts from its Colour mode (Tone + random, sRGB, dark → bright)', /^tonernd srgb #2b1d16 #b5642f #f3e2b8$/.test(F.mode), F.mode);
 check('FVS: the canvas draws it', !F.canvasErr, (F.canvasFn ? '' : 'drawComponentCanvas not exposed; ') + F.canvasErr);
 check('FVS: no page errors', !P.errors.filter(e => !/Failed to load resource/.test(e)).length, P.errors.join(' | '));
 

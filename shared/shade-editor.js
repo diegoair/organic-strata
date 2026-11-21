@@ -45,12 +45,14 @@
     ['Pollen', [['pollen-dot', 'Dot'], ['pollen-stroke', 'Stroke'], ['pollen-cross', 'Cross-hatch']]],
     ['Camo', [['camo-spots', 'Spots'], ['camo-maze', 'Maze']]],
     [null, [['cells', 'Cells']]],
+    [null, [['wash', 'Wash']]],   // Nov 21, 2026 (evening): the Wash moved here from Gradient › Type
   ];
   const SHADING_HINT = {
     none: 'No shadow', soft: 'A smooth shadow, no marks', speckle: 'Square specks', mottle: 'Specks in organic clumps',
     'dither-fs': 'Error diffusion, even grain', 'dither-blue': 'The smoothest grain', 'dither-bayer': 'A printed cross pattern',
     'pollen-dot': 'Dots, denser in shadow', 'pollen-stroke': 'Short strokes across the light', 'pollen-cross': 'Brush strokes, crossing as it darkens',
     'camo-spots': 'Spots that grow into the shadow', 'camo-maze': 'A labyrinth that thickens', cells: 'Cells filling from their centre',
+    wash: 'Soft clouds through the colour and its stops',
   };
   // The Ink menu — TuneSutra's #sel-gink.
   const INK = [
@@ -107,7 +109,7 @@
     host.innerHTML =
       `<div class="panel-section org-shade-editor" data-part="gradient"><h3>Gradient <span class="hint" data-hint></span></h3>`
       + `<div class="sub-label">Type</div><div class="ctrl-row"><div class="seg-ctrl" data-seg="type" role="group" aria-label="Type">`
-      + `<button type="button" class="seg-btn" data-v="flat" title="One colour, no gradient">Flat</button><button type="button" class="seg-btn" data-v="linear">Linear</button><button type="button" class="seg-btn" data-v="radial">Radial</button><button type="button" class="seg-btn" data-v="field" title="Soft clouds coloured through the stops">Wash</button></div></div>`
+      + `<button type="button" class="seg-btn" data-v="flat" title="One colour, no gradient">Flat</button><button type="button" class="seg-btn" data-v="linear">Linear</button><button type="button" class="seg-btn" data-v="radial">Radial</button></div></div>`
       + rangeRow(p, 'angle')
       + `<div data-block="field">`
       + `<div class="ctrl-row" data-row="by"><div class="ctrl-label">Colour by</div><select class="panel-select" data-sel="by" aria-label="Colour by">`
@@ -123,6 +125,7 @@
       + `</div>`
       + `<div class="panel-section org-shade-editor" data-part="shadow"><h3>Shadow <span class="hint" data-hint></span></h3>`
       + `<div class="ctrl-row"><select id="${p}-shading" aria-label="Shading">${optionsHTML(SHADING)}</select><div data-host="shading"></div></div>`
+      + `<div data-block="wash"></div>`
       + `<div data-block="shadow">`
       + rangeRow(p, 'amount') + rangeRow(p, 'speck') + rangeRow(p, 'light') + rangeRow(p, 'falloff')
       + `<div class="sub-label">Ink</div><div class="ctrl-row"><select id="${p}-ink" aria-label="Ink">${optionsHTML(INK)}</select><div data-host="ink"></div></div>`
@@ -135,6 +138,8 @@
       + (opts.everyColour ? `<div class="panel-section org-shade-editor" data-part="every"><div class="row-btns"><button type="button" class="mini-btn" data-act="every">Use on every colour</button></div></div>` : '');
     const $ = q => host.querySelector(q);
     const selShading = $('#' + p + '-shading'), selInk = $('#' + p + '-ink'), bar = $('[data-bar]'), rail = bar.firstElementChild;
+    const washHome = $('[data-block="wash"]'), fieldBlock = $('[data-block="field"]');
+    washHome.appendChild(fieldBlock);   // the Wash's rows live in the Shadow section (see sync)
 
     // what is drawn now: the host's definition (edit mode), or the value — the flat colour when there is none
     const cur = () => liveMode ? opts.edit.get() : (def || S.flatDef(hex, ctxOf()));
@@ -160,6 +165,7 @@
     // Shading: a preset's shadow (its texture, size, amount, depth, falloff) on the colour; the Gradient section's
     // fill (Type, Angle, stops) stays as it is — the two sections edit one definition side by side.
     function presetOf(g) {
+      if (g && S.isField(g)) return 'wash';
       if (!g || !S.hasNoise(g)) return 'none';
       const t = g.specks === 'smooth' ? 'soft' : g.specks === 'specks' ? 'speckle' : g.specks;
       return [...selShading.options].some(o => o.value === t) ? t : '';
@@ -168,6 +174,9 @@
       if (opts.onShading && opts.onShading(mode)) { sync(); return; }
       const D = S.defs(hex, ctxOf());
       edit('shading', g => {
+        // Wash is the fill itself (type 'field'), no shadow on it; leaving it, the fill goes back to Flat
+        if (mode === 'wash') { if (!S.isField(g)) { g.type = 'field'; washStart(g); } g.shadow = false; return; }
+        if (S.isField(g)) g.type = 'flat';
         if (mode === 'none') { g.shadow = false; return; }
         const pre = D[mode], had = g.shadow;
         // the fill stays as it is (Type, Angle, stops); the shadow takes the preset's settings
@@ -342,7 +351,7 @@
     host.querySelectorAll('[data-seg="type"] .seg-btn').forEach(b => b.addEventListener('click', () => {
       const v = b.dataset.v;
       if (cur().type === v) return;
-      edit('type', g => { g.type = v; if (v === 'field' && !g.field) washStart(g); });
+      edit('type', g => { g.type = v; });
     }));
     host.querySelectorAll('[data-seg="span"] .seg-btn').forEach(b => b.addEventListener('click', () => {
       if (S.fieldParams(cur()).span === b.dataset.v) return;
@@ -408,6 +417,13 @@
       const g = cur(), uses = S.gradUses(g), shadow = S.hasNoise(g), own = g.stops[S.colourStop(g)];
       host.querySelectorAll('[data-hint]').forEach(h => { h.textContent = label; });
       host.querySelectorAll('[data-seg="type"] .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === g.type));
+      // The Wash is a Shading (Diego, Nov 21, 2026, evening: "toglilo dal gradient … mettilo in shadow come se fosse un
+      // camo dither"): with it, the Gradient section steps aside and the Wash's rows — Colour by, Mix, Angle, Size, Slope,
+      // Ripple, Seed, Wash over, then the Stops — sit in the Shadow section under the Shading menu (moved, not copied).
+      const washed = S.isField(g), gPart = $('[data-part="gradient"]'), angleRow = $('[data-row="angle"]'), stopsBlock = $('[data-block="stops"]');
+      gPart.hidden = washed;
+      if (washed && stopsBlock.parentNode !== washHome) { fieldBlock.insertBefore(angleRow, fieldBlock.querySelector('[data-row="size"]')); washHome.appendChild(stopsBlock); }
+      if (!washed && stopsBlock.parentNode === washHome) { gPart.appendChild(stopsBlock); gPart.insertBefore(angleRow, stopsBlock); }
       Object.keys(RANGES).forEach(k => {
         const r = $('#' + p + '-' + k);
         // the enhanced slider's fill follows an 'input'; in edit mode the handler sees the same value and edits nothing

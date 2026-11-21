@@ -1298,6 +1298,7 @@ function shapeShadeDef(hex, mode) {
 // The preset a definition is (for the Shading row's state on a selected shape), or null.
 function presetOf(def, hex) {
   if (!def) return null;
+  if (SH.isField(def)) return 'wash';   // a Shading since Nov 21, 2026 (evening), edited or not
   const k = JSON.stringify(def), modes = SHADING_VALUES;
   const exact = modes.find(m => JSON.stringify(withColour(shapeShadeDef(hex, m), hex)) === k);
   if (exact) return exact;

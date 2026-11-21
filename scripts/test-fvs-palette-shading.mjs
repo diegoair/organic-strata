@@ -258,14 +258,14 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     const fc = ['#2a3a8c', '#e8b04a', '#c93ed6']; F.state.colors = fc.slice(); F.state.inkShades = {}; F.buildPalette();
     const L = F.state.layers.items; L[0].ink = 0; L[1].ink = 1; L[2].ink = 2; F.layersChanged(); await w(300);
     const ed = q('fvs-shade'), typeBtn = t => ed.querySelector('[data-seg="type"] [data-v="' + t + '"]');
-    F.selectLayer(1); await w(300); typeBtn('field').click(); await w(300);
+    F.selectLayer(1); await w(300); typeBtn('linear').click(); await w(300);
     const a1 = Object.keys(F.state.inkShades).map(h => h + ':' + F.state.inkShades[h].type).join(' ');
     F.selectLayer(2); await w(300); typeBtn('radial').click(); await w(300);
     const a2 = Object.keys(F.state.inkShades).map(h => h + ':' + F.state.inkShades[h].type).join(' ');
     F.selectLayer(1); await w(300);
     const back = ed.querySelector('[data-seg="type"] .active, [data-seg="type"] [aria-pressed="true"]');
-    check('the Gradient follows the selected layer: Wash on layer 2 lands on its ink, Radial on layer 3 on its ink, back on layer 2 the editor shows Wash',
-      a1 === fc[1] + ':field' && a2 === fc[1] + ':field ' + fc[2] + ':radial' && back && back.dataset.v === 'field', a1 + ' → ' + a2 + ' → ' + (back && back.dataset.v));
+    check('the Gradient follows the selected layer: Linear on layer 2 lands on its ink, Radial on layer 3 on its ink, back on layer 2 the editor shows Linear',
+      a1 === fc[1] + ':linear' && a2 === fc[1] + ':linear ' + fc[2] + ':radial' && back && back.dataset.v === 'linear', a1 + ' → ' + a2 + ' → ' + (back && back.dataset.v));
     F.state.inkShades = {}; F.buildPalette(); await w(200); }
   // the menu: up to 9 colours
   check('FVS takes up to 9 colours (TuneSutra\\'s palettes)', F.PALETTE_MAX === 9, F.PALETTE_MAX);
