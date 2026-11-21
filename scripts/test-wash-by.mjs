@@ -55,21 +55,21 @@ const E = await P.ev(`
   const shadowPart = q('[data-part="shadow"]'), gradPart = q('[data-part="gradient"]');
   out.chosen = flat.type === 'field' && !flat.shadow && !gradPart.hidden && shSel.value === 'wash' && !q('[data-seg="type"] .seg-btn.active');
   out.rowsInShadow = ['[data-row="space"]', '[data-row="size"]', '[data-row="seed"]'].every(k => shadowPart.contains(q(k)) && !q(k).hidden)
-    && gradPart.contains(q('[data-row="angle"]')) && !q('[data-row="angle"]').hidden && shadowPart.contains(q('[data-block="stops"]')) && !q('[data-block="stops"]').hidden
+    && shadowPart.contains(q('[data-row="angle"]')) && !q('[data-row="angle"]').hidden && shadowPart.contains(q('[data-block="stops"]')) && !q('[data-block="stops"]').hidden
     && !q('[data-row="span"]') && !q('[data-sel="by"]');
   shSel.value = 'wash-posterize'; shSel.dispatchEvent(new Event('change'));
   out.byEdit = S.fieldParams(flat).by + '/' + shSel.value + '/' + (q('[data-row="space"]').hidden ? 'nomix' : 'mix');
   shSel.value = 'camo-maze'; shSel.dispatchEvent(new Event('change'));
-  out.leave = flat.type === 'flat' && flat.shadow && flat.specks === 'camo-maze' && !q('[data-part="gradient"]').hidden && q('[data-part="gradient"]').contains(q('[data-block="stops"]')) && q('[data-block="field"]').hidden;
+  out.leave = flat.type === 'flat' && flat.shadow && flat.specks === 'camo-maze' && !q('[data-part="gradient"]').hidden && q('[data-part="gradient"]').contains(q('[data-block="stops"]')) && q('[data-part="gradient"]').contains(q('[data-row="angle"]')) && q('[data-block="field"]').hidden;
   // Organica.palettes.washOf (kept for the Wash's new place): Inks dark → bright, Adaptive Ink → Paper, Solid none
   const W = Organica.palettes.washOf, hx = ['#f3e2b8', '#b5642f', '#2b1d16', '#ffffff'];
   out.washOf = [W(hx, { mode: 'rmx', submode: 'posterize' }), W(hx, { mode: 'adaptive', pair: [2, 3] }), W(hx, { mode: 'solid' })].map(x => x.by + ':' + (x.stops ? x.stops.join(',') : '-')).join(' | ');
   return out;`);
 check('Wash is gone from Gradient › Type and is a Shading category: Tone · Posterize · Random · Tone + random', !E.inType && E.cat === 'Tone · Posterize · Random · Tone + random', JSON.stringify({ inType: E.inType, cat: E.cat }));
 check('…chosen: the fill is a Wash, no shadow on it; the Gradient stays, no Type lit', E.chosen);
-check('…Mix, Size, Seed and the Stops in the Shadow section; the Angle in the Gradient; no Wash over, no Colour by select', E.rowsInShadow, String(E.rowsInShadow));
+check('…Mix, Angle, Size, Seed and the Stops in the Shadow section; no Wash over, no Colour by select', E.rowsInShadow, String(E.rowsInShadow));
 check('…another Wash entry changes its Colour by (Posterize: no Mix)', E.byEdit === 'posterize/wash-posterize/nomix', E.byEdit);
-check('…another Shading (Camo › Maze) takes it off: a Flat fill with that shadow, the Stops back in the Gradient', E.leave);
+check('…another Shading (Camo › Maze) takes it off: a Flat fill with that shadow, the Angle and the Stops back in the Gradient', E.leave);
 check('Organica.palettes.washOf: Inks dark → bright, Adaptive Ink → Paper, Solid none', E.washOf === 'posterize:#2b1d16,#b5642f,#f3e2b8,#ffffff | tone:#2b1d16,#ffffff | tone:-', E.washOf);
 check('Posterize: one band per stop, the stops\' own inks, no halftone mark', E.postBands === 4 && E.postInks.length === 4 && !E.postMix, E.postBands + ' bands (Tone ' + E.toneBands + '): ' + E.postInks.join(' '));
 check('Random and Tone + random: specks of the stops only', E.onlyStops && E.rndInks.length === 4 && E.trInks.length >= 3 && E.rndCells > 100, E.rndInks.length + ' / ' + E.trInks.length + ' inks, ' + E.rndCells + ' runs');
