@@ -69,7 +69,7 @@
     depth: { label: 'Depth', min: 10, max: 90, step: 1, title: 'How dark the core shadow gets.' },
   };
   // Wash (Nov 21, 2026; type 'field' in the model): its own settings live on def.field (Organica.shading.FIELD_DEFAULT).
-  // The visible names are provisional (design-system CONSULT: Field and Spread were taken) — the ledger's O-92.
+  // Names decided (O-92, Nov 21, 2026). Colour by + Mix (Nov 21, 2026): TuneSutra's Colour mode words, on def.field.by / .space.
   const FIELD_RANGES = {
     size: { label: 'Size', min: 8, max: 120, step: 1, aria: 'Wash size', title: 'The size of the clouds.' },
     slope: { label: 'Slope', min: 0, max: 100, step: 1, unit: '%', title: 'How much the colour runs along the Angle: 0 = only the clouds, 100 = a straight gradient.' },
@@ -109,7 +109,12 @@
       + `<div class="sub-label">Type</div><div class="ctrl-row"><div class="seg-ctrl" data-seg="type" role="group" aria-label="Type">`
       + `<button type="button" class="seg-btn" data-v="flat" title="One colour, no gradient">Flat</button><button type="button" class="seg-btn" data-v="linear">Linear</button><button type="button" class="seg-btn" data-v="radial">Radial</button><button type="button" class="seg-btn" data-v="field" title="Soft clouds coloured through the stops">Wash</button></div></div>`
       + rangeRow(p, 'angle')
-      + `<div data-block="field">` + Object.keys(FIELD_RANGES).map(k => rangeRow(p + '-f', k, FIELD_RANGES)).join('')
+      + `<div data-block="field">`
+      + `<div class="ctrl-row" data-row="by"><div class="ctrl-label">Colour by</div><select class="panel-select" data-sel="by" aria-label="Colour by">`
+      + `<option value="tone">Tone</option><option value="posterize">Posterize</option><option value="random">Random</option><option value="tonernd">Tone + random</option></select></div>`
+      + `<div class="ctrl-row" data-row="space"><div class="ctrl-label">Mix</div><div class="seg-ctrl" data-seg="space" role="group" aria-label="Mix">`
+      + `<button type="button" class="seg-btn" data-v="srgb">sRGB</button><button type="button" class="seg-btn" data-v="oklab">OKLab</button></div></div>`
+      + Object.keys(FIELD_RANGES).map(k => rangeRow(p + '-f', k, FIELD_RANGES)).join('')
       + `<div data-row="span"><div class="sub-label">Wash over</div><div class="ctrl-row"><div class="seg-ctrl" data-seg="span" role="group" aria-label="Wash over">`
       + `<button type="button" class="seg-btn" data-v="shape" title="The whole wash in every shape">Each shape</button><button type="button" class="seg-btn" data-v="sheet" title="One wash over the sheet, cut by the shapes">All the shapes</button></div></div></div></div>`
       + `<div data-block="stops"><div class="sub-label">Stops</div>`
@@ -321,6 +326,15 @@
       if (S.fieldParams(cur()).span === b.dataset.v) return;
       edit('field-span', g => { g.field = Object.assign(S.fieldParams(g), { span: b.dataset.v }); });
     }));
+    $('[data-sel="by"]').addEventListener('change', e => {
+      const v = e.target.value;
+      if (S.FIELD_BY.indexOf(v) < 0 || !S.isField(cur())) return;
+      if (S.fieldParams(cur()).by !== v) edit('field-by', g => { g.field = Object.assign(S.fieldParams(g), { by: v }); });
+    });
+    host.querySelectorAll('[data-seg="space"] .seg-btn').forEach(b => b.addEventListener('click', () => {
+      if (S.fieldParams(cur()).space === b.dataset.v) return;
+      edit('field-space', g => { g.field = Object.assign(S.fieldParams(g), { space: b.dataset.v }); });
+    }));
     Object.keys(FIELD_RANGES).forEach(k => {
       const r = $('#' + p + '-f-' + k), v = $('#' + p + '-f-v-' + k), u = FIELD_RANGES[k].unit || '';
       const set = () => edit('field-' + k, g => { g.field = Object.assign(S.fieldParams(g), { [k]: +r.value }); });
@@ -388,6 +402,9 @@
           $('#' + p + '-f-v-' + k).textContent = F[k] + (FIELD_RANGES[k].unit || '');
         });
         host.querySelectorAll('[data-seg="span"] .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === F.span));
+        $('[data-sel="by"]').value = F.by;
+        host.querySelectorAll('[data-seg="space"] .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === F.space));
+        $('[data-row="space"]').hidden = F.by !== 'tone';   // Mix blends between the stops: only Tone blends
         // a tool that gives no sheet (ctx.sheet) draws each shape's own wash: the row would do nothing there
         $('[data-row="span"]').hidden = !ctxOf().sheet;
       }

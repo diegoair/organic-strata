@@ -381,13 +381,33 @@
   //    reads as one smooth fill (explorations/field-fill: under 0.2% of pixels off by more than 6/255).
   //    def.field = { size, slope, wave, seed, span }; span 'sheet' = one field over ctx.sheet that the shapes cut (a
   //    tool that gives no sheet draws each shape's own). Plates: one per stop, the bands as halftone (WASH_PITCH below).
-  const FIELD_DEFAULT = { size: 38, slope: 45, wave: 10, seed: 0, span: 'shape' }, FIELD_REF = 213, FIELD_JND = 1;
+  const FIELD_DEFAULT = { size: 38, slope: 45, wave: 10, seed: 0, span: 'shape', by: 'tone', space: 'oklab' }, FIELD_REF = 213, FIELD_JND = 1;
+  // Colour by + Mix (Diego, Nov 21, 2026: "i color by Posterize random tone + random e tone non sono stati portati") —
+  // TuneSutra's Colour mode words, the same math as palette.colorAt (Pollen's RMX) with the stops as its colours:
+  //   tone      the colour runs through the stops, mixed in `space` (OKLab · sRGB) — bands at every just-visible step
+  //   posterize each point the nearest stop — one band per stop, flat inks
+  //   random    each speck (FIELD_SPECK of the 213-unit picture) a random stop
+  //   tonernd   the tone, each speck nudged up to ±0.6 of a stop — specks of the neighbouring stops
+  // Posterize, Random and Tone + random draw only the stops: their plates are the stops, solid, no halftone.
+  const FIELD_BY = ['tone', 'posterize', 'random', 'tonernd'], FIELD_SPECK = 2;
   // Plates of a wash (O-92 c, Nov 21, 2026): one plate per STOP, not per band — each band carries `mix` [stop a, stop b,
   // f] (where its middle sits between the two stops it blends) and `wash` { pitch, ox, oy } (the halftone screen: a
   // dot every WASH_PITCH of the picture's 213-unit width, anchored on the sheet when the wash spans it), and
   // Organica.plateExport turns each band into a dot screen of its share on each stop's plate.
   const WASH_PITCH = 0.75;
-  function fieldParams(g) { return Object.assign({}, FIELD_DEFAULT, g.field || {}); }
+  function fieldParams(g) {
+    const F = Object.assign({}, FIELD_DEFAULT, g.field || {});
+    if (FIELD_BY.indexOf(F.by) < 0) F.by = 'tone';
+    if (F.space !== 'srgb') F.space = 'oklab';
+    return F;
+  }
+  // The stop index a value sits at (a + the share of the way to a + 1): Posterize rounds it, Tone + random nudges it.
+  function stopIndexAt(stops, s) { const sg = segAt(stops, s); return stops.length < 2 ? 0 : sg.a + sg.f; }
+  function speckHash(i, j, seed) {
+    let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(seed + 1, 2246822519);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
   function isField(g) { return g && g.type === 'field'; }
   // The value at a point of region R ({ x, y, w, h }, the units the shape is drawn in) → 0..1
   function fieldValue(g, R) {
@@ -402,13 +422,22 @@
   }
   // Where to cut: a new band each time the colour has moved by FIELD_JND; each band takes the colour at its middle.
   const _cuts = new Map();
-  function fieldCuts(stops) {
-    const key = JSON.stringify(stops);
+  // Posterize: a cut where the nearest stop changes (half way between two stops), each band that stop's own ink.
+  function fieldCuts(stops, space, by) {
+    const key = JSON.stringify(stops) + space + by;
     if (_cuts.has(key)) return _cuts.get(key);
-    const N = 1024, cuts = [];
-    let ref = colourAt(stops, 0);
-    for (let i = 1; i < N; i++) { const s = i / N, c = colourAt(stops, s); if (C().deltaE(ref, c) >= FIELD_JND) { cuts.push(s); ref = c; } }
-    const at = [0].concat(cuts, [1]), out = { cuts: cuts, colours: at.slice(0, -1).map((a, i) => colourAt(stops, (a + at[i + 1]) / 2)) };
+    const N = 1024, cuts = [], mixAt = s => { if (stops.length < 2) return stops[0].hex; const sg = segAt(stops, s); return C().mixIn(space, stops[sg.a].hex, stops[sg.a + 1].hex, sg.f); };
+    let out;
+    if (by === 'posterize') {
+      const idx = [Math.round(stopIndexAt(stops, 0))];
+      for (let i = 1; i < N; i++) { const k = Math.round(stopIndexAt(stops, i / N)); if (k !== idx[idx.length - 1]) { cuts.push(i / N); idx.push(k); } }
+      out = { cuts: cuts, colours: idx.map(k => stops[k].hex), solid: true };
+    } else {
+      let ref = mixAt(0);
+      for (let i = 1; i < N; i++) { const s = i / N, c = mixAt(s); if (C().deltaE(ref, c) >= FIELD_JND) { cuts.push(s); ref = c; } }
+      const at = [0].concat(cuts, [1]);
+      out = { cuts: cuts, colours: at.slice(0, -1).map((a, i) => mixAt((a + at[i + 1]) / 2)) };
+    }
     if (_cuts.size > 60) _cuts.clear();
     _cuts.set(key, out);
     return out;
@@ -416,10 +445,12 @@
   // The field's plates in a w×h box: [band 0 over the whole box, then each band "value ≥ cut" on the one under it].
   // ctx.origin (the box's place) + ctx.sheet: span 'sheet' reads the field of the whole sheet at the box's place.
   function fieldPlates(g, w, h, ctx) {
-    const stops = gradStops(g, ctx), { cuts, colours } = fieldCuts(stops), F = fieldParams(g);
+    const stops = gradStops(g, ctx), F = fieldParams(g);
     const across = F.span === 'sheet' && ctx && ctx.sheet && ctx.sheet.w > 0 && ctx.origin;
     const o = across ? ctx.origin : { x: 0, y: 0 }, R = across ? ctx.sheet : { x: 0, y: 0, w: w, h: h };
     const val = fieldValue(g, R);
+    if (F.by === 'random' || F.by === 'tonernd') return speckPlates(g, F, stops, val, w, h, o, R);
+    const { cuts, colours, solid } = fieldCuts(stops, F.space, F.by);
     // the grid follows the picture, not the units: ~16 samples across the smallest thing in it (a patch, or the wave's
     // half period) — the same file at any sheet size — at least 0.5 units, never more than ~160k samples
     const unit = R.w / FIELD_REF, cell = Math.max(Math.min(F.size, F.wave > 0 ? 28 : 1e9) * unit / 16, 0.5, Math.sqrt(w * h / 160000));
@@ -429,15 +460,37 @@
     const out = [{ hex: colours[0], paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0 }], tol = cell * 0.1;
     const at = [0].concat(cuts, [1]), wash = { pitch: unit * WASH_PITCH, ox: o.x, oy: o.y };
     const mixOf = k => { const sg = segAt(stops, (at[k] + at[k + 1]) / 2), b = stops[Math.min(sg.a + 1, stops.length - 1)]; return [stops[sg.a].hex, b.hex, stops.length < 2 ? 0 : sg.f]; };
-    Object.assign(out[0], { mix: mixOf(0), wash: wash });
+    if (!solid) Object.assign(out[0], { mix: mixOf(0), wash: wash });
     cuts.forEach((t, k) => {
       let d = '';
       Organica.isoContours(V, dx, dy, t).forEach(r => {
         const pts = Organica.simplifyRing(r.map(p => [x0 + (p[0] + 0.5) * cell, y0 + (p[1] + 0.5) * cell]), tol);
         if (pts.length >= 3) d += 'M' + pts.map(p => n1(p[0]) + ' ' + n1(p[1])).join('L') + 'Z';
       });
-      if (d) out.push({ hex: colours[k + 1], paper: false, d: d, cells: 0, band: k + 1, mix: mixOf(k + 1), wash: wash });
+      if (d) out.push(Object.assign({ hex: colours[k + 1], paper: false, d: d, cells: 0, band: k + 1 }, solid ? {} : { mix: mixOf(k + 1), wash: wash }));
     });
+    return out;
+  }
+  // Random / Tone + random: the box cut into specks (FIELD_SPECK of the picture's 213-unit width, on the sheet's grid
+  // when the wash spans it, so neighbouring shapes share it), each speck one stop; one path per stop, a row's run of
+  // the same stop one rect. Plate 0 = the box in the first stop (the shape's own fill), the others on it.
+  function speckPlates(g, F, stops, val, w, h, o, R) {
+    const n = stops.length, cell = Math.max(FIELD_SPECK * R.w / FIELD_REF, Math.sqrt(w * h / 160000), 0.25);
+    const i0 = Math.floor(o.x / cell), j0 = Math.floor(o.y / cell), i1 = Math.ceil((o.x + w) / cell), j1 = Math.ceil((o.y + h) / cell);
+    const D = stops.map(() => []);
+    for (let j = j0; j < j1; j++) {
+      let run = -1, from = 0;
+      const flush = to => { if (run > 0) D[run].push(`M${num(from * cell - o.x)} ${num(j * cell - o.y)}h${num((to - from) * cell)}v${num(cell)}h${num(-(to - from) * cell)}z`); };
+      for (let i = i0; i < i1; i++) {
+        const rnd = speckHash(i, j, F.seed);
+        const k = n < 2 ? 0 : F.by === 'random' ? Math.min(n - 1, Math.floor(rnd * n))
+          : clamp(Math.round(stopIndexAt(stops, val((i + 0.5) * cell, (j + 0.5) * cell)) + (rnd - 0.5) * 1.2), 0, n - 1);
+        if (k !== run) { flush(i); run = k; from = i; }
+      }
+      flush(i1);
+    }
+    const out = [{ hex: stops[0].hex, paper: !!stops[0].clear, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0 }];
+    for (let k = 1; k < n; k++) if (D[k].length) out.push({ hex: stops[k].hex, paper: !!stops[k].clear, d: D[k].join(''), cells: D[k].length });
     return out;
   }
 
@@ -624,7 +677,7 @@
     plates: plates, gradPlates: gradPlates, smoothPlates: smoothPlates, shadowInks: shadowInks,
     gradStops: gradStops, smoothStops: smoothStops, smoothGeom: smoothGeom, smoothMarkup: smoothMarkup, smoothFill: smoothFill,
     drawPlates: drawPlates, platesSVG: platesSVG, boxOf: boxOf, overlaySVG: overlaySVG, overlayCanvas: overlayCanvas, shapePlates: shapePlates,
-    FIELD_DEFAULT: FIELD_DEFAULT, WASH_PITCH: WASH_PITCH, fieldParams: fieldParams, fieldValue: fieldValue, fieldPlates: fieldPlates, isField: isField,
+    FIELD_DEFAULT: FIELD_DEFAULT, WASH_PITCH: WASH_PITCH, FIELD_BY: FIELD_BY, fieldParams: fieldParams, fieldValue: fieldValue, fieldPlates: fieldPlates, isField: isField,
     gradUses: gradUses, hasNoise: hasNoise, smoothShadow: smoothShadow, markShadow: markShadow,
     colourStop: colourStop, colourAt: colourAt, segAt: segAt, isClear: isClear, evenPos: evenPos, stopPos: stopPos, fadesToPaper: fadesToPaper,
   };

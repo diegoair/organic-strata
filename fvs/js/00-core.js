@@ -87,6 +87,9 @@ export function buildPalette() {
     max: PALETTE_MAX,
     get: () => ({ colors: state.colors, shades: state.inkShades }),
     paper: () => (state.paperColor && state.paperColor !== 'none' ? state.paperColor : '#ffffff'),
+    // Wash over shown: All the shapes = one wash over the whole Component (live.washSheet, 05-render-component); in the
+    // Element it is the shape's own (with Light › Whole element, one wash across the Element)
+    sheet: () => ({ x: 0, y: 0, w: 100, h: 100 }),
     set: (p, why) => {
       if (p.colors) state.colors = p.colors.map(hexKey);
       if (p.shades) state.inkShades = p.shades;

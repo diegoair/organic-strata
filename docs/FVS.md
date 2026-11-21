@@ -361,6 +361,13 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   **The editor follows the layer** (Nov 21, 2026): selecting a layer, or giving the selected layer another ink, opens
   its ink in the Gradient + Shadow (`paletteFollowLayer` → `paletteKit.setActive`); a layer on the cell colour opens
   `colorAt(0)`. Before, the editor stayed on the chip last opened, so an edit landed on another layer's colour.
+  **Wash over** (Nov 21, 2026 — Diego: *decidere se questo effetto wash … può essere applicato ad un elemento o
+  componente intero*): *Each shape* — every cell its own wash, turning with the cell; *All the shapes* — ONE wash over
+  the whole Component frame, each cell cutting its piece. While a Component draws, `live.washSheet` holds the frame
+  (`{ w, h, m }` on canvas — Component → canvas; `{ w, h, cell }` in SVG — the cell's matrix): the shape's box goes to
+  Component space, its plates are laid out there and drawn back through the inverse (`washAcross`, 05-render-component).
+  In the Element (and a Symbol's own drawing) a wash is the shape's own — with Light › Whole element one wash across the
+  Element. Colour by / Mix as in DESIGN-SYSTEM §5h. Test `scripts/test-wash-by.mjs`.
   **Colourways** (Recolour, the Figure's Palette node) keep the shading by place — colour n takes colour n's,
   moved onto its own colour (`shadesFollow`, in `withComponentColours` and a Symbol cell's colourway).
   **Arriving whole**: a saved palette's house Shading (`pal.shading`) goes on every colour without its own; a starred

@@ -181,6 +181,7 @@ export const live = {
   cellKey: null,            // a cell's key while Generate folds the Element's look-alikes (06-component-ui.js withLookAlikeFold); else canonicalState
   lookAlikeFoldOff: false,  // the regression page's switch: Generate as before Oct 21, 2026
   contentOverlayFit: 'fill',
+  washSheet: null,   // while a Component draws: { w, h, m (Component → canvas) | cell (cell → Component) } — Wash over All the shapes (05-render-component)
   inkPaletteOverride: null,   // set while rendering a saved entry with ITS palette (withEntryInks)
   inkShadesOverride: null,    // set with it when that entry carries its own shading (hex → definition)
   lastFigureMeta: { size: 0, box: null },   // the frame and drawn box of the last Grid figure built

@@ -748,7 +748,14 @@ const TS_CTX = { tints: paletteTints, scale: hex => tokenScale(hex) };
 const SHADE_MODES = SH.SHADE_MODES, SHADE_NAME = SH.SHADE_NAME;
 function shadeDefs(hex) { return SH.defs(hex, TS_CTX); }
 // Rendered once per definition and box size (and palette): a colour edit re-renders only that colour's shapes.
-function shadePlates(def, w, h) { return SH.plates(def, w, h, TS_CTX); }
+function shadePlates(def, w, h, ctx) { return SH.plates(def, w, h, ctx || TS_CTX); }
+// The house as the Wash's sheet (Nov 21, 2026 — Diego: "in tunesutra … mancano each shape o across shape"): with
+// Wash over All the shapes a shape reads the one wash of the whole house at its place. Null off the house view.
+let houseSheet = null;
+function sheetCtx(def, it) {
+  return it.sheet && SH.isField(def) && SH.fieldParams(def).span === 'sheet'
+    ? Object.assign({}, TS_CTX, { sheet: it.sheet, origin: { x: it.box[0], y: it.box[1] } }) : null;
+}
 function gradPlates(g, w, h) { return SH.gradPlates(g, w, h, TS_CTX); }
 function shadowInks(g, hex) { return SH.shadowInks(g, hex, TS_CTX); }
 function gradStops(g) { return SH.gradStops(g || G(), TS_CTX); }
@@ -790,8 +797,8 @@ function selZone() {
 // The inks drawn over a shape: its first stop's ink is the shape's own fill, unless Reverse made the first
 // stop another colour — then that ink is drawn too.
 // all: the shape has no fill of its own (fading to paper) — every ink is drawn, and the paper never (it is the empty part)
-function shapeInks(def, w, h, all) {
-  const plates = shadePlates(def, w, h), own = String(def.stops[colourStop(def)]).toLowerCase();
+function shapeInks(def, w, h, all, ctx) {
+  const plates = shadePlates(def, w, h, ctx), own = String(def.stops[colourStop(def)]).toLowerCase();
   if (all) return plates.filter(pl => !pl.paper);
   return plates.filter((pl, pi) => pi > 0 || String(pl.hex).toLowerCase() !== own);
 }
@@ -870,7 +877,7 @@ function pickOnSheetColour(anchor) {
 function initGradient() {
   shadeEd = Organica.shadeEditor.mount(ctrl('ts-shade'), {
     hex: state.items[state.activeIndex].hex,
-    ctx: () => ({ tints: paletteTints(), paper: sheetTheme().paper }),
+    ctx: () => ({ tints: paletteTints(), paper: sheetTheme().paper, sheet: isGarmentView() ? houseSheet : null }),
     edit: {
       get: G,
       before: key => pushUndo(key === 'stop' || key === 'type' || key === 'ink' ? 'grad-' + key : 'grad'),
@@ -943,7 +950,8 @@ function buildScene(screen) {
       houseBand = [y, y + FIG_H];   // where the carousel arrows sit (renderStage)
       // Same height for every figure; strokes are set in the figure's own units
       // so they come out the same weight on the sheet whatever its scale.
-      const k = FIG_H / fig.h, fx = (VB_W - fig.w * k) / 2, shares = fig.shares;
+      const k = FIG_H / fig.h, fx = (VB_W - fig.w * k) / 2, shares = fig.shares, sheet = { x: fx, y: y, w: fig.w * k, h: FIG_H };
+      houseSheet = sheet;   // a Wash over All the shapes: one wash over the whole house, cut by its shapes
       fig.zones.forEach((z, zi) => {
         const r = z.role, pale = n < 5 && paleOnPaper(cols[r]);   // 5 colours: the background frames the house
         // Fade to paper ends TRANSPARENT (Diego, Nov 18, 2026: "dovrebbe essere sul trasparente non bianco"): the
@@ -959,7 +967,7 @@ function buildScene(screen) {
         // its shadow noise, in the shape's own box (the zone path above stays for the click and the hairline)
         if (def) {
           const bx = fx + z.bb[0] * k, by = y + z.bb[1] * k;
-          items.push({ t: 'shade', d: z.d, tf: { x: fx, y: y, s: k }, box: [bx, by, (z.bb[2] - z.bb[0]) * k, (z.bb[3] - z.bb[1]) * k], def: def, all: clear });
+          items.push({ t: 'shade', d: z.d, tf: { x: fx, y: y, s: k }, box: [bx, by, (z.bb[2] - z.bb[0]) * k, (z.bb[3] - z.bb[1]) * k], def: def, all: clear, sheet: sheet });
         }
       });
       // the selected shape, outlined on screen only (never in an export)
@@ -1064,7 +1072,7 @@ function sceneMarkup(scene, interactive) {
       const id = (interactive ? 'ts-sh' : 'ts-shx') + (clipN++), [bx, by, bw, bh] = it.box;
       const clip = `<clipPath id="${id}"><path d="${it.d}" transform="translate(${num(it.tf.x)},${num(it.tf.y)}) scale(${it.tf.s})"/></clipPath>`;
       // the shape already paints the first ink: only the other inks' cells go on it
-      const cells = shapeInks(it.def, bw, bh, it.all).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, id + 'g' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('');
+      const cells = shapeInks(it.def, bw, bh, it.all, sheetCtx(it.def, it)).map((pl, pi) => !pl.d ? '' : pl.smooth ? smoothMarkup(pl, id + 'g' + pi) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('');
       return `${clip}<g clip-path="url(#${id})" pointer-events="none"><g transform="translate(${num(bx)},${num(by)})" shape-rendering="crispEdges" fill-rule="evenodd">${cells}</g></g>`;
     }
     if (it.t === 'text') {
@@ -1094,7 +1102,7 @@ function drawScene(scene, c, scale) {
       const [bx, by, bw, bh] = it.box;
       c.save();
       c.translate(it.tf.x, it.tf.y); c.scale(it.tf.s, it.tf.s); c.clip(new Path2D(it.d)); c.scale(1 / it.tf.s, 1 / it.tf.s); c.translate(-it.tf.x, -it.tf.y);
-      c.translate(bx, by); drawPlates(c, shapeInks(it.def, bw, bh, it.all));
+      c.translate(bx, by); drawPlates(c, shapeInks(it.def, bw, bh, it.all, sheetCtx(it.def, it)));
       c.restore();
       return;
     }

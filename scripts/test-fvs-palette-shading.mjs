@@ -64,7 +64,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
     check('Symbol: a saved Component and a saved Element draw their shading on a flat Palette (' + n + ')', n >= 5, n);
     // on the Symbol step a shadow changed is one Undo step (Diego, Nov 20, 2026: "prova in symbol a cambiare colori e shadows")
     F.state.inkShades = keep; F.state.colorRule = { ...F.state.colorRule, mode: 'index' }; F.renderSymbol(); await w(700);
-    const sel = q('fvs-shade').querySelector('select'); document.querySelector('#fvs-palette .rmx-color__pick').click(); await w(150); Organica.colorPicker.close();
+    const sel = q('fvs-shade').querySelector('select[aria-label="Shading"]'); document.querySelector('#fvs-palette .rmx-color__pick').click(); await w(150); Organica.colorPicker.close();
     const was0 = sel.value; sel.value = 'cells'; sel.dispatchEvent(new Event('change', { bubbles: true })); await w(700);
     const hex0 = F.state.colors[0], mid = (F.state.inkShades[hex0] || {}).specks;
     q('btn-board-undo-symbol').click(); await w(700);
@@ -77,7 +77,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   const moved = F.state.inkShades['#1c6b3a'];
   check('a colour edited keeps its shading, on the new colour', moved && moved.specks === 'specks' && moved.stops[S.colourStop(moved)] === '#1c6b3a' && !F.state.inkShades[cols[0]], JSON.stringify(Object.keys(F.state.inkShades)));
   // the editor: the chip opened last; a texture picked there
-  const host = q('fvs-shade'), sel = host.querySelector('select');
+  const host = q('fvs-shade'), sel = host.querySelector('select[aria-label="Shading"]');
   check('the Gradient + Shadow editor shows the colour\\'s shadow', !!host.querySelector('.org-shade-editor') && sel.value === 'speckle', sel && sel.value);
   sel.value = 'camo-maze'; sel.dispatchEvent(new Event('change', { bubbles: true })); await w(300);
   check('Shadow › Maze changes that colour\\'s shading', F.state.inkShades['#1c6b3a'].specks === 'camo-maze', F.state.inkShades['#1c6b3a'].specks);

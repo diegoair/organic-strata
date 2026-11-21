@@ -86,10 +86,34 @@ function shadeCtx() {
 }
 // The plates a shape of `hex` draws over its own fill: the first stop's plate is the shape's fill itself (unless
 // Reverse moved another colour there), so it is left out — TuneSutra's shapeInks.
-function shadePlatesFor(def, hex, w, h) {
-  const S = Organica.shading, ctx = shadeCtx(), own = String(hex).toLowerCase();
+function shadePlatesFor(def, hex, w, h, at) {
+  const S = Organica.shading, own = String(hex).toLowerCase();
+  const ctx = at ? Object.assign({}, shadeCtx(), { sheet: at.sheet, origin: { x: at.x, y: at.y } }) : shadeCtx();
   return S.plates(def, w, h, ctx).filter((pl, i) => i > 0 || String(pl.hex).toLowerCase() !== own);
 }
+// Wash over All the shapes (Diego, Nov 21, 2026: "posso decidere se questo effetto wash in FVS può essere applicato ad un
+// elemento o componente intero"): in a Component (drawComponentCanvas / buildComponentSVGBody set live.washSheet =
+// { w, h, m }) a wash spanning the sheet is ONE wash over the whole Component frame, every cell cutting its piece — the
+// cells turn, flip and scale, the wash does not. The shape's box goes through local → Component (L2C), its plates are
+// laid out there, and drawn back through the inverse. Elsewhere (the Element, a Symbol's own drawing) it is the shape's
+// own wash — with Light › Whole element that is already one wash across the Element.
+function washAcross(def, box, L2C) {
+  const W = live.washSheet;
+  if (!W || !L2C || !Organica.shading.isField(def) || Organica.shading.fieldParams(def).span !== 'sheet') return null;
+  const pts = [[box.x, box.y], [box.x + box.w, box.y], [box.x, box.y + box.h], [box.x + box.w, box.y + box.h]].map(([x, y]) => L2C.transformPoint(new DOMPoint(x, y)));
+  const x0 = Math.min(...pts.map(q => q.x)), y0 = Math.min(...pts.map(q => q.y)), x1 = Math.max(...pts.map(q => q.x)), y1 = Math.max(...pts.map(q => q.y));
+  if (!(x1 - x0 > 0 && y1 - y0 > 0)) return null;
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0, sheet: { x: 0, y: 0, w: W.w, h: W.h } };
+}
+// The local (shape-parent) → Component matrix of an SVG overlay: the cell's transform (live.washSheet.cell), then the
+// Element's stretch — the overlay sits inside the stretch group.
+function svgL2C() {
+  const W = live.washSheet;
+  if (!W || !W.cell) return null;
+  const a = getElementAppearance();
+  return appearanceIsIdentity(a) ? W.cell : W.cell.multiply(appearanceMatrix(a));
+}
+const matAttr = m => `matrix(${[m.a, m.b, m.c, m.d, m.e, m.f].map(v => +v.toFixed(5)).join(' ')})`;
 // A shape's box in its parent's units: its path through `build(m)` (a Paper matrix). Cached by key.
 const _shapeBoxCache = new Map();
 function shapeBox(key, d, build) {
@@ -124,16 +148,19 @@ function stackShadeBox(geo, l, g) {
 function shadeOverlaySVG(hex, d, t, fillRule, box) {
   const def = inkShade(hex);
   if (!def || !box) return '';
-  const plates = shadePlatesFor(def, hex, box.w, box.h);
+  const L2C = svgL2C(), at = washAcross(def, box, L2C), b = at || box;
+  const plates = shadePlatesFor(def, hex, b.w, b.h, at);
   if (!plates.some(p => p.d)) return '';
-  const id = 'shd' + nextDrawId();
+  const id = 'shd' + nextDrawId(), inner = `<g transform="translate(${r2(b.x)},${r2(b.y)})">${Organica.shading.platesSVG(plates, id)}</g>`;
   return `<clipPath id="${id}"><path d="${d}"${t ? ` transform="${t}"` : ''}${fillRule ? ` clip-rule="${fillRule}"` : ''}/></clipPath>`
-    + `<g clip-path="url(#${id})"><g transform="translate(${r2(box.x)},${r2(box.y)})">${Organica.shading.platesSVG(plates, id)}</g></g>`;
+    + `<g clip-path="url(#${id})">${at ? `<g transform="${matAttr(L2C.inverse())}">${inner}</g>` : inner}</g>`;
 }
 // Canvas: ctx already clipped to the shape; `box` the parent-space transform the box is measured in.
 function shadeOverlayCanvas(ctx, hex, parent, box) {
   const def = inkShade(hex);
   if (!def || !box) return;
+  const W = live.washSheet, at = W && W.m ? washAcross(def, box, W.m.inverse().multiply(parent)) : null;
+  if (at) { ctx.setTransform(W.m.translate(at.x, at.y)); Organica.shading.drawPlates(ctx, shadePlatesFor(def, hex, at.w, at.h, at)); return; }
   ctx.setTransform(parent.translate(box.x, box.y));
   Organica.shading.drawPlates(ctx, shadePlatesFor(def, hex, box.w, box.h));
 }
@@ -636,7 +663,9 @@ export function drawComponentCanvas(ctx, items, seed, size) {
     paintPaperPatternCanvas(ctx, dims.w, dims.h);
     const drawn = drawOrder(items);
     if (drawn.length > items.length) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, dims.w, dims.h); ctx.clip(); }   // a Seamless repeat: one period
-    drawItemsPlain(ctx, drawn, geo, path, dims.w, dims.h, state.componentBlend === 'multiply');
+    const prevWash = live.washSheet;
+    live.washSheet = { w: dims.w, h: dims.h, m: ctx.getTransform() };   // Wash over All the shapes: the Component frame
+    try { drawItemsPlain(ctx, drawn, geo, path, dims.w, dims.h, state.componentBlend === 'multiply'); } finally { live.washSheet = prevWash; }
     if (drawn.length > items.length) ctx.restore();
     if (shape) ctx.restore();
     return;
@@ -760,7 +789,11 @@ export function buildComponentSVGBody(items, seed, size) {
       // while renderComponentEditCanvas has it wrapped).
       // a pass paints ONE layer, but the parts' inks (Each part the next ink) count every part: they read the whole stack
       const whole = resolveItemGeo(it, geo), itGeo = pass || whole, paint = () => withItemParts(it, whole, () => elementPathMarkup(itGeo, it.color));
-      const markup = (it.content && it.content.appearance) ? withAppearance(it.content.appearance, paint) : paint();
+      // Wash over All the shapes: the cell's place in the Component frame (the <g> below, as a matrix)
+      const prevWash = live.washSheet;
+      live.washSheet = { w: dims.w, h: dims.h, cell: new DOMMatrix().translate(halfX + it.cx + (it.dx || 0), halfY + it.cy + (it.dy || 0)).rotate(it.rotation).scale(sx, sy).translate(-50, -50) };
+      let markup;
+      try { markup = (it.content && it.content.appearance) ? withAppearance(it.content.appearance, paint) : paint(); } finally { live.washSheet = prevWash; }
       const cell = `<g transform="translate(${(halfX + it.cx + (it.dx || 0)).toFixed(2)},${(halfY + it.cy + (it.dy || 0)).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
         + markup + `</g>`;
       const one = state.componentClip ? (() => { const cid = 'cellcut-' + nextDrawId(); return `<clipPath id="${cid}">${cellClipShape(it, halfX, halfY)}</clipPath><g clip-path="url(#${cid})">${cell}</g>`; })() : cell;
