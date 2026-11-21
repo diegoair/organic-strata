@@ -316,11 +316,33 @@
     });
     bar.addEventListener('focusin', e => { const k = e.target.closest('.org-stopbar__stop'); if (k) selectStop(+k.dataset.i); });
 
+    // The Wash starts from the palette's Colour mode (Diego, Nov 21, 2026: "il wash parte dal colour mode"): the first
+    // time a colour turns to Wash it takes the mode's Colour by and Mix, and its stops are the mode's colours — Inks: the
+    // palette dark → bright; Adaptive: the Ink → Paper pair; Solid: the stops it had. The colour itself stays one of the
+    // stops (put in by lightness when the mode's list leaves it out). ctx.wash = { by, space, stops } — from the tool
+    // (Organica.paletteKit, TuneSutra); without it the Wash's own defaults (Tone, OKLab).
+    function washStart(g) {
+      const W = ctxOf().wash, own = g.stops[S.colourStop(g)];
+      g.field = clone(S.FIELD_DEFAULT);
+      if (!W) return;
+      if (S.FIELD_BY.indexOf(W.by) >= 0) g.field.by = W.by;
+      if (W.space === 'srgb' || W.space === 'oklab') g.field.space = W.space;
+      const list = (W.stops || []).map(h => String(h).toLowerCase()).filter((h, i, a) => a.indexOf(h) === i);
+      if (list.length < 2 || S.isClear(own)) return;
+      let at = list.indexOf(String(own).toLowerCase());
+      if (at < 0) {
+        const L = h => Organica.color.hexToOklch(h).l, lo = L(own);
+        at = list.findIndex(h => L(h) > lo); if (at < 0) at = list.length;
+        list.splice(at, 0, own);
+      }
+      g.stops = list.slice(0, MAX_STOPS); g.pos = null; g.colourAt = Math.min(at, g.stops.length - 1); g.auto2 = false;
+    }
+
     // ── wiring ──
     host.querySelectorAll('[data-seg="type"] .seg-btn').forEach(b => b.addEventListener('click', () => {
       const v = b.dataset.v;
       if (cur().type === v) return;
-      edit('type', g => { g.type = v; if (v === 'field' && !g.field) g.field = clone(S.FIELD_DEFAULT); });
+      edit('type', g => { g.type = v; if (v === 'field' && !g.field) washStart(g); });
     }));
     host.querySelectorAll('[data-seg="span"] .seg-btn').forEach(b => b.addEventListener('click', () => {
       if (S.fieldParams(cur()).span === b.dataset.v) return;

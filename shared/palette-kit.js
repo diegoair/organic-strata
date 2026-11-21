@@ -71,7 +71,12 @@
     const K = stripHost.__paletteKit || (stripHost.__paletteKit = { at: 0, name: '', house: null, ed: null });
     K.o = o;
     const paper = () => (K.o.paper ? K.o.paper() : null) || '#ffffff';
-    const ctx = () => { const c = ctxOf(K.o.get().colors, paper()); return K.o.sheet ? Object.assign({}, c, { sheet: K.o.sheet() }) : c; };
+    // ctx.wash: the palette's Colour mode as a Wash starts from it (shade-editor washStart) — the tool's own mapping
+    // (o.mapping), else the one the palette came with (K.mapping, taken whole), else the defaults (Inks, Tone, by lightness)
+    const ctx = () => {
+      const colors = K.o.get().colors, c = Object.assign({}, ctxOf(colors, paper()), { wash: Organica.palettes ? Organica.palettes.washOf(colors, (K.o.mapping && K.o.mapping()) || K.mapping) : null });
+      return K.o.sheet ? Object.assign(c, { sheet: K.o.sheet() }) : c;
+    };
     const label = i => 'Palette colour ' + (i + 1);   // the chip's own name (palette.js)
     function repaint() { if (K.sw) { K.sw.rebuild(); K.sw.setActive(withShading ? K.at : null); } }
     function syncEditor() {
@@ -120,7 +125,7 @@
       },
       onPalette: pal => {
         const t = take(pal, max, K.o.order, cs => ctxOf(cs, paper()));
-        K.name = t.name; K.house = t.house; K.at = 0;
+        K.name = t.name; K.house = t.house; K.at = 0; K.mapping = t.mapping || null;
         K.o.set(withShading ? t : { colors: t.colors, mapping: t.mapping, name: t.name, house: t.house }, 'palette');
         K.sw.setColors(t.colors);   // the chips in the order taken (dark → bright with order 'ramp')
         repaint(); syncEditor();

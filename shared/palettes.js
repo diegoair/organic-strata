@@ -26,6 +26,7 @@
  *                order: [colour indices, dark → bright], pair: [ink i, paper i], space: 'oklab'|'srgb' } }
  *   P.mappingFor(hexes, m)   → a mapping made whole for those colours (defaults: RMX, Tone, by lightness, OKLab)
  *   P.rampOf(pal)            → the colours in the mapping's order — what a tool's RMX strip reads
+ *   P.washOf(hexes, m)       → { by, space, stops } — where a new Wash starts (shade-editor)
  * A starred palette comes out the same, with shading 'none' and no own shade: its base set is all there is.
  *
  * LOAD ORDER: core.js → (store.js) → color.js → shading.js → this → palette.js.
@@ -151,6 +152,13 @@
       pair: pairOk ? m.pair.slice() : [auto[0], auto[n - 1]],
       space: m.space === 'srgb' ? 'srgb' : 'oklab',
     };
+  }
+  // Where a Wash starts (Diego, Nov 21, 2026: "il wash parte dal colour mode" — shade-editor washStart): the mode's
+  // Colour by + Mix, and its colours — Inks: all, dark → bright; Adaptive: Ink → Paper; Solid: none (the stops stay).
+  function washOf(hexes, m) {
+    if (!hexes || !hexes.length) return null;
+    m = mappingFor(hexes, m);
+    return { by: m.mode === 'rmx' ? m.submode : 'tone', space: m.space, stops: m.mode === 'rmx' ? m.order.map(i => hexes[i]) : m.mode === 'adaptive' ? m.pair.map(i => hexes[i]) : null };
   }
   // The colours as a tool's RMX strip reads them: in the mapping's order (dark → bright).
   function rampOf(pal) {
@@ -283,5 +291,5 @@
   }
   function onChange(fn) { wire(); subs.add(fn); return () => subs.delete(fn); }
 
-  Organica.palettes = { list: list, get: get, mappingFor: mappingFor, rampOf: rampOf, MAP_MODES: MAP_MODES, MAP_SUBMODES: MAP_SUBMODES, pull: pull, onChange: onChange, saveAsNew: saveAsNew, nameFor: nameFor, ctx: ctx, roleName: roleName, ROLE_PARTS: ROLE_PARTS, ROLE_SETS: ROLE_SETS };
+  Organica.palettes = { list: list, get: get, mappingFor: mappingFor, washOf: washOf, rampOf: rampOf, MAP_MODES: MAP_MODES, MAP_SUBMODES: MAP_SUBMODES, pull: pull, onChange: onChange, saveAsNew: saveAsNew, nameFor: nameFor, ctx: ctx, roleName: roleName, ROLE_PARTS: ROLE_PARTS, ROLE_SETS: ROLE_SETS };
 })(typeof window !== 'undefined' ? window : this);

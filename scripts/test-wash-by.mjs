@@ -17,7 +17,7 @@ const check = (label, ok, detail) => { if (!ok) failed++; console.log((ok ? '  o
 // ── engine + editor (a public page, the shared scripts loaded by hand)
 await P.goto('/privacy/', 'true');
 await P.ev(`
-  for (const f of ['core.js', 'color.js', 'noise.js', 'shade-marks.js', 'shading.js', 'plate-export.js', 'shade-editor.js']) {
+  for (const f of ['core.js', 'color.js', 'noise.js', 'shade-marks.js', 'shading.js', 'plate-export.js', 'palettes.js', 'shade-editor.js']) {
     await new Promise((ok, no) => { const s = document.createElement('script'); s.src = '/shared/' + f + '?t=' + Date.now(); s.onload = ok; s.onerror = no; document.head.appendChild(s); });
   }`);
 const E = await P.ev(`
@@ -54,7 +54,21 @@ const E = await P.ev(`
   out.byEdit = S.fieldParams(def).by; ed.sync && ed.sync();
   out.mixRandom = q('[data-row="space"]').hidden;
   out.overNoSheet = q('[data-row="span"]').hidden;
+  // the Wash starts from the Colour mode: a flat colour turned to Wash takes ctx.wash (by, space, stops; the colour kept)
+  const host2 = document.createElement('div'); document.body.appendChild(host2);
+  let d2 = S.normalize({ type: 'flat', stops: ['#b5642f', '#3a1a08'] });
+  const wctx = { wash: Organica.palettes.washOf(['#f3e2b8', '#b5642f', '#2b1d16'], { mode: 'rmx', submode: 'posterize', space: 'srgb' }) };
+  const ed2 = Organica.shadeEditor.mount(host2, { hex: '#b5642f', ctx: wctx, edit: { get: () => d2, before: () => {}, after: () => {} } });
+  host2.querySelector('[data-seg="type"] [data-v="field"]').click();
+  out.start = { by: S.fieldParams(d2).by, space: S.fieldParams(d2).space, stops: d2.stops.join(' '), own: d2.stops[S.colourStop(d2)] };
+  // Adaptive: the pair, the colour put in by lightness
+  let d3 = S.normalize({ type: 'flat', stops: ['#b5642f', '#3a1a08'] });
+  const ed3 = Organica.shadeEditor.mount(document.body.appendChild(document.createElement('div')), { hex: '#b5642f', ctx: { wash: Organica.palettes.washOf(['#f3e2b8', '#b5642f', '#2b1d16', '#ffffff'], { mode: 'adaptive', pair: [2, 3] }) }, edit: { get: () => d3, before: () => {}, after: () => {} } });
+  document.body.lastChild.querySelector('[data-seg="type"] [data-v="field"]').click();
+  out.adaptive = d3.stops.join(' ') + ' @' + S.colourStop(d3);
   return out;`);
+check('the Wash starts from the Colour mode: its Colour by, Mix and colours dark → bright, the colour kept', E.start.by === 'posterize' && E.start.space === 'srgb' && E.start.stops === '#2b1d16 #b5642f #f3e2b8' && E.start.own === '#b5642f', JSON.stringify(E.start));
+check('…Adaptive: Ink → Paper, the colour put in by lightness', E.adaptive === '#2b1d16 #b5642f #ffffff @1', E.adaptive);
 check('Posterize: one band per stop, the stops\' own inks, no halftone mark', E.postBands === 4 && E.postInks.length === 4 && !E.postMix, E.postBands + ' bands (Tone ' + E.toneBands + '): ' + E.postInks.join(' '));
 check('Random and Tone + random: specks of the stops only', E.onlyStops && E.rndInks.length === 4 && E.trInks.length >= 3 && E.rndCells > 100, E.rndInks.length + ' / ' + E.trInks.length + ' inks, ' + E.rndCells + ' runs');
 check('Mix sRGB draws other colours than OKLab', E.mixDiffers);
@@ -73,7 +87,10 @@ const T = await P.ev(`
   // the house view, a shape picked
   const seg = document.querySelector('.bar-seg[data-z]'); out.house = !!seg;
   if (seg) { seg.dispatchEvent(new MouseEvent('click', { bubbles: true })); await w(300); }
+  const mb = document.getElementById('sel-map-by'); mb.value = 'random'; mb.dispatchEvent(new Event('change', { bubbles: true })); await w(300);
   ed.querySelector('[data-seg="type"] [data-v="field"]').click(); await w(300);
+  out.fromMode = ed.querySelector('[data-sel="by"]').value;
+  ed.querySelector('[data-sel="by"]').value = 'tone'; ed.querySelector('[data-sel="by"]').dispatchEvent(new Event('change')); await w(300);
   out.over = !ed.querySelector('[data-row="span"]').hidden;
   out.by = !!ed.querySelector('[data-sel="by"]') && !ed.querySelector('[data-row="by"]').hidden;
   const shades = () => [...document.querySelectorAll('#stage-svg g[clip-path^="url(#ts-sh"]')].map(g => g.innerHTML.replace(/ts-sh\\d+/g, '')).join('|');
@@ -84,6 +101,7 @@ const T = await P.ev(`
   ed.querySelector('[data-seg="span"] [data-v="shape"]').click(); await w(300);
   return out;`);
 check('TuneSutra: on the house the Wash shows Colour by and Wash over', T.house && T.over && T.by, JSON.stringify(T));
+check('TuneSutra: the Wash starts from the Colour mode (Colour by Random there → Random here)', T.fromMode === 'random', T.fromMode);
 check('TuneSutra: All the shapes draws other pieces than Each shape', T.changed, JSON.stringify(T));
 check('TuneSutra: no page errors', !P.errors.length, P.errors.splice(0).join(' | '));
 
@@ -105,10 +123,21 @@ const F = await P.ev(`
   try { F.drawComponentCanvas ? F.drawComponentCanvas(g, items, F.getSeed(), 200) : null; } catch (e) { err = String(e); }
   out.canvasErr = err; out.canvasFn = !!F.drawComponentCanvas;
   F.state.inkShades = {}; F.buildPalette && F.buildPalette();
+  // a TuneSutra palette taken whole, its Colour mode Tone + random: a colour turned to Wash starts from it
+  Organica.store('tunesutra').write({ 'Wash mode test': { n: 3, colors: ['#f3e2b8', '#2b1d16', '#b5642f'], names: ['Base', 'Secondary', 'Accent'], ids: ['a', 'b', 'c'], parts: ['main', 'sub', 'accent'], mapping: { mode: 'rmx', submode: 'tonernd', space: 'srgb' } } });
+  F.setTier('element'); await w(300);
+  [...document.querySelectorAll('#fvs-palette button')].pop().click(); await w(300);
+  const it = [...document.querySelectorAll('.pal-menu .preset-item')].find(b => b.textContent === 'Wash mode test');
+  if (it) { it.click(); await w(500); }
+  document.querySelector('#fvs-shade [data-seg="type"] [data-v="field"]').click(); await w(300);
+  const d = F.state.inkShades[F.state.colors[0]];
+  out.mode = d ? S.fieldParams(d).by + ' ' + S.fieldParams(d).space + ' ' + d.stops.join(' ') : 'none (' + !!it + ')';
+  F.state.inkShades = {}; F.buildPalette && F.buildPalette();
   return out;`);
 check('FVS: Wash over is shown', F.over === true, String(F.over));
 check('FVS: Each shape = the same wash in every cell', F.cells >= 4 && F.eachSame === 1, F.cells + ' pieces, ' + F.eachSame + ' distinct');
 check('FVS: All the shapes = one wash over the Component, a different piece per cell, drawn back through the cell', F.acrossDiffer >= 4 && F.matrix, F.acrossDiffer + ' distinct, matrix ' + F.matrix);
+check('FVS: a palette taken whole — a Wash starts from its Colour mode (Tone + random, sRGB, dark → bright)', /^tonernd srgb #2b1d16 #b5642f #f3e2b8$/.test(F.mode), F.mode);
 check('FVS: the canvas draws it', !F.canvasErr, (F.canvasFn ? '' : 'drawComponentCanvas not exposed; ') + F.canvasErr);
 check('FVS: no page errors', !P.errors.filter(e => !/Failed to load resource/.test(e)).length, P.errors.join(' | '));
 

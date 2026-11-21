@@ -877,7 +877,7 @@ function pickOnSheetColour(anchor) {
 function initGradient() {
   shadeEd = Organica.shadeEditor.mount(ctrl('ts-shade'), {
     hex: state.items[state.activeIndex].hex,
-    ctx: () => ({ tints: paletteTints(), paper: sheetTheme().paper, sheet: isGarmentView() ? houseSheet : null }),
+    ctx: () => ({ tints: paletteTints(), paper: sheetTheme().paper, sheet: isGarmentView() ? houseSheet : null, wash: washFromMode() }),
     edit: {
       get: G,
       before: key => pushUndo(key === 'stop' || key === 'type' || key === 'ink' ? 'grad-' + key : 'grad'),
@@ -1522,6 +1522,8 @@ function mappingNow() {
   return Organica.palettes.mappingFor(colors(), { mode: m.mode, submode: m.submode, space: m.space, order: full, pair: m.pair ? m.pair.map(idx) : null });
 }
 function mappingRecord() { return mappingNow(); }
+// The Wash starts from this Colour mode (Diego, Nov 21, 2026: "il wash parte dal colour mode") — shade-editor washStart
+function washFromMode() { return Organica.palettes.washOf(colors(), mappingNow()); }
 // The Colour mode section: its controls show state.mapping; a change is one Undo step ('mode'); the preview draws the
 // palette as a tool would (Organica.palette.colorAt — the tools' own math), a 0 → 1 tone ramp over a noise field.
 const MODE_PICK = {};   // the Ink / Paper pickers' registry: '0'…'8' → the palette's colours, refreshed in syncModeControls
