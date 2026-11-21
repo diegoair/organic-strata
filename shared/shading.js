@@ -111,8 +111,11 @@
     const soft = Object.assign({}, base, { type: 'flat', shadow: true, specks: 'smooth', amount: 60, depth: 25, falloff: 50 });   // a smooth shadow, no specks
     // Wash (Nov 21, 2026, evening — Diego: "mettilo in shadow … come se fosse un camo dither etc"): a Shading preset now,
     // not a Gradient Type. The colour and its 900 washed as soft clouds; it is the fill (type 'field'), no shadow on it.
-    const wash = Object.assign({}, base, { type: 'field', angle: 90, auto2: true, pos: null, field: Object.assign({}, FIELD_DEFAULT) });
-    const out = { soft: soft, speckle: speckle, print: soft, base: base, wash: wash };
+    // Its Colour by is the preset (Diego, Nov 21, 2026: "rendi le opzioni Color by dei presets … Wash una categoria come
+    // Camo"): wash (Tone) · wash-posterize · wash-random · wash-tonernd.
+    const washOf = by => Object.assign({}, base, { type: 'field', angle: 90, auto2: true, pos: null, field: Object.assign({}, FIELD_DEFAULT, { by: by }) });
+    const out = { soft: soft, speckle: speckle, print: soft, base: base, wash: washOf('tone') };
+    FIELD_BY.slice(1).forEach(by => { out['wash-' + by] = washOf(by); });
     Object.keys(TEXTURE_SIZE).forEach(t => { out[t] = Object.assign({}, speckle, { specks: t, speck: TEXTURE_SIZE[t], amount: 80 }); });
     return out;
   }

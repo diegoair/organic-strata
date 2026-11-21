@@ -45,14 +45,16 @@
     ['Pollen', [['pollen-dot', 'Dot'], ['pollen-stroke', 'Stroke'], ['pollen-cross', 'Cross-hatch']]],
     ['Camo', [['camo-spots', 'Spots'], ['camo-maze', 'Maze']]],
     [null, [['cells', 'Cells']]],
-    [null, [['wash', 'Wash']]],   // Nov 21, 2026 (evening): the Wash moved here from Gradient › Type
+    // Nov 21, 2026 (evening): the Wash moved here from Gradient › Type, a category whose entries are its Colour by
+    ['Wash', [['wash', 'Tone'], ['wash-posterize', 'Posterize'], ['wash-random', 'Random'], ['wash-tonernd', 'Tone + random']]],
   ];
   const SHADING_HINT = {
     none: 'No shadow', soft: 'A smooth shadow, no marks', speckle: 'Square specks', mottle: 'Specks in organic clumps',
     'dither-fs': 'Error diffusion, even grain', 'dither-blue': 'The smoothest grain', 'dither-bayer': 'A printed cross pattern',
     'pollen-dot': 'Dots, denser in shadow', 'pollen-stroke': 'Short strokes across the light', 'pollen-cross': 'Brush strokes, crossing as it darkens',
     'camo-spots': 'Spots that grow into the shadow', 'camo-maze': 'A labyrinth that thickens', cells: 'Cells filling from their centre',
-    wash: 'Soft clouds through the colour and its stops',
+    wash: 'Soft clouds blending through the stops', 'wash-posterize': 'Clouds in flat zones, one per stop',
+    'wash-random': 'Specks of the stops, scattered', 'wash-tonernd': 'The clouds in specks of the nearby stops',
   };
   // The Ink menu — TuneSutra's #sel-gink.
   const INK = [
@@ -112,13 +114,10 @@
       + `<button type="button" class="seg-btn" data-v="flat" title="One colour, no gradient">Flat</button><button type="button" class="seg-btn" data-v="linear">Linear</button><button type="button" class="seg-btn" data-v="radial">Radial</button></div></div>`
       + rangeRow(p, 'angle')
       + `<div data-block="field">`
-      + `<div class="ctrl-row" data-row="by"><div class="ctrl-label">Colour by</div><select class="panel-select" data-sel="by" aria-label="Colour by">`
-      + `<option value="tone">Tone</option><option value="posterize">Posterize</option><option value="random">Random</option><option value="tonernd">Tone + random</option></select></div>`
       + `<div class="ctrl-row" data-row="space"><div class="ctrl-label">Mix</div><div class="seg-ctrl" data-seg="space" role="group" aria-label="Mix">`
       + `<button type="button" class="seg-btn" data-v="srgb">sRGB</button><button type="button" class="seg-btn" data-v="oklab">OKLab</button></div></div>`
       + Object.keys(FIELD_RANGES).map(k => rangeRow(p + '-f', k, FIELD_RANGES)).join('')
-      + `<div data-row="span"><div class="sub-label">Wash over</div><div class="ctrl-row"><div class="seg-ctrl" data-seg="span" role="group" aria-label="Wash over">`
-      + `<button type="button" class="seg-btn" data-v="shape" title="The whole wash in every shape">Each shape</button><button type="button" class="seg-btn" data-v="sheet" title="One wash over the sheet, cut by the shapes">All the shapes</button></div></div></div></div>`
+      + `</div>`
       + `<div data-block="stops"><div class="sub-label">Stops</div>`
       + `<div class="org-stopbar" data-bar role="group" aria-label="Stops"><div class="org-stopbar__rail"></div></div>`
       + `<div class="row-btns"><button type="button" class="mini-btn" data-act="reverse">Reverse</button><button type="button" class="mini-btn" data-act="even">Space evenly</button></div></div>`
@@ -165,7 +164,7 @@
     // Shading: a preset's shadow (its texture, size, amount, depth, falloff) on the colour; the Gradient section's
     // fill (Type, Angle, stops) stays as it is — the two sections edit one definition side by side.
     function presetOf(g) {
-      if (g && S.isField(g)) return 'wash';
+      if (g && S.isField(g)) { const by = S.fieldParams(g).by; return by === 'tone' ? 'wash' : 'wash-' + by; }
       if (!g || !S.hasNoise(g)) return 'none';
       const t = g.specks === 'smooth' ? 'soft' : g.specks === 'specks' ? 'speckle' : g.specks;
       return [...selShading.options].some(o => o.value === t) ? t : '';
@@ -175,7 +174,11 @@
       const D = S.defs(hex, ctxOf());
       edit('shading', g => {
         // Wash is the fill itself (type 'field'), no shadow on it; leaving it, the fill goes back to Flat
-        if (mode === 'wash') { if (!S.isField(g)) { g.type = 'field'; washStart(g); } g.shadow = false; return; }
+        if (mode === 'wash' || mode.indexOf('wash-') === 0) {
+          if (!S.isField(g)) { g.type = 'field'; washStart(g); }
+          g.field = Object.assign(S.fieldParams(g), { by: mode === 'wash' ? 'tone' : mode.slice(5) });   // the rest of the Wash stays
+          g.shadow = false; return;
+        }
         if (S.isField(g)) g.type = 'flat';
         if (mode === 'none') { g.shadow = false; return; }
         const pre = D[mode], had = g.shadow;
@@ -353,15 +356,6 @@
       if (cur().type === v) return;
       edit('type', g => { g.type = v; });
     }));
-    host.querySelectorAll('[data-seg="span"] .seg-btn').forEach(b => b.addEventListener('click', () => {
-      if (S.fieldParams(cur()).span === b.dataset.v) return;
-      edit('field-span', g => { g.field = Object.assign(S.fieldParams(g), { span: b.dataset.v }); });
-    }));
-    $('[data-sel="by"]').addEventListener('change', e => {
-      const v = e.target.value;
-      if (S.FIELD_BY.indexOf(v) < 0 || !S.isField(cur())) return;
-      if (S.fieldParams(cur()).by !== v) edit('field-by', g => { g.field = Object.assign(S.fieldParams(g), { by: v }); });
-    });
     host.querySelectorAll('[data-seg="space"] .seg-btn').forEach(b => b.addEventListener('click', () => {
       if (S.fieldParams(cur()).space === b.dataset.v) return;
       edit('field-space', g => { g.field = Object.assign(S.fieldParams(g), { space: b.dataset.v }); });
@@ -417,13 +411,11 @@
       const g = cur(), uses = S.gradUses(g), shadow = S.hasNoise(g), own = g.stops[S.colourStop(g)];
       host.querySelectorAll('[data-hint]').forEach(h => { h.textContent = label; });
       host.querySelectorAll('[data-seg="type"] .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === g.type));
-      // The Wash is a Shading (Diego, Nov 21, 2026, evening: "toglilo dal gradient … mettilo in shadow come se fosse un
-      // camo dither"): with it, the Gradient section steps aside and the Wash's rows — Colour by, Mix, Angle, Size, Slope,
-      // Ripple, Seed, Wash over, then the Stops — sit in the Shadow section under the Shading menu (moved, not copied).
-      const washed = S.isField(g), gPart = $('[data-part="gradient"]'), angleRow = $('[data-row="angle"]'), stopsBlock = $('[data-block="stops"]');
-      gPart.hidden = washed;
-      if (washed && stopsBlock.parentNode !== washHome) { fieldBlock.insertBefore(angleRow, fieldBlock.querySelector('[data-row="size"]')); washHome.appendChild(stopsBlock); }
-      if (!washed && stopsBlock.parentNode === washHome) { gPart.appendChild(stopsBlock); gPart.insertBefore(angleRow, stopsBlock); }
+      // The Wash is a Shading (Diego, Nov 21, 2026, evening: "mettilo in shadow come se fosse un camo dither"): its Colour by
+      // is the menu's entry, its own rows (Mix, Size, Slope, Ripple, Seed) sit in the Shadow section under the menu. The
+      // Gradient section stays (Diego: "quando clicco wash gradient scompare è un bug"): its Angle and Stops are the
+      // wash's direction and colours; Type shows none while the Wash is the fill — Flat · Linear · Radial take it off.
+      // Wash over left (Diego: "abbiamo già questa feature") — a saved span still draws.
       Object.keys(RANGES).forEach(k => {
         const r = $('#' + p + '-' + k);
         // the enhanced slider's fill follows an 'input'; in edit mode the handler sees the same value and edits nothing
@@ -439,12 +431,8 @@
           if (document.activeElement !== r && +r.value !== +F[k]) { r.value = F[k]; r.dispatchEvent(new Event('input')); }
           $('#' + p + '-f-v-' + k).textContent = F[k] + (FIELD_RANGES[k].unit || '');
         });
-        host.querySelectorAll('[data-seg="span"] .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === F.span));
-        $('[data-sel="by"]').value = F.by;
         host.querySelectorAll('[data-seg="space"] .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === F.space));
         $('[data-row="space"]').hidden = F.by !== 'tone';   // Mix blends between the stops: only Tone blends
-        // a tool that gives no sheet (ctx.sheet) draws each shape's own wash: the row would do nothing there
-        $('[data-row="span"]').hidden = !ctxOf().sheet;
       }
       $('[data-block="stops"]').hidden = g.type === 'flat';
       $('[data-block="shadow"]').hidden = !shadow;

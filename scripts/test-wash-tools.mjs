@@ -47,12 +47,12 @@ const R = await P.ev(`
   const groups = svg => (svg.match(/<g clip-path="url\\(#rsh[^"]*\\)"><g transform="[^"]*">(.*?)<\\/g><\\/g>/g) || []).map(g => g.replace(/rsh[0-9a-z]+/g, '').replace(/<g transform="[^"]*">/, ''));
   setInkShade(Organica.shading.withColour(${WASH('shape')}, hex), hex); await w(200); const a = groups(currentSVG());
   setInkShade(Organica.shading.withColour(${WASH('sheet')}, hex), hex); if (typeof syncInkShadeEditor === 'function') syncInkShadeEditor(); await w(200); const b = groups(currentSVG());
-  out.over = !document.querySelector('#ink-shade [data-block="field"]').hidden && !document.querySelector('#ink-shade [data-row="span"]').hidden;
+  out.over = !document.querySelector('#ink-shade [data-block="field"]').hidden && !document.querySelector('#ink-shade [data-row="span"]');
   out.kb0 = Math.round(currentSVG().length / 1024); setInkShade(null, hex); await w(200); out.flatKb = Math.round(currentSVG().length / 1024);
   out.cells = a.length; out.acrossDiffer = new Set(b).size; out.kb = out.kb0;
   const t0 = performance.now(); renderPreview(); out.ms = Math.round(performance.now() - t0);
   return out;`);
-check('Radial: a Wash shows its rows, Wash over among them (the Wash is a Shading)', R.over === true, String(R.over));
+check('Radial: a Wash shows its rows (no Wash over any more — a saved span still draws)', R.over === true, String(R.over));
 check('Radial: Each shape = a wash per cell; All the shapes = one wash clipped by every cell', R.cells > 4 && R.acrossDiffer === 1 && R.kb < 2 * R.flatKb + 300, R.cells + ' cells → ' + R.acrossDiffer + ' wash, ' + R.kb + ' KB (flat ' + R.flatKb + ' KB), preview ' + R.ms + ' ms');
 check('Radial: no page errors', !P.errors.length, P.errors.splice(0).join(' | '));
 

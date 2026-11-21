@@ -50,21 +50,25 @@ const E = await P.ev(`
   const q = s => host.querySelector(s), shSel = q('select[aria-label="Shading"]');
   out.inType = !!q('[data-seg="type"] [data-v="field"]');
   out.inMenu = [...shSel.options].some(o => o.value === 'wash');
+  out.cat = [...shSel.querySelectorAll('optgroup')].filter(g => g.label === 'Wash').map(g => [...g.children].map(o => o.textContent).join(' · ')).join();
   shSel.value = 'wash'; shSel.dispatchEvent(new Event('change'));
-  const shadowPart = q('[data-part="shadow"]');
-  out.chosen = flat.type === 'field' && !flat.shadow && q('[data-part="gradient"]').hidden && shSel.value === 'wash';
-  out.rowsInShadow = ['[data-row="by"]', '[data-row="angle"]', '[data-row="size"]', '[data-row="span"]', '[data-block="stops"]'].every(k => shadowPart.contains(q(k)) && !q(k).hidden);
-  const bySel = q('[data-sel="by"]'); bySel.value = 'posterize'; bySel.dispatchEvent(new Event('change'));
-  out.byEdit = S.fieldParams(flat).by;
+  const shadowPart = q('[data-part="shadow"]'), gradPart = q('[data-part="gradient"]');
+  out.chosen = flat.type === 'field' && !flat.shadow && !gradPart.hidden && shSel.value === 'wash' && !q('[data-seg="type"] .seg-btn.active');
+  out.rowsInShadow = ['[data-row="space"]', '[data-row="size"]', '[data-row="seed"]'].every(k => shadowPart.contains(q(k)) && !q(k).hidden)
+    && gradPart.contains(q('[data-row="angle"]')) && !q('[data-row="angle"]').hidden && gradPart.contains(q('[data-block="stops"]')) && !q('[data-block="stops"]').hidden
+    && !q('[data-row="span"]') && !q('[data-sel="by"]');
+  shSel.value = 'wash-posterize'; shSel.dispatchEvent(new Event('change'));
+  out.byEdit = S.fieldParams(flat).by + '/' + shSel.value + '/' + (q('[data-row="space"]').hidden ? 'nomix' : 'mix');
   shSel.value = 'camo-maze'; shSel.dispatchEvent(new Event('change'));
-  out.leave = flat.type === 'flat' && flat.shadow && flat.specks === 'camo-maze' && !q('[data-part="gradient"]').hidden && q('[data-part="gradient"]').contains(q('[data-block="stops"]')) && q('[data-block="field"]').hidden;
+  out.leave = flat.type === 'flat' && flat.shadow && flat.specks === 'camo-maze' && !q('[data-part="gradient"]').hidden && q('[data-block="field"]').hidden;
   // Organica.palettes.washOf (kept for the Wash's new place): Inks dark → bright, Adaptive Ink → Paper, Solid none
   const W = Organica.palettes.washOf, hx = ['#f3e2b8', '#b5642f', '#2b1d16', '#ffffff'];
   out.washOf = [W(hx, { mode: 'rmx', submode: 'posterize' }), W(hx, { mode: 'adaptive', pair: [2, 3] }), W(hx, { mode: 'solid' })].map(x => x.by + ':' + (x.stops ? x.stops.join(',') : '-')).join(' | ');
   return out;`);
-check('Wash is gone from Gradient › Type and is in the Shading menu', !E.inType && E.inMenu, JSON.stringify({ inType: E.inType, inMenu: E.inMenu }));
-check('…chosen: the fill is a Wash, no shadow on it, the Gradient section steps aside', E.chosen);
-check('…its rows (Colour by, Angle, Size, Wash over, Stops) sit in the Shadow section, and edit it', E.rowsInShadow && E.byEdit === 'posterize', JSON.stringify({ rows: E.rowsInShadow, by: E.byEdit }));
+check('Wash is gone from Gradient › Type and is a Shading category: Tone · Posterize · Random · Tone + random', !E.inType && E.cat === 'Tone · Posterize · Random · Tone + random', JSON.stringify({ inType: E.inType, cat: E.cat }));
+check('…chosen: the fill is a Wash, no shadow on it; the Gradient stays, no Type lit', E.chosen);
+check('…Mix, Size, Seed in the Shadow section; Angle and Stops in the Gradient; no Wash over, no Colour by select', E.rowsInShadow, String(E.rowsInShadow));
+check('…another Wash entry changes its Colour by (Posterize: no Mix)', E.byEdit === 'posterize/wash-posterize/nomix', E.byEdit);
 check('…another Shading (Camo › Maze) takes it off: a Flat fill with that shadow, the Gradient back', E.leave);
 check('Organica.palettes.washOf: Inks dark → bright, Adaptive Ink → Paper, Solid none', E.washOf === 'posterize:#2b1d16,#b5642f,#f3e2b8,#ffffff | tone:#2b1d16,#ffffff | tone:-', E.washOf);
 check('Posterize: one band per stop, the stops\' own inks, no halftone mark', E.postBands === 4 && E.postInks.length === 4 && !E.postMix, E.postBands + ' bands (Tone ' + E.toneBands + '): ' + E.postInks.join(' '));
@@ -93,12 +97,12 @@ const T = await P.ev(`
   delete state.items[i].shade; renderStage();
   // the Shading menu: Wash on the selected shape
   const shSel = ed.querySelector('select[aria-label="Shading"]');
-  shSel.value = 'wash'; shSel.dispatchEvent(new Event('change')); await w(400);
-  out.picked = shSel.value === 'wash' && ed.querySelector('[data-part="gradient"]').hidden && !ed.querySelector('[data-row="span"]').hidden;
+  shSel.value = 'wash-random'; shSel.dispatchEvent(new Event('change')); await w(400);
+  out.picked = shSel.value === 'wash-random' && !ed.querySelector('[data-part="gradient"]').hidden && !ed.querySelector('[data-row="size"]').hidden;
   out.drawn = document.querySelectorAll('#stage-svg g[clip-path^="url(#ts-sh"]').length;
   shSel.value = 'none'; shSel.dispatchEvent(new Event('change')); await w(300);
   return out;`);
-check('TuneSutra: no Colour mode section; Shading › Wash on a shape draws it, its rows in the Shadow section (Wash over: the house)', T.noMode && T.picked && T.drawn > 0, JSON.stringify(T));
+check('TuneSutra: no Colour mode section; Shading › Wash › Random on a shape draws it, its rows shown, the Gradient kept', T.noMode && T.picked && T.drawn > 0, JSON.stringify(T));
 check('TuneSutra: a saved Wash still draws — All the shapes (the house as its sheet) other pieces than Each shape', T.changed, JSON.stringify(T));
 check('TuneSutra: no page errors', !P.errors.length, P.errors.splice(0).join(' | '));
 
