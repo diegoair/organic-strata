@@ -5,14 +5,13 @@
    independent copies found duplicating the RMX chip pattern (itself
    ported from Membrane's own, which ported Camo Turing's original).
 
-   Max stays 8 (raised from Membrane's 5, itself a leftover of Camo
-   Turing's fixed-size GLSL uniform array — a real hardware constraint
-   that doesn't apply here; Vortex's colour is a plain `i % colors.length`
-   cycle with no array-size bound). Min stays 2.
+   Max 9, the same as every Organica tool (Diego, Nov 21, 2026; it was 8);
+   Vortex's colour is a plain `i % colors.length` cycle with no array-size
+   bound. Min stays 2.
    ───────────────────────────────────────────────────────────── */
 import { state } from './state.js';
 
-const COLORS_MAX = 8;
+const COLORS_MAX = 9;
 
 export function colorAt(i) {
   return state.colors[i % state.colors.length];

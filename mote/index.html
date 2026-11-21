@@ -194,7 +194,7 @@
       <div class="ctrl-row">
         <div class="seg-ctrl" id="seg-color">
           <button class="seg-btn active" data-v="solid" onclick="setColor('solid')">Solid</button>
-          <button class="seg-btn" data-v="adaptive" onclick="setColor('adaptive')">Adapt</button>
+          <button class="seg-btn" data-v="adaptive" onclick="setColor('adaptive')">Adaptive</button>
           <button class="seg-btn" data-v="rmx" onclick="setColor('rmx')">RMX</button>
           <button class="seg-btn" data-v="video" onclick="setColor('video')">Video</button>
         </div>
@@ -228,7 +228,7 @@
         <input class="color-hex" maxlength="7" id="hex-paper" value="#f4f1e8">
       </div>
       <div class="ctrl-row"><div class="ctrl-label">Alpha</div><input type="range" id="a-ink" min="10" max="100" step="1" value="100"><span class="ctrl-val" data-for="a-ink">100</span></div>
-      <div class="ctrl-row" id="row-minink" hidden><div class="ctrl-label" title="Adapt only: stops a mark blending all the way to the Paper colour, so saturated bright areas keep visible marks.">Min ink</div><input type="range" id="sl-minink" min="0" max="80" step="1" value="0"><span class="ctrl-val" data-for="sl-minink">0</span></div>
+      <div class="ctrl-row" id="row-minink" hidden><div class="ctrl-label" title="Adaptive only: stops a mark blending all the way to the Paper colour, so saturated bright areas keep visible marks.">Min ink</div><input type="range" id="sl-minink" min="0" max="80" step="1" value="0"><span class="ctrl-val" data-for="sl-minink">0</span></div>
     </div>
 
     <!-- ══ TONE ══ -->
@@ -402,6 +402,7 @@ let camStream = null, mirrorOn = false;
 let workW = 0, workH = 0;
 let mode = 'A', colorMode = 'solid', pointShape = 'dot';
 let rmxColors = ['#2a1a12', '#8c3b1e', '#d9822b', '#f2c14e', '#f6e8c3'];
+const RMX_COLORS_MAX = 9;   // every tool takes up to 9 colours (Diego, Nov 21, 2026); an older or hand-made preset is clamped to it
 let rmxChips = null;
 let basePoints = null, points = [], targetCount = 0, lastC = [], lastPaintedPts = [];
 let running = false, loopId = 0, curField = null, recording = false;
@@ -1274,7 +1275,7 @@ function presetToParams(P) {
     lightDropout: (P.dropout || 0) / 100,
     colorMode: P.cm || 'solid', ink: P.ink || '#0a0a0a', bg: P.bg || '#f4f1e8', alpha: 1,
     minInk: (P.minInk || 0) / 100,
-    rmxColors: (P.rmx || rmxColors).slice(), rmxMap: P.map || 'tone',
+    rmxColors: (P.rmx || rmxColors).slice(0, RMX_COLORS_MAX), rmxMap: P.map || 'tone',
     strokeLen: P.strokeLen || 12, strokeSeg: P.strokeSeg || 8, strokeWarp: P.strokeWarp || 0.2,
     strokeRound: P.round !== false,
     angleFlow: !!P.flow, angleRandom: !!P.rndAngle, angleRange: !!P.angleRange,
@@ -1336,7 +1337,7 @@ function applyPreset(key) {
   if (P.detail != null) $('sl-detail').value = P.detail;
   if (P.ink) { $('cp-ink').value = P.ink; $('hex-ink').value = P.ink; swInk.set(P.ink); }
   if (P.bg)  { $('cp-paper').value = P.bg; $('hex-paper').value = P.bg; swPaper.set(P.bg); }
-  if (P.rmx) { rmxColors = P.rmx.slice(); if (rmxChips) rmxChips.setColors(rmxColors); }
+  if (P.rmx) { rmxColors = P.rmx.slice(0, RMX_COLORS_MAX); if (rmxChips) rmxChips.setColors(rmxColors); }
   if (P.map) $('sel-rmx-map').value = P.map;
   setShape(P.shape || 'dot');
   if (pointShape === 'line') {
@@ -1405,7 +1406,7 @@ function resetZoom() { zoomPan.reset(); }
 const swInk = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: repaintStill });
 const swPaper = Organica.palette.swatch('paper', { initial: '#f4f1e8', onChange: repaintStill });
 rmxChips = Organica.palette.swatch($('rmx-palette'), {
-  colors: rmxColors, min: 2, max: 8,
+  colors: rmxColors, min: 2, max: RMX_COLORS_MAX,
   onChange: c => { rmxColors = c; repaintStill(); },
 });
 

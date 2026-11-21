@@ -374,7 +374,6 @@
     <div class="panel-section">
       <h3>Colour <span class="hint">live</span></h3>
       <div class="ctrl-row">
-        <span class="ctrl-label">Mode</span>
         <div class="seg-ctrl" id="colormode-seg">
           <button class="seg-btn active" data-val="solid" onclick="setColorMode('solid')">Solid</button>
           <button class="seg-btn" data-val="adaptive" onclick="setColorMode('adaptive')">Adaptive</button>
@@ -382,7 +381,7 @@
         </div>
       </div>
 
-      <!-- RMX palette: up to 5 colours assigned by a chosen mapping -->
+      <!-- RMX palette: up to 9 colours assigned by a chosen mapping -->
       <div id="rmx-color-block" hidden>
         <div class="ctrl-row mb-2">
           <span class="ctrl-label">Palette</span>
@@ -581,10 +580,10 @@ let rmxSlot = 0;                     // active slot to fill from the grid
 let strokeStyle = 'line';
 function setStrokeStyle(v) { strokeStyle = v; segActive('strokestyle-seg', v); render(); }
 
-// ── RMX COLORS: a palette of up to 5 colours, assigned by a chosen mapping ──
+// ── RMX COLORS: a palette of up to 9 colours, assigned by a chosen mapping ──
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
 let rmxColorMap = 'tone';            // 'tone' | 'posterize' | 'random' | 'tonernd'
-const RMX_COLORS_MAX = 5;
+const RMX_COLORS_MAX = 9;
 
 // ── SHAPE LIBRARY ──
 // Curated "primordial" subset of the centralized Genesis forms (window.ORGANIC_FORMS),
@@ -855,7 +854,7 @@ function setState(s) {
   PRESET_SLIDERS.forEach(id => { if (s[id] !== undefined) { ctrl(id).value = s[id]; syncVal(ctrl(id), 'vl' + id.slice(2)); } });
   PRESET_CHECKS.forEach(id => { if (s[id] !== undefined) { ctrl(id).checked = s[id]; if (RANGE_ROWS[id]) toggleRow(RANGE_ROWS[id], s[id]); } });
   // RMX (shapes + colours) — restore before colour mode so palette/slots reflect
-  if (Array.isArray(s.rmxColors)) rmxColors = s.rmxColors.slice();
+  if (Array.isArray(s.rmxColors)) rmxColors = s.rmxColors.slice(0, RMX_COLORS_MAX);   // an older or hand-made preset never holds more than the strip takes
   if (s.rmxColorMap) { rmxColorMap = s.rmxColorMap; const ms = document.getElementById('sel-rmx-map'); if (ms) ms.value = rmxColorMap; }
   if (Array.isArray(s.rmxForms)) rmxForms = s.rmxForms.slice();
   if (s.rmxOn !== undefined) {
@@ -1014,7 +1013,7 @@ function hexToRgb(hex) {
   return { r, g, b };
 }
 // Per-point colour: Solid → Point; Adaptive → lerp(Point, BG) by brightness;
-// RMX → a palette of up to 5 colours assigned by the chosen mapping.
+// RMX → a palette of up to 9 colours assigned by the chosen mapping.
 // Delegates the colour math to the shared Organica.palette module
 // (see shared/palette.js) — Spore and Camo Turing call the same
 // colorAt() so a fix here reaches all three instead of drifting again.

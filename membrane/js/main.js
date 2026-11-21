@@ -374,7 +374,7 @@ ctrl('chk-fill').addEventListener('change', e => { state.fillEachFrame = e.targe
 // own original). state
 // stays the live source of truth (render.js/svgexport.js read
 // state.rmxColors directly each frame), kept in sync via onChange.
-const RMX_COLORS_MAX = 5;
+const RMX_COLORS_MAX = 9;
 Organica.palette.swatch(ctrl('rmx-palette'), {
   colors: state.rmxColors,
   min: 2,

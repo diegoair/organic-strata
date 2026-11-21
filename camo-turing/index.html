@@ -584,7 +584,7 @@
           <svg class="ico ico--sm" data-icon="dice" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/></svg>
         </button>
       </div>
-      <p class="org-panel__hint" id="colormode-hint">Solid: the field’s own threshold decides ink vs paper, same as Duotone everywhere else in Organica. Adaptive: a smooth blend between Ink and Paper by the field’s own value, no hard edge. RMX: up to 5 colours mapped across the field — Tone blends them like a gradient, Posterize bands them, Random/Tone+Random add a hashed jitter (a texture, not per-blob colour — the field is continuous, not discrete marks like Pollen’s stipple points).</p>
+      <p class="org-panel__hint" id="colormode-hint">Solid: the field’s own threshold decides ink vs paper, same as Duotone everywhere else in Organica. Adaptive: a smooth blend between Ink and Paper by the field’s own value, no hard edge. RMX: up to 9 colours mapped across the field — Tone blends them like a gradient, Posterize bands them, Random/Tone+Random add a hashed jitter (a texture, not per-blob colour — the field is continuous, not discrete marks like Pollen’s stipple points).</p>
     </div>
 
   </div><!-- /panel -->
@@ -637,6 +637,12 @@
 // changes, not the shell.
 // ─────────────────────────────────────────────
 import * as THREE from '/shared/vendor/three.module.js';
+// Colours stay the sRGB values the user picked, end to end: THREE.Color(hex) keeps the hex's own components, the
+// display shader mixes them in sRGB and writes them out as they are — so the canvas shows #e94f37 as #e94f37 and
+// the RMX / Adaptive blends equal Organica.palette.colorAt (sRGB lerp). With colour management on (three's default
+// since r152) the hex was turned linear and the ShaderMaterials wrote the linear value raw: every colour on the
+// canvas came out darker than its swatch (#808040 drew as #37370d) and the SVG bands disagreed with it.
+THREE.ColorManagement.enabled = false;
 
 function ctrl(id) { return document.getElementById(id); }
 function val(id) { return parseFloat(ctrl(id).value); }
@@ -792,7 +798,7 @@ void main() {
 }`;
 
 // Pollen's own Solid/Adaptive/RMX palette system, reused verbatim (same
-// three modes, same Point/BG + up-to-5 RMX swatches + Tone/Posterize/
+// three modes, same Point/BG + up-to-9 RMX swatches + Tone/Posterize/
 // Random/Tone+Random mapping) — remapped from "image brightness" (what
 // Pollen colours by) to the reaction-diffusion field's own value (A−B),
 // since that's this tool's equivalent of "brightness". uColorMode/
@@ -806,7 +812,7 @@ uniform sampler2D uState;
 uniform vec3 uInk, uPaper;
 uniform float uThreshold;
 uniform float uColorMode;      // 0 solid, 1 adaptive, 2 rmx
-uniform vec3 uPalette[5];
+uniform vec3 uPalette[9];
 uniform float uPaletteCount;
 uniform float uMapping;        // 0 tone, 1 posterize, 2 random, 3 tone+random
 uniform float uTileN;          // live tile-preview repeat count — uState's RepeatWrapping does the rest
@@ -823,9 +829,11 @@ uniform float uPaperImgOn;
 uniform float uPaperImgInvert;   // 0 = image shows where Paper would (background); 1 = image shows only through Ink (stencil), Paper stays flat
 uniform vec2 uPaperImgScale, uPaperImgOffset;
 
-float hash1(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-}
+// Random / Tone + Random's rnd: one value per 48×48 cell of the field, read from uRnd — a table built once in
+// JS (rndTable), so the SVG export reads the very same numbers. A GLSL sin-hash cannot match its JS twin: float32
+// rounds sin(254.2)·43758 to another fraction. RepeatWrapping: a tiled preview repeats the cells, like the tiles.
+uniform sampler2D uRnd;
+float rndAt(vec2 uv) { return texture2D(uRnd, (floor(uv * 48.0) + 0.5) / 48.0).r; }
 // Real bug, found by testing: Adaptive (and every RMX mapping that isn't
 // Random, since they all read the same t value below) clamped v to [0,1] as
 // if the field's meaningful range WAS [0,1] — a leftover of porting this
@@ -841,30 +849,34 @@ vec3 paletteAt(int idx) {
   else if (idx == 1) return uPalette[1];
   else if (idx == 2) return uPalette[2];
   else if (idx == 3) return uPalette[3];
-  else return uPalette[4];
+  else if (idx == 4) return uPalette[4];
+  else if (idx == 5) return uPalette[5];
+  else if (idx == 6) return uPalette[6];
+  else if (idx == 7) return uPalette[7];
+  else return uPalette[8];
 }
+// Organica.palette.colorAt / rmxIndex (shared/palette.js) in GLSL — one RMX
+// math across the suite (Diego, Nov 21, 2026; it was Camo's own lineage
+// before: posterize = floor, tone+random = a ±1.5 jittered blend).
+// rnd is a hash per 48×48 cell of the field (the field is continuous,
+// unlike Pollen's points); scripts/test-rmx.mjs checks this against colorAt.
 vec3 rmxColor(float score, vec2 uv) {
-  int count = int(uPaletteCount);
-  if (count <= 1) return uPalette[0];
-  float t = score * float(count - 1);
-  int i0 = int(floor(t));
-  int i1 = i0 + 1; if (i1 > count - 1) i1 = count - 1;
-  float f = fract(t);
-  if (uMapping < 0.5) {                    // Tone — smooth gradient across the palette
-    return mix(paletteAt(i0), paletteAt(i1), f);
-  } else if (uMapping < 1.5) {             // Posterize — hard bands
-    return paletteAt(i0);
-  } else if (uMapping < 2.5) {             // Random — hashed per cell; a texture, not per-blob colour (the field is continuous, unlike Pollen's discrete stipple points)
-    float h = hash1(floor(uv * 48.0));
-    int ri = int(floor(h * float(count)));
-    if (ri > count - 1) ri = count - 1;
-    return paletteAt(ri);
-  } else {                                  // Tone + Random — gradient position jittered by noise
-    float h = hash1(floor(uv * 48.0)) - 0.5;
-    float tt = clamp(t + h * 1.5, 0.0, float(count - 1));
-    int j0 = int(floor(tt)); int j1 = j0 + 1; if (j1 > count - 1) j1 = count - 1;
-    return mix(paletteAt(j0), paletteAt(j1), fract(tt));
+  int n = int(uPaletteCount + 0.5);
+  if (n <= 1) return uPalette[0];
+  float last = float(n - 1);
+  float s = clamp(score, 0.0, 1.0);
+  if (uMapping < 0.5) {                    // Tone — smooth lerp between the two adjacent stops
+    float pos = s * last;
+    int i0 = int(clamp(floor(pos), 0.0, last));
+    int i1 = i0 + 1; if (i1 > n - 1) i1 = n - 1;
+    return mix(paletteAt(i0), paletteAt(i1), pos - float(i0));
   }
+  float rnd = rndAt(uv);
+  float idx;
+  if (uMapping < 1.5) idx = floor(s * last + 0.5);                          // Posterize — nearest stop
+  else if (uMapping < 2.5) idx = min(last, floor(rnd * float(n)));           // Random — one stop per cell
+  else idx = floor(s * last + (rnd - 0.5) * 1.2 + 0.5);                      // Tone + Random — jittered, then the nearest stop
+  return paletteAt(int(clamp(idx, 0.0, last)));
 }
 // Sampled at the plain (untiled) vUv, not uvT — a background photo
 // shouldn't fracture into uTileN copies just because the PATTERN repeats;
@@ -1032,6 +1044,7 @@ void main() {
 let gridW = 256, gridH = 256;
 const MASK_N = 256;
 let renderer, quad;
+let rndTable, rndTex;   // Random / Tone + Random's 48×48 rnd — see DISPLAY_FRAG's rndAt
 let simScene, simMat, dispScene, dispMat, seedScene, seedMat, copyScene, copyMat;
 let maskFillScene, maskFillMat, defaultMaskTex, emptyMaskTex;
 let twoSeedScene, twoSeedMat;   // experimental probe — see TWO_SEED_FRAG
@@ -1133,6 +1146,12 @@ function initGL() {
   // Default mask: a 1×1 fully-opaque white texture, so Confine/Boundary
   // read m=1.0 EVERYWHERE until a real seed shape is applied — "no shape
   // yet" behaves as "the whole canvas is inside", not an undefined texture.
+  rndTable = new Float32Array(48 * 48);
+  for (let cy = 0; cy < 48; cy++) for (let cx = 0; cx < 48; cx++) rndTable[cy * 48 + cx] = hash1JS(cx, cy);
+  rndTex = new THREE.DataTexture(rndTable, 48, 48, THREE.RedFormat, THREE.FloatType);
+  rndTex.wrapS = rndTex.wrapT = THREE.RepeatWrapping;
+  rndTex.magFilter = rndTex.minFilter = THREE.NearestFilter;
+  rndTex.needsUpdate = true;
   defaultMaskTex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat);
   defaultMaskTex.needsUpdate = true;
   // Opposite meaning, needed separately — Two shapes' "leave this
@@ -1188,9 +1207,10 @@ function initGL() {
       uPaper: { value: new THREE.Color(ctrl('hex-paper').value) },
       uThreshold: { value: 0.5 },
       uColorMode: { value: 0.0 },
-      uPalette: { value: [new THREE.Color(0x1a1a2e), new THREE.Color(0xe94f37), new THREE.Color(0xf6e8c3), new THREE.Color(0xffffff), new THREE.Color(0x000000)] },
+      uPalette: { value: ['#1a1a2e', '#e94f37', '#f6e8c3', '#ffffff', '#000000', '#000000', '#000000', '#000000', '#000000'].map(h => new THREE.Color(h)) },
       uPaletteCount: { value: 3.0 },
       uMapping: { value: 0.0 },
+      uRnd: { value: rndTex },
       uTileN: { value: 1.0 },
       uStateRef: { value: defaultMaskTex },   // placeholder until a Diff snapshot is taken; harmless since uDiffOn gates the branch that reads it
       uDiffOn: { value: 0.0 },
@@ -1914,7 +1934,7 @@ const swatches = {};
 // ── COLOR MODE — Solid / Adaptive / RMX, Pollen's own three modes. ──
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];
 let rmxColorMap = 'tone';
-const RMX_COLORS_MAX = 5;
+const RMX_COLORS_MAX = 9;
 
 function setColorMode(mode) {
   ctrl('seg-colormode').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === mode));
@@ -1928,7 +1948,7 @@ function setColorMode(mode) {
 // in from organica-palette-chip.js, 2026-08-29) — this was one of the 6
 // independent copies found duplicating
 // it (Camo Turing was the original). rmxColors stays a live module-scoped
-// array (SVG export at buildRandomGridSVG/rmxLerpColor reads it directly),
+// array (SVG export at buildRandomGridSVG/rmxAt reads it directly),
 // kept in sync via the chip factory's onChange.
 let rmxChips = null;
 function buildRmxPalette() {
@@ -2783,36 +2803,21 @@ function organicPathD(mask, W, H, block) {
   }
   return d;
 }
-function svgToHex(c) {
-  const h = v => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0');
-  return '#' + h(c.r) + h(c.g) + h(c.b);
-}
-
 // JS mirror of DISPLAY_FRAG's remapV() — see that comment. v = A-B runs
 // slightly below 0 in practice, not just 0..1; this stretches the real
 // range into 0..1 instead of clamping negative pixels flat.
 function remapVJS(v) { return Math.max(0, Math.min(1, (v + 0.25) / 1.25)); }
-// JS mirror of DISPLAY_FRAG's hash1(vec2) — same formula, same inputs
-// (integer cell coords from floor(vUv*48.0)), so export picks the exact
-// same per-cell colour/jitter the shader picked, not an approximation.
+// The per-cell hash rndTable is built from (cell coords as floor(vUv*48.0); row 0 = the bottom, vUv.y = 0).
+// The shader reads the table (uRnd), the export reads rndAt — the same numbers, not a re-derived hash.
+function rndAt(cx, cy) { return rndTable[cy * 48 + cx]; }
 function hash1JS(x, y) {
   const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
   return s - Math.floor(s);
 }
-// JS mirror of paletteAt()+the Tone mix — continuous position p in
-// [0, colors.length-1] across an arbitrary-length palette.
-// Deliberately NOT Organica.palette.mix / palette.colorAt: THREE.Color.lerp
-// interpolates in the renderer's working (linear) colour space — same as
-// DISPLAY_FRAG's own mix() — so the SVG export's band colours match the
-// WebGL canvas. palette.mix lerps raw sRGB components, which would drift
-// the mid-band colours away from what the shader shows.
-function rmxLerpColor(colors, p) {
-  const count = colors.length;
-  if (count <= 1) return colors[0];
-  p = Math.max(0, Math.min(count - 1, p));
-  const i0 = Math.floor(p), i1 = Math.min(i0 + 1, count - 1), f = p - i0;
-  const c0 = new THREE.Color(colors[i0]), c1 = new THREE.Color(colors[i1]);
-  return svgToHex(c0.clone().lerp(c1, f));
+// RMX colours for the SVG export: Organica.palette.colorAt / rmxIndex, the same math the shader runs
+// (DISPLAY_FRAG's rmxColor) — no second copy here.
+function rmxAt(score, rnd, submode) {
+  return Organica.palette.colorAt(score, { mode: 'rmx', colors: rmxColors, submode, rnd });
 }
 // Random's hashed grid is fixed at 48×48 UV cells regardless of gridW/
 // gridH or export scale — see DISPLAY_FRAG's `floor(vUv * 48.0)`. Each
@@ -2830,9 +2835,7 @@ function buildRandomGridSVG(outW, outH, colors) {
   for (let cy = 0; cy < N; cy++) {
     const svgY = outH * (1 - (cy + 1) / N);
     for (let cx = 0; cx < N; cx++) {
-      const h = hash1JS(cx, cy);
-      let ri = Math.floor(h * count);
-      if (ri > count - 1) ri = count - 1;
+      const ri = Organica.palette.rmxIndex(0, rndAt(cx, cy), colors, 'random');
       const svgX = outW * (cx / N);
       s += `<rect x="${r2(svgX)}" y="${r2(svgY)}" width="${r2(cellW)}" height="${r2(cellH)}" fill="${colors[ri]}"/>`;
     }
@@ -2909,7 +2912,7 @@ function buildExportSVGString() {
   const remap = isFinal ? (v => v) : remapVJS;   // see readCompositedScoreField's own note
 
   const colorMode = dispMat.uniforms.uColorMode.value;   // 0 solid, 1 adaptive, 2 rmx
-  let bands, bandColor, score = field, body = null;
+  let bands, bandColor, score = field, body = null, bandIdx = null;   // bandIdx: each pixel's band, when the colour mapping picks it (else floor(score × bands))
   if (colorMode < 0.5) {
     bands = 2;
     // Real bug, found by testing (while verifying Tile export, unrelated):
@@ -2923,56 +2926,39 @@ function buildExportSVGString() {
     // in the shader too, no remap, so this one export mode is untouched.
   } else if (colorMode < 1.5) {
     bands = 8;   // Adaptive is a continuous blend — 8 stacked bands is a disclosed vector approximation, same trade Camouflage's own Bands mode makes
-    const inkC = new THREE.Color(ctrl('hex-ink').value), paperC = new THREE.Color(ctrl('hex-paper').value);
+    // Band k = colorAt(k/7) (the shader's mix(uInk, uPaper, score)), each pixel on its nearest band. score is
+    // remapV()'d like the shader's: v = A-B runs slightly below 0 (measured -0.22..-0.03 across 5 presets).
+    const ink = ctrl('hex-ink').value, paper = ctrl('hex-paper').value;
     bandColor = [];
-    for (let s = 0; s < bands; s++) { const t = s / (bands - 1); bandColor.push(svgToHex(paperC.clone().lerp(inkC, t))); }
-    bandColor.reverse();   // band 0 = lightest (paper-ward), matches the stacking convention below
-    // Real bug, found by testing: matches the DISPLAY_FRAG remapV() fix —
-    // v = A-B legitimately runs slightly below 0 (measured -0.22..-0.03
-    // across 5 presets), and this export used to clamp it to [0,1]
-    // directly, flattening those pixels to band 0 same as the old shader
-    // bug. Same remap here keeps preview and export in agreement.
-    score = new Float32Array(gridW * gridH);
-    for (let i = 0; i < gridW * gridH; i++) score[i] = remap(field[i]);
+    for (let k = 0; k < bands; k++) bandColor.push(Organica.palette.colorAt(k / (bands - 1), { mode: 'adaptive', ink, paper }));
+    bandIdx = new Uint8Array(gridW * gridH);
+    for (let i = 0; i < gridW * gridH; i++) bandIdx[i] = Math.round(remap(field[i]) * (bands - 1));
   } else if (rmxColorMap === 'random') {
-    // Found by testing: this used to fall through to the same posterized-
-    // band export every other RMX mapping uses, silently discarding the
-    // hashed noise texture — the exported file looked nothing like the
-    // preview. Random's grid is fixed 48×48 flat cells (no blending), so
-    // unlike Tone/Adaptive it has an exact vector form: real per-cell rects.
+    // Random's grid is fixed 48×48 flat cells (no blending), so it has an exact vector form: real per-cell rects.
     body = buildRandomGridSVG(outW, outH, rmxColors);
-  } else if (rmxColorMap === 'tonernd') {
-    // Same bug as Random, different fix: Tone+Random's colour is still a
-    // continuous per-pixel blend (no exact vector form, same class of
-    // approximation Tone/Adaptive already accept), but WHERE the blend
-    // sits is shifted by the same per-cell hash jitter the shader uses —
-    // that part is exact, not approximated. Recomputing a finer per-pixel
-    // score with the jitter folded in means the traced contours actually
-    // show the jittered/broken-up edges, instead of ignoring them.
+  } else if (rmxColorMap === 'tone') {
+    // Tone is a continuous blend: 6 sub-bands per stop, each colorAt at its own score, each pixel on its nearest
+    // band — the same disclosed approximation Adaptive makes.
     const count = rmxColors.length;
-    const subBandsPerUnit = 6;
-    bands = count > 1 ? (count - 1) * subBandsPerUnit + 1 : 1;
+    bands = count > 1 ? (count - 1) * 6 + 1 : 1;
     bandColor = [];
-    for (let s = 0; s < bands; s++) bandColor.push(rmxLerpColor(rmxColors, (s / (bands - 1)) * (count - 1)));
-    score = new Float32Array(gridW * gridH);
+    for (let k = 0; k < bands; k++) bandColor.push(rmxAt(bands > 1 ? k / (bands - 1) : 0, 0.5, 'tone'));
+    bandIdx = new Uint8Array(gridW * gridH);
+    for (let i = 0; i < gridW * gridH; i++) bandIdx[i] = Math.round(remap(field[i]) * (bands - 1));
+  } else {
+    // Posterize and Tone + Random pick one stop per pixel (rmxIndex, as the shader does), so the bands are exact:
+    // band k = colour k. Tone + Random's jitter comes from the same 48×48 cell hash the shader uses.
+    bands = rmxColors.length;
+    bandColor = rmxColors.slice();
+    bandIdx = new Uint8Array(gridW * gridH);
     for (let y = 0; y < gridH; y++) {
       const vv = 1 - (y + 0.5) / gridH;   // field row 0 is the TOP (see readFrozenField); vUv.y=1 is also the top, hence the flip
       const cy = Math.min(47, Math.max(0, Math.floor(vv * 48)));
       for (let x = 0; x < gridW; x++) {
-        const uu = (x + 0.5) / gridW;
-        const cx = Math.min(47, Math.max(0, Math.floor(uu * 48)));
-        const h = hash1JS(cx, cy) - 0.5;
-        const v = remap(field[y * gridW + x]);   // same remapV() fix as Adaptive/Tone/Posterize — see there
-        const t = v * (count - 1);
-        const tt = Math.max(0, Math.min(count - 1, t + h * 1.5));
-        score[y * gridW + x] = count > 1 ? tt / (count - 1) : 0;
+        const cx = Math.min(47, Math.max(0, Math.floor((x + 0.5) / gridW * 48)));
+        bandIdx[y * gridW + x] = Organica.palette.rmxIndex(remap(field[y * gridW + x]), rndAt(cx, cy), rmxColors, rmxColorMap);
       }
     }
-  } else {
-    bands = rmxColors.length;   // Tone/Posterize: same shape as Adaptive — Posterize's hard-band shader logic and Tone's smooth blend both read the shader's remapV()'d t, so this export needs the same remap to match.
-    bandColor = rmxColors.slice();
-    score = new Float32Array(gridW * gridH);
-    for (let i = 0; i < gridW * gridH; i++) score[i] = remap(field[i]);
   }
 
   const tileN = Math.max(1, parseInt(ctrl('sel-tile').value, 10) || 1);
@@ -2993,6 +2979,7 @@ function buildExportSVGString() {
       const sy = ((py - PAD) % gridH + gridH) % gridH;
       for (let px = 0; px < pgw; px++) {
         const sx = ((px - PAD) % gridW + gridW) % gridW;
+        if (bandIdx) { bandOf[py * pgw + px] = bandIdx[sy * gridW + sx]; continue; }
         const v = Math.max(0, Math.min(1, score[sy * gridW + sx]));
         bandOf[py * pgw + px] = Math.min(bands - 1, Math.floor(v * bands));
       }
@@ -3528,6 +3515,11 @@ window.savePreset = savePreset;
 window.deletePreset = deletePreset;
 window.confirmSavePreset = confirmSavePreset;
 window.cancelSavePreset = cancelSavePreset;
+// Test hook for scripts/test-rmx.mjs (the shader's RMX colours checked against Organica.palette.colorAt):
+// read-only handles to the display pass, no behaviour of its own.
+window.__camo = { THREE, get renderer() { return renderer; }, get dispMat() { return dispMat; },
+  get dispScene() { return dispScene; }, get camera() { return camera; },
+  setRmx(colors, map) { rmxColors = colors; rmxColorMap = map; syncRmxUniforms(); }, buildExportSVGString, get rndTable() { return rndTable; } };
 ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
 ctrl('btn-preset-cancel').addEventListener('click', cancelSavePreset);
 ctrl('txt-preset-name').addEventListener('keydown', e => {

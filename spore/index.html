@@ -311,7 +311,7 @@
         <button class="cm-btn org-btn" onclick="setColorMode('rmx',this)">RMX</button>
       </div>
 
-      <!-- RMX palette: up to 5 colours assigned by a chosen mapping (by tone) -->
+      <!-- RMX palette: up to 9 colours assigned by a chosen mapping (by tone) -->
       <div id="rmx-color-block" hidden style="margin-bottom: var(--space-5)">
         <div class="ctrl-row mb-2">
           <span class="ctrl-label">Palette</span>
@@ -391,10 +391,10 @@ let customMarks = [];
 let allMarks = [...BUILT_IN_MARKS];
 let selectedMarkId = 'seed-breath';
 
-// ── RMX COLORS: palette of up to 5 colours, assigned by a chosen mapping ──
+// ── RMX COLORS: palette of up to 9 colours, assigned by a chosen mapping ──
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];   // default palette (dark→bright)
 let rmxColorMap = 'tone';            // 'tone' | 'posterize' | 'random' | 'tonernd'
-const RMX_COLORS_MAX = 5;
+const RMX_COLORS_MAX = 9;
 // Colour math now lives in shared/palette.js (Organica.palette.colorAt) —
 // see the 'rmx'/'adaptive' branch in drawBatch().
 function buildRmxPalette() {
@@ -731,7 +731,8 @@ async function doRender() {
       // Color
       let fillColor;
       if (colorMode === 'image') fillColor = getColor(x, y);
-      else if (colorMode === 'rmx' || colorMode === 'adaptive') {
+      else if (colorMode === 'solid' || colorMode === 'rmx' || colorMode === 'adaptive') {
+        // One colour mapping for the suite: Organica.palette.colorAt (Solid = the mark colour).
         fillColor = Organica.palette.colorAt(luma, {
           mode: colorMode, ink: markColor, paper: bgColor,
           colors: rmxColors, submode: rmxColorMap, rnd,
