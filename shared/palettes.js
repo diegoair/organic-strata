@@ -21,7 +21,11 @@
  *   { id: 'saved:<name>' | 'star:<key>', name, source: 'saved' | 'starred', pid, house,
  *     shading: 'none' | a preset ('soft', 'speckle', 'pollen-dot' …) — the house's Shading when it was saved,
  *     colours: [{ id, hex, name, part, tints: { 50: hex, 100: hex … 900: hex }, shade: GradDef | null,
- *                 set: { soft: GradDef, speckle: GradDef } }] }   // shade = its own; set = its base set (always there)
+ *                 set: { soft: GradDef, speckle: GradDef } }],      // shade = its own; set = its base set (always there)
+ *     mapping: { mode: 'solid'|'adaptive'|'rmx', submode: 'tone'|'posterize'|'random'|'tonernd',
+ *                order: [colour indices, dark → bright], pair: [ink i, paper i], space: 'oklab'|'srgb' } }
+ *   P.mappingFor(hexes, m)   → a mapping made whole for those colours (defaults: RMX, Tone, by lightness, OKLab)
+ *   P.rampOf(pal)            → the colours in the mapping's order — what a tool's RMX strip reads
  * A starred palette comes out the same, with shading 'none' and no own shade: its base set is all there is.
  *
  * LOAD ORDER: core.js → (store.js) → color.js → shading.js → this → palette.js.
@@ -125,6 +129,35 @@
     if (!v || v === 'none' || !S) return 'none';
     return S.defs('#808080', {})[v] ? v : 'none';
   }
+  // ── the Mapping (Diego, Nov 21, 2026): how a tool lays the palette's colours on a value 0..1 (a photo's darkness, a
+  // field) — the Colour Mode the tools share (Pollen, Spore, Mote, Camo Turing, Membrane): Solid · Adaptive · RMX,
+  // RMX's Mapping Tone · Posterize · Random · Tone + Random, the colours dark → bright, Adaptive's Ink → Paper pair,
+  // the blend space. Set in TuneSutra and saved with the palette; the math is Organica.palette.colorAt.
+  const MAP_MODES = ['solid', 'adaptive', 'rmx'], MAP_SUBMODES = ['tone', 'posterize', 'random', 'tonernd'];
+  function lightOf(h) { return Organica.color && Organica.color.hexToOklch ? Organica.color.hexToOklch(h).l : (() => { const v = parseInt(String(h).slice(1), 16); return ((v >> 16 & 255) * 0.299 + (v >> 8 & 255) * 0.587 + (v & 255) * 0.114) / 255; })(); }
+  // the palette's colours (hexes), darkest first: their indices
+  function byLightness(hexes) { return hexes.map((h, i) => ({ i, l: lightOf(h) })).sort((a, b) => a.l - b.l || a.i - b.i).map(x => x.i); }
+  // A mapping made whole for these colours: unknown values and a stale order (another count, a missing index) give way
+  // to the defaults — RMX, Tone, OKLab, the order by lightness, the pair the darkest (ink) and the lightest (paper).
+  function mappingFor(hexes, m) {
+    m = m || {};
+    const n = hexes.length, auto = byLightness(hexes);
+    const valid = Array.isArray(m.order) && m.order.length === n && auto.every(i => m.order.indexOf(i) >= 0);
+    const pairOk = Array.isArray(m.pair) && m.pair.length === 2 && m.pair.every(i => i >= 0 && i < n && (i | 0) === i);
+    return {
+      mode: MAP_MODES.indexOf(m.mode) >= 0 ? m.mode : 'rmx',
+      submode: MAP_SUBMODES.indexOf(m.submode) >= 0 ? m.submode : 'tone',
+      order: valid ? m.order.slice() : auto,
+      pair: pairOk ? m.pair.slice() : [auto[0], auto[n - 1]],
+      space: m.space === 'srgb' ? 'srgb' : 'oklab',
+    };
+  }
+  // The colours as a tool's RMX strip reads them: in the mapping's order (dark → bright).
+  function rampOf(pal) {
+    const hexes = (pal.colours || []).map(c => c.hex), m = mappingFor(hexes, pal.mapping);
+    return m.order.map(i => hexes[i]);
+  }
+
   function get(id) {
     if (!id) return null;
     const S = Organica.shading;
@@ -135,6 +168,7 @@
       const mode = shadingOf(rec.shading);
       return {
         id: id, name: name, source: 'saved', pid: rec.pid || null, shading: mode,
+        mapping: mappingFor(rec.colors.map(hex), rec.mapping),
         house: rec.house >= 1 && rec.house <= 9999 ? Math.round(rec.house) : seedOf(rec.colors.join('')),
         colours: rec.colors.map((h0, i) => {
           const h = hex(h0), own = rec.shades && rec.shades[i], same = set[i] && set[i].hex && set[i].hex.toLowerCase() === h;
@@ -153,7 +187,7 @@
       return {
         id: id, name: rec.name || 'Starred palette', source: 'starred', pid: null,
         house: rec.house >= 1 && rec.house <= 9999 ? Math.round(rec.house) : seedOf(rec.colors.join('')),
-        shading: 'none',
+        shading: 'none', mapping: mappingFor(rec.colors.map(hex), rec.mapping),
         colours: rec.colors.map((h0, i) => { const h = hex(h0); return { id: null, hex: h, name: roleName(i, n), part: P[i] || null, tints: tintsOf(h), shade: null, set: baseSet(h) }; }),
       };
     }
@@ -207,6 +241,7 @@
       view: 'garment',
       house: pal.house >= 1 && pal.house <= 9999 ? Math.round(pal.house) : seedOf(cols.map(c => c.hex).join('')),
       shading: 'none',
+      mapping: mappingFor(cols.map(c => c.hex), pal.mapping),
       set: {
         v: 1, prefix: /^[a-z]/.test(prefix) ? prefix : 'palette' + (prefix ? '-' + prefix : ''),
         colours: cols.map((c, i) => {
@@ -248,5 +283,5 @@
   }
   function onChange(fn) { wire(); subs.add(fn); return () => subs.delete(fn); }
 
-  Organica.palettes = { list: list, get: get, pull: pull, onChange: onChange, saveAsNew: saveAsNew, nameFor: nameFor, ctx: ctx, roleName: roleName, ROLE_PARTS: ROLE_PARTS, ROLE_SETS: ROLE_SETS };
+  Organica.palettes = { list: list, get: get, mappingFor: mappingFor, rampOf: rampOf, MAP_MODES: MAP_MODES, MAP_SUBMODES: MAP_SUBMODES, pull: pull, onChange: onChange, saveAsNew: saveAsNew, nameFor: nameFor, ctx: ctx, roleName: roleName, ROLE_PARTS: ROLE_PARTS, ROLE_SETS: ROLE_SETS };
 })(typeof window !== 'undefined' ? window : this);

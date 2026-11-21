@@ -77,5 +77,20 @@ check('nameFor proposes what saveAsNew writes', P.nameFor(P.get('saved:Dusk'), {
 check('a chosen name is kept, numbered only when taken', P.saveAsNew(P.get('saved:Dusk'), { name: 'Dusk' }) === 'Dusk 2' && DB.tunesutra['Dusk'].house === 77);
 check('ROLE_PARTS mirrors hue-tone.js', JSON.stringify(P.ROLE_PARTS) === JSON.stringify(ctx.Organica.hueTone.ROLE_PARTS));
 
+// the Mapping (Diego, Nov 21, 2026): how a tool lays the colours on 0..1 — defaults, a stale order, the round trip
+{ const hx = ['#f2e8d5', '#1b1b2f', '#c43c3c'];
+  const d = P.mappingFor(hx);
+  check('mapping: default RMX · Tone · OKLab, dark → bright, pair darkest / lightest', d.mode === 'rmx' && d.submode === 'tone' && d.space === 'oklab' && d.order.join() === '1,2,0' && d.pair.join() === '1,0', JSON.stringify(d));
+  const kept = P.mappingFor(hx, { mode: 'adaptive', submode: 'posterize', order: [0, 1, 2], pair: [2, 0], space: 'srgb' });
+  check('mapping: a valid one is kept as it is', kept.mode === 'adaptive' && kept.submode === 'posterize' && kept.order.join() === '0,1,2' && kept.pair.join() === '2,0' && kept.space === 'srgb', JSON.stringify(kept));
+  const stale = P.mappingFor(hx, { mode: 'x', order: [0, 1], pair: [5, 0] });
+  check('mapping: a stale order (another count) and a bad pair give way to the defaults', stale.mode === 'rmx' && stale.order.join() === '1,2,0' && stale.pair.join() === '1,0', JSON.stringify(stale));
+  check('rampOf: the colours in the mapping order', P.rampOf({ colours: hx.map(h => ({ hex: h })) }).join() === '#1b1b2f,#c43c3c,#f2e8d5');
+  const nm = P.saveAsNew({ name: 'Mapped', colours: hx.map(h => ({ hex: h })), mapping: { mode: 'rmx', submode: 'random', order: [2, 0, 1] } }, { tool: 'Test' });
+  const back = P.get('saved:' + nm);
+  check('mapping: saved with the palette and read back', back.mapping.submode === 'random' && back.mapping.order.join() === '2,0,1' && DB.tunesutra[nm].mapping.submode === 'random', JSON.stringify(back.mapping));
+  check('mapping: an older palette (none saved) gets the default', P.get('saved:Dusk').mapping.mode === 'rmx' && P.get('saved:Dusk').mapping.order.length === P.get('saved:Dusk').colours.length);
+  check('mapping: a starred palette too', P.list().filter(p => p.source === 'starred').every(p => P.get(p.id).mapping.order.length === P.get(p.id).colours.length)); }
+
 console.log(failed ? `\n${failed} check(s) failed` : '\nall checks pass');
 process.exit(failed ? 1 : 0);
