@@ -236,6 +236,19 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
       if (svg.toLowerCase().indexOf('"' + ink + '"') >= 0 && !/="#000000"/.test(pl)) bad.push(ink + ': empty');   // an ink the drawing uses has something on its plate
     });
     check('Plates: on every plate only its own ink, in black — none left in colour; a Soft gradient on its plate', !bad.length, bad.slice(0, 4).join(' | '));
+    // a Wash (O-92 c): its stops are the inks, not its ~60 bands; its bands are dot screens on the stops' plates
+    F.state.inkShades = { [pc[0]]: S5.normalize({ type: 'field', angle: 90, stops: [pc[0], '#5a2a10', '#fbe6c2'] }) };
+    F.layersChanged(); await w(300);
+    const wsvg = F.buildSeedPreviewSVG(F.getSeed(), 0, false, false, 300), winks = F.plateInks(wsvg, F.state.colors, '#ffffff');
+    const wbad = [];
+    winks.forEach((ink, i) => {
+      const pl = F.plateSVG(wsvg, winks, i, '#ffffff');
+      const left = (pl.match(/(?:fill|stroke|stop-color)="#[0-9a-fA-F]{6}"/g) || []).map(x => x.slice(-8, -1).toLowerCase()).filter(h => h !== '#000000' && h !== '#ffffff');
+      if (left.length) wbad.push(ink + ': ' + left.slice(0, 3).join(','));
+      if ([pc[0], '#5a2a10', '#fbe6c2'].includes(ink) && !/<pattern /.test(pl)) wbad.push(ink + ': no screen');
+    });
+    check('Plates of a Wash: one plate per stop (' + winks.length + ' inks for ' + (wsvg.match(/data-mix=/g) || []).length + ' bands), each band a dot screen, nothing left in colour',
+      winks.length === 5 && winks.includes('#5a2a10') && winks.includes('#fbe6c2') && !wbad.length, winks.join(' ') + (wbad.length ? ' — ' + wbad.slice(0, 4).join(' | ') : ''));
     F.state.inkShades = {}; F.buildPalette(); await w(200); }
   // the menu: up to 9 colours
   check('FVS takes up to 9 colours (TuneSutra\\'s palettes)', F.PALETTE_MAX === 9, F.PALETTE_MAX);

@@ -380,8 +380,13 @@
   //    reaches it (marching squares, linear crossings), the bands stacked dark → bright — on screen and in the file it
   //    reads as one smooth fill (explorations/field-fill: under 0.2% of pixels off by more than 6/255).
   //    def.field = { size, slope, wave, seed, span }; span 'sheet' = one field over ctx.sheet that the shapes cut (a
-  //    tool that gives no sheet draws each shape's own). Stacked bands overprint: Bands for exact plates is a later step.
+  //    tool that gives no sheet draws each shape's own). Plates: one per stop, the bands as halftone (WASH_PITCH below).
   const FIELD_DEFAULT = { size: 38, slope: 45, wave: 10, seed: 0, span: 'shape' }, FIELD_REF = 213, FIELD_JND = 1;
+  // Plates of a wash (O-92 c, Nov 21, 2026): one plate per STOP, not per band — each band carries `mix` [stop a, stop b,
+  // f] (where its middle sits between the two stops it blends) and `wash` { pitch, ox, oy } (the halftone screen: a
+  // dot every WASH_PITCH of the picture's 213-unit width, anchored on the sheet when the wash spans it), and
+  // Organica.plateExport turns each band into a dot screen of its share on each stop's plate.
+  const WASH_PITCH = 0.75;
   function fieldParams(g) { return Object.assign({}, FIELD_DEFAULT, g.field || {}); }
   function isField(g) { return g && g.type === 'field'; }
   // The value at a point of region R ({ x, y, w, h }, the units the shape is drawn in) → 0..1
@@ -422,13 +427,16 @@
     for (let j = 0; j < dy; j++) for (let i = 0; i < dx; i++)
       V[j * dx + i] = i === 0 || j === 0 || i === dx - 1 || j === dy - 1 ? -1 : val(o.x + x0 + (i + 0.5) * cell, o.y + y0 + (j + 0.5) * cell);
     const out = [{ hex: colours[0], paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0 }], tol = cell * 0.1;
+    const at = [0].concat(cuts, [1]), wash = { pitch: unit * WASH_PITCH, ox: o.x, oy: o.y };
+    const mixOf = k => { const sg = segAt(stops, (at[k] + at[k + 1]) / 2), b = stops[Math.min(sg.a + 1, stops.length - 1)]; return [stops[sg.a].hex, b.hex, stops.length < 2 ? 0 : sg.f]; };
+    Object.assign(out[0], { mix: mixOf(0), wash: wash });
     cuts.forEach((t, k) => {
       let d = '';
       Organica.isoContours(V, dx, dy, t).forEach(r => {
         const pts = Organica.simplifyRing(r.map(p => [x0 + (p[0] + 0.5) * cell, y0 + (p[1] + 0.5) * cell]), tol);
         if (pts.length >= 3) d += 'M' + pts.map(p => n1(p[0]) + ' ' + n1(p[1])).join('L') + 'Z';
       });
-      if (d) out.push({ hex: colours[k + 1], paper: false, d: d, cells: 0, band: k + 1 });
+      if (d) out.push({ hex: colours[k + 1], paper: false, d: d, cells: 0, band: k + 1, mix: mixOf(k + 1), wash: wash });
     });
     return out;
   }
@@ -473,13 +481,18 @@
   function drawPlates(c, plates) { plates.forEach(p => { if (!p.d) return; c.fillStyle = p.smooth ? smoothFill(c, p) : p.hex; if (!p._p2d) Object.defineProperty(p, '_p2d', { value: new Path2D(p.d), writable: true }); c.fill(p._p2d, 'evenodd'); }); }
   // Plates as SVG markup (in the box's own units): one even-odd path per ink, smooth plates as gradients.
   // skipFirst: the first plate is the shape's own fill (already painted by the shape) — leave it out.
+  // A wash's bands go in one <g data-wash="pitch ox oy">, each path with data-mix="#a #b f" — what the plates read.
   function platesSVG(plates, idPrefix, skipFirst) {
-    let n = 0;
-    return plates.map((p, i) => {
+    let n = 0, open = null;
+    const out = plates.map((p, i) => {
       if (!p.d || (skipFirst && i === 0)) return '';
-      if (p.smooth) return smoothMarkup(p, (idPrefix || 'sh') + '-' + (n++));
-      return `<path fill="${p.hex}" fill-rule="evenodd" d="${p.d}"/>`;
+      let pre = '';
+      const w = p.mix && p.wash ? `${num(p.wash.pitch)} ${num(p.wash.ox)} ${num(p.wash.oy)}` : null;
+      if (open !== w) { pre = (open ? '</g>' : '') + (w ? `<g data-wash="${w}">` : ''); open = w; }
+      if (p.smooth) return pre + smoothMarkup(p, (idPrefix || 'sh') + '-' + (n++));
+      return pre + `<path fill="${p.hex}"${w ? ` data-mix="${p.mix[0]} ${p.mix[1]} ${num(p.mix[2])}"` : ''} fill-rule="evenodd" d="${p.d}"/>`;
     }).join('');
+    return out + (open ? '</g>' : '');
   }
 
   // Rendered once per definition, box and palette: the same mark repeated is drawn once.
@@ -611,7 +624,7 @@
     plates: plates, gradPlates: gradPlates, smoothPlates: smoothPlates, shadowInks: shadowInks,
     gradStops: gradStops, smoothStops: smoothStops, smoothGeom: smoothGeom, smoothMarkup: smoothMarkup, smoothFill: smoothFill,
     drawPlates: drawPlates, platesSVG: platesSVG, boxOf: boxOf, overlaySVG: overlaySVG, overlayCanvas: overlayCanvas, shapePlates: shapePlates,
-    FIELD_DEFAULT: FIELD_DEFAULT, fieldParams: fieldParams, fieldValue: fieldValue, fieldPlates: fieldPlates, isField: isField,
+    FIELD_DEFAULT: FIELD_DEFAULT, WASH_PITCH: WASH_PITCH, fieldParams: fieldParams, fieldValue: fieldValue, fieldPlates: fieldPlates, isField: isField,
     gradUses: gradUses, hasNoise: hasNoise, smoothShadow: smoothShadow, markShadow: markShadow,
     colourStop: colourStop, colourAt: colourAt, segAt: segAt, isClear: isClear, evenPos: evenPos, stopPos: stopPos, fadesToPaper: fadesToPaper,
   };
