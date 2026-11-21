@@ -358,6 +358,9 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   layer and every part of a divided shape out in the Element's own box (`geo.d`, the placed union) — one light across
   the Element; **Each layer** (`state.layers.light = 'layer'`, in the seed as `light`) gives each layer its own box
   (`stackShadeBox`). The row shows with 2+ layers and a shaded colour. A single shape uses its own box.
+  **The editor follows the layer** (Nov 21, 2026): selecting a layer, or giving the selected layer another ink, opens
+  its ink in the Gradient + Shadow (`paletteFollowLayer` → `paletteKit.setActive`); a layer on the cell colour opens
+  `colorAt(0)`. Before, the editor stayed on the chip last opened, so an edit landed on another layer's colour.
   **Colourways** (Recolour, the Figure's Palette node) keep the shading by place — colour n takes colour n's,
   moved onto its own colour (`shadesFollow`, in `withComponentColours` and a Symbol cell's colourway).
   **Arriving whole**: a saved palette's house Shading (`pal.shading`) goes on every colour without its own; a starred

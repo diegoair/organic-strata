@@ -34,7 +34,7 @@ import {
   NEW_LAYER_SCALE
 } from './engine/12-shell.js';
 import {
-  buildPalette, ctrl, syncColorPartsRow, syncColorRuleUI
+  buildPalette, ctrl, paletteFollowLayer, syncColorPartsRow, syncColorRuleUI
 } from './00-core.js';
 import {
   setCellShape
@@ -363,6 +363,7 @@ export function selectLayer(i) {
   const to = state.layers.items[i];
   if (!(from.part && to.part)) applyPanelSeedRaw(layerPanelSeed(state.layers, to));   // part → part: the same source, the panel stays as it is
   showLayerStyle(to);
+  paletteFollowLayer(to);   // the Gradient + Shadow edit this layer's colour
   layersChanged();
 }
 // What the Shape panel shows for a layer: its own shape, or for a part the shape the parts come from.
@@ -609,6 +610,7 @@ ctrl('layer-ink-pop').addEventListener('click', e => {
   if (l.part && rt.partSel && rt.partSel.has(l.id)) state.layers.items.forEach(x => { if (x.part && rt.partSel.has(x.id)) x.ink = ink; });
   const i = layerInkPopFor;
   closeLayerInkPop();
+  if (i === state.layers.active) paletteFollowLayer(l);   // the selected layer's new ink opens in the editor
   layersChanged();
   const sw = ctrl('layers-list').querySelector(`.org-layer-card[data-layer="${i}"] [data-layer-act="ink"]`); if (sw) sw.focus();
 });

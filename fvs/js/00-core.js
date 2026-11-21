@@ -4,7 +4,7 @@
 import { rt } from './rt.js';
 import { hooks } from './hooks.js';
 import {
-  COLOR_RULES, DEFAULT_COLOR_RULE, NEW_COLOR_RULE, PALETTE_MAX, pv, setFigurePristine, setPanelSource, state
+  COLOR_RULES, DEFAULT_COLOR_RULE, NEW_COLOR_RULE, PALETTE_MAX, colorAt, pv, setFigurePristine, setPanelSource, state
 } from './engine/00-core.js';
 import {
   getGrid
@@ -96,6 +96,16 @@ export function buildPalette() {
     },
   });
   hooks.syncGroundInkOptions();
+}
+
+// The Gradient + Shadow follow the layer (Diego, Nov 21, 2026: "se scelto un element e un layer quando cambio il layer i
+// colori non si applicano"): the editor edits the colour of the chip last opened, so selecting a layer — or giving it
+// another ink — opens that layer's ink in the editor. A layer that follows the cell colour opens the cell's (colorAt(0),
+// what the Element shows); a Tonal step edits its ink (the step itself draws no shading).
+export function paletteFollowLayer(l) {
+  if (!paletteKit || !l || (l.role || 'fill') !== 'fill') return;
+  const n = state.colors.length, i = typeof l.ink === 'number' ? ((l.ink % n) + n) % n : Math.max(0, state.colors.indexOf(colorAt(0)));
+  paletteKit.setActive(i);
 }
 
 // "Each part the next ink" means something only while the Element is divided (or the rule is already on).
