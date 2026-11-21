@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/colour-picker.css">
+<link rel="stylesheet" href="/shared/shade-editor.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
@@ -296,6 +297,10 @@
       <div id="chan-stack"><p class="org-empty">No image loaded yet.</p></div>
     </div>
 
+    <!-- The selected channel's Gradient + Shadow (Organica.shadeEditor, Nov 21, 2026) — the channel last clicked or
+         whose colour was opened; shown while that channel is Flat -->
+    <div id="channel-shade" hidden></div>
+
     <div class="panel-section" id="sec-transform" hidden>
       <h3>Transform <span class="hint" id="tf-target">—</span></h3>
 
@@ -379,6 +384,7 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/select-picker.js"></script>
@@ -386,6 +392,10 @@
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/plate-export.js"></script>
 <script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
+<script src="/shared/shading.js"></script>
+<script src="/shared/shade-editor.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script>
 // ─────────────────────────────────────────────────────────────
 // COLORNET — channel separation and recomposition.
@@ -627,6 +637,9 @@ function computeBands(img, bands, detail) {
       // Edge roughening — Flat mode only, ink-bleed simulation via a
       // Simplex-noise vertex displacement on the traced boundary.
       edgeRoughen: 0, edgeScale: 20,
+      // A TuneSutra palette colour's shading (Gradient + Shadow, Organica.shading) — Flat channels draw it in their
+      // region's box; null = flat. Set when a palette recolours the channels (the Background row's ▦).
+      shade: null,
       mask, count,
       tint: null, pathD: null, amDots: null, _amKey: null, noiseDotsCache: null, _noiseKey: null, ditherDots: null, _ditherKey: null,
       roughPathD: null, _roughKey: null,
@@ -648,7 +661,7 @@ function separate(keepSettings) {
       screenMode: prev.screenMode, screenAngle: prev.screenAngle, screenFreq: prev.screenFreq, dotShape: prev.dotShape,
       noiseType: prev.noiseType, noiseSize: prev.noiseSize, noiseDots: prev.noiseDots, noiseStdDev: prev.noiseStdDev,
       ditherAlgo: prev.ditherAlgo, ditherSize: prev.ditherSize, ditherLevel: prev.ditherLevel, bayerLevel: prev.bayerLevel, patternFormId: prev.patternFormId,
-      edgeRoughen: prev.edgeRoughen, edgeScale: prev.edgeScale,
+      edgeRoughen: prev.edgeRoughen, edgeScale: prev.edgeScale, shade: prev.shade || null,
     });
     return ch;
   });
@@ -1252,6 +1265,21 @@ function dotsForChannel(ch) {
   return null;
 }
 
+// ── a channel colour's shading (Nov 21, 2026 — a TuneSutra palette taken whole, Organica.paletteKit) ──
+// Flat channels only: the shading is drawn in the region's box, clipped to the region (AM / Noise / Dither stay
+// flat — their marks are the screen). It follows the channel's colour when it changes by hand (withColour).
+function shadeCtx() { return Organica.paletteKit.ctxOf(S.channels.map(c => c.color), S.bg); }
+function shadeOf(ch) {
+  if (!ch.shade || ch.screenMode !== 'flat' || !Organica.shading) return null;
+  return Organica.shading.withColour(JSON.parse(JSON.stringify(ch.shade)), ch.color, shadeCtx());
+}
+// the region path as a Path2D (the canvas overlay's clip), kept while the path is the same
+function regionPath2D(ch) {
+  const d = roughPathOf(ch);
+  if (ch._p2dD !== d) { ch._p2d = d ? new Path2D(d) : null; ch._p2dD = d; }
+  return ch._p2d;
+}
+
 function buildPlan(scale, onlyId) {
   const s = scale || 1;
   return {
@@ -1265,6 +1293,7 @@ function buildPlan(scale, onlyId) {
       color: ch.color,
       opacity: ch.opacity / 100,
       blend: ch.blend,
+      shade: shadeOf(ch),
     })),
   };
 }
@@ -1290,7 +1319,7 @@ function buildPlanPrint(trimWpx, trimHpx, dpi, onlyId) {
       return {
         ch, dots, isAmPrint: isAm,
         m: isAm ? channelMatrix(ch, 1, trimWpx, trimHpx) : channelMatrix(ch, outScale),
-        color: ch.color, opacity: ch.opacity / 100, blend: ch.blend,
+        color: ch.color, opacity: ch.opacity / 100, blend: ch.blend, shade: shadeOf(ch),
       };
     }),
   };
@@ -1386,6 +1415,11 @@ function drawPlan(ctx, plan, opts) {
     } else {
       ctx.drawImage(opts.plate ? plateOf(it.ch) : tintOf(it.ch), 0, 0);
     }
+    // a Flat channel's shading over its region (in the same transform, opacity and blend) — never on a plate
+    if (it.shade && !opts.plate && it.ch.screenMode === 'flat') {
+      const p2 = regionPath2D(it.ch), box = p2 && Organica.shading.boxOf(roughPathOf(it.ch));
+      if (box) Organica.shading.overlayCanvas(ctx, it.shade, it.color, p2, box, shadeCtx(), 'evenodd');
+    }
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
@@ -1473,7 +1507,9 @@ function svgPlanItemsMarkup(items) {
       const d = roughPathOf(it.ch);
       if (!d) continue;
       s += `<g transform="matrix(${it.m.map(num).join(' ')})"${op}${style}>`;
-      s += `<path fill="${it.color}" fill-rule="evenodd" d="${d}"/></g>`;
+      s += `<path fill="${it.color}" fill-rule="evenodd" d="${d}"/>`;
+      if (it.shade) s += Organica.shading.overlaySVG(it.shade, it.color, d, { fillRule: 'evenodd', ctx: shadeCtx(), idPrefix: 'cns' });
+      s += '</g>';
       paths++;
     }
   }
@@ -1527,11 +1563,39 @@ function drawThumb(cv, ch) {
   g.globalAlpha = 1;
 }
 
+// The selected channel's shading, edited in the panel (Organica.shadeEditor, value mode). The selected channel =
+// the one last clicked, or whose colour was opened (S.selId, shared with Transform). Hidden when that channel is not
+// Flat (a screen draws no shading) or there is no image.
+let chanShadeEd = null;
+function syncChannelShade() {
+  const host = ctrl('channel-shade'), ch = chanById(S.selId);
+  host.hidden = !Organica.shadeEditor || !S.img || !ch || ch.screenMode !== 'flat';
+  if (host.hidden) return;
+  const v = { hex: ch.color, def: shadeOf(ch), label: ch.name || ('Channel ' + (S.channels.indexOf(ch) + 1)) };
+  if (chanShadeEd) { chanShadeEd.set(v); return; }
+  chanShadeEd = Organica.shadeEditor.mount(host, Object.assign(v, {
+    ctx: shadeCtx,
+    onChange: def => {
+      const c = chanById(S.selId); if (!c) return;
+      c.shade = def ? JSON.parse(JSON.stringify(def)) : null;
+      render();
+    },
+  }));
+}
+// Make a channel the selected one without rebuilding the list (a click on its card, or opening its colour)
+function focusChannel(id) {
+  if (S.selId === id || !chanById(id)) return;
+  S.selId = id;
+  ctrl('chan-stack').querySelectorAll('.org-layer-card').forEach(c => c.classList.toggle('active', c.dataset.chan === String(id)));
+  syncTransformPanel(); syncChannelShade();
+}
+
 function buildChannelUI() {
   const host = ctrl('chan-stack');
   host.innerHTML = '';
   if (!S.channels.length) {
     host.innerHTML = '<p class="org-empty">No image loaded yet.</p>';
+    syncChannelShade();
     return;
   }
   S.channels.forEach((ch, idx) => {
@@ -1687,6 +1751,9 @@ function buildChannelUI() {
 
     drawThumb(card.querySelector('.chan-thumb'), ch);
 
+    card.dataset.chan = String(ch.id);
+    card.addEventListener('pointerdown', () => focusChannel(ch.id));   // before the control's own handler
+    card.addEventListener('focusin', () => focusChannel(ch.id));       // the keyboard way in
     card.querySelector('.chan-dot').addEventListener('click', () => { ch.on = !ch.on; buildChannelUI(); render(); });
     card.querySelector('.chan-name').addEventListener('click', () => armOrSwapChannel(ch.id));
     card.querySelector('.chan-thumb').addEventListener('click', () => selectChannel(ch.id));
@@ -1820,6 +1887,7 @@ function buildChannelUI() {
   });
   Organica.enhanceSliders(host);
   Organica.autoLabelPanel(host);
+  syncChannelShade();
 }
 
 function selectChannel(id) { S.selId = id; buildChannelUI(); syncTransformPanel(); }
@@ -2040,8 +2108,28 @@ ctrl('btn-auto-angles').addEventListener('click', () => {
   setStatus('active', 'AM Screening — classic offset angles applied');
 });
 
-Organica.palette.swatch('bg', {
+// A TuneSutra palette's name in the Background row's ▦ takes it WHOLE (Nov 21, 2026 — Organica.paletteKit): the
+// background ← its background part (or the lightest), and channel i ← the palette's colour i (the background's
+// colour left out), each with its shading — as many as there are channels.
+function takePaletteChannels(pal) {
+  const cols = (pal.colours || []).filter(c => c && c.hex);
+  if (!cols.length) return;
+  const bgPick = Organica.paletteKit.rolesFor(pal, [{ key: 'bg', parts: ['background'], fallback: 'lightest' }]).bg;
+  const bgAt = cols.findIndex(c => String(c.hex).toLowerCase() === bgPick.hex);
+  const inks = cols.length > 1 ? cols.filter((c, i) => i !== bgAt) : cols;
+  const n = S.channels.length, used = Math.min(n, inks.length);
+  S.channels.slice(0, used).forEach((ch, i) => {
+    ch.color = Organica.normalizeHex(inks[i].hex, ch.color);
+    ch.shade = inks[i].shade ? JSON.parse(JSON.stringify(inks[i].shade)) : null;
+    ch._tintColor = null;
+  });
+  bgSwatch.set(bgPick.hex);   // → S.bg, buildChannelUI, render
+  if (!n) Organica.notice('Background set. Open an image to colour its channels from this palette.', { kind: 'info' });
+  else if (inks.length > n) Organica.notice(`Used ${used} of ${inks.length} colours: the image has ${n} channels.`, { kind: 'info' });
+}
+const bgSwatch = Organica.palette.swatch('bg', {
   initial: '#ffffff',
+  onPalette: Organica.paletteKit ? takePaletteChannels : undefined,
   onChange: hex => { S.bg = hex; if (S.W) { buildChannelUI(); render(); } },
 });
 
@@ -2215,7 +2303,8 @@ function r2(n) { return Math.round(n * 100) / 100; }
 // items, for the SVG plate path — the raster path already gets this via
 // drawPlan's opts.plate.
 function buildPlateItems(items) {
-  return items.map(it => Object.assign({}, it, { color: '#000000', opacity: 1, blend: 'normal' }));
+  // shade: null — a plate is the channel's whole region in black; a shading's shadow inks get no plate of their own
+  return items.map(it => Object.assign({}, it, { color: '#000000', opacity: 1, blend: 'normal', shade: null }));
 }
 
 // Print mode's per-plate SVG — a real physical-mm document. Content is
@@ -2323,7 +2412,7 @@ async function runBatch(files) {
     screenMode: ch.screenMode, screenAngle: ch.screenAngle, screenFreq: ch.screenFreq, dotShape: ch.dotShape,
     noiseType: ch.noiseType, noiseSize: ch.noiseSize, noiseDots: ch.noiseDots, noiseStdDev: ch.noiseStdDev,
     ditherAlgo: ch.ditherAlgo, ditherSize: ch.ditherSize, ditherLevel: ch.ditherLevel, bayerLevel: ch.bayerLevel, patternFormId: ch.patternFormId,
-    edgeRoughen: ch.edgeRoughen, edgeScale: ch.edgeScale,
+    edgeRoughen: ch.edgeRoughen, edgeScale: ch.edgeScale, shade: ch.shade || null,
   }));
   if (!cosmeticByIdx.length) { setStatus('error', 'Separate an image first, then batch'); return; }
 
@@ -2460,7 +2549,7 @@ function readState() {
       screenMode: c.screenMode, screenAngle: c.screenAngle, screenFreq: c.screenFreq, dotShape: c.dotShape,
       noiseType: c.noiseType, noiseSize: c.noiseSize, noiseDots: c.noiseDots, noiseStdDev: c.noiseStdDev,
       ditherAlgo: c.ditherAlgo, ditherSize: c.ditherSize, ditherLevel: c.ditherLevel, bayerLevel: c.bayerLevel, patternFormId: c.patternFormId,
-      edgeRoughen: c.edgeRoughen, edgeScale: c.edgeScale,
+      edgeRoughen: c.edgeRoughen, edgeScale: c.edgeScale, shade: c.shade ? JSON.parse(JSON.stringify(c.shade)) : null,
     })),
   };
 }
@@ -2528,6 +2617,7 @@ function applyChannelPreset(ch, sc) {
     edgeRoughen: sc.edgeRoughen != null ? sc.edgeRoughen : ch.edgeRoughen,
     edgeScale: sc.edgeScale != null ? sc.edgeScale : ch.edgeScale,
   });
+  ch.shade = sc.shade ? JSON.parse(JSON.stringify(sc.shade)) : null;   // a preset saved before Nov 21, 2026 has none: flat
   ch.tint = null; ch._amKey = null; ch._noiseKey = null; ch._ditherKey = null; ch._roughKey = null;
 }
 

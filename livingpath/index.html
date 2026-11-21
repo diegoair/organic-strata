@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/shared/header.css">
   <link rel="stylesheet" href="/shared/panel.css">
   <link rel="stylesheet" href="/shared/colour-picker.css">
+  <link rel="stylesheet" href="/shared/shade-editor.css">
   <link rel="stylesheet" href="/shared/floatbar.css">
   <link rel="stylesheet" href="/shared/shell.css">
   <link rel="stylesheet" href="/shared/mobile-gate.css">
@@ -363,6 +364,8 @@
         <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
       </div>
     </div>
+    <!-- The ink's Gradient + Shadow (Nov 21, 2026: a TuneSutra palette taken whole) — each filled glyph draws it in its own box -->
+    <div id="ink-shade"></div>
   </div>
 </div>
 
@@ -377,8 +380,14 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
+<script src="/shared/shading.js"></script>
+<script src="/shared/shade-editor.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <!-- The raster effect engine + presets. Shared with Sinew (which also keeps
      the vector FX). Living Path keeps only the font-specific parts local:
      opentype parsing, the live text specimen, OTF export. -->
@@ -950,6 +959,34 @@ let CACHE=null, rasterTimer=null, _renderSeq=0;
 const PROC_GRACE = 250;
 let _lastHeavyMs = 0;
 
+// ── the ink's shading (Nov 21, 2026 — a TuneSutra palette taken whole, Organica.paletteKit) ──
+// inkShade: a GradDef or null (flat). The colour itself stays the native #cp-ink; the shading follows it when it
+// changes by hand (Organica.shading.withColour). Drawn on FILLED letters only (never strokes), one overlay per glyph
+// in the glyph's own box. Saved in the .lvp (a file without it is flat).
+let inkShade=null, inkEd=null;
+// the geometry the stage drew last: the whole fill `d` and its glyphs ({d} or {subs}, `d` made on demand)
+let _inkGeom={ d:'', glyphs:null };
+const shadeCtx=()=>Organica.paletteKit.ctxOf([$('#cp-ink').value], $('#cp-bg').value);
+function inkDef(){
+  if(!inkShade || !Organica.shading) return null;
+  return Organica.shading.withColour(JSON.parse(JSON.stringify(inkShade)), $('#cp-ink').value, shadeCtx());
+}
+function inkFillSVG(d, ink, glyphs){
+  let s=`<path d="${d}" fill="${ink}" fill-rule="evenodd"/>`;
+  const def=d && inkDef(); if(!def) return s;
+  const cx=shadeCtx();
+  for(const g of (glyphs && glyphs.length ? glyphs : [{d}])){
+    const gd=g.d || (g.d=g.subs&&g.subs.length ? dFromSubs(g.subs) : '');
+    if(gd) s+=Organica.shading.overlaySVG(def, ink, gd, { fillRule:'evenodd', ctx:cx, idPrefix:'lps' });
+  }
+  return s;
+}
+// the letters: outline rings when stroked, else the fill + its shading
+function inkMarkup(d, ink, bg, glyphs){
+  return outlineWidth>0 ? strokeRingsSVG(d, ink, bg, outlineWidth, outlineRings, outlineGap) : inkFillSVG(d, ink, glyphs);
+}
+function syncInkEditor(){ if(inkEd) inkEd.set({ hex:$('#cp-ink').value, def:inkDef(), label:'Ink' }); }
+
 // repaint = cheap; just re-draws CACHE with current colours/outline/nodes
 function repaint(){
   if(!SRC){ board.classList.remove('show'); empty.hidden=false; return; }
@@ -958,12 +995,9 @@ function repaint(){
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   board.style.background=bg;
   const out=CACHE; if(!out) return;
-  let svg='';
-  if(outlineWidth>0)
-    svg+=strokeRingsSVG(dFromSubs(out), ink, bg, outlineWidth, outlineRings, outlineGap);
-  else
-    svg+=`<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd" stroke="none"/>`;
-  board.innerHTML=svg;
+  // a font view (tester / glyph preview) drew its own geometry — the raw outlines, the glyphs: redraw that one
+  if(!(SRC_KIND==='font' && window.__FONT && _inkGeom.d)) _inkGeom={ d:dFromSubs(out), glyphs:null };
+  board.innerHTML=inkMarkup(_inkGeom.d, ink, bg, _inkGeom.glyphs);
   $('#exSvg').disabled=$('#exPng').disabled=false;
 }
 
@@ -993,7 +1027,7 @@ let specimenString = DEFAULT_SPECIMEN;
 // font's OWN Bézier outlines (opentype getPath) — the polyline→Catmull-Rom
 // path dFromSubs() builds rounds the corners, so "no effect" still looked
 // transformed. Empty string = an effect is active, use the pipeline path.
-let _specimenRawD = '';
+let _specimenRawD = '', _specimenGlyphs = null;
 function buildSpecimenSubs(opts){
   const { size, track, align, caps } = opts;
   const font=window.__FONT; if(!font) return null;
@@ -1025,7 +1059,7 @@ function buildSpecimenSubs(opts){
   tester.baseline0 = y0;
 
   // pass 2 — place each line with the alignment offset
-  const raw = stackIsIdentity(); const rawParts = [];
+  const raw = stackIsIdentity(); const rawParts = [], rawGlyphs = [], glyphs = [];
   const NVAR=4, cache={}, occ={}, all=[]; let y=y0;
   for(const ln of lines){
     const w = Math.max(0, ln.width - trackEm);          // drop trailing track for exact centring
@@ -1040,14 +1074,16 @@ function buildSpecimenSubs(opts){
         if(!gl){ x += size*0.5 + trackEm; continue; }
         const cx=x, cy=y;
         if(raw){
-          try{ const d=gl.getPath(cx, cy, size).toPathData(1); if(d) rawParts.push(d); }catch(e){}
+          try{ const d=gl.getPath(cx, cy, size).toPathData(1); if(d){ rawParts.push(d); rawGlyphs.push({d}); } }catch(e){}
         }
         const vi=(occ[ch]=(occ[ch]||0)+1)%NVAR, key=ch+'#'+vi;
         let subs=cache[key];
         if(subs===undefined){ setSeedOffset(vi*17);
           try{ subs=processGlyphEm(gl,upm)||[]; }catch(e){ subs=[]; }
           setSeedOffset(0); cache[key]=subs; }
-        for(const s of subs) all.push({closed:s.closed, pts:s.pts.map(p=>({x:cx+p.x*scale, y:cy-p.y*scale}))});
+        const placed=subs.map(s=>({closed:s.closed, pts:s.pts.map(p=>({x:cx+p.x*scale, y:cy-p.y*scale}))}));
+        for(const s of placed) all.push(s);
+        if(placed.length) glyphs.push({subs:placed});
         x += (gl.advanceWidth||upm*0.5)*scale + trackEm;
       }
     }
@@ -1055,6 +1091,7 @@ function buildSpecimenSubs(opts){
     if(y>BOX_H-15){ setSeedOffset(0); break; }           // clip to the board (no scroll)
   }
   _specimenRawD = raw ? rawParts.join(' ') : '';
+  _specimenGlyphs = raw ? rawGlyphs : glyphs;   // each glyph's own fill, for the ink's shading
   return all;
 }
 // ── full family: a scrollable Fontra-style font overview — one boxed cell per
@@ -1149,7 +1186,7 @@ function familySVGMarkup(L, ink, bg, interactive){
   for(let r=1;r<L.rows;r++) lines+=`M0 ${r*U}H${L.GRID_W}`;
   let out=`<path d="${lines}" fill="none" stroke="${ink}" stroke-opacity="0.14" stroke-width="1"/>`;
   for(const cell of L.cells){
-    if(cell.glyphSubs) out+=`<path d="${dFromSubs(cell.glyphSubs)}" fill="${ink}" fill-rule="evenodd"/>`;
+    if(cell.glyphSubs) out+=inkFillSVG(dFromSubs(cell.glyphSubs), ink);
     out+=`<text x="${cell.cx}" y="${cell.capY}" text-anchor="middle" font-family="var(--font),sans-serif" font-size="${cell.name.length>13?9:13}" fill="${ink}" fill-opacity="0.62">${famEsc(cell.name)}</text>`;
     if(cell.uni!=null&&cell.uni>0)
       out+=`<text x="${cell.cx}" y="${cell.capY+15}" text-anchor="middle" font-family="var(--font),sans-serif" font-size="10" fill="${ink}" fill-opacity="0.4">U+${cell.uni.toString(16).toUpperCase().padStart(4,'0')}</text>`;
@@ -1296,9 +1333,8 @@ function renderGlyphPreview(){
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   board.style.background=bg; board.classList.add('show'); empty.hidden=true;
   const d=dFromSubs(out);
-  board.innerHTML = outlineWidth>0
-    ? strokeRingsSVG(d, ink, bg, outlineWidth, outlineRings, outlineGap)
-    : `<path d="${d}" fill="${ink}" fill-rule="evenodd"/>`;
+  _inkGeom={ d, glyphs:null };
+  board.innerHTML = inkMarkup(d, ink, bg, null);
   $('#exSvg').disabled=$('#exPng').disabled=false;
 }
 // the in-stage glyph-view toolbar: Preview⇄Edit · Undo · Reset glyph · + point
@@ -1345,11 +1381,8 @@ function renderTester(){
   const ink=$('#cp-ink').value, bg=$('#cp-bg').value;
   board.style.background=bg; board.classList.add('show'); empty.hidden=true;
   const d = _specimenRawD || (subs&&subs.length ? dFromSubs(subs) : '');
-  board.innerHTML = d
-    ? (outlineWidth>0
-        ? strokeRingsSVG(d, ink, bg, outlineWidth, outlineRings, outlineGap)
-        : `<path d="${d}" fill="${ink}" fill-rule="evenodd"/>`)
-    : '';
+  _inkGeom={ d, glyphs:_specimenGlyphs };
+  board.innerHTML = d ? inkMarkup(d, ink, bg, _specimenGlyphs) : '';
   $('#exSvg').disabled=$('#exPng').disabled=false;
   syncSpecEditBox();
 }
@@ -1502,9 +1535,7 @@ function currentSVGString(scale=1){
   const out=CACHE||computed();
   const W=BOX_W*scale, H=BOX_H*scale;
   const d = _specimenRawD ? _specimenRawD : dFromSubs(out);
-  const shape=outlineWidth>0
-    ? strokeRingsSVG(d, ink, bg, outlineWidth, outlineRings, outlineGap)
-    : `<path d="${d}" fill="${ink}" fill-rule="evenodd"/>`;
+  const shape=inkMarkup(d, ink, bg, _inkGeom.d===d ? _inkGeom.glyphs : null);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX_W} ${BOX_H}" width="${W}" height="${H}">`
     +`<rect width="${BOX_W}" height="${BOX_H}" fill="${bg}"/>`+shape+`</svg>`;
 }
@@ -1985,7 +2016,7 @@ function serializeVar(){
 function projectJSON(){
   return JSON.stringify({ v:6, groups:GROUPS.raster, vectorGroups:GROUPS.vector, transform:XFORM,
     smooth:getContourSmooth(), outline:outlineWidth, outlineRings, outlineGap,
-    ink:$('#cp-ink').value, bg:$('#cp-bg').value, name:$('#exName').value,
+    ink:$('#cp-ink').value, bg:$('#cp-bg').value, inkShade:inkShade?JSON.parse(JSON.stringify(inkShade)):null, name:$('#exName').value,
     specimen:specimenString,
     tester:{ size:tester.size, track:tester.track, align:tester.align, caps:tester.caps },
     edits:serializeEdits(), variable:serializeVar() });
@@ -2001,8 +2032,10 @@ function loadProject(txt){
   if(p.smooth!=null) setContourSmooth(p.smooth);
   outlineWidth = p.outline || 0; outlineRings = p.outlineRings || 1; outlineGap = p.outlineGap || 4;
   Object.assign(XFORM, {rotate:0,slant:0,stretchX:1,stretchY:1}, p.transform||{}); syncXformUI();
+  inkShade = p.inkShade || null;   // a .lvp saved before Nov 21, 2026 has none: flat
   if(p.ink) swatches.ink.set(p.ink);
   if(p.bg) swatches.bg.set(p.bg);
+  syncInkEditor();
   if(p.name) $('#exName').value=p.name;
   tester = { ...TESTER_DEFAULTS, ...(p.tester||{}), baseline0:tester.baseline0, trackEm:tester.trackEm };  // missing → defaults (v3)
   specimenString = (p.specimen!=null) ? p.specimen : (p.text!=null ? p.text : specimenString);  // v3 back-compat
@@ -2238,7 +2271,20 @@ $('#varBake').addEventListener('click', async function(){
 
 // Ink/Paper — the shared Palette component (attach mode).
 const swatches = {};
-['ink','bg'].forEach(k=>{ swatches[k]=Organica.palette.swatch(k,{ initial:$('#hex-'+k).value, onChange: repaint }); });
+// a palette's name in either row's ▦ takes it WHOLE (Organica.paletteKit.roles): Ink ← its main colour (or the
+// darkest), Paper ← its background (or the lightest), with the ink's shading
+const takePalette = Organica.paletteKit ? Organica.paletteKit.roles({
+  slots: [
+    { key:'ink', parts:['main','sub'], fallback:'darkest' },
+    { key:'bg', parts:['background','ground'], fallback:'lightest' },
+  ],
+  onRoles(map){ inkShade=map.ink.shade||null; swatches.ink.set(map.ink.hex); swatches.bg.set(map.bg.hex); syncInkEditor(); repaint(); },
+}) : null;
+['ink','bg'].forEach(k=>{ swatches[k]=Organica.palette.swatch(k,{ initial:$('#hex-'+k).value, onPalette: takePalette||undefined, onChange: ()=>{ repaint(); syncInkEditor(); } }); });
+if(Organica.shadeEditor && Organica.shading) inkEd=Organica.shadeEditor.mount($('#ink-shade'), {
+  hex:$('#cp-ink').value, def:null, ctx:shadeCtx, label:'Ink',
+  onChange(def){ inkShade=def; repaint(); },
+});
 
 // ── type-tester canvas: editable overlay + the bottom control bar ──────────
 const canvasWrap = document.getElementById('canvas-wrap');

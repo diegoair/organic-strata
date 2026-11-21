@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/shared/header.css">
   <link rel="stylesheet" href="/shared/panel.css">
   <link rel="stylesheet" href="/shared/colour-picker.css">
+  <link rel="stylesheet" href="/shared/shade-editor.css">
   <link rel="stylesheet" href="/shared/floatbar.css">
   <link rel="stylesheet" href="/shared/shell.css">
   <link rel="stylesheet" href="/shared/mobile-gate.css">
@@ -337,6 +338,9 @@
         <span>Paper is transparent (PNG/SVG)</span>
       </label>
     </div>
+    <!-- The Ink's Gradient + Shadow (Nov 21, 2026: TuneSutra palettes whole) — drawn over the ink regions, in their
+         box; a palette's ▦ on any colour row fills Ink, Paper and Background fill by the house role. -->
+    <div id="halide-shade"></div>
 
   </div><!-- /panel -->
 </div><!-- /app -->
@@ -351,9 +355,15 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/select-picker.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
+<script src="/shared/shading.js"></script>
+<script src="/shared/shade-editor.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script>
@@ -545,7 +555,68 @@ function setAlg(a) {
 // Ink / Paper / Background-fill — the shared Palette component (attach mode).
 // Populated in INIT (after paintPreview / updateSizeReadout are defined).
 const swatches = {};
-function onSwatchChange() { paintPreview(); updateSizeReadout(); }   // colour is paint-only
+function onSwatchChange() {   // colour is paint-only
+  const ink = ctrl('hex-ink').value.toLowerCase();
+  // the Ink changed by hand keeps its shading, moved onto the new colour (its first stop; the 900 follows)
+  if (inkShade && lastInk && ink !== lastInk && Organica.shading) { inkShade = Organica.shading.withColour(JSON.parse(JSON.stringify(inkShade)), ink, shadeCtx()); }
+  if (ink !== lastInk) { lastInk = ink; syncShadeEditor(); }
+  paintPreview(); updateSizeReadout();
+}
+
+// ── INK SHADING (Nov 21, 2026 — a TuneSutra palette taken whole) — the Ink's Gradient + Shadow (an Organica.shading
+// definition, null = flat), drawn over the ink regions in their own box, in work cells (the grain follows the dither
+// grid, not the export size). Kept in Halide's presets (a preset saved before = flat).
+let inkShade = null, lastInk = null, shadeEditor = null;
+const shadeCtx = () => Organica.paletteKit.ctxOf([ctrl('hex-ink').value, ctrl('hex-paper').value, ctrl('hex-bgfill').value].map(h => h.toLowerCase()), ctrl('hex-paper').value);
+function syncShadeEditor() {
+  if (!Organica.shadeEditor || !Organica.shading) return;
+  const v = { hex: ctrl('hex-ink').value.toLowerCase(), def: inkShade, label: 'Ink' };
+  if (shadeEditor) { shadeEditor.set(v); return; }
+  shadeEditor = Organica.shadeEditor.mount(ctrl('halide-shade'), Object.assign(v, {
+    ctx: shadeCtx,
+    onColourStop: () => ctrl('sw-ink').click(),
+    onChange: def => { inkShade = def || null; paintPreview(); },
+  }));
+}
+// A palette's ▦ on any colour row: the palette WHOLE — Ink, Paper and Background fill by the house role
+const takeRoles = Organica.paletteKit.roles({
+  slots: [
+    { key: 'ink', parts: ['main', 'sub'], fallback: 'darkest' },
+    { key: 'paper', parts: ['background', 'ground'], fallback: 'lightest' },
+    { key: 'bgfill', parts: ['ground', 'middle', 'background'], fallback: 'lightest' },
+  ],
+  onRoles: r => {
+    swatches.paper.set(r.paper.hex); swatches.bgfill.set(r.bgfill.hex);
+    lastInk = null; swatches.ink.set(r.ink.hex);   // a new Ink: its own shading, not the last one moved
+    inkShade = r.ink.shade || null;
+    syncShadeEditor(); paintPreview();
+  },
+});
+// The ink regions' box and outline in work cells (rects = [x, y, w, h] cells): the shading's box, its clip
+function inkBox() {
+  if (!rects || !rects.length) return null;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let k = 0; k < rects.length; k++) { const r = rects[k]; x0 = Math.min(x0, r[0]); y0 = Math.min(y0, r[1]); x1 = Math.max(x1, r[0] + r[2]); y1 = Math.max(y1, r[1] + r[3]); }
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+// canvas: one Path2D of every ink rect, the shading drawn in it at block scale
+function paintInkShade(g, block, ink) {
+  const box = inkShade && Organica.shading && inkBox();
+  if (!box) return;
+  const path = new Path2D();
+  for (let k = 0; k < rects.length; k++) { const r = rects[k]; path.rect(r[0], r[1], r[2], r[3]); }
+  g.save(); g.scale(block, block);
+  Organica.shading.overlayCanvas(g, inkShade, ink, path, box, shadeCtx(), 'nonzero');
+  g.restore();
+}
+// SVG: the ink region's outline (evenodd) as the clip, the shading's plates in its box, at block scale
+function inkShadeSVG(block, ink) {
+  const box = inkShade && Organica.shading && inkBox();
+  if (!box) return '';
+  const d = contoursToPathD(inkCellsMask, workW, workH, 1);
+  const o = Organica.shading.overlaySVG(inkShade, ink, d, { box, fillRule: 'evenodd', ctx: shadeCtx(), idPrefix: 'hshd' });
+  return o ? `<g transform="scale(${block})">${o}</g>` : '';
+}
 // A true swap: the ink/paper CELLS (which pixels are which) don't change at
 // all — only which of the two colours paints which role. Same shapes, same
 // dither pattern, colours traded. (Toggling Invert instead would recompute
@@ -644,6 +715,8 @@ function applyPreset(name) {
   swatches.bgfill.set(p.bgfillColor || '#cccccc');
   ctrl('ck-transparent').checked = !!p.transparent;
   swatches.ink.set(p.ink); swatches.paper.set(p.paper);
+  inkShade = p.inkShade && Organica.shading ? Organica.shading.normalize(JSON.parse(JSON.stringify(p.inkShade))) : null;   // a preset saved before: flat
+  syncShadeEditor();
   scheduleRender();
 }
 function savePreset() {
@@ -665,6 +738,7 @@ function confirmSavePreset() {
     outline: ctrl('ck-outline').checked, outlineWidth: val('sl-outline-width'),
     bgfill: ctrl('ck-bgfill').checked, bgfillColor: ctrl('hex-bgfill').value,
     transparent: ctrl('ck-transparent').checked,
+    inkShade: inkShade ? JSON.parse(JSON.stringify(inkShade)) : null,
   };
   PRESETS.write(u);
   if (presetPicker) presetPicker.invalidate(name);   // an overwrite re-renders its thumbnail
@@ -1088,6 +1162,7 @@ function paintCanvas(g, W, H, block, ink, paper, wireframe, transparent) {
   } else {
     g.fillStyle = ink;
     fillRectList(g, rects, block);
+    paintInkShade(g, block, ink);
   }
 }
 
@@ -1233,7 +1308,7 @@ function buildSVGInner(block) {
   if (outlineRects) s += region(ringCellsMask, outlineRects, '#ffffff');
   s += wireframe
     ? `<g fill="none" stroke="${ink}" stroke-width="1">${svgRects(rects, block)}</g>`
-    : region(inkCellsMask, rects, ink);
+    : region(inkCellsMask, rects, ink) + inkShadeSVG(block, ink);
   return s;
 }
 function buildSVG(block) {
@@ -1298,8 +1373,10 @@ function resetZoom() { zoomPan.reset(); }
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 
 ['ink', 'paper', 'bgfill'].forEach(c => {
-  swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: onSwatchChange });
+  swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: onSwatchChange, onPalette: takeRoles });
 });
+lastInk = ctrl('hex-ink').value.toLowerCase();
+syncShadeEditor();
 
 setStatus('', 'Drop a photo to begin');
 populatePresets();

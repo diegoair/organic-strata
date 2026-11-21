@@ -465,8 +465,10 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/tracks.js"></script>
@@ -1119,8 +1121,17 @@ function toggleRecording() { if (pulsarRecorder) pulsarRecorder.toggle(); }
 // INIT
 // ─────────────────────────────────────────────
 buildTrackSlots();
-inkSwatch = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: () => scheduleStill() });
-paperSwatch = Organica.palette.swatch('paper', { initial: '#f2efe6', onChange: () => scheduleStill() });
+// A palette's name in either row's ▦ fills both by the house role (Organica.paletteKit.roles, Nov 21, 2026):
+// Ink ← main, Paper ← background. Colours only — Pulsar draws flat (a shading would be redrawn every frame).
+const takePalette = Organica.paletteKit.roles({
+  slots: [
+    { key: 'ink', parts: ['main', 'sub'], fallback: 'darkest' },
+    { key: 'paper', parts: ['background', 'ground'], fallback: 'lightest' },
+  ],
+  onRoles: m => { inkSwatch.set(m.ink.hex); paperSwatch.set(m.paper.hex); },
+});
+inkSwatch = Organica.palette.swatch('ink', { initial: '#1c1c1c', onPalette: takePalette, onChange: () => scheduleStill() });
+paperSwatch = Organica.palette.swatch('paper', { initial: '#f2efe6', onPalette: takePalette, onChange: () => scheduleStill() });
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 Organica.popover(ctrl('btn-loop'), ctrl('loop-popover'));
 

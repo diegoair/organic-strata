@@ -31,6 +31,8 @@
  *   P.fillPhase  — added to the fill-noise offset  (travelling dissolve wave)
  *   P.loopPhase  — added inside the chaos-circle noise  (tangle writhes)
  *   P.rotate/P.zoom — a whole-field group transform in drawSceneCanvas only
+ * and one for the ink's shading (Nov 21, 2026): P.inkShade (an Organica.shading definition, + optional P.shadeCtx)
+ * draws on the fill mode's cells, each in its own box — needs shading.js loaded; unset = flat (Pulsar leaves it unset).
  * ───────────────────────────────────────────────────────────────────────────── */
 (function (global) {
   'use strict';
@@ -262,6 +264,22 @@
     return prim;
   }
 
+  // ── Ink shading (Nov 21, 2026 — a TuneSutra palette taken whole): P.inkShade, an Organica.shading definition for
+  //    the ink, drawn on the FILL mode's cells only, each cell lit in its own box (SVG and canvas alike). Unset / null
+  //    = flat, the output byte-identical to before. P.shadeCtx (optional) is the shading context; default: the ink's
+  //    tints over the paper. Other modes (rings, spokes, mesh, marks, arcs, loops) stay flat.
+  function inkShading(P) {
+    if (!P.inkShade || !Organica.shading) return null;
+    const ctx = P.shadeCtx || (Organica.paletteKit ? Organica.paletteKit.ctxOf([P.ink], P.paper) : { paper: P.paper });
+    return { def: P.inkShade, ctx: ctx };
+  }
+  function polyD(poly) { return 'M' + poly.map(p => n2(p[0]) + ' ' + n2(p[1])).join('L') + 'Z'; }
+  function polyBox(poly) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    poly.forEach(p => { x0 = Math.min(x0, n2(p[0])); y0 = Math.min(y0, n2(p[1])); x1 = Math.max(x1, n2(p[0])); y1 = Math.max(y1, n2(p[1])); });
+    return x1 > x0 && y1 > y0 ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+  }
+
   // ── SVG (preview === export) ──
   function ptsStr(arr) {
     return arr.map(p => (Math.round(p[0] * 100) / 100) + ',' + (Math.round(p[1] * 100) / 100)).join(' ');
@@ -296,8 +314,12 @@
       s += '</g>';
     }
     if (polygonsFill.length) {
+      const sh = inkShading(P);
       s += `<g fill="${P.ink}" stroke="none">`;
-      polygonsFill.forEach(poly => { s += `<polygon points="${ptsStr(poly)}"/>`; });
+      polygonsFill.forEach(poly => {
+        s += `<polygon points="${ptsStr(poly)}"/>`;
+        if (sh) s += Organica.shading.overlaySVG(sh.def, P.ink, polyD(poly), { box: polyBox(poly), ctx: sh.ctx, idPrefix: 'rsh' });
+      });
       s += '</g>';
     }
     arcs.forEach(a => {
@@ -346,7 +368,11 @@
     polylines.forEach(l => { trace(l, false); ctx.stroke(); });
     lines.forEach(l => { trace(l, false); ctx.stroke(); });
     ctx.fillStyle = P.ink;
-    polygonsFill.forEach(poly => { trace(poly, true); ctx.fill(); });
+    const sh = polygonsFill.length ? inkShading(P) : null;
+    polygonsFill.forEach(poly => {
+      trace(poly, true); ctx.fill();
+      if (sh) Organica.shading.overlayCanvas(ctx, sh.def, P.ink, new Path2D(polyD(poly)), polyBox(poly), sh.ctx);
+    });
     arcs.forEach(a => { ctx.lineWidth = Math.max(a.sw, LW); ctx.stroke(new Path2D(a.d)); });
     ctx.lineWidth = LW;
     marks.forEach(m => {

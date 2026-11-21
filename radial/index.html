@@ -11,9 +11,11 @@
 <link rel="stylesheet" href="/shared/icons.css">
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
-<link rel="stylesheet" href="/shared/colour-picker.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
+<link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/colour-picker.css">
+<link rel="stylesheet" href="/shared/shade-editor.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
 :root {
@@ -379,6 +381,9 @@
         <span class="ctrl-val" id="v-seed">3</span>
       </div>
     </div>
+    <!-- The ink's Gradient + Shadow (Nov 21, 2026: TuneSutra palettes whole in every tool) — Fill mode only: each
+         filled cell draws it in its own box (Organica.shadeEditor, Organica.shading). -->
+    <div id="ink-shade"></div>
 
   </div><!-- /panel -->
 </div>
@@ -395,11 +400,16 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
-<script src="/shared/noise.js"></script>
-<script src="/shared/radial.js"></script>
 <script src="/shared/select-picker.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
+<script src="/shared/shading.js"></script>
+<script src="/shared/shade-editor.js"></script>
+<script src="/shared/palette-kit.js"></script>
+<script src="/shared/radial.js"></script>
 <script>
 // ─────────────────────────────────────────────
 // RADIAL — one tool for the Book of Shapes "radial" family. A polar
@@ -456,6 +466,38 @@ RANGE_IDS.forEach(id => {
 // (after scheduleRender is defined); live repaint also rides the delegated
 // #panel input/change listener.
 const swatches = {};
+// The ink's shading (an Organica.shading definition, or null = flat) and the ink it was made for: a palette taken
+// whole brings it along; an ink changed by hand keeps it, re-coloured (Organica.shading.withColour). Saved in presets as `inkshade`.
+let inkShade = null, inkShadeHex = null, inkShadeEd = null;
+const inkShadeCtx = () => Organica.paletteKit.ctxOf([ctrl('hex-ink').value.toLowerCase()], ctrl('hex-paper').value);
+function setInkShade(def, hex) {
+  inkShade = def ? JSON.parse(JSON.stringify(def)) : null;
+  inkShadeHex = def ? String(hex).toLowerCase() : null;
+}
+function syncInkShadeEditor() {
+  if (!Organica.shadeEditor || ctrl('ink-shade').hidden) return;
+  const v = { hex: ctrl('hex-ink').value.toLowerCase(), def: inkShade, label: 'Ink' };
+  if (inkShadeEd) { inkShadeEd.set(v); return; }
+  inkShadeEd = Organica.shadeEditor.mount(ctrl('ink-shade'), Object.assign(v, {
+    ctx: inkShadeCtx,
+    onChange: def => { setInkShade(def, ctrl('hex-ink').value); scheduleRender(); },
+  }));
+}
+// A palette's name in either row's ▦ fills both by the house role (Organica.paletteKit.roles): Ink ← main,
+// Paper ← background; the ink's shading comes with it.
+const takePalette = Organica.paletteKit.roles({
+  slots: [
+    { key: 'ink', parts: ['main', 'sub'], fallback: 'darkest' },
+    { key: 'paper', parts: ['background', 'ground'], fallback: 'lightest' },
+  ],
+  onRoles: m => {
+    setInkShade(m.ink.shade, m.ink.hex);
+    swatches.ink.set(m.ink.hex);
+    swatches.paper.set(m.paper.hex);
+    syncInkShadeEditor();
+    scheduleRender();
+  },
+});
 
 // Which panel blocks are visible for the current selects.
 function syncPanelRows() {
@@ -473,6 +515,8 @@ function syncPanelRows() {
   ctrl('render-marks').hidden = !(rn === 'marks');
   ctrl('render-arcs').hidden = !(rn === 'arcs');
   ctrl('render-loops').hidden = !(rn === 'loops');
+  ctrl('ink-shade').hidden = !(rn === 'fill');
+  syncInkShadeEditor();
   ctrl('row-linedir').hidden = !(rn === 'marks' && ctrl('sel-markshape').value === 'line');
 }
 
@@ -524,6 +568,7 @@ function buildParams(s = readState()) {
     seed: Math.round(+s.seed),
     ink: s.ink,
     paper: s.paper,
+    inkShade: s.inkshade || null,
   };
 }
 
@@ -584,6 +629,7 @@ function readState() {
   s.diagonals = ctrl('ck-diagonals').checked;
   s.ink = ctrl('hex-ink').value;
   s.paper = ctrl('hex-paper').value;
+  if (inkShade) s.inkshade = JSON.parse(JSON.stringify(inkShade));
   return s;
 }
 function applyState(s) {
@@ -591,6 +637,7 @@ function applyState(s) {
   RANGE_IDS.forEach(id => { const k = id.slice(3); if (s[k] != null) ctrl(id).value = s[k]; });
   ctrl('ck-diagonals').checked = !!s.diagonals;
   RANGE_IDS.forEach(id => syncVal(ctrl(id), 'v-' + id.slice(3)));
+  setInkShade(s.inkshade || null, s.ink || '#1c1c1c');   // a preset without one (every preset before Nov 21, 2026) = flat
   swatches.ink.set(s.ink || '#1c1c1c');
   swatches.paper.set(s.paper || '#f2efe6');
   syncPanelRows();
@@ -674,7 +721,13 @@ function deletePreset() {
 
 // ── INIT ──
 Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
-['ink', 'paper'].forEach(c => { swatches[c] = Organica.palette.swatch(c, { initial: ctrl('hex-' + c).value, onChange: scheduleRender }); });
+swatches.ink = Organica.palette.swatch('ink', { initial: ctrl('hex-ink').value, onPalette: takePalette, onChange: hex => {
+  // changed by hand: the shading stays, moved onto the new ink (one rule in every tool)
+  if (inkShade && String(hex).toLowerCase() !== inkShadeHex) setInkShade(Organica.shading.withColour(JSON.parse(JSON.stringify(inkShade)), hex, inkShadeCtx()), hex);
+  syncInkShadeEditor();
+  scheduleRender();
+} });
+swatches.paper = Organica.palette.swatch('paper', { initial: ctrl('hex-paper').value, onPalette: takePalette, onChange: () => { syncInkShadeEditor(); scheduleRender(); } });
 applyState(BUILTIN_PRESETS['Broken Ring']);   // panel's raw HTML values are placeholders only
 populatePresets('Broken Ring');
 

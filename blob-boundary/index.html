@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/colour-picker.css">
+<link rel="stylesheet" href="/shared/shade-editor.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
@@ -59,6 +60,9 @@
     <svg id="art" class="org-stage" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
       <rect id="bg" x="0" y="0" width="400" height="400" fill="#7a5c3a"/>
       <path id="boundary" fill="#d8d4cc" d=""/>
+      <!-- the mask colour's shading (a TuneSutra palette taken whole): plates over the stage, clipped by the live boundary -->
+      <clipPath id="bb-mask-clip"><use href="#boundary"/></clipPath>
+      <g id="mask-shading" clip-path="url(#bb-mask-clip)"></g>
       <g id="dots"></g>
     </svg>
   </div>
@@ -161,6 +165,9 @@
       </div>
     </div>
 
+    <!-- the mask colour's Gradient + Shadow (Organica.shadeEditor, Nov 21, 2026) -->
+    <div id="mask-shade"></div>
+
     <div class="panel-section">
       <p class="stat" id="stat">—</p>
     </div>
@@ -179,8 +186,14 @@
 <script src="/shared/store.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
+<script src="/shared/shading.js"></script>
+<script src="/shared/shade-editor.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script>
 (function () {
   'use strict';
@@ -371,16 +384,60 @@
   // ── colour — shared Palette component (attach mode); this tool's own
   //    repaint side effect rides each swatch's onChange. 'dot' has no repaint
   //    (classify() reads ctrl('hex-dot').value live next pass). ──
+  //    A TuneSutra palette's name in any row's ▦ takes it WHOLE (Organica.paletteKit.roles, Nov 21, 2026): every
+  //    row filled by the house role, and the mask colour's shading (Gradient + Shadow) drawn on the mask — plates
+  //    over the whole stage, clipped by the live boundary (#bb-mask-clip), so the shading follows the morph.
+  //    A colour changed by hand keeps its shading (Organica.shading.withColour); a palette without one is flat.
   const swatches = {};
+  const maskShadeEl = ctrl('mask-shading');
+  let maskShade = null;   // the mask colour's GradDef, or null = flat
+  function drawMaskShade() {
+    const S = Organica.shading;
+    if (!S || !maskShade) { maskShadeEl.innerHTML = ''; return; }
+    const hex = ctrl('hex-mask').value, bg = ctrl('hex-bg').value;
+    const ctx = Organica.paletteKit.ctxOf([bg, hex, ctrl('hex-dot').value], bg);
+    const def = S.withColour(JSON.parse(JSON.stringify(maskShade)), hex, ctx);
+    maskShadeEl.innerHTML = S.platesSVG(S.shapePlates(def, hex, { x: 0, y: 0, w: W, h: H }, ctx), 'bbm');
+  }
+  // The mask colour's Gradient + Shadow, edited in the panel (value mode: one onChange per edit)
+  const maskShadeCtx = () => { const bg = ctrl('hex-bg').value; return Organica.paletteKit.ctxOf([bg, ctrl('hex-mask').value, ctrl('hex-dot').value], bg); };
+  let maskShadeEd = null;
+  function syncMaskShadeEditor() {
+    if (!Organica.shadeEditor || !Organica.paletteKit) return;
+    const hex = ctrl('hex-mask').value;
+    const v = { hex, def: maskShade ? Organica.shading.withColour(JSON.parse(JSON.stringify(maskShade)), hex, maskShadeCtx()) : null, label: 'Mask' };
+    if (maskShadeEd) { maskShadeEd.set(v); return; }
+    maskShadeEd = Organica.shadeEditor.mount(ctrl('mask-shade'), Object.assign(v, {
+      ctx: maskShadeCtx,
+      onChange: def => { maskShade = def ? JSON.parse(JSON.stringify(def)) : null; drawMaskShade(); },
+    }));
+  }
+  const takePalette = Organica.paletteKit ? Organica.paletteKit.roles({
+    slots: [
+      { key: 'bg', parts: ['background'], fallback: 'lightest' },
+      { key: 'mask', parts: ['main', 'sub'], fallback: 'darkest' },
+      { key: 'dot', parts: ['accent', 'accent2', 'sub'], fallback: 1 },
+    ],
+    onRoles(map) {
+      maskShade = map.mask.shade || null;
+      swatches.bg.set(map.bg.hex); swatches.mask.set(map.mask.hex); swatches.dot.set(map.dot.hex);
+      drawMaskShade();
+      syncMaskShadeEditor();
+    },
+  }) : null;
   ['bg', 'mask', 'dot'].forEach(which => {
     swatches[which] = Organica.palette.swatch(which, {
       initial: ctrl('hex-' + which).value,
+      onPalette: takePalette || undefined,
       onChange: (hex) => {
         if (which === 'bg') bgRect.setAttribute('fill', hex);
         if (which === 'mask') boundary.setAttribute('fill', hex);
+        if (maskShade) drawMaskShade();
+        if (which !== 'dot') syncMaskShadeEditor();   // the editor follows the mask colour (its shading kept, re-coloured)
       },
     });
   });
+  syncMaskShadeEditor();
 
   // ── presets — storage + legacy migration are shared; this tool owns
   // what a saved configuration actually contains ──
@@ -392,6 +449,7 @@
       spacing: ctrl('rg-spacing').value, radius: ctrl('rg-radius').value, jitter: ctrl('rg-jitter').value,
       band: ctrl('rg-band').value, scale: ctrl('rg-scale').value, samples: ctrl('rg-samples').value,
       bg: ctrl('hex-bg').value, mask: ctrl('hex-mask').value, dot: ctrl('hex-dot').value,
+      maskShade: maskShade ? JSON.parse(JSON.stringify(maskShade)) : null,
     };
   }
   function applyState(s) {
@@ -401,7 +459,10 @@
       el.value = s[k];
       el.dispatchEvent(new Event('input', { bubbles: true }));
     });
+    maskShade = s.maskShade || null;   // a preset saved before Nov 21, 2026 has none: flat
     swatches.bg.set(s.bg); swatches.mask.set(s.mask); swatches.dot.set(s.dot);
+    drawMaskShade();
+    syncMaskShadeEditor();
     buildLattice();
     buildTimeline();
   }
@@ -430,6 +491,10 @@
       g.beginPath(); g.rect(ox, oy, 80, 80); g.clip();
       g.translate(ox, oy); g.scale(sc, sc);
       g.fillStyle = s.mask; g.fill(path);
+      if (s.maskShade && Organica.shading) {   // the mask's shading, as the stage draws it
+        const ctx = Organica.paletteKit.ctxOf([s.bg, s.mask, s.dot], s.bg);
+        Organica.shading.overlayCanvas(g, Organica.shading.withColour(JSON.parse(JSON.stringify(s.maskShade)), s.mask, ctx), s.mask, path, { x: 0, y: 0, w: W, h: H }, ctx);
+      }
       g.fillStyle = s.dot;
       g.beginPath();
       for (const [x, y] of pts) {

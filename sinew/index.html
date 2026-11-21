@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="/shared/header.css">
 <link rel="stylesheet" href="/shared/panel.css">
 <link rel="stylesheet" href="/shared/colour-picker.css">
+<link rel="stylesheet" href="/shared/shade-editor.css">
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/seeds-panel.css">
@@ -171,6 +172,8 @@
         <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
       </div>
     </div>
+    <!-- The ink's Gradient + Shadow (Nov 21, 2026: a TuneSutra palette taken whole) — drawn on the filled shape in its own box -->
+    <div id="ink-shade"></div>
   </div>
 </div>
 
@@ -184,8 +187,14 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
+<script src="/shared/shading.js"></script>
+<script src="/shared/shade-editor.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <!-- The font-agnostic Vector/Raster effect engine (24 presets, groups/blend,
      raster pipeline) shared with Living Path — see shared/pathfx.js header. -->
 <script src="/shared/pathfx.js"></script>
@@ -409,6 +418,24 @@ function computed(){
 
 let CACHE=null, rasterTimer=null;
 
+// The ink's shading (Nov 21, 2026 — a TuneSutra palette taken whole, Organica.paletteKit): a GradDef or null (flat).
+// It follows the ink when the colour changes by hand (Organica.shading.withColour); drawn only on a filled shape,
+// in the shape's own box, never on strokes.
+let inkShade=null, inkEd=null;
+const shadeCtx=()=>Organica.paletteKit.ctxOf([$('#cp-ink').value], $('#cp-bg').value);
+function inkDef(){
+  if(!inkShade || !Organica.shading) return null;
+  return Organica.shading.withColour(JSON.parse(JSON.stringify(inkShade)), $('#cp-ink').value, shadeCtx());
+}
+// the filled shape + the ink's shading over it (same parent, right after the shape)
+function inkFillSVG(d, ink, extra){
+  let s=`<path d="${d}" fill="${ink}" fill-rule="evenodd"${extra||''}/>`;
+  const def=inkDef();
+  if(def && d) s+=Organica.shading.overlaySVG(def, ink, d, { fillRule:'evenodd', ctx:shadeCtx(), idPrefix:'sns' });
+  return s;
+}
+function syncInkEditor(){ if(inkEd) inkEd.set({ hex:$('#cp-ink').value, def:inkDef(), label:'Ink' }); }
+
 // repaint = cheap; just re-draws CACHE with current colours/outline/nodes
 function repaint(){
   if(!SRC){ board.classList.remove('show'); empty.hidden=false; return; }
@@ -422,7 +449,7 @@ function repaint(){
   if(showOutline)
     svg+=`<path d="${dFromSubs(out)}" fill="none" stroke="${ink}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>`;
   else
-    svg+=`<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd" stroke="none"/>`;
+    svg+=inkFillSVG(dFromSubs(out), ink, ' stroke="none"');
   if(showNodes && TECH==='vector')
     for(const s of out) for(const p of s.pts)
       svg+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.4" fill="${bg}" stroke="${ink}" stroke-width="1"/>`;
@@ -499,7 +526,7 @@ function currentSVGString(scale=1){
   const W=1000*scale;
   const shape=showOutline
     ? `<path d="${dFromSubs(out)}" fill="none" stroke="${ink}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>`
-    : `<path d="${dFromSubs(out)}" fill="${ink}" fill-rule="evenodd"/>`;
+    : inkFillSVG(dFromSubs(out), ink);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="${W}" height="${W}">`
     +`<rect width="1000" height="1000" fill="${bg}"/>`+shape+`</svg>`;
 }
@@ -526,14 +553,16 @@ $('#exPng').addEventListener('click',()=>{
 // ============================================================
 const USER_PRESETS = Organica.presetStore('sinew');
 function stateSnapshot(){
-  return { v:1, tech:TECH, groups:GROUPS, chain:CHAIN, ink:$('#cp-ink').value, bg:$('#cp-bg').value };
+  return { v:1, tech:TECH, groups:GROUPS, chain:CHAIN, ink:$('#cp-ink').value, bg:$('#cp-bg').value, inkShade:inkShade?JSON.parse(JSON.stringify(inkShade)):null };
 }
 function applyStateSnapshot(p){
   if(!p || !p.groups) return;
   GROUPS.vector=p.groups.vector||[newGroup()]; GROUPS.raster=p.groups.raster||[newGroup()];
   TECH=p.tech==='raster'?'raster':'vector';
+  inkShade=p.inkShade||null;   // a preset saved before Nov 21, 2026 has none: flat
   if(p.ink) swatches.ink.set(p.ink);
   if(p.bg) swatches.bg.set(p.bg);
+  syncInkEditor();
   $('#techSeg').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.tech===TECH));
   CHAIN=!!p.chain;
   $('#tgChain').hidden=(TECH!=='raster'); $('#tgChain').classList.toggle('on',CHAIN);
@@ -569,9 +598,22 @@ $('#tgOrig').addEventListener('click',function(){ showOrig=!showOrig; this.class
 $('#tgOutline').addEventListener('click',function(){ showOutline=!showOutline; this.classList.toggle('on',showOutline); repaint(); });
 $('#tgNodes').addEventListener('click',function(){ showNodes=!showNodes; this.classList.toggle('on',showNodes); repaint(); });
 
-// Ink/Paper — the shared Palette component (attach mode).
+// Ink/Paper — the shared Palette component (attach mode). A palette's name in either row's ▦ takes it WHOLE
+// (Organica.paletteKit.roles): Ink ← its main colour (or the darkest), Paper ← its background (or the lightest),
+// with the ink's shading.
 const swatches = {};
-['ink','bg'].forEach(k=>{ swatches[k]=Organica.palette.swatch(k,{ initial:$('#hex-'+k).value, onChange: repaint }); });
+const takePalette = Organica.paletteKit ? Organica.paletteKit.roles({
+  slots: [
+    { key:'ink', parts:['main','sub'], fallback:'darkest' },
+    { key:'bg', parts:['background','ground'], fallback:'lightest' },
+  ],
+  onRoles(map){ inkShade=map.ink.shade||null; swatches.ink.set(map.ink.hex); swatches.bg.set(map.bg.hex); syncInkEditor(); repaint(); },
+}) : null;
+['ink','bg'].forEach(k=>{ swatches[k]=Organica.palette.swatch(k,{ initial:$('#hex-'+k).value, onPalette: takePalette||undefined, onChange: ()=>{ repaint(); syncInkEditor(); } }); });
+if(Organica.shadeEditor && Organica.shading) inkEd=Organica.shadeEditor.mount($('#ink-shade'), {
+  hex:$('#cp-ink').value, def:null, ctx:shadeCtx, label:'Ink',
+  onChange(def){ inkShade=def; repaint(); },
+});
 
 // boot
 buildPresets();
