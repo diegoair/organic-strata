@@ -523,7 +523,9 @@ function changeGrid(inp, rng, st, spec, only) {
 function changePalette(inp, rng, st, spec, only) {
   const pal = inp.palette; if (!pal || !pal.colors || !pal.colors.length) return null;
   const C = Organica.color, n = pal.colors.length, ok = key => only ? only === key : allowed(st, 'palette', key);
-  const canOrder = n > 1 && ok('order'), canHue = ok('hue'), extra = OPT_IN.palette.filter(ok);
+  // Another palette needs one in the library (TuneSutra's saved + starred, with as many inks): none — it is not drawn
+  const libHas = () => (Organica.palette && Organica.palette.library ? Organica.palette.library() : []).some(x => x && x.colors && x.colors.length >= n);
+  const canOrder = n > 1 && ok('order'), canHue = ok('hue'), extra = OPT_IN.palette.filter(ok).filter(k => k !== 'lib' || only === 'lib' || libHas());
   let op;
   if (!extra.length) { if (!canOrder && !canHue) return null; op = canOrder && (!canHue || rng() < 0.35) ? 'order' : 'hue'; }   // the first level's draw, unchanged
   else { const opts = [...(canOrder ? ['order'] : []), ...(canHue ? ['hue'] : []), ...extra]; op = only || pick(opts, rng); }
@@ -549,7 +551,7 @@ function changePalette(inp, rng, st, spec, only) {
     inp.palette = { ...pal, paper: hex, colors: cwSolve(pal.colors, hex) || pal.colors };
     return { kind: 'palette', key: 'paper', label: 'Paper', value: name, text: `${name === 'lighter' ? 'Lighter' : 'Darker'} paper`, shown: name, edit: null };
   }
-  if (op === 'lib') {   // the inks of another palette of the library (TuneSutra's saved ones + the built-ins) with at least as many inks; the resolved inks go on the record (and on a pin) so it redraws the same whatever the library does later
+  if (op === 'lib') {   // the inks of another palette of the library (TuneSutra's saved + starred ones, Nov 21, 2026) with at least as many inks; the resolved inks go on the record (and on a pin) so it redraws the same whatever the library does later
     const fixed = editOf(spec, 'palette', 'lib');
     let q;
     if (fixed && Array.isArray(fixed.hexes)) q = fixed;

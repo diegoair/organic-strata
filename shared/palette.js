@@ -183,7 +183,15 @@
     if (opts.library !== false && hexEl.parentNode) {
       const lib = libraryButton('icon-btn');
       (randomBtn && randomBtn.parentNode === hexEl.parentNode ? randomBtn : hexEl).insertAdjacentElement('afterend', lib);
-      lib.addEventListener('click', e => { e.stopPropagation(); palette.pick(lib, { onPick: set }); });
+      // opts.onPalette (Nov 21, 2026 — a role tool, Organica.paletteKit.roles): a palette's name takes it WHOLE (every
+      // row of the tool filled by the house role); a chip still sets this row's colour
+      lib.addEventListener('click', e => {
+        e.stopPropagation();
+        palette.pick(lib, Object.assign({ onPick: set }, opts.onPalette ? {
+          max: 99,
+          onPickAll: (hexes, pal) => { const whole = pal && Organica.palettes ? Organica.palettes.get(pal.id) : null; if (whole) opts.onPalette(whole); },
+        } : {}));
+      });
     }
 
     // opts.pattern (opt-in, attach mode): a "Pattern" icon at the end of the row that
@@ -226,7 +234,7 @@
   // GENERATE — build .rmx-color chips into `wrap`. onChange(colors, index, action).
   function generateMode(wrap, opts) {
     const min = opts.min || 1;
-    const max = opts.max || 8;
+    const max = opts.max || 9;   // a TuneSutra palette holds up to 9 (Diego, Nov 21, 2026: every tool takes 9)
     const onChange = opts.onChange || function () {};
     let colors = (opts.colors || ['#888888']).slice(0, max);
     while (colors.length < min) colors.push('#888888');
@@ -391,54 +399,22 @@
   }
 
   // ── the palette library ────────────────────────────────────────────────────
-  // What every colour control can pick from: the palettes saved in TuneSutra
-  // (its own preset store — read here the way FVS and Trellis read Loom's),
-  // then the built-in sets. palette.library() → [{ id, name, builtin,
-  // colors: [{ id, name, hex }] }], synchronous, from the local cache.
-  //
-  // Built-in: Riso's 21 standard inks. Hex values are SCREEN APPROXIMATIONS of
-  // real inks (names + values from the public riso-colors list,
-  // github.com/mattdesl/riso-colors) — a starting point, never a proof.
-  const RISO_STANDARD = [
-    ['Black', '#000000'], ['Burgundy', '#914e72'], ['Blue', '#0078bf'], ['Green', '#00a95c'],
-    ['Medium Blue', '#3255a4'], ['Bright Red', '#f15060'], ['RisoFederal Blue', '#3d5588'], ['Purple', '#765ba7'],
-    ['Teal', '#00838a'], ['Flat Gold', '#bb8b41'], ['Hunter Green', '#407060'], ['Red', '#ff665e'],
-    ['Brown', '#925f52'], ['Yellow', '#ffe800'], ['Marine Red', '#d2515e'], ['Orange', '#ff6c2f'],
-    ['Fluorescent Pink', '#ff48b0'], ['Light Gray', '#88898a'], ['Metallic Gold', '#ac936e'], ['Crimson', '#e45d50'],
-    ['Fluorescent Orange', '#ff7477'],
-  ];
-  // Three three-colour combinations Diego picked (Oct 2, 2026) from TuneSutra's
-  // "Garment studies — violet" collection, offered in every tool without having
-  // to save them first. Role order: Base, Secondary, Accent. The values mirror
-  // tunesutra/collections.js (same ids) — change both together.
-  const COMBINATIONS = [
-    ['violet-06', 'Violet 06', ['#fba79d', '#cfb3d7', '#f9dfe2']],
-    ['stimulating', 'Stimulating', ['#5f238d', '#74c476', '#d40039']],
-    ['violet-07', 'Violet 07', ['#ead8e3', '#ccece8', '#fffab8']],
-  ];
-  const ROLE_NAMES = ['Base', 'Secondary', 'Accent'];
-  const BUILTIN = COMBINATIONS.map(c => ({
-    id: 'combo-' + c[0], name: c[1], builtin: true,
-    colors: c[2].map((hex, i) => ({ id: 'combo-' + c[0] + '-' + ROLE_NAMES[i].toLowerCase(), name: ROLE_NAMES[i], hex: hex })),
-  })).concat([{
-    id: 'riso-standard', name: 'Riso standard inks (approx.)', builtin: true,
-    colors: RISO_STANDARD.map(c => ({ id: 'riso-' + c[0].toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: c[0], hex: c[1] })),
-  }]);
-  function libraryStore() {
-    const make = Organica.store || Organica.presetStore;
-    return make ? make('tunesutra') : null;
-  }
+  // What a tool picks from when it wants a list of palettes (FVS's Another palette, the colour field): the palettes
+  // saved and starred in TuneSutra, through Organica.palettes — saved first. No built-ins since Nov 21, 2026 (Diego:
+  // the Riso inks and the three combinations "removed everywhere": one model, one list). Synchronous, from the local
+  // cache. palette.library() → [{ id, name, source, colors: [{ id, name, hex }] }]; names are the roles
+  // (Organica.palettes.roleName) when a palette has none of its own.
   palette.library = function () {
+    const P = Organica.palettes;
+    if (P) return P.list().map(p => ({ id: p.id, name: p.name, source: p.source, builtin: false, colors: p.colors }));
+    // a page without palettes.js: the saved ones, read from TuneSutra's store
     let all = {};
-    try { const st = libraryStore(); all = st ? st.read() : {}; } catch (e) { all = {}; }
-    const user = Object.keys(all).filter(name => all[name] && Array.isArray(all[name].colors)).map(name => {
+    try { const make = Organica.store || Organica.presetStore, st = make ? make('tunesutra') : null; all = st ? st.read() : {}; } catch (e) { all = {}; }
+    return Object.keys(all).filter(name => all[name] && Array.isArray(all[name].colors)).map(name => {
       const p = all[name];
-      return {
-        id: 'user:' + name, name: name, builtin: false,
-        colors: p.colors.map((hex, i) => ({ id: (p.ids && p.ids[i]) || null, name: (p.names && p.names[i]) || '', hex: Organica.normalizeHex(hex, '#888888') })),
-      };
+      return { id: 'saved:' + name, name: name, source: 'saved', builtin: false,
+        colors: p.colors.map((hex, i) => ({ id: (p.ids && p.ids[i]) || null, name: (p.names && p.names[i]) || '', hex: Organica.normalizeHex(hex, '#888888') })) };
     });
-    return user.concat(BUILTIN);
   };
 
   // ── palette.pick(trigger, { onPick(hex), onPickAll(hexes)?, max? }) ─────────
@@ -507,7 +483,7 @@
     finishMenu();
   }
   function paintMenuPalette(pal, opts) {
-    const max = opts.max || 8, fits = pal.colors.length <= max;
+    const max = opts.max || 9, fits = pal.colors.length <= max;
     const whole = !!opts.onPickAll;
     const head = document.createElement(whole ? 'button' : 'div');
     head.className = whole ? 'preset-item' : 'pi-group';

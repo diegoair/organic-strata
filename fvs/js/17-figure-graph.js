@@ -903,7 +903,7 @@ function renderInspectorBody(box, ids) {
       <div id="fgi-pattern-block"${p.pattern ? '' : ' hidden'}>${paperPatternRows(p)}</div>`,
       bind: () => {
         // the strip's own Pick from a palette (as the Palette section); Start at follows the inks without a rebuild
-        Organica.palette.swatch(ctrl('fgi-inks'), { colors: p.colors, min: 1, max: 8, onChange: colors => { p.colors = colors.slice(); delete p.source; edited(node, true); syncStartAt(); syncPatternInks(); } });
+        Organica.palette.swatch(ctrl('fgi-inks'), { colors: p.colors, min: 1, max: 9, onChange: colors => { p.colors = colors.slice(); delete p.source; edited(node, true); syncStartAt(); syncPatternInks(); } });
         // Paper = colour + texture (O-45): the shared Palette's Pattern icon shows the pattern settings, as the Palette section does
         Organica.palette.swatch('fgi-paper', { onChange: hex => { if (hex === p.paper) return; p.paper = hex; edited(node, true); },
           pattern: { panel: ctrl('fgi-pattern-block'), on: !!p.pattern, onToggle: on => { if (on) p.pattern = { ...PAPER_PATTERN_DEFAULT, ...(p.lastPattern || {}) }; else delete p.pattern; edited(node, true); renderInspector(ids); } } });

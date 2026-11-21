@@ -8,9 +8,11 @@
 // variation of it; a rule on one variation changes that one only. engine/17-figure-nodes.js compileFromSymbol.
 // Usage: scripts/test-fvs-figure-symbol-vars.sh
 import { openChrome } from './lib/chrome-page.mjs';
+import { seedPalettes } from './lib/chrome-page.mjs';
 
 const P = await openChrome({ timeoutMs: 3 * 60 * 1000 });
 await P.goto('/fvs/', 'window.__fvs && window.__fvs.isReady');
+await seedPalettes(P);   // Another palette reads the library: saved palettes since Nov 21, 2026
 const rows = await P.ev(`const F = window.__fvs, NC = Organica.nodeCanvas, q = id => document.getElementById(id), w = ms => new Promise(r => setTimeout(r, ms));
   const set = (id, v) => { const e = q(id); if (e.type === 'checkbox') e.checked = v; else e.value = v; e.dispatchEvent(new Event(e.type === 'checkbox' || e.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); };
   const rows = [], check = (n, ok, got) => rows.push((ok ? '✓ ' : '✗ ') + n + (ok ? '' : ' — ' + got));

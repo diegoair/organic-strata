@@ -8,10 +8,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { openChrome, ROOT } from './lib/chrome-page.mjs';
+import { seedPalettes } from './lib/chrome-page.mjs';
 const BASE = JSON.parse(fs.readFileSync(path.join(ROOT, 'fvs', '_figure-eval-baseline.json'), 'utf8')).hashes;
 
 const P = await openChrome();
 const ok = await P.goto('/fvs/', 'window.__fvs && window.__fvs.isReady');
+await seedPalettes(P);   // Another palette reads the library: saved palettes since Nov 21, 2026
 if (!ok) { console.log('Figure graph: FAIL — FVS never became ready'); await P.close(1); }
 const PRE = `const F = n => window.__fvs[n]; const NC = Organica.nodeCanvas;`;
 const out = await P.ev(`

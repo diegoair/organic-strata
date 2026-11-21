@@ -97,3 +97,18 @@ export async function quietPage(cdp) {
   await cdp('Page.addScriptToEvaluateOnNewDocument', { source: QUIET_INIT });
   await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
 }
+
+// The palettes a headless FVS test reads from the library (Organica.palette.library(): TuneSutra's saved + starred,
+// Nov 21, 2026 — the built-in combinations and Riso inks left palette.js). Seeds, as saved palettes, the four entries
+// the library held before, same names and colours, so a test of Another palette draws as it did.
+export const SEED_PALETTES = {
+  'Violet 06': ['#fba79d', '#cfb3d7', '#f9dfe2'],
+  'Stimulating': ['#5f238d', '#74c476', '#d40039'],
+  'Violet 07': ['#ead8e3', '#ccece8', '#fffab8'],
+  'Riso standard inks (approx.)': ['#000000', '#914e72', '#0078bf', '#00a95c', '#3255a4', '#f15060', '#3d5588', '#765ba7', '#00838a', '#bb8b41', '#407060', '#ff665e', '#925f52', '#ffe800', '#d2515e', '#ff6c2f', '#ff48b0', '#88898a', '#ac936e', '#e45d50', '#ff7477'],
+};
+export async function seedPalettes(P) {
+  return P.ev(`const st = Organica.store('tunesutra'), all = st.read() || {}, seed = ${JSON.stringify(SEED_PALETTES)};
+    Object.keys(seed).forEach(n => { if (!all[n]) all[n] = { n: seed[n].length, colors: seed[n] }; });
+    st.write(all); return Object.keys(all).length;`);
+}

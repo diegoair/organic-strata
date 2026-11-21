@@ -72,96 +72,30 @@ state.colorRule = { ...NEW_COLOR_RULE };
 // The Palette strip. Its menu lists TuneSutra's saved and starred palettes (Diego, Nov 20, 2026 — the other Elements'
 // Palettes left it); a palette taken whole comes with each colour's Gradient + Shadow (state.inkShades, hex → definition),
 // edited below the strip (#fvs-shade, Organica.shadeEditor) for the chip last opened, and Save as palette… makes a NEW
-// palette in TuneSutra (the original never changes).
-let paletteStrip = null, shadeEd = null, shadeAt = 0, paletteName = '', paletteHouse = null;
-const shadeCtx = () => ({ tints: [].concat.apply([], state.colors.map(h => Organica.color.scale(h).map(st => st.hex))), paper: state.paperColor && state.paperColor !== 'none' ? state.paperColor : '#ffffff' });
+// palette in TuneSutra (the original never changes). The wiring is the shared Organica.paletteKit since Nov 21, 2026
+// (shared/palette-kit.js — promoted from here so every tool takes a palette the same way).
+let paletteKit = null;
 function colourChanged() {
   syncColorRuleUI();
   hooks.syncGroundInkOptions();
   if (hooks.syncLayerLight) hooks.syncLayerLight();   // Light shows once a colour is shaded
   refreshColourViews();
 }
-function syncShadeEditor() {
-  const host = ctrl('fvs-shade');
-  if (!host || !Organica.shadeEditor || !Organica.shading) return;
-  shadeAt = Math.min(shadeAt, state.colors.length - 1);
-  const hex = state.colors[shadeAt], o = { hex, def: state.inkShades[hex] || null, label: 'Palette colour ' + (shadeAt + 1) };   // the chip's own name (palette.js)
-  if (shadeEd && host.firstChild) { shadeEd.set(o); return; }
-  shadeEd = Organica.shadeEditor.mount(host, Object.assign(o, {
-    ctx: shadeCtx,
-    // the colour's own stop on the bar: the chip's colour, picked as on the chip
-    onColourStop: anchor => Organica.colorPicker.open(anchor, { value: state.colors[shadeAt], label: 'Palette colour ' + (shadeAt + 1), onChange: h => { if (paletteStrip && h !== state.colors[shadeAt]) paletteStrip.setColor(shadeAt, h); } }),
-    // Use on every colour: this colour's Gradient + Shadow on all of them, each on its own colour (hand-picked inks
-    // left out, so each colour's inks come from its own rule) — one step, like TuneSutra's Shading with nothing selected
-    everyColour: d => {
-      const S = Organica.shading, m = {};
-      if (d && (d.type !== 'flat' || S.hasNoise(d))) state.colors.forEach((h, j) => { m[h] = j === shadeAt ? d : S.withColour(Object.assign(JSON.parse(JSON.stringify(d)), { inkMid: null, inkCore: null }), h, shadeCtx()); });
-      state.inkShades = m;
-      if (paletteStrip) { paletteStrip.rebuild(); paletteStrip.setActive(shadeAt); }
-      if (hooks.syncLayerLight) hooks.syncLayerLight();
-      refreshColourViews();
-      syncShadeEditor();
-    },
-    onChange: def => {
-      const h = state.colors[shadeAt], m = { ...state.inkShades };
-      if (def) m[h] = def; else delete m[h];
-      state.inkShades = m;
-      if (paletteStrip) paletteStrip.rebuild();   // the chip draws its new shading
-      if (paletteStrip) paletteStrip.setActive(shadeAt);
-      if (hooks.syncLayerLight) hooks.syncLayerLight();
-      refreshColourViews();
-    },
-  }));
-}
 export function buildPalette() {
-  const S = Organica.shading;
-  paletteStrip = Organica.palette.swatch(ctrl('fvs-palette'), {
-    colors: state.colors,
-    min: 1,
+  paletteKit = Organica.paletteKit.strip(ctrl('fvs-palette'), ctrl('fvs-shade'), {
+    tool: 'Flexible Visual System',
     max: PALETTE_MAX,
-    activeIndex: Math.min(shadeAt, state.colors.length - 1),
-    shadeOf: (i, hex) => (state.inkShades[hex] ? { def: state.inkShades[hex], ctx: shadeCtx() } : null),
-    onOpen: i => { shadeAt = i; paletteStrip.setActive(i); syncShadeEditor(); },
-    onChange: (colors, i, action) => {
-      const before = state.colors;
-      state.colors = colors.map(hexKey);
-      // a colour changed by hand keeps its shading, moved to the new colour (its first stop; the 900 follows)
-      if (action === 'edit' && S && before[i] && state.inkShades[before[i]] && before[i] !== state.colors[i]) {
-        const m = { ...state.inkShades }, def = m[before[i]];
-        if (!before.some((h, j) => j !== i && h === before[i])) delete m[before[i]];
-        m[state.colors[i]] = S.withColour(JSON.parse(JSON.stringify(def)), state.colors[i], shadeCtx());
-        state.inkShades = m;
-      }
-      if (action === 'set') { paletteName = ''; paletteHouse = null; }
-      colourChanged();
-      syncShadeEditor();
-    },
-    // a TuneSutra palette taken whole: its colours and each one's shading
-    onPalette: (pal, colors) => {
-      state.colors = colors.map(hexKey);
-      const m = {};
-      // its own shading per colour; a colour with none takes the Shading the house showed when it was saved
-      const mode = pal.shading && pal.shading !== 'none' && Organica.shading ? pal.shading : null;
-      pal.colours.slice(0, colors.length).forEach(c => {
-        const h = hexKey(c.hex);
-        if (c.shade) m[h] = c.shade;
-        else if (mode) { const d = Organica.shading.defs(h, shadeCtx())[mode]; if (d) m[h] = JSON.parse(JSON.stringify(d)); }
-      });
-      state.inkShades = m;
-      paletteName = pal.name; paletteHouse = pal.house || null;
-      shadeAt = 0;
-      paletteStrip.rebuild();
-      paletteStrip.setActive(0);
-      colourChanged();
-      syncShadeEditor();
-    },
-    saveAs: {
-      tool: 'Flexible Visual System',
-      get: () => ({ name: paletteName || 'Palette', house: paletteHouse, colours: state.colors.map(h => ({ hex: h, shade: state.inkShades[h] || null })) }),
+    get: () => ({ colors: state.colors, shades: state.inkShades }),
+    paper: () => (state.paperColor && state.paperColor !== 'none' ? state.paperColor : '#ffffff'),
+    set: (p, why) => {
+      if (p.colors) state.colors = p.colors.map(hexKey);
+      if (p.shades) state.inkShades = p.shades;
+      else if (why === 'palette') state.inkShades = {};
+      if (why === 'shade') { if (hooks.syncLayerLight) hooks.syncLayerLight(); refreshColourViews(); }
+      else colourChanged();
     },
   });
   hooks.syncGroundInkOptions();
-  syncShadeEditor();
 }
 
 // "Each part the next ink" means something only while the Element is divided (or the rule is already on).

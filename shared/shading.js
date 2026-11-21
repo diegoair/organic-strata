@@ -469,6 +469,64 @@
     return g;
   }
 
+  // ── ON A TOOL'S SHAPES (Nov 21, 2026: FVS's overlay, made generic for every tool) ──
+  // A shaded colour's shape draws its plates in a BOX, clipped to the shape, over the shape's own flat fill; the plate
+  // of the shape's own colour is left out (it is the fill). Every plate is one ink as a path, so a tool's plates and
+  // recolouring keep working.
+  // boxOf(d, transform?): the box of a path in its parent's units (a hidden <svg>'s getBBox — the transform applied);
+  // cached by d + transform. Null without a DOM or for an empty path.
+  const _boxes = new Map();
+  let _probe = null;
+  function boxOf(d, transform) {
+    const key = (transform || '') + '|' + d;
+    if (_boxes.has(key)) return _boxes.get(key);
+    let b = null;
+    try {
+      if (!_probe) {
+        _probe = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        _probe.setAttribute('width', '0'); _probe.setAttribute('height', '0');
+        _probe.setAttribute('aria-hidden', 'true');
+        _probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden';
+        _probe.innerHTML = '<g><path/></g>';
+        document.body.appendChild(_probe);
+      }
+      const g = _probe.firstChild, path = g.firstChild;
+      path.setAttribute('d', d);
+      if (transform) path.setAttribute('transform', transform); else path.removeAttribute('transform');
+      const r = g.getBBox();
+      if (r.width > 0 && r.height > 0) b = { x: r.x, y: r.y, w: r.width, h: r.height };
+    } catch (e) { b = null; }
+    if (_boxes.size > 400) _boxes.clear();
+    _boxes.set(key, b);
+    return b;
+  }
+  function shapePlates(def, hex, box, ctx) {
+    const own = String(hex).toLowerCase();
+    return plates(def, box.w, box.h, ctx).filter((pl, i) => i > 0 || String(pl.hex).toLowerCase() !== own);
+  }
+  let _ovl = 0;
+  // SVG markup to append right after the shape: o = { transform, fillRule, box (default boxOf), ctx, idPrefix }
+  function overlaySVG(def, hex, d, o) {
+    o = o || {};
+    if (!def || !d) return '';
+    const box = o.box || boxOf(d, o.transform);
+    if (!box) return '';
+    const pl = shapePlates(def, hex, box, o.ctx);
+    if (!pl.some(p => p.d)) return '';
+    const id = (o.idPrefix || 'shd') + (++_ovl).toString(36);
+    return `<clipPath id="${id}"><path d="${d}"${o.transform ? ` transform="${o.transform}"` : ''}${o.fillRule ? ` clip-rule="${o.fillRule}"` : ''}/></clipPath>`
+      + `<g clip-path="url(#${id})"><g transform="translate(${num(box.x)},${num(box.y)})">${platesSVG(pl, id)}</g></g>`;
+  }
+  // Canvas: c is drawing the shape's parent space (its current transform); path a Path2D in that space, box its box.
+  function overlayCanvas(c, def, hex, path, box, ctx, fillRule) {
+    if (!def || !box) return;
+    c.save();
+    c.clip(path, fillRule || 'nonzero');
+    c.translate(box.x, box.y);
+    drawPlates(c, shapePlates(def, hex, box, ctx));
+    c.restore();
+  }
+
   // The shadow textures, in menu order: the two presets, then Organica.shadeMarks' types.
   const TEXTURES = Object.keys(TEXTURE_SIZE);
 
@@ -478,7 +536,7 @@
     defs: shadeDefs, flatDef: flatDef, normalize: normalizeGrad, withColour: withColour,
     plates: plates, gradPlates: gradPlates, smoothPlates: smoothPlates, shadowInks: shadowInks,
     gradStops: gradStops, smoothStops: smoothStops, smoothGeom: smoothGeom, smoothMarkup: smoothMarkup, smoothFill: smoothFill,
-    drawPlates: drawPlates, platesSVG: platesSVG,
+    drawPlates: drawPlates, platesSVG: platesSVG, boxOf: boxOf, overlaySVG: overlaySVG, overlayCanvas: overlayCanvas, shapePlates: shapePlates,
     gradUses: gradUses, hasNoise: hasNoise, smoothShadow: smoothShadow, markShadow: markShadow,
     colourStop: colourStop, colourAt: colourAt, segAt: segAt, isClear: isClear, evenPos: evenPos, stopPos: stopPos, fadesToPaper: fadesToPaper,
   };

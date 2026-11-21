@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/shared/floatbar.css">
 <link rel="stylesheet" href="/shared/shell.css">
 <link rel="stylesheet" href="/shared/palette.css">
+<link rel="stylesheet" href="/shared/shade-editor.css">
 <link rel="stylesheet" href="/shared/colour-picker.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
 <style>
@@ -212,6 +213,9 @@
         <input class="color-hex" maxlength="7" id="hex-paper" value="#f2efe6">
       </div>
     </div>
+    <!-- A palette colour's Gradient + Shadow (Nov 21, 2026: TuneSutra palettes whole in every tool) — the chip last
+         opened; each cell's shape draws it in its own box (Organica.paletteKit, Organica.shading). -->
+    <div id="trellis-shade"></div>
 
     <div class="panel-section">
       <h3>Motion <span class="hint">up to 2 tracks, per-cell phase</span></h3>
@@ -240,11 +244,16 @@
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
 <script src="/shared/colour-picker.js"></script>
+<script src="/shared/color.js"></script>
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/select-picker.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/noise.js"></script>
+<script src="/shared/shade-marks.js"></script>
+<script src="/shared/shading.js"></script>
+<script src="/shared/shade-editor.js"></script>
+<script src="/shared/palette-kit.js"></script>
 <script src="/shared/tracks.js"></script>
 <script src="/shared/shapes.js"></script>
 <script>
@@ -395,14 +404,21 @@ function shapeGeometry() {
 }
 
 // ── PALETTE — Ink cycles by cell index (colorAt), Paper is the ground ──
-let inkColors = ['#1c1c1c'], inkChips = null, paperSwatch = null;
+// A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours and each colour's shading
+// (inkShades, hex → Organica.shading definition), edited under the Palette; Save as palette… makes a new one.
+let inkColors = ['#1c1c1c'], inkShades = {}, inkChips = null, paperSwatch = null;
 function buildInkChips() {
   if (inkChips) return;
-  inkChips = Organica.palette.swatch(ctrl('rmx-ink'), {
-    colors: inkColors, min: 1, max: 8,
-    onChange: c => { inkColors = c; scheduleStill(); },
+  inkChips = Organica.paletteKit.strip(ctrl('rmx-ink'), ctrl('trellis-shade'), {
+    tool: 'Trellis', max: 9,
+    get: () => ({ colors: inkColors, shades: inkShades }),
+    paper: () => ctrl('hex-paper').value,
+    set: (p, why) => { if (p.colors) inkColors = p.colors; if (p.shades) inkShades = p.shades; else if (why === 'palette') inkShades = {}; scheduleStill(); },
   });
 }
+// a colour's shading on one shape (its own box, in the shape's 0..100 space; the light turns with the cell)
+const shadeCtx = () => Organica.paletteKit.ctxOf(inkColors, ctrl('hex-paper').value);
+function shadeOf(colour) { return Organica.shading && inkShades[String(colour).toLowerCase()] || null; }
 function colorAt(i) { return inkColors[i % inkColors.length]; }
 
 // ── MOTION — track model, built on shared/tracks.js ──────────────────────
@@ -754,7 +770,10 @@ function drawList(gctx, list, originX, originY, unit) {
     gctx.scale(it.scaleX * unit, it.scaleY * unit);
     gctx.translate(-50, -50);
     gctx.fillStyle = it.colour;
-    gctx.fill(new Path2D(it.d));
+    const path = new Path2D(it.d);
+    gctx.fill(path);
+    const def = shadeOf(it.colour);
+    if (def) Organica.shading.overlayCanvas(gctx, def, it.colour, path, Organica.shading.boxOf(it.d), shadeCtx());
     gctx.restore();
   }
 }
@@ -862,7 +881,8 @@ function buildSVG() {
   let body = '';
   for (const it of list) {
     const x = (originX + it.cx + it.offsetX).toFixed(2), y = (originY + it.cy + it.offsetY).toFixed(2);
-    body += `<g transform="translate(${x} ${y}) scale(${it.scaleX.toFixed(4)} ${it.scaleY.toFixed(4)}) translate(-50 -50)"><path d="${it.d}" fill="${it.colour}"/></g>`;
+    const def = shadeOf(it.colour), shade = def ? Organica.shading.overlaySVG(def, it.colour, it.d, { ctx: shadeCtx(), idPrefix: 'tsh' }) : '';
+    body += `<g transform="translate(${x} ${y}) scale(${it.scaleX.toFixed(4)} ${it.scaleY.toFixed(4)}) translate(-50 -50)"><path d="${it.d}" fill="${it.colour}"/>${shade}</g>`;
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${F} ${F}"><rect width="${F}" height="${F}" fill="${ctrl('hex-paper').value}"/>${body}</svg>`;
 }

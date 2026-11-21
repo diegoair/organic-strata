@@ -29,8 +29,10 @@ const O = ctx.Organica, F = O.fvsField;
 const want = {
   truchet: O.shapes.arcTruchetGeometry(3, 0.5).d,
   arc: O.shapes.arcGeometry(42).d,
-  builtin: JSON.parse(JSON.stringify(
-    O.palette.library().filter(p => p.builtin && p.colors.length >= 2 && p.colors.length <= 7).map(F.resolve))),
+  // the field's own three (Diego, Oct 2, 2026) — the combinations palette.js offered until Nov 21, 2026, resolved
+  builtin: JSON.parse(JSON.stringify([
+    ['Violet 06', ['#fba79d', '#cfb3d7', '#f9dfe2']], ['Stimulating', ['#5f238d', '#74c476', '#d40039']], ['Violet 07', ['#ead8e3', '#ccece8', '#fffab8']],
+  ].map(([name, hexes]) => F.resolve({ name, colors: hexes.map(hex => ({ hex })) })))),
 };
 if (process.argv.includes('--print')) {
   console.log(want.builtin.map(p => '    ' + JSON.stringify(p).replace(/"(\w+)":/g, '$1: ').replace(/"/g, "'").replace(/,(?=\S)/g, ', ')).join(',\n'));
@@ -43,8 +45,9 @@ check('ELEMENTS.truchet = shapes.arcTruchetGeometry(3, 0.5).d', F.ELEMENTS.truch
 check('ELEMENTS.arc = shapes.arcGeometry(42).d', F.ELEMENTS.arc === want.arc);
 check('ELEMENTS.triangle = shapes.triangleGeometry(100, 100, 0).d', F.ELEMENTS.triangle === O.shapes.triangleGeometry(100, 100, 0).d);
 check('ELEMENTS.circle = shapes.circleGeometry(90).d', F.ELEMENTS.circle === O.shapes.circleGeometry(90).d);
-check('BUILTIN = the built-in combinations, resolved (' + want.builtin.length + ')',
+check('BUILTIN = the field\'s own three, resolved (' + want.builtin.length + ')',
   JSON.stringify(JSON.parse(JSON.stringify(F.BUILTIN))) === JSON.stringify(want.builtin));
-check('palettes() with the library loaded returns the live library', F.palettes().length >= want.builtin.length);
+check('palettes() with no saved palette falls back to the field\'s own three', F.palettes().length === want.builtin.length);
+check('palette.library() has no built-ins (no Riso, no combinations)', !O.palette.library().some(p => p.builtin || /riso|combo/.test(p.id)));
 if (failed) { console.log('\nfvs-field: ' + failed + ' check(s) failed — re-bake with --print'); process.exit(1); }
 console.log('\nfvs-field: baked data matches');

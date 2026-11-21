@@ -45,7 +45,7 @@
                     inks[], mark, dark } — see resolve(). A palette is content:
                     the same in light and dark. Without one, fill =
                     currentColor and follows the theme.
-   Organica.fvsField.palettes()  the built-in combinations, resolved to a ground
+   Organica.fvsField.palettes()  the saved + starred palettes, resolved to a ground (none: the field's own three)
                     and its inks — or, where color.js + palette.js are loaded,
                     the whole library (Organica.palette.library: the palettes
                     saved in TuneSutra + the built-ins).
@@ -92,7 +92,9 @@
     triangle: 'M 50,0 L 0,100 L 100,100 Z',
     circle: 'M 5,50 A 45,45 0 1,1 95,50 A 45,45 0 1,1 5,50 Z',
   };
-  // The library's built-in combinations (shared/palette.js COMBINATIONS), already through resolve().
+  // The field's own look when there is no palette to read (a public page, a visitor with no saved or starred palette):
+  // three combinations picked by Diego (Oct 2, 2026), already through resolve(). Since Nov 21, 2026 they are no longer
+  // a menu's built-ins (palette.library() has none) — only this field's default.
   var BUILTIN = [
     {name: 'Violet 06', paper: '#f9dfe2', inks: ['#da887f', '#b296b9'], mark: '#93789a', dark: false},
     {name: 'Stimulating', paper: '#74c476', inks: ['#d40039', '#5f238d'], mark: '#5f238d', dark: false},
@@ -421,8 +423,10 @@
       catch (e) { return Math.floor(Math.random() * 60); }
     },
     palettes: function () {
-      if (!Organica.color || !Organica.palette || !Organica.palette.library) return BUILTIN.slice();
-      return Organica.palette.library().filter(function (p) { return p.colors.length >= 2 && p.colors.length <= 7; }).map(resolve);
+      // the saved and starred palettes (palette.library(), 2–9 colours); none — the field's own three
+      var lib = Organica.color && Organica.palette && Organica.palette.library
+        ? Organica.palette.library().filter(function (p) { return p.colors.length >= 2 && p.colors.length <= 9; }).map(resolve) : [];
+      return lib.length ? lib : BUILTIN.slice();
     },
     mount: function (host, opts) {
       opts = Object.assign({}, opts);

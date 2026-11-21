@@ -66,40 +66,11 @@ export function svgInnerOf(svg) { return svg.replace(/^<svg[^>]*>/, '').replace(
 // the other inks, a nested Paper — black, in the drawing's own order) over one black rect. Multiply (overprint) and a
 // raster photo keep the plain plate: each ink whole, the other inks gone. A <mask> / <clipPath> already in the drawing
 // is left as it is (its black and white are its own).
-// The inks a plate export separates: the Palette's, then every other solid ink the drawing uses — a shaded colour's
-// shadow inks (its Halftone and Core, its texture's marks, a gradient's stops: Organica.shading plates are one ink
-// per path) each get a plate of their own (Nov 20, 2026; before, they stayed in colour on every plate). Paper left out.
-export function plateInks(svg, colors, paper) {
-  const out = colors.map(hexKey), pk = paper && paper !== 'none' ? hexKey(paper) : null;
-  String(svg || '').replace(/(?:fill|stroke|stop-color)="(#[0-9a-fA-F]{6})"/g, (m, c) => { const k = hexKey(c); if (k !== pk && !out.includes(k)) out.push(k); return m; });
-  return out;
-}
-// A smooth shading (Soft, a blend) is an SVG gradient: each stop goes on its own ink's plate, at its opacity, and is
-// clear on every other plate (on = the plate's colour: black, or white inside a knock-out mask).
-function plateStops(seg, cs, i, on) {
-  return seg.replace(/stop-color="(#[0-9a-fA-F]{3,8})"(\s+stop-opacity="([\d.]+)")?/g, (m, c, _o, op) => {
-    const j = cs.indexOf(hexKey(c));
-    if (j === -1) return m;
-    return j === i ? `stop-color="${on}"${op != null ? ` stop-opacity="${op}"` : ''}` : `stop-color="${on}" stop-opacity="0"`;
-  });
-}
-export function plateSVG(svg, colors, i, paper) {
-  const cs = colors.map(hexKey);
-  let out = svg.replace(new RegExp(`<rect width="[\\d.]+" height="[\\d.]+" fill="${paper}"/>`, 'i'), '');
-  if (!/data-fvs-overlap/.test(out) || /mix-blend-mode:\s*multiply|<image\b/.test(out)) {   // nothing covers, or overprint: the plain plate
-    return plateStops(out.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (m, attr, c) => {
-      const j = cs.indexOf(hexKey(c));
-      return j === -1 ? m : `${attr}="${j === i ? '#000000' : 'none'}"`;
-    }), cs, i, '#000000');
-  }
-  const m = out.match(/^(<svg\b[^>]*>)([\s\S]*)(<\/svg>\s*)$/), vb = out.match(/viewBox="([-\d.]+)[ ,]+([-\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)"/);
-  if (!m || !vb) return out;
-  const paint = seg => plateStops(seg.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,8})"/g, (x, attr, c) => `${attr}="${cs.indexOf(hexKey(c)) === i ? '#ffffff' : '#000000'}"`), cs, i, '#ffffff');
-  const inner = m[2].split(/(<(mask|clipPath)\b[\s\S]*?<\/\2>)/).map((seg, k) => (k % 3 === 0 ? paint(seg) : k % 3 === 1 ? seg : '')).join('');
-  const [x, y, w, h] = vb.slice(1).map(Number), id = 'plate-' + i;
-  return `${m[1]}<defs><mask id="${id}" maskUnits="userSpaceOnUse" x="${x}" y="${y}" width="${w}" height="${h}"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#000000"/>${inner}</mask></defs>`
-    + `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#000000" mask="url(#${id})"/>${m[3]}`;
-}
+// The inks a plate export separates and one plate of them: shared since Nov 21, 2026 (shared/plate-export.js,
+// Organica.plateExport.inksOf / plateSVG — promoted from here). FVS's drawings cover what is below when they carry
+// data-fvs-overlap: then a plate is a knock-out mask.
+export function plateInks(svg, colors, paper) { return Organica.plateExport.inksOf(svg, colors, paper); }
+export function plateSVG(svg, colors, i, paper) { return Organica.plateExport.plateSVG(svg, colors, i, paper, { knockout: /data-fvs-overlap/.test(svg) }); }
 // What a click on a tile does depends on the tab: the aria-label says which.
 export function railTileVerb(kind) {
   const t = state.activeTier;
