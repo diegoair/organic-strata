@@ -415,7 +415,12 @@
       // is the menu's entry, its own rows (Mix, Size, Slope, Ripple, Seed) sit in the Shadow section under the menu. The
       // Gradient section stays (Diego: "quando clicco wash gradient scompare è un bug"): its Angle and Stops are the
       // wash's direction and colours; Type shows none while the Wash is the fill — Flat · Linear · Radial take it off.
-      // Wash over left (Diego: "abbiamo già questa feature") — a saved span still draws.
+      // Wash over left (Diego: "abbiamo già questa feature") — a saved span still draws. The Stops are the Wash's own
+      // (Diego: "gli stop di wash devono essere in shadow non in gradient"): with a Wash they move under its rows (moved,
+      // not copied), and back to the Gradient when it is taken off; the Angle stays in the Gradient.
+      const washed = S.isField(g), stopsBlock = $('[data-block="stops"]'), gPart = $('[data-part="gradient"]');
+      if (washed && stopsBlock.parentNode !== washHome) washHome.appendChild(stopsBlock);
+      if (!washed && stopsBlock.parentNode === washHome) gPart.appendChild(stopsBlock);
       Object.keys(RANGES).forEach(k => {
         const r = $('#' + p + '-' + k);
         // the enhanced slider's fill follows an 'input'; in edit mode the handler sees the same value and edits nothing
