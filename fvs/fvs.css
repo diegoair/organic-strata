@@ -739,7 +739,7 @@
 
 /* the rule's own options open with a gap below the Rule picker: --space-3 + the row's --space-2 = 14px, a sub-group's
    opening (.sub-label) — Diego, Oct 22, 2026: "dai maggior spazio tra la dropdown e le icone" (design-system CONSULT) */
-.fvs-rule-opts { margin-top: var(--space-3); }
+.fvs-rule-opts { padding-top: var(--space-3); }   /* padding, not margin: a margin collapsed into the picker row's 6px and gave 8, not 14 (Nov 22, 2026) */
 
 /* Element › Style = Photo (Oct 23, 2026 — Tropism T2): the chosen photo, Replace, Remove. The thumbnail is a work
    surface (light in both themes). */

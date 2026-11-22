@@ -693,7 +693,21 @@ function mountComponentBoard() {
   };
   // another Element's area is drawn on ITS cell shape (Diego, Oct 11: the cell shape belongs to the edited Element —
   // changing it never redraws the others): the grid, the starter set and the thumbnail box all follow it
-  const onCellShapeOf = (e, fn) => { const prev = state.cellShape, pa = state.cellAspect; state.cellShape = cellShapeOf(e.seed); state.cellAspect = cellAspectOf(e.seed); try { return fn(); } finally { state.cellShape = prev; state.cellAspect = pa; } };   // its box too (Oct 23, 2026)
+  const onCellShapeOf = (e, fn) => {
+    const prev = state.cellShape, pa = state.cellAspect, po = state.gridOverride;
+    state.cellShape = cellShapeOf(e.seed); state.cellAspect = cellAspectOf(e.seed);
+    try { state.gridOverride = po || ownGridOf(e); return fn(); } finally { state.cellShape = prev; state.cellAspect = pa; state.gridOverride = po; }
+  };   // its box too (Oct 23, 2026)
+  // …and on ITS Columns × Rows (Nov 22, 2026): since Oct 27 each Element keeps its own Grid with its Generated components
+  // (gallery.panel); drawn on the panel's grid, a 3×3 group beside a 2×2 one read cells that do not exist (TypeError)
+  function ownGridOf(e) {
+    const p = e && e.gallery && e.gallery.panel;
+    if (!p || state.cellShape !== 'square' || state.loomGrid) return null;
+    const cols = +p['rg-grid-cols'], rows = +p['rg-grid-rows'], g = getGrid();
+    if (!(cols > 0 && rows > 0) || (cols === g.cols && rows === g.rows)) return null;
+    const own = { ...g, cols, rows }; delete own.colWeights; delete own.rowWeights;
+    return own;
+  }
   const thumbBoxOf = e => onCellShapeOf(e, () => { const sz = frameDims(getGrid()); return fitThumbBox(sz.w, sz.h, Math.round(GALLERY_THUMB * rt.galleryZoom)); });
   function staticHTML(e) { return onCellShapeOf(e, () => staticHTMLNow(e)); }
   function staticHTMLNow(e) {

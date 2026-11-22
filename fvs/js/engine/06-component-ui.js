@@ -32,10 +32,11 @@ export function componentEditHitLayer(items, size, picked) {
     const it = items[i];
     const w = it.cellW || it.cellSize, h = it.cellH || it.cellSize, x = halfX + it.cx + (it.ox || 0) - w / 2, y = halfY + it.cy + (it.oy || 0) - h / 2;   // a Tile Offset moves the cell
     const sel = i === state.componentEditSelectedCell;
-    const style = sel ? 'fill:transparent;stroke:var(--ink);stroke-width:3px;' : 'fill:transparent;';
+    // fill as an attribute, not inline style: a presentation attribute yields to the CSS :hover / marquee wash (Nov 22, 2026)
+    const style = sel ? ' style="stroke:var(--ink);stroke-width:3px;"' : '';
     const cls = picked && picked.has(i) && !sel ? ' class="is-picked"' : '';   // picked for part colours, beside the edited cell
-    if (it.poly) return `<polygon data-cell-index="${i}"${cls} points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}" style="${style}"/>`;   // a cell-shape lattice: the cell's own outline
-    return `<rect data-cell-index="${i}"${cls} x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w}" height="${h}" style="${style}"/>`;
+    if (it.poly) return `<polygon data-cell-index="${i}"${cls} points="${it.poly.map(p => p.map(v => v.toFixed(2)).join(',')).join(' ')}" fill="transparent"${style}/>`;   // a cell-shape lattice: the cell's own outline
+    return `<rect data-cell-index="${i}"${cls} x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w}" height="${h}" fill="transparent"${style}/>`;
   }).join('');
 }
 export function componentCaption(comp) {
