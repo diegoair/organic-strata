@@ -1,7 +1,7 @@
 // Headless check for the Colour mode in Camo Turing and Membrane (Diego, Nov 22, 2026: "All three, as proposed").
 // Camo: Inks, Colour by, the ramp's order (drag / ⌥→ / Sort by lightness) — no Mix (its shader blends in sRGB only,
-// O-91 i). Membrane: Inks, Mix (Tone / Tone + random only, reaching the state the render reads), the order; its
-// Mapping keeps its word until Diego names "along the form". Run: node --experimental-websocket
+// O-91 i). Membrane: Solid, Inks, Colour by › Along the form (O-93), Mix (Along the form / Along + random only, reaching the
+// state the render reads), the order, Ink / Paper. Run: node --experimental-websocket
 // scripts/test-colour-mode-camo-membrane.mjs   — exits 1 when a check fails.
 import { openChrome } from './lib/chrome-page.mjs';
 
@@ -47,6 +47,10 @@ R = await P.ev(`
   const q = id => document.getElementById(id), out = {}, S = __membrane.state, cols = () => S.rmxColors;
   const vis = id => !q(id).closest('[hidden]'), mixOn = () => (q('seg-mix').querySelector('.active') || {}).dataset || {};
   out.opt = q('sel-colorsrc').querySelector('option[value="rmx"]').textContent;
+  out.modes = [...q('sel-colorsrc').options].map(o => o.textContent).join(' · ');
+  out.by = q('sel-rmx-map').closest('.ctrl-row').querySelector('.ctrl-label').textContent.trim();
+  out.byOpts = [...q('sel-rmx-map').options].map(o => o.textContent).join(' · ');
+  out.pair = [...document.querySelectorAll('.color-row .color-name')].map(e => e.textContent.trim()).join(' / ');
   const src = q('sel-colorsrc'); src.value = 'rmx'; src.dispatchEvent(new Event('change'));
   out.mixTone = vis('row-mix');
   const sel = q('sel-rmx-map'); sel.value = 'posterize'; sel.dispatchEvent(new Event('change')); out.poster = vis('row-mix');
@@ -55,7 +59,9 @@ R = await P.ev(`
   src.value = 'ink'; src.dispatchEvent(new Event('change')); out.inkHides = !vis('row-mix');
   src.value = 'rmx'; src.dispatchEvent(new Event('change'));
   return out;`);
-check('mode option Inks', R.opt === 'Inks', R.opt);
+check('modes Solid · Rainbow (per segment) · Sample from image · Inks', R.modes === 'Solid · Rainbow (per segment) · Sample from image · Inks', R.modes);
+check('Colour by Along the form · Posterize · Random · Along + random (O-93)', R.by === 'Colour by' && R.byOpts === 'Along the form · Posterize · Random · Along + random', R.by + ': ' + R.byOpts);
+check('the pair is Ink / Paper', R.pair === 'Ink / Paper', R.pair);
 check('Mix shown with Tone and Tone + random, hidden with Posterize', R.mixTone && R.tonernd && !R.poster, [R.mixTone, R.tonernd, R.poster].join());
 check('Mix reaches the state the render reads', R.space === 'oklab oklab', R.space);
 check('Mix hidden outside Inks', R.inkHides, String(R.inkHides));

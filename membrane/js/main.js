@@ -378,7 +378,7 @@ function setColorSrc(v) {
   ctrl('row-fill').hidden = !(v === 'ink');
   ctrl('rmx-color-block').hidden = !(v === 'rmx');
 }
-// Mix only where two colours blend (Tone, Tone + random); Sort by lightness only when it would move one
+// Mix only where two colours blend (Along the form, Along + random); Sort by lightness only when it would move one
 function syncColourRows() {
   ctrl('row-mix').hidden = !(state.rmxColorMap === 'tone' || state.rmxColorMap === 'tonernd');
   ctrl('seg-mix').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === (state.rmxSpace || 'srgb')));
@@ -515,7 +515,7 @@ ctrl('num-canvas-height').addEventListener('change', e => {
 // `initial` syncs the visible swatch/hex fields to state.js's own
 // defaults immediately; `onChange` is this tool's own side effect
 // (state.*RGB, plus a full repaint for Background).
-// A palette's name in the Ink or Background row fills both by the house role (and the RMX strip with its colours).
+// A palette's name in the Ink or Paper row fills both by the house role (and the RMX strip with its colours).
 const takeRoles = Organica.paletteKit.roles({
   slots: [{ key: 'ink', parts: ['main', 'sub'], fallback: 'darkest' }, { key: 'bg', parts: ['background', 'ground'], fallback: 'lightest' }],
   onRoles: (r, pal) => {
