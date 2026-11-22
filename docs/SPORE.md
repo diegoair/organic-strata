@@ -52,15 +52,18 @@ Shared, identical picker with Pollen.
 - **Warp** — adds organic angular jitter.
 
 ### Color
-- **Mode — Solid / Adaptive / Image / Multi / RMX**
-  - *Solid:* one Mark colour.
-  - *Adaptive:* tone-shifted mark colour.
+- **Mode — Solid / Adaptive / Image / Multi / Inks** (*Inks* was *RMX* until Nov 22, 2026 — Pollen's Colour mode)
+  - *Solid:* one Ink colour.
+  - *Adaptive:* each mark blends **Ink → Paper** by its tone.
   - *Image:* each mark takes the colour of the underlying pixel.
   - *Multi:* random hues.
-  - *RMX:* a **palette of up to 5 colours** mapped by tone — gradient map (same as
-    Pollen). Mappings: **Tone / Posterize / Random / Tone + Random**. The single
-    Mark control is hidden in this mode.
-- **Mark / BG** — colours (Mark hidden in RMX).
+  - *Inks:* a **palette of up to 9 colours, dark → bright**, laid on the tone by **Colour by** — **Tone / Posterize /
+    Random / Tone + random** (same as Pollen). Drag a chip (or ⌥← / ⌥→) to move it along the ramp; **Sort by
+    lightness** puts them darkest first (disabled when they already are). The single Ink control is hidden.
+- **Mix — sRGB / OKLab** — how two colours blend: shown where they do (Adaptive, Inks › Tone or Tone + random). sRGB
+  is Spore's look before Nov 22, 2026; a TuneSutra palette taken whole brings its own, with its Mode, Colour by and
+  Ink / Paper pair.
+- **Ink / Paper** (*Mark / BG* until Nov 22, 2026) — colours (Ink hidden in Inks).
 - **Opacity** — mark opacity.
 
 ---
@@ -82,8 +85,8 @@ The Export popover carries an explicit **Screen | Print** mode switch
 
 ### Plates — one file per RMX ink colour
 
-A **Plates** section appears whenever **Color mode is RMX** with a discrete
-Mapping (**Posterize**, **Random**, or **Tone + Random** — not plain **Tone**,
+A **Plates** section appears whenever **Colour mode is Inks** with a discrete
+**Colour by** (**Posterize**, **Random**, or **Tone + random** — not plain **Tone**,
 a continuous blend with no single ink per mark). Exports **PNG** and **SVG**,
 one file per palette colour, ink black on a transparent background (a real
 screen-print/riso separation, not a colour preview). Classification is a
@@ -116,7 +119,7 @@ the same shared `Organica.plateExport` driver Colornet and Pollen use.
 | Symbols | shared primordial set + upload | shared primordial set + upload |
 | Sizing | Size + Size-by-brightness | Size + Range + **Scale** + **Width/Length** |
 | Remix | **RMX colours** | **RMX colours + RMX shapes** |
-| Colour | Solid / Adaptive / Image / Multi / RMX | Solid / Adaptive / RMX |
+| Colour | Solid / Adaptive / Image / Multi / Inks | Solid / Adaptive / Inks |
 | Hatching | — | **Stroke** (Pointillist Line) + **field streamlines** (Flow) |
 | Density | Spacing / Density | Spacing / Spacing × + **Light dropout** |
 | Tone tools | Invert | Invert / Gamma / Contrast / Hide Zone / Rotation / Flip |

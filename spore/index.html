@@ -309,10 +309,10 @@
         <button class="cm-btn org-btn" onclick="setColorMode('adaptive',this)">Adaptive</button>
         <button class="cm-btn org-btn" onclick="setColorMode('image',this)">Image</button>
         <button class="cm-btn org-btn" onclick="setColorMode('multi',this)">Multi</button>
-        <button class="cm-btn org-btn" onclick="setColorMode('rmx',this)">RMX</button>
+        <button class="cm-btn org-btn" onclick="setColorMode('rmx',this)">Inks</button>
       </div>
 
-      <!-- RMX palette: up to 9 colours assigned by a chosen mapping (by tone) -->
+      <!-- Inks: up to 9 colours, dark → bright (drag a chip, or Sort by lightness), laid on the tone by Colour by -->
       <div id="rmx-color-block" hidden style="margin-bottom: var(--space-5)">
         <div class="ctrl-row mb-2">
           <span class="ctrl-label">Palette</span>
@@ -320,13 +320,23 @@
         </div>
         <div id="rmx-palette" class="rmx-palette"></div>
         <div class="ctrl-row mt-3">
-          <span class="ctrl-label">Mapping</span>
-          <select class="panel-select u-flex1" id="sel-rmx-map" onchange="rmxColorMap=this.value;syncPlatesUI();liveUpdate()">
-            <option value="tone">Tone (gradient)</option>
+          <span class="ctrl-label">Colour by</span>
+          <select class="panel-select u-flex1" id="sel-rmx-map" aria-label="Colour by" onchange="rmxColorMap=this.value;syncPlatesUI();syncColourRows();liveUpdate()">
+            <option value="tone">Tone</option>
             <option value="posterize">Posterize</option>
             <option value="random">Random</option>
-            <option value="tonernd">Tone + Random</option>
+            <option value="tonernd">Tone + random</option>
           </select>
+        </div>
+        <div class="row-btns"><button type="button" class="mini-btn" id="btn-rmx-sort" onclick="sortRmxByLightness()">Sort by lightness</button></div>
+      </div>
+
+      <!-- Mix: how two colours blend between them (Adaptive, Inks › Tone or Tone + random) -->
+      <div class="ctrl-row" id="row-mix" hidden style="margin-bottom: var(--space-5)">
+        <span class="ctrl-label">Mix</span>
+        <div class="seg-ctrl" id="mix-seg">
+          <button class="seg-btn active" data-val="srgb" onclick="setMix('srgb')">sRGB</button>
+          <button class="seg-btn" data-val="oklab" onclick="setMix('oklab')">OKLab</button>
         </div>
       </div>
 
@@ -336,7 +346,7 @@
           <input type="color" id="cp-mark" value="#0a0a0a">
         </span>
         <input class="color-hex" id="hex-mark" value="#0a0a0a" maxlength="7">
-        <span class="ctrl-label" style="min-width:auto">Mark</span>
+        <span class="ctrl-label" style="min-width:auto">Ink</span>
       </div>
 
       <div class="color-row">
@@ -345,7 +355,7 @@
           <input type="color" id="cp-bg" value="#f5f2ec">
         </span>
         <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
-        <span class="ctrl-label" style="min-width:auto">BG</span>
+        <span class="ctrl-label" style="min-width:auto">Paper</span>
       </div>
 
       <div class="ctrl-row">
@@ -381,6 +391,7 @@
 <script src="/shared/shading.js"></script>
 <script src="/shared/shade-editor.js"></script>
 <script src="/shared/palette-kit.js"></script>
+<script src="/shared/reorder.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/plate-export.js"></script>
@@ -409,7 +420,7 @@ let rmxColorMap = 'tone';            // 'tone' | 'posterize' | 'random' | 'toner
 const RMX_COLORS_MAX = 9;
 // A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours dark → bright, each colour's
 // shading (rmxShades, hex → Organica.shading definition, edited under the strip) and its Colour mode — the mode
-// (Solid / Adaptive / RMX), the Mapping, the ink + paper pair and the mix space (rmxSpace; Spore has no Mix control,
+// (Solid / Adaptive / Inks), Colour by, the Ink + Paper pair and the Mix (rmxSpace — the Mix row since Nov 22, 2026;
 // so it is kept as the palette gave it; null = sRGB, as before). Save as palette… gives all of it back.
 let rmxShades = {}, rmxSpace = null, rmxKit = null;
 // Colour math now lives in shared/palette.js (Organica.palette.colorAt) —
@@ -425,10 +436,34 @@ function buildRmxPalette() {
       if (p.colors) rmxColors = p.colors;
       if (p.shades) rmxShades = p.shades; else if (why === 'palette') rmxShades = {};
       if (p.mapping && why === 'palette') applyMapping(p.mapping);
-      syncPlatesUI(); liveUpdate();
+      syncPlatesUI(); syncColourRows(); liveUpdate();
     },
   });
+  // the order is the ramp: drag a chip (or ⌥← / ⌥→) to move it along dark → bright
+  Organica.reorder(document.getElementById('rmx-palette'), {
+    item: '.rmx-color', axis: 'x',
+    onMove: (from, to) => {
+      const c = rmxColors.slice(); c.splice(to, 0, c.splice(from, 1)[0]); rmxColors = c; rmxKit.rebuild(); syncColourRows(); liveUpdate();
+      const chip = document.querySelectorAll('#rmx-palette .rmx-color')[to], pick = chip && chip.querySelector('button, input');
+      if (pick) pick.focus({ preventScroll: true });   // the chip itself is not focusable: keep the keyboard on its picker
+    },
+    say: (i, n) => 'Colour ' + (i + 1) + ' of ' + n,
+  });
 }
+// Mix only where two colours blend (Adaptive, Inks › Tone or Tone + random); Sort by lightness only when it would move one
+function syncColourRows() {
+  const blend = colorMode === 'adaptive' || (colorMode === 'rmx' && (rmxColorMap === 'tone' || rmxColorMap === 'tonernd'));
+  document.getElementById('row-mix').hidden = !blend;
+  document.getElementById('btn-rmx-sort').disabled = Organica.palettes.mappingFor(rmxColors, {}).order.every((i, k) => i === k);
+  document.querySelectorAll('#mix-seg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.val === (rmxSpace || 'srgb')));
+}
+function sortRmxByLightness() {
+  const order = Organica.palettes.mappingFor(rmxColors, {}).order;   // the default order is by lightness, darkest first
+  rmxColors = order.map(i => rmxColors[i]);
+  rmxKit.rebuild(); syncColourRows(); liveUpdate();
+}
+// Mix: the blend space between two colours. sRGB is Spore's look before Nov 22, 2026.
+function setMix(v) { rmxSpace = v === 'oklab' ? 'oklab' : 'srgb'; syncColourRows(); liveUpdate(); }
 // Spore's Colour mode now, as a palette's mapping (the strip is already dark → bright: its order is the strip's)
 function currentMapping() {
   const at = id => rmxColors.indexOf(String(document.getElementById(id).value).toLowerCase());
@@ -444,6 +479,7 @@ function currentMapping() {
 function applyMapping(m) {
   rmxSpace = m.space || null;
   if (m.submode) { rmxColorMap = m.submode; document.getElementById('sel-rmx-map').value = m.submode; }
+  syncColourRows();
   if ((m.mode === 'solid' || m.mode === 'adaptive') && m.pair) {
     const ink = rmxColors[m.pair[0]], paper = rmxColors[m.pair[1]];
     if (ink) swatches.mark.set(ink);
@@ -624,7 +660,7 @@ function syncVal(slider, valId) {
 
 function setDensity(d, btn) {
   density = d;
-  document.querySelectorAll('#panel .seg-btn').forEach(b => b.classList.remove('active'));
+  btn.parentNode.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));   // its own group (Mix is a seg too)
   btn.classList.add('active');
   liveUpdate();
 }
@@ -638,7 +674,7 @@ function setColorMode(mode, btn) {
   document.getElementById('spore-shade').hidden = !rmx;
   document.getElementById('row-mark').hidden = !!(rmx);
   if (rmx) buildRmxPalette();
-  syncPlatesUI();
+  syncPlatesUI(); syncColourRows();
   liveUpdate();
 }
 
