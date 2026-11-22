@@ -19,6 +19,7 @@ const R = await P.ev(`
   out.byOpts = [...q('sel-rmx-map').options].map(o => o.textContent).join(' · ');
   out.mix = [...q('mix-seg').querySelectorAll('.seg-btn')].map(b => b.textContent.trim()).join(' · ');
   out.sort = q('btn-rmx-sort').textContent.trim();
+  out.pair = [...document.querySelectorAll('.color-row .color-name')].map(e => e.textContent.trim()).slice(0, 2).join(' / ');
   const shows = () => ({ inks: vis('rmx-color-block'), mix: vis('row-mix'), point: vis('row-point') });
   setColorMode('solid'); out.solid = shows();
   setColorMode('adaptive'); out.adaptive = shows();
@@ -47,6 +48,7 @@ const check = (label, okk, detail) => { if (!okk) failed++; console.log((okk ? '
 check('modes Solid · Adaptive · Inks', R.seg === 'Solid · Adaptive · Inks', R.seg);
 check('Colour by Tone · Posterize · Random · Tone + random', R.by === 'Colour by' && R.byOpts === 'Tone · Posterize · Random · Tone + random', R.by + ': ' + R.byOpts);
 check('Mix sRGB · OKLab, Sort by lightness', R.mix === 'sRGB · OKLab' && R.sort === 'Sort by lightness', R.mix + ' / ' + R.sort);
+check('the pair is Ink / Paper', R.pair === 'Ink / Paper', R.pair);
 check('Solid: Point, no Mix, no inks', R.solid.point && !R.solid.mix && !R.solid.inks, JSON.stringify(R.solid));
 check('Adaptive: Point + Mix, no inks', R.adaptive.point && R.adaptive.mix && !R.adaptive.inks, JSON.stringify(R.adaptive));
 check('Inks: the strip + Mix, no Point', !R.rmx.point && R.rmx.mix && R.rmx.inks, JSON.stringify(R.rmx));

@@ -410,9 +410,9 @@
 
       <!-- POINT colour: label (left) + swatch (picker) + hex + Random icon -->
       <div class="color-row" id="row-point">
-        <span class="color-name">Point</span>
+        <span class="color-name">Ink</span>
         <span class="color-swatch-wrap">
-          <button class="color-swatch" id="sw-ink" style="background:#0a0a0a" title="Point colour"></button>
+          <button class="color-swatch" id="sw-ink" style="background:#0a0a0a" title="Ink colour"></button>
           <input type="color" id="cp-ink" value="#0a0a0a">
         </span>
         <input class="color-hex" id="hex-ink" value="#0a0a0a" maxlength="7">
@@ -422,9 +422,9 @@
       </div>
       <!-- BACKGROUND colour -->
       <div class="color-row">
-        <span class="color-name">BG</span>
+        <span class="color-name">Paper</span>
         <span class="color-swatch-wrap">
-          <button class="color-swatch" id="sw-bg" style="background:#f5f2ec" title="Background colour"></button>
+          <button class="color-swatch" id="sw-bg" style="background:#f5f2ec" title="Paper colour"></button>
           <input type="color" id="cp-bg" value="#f5f2ec">
         </span>
         <input class="color-hex" id="hex-bg" value="#f5f2ec" maxlength="7">
@@ -432,7 +432,7 @@
           <svg class="ico ico--sm" data-icon="dice" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor" stroke="none"/></svg>
         </button>
       </div>
-      <!-- Point Alpha (native picker has no alpha) -->
+      <!-- Ink alpha (native picker has no alpha) -->
       <div class="ctrl-row">
         <span class="ctrl-label">Alpha</span>
         <input type="range" id="a-ink" min="0" max="255" value="255" oninput="syncVal(this,'vl-alpha');render()">

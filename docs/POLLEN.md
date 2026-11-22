@@ -100,17 +100,17 @@ The symbol picker — shared, identical component with Spore.
 - **Mode — Solid / Adaptive / Inks** (*Inks* was *RMX* until Nov 22, 2026 — the colour mode; the shapes' *RMX · remix
   by tone* keeps its name)
   - *Solid:* one Point colour for all marks.
-  - *Adaptive (duotone):* each mark is interpolated **Point → BG** by its
+  - *Adaptive (duotone):* each mark is interpolated **Ink → Paper** by its
     brightness — a two-tone gradient onto the image tones.
   - *Inks:* a **palette of up to 9 colours, dark → bright**, laid on the image by **Colour by** (see §4). The single
-    Point control is hidden in this mode (the palette replaces it). Drag a chip (or ⌥← / ⌥→) to move it along the ramp;
+    Ink control is hidden in this mode (the palette replaces it). Drag a chip (or ⌥← / ⌥→) to move it along the ramp;
     **Sort by lightness** puts them darkest first (disabled when they already are).
 - **Mix — sRGB / OKLab** — how two colours blend: shown where they do (Adaptive, Inks › Tone or Tone + random).
   sRGB is Pollen's look before Nov 22, 2026 and the default of an older preset; a TuneSutra palette taken whole
-  brings its own (and its Mode, Colour by, Point / BG pair).
-- **Point / BG** — swatch + hex + 🎲 random (Point hidden in Inks).
+  brings its own (and its Mode, Colour by, Ink / Paper pair).
+- **Ink / Paper** (*Point / BG* until Nov 22, 2026) — swatch + hex + 🎲 random (Ink hidden in Inks).
 - **Alpha** — point opacity (0–255).
-- **Swap colors** — exchange Point and BG (hidden in Inks).
+- **Swap colours** — exchange Ink and Paper (hidden in Inks).
 
 ### Render  *(live)*
 - **Overpaint (additive)** — overlapping marks darken (multiply) for inky density.
