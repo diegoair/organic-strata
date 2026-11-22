@@ -68,7 +68,7 @@ Entries: **Particles** (scatters disks of varying size onto the seed shape's own
 
 ## 8. Palette
 
-Three colour modes, Pollen's own naming: **Solid** (the field's own threshold decides ink vs paper — plain duotone, same convention as everywhere else in Organica), **Adaptive** (smooth blend between Ink and Paper by the field's raw value, no hard edge), **RMX** (up to 5 colours mapped across the field: `Tone` blends like a gradient, `Posterize` bands them, `Random`/`Tone + Random` add hashed jitter — a texture, not per-blob colour, since the field is continuous rather than discrete marks like Pollen's stipple points).
+Three colour modes, Pollen's own naming: **Solid** (the field's own threshold decides ink vs paper — plain duotone, same convention as everywhere else in Organica), **Adaptive** (smooth blend between Ink and Paper by the field's raw value, no hard edge), **Inks** (*RMX* until Nov 22, 2026 — up to 9 colours, dark → bright, moved by drag / ⌥← ⌥→ or **Sort by lightness**, laid on the field by **Colour by**: `Tone` blends like a gradient, `Posterize` bands them, `Random`/`Tone + random` add hashed jitter; no **Mix** row — the shader blends in sRGB only, O-91 i — a texture, not per-blob colour, since the field is continuous rather than discrete marks like Pollen's stipple points).
 
 ## 9. Export
 

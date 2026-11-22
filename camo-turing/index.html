@@ -545,21 +545,23 @@
         <div class="seg-ctrl" id="seg-colormode">
           <button class="seg-btn active" data-v="solid" onclick="setColorMode('solid')">Solid</button>
           <button class="seg-btn" data-v="adaptive" onclick="setColorMode('adaptive')">Adaptive</button>
-          <button class="seg-btn" data-v="rmx" onclick="setColorMode('rmx')">RMX</button>
+          <button class="seg-btn" data-v="rmx" onclick="setColorMode('rmx')">Inks</button>
         </div>
       </div>
 
       <div id="rmx-color-block" hidden>
         <div class="ctrl-row">
-          <div class="ctrl-label">Palette</div>
-          <select class="panel-select" id="sel-rmx-map" onchange="setRmxMapping(this.value)">
-            <option value="tone">Tone (gradient)</option>
+          <div class="ctrl-label">Colour by</div>
+          <select class="panel-select" id="sel-rmx-map" aria-label="Colour by" onchange="setRmxMapping(this.value)">
+            <option value="tone">Tone</option>
             <option value="posterize">Posterize</option>
             <option value="random">Random</option>
-            <option value="tonernd">Tone + Random</option>
+            <option value="tonernd">Tone + random</option>
           </select>
         </div>
         <div id="rmx-palette" class="rmx-palette"></div>
+        <!-- No Mix row yet: the shader blends in sRGB only (O-91 i — OKLab when a Camo release touches the shader) -->
+        <div class="row-btns"><button type="button" class="mini-btn" id="btn-rmx-sort">Sort by lightness</button></div>
       </div>
 
       <div class="color-row" id="row-point">
@@ -605,6 +607,7 @@
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/palette-kit.js"></script>
+<script src="/shared/reorder.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/seeds-panel.js"></script>
 <!-- Transformer — centralized raster effect-stack module (see the file's
@@ -1944,7 +1947,7 @@ const takeRoles = Organica.paletteKit.roles({
   });
 });
 
-// ── COLOR MODE — Solid / Adaptive / RMX, Pollen's own three modes. ──
+// ── COLOR MODE — Solid / Adaptive / Inks (RMX until Nov 22, 2026), Pollen's own three modes. ──
 let rmxColors = ['#1a1a2e', '#e94f37', '#f6e8c3'];
 let rmxColorMap = 'tone';
 // A palette's blend space, kept when one is taken whole (and given back by Save as palette…). Not applied yet: the
@@ -1970,7 +1973,7 @@ function setColorMode(mode) {
 // kept in sync via the chip factory's onChange.
 let rmxChips = null;
 // A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours dark → bright and its Colour
-// mode — Mode, Mapping, the Ink / Paper pair; Save as palette… gives the tool's own mode back.
+// mode — Mode, Colour by, the Ink / Paper pair; Save as palette… gives the tool's own mode back.
 function buildRmxPalette() {
   rmxChips = Organica.paletteKit.strip(ctrl('rmx-palette'), null, {
     tool: 'Camo Turing', min: 2, max: RMX_COLORS_MAX, order: 'ramp', shading: false,
@@ -1988,12 +1991,27 @@ function buildRmxPalette() {
       syncRmxUniforms();
     },
   });
+  // the order is the ramp: drag a chip (or ⌥← / ⌥→) to move it along dark → bright; Sort by lightness puts it darkest first
+  Organica.reorder(ctrl('rmx-palette'), {
+    item: '.rmx-color', axis: 'x',
+    onMove: (from, to) => {
+      const c = rmxColors.slice(); c.splice(to, 0, c.splice(from, 1)[0]); rmxColors = c; rmxChips.rebuild(); syncRmxUniforms();
+      const chip = document.querySelectorAll('#rmx-palette .rmx-color')[to], pick = chip && chip.querySelector('button, input');
+      if (pick) pick.focus({ preventScroll: true });   // the chip itself is not focusable: keep the keyboard on its picker
+    },
+    say: (i, n) => 'Colour ' + (i + 1) + ' of ' + n,
+  });
+  ctrl('btn-rmx-sort').addEventListener('click', () => {
+    rmxColors = Organica.palettes.mappingFor(rmxColors, {}).order.map(i => rmxColors[i]);
+    rmxChips.rebuild(); syncRmxUniforms();
+  });
 }
 function syncRmxUniforms() {
   const arr = dispMat.uniforms.uPalette.value;
   rmxColors.forEach((col, i) => { arr[i] = new THREE.Color(col); });
   dispMat.uniforms.uPaletteCount.value = rmxColors.length;
   dispMat.uniforms.uMapping.value = { tone: 0, posterize: 1, random: 2, tonernd: 3 }[rmxColorMap];
+  const sort = ctrl('btn-rmx-sort'); if (sort) sort.disabled = Organica.palettes.mappingFor(rmxColors, {}).order.every((i, k) => i === k);
   scheduleRender();
 }
 // Real bug, found by testing: the <select>'s onchange used to do the bare
@@ -3549,7 +3567,7 @@ window.cancelSavePreset = cancelSavePreset;
 // read-only handles to the display pass, no behaviour of its own.
 window.__camo = { THREE, get renderer() { return renderer; }, get dispMat() { return dispMat; },
   get dispScene() { return dispScene; }, get camera() { return camera; },
-  setRmx(colors, map) { rmxColors = colors; rmxColorMap = map; syncRmxUniforms(); }, buildExportSVGString, get rndTable() { return rndTable; } };
+  setRmx(colors, map) { rmxColors = colors; rmxColorMap = map; if (rmxChips) rmxChips.rebuild(); syncRmxUniforms(); }, get rmxColors() { return rmxColors.slice(); }, buildExportSVGString, get rndTable() { return rndTable; } };
 ctrl('btn-preset-confirm').addEventListener('click', confirmSavePreset);
 ctrl('btn-preset-cancel').addEventListener('click', cancelSavePreset);
 ctrl('txt-preset-name').addEventListener('keydown', e => {
