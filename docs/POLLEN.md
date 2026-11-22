@@ -66,6 +66,8 @@ Two kinds of controls:
 - **PNG · JPG · SVG · → Figma** — exports, in the Export popover (§7).
 
 ### Presets
+
+*Nov 22, 2026:* the six built-ins live in **`shared/pollen-presets.js`** (`Organica.pollenPresets.BUILTIN`, unchanged); TuneSutra's Shadow (and every tool's shade editor that loads that file) lists the built-ins and the saved presets under *Pollen · Built-in* / *Pollen · Saved* and copies a preset's marks — not its colours — into a palette's shadow (docs/TUNESUTRA.md §3).
 A saved snapshot of *the whole look* — including symbol(s), sizing, colour mode,
 RMX palette + mapping, RMX shapes, and placement.
 - **Select / Save / Delete** — built-ins + user presets (browser `localStorage`).

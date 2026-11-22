@@ -119,6 +119,11 @@
     Object.keys(TEXTURE_SIZE).forEach(t => { out[t] = Object.assign({}, speckle, { specks: t, speck: TEXTURE_SIZE[t], amount: 80 }); });
     return out;
   }
+  // A Pollen preset as a shadow (Nov 22, 2026): Dot's preset with the preset's marks copied in (marks: from
+  // Organica.pollenPresets.toMarks — the copy the palette keeps; the shadow's inks stay the palette's).
+  function pollenDef(hex, marks, ctx) {
+    return Object.assign({}, shadeDefs(hex, ctx)['pollen-dot'], { specks: 'pollen-preset', marks: JSON.parse(JSON.stringify(marks)) });
+  }
   // The flat colour, no shadow — what "None" draws, and where an edit starts from.
   function flatDef(hex, ctx) { return Object.assign({}, shadeDefs(hex, ctx).base, { type: 'flat', shadow: false }); }
 
@@ -270,7 +275,7 @@
   function markShadow(g) { return hasNoise(g) && !!(Organica.shadeMarks && Organica.shadeMarks.has(g.specks)); }
   function markPlates(g, w, h, ctx) {
     const SM = Organica.shadeMarks, weight = noiseWeight(g, w, h), [mid, core] = shadowInks(g, g.stops[colourStop(g)], ctx);
-    const res = SM.render(g.specks, { w: w, h: h, level: (x, y) => shadowAt(g, weight(x, y)), size: Math.max(SM.minSize(g.specks), g.speck || SHADOW_CELL), angle: g.light + 90, seed: 7 });
+    const res = SM.render(g.specks, { w: w, h: h, level: (x, y) => shadowAt(g, weight(x, y)), size: Math.max(SM.minSize(g.specks), g.speck || SHADOW_CELL), angle: g.light + 90, seed: 7, marks: g.marks });
     return [{ hex: mid, paper: false, d: res.mid.join(''), cells: res.mid.length }, { hex: core, paper: false, d: res.core.join(''), cells: res.core.length }];
   }
   function smoothShadowPlate(g, w, h, ctx) {
@@ -602,6 +607,9 @@
     if (g.type === 'conic') g.type = 'linear';
     if (g.type === 'field') g.field = fieldParams(had); else delete g.field;
     if (g.pattern !== 'dots') g.pattern = 'noise';
+    // a Pollen preset's copied marks belong to its shadow only; a preset shadow without them draws as Dot
+    if (g.specks !== 'pollen-preset') delete g.marks;
+    else if (!g.marks || !(g.marks.spMin > 0)) { g.specks = 'pollen-dot'; delete g.marks; }
     // Free Cool / Warm / Impressionist went (Free = the harmony rules): Cool / Warm move on the palette,
     // Impressionist becomes Analogous.
     if (!g.snap && (g.hue === 'cool' || g.hue === 'warm')) g.snap = true;
@@ -679,7 +687,7 @@
   Organica.shading = {
     DEFAULT: DEFAULT, SHADE_MODES: SHADE_MODES, SHADE_NAME: SHADE_NAME, TEXTURES: TEXTURES, TEXTURE_SIZE: TEXTURE_SIZE,
     SHADOW_CELL: SHADOW_CELL,
-    defs: shadeDefs, flatDef: flatDef, normalize: normalizeGrad, withColour: withColour,
+    defs: shadeDefs, flatDef: flatDef, pollenDef: pollenDef, normalize: normalizeGrad, withColour: withColour,
     plates: plates, gradPlates: gradPlates, smoothPlates: smoothPlates, shadowInks: shadowInks,
     gradStops: gradStops, smoothStops: smoothStops, smoothGeom: smoothGeom, smoothMarkup: smoothMarkup, smoothFill: smoothFill,
     drawPlates: drawPlates, platesSVG: platesSVG, boxOf: boxOf, overlaySVG: overlaySVG, overlayCanvas: overlayCanvas, shapePlates: shapePlates,

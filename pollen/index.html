@@ -541,6 +541,7 @@
 <script src="/shared/auth.js"></script>
 <script src="/shared/auth-badge.js"></script>
 <script src="/shared/store.js"></script>
+<script src="/shared/pollen-presets.js"></script>
 
 <script src="/shared/colour-picker.js"></script>
 <script src="/shared/color.js"></script>
@@ -871,25 +872,8 @@ const PRESET_CHECKS = ['ck-size-range','ck-angle-range','ck-angle-random','ck-an
   'ck-stroke-round','ck-aa','ck-invert','ck-overpaint','ck-hide','ck-flip'];
 const RANGE_ROWS = { 'ck-size-range':'row-size-max', 'ck-angle-range':'row-angle-max' };
 
-const BUILTIN_PRESETS = {
-  'Fine Dots':  { pointType:'g:seed-breath', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
-                  'sl-size':'1.5','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'8','sl-phases':'16' },
-  'Felt-tip':   { pointType:'g:seed-breath', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
-                  'sl-size':'4','ck-size-range':true,'sl-size-max':'1','sl-sp-min':'3','sl-sp-max':'14','sl-phases':'12' },
-  'Lines Flow': { pointType:'g:seed-line', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
-                  'sl-size':'4','ck-angle-random':true,'sl-angle':'0','sl-angle-max':'360','sl-sp-min':'2','sl-sp-max':'10' },
-  'Duotone':    { pointType:'g:seed-breath', colorMode:'adaptive', ink:'#1a3a2a', bg:'#dfe6f0',
-                  'sl-size':'3','ck-size-range':false,'sl-sp-min':'1.5','sl-sp-max':'9','sl-phases':'14' },
-  // Stroke streamlines (the strokes curve through the image's angle field).
-  'Hatch Flow': { pointType:'stroke', strokeStyle:'line', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
-                  'sl-size':'1','sl-stroke-len':'12','sl-stroke-seg':'10','sl-stroke-warp':'0.3',
-                  'ck-stroke-round':true,'ck-angle-flow':true,'ck-angle-range':false,'ck-angle-random':false,
-                  'sl-sp-min':'1.5','sl-sp-max':'9','sl-phases':'16','sl-dropout':'50' },
-  'Hatch Swirl':{ pointType:'stroke', strokeStyle:'line', colorMode:'solid', ink:'#0a0a0a', bg:'#f5f2ec',
-                  'sl-size':'1.2','sl-stroke-len':'14','sl-stroke-seg':'10','sl-stroke-warp':'0',
-                  'ck-stroke-round':true,'ck-angle-flow':false,'ck-angle-range':true,'ck-angle-random':false,
-                  'sl-angle':'0','sl-angle-max':'360','sl-sp-min':'2','sl-sp-max':'12','sl-phases':'16','sl-dropout':'0' }
-};
+// The built-ins live in shared/pollen-presets.js since Nov 22, 2026 (TuneSutra's Shadow lists them too) — unchanged.
+const BUILTIN_PRESETS = Organica.pollenPresets.BUILTIN;
 
 function getState() {
   const s = { pointType, colorMode, ink: ctrl('hex-ink').value, bg: ctrl('hex-bg').value,
