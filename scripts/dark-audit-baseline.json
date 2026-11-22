@@ -15,14 +15,6 @@
   "button": true,
   "error": null
  },
- "/genesis/": {
-  "opted": true,
-  "light": 0,
-  "dark": 0,
-  "islands": 0,
-  "button": true,
-  "error": null
- },
  "/spore/": {
   "opted": true,
   "light": 0,

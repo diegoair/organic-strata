@@ -1,5 +1,6 @@
-// Base Seed definitions — Genesis's 13 organic "Base Seeds".
-// (The 6 procedural primitives are synthesised in genesis/index.html.)
+// Base Seed definitions — the 13 organic "Base Seeds" (window.Organica's seed data).
+// Was genesis/forms.js until Genesis was retired (Nov 22, 2026); the 6 procedural
+// primitives Genesis synthesised went with it (they stay in the base_seeds table).
 //
 // One entry per seed, keyed by its canonical id `seed-<slug>` (matches the
 // base_seeds table's seed_id — DB wins if they ever disagree). Each entry
@@ -9,10 +10,8 @@
 //
 // The SVG is class-free and paints with `fill="var(--ink)"` /
 // `stroke="var(--ink)"` so the host controls the colour (Critical Rule —
-// forms never hardcode a hex). Genesis renders these static; the old
-// `class="aNN"` / presentation-class hooks that bound them to
-// genesis/animations.css were dropped 2026-09-03 (nothing consumed them any
-// more — Genesis and the hub bento both render static).
+// forms never hardcode a hex). Every consumer renders them static; the old
+// `class="aNN"` hooks into animations.css were dropped 2026-09-03.
 window.ORGANIC_SEEDS = {
   'seed-breath': {
     label: 'breath', type: 'asset', tags: ['circle', 'single'], bbox: [42, 42, 116, 116],
@@ -111,8 +110,8 @@ window.ORGANIC_SEEDS = {
 };
 
 // ── Back-compat flat maps, derived from ORGANIC_SEEDS ──────────────────────
-// Every existing consumer (genesis/index.html, shared/seeds-panel.js, pollen,
-// spore, livingpath, the hub bento) reads these two. Insertion order of
+// Most consumers (shared/seeds-panel.js, pollen, spore, sinew, camo turing,
+// the hub bento) read these two; FVS reads ORGANIC_SEEDS. Insertion order of
 // ORGANIC_SEEDS is preserved, so `Object.keys(ORGANIC_FORMS)` still yields the
 // 13 in their intended order.
 window.ORGANIC_FORMS = {};

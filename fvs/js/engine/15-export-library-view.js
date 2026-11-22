@@ -117,7 +117,7 @@ export function dupName(all, base) {
 // Base Seeds + the user's own) in one view over the canvas, opened from the floatbar on every tier.
 // A tile's click opens / loads it (a Genesis seed becomes the Element's Shape); Rename · Duplicate ·
 // SVG · PNG · Delete under it. The rail stays for dragging onto Symbol cells.
-export const LIBVIEW_KINDS = [['element', 'Elements'], ['component', 'Components'], ['symbol', 'Symbols'], ['asset', 'Assets'], ['genesis', 'Genesis seeds']];
+export const LIBVIEW_KINDS = [['element', 'Elements'], ['component', 'Components'], ['symbol', 'Symbols'], ['asset', 'Assets'], ['genesis', 'Seeds']];
 export function libviewVerb(kind, name) {
   return kind === 'element' ? 'Edit Element ' + name : kind === 'component' ? 'Load Component ' + name
     : kind === 'symbol' ? 'Load Symbol ' + name : kind === 'asset' ? 'Place asset ' + name + ' from the selected cell' : 'Use as Element shape: ' + name;

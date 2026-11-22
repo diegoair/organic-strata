@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FIX = process.argv.includes('--fix');
-const SKIP = /^(archive|explorations|scratchpad|docs|scripts|node_modules|\.git|\.claude|genesis\/archive|shared\/vendor)(\/|$)|(^|\/)_[^/]*\.(html|js|mjs)$|\.min\.js$/;
+const SKIP = /^(archive|explorations|scratchpad|docs|scripts|node_modules|\.git|\.claude|shared\/vendor)(\/|$)|(^|\/)_[^/]*\.(html|js|mjs)$|\.min\.js$/;
 // _-prefixed pages that are references for people, so their copy follows the same rules (scripts/ds-audit.py has the same list)
 export const SCANNED_DEV_PAGES = new Set(['design-system/_fvs-rules.html']);
 const files = [];

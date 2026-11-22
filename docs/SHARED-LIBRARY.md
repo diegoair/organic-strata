@@ -1,7 +1,7 @@
 # Organica — Shared Library & Storage Conventions
 
 > Organica
-> Last updated: August 30, 2026
+> Last updated: August 30, 2026 — **Genesis retired Nov 22, 2026**: the seed data is `shared/seeds.js` (was `genesis/forms.js`); `animations.css` / `page.css` / `defs.js` went with the tool (the catalog and its `animations.css` are frozen in `archive/genesis-indicators-55/`). The file sections below are history; the storage-key sections still hold.
 
 The shared library is the one piece of Organica that more than one tool depends on.
 This document is the contract: what the files are, what a consumer must provide, and

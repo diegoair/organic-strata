@@ -29,7 +29,7 @@ os.chdir(ROOT)
 OUT = 'design-system/templates.json'
 STARTER = 'shared/_template.html'
 
-SKIP = re.compile(r'^(explorations|archive|scratchpad|\.claude|genesis/archive|figma-plugin|docs)/|(^|/)_')
+SKIP = re.compile(r'^(explorations|archive|scratchpad|\.claude|figma-plugin|docs)/|(^|/)_')
 
 # The sheets a template is made of, in load-bearing order (each may override the one before).
 ORDER = ['tokens', 'icons', 'header', 'page', 'prose', 'auth-card', 'fvs-field', 'panel', 'floatbar', 'shell', 'node-canvas',
@@ -39,7 +39,6 @@ OWN_SURFACE = {   # tool chrome, own canvas surface — no shell.css
     'apostate': 'three-column board (character picker · glyph · panel)',
     'fvs': 'the steps in their own top floatbar, its own step boards and the Figure node graph',
     'rhizome': 'an infinite node canvas (the shared node canvas), no sheet',
-    'genesis': 'library grid + Paper.js artboard; retiring, left alone by decision',
 }
 OWN_LAYOUT = {    # page chrome, own layout (the hub links page.css for the footer, the design system for its specimens)
     '': 'the hub: a stipple hero, a gallery and full-bleed sections',
@@ -47,10 +46,6 @@ OWN_LAYOUT = {    # page chrome, own layout (the hub links page.css for the foot
 }
 ALLOW = {         # (page, rule) -> why this deviation is deliberate
     ('rhizome', 'tail-scripts'): 'native ES modules: every shared script loads in <head>, before the module graph',
-    ('genesis', 'app'): 'retiring — left alone by decision',
-    ('genesis', 'floatbar-child'): 'retiring — left alone by decision',
-    ('genesis', 'panel-last'): 'retiring — left alone by decision',
-    ('genesis', 'tail-scripts'): 'retiring — left alone by decision',
 }
 
 PUBLIC = {'sign-in', 'privacy', 'terms'}      # shared/auth.js's own public list

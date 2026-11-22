@@ -9,7 +9,6 @@ import * as svgToPoints from './nodes/svg-to-points.js';
 import * as merge from './nodes/merge.js';
 import * as imageUpload from './nodes/image-upload.js';
 import * as exportNode from './nodes/export.js';
-import * as genesisBridge from './nodes/genesis-bridge.js';
 import * as komorebiBridge from './nodes/komorebi-bridge.js';
 import * as warpingBridge from './nodes/warping-bridge.js';
 import * as camoTuringBridge from './nodes/camo-turing-bridge.js';
@@ -29,7 +28,6 @@ const NODE_TYPES = [
   merge,
   imageUpload,
   { meta: exportNode.meta, compute: exportNode.compute },
-  genesisBridge,
   komorebiBridge,
   warpingBridge,
   camoTuringBridge,
@@ -44,19 +42,19 @@ const NODE_TYPES = [
 // stay as they are — saved graphs depend on them; only `label` is shown. Applied once, here, to every type's meta,
 // so the board and the inspector read the same words. Category = the node bar group (Source · Process · Output).
 const TYPE_LABELS = {
-  'genesis-seed': 'Genesis seed', 'image-upload': 'Image', 'loom-grid-generator': 'Loom grid', 'loom-grid-geometry': 'Loom grid file',
+  'image-upload': 'Image', 'loom-grid-generator': 'Loom grid', 'loom-grid-geometry': 'Loom grid file',
   'camo-turing-pattern': 'Camo Turing pattern', 'komorebi-pattern': 'Komorebi pattern', 'warping-pattern': 'Warping pattern',
   'membrane-trail': 'Membrane trail', 'sinew-preset': 'Sinew effect', 'halide-dither': 'Halide dither', 'spore-stipple': 'Spore stipple',
   'pollen-stipple': 'Pollen stipple', 'contour-trace': 'Contour trace', 'svg-to-points': 'SVG to points', merge: 'Merge', export: 'Export',
 };
 const GROUP = {
-  'genesis-seed': 'Source', 'image-upload': 'Source', 'loom-grid-generator': 'Source', 'loom-grid-geometry': 'Source', 'komorebi-pattern': 'Source',
+  'image-upload': 'Source', 'loom-grid-generator': 'Source', 'loom-grid-geometry': 'Source', 'komorebi-pattern': 'Source',
   'warping-pattern': 'Source', 'camo-turing-pattern': 'Source', 'membrane-trail': 'Source', 'sinew-preset': 'Source',
   'halide-dither': 'Process', 'spore-stipple': 'Process', 'pollen-stipple': 'Process', 'contour-trace': 'Process', 'svg-to-points': 'Process', merge: 'Process',
   export: 'Output',
 };
 const PARAM_LABELS = {
-  genType: 'Shape', preset: 'Preset', steps: 'Steps', pattern: 'Pattern', seconds: 'Duration (s)', type: 'Grid type', width: 'Width', height: 'Height',
+  preset: 'Preset', steps: 'Steps', pattern: 'Pattern', seconds: 'Duration (s)', type: 'Grid type', width: 'Width', height: 'Height',
   cols: 'Columns', rows: 'Rows', variety: 'Variety', gap: 'Gap', seed: 'Random seed', inputCount: 'Inputs', offsetXStep: 'Offset X per input',
   offsetYStep: 'Offset Y per input', padding: 'Padding', dataURL: 'Image', json: 'Grid file', scale: 'Scale',
 };

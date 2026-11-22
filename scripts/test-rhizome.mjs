@@ -20,7 +20,7 @@ const out = await P.ev(`
   // names in words
   const types = registry.list();
   res.typeCount = types.length;
-  const PROPER = new Set(['Genesis', 'Loom', 'Komorebi', 'Warping', 'Camo', 'Turing', 'Membrane', 'Sinew', 'Halide', 'Spore', 'Pollen', 'SVG']);
+  const PROPER = new Set(['Loom', 'Komorebi', 'Warping', 'Camo', 'Turing', 'Membrane', 'Sinew', 'Halide', 'Spore', 'Pollen', 'SVG']);
   const sentence = l => !!l && /^[A-Z]/.test(l) && !/→/.test(l) && l.split(' ').slice(1).every(w => !/^[A-Z]/.test(w) || PROPER.has(w));
   res.named = types.every(t => sentence(t.meta.label) && (t.meta.params || []).every(p => p.label && (!/[A-Z]/.test(p.name) || p.label !== p.name))
     && (t.meta.outputs || []).every(p => p.label) && (typeof t.meta.inputs === 'function' || (t.meta.inputs || []).every(p => p.label)));
@@ -99,7 +99,7 @@ const out = await P.ev(`
 `);
 const fails = [];
 const check = (c, msg) => { if (!c) fails.push(msg); };
-check(out.typeCount === 16, `16 node types (got ${out.typeCount})`);
+check(out.typeCount === 15, `15 node types (got ${out.typeCount})`);
 check(out.named, 'every type, param and output has a label in words');
 check(out.groups === 'Output,Process,Source', 'node bar groups: ' + out.groups);
 check(out.states === 'ok,ok,ok,ok,ok', 'the native graph computes: ' + out.states);

@@ -9,7 +9,7 @@
 
 ### Live & Working
 - [x] Organica hub — `theorganicalanguage.vercel.app`
-- [x] Genesis — the seed library (`/genesis/`): Library + Create modes, 13 static base seeds + 6 procedural primitives, Sets as ordered id lists. *(Was a 55-form animated composer; restructured Aug 30, 2026 — catalog archived at `genesis/archive/indicators-55.html`.)*
+- [x] ~~Genesis~~ — **retired Nov 22, 2026** (Base Seeds now `shared/seeds.js`). Was the seed library (`/genesis/`): Library + Create modes, 13 static base seeds + 6 procedural primitives, Sets as ordered id lists. *(Was a 55-form animated composer; restructured Aug 30, 2026 — catalog archived at `genesis/archive/indicators-55.html`.)*
 - [x] Spore — generative stippling from images (`/spore/`) — mark library, zoom/pan preview, PNG + hi-def JPG + SVG export, Send to Figma
 - [x] Pollen — advanced stippling from images (`/pollen/`) — variable-radius blue-noise engine, Circle/Polygon/Line points, Adaptive duotone, presets, PNG/JPG/SVG export, Send to Figma
 - [x] Living Path — generative font/path modification (`/livingpath/`) — Vector + Raster engines, layer groups + blend modes, 9 raster algorithms, 24 presets, live text specimen, installable OTF export via Web Worker, `.lvp` projects. Manual: `docs/LIVINGPATH.md`
@@ -300,6 +300,8 @@ against jasonwebb/reaction-diffusion-playground. Noted 2026-08-08, to pick up ne
 ---
 
 ## Phase 2 — Genesis Depth
+
+*Genesis was retired Nov 22, 2026 — this phase is history.*
 
 *Aug 30–31, 2026: Genesis was restructured into **the seed library** — three modes
 (Library / Create / Edit), 13 static base seeds + 6 procedural primitives, Sets as plain

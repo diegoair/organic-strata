@@ -18,14 +18,9 @@
 <link rel="stylesheet" href="/shared/colour-picker.css">
 <link rel="stylesheet" href="/shared/seeds-panel.css">
 <link rel="stylesheet" href="/shared/mobile-gate.css">
-<!-- Needed only to resolve Genesis forms' CSS-driven geometry when
-     rasterizing them as seed shapes — see Organica.seedsPanel bakeGeometry
-     + the local rasterizeGenesisSource() probe helper. -->
-<link rel="stylesheet" href="/genesis/animations.css">
 <style>
   :root {
     --tool: #3f8fa0;   /* header focus ring — see header.css */
-    --bg-cell: #f5f2ec;   /* required by animations.css — see rasterizeGenesisSource() */
   }
 
   /* .shape-grid / .shape-thumb / .thumb-num come from seeds-panel.css, which
@@ -272,7 +267,7 @@
       <div id="seeds-host-b"></div>
 
       <div class="ctrl-row" style="margin-top: var(--space-4)">
-        <div class="ctrl-label" title="Fill: the coverage mask stamps the reaction directly, once — same as Genesis-form seeding in Camouflage. Confine: the mask permanently pins every cell outside it to the resting state, every step — the pattern grows freely but never escapes the shape. Trace outline: nucleation points are sampled along the shape’s edge only, not its interior — growth radiates from the contour. Regime boundary: two different f/k values meet at the shape’s edge, and the WHOLE canvas keeps evolving on both sides — the shape becomes a border between two regimes, not a container. Background image: doesn’t seed the simulation at all — the current Image/SVG source becomes Paper’s background, in full colour, wherever the pattern isn’t Ink. Stencil: same source image, but visible only THROUGH the Ink shapes instead — Paper stays flat.">Mode</div>
+        <div class="ctrl-label" title="Fill: the coverage mask stamps the reaction directly, once — same as seed-shape seeding in Camouflage. Confine: the mask permanently pins every cell outside it to the resting state, every step — the pattern grows freely but never escapes the shape. Trace outline: nucleation points are sampled along the shape’s edge only, not its interior — growth radiates from the contour. Regime boundary: two different f/k values meet at the shape’s edge, and the WHOLE canvas keeps evolving on both sides — the shape becomes a border between two regimes, not a container. Background image: doesn’t seed the simulation at all — the current Image/SVG source becomes Paper’s background, in full colour, wherever the pattern isn’t Ink. Stencil: same source image, but visible only THROUGH the Ink shapes instead — Paper stays flat.">Mode</div>
         <select class="panel-select" id="sel-seedmode" onchange="syncSeedModeRows()">
           <option value="fill">Fill</option>
           <option value="confine">Confine</option>
@@ -291,7 +286,7 @@
         <div class="ctrl-label" title="Feed/Kill used OUTSIDE the shape, when Mode is Regime boundary.">Outside f/k</div>
         <span class="ctrl-val">0.0545 / 0.0620</span>
       </div>
-      <p class="org-panel__hint" id="paper-img-hint" hidden>Needs an Image or SVG source above (Genesis/Text shapes have no colour of their own to show).</p>
+      <p class="org-panel__hint" id="paper-img-hint" hidden>Needs an Image or SVG source above (Seeds and Text shapes have no colour of their own to show).</p>
 
       <div style="margin-top: var(--space-3); display: flex; align-items: center; gap: var(--space-2)">
         <label class="check-row" style="margin: 0">
@@ -616,7 +611,7 @@
 <script src="/shared/select-picker.js"></script>
 <script src="/shared/transformer.js"></script>
 <!-- Genesis forms — "port as data" per CLAUDE.md; shared verbatim with Genesis/Pollen/Camouflage. -->
-<script src="/genesis/forms.js"></script>
+<script src="/shared/seeds.js"></script>
 <!-- opentype.js v1.3.4, MIT, sha256 c0f9c7ca85e18075a8819e5fe2dee6e1d535f9a2269f5314f36cce94a183adba — reads real glyph outlines for the Text seed source. -->
 <script src="/shared/vendor/opentype.min.js"></script>
 <script type="module">

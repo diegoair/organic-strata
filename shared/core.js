@@ -15,7 +15,7 @@
 
    Everything hangs off window.Organica. No build step, no modules —
    a plain <script src="/shared/core.js"> before the tool's own
-   script, matching how /genesis/forms.js is already loaded.
+   script, matching how /shared/seeds.js is loaded.
 
    See docs/SHARED-LIBRARY.md.
    ───────────────────────────────────────────────────────────── */

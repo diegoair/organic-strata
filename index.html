@@ -148,7 +148,7 @@
     .s-i { grid-column: span 6; grid-row: span 2; }
     .s-j { grid-column: span 6; grid-row: span 2; }
 
-    /* Genesis seeds tile: the SVGs paint with var(--ink) */
+    /* Base seeds tile: the SVGs paint with var(--ink) */
     .hub-tile--seeds { background: var(--ink); }
     .hub-seeds {
       --ink: var(--paper);   /* the seed SVGs paint with var(--ink) — invert them inside the dark tile */
@@ -336,7 +336,7 @@
           <h3>Rules that generate, constraints that hold.</h3>
           <p>A style is a set of finished outcomes. A grammar is what produces them. Organica splits a visual system into modules — each one a set of rules you can tune — and every output is a sentence written in that grammar. Change a parameter and the sentence changes; the voice stays.</p>
           <div class="hub-modules">
-            <div class="hub-module"><b>Form</b><p>Seeds, elements, components, patterns, symbols — the vector shapes that define the mark.</p><i>Genesis · Flexible Visual System</i></div>
+            <div class="hub-module"><b>Form</b><p>Seeds, elements, components, patterns, symbols — the vector shapes that define the mark.</p><i>Flexible Visual System</i></div>
             <div class="hub-module"><b>Canvas</b><p>The space the language is written on — its format, margins, bleed.</p><i>every tool</i></div>
             <div class="hub-module"><b>Grid</b><p>Composed grids that constrain the canvas — solved, not guessed.</p><i>Loom · Trellis</i></div>
             <div class="hub-module"><b>Color</b><p>Palette methods, harmonies, separations into inks.</p><i>TuneSutra · Colornet</i></div>
@@ -386,7 +386,7 @@
 
   <div class="hub-cta" data-theme="dark">
     <p class="hub-cta__text">Start from a seed. Grow a language.</p>
-    <a class="org-btn org-btn--lg org-btn--primary" href="/genesis/">Open Genesis</a>
+    <a class="org-btn org-btn--lg org-btn--primary" href="/fvs/">Open Flexible Visual System</a>
     <button type="button" class="org-btn org-btn--lg" id="hub-all-tools">All tools</button>
   </div>
 
@@ -409,10 +409,10 @@
   <script src="/shared/supabase.js"></script>
   <script src="/shared/auth.js"></script>
   <script src="/shared/auth-badge.js"></script>
+  <script src="/shared/seeds.js"></script>
   <script src="/shared/tools.js"></script>
   <script src="/shared/menu-icon.js"></script>
   <script src="/shared/header.js"></script>
-  <script src="/genesis/forms.js"></script>
   <script>
   (function () {
     'use strict';
@@ -638,7 +638,7 @@
             ctx.stroke();
           }
         } },
-      { span: 's-e', tool: 'Genesis', href: '/genesis/', label: 'Base seeds', theme: 'seeds' },
+      { span: 's-e', tool: 'Flexible Visual System', href: '/fvs/', label: 'Base seeds', theme: 'seeds' },
       { span: 's-f', tool: 'Halide → Murmur', href: '/murmur/', label: '1-bit dither, animated', theme: 'light', draw: dither() },
       { span: 's-g', tool: 'Warping → Undertow', href: '/undertow/', label: 'Contours, animated', theme: 'dark',
         draw: function (ctx, w, h, t) {

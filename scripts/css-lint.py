@@ -66,11 +66,7 @@ def debt(check, msg):
 # Deliberately deferred, with the decision recorded. Reported every run so it
 # stays visible, but does not fail — a lint that is green only because
 # everything is allow-listed tells you nothing.
-KNOWN_DEBT = {
-    'genesis/index.html': 'local re-implementation of panel.css (~47 selectors) '
-                          'and its off-scale radii — deferred by explicit scope '
-                          'decision, Sep 2026. See CLAUDE.md.',
-}
+KNOWN_DEBT = {}   # Genesis (the only entry) was retired Nov 22, 2026
 
 # ── 1. No tool-local rule may shadow a shared class name ──────────────
 # The single most important check. A local rule under a shared class name
@@ -126,14 +122,6 @@ ALLOW_SHADOW = {
         'row': 'scoped override: .row .ctrl-label label column width',
         'ctrl-label': 'ditto',
         'hint': 'standalone hint paragraph — see livingpath',
-    },
-    'genesis/index.html': {
-        'upload-btn': 'softer hover + bottom margin', 'type-pill': 'local',
-        'org-floatbar__btn': 'aria-pressed active fill', 'read-only-note': 'local',
-        'seg-btn': 'part of the local panel implementation (KNOWN_DEBT)',
-        'seg': 'ditto', 'panel-section': 'ditto', 'panel-section__title': 'ditto',
-        'panel-label': 'ditto', 'panel-input': 'ditto', 'panel-input--full': 'ditto',
-        'panel-input-group': 'ditto', 'panel-unit': 'ditto', 'panel-hint': 'ditto',
     },
 }
 

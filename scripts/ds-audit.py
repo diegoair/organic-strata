@@ -31,7 +31,7 @@ os.chdir(ROOT)
 
 SKIP_DIRS = ('explorations/', 'archive/', 'scratchpad/', 'docs/', '.claude/', 'node_modules/',
              'figma-plugin/', 'scripts/', 'shared/vendor/')
-KNOWN_DEBT = {'genesis/index.html': 'retiring — left alone by decision (Oct 2, 2026)'}
+KNOWN_DEBT = {}   # Genesis (the only entry) was retired Nov 22, 2026
 SPACE_SCALE = {4, 6, 8, 10, 14, 16, 24, 32}          # --space-1 … --space-8
 STRICT = ('font-size', 'font-weight', 'font-family', 'radius', 'space', 'motion')   # a token always exists
 JUDGE = ('hex', 'space-off')                           # may be content colour / layout geometry

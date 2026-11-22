@@ -25,11 +25,11 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/genesis", "destination": "/fvs/", "permanent": true },
+    { "source": "/genesis/:path*", "destination": "/fvs/", "permanent": true }
+  ],
   "rewrites": [
-    {
-      "source": "/genesis/(.*)",
-      "destination": "/genesis/$1"
-    },
     {
       "source": "/spore/(.*)",
       "destination": "/spore/$1"

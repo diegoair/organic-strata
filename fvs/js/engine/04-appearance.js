@@ -441,7 +441,7 @@ export function photoSelfContained(svg) {
 export const ELEMENT_LIB = Organica.presetStore('fvs-element');
 export const TILE_CAP = 2500;   // tiles per canvas — past it the spacing is raised (and said so)
 export const _genesisTileCache = new Map();
-// Genesis seeds offered as tiles: the 13 Base Seeds (genesis/forms.js) + the user's
+// Genesis seeds offered as tiles: the 13 Base Seeds (shared/seeds.js) + the user’s
 // own Genesis library in this browser (getCreatorLibraryForms), by id, no duplicates.
 export function genesisTileForms() {
   const out = [], seen = new Set();

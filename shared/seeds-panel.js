@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────────────────────
  * seeds-panel.js — the Organica tabbed seed-source picker.
  *
- * Consolidates the Genesis / SVG / Text (/ Image) source picker + Genesis
+ * Consolidates the Seeds / SVG / Text (/ Image) source picker + seed
  * thumbnail grid that Soul, Camo Turing and Membrane each hand-rolled. Living
  * Path is a deliberate hold-out (bespoke .seg / .drop markup, no shared CSS,
  * CDN opentype — see docs/SHARED-COMPONENTS.md).
@@ -24,7 +24,7 @@
  *                 shown/hidden, never rebuilt.
  *   subControls   { <builtinKind>(pane) } — inject tool rows INTO a built-in pane, once.
  *   extraControls (hostEl) — mount tool rows BELOW the pane stack, once.
- *   genesis       { forms, initialForm, bakeGeometry, animationsCss, hint }
+ *   genesis       { forms, initialForm, bakeGeometry, hint }   (the Seeds tab; key kept for saved presets)
  *   text          { initial, maxLength, perGlyph, allowFontUpload, preloadFont,
  *                   applyButton, hint }
  *   svg           { accept, hint }
@@ -49,7 +49,7 @@
     'seed-sun', 'seed-bubble-cluster', 'seed-line',
   ];
 
-  const LABELS = { genesis: 'Genesis', svg: 'SVG', text: 'Text', image: 'Image' };
+  const LABELS = { genesis: 'Seeds', svg: 'SVG', text: 'Text', image: 'Image' };
 
   function el(tag, cls, html) {
     const n = document.createElement(tag);
@@ -61,11 +61,11 @@
     return /xmlns=/.test(text) ? text : text.replace('<svg', '<svg xmlns="' + SVG_NS + '"');
   }
 
-  // ── Genesis form geometry baking (ported verbatim from Camo Turing) ─────────
-  // Several Genesis forms encode geometry through animations.css only,
-  // so the form must be mounted live in the page (with that stylesheet linked)
-  // and its computed cx/cy/r/… baked into literal attributes before it can be
-  // serialised to a standalone SVG string an <img> can load.
+  // ── Seed geometry baking (ported from Camo Turing) ──────────────────────────
+  // The seed is mounted live in the page and its computed geometry and paint
+  // (var(--ink) → literal black) baked into attributes, so it can be serialised
+  // to a standalone SVG string an <img> can load. (The animations.css hooks it
+  // once also resolved went with Genesis, Nov 22, 2026.)
   let rasterHost = null;
   function ensureRasterHost() {
     if (rasterHost) return rasterHost;
@@ -101,17 +101,6 @@
     host.innerHTML = '';
     return out;
   }
-  function ensureAnimationsCss(href) {
-    const links = document.querySelectorAll('link[rel="stylesheet"]');
-    for (let i = 0; i < links.length; i++) {
-      if ((links[i].getAttribute('href') || '').indexOf('animations.css') >= 0) return;
-    }
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = href || '/genesis/animations.css';
-    document.head.appendChild(link);
-  }
-
   Organica.seedsPanel = function (config) {
     config = config || {};
     const genOpt = config.genesis || {};
@@ -132,7 +121,6 @@
     const prefix = config.idPrefix || 'seeds';
 
     const hasText = tabKinds.indexOf('text') >= 0;
-    if (genOpt.bakeGeometry) ensureAnimationsCss(genOpt.animationsCss);
 
     // ── state ──
     let activeTab = config.initial || order[0];
@@ -212,7 +200,7 @@
     function getSVGString() {
       if (activeTab === 'genesis') {
         const raw = (global.ORGANIC_FORMS && global.ORGANIC_FORMS[genesisForm]) || '';
-        if (!raw) { onError('Genesis form ' + genesisForm + ' not found'); return null; }
+        if (!raw) { onError('Seed ' + genesisForm + ' not found'); return null; }
         return genOpt.bakeGeometry ? bakeFormSVG(raw) : raw;
       }
       if (activeTab === 'svg') return svgText ? withXmlns(svgText) : null;

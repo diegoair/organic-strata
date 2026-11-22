@@ -3,7 +3,7 @@
    + .css — the model, engine, history, view, node bar and node search FVS's Figure graph uses). Rhizome keeps its
    node types, its Tier-2 bridges, the inspector in #panel, the floatbar and its saved graphs.
    Node set: 7 Tier-1 natives (Loom grid, Loom grid file, Contour trace, SVG to points, Merge — variable inputs —,
-   Image, Export) + 9 Tier-2 bridges (Genesis, Komorebi, Warping, Camo Turing, Membrane, Sinew, Spore, Pollen, Halide).
+   Image, Export) + 8 Tier-2 bridges (Komorebi, Warping, Camo Turing, Membrane, Sinew, Spore, Pollen, Halide).
    ───────────────────────────────────────────────────────────── */
 
 import { REGISTRY, getNodeType, createSharedRegistry } from './node-registry.js';

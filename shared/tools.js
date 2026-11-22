@@ -11,7 +11,7 @@
 (function (global) {
   var Organica = global.Organica = global.Organica || {};
   Organica.tools = [
-    { group: 'Form & grid',    items: [['Genesis', '/genesis/'], ['Flexible Visual System', '/fvs/'], ['Loom', '/loom/'], ['Trellis', '/trellis/']] },
+    { group: 'Form & grid',    items: [['Flexible Visual System', '/fvs/'], ['Loom', '/loom/'], ['Trellis', '/trellis/']] },
     { group: 'From an image',  items: [['Halide', '/halide/'], ['Spore', '/spore/'], ['Pollen', '/pollen/'], ['Mote', '/mote/']] },
     { group: 'Patterns',       items: [['Warping', '/warping/'], ['Camo Turing', '/camo-turing/'], ['Radial', '/radial/'], ['Komorebi', '/komorebi/']] },
     { group: 'Colour',         items: [['TuneSutra', '/tunesutra/'], ['Colornet', '/colornet/']] },

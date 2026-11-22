@@ -130,7 +130,7 @@ it, every tool (17 then) carried its own ~30-line copy. A tool keeps only its
 genuine deltas locally (`#canvas-wrap { padding: 0 }` for edge-to-edge
 canvases, a bespoke `#stage-frame` — but never a different stage shadow: since
 Sep 29, 2026 that is `--stage-shadow`, one value everywhere). The own-surface
-tools (Apostate, Flexible Visual System, Rhizome, Genesis — `OWN_SURFACE` in
+tools (Apostate, Flexible Visual System, Rhizome — `OWN_SURFACE` in
 `scripts/templates.py`, each with its reason) don't link it; they still get the
 surface palette from tokens. Mycel and TuneSutra name their region `#stage-wrap`
 and Pulsar / Radial / Trellis `#stage`; all five carry `class="org-canvas-wrap"`,
@@ -181,10 +181,10 @@ Order is load-bearing: tokens first so the tool can override without
 `!important`; core before the tool script so `Organica.*` exists at parse time.
 The complete, current list is `shared/_template.html` — linted by the same rules.
 
-If the tool places Genesis forms, also:
+If the tool places the Base Seeds, also:
 
 ```html
-<script src="/genesis/forms.js"></script>
+<script src="/shared/seeds.js"></script>
 ```
 
 **Colour controls — the Palette component.** `shared/palette.js`
@@ -226,7 +226,7 @@ Membrane.
 
 **Seed source picker — `Organica.seedsPanel`** (`shared/seeds-panel.js`
 + paired `seeds-panel.css`, added 2026-08-30). The tabbed
-Genesis/SVG/Text(/Image) picker + Genesis thumbnail grid.
+Seeds/SVG/Text(/Image) picker + seed thumbnail grid (the tab key stays `genesis` for saved presets; Genesis retired Nov 22, 2026).
 `Organica.seedsPanel({ target, idPrefix, tabs, slots, subControls,
 extraControls, genesis, text, svg, image, applyMode, onSeed, onTabChange,
 onFontReady, onError })`. Polymorphic on `typeof target` (element = generate /
@@ -235,9 +235,9 @@ canonical vector intermediate) and `result.descriptor` (raw
 `{kind,formId,svgText,text,font,glyphPaths,fusedPath,imageEl}`) — each tool
 adapts whichever it needs. `applyMode:'manual'` = the picker never fires; the
 tool calls `panel.getDescriptor()` / `panel.getSVGString()` at its own Apply
-step. `genesis.bakeGeometry:true` resolves CSS-driven form geometry (needs
-`/genesis/animations.css`). `.PRIMORDIAL` = the shared curated form list —
-**the 13 Genesis Base Seeds** since 2026-08-30 (`[1,2,3,7,9,13,14,21,26,28,37,41,56]`),
+step. `genesis.bakeGeometry:true` bakes the seed's paint (`var(--ink)`) into
+literal attributes so an `<img>` can rasterise it. `.PRIMORDIAL` = the shared curated form list —
+**the 13 Base Seeds** since 2026-08-30 (`[1,2,3,7,9,13,14,21,26,28,37,41,56]`),
 the whole of `ORGANIC_FORMS`, not a subset. A page with two panels passes distinct `idPrefix`es (Camo Turing).
 Load after core; link the CSS. Used by Membrane / Camo Turing. Living Path
 takes only `Organica.seedsPanel.PRIMORDIAL` (the shared curated form list) —
@@ -378,7 +378,7 @@ Organica.popover(ctrl('btn-export'), ctrl('export-popover'));
 ```
 
 **New tool:** one line in `shared/tools.js` — the mega menu is the only tool navigation (the hub has no nav of its own since Sep 29, 2026); `scripts/check.py` fails if a link doesn't resolve.
-**Not** on the header: the sign-in page (a centred card), the archived `genesis/archive/indicators-55.html`.
+**Not** on the header: the sign-in page (a centred card), the archived `archive/genesis-indicators-55/`.
 The old variants (`--tool` / `--editor` / `--catalog`), the context slot and the status slot are gone.
 
 ### Notice (replaced the status slot, Sep 29, 2026)
@@ -550,7 +550,7 @@ Aug 30, 2026, when the picker + "new set" moved inline into the filter bar.)*
 
 ---
 
-### Genesis: the seed library — three modes (Aug 30 – 31, 2026)
+### Genesis: the seed library — three modes (Aug 30 – 31, 2026) — *history: Genesis was retired Nov 22, 2026*
 
 `genesis/index.html`, `genesis/creator.html`, and `genesis/library.html` used
 to be three separate pages; they merged into `genesis/index.html` on Aug 27,

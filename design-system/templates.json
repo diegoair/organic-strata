@@ -169,28 +169,6 @@
      "headerActions": 0
     },
     {
-     "page": "/genesis/",
-     "file": "genesis/index.html",
-     "template": "tool",
-     "variant": "own surface",
-     "why": "library grid + Paper.js artboard; retiring, left alone by decision",
-     "sheets": [
-      "tokens",
-      "icons",
-      "header",
-      "panel",
-      "floatbar",
-      "mobile-gate"
-     ],
-     "modules": false,
-     "dark": true,
-     "public": false,
-     "surface": null,
-     "stage": null,
-     "floatbar": true,
-     "headerActions": 0
-    },
-    {
      "page": "/halide/",
      "file": "halide/index.html",
      "template": "tool",
@@ -853,26 +831,6 @@
   }
  },
  "allow": [
-  {
-   "page": "genesis",
-   "rule": "app",
-   "why": "retiring — left alone by decision"
-  },
-  {
-   "page": "genesis",
-   "rule": "floatbar-child",
-   "why": "retiring — left alone by decision"
-  },
-  {
-   "page": "genesis",
-   "rule": "panel-last",
-   "why": "retiring — left alone by decision"
-  },
-  {
-   "page": "genesis",
-   "rule": "tail-scripts",
-   "why": "retiring — left alone by decision"
-  },
   {
    "page": "rhizome",
    "rule": "tail-scripts",

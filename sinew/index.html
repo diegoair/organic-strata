@@ -118,7 +118,7 @@
     <svg id="board" class="org-stage" viewBox="0 0 1000 1000"></svg>
     <div class="org-empty org-empty--stage" id="empty">
       <p class="org-empty__title">Sinew</p>
-      <p class="org-empty__hint">Load an <b>SVG</b> or a <b>Genesis form</b><br>then stack organic effects on the curve.</p>
+      <p class="org-empty__hint">Load an <b>SVG</b> or a <b>seed</b><br>then stack organic effects on the curve.</p>
     </div>
   </main>
 
@@ -136,7 +136,7 @@
     <div class="panel-section">
       <h3>Input</h3>
       <div id="seeds-host"></div>
-      <div class="hint">SVG paths are parsed to Bézier nodes and transformed directly (no rasterisation). Genesis forms come from the shared seed library.</div>
+      <div class="hint">SVG paths are parsed to Bézier nodes and transformed directly (no rasterisation). Seeds come from the shared seed library.</div>
     </div>
 
     <div class="panel-section">
@@ -199,7 +199,7 @@
      raster pipeline) shared with Living Path — see shared/pathfx.js header. -->
 <script src="/shared/pathfx.js"></script>
 <script src="/shared/seeds-panel.js"></script>
-<script src="/genesis/forms.js"></script>
+<script src="/shared/seeds.js"></script>
 <script>
 "use strict";
 /* ============================================================

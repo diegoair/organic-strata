@@ -8,7 +8,7 @@ Fast, no dependencies beyond python3 + node. Exits 1 on any failure.
   2. JSON files    — tokens.json and any other tracked *.json parse
   3. JS syntax     — every inline <script> in every */index.html, and every tracked .js
                      (modules under a js/ folder are checked as ES modules)
-  4. Local refs    — every /shared/... and /genesis/... href/src in an HTML file exists
+  4. Local refs    — every /shared/... href/src in an HTML file exists (archive/ is frozen and skipped)
   4d. templates    — every page's skeleton matches its template; design-system/templates.json is current
   5. icons         — every <svg data-icon> equals its shared/icons.js drawing; no new bare 16-grid <svg>
   6. css-lint      — scripts/css-lint.py must be clean
@@ -133,10 +133,11 @@ for f in tracked(".js"):
 ok(f"{checked} scripts checked") if not any("<script" in x or x.endswith(".js") for x in fails) else None
 
 # 4. Local references ----------------------------------------------------------
-print("Local /shared and /genesis references")
-REF = re.compile(r'(?:href|src)\s*=\s*["\'](/(?:shared|genesis)/[^"\'?#]+)', re.I)
+print("Local /shared references")
+REF = re.compile(r'(?:href|src)\s*=\s*["\'](/shared/[^"\'?#]+)', re.I)
 missing = set()
 for f in tracked(".html"):
+    if f.startswith("archive/"): continue   # frozen reference copies: their links may point at retired files (Genesis)
     for m in REF.finditer(open(f, encoding="utf-8", errors="replace").read()):
         if not os.path.exists(m.group(1).lstrip("/")):
             missing.add((f, m.group(1)))
@@ -187,7 +188,7 @@ if not bad: ok(f"{tiles}/{budget['maxTiles']} tiles · samples {total_kb:.0f}/{b
 # 4b. icons — one registry (shared/icons.js) ---------------------------------------
 print("icons")
 reg = json.loads(subprocess.run(["node", "-e", "console.log(JSON.stringify(require('./shared/icons.js')))"], capture_output=True, text=True).stdout or "{}")
-ICON_EXEMPT = ("genesis/", "explorations/", "archive/", "design-system/", "docs/", "shared/icons.js", "index.html")
+ICON_EXEMPT = ("explorations/", "archive/", "design-system/", "docs/", "shared/icons.js", "index.html")
 sq = lambda t: re.sub(r"\s+", " ", t).strip()
 n_icons = 0; bad_icons = False
 for f in tracked(".html", ".js"):
@@ -328,7 +329,7 @@ try:
     else:
         ok(f"CLAUDE.md {_size // 1000} KB of {CLAUDE_MD_BUDGET // 1000} KB, {_inline} inline session notes")
     _dead = []
-    _path_re = re.compile(r"`((?:scripts|shared|fvs|docs|design-system|genesis|loom|rhizome)/[\w./-]+\.(?:js|mjs|sh|py|css|html|json|md))`")
+    _path_re = re.compile(r"`((?:scripts|shared|fvs|docs|design-system|loom|rhizome)/[\w./-]+\.(?:js|mjs|sh|py|css|html|json|md))`")
     _link_re = re.compile(r"\]\(([^)#\s]+)(?:#[^)]*)?\)")
     for _f in ["CLAUDE.md", "README.md"] + sorted(f for f in tracked(".md") if f.startswith("docs/") and "SESSION-LOG" not in f):
         _t = open(_f, encoding="utf-8").read()
