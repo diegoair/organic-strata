@@ -53,7 +53,9 @@
     let svg = '<rect x="30" y="30" width="360" height="360" fill="none" stroke="var(--border-strong)"/><line x1="30" y1="210" x2="390" y2="210" stroke="var(--border)"/><line x1="210" y1="30" x2="210" y2="390" stroke="var(--border)"/>';
     HT.WORDS.forEach(w => { const n = (byMood[w[0]] || []).length; if (n) svg += `<circle cx="${MOOD_X(w[1])}" cy="${MOOD_Y(w[2])}" r="${(6 + 34 * Math.sqrt(n / max)).toFixed(1)}" fill="currentColor" opacity="0.08"/>`; });
     svg += '<text x="210" y="20" text-anchor="middle">Soft</text><text x="210" y="410" text-anchor="middle">Hard</text>' +
-      '<text x="24" y="214" text-anchor="end">Warm</text><text x="396" y="214">Cool</text>';
+      // Warm / Cool run along the side margins (30 wide): written across, "Warm" overran the left edge (Nov 22, 2026)
+      '<text transform="translate(16 210) rotate(-90)" text-anchor="middle" dominant-baseline="middle">Warm</text>' +
+      '<text transform="translate(404 210) rotate(90)" text-anchor="middle" dominant-baseline="middle">Cool</text>';
     if (withWords) HT.WORDS.forEach(w => { svg += `<text x="${MOOD_X(w[1])}" y="${MOOD_Y(w[2]) + 4}" text-anchor="middle" class="tf-mood-word">${esc(capWord(w[0]))}</text>`; });
     return svg;
   }

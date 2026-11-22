@@ -1745,7 +1745,7 @@ function facets(colors, parts) {
   let mood = HT.WORDS[0][0], bd = 9;
   HT.WORDS.forEach(w => { const d = Math.hypot(w[1] - R.pos.x, w[2] - R.pos.y); if (d < bd) { bd = d; mood = w[0]; } });
   return {
-    key: main.neutral ? 'N' : HT.HUES[main.hi].k, mainIdx,
+    keyColour: main.neutral ? 'N' : HT.HUES[main.hi].k, mainIdx,   // not `key`: libEntry merges this over the card's own key (l:/c:/p:)
     fams: [...new Set(R.rs.filter(r => !r.neutral).map(r => HT.TONES[r.ti].fam))],
     harmony: HT.harmonyOf(colors) || '', tone, purity, mood,
   };
@@ -1801,7 +1801,7 @@ const expanded = new Set();
 function matches(e) {
   const q = EXP.q.trim().toLowerCase();
   if (q && e.name.toLowerCase().indexOf(q) < 0 && !(e.word && e.word.indexOf(q) >= 0)) return false;
-  if (EXP.keys.length && EXP.keys.indexOf(e.key) < 0) return false;
+  if (EXP.keys.length && EXP.keys.indexOf(e.keyColour) < 0) return false;
   if (e.n < EXP.nMin || e.n > EXP.nMax) return false;
   if (EXP.moods.length && EXP.moods.indexOf(e.mood) < 0) return false;
   if (EXP.fam && e.fams.indexOf(EXP.fam) < 0) return false;
@@ -1813,7 +1813,7 @@ function matches(e) {
 }
 const GROUPS = {
   structure: { of: e => e.kind, order: ['yours', 'collection', 'pair', 'triad', 'bsa', 'five', 'gen'], label: k => KIND_LABEL[k] },
-  key: { of: e => e.key, order: KEYS.map(k => k.k), label: k => (KEYS.find(x => x.k === k) || {}).name },
+  key: { of: e => e.keyColour, order: KEYS.map(k => k.k), label: k => (KEYS.find(x => x.k === k) || {}).name },
   mood: { of: e => e.mood, order: HT.WORDS.map(w => w[0]), label: capWord },
   source: { of: e => e.source, order: ['yours', 'organica', 'reference'], label: k => SOURCE_LABEL[k] },
 };
