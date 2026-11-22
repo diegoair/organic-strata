@@ -192,29 +192,37 @@
     <div class="panel-section">
       <h3>Colour</h3>
       <div class="ctrl-row">
-        <div class="seg-ctrl" id="seg-color">
+        <div class="seg-ctrl seg-ctrl--fit" id="seg-color">
           <button class="seg-btn active" data-v="solid" onclick="setColor('solid')">Solid</button>
           <button class="seg-btn" data-v="adaptive" onclick="setColor('adaptive')">Adaptive</button>
-          <button class="seg-btn" data-v="rmx" onclick="setColor('rmx')">RMX</button>
+          <button class="seg-btn" data-v="rmx" onclick="setColor('rmx')">Inks</button>
           <button class="seg-btn" data-v="video" onclick="setColor('video')">Video</button>
         </div>
       </div>
       <p class="org-panel__hint" id="video-hint" hidden>Every mark takes the RGB pixel under it, straight from the current video frame.</p>
       <div id="rmx-block" hidden>
-        <div class="ctrl-row"><div class="ctrl-label">Mapping</div>
-          <select class="panel-select" id="sel-rmx-map">
-            <option value="tone">tone (lerp)</option>
-            <option value="posterize">posterize (bands)</option>
-            <option value="random">random</option>
-            <option value="tonernd">tone + jitter</option>
+        <div class="ctrl-row"><div class="ctrl-label">Colour by</div>
+          <select class="panel-select" id="sel-rmx-map" aria-label="Colour by">
+            <option value="tone">Tone</option>
+            <option value="posterize">Posterize</option>
+            <option value="random">Random</option>
+            <option value="tonernd">Tone + random</option>
           </select>
         </div>
         <div id="rmx-palette" class="rmx-palette"></div>
+        <div class="row-btns"><button type="button" class="mini-btn" id="btn-rmx-sort">Sort by lightness</button></div>
+      </div>
+      <!-- Mix: how two colours blend between them (Adaptive, Inks › Tone or Tone + random) -->
+      <div class="ctrl-row" id="row-mix" hidden><div class="ctrl-label">Mix</div>
+        <div class="seg-ctrl" id="seg-mix">
+          <button class="seg-btn active" data-v="srgb">sRGB</button>
+          <button class="seg-btn" data-v="oklab">OKLab</button>
+        </div>
       </div>
       <div class="color-row">
-        <span class="color-name">Point</span>
+        <span class="color-name">Ink</span>
         <div class="color-swatch-wrap">
-          <button class="color-swatch" id="sw-ink" aria-label="Point colour"></button>
+          <button class="color-swatch" id="sw-ink" aria-label="Ink colour"></button>
           <input type="color" id="cp-ink" value="#1c1c1c">
         </div>
         <input class="color-hex" maxlength="7" id="hex-ink" value="#1c1c1c">
@@ -370,6 +378,7 @@
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/palette-kit.js"></script>
+<script src="/shared/reorder.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/pollen-engine.js"></script>
 <script src="/shared/select-picker.js"></script>
@@ -1240,7 +1249,15 @@ function setColor(v) {
   $('rmx-block').hidden = v !== 'rmx';
   $('video-hint').hidden = v !== 'video';
   $('row-minink').hidden = v !== 'adaptive';
+  syncColourRows();
   repaintStill();
+}
+// Mix only where two colours blend (Adaptive, Inks › Tone or Tone + random); Sort by lightness only when it would move one
+function syncColourRows() {
+  const map = $('sel-rmx-map').value;
+  $('row-mix').hidden = !(colorMode === 'adaptive' || (colorMode === 'rmx' && (map === 'tone' || map === 'tonernd')));
+  $('seg-mix').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === (rmxSpace || 'srgb')));
+  $('btn-rmx-sort').disabled = Organica.palettes.mappingFor(rmxColors, {}).order.every((i, k) => i === k);
 }
 function syncSliderOut(r) {
   const v = document.querySelector('[data-for="' + r.id + '"]');   // .ctrl-val (panel) or .org-out (popover)
@@ -1344,6 +1361,7 @@ function applyPreset(key) {
   if (P.rmx) { rmxColors = P.rmx.slice(0, RMX_COLORS_MAX); if (rmxChips) rmxChips.rebuild(); }
   rmxSpace = P.space || null;   // a preset without one blends in sRGB, as before
   if (P.map) $('sel-rmx-map').value = P.map;
+  syncColourRows();
   setShape(P.shape || 'dot');
   if (pointShape === 'line') {
     $('sl-stroke-len').value = P.strokeLen; $('sl-stroke-seg').value = P.strokeSeg; $('sl-stroke-warp').value = P.strokeWarp;
@@ -1421,7 +1439,7 @@ const takeRoles = Organica.paletteKit.roles({
 const swInk = Organica.palette.swatch('ink', { initial: '#1c1c1c', onChange: repaintStill, onPalette: takeRoles });
 const swPaper = Organica.palette.swatch('paper', { initial: '#f4f1e8', onChange: repaintStill, onPalette: takeRoles });
 // A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours dark → bright and its Colour
-// mode — Mode, Mapping, the Point / Paper pair and the blend space; Save as palette… gives the tool's own mode back.
+// mode — Mode, Colour by, the Ink / Paper pair and the Mix; Save as palette… gives the tool's own mode back.
 rmxChips = Organica.paletteKit.strip($('rmx-palette'), null, {
   tool: 'Mote', min: 2, max: RMX_COLORS_MAX, order: 'ramp', shading: false,
   get: () => ({ colors: rmxColors }),
@@ -1435,8 +1453,27 @@ rmxChips = Organica.paletteKit.strip($('rmx-palette'), null, {
       if (m.mode !== 'rmx') { swInk.set(rmxColors[m.pair[0]]); if (m.mode === 'adaptive') swPaper.set(rmxColors[m.pair[1]]); }
       if (m.mode !== colorMode) setColor(m.mode);
     }
-    repaintStill();
+    syncColourRows(); repaintStill();
   },
+});
+// the order is the ramp: drag a chip (or ⌥← / ⌥→) to move it along dark → bright; Sort by lightness puts it darkest first
+Organica.reorder($('rmx-palette'), {
+  item: '.rmx-color', axis: 'x',
+  onMove: (from, to) => {
+    const c = rmxColors.slice(); c.splice(to, 0, c.splice(from, 1)[0]); rmxColors = c; rmxChips.rebuild(); syncColourRows(); repaintStill();
+    const chip = document.querySelectorAll('#rmx-palette .rmx-color')[to], pick = chip && chip.querySelector('button, input');
+    if (pick) pick.focus({ preventScroll: true });   // the chip itself is not focusable: keep the keyboard on its picker
+  },
+  say: (i, n) => 'Colour ' + (i + 1) + ' of ' + n,
+});
+$('btn-rmx-sort').addEventListener('click', () => {
+  rmxColors = Organica.palettes.mappingFor(rmxColors, {}).order.map(i => rmxColors[i]);
+  rmxChips.rebuild(); syncColourRows(); repaintStill();
+});
+// Mix: the blend space between two colours. sRGB is Mote's look before Nov 22, 2026.
+$('seg-mix').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn'); if (!b) return;
+  rmxSpace = b.dataset.v; syncColourRows(); repaintStill();
 });
 
 // ── GENERAL WIRING ────────────────────────────────────────────
@@ -1470,7 +1507,7 @@ document.querySelectorAll('#panel input[type=range]').forEach(r => {
 $('sl-length').addEventListener('input', () => { syncSliderOut($('sl-length')); updateSizeReadout(); });
 ['ck-size-range', 'ck-overpaint', 'ck-invert', 'ck-stroke-round', 'ck-angle-flow',
  'ck-angle-random', 'ck-angle-range'].forEach(id => $(id).addEventListener('change', repaintStill));
-$('sel-rmx-map').addEventListener('change', repaintStill);
+$('sel-rmx-map').addEventListener('change', () => { syncColourRows(); repaintStill(); });
 $('sel-format').addEventListener('change', updateSizeReadout);
 $('sel-size').addEventListener('change', updateSizeReadout);
 $('preset-name').addEventListener('keydown', e => {
