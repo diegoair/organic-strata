@@ -377,11 +377,11 @@
         <div class="seg-ctrl" id="colormode-seg">
           <button class="seg-btn active" data-val="solid" onclick="setColorMode('solid')">Solid</button>
           <button class="seg-btn" data-val="adaptive" onclick="setColorMode('adaptive')">Adaptive</button>
-          <button class="seg-btn" data-val="rmx" onclick="setColorMode('rmx')">RMX</button>
+          <button class="seg-btn" data-val="rmx" onclick="setColorMode('rmx')">Inks</button>
         </div>
       </div>
 
-      <!-- RMX palette: up to 9 colours assigned by a chosen mapping -->
+      <!-- Inks: up to 9 colours, dark → bright (drag a chip, or Sort by lightness), laid on the tone by Colour by -->
       <div id="rmx-color-block" hidden>
         <div class="ctrl-row mb-2">
           <span class="ctrl-label">Palette</span>
@@ -389,13 +389,22 @@
         </div>
         <div id="rmx-palette" class="rmx-palette"></div>
         <div class="ctrl-row mt-3">
-          <span class="ctrl-label">Mapping</span>
-          <select class="panel-select u-flex1" id="sel-rmx-map" onchange="rmxColorMap=this.value;syncPlatesUI();render()">
-            <option value="tone">Tone (gradient)</option>
+          <span class="ctrl-label">Colour by</span>
+          <select class="panel-select u-flex1" id="sel-rmx-map" aria-label="Colour by" onchange="rmxColorMap=this.value;syncPlatesUI();syncColourRows();render()">
+            <option value="tone">Tone</option>
             <option value="posterize">Posterize</option>
             <option value="random">Random</option>
-            <option value="tonernd">Tone + Random</option>
+            <option value="tonernd">Tone + random</option>
           </select>
+        </div>
+        <div class="row-btns"><button type="button" class="mini-btn" id="btn-rmx-sort" onclick="sortRmxByLightness()">Sort by lightness</button></div>
+      </div>
+      <!-- Mix: how two colours blend between them (Adaptive and Inks) -->
+      <div class="ctrl-row" id="row-mix" hidden>
+        <span class="ctrl-label">Mix</span>
+        <div class="seg-ctrl" id="mix-seg">
+          <button class="seg-btn active" data-val="srgb" onclick="setMix('srgb')">sRGB</button>
+          <button class="seg-btn" data-val="oklab" onclick="setMix('oklab')">OKLab</button>
         </div>
       </div>
 
@@ -538,6 +547,7 @@
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/palette-kit.js"></script>
+<script src="/shared/reorder.js"></script>
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/plate-export.js"></script>
@@ -768,6 +778,7 @@ function setColorMode(m) {
   colorMode = m; segActive('colormode-seg', m);
   const rmx = m === 'rmx';
   document.getElementById('rmx-color-block').hidden = !rmx;
+  syncColourRows();
   document.getElementById('row-point').hidden = !!(rmx);
   document.getElementById('row-swap').hidden = !!(rmx);
   if (rmx) buildRmxPalette();
@@ -788,14 +799,39 @@ function buildRmxPalette() {
     set: (p, why) => {
       if (p.colors) rmxColors = p.colors;
       if (why === 'palette' && p.mapping) applyPaletteMapping(p.mapping);
-      syncPlatesUI(); render();
+      syncPlatesUI(); syncColourRows(); render();
     },
   });
+  // the order is the ramp: drag a chip (or ⌥← / ⌥→) to move it along dark → bright
+  Organica.reorder(document.getElementById('rmx-palette'), {
+    item: '.rmx-color', axis: 'x',
+    onMove: (from, to) => {
+      const c = rmxColors.slice(); c.splice(to, 0, c.splice(from, 1)[0]); rmxColors = c; rmxKit.rebuild(); syncColourRows(); render();
+      const chip = document.querySelectorAll('#rmx-palette .rmx-color')[to], pick = chip && chip.querySelector('button, input');
+      if (pick) pick.focus({ preventScroll: true });   // the chip itself is not focusable: keep the keyboard on its picker
+    },
+    say: (i, n) => 'Colour ' + (i + 1) + ' of ' + n,
+  });
 }
+// Mix only where two colours blend (Adaptive, Inks › Tone or Tone + random); Sort by lightness only when it would move one
+function syncColourRows() {
+  const blend = colorMode === 'adaptive' || (colorMode === 'rmx' && (rmxColorMap === 'tone' || rmxColorMap === 'tonernd'));
+  document.getElementById('row-mix').hidden = !blend;
+  const order = Organica.palettes.mappingFor(rmxColors, {}).order;
+  document.getElementById('btn-rmx-sort').disabled = order.every((i, k) => i === k);
+}
+function sortRmxByLightness() {
+  const order = Organica.palettes.mappingFor(rmxColors, {}).order;   // the default order is by lightness, darkest first
+  rmxColors = order.map(i => rmxColors[i]);
+  rmxKit.rebuild(); syncColourRows(); render();
+}
+// Mix: the blend space between two colours (Tone, Tone + random, Adaptive). sRGB is Pollen's look before Nov 22, 2026.
+function setMix(v) { rmxSpace = v === 'oklab' ? 'oklab' : 'srgb'; segActive('mix-seg', rmxSpace); render(); }
 // A palette's Colour mode on the tool: Mode, Mapping, Point (pair[0]) and, in Adaptive, BG (pair[1]), the space.
 function applyPaletteMapping(m) {
-  rmxSpace = m.space || null;
+  rmxSpace = m.space || null; segActive('mix-seg', rmxSpace || 'srgb');
   rmxColorMap = m.submode; const ms = document.getElementById('sel-rmx-map'); if (ms) ms.value = m.submode;
+  syncColourRows();
   if (m.mode !== 'rmx') { swatches.ink.set(rmxColors[m.pair[0]]); if (m.mode === 'adaptive') swatches.bg.set(rmxColors[m.pair[1]]); }
   if (m.mode !== colorMode) setColorMode(m.mode);
 }
@@ -875,6 +911,7 @@ function setState(s) {
   // RMX (shapes + colours) — restore before colour mode so palette/slots reflect
   if (Array.isArray(s.rmxColors)) rmxColors = s.rmxColors.slice(0, RMX_COLORS_MAX);   // an older or hand-made preset never holds more than the strip takes
   rmxSpace = s.rmxSpace || null;   // a preset without one blends in sRGB, as before
+  segActive('mix-seg', rmxSpace || 'srgb');
   if (s.rmxColorMap) { rmxColorMap = s.rmxColorMap; const ms = document.getElementById('sel-rmx-map'); if (ms) ms.value = rmxColorMap; }
   if (Array.isArray(s.rmxForms)) rmxForms = s.rmxForms.slice();
   if (s.rmxOn !== undefined) {
@@ -885,6 +922,7 @@ function setState(s) {
   }
   if (s.strokeStyle) { strokeStyle = s.strokeStyle; segActive('strokestyle-seg', s.strokeStyle); }
   if (s.colorMode) setColorMode(s.colorMode);   // toggles RMX palette UI + renders
+  syncColourRows();
   if (s.pointType) setPointType(remapPointType(s.pointType));
   if (sourceImage) generate(); else render();      // placement may have changed → recompute
 }

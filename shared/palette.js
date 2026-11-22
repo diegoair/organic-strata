@@ -320,7 +320,8 @@
     // palette in TuneSutra (Diego, Nov 20, 2026 — the original never changes), named in a prompt.
     function saveRow() {
       // one row per strip, whoever mounted the strip last (a tool remounts it when it swaps palettes)
-      const old = wrap.nextElementSibling;
+      let old = wrap.nextElementSibling;
+      while (old && old.classList.contains('org-reorder__live')) old = old.nextElementSibling;   // a sortable strip's live region sits between
       if (old && old.hasAttribute('data-pal-save')) old.remove();
       const saveRowEl = document.createElement('div');
       saveRowEl.className = 'row-btns';

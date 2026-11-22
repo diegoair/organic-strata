@@ -97,16 +97,20 @@ The symbol picker — shared, identical component with Spore.
 > every symbol renders at the intended size — including thin / outline ones.
 
 ### Color
-- **Mode — Solid / Adaptive / RMX**
+- **Mode — Solid / Adaptive / Inks** (*Inks* was *RMX* until Nov 22, 2026 — the colour mode; the shapes' *RMX · remix
+  by tone* keeps its name)
   - *Solid:* one Point colour for all marks.
   - *Adaptive (duotone):* each mark is interpolated **Point → BG** by its
     brightness — a two-tone gradient onto the image tones.
-  - *RMX:* a **palette of up to 5 colours** mapped onto the image — a gradient map
-    (see §4). The single Point control is hidden in this mode (the palette
-    replaces it).
-- **Point / BG** — swatch + hex + 🎲 random (Point hidden in RMX).
+  - *Inks:* a **palette of up to 9 colours, dark → bright**, laid on the image by **Colour by** (see §4). The single
+    Point control is hidden in this mode (the palette replaces it). Drag a chip (or ⌥← / ⌥→) to move it along the ramp;
+    **Sort by lightness** puts them darkest first (disabled when they already are).
+- **Mix — sRGB / OKLab** — how two colours blend: shown where they do (Adaptive, Inks › Tone or Tone + random).
+  sRGB is Pollen's look before Nov 22, 2026 and the default of an older preset; a TuneSutra palette taken whole
+  brings its own (and its Mode, Colour by, Point / BG pair).
+- **Point / BG** — swatch + hex + 🎲 random (Point hidden in Inks).
 - **Alpha** — point opacity (0–255).
-- **Swap colors** — exchange Point and BG (hidden in RMX).
+- **Swap colors** — exchange Point and BG (hidden in Inks).
 
 ### Render  *(live)*
 - **Overpaint (additive)** — overlapping marks darken (multiply) for inky density.
@@ -145,12 +149,12 @@ overlapping triangular weights — shadows get symbol 1, mids symbol 2, highligh
 symbol 3, with gradual crossfades (no hard banding). Conceptually a "blue-noise
 ASCII": the alphabet is organic symbols, the placement is organic.
 
-### RMX colours (Color section, mode RMX)
-A palette of up to 5 colours with four **Mappings**:
-- **Tone (gradient)** — colours interpolated across brightness (a gradient map).
+### Inks (Colour section, mode Inks — *RMX* before Nov 22, 2026)
+A palette of up to 9 colours, dark → bright, with four ways to **Colour by**:
+- **Tone** — colours interpolated across brightness (a gradient map).
 - **Posterize** — same, but hard bands (silkscreen / poster look).
 - **Random** — each point picks a palette colour at random (confetti).
-- **Tone + Random** — tone chooses the zone, random varies among nearby colours.
+- **Tone + random** — tone chooses the zone, random varies among nearby colours.
 
 RMX shapes and RMX colours combine — forms *and* colours following tone together.
 
