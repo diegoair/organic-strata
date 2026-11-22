@@ -301,7 +301,7 @@
           <option value="ink">Single ink</option>
           <option value="rainbow">Rainbow (per segment)</option>
           <option value="image">Sample from image</option>
-          <option value="rmx">RMX (multi-colour)</option>
+          <option value="rmx">Inks</option>
         </select>
       </div>
 
@@ -316,6 +316,14 @@
           </select>
         </div>
         <div id="rmx-palette" class="rmx-palette"></div>
+        <div class="row-btns"><button type="button" class="mini-btn" id="btn-rmx-sort">Sort by lightness</button></div>
+        <!-- Mix: how two colours blend between them (Tone or Tone + random) -->
+        <div class="ctrl-row" id="row-mix"><div class="ctrl-label">Mix</div>
+          <div class="seg-ctrl" id="seg-mix">
+            <button type="button" class="seg-btn active" data-v="srgb">sRGB</button>
+            <button type="button" class="seg-btn" data-v="oklab">OKLab</button>
+          </div>
+        </div>
       </div>
 
       <div class="color-row" id="row-ink">
@@ -352,7 +360,7 @@
         <span class="ctrl-val" id="v-alpha">50</span>
       </div>
       <label class="check-row" id="row-fill"><input type="checkbox" id="chk-fill"><span>Fill each frame (random ink density)</span></label>
-      <p class="org-panel__hint">Single ink is the only mode Fill applies to and the only mode the Ink swatch drives directly — Rainbow cycles the spectrum once around the form/path, Sample from image reads live colour from the loaded image, RMX maps up to 9 colours across the form/path by the chosen mapping (Tone/Posterize/Random/Tone+Random, the same mapping as every Organica tool). Background is the canvas’s own ground, independent of Colour mode — Camo Turing’s Ink/Paper pairing, split here between Palette (Ink) and the canvas’s own fill (Background), since Membrane draws marks over a ground rather than a duotone field.</p>
+      <p class="org-panel__hint">Single ink is the only mode Fill applies to and the only mode the Ink swatch drives directly — Rainbow cycles the spectrum once around the form/path, Sample from image reads live colour from the loaded image, Inks lays up to 9 colours along the form/path, first colour to last, by the chosen mapping (Tone/Posterize/Random/Tone + random, the same mapping as every Organica tool); Mix sets how two neighbouring colours blend. Background is the canvas’s own ground, independent of Colour mode — Camo Turing’s Ink/Paper pairing, split here between Palette (Ink) and the canvas’s own fill (Background), since Membrane draws marks over a ground rather than a duotone field.</p>
     </div>
 
   </div>
@@ -375,6 +383,7 @@
 <script src="/shared/palettes.js"></script>
 <script src="/shared/palette.js"></script>
 <script src="/shared/palette-kit.js"></script>
+<script src="/shared/reorder.js"></script>
 <script src="/shared/recorder.js"></script>
 <script src="/shared/seeds-panel.js"></script>
 <script src="/shared/noise.js"></script>

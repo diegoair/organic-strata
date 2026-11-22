@@ -371,12 +371,18 @@ ctrl('chk-fill').addEventListener('change', e => { state.fillEachFrame = e.targe
 // stays the live source of truth (render.js/svgexport.js read
 // state.rmxColors directly each frame), kept in sync via onChange.
 // A TuneSutra palette is taken whole (Organica.paletteKit, Nov 21, 2026): its colours dark → bright and, from its
-// Colour mode, RMX (Membrane's only one of the three), the Mapping and the blend space.
+// Colour mode, Inks (RMX until Nov 22, 2026 — Membrane's only one of the three), the Mapping and the Mix.
 const RMX_COLORS_MAX = 9;
 function setColorSrc(v) {
   state.colorSrc = v; ctrl('sel-colorsrc').value = v;
   ctrl('row-fill').hidden = !(v === 'ink');
   ctrl('rmx-color-block').hidden = !(v === 'rmx');
+}
+// Mix only where two colours blend (Tone, Tone + random); Sort by lightness only when it would move one
+function syncColourRows() {
+  ctrl('row-mix').hidden = !(state.rmxColorMap === 'tone' || state.rmxColorMap === 'tonernd');
+  ctrl('seg-mix').querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === (state.rmxSpace || 'srgb')));
+  ctrl('btn-rmx-sort').disabled = Organica.palettes.mappingFor(state.rmxColors, {}).order.every((i, k) => i === k);
 }
 const rmxKit = Organica.paletteKit.strip(ctrl('rmx-palette'), null, {
   tool: 'Membrane', min: 2, max: RMX_COLORS_MAX, order: 'ramp', shading: false,
@@ -389,9 +395,30 @@ const rmxKit = Organica.paletteKit.strip(ctrl('rmx-palette'), null, {
       state.rmxColorMap = p.mapping.submode; ctrl('sel-rmx-map').value = p.mapping.submode;
       if (p.mapping.mode === 'rmx' && state.colorSrc !== 'rmx') setColorSrc('rmx');
     }
+    syncColourRows();
   },
 });
-ctrl('sel-rmx-map').addEventListener('change', e => { state.rmxColorMap = e.target.value; });
+ctrl('sel-rmx-map').addEventListener('change', e => { state.rmxColorMap = e.target.value; syncColourRows(); });
+// the order is the ramp (first colour at the start of the form): drag a chip or ⌥← / ⌥→; Sort by lightness = darkest first
+Organica.reorder(ctrl('rmx-palette'), {
+  item: '.rmx-color', axis: 'x',
+  onMove: (from, to) => {
+    const c = state.rmxColors.slice(); c.splice(to, 0, c.splice(from, 1)[0]); state.rmxColors = c; rmxKit.rebuild(); syncColourRows();
+    const chip = document.querySelectorAll('#rmx-palette .rmx-color')[to], pick = chip && chip.querySelector('button, input');
+    if (pick) pick.focus({ preventScroll: true });   // the chip itself is not focusable: keep the keyboard on its picker
+  },
+  say: (i, n) => 'Colour ' + (i + 1) + ' of ' + n,
+});
+ctrl('btn-rmx-sort').addEventListener('click', () => {
+  state.rmxColors = Organica.palettes.mappingFor(state.rmxColors, {}).order.map(i => state.rmxColors[i]);
+  rmxKit.rebuild(); syncColourRows();
+});
+// Mix: the blend space between two colours. sRGB is Membrane's look before Nov 22, 2026.
+ctrl('seg-mix').addEventListener('click', e => {
+  const b = e.target.closest('.seg-btn'); if (!b) return;
+  state.rmxSpace = b.dataset.v; syncColourRows();
+});
+syncColourRows();
 
 // ── Floatbar: Play/Pause, Clear, Reseed, Export ──
 function togglePlayPause() {
@@ -576,3 +603,6 @@ window.addEventListener('message', (e) => {
     }
   })();
 });
+
+// Test hook for scripts/test-colour-mode-camo-membrane.mjs: a read-only handle to the state (no behaviour of its own).
+window.__membrane = { get state() { return state; } };

@@ -47,9 +47,9 @@ A TuneSutra palette taken from any colour row's ▦ (*Pick from a palette*) arri
 | **Trellis** | Ink strip on the kit: up to 9 colours, each cell's shading in its own box (canvas and SVG), the shade editor. |
 | **Spore** | RMX strip on the kit, dark → bright with the palette's Colour mode; each mark's shading in its own box, the shade editor between sections; plates through `Organica.plateExport` (a plate per shadow ink). Image · Multi stay. |
 | **Pollen** | RMX strip on the kit (Colour mode with it: Mode, Colour by, the pair, the mix); Point · BG rows fill by role; the mix space reaches the engine. |
-| **Mote** | RMX strip on the kit with the Colour mode; Point · Paper by role; *Adapt* → **Adaptive**; Video stays. |
-| **Camo Turing** | 9 colours in the shader (`uPalette[9]`), Pollen's RMX math (exports change slightly, accepted); RMX strip on the kit; Ink · Paper by role. The palette's mix space is stored, not yet applied in the shader (O-91 i). |
-| **Membrane** | RMX on `palette.colorAt` (exports change slightly, accepted); strip on the kit; Ink · Background by role. |
+| **Mote** | Inks strip on the kit with the Colour mode; Ink · Paper by role; *Adapt* → **Adaptive**; Video stays. Nov 22, 2026: *RMX* → **Inks**, *Mapping* → **Colour by**, **Mix** row, the ramp's order (drag / ⌥← ⌥→ / Sort by lightness), *Point* → **Ink**, the mode seg fits its buttons. |
+| **Camo Turing** | 9 colours in the shader (`uPalette[9]`), Pollen's RMX math (exports change slightly, accepted); RMX strip on the kit; Ink · Paper by role. The palette's mix space is stored, not yet applied in the shader (O-91 i) — so no Mix row. Nov 22, 2026: *RMX* → **Inks**, *Palette* (the select) → **Colour by**, the ramp's order (drag / ⌥← ⌥→ / Sort by lightness). |
+| **Membrane** | Inks on `palette.colorAt` (exports change slightly, accepted); strip on the kit; Ink · Background by role. Nov 22, 2026: *RMX (multi-colour)* → **Inks**, a **Mix** row (Tone / Tone + random), the ramp's order (drag / ⌥← ⌥→ / Sort by lightness) — the colours run along the form, first to last; *Mapping*, *Single ink* and *Background* keep their words (Diego's, O-93). |
 | **Vortex** | Strip on the kit; Background by role. |
 | **Radial** | Ink · Paper by role; the Ink's shading on the cells in Fill mode, with its editor. |
 | **Pulsar** | Ink · Paper by role. |
