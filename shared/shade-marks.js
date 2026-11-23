@@ -9,6 +9,7 @@
  *     size,            // the cell / mark size (sheet units)
  *     angle,           // degrees: the direction strokes run (the light + 90)
  *     seed,            // fixed per palette (no control)
+    marks,           // pollen-preset only: the preset's copied marks
  *   }) → { mid: [d…], core: [d…] }   // path pieces for the Halftone ink and the Core ink
  *
  * TYPES (key → how):
@@ -19,6 +20,8 @@
  *   pollen-dot     Pollen's variable-density Poisson disk (its algorithm, on a function field), round dots
  *   pollen-stroke  the same points as short strokes across the light (an engraving)
  *   pollen-cross   brush strokes in three directions, each with its own points, fading in by depth
+ *   pollen-preset  a Pollen preset's own marks (o.marks, a copy — Organica.pollenPresets.toMarks): its spacing, sizes,
+ *                  seed shape or strokes, angle, tone curve, hide band, dropout
  *   camo-spots     Camo Turing's Gray-Scott (Self-replicating spots), on the CPU, cached, tiled
  *   camo-maze      Gray-Scott Mazes
  *   cells          Worley cells (Organica.noise.voronoiF1F2) filling from their centre
@@ -116,6 +119,106 @@
     return out;
   }
 
+  // ── A Pollen preset, copied (Nov 22, 2026 — Organica.pollenPresets.toMarks): its spacing, sizes, shape, angle,
+  //    tone curve, hide band and dropout on the shadow. Pollen's tone b (0 dark, dense … 1 bright) is 1 − the shadow
+  //    level, through the preset's curve. Lengths: the Shadow's Size is the preset's min spacing × 0.55 (as Dot),
+  //    every other Pollen length keeps its ratio to it. ──
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ranged = (a, b, range, random, t, rnd) => (random ? lerp(a, b, rnd) : range ? lerp(a, b, t) : a);
+  function curve(m, s) {
+    let l = 1 - s;
+    if (m.invert) l = 1 - l;
+    if (m.gamma !== 1) l = Math.pow(Math.max(0, l), m.gamma);
+    if (m.contrast) { const cc = m.contrast * 2.55, f = (259 * (cc + 255)) / (255 * (259 - cc)); l = f * (l - 0.5) + 0.5; }
+    return clamp(l, 0, 1);
+  }
+  const dropped = (m, b, rnd) => { if (!m.dropout) return false; let d = Math.sin((rnd + 0.123) * 99.13) * 43758.5453; d -= Math.floor(d); return d < m.dropout * Math.pow(b, 1.5); };
+  // which of the two inks a mark is (Halftone 'mid' / Core 'core'): s = the shadow level under it (0 lit … 1 core),
+  // b = Pollen's tone there after the preset's curve, rnd = the mark's own random 0..1
+  function inkOf(s, b, rnd) {
+    // TODO(Diego): the split between the two inks. Today's Dot / Stroke: a hard step at 0.55.
+    return s > 0.55 ? 'core' : 'mid';
+  }
+  // a shape's loops (centred, longest side 1) placed: scale sx × sy, turn a, at (x, y). A loop of three numbers is a
+  // circle (two arcs while the scale keeps it round); an outline keeps about 4 corners per unit of its size (min 6) —
+  // a mark a few units across reads the same with far fewer, and the file stays light
+  function placed(loops, x, y, sx, sy, a) {
+    const c = Math.cos(a), sn = Math.sin(a), at = (px, py) => num(x + px * c - py * sn) + ' ' + num(y + px * sn + py * c);
+    return loops.map(l => {
+      if (l.length === 3) {
+        const cx = x + l[0] * sx * c - l[1] * sy * sn, cy = y + l[0] * sx * sn + l[1] * sy * c;
+        if (Math.abs(sx - sy) < 1e-6) return circle(cx, cy, Math.max(0.1, l[2] * sx));
+        let d = ''; for (let k = 0; k < 12; k++) { const t = k / 12 * Math.PI * 2; d += (k ? 'L' : 'M') + at(l[0] * sx + Math.cos(t) * l[2] * sx, l[1] * sy + Math.sin(t) * l[2] * sy); } return d + 'Z';
+      }
+      const n = l.length / 2, keep = Math.max(6, Math.ceil(Math.max(sx, sy) * 4)), stride = Math.max(1, Math.floor(n / keep));
+      let d = ''; for (let i = 0; i < n; i += stride) d += (i ? 'L' : 'M') + at(l[2 * i] * sx, l[2 * i + 1] * sy);
+      return d + 'Z';
+    }).join('');
+  }
+  // an open polyline as a filled ribbon (a stroke the plates can carry: plates are fills)
+  function ribbonD(pts, hw, round) {
+    const L = [], R = [], n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], tl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const nx = -(b[1] - a[1]) / tl * hw, ny = (b[0] - a[0]) / tl * hw;
+      L.push([pts[i][0] + nx, pts[i][1] + ny]); R.push([pts[i][0] - nx, pts[i][1] - ny]);
+    }
+    const arc = (c, from) => { const o = []; if (round) for (let k = 1; k < 4; k++) { const t = from + Math.PI * k / 4; o.push([c[0] + Math.cos(t) * hw, c[1] + Math.sin(t) * hw]); } return o; };
+    const dir = (p, q) => Math.atan2(q[1] - p[1], q[0] - p[0]);
+    const all = L.concat(arc(pts[n - 1], dir(pts[n - 2], pts[n - 1]) - Math.PI / 2), R.reverse(), arc(pts[0], dir(pts[1], pts[0]) - Math.PI / 2));
+    return 'M' + all.map(p => num(p[0]) + ' ' + num(p[1])).join('L') + 'Z';
+  }
+  // Pollen's arc centreline (pollen-engine strokeCenterline): constant curvature from rnd × warp, centred
+  function centerline(len, segs, warp, rnd) {
+    const n = Math.max(2, segs | 0), step = len / n, bend = (rnd - 0.5) * warp * 2.4, dA = bend / n;
+    let ang = -bend / 2, x = 0, y = 0; const pts = [[0, 0]];
+    for (let i = 0; i < n; i++) { ang += dA; x += Math.cos(ang) * step; y += Math.sin(ang) * step; pts.push([x, y]); }
+    const mx = (pts[0][0] + pts[n][0]) / 2, my = (pts[0][1] + pts[n][1]) / 2;
+    return pts.map(p => [p[0] - mx, p[1] - my]);
+  }
+  function pollenPreset(o) {
+    const m = o.marks, out = { mid: [], core: [] };
+    if (!m || !(m.spMin > 0)) return pollen(o, 'dot');
+    const { w, h, level, size, seed } = o, unit = size * 0.55 / m.spMin, minSp = m.spMin * unit, maxSp = Math.max(minSp, m.spMax * unit);
+    const light = o.angle * Math.PI / 180, rng = Organica.mulberry32(seed * 9973 + 31);
+    const tone = (x, y) => curve(m, level(clamp(x, 0, w), clamp(y, 0, h)));
+    // the flow: along the tone's isophote (90° off its gradient), as Pollen's Flow on an image
+    const flowAt = (x, y) => { const e = Math.max(1, minSp), gx = tone(x + e, y) - tone(x - e, y), gy = tone(x, y + e) - tone(x, y - e); return gx || gy ? Math.atan2(gy, gx) + Math.PI / 2 : light; };
+    const angleOf = (x, y, b, rnd) => { const a = ranged(m.angleMin, m.angleMax, m.angleRange, m.angleRandom, b, rnd) * Math.PI / 180; return a + (m.angleFlow ? flowAt(x, y) : light); };
+    const pts = poisson(w, h, minSp, (x, y, s) => minSp + (maxSp - minSp) * curve(m, s), (x, y) => {
+      const s = level(x, y); if (s < 0.06) return null;
+      const b = curve(m, s); if (m.hide && b * 255 >= m.hide[0] && b * 255 <= m.hide[1]) return null;
+      return { s: s };
+    }, rng);
+    const shapes = (m.shapes || []).filter(Boolean);
+    pts.forEach(p => {
+      const b = curve(m, p.s);
+      if (dropped(m, b, p.rnd)) return;
+      const sz = ranged(m.sizeMin, m.sizeMax, m.sizeRange, false, b, p.rnd) * unit, ink = inkOf(p.s, b, p.rnd);
+      if (m.kind !== 'stroke') {
+        if (!shapes.length) { out[ink].push(circle(p.x, p.y, Math.max(0.2, sz / 2))); return; }
+        // RMX: the forms peak at even tones, triangular weights (pollen pickShape)
+        let shape = shapes[0];
+        if (shapes.length > 1) { const n = shapes.length, span = n - 1; let tot = 0; const wt = shapes.map((_, i) => { const v = Math.max(0.0001, 1 - Math.abs(b - i / span) * span); tot += v; return v; });
+          let r = p.rnd * tot; for (let i = 0; i < n; i++) { r -= wt[i]; if (r <= 0) { shape = shapes[i]; break; } } }
+        out[ink].push(placed(shape, p.x, p.y, sz * (m.width || 1), sz * (m.length || 1), angleOf(p.x, p.y, b, p.rnd)));
+        return;
+      }
+      const hw = Math.max(0.25, sz) / 2, arms = m.star ? 3 : 1;
+      if (m.angleFlow && !m.star) {   // a streamline: each segment turns with the tone's flow
+        const n = Math.max(2, m.strokeSeg | 0), step = m.strokeLen * unit / n, line = [[p.x, p.y]];
+        let x = p.x, y = p.y, prev = null;
+        for (let k = 0; k < n; k++) { let a = angleOf(x, y, b, p.rnd); if (prev != null && Math.cos(a - prev) < 0) a += Math.PI; prev = a; x += Math.cos(a) * step; y += Math.sin(a) * step; line.push([x, y]); }
+        const cx = (line[0][0] + line[n][0]) / 2 - p.x, cy = (line[0][1] + line[n][1]) / 2 - p.y;
+        out[ink].push(ribbonD(line.map(q => [q[0] - cx, q[1] - cy]), hw, m.strokeRound)); return;
+      }
+      const base = centerline(m.strokeLen * unit, m.strokeSeg, m.strokeWarp, p.rnd), a0 = angleOf(p.x, p.y, b, p.rnd);
+      for (let k = 0; k < arms; k++) { const a = a0 + Math.PI / arms * k, c = Math.cos(a), sn = Math.sin(a);
+        out[ink].push(ribbonD(base.map(q => [p.x + q[0] * c - q[1] * sn, p.y + q[0] * sn + q[1] * c]), hw, m.strokeRound)); }
+    });
+    return out;
+  }
+
   // ── Camo: Gray-Scott (Camo Turing's model: dA 1, dB 0.5, 9-point laplacian) on a 72² periodic grid, 3000 steps
   //    (the same spots / mazes as 96² × 5000 at a third of the cost — measured), cached; warm() pre-runs it when idle ──
   const gsCache = new Map();
@@ -171,6 +274,7 @@
     'pollen-dot': o => pollen(o, 'dot'),
     'pollen-stroke': o => pollen(o, 'stroke'),
     'pollen-cross': o => pollen(o, 'cross'),
+    'pollen-preset': pollenPreset,
     'camo-spots': o => camo(o, 0.03, 0.063),
     'camo-maze': o => camo(o, 0.029, 0.057),
     cells: o => { const N = Organica.noise, sz = o.size * 5, sx = o.seed * 3.7;
@@ -185,6 +289,6 @@
     // run the Camo simulations ahead, when the page is idle, so the first pick is instant
     warm: seed => { const run = () => { grayScott(0.03, 0.063, seed); grayScott(0.029, 0.057, seed); };
       if (global.requestIdleCallback) global.requestIdleCallback(run, { timeout: 4000 }); else setTimeout(run, 1500); },
-    minSize: t => (t === 'pollen-cross' ? 3 : t.indexOf('pollen') === 0 || t.indexOf('dither') === 0 ? 2 : 1.5),
+    minSize: t => (t === 'pollen-cross' || t === 'pollen-preset' ? 3 : t.indexOf('pollen') === 0 || t.indexOf('dither') === 0 ? 2 : 1.5),
   };
 })(typeof window !== 'undefined' ? window : globalThis);

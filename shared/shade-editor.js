@@ -33,7 +33,10 @@
  * bar adds one there (up to 8), Delete removes it (not the colour's own), a click or Enter opens its colour (a
  * stop may be transparent). Reverse keeps the colour on its stop; Space evenly spreads them. Its style: shade-editor.css.
  *
- * LOAD ORDER: core.js → color.js → noise.js → shade-marks.js → shading.js → select-picker.js → this (+ shade-editor.css).
+ * Pollen's presets (Nov 22, 2026): with shared/pollen-presets.js loaded the Shading menu lists them in the Pollen
+ * category, after Dot · Stroke · Cross-hatch (the built-ins, then the saved ones) and a pick copies the preset's marks into the shadow — see POLLEN below.
+ *
+ * LOAD ORDER: core.js → color.js → noise.js → shade-marks.js → shading.js → select-picker.js → [store.js → pollen-presets.js] → this (+ shade-editor.css).
  * ───────────────────────────────────────────────────────────────────────────── */
 (function (global) {
   'use strict';
@@ -58,6 +61,42 @@
     wash: 'Soft clouds blending through the stops', 'wash-posterize': 'Clouds in flat zones, one per stop',
     'wash-random': 'Specks of the stops, scattered', 'wash-tonernd': 'The clouds in specks of the nearby stops',
   };
+  // Pollen's presets as Shadings (Nov 22, 2026 — Diego: "importare i presets di Pollen … nei setting di Shadow"): listed in
+  // the Pollen category after its own textures (Diego, Nov 23: one category, not Pollen · Built-in) — built-ins, then saved; picking one COPIES the preset's marks into
+  // the shadow (Organica.pollenPresets.toMarks; the inks stay the palette's). A value is 'pollen-p:' + the preset's id
+  // ('b:<key>' built-in, 'u:<name>' saved). A copy whose preset is gone shows under the name it was copied with.
+  const POLLEN = 'pollen-p:';
+  // the built-ins' labels in sentence case (UI-COPY rule 3); their keys stay Pollen's (saved work names them)
+  const POLLEN_LABEL = { 'Fine Dots': 'Fine dots', 'Lines Flow': 'Lines flow', 'Hatch Flow': 'Hatch flow', 'Hatch Swirl': 'Hatch swirl' };
+  const POLLEN_HINT = {
+    'b:Fine Dots': 'Small dots, closely spaced', 'b:Felt-tip': 'Dots that swell into the shadow', 'b:Lines Flow': 'Short lines at random angles',
+    'b:Duotone': 'Even dots, a little larger', 'b:Hatch Flow': 'Strokes that follow the shadow', 'b:Hatch Swirl': 'Strokes at every angle',
+  };
+  const PP = () => Organica.pollenPresets;
+  const isPollen = v => typeof v === 'string' && v.indexOf(POLLEN) === 0;
+  const pollenLabel = p => (p.id.indexOf('b:') === 0 && POLLEN_LABEL[p.name]) || p.name;
+  // the copy a value makes: cached per preset (its outline is sampled once)
+  const marksCache = new Map();
+  function marksOf(value) {
+    if (!PP()) return null;
+    const id = value.slice(POLLEN.length), p = PP().byId(id);
+    if (!p) return null;
+    const key = id + '|' + JSON.stringify(p.preset) + '|' + !!(global.ORGANIC_SEEDS || global.ORGANIC_FORMS);
+    if (!marksCache.has(key)) marksCache.set(key, Object.assign(PP().toMarks(p.preset, pollenLabel(p)), { id: id }));
+    return JSON.parse(JSON.stringify(marksCache.get(key)));
+  }
+  // a Pollen preset's shadow on a colour (TuneSutra's house, the thumbnails) — null when the preset is not there
+  function pollenDef(hex, value, ctx) {
+    const m = marksOf(value);
+    return m ? Organica.shading.pollenDef(hex, m, ctx) : null;
+  }
+  // the menu value a shadow is: its preset's, while that preset is listed; else its copy's own
+  function pollenValue(g) {
+    if (!g || g.specks !== 'pollen-preset' || !g.marks) return null;
+    const id = g.marks.id;
+    return id && PP() && PP().byId(id) ? POLLEN + id : POLLEN + 'copy';
+  }
+
   // The Ink menu — TuneSutra's #sel-gink.
   const INK = [
     ['On the palette', [['same|p', 'Same'], ['cool|p', 'Cool'], ['warm|p', 'Warm'], ['complement|p', 'Complement']]],
@@ -176,6 +215,7 @@
     function presetOf(g) {
       if (g && S.isField(g)) { const by = S.fieldParams(g).by; return by === 'tone' ? 'wash' : 'wash-' + by; }
       if (!g || !S.hasNoise(g)) return 'none';
+      if (g.specks === 'pollen-preset') return pollenValue(g);
       const t = g.specks === 'smooth' ? 'soft' : g.specks === 'specks' ? 'speckle' : g.specks;
       return [...selShading.options].some(o => o.value === t) ? t : '';
     }
@@ -191,16 +231,19 @@
         }
         if (S.isField(g)) g.type = 'flat';
         if (mode === 'none') { g.shadow = false; return; }
-        const pre = D[mode], had = g.shadow;
+        const pre = isPollen(mode) ? pollenDef(hex, mode, ctxOf()) : D[mode], had = g.shadow;
+        if (!pre) return;   // the copy itself (or a preset gone since the menu was built): nothing to change
         // the fill stays as it is (Type, Angle, stops); the shadow takes the preset's settings
         Object.assign(g, { shadow: true, specks: pre.specks, speck: pre.speck, amount: pre.amount, depth: pre.depth, falloff: pre.falloff,
           hue: had ? g.hue : pre.hue, snap: had ? g.snap : pre.snap });
+        if (pre.marks) g.marks = pre.marks; else delete g.marks;
       });
     }
     function shadingThumb(mode) {
       // TuneSutra's: a 72-unit box, a disc of radius 32, light from the top-left, a wide falloff; no <clipPath id>
       const SZ = 72, R = 32, c = SZ / 2, ctx = ctxOf(), paper = ctx.paper || Organica.contentColor('--paper');
-      const g = mode === 'none' ? null : S.withColour(Object.assign(clone(S.defs(hex, ctx)[mode]), { light: 315, falloff: 45, amount: 90 }), hex, ctx);
+      const base = mode === 'none' ? null : isPollen(mode) ? (mode === POLLEN + 'copy' ? clone(cur()) : pollenDef(hex, mode, ctx)) : clone(S.defs(hex, ctx)[mode]);
+      const g = base ? S.withColour(Object.assign(base, { light: 315, falloff: 45, amount: 90 }), hex, ctx) : null;
       const own = hex.toLowerCase();
       const inks = g ? S.plates(g, SZ, SZ, ctx).filter((pl, i) => i > 0 || String(pl.hex).toLowerCase() !== own).map((pl, i) => !pl.d ? '' : pl.smooth ? S.smoothMarkup(pl, p + '-t' + mode + i) : `<path fill="${pl.hex}" d="${pl.d}"/>`).join('') : '';
       const disc = `M${c - R} ${c}a${R} ${R} 0 1 0 ${2 * R} 0a${R} ${R} 0 1 0 ${-2 * R} 0Z`;
@@ -213,10 +256,47 @@
       return `<svg viewBox="0 0 30 30"><rect width="10" height="30" fill="${h}"/><rect x="10" width="10" height="30" fill="${mid}"/><rect x="20" width="10" height="30" fill="${core}"/></svg>`;
     }
     let shadingPicker = null, inkPicker = null, thumbKey = '', inkKey = '';
+    // the Shading menu's registry, in option order (selectPicker lists the registry's order first)
+    const shadingReg = {};
+    function regShading() {
+      Object.keys(shadingReg).forEach(k => { delete shadingReg[k]; });
+      [...selShading.options].forEach(o => {
+        const hint = SHADING_HINT[o.value] || (isPollen(o.value) ? (o.dataset.pollenHint || '') : '');
+        shadingReg[o.value] = { name: o.textContent, thumb: () => shadingThumb(o.value), rowHtml: esc(o.textContent) + (hint ? ` <span class="pi-hint">${esc(hint)}</span>` : '') };
+      });
+    }
+    // Pollen's presets inside the Pollen category, after its own textures (Dot · Stroke · Cross-hatch): the built-ins,
+    // then the saved ones; a copy whose preset is not listed (deleted, renamed, not synced here) is one hidden option —
+    // the trigger names it, the menu not
+    let pollenSig = '';
+    const pollenNow = () => (PP() ? JSON.stringify(PP().list().map(p => [p.id, p.preset])) : '');
+    function fillPollen() {
+      pollenSig = pollenNow();
+      selShading.querySelectorAll('[data-pollen]').forEach(n => n.remove());
+      const list = PP() ? PP().list() : [], og = [...selShading.querySelectorAll('optgroup')].find(o => o.label === 'Pollen');
+      if (og) ['b', 'u'].forEach(kind => list.filter(p => p.id.indexOf(kind + ':') === 0).forEach(p => {
+        const o = document.createElement('option');
+        o.value = POLLEN + p.id; o.textContent = pollenLabel(p); o.dataset.pollen = ''; o.dataset.pollenHint = POLLEN_HINT[p.id] || 'Saved in Pollen';
+        og.appendChild(o);
+      }));
+      const g = cur(), m = g && g.specks === 'pollen-preset' && g.marks;
+      if (m && pollenValue(g) === POLLEN + 'copy') {
+        const o = document.createElement('option');
+        o.value = POLLEN + 'copy'; o.textContent = m.name || 'Pollen'; o.hidden = true; o.dataset.pollen = ''; o.dataset.pollenHint = 'Copied from Pollen';
+        selShading.appendChild(o);
+      }
+      regShading();
+      if (shadingPicker) shadingPicker.invalidate();
+    }
     if (Organica.selectPicker) {
-      const reg = {};
-      [...selShading.options].forEach(o => { reg[o.value] = { name: o.textContent, thumb: () => shadingThumb(o.value), rowHtml: esc(o.textContent) + (SHADING_HINT[o.value] ? ` <span class="pi-hint">${esc(SHADING_HINT[o.value])}</span>` : '') }; });
-      shadingPicker = Organica.selectPicker(selShading, $('[data-host="shading"]'), { registry: reg, size: 'preview', ariaLabel: 'Shading' });
+      fillPollen();
+      shadingPicker = Organica.selectPicker(selShading, $('[data-host="shading"]'), { registry: shadingReg, size: 'preview', ariaLabel: 'Shading' });
+      if (PP()) {
+        // the saved ones from the cloud, once per page; the seeds' outlines for a page without the seed data
+        const again = () => { fillPollen(); thumbKey = ''; sync(); };
+        PP().onSync(again);
+        Promise.all([PP().pull(), PP().loadSeeds()]).then(again);
+      }
       const ireg = {};
       [...selInk.options].forEach(o => { const [h, m] = o.value.split('|'); ireg[o.value] = { name: o.textContent + (m === 'p' ? ' · palette' : ''), thumb: () => inkThumb(o.value), rowHtml: esc(o.textContent) + ` <span class="pi-hint">${esc(INK_HINT[h] + (m === 'p' ? ', from the palette' : ''))}</span>` }; });
       inkPicker = Organica.selectPicker(selInk, $('[data-host="ink"]'), { registry: ireg, size: 'preview', ariaLabel: 'Ink' });
@@ -478,6 +558,9 @@
       const inks = S.shadowInks(g, own, ctxOf());
       [['inkMid', inks[0]], ['inkCore', inks[1]]].forEach(([k, h]) => { $('[data-ink="' + k + '"]').style.background = h; $('[data-inkval="' + k + '"]').textContent = h; });
       const shown = opts.shadingShown ? opts.shadingShown() : presetOf(g);
+      const copyOpt = selShading.querySelector('option[value="' + POLLEN + 'copy"]'), copyName = g.marks && g.marks.name;
+      // a Pollen preset saved, changed or deleted in another tab (the store), or this colour's copy came or went
+      if ((shown === POLLEN + 'copy') !== !!copyOpt || (copyOpt && copyOpt.textContent !== (copyName || 'Pollen')) || pollenNow() !== pollenSig) { fillPollen(); thumbKey = ''; }
       selShading.value = shown == null ? '' : shown;
       selInk.value = g.hue + '|' + (g.snap ? 'p' : 'f');
       if (!selInk.value) selInk.value = 'same|p';
@@ -502,5 +585,5 @@
     };
   }
 
-  Organica.shadeEditor = { mount: mount, SHADING: SHADING, SHADING_HINT: SHADING_HINT, INK: INK, RANGES: RANGES, FIELD_RANGES: FIELD_RANGES, MAX_STOPS: MAX_STOPS };
+  Organica.shadeEditor = { mount: mount, pollenDef: pollenDef, pollenValue: pollenValue, isPollen: isPollen, SHADING: SHADING, SHADING_HINT: SHADING_HINT, INK: INK, RANGES: RANGES, FIELD_RANGES: FIELD_RANGES, MAX_STOPS: MAX_STOPS };
 })(typeof window !== 'undefined' ? window : this);

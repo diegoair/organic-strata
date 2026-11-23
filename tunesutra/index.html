@@ -333,6 +333,7 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/vendor/ral-classic.js"></script>
 <script src="/shared/select-picker.js"></script>
+<script src="/shared/pollen-presets.js"></script>
 <script src="/shared/shade-editor.js"></script>
 <script src="/shared/plate-export.js"></script>
 <script src="/tunesutra/collections.js"></script>
@@ -703,6 +704,9 @@ function paletteTints() { return [].concat.apply([], state.items.map(it => token
 const TS_CTX = { tints: paletteTints, scale: hex => tokenScale(hex) };
 const SHADE_MODES = SH.SHADE_MODES, SHADE_NAME = SH.SHADE_NAME;
 function shadeDefs(hex) { return SH.defs(hex, TS_CTX); }
+// A Shading's definition on a colour: a preset of the engine, or a Pollen preset's copied marks (Nov 22, 2026 —
+// Organica.shadeEditor.pollenDef; null when that Pollen preset is not listed here)
+function modeDef(hex, mode) { return Organica.shadeEditor.isPollen(mode) ? Organica.shadeEditor.pollenDef(hex, mode, TS_CTX) : shadeDefs(hex)[mode]; }
 // Rendered once per definition and box size (and palette): a colour edit re-renders only that colour's shapes.
 function shadePlates(def, w, h, ctx) { return SH.plates(def, w, h, ctx || TS_CTX); }
 // The house as the Wash's sheet (Nov 21, 2026 — Diego: "in tunesutra … mancano each shape o across shape"): with
@@ -737,7 +741,7 @@ function draftMode() { return state.shading === 'none' ? 'flat' : state.shading;
 // What the section starts from with nothing of the colour's own: the Shading preset on the house, or —
 // with Shading None — the flat colour (Diego, Nov 18, 2026: "by default in gradient & grain Type is always
 // flat"). Its second stop is the 900, so Linear / Radial blend at once.
-function draftDef(hex) { return state.shading === 'none' ? Object.assign({}, shadeDefs(hex).base, { type: 'flat', shadow: false }) : shadeDefs(hex)[state.shading]; }
+function draftDef(hex) { return state.shading === 'none' ? Object.assign({}, shadeDefs(hex).base, { type: 'flat', shadow: false }) : modeDef(hex, state.shading) || Object.assign({}, shadeDefs(hex).base, { type: 'flat', shadow: false }); }
 function zoneKey(z) { return state.house + '/' + count() + '/' + z; }
 // The selected shape, only while it still is one: on the house, in this figure, of the active
 // colour. A colour removed / added, another house, another view — the selection lapses to the colour.
@@ -765,7 +769,7 @@ function withColour(def, hex) { return SH.withColour(def, hex, TS_CTX); }
 function colourDef(r) {
   const it = state.items[r];
   if (it.shade) return withColour(JSON.parse(JSON.stringify(it.shade)), it.hex);
-  return state.shading === 'none' ? null : shadeDefs(it.hex)[state.shading];
+  return state.shading === 'none' ? null : modeDef(it.hex, state.shading) || null;
 }
 function G() {
   const it = state.items[state.activeIndex];
@@ -1293,12 +1297,13 @@ function syncViewSeg() {
 //   nothing selected       → the preset on every shape: the house's Shading, and every colour's /
 //                            shape's own shading forgotten so all of them take it (one ⌘Z step).
 function shapeShadeDef(hex, mode) {
-  return JSON.parse(JSON.stringify(mode === 'none' ? Object.assign({}, shadeDefs(hex).base, { type: 'flat', shadow: false }) : shadeDefs(hex)[mode]));
+  return JSON.parse(JSON.stringify(mode === 'none' ? Object.assign({}, shadeDefs(hex).base, { type: 'flat', shadow: false }) : modeDef(hex, mode) || Object.assign({}, shadeDefs(hex).base, { type: 'flat', shadow: false })));
 }
 // The preset a definition is (for the Shading row's state on a selected shape), or null.
 function presetOf(def, hex) {
   if (!def) return null;
   if (SH.isField(def)) { const by = SH.fieldParams(def).by; return by === 'tone' ? 'wash' : 'wash-' + by; }   // a Shading since Nov 21, 2026 (evening), edited or not
+  if (def.specks === 'pollen-preset') return Organica.shadeEditor.pollenValue(def);   // a Pollen preset's copy, edited or not
   const k = JSON.stringify(def), modes = SHADING_VALUES;
   const exact = modes.find(m => JSON.stringify(withColour(shapeShadeDef(hex, m), hex)) === k);
   if (exact) return exact;
@@ -1320,7 +1325,9 @@ function setShading(mode) {
     if (mode === state.shading && !own) return;
     pushUndo('shading');
     state.shading = mode;
-    state.items.forEach(it => { delete it.shade; });
+    // a Pollen preset is a copy (Nov 22, 2026): each colour keeps it as its own, so the palette saves it whole
+    const pollen = Organica.shadeEditor.isPollen(mode);
+    state.items.forEach(it => { delete it.shade; if (pollen) { const d = modeDef(it.hex, mode); if (d) it.shade = JSON.parse(JSON.stringify(d)); } });
     state.zoneShades = {};
     shadeDraft.key = '';
   }
