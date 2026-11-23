@@ -184,6 +184,7 @@ export const live = {
   washSheet: null,   // while a Component draws: { w, h, m (Component → canvas) | cell (cell → Component) } — Wash over All the shapes (05-render-component)
   inkPaletteOverride: null,   // set while rendering a saved entry with ITS palette (withEntryInks)
   inkShadesOverride: null,    // set with it when that entry carries its own shading (hex → definition)
+  castPass: null,   // what a paint call draws of a cast Shadow (05-render-component CAST): null = all in place · { fall, edge } = only those casts · 'none' = no cast
   lastFigureMeta: { size: 0, box: null },   // the frame and drawn box of the last Grid figure built
   layerInkOverride: null,   // {layerId: 'cell'|slot} — set while rendering a colour-variant thumbnail
   partInkOverride: null,    // {partKey: 'cell'|slot} — one Component cell's own part colours (cell.partInks), while it draws

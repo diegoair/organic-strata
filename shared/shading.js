@@ -189,7 +189,9 @@
   //   light — away from a light that comes from `light` degrees (0 = from the top): none on the lit
   //           edge, full opposite. Falloff bends it: 50 = straight, higher keeps it to the far side.
   //   even  — everywhere alike.
-  function noiseWeight(g, w, h) {
+  // ctx.weight (x, y) → 0..1 replaces the light's field — a CAST shadow's falloff from its shape (castPlates below).
+  function noiseWeight(g, w, h, ctx) {
+    if (ctx && ctx.weight) return ctx.weight;
     if (g.dist !== 'light') return () => 1;
     const bend = Math.pow(4, (g.falloff - 50) / 50), f = linearField(g.light + 180, w, h);
     return (x, y) => Math.pow(clamp(f(x, y), 0, 1), bend);
@@ -256,8 +258,8 @@
     return s;
   }
   // Shadow level at a point: v 0 (none) … 1 (halftone ink) … 2 (core ink), and a highlight flag.
-  function shadowLevel(g, w, h) {
-    const weight = noiseWeight(g, w, h), P = g.parts || {};
+  function shadowLevel(g, w, h, ctx) {
+    const weight = noiseWeight(g, w, h, ctx), P = g.parts || {};
     return (ux, uy, c, r) => {
       const w0 = weight(ux, uy);
       const hi = !!P.high && w0 < 0.15 && cellHash(c, r, g.sseed + 5) < (0.15 - w0) / 0.15 * 0.7;
@@ -269,7 +271,7 @@
   // a shadow from Organica.shadeMarks (Mottle, the Dithers, Pollen, Camo, Cells): its own marks over the fill
   function markShadow(g) { return hasNoise(g) && !!(Organica.shadeMarks && Organica.shadeMarks.has(g.specks)); }
   function markPlates(g, w, h, ctx) {
-    const SM = Organica.shadeMarks, weight = noiseWeight(g, w, h), [mid, core] = shadowInks(g, g.stops[colourStop(g)], ctx);
+    const SM = Organica.shadeMarks, weight = noiseWeight(g, w, h, ctx), [mid, core] = shadowInks(g, g.stops[colourStop(g)], ctx);
     const res = SM.render(g.specks, { w: w, h: h, level: (x, y) => shadowAt(g, weight(x, y)), size: Math.max(SM.minSize(g.specks), g.speck || SHADOW_CELL), angle: g.light + 90, seed: 7 });
     return [{ hex: mid, paper: false, d: res.mid.join(''), cells: res.mid.length }, { hex: core, paper: false, d: res.core.join(''), cells: res.core.length }];
   }
@@ -281,7 +283,7 @@
       stops.push(v <= 1 ? [t, mid, Math.max(0, v)] : [t, C().mixIn('oklab', mid, core, v - 1), 1]);
     }
     return { hex: core, paper: false, d: `M0 0h${num(w)}v${num(h)}h${num(-w)}z`, cells: 0,
-      smooth: { geom: smoothGeom({ type: 'linear', angle: g.light + 180 }, w, h), stops: stops } };
+      smooth: { geom: smoothGeom({ type: 'linear', angle: ctx && ctx.weight ? g.light : g.light + 180 }, w, h), stops: stops } };   // a cast: darkest at the shape
   }
   // One cell of the shadow over base ink `base` (an index; -1 = none, the smooth fill): → { ink, dot? }.
   // I = { mid, core, paper } — the plates' indices of the two inks and the highlight.
@@ -340,7 +342,7 @@
     const stops = gradStops(g, ctx), k = stops.length, cell = Math.max(MIN_CELL, g.type === 'flat' ? shadowGrid(g) : g.size);
     const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), field = gradField(g, w, h);
     const out = stops.map(s => ({ hex: s.hex, paper: s.paper, d: [], holes: [], cells: 0 }));
-    const shadow = hasNoise(g) && !smoothShadow(g) && !markShadow(g), level = shadow ? shadowLevel(g, w, h) : null, I = {};
+    const shadow = hasNoise(g) && !smoothShadow(g) && !markShadow(g), level = shadow ? shadowLevel(g, w, h, ctx) : null, I = {};
     if (shadow) {
       // a shadow ink that is one of the stops is that stop's ink: one plate, not two of the same colour
       const add = hex => { const at = out.findIndex(p => !p.paper && p.hex.toLowerCase() === hex.toLowerCase()); if (at >= 0) return at; out.push({ hex: hex, paper: false, d: [], holes: [], cells: 0 }); return out.length - 1; };
@@ -599,6 +601,11 @@
       g.stops = g.stops.concat('transparent'); g.pos = pos.concat(1);
     }
     g.paper = false;
+    // Cast (Nov 22, 2026): kept only when valid — a palette saved before has none and stays Inside
+    if (PLACES.indexOf(g.place) < 0) delete g.place;
+    if (!(+g.reach > 0)) delete g.reach; else g.reach = clamp(+g.reach, 1, 100);
+    if (g.fall !== 'paper' && g.fall !== 'shapes') delete g.fall;
+    if (g.edge !== 'spill' && g.edge !== 'cell') delete g.edge;
     if (g.type === 'conic') g.type = 'linear';
     if (g.type === 'field') g.field = fieldParams(had); else delete g.field;
     if (g.pattern !== 'dots') g.pattern = 'noise';
@@ -673,6 +680,112 @@
     c.restore();
   }
 
+  // ── CAST: the shadow OUTSIDE the shape (Nov 22, 2026 — Diego: "Shadow non sono interne ma anche esterne"; test page
+  // explorations/cast-shadow/). The definition's Place says where the Shadow falls: 'inside' (absent: every palette
+  // saved before), 'outside' or 'both'; outside it reaches `reach` % of the shape's box diagonal, Falls on 'paper' |
+  // 'shapes', and at a tool's cell edge 'spill' | 'cell' (the host reads fall and edge — this file only draws one cast).
+  // The cast area = the shape swept away from the light by reach: one quad per outline edge (edge → edge + v·reach),
+  // every quad wound the same way so they UNITE under nonzero (canvas) or as a clipPath's children (SVG). It holds the
+  // moved copy too (a point of the copy outside the shape is crossed by some edge on its way back), no boolean op.
+  // The shape is painted over it. The texture is the shadow's own (specks · dots · bands · smooth · marks) with its
+  // inks, fading along the light from the outline: full at the contact, none at reach, Falloff bending it. No fill of
+  // the colour: the paper shows through.
+  // polys: the outline flattened, [[x, y]…] per ring, in the frame the shape is drawn in (the host flattens it).
+  const CAST_DEFAULT = { place: 'inside', reach: 35, fall: 'paper', edge: 'spill' };
+  const PLACES = ['inside', 'outside', 'both'];
+  function castParams(g) {
+    const P = Object.assign({}, CAST_DEFAULT);
+    if (g && PLACES.indexOf(g.place) >= 0) P.place = g.place;
+    if (g && +g.reach > 0) P.reach = clamp(+g.reach, 1, 100);
+    if (g && g.fall === 'shapes') P.fall = 'shapes';
+    if (g && g.edge === 'cell') P.edge = 'cell';
+    return P;
+  }
+  // the definition when it casts a shadow outside, else null · whether it shades inside
+  function castOf(g) { return g && hasNoise(g) && castParams(g).place !== 'inside' ? g : null; }
+  function shadesInside(g) { return !g || !g.shadow || castParams(g).place !== 'outside'; }
+  function castDir(light) { const r = light * Math.PI / 180; return [-Math.sin(r), Math.cos(r)]; }   // away from the light
+  function castGeometry(polys, light, reach) {
+    const v = castDir(light), mx = v[0] * reach, my = v[1] * reach, quads = [];
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    polys.forEach(P => P.forEach(([x, y]) => { x0 = Math.min(x0, x, x + mx); y0 = Math.min(y0, y, y + my); x1 = Math.max(x1, x, x + mx); y1 = Math.max(y1, y, y + my); }));
+    if (!(reach > 0) || !(x1 > x0) || !(y1 > y0)) return null;
+    polys.forEach(P => P.forEach((a, i) => {
+      const b = P[(i + 1) % P.length], cr = (b[0] - a[0]) * my - (b[1] - a[1]) * mx;
+      if (Math.abs(cr) < 1e-9) return;   // an edge along the cast sweeps no area
+      const q = [a, b, [b[0] + mx, b[1] + my], [a[0] + mx, a[1] + my]];
+      if (cr < 0) q.reverse();           // one winding for all: they unite
+      quads.push('M' + q.map(p => n1(p[0]) + ' ' + n1(p[1])).join('L') + 'Z');
+    }));
+    return { box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, quads: quads };
+  }
+  // How far a point lies from the shape, measured BACK toward the light (along −v): the first outline edge the ray
+  // meets. Infinity inside the shape (an odd number of crossings on the whole ray: it is under the shape) or when the
+  // ray meets nothing (the point is not in the swept area) — so a texture makes marks only where the cast shows.
+  function castDistance(polys, v) {
+    const E = [];
+    polys.forEach(P => P.forEach((a, i) => { const b = P[(i + 1) % P.length]; E.push(a[0], a[1], b[0] - a[0], b[1] - a[1]); }));
+    const rx = -v[0], ry = -v[1];
+    return (x, y) => {
+      let best = Infinity, cross = 0;
+      for (let k = 0; k < E.length; k += 4) {
+        const ax = E[k], ay = E[k + 1], ex = E[k + 2], ey = E[k + 3], den = rx * ey - ry * ex;
+        if (!den) continue;
+        const qx = ax - x, qy = ay - y, t = (qx * ey - qy * ex) / den, u = (qx * ry - qy * rx) / den;
+        if (t >= 0 && u >= 0 && u < 1) { cross++; if (t < best) best = t; }
+      }
+      return cross % 2 ? Infinity : best;
+    };
+  }
+  const castCache = new Map();
+  // → { box, quads, plates } or null. o = { reach (in the polys' units; default the def's % of the polys' box
+  // diagonal), ctx }
+  function castPlates(def, hex, polys, o) {
+    o = o || {};
+    if (!castOf(def) || !polys || !polys.length) return null;
+    const ctx = o.ctx || {};
+    let reach = o.reach;
+    if (!(reach > 0)) {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      polys.forEach(P => P.forEach(([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }));
+      reach = castParams(def).reach / 100 * Math.hypot(x1 - x0, y1 - y0);
+    }
+    const key = JSON.stringify([def, hex, num(reach), polys]) + paletteTints(ctx).join('') + (ctx.paper || '');
+    if (castCache.has(key)) return castCache.get(key);
+    const G = castGeometry(polys, def.light, reach);
+    let out = null;
+    if (G) {
+      const g = Object.assign({}, def, { type: 'flat', dist: 'light', stops: [hex].concat(def.stops.slice(1)), colourAt: 0 });
+      const dist = castDistance(polys, castDir(def.light)), bend = Math.pow(4, (def.falloff - 50) / 50), bx = G.box.x, by = G.box.y;
+      const weight = (x, y) => Math.pow(clamp(1 - dist(bx + x, by + y) / reach, 0, 1), bend);
+      const pl = gradPlates(g, G.box.w, G.box.h, Object.assign({}, ctx, { weight: weight }));
+      out = Object.assign(G, { plates: pl.filter((p, i) => i > 0 && !p.paper && p.d) });
+    }
+    if (castCache.size > 160) castCache.delete(castCache.keys().next().value);
+    castCache.set(key, out);
+    return out;
+  }
+  let _cst = 0;
+  // SVG markup to draw BEFORE the shape, in the polys' frame. o = { reach, ctx, idPrefix }
+  function castSVG(def, hex, polys, o) {
+    o = o || {};
+    const C_ = castPlates(def, hex, polys, o);
+    if (!C_ || !C_.plates.length) return '';
+    const id = (o.idPrefix || 'cst') + (++_cst).toString(36);
+    return `<clipPath id="${id}">${C_.quads.map(q => `<path d="${q}"/>`).join('')}</clipPath>`
+      + `<g clip-path="url(#${id})"><g transform="translate(${num(C_.box.x)},${num(C_.box.y)})">${platesSVG(C_.plates, id)}</g></g>`;
+  }
+  // Canvas: c is drawing the polys' frame (its current transform).
+  function castCanvas(c, def, hex, polys, o) {
+    const C_ = castPlates(def, hex, polys, o);
+    if (!C_ || !C_.plates.length) return;
+    c.save();
+    c.clip(new Path2D(C_.quads.join('')), 'nonzero');
+    c.translate(C_.box.x, C_.box.y);
+    drawPlates(c, C_.plates);
+    c.restore();
+  }
+
   // The shadow textures, in menu order: the two presets, then Organica.shadeMarks' types.
   const TEXTURES = Object.keys(TEXTURE_SIZE);
 
@@ -683,6 +796,8 @@
     plates: plates, gradPlates: gradPlates, smoothPlates: smoothPlates, shadowInks: shadowInks,
     gradStops: gradStops, smoothStops: smoothStops, smoothGeom: smoothGeom, smoothMarkup: smoothMarkup, smoothFill: smoothFill,
     drawPlates: drawPlates, platesSVG: platesSVG, boxOf: boxOf, overlaySVG: overlaySVG, overlayCanvas: overlayCanvas, shapePlates: shapePlates,
+    CAST_DEFAULT: CAST_DEFAULT, castParams: castParams, castOf: castOf, shadesInside: shadesInside,
+    castDir: castDir, castGeometry: castGeometry, castPlates: castPlates, castSVG: castSVG, castCanvas: castCanvas,
     FIELD_DEFAULT: FIELD_DEFAULT, WASH_PITCH: WASH_PITCH, FIELD_BY: FIELD_BY, fieldParams: fieldParams, fieldValue: fieldValue, fieldPlates: fieldPlates, isField: isField,
     gradUses: gradUses, hasNoise: hasNoise, smoothShadow: smoothShadow, markShadow: markShadow,
     colourStop: colourStop, colourAt: colourAt, segAt: segAt, isClear: isClear, evenPos: evenPos, stopPos: stopPos, fadesToPaper: fadesToPaper,

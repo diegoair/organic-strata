@@ -90,6 +90,8 @@ export function buildPalette() {
     // Wash over shown: All the shapes = one wash over the whole Component (live.washSheet, 05-render-component); in the
     // Element it is the shape's own (with Light › Whole element, one wash across the Element)
     sheet: () => ({ x: 0, y: 0, w: 100, h: 100 }),
+    // the Shadow can fall outside the shape (Nov 22, 2026); Cell edge only where cells meet — Component, Symbol, Figure
+    cast: { edge: () => state.activeTier !== 'element' },
     set: (p, why) => {
       if (p.colors) state.colors = p.colors.map(hexKey);
       if (p.shades) state.inkShades = p.shades;
@@ -100,6 +102,9 @@ export function buildPalette() {
   });
   hooks.syncGroundInkOptions();
 }
+
+// The Shadow editor's Cell edge row shows on the steps that have cells (12-shell switchTier calls it)
+export function syncShadeEditor() { if (paletteKit && paletteKit.syncEditor) paletteKit.syncEditor(); }
 
 // The Gradient + Shadow follow the layer (Diego, Nov 21, 2026: "se scelto un element e un layer quando cambio il layer i
 // colori non si applicano"): the editor edits the colour of the chip last opened, so selecting a layer — or giving it

@@ -32,7 +32,7 @@ import {
   fvsSurfaceLive, readShapeLook, truState
 } from './engine/12-shell.js';
 import {
-  buildPalette, ctrl, syncColorRuleUI, syncQuadrantHint
+  buildPalette, ctrl, syncColorRuleUI, syncQuadrantHint, syncShadeEditor
 } from './00-core.js';
 import {
   setCellShape
@@ -122,6 +122,7 @@ export function setTier(tier) {
     state.preFigureSnapshot = null;
   }
   state.activeTier = tier;
+  syncShadeEditor();   // Shadow › Cell edge: only where cells meet
   syncFigureTab();
   ctrl('tier-tabs').querySelectorAll('[data-tier]').forEach(t => t.setAttribute('aria-pressed', String(t.dataset.tier === tier)));
   document.querySelectorAll('.tier-block').forEach(b => b.classList.toggle('active', b.dataset.tier === tier));

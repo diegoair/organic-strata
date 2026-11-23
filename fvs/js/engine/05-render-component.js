@@ -49,7 +49,14 @@ export const lookStretch = lk => (lk.w !== 1 || lk.l !== 1 ? ` scale(${lk.w},${l
 // an entry draws with its own colours — a Component or saved Element in a Symbol cell, SVG or canvas — its own
 // shading comes with them, without threading it through every call.
 const _entryShades = new WeakMap();
-export function registerEntryShades(colors, shades) { if (colors && typeof colors === 'object' && shades) _entryShades.set(colors, shades); return colors; }
+let _entryCasts = false;   // a saved entry's shading casts outside: a Symbol / Figure then draws every kind of cast pass
+export function registerEntryShades(colors, shades) {
+  if (colors && typeof colors === 'object' && shades) {
+    _entryShades.set(colors, shades);
+    if (!_entryCasts && typeof Organica !== 'undefined' && Organica.shading && Object.keys(shades).some(k => Organica.shading.castOf(shades[k]))) _entryCasts = true;
+  }
+  return colors;
+}
 // Another set of colours in the same places — a colourway, a Palette node's colours: colour n takes the shading of
 // colour n of the palette it came from, moved onto the new colour (Diego, Nov 20, 2026: the palette arrives whole,
 // so its recolourings keep its shading). `from` = hex → definition (an entry's own, or the live Palette's).
@@ -147,7 +154,7 @@ function stackShadeBox(geo, l, g) {
 // SVG: the plates in the shape's box, clipped to the shape (its path with transform t, in the same parent space).
 function shadeOverlaySVG(hex, d, t, fillRule, box) {
   const def = inkShade(hex);
-  if (!def || !box) return '';
+  if (!def || !box || !Organica.shading.shadesInside(def)) return '';
   const L2C = svgL2C(), at = washAcross(def, box, L2C), b = at || box;
   const plates = shadePlatesFor(def, hex, b.w, b.h, at);
   if (!plates.some(p => p.d)) return '';
@@ -158,12 +165,86 @@ function shadeOverlaySVG(hex, d, t, fillRule, box) {
 // Canvas: ctx already clipped to the shape; `box` the parent-space transform the box is measured in.
 function shadeOverlayCanvas(ctx, hex, parent, box) {
   const def = inkShade(hex);
-  if (!def || !box) return;
+  if (!def || !box || !Organica.shading.shadesInside(def)) return;
   const W = live.washSheet, at = W && W.m ? washAcross(def, box, W.m.inverse().multiply(parent)) : null;
   if (at) { ctx.setTransform(W.m.translate(at.x, at.y)); Organica.shading.drawPlates(ctx, shadePlatesFor(def, hex, at.w, at.h, at)); return; }
   ctx.setTransform(parent.translate(box.x, box.y));
   Organica.shading.drawPlates(ctx, shadePlatesFor(def, hex, box.w, box.h));
 }
+// ── CAST (Nov 22, 2026 — Diego: "Shadow non sono interne ma anche esterne"; test page explorations/cast-shadow/) ──
+// A shaded ink whose Place is Outside / Both casts its Shadow outside the shape (Organica.shading CAST): drawn in the
+// shape's own frame — the frame its inside shadow uses — so the light turns with the cell (Diego chose "Turns with the
+// cell"). Its reach is a % of that shadow's box diagonal. What a paint call draws is live.castPass:
+//   null           all in place: a shape's cast right before it; in a stack the casts that fall on the Paper all
+//                  before the first layer, those that fall on the shapes before their own layer
+//   { fall, edge } only the casts that fall and stop so — a Component's passes (drawItemsPlain, buildComponentSVGBody)
+//   'none'         no cast: the shapes, after their passes
+const _castPolyCache = new Map();
+// The outline flattened, in its parent's frame (`build` the Paper matrix, as shapeBox), cached by key
+function castPolys(key, d, build) {
+  if (_castPolyCache.has(key)) return _castPolyCache.get(key);
+  let out = null;
+  try {
+    const scope = splitPaperScope(), cp = new scope.CompoundPath(d), m = new scope.Matrix();
+    build(m); cp.transform(m);
+    const leaves = cp.children && cp.children.length ? cp.children : [cp];
+    out = leaves.map(l => { const c = l.clone({ insert: false }); try { c.flatten(0.4); } catch (e) { /* straight */ } const pts = c.segments.map(sg => [sg.point.x, sg.point.y]); c.remove(); return pts; }).filter(q => q.length > 2);
+    cp.remove();
+  } catch (e) { out = null; }
+  if (_castPolyCache.size > 200) _castPolyCache.clear();
+  _castPolyCache.set(key, out);
+  return out;
+}
+const castShapeOnly = () => !(live.castPass && typeof live.castPass === 'object');   // false in a cast pass: no shape
+// The ink's definition when its cast is drawn here: `at` 'first' (before a stack's first layer / a lone shape) | 'own'
+// (right before its own layer)
+function castNow(ink, at) {
+  const def = inkShade(ink), S = typeof Organica !== 'undefined' && Organica.shading;
+  if (!def || !S || !S.castOf(def)) return null;
+  const P = S.castParams(def), pass = live.castPass;
+  if (pass === 'none') return null;
+  if (pass) return at === 'first' && P.fall === pass.fall && P.edge === pass.edge ? def : null;
+  return (at === 'first' ? P.fall === 'paper' : P.fall === 'shapes') ? def : null;
+}
+const castReach = (def, box) => Organica.shading.castParams(def).reach / 100 * Math.hypot(box.w, box.h);
+function castSVGFor(def, ink, polys, box) {
+  return polys && box ? Organica.shading.castSVG(def, ink, polys, { reach: castReach(def, box), ctx: shadeCtx(), idPrefix: 'cst' + nextDrawId() }) : '';
+}
+function castCanvasFor(ctx, def, ink, polys, box) {
+  if (polys && box) Organica.shading.castCanvas(ctx, def, ink, polys, { reach: castReach(def, box), ctx: shadeCtx() });
+}
+// A stack layer's outline in the Element box (layerBox's matrix) · a lone shape's in its stretch frame (normBox's)
+function layerPolys(l, g) {
+  const pl = layerPlace(l), lk = layerLook(l, {});
+  return castPolys('l|' + [pl.mx, pl.my, pl.rotate, pl.scale, lk.w, lk.l, g.normTx, g.normTy, g.normScale].join(',') + '|' + g.d, g.d, m => {
+    m.translate(50 + pl.mx, 50 + pl.my); m.rotate(pl.rotate); m.scale(pl.scale); m.scale(lk.w, lk.l); m.translate(-50, -50);
+    m.translate(g.normTx * g.normScale, g.normTy * g.normScale); m.scale(g.normScale);
+  });
+}
+function normPolys(geo) {
+  return castPolys('n|' + geo.normTx + ',' + geo.normTy + ',' + geo.normScale + '|' + geo.d, geo.d, m => { m.translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale); m.scale(geo.normScale); });
+}
+// A filled stack layer that casts: its ink, or null
+function castLayerInk(l, color, a) {
+  if ((l.role || 'fill') !== 'fill' || !l.geo || !l.geo.d) return null;
+  const lk = layerLook(l, a);
+  return lk.fillMode === 'fill' ? layerInkColor(l, color) : null;
+}
+// The kinds of cast the current inks make ([{ fall, edge }]), or null — a Component draws one pass for each
+export function castKinds() {
+  const m = live.inkShadesOverride || (live.inkPaletteOverride && _entryShades.get(live.inkPaletteOverride)) || state.inkShades;
+  if (!m || typeof Organica === 'undefined' || !Organica.shading) return null;
+  const seen = {}, out = [];
+  Object.keys(m).forEach(k => {
+    if (!Organica.shading.castOf(m[k])) return;
+    const P = Organica.shading.castParams(m[k]), key = P.fall + '|' + P.edge;
+    if (!seen[key]) { seen[key] = 1; out.push({ fall: P.fall, edge: P.edge }); }
+  });
+  return out.length ? out : null;
+}
+// Where the drawing mixes entries with their own shading (a Symbol, a Figure): every kind once any entry casts
+const ALL_CAST_KINDS = [{ fall: 'paper', edge: 'spill' }, { fall: 'paper', edge: 'cell' }, { fall: 'shapes', edge: 'spill' }, { fall: 'shapes', edge: 'cell' }];
+export function castKindsAll() { return _entryCasts ? ALL_CAST_KINDS : castKinds(); }
 export const _stackFlatCache = new Map();
 // ── Pattern fill (test) ──────────────────────────────────────────────
 // Lines / Crosshatch / Dots / Concentric as plain vector geometry in the
@@ -234,9 +315,17 @@ export function paintStackCanvas(ctx, geo, color) {
     tc.setTransform(1, 0, 0, 1, 0, 0); tc.clearRect(0, 0, cv.width, cv.height);
     tc.setTransform(ctx.getTransform());
   }
+  const castLayer = (l, at) => {
+    const ink = castLayerInk(l, color, a), def = ink && castNow(ink, at);
+    if (!def) return;
+    tc.save(); castCanvasFor(tc, def, ink, layerPolys(l, l.geo), stackShadeBox(geo, l, l.geo)); tc.restore();
+  };
+  for (const l of geo.layers) castLayer(l, 'first');   // the casts on the Paper (or this pass's), under every layer
+  if (!castShapeOnly()) { if (fx) { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(_stackAcc, 0, 0); ctx.restore(); } return; }
   for (const l of geo.layers) {
     const g = l.geo, role = l.role || 'fill', pl = layerPlace(l);
     const lk = layerLook(l, a);
+    castLayer(l, 'own');
     if (role === 'pattern') {
       // the pattern cut out of everything below (the SVG's <mask>)
       const pg = patternGeometry(lk, patternLayerExt(pl));
@@ -438,9 +527,17 @@ export function stackPathMarkup(geo, color, forceFill) {
   // mask doesn't apply, so every Component thumbnail lost its Subtraction
   // mask / Mask. The `-<n>` suffix makes each drawing reference its own defs.
   const uid = stackUid(geo) + '-' + (++live._stackDrawSeq).toString(36);
-  let out = '';
+  let out = '', first = '';
+  const castLayer = (l, at) => {
+    if (forceFill) return '';
+    const ink = castLayerInk(l, color, a), def = ink && castNow(ink, at);
+    return def ? castSVGFor(def, ink, layerPolys(l, l.geo), stackShadeBox(geo, l, l.geo)) : '';
+  };
+  geo.layers.forEach(l => { first += castLayer(l, 'first'); });   // the casts on the Paper (or this pass's), under every layer
+  if (!castShapeOnly()) return first && !appearanceIsIdentity(a) ? `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))}">${first}</g>` : first;
   geo.layers.forEach((l, i) => {
     const g = l.geo, t = layerTransformAttr(l, g), role = l.role || 'fill', id = `${uid}-${i}`;
+    out += castLayer(l, 'own');
     if (role === 'pattern') {
       // a mask made of the pattern: its lines / dots are cut out of every layer below
       if (forceFill) return;   // a boundary silhouette is the shapes below, unchanged
@@ -474,6 +571,7 @@ export function stackPathMarkup(geo, color, forceFill) {
       if (fm === 'fill' && !forceFill && inkShade(ink)) out += shadeOverlaySVG(ink, g.d, t, g.fillRule, stackShadeBox(geo, l, g));
     }
   });
+  out = first + out;
   if (appearanceIsIdentity(a)) return out;
   return `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))}">${out}</g>`;
 }
@@ -482,6 +580,14 @@ export function stackPathMarkup(geo, color, forceFill) {
 export function paintGeoCanvas(ctx, geo, path, color) {
   if (geo.layers) { paintStackCanvas(ctx, geo, color); return; }
   const a = getElementAppearance();
+  const cdef = a.fillMode === 'fill' ? (castNow(color, 'first') || castNow(color, 'own')) : null;
+  if (cdef) {   // ctx = box · stretch · norm: the cast in the box · stretch frame, as the inside shadow
+    ctx.save();
+    ctx.setTransform(ctx.getTransform().multiply(new DOMMatrix().translate(geo.normTx * geo.normScale, geo.normTy * geo.normScale).scale(geo.normScale).inverse()));
+    castCanvasFor(ctx, cdef, color, normPolys(geo), normBox(geo));
+    ctx.restore();
+  }
+  if (!castShapeOnly()) return;
   if (a.fillMode === 'pattern') {
     // ctx = box · stretch · norm (the callers' order); clip there, then lay the
     // pattern out in the box itself so Width/Length don't distort its spacing.
@@ -523,6 +629,9 @@ export function paintGeoCanvas(ctx, geo, path, color) {
 export function elementPathMarkup(geo, color, forceFill) {
   if (geo.layers) return stackPathMarkup(geo, color, forceFill);
   const a = getElementAppearance();
+  const cdef = !forceFill && a.fillMode === 'fill' ? (castNow(color, 'first') || castNow(color, 'own')) : null;
+  const cast = cdef ? castSVGFor(cdef, color, normPolys(geo), normBox(geo)) : '';
+  if (!castShapeOnly()) return !cast || appearanceIsIdentity(a) ? cast : `<g transform="${Organica.shapeAppearance.stretchTransformAttr(a.w, a.l, 50, stretchOpts(a))}">${cast}</g>`;
   if (a.fillMode === 'pattern' && !forceFill) {
     // clip = the shape through stretch + norm; the pattern itself sits in the plain box
     const normT = `translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`;
@@ -539,7 +648,7 @@ export function elementPathMarkup(geo, color, forceFill) {
     return `<clipPath id="${id}"><path d="${geo.d}" transform="${t}"${geo.fillRule ? ` clip-rule="${geo.fillRule}"` : ''}/></clipPath><g clip-path="url(#${id})"><g transform="${photoFrameAttr(a.mx, a.my, a.rotate, a.scale, a.w, a.l)}">${photoImageTag(plan)}</g></g>`;
   }
   const attrs = Organica.shapeAppearance.styleAttrs({ fillMode: forceFill ? 'fill' : a.fillMode, color, strokeW: a.strokeW, rounded: a.rounded });
-  let norm = `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
+  let norm = cast + `<g transform="translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})">`
     + `<path d="${geo.d}" ${attrs}${geo.fillRule && !forceFill ? ` fill-rule="${geo.fillRule}"` : ''}/></g>`;
   if (!forceFill && a.fillMode === 'fill' && inkShade(color)) {
     norm += shadeOverlaySVG(color, geo.d, `translate(${(geo.normTx * geo.normScale).toFixed(4)},${(geo.normTy * geo.normScale).toFixed(4)}) scale(${geo.normScale.toFixed(4)})`, geo.fillRule, normBox(geo));
@@ -605,11 +714,25 @@ export function clipCellCanvas(ctx, it, halfX, halfY) {
 export function drawItemsPlain(ctx, itemsToDraw, geo, path, boxW, boxH, multiply) {
   const halfX = boxW / 2, halfY = (boxH == null ? boxW : boxH) / 2;
   const overrideCache = new Map();   // seedType|params → {geo,path}, so several cells sharing one override don't re-tessellate
-  const passes = layerPasses(geo, itemsToDraw);
-  if (passes) { passes.forEach(pg => drawItemsPlainOnce(ctx, itemsToDraw, pg, path, halfX, halfY, multiply, overrideCache, geo)); return; }
-  drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply, overrideCache, geo);
+  const passes = layerPasses(geo, itemsToDraw), kinds = castKinds();
+  if (!kinds) {
+    if (passes) { passes.forEach(pg => drawItemsPlainOnce(ctx, itemsToDraw, pg, path, halfX, halfY, multiply, overrideCache, geo)); return; }
+    drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply, overrideCache, geo);
+    return;
+  }
+  // Cast (Nov 22, 2026): the casts that fall on the Paper, every one before any cell; then each cell's casts that fall
+  // on the shapes right before it (over the cells drawn earlier); then the shapes. Cell edge › Cut at the cell clips a
+  // cast to its cell, Spill over never does (whatever Clip to cell says).
+  const prev = live.castPass, onShapes = kinds.filter(k => k.fall === 'shapes');
+  const pre = onShapes.length ? run => { onShapes.forEach(k => { live.castPass = k; run(k.edge === 'cell'); }); live.castPass = 'none'; } : null;
+  try {
+    kinds.filter(k => k.fall === 'paper').forEach(k => { live.castPass = k; drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply, overrideCache, geo, k.edge === 'cell'); });
+    live.castPass = 'none';
+    (passes || [geo]).forEach(pg => drawItemsPlainOnce(ctx, itemsToDraw, pg, path, halfX, halfY, multiply, overrideCache, geo, undefined, pre));
+  } finally { live.castPass = prev; }
 }
-function drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply, overrideCache, whole) {
+// clip: undefined = Clip to cell as set, else on / off (a cast pass) · pre(run): draws before each cell, run(clip) the cell
+function drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply, overrideCache, whole, clip, pre) {
   for (const it of itemsToDraw) {
     if (it.empty) continue;
     let itGeo = geo, itPath = path;
@@ -619,10 +742,11 @@ function drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply,
       if (!hit) { const g = resolveItemGeo(it, geo); hit = { geo: g, path: new Path2D(g.d) }; overrideCache.set(key, hit); }
       itGeo = hit.geo; itPath = hit.path;
     }
+    const run = cut => {
     const drawOne = () => {
       ctx.save();
       if (multiply) ctx.globalCompositeOperation = 'multiply';   // Blend → Multiply: each cell's ink mixes with what is under it
-      if (state.componentClip) clipCellCanvas(ctx, it, halfX, halfY);
+      if (cut) clipCellCanvas(ctx, it, halfX, halfY);
       ctx.translate(halfX + it.cx + (it.dx || 0), halfY + it.cy + (it.dy || 0));
       ctx.rotate(it.rotation * Math.PI / 180);
       const fit = it.cellSize / 100;
@@ -641,6 +765,9 @@ function drawItemsPlainOnce(ctx, itemsToDraw, geo, path, halfX, halfY, multiply,
     const drawIt = () => withItemParts(it, it.content ? itGeo : whole, drawOne);   // the parts' inks count the whole stack (a pass paints one layer)
     if (it.content && it.content.appearance) withAppearance(it.content.appearance, drawIt);
     else drawIt();
+    };
+    if (pre) pre(run);
+    run(clip === undefined ? state.componentClip : clip);
   }
 }
 // SVG: `content` clipped to the union of `polys` (each a point list, in the content's own coords); as-is when polys is null.
@@ -775,6 +902,26 @@ export function buildComponentSVGBody(items, seed, size) {
     const drawn = drawOrder(items);   // Overlap: who is on top, and a Seamless repeat's copies (Oct 26, 2026)
     const passes = layerPasses(geo, drawn), weave = drawn.length && drawn[0].ov && drawn[0].ov.top === 'weave', cells = [];
     let inks = '';
+    // Cast (Nov 22, 2026) — as drawItemsPlain: the Paper's casts first, each cell's casts on the shapes right before it
+    const kinds = castKinds(), prevCast = live.castPass;
+    const onShapes = kinds ? kinds.filter(k => k.fall === 'shapes') : [];
+    const cellOf = (it, itGeo, whole, cut) => {
+      const fit = it.cellSize / 100;
+      const sx = (it.flipH ? -1 : 1) * it.scale * fit * (it.kx || 1), sy = (it.flipV ? -1 : 1) * it.scale * fit * (it.ky || 1);
+      const paint = () => withItemParts(it, whole, () => elementPathMarkup(itGeo, it.color));
+      const markup = (it.content && it.content.appearance) ? withAppearance(it.content.appearance, paint) : paint();
+      if (!markup) return '';
+      const g = `<g transform="translate(${(halfX + it.cx + (it.dx || 0)).toFixed(2)},${(halfY + it.cy + (it.dy || 0)).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>${markup}</g>`;
+      if (!cut) return g;
+      const cid = 'cellcut-' + nextDrawId();
+      return `<clipPath id="${cid}">${cellClipShape(it, halfX, halfY)}</clipPath><g clip-path="url(#${cid})">${g}</g>`;
+    };
+    const castsOf = (it, ks) => ks.map(k => { live.castPass = k; return cellOf(it, resolveItemGeo(it, geo), resolveItemGeo(it, geo), k.edge === 'cell'); }).join('');
+    try {
+    if (kinds) {
+      for (const it of drawn) if (!it.empty) inks += castsOf(it, kinds.filter(k => k.fall === 'paper'));
+      live.castPass = 'none';
+    }
     for (const pass of (passes || [null])) for (const it of drawn) {
       if (it.empty) continue;
       const fit = it.cellSize / 100;
@@ -797,8 +944,10 @@ export function buildComponentSVGBody(items, seed, size) {
       const cell = `<g transform="translate(${(halfX + it.cx + (it.dx || 0)).toFixed(2)},${(halfY + it.cy + (it.dy || 0)).toFixed(2)}) rotate(${it.rotation}) scale(${sx.toFixed(4)},${sy.toFixed(4)}) translate(-50,-50)"${state.componentBlend === 'multiply' ? ' style="mix-blend-mode:multiply"' : ''}>`
         + markup + `</g>`;
       const one = state.componentClip ? (() => { const cid = 'cellcut-' + nextDrawId(); return `<clipPath id="${cid}">${cellClipShape(it, halfX, halfY)}</clipPath><g clip-path="url(#${cid})">${cell}</g>`; })() : cell;
+      if (onShapes.length) { const pg = pass; inks += onShapes.map(k => { live.castPass = k; const w = resolveItemGeo(it, geo); return cellOf(it, pg || w, w, k.edge === 'cell'); }).join(''); live.castPass = 'none'; }
       if (weave) cells.push(one); else inks += one;
     }
+    } finally { live.castPass = prevCast; }
     // Weave (Oct 26, 2026): each cell masked by the silhouettes of the neighbours over it — the drawing order no longer
     // decides, so the over / under can go round (A over B over C over A), which painting in order cannot do
     if (weave) {

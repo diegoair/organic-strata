@@ -368,6 +368,21 @@ Diego: *debug the Element's units — where a figure in the Element can meet or 
   Component space, its plates are laid out there and drawn back through the inverse (`washAcross`, 05-render-component).
   In the Element (and a Symbol's own drawing) a wash is the shape's own — with Light › Whole element one wash across the
   Element. Colour by / Mix as in DESIGN-SYSTEM §5h. Test `scripts/test-wash-by.mjs`.
+  **The shadow outside the shape — Shadow › Place** (Nov 22, 2026 — Diego: *Shadow non sono interne ma anche esterne*;
+  test page `explorations/cast-shadow/`, local): **Inside** (default, no key saved) · **Outside** · **Both**. Outside, the
+  Shadow's own texture and inks fall away from the light (`Organica.shading` CAST: `castPlates` / `castSVG` /
+  `castCanvas`): the shape swept by **Reach** (% of its shading box's diagonal), fading along the light from the
+  outline, never under the shape; no fill of the colour, the Paper shows through. Drawn in the shape's own frame — the
+  light turns with the cell, as inside (Diego chose *Turns with the cell*). **Falls on** *The paper* (every cast before
+  any shape — in a stack before the first layer, in a Component / Symbol before any cell) · *The shapes below* (each
+  cast right before its own shape or layer, over what was drawn earlier). **Cell edge** (Component, Symbol, Figure):
+  *Spill over* (no clip, whatever Clip to cell says) · *Cut at the cell* (clipped to the shape's own cell — a
+  Component's cell, or the Element's in a Symbol cell). The Element's own canvas is its cell. Saved on the definition
+  (`place` · `reach` · `fall` · `edge`, kept by `normalize` only when valid), so it travels with the palette; other
+  tools draw a definition's inside shadow as before. `live.castPass` says what a paint call draws (null = all in place,
+  `{ fall, edge }` = one pass's casts only, `'none'` = shapes only): `drawItemsPlain` / `buildComponentSVGBody` and the
+  Symbol's SVG + canvas run the passes (`castKinds` / `castKindsAll`). Plates need nothing new: a cast is `fill="#hex"`
+  paths of the Halftone and Core inks. Test `scripts/test-shading-cast.mjs`.
   **Colourways** (Recolour, the Figure's Palette node) keep the shading by place — colour n takes colour n's,
   moved onto its own colour (`shadesFollow`, in `withComponentColours` and a Symbol cell's colourway).
   **Arriving whole**: a saved palette's house Shading (`pal.shading`) goes on every colour without its own; a starred

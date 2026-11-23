@@ -18,6 +18,8 @@
  *     shading: true,            // false: colours only (the editor, the chips' shading and the shades are left out)
  *     sheet: () => rect,        // optional: the tool's sheet — the editor then offers Wash › All the shapes (each draw
  *                               // passes the sheet in the shape's own units as ctx.sheet; Organica.shading, FIELD)
+ *     cast: { edge() → bool },  // optional: the tool draws a Shadow outside the shape — the editor shows Place (and
+ *                               // Cell edge where edge() is true); Organica.shading CAST
  *   });
  *   kit.rebuild()   kit.setActive(i)   kit.name()   kit.strip (the palette.swatch handle)
  *
@@ -87,6 +89,8 @@
       if (K.ed && editorHost.firstChild) { K.ed.set(v); return; }
       K.ed = Organica.shadeEditor.mount(editorHost, Object.assign(v, {
         ctx: ctx,
+        // a tool that draws the shadow outside the shape (FVS): the Shadow's Place rows; o.cast.edge() → a cell edge here
+        ...(K.o.cast ? { cast: { edge: () => !!(K.o.cast && K.o.cast.edge && K.o.cast.edge()) } } : {}),
         // the colour's own stop on the bar: the chip's colour, picked as on the chip
         onColourStop: anchor => Organica.colorPicker.open(anchor, { value: K.o.get().colors[K.at], label: label(K.at), onChange: h => { if (K.sw && h !== K.o.get().colors[K.at]) K.sw.setColor(K.at, h); } }),
         // Use on every colour: this colour's Gradient + Shadow on all, each on its own colour (hand-picked inks left out)

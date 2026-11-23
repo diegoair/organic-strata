@@ -21,6 +21,8 @@
  *     shadingShown() → mode,    // optional: what the Shading menu shows (the host's scope)
  *     onColourStop(anchor),     // optional: a click on the colour's own stop (TuneSutra: the colour picker on the colour)
  *     everyColour(def),         // optional: shows "Use on every colour" after both sections — this colour's Gradient + Shadow on all
+ *     cast: { edge() → bool },  // optional (FVS, Nov 22, 2026): the Shadow's Place (Inside · Outside · Both), and with Outside its
+ *                               // Reach, Falls on and — where edge() says a cell has an edge — Cell edge (Organica.shading CAST)
  *   });
  *   ed.set({ hex, def, label })   // another colour, or the same one changed elsewhere
  *   ed.sync()                     // the host's definition changed (edit mode)
@@ -74,6 +76,11 @@
   };
   // Wash (Nov 21, 2026; type 'field' in the model): its own settings live on def.field (Organica.shading.FIELD_DEFAULT).
   // Names decided (O-92, Nov 21, 2026). Colour by + Mix (Nov 21, 2026): TuneSutra's Colour mode words, on def.field.by / .space.
+  // Cast (Nov 22, 2026): the shadow outside the shape — Organica.shading.castParams; shown only where the host draws it
+  const CAST_RANGES = { reach: { label: 'Reach', min: 5, max: 100, step: 1, unit: '%', title: 'How far the shadow falls from the shape, as a share of its size.' } };
+  // the label above, the buttons the full row wide (as Gradient › Type): three words do not fit beside a label
+  const seg = (key, label, opts) => `<div data-row="${key}"><div class="sub-label">${label}</div><div class="ctrl-row"><div class="seg-ctrl" data-seg="${key}" role="group" aria-label="${label}">`
+    + opts.map(([v, t]) => `<button type="button" class="seg-btn" data-v="${v}">${t}</button>`).join('') + `</div></div></div>`;
   const FIELD_RANGES = {
     size: { label: 'Size', min: 8, max: 120, step: 1, aria: 'Wash size', title: 'The size of the clouds.' },
     slope: { label: 'Slope', min: 0, max: 100, step: 1, unit: '%', title: 'How much the colour runs along the Angle: 0 = only the clouds, 100 = a straight gradient.' },
@@ -127,6 +134,9 @@
       + `<div data-block="wash"></div>`
       + `<div data-block="shadow">`
       + rangeRow(p, 'amount') + rangeRow(p, 'speck') + rangeRow(p, 'light') + rangeRow(p, 'falloff')
+      + (opts.cast ? `<div data-block="cast">` + seg('place', 'Place', [['inside', 'Inside'], ['outside', 'Outside'], ['both', 'Both']])
+        + rangeRow(p + '-c', 'reach', CAST_RANGES) + seg('fall', 'Falls on', [['paper', 'The paper'], ['shapes', 'The shapes below']])
+        + seg('edge', 'Cell edge', [['spill', 'Spill over'], ['cell', 'Cut at the cell']]) + `</div>` : '')
       + `<div class="sub-label">Ink</div><div class="ctrl-row"><select id="${p}-ink" aria-label="Ink">${optionsHTML(INK)}</select><div data-host="ink"></div></div>`
       + rangeRow(p, 'shift')
       + `<div class="color-row"><span class="color-name">Halftone</span><button type="button" class="color-swatch" data-ink="inkMid" aria-label="Halftone ink" aria-haspopup="dialog"></button><span class="ctrl-val" data-inkval="inkMid"></span></div>`
@@ -388,6 +398,19 @@
       });
       if (!liveMode) r.addEventListener('change', () => edit(k, g => { g[k] = +r.value; }));
     });
+    if (opts.cast) {
+      ['place', 'fall', 'edge'].forEach(k => $('[data-seg="' + k + '"]').addEventListener('click', e => {
+        const b = e.target.closest('.seg-btn');
+        if (!b || S.castParams(cur())[k] === b.dataset.v) return;
+        edit(k, g => { g[k] = b.dataset.v; });
+      }));
+      const r = $('#' + p + '-c-reach'), v = $('#' + p + '-c-v-reach');
+      r.addEventListener('input', () => {
+        v.textContent = r.value + '%';
+        if (liveMode && S.castParams(cur()).reach !== +r.value) edit('reach', g => { g.reach = +r.value; });
+      });
+      if (!liveMode) r.addEventListener('change', () => edit('reach', g => { g.reach = +r.value; }));
+    }
     selShading.addEventListener('change', () => setShading(selShading.value));
     selInk.addEventListener('change', () => {
       const [h, m] = selInk.value.split('|'), g = cur();
@@ -444,6 +467,14 @@
       $('[data-block="shadow"]').hidden = !shadow;
       ['speck', 'light', 'falloff'].forEach(k => { $('[data-row="' + k + '"]').hidden = !uses[k]; });
       $('[data-row="shift"]').hidden = g.hue === 'same' || g.snap || (!!g.inkMid && !!g.inkCore);
+      if (opts.cast) {
+        const P = S.castParams(g), out = P.place !== 'inside', r = $('#' + p + '-c-reach');
+        ['place', 'fall', 'edge'].forEach(k => host.querySelectorAll('[data-seg="' + k + '"] .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.v === P[k])));
+        if (document.activeElement !== r && +r.value !== P.reach) { r.value = P.reach; r.dispatchEvent(new Event('input')); }
+        $('#' + p + '-c-v-reach').textContent = P.reach + '%';
+        ['reach', 'fall'].forEach(k => { $('[data-row="' + k + '"]').hidden = !out; });
+        $('[data-row="edge"]').hidden = !out || !(opts.cast.edge && opts.cast.edge());
+      }
       const inks = S.shadowInks(g, own, ctxOf());
       [['inkMid', inks[0]], ['inkCore', inks[1]]].forEach(([k, h]) => { $('[data-ink="' + k + '"]').style.background = h; $('[data-inkval="' + k + '"]').textContent = h; });
       const shown = opts.shadingShown ? opts.shadingShown() : presetOf(g);
