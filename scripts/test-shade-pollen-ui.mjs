@@ -1,5 +1,6 @@
 // Headless check, in the real page, of Pollen's presets in TuneSutra's Shadow (Nov 22, 2026): (1) the Shading menu
-// lists them — Pollen · Built-in (sentence case) and Pollen · Saved; (2) a seed's outline is sampled from the seed data
+// lists them in the one Pollen category — Dot · Stroke · Cross-hatch, the built-ins
+// (sentence case), then the saved ones; (2) a seed's outline is sampled from the seed data
 // (loaded on demand); (3) a pick on the house copies the marks onto every colour, drawn on the sheet; (4) the palette
 // saved and the Pollen preset deleted, it opens with the same shadow, the menu naming the copy.
 // Run: node --experimental-websocket scripts/test-shade-pollen-ui.mjs   — exits 1 when a check fails.
@@ -19,8 +20,7 @@ const R = await P.ev(`
   // the menu is rebuilt from the store on sync; ask it again
   sel.dispatchEvent(new Event('focus'));
   out.groups = [...sel.querySelectorAll('optgroup')].map(g => g.label);
-  out.built = [...sel.querySelectorAll('optgroup')].filter(g => g.label === 'Pollen · Built-in').map(g => [...g.children].map(o => o.textContent).join(', '))[0];
-  out.saved = [...sel.querySelectorAll('optgroup')].filter(g => g.label === 'Pollen · Saved').map(g => [...g.children].map(o => o.textContent).join(', '))[0];
+  out.pollen = [...sel.querySelectorAll('optgroup')].filter(g => g.label === 'Pollen').map(g => [...g.children].filter(o => !o.hidden).map(o => o.textContent).join(', '))[0];
   out.seeds = !!(window.ORGANIC_SEEDS || window.ORGANIC_FORMS);
   const d = Organica.shadeEditor.pollenDef(state.items[0].hex, 'pollen-p:b:Fine Dots', {});
   out.loops = d && d.marks.shapes[0] ? d.marks.shapes[0][0].length : 0;
@@ -53,9 +53,8 @@ const R = await P.ev(`
   out.drawnAfter = marksLen();
   return out;
 `);
-check('menu has Pollen · Built-in and Pollen · Saved', R.groups.includes('Pollen · Built-in') && R.groups.includes('Pollen · Saved'), R.groups.join(' / '));
-check('built-ins in sentence case', R.built === 'Fine dots, Felt-tip, Lines flow, Duotone, Hatch flow, Hatch swirl', R.built);
-check('saved preset listed as typed', R.saved === 'My hatch', R.saved);
+check('one Pollen category, no other Pollen group', R.groups.filter(g => /Pollen/.test(g)).join() === 'Pollen', R.groups.join(' / '));
+check('Pollen lists its textures, the built-ins (sentence case), then the saved', R.pollen === 'Dot, Stroke, Cross-hatch, Fine dots, Felt-tip, Lines flow, Duotone, Hatch flow, Hatch swirl, My hatch', R.pollen);
 check('seed data loaded on demand', R.seeds);
 check('Fine dots copies the seed outline (breath: a circle)', R.loops === 3, R.loops + ' numbers');
 check('a house pick: every colour its own copy', R.each.split(' | ').every(s => s === 'pollen-preset:Fine dots'), R.each);

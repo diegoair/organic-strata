@@ -67,7 +67,7 @@ Two kinds of controls:
 
 ### Presets
 
-*Nov 22, 2026:* the six built-ins live in **`shared/pollen-presets.js`** (`Organica.pollenPresets.BUILTIN`, unchanged); TuneSutra's Shadow (and every tool's shade editor that loads that file) lists the built-ins and the saved presets under *Pollen · Built-in* / *Pollen · Saved* and copies a preset's marks — not its colours — into a palette's shadow (docs/TUNESUTRA.md §3).
+*Nov 22, 2026:* the six built-ins live in **`shared/pollen-presets.js`** (`Organica.pollenPresets.BUILTIN`, unchanged); TuneSutra's Shadow (and every tool's shade editor that loads that file) lists the built-ins and the saved presets in its **Pollen** category, after Dot · Stroke · Cross-hatch (one category — Diego, Nov 23) and copies a preset's marks — not its colours — into a palette's shadow (docs/TUNESUTRA.md §3).
 A saved snapshot of *the whole look* — including symbol(s), sizing, colour mode,
 RMX palette + mapping, RMX shapes, and placement.
 - **Select / Save / Delete** — built-ins + user presets (browser `localStorage`).

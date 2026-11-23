@@ -31,8 +31,8 @@
  * bar adds one there (up to 8), Delete removes it (not the colour's own), a click or Enter opens its colour (a
  * stop may be transparent). Reverse keeps the colour on its stop; Space evenly spreads them. Its style: shade-editor.css.
  *
- * Pollen's presets (Nov 22, 2026): with shared/pollen-presets.js loaded the Shading menu lists them (Pollen · Built-in,
- * Pollen · Saved) and a pick copies the preset's marks into the shadow — see POLLEN below.
+ * Pollen's presets (Nov 22, 2026): with shared/pollen-presets.js loaded the Shading menu lists them in the Pollen
+ * category, after Dot · Stroke · Cross-hatch (the built-ins, then the saved ones) and a pick copies the preset's marks into the shadow — see POLLEN below.
  *
  * LOAD ORDER: core.js → color.js → noise.js → shade-marks.js → shading.js → select-picker.js → [store.js → pollen-presets.js] → this (+ shade-editor.css).
  * ───────────────────────────────────────────────────────────────────────────── */
@@ -59,12 +59,11 @@
     wash: 'Soft clouds blending through the stops', 'wash-posterize': 'Clouds in flat zones, one per stop',
     'wash-random': 'Specks of the stops, scattered', 'wash-tonernd': 'The clouds in specks of the nearby stops',
   };
-  // Pollen's presets as Shadings (Nov 22, 2026 — Diego: "importare i presets di Pollen … nei setting di Shadow"): two more
-  // groups after Pollen's own textures, Pollen's own words (Built-in / Saved); picking one COPIES the preset's marks into
+  // Pollen's presets as Shadings (Nov 22, 2026 — Diego: "importare i presets di Pollen … nei setting di Shadow"): listed in
+  // the Pollen category after its own textures (Diego, Nov 23: one category, not Pollen · Built-in) — built-ins, then saved; picking one COPIES the preset's marks into
   // the shadow (Organica.pollenPresets.toMarks; the inks stay the palette's). A value is 'pollen-p:' + the preset's id
   // ('b:<key>' built-in, 'u:<name>' saved). A copy whose preset is gone shows under the name it was copied with.
   const POLLEN = 'pollen-p:';
-  const POLLEN_GROUPS = { b: 'Pollen · Built-in', u: 'Pollen · Saved' };
   // the built-ins' labels in sentence case (UI-COPY rule 3); their keys stay Pollen's (saved work names them)
   const POLLEN_LABEL = { 'Fine Dots': 'Fine dots', 'Lines Flow': 'Lines flow', 'Hatch Flow': 'Hatch flow', 'Hatch Swirl': 'Hatch swirl' };
   const POLLEN_HINT = {
@@ -256,23 +255,20 @@
         shadingReg[o.value] = { name: o.textContent, thumb: () => shadingThumb(o.value), rowHtml: esc(o.textContent) + (hint ? ` <span class="pi-hint">${esc(hint)}</span>` : '') };
       });
     }
-    // Pollen's presets after Pollen's own textures: Built-in, then Saved (the group left out while empty); a copy whose
-    // preset is not listed (deleted, renamed, not synced here) is one hidden option — the trigger names it, the menu not
+    // Pollen's presets inside the Pollen category, after its own textures (Dot · Stroke · Cross-hatch): the built-ins,
+    // then the saved ones; a copy whose preset is not listed (deleted, renamed, not synced here) is one hidden option —
+    // the trigger names it, the menu not
     let pollenSig = '';
     const pollenNow = () => (PP() ? JSON.stringify(PP().list().map(p => [p.id, p.preset])) : '');
     function fillPollen() {
       pollenSig = pollenNow();
       selShading.querySelectorAll('[data-pollen]').forEach(n => n.remove());
-      const list = PP() ? PP().list() : [], after = [...selShading.querySelectorAll('optgroup')].find(o => o.label === 'Pollen');
-      let at = after ? after.nextSibling : null;
-      ['b', 'u'].forEach(kind => {
-        const items = list.filter(p => p.id.indexOf(kind + ':') === 0);
-        if (!items.length) return;
-        const og = document.createElement('optgroup');
-        og.label = POLLEN_GROUPS[kind]; og.dataset.pollen = '';
-        items.forEach(p => { const o = document.createElement('option'); o.value = POLLEN + p.id; o.textContent = pollenLabel(p); o.dataset.pollenHint = POLLEN_HINT[p.id] || 'Saved in Pollen'; og.appendChild(o); });
-        selShading.insertBefore(og, at);
-      });
+      const list = PP() ? PP().list() : [], og = [...selShading.querySelectorAll('optgroup')].find(o => o.label === 'Pollen');
+      if (og) ['b', 'u'].forEach(kind => list.filter(p => p.id.indexOf(kind + ':') === 0).forEach(p => {
+        const o = document.createElement('option');
+        o.value = POLLEN + p.id; o.textContent = pollenLabel(p); o.dataset.pollen = ''; o.dataset.pollenHint = POLLEN_HINT[p.id] || 'Saved in Pollen';
+        og.appendChild(o);
+      }));
       const g = cur(), m = g && g.specks === 'pollen-preset' && g.marks;
       if (m && pollenValue(g) === POLLEN + 'copy') {
         const o = document.createElement('option');
