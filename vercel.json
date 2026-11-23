@@ -27,6 +27,7 @@
   ],
   "redirects": [
     { "source": "/genesis", "destination": "/fvs/", "permanent": true },
+    { "source": "/genesis/", "destination": "/fvs/", "permanent": true },
     { "source": "/genesis/:path*", "destination": "/fvs/", "permanent": true }
   ],
   "rewrites": [
