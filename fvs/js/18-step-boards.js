@@ -444,7 +444,7 @@ function mountElementBoard() {
   placeAdd();
   // the account's copy (signed in): drawn when it arrives, and again when another device changes it
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  ELEMENTS.pull().then(() => { const l = readElements(); if (l.items.length && !same(l.items, state.elements.map(e => ({ ...e })))) load(l); else save(); }).catch(() => {});
+  rt.boardPulls.push(ELEMENTS.pull().then(() => { const l = readElements(); if (l.items.length && !same(l.items, state.elements.map(e => ({ ...e })))) load(l); else save(); }).catch(() => {}));
   ELEMENTS.onSync(() => {
     const l = readElements();
     if (!l.items.length || same(l.items, state.elements)) return;
@@ -1333,10 +1333,10 @@ function mountSymbolBoard() {
   const announceBirth = d => { if (Organica.notice) Organica.notice(`${d.name} is a Symbol now — it gets its own Figure`); };
   // the account's copy: taken while the Symbols here are still the ones the page opened with
   const opened = JSON.stringify(first.items), openedHere = JSON.stringify(state.symbols);
-  WORK.pull().then(() => {
+  rt.boardPulls.push(WORK.pull().then(() => {
     const l = readSymbols();
     if (l.items.length && JSON.stringify(l.items) !== opened && JSON.stringify(state.symbols) === openedHere) load({ ...l, apply: true });
-  }).catch(() => {});
+  }).catch(() => {}));
   // Delete on a selected Symbol sheet removes it — the one being edited too: editing moves to the nearest first. The last
   // one stays. Selected cells win: Delete empties them (12-shell.js).
   document.addEventListener('keydown', ev => {

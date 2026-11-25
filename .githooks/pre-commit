@@ -35,6 +35,7 @@ echo "$staged" | grep -qE '^(fvs/js/17-|fvs/js/engine/(08|1[67])-|scripts/test-f
 echo "$staged" | grep -qE '^(fvs/js/(12|17|18)-|fvs/js/engine/1[67]-|scripts/test-fvs-symbol-from-variation)' && add symbol-from-variation
 echo "$staged" | grep -qE '^(fvs/js/(15|17)-|fvs/js/engine/1[57]-|scripts/test-fvs-compose-set)' && add compose-set
 echo "$staged" | grep -qE '^(fvs/js/07-library|scripts/test-fvs-layer-duplicate)' && add layer-duplicate
+echo "$staged" | grep -qE '^(fvs/js/(15-export-library-view|99-boot|18-step-boards)|scripts/test-fvs-open-url)' && add open-url
 echo "$staged" | grep -qE '^(fvs/js/engine/01-geometry|shared/shapes\.js|scripts/test-fvs-segment)' && add segment
 echo "$staged" | grep -qE '^(fvs/js/engine/(03-symmetry|11-zones)|scripts/test-fvs-symmetry)' && add symmetry
 echo "$staged" | grep -qE '^(fvs/js/engine/(10-suggest|11-zones)|scripts/test-fvs-continuity)' && add continuity

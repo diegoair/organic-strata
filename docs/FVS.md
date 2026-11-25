@@ -1428,6 +1428,17 @@ closes it. While it is open the rail is hidden. The rail stays for dragging
 onto Symbol cells. Code: `renderLibview`, `libviewTile`, `openLibview` / `closeLibview`,
 `libviewDownload`, `deleteSaved`.
 
+**Open by URL** (Nov 25, 2026 — home-hero backlog 1.3): `/fvs/?element=<name>`, `?component=<name>` and `?symbol=<name>`
+open that saved piece of the signed-in account's library on its step, exactly as a click on its Library tile does
+(`libviewOpenItem`); `?step=element|component|symbol|figure` opens a step. It runs once every library pull and both step
+boards' pulls have settled (`rt.boardPulls`, `99-boot.js`), so a late account sync cannot draw over what the link opened;
+the parameters are then taken off the address (`history.replaceState`), so a reload does not reopen the piece over the
+work since. A name not in the library opens the piece's step and says why (the link may be from another account, or the
+piece was renamed — links are keyed by name); an empty name just opens the step; a pull that failed says the library could
+not be reached. The Library view's **Copy link** (`link` icon, Elements · Components · Symbols) copies `pieceUrl(kind, name)`
+(absolute, `encodeURIComponent`) and says *Link copied* on the view's status line. Code: `openFromUrl`, `pieceUrl`,
+`URL_KINDS` (`15-export-library-view.js`). Test: `scripts/test-fvs-open-url.sh` (`--only open-url`). Words provisional (O-105).
+
 - **Nothing to show** — on the Element step with nothing saved the toggle is disabled (`aria-disabled`,
   still focusable) and says why: *Library rail — save an Element, a Component or a Symbol first* (`railBlock`,
   Oct 6, 2026). On the Component and Symbol steps it always opens (Save all · Save Symbol live there).

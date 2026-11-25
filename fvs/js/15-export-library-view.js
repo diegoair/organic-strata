@@ -792,6 +792,7 @@ export function libviewTile(kind, item) {
   const fmt = f => { const x = document.createElement('button'); x.type = 'button'; x.className = 'mini-btn'; x.dataset.lvAct = f; x.textContent = f.toUpperCase(); x.setAttribute('aria-label', 'Download ' + item.name + ' as ' + f.toUpperCase()); return x; };
   if (kind !== 'genesis') {
     acts.append(act('pencil', 'rename', 'Rename ' + item.name), act('copy', 'duplicate', 'Duplicate ' + item.name));
+    if (URL_KINDS.includes(kind)) acts.append(act('link', 'link', 'Copy link to ' + item.name));   // Open by URL (Nov 25, 2026)
   }
   // Replace (Oct 26, 2026): a saved Component whose gallery Component now draws differently can take the current version
   if (kind === 'component' && replaceableBy(item.name)) {
@@ -878,6 +879,33 @@ export async function libviewDownload(kind, name, fmt) {
   } catch (e) { ctrl('libview-status').textContent = 'Could not make the PNG'; }
   finally { URL.revokeObjectURL(url); }
 }
+// Open by URL (Nov 25, 2026 — backlog 1.3): /fvs/?element=<name> · ?component=<name> · ?symbol=<name> open that saved piece of
+// this account's library on its step, as a click on its Library tile does; ?step=element|component|symbol|figure opens a step.
+// The parameters are taken off the address once read, so a reload does not reopen the piece over what was done since.
+export const URL_KINDS = ['element', 'component', 'symbol'];
+export function pieceUrl(kind, name) {
+  return location.origin + '/fvs/?' + kind + '=' + encodeURIComponent(name);
+}
+export function openFromUrl(search = location.search, failed = false) {   // failed: a library or board pull did not arrive (offline)
+  const q = new URLSearchParams(search);
+  const kind = URL_KINDS.find(k => q.has(k)), step = q.get('step');
+  if (!kind && !step) return null;
+  const clean = new URL(location.href);
+  [...URL_KINDS, 'step'].forEach(k => clean.searchParams.delete(k));
+  history.replaceState(history.state, '', clean.pathname + clean.search + clean.hash);
+  if (kind) {
+    const name = q.get(kind), lib = kind === 'element' ? ELEMENT_LIB : kind === 'component' ? LIBRARY : SYMBOL_LIBRARY;
+    if (name && lib.read()[name]) { libviewOpenItem(kind, name); return { kind, name }; }
+    setTier(kind);   // no name, or not here: still the piece's step
+    if (!name) return { step: kind };
+    const K = KIND_WORD[kind];
+    if (Organica.notice) Organica.notice(failed ? 'Could not reach your library — check the connection, then open the link again'
+      : `No ${K} called “${name}” in your library — the link may be from another account, or the ${K} was renamed`);
+    return { kind, name, missing: true };
+  }
+  if (['element', 'component', 'symbol', 'figure'].includes(step)) { setTier(step); return { step }; }
+  return null;
+}
 export function libviewOpenItem(kind, name) {
   if (kind === 'genesis') {
     const f = genesisTileForms().find(x => x.id === name);
@@ -905,6 +933,11 @@ ctrl('fvs-libview').addEventListener('click', async e => {
   if (!act) { if (e.target.closest('.fvs-libview__thumb')) libviewOpenItem(kind, name); return; }
   const verb = act.dataset.lvAct, status = ctrl('libview-status');
   if (verb === 'svg' || verb === 'png') { libviewDownload(kind, name, verb); return; }
+  if (verb === 'link') {
+    const done = ok => { status.textContent = ok ? 'Link copied' : 'Could not copy the link'; };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(pieceUrl(kind, name)).then(() => done(true), () => done(false)); else done(false);
+    return;
+  }
   if (verb === 'rename') { await railRename(kind, name); renderLibview(); status.textContent = KIND_WORD[kind] + ' renamed'; return; }
   if (verb === 'replace') { replaceSavedComponent(name).then(done => { if (done) renderLibview(); }); return; }   // replaceSavedComponent says so (one notice)
   if (verb === 'duplicate') { if (duplicateSaved(kind, name)) { renderLibview(); status.textContent = KIND_WORD[kind] + ' duplicated'; } return; }

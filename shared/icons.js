@@ -66,6 +66,7 @@
     'eyedropper':    '<path d="M8.5 4l3.5 3.5"/><path d="M10.2 5.8l2.1-2.1a1.4 1.4 0 0 0-2-2L8.2 3.8"/><path d="M9.5 5 3.8 10.7l-.8 2.3 2.3-.8L11 6.5"/>',   // Pick from screen — the colour picker (EyeDropper API, Nov 17, 2026)
     'bookmark':      '<path d="M4.5 2.5h7v11L8 10.5l-3.5 3z"/>',   // save a selection — kept with the Symbol; not download (= Export), not pin, not library
     'copy':          '<rect x="5.5" y="5.5" width="8" height="8" rx="1"/><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2"/>',
+    'link':          '<path d="M7 9a2.5 2.5 0 0 0 3.5 0l2.5-2.5a2.5 2.5 0 0 0-3.5-3.5l-.7.7"/><path d="M9 7a2.5 2.5 0 0 0-3.5 0L3 9.5a2.5 2.5 0 0 0 3.5 3.5l.7-.7"/>',   // copy a link to this piece (FVS Library, Nov 25, 2026) — not copy (= Duplicate)
     'eye':           EYE + '<circle cx="8" cy="8" r="2"/>',
     'eye-off':       EYE + '<path d="M2.5 13.5l11-11"/>',
     'grip':          '<circle cx="6" cy="4" r="1.2"' + F + '/><circle cx="10" cy="4" r="1.2"' + F + '/><circle cx="6" cy="8" r="1.2"' + F + '/><circle cx="10" cy="8" r="1.2"' + F + '/><circle cx="6" cy="12" r="1.2"' + F + '/><circle cx="10" cy="12" r="1.2"' + F + '/>',
