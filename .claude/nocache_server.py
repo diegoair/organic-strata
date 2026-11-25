@@ -33,8 +33,11 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
             return
         super().send_error(code, message, explain)
 
-class ReusableServer(socketserver.TCPServer):
+# Threaded (Nov 25, 2026): one request at a time hung the whole server when a page asked for many large videos
+# and one transfer stalled — every tab on the port stopped loading.
+class ReusableServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
+    daemon_threads = True
 
 with ReusableServer(("", port), NoCacheHandler) as httpd:
     httpd.serve_forever()
