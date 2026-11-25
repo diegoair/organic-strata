@@ -411,7 +411,7 @@ export function buildSymbolItems() {
       // from the entry's own shading, else the live Palette's for the entry's inks
       if (!cell.colourway) registerEntryShades(own.colors, entry.inkShades);
       else registerEntryShades(own.colors, shadesFollow(entry.colors || state.colors, entry.inkShades || state.inkShades, own.colors));
-      let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(own));
+      let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(own, own !== entry ? entry.colors : null));
       if (reg) nestedItems = modulesToBlockCells(nestedItems, nestedW, nestedH, reg, cell);
       // A cell-shape Component set to Match cell sits on the Symbol's shared small-cell lattice (alignedPlacements).
       const al = AL.get(i);

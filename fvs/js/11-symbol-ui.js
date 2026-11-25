@@ -491,7 +491,9 @@ export function applyToSelection(patch) {
 // text readout plus the Choose… button that reopens the overlay.
 // Component Edit's variant (Oct 14, 2026 — Diego): the cell's shape (Edit shape… / Default), Rotation a slider (the
 // Element's −180…180), Flip two toggles, Scale (always — it scales a Fixed size too), Size (Fixed size), Cover axis (Cover),
-// Padding, Lock. No Selected / Content / Colour rows; Fit is the floatbar's. The rows it shares keep their ids, so
+// Padding, Lock. No Selected / Content rows; Fit is the floatbar's. Colour (Nov 23, 2026 — Diego: a cell its own ink, as
+// in Symbol; Delete empties a cell): the Symbol's own rows, after Size — the cell's ink wins over Colour by, and a saved
+// Component keeps it inside a Symbol (engine/00-core.js entryItemInk). The rows it shares keep their ids, so
 // syncCellProps / bindCellProps drive them (a row it leaves out reads / writes a stand-in).
 // … after Size: Move X / Y and Bring forward · Send backward (Oct 26, 2026 — plan Phase 3, design-system CONSULT): the picked
 // cells moved by a % of their cell, and their order where cells overlap — a cell's own order always wins over Tile › On top.
@@ -520,6 +522,15 @@ function componentCellPropsHTML(I) {
             <div class="ctrl-label">Size</div>
             <input type="range" id="${I('rg-cellprop-fixedsize')}" min="5" max="300" step="1" value="100">
             <span class="ctrl-val" id="${I('v-cellprop-fixedsize')}">100</span>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-color')}">
+            <div class="ctrl-label">Colour</div>
+            <select class="panel-select" id="${I('sel-cellprop-color')}" aria-label="Cell colour"></select>
+            <input type="color" id="${I('in-cellprop-color')}" aria-label="Custom cell colour" hidden>
+          </div>
+          <div class="ctrl-row" id="${I('row-cellprop-color-override')}" hidden>
+            <span class="ctrl-val" style="color:var(--tool);text-align:left;flex:1">● Overrides the palette</span>
+            <button class="mini-btn" id="${I('btn-cellprop-color-reset')}">Reset</button>
           </div>
           <div class="ctrl-row" id="${I('row-cellprop-move-x')}"><div class="ctrl-label" title="% of a cell width">Move X</div>
             <input type="range" id="${I('rg-cellprop-move-x')}" min="-100" max="100" step="1" value="0" aria-label="Move X">

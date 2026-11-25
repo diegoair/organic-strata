@@ -784,8 +784,13 @@ cells are made by hand the Symbol way:
   Component's own Element) · **Rotation** (a slider, −180…180°, as the Element's) · **Flip** (two toggles: horizontal,
   vertical) · **Scale** (always — it scales a Fixed size too) · **Size** (Fixed size) · **Cover axis** (Cover) ·
   **Padding %** (Horizontal · Vertical or per side → `cell.pad`) · **Lock cell (edits skip it)** → `cell.locked`.
-  Fit is the floatbar's only; no Selected / Content / Colour rows (`cellPropsHTML('ce-', { component: true })` →
-  `componentCellPropsHTML`, 11-symbol-ui.js). `cell.color` stays drawn when a Component carries it.
+  **Colour** (Nov 23, 2026 — the Symbol's rows: *Follow palette* · *Ink n* · *Custom…*, then *● Overrides the palette* ·
+  Reset → `cell.color`; the cell's ink wins over Colour by). **Delete** empties the picked cells (`cell.empty`).
+  Fit is the floatbar's only; no Selected / Content rows (`cellPropsHTML('ce-', { component: true })` →
+  `componentCellPropsHTML`, 11-symbol-ui.js). A saved Component keeps its cells' own inks wherever it is drawn from the
+  library — in a Symbol cell, in thumbnails, in Suggest (`entryItemInk`, engine/00-core.js; before Nov 23 the rule's ink
+  replaced them); a recoloured copy (a colourway) moves an own ink that is one of the palette's inks by place, a free
+  colour stays.
 - **Floatbar in Edit**: Show grid · **Clip to cell** (Symbol's toggle — the panel's switch) · **Show guides** · Fit
   (Contain · Stretch · Cover · Fixed size) · Anchor · Undo.
 - **Fit / Anchor** on the floatbar (Symbol's group: Contain · Stretch · Cover · Fixed size + the 9-point

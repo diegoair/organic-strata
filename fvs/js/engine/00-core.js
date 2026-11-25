@@ -146,11 +146,23 @@ export function entryInkAt(entry) {
 }
 // A saved entry's items: each cell's ink from the entry's own palette + rule, and — when its parts step through
 // the inks (colorRule.parts 'step') — the slot they step from, also the entry's own (not the live palette's).
-export function entryItemInk(entry) {
+// A cell's own ink (Component Edit › Colour, cell.color) wins over the rule, as it does on the live Component (Nov 23,
+// 2026 — it was dropped here, so a saved Component in a Symbol or a thumbnail lost it). `from`: the palette the entry
+// was saved with, when `entry` is a recoloured copy (a colourway) — an own ink that is one of those palette inks follows
+// the recolour by place; a free colour stays as it is.
+export function entryItemInk(entry, from) {
   const at = entryInkAt(entry), rule = entry.colorRule, step = !!(rule && rule.parts === 'step');
   const cr = step ? colorRuleCR(entry.grid, rule) : null;
+  const hk = c => { c = String(c == null ? '' : c).trim().toLowerCase(); return /^#[0-9a-f]{3}$/.test(c) ? '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3] : c; };   // = hexKey (07-library, a later file)
+  const cells = (entry.component && entry.component.cells) || [], src = (from || entry.colors || []).map(hk), to = entry.colors || [];
+  const ownInk = j => {
+    const c = cells[j] && cells[j].color;
+    if (!c) return null;
+    const k = src.indexOf(hk(c));
+    return k >= 0 && to[k] ? to[k] : c;
+  };
   return (it, j) => {
-    const o = { ...it, color: at(j) };
+    const o = { ...it, color: ownInk(j) || at(j) };
     if (step) o.inkSlot = paletteSlot(entry.colors, rule, j, cr); else delete o.inkSlot;
     return o;
   };
