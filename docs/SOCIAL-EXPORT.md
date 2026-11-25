@@ -1,6 +1,6 @@
 # Social export — plan (backlog 1.1, Nov 25, 2026)
 
-*Status: **P1 and P2 built Nov 25, 2026** (`shared/mp4.js`, `shared/social-export.js`, `scripts/test-social-export.sh` — 17 checks; Pulsar › Export › Social, `scripts/test-pulsar-social.sh` — 12); P3–P5 not started. O-106 answered Nov 25 as recommended (ledger §2). Source: `explorations/home-mockups/NOTES.md`
+*Status: **P1–P3 built Nov 25, 2026** (`shared/mp4.js`, `shared/social-export.js`, `scripts/test-social-export.sh` — 17 checks; Pulsar › Export › Social, `scripts/test-pulsar-social.sh` — 14; the hero loops: `shared/hero-social.js` + the hub's Social, `scripts/test-hero-social.sh` — 14, `scripts/test-hub-social.sh` — 12); P4–P5 not started. O-106 answered Nov 25 as recommended (ledger §2). Source: `explorations/home-mockups/NOTES.md`
 § "Backlog with cost-benefit", item 1.1 (L · ★★★).*
 
 ## 1. Goal
@@ -119,6 +119,34 @@ to the format is backlog 2.9; P4 uses the layout chosen in O-106 b.
   video in about 0.6 s.
 - Test `scripts/test-pulsar-social.sh` (12 checks: counts, hint, remembered ticks, the ZIP's files, the video's length and
   size, `#preview` untouched, Cancel).
+
+## 6c. P3 as built — the home-hero loops on the hub (Nov 25, 2026)
+
+- **Where** (Diego, Nov 25: *Social button on /hub/*): a **Social** section on the owner's `/hub/`, between the hero and
+  Specimens (design-system CONSULT: a section, not chrome over the loop). **Loop** picker (the eight, the one on screen
+  first), the four size checks, *Stills · PNG + SVG* / *Video · MP4, one loop*, **Export ‹n› files** (a still counts two
+  files) ↔ **Cancel**, a hint, a 2px progress bar on the section's foot; status through `Organica.notice` (a page has no
+  status pill). The loop on screen pauses while it runs. Ticks in `organica.hub.social`. Words: ledger O-107 / O-108.
+- **`shared/hero-social.js`** (`Organica.heroSocial.source(key)`): the loop mounted off screen through `Organica.hero.mount`
+  with its `key` (no rotation stored; `Organica.hero.current` given back after), paused, at each size — **a fresh mount for
+  every layout** (`go(0)` from wherever a loop was left is not the same frame). The **cycle is observed, not summed**: each
+  slide drops the part of a step that runs past its end, so a real cycle is a few steps longer than its slides' ms; the
+  pre-roll runs from `go(0)` to the wrap back to slide 1 (the hero's `onProgress` falls to 0), then counts the steps of one
+  full cycle — that count is the reel's frame count, so frame *n* would be frame 0. `svg()` is the loop's own SVG at the
+  size (each loop lays itself out for the format, so no `fitSVG`). `hero.js` itself is untouched.
+- **Seamless — two of eight.** Bands (A) and Stacks (H) come back exactly (the next cycle's first frame = frame 0, mean
+  difference ≤ 0.1/255; a Stacks reel's last frame runs into its first at 1.0/255). The other six carry state across cycles
+  (drifting bands, morphs, the score's camera) that `go(0)` does not reset: their reel's wrap jumps (mean 38–175/255 —
+  as much as a slide change). The live hero never wraps, so it never shows. A fix belongs in the loop engines (backlog 2.2,
+  *seamless by construction*), not here.
+- **Overprint (G) and the model swap**: exporting G loads its model for each size into a slot the loop on screen shares,
+  and that copy rebuilds from the slot on a resize that keeps its model name (`hero.js` reloads only when the name
+  changes). So `close()` puts back the model for the page's own aspect (`source(key, { aspect })` — the hub passes its
+  hero's), when the loop on screen is the exported one. Found in the design-system REVIEW.
+- **Fonts**: the loops' word slides are HTML overlays, not in the SVG, so they never reach the files.
+- **Measured** headless (Chromium, 1080×1350): stills 70–680 ms a loop (C · The score's haze filter is the slow one); a
+  40 s reel of Weave at 1080×1920 in about 11 s, 2.6 MB.
+- `explorations/home-mockups/ig-export.html` stays local; the module now covers what it did.
 
 ## 7. Gates
 

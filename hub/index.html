@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/shared/icons.css">
   <link rel="stylesheet" href="/shared/header.css">
   <link rel="stylesheet" href="/shared/page.css">
+  <link rel="stylesheet" href="/shared/panel.css"><!-- the Social block: .check-row, .org-progress (Nov 25, 2026); ?tune's panel too -->
   <link rel="stylesheet" href="/shared/mobile-gate.css">
   <style>
     /* ═══════════════════════════════════════════════════════════
@@ -93,6 +94,10 @@
 
     /* ── 2. gallery ──────────────────────────────────────────── */
     .hub-section { padding: var(--space-8); }
+    /* Social (Nov 25, 2026 — docs/SOCIAL-EXPORT.md P3): export a loop for posting */
+    #social { position: relative; }   /* holds the stage-style progress bar (.org-progress, bottom edge) */
+    .hub-social__body { display: grid; gap: var(--space-3); max-width: var(--measure); padding-top: var(--space-5); }
+    .hub-social__row { display: flex; gap: var(--space-2); align-items: center; }
     .hub-section__head {
       display: flex; justify-content: space-between; align-items: baseline;
       gap: var(--space-7); flex-wrap: wrap;
@@ -317,6 +322,30 @@
     </div>
   </section>
 
+  <!-- ── Social: a loop exported for posting (Nov 25, 2026 — docs/SOCIAL-EXPORT.md P3, design-system CONSULT) ── -->
+  <section class="hub-section" id="social" aria-labelledby="hub-social-title">
+    <div class="hub-section__head">
+      <h2 class="hub-section__title" id="hub-social-title">Social</h2>
+      <p class="hub-overline">Export a loop for posting</p>
+    </div>
+    <div class="hub-social__body">
+      <div class="hub-social__row"><label class="org-popover__label" for="soc-loop">Loop</label><select class="org-field" id="soc-loop"></select></div>
+      <div>
+        <label class="check-row"><input type="checkbox" id="sz-4x5" checked><span>Portrait 4:5 · 1080×1350</span></label>
+        <label class="check-row"><input type="checkbox" id="sz-9x16" checked><span>Vertical 9:16 · 1080×1920</span></label>
+        <label class="check-row"><input type="checkbox" id="sz-1x1" checked><span>Square 1:1 · 1080×1080</span></label>
+        <label class="check-row"><input type="checkbox" id="sz-16x9" checked><span>Landscape 16:9 · 1920×1080</span></label>
+      </div>
+      <div>
+        <label class="check-row"><input type="checkbox" id="soc-stills" checked><span>Stills · PNG + SVG</span></label>
+        <label class="check-row"><input type="checkbox" id="soc-video" checked><span>Video · MP4, one loop</span></label>
+      </div>
+      <div><button type="button" class="org-btn org-btn--primary" id="btn-social">Export 12 files</button></div>
+      <p class="org-popover__hint" id="social-hint"></p>
+    </div>
+    <div id="social-progress" class="org-progress" hidden></div>
+  </section>
+
   <!-- ── 2. gallery ── -->
   <section class="hub-section" id="work" aria-labelledby="hub-work-title">
     <div class="hub-section__head">
@@ -419,6 +448,10 @@
 <script src="/shared/icons.js"></script>
   <script src="/shared/noise.js"></script>
   <script src="/shared/hero.js"></script>
+  <script src="/shared/zip.js"></script>
+  <script src="/shared/mp4.js"></script>
+  <script src="/shared/social-export.js"></script>
+  <script src="/shared/hero-social.js"></script>
   <script src="/shared/supabase.js"></script>
   <script src="/shared/auth.js"></script>
   <script src="/shared/auth-badge.js"></script>
@@ -571,9 +604,7 @@
 
       // ── ?tune — author-only tuning panel. Never shown to visitors. ──
       if (!/[?&]tune\b/.test(location.search)) return;
-      var link = document.createElement('link');
-      link.rel = 'stylesheet'; link.href = '/shared/panel.css';
-      document.head.appendChild(link);
+      // panel.css is linked in <head> since Nov 25, 2026 (the Social block)
       var box = document.createElement('aside');
       box.className = 'org-panel hub-tune';
       box.setAttribute('aria-label', 'Hero tuning');
@@ -897,6 +928,82 @@
   <!-- Vercel Web Analytics — plain-HTML form (see /archive/hub-bento/ for the full note) -->
   <script>
     window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  </script>
+  <script>
+  // ═════════ Social — a loop exported for posting (Nov 25, 2026 — docs/SOCIAL-EXPORT.md P3) ═════════
+  // Pulsar's Export › Social (pulsar/index.html), on a page: the eight loops through Organica.heroSocial.source(key) →
+  // Organica.socialExport.bundle → one ZIP. Words provisional (ledger O-107, O-108). The loop on screen pauses while it runs.
+  (function social() {
+    'use strict';
+    var $ = function (id) { return document.getElementById(id); };
+    var SIZES = { '4x5': 'Portrait 4:5', '9x16': 'Vertical 9:16', '1x1': 'Square 1:1', '16x9': 'Landscape 16:9' };
+    var KEY = 'organica.hub.social', IDS = Object.keys(SIZES).map(function (k) { return 'sz-' + k; }).concat(['soc-stills', 'soc-video']);
+    var job = null, canReel = null, sel = $('soc-loop');
+    Object.keys(Organica.hero.LOOPS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = Organica.hero.LOOPS[k].name; sel.appendChild(o); });
+    sel.value = (Organica.hero.current && Organica.hero.current.key) || 'a';
+    var picked = function () { return Object.keys(SIZES).filter(function (k) { return $('sz-' + k).checked; }); };
+    function cycleSec() {   // the slides' sum: the observed cycle is a few steps longer
+      var L = Organica.hero.LOOPS[sel.value], H = Organica;
+      var ms = L.kind ? (H.heroSheets && H.heroSheets.KINDS[L.kind].slides.reduce(function (a, s) { return a + s.ms; }, 0)) : (H.heroLoop && H.heroLoop.SLIDES.reduce(function (a, s) { return a + s.dur; }, 0));
+      return ms ? Math.round(ms / 1000) : 0;
+    }
+    function sync() {
+      if (job) return;
+      var sizes = picked().length, stills = $('soc-stills').checked, video = $('soc-video').checked;
+      var n = sizes * ((stills ? 2 : 0) + (video ? 1 : 0)), btn = $('btn-social'), sec = cycleSec();
+      btn.disabled = !n;
+      btn.textContent = !n ? 'Export' : n === 1 ? 'Export 1 file' : 'Export ' + n + ' files';
+      var none = canReel && !Object.keys(canReel).some(function (k) { return canReel[k]; });
+      $('social-hint').textContent = !n ? 'Tick at least one size and one kind of file.'
+        : 'One ZIP. Each size is laid out for its shape; the video is one loop' + (sec ? ' (' + sec + ' s)' : '') + '.'
+          + (none && video ? ' This browser can’t encode MP4 — the ZIP will have stills only.' : '');
+    }
+    function lock(on) { [sel].concat(IDS.map($)).forEach(function (el) { el.disabled = on; }); }
+    async function run() {
+      if (job) { job.abort(); return; }
+      var formats = picked(), stills = $('soc-stills').checked, reels = $('soc-video').checked;
+      if (!formats.length || !(stills || reels)) return;
+      var bar = $('social-progress'), btn = $('btn-social'), busy = null;
+      var shown = Organica.hero.current && Organica.hero.current.loop && Organica.hero.current.loop();
+      job = new AbortController(); btn.textContent = 'Cancel'; lock(true);
+      bar.style.setProperty('--p', 0); Organica.display(bar, '');
+      if (shown) shown.pause(true);   // one loop drawing at a time: the export is faster and the page does not stutter
+      var word = function (label) { var p = String(label).split(' '); return (SIZES[p[0]] || p[0]) + ' ' + (p[1] === 'reel' ? 'video' : 'still'); };
+      // the hero's own aspect: an Overprint export puts the model for it back in the shared slot when it closes
+      var heroHost = $('hub-hero');
+      var src = Organica.heroSocial.source(sel.value, { aspect: function () { return heroHost ? heroHost.clientWidth / Math.max(1, heroHost.clientHeight) : 1.6; } });
+      try {
+        var res = await Organica.socialExport.bundle(src, { formats: formats, stills: stills, reels: reels, signal: job.signal,
+          onProgress: function (done, total, label) {
+            bar.style.setProperty('--p', total ? done / total : 0);
+            if (label === 'done') return;
+            if (busy) busy.close();
+            busy = Organica.notice('Exporting ' + word(label) + ' · ' + (done + 1) + ' of ' + total + '…', { kind: 'busy' });
+          } });
+        if (busy) { busy.close(); busy = null; }
+        Organica.download(res.blob, Organica.stamp(src.name, 'zip'));
+        Organica.notice(res.files.length + ' files · ZIP saved');
+        if (res.skipped.length) Organica.notice('This browser can’t encode MP4 at ' + res.skipped.map(function (x) { return SIZES[x.key]; }).join(', ') + ' — the ZIP has their stills only.');
+      } catch (e) {
+        if (busy) { busy.close(); busy = null; }
+        if (!(e && e.name === 'AbortError')) Organica.notice('Social export failed — ' + (e && e.message || e), { kind: 'error' });
+      } finally {
+        job = null; Organica.display(bar, 'none'); lock(false);
+        if (shown) shown.pause(false);
+        sync();
+      }
+    }
+    var saved = null; try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+    if (saved) IDS.forEach(function (id) { if (typeof saved[id] === 'boolean') $(id).checked = saved[id]; });
+    $('social').addEventListener('change', function (e) {
+      if (e.target.closest('.check-row')) { var o = {}; IDS.forEach(function (id) { o[id] = $(id).checked; }); try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (err) {} }
+      sync();
+    });
+    $('btn-social').addEventListener('click', run);
+    Organica.socialExport.support().then(function (r) { canReel = r.reel; sync(); });
+    sync();
+    window.__hubSocial = { run: run, sync: sync };   // the headless test's handle
+  })();
   </script>
   <script defer src="/_vercel/insights/script.js"></script>
 </body>

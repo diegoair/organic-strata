@@ -190,6 +190,7 @@ def added_lines(ref):
     # would count as added. Only the lines the old file did not have are new.
     for new, old in MOVED.items():
         if new not in out or not os.path.exists(new): continue
+        if subprocess.run(['git', 'cat-file', '-e', f'{ref}:{new}'], capture_output=True).returncode == 0: continue   # the ref has it already: an ordinary diff (Nov 25, 2026)
         was = set(l.strip() for l in sh('git', 'show', f'{ref}:{old}').split('\n'))
         if len(was) < 2: continue                      # the ref has no such file: nothing to compare with
         out[new] = {i for i, l in enumerate(open(new, encoding='utf-8').read().split('\n'), 1) if l.strip() not in was}

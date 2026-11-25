@@ -131,6 +131,7 @@ organica.<tool>.<thing>
 | `organica.tunesutra.make` | TuneSutra — Make › From a colour's settings (Nov 19, 2026) | `{ key, n, by, fam, hue, tone, purity, neutral, seed, img: { n, pick } }` (`img` = Make › From an image: `pick` `'area'` · `'spread'`; the image itself is never stored), each value checked on read (an unknown one falls back to its default). Per browser, not synced |
 | `organica.mote.camera` | Mote — the camera picker (`mote/index.html` `CAM_KEY`, Oct 25, 2026) | the `deviceId` of the camera picked last; the next start asks for it (`deviceId: { exact }`) and falls back to the default camera when it is gone. Device ids are this browser's own: plain `localStorage`, not synced |
 | `organica.pulsar.social` | Pulsar — Export › Social (`pulsar/index.html` `SOCIAL_KEY`, Nov 25, 2026) | `{ 'sz-4x5': bool, … , 'soc-stills': bool, 'soc-video': bool }` — the sizes and kinds ticked last; a preference of this browser, plain `localStorage`, not synced |
+| `organica.hub.social` | The hub — Social (`hub/index.html`, Nov 25, 2026) | the same shape as `organica.pulsar.social`: the sizes and kinds ticked last (not the loop); this browser only, not synced |
 
 ### Legacy keys and migration
 

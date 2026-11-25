@@ -13,7 +13,9 @@
  *   cycleMs     one full cycle; 0 / absent = a still-only source
  *   fps         the source's own clock (default 30)
  *   stillMs     where a still is taken (default 0)
- *   layout(W, H)   lay the piece out for this format (optional)
+ *   layout(W, H)   lay the piece out for this format (optional; may return a Promise — it is awaited, and
+ *                  cycleMs is read after it, so a source that loads its piece can set it there)
+ *   close()        free what layout() made (optional; bundle calls it when it ends)
  *   seek(ms)       put the piece at ms from the cycle start — deterministic:
  *                  seek(0) and seek(cycleMs) must draw the same frame
  *   svg()          the current frame as a standalone SVG string   ┐ one of the
@@ -94,7 +96,7 @@
 
   async function still(source, key) {
     const [W, H] = sizeOf(key);
-    if (source.layout) source.layout(W, H);
+    if (source.layout) await source.layout(W, H);
     if (source.seek) source.seek(source.stillMs || 0);
     const png = await toPNG(await frameCanvas(source, W, H));
     return source.svg ? { png, svg: source.svg() } : { png };
@@ -105,9 +107,10 @@
   async function reel(source, key, o = {}) {
     if (!(source.cycleMs > 0)) throw new Error('socialExport.reel: the source has no cycle');
     if (typeof VideoEncoder === 'undefined') throw new Error('socialExport.reel: this browser has no video encoder');
-    const [W, H] = sizeOf(key), fps = source.fps || 30, n = Math.max(1, Math.round(source.cycleMs / 1000 * fps));
+    const [W, H] = sizeOf(key);
+    if (source.layout) await source.layout(W, H);
+    const fps = source.fps || 30, n = Math.max(1, Math.round(source.cycleMs / 1000 * fps));
     const sampleDuration = Math.round(TIMESCALE / fps), frameUs = 1e6 / fps;
-    if (source.layout) source.layout(W, H);
     const samples = []; let avcC = null, err = null;
     const enc = new VideoEncoder({
       output: (chunk, meta) => {
@@ -145,6 +148,7 @@
       if (wantReels) { if (can.reel[k]) jobs.push({ k, kind: 'reel' }); else skipped.push({ key: k, why: 'no-encoder' }); }   // O-106 d: stills only, the caller says so
     });
     const add = async (name, blob) => { z.add(name, new Uint8Array(await blob.arrayBuffer())); files.push(name); };
+    try {
     for (let j = 0; j < jobs.length; j++) {
       aborted(o.signal);
       const { k, kind } = jobs[j];
@@ -157,6 +161,7 @@
         await add(stem + '-' + k + '.mp4', await reel(source, k, { signal: o.signal }));
       }
     }
+    } finally { if (source.close) source.close(); }
     if (o.onProgress) o.onProgress(jobs.length, jobs.length, 'done');
     return { blob: z.blob(), files, skipped };
   }

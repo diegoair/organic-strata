@@ -759,6 +759,7 @@
       "icons",
       "header",
       "page",
+      "panel",
       "mobile-gate"
      ],
      "modules": false,
