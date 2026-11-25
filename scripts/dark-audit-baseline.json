@@ -1,8 +1,8 @@
 {
  "/": {
   "opted": true,
-  "light": 28,
-  "dark": 28,
+  "light": 0,
+  "dark": 0,
   "islands": 0,
   "button": true,
   "error": null
@@ -225,8 +225,8 @@
  },
  "/admin/": {
   "opted": true,
-  "light": 28,
-  "dark": 28,
+  "light": 0,
+  "dark": 0,
   "islands": 0,
   "button": true,
   "error": null
@@ -248,6 +248,14 @@
   "error": null
  },
  "/terms/": {
+  "opted": true,
+  "light": 0,
+  "dark": 0,
+  "islands": 0,
+  "button": true,
+  "error": null
+ },
+ "/design-system/colour/": {
   "opted": true,
   "light": 0,
   "dark": 0,

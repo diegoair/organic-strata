@@ -8,7 +8,7 @@
  *   <button class="org-account__trigger"><img avatar> <span>name</span></button>
  *   <div class="org-account__menu">  email · Admin (owner only) · Delete my
  *                                    account · Sign out
- * Signed out: Login + Sign Up buttons (.org-header__auth). Re-renders on every auth state change.
+ * Signed out: Sign in + Request access buttons (.org-header__auth). Re-renders on every auth state change.
  * ───────────────────────────────────────────────────────────────────────────*/
 (function (global) {
   'use strict';
@@ -48,7 +48,7 @@
     Organica.auth.user().then(function (u) {
       box.innerHTML = '';
       if (!u) {
-        // Signed out: Login + Sign Up. Sign Up is the same card with request-access copy
+        // Signed out: Sign in + Request access (the words since Nov 24, 2026; were Login / Sign Up). Request access is the same card with request-access copy
         // (sign-ups are invite-only while the beta lasts — see /sign-in?mode=signup).
         box.hidden = false;
         box.className = 'org-header__auth';
@@ -56,11 +56,11 @@
         var login = document.createElement('a');
         login.className = 'org-btn org-btn--ghost';
         login.href = '/sign-in?next=' + next;
-        login.textContent = 'Login';
+        login.textContent = 'Sign in';
         var signup = document.createElement('a');
         signup.className = 'org-btn org-btn--primary';
         signup.href = '/sign-in?next=' + next + '&mode=signup';
-        signup.textContent = 'Sign Up';
+        signup.textContent = 'Request access';
         box.appendChild(login);
         box.appendChild(signup);
         return;
@@ -106,6 +106,11 @@
       menu.appendChild(mEmail);
 
       if (isOwner) {
+        var hub = document.createElement('a');      // the owner's home (the public home until Nov 24, 2026)
+        hub.className = 'org-account__item';
+        hub.href = '/hub/';
+        hub.textContent = 'Hub';
+        menu.appendChild(hub);
         var admin = document.createElement('a');
         admin.className = 'org-account__item';
         admin.href = '/admin';

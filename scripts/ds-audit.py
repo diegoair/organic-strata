@@ -169,6 +169,9 @@ def targets():
     return sorted(pages) + sorted(sheets) + sorted(scripts)
 
 
+MOVED = {'hub/index.html': 'index.html'}   # new path -> where it was at the ref (Nov 24, 2026: the old home became the owner's hub)
+
+
 def added_lines(ref):
     """{path: set(line numbers) | None}  — None = the whole file is new."""
     out = {}
@@ -183,6 +186,13 @@ def added_lines(ref):
             out[cur] |= set(range(start, start + n))
     for f in sh('git', 'ls-files', '--others', '--exclude-standard').split('\n'):
         if f.endswith(('.html', '.css', '.js')): out[f] = None
+    # a page that moved while its old address took a new page: git sees a new file, so every legacy raw value in it
+    # would count as added. Only the lines the old file did not have are new.
+    for new, old in MOVED.items():
+        if new not in out or not os.path.exists(new): continue
+        was = set(l.strip() for l in sh('git', 'show', f'{ref}:{old}').split('\n'))
+        if len(was) < 2: continue                      # the ref has no such file: nothing to compare with
+        out[new] = {i for i, l in enumerate(open(new, encoding='utf-8').read().split('\n'), 1) if l.strip() not in was}
     return out
 
 

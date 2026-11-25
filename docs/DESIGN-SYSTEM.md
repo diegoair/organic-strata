@@ -666,9 +666,18 @@ Typefaces (Sep 29, 2026) — **two families, split by role**:
 - **Drop feedback** — `.drag-over` (`shared/shell.css`), set by `Organica.canvasDropZone` (`shared/canvas.js`): a dashed `var(--ink)` outline, inset. A bare class since Nov 19, 2026 (O-88), so any drop target gets it — the canvas area and TuneSutra's Make › From an image. Colornet keeps its own `--tool` override. It holds steady while the pointer crosses the target's children: `canvasDropZone` counts dragenter / dragleave and clears only at zero, on drop or on `dragend` (Nov 20, 2026). Reference: `/design-system/#canvas-stage`.
 - **Shared behaviours (core.js, self-running):** `Organica.a11y` (ARIA mirrors of class state, keyboard on `[role=button]`), `Organica.modal` (focus management), one-dropdown-at-a-time, `Organica.armed`.
 
-## Favicon
+## Logo mark and favicon
 
-`/favicon.svg` — the header mark (the `--ink` disc), #0a0a0a in light and #ededed in dark (`prefers-color-scheme`); `/favicon.ico` (16/32/48) for browsers that do not read SVG. Every page links both after the viewport meta (`shared/_template.html` too). It follows the header mark: when the real mark replaces the placeholder disc, both files are redrawn from it. (Oct 12, 2026.)
+**The logo mark is the 0rganic4 monogram** (Nov 24, 2026; designed on the *0rganic4 — animated logotype* canvas, page *Monogram 04*). At rest it is the circle the header always had — 24px, `--ink`, so it follows the theme. Hovered (or reached with the keyboard, `:focus-visible`) through its `.org-header__logo` link it plays one loop of about 2.1 s and keeps looping while hovered; on leave it finishes the loop and rests on the circle. The loop is one Element of Overprint, a round-capped stroke (a circle at length 0, a pill when stretched): **1** the circle · **2** shrinks to a smaller red circle and, without stopping, **3** stretches into a teal pill · **4** the pill copies itself, the six copies open about the centre in six riso inks, overprinted, and turn once, fast · **5** they close straight back into the circle.
+
+- **Code:** `shared/monogram.js` (`Organica.monogram.mount(host, opts)` → `{ play, stop, frame, destroy }`; `frameSVG(ms, opts)`), auto-mounted on every `.org-header__mark` of a page that loads it — since Nov 25, 2026 every page with the header (33 pages + `shared/_template.html`, loaded just before `tools.js`) and `/design-system/`. CSS: `shared/header.css` (`.org-header__mark.org-monogram-host`, `.org-monogram`, `.org-monogram__pill`).
+- **Colour:** the rest circle is chrome (`stroke: currentColor` on `color: var(--ink)`). The inks are the mark's artwork, fixed hex in the module (`INKS`: teal `#67c3b7`, red `#e5000d`, yellow `#fff23f`, pink `#ff48b0`, blue `#1a439b`, violet `#8f6aa5`) — not tokens (ledger §3).
+- **Blend, both themes:** the SVG is `isolation: isolate` and the pills `mix-blend-mode: multiply`: they multiply only with each other, never with the header behind, so one rule reads true on light and dark.
+- **Motion:** artwork, like the hero loops — a JS timeline in ms with a sine ease, no `--dur-*` (ledger §3). Never starts under `prefers-reduced-motion`, and snaps to the circle if that is turned on mid-loop.
+- **Accessibility:** the SVG is `aria-hidden`, `focusable="false"`; the link's accessible name stays "Organica". The user starts and stops the motion, and it ends within one loop of leaving (WCAG 2.2.2).
+- Live reference: `/design-system/#logo-mark` (the five steps as still frames, light and dark, and a live mark to hover).
+
+**Favicon.** `/favicon.svg` is step 4, the rosette fully open (`Organica.monogram.frameSVG(1999)`, viewBox trimmed to the mark): six pills overprinted, readable on light and dark tab bars, so it has no `prefers-color-scheme` variant any more. `/favicon.ico` (16/32/48, PNG entries) is the same frame rasterised, for browsers that do not read SVG. Every page links both after the viewport meta (`shared/_template.html` too). It follows the mark: redraw both from `frameSVG` when the monogram changes. (Oct 12, 2026; redrawn Nov 24, 2026 — before, both were the `--ink` disc.)
 
 ## Revision history
 

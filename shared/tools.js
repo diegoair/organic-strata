@@ -11,10 +11,10 @@
 (function (global) {
   var Organica = global.Organica = global.Organica || {};
   Organica.tools = [
-    { group: 'Form & grid',    items: [['Flexible Visual System', '/fvs/'], ['Loom', '/loom/'], ['Trellis', '/trellis/']] },
+    { group: 'Form & grid',    items: [['Organic Visual System', '/fvs/'], ['Loom', '/loom/'], ['Trellis', '/trellis/']] },
     { group: 'From an image',  items: [['Halide', '/halide/'], ['Spore', '/spore/'], ['Pollen', '/pollen/'], ['Mote', '/mote/']] },
     { group: 'Patterns',       items: [['Warping', '/warping/'], ['Camo Turing', '/camo-turing/'], ['Radial', '/radial/'], ['Komorebi', '/komorebi/']] },
-    { group: 'Colour',         items: [['TuneSutra', '/tunesutra/'], ['Colornet', '/colornet/']] },
+    { group: 'Colour',         items: [['Organic Palette', '/tunesutra/'], ['Colornet', '/colornet/']] },
     { group: 'Type & vector',  items: [['Living Path', '/livingpath/'], ['Apostate', '/apostate/'], ['Sinew', '/sinew/']] },
     { group: 'Motion',         items: [['Pulsar', '/pulsar/'], ['Membrane', '/membrane/'], ['Vortex', '/vortex/'], ['Mycel', '/mycel/'], ['Blob Boundary', '/blob-boundary/']] },
     { group: 'Animate an export', items: [['Murmur', '/murmur/'], ['Undertow', '/undertow/'], ['Dapple', '/dapple/']] }

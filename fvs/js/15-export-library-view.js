@@ -217,7 +217,7 @@ export function buildRecipe() {
   };
 }
 export function applyRecipe(r) {
-  if (!r || r.tool !== 'fvs-recipe') throw new Error('Not a Flexible Visual System recipe');
+  if (!r || r.tool !== 'fvs-recipe') throw new Error('Not an Organic Visual System recipe');
   if (r.component) applyLibraryEntryToUI(r.component);
   if (r.symbol) applySymbolLibraryEntryToUI(r.symbol);
   if (r.grid && r.grid.componentName && r.grid.componentEntry) {
@@ -252,7 +252,7 @@ ctrl('btn-export-figma').addEventListener('click', () => {
   const btn = ctrl('btn-export-figma');
   const svg = exportablePhotoSVG(tierSVG());
   if (!svg) { btn.textContent = 'Nothing to send'; setTimeout(() => { btn.textContent = 'Send to Figma'; }, 1600); return; }
-  Organica.sendToFigma(svg, 'Flexible Visual System');
+  Organica.sendToFigma(svg, 'Organic Visual System');
   btn.textContent = 'Sent ↗'; setTimeout(() => { btn.textContent = 'Send to Figma'; }, 1600);
 });
 

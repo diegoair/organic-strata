@@ -83,7 +83,7 @@ function colourChanged() {
 }
 export function buildPalette() {
   paletteKit = Organica.paletteKit.strip(ctrl('fvs-palette'), ctrl('fvs-shade'), {
-    tool: 'Flexible Visual System',
+    tool: 'Organic Visual System',   // the tool's visible name (was Flexible Visual System until Nov 25, 2026): Save as palette… proposes "‹name› · ‹tool›"
     max: PALETTE_MAX,
     get: () => ({ colors: state.colors, shades: state.inkShades }),
     paper: () => (state.paperColor && state.paperColor !== 'none' ? state.paperColor : '#ffffff'),

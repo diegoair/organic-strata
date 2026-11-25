@@ -1,0 +1,155 @@
+{
+ "styles": {
+  "empty": {
+   "label": "Paper",
+   "element": "Hero dots · Paper",
+   "layers": [
+    {
+     "name": "Paper",
+     "size": 0.92,
+     "ink": 3,
+     "shape": "circle"
+    }
+   ]
+  },
+  "big": {
+   "label": "Disc",
+   "element": "Hero dots · Disc",
+   "layers": [
+    {
+     "name": "Paper",
+     "size": 0.92,
+     "ink": 3,
+     "shape": "circle"
+    },
+    {
+     "name": "Outer",
+     "size": 1.08,
+     "ink": 0,
+     "shape": "circle"
+    }
+   ]
+  },
+  "bigdot": {
+   "label": "Disc and point",
+   "element": "Hero dots · Disc and point",
+   "layers": [
+    {
+     "name": "Paper",
+     "size": 0.92,
+     "ink": 3,
+     "shape": "circle"
+    },
+    {
+     "name": "Outer",
+     "size": 1.08,
+     "ink": 0,
+     "shape": "circle"
+    },
+    {
+     "name": "Point",
+     "size": 0.14,
+     "ink": 3,
+     "shape": "circle"
+    }
+   ]
+  },
+  "ring": {
+   "label": "Ring",
+   "element": "Hero dots · Ring",
+   "layers": [
+    {
+     "name": "Paper",
+     "size": 0.92,
+     "ink": 3,
+     "shape": "circle"
+    },
+    {
+     "name": "Outer",
+     "size": 0.72,
+     "ink": 0,
+     "shape": "circle"
+    },
+    {
+     "name": "Middle",
+     "size": 0.44,
+     "ink": 3,
+     "shape": "circle"
+    },
+    {
+     "name": "Point",
+     "size": 0.2,
+     "ink": 2,
+     "shape": "circle"
+    }
+   ]
+  },
+  "target": {
+   "label": "Target",
+   "element": "Hero dots · Target",
+   "layers": [
+    {
+     "name": "Paper",
+     "size": 0.92,
+     "ink": 3,
+     "shape": "circle"
+    },
+    {
+     "name": "Outer",
+     "size": 1.08,
+     "ink": 0,
+     "shape": "circle"
+    },
+    {
+     "name": "Middle",
+     "size": 0.68,
+     "ink": 1,
+     "shape": "circle"
+    },
+    {
+     "name": "Point",
+     "size": 0.28,
+     "ink": 2,
+     "shape": "circle"
+    }
+   ]
+  },
+  "dot": {
+   "label": "Point",
+   "element": "Hero dots · Point",
+   "layers": [
+    {
+     "name": "Paper",
+     "size": 0.92,
+     "ink": 3,
+     "shape": "circle"
+    },
+    {
+     "name": "Point",
+     "size": 0.34,
+     "ink": 2,
+     "shape": "circle"
+    }
+   ]
+  },
+  "tiny": {
+   "label": "Small point",
+   "element": "Hero dots · Small point",
+   "layers": [
+    {
+     "name": "Paper",
+     "size": 0.92,
+     "ink": 3,
+     "shape": "circle"
+    },
+    {
+     "name": "Point",
+     "size": 0.14,
+     "ink": 2,
+     "shape": "circle"
+    }
+   ]
+  }
+ },
+ "pale": "#212121"
+}

@@ -475,7 +475,7 @@
     const groups = [[null, opts.extra ? opts.extra() : []]];
     if (P) groups.push(['Saved', all.filter(p => p.source === 'saved')], ['Starred', all.filter(p => p.source === 'starred')]);
     else groups.push([null, all]);
-    if (P && !all.length) menu.appendChild(groupLabel('No palettes yet \u2014 save or star one in TuneSutra'));
+    if (P && !all.length) menu.appendChild(groupLabel('No palettes yet \u2014 save or star one in Organic Palette'));
     groups.forEach(([label, pals]) => {
       if (!pals.length) return;
       if (label) menu.appendChild(groupLabel(label));
@@ -523,7 +523,7 @@
       const link = document.createElement('a');
       link.className = 'pal-link';
       link.href = '/tunesutra/';
-      link.textContent = 'Make a palette in TuneSutra';
+      link.textContent = 'Make a palette in Organic Palette';
       menu.appendChild(link);
     }
   }

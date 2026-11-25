@@ -425,7 +425,7 @@ async function elementPalettes(mode) {
   await ev(() => { const b = [...document.querySelectorAll('#fvs-palette button')].pop(); b.click(); });
   await settle();
   const menu = await ev(() => { const m = document.querySelector('.pal-menu'); return m && !m.hidden ? { other: [...m.querySelectorAll('.color-swatch')].some(c => getComputedStyle(c).backgroundColor === 'rgb(208, 28, 28)'), text: m.innerText } : null; });
-  C('Pick from a palette lists TuneSutra\'s palettes, not the other Element\'s', menu && !menu.other && /TuneSutra/.test(menu.text), JSON.stringify(menu));
+  C('Pick from a palette lists Organic Palette\'s (TuneSutra\'s) palettes, not the other Element\'s', menu && !menu.other && /Organic Palette/.test(menu.text), JSON.stringify(menu));
   await press('Escape', 'Escape', 27);
   // back to the first Element: its Palette comes back
   await click(await ev(() => __t.box('.fvs-board-el')));

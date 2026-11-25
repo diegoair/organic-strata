@@ -58,7 +58,7 @@
   position: relative;
   z-index: 100;
 }
-/* Right-hand zone ordering: spacer, then Sign Up / Login or the account control, then the pattern circles. */
+/* Right-hand zone ordering: spacer, then Sign in / Request access or the account control, then the pattern circles. */
 .org-header__spacer { order: 5; }
 .org-account, .org-header__auth { order: 10; }
 .org-pattern { order: 20; }
@@ -110,6 +110,15 @@
   background: var(--ink);
 }
 .org-header__logo:hover { color: var(--ink); }
+/* The monogram (shared/monogram.js, Nov 24, 2026): on a page that loads it the
+   circle above becomes an inline SVG that plays the 0rganic4 loop on hover /
+   focus of the logo link. At rest it is the same circle in the same colour
+   (currentColor = --ink); the riso inks multiply only with each other —
+   the SVG is isolated, so the header behind never darkens them and one rule
+   holds in both themes. */
+.org-header__mark.org-monogram-host { background: none; border-radius: 0; color: var(--ink); }
+.org-monogram { display: block; width: 100%; height: 100%; overflow: visible; isolation: isolate; }
+.org-monogram__pill { mix-blend-mode: multiply; }
 
 /* ── SLOT 3 — spacer ── */
 .org-header__spacer { flex: 1 1 auto; min-width: var(--space-3); }
@@ -187,9 +196,16 @@
   .org-notice[data-kind="busy"] .org-notice__dot { animation: none; }
 }
 
-/* ── Sign Up / Login — shown by shared/auth-badge.js while signed out ── */
+/* ── Sign in / Request access — shown by shared/auth-badge.js while signed out ── */
 .org-header__auth { display: flex; align-items: center; gap: var(--space-3); flex-shrink: 0; }
 .org-header__auth .org-btn { text-decoration: none; }
+
+/* ── Site links — a few text links beside the logo, for a page that introduces the product instead of
+   opening the tools menu (the home, Nov 24, 2026). <nav class="org-header__links" aria-label="…"> after the logo. ── */
+.org-header__links { display: flex; align-items: center; gap: var(--space-7); margin-left: var(--space-7); font-family: var(--font-display); font-size: var(--fs-medium); }
+.org-header__links a { color: var(--mid); text-decoration: none; transition: color var(--dur-fast) var(--ease-standard); }
+@media (hover: hover) { .org-header__links a:hover { color: var(--ink); } }
+@media (max-width: 900px) { .org-header__links { display: none; } }
 
 /* ── Theme button — light/dark, opted-in pages only (shared/header.js) ── */
 .org-theme {

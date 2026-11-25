@@ -300,7 +300,7 @@
       els.pals.appendChild(g);
       pals.forEach(one);
     });
-    if (!all.length) { const g = el('div', 'org-cpick__label'); g.textContent = 'No palettes yet \u2014 save or star one in TuneSutra'; els.pals.appendChild(g); }
+    if (!all.length) { const g = el('div', 'org-cpick__label'); g.textContent = 'No palettes yet \u2014 save or star one in Organic Palette'; els.pals.appendChild(g); }
     if (!pullAsked) { pullAsked = true; P.pull().then(() => { if (els.pals.isConnected) paintPalettes(); }, () => {}); }
   }
   let pullAsked = false;

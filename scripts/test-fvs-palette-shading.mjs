@@ -89,9 +89,9 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   [...document.querySelectorAll('.row-btns .mini-btn')].find(b => /^Save as palette/.test(b.textContent)).click(); await w(300);
   const dlg = [...document.querySelectorAll('.org-modal')].find(d => d.getAttribute('aria-label') === 'Save as palette');
   const proposed = dlg && dlg.querySelector('input').value;
-  check('Save as palette… proposes "<name> · Flexible Visual System"', proposed === 'Test shading · Flexible Visual System', proposed);
+  check('Save as palette… proposes "<name> · Organic Visual System"', proposed === 'Test shading · Organic Visual System', proposed);
   dlg.querySelector('[data-ok]').click(); await w(400);
-  const all = ts.read(), rec = all['Test shading · Flexible Visual System'];
+  const all = ts.read(), rec = all['Test shading · Organic Visual System'];
   check('…a new TuneSutra palette with the edited colour and its shading', rec && rec.colors[0] === '#1c6b3a' && rec.shades[0].specks === 'cells' && rec.shades[2].specks === 'pollen-dot' && rec.house === 42 && /^pal-/.test(rec.pid), JSON.stringify(rec && rec.shades.map(s => s && s.specks)));
   check('…and the original never changes', JSON.stringify(all['Test shading']) === before);
   check('only one Save as palette… under the strip', document.querySelectorAll('[data-pal-save]').length === 1, document.querySelectorAll('[data-pal-save]').length);

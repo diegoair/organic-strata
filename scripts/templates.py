@@ -41,7 +41,8 @@ OWN_SURFACE = {   # tool chrome, own canvas surface — no shell.css
     'rhizome': 'an infinite node canvas (the shared node canvas), no sheet',
 }
 OWN_LAYOUT = {    # page chrome, own layout (the hub links page.css for the footer, the design system for its specimens)
-    '': 'the hub: a stipple hero, a gallery and full-bleed sections',
+    '': 'the home: a full-height hero carousel of FVS loops and full-width sections',
+    'hub': 'the owner\'s hub (the home until Nov 24, 2026): a hero, a gallery and full-bleed sections',
     'design-system': 'the reference layout: a 232px section nav beside the content',
 }
 ALLOW = {         # (page, rule) -> why this deviation is deliberate

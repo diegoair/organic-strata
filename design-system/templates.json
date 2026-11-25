@@ -749,16 +749,36 @@
      "prose": false
     },
     {
-     "page": "/",
-     "file": "index.html",
+     "page": "/hub/",
+     "file": "hub/index.html",
      "template": "page",
      "variant": "own layout",
-     "why": "the hub: a stipple hero, a gallery and full-bleed sections",
+     "why": "the owner's hub (the home until Nov 24, 2026): a hero, a gallery and full-bleed sections",
      "sheets": [
       "tokens",
       "icons",
       "header",
       "page",
+      "mobile-gate"
+     ],
+     "modules": false,
+     "dark": true,
+     "public": false,
+     "column": null,
+     "prose": false
+    },
+    {
+     "page": "/",
+     "file": "index.html",
+     "template": "page",
+     "variant": "own layout",
+     "why": "the home: a full-height hero carousel of FVS loops and full-width sections",
+     "sheets": [
+      "tokens",
+      "icons",
+      "header",
+      "page",
+      "fvs-field",
       "mobile-gate"
      ],
      "modules": false,

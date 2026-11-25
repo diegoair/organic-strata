@@ -14,7 +14,7 @@
  *                   only; the sheet (.org-stage) stays light — see tokens.css.
  *
  * LOAD ORDER: … → core.js (Organica.popover, optional) → tools.js → header.js.
- * Sign Up / Login + the account control are auth-badge.js's job, not this file's.
+ * Sign in / Request access + the account control are auth-badge.js's job, not this file's.
  * ───────────────────────────────────────────────────────────────────────────*/
 (function (global) {
   'use strict';

@@ -73,7 +73,7 @@ DB['tunesutra-favs'] = {
   check('role names: one copy, palette-figures reads Organica.palettes', !bad.length && F.ROLE_SETS === P.ROLE_SETS, bad.join(', '));
   check('a starred colour is named by its role', P.list().find(p => p.source === 'starred').colors[1].name === 'Accent');
 }
-check('nameFor proposes what saveAsNew writes', P.nameFor(P.get('saved:Dusk'), { tool: 'Flexible Visual System' }) === 'Dusk · Flexible Visual System');
+check('nameFor proposes what saveAsNew writes', P.nameFor(P.get('saved:Dusk'), { tool: 'Organic Visual System' }) === 'Dusk · Organic Visual System');
 check('a chosen name is kept, numbered only when taken', P.saveAsNew(P.get('saved:Dusk'), { name: 'Dusk' }) === 'Dusk 2' && DB.tunesutra['Dusk'].house === 77);
 check('ROLE_PARTS mirrors hue-tone.js', JSON.stringify(P.ROLE_PARTS) === JSON.stringify(ctx.Organica.hueTone.ROLE_PARTS));
 

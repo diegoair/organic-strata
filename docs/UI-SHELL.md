@@ -350,8 +350,10 @@ Replaces five divergent bars. Full audit and rationale in this section.
 **One header, no variants** (v2, Sep 29, 2026): transparent, **64px** (`--header-h`: a 32px row inside `--header-pad-y`
 = `--space-6` top and bottom), no border, **in flow** — every canvas starts below it, and pages that do height maths read `--header-h`
 (never a typed fallback).
-Left → right: **nav button** (opens the mega menu) · **logo mark** (placeholder) · **name** + `/ Page` · spacer ·
-**Sign Up / Login** (signed out) or the **account control** · the **4 pattern circles**.
+Left → right: **nav button** (opens the mega menu) · **logo mark** (the `--ink` circle; on a page that loads
+`shared/monogram.js` — every page with the header since Nov 25, 2026 — the 0rganic4 monogram, which plays on hover / focus of the logo link;
+see DESIGN-SYSTEM.md "Logo mark and favicon") · **name** + `/ Page` · spacer ·
+**Sign in / Request access** (signed out) or the **account control** · the **4 pattern circles**.
 Everything else moves closer to what it acts on. Live reference: the design system's Header, Account control,
 Mega menu and Pattern switcher entries.
 The mega menu (Sep 29, 2026 regroup): one row of six groups by what you start from — Form & grid · From an image · Patterns · Colour · Type & vector · Motion — with Rhizome ("Chain them all") and the Explorations in its foot; data in `shared/tools.js`.

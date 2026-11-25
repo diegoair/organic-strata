@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="any">
-<title>TuneSutra — Organica</title>
+<title>Organic Palette — Organica</title>
 
 <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/shared/tokens.css">
@@ -200,7 +200,7 @@
 
 <header class="org-header" role="banner">
   <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
-  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ TuneSutra</span></a>
+  <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b><span>/ Organic Palette</span></a>
   <div class="org-header__spacer"></div>
 </header>
 
@@ -1459,7 +1459,7 @@ function exportJSON() {
   set.gradient = { $type: 'gradient', $value: stops.map(st => ({ color: st.hex, position: +st.at.toFixed(4) })) };
   Organica.downloadText(JSON.stringify(obj, null, 2), Organica.stamp('tunesutra', 'json'), 'application/json');
 }
-function sendToFigma() { Organica.sendToFigma(svgString(1), 'TuneSutra'); }
+function sendToFigma() { Organica.sendToFigma(svgString(1), 'Organic Palette'); }
 
 // ── PRESETS ──
 const PRESETS = Organica.store('tunesutra');
@@ -1693,7 +1693,7 @@ const SUBS = {
 let view = VIEWS.explore;
 function navHTML(v) {
   const tab = (id, href, label) => `<a href="${href}"${v.tab === id ? ' aria-current="page"' : ''}>${label}</a>`;
-  let html = '<div class="ts-nav"><nav class="ts-tabs" aria-label="TuneSutra">' +
+  let html = '<div class="ts-nav"><nav class="ts-tabs" aria-label="Organic Palette">' +
     tab('explore', '#explore', 'Explore') + tab('make', '#make', 'Make') + tab('palettes', '#palettes', 'Your palettes') + '</nav>' +
 '</div>';
   if (SUBS[v.tab]) html += `<nav class="seg-ctrl seg-ctrl--fit ts-subnav" aria-label="${v.tab === 'make' ? 'Make' : 'Explore'}">` +
@@ -2528,6 +2528,7 @@ PRESETS.onSync(() => { if (onLibrary()) renderHome(); });
 FAVS.pull().then(() => { if (onLibrary()) renderHome(); else refreshEditorStar(); });
 FAVS.onSync(() => { if (onLibrary()) renderHome(); else refreshEditorStar(); });
 </script>
+<script src="/shared/monogram.js"></script>
 <script src="/shared/tools.js"></script>
 <script src="/shared/menu-icon.js"></script>
 <script src="/shared/header.js"></script>

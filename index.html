@@ -6,280 +6,130 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <title>Organica</title>
-  <meta name="description" content="Organica — a visual language system and a set of tools to grow, compose and print visual languages." />
+  <meta name="description" content="Organica’s Organic Visual System builds visual identities as living rule systems — one element, a few rules, every application — with colour from Organic Palette and print-ready vector out." />
   <link rel="preload" href="/shared/vendor/space-grotesk-variable.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="/shared/vendor/ibm-plex-mono-regular.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/shared/tokens.css">
 <link rel="stylesheet" href="/shared/icons.css">
   <link rel="stylesheet" href="/shared/header.css">
   <link rel="stylesheet" href="/shared/page.css">
+  <link rel="stylesheet" href="/shared/fvs-field.css">
   <link rel="stylesheet" href="/shared/mobile-gate.css">
   <style>
     /* ═══════════════════════════════════════════════════════════
-       Hub — home (rebuilt Sep 29, 2026; the side-nav + bento hub is
-       archived at /archive/hub-bento/). Three movements:
-         1. hero   — the word "Organica" drawn as a live stipple field
-                     (canvas; the real <h1> is there for readers + SEO)
-         2. gallery — placeholder tiles, each a small live engine in one
-                     tool's visual language (swap for real work later)
-         3. text   — what Organica is, and why
-       Every size/space/colour is a token. The hero word has no
-       font-size: it is sampled into points and fitted to the viewport.
+       Home (Nov 24, 2026) — the public home, for the launch of the
+       Flexible Visual System and TuneSutra — on this page they are named
+       Organic Visual System and Organic Palette (Diego, Nov 24, 2026).
+       It came from the mockup
+       explorations/home-mockups/ (direction C · Method):
+         1. hero     — a full-height carousel: the FVS loops, one per
+                       slide (Organica.hero, shared/hero.js)
+         2. method   — what it is, for whom
+         3. try it   — one element, a rule, a palette: the idea, live
+         4. five principles · the chain · the two tools
+       The home before this one is the owner's hub, at /hub/.
+       Every size/space/colour is a token; the pictures' colours are
+       content (palettes), on light work surfaces in both themes.
        ═══════════════════════════════════════════════════════════ */
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
     html { scroll-behavior: smooth; }
-    body {
-      background: var(--canvas-grid), var(--paper);
-      background-attachment: fixed;
-      color: var(--ink);
-      font-family: var(--font);
-      overflow-x: hidden;
-    }
-    body > [role="banner"] { position: sticky; top: 0; z-index: 10; background: var(--paper); }   /* the hub scrolls; the header stays */
+    body { background: var(--paper); color: var(--ink); font-family: var(--font); font-size: var(--t-body-sm-size); line-height: var(--lh-normal); overflow-x: hidden; }
+    a { color: inherit; }
+    body > [role="banner"] { position: sticky; top: 0; z-index: 20; background: var(--paper); }   /* the home scrolls; the header stays */
 
-    .hub-sr {
-      position: absolute; width: 1px; height: 1px; overflow: hidden;
-      clip: rect(0 0 0 0); white-space: nowrap;
-    }
+    /* the home's buttons: the shared button, one step larger */
+    .home-btn { --btn-h: var(--space-9); padding: 0 var(--space-7); font-size: var(--fs-large); text-decoration: none; }
+    .home-btn--on-ink { border-color: var(--paper); color: var(--paper); }
 
-    .hub-overline {
-      font-family: var(--font-mono);
-      font-size: var(--t-h6-size);
-      font-weight: var(--w-regular);
-      letter-spacing: var(--ls-widest);
-      text-transform: uppercase;
-      color: var(--mid);
-    }
+    /* ── 1. hero carousel: the big inset picture ── */
+    .hero { position: relative; margin: 0 var(--space-7); height: calc(100svh - var(--header-h) - var(--space-7));
+      min-height: calc(var(--space-9) * 10); border-radius: var(--radius-lg); overflow: hidden; background: var(--panel); isolation: isolate; }
+    .hero__stage { position: absolute; inset: 0; z-index: 0; cursor: pointer; }
+    /* the controls sit on the picture: paper on a black scrim, the same in both themes (the hero is a light surface) */
+    .hero__ui { position: absolute; z-index: 3; left: var(--space-6); right: var(--space-6); bottom: var(--space-6);
+      display: flex; align-items: center; gap: var(--space-5); color: var(--paper); font-family: var(--font-display); }
+    .hero__count { font-size: var(--fs-medium); letter-spacing: var(--ls-wide); font-variant-numeric: tabular-nums;
+      background: rgba(0, 0, 0, .6); padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); }
+    .hero__bars { display: flex; gap: var(--space-2); flex: 1; max-width: calc(var(--space-8) * 10); }
+    .hero__bars button { flex: 1; height: calc(var(--space-2) / 2); border: 0; padding: 0; cursor: pointer; background: color-mix(in srgb, var(--paper) 40%, transparent);
+      border-radius: var(--radius-sm); overflow: hidden; position: relative; }
+    .hero__bars button::before { content: ''; position: absolute; inset: calc(var(--space-4) * -1) 0; }   /* a taller hit area (--hit-min) */
+    .hero__bars button { overflow: visible; }
+    .hero__bars button i { position: absolute; inset: 0; border-radius: inherit; background: var(--paper); transform-origin: left; transform: scaleX(0); }
+    .hero__bars button.is-done i { transform: scaleX(1); }
+    .hero__nav { margin-left: auto; display: flex; gap: var(--space-2); }
+    .hero__nav button { width: calc(var(--space-8) + var(--space-1)); height: calc(var(--space-8) + var(--space-1)); display: grid; place-items: center;
+      border: 0; cursor: pointer; border-radius: var(--radius-md); background: rgba(0, 0, 0, .45); color: var(--paper);
+      transition: background-color var(--dur-fast) var(--ease-standard); }
+    .hero__nav button svg { width: var(--icon-lg); height: var(--icon-lg); }
+    @media (hover: hover) { .hero__nav button:hover { background: rgba(0, 0, 0, .7); } }
 
-    /* ── 1. hero ─────────────────────────────────────────────── */
-    .hub-hero {
-      position: relative;
-      min-height: calc(100vh - var(--header-h));
-      display: grid;
-      grid-template-rows: 1fr;
-      padding: var(--space-7) var(--space-8) var(--space-8);
-      gap: var(--space-7);
-    }
-    .hub-hero__field { position: relative; min-height: 0; }
-    .hub-hero__field canvas {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      touch-action: none;
-    }
-    /* ?tune — the author-only hero tuning panel (built by the hero script) */
-    .hub-tune {
-      position: fixed; right: var(--space-4); top: calc(var(--header-h) + var(--space-4));
-      width: 280px; max-height: calc(100vh - var(--header-h) - var(--space-8));
-      overflow-y: auto; z-index: 50;
-      background: var(--panel); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-    }
-    .hub-tune .row-btns { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-2); }
+    /* ── page sections ── */
+    .wrap { max-width: calc(var(--space-4) * 124); margin: 0 auto; padding: 0 var(--space-7); }
+    .sec { padding: var(--space-9) 0; border-top: 1px solid var(--border); }
+    .sec:first-of-type { border-top: 0; }
+    .eyebrow { font-size: var(--t-h6-size); font-weight: var(--t-h6-weight); letter-spacing: var(--ls-widest); text-transform: uppercase; color: var(--mid); margin-bottom: var(--space-6); }
+    .display { font-family: var(--font-display); font-size: var(--t-display-size); font-weight: var(--t-display-weight);
+      line-height: var(--t-display-lh); letter-spacing: var(--t-display-ls); }
+    .h2 { font-family: var(--font-display); font-size: var(--t-h1-size); font-weight: var(--t-h1-weight); line-height: var(--t-h1-lh); letter-spacing: var(--t-h1-ls); }
+    .h3 { font-family: var(--font-display); font-size: var(--t-h4-size); font-weight: var(--w-semibold); line-height: var(--lh-heading); margin-bottom: var(--space-3); }
+    .lead { font-size: var(--t-body-lg-size); max-width: 60ch; color: var(--ink); }
+    .muted { color: var(--mid); }
+    .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-8); }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-7); }
+    .split { display: grid; grid-template-columns: 5fr 7fr; gap: var(--space-9); align-items: start; }
+    .card { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--space-7); background: var(--paper); }
+    .home-num { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: var(--fs-medium); color: var(--mid); letter-spacing: var(--ls-wide); display: block; margin-bottom: var(--space-5); }
+    .hl { background: var(--ink); color: var(--paper); }
+    .hl .muted, .hl .home-num { color: color-mix(in srgb, var(--paper) 70%, var(--ink)); }   /* on the ink ground: ≥ 4.5:1 in both themes */
 
-    /* ── 2. gallery ──────────────────────────────────────────── */
-    .hub-section { padding: var(--space-8); }
-    .hub-section__head {
-      display: flex; justify-content: space-between; align-items: baseline;
-      gap: var(--space-7); flex-wrap: wrap;
-      border-top: 1px solid var(--ink);
-      padding-top: var(--space-5);
-      margin-bottom: var(--space-8);
-    }
-    .hub-section__title {
-      font-family: var(--font-display);
-      font-size: var(--t-h1-size);
-      font-weight: var(--t-h1-weight);
-      line-height: var(--t-h1-lh);
-      letter-spacing: var(--t-h1-ls);
-    }
-    .hub-gallery {
-      display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      grid-auto-rows: calc(var(--space-8) * 3);
-      gap: var(--space-5);
-    }
-    .hub-tile {
-      position: relative; overflow: hidden;
-      background: var(--paper);
-      border: 1px solid var(--ink);
-      border-radius: var(--radius-sm);
-      color: inherit; text-decoration: none;
-      opacity: 0; transform: translateY(var(--space-7));
-      transition: opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1);
-    }
-    .hub-tile.is-in { opacity: 1; transform: none; }
-    .hub-tile canvas, .hub-tile .hub-tile__svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-    .hub-tile--dark { background: var(--ink); }
-    .hub-tile--warm { background: var(--accent-warm); border-color: var(--accent-warm); }
-    .hub-tile__cap {
-      position: absolute; left: var(--space-3); right: var(--space-3); bottom: var(--space-3);
-      display: flex; justify-content: space-between; align-items: center; gap: var(--space-3);
-      font-family: var(--font-mono); font-size: var(--fs-small);
-      pointer-events: none;
-    }
-    .hub-tile__cap span {
-      background: var(--paper); color: var(--ink);
-      padding: var(--space-1) var(--space-2);
-      border-radius: var(--radius-sm);
-    }
-    .hub-tile__cap span:last-child {
-      opacity: 0; transform: translateX(var(--space-3));
-      transition: opacity .3s ease, transform .3s ease;
-    }
-    .hub-tile:hover .hub-tile__cap span:last-child,
-    .hub-tile:focus-visible .hub-tile__cap span:last-child { opacity: 1; transform: none; }
-    .hub-tile:focus-visible { outline: 2px solid var(--ink); outline-offset: var(--space-1); }
-    .hub-tile__num {
-      position: absolute; top: var(--space-3); left: var(--space-3);
-      font-family: var(--t-num-font); font-variant-numeric: var(--t-num-variant);
-      font-size: var(--fs-small); letter-spacing: var(--t-num-ls);
-      background: var(--paper); color: var(--ink);
-      padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm);
-    }
-    /* the 12-col mosaic — spans set per tile */
-    .s-a { grid-column: span 7; grid-row: span 3; }
-    .s-b { grid-column: span 5; grid-row: span 2; }
-    .s-c { grid-column: span 5; grid-row: span 1; }
-    .s-d { grid-column: span 4; grid-row: span 2; }
-    .s-e { grid-column: span 4; grid-row: span 3; }
-    .s-f { grid-column: span 4; grid-row: span 2; }
-    .s-g { grid-column: span 8; grid-row: span 2; }
-    .s-h { grid-column: span 4; grid-row: span 1; }
-    .s-i { grid-column: span 6; grid-row: span 2; }
-    .s-j { grid-column: span 6; grid-row: span 2; }
+    /* steps strip */
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr) 1.15fr; gap: var(--space-3); margin-top: var(--space-8); }
+    .step { padding: var(--space-6); border-radius: var(--radius-lg); background: var(--panel); min-height: calc(var(--space-4) * 22); display: flex; flex-direction: column; }
+    .step svg { width: calc(var(--space-7) * 3); height: calc(var(--space-7) * 3); margin-bottom: auto; display: block; }
+    .step__pal { display: flex; height: calc(var(--space-7) * 3); border-radius: var(--radius-md); overflow: hidden; margin-bottom: auto; }
+    .step h4 { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: var(--w-semibold); margin: var(--space-6) 0 var(--space-1); }
+    .step p { font-size: var(--fs-small); color: var(--mid); line-height: var(--lh-snug); }
+    .step--colour { background: var(--ink); color: var(--paper); }
+    .step--colour p { color: color-mix(in srgb, var(--paper) 70%, var(--ink)); }
 
-    /* Base seeds tile: the SVGs paint with var(--ink) */
-    .hub-tile--seeds { background: var(--ink); }
-    .hub-seeds {
-      --ink: var(--paper);   /* the seed SVGs paint with var(--ink) — invert them inside the dark tile */
-      position: absolute; inset: 0;
-      display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr);
-      padding: var(--space-7); gap: var(--space-5);
-    }
-    .hub-seeds > div { display: grid; place-items: center; animation: hubBreath 4.2s cubic-bezier(.4,0,.2,1) infinite; }
-    .hub-seeds > div:nth-child(2n) { animation-duration: 5.6s; animation-direction: reverse; }
-    .hub-seeds > div:nth-child(3n) { animation-duration: 7s; }
-    .hub-seeds svg { width: 100%; height: 100%; }
-    @keyframes hubBreath { 0%,100% { transform: scale(.86) rotate(0); } 45% { transform: scale(1.04) rotate(4deg); } }
+    /* the rule demo */
+    .demo { display: grid; grid-template-columns: calc(var(--space-4) * 30) 1fr; gap: var(--space-8); align-items: start; margin-top: var(--space-8); }
+    .demo__ctl { display: flex; flex-direction: column; gap: var(--space-7); }
+    .demo__ctl h5 { font-size: var(--fs-small); letter-spacing: var(--ls-widest); text-transform: uppercase; color: var(--mid); margin-bottom: var(--space-3); font-weight: var(--w-bold); }
+    .demo__from { text-transform: none; letter-spacing: var(--ls-normal); font-weight: var(--w-regular); }
+    .demo__more { font-size: var(--fs-small); }
+    .seg { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+    .sw { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+    .sw button { display: flex; padding: 0; background: none; cursor: pointer; border-radius: var(--radius-md); overflow: hidden; border: calc(var(--space-1) / 2) solid transparent; }
+    .sw button[aria-pressed="true"] { border-color: var(--ink); }
+    .sw button i { width: calc(var(--space-5) + var(--space-1)); height: calc(var(--space-7) + var(--space-1)); display: block; }
+    .demo__stage { border-radius: var(--radius-lg); overflow: hidden; aspect-ratio: 16 / 10; }
+    .demo__stage svg { width: 100%; height: 100%; display: block; }
+    .demo__stage g.cell { transform-box: fill-box; transform-origin: center; transition: transform var(--dur-settle) var(--ease-overshoot-soft); }
+    .demo__stage .cell path { transition: fill var(--dur-slow) var(--ease-standard); }
+    .demo__caption { font-size: var(--fs-small); color: var(--mid); margin-top: var(--space-3); font-family: var(--font-display); }
 
-    /* ── 3. text ─────────────────────────────────────────────── */
-    .hub-manifesto {
-      font-family: var(--font-display);
-      font-size: var(--t-display-size);
-      font-weight: var(--t-display-weight);
-      line-height: var(--t-display-lh);
-      letter-spacing: var(--t-display-ls);
-      text-wrap: balance;
-      max-width: 22ch;
-      margin-bottom: var(--space-8);
-    }
-    .hub-manifesto .w { display: inline-block; opacity: .12; transition: opacity .5s ease; }
-    .hub-manifesto .w.is-on { opacity: 1; }
-    .hub-chapters { display: grid; gap: 0; }
-    .hub-chapter {
-      display: grid; grid-template-columns: minmax(10rem, 1fr) 3fr;
-      gap: var(--space-8);
-      border-top: 1px solid var(--border);
-      padding: var(--space-8) 0;
-    }
-    .hub-chapter__k { position: sticky; top: calc(var(--header-h) + var(--space-7)); align-self: start; }
-    .hub-chapter__n {
-      display: block;
-      font-family: var(--t-num-font); font-variant-numeric: var(--t-num-variant);
-      font-size: var(--t-h3-size); font-weight: var(--w-semibold);
-      margin-bottom: var(--space-2);
-    }
-    .hub-chapter__body { max-width: var(--measure); }
-    .hub-chapter__body h3 {
-      font-family: var(--font-display);
-      font-size: var(--t-h2-size); font-weight: var(--t-h2-weight);
-      line-height: var(--t-h2-lh); letter-spacing: var(--t-h2-ls);
-      margin-bottom: var(--space-5);
-      text-wrap: balance;
-    }
-    .hub-chapter__body p {
-      font-size: var(--t-body-lg-size); line-height: var(--t-body-lh);
-      text-wrap: pretty;
-    }
-    .hub-chapter__body p + p { margin-top: var(--space-5); }
-    .hub-chapter__body a { color: var(--ink); }
+    /* tool cards */
+    .tool { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border); display: flex; flex-direction: column; }
+    .tool__pic { aspect-ratio: 16 / 9; position: relative; background: var(--panel); }
+    .tool__pic .org-fvs-field { position: absolute; inset: 0; z-index: 0; }
+    .tool__body { padding: var(--space-7); display: flex; flex-direction: column; gap: var(--space-3); flex: 1; }
+    .tool__body .eyebrow { margin: 0; }
+    .tool__body .home-btn { align-self: flex-start; margin-top: auto; }
+    .tool__pal { display: flex; height: 100%; }
+    .tool__pal div { flex: 1; display: flex; flex-direction: column; }
+    .tool__pal div i { flex: 1; }
 
-    .hub-modules {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 1px; background: var(--ink);
-      border: 1px solid var(--ink);
-      margin-top: var(--space-7);
-      max-width: none;
-    }
-    .hub-module {
-      background: var(--paper);
-      padding: var(--space-5);
-      min-height: calc(var(--space-8) * 4);
-      display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-5);
-      transition: background .25s ease, color .25s ease;
-    }
-    .hub-module:hover { background: var(--ink); color: var(--paper); }
-    .hub-module b {
-      font-family: var(--font-display); font-size: var(--t-h4-size); font-weight: var(--w-semibold);
-    }
-    .hub-module p { font-size: var(--fs-medium); line-height: var(--lh-snug); }
-    .hub-module i { font-style: normal; font-size: var(--fs-small); color: var(--mid); }
-    .hub-module:hover i { color: inherit; }
-
-    .hub-patterns { list-style: none; margin-top: var(--space-5); display: grid; gap: var(--space-2); }
-    .hub-patterns li {
-      display: grid; grid-template-columns: var(--space-8) 1fr auto; align-items: center; gap: var(--space-5);
-      padding: var(--space-3) 0; border-bottom: 1px dashed var(--border);
-      font-size: var(--t-body-md-size);
-    }
-    .hub-patterns li span:last-child { color: var(--mid); }
-    .hub-patterns .dot { width: var(--space-5); height: var(--space-5); background: var(--ink); border-radius: 50%; }
-    .hub-patterns li:nth-child(1) .dot { animation: hubPress 1.4s cubic-bezier(.6,0,.2,1) infinite; }
-    .hub-patterns li:nth-child(2) .dot { animation: hubDrop 2.2s cubic-bezier(.5,0,.8,.6) infinite; }
-    .hub-patterns li:nth-child(3) .dot { border-radius: 0; height: 2px; transform-origin: left; animation: hubTrace 3s ease-in-out infinite; }
-    .hub-patterns li:nth-child(4) .dot { animation: hubPress 1.8s ease-in-out infinite; box-shadow: calc(var(--space-2) * -1) 0 0 calc(var(--space-1) * -1) var(--ink), var(--space-2) 0 0 calc(var(--space-1) * -1) var(--ink); }
-    .hub-patterns li:nth-child(5) .dot { animation: hubWind 3.4s linear infinite; }
-    .hub-patterns li:nth-child(6) .dot { border-radius: var(--radius-sm); animation: hubSpin 6s linear infinite; }
-    @keyframes hubPress { 0%,100% { transform: scale(.6); } 30% { transform: scale(1.05); } }
-    @keyframes hubDrop  { 0% { transform: translateY(-40%) scaleY(1.2); } 70% { transform: translateY(40%) scaleY(.85); } 100% { transform: translateY(-40%); } }
-    @keyframes hubTrace { 0% { transform: scaleX(0); } 60%,100% { transform: scaleX(1); } }
-    @keyframes hubWind  { 0% { transform: translateX(-30%); opacity: 0; } 20%,80% { opacity: 1; } 100% { transform: translateX(60%); opacity: 0; } }
-    @keyframes hubSpin  { to { transform: rotate(360deg); } }
-
-    /* the CTA is an always-dark band: it carries data-theme="dark", so it reads
-       --paper/--ink from the dark palette in BOTH page themes (an --ink slab would
-       turn into a glaring light slab in dark mode) */
-    .hub-cta {
-      display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: center;
-      padding: var(--space-8); margin: 0 var(--space-8) var(--space-8);
-      background: var(--paper); color: var(--ink);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--radius-sm);
-    }
-    .hub-cta__text {
-      flex: 1 1 20rem;
-      font-family: var(--font-display); font-size: var(--t-h1-size);
-      font-weight: var(--t-h1-weight); line-height: var(--t-h1-lh); letter-spacing: var(--t-h1-ls);
-    }
-    /* the CTA buttons are THE BUTTON (org-btn --lg, header.css) */
-
-    /* The footer is the shared .org-page__foot (page.css); the hub is full-bleed, so it adds its own padding. */
-    .hub-foot { margin-top: 0; padding: var(--space-7) var(--space-8) var(--space-8); }
+    .home-foot { margin-top: 0; padding: var(--space-9) var(--space-7) var(--space-8); border-top: 1px solid var(--border); }
 
     @media (max-width: 900px) {
-      .hub-gallery { grid-template-columns: repeat(2, 1fr); }
-      .hub-gallery > * { grid-column: span 1; grid-row: span 2; }
-      .hub-gallery > .s-a, .hub-gallery > .s-g { grid-column: span 2; }
-      .hub-chapter { grid-template-columns: 1fr; gap: var(--space-5); }
-      .hub-chapter__k { position: static; }
-      .hub-modules { grid-template-columns: repeat(2, 1fr); }
-      .hub-hero, .hub-section { padding-inline: var(--space-6); }
-      .hub-cta { margin-inline: var(--space-6); }
+      .grid2, .grid3, .split, .demo, .steps { grid-template-columns: 1fr; }
+      .hero { margin: 0 var(--space-6); }
     }
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation: none !important; transition: none !important; }
-      .hub-tile { opacity: 1; transform: none; }
-      .hub-manifesto .w { opacity: 1; }
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; }
     }
   </style>
 <script src="/shared/pattern-init.js"></script>
@@ -289,581 +139,256 @@
   <div class="mobile-gate"><p>Organica is designed for desktop. Please open this link on a laptop or desktop browser for the full experience.</p></div>
 
   <header class="org-header" role="banner">
-  <button type="button" class="org-header__nav" aria-label="All tools" aria-controls="org-mega"><menu-icon state="menu" size="20" line-cap="square"></menu-icon></button>
     <a class="org-header__logo" href="/"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b></a>
+    <nav class="org-header__links" aria-label="Site">
+      <a href="/fvs/">Organic Visual System</a>
+      <a href="/tunesutra/">Organic Palette</a>
+      <a href="#how">How it works</a>
+    </nav>
     <div class="org-header__spacer"></div>
   </header>
 
-  <!-- ── 1. hero ── -->
-  <section class="hub-hero" aria-labelledby="hub-title">
-    <div class="hub-hero__field">
-      <h1 id="hub-title" class="hub-sr">Organica</h1>
-      <canvas id="hub-hero" aria-hidden="true"></canvas>
+  <!-- ── 1. the hero carousel: one FVS loop per slide ── -->
+  <section class="hero" id="hero" data-theme="light" aria-roledescription="carousel" aria-label="Compositions made with the Organic Visual System">
+    <div class="hero__stage" id="heroStage" role="group" aria-roledescription="slide"></div>
+    <div class="hero__ui">
+      <span class="hero__count" id="heroCount">01 / 08</span>
+      <div class="hero__bars" id="heroBars"></div>
+      <div class="hero__nav">
+        <button type="button" id="heroPrev" aria-label="Previous composition"><i data-icon="chevron-left"></i></button>
+        <button type="button" id="heroNext" aria-label="Next composition"><i data-icon="chevron-right"></i></button>
+      </div>
     </div>
   </section>
 
-  <!-- ── 2. gallery ── -->
-  <section class="hub-section" id="work" aria-labelledby="hub-work-title">
-    <div class="hub-section__head">
-      <h2 class="hub-section__title" id="hub-work-title">Specimens</h2>
-      <p class="hub-overline">Placeholders — live sketches in each tool’s language</p>
-    </div>
-    <div class="hub-gallery" id="hub-gallery" data-theme="light"><!-- the work stays light in dark mode --></div>
-  </section>
-
-  <!-- ── 3. what + why ── -->
-  <section class="hub-section" id="about" aria-labelledby="hub-about-title">
-    <div class="hub-section__head">
-      <h2 class="hub-section__title" id="hub-about-title">What Organica is</h2>
-      <p class="hub-overline">and why it exists</p>
-    </div>
-
-    <p class="hub-manifesto" id="hub-manifesto">A visual system is not a style. It is a grammar — a small set of rules that can say infinitely many things, and still sound like itself.</p>
-
-    <div class="hub-chapters">
-      <article class="hub-chapter">
-        <div class="hub-chapter__k"><span class="hub-chapter__n">01</span><span class="hub-overline">Two things at once</span></div>
-        <div class="hub-chapter__body">
-          <h3>A language, and the machinery to speak it.</h3>
-          <p>Organica is, first, a visual language: seeds, marks, rhythms and colours that belong together. It is also a growing set of tools that develop, generate, automate and deploy that language — and any other language you decide to build with them.</p>
-          <p>It is made for designers and artists who would rather compose a system than a single image. You don’t draw the poster; you write the rules that draw a thousand posters, then choose.</p>
+  <main>
+  <div class="wrap">
+      <section class="sec">
+        <p class="eyebrow">Organica · Organic Visual System</p>
+        <h1 class="display" style="max-width: 18ch">The method of flexible visual systems, made into an instrument.</h1>
+        <div class="split" style="margin-top: var(--space-8)">
+          <p class="muted">For a designer, an artist, a studio building an identity that has to live on a poster, a screen, a wall and a moving image — and stay itself.</p>
+          <p class="lead">Flexible visual systems replaced the static logo with a language: components, assets, applications. Organica takes that method one step further. The system is not described — it is built, it runs, and it composes for you.</p>
         </div>
-      </article>
-
-      <article class="hub-chapter">
-        <div class="hub-chapter__k"><span class="hub-chapter__n">02</span><span class="hub-overline">Grammar, not style</span></div>
-        <div class="hub-chapter__body">
-          <h3>Rules that generate, constraints that hold.</h3>
-          <p>A style is a set of finished outcomes. A grammar is what produces them. Organica splits a visual system into modules — each one a set of rules you can tune — and every output is a sentence written in that grammar. Change a parameter and the sentence changes; the voice stays.</p>
-          <div class="hub-modules">
-            <div class="hub-module"><b>Form</b><p>Seeds, elements, components, patterns, symbols — the vector shapes that define the mark.</p><i>Flexible Visual System</i></div>
-            <div class="hub-module"><b>Canvas</b><p>The space the language is written on — its format, margins, bleed.</p><i>every tool</i></div>
-            <div class="hub-module"><b>Grid</b><p>Composed grids that constrain the canvas — solved, not guessed.</p><i>Loom · Trellis</i></div>
-            <div class="hub-module"><b>Color</b><p>Palette methods, harmonies, separations into inks.</p><i>TuneSutra · Colornet</i></div>
-            <div class="hub-module"><b>Typography</b><p>Letters as material: deformed, grown, exported as real fonts.</p><i>Living Path · Apostate</i></div>
-            <div class="hub-module"><b>Motion</b><p>Animation engines built on physical behaviour, not keyframes.</p><i>Pulsar · Membrane · Vortex</i></div>
-            <div class="hub-module"><b>Scale</b><p>Vector-first, from a screen to a wall.</p><i>print mode everywhere</i></div>
-            <div class="hub-module"><b>Rhizome</b><p>A node canvas that chains every tool into one pipeline.</p><i>Rhizome</i></div>
+      </section>
+  
+      <section class="sec" id="try">
+        <p class="eyebrow">Try it — this is the whole idea</p>
+        <h2 class="h2" style="max-width: 24ch">One element. Change the rule, and the whole system answers.</h2>
+        <div class="demo">
+          <div class="demo__ctl">
+            <div><h5>1 · Element</h5><div class="seg" id="dEl"></div></div>
+            <div><h5>2 · Rule</h5><div class="seg" id="dRule"></div></div>
+            <div><h5>3 · Palette <span class="muted demo__from">from Organic Palette</span></h5><div class="sw" id="dPal"></div></div>
+            <p class="muted demo__more">In the tool the element is yours — drawn, imported or picked — and the rules go much further: flips, sizes, layers, cell shapes, the figure as a node graph.</p>
+          </div>
+          <div>
+            <div class="demo__stage" id="demoStage" data-theme="light"></div>
+            <p class="demo__caption" id="demoCap"></p>
           </div>
         </div>
-      </article>
-
-      <article class="hub-chapter">
-        <div class="hub-chapter__k"><span class="hub-chapter__n">03</span><span class="hub-overline">Raster ⇄ vector</span></div>
-        <div class="hub-chapter__body">
-          <h3>Closing the gap between the pixel and the plate.</h3>
-          <p>Most generative work lives and dies on a screen: beautiful, and impossible to print well. Organica starts from images, noise and simulations — the raster world — and hands back vectors: stipples, contours, paths, plates, one file per ink.</p>
-          <p>That is how a generated form leaves the browser and finds its way into the physical world — screenprint, risograph, offset, a mural — at any size, without losing a single edge.</p>
+      </section>
+  
+      <section class="sec">
+        <p class="eyebrow">Five principles</p>
+        <div class="grid3" style="row-gap: var(--space-9)">
+          <div><span class="home-num">01</span><h3 class="h3">One element, endless results</h3><p class="muted">Everything starts from a single shape. The system is what you let it become.</p></div>
+          <div><span class="home-num">02</span><h3 class="h3">Rules, not layouts</h3><p class="muted">Turn, flip, size, colour by place — you decide the grammar; the composition follows.</p></div>
+          <div><span class="home-num">03</span><h3 class="h3">Variation is free</h3><p class="muted">Ask for more. Every result is a real symmetry of your rules, never noise.</p></div>
+          <div><span class="home-num">04</span><h3 class="h3">Colour is part of the system</h3><p class="muted">Organic Palette makes palettes with their tints and shading; they travel whole into every figure.</p></div>
+          <div><span class="home-num">05</span><h3 class="h3">From the screen to the plate</h3><p class="muted">Pure vector, real millimetres, one plate per ink. Screenprint, riso, mural.</p></div>
+          <div class="card hl"><span class="home-num">→</span><h3 class="h3">Start with one element</h3><p class="muted" style="margin-bottom: var(--space-6)">It takes a minute to see a system grow.</p><a class="org-btn home-btn home-btn--on-ink" href="/fvs/">Open the tool</a></div>
         </div>
-      </article>
-
-      <article class="hub-chapter">
-        <div class="hub-chapter__k"><span class="hub-chapter__n">04</span><span class="hub-overline">Motion from physics</span></div>
-        <div class="hub-chapter__body">
-          <h3>Six behaviours borrowed from living things.</h3>
-          <p>Nothing here moves because a curve said so. Every animation maps to a force you already know — which is why it reads as alive, from 1.4 seconds to 14.</p>
-          <ul class="hub-patterns">
-            <li><span class="dot"></span><span>Internal pressure</span><span>breath, heartbeat</span></li>
-            <li><span class="dot"></span><span>Gravity + viscosity</span><span>drops, honey, lava</span></li>
-            <li><span class="dot"></span><span>Growth by tracing</span><span>vines, roots, rings</span></li>
-            <li><span class="dot"></span><span>Collective behaviour</span><span>swarms, metaballs</span></li>
-            <li><span class="dot"></span><span>Environmental forces</span><span>wind, tide</span></li>
-            <li><span class="dot"></span><span>Differential rotation</span><span>orbits, shards</span></li>
-          </ul>
-        </div>
-      </article>
-
-      <article class="hub-chapter">
-        <div class="hub-chapter__k"><span class="hub-chapter__n">05</span><span class="hub-overline">Why</span></div>
-        <div class="hub-chapter__body">
-          <h3>Because a studio should own its language.</h3>
-          <p>Design tools are built to finish images. Organica is built to find languages — to experiment, to lose control on purpose, and then to keep what works as rules you can run again tomorrow, for another client, at another scale.</p>
-          <p>Tavole and composition studies, posters, animated web pages, branding systems, mural schemas, installation loops: different outputs, one grammar underneath.</p>
-        </div>
-      </article>
+      </section>
+  
+      <section class="sec" id="how">
+        <p class="eyebrow">The chain — in the tool</p>
+        <div class="steps" id="stepsC"></div>
+      </section>
+  
+      <section class="sec">
+        <div class="grid2" id="toolsC"></div>
+      </section>
     </div>
-  </section>
+  </main>
 
-  <div class="hub-cta" data-theme="dark">
-    <p class="hub-cta__text">Start from a seed. Grow a language.</p>
-    <a class="org-btn org-btn--lg org-btn--primary" href="/fvs/">Open Flexible Visual System</a>
-    <button type="button" class="org-btn org-btn--lg" id="hub-all-tools">All tools</button>
-  </div>
-
-  <footer class="org-page__foot hub-foot">
+  <footer class="org-page__foot home-foot">
     <span>© Organica</span>
-    <nav aria-label="Legal and reference">
+    <nav aria-label="Legal">
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
-      <a href="/design-system/">Design System</a>
     </nav>
   </footer>
 
-  <script>window.ORGANICA_PUBLIC = true; /* the hub is open to signed-out visitors — Login / Sign Up live in the header; the tools stay gated */</script>
+  <script>window.ORGANICA_PUBLIC = true; /* the home is open to signed-out visitors — Sign in / Request access live in the header; the tools stay gated */</script>
   <script src="/shared/vendor/supabase-js.min.js"></script>
   <script src="/shared/core.js"></script>
 <script src="/shared/icons.js"></script>
   <script src="/shared/noise.js"></script>
-  <script src="/shared/tracks.js"></script>
-  <script src="/shared/swarm.js"></script>
+  <script src="/shared/fvs-field.js"></script>
+  <script src="/shared/hero.js"></script>
   <script src="/shared/supabase.js"></script>
   <script src="/shared/auth.js"></script>
   <script src="/shared/auth-badge.js"></script>
-  <script src="/shared/seeds.js"></script>
+  <script src="/shared/monogram.js"></script>
   <script src="/shared/tools.js"></script>
   <script src="/shared/menu-icon.js"></script>
   <script src="/shared/header.js"></script>
   <script>
   (function () {
     'use strict';
-    var N = Organica.noise;
-    var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var css = getComputedStyle(document.documentElement);
-    function tok(name) { return css.getPropertyValue(name).trim(); }
-    // gallery sketches are work → the content palette (light in both themes);
-    // the hero word is chrome → the live theme ink, re-read when the theme flips
-    var INK = Organica.contentColor('--ink'), PAPER = Organica.contentColor('--paper'), WARM = tok('--accent-warm'), MID = tok('--mid');
-    var HERO_INK = tok('--ink');
-    document.addEventListener('organica:theme', function () { HERO_INK = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim(); });
-    var DPR = Math.min(window.devicePixelRatio || 1, 2);
+    var F = Organica.fvsField, PALS = F.palettes();
+    function pal(i) { return PALS[i % PALS.length]; }
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    Organica.icons.mount(document.getElementById('hero'));
 
-
-    // "All tools" opens the header's mega menu
-    document.getElementById('hub-all-tools').addEventListener('click', function (e) {
-      e.stopPropagation();   // else the menu's own click-outside handler closes it on the same click
-      var b = document.querySelector('.org-header__nav');
-      if (b) b.click();   // the header is sticky, so the menu opens right where you are
+    /* ── the carousel: the FVS loops, one per slide (Organica.hero loads only the loop on screen, and the next ahead).
+       A loop plays its own cycle, then the next one takes the stage. ?hero=a…h starts on that loop. ── */
+    var H = Organica.hero, KEYS = Object.keys(H.LOOPS), N = KEYS.length;
+    var hero = document.getElementById('hero'), stage = document.getElementById('heroStage'), bars = document.getElementById('heroBars'), countEl = document.getElementById('heroCount');
+    var cur = 0, handle = null, paused = false, failed = 0;
+    var barEls = KEYS.map(function (k, i) {
+      var b = document.createElement('button'); b.type = 'button';
+      b.setAttribute('aria-label', 'Composition ' + (i + 1) + ': ' + H.LOOPS[k].name); b.innerHTML = '<i></i>';
+      b.onclick = function () { show(i); }; bars.appendChild(b); return b;
     });
-
-
-    // ── run a draw loop only while its canvas is on screen ──
-    function loop(canvas, draw) {
-      var ctx = canvas.getContext('2d'), w = 0, h = 0, raf = 0, visible = false, t0 = performance.now();
-      function size() {
-        var r = canvas.getBoundingClientRect();
-        w = Math.max(1, r.width); h = Math.max(1, r.height);
-        canvas.width = Math.round(w * DPR); canvas.height = Math.round(h * DPR);
-        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-        if (draw.resize) draw.resize(w, h);
-      }
-      function frame(now) {
-        draw(ctx, w, h, (now - t0) / 1000);
-        if (visible && !REDUCED) raf = requestAnimationFrame(frame);
-      }
-      new ResizeObserver(function () { size(); if (!visible || REDUCED) draw(ctx, w, h, 2); }).observe(canvas);
-      new IntersectionObserver(function (es) {
-        visible = es[0].isIntersecting;
-        cancelAnimationFrame(raf);
-        if (visible) raf = requestAnimationFrame(frame);
-      }).observe(canvas);
-      size();
+    function show(i) {
+      cur = ((i % N) + N) % N;
+      var key = KEYS[cur];
+      if (handle) handle.stop();
+      stage.textContent = '';
+      barEls.forEach(function (b, k) { b.classList.toggle('is-done', k < cur); b.firstChild.style.transform = ''; b.setAttribute('aria-current', k === cur ? 'true' : 'false'); });
+      stage.setAttribute('aria-label', (cur + 1) + ' of ' + N + ': ' + H.LOOPS[key].name);
+      countEl.textContent = pad(cur + 1) + ' / ' + pad(N);
+      var mine = handle = H.mount(stage, { key: key,
+        onProgress: function (p) { if (handle === mine) { failed = 0; barEls[cur].firstChild.style.transform = 'scaleX(' + p + ')'; } },
+        onEnd: function () { if (handle === mine) show(cur + 1); },
+        fallback: function () { if (handle === mine && ++failed < N) show(cur + 1); },   // a loop that cannot load is skipped
+      });
+      H.preload(KEYS[(cur + 1) % N], stage);
     }
+    function loop() { return handle && handle.loop(); }
+    function pause(b) { paused = b; var l = loop(); if (l) l.pause(b); }
+    // the pointer plays with the picture, so it pauses only over the controls (and while they hold the focus)
+    var ui = hero.querySelector('.hero__ui');
+    ui.addEventListener('mouseenter', function () { pause(true); }); ui.addEventListener('mouseleave', function () { pause(false); });
+    ui.addEventListener('focusin', function () { pause(true); }); ui.addEventListener('focusout', function () { pause(false); });
+    stage.addEventListener('click', function (e) { var l = loop(), r = stage.getBoundingClientRect(); if (l) l.reroll(e.clientX - r.left, e.clientY - r.top); });
+    document.getElementById('heroPrev').onclick = function () { show(cur - 1); };
+    document.getElementById('heroNext').onclick = function () { show(cur + 1); };
+    addEventListener('keydown', function (e) {
+      if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
+      if (hero.getBoundingClientRect().bottom < innerHeight / 2) return;   // only while the carousel is what the visitor is looking at
+      if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1);
+    });
+    var q = (new URLSearchParams(location.search).get('hero') || '').toLowerCase();
+    show(Math.max(0, KEYS.indexOf(q)));
 
-    // ═════════ 1. HERO — the word as a stipple field ═════════
-    // The physics is Organica.swarm (shared/swarm.js, also Murmur's engine);
-    // this page keeps only its own word sampler. HERO_PARAMS = the feel —
-    // tune it live with ?tune, then paste "Copy params" back here.
-    var HERO_PARAMS = {};
-    var HERO_SAMPLE = { density: 190, probe: 1.6, accent: 0.035 };
-    (function hero() {
-      var canvas = document.getElementById('hub-hero');
-      var swarm = null, tBase = 0, tNow = 0, W = 0, H = 0;
-      var mouse = { x: -1e4, y: -1e4, down: false };
-      var params = Object.assign({}, Organica.swarm.HERO, HERO_PARAMS);
-      var sample = Object.assign({}, HERO_SAMPLE);
-      function build(w, h) {
-        // sample the word into a jittered grid of dots, dot size ∝ depth inside the glyph
-        var off = document.createElement('canvas');
-        var S = 0.5;                              // sample at half res — plenty for dots
-        off.width = Math.max(1, Math.round(w * S)); off.height = Math.max(1, Math.round(h * S));
-        var o = off.getContext('2d');
-        var face = getComputedStyle(document.body).getPropertyValue('--font-display') || 'sans-serif';
-        var fs = 100; o.font = '700 ' + fs + 'px ' + face;
-        var tw = o.measureText('Organica').width;
-        fs = Math.min(fs * (off.width * 0.98) / tw, off.height * 0.95);
-        o.font = '700 ' + fs + 'px ' + face;
-        o.textAlign = 'center'; o.textBaseline = 'middle';
-        o.fillStyle = '#000';
-        o.fillText('Organica', off.width / 2, off.height / 2 + fs * 0.04);
-        var data = o.getImageData(0, 0, off.width, off.height).data;
-        function inside(x, y) {
-          x = Math.round(x * S); y = Math.round(y * S);
-          if (x < 0 || y < 0 || x >= off.width || y >= off.height) return false;
-          return data[(y * off.width + x) * 4 + 3] > 128;
-        }
-        var step = Math.max(5, Math.round(w / sample.density));
-        var hx = [], hy = [], r = [], style = [];
-        for (var y = step / 2; y < h; y += step) {
-          for (var x = step / 2; x < w; x += step) {
-            var jx = x + (Math.random() - .5) * step * .7, jy = y + (Math.random() - .5) * step * .7;
-            if (!inside(jx, jy)) continue;
-            // depth: how many of 8 probes around the dot are also inside
-            var d = 0;
-            for (var k = 0; k < 8; k++) {
-              var a = k * Math.PI / 4;
-              if (inside(jx + Math.cos(a) * step * sample.probe, jy + Math.sin(a) * step * sample.probe)) d++;
-            }
-            hx.push(jx); hy.push(jy); r.push(step * (0.18 + 0.30 * d / 8));
-            style.push(Math.random() < sample.accent ? 1 : 0);
-          }
-        }
-        W = w; H = h;
-        swarm = Organica.swarm.create({
-          homes: { hx: hx, hy: hy, r: r, style: style },
-          styles: [{ kind: 'circle', color: HERO_INK }, { kind: 'circle', color: WARM }],
-          W: w, H: h, params: params, seed: (Math.random() * 1e9) >>> 0,
-        });
-        tBase = tNow;
-        // Reduced motion: marks at home, one static frame. The build is async
-        // (fonts), so it can land after loop()'s one-off draw — paint it here.
-        if (REDUCED) { swarm.settle(); if (lastCtx) draw(lastCtx, w, h, tNow); }
-      }
-      var lastCtx = null;
-      function draw(ctx, w, h, t) {
-        lastCtx = ctx; tNow = t;
-        ctx.clearRect(0, 0, w, h);
-        if (!swarm) return;
-        swarm.styles[0].color = HERO_INK;
-        if (!REDUCED) swarm.advance(t - tBase, mouse.x > -1e3 ? mouse : null);
-        swarm.draw(ctx);
-      }
-      draw.resize = function (w, h) {
-        (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { build(w, h); });
-      };
-      // Listen on the window, not the canvas, and test the bounds here: while a mouse reports a
-      // button held (Diego's side button, Oct 2026) Chrome routes every move to the element the
-      // press began on, so a canvas listener hears nothing (the board's chordShim, same cause).
-      function pos(e) {
-        var r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
-        if (x < 0 || y < 0 || x > r.width || y > r.height) { mouse.x = mouse.y = -1e4; mouse.down = false; return; }
-        mouse.x = x; mouse.y = y;
-      }
-      addEventListener('pointermove', pos, { passive: true });
-      addEventListener('mousemove', pos, { passive: true });
-      canvas.addEventListener('pointerdown', function (e) { pos(e); mouse.down = true; });
-      addEventListener('pointerup', function () { mouse.down = false; });
-      document.documentElement.addEventListener('mouseleave', function () { mouse.x = mouse.y = -1e4; mouse.down = false; });
-      loop(canvas, draw);
+  /* ── the step tiles (tiny SVGs of what each step makes) ── */
+  var ARC = 'M0 0H1A1 1 0 0 1 0 1Z';
+  function tile(n, rule, ink) {
+    var s = '<svg viewBox="0 0 ' + n + ' ' + n + '">';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) {
+      var q = rule(r, c);
+      s += '<path d="' + ARC + '" fill="' + ink + '" transform="translate(' + (c + .5) + ' ' + (r + .5) + ') rotate(' + q * 90 + ') translate(-.5 -.5)"/>';
+    }
+    return s + '</svg>';
+  }
+  var pin = function (r, c) { return [[0, 1], [3, 2]][r % 2][c % 2]; };
+  var STEPS = [
+    ['Element', 'One shape and how it is drawn: drawn, imported, or one of the seeds.', '<svg viewBox="0 0 1 1"><path d="' + ARC + '" fill="currentColor"/></svg>'],
+    ['Component', 'A small arrangement of the element, placed by a rule.', tile(2, pin, 'currentColor')],
+    ['Symbol', 'A larger grid whose every cell holds a component.', tile(6, function (r, c) { return pin(r, c) + ((r >> 1) + (c >> 1)) % 2; }, 'currentColor')],
+    ['Figure', 'The whole composition, as a node graph — variations, sets, rules.', tile(8, function (r, c) { return (r < 4 ? 0 : 2) + (c < 4 ? 0 : 1) + pin(r, c); }, 'currentColor')],
+  ];
+  function stepsHTML() {
+    var p = pal(1), sw = [p.paper].concat(p.inks).map(function (h) { return '<i style="background:' + h + ';flex:1;display:block"></i>'; }).join('');
+    return STEPS.map(function (s, i) { return '<div class="step">' + s[2] + '<h4>' + (i + 1) + ' · ' + s[0] + '</h4><p>' + s[1] + '</p></div>'; }).join('') +
+      '<div class="step step--colour"><div class="step__pal" data-theme="light">' + sw + '</div><h4>Colour · Organic Palette</h4><p>Palettes with their tints and shading, made once and used on every step — and every plate.</p></div>';
+  }
+  /* ── the two tool cards ── */
+  document.getElementById('stepsC').innerHTML = stepsHTML();
 
-      // ── ?tune — author-only tuning panel. Never shown to visitors. ──
-      if (!/[?&]tune\b/.test(location.search)) return;
-      var link = document.createElement('link');
-      link.rel = 'stylesheet'; link.href = '/shared/panel.css';
-      document.head.appendChild(link);
-      var box = document.createElement('aside');
-      box.className = 'org-panel hub-tune';
-      box.setAttribute('aria-label', 'Hero tuning');
-      box.innerHTML =
-        '<div class="panel-section"><h3>Hero tuning <span class="hint">author only · ?tune</span></h3>' +
-        '<div class="row-btns"><button class="mini-btn" id="tune-replay">Replay</button>' +
-        '<button class="mini-btn" id="tune-reset">Defaults</button>' +
-        '<button class="mini-btn" id="tune-copy">Copy params</button></div>' +
-        '<div class="row-btns" id="tune-modes"></div></div>' +
-        '<div class="panel-section"><h3>Word <span class="hint">rebuilds the field</span></h3>' +
-        '<div class="ctrl-row"><label class="ctrl-label" for="tune-density">Density</label><input type="range" id="tune-density" min="60" max="320" step="5"><span class="ctrl-val"></span></div>' +
-        '<div class="ctrl-row"><label class="ctrl-label" for="tune-probe">Depth probe</label><input type="range" id="tune-probe" min="0.6" max="4" step="0.1"><span class="ctrl-val"></span></div>' +
-        '<div class="ctrl-row"><label class="ctrl-label" for="tune-accent">Accent dots</label><input type="range" id="tune-accent" min="0" max="0.3" step="0.005"><span class="ctrl-val"></span></div></div>';
-      document.body.appendChild(box);
-      var ui = Organica.swarm.panel(box, params, function (k, v) {
-        params[k] = v; if (swarm) swarm.setParams(params);
-      }, 'tune-');
-      function rebuild() { if (W) build(W, H); }
-      [['density', 'tune-density'], ['probe', 'tune-probe'], ['accent', 'tune-accent']].forEach(function (pair) {
-        var el = document.getElementById(pair[1]), out = el.nextElementSibling;
-        el.value = sample[pair[0]]; out.textContent = sample[pair[0]];
-        el.addEventListener('input', function () { sample[pair[0]] = parseFloat(el.value); out.textContent = el.value; });
-        el.addEventListener('change', rebuild);
+  /* ── the two tool cards ── */
+  document.getElementById('toolsC').innerHTML = (function toolsHTML() {
+    var p = pal(0), cols = [p.paper].concat(p.inks, [p.mark]).map(function (h) {
+      return '<div><i style="background:' + h + '"></i><i style="background:' + h + ';opacity:.7"></i><i style="background:' + h + ';opacity:.4"></i></div>';
+    }).join('');
+    return '<article class="tool"><div class="tool__pic" data-theme="light" data-field></div><div class="tool__body"><p class="eyebrow">The system</p><h3 class="h2">Organic Visual System</h3><p class="muted">Element → Component → Symbol → Figure. Write the rules once; generate, vary and export every application.</p><a class="org-btn org-btn--primary home-btn" href="/fvs/">Open the tool</a></div></article>' +
+      '<article class="tool"><div class="tool__pic" data-theme="light"><div class="tool__pal">' + cols + '</div></div><div class="tool__body"><p class="eyebrow">Its colour</p><h3 class="h2">Organic Palette</h3><p class="muted">Make palettes from a colour or an image, explore 1,130 more, and shape their tints and shading. Saved once, they appear in the system.</p><a class="org-btn home-btn" href="/tunesutra/">Make a palette</a></div></article>';
+  })();
+  /* ── the rule demo ── */
+  var EL = {
+    'Quarter ring': 'M1 0A1 1 0 0 1 0 1V.5A.5 .5 0 0 0 .5 0Z',
+    'Quarter disc': ARC,
+    'Triangle': 'M0 0H1L0 1Z',
+    // three layers, each its own ink (back → front): a quarter disc, a ring band on it, two dots —
+    // asymmetric, so every turn shows
+    'Three layers': [
+      'M0 0H1A1 1 0 0 1 0 1Z',
+      'M.72 0A.72 .72 0 0 1 0 .72V.42A.42 .42 0 0 0 .42 0Z',
+      'M.95 .8A.15 .15 0 1 0 .65 .8A.15 .15 0 1 0 .95 .8ZM.3 .2A.1 .1 0 1 0 .1 .2A.1 .1 0 1 0 .3 .2Z',
+    ],
+  };
+  var seed = 7; function rnd(r, c) { var x = Math.sin((r + 1) * 12.9898 + (c + 1) * 78.233 + seed) * 43758.5453; return x - Math.floor(x); }
+  var RULES = {
+    'Identity': function () { return 0; },
+    'Checkerboard': function (r, c) { return (r + c) % 2; },
+    'Pinwheel': pin,
+    'Radial': function (r, c, R, C) { return [[2, 3], [1, 0]][r < R / 2 ? 0 : 1][c < C / 2 ? 0 : 1]; },
+    'Diagonal': function (r, c) { return (r + c) % 4; },
+    'Random': function (r, c) { return Math.floor(rnd(r, c) * 4); },
+  };
+  var st = { el: 'Quarter ring', rule: 'Pinwheel', pal: 0 }, Rn = 10, Cn = 16, cells = [];
+  var demo = document.getElementById('demoStage');
+  (function build() {
+    var s = '<svg viewBox="0 0 ' + Cn + ' ' + Rn + '" preserveAspectRatio="xMidYMid slice"><rect id="dBg" width="' + Cn + '" height="' + Rn + '"/>';
+    for (var r = 0; r < Rn; r++) for (var c = 0; c < Cn; c++)
+      s += '<g class="cell" data-r="' + r + '" data-c="' + c + '" style="transform: translate(' + c + 'px,' + r + 'px)"><rect width="1" height="1" fill="none"/><path/><path/><path/></g>';
+    demo.innerHTML = s + '</svg>';
+    cells = [].slice.call(demo.querySelectorAll('g.cell')).map(function (g) { return { g: g, ps: [].slice.call(g.querySelectorAll('path')), r: +g.dataset.r, c: +g.dataset.c, deg: 0 }; });
+  })();
+  function render() {
+    var p = pal(st.pal), inks = p.inks.length ? p.inks : [p.mark];
+    document.getElementById('dBg').setAttribute('fill', p.paper);
+    cells.forEach(function (k) {
+      var q = RULES[st.rule](k.r, k.c, Rn, Cn), target = q * 90, d = ((target - k.deg) % 360 + 540) % 360 - 180;
+      k.deg += d;
+      k.g.style.transform = 'translate(' + k.c + 'px,' + k.r + 'px) rotate(' + k.deg + 'deg)';
+      var el = EL[st.el], layered = Array.isArray(el), lays = layered ? el : [el];
+      // one layer: the ink follows the turn; layers: each keeps its own ink, as in FVS
+      var layInks = inks.concat([p.mark, p.paper]).filter(function (h, i, a) { return a.indexOf(h) === i; });   // three different inks, the paper last
+      k.ps.forEach(function (path, i) {
+        path.setAttribute('d', lays[i] || '');
+        path.setAttribute('fill', layered ? layInks[i] : inks[q % inks.length]);
       });
-      var modes = document.getElementById('tune-modes');
-      Object.keys(Organica.swarm.MODES).forEach(function (name) {
-        var b = document.createElement('button');
-        b.className = 'mini-btn'; b.textContent = name;
-        b.addEventListener('click', function () {
-          params = Object.assign({}, Organica.swarm.HERO, Organica.swarm.MODES[name]);
-          ui.sync(params); rebuild();
-        });
-        modes.appendChild(b);
-      });
-      document.getElementById('tune-replay').addEventListener('click', rebuild);
-      document.getElementById('tune-reset').addEventListener('click', function () {
-        params = Object.assign({}, Organica.swarm.HERO); sample = Object.assign({}, HERO_SAMPLE);
-        ui.sync(params); rebuild();
-      });
-      document.getElementById('tune-copy').addEventListener('click', function (e) {
-        var txt = 'var HERO_PARAMS = ' + JSON.stringify(Organica.swarm.diff(params)) + ';\n' +
-                  'var HERO_SAMPLE = ' + JSON.stringify(sample) + ';';
-        var btn = e.currentTarget;
-        navigator.clipboard.writeText(txt).then(function () { btn.textContent = 'Copied'; },
-          function () { prompt('Copy:', txt); });
-        setTimeout(function () { btn.textContent = 'Copy params'; }, 1400);
-      });
+    });
+    document.getElementById('demoCap').textContent = st.el + ' · ' + st.rule + ' · ' + p.name + ' — ' + (Rn * Cn) + ' cells, one rule';
+  }
+  function seg(id, list, key) {
+    var host = document.getElementById(id);
+    host.innerHTML = list.map(function (n) { return '<button type="button" class="org-btn" aria-pressed="' + (st[key] === n) + '">' + n + '</button>'; }).join('');
+    host.onclick = function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (key === 'rule' && b.textContent === 'Random') seed++;
+      st[key] = b.textContent; [].forEach.call(host.children, function (x) { x.setAttribute('aria-pressed', x === b); }); render();
+    };
+  }
+  seg('dEl', Object.keys(EL), 'el'); seg('dRule', Object.keys(RULES), 'rule');
+  var dp = document.getElementById('dPal');
+  dp.innerHTML = PALS.map(function (p, i) {
+    return '<button type="button" aria-pressed="' + (i === 0) + '" aria-label="' + p.name + '" title="' + p.name + '">' + [p.paper].concat(p.inks).map(function (h) { return '<i style="background:' + h + '"></i>'; }).join('') + '</button>';
+  }).join('');
+  dp.onclick = function (e) { var b = e.target.closest('button'); if (!b) return; st.pal = [].indexOf.call(dp.children, b); [].forEach.call(dp.children, function (x) { x.setAttribute('aria-pressed', x === b); }); render(); };
+  render();
+
+    /* ── the tool card's picture: a small FVS field ── */
+    (function () {
+      var host = document.querySelector('[data-field]'); if (!host) return;
+      var f = document.createElement('div'); f.className = 'org-fvs-field'; f.setAttribute('aria-hidden', 'true'); host.appendChild(f);
+      F.mount(f, { motion: 'rules', palette: pal(2), elements: { cell: 'triangle', mark: 'triangle' } });
     })();
-
-    // ═════════ 2. GALLERY — placeholder engines ═════════
-    // Each: { span, tool, href, label, theme, draw(ctx,w,h,t) } — a small
-    // live sketch in that tool's visual language. Placeholders: replace
-    // with real exports (image/video/svg) when the work exists.
-    var BG = { light: PAPER, dark: INK, warm: WARM };
-    function fg(theme) { return theme === 'light' ? INK : PAPER; }
-    function clear(ctx, w, h, theme) { ctx.fillStyle = BG[theme]; ctx.fillRect(0, 0, w, h); }
-
-    var SKETCHES = [
-      { span: 's-a', tool: 'Pollen → Murmur', href: '/murmur/', label: 'Stipple, animated', theme: 'light',
-        draw: function (ctx, w, h, t) {
-          clear(ctx, w, h, 'light'); ctx.fillStyle = INK;
-          var s = 7;
-          for (var y = 0; y < h; y += s) for (var x = (y / s) % 2 ? s / 2 : 0; x < w; x += s) {
-            var v = N.fbm(x * 0.006 + t * 0.08, y * 0.006 - t * 0.05);
-            var cx = x - w * .62, cy = y - h * .45;
-            v = v * 0.9 + 0.5 * Math.exp(-(cx * cx + cy * cy) / (w * w * 0.05)) - 0.25;
-            var r = Math.max(0, v) * s * 0.75;
-            if (r < 0.35) continue;
-            ctx.beginPath(); ctx.arc(x + N.hash2(x, y) * 2, y, r, 0, 6.2832); ctx.fill();
-          }
-        } },
-      { span: 's-b', tool: 'Camo Turing', href: '/camo-turing/', label: 'Reaction–diffusion', theme: 'dark', draw: grayScott() },
-      { span: 's-c', tool: 'Loom → Trellis', href: '/trellis/', label: 'Grids, animated', theme: 'light', draw: loomGrid() },
-      { span: 's-d', tool: 'Radial → Pulsar', href: '/pulsar/', label: 'Polar field, animated', theme: 'warm',
-        draw: function (ctx, w, h, t) {
-          clear(ctx, w, h, 'warm'); ctx.strokeStyle = PAPER; ctx.lineWidth = 1.2;
-          var cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.46, k = 5 + Math.round(2 * Math.sin(t * .2));
-          for (var ring = 1; ring <= 14; ring++) {
-            ctx.beginPath();
-            for (var i = 0; i <= 240; i++) {
-              var a = i / 240 * Math.PI * 2;
-              var r = R * ring / 14 * (0.82 + 0.18 * Math.cos(k * a + t * 0.9 + ring * 0.25));
-              var x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
-              i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-            }
-            ctx.stroke();
-          }
-        } },
-      { span: 's-e', tool: 'Flexible Visual System', href: '/fvs/', label: 'Base seeds', theme: 'seeds' },
-      { span: 's-f', tool: 'Halide → Murmur', href: '/murmur/', label: '1-bit dither, animated', theme: 'light', draw: dither() },
-      { span: 's-g', tool: 'Warping → Undertow', href: '/undertow/', label: 'Contours, animated', theme: 'dark',
-        draw: function (ctx, w, h, t) {
-          clear(ctx, w, h, 'dark'); ctx.strokeStyle = PAPER; ctx.lineWidth = 1;
-          for (var l = 0; l < 34; l++) {
-            ctx.beginPath();
-            var y0 = (l + .5) / 34 * h;
-            for (var x = 0; x <= w; x += 4) {
-              var qx = N.fbm(x * 0.004 + t * 0.05, y0 * 0.01), qy = N.fbm(x * 0.004 + 5.2, y0 * 0.01 + t * 0.04);
-              var y = y0 + (N.fbm(x * 0.003 + qx * 2.2, y0 * 0.006 + qy * 2.2) - .5) * h * 0.55;
-              x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-            }
-            ctx.stroke();
-          }
-        } },
-      { span: 's-h', tool: 'Vortex', href: '/vortex/', label: 'Conical helix', theme: 'light', draw: vortex() },
-      { span: 's-i', tool: 'Mycel', href: '/mycel/', label: 'Growth by tracing', theme: 'light', draw: mycel() },
-      { span: 's-j', tool: 'Komorebi → Dapple', href: '/dapple/', label: 'Light, animated', theme: 'dark',
-        draw: function (ctx, w, h, t) {
-          clear(ctx, w, h, 'dark'); ctx.fillStyle = PAPER;
-          var s = 10;
-          for (var y = 0; y < h; y += s) for (var x = 0; x < w; x += s) {
-            var v = N.fbm(x * 0.012 + Math.sin(t * .4) * .6, y * 0.012 + t * .06);
-            var gap = Math.max(0, v - 0.52) * 9;       // small canopy gaps → round coins of light
-            if (gap <= 0.02) continue;
-            ctx.globalAlpha = Math.min(1, gap * 1.4);
-            ctx.beginPath(); ctx.ellipse(x, y, gap * s * .9, gap * s * .6, 0.5, 0, 6.2832); ctx.fill();
-          }
-          ctx.globalAlpha = 1;
-        } }
-    ];
-
-    var gallery = document.getElementById('hub-gallery');
-    SKETCHES.forEach(function (s, i) {
-      var a = document.createElement('a');
-      a.href = s.href;
-      a.className = 'hub-tile ' + s.span + (s.theme === 'dark' ? ' hub-tile--dark' : s.theme === 'warm' ? ' hub-tile--warm' : s.theme === 'seeds' ? ' hub-tile--seeds' : '');
-      a.setAttribute('aria-label', s.tool + ' — ' + s.label + ' (placeholder)');
-      a.style.transitionDelay = (i % 3) * 0.08 + 's';
-      if (s.theme === 'seeds') {
-        var ids = ['seed-breath', 'seed-flower-bloom', 'seed-metaballs', 'seed-sun', 'seed-mitosis', 'seed-amoeba'];
-        var forms = window.ORGANIC_FORMS || {};
-        a.innerHTML = '<div class="hub-seeds">' + ids.map(function (id) { return '<div>' + (forms[id] || '') + '</div>'; }).join('') + '</div>';
-      } else {
-        var c = document.createElement('canvas'); a.appendChild(c);
-      }
-      a.insertAdjacentHTML('beforeend',
-        '<span class="hub-tile__num">' + String(i + 1).padStart(2, '0') + '</span>' +
-        '<span class="hub-tile__cap"><span>' + s.tool + ' · ' + s.label + '</span><span>Open ↗</span></span>');
-      gallery.appendChild(a);
-      if (s.draw) loop(a.querySelector('canvas'), s.draw);
-    });
-
-    // reveal tiles as they enter
-    var rev = new IntersectionObserver(function (es) {
-      es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-in'); rev.unobserve(e.target); } });
-    }, { threshold: 0.15 });
-    document.querySelectorAll('.hub-tile').forEach(function (el) { rev.observe(el); });
-
-    // ── sketch factories with state ──
-    function grayScott() {
-      var G = 96, A, B, A2, B2, img, oc;
-      function seed() {
-        A = new Float32Array(G * G).fill(1); B = new Float32Array(G * G); A2 = new Float32Array(G * G); B2 = new Float32Array(G * G);
-        for (var k = 0; k < 14; k++) {
-          var cx = 8 + Math.random() * (G - 16) | 0, cy = 8 + Math.random() * (G - 16) | 0;
-          for (var y = -3; y <= 3; y++) for (var x = -3; x <= 3; x++) B[(cy + y) * G + cx + x] = 1;
-        }
-      }
-      seed();
-      var f = 0.037, kk = 0.06, frames = 0;
-      oc = document.createElement('canvas'); oc.width = oc.height = G;
-      var octx = oc.getContext('2d'); img = octx.createImageData(G, G);
-      var ink = hexRGB(PAPER), bg = hexRGB(INK);
-      return function (ctx, w, h) {
-        for (var it = 0; it < 10; it++) {
-          for (var y = 0; y < G; y++) for (var x = 0; x < G; x++) {
-            var i = y * G + x, l = ((y + G - 1) % G) * G + x, r = ((y + 1) % G) * G + x, u = y * G + (x + G - 1) % G, d = y * G + (x + 1) % G;
-            var a = A[i], b = B[i], abb = a * b * b;
-            A2[i] = a + (A[l] + A[r] + A[u] + A[d] - 4 * a) * 0.2 * 1.0 - abb + f * (1 - a);
-            B2[i] = b + (B[l] + B[r] + B[u] + B[d] - 4 * b) * 0.1 * 1.0 + abb - (kk + f) * b;
-          }
-          var tA = A; A = A2; A2 = tA; var tB = B; B = B2; B2 = tB;
-        }
-        if (++frames > 1400) { seed(); frames = 0; }
-        for (var j = 0; j < G * G; j++) {
-          var on = B[j] > 0.22, c = on ? ink : bg;
-          img.data[j * 4] = c[0]; img.data[j * 4 + 1] = c[1]; img.data[j * 4 + 2] = c[2]; img.data[j * 4 + 3] = 255;
-        }
-        octx.putImageData(img, 0, 0);
-        ctx.imageSmoothingEnabled = true;
-        var s = Math.max(w, h);
-        ctx.drawImage(oc, (w - s) / 2, (h - s) / 2, s, s);
-      };
-    }
-
-    function loomGrid() {
-      var cells = [], next = 0;
-      function plan(w, h) {
-        // recursive bento split, seeded fresh every few seconds
-        var out = [];
-        (function split(x, y, cw, ch, d) {
-          if (d > 3 || (d > 1 && Math.random() < 0.3)) { out.push([x, y, cw, ch]); return; }
-          var r = 0.3 + Math.random() * 0.4;
-          if (cw > ch) { split(x, y, cw * r, ch, d + 1); split(x + cw * r, y, cw * (1 - r), ch, d + 1); }
-          else { split(x, y, cw, ch * r, d + 1); split(x, y + ch * r, cw, ch * (1 - r), d + 1); }
-        })(0, 0, w, h, 0);
-        return out;
-      }
-      return function (ctx, w, h, t) {
-        if (t > next || !cells.length) {
-          var target = plan(w, h);
-          cells = target.map(function (c, i) { var o = cells[i] || [w / 2, h / 2, 0, 0]; return { from: o.cur || o, to: c, cur: o.cur || o }; });
-          next = t + 3.2; cells.t0 = t;
-        }
-        clear(ctx, w, h, 'light');
-        var e = Math.min(1, (t - cells.t0) / 0.9); e = 1 - Math.pow(1 - e, 4);
-        ctx.strokeStyle = INK; ctx.lineWidth = 1;
-        cells.forEach(function (c, i) {
-          var cur = c.cur = c.from.map(function (v, k) { return v + (c.to[k] - v) * e; });
-          var g = 3;
-          if (i % 5 === 0) { ctx.fillStyle = INK; ctx.fillRect(cur[0] + g, cur[1] + g, cur[2] - 2 * g, cur[3] - 2 * g); }
-          else ctx.strokeRect(cur[0] + g + .5, cur[1] + g + .5, cur[2] - 2 * g - 1, cur[3] - 2 * g - 1);
-        });
-      };
-    }
-
-    function dither() {
-      var B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-      return function (ctx, w, h, t) {
-        clear(ctx, w, h, 'light'); ctx.fillStyle = INK;
-        var s = 4, cx = w * (.5 + .22 * Math.sin(t * .5)), cy = h * (.5 + .2 * Math.cos(t * .37));
-        for (var y = 0, yi = 0; y < h; y += s, yi++) for (var x = 0, xi = 0; x < w; x += s, xi++) {
-          var dx = (x - cx) / w, dy = (y - cy) / h;
-          var v = 1 - Math.min(1, Math.sqrt(dx * dx + dy * dy) * 2.1) + (N.vnoise(x * .02, y * .02 + t * .3) - .5) * .35;
-          if (v > (B4[(yi & 3) * 4 + (xi & 3)] + .5) / 16) ctx.fillRect(x, y, s, s);
-        }
-      };
-    }
-
-    function vortex() {
-      var segs = [];
-      for (var i = 0; i < 320; i++) segs.push({ u: i / 320, off: Math.random() * 0.5, len: 0.12 + Math.random() * 0.2 });
-      return function (ctx, w, h, t) {
-        clear(ctx, w, h, 'light');
-        ctx.lineCap = 'round';
-        var R = Math.min(w * 0.46, h * 1.1), top = h * 0.1, span = h * 0.8;
-        segs.forEach(function (s) {
-          // a cone lying on its side: u runs left→right, radius grows with u
-          function P(da) {
-            var a = s.u * Math.PI * 18 + t * 0.7 + s.off + da, r = (0.06 + s.u * 0.94) * span * 0.5;
-            return [w * 0.06 + s.u * w * 0.88 + Math.sin(a) * r * 0.25, top + span / 2 + Math.cos(a) * r, Math.sin(a)];
-          }
-          var p0 = P(0), p1 = P(s.len);
-          ctx.strokeStyle = s.u > .92 ? WARM : INK;
-          ctx.globalAlpha = 0.25 + 0.75 * (p0[2] * .5 + .5);
-          ctx.lineWidth = 0.6 + 1.6 * (p0[2] * .5 + .5);
-          ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
-        });
-        ctx.globalAlpha = 1;
-      };
-    }
-
-    function mycel() {
-      var branches, start, W, H;
-      function grow(w, h) {
-        W = w; H = h; branches = [];
-        var roots = [[w * .2, h * .9], [w * .75, h * .95], [w * .5, h * .05]];
-        roots.forEach(function (r, ri) {
-          (function br(x, y, a, len, depth, t0) {
-            if (depth > 7 || len < 3) return;
-            var steps = 6, pts = [[x, y]];
-            for (var i = 1; i <= steps; i++) {
-              a += (Math.random() - .5) * .5;
-              x += Math.cos(a) * len / steps; y += Math.sin(a) * len / steps;
-              pts.push([x, y]);
-            }
-            branches.push({ pts: pts, t0: t0, dur: 0.5 + len / 120, w: Math.max(.6, 3 - depth * .4) });
-            var n = depth < 2 ? 3 : 2;
-            for (var k = 0; k < n; k++) br(x, y, a + (Math.random() - .5) * 1.4, len * (0.62 + Math.random() * .2), depth + 1, t0 + 0.5 + len / 120);
-          })(r[0], r[1], ri === 2 ? Math.PI / 2 : -Math.PI / 2, Math.min(w, h) * 0.32, 0, 0);
-        });
-      }
-      return function (ctx, w, h, t) {
-        if (!branches || W !== w || H !== h || t - start > 9) { grow(w, h); start = t; }
-        var lt = t - start;
-        clear(ctx, w, h, 'light'); ctx.strokeStyle = INK; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        branches.forEach(function (b) {
-          var e = (lt - b.t0) / b.dur; if (e <= 0) return; e = Math.min(1, e);
-          var n = (b.pts.length - 1) * e;
-          ctx.lineWidth = b.w; ctx.beginPath(); ctx.moveTo(b.pts[0][0], b.pts[0][1]);
-          for (var i = 1; i <= Math.ceil(n); i++) {
-            var p = b.pts[i], q = b.pts[i - 1], f = Math.min(1, n - (i - 1));
-            ctx.lineTo(q[0] + (p[0] - q[0]) * f, q[1] + (p[1] - q[1]) * f);
-          }
-          ctx.stroke();
-          if (e === 1 && b.w < 1) { var tip = b.pts[b.pts.length - 1]; ctx.fillStyle = WARM; ctx.beginPath(); ctx.arc(tip[0], tip[1], 2, 0, 6.2832); ctx.fill(); }
-        });
-      };
-    }
-
-    function hexRGB(c) {
-      var m = /^#?([0-9a-f]{6})$/i.exec(c);
-      if (m) { var n = parseInt(m[1], 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
-      var d = document.createElement('canvas').getContext('2d'); d.fillStyle = c; return hexRGB(d.fillStyle);
-    }
-
-    // ═════════ 3. manifesto — words light up as you scroll ═════════
-    var man = document.getElementById('hub-manifesto');
-    man.innerHTML = man.textContent.split(' ').map(function (w) { return '<span class="w">' + w + '</span>'; }).join(' ');
-    var words = man.querySelectorAll('.w');
-    function lightWords() {
-      var r = man.getBoundingClientRect(), vh = innerHeight;
-      var p = Math.min(1, Math.max(0, (vh * 0.85 - r.top) / (r.height + vh * 0.35)));
-      var on = Math.round(p * words.length);
-      words.forEach(function (w, i) { w.classList.toggle('is-on', i < on); });
-    }
-    addEventListener('scroll', lightWords, { passive: true }); lightWords();
   })();
   </script>
-
-  <!-- Vercel Web Analytics — plain-HTML form (see /archive/hub-bento/ for the full note) -->
-  <script>
-    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-  </script>
-  <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
