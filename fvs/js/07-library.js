@@ -593,7 +593,8 @@ export function openLayerInkPop(i, anchor) {
   const many = l.part && rt.partSel && rt.partSel.size > 1 && rt.partSel.has(l.id) ? rt.partSel.size : 0;
   pop.setAttribute('aria-label', many ? `Colour for ${many} parts` : 'Layer colour');
   pop.innerHTML = (many ? `<p class="fvs-ink-pop__head">Colour for ${many} parts</p>` : '') + `<button type="button" class="is-cell" data-ink="cell" style="--sw:${colorAt(0)}" aria-pressed="${cur === 'cell'}" aria-label="Follow cell colour" title="Follow the cell colour"></button>`
-    + state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-pressed="${cur === k}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"></button>`).join('');
+    + state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-pressed="${cur === k}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"></button>`).join('')
+    + '<p class="fvs-ink-pop__head">Only Follow cell colour takes the cell’s Colour from Component Edit. An ink stays the same in every cell.</p>';   // only 'cell' takes Component Edit's per-cell Colour (Nov 25, 2026)
   const r = anchor.getBoundingClientRect();
   pop.hidden = false;
   pop.style.left = Math.max(8, Math.min(window.innerWidth - pop.offsetWidth - 8, r.right - pop.offsetWidth)) + 'px';

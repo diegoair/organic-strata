@@ -453,7 +453,8 @@ export function renderComponentEditParts() {
   const vals = new Set(picked.map(c => (c.partInks && rt.cePart in c.partInks) ? String(c.partInks[rt.cePart]) : 'unset'));
   const cur = vals.size === 1 ? [...vals][0] : null;
   ctrl('ce-part-inks').innerHTML = `<button type="button" class="is-cell" data-ink="cell" style="--sw:${colorAt(0)}" aria-pressed="${cur === 'cell'}" aria-label="Follow cell colour" title="Follow the cell colour"></button>`
-    + state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-pressed="${cur === String(k)}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"></button>`).join('');
+    + state.colors.map((c, k) => `<button type="button" data-ink="${k}" style="--sw:${c}" aria-pressed="${cur === String(k)}" aria-label="Ink ${k + 1}" title="Ink ${k + 1} · ${c}"></button>`).join('')
+    + '<p class="fvs-ink-pop__head">Only Follow cell colour takes the cell’s Colour from Component Edit. An ink stays the same in every cell.</p>';   // as the layer ink pop (Nov 25, 2026)
   const off = !picked.length;
   ctrl('ce-part-inks').querySelectorAll('button').forEach(b => { b.disabled = off; });
   ctrl('btn-ce-part-clear').disabled = off || !picked.some(c => c.partInks && rt.cePart in c.partInks);

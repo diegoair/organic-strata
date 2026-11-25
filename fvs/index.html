@@ -784,7 +784,7 @@
           </select>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label">Angle</div>
+          <div class="ctrl-label" title="How wide the wedge opens, in degrees, centred on where it points: at 90° it spans 45° either side of straight up. For a quarter of the cell, set Rotation to 45°.">Angle</div>
           <input type="range" id="rg-wedge-angle" min="10" max="360" step="1" value="90">
           <span class="ctrl-val" id="v-wedge-angle">90</span>
         </div>
@@ -1015,11 +1015,12 @@
           <span class="ctrl-val" id="v-seg-len">70</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="How thick the bar is, in % of the cell. A Segment is a filled bar, so it shows in Fill style.">Thickness</div>
+          <div class="ctrl-label" title="How thick the bar is, in % of the cell. A Segment is a filled bar, so it shows in Fill style. Past the cell’s edge, the whole bar is scaled down to fit.">Thickness</div>
           <input type="range" id="rg-seg-weight" min="1" max="40" step="0.5" value="8">
           <span class="ctrl-val" id="v-seg-weight">8</span>
         </div>
         <label class="check-row"><input type="checkbox" id="ck-seg-round"><span>Round ends</span></label>
+        <p class="org-panel__hint" id="seg-fit-hint" hidden>Scaled down to fit the cell: Length and Thickness together run past its edge.</p>
       </div>
       <div id="seed-drop-block" hidden>
         <div class="ctrl-row">
@@ -1133,7 +1134,7 @@
           <span class="ctrl-val" id="v-wedge-squash">100</span>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Rotates the wedge about the cell centre, in degrees.">Rotation</div>
+          <div class="ctrl-label" title="Rotates the wedge about the cell centre, in degrees. At 0 it points straight up.">Rotation</div>
           <input type="range" id="rg-wedge-rotate" min="-180" max="180" step="1" value="0">
           <span class="ctrl-val" id="v-wedge-rotate">0</span>
         </div>

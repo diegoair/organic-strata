@@ -255,6 +255,12 @@ none: the defaults are Inks · Tone · by lightness · OKLab, the darkest as Ink
 
 > **Nov 21, 2026 — Wash, the fourth Type** (Diego, on the Colour mode preview: *lo trovo bellissimo*, and the same in the SVG export). Gradient › Type is **Flat · Linear · Radial · Wash**; with Wash, after Angle: **Size** · **Slope** · **Ripple** · **Seed** — soft clouds plus a slope along the Angle, coloured through the stops, drawn as stacked vector bands (`Organica.shading`, `type: 'field'`; DESIGN-SYSTEM §5h). Names confirmed (O-92). Later Nov 21: the house is the Wash's sheet, so **Wash over** *Each shape · All the shapes* shows (All the shapes = one wash over the whole house, each shape its piece); and the Wash takes **Colour by** (Tone · Posterize · Random · Tone + random) and **Mix** (sRGB · OKLab, with Tone) — the Colour mode's own words, here per colour (DESIGN-SYSTEM §5h). A colour turned to Wash **starts from the Colour mode**: its Colour by, Mix and colours (Inks: the order dark → bright; Adaptive: Ink → Paper), the colour itself kept; from then on the Wash is the colour's own.
 
+> **Where a default Linear starts** (noted Nov 25, 2026, from the home-hero captures). Every preset `shadeDefs` makes
+> (`shared/shading.js`) puts the first stop at **20 %** (`pos: [0.2, 1]`): the first fifth of the shape is the flat
+> colour, then it blends to its 900. That suits a dome. To match a plain end-to-end gradient, move the first stop to
+> 0. `smoothStops` itself only samples between the stops (16 steps each, mixed in OKLab), so the same two colours
+> also give a different middle than a two-stop SVG gradient.
+
 One definition behind three panel sections — **Gradient** (how the colour fills each
 shape: Type, Angle, Stops, Fade to paper), **Grain** (the gradient broken into cells of pure
 ink, for print plates: Size and Pattern (its hint, Seed and the plates note removed Nov 18, 2026) — **hidden entirely on Flat**, Nov 18, 2026) and

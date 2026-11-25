@@ -1607,6 +1607,18 @@ fields get + set), plus `__fvs.ready` / `isReady`, `loadFigureTier`, and the one
 `rt.afterLoadSymbolGrid` (called by `loadSymbolGrid`, null in use — the regression battery pins *Clip to
 cell* with it). Figure names throw "await __fvs.loadFigureTier()" until Figure has loaded.
 
+**Scripting an Element through `__fvs` — two rules** (Nov 25, 2026, from the home-hero captures; both were thought to be
+bugs, both are the panel being the source). (1) **The panel owns the active layer.** `getSeed()` / `seedForSnapshot()`
+call `syncActiveLayer()`, which writes the Shape panel and the look controls (Style · Stroke W · Rounded · Width ·
+Length) over `state.layers.items[active]`. A layer written in code keeps its seed and `look` only if it is not the
+active one; to load a stack built in code, hand it to `applyElementSnapshot(seed, appearance)` (or
+`applySeedToPanel(seed)`), which puts the active layer into the panel (`showLayerStyle`). By hand nothing is lost: a
+Width set on the panel is kept on save, in a stack render and on reopening the saved Element (checked headless). (2)
+**The Rectangle box rides on the grid.** A Component's cells take the Element's proportions from `grid.aspect`, which
+the tool's own grids carry (`03-rules.js`, `if (state.cellAspect !== 1) g.aspect = …`). A grid written by hand for
+`buildComponentItems` / `buildComponentSVG` must carry `aspect: state.cellAspect` too, or a Rectangle Element draws in
+a square cell.
+
 **The panel reader (Oct 2026).** The engine never reads the page. A control's value comes through
 `pv(id)` (its value, like `ctrl(id).value`), `pc(id)` (a checkbox, like `ctrl(id).checked`), `pr(id)` (either)
 and `val(id)` (`parseFloat(pv(id))`), all in `engine/00-core.js`. They ask **`panelSource`**, which the UI

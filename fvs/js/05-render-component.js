@@ -99,6 +99,9 @@ export function renderSeedPreview() {
     .map(([r, fh, fv, label], i) => `<div class="fvs-seed-tile${i === elementViewIndex() ? ' is-selected' : ''}" role="button" tabindex="0" data-view="${i}" aria-pressed="${i === elementViewIndex()}" aria-label="Show the Element at ${label}"><div class="fvs-seed-tile__box">${buildSeedPreviewSVG(seed, r, fh, fv, 48, { outline: true })}</div><span class="fvs-seed-tile__label">${label}</span></div>`).join('');
   renderElementFrame(seed);
   mountElementQuickSaves();
+  // A Segment bar past the cell's edge is scaled down to fit (segmentBar's normScale): say so (Nov 25, 2026 — it was silent)
+  const ps = seed.type === 'stack' ? ((seed.layers[seed.active] || {}).seed || {}) : seed, hint = ctrl('seg-fit-hint');
+  if (hint) hint.hidden = !(ps.type === 'segment' && SEED_TYPES.segment.geometry(ps).normScale < 0.999);
 }
 
 // Split's cut grid — a dashed frame + centre cross showing exactly where the
