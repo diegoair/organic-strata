@@ -1413,7 +1413,10 @@
   // scale and its rotation + two flags stay as they are. Used by FVS's Inner
   // seed (nested copies), where `d` may come from an uploaded SVG (relative
   // commands, H/V/S) as well as from the hand-authored shapes above.
+  // `s` may also be [sx, sy] (Nov 25, 2026 — FVS's oval Circle): x and y scale apart; an arc's
+  // radii scale with them, exact for an axis-aligned arc (rotation 0), as the plain circle's are.
   function scalePathAbout(d, s, cx, cy) {
+    const sx = Array.isArray(s) ? s[0] : s, sy = Array.isArray(s) ? s[1] : s;
     const per = { M: 2, L: 2, H: 1, V: 1, C: 6, S: 4, Q: 4, T: 2, A: 7, Z: 0 };
     const r = v => Math.round(v * 1000) / 1000;
     const toks = String(d).match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g) || [];
@@ -1427,11 +1430,11 @@
       if (n === 0) continue;
       const a = toks.slice(i, i + n).map(Number); i += n;
       const map = (k, v) => {
-        if (up === 'A') { if (k < 2) return v * s; if (k < 5) return v; }
-        if (rel) return v * s;
-        const isY = up === 'V' || (up !== 'H' && k % 2 === 1);
+        if (up === 'A') { if (k < 2) return v * (k ? sy : sx); if (k < 5) return v; }
+        const isY = up === 'V' || (up === 'A' ? k === 6 : up !== 'H' && k % 2 === 1), f = isY ? sy : sx;   // an arc's end point is its 6th and 7th numbers
+        if (rel) return v * f;
         const c = isY ? cy : cx;
-        return c + s * (v - c);
+        return c + f * (v - c);
       };
       out.push(a.map((v, k) => r(map(k, v))).join(' '));
       if (up === 'M') cmd = cmd === 'm' ? 'l' : 'L';   // extra coordinate pairs after M are implicit lineto

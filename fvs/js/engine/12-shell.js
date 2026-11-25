@@ -32,7 +32,7 @@ export const TRU_IDS = { count: 'rg-arc-count', ratio: 'rg-arc-ratio', core: 'rg
 // Arc Type is a derived shortcut for Sweep, same idea as Triangle Type.
 export const ARC_PRESETS = { quarter: 90, half: 180, threequarter: 270 };   // no 'ring' (Oct 4, 2026): Sweep stops at 350, so it was never closed — a full ring is Circle → Interior Ring
 // Wedge Type is a derived shortcut for Angle + Inner radius (same idea as Arc Type).
-export const WEDGE_PRESETS = { quarter: [90, 0], half: [180, 0], threequarter: [270, 0] };   // 'ring' dropped Oct 4, 2026 — the same annulus as Circle → Interior Ring; Angle 360 still makes it
+export const WEDGE_PRESETS = { quarter: [90, 0, 45], half: [180, 0, 0], threequarter: [270, 0, 45] };   // [Angle, Hole, Rotation] — the Rotation since Nov 25, 2026 (O-98 c)   // 'ring' dropped Oct 4, 2026 — the same annulus as Circle → Interior Ring; Angle 360 still makes it
 // A shape's own Rotate (shared/shapes.js EXTRAS, also read by Genesis) is retired in FVS — Appearance → Rotate
 // does it for every shape. The row is still built, into the hidden #seed-legacy, so old snapshots round-trip.
 export const FVS_RETIRED_EXTRAS = new Set(['starRotate', 'rrRotate', 'chevRotate', 'crossRotate', 'lensRotate', 'dropRotate',

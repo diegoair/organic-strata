@@ -775,7 +775,7 @@
       </div>
       <div id="seed-wedge-block" hidden>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="Shortcut that sets Angle and Hole. Reads Custom as soon as you move either by hand.">Type</div>
+          <div class="ctrl-label" title="Shortcut that sets Angle, Hole and Rotation: Quarter and Three-quarter turn 45° to sit square in the cell. Reads Custom as soon as you move Angle or Hole by hand.">Type</div>
           <select class="panel-select" id="sel-wedge-type" aria-label="Wedge type">
             <option value="quarter" selected>Quarter</option>
             <option value="half">Half</option>
@@ -784,7 +784,7 @@
           </select>
         </div>
         <div class="ctrl-row">
-          <div class="ctrl-label" title="How wide the wedge opens, in degrees, centred on where it points: at 90° it spans 45° either side of straight up. For a quarter of the cell, set Rotation to 45°.">Angle</div>
+          <div class="ctrl-label" title="How wide the wedge opens, in degrees, centred on where it points: at 90° it spans 45° either side of straight up.">Angle</div>
           <input type="range" id="rg-wedge-angle" min="10" max="360" step="1" value="90">
           <span class="ctrl-val" id="v-wedge-angle">90</span>
         </div>
@@ -909,6 +909,16 @@
         </div>
       </div>
       <div id="seed-circle-block" hidden>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="100 with Height 100 is a circle; lower makes an oval.">Width</div>
+          <input type="range" id="rg-circle-width" min="5" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-circle-width">100</span>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label" title="100 with Width 100 is a circle; lower makes an oval.">Height</div>
+          <input type="range" id="rg-circle-height" min="5" max="100" step="1" value="100">
+          <span class="ctrl-val" id="v-circle-height">100</span>
+        </div>
         <div class="ctrl-row" id="row-circle-round">
           <div class="ctrl-label" title="0 = a true circle, 100 = a near-square squircle.">Roundness</div>
           <input type="range" id="rg-circle-round" min="0" max="100" step="1" value="0">

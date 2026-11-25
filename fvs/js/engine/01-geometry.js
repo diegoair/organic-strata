@@ -800,6 +800,14 @@ export function capArc(center, from, to, outwardDir) {
 }
 export const SYMBOL_ARC_TRUCHET ={ arcCount: 5, arcRatio: 0.7, truFans: 2, truCore: 0, truSpread: 180, truReach: 100, truRamp: 0, truCurve: 0, truRound: 0, truSegs: 1, truGap: 20 };   // fixed defaults for the Symbols tier
 export const SYMBOL_ARC = { arcPivot: 'corner', arcSweep: 90, arcStart: 0, arcRound: 0, arcSegs: 1, arcGap: 20, arcTaper: 0, arcIrregular: 0, arcSeed: 1 };   // Symbols stay a plain quarter arc
+// The Circle's own Width / Height (Nov 25, 2026, ledger O-98 a): an oval, as the Square has. Both 100 = the
+// circle, byte-identical to before; otherwise the path is scaled about the cell centre, x and y apart.
+const circleWH = p => [Math.min(100, Math.max(5, +p.circleWidth || 100)) / 100, Math.min(100, Math.max(5, +p.circleHeight || 100)) / 100];
+export const isOvalCircle = p => { const [w, h] = circleWH(p); return w !== 1 || h !== 1; };
+function ovalOf(geo, p) {
+  if (!geo || !geo.d || !isOvalCircle(p)) return geo;
+  return { ...geo, d: Organica.shapes.scalePathAbout(geo.d, circleWH(p), 50, 50) };
+}
 export const SYMBOL_WEDGE = { wedgeAngle: 90, wedgeInner: 0, wedgeSquash: 100, wedgeRound: 0, wedgeRotate: 0, wedgeCurve: 0, wedgeIrregular: 0, wedgeSeed: 1 };
 export const SYMBOL_POLYGON = { polySides: 6, polyCorner: 0, polyRotate: 0, polyStep: 1, polyStyle: 'round', polyCurve: 0, polyOutline: 0, polySkew: 0 };
 export const SYMBOL_STAR = { starPoints: 5, starInner: 45 };
@@ -820,7 +828,7 @@ export const SEED_TYPES = {
   chevron: { label: 'Chevron', geometry: (p) => chevronGeometry(p.chevNotch, p.chevArm, p.chevSquash, { round: p.chevRound, style: p.chevStyle, curve: p.chevCurve, lean: p.chevLean, flat: p.chevFlat, stack: p.chevStack, gap: p.chevGap, rotate: p.chevRotate }) },
   cross: { label: 'Cross', geometry: (p) => crossGeometry(p.crossArmWidth, p.crossArmLength, p.crossCorner, { arms: p.crossArms, taper: p.crossTaper, tip: p.crossTip, style: p.crossStyle, rotate: p.crossRotate }) },
   lens: { label: 'Lens', geometry: (p) => lensGeometry(p.lensWidth, { crescent: p.lensCrescent, petals: p.lensPetals, outline: p.lensOutline, rotate: p.lensRotate }) },
-  circle: { label: 'Circle', geometry: (p) => circleGeometry(p.circleRadius, hooks.circleOptsFrom(p)) },
+  circle: { label: 'Circle', geometry: (p) => ovalOf(circleGeometry(p.circleRadius, hooks.circleOptsFrom(p)), p) },
   segment: { label: 'Segment', geometry: (p) => segmentBar(segmentGeometry(p.segLen, { angle: p.segAngle, bend: p.segBend, wave: p.segWave, cycles: p.segCycles, dashes: p.segDashes, gap: p.segGap, lines: p.segLines, spacing: p.segSpacing, repeatX: p.segRepeatX, spaceX: p.segSpaceX, repeatY: p.segRepeatY, spaceY: p.segSpaceY, rays: p.segRays, tile: true }), p.segWeight == null ? SEG_WEIGHT_DEF : p.segWeight, !!p.segRound) },
   drop: { label: 'Drop', geometry: (p) => dropGeometry(p.dropRadius, p.dropTail, { bend: p.dropBend, neck: p.dropNeck, petals: p.dropPetals, rotate: p.dropRotate }) },
   blob: { label: 'Blob', geometry: (p) => blobGeometry(p.blobRadius, p.blobAmount, p.blobSeed, { freq: p.blobFreq, smooth: p.blobSmooth, outline: p.blobOutline }) },
@@ -948,6 +956,7 @@ export function partFrameOf(seed) {
 }
 function partFrameOwn(seed, kind, num, cl) {
   if (kind === 'any') return { kind };
+  if (kind === 'circle' && isOvalCircle(seed)) return { kind: 'any' };   // an oval: the generic divisions (the circle's rings / sectors assume one radius)
   if (kind === 'circle') { const g = genericFrame(seed); return { kind, frame: { cx: g.cx, cy: g.cy, R: Math.min(g.w, g.h) / 2 } }; }
   if (kind === 'cross') {
     const N = Math.round(cl(seed.crossArms, 2, 12, 4)), width = cl(seed.crossArmWidth, 5, 50, 35);

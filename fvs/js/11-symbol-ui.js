@@ -532,6 +532,7 @@ function componentCellPropsHTML(I) {
             <span class="ctrl-val" style="color:var(--tool);text-align:left;flex:1">● Overrides the palette</span>
             <button class="mini-btn" id="${I('btn-cellprop-color-reset')}">Reset</button>
           </div>
+          <p class="org-panel__hint" id="${I('cellprop-color-hint')}" hidden></p>
           <div class="ctrl-row" id="${I('row-cellprop-move-x')}"><div class="ctrl-label" title="% of a cell width">Move X</div>
             <input type="range" id="${I('rg-cellprop-move-x')}" min="-100" max="100" step="1" value="0" aria-label="Move X">
             <span class="ctrl-val" id="${I('v-cellprop-move-x')}">0</span>
@@ -667,7 +668,7 @@ export function cellPropsHTML(pre, opts = {}) {
 export function syncCellColourUI(cell, isComponent, pre = '', colors = state.colors) {
   const c = b => ctrl(pre + b) || standIn();
   c('row-cellprop-color').hidden = !!(isComponent);
-  if (isComponent) { c('row-cellprop-color-override').hidden = true; return; }
+  if (isComponent) { c('row-cellprop-color-override').hidden = true; c('cellprop-color-hint').hidden = true; return; }
   const sel = c('sel-cellprop-color');
   const pal = colors.map(hexKey);
   const cur = cell.color ? hexKey(cell.color) : '';
@@ -680,6 +681,10 @@ export function syncCellColourUI(cell, isComponent, pre = '', colors = state.col
   inp.hidden = !custom;
   if (custom) inp.value = cur;
   c('row-cellprop-color-override').hidden = !cur;
+  // Component Edit only (the row is in its markup): the layers with an ink of their own skip this colour (Nov 25, 2026, O-98 d)
+  const own = state.layers ? state.layers.items.filter(l => l.ink != null && l.ink !== 'cell').length : 0, hint = c('cellprop-color-hint');
+  hint.hidden = !own;
+  hint.textContent = own === 1 ? '1 layer keeps its own ink and doesn’t take this colour.' : `${own} layers keep their own ink and don’t take this colour.`;
 }
 // Cell properties belong to the selection, not to the Fill mode: the block
 // shows in Manual, and in any other mode as soon as cells are selected.

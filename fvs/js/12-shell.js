@@ -279,12 +279,16 @@ ctrl('rg-arc-count').addEventListener('input', e => { ctrl('v-arc-count').textCo
 ctrl('rg-arc-ratio').addEventListener('input', e => { ctrl('v-arc-ratio').textContent = e.target.value; renderGallery(); renderSeedPreview(); });
 export function syncWedgeType() {
   const cur = [val('rg-wedge-angle'), val('rg-wedge-inner')];
-  ctrl('sel-wedge-type').value = Object.keys(WEDGE_PRESETS).find(k => WEDGE_PRESETS[k].every((v, i) => v === cur[i])) || 'custom';
+  ctrl('sel-wedge-type').value = Object.keys(WEDGE_PRESETS).find(k => cur.every((v, i) => v === WEDGE_PRESETS[k][i])) || 'custom';   // Angle + Hole: the Rotation is placement
 }
 ctrl('sel-wedge-type').addEventListener('change', e => {
   const p = WEDGE_PRESETS[e.target.value];
   if (!p) return;
   [['rg-wedge-angle', 'v-wedge-angle'], ['rg-wedge-inner', 'v-wedge-inner']].forEach(([id, vid], i) => { ctrl(id).value = p[i]; ctrl(vid).textContent = p[i]; });
+  // Quarter and Three-quarter turn 45° so the straight edges lie on the cell's axes (Nov 25, 2026, O-98 c): the
+  // Element's Rotation, or the layer's own in a stack. Its input handler re-renders.
+  const rot = ctrl(state.layers ? 'rg-layer-rotate' : 'rg-element-rotate');
+  if (+rot.value !== p[2]) { rot.value = p[2]; rot.dispatchEvent(new Event('input', { bubbles: true })); }
   renderGallery(); renderSeedPreview();
 });
 [['rg-wedge-round', 'v-wedge-round'], ['rg-wedge-rotate', 'v-wedge-rotate'], ['rg-wedge-curve', 'v-wedge-curve'], ['rg-wedge-irregular', 'v-wedge-irregular'], ['rg-wedge-seed', 'v-wedge-seed']].forEach(([id, vid]) => {

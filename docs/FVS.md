@@ -73,6 +73,14 @@ is gone); the candidates sit on the board at 2×.
   - **Thickness**: Chevron / Cross Arm width, Arc truchet Arc ratio.
   - **Bands**: Arc truchet Arc count.
   - **Hole**: the hole of Wedge. Circle → Ring says **Opening**, so it is not confused with Perforated's *Holes*. Star keeps *Inner radius* (its point depth).
+  - **Width / Height** (Nov 25, 2026, ledger O-98 a): the Square's, and the Circle's too — an oval. The Circle's
+    (`circleWidth` / `circleHeight`, 5–100, in `CIRCLE_PARAMS` but not passed to `circleAdvanced`) scale its path
+    about the cell centre, x and y apart (`ovalOf`, `Organica.shapes.scalePathAbout(d, [sx, sy], 50, 50)`); 100 × 100
+    is the circle, byte-identical. An oval offers the generic Division methods (`partFrameOf` → `any`).
+  - **Wedge › Type** (Quarter · Half · Three-quarter · Custom) sets Angle, Hole and, since Nov 25, 2026 (O-98 c),
+    **Rotation**: 45° for Quarter and Three-quarter, so the straight edges lie on the cell's axes, 0 for Half — the
+    Element's Rotation, or the active layer's in a stack (`WEDGE_PRESETS` [angle, hole, rotation]). Type reads only
+    Angle + Hole, so a wedge turned by hand keeps its Type.
 
   These labels are FVS's own (`FVS_EXTRAS_LABELS`; the order of rows built from the shared table:
   `FVS_SEED_ORDER`). The shared table keeps its labels for Genesis. Ids and saved keys are

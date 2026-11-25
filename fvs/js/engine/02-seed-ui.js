@@ -80,6 +80,7 @@ Object.defineProperty(SEED_ICONS, 'custom', {
 // Circle modifiers: [getSeed key, control id suffix, default]. One table
 // drives getSeed(), the snapshot restore and the input listeners.
 export const CIRCLE_PARAMS = [
+  ['width', 'width', 100], ['height', 'height', 100],   // the oval (Nov 25, 2026): read by the geometry, not by circleAdvanced
   ['round', 'round', 0], ['rotate', 'rotate', 0], ['lobes', 'lobes', 0], ['lobeDepth', 'lobedepth', 20], ['inner', 'inner', 50],
   ['ringCount', 'ringcount', 3], ['ringRatio', 'ringratio', 55], ['holes', 'holes', 6], ['holeSize', 'holesize', 14], ['holeRing', 'holering', 60],
   ['cutPos', 'cutpos', 0], ['cutAngle', 'cutangle', 0], ['biteRadius', 'biteradius', 70], ['biteOffset', 'biteoffset', 60], ['biteAngle', 'biteangle', 45],
@@ -90,7 +91,7 @@ export const cap = k => 'circle' + k[0].toUpperCase() + k.slice(1);
 // Symbol's bare defaults object stays a plain circle).
 export function circleOptsFrom(p) {
   const o = {};
-  CIRCLE_PARAMS.forEach(([k]) => { if (p[cap(k)] != null) o[k] = p[cap(k)]; });
+  CIRCLE_PARAMS.forEach(([k]) => { if (k !== 'width' && k !== 'height' && p[cap(k)] != null) o[k] = p[cap(k)]; });
   if (p.circleInterior) o.interior = p.circleInterior;
   if (p.circleTrim) o.trim = p.circleTrim;
   return o;
