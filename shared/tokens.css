@@ -402,6 +402,9 @@ html {
      canvas area with one soft shadow — the same in every tool. Was retyped
      by hand in 7 tools (two at 0.12). */
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.18);
+  /* The PANE shadow (ledger O-110 c, Nov 25, 2026): a pane that floats above the board — the floatbar, FVS's flyout.
+     Black rgba, so the same in both themes; the pane's own lit top edge (inset) stays the pane's. Was typed twice. */
+  --pane-shadow: 0 8px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
   /* The SHEET PILE (Diego, Oct 10, 2026 — the blurred shadow stays off, Oct 8): a work sheet reads off the board
      as the top of a small ream — its black outline, one loose grey sheet and one grey page under it, solid copies
      (box-shadow, no blur, painted once). The same in both themes, except the line: a gentle ~5:1 on each board.
@@ -551,6 +554,10 @@ html {
   /* --active: a green for an ACTIVE state that waits on the user — the floatbar's out-of-date dot (.is-stale, Diego,
      Oct 15, 2026: "un token verde nuovo per gli stati attivi"). Non-text: 4.37:1 on --paper, 3.94:1 on --panel. */
   --active: #1e8a4f;
+  /* --guide: the selection / guide blue drawn ON THE WORK SHEET — FVS's marquee and track, Loom's grid guides (ledger
+     O-110 a, Nov 25, 2026). The sheet is always light, so the dark rule repeats this value. 2.94:1 on white: dashed
+     guides and a passing marquee are decoration and state, never a boundary or text. */
+  --guide: #3399ff;
   --canvas-dot: #a8dff0;   /* light cyan blue */
   /* Node-graph port types (Organica.nodeCanvas) — the NODE palette, used only by the node board (Diego, Oct 8, 2026):
      the cover of "Essential Color Combinations That Just Work" (Em Sans), sampled pixel-exact and used AS IS — no step
@@ -617,6 +624,7 @@ html {
   --accent-hover: #bdb8ae;    /* the hover under an ink-filled button: dropped off --ink, the mirror of light's lift */
   --danger: #e0735f;          /* 6.1:1 — light's #a03828 is 2.8:1 here */
   --active: #3dbb6f;          /* non-text: 7.6:1 on --paper, 6.9:1 on --panel — light's #1e8a4f is 3.6:1 here */
+  --guide: #3399ff;           /* the same: it is drawn on the light work sheet, never on dark chrome (O-110 a) */
   --accent-warm: #d8642a;     /* non-text accent: 5.2:1 on --paper, 4.6:1 on --panel, 3.0:1 against --ink (a light thumb) — light's #c2551b is 3.7:1 on this --panel (Oct 8, 2026) */
   --canvas-dot: #2e4a55;      /* the cyan dot, dimmed to the same quietness on black */
   --port-canvas: #f1e1c8;   /* the node palette in dark: the cover's cream stands in for its black (black is invisible here); the rest as sampled */
@@ -627,6 +635,7 @@ html {
   --port-composition: #f73710;
   --port-figure: #fb8700;
   --stage-shadow: 0 4px 40px rgba(0, 0, 0, 0.6);   /* the sheet still has to lift off a dark ground */
+  --pane-shadow: 0 8px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);   /* the same: the pane's own dimmed rim does the dark work (floatbar.css) — O-110 c */
   --canvas-paper: #1c1a15;   /* the paper board, dark: the same warmth */
   --sheet-line: #8f897d;   /* the sheet pile's line on the dark board: 5.0:1 (the light one would be 1.1:1) */
   --sheet-page: #54514b;   /* the pile's grey, dark: 2.3:1 from its line, 7.9:1 from the white sheet (#adadad sat 1.55:1 from the line — Diego) */

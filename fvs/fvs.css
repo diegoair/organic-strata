@@ -2,12 +2,8 @@
     /* color-scheme:light + the surface palette are shared defaults in
        tokens.css now. FVS keeps its own scrollable-gallery shell. */
     --tool: #3fa876;   /* identity colour — emerald, unclaimed hue gap between Komorebi's olive and Camo Turing's teal */
-    /* The same blue FVS's own "Show loaded grid" outline already uses
-       (buildGridOutlineSVG, below) — checked: #3399ff is NOT a shared
-       tokens.css value, it's a hardcoded hex repeated as-is across FVS/
-       Loom/motion.js's own grid-overlay markup, so this reuses that exact
-       existing convention rather than introducing a new, different blue. */
-    --track-accent: #3399ff;
+    /* The guide blue, a shared token since Nov 25, 2026 (ledger O-110 a): FVS's track and marquee, Loom's guides. */
+    --track-accent: var(--guide);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -179,7 +175,7 @@
   .fvs-rail-ghost { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; width: 3rem; height: 3rem; background: var(--paper); border: 1px solid var(--border-strong); }
   .fvs-rail-ghost svg { width: 100%; height: 100%; display: block; }
   body.is-rail-dragging { cursor: grabbing; user-select: none; }
-  #symbol-frame g[data-cell-index].is-drop > :first-child, #component-edit-frame [data-cell-index].is-drop, #element-svg .fvs-part.is-drop > path { stroke: var(--ink); stroke-width: var(--space-1); vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
+  #symbol-frame g[data-cell-index].is-drop > :first-child, #component-edit-frame [data-cell-index].is-drop, #element-svg .fvs-part.is-drop > path { stroke: var(--ink); stroke-width: 4px; vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
   /* Library view (Oct 6, 2026): replaces the tier views in #canvas-wrap while open; the rail and the variations dock step aside */
   #canvas-wrap.is-libview > .tier-view { display: none !important; }
   .fvs-libview { width: min(100%, 1040px); margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-5); }
@@ -276,7 +272,7 @@
     padding: var(--space-1);
     border-radius: var(--radius-lg);
     background: var(--pane, var(--paper));   /* opaque, as the bar (Oct 8, 2026) */
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--g-spec)), 0 8px 28px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, var(--g-spec)), var(--pane-shadow);   /* as the floatbar (O-110 c) */
   }
   /* A rise you can follow: longer and gentler than a pop, the fade on its own slower ramp so the
      fade is what you notice and the movement is what carries it. */
@@ -335,7 +331,7 @@
   #symbol-content-overlay__seeds .fvs-library-item, #symbol-content-overlay__element .fvs-library-item, #symbol-content-overlay__components .fvs-library-item { width: 76px; height: 76px; }
   #underlying-component-overlay-tiles .fvs-library-item { width: 76px; height: 76px; }
 
-  #symbol-frame svg .symbol-marquee, #fg-compose-stage svg .symbol-marquee { fill: rgba(51,153,255,0.12); stroke: #3399ff; stroke-width: 1; stroke-dasharray: 4 3; }
+  #symbol-frame svg .symbol-marquee, #fg-compose-stage svg .symbol-marquee { fill: color-mix(in srgb, var(--guide) 12%, transparent); stroke: var(--guide); stroke-width: 1; stroke-dasharray: 4 3; }
 
   /* Element tier — a single big live preview of the current Seed, on
      its own canvas (not the scrollable-gallery/live-grid surfaces the
@@ -397,8 +393,8 @@
   .fvs-layers .org-layer-card.is-picked { background: color-mix(in srgb, var(--tool) 12%, var(--panel)); }
   .fvs-layers .org-layer-card.is-picked:not(.in-group) { box-shadow: inset 2px 0 0 var(--tool); }
   /* a colour group's members: its colour as a bar on the left, joined across consecutive rows (Diego, Oct 12, 2026) */
-  .fvs-layers .org-layer-card.in-group { position: relative; box-shadow: inset var(--space-1) 0 0 var(--grp), inset calc(var(--space-1) + 1px) 0 0 var(--grp-edge, transparent); }
-  .fvs-layers .org-layer-card.group-joins::after { content: ''; position: absolute; left: -1px; top: 100%; width: calc(var(--space-1) + 1px); height: calc(var(--space-1) + 2px); background: var(--grp); }
+  .fvs-layers .org-layer-card.in-group { position: relative; box-shadow: inset 4px 0 0 var(--grp), inset 5px 0 0 var(--grp-edge, transparent);   /* a bar width, plain px (ledger §3, O-110 b) */ }
+  .fvs-layers .org-layer-card.group-joins::after { content: ''; position: absolute; left: -1px; top: 100%; width: 5px; height: 6px; background: var(--grp); }
   .fvs-group-rule-label { display: inline-flex; align-items: center; gap: var(--space-1); }
   .fvs-layers .org-layer-card.is-group-hl { box-shadow: inset 2px 0 0 var(--tool); }
   .fvs-element-frame.is-part-edit .fvs-part { cursor: pointer; }
@@ -425,7 +421,7 @@
   .fvs-layer__place .ctrl-label { min-width: 0; width: auto; flex: 0 0 calc(var(--space-7) * 2); }   /* wide enough for "Stroke W", so every slider of the card lines up */
   .fvs-layer__place .check-row { margin: 0 0 var(--space-1); }
   .fvs-layer__place .ctrl-val { flex: 0 0 22px; }
-  .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border-radius: var(--radius-md); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15); }
+  .fvs-ink-pop { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: 180px; padding: var(--space-3); background: var(--paper); border-radius: var(--radius-md); box-shadow: 0 6px 28px rgba(0, 0, 0, 0.14); }   /* .org-popover's shadow: the ink pop is a popover (O-110 c) */
   .fvs-ink-pop[hidden] { display: none; }
   /* the same swatches inline, in the Component Edit toolbar (Divide into parts, per cell) — a full hit target each */
   /* a colour group's member: its group number on the row (Oct 12, 2026) */
@@ -554,7 +550,7 @@
   @media (hover: hover) { .fg-cell:hover { stroke: var(--border-strong); stroke-dasharray: 4 3; } }
   .fg-cell.is-sel { fill: color-mix(in srgb, var(--ink) 18%, transparent); stroke: var(--ink); stroke-dasharray: none; filter: drop-shadow(0 0 1px var(--paper)) drop-shadow(0 0 1px var(--paper)); }   /* a paper halo: the outline reads on any ink */
   .fvs-cellprop-shape { flex-wrap: wrap; row-gap: var(--space-1); }   /* Cell properties → Shape: "Element settings" + two buttons wrap instead of running past the panel */
-  .fg-cell.is-drop { stroke: var(--ink); stroke-width: var(--space-1); fill: color-mix(in srgb, var(--ink) 8%, transparent); }   /* a rail item dragged over the cell — as #symbol-frame .is-drop */
+  .fg-cell.is-drop { stroke: var(--ink); stroke-width: 4px; fill: color-mix(in srgb, var(--ink) 8%, transparent); }   /* a rail item dragged over the cell — as #symbol-frame .is-drop */
   .is-outlined .fg-cell:not(.is-sel) { stroke: var(--border-strong); }   /* View → Show loaded grid */
   .fg-cell.is-hint:not(.is-sel) { stroke: var(--ink); stroke-dasharray: 4 3; filter: drop-shadow(0 0 1px var(--paper)); }   /* a hovered region rule's cells */
   .fg-lost { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); margin-bottom: var(--space-2); }

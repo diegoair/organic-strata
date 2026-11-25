@@ -25,7 +25,7 @@
      this same variable via getComputedStyle before drawing the SVG/PNG
      renderers' own strokes, so the preview and every export can't drift
      apart on this colour. */
-  --guide-blue: #3399ff;
+  --guide-blue: var(--guide);   /* the shared guide blue (tokens.css, ledger O-110 a); the name stays — exports read it */
   /* Overlay grid's own line colour — same "content colour, not UI chrome"
      exception as --guide-blue above, deliberately a different hue so a
      second grid drawn on top of the first reads as visually distinct at
