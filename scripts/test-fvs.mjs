@@ -44,6 +44,7 @@ const JOBS = {
   'selection':          node('test-fvs-selection.mjs'),   // Symbol Selection: dot, drop target, Arrange, Save, Lock, Clear (Oct 28, 2026)
   'segment':            node('test-fvs-segment.mjs'),   // Element: Segment's bar = the line's own stroke where it folds (Wave, Repeat, a thick bar) (Oct 29, 2026)
   'social-export':      node('test-social-export.mjs'),   // shared/social-export.js + mp4.js: stills, MP4 reels, the ZIP (Nov 25, 2026 — docs/SOCIAL-EXPORT.md)
+  'pulsar-social':      node('test-pulsar-social.mjs'),   // Pulsar › Export › Social on shared/social-export.js (Nov 25, 2026)
   'open-url':           node('test-fvs-open-url.mjs'),   // Open by URL + the Library view's Copy link (Nov 25, 2026)
   'layer-duplicate':    node('test-fvs-layer-duplicate.mjs'),   // Element: Duplicate a layer — the copy above it, the edited one (Oct 29, 2026)
   'figure-symbols':     node('test-fvs-figure-symbols.mjs'),   // Figure ← Symbol: one Figure per filled Symbol, synced; the Figure tab waits for a filled Symbol (Oct 29, 2026)

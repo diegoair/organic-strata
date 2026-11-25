@@ -1,6 +1,6 @@
 # Social export — plan (backlog 1.1, Nov 25, 2026)
 
-*Status: **P1 built Nov 25, 2026** (`shared/mp4.js`, `shared/social-export.js`, `scripts/test-social-export.sh` — 17 checks); P2–P5 not started. O-106 answered Nov 25 as recommended (ledger §2). Source: `explorations/home-mockups/NOTES.md`
+*Status: **P1 and P2 built Nov 25, 2026** (`shared/mp4.js`, `shared/social-export.js`, `scripts/test-social-export.sh` — 17 checks; Pulsar › Export › Social, `scripts/test-pulsar-social.sh` — 12); P3–P5 not started. O-106 answered Nov 25 as recommended (ledger §2). Source: `explorations/home-mockups/NOTES.md`
 § "Backlog with cost-benefit", item 1.1 (L · ★★★).*
 
 ## 1. Goal
@@ -103,6 +103,22 @@ to the format is backlog 2.9; P4 uses the layout chosen in O-106 b.
 - Measured headless (Chromium, Nov 25): 30 frames of a simple SVG piece at 1080×1350 in about 0.1 s; the `<video>` reads
   1080×1350 and 1.0 s; its first frame matches the still (mean difference under 6/255). Real pieces rasterise slower
   (heavier SVG): to be measured in P2 and P3.
+
+## 6b. P2 as built — Pulsar (Nov 25, 2026)
+
+- **Export › Social** at the foot of Pulsar's Export popover (design-system CONSULT; Mote's batch block and words): four
+  size checks, *Stills · PNG* / *Video · MP4, one loop*, **Export ‹n› files** (→ **Cancel** while it runs), a hint that
+  says one ZIP, fitted with Paper, and the loop's length — and, before the click, when this browser has no MP4 encoder.
+  Words provisional: ledger O-107. Copy: `docs/UI-COPY.md`.
+- The source (`socialSource()` in `pulsar/index.html`) takes the scene's parameters and tracks when Export is pressed and
+  draws `composeP(base, tracks, t)` with `t = ms / loop` (Loop seconds, 6 if Off) on the module's canvas, the square scene
+  fitted in the size's short side, its own Paper (per frame — a Paper track works) around it. `#preview` is never touched.
+- A scene with a one-shot track (`ramp-once`, a phase spin) is not seamless — its last frame is not its first — exactly as
+  Pulsar's own Video; Pulsar already flags it in the Loop popover.
+- Measured headless (Chromium): the default scene, 6 s at 1080×1920 (180 frames), encodes in about 0.7 s; a 1:1 still +
+  video in about 0.6 s.
+- Test `scripts/test-pulsar-social.sh` (12 checks: counts, hint, remembered ticks, the ZIP's files, the video's length and
+  size, `#preview` untouched, Cancel).
 
 ## 7. Gates
 

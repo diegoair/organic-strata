@@ -93,7 +93,7 @@
     <div class="org-popover" id="export-popover" aria-label="Export options">
       <div class="org-popover__title">Format</div>
       <div class="org-formats">
-        <button class="org-btn" onclick="exportPNG()">PNG frame</button>
+        <button class="org-btn" id="btn-png" onclick="exportPNG()">PNG frame</button>
         <button class="org-btn" id="btn-video" onclick="toggleRecording()">Video</button>
       </div>
       <p class="org-popover__hint">
@@ -102,7 +102,7 @@
       </p>
       <div class="org-popover__divider"></div>
       <div class="org-popover__row">
-        <label class="org-popover__label" for="sel-scale">PNG scale</label>
+        <label class="org-popover__label" for="sel-scale">Resolution</label>
         <select class="org-select" id="sel-scale" onchange="updateSizeReadout()">
           <option value="1">&times;1</option>
           <option value="2" selected>&times;2</option>
@@ -114,6 +114,17 @@
         <span class="org-popover__label">Output</span>
         <span class="org-out" id="out-size">&mdash;</span>
       </div>
+      <!-- Social (Nov 25, 2026 — docs/SOCIAL-EXPORT.md P2): Organica.socialExport.bundle → one ZIP; Mote's batch block, its words -->
+      <div class="org-popover__divider"></div>
+      <div class="org-popover__title">Social</div>
+      <label class="check-row"><input type="checkbox" id="sz-4x5" checked><span>Portrait 4:5 · 1080×1350</span></label>
+      <label class="check-row"><input type="checkbox" id="sz-9x16" checked><span>Vertical 9:16 · 1080×1920</span></label>
+      <label class="check-row"><input type="checkbox" id="sz-1x1" checked><span>Square 1:1 · 1080×1080</span></label>
+      <label class="check-row"><input type="checkbox" id="sz-16x9" checked><span>Landscape 16:9 · 1920×1080</span></label>
+      <label class="check-row"><input type="checkbox" id="soc-stills" checked><span>Stills · PNG</span></label>
+      <label class="check-row"><input type="checkbox" id="soc-video" checked><span>Video · MP4, one loop</span></label>
+      <div class="org-formats"><button class="org-btn" id="btn-social">Export 8 files</button></div>
+      <p class="org-popover__hint" id="social-hint"></p>
     </div>
   </div>
 </div>
@@ -122,6 +133,7 @@
 
   <div id="stage" class="org-canvas-wrap">
     <canvas id="preview" data-theme="light" width="760" height="760"></canvas>
+    <div id="social-progress" class="org-progress" hidden></div>
   </div>
 
   <div id="panel">
@@ -470,6 +482,9 @@
 <script src="/shared/palette.js"></script>
 <script src="/shared/palette-kit.js"></script>
 <script src="/shared/recorder.js"></script>
+<script src="/shared/zip.js"></script>
+<script src="/shared/mp4.js"></script>
+<script src="/shared/social-export.js"></script>
 <script src="/shared/noise.js"></script>
 <script src="/shared/tracks.js"></script>
 <script src="/shared/radial.js"></script>
@@ -1117,6 +1132,89 @@ function exportPNG() {
 let pulsarRecorder = null;
 function toggleRecording() { if (pulsarRecorder) pulsarRecorder.toggle(); }
 
+// ── Social (Nov 25, 2026 — docs/SOCIAL-EXPORT.md P2, design-system CONSULT; words provisional, ledger O-107) ──
+// The four sizes × Stills / Video through Organica.socialExport.bundle → one ZIP. The source draws on the module's own
+// canvas, never on #preview: the scene, fitted whole with its Paper around it, at t = ms / one loop. Its parameters and
+// tracks are taken when Export is pressed, so a scene changed while it runs does not reach the files.
+const SOCIAL_SIZES = { '4x5': 'Portrait 4:5', '9x16': 'Vertical 9:16', '1x1': 'Square 1:1', '16x9': 'Landscape 16:9' };
+const SOCIAL_KEY = 'organica.pulsar.social';   // the ticks, per browser (a preference, not synced work)
+let socialJob = null, socialCanReel = null;
+const socialPicked = () => Object.keys(SOCIAL_SIZES).filter(k => ctrl('sz-' + k).checked);
+const socialLoopSec = () => (loopSec > 0 ? loopSec : 6);
+function syncSocial() {
+  if (socialJob) return;
+  const sizes = socialPicked().length, kinds = (ctrl('soc-stills').checked ? 1 : 0) + (ctrl('soc-video').checked ? 1 : 0), n = sizes * kinds, btn = ctrl('btn-social');
+  btn.disabled = !n || !!(pulsarRecorder && pulsarRecorder.isRecording());   // one job at a time
+  btn.textContent = !n ? 'Export' : n === 1 ? 'Export 1 file' : 'Export ' + n + ' files';
+  const none = socialCanReel && !Object.values(socialCanReel).some(Boolean);
+  ctrl('social-hint').textContent = !n ? 'Tick at least one size and one kind of file.'
+    : 'One ZIP. Each size is fitted with Paper around it; the video is one loop (' + socialLoopSec() + ' s).'
+      + (none && ctrl('soc-video').checked ? ' This browser can’t encode MP4 — the ZIP will have stills only.' : '');
+}
+function socialSource() {
+  const base = buildParams(), tracks = readTracks(), cycle = socialLoopSec() * 1000;
+  let t = 0;
+  return {
+    name: 'pulsar-' + (ctrl('sel-scene').value || 'scene'), cycleMs: cycle, fps: 30,
+    get paper() { return composeP(base, tracks, t).paper; },
+    seek: ms => { t = (ms / cycle) % 1; },
+    draw: (ctx, W, H) => {
+      const Pt = composeP(base, tracks, t), side = Math.min(W, H);
+      ctx.fillStyle = Pt.paper; ctx.fillRect(0, 0, W, H);
+      ctx.translate((W - side) / 2, (H - side) / 2);
+      drawSceneCanvas(ctx, buildScene(Pt, SIZE, SIZE), Pt, side / SIZE);
+    },
+  };
+}
+const SOCIAL_LOCK = () => ['btn-video', 'btn-png', 'soc-stills', 'soc-video', ...Object.keys(SOCIAL_SIZES).map(k => 'sz-' + k)].map(ctrl).filter(Boolean);
+async function runSocial() {
+  if (socialJob) { socialJob.abort(); return; }
+  if (pulsarRecorder && pulsarRecorder.isRecording()) return;
+  const formats = socialPicked(), stills = ctrl('soc-stills').checked, reels = ctrl('soc-video').checked;
+  if (!formats.length || !(stills || reels)) return;
+  const bar = ctrl('social-progress'), btn = ctrl('btn-social');
+  socialJob = new AbortController();
+  btn.textContent = 'Cancel'; SOCIAL_LOCK().forEach(el => { el.disabled = true; });
+  bar.style.setProperty('--p', 0); Organica.display(bar, '');
+  const word = label => { const [k, kind] = String(label).split(' '); return (SOCIAL_SIZES[k] || k) + ' ' + (kind === 'reel' ? 'video' : 'still'); };
+  try {
+    const src = socialSource();
+    const res = await Organica.socialExport.bundle(src, {
+      formats, stills, reels, signal: socialJob.signal,
+      onProgress: (done, total, label) => {
+        bar.style.setProperty('--p', total ? done / total : 0);
+        if (label !== 'done') setStatus('busy', 'Exporting ' + word(label) + ' · ' + (done + 1) + ' of ' + total + '…');
+      },
+    });
+    Organica.download(res.blob, Organica.stamp(src.name, 'zip'));
+    setStatus('active', res.files.length + ' files · ZIP saved');
+    if (res.skipped.length && Organica.notice) Organica.notice('This browser can’t encode MP4 at ' + res.skipped.map(x => SOCIAL_SIZES[x.key]).join(', ') + ' — the ZIP has their stills only.');
+  } catch (e) {
+    if (e && e.name === 'AbortError') setStatus('active');
+    else setStatus('error', 'Social export failed — ' + (e && e.message || e));
+  } finally {
+    socialJob = null; Organica.display(bar, 'none');
+    SOCIAL_LOCK().forEach(el => { el.disabled = false; });
+    syncSocial();
+  }
+}
+function initSocial() {
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(SOCIAL_KEY) || 'null'); } catch (e) {}
+  if (saved) [...Object.keys(SOCIAL_SIZES).map(k => 'sz-' + k), 'soc-stills', 'soc-video'].forEach(id => { if (typeof saved[id] === 'boolean') ctrl(id).checked = saved[id]; });
+  ctrl('export-popover').addEventListener('change', e => {
+    if (!e.target.closest('.check-row')) return;
+    const o = {}; [...Object.keys(SOCIAL_SIZES).map(k => 'sz-' + k), 'soc-stills', 'soc-video'].forEach(id => { o[id] = ctrl(id).checked; });
+    try { localStorage.setItem(SOCIAL_KEY, JSON.stringify(o)); } catch (err) {}
+    syncSocial();
+  });
+  ctrl('btn-social').addEventListener('click', runSocial);
+  ctrl('btn-export').addEventListener('click', () => {   // said before the click: an encoder check once, when Export first opens
+    syncSocial();
+    if (socialCanReel === null) Organica.socialExport.support().then(r => { socialCanReel = r.reel; syncSocial(); });
+  });
+  syncSocial();
+}
+
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
@@ -1145,8 +1243,9 @@ pulsarRecorder = Organica.recorder({
     if (phase === 'recording') setStatus('busy', 'Recording ' + (loopSec > 0 ? loopSec : 6) + 's…');
     else setStatus(phase === 'error' ? '' : 'active', msg);
   },
-  onStateChange: (isRec) => { ctrl('btn-video').textContent = isRec ? 'Stop rec' : 'Video'; },
+  onStateChange: (isRec) => { ctrl('btn-video').textContent = isRec ? 'Stop recording' : 'Video'; syncSocial(); },   // one job at a time
 });
+initSocial();
 populateScenes('Phyllo Bloom');
 
 // Cloud sync (shared/store.js): hydrate from Supabase, re-render on pull/flush.
