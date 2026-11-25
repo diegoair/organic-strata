@@ -61,6 +61,7 @@ export const printSizePanel = Organica.printSizePanel(document.getElementById('p
   title: 'Print (selection)',
   onChange: () => {
     document.getElementById('screen-scale-rows').hidden = !!(printSizePanel.getMode() === 'print');
+    if (hooks.syncSocial) hooks.syncSocial();   // the Social hint's Print line (15-export-library-view.js)
   },
 });
 

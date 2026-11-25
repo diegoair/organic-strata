@@ -1560,6 +1560,8 @@ Organica Figma plugin, like Spore/Pollen/Halide).
   SVG or PNG at ×1/×2/×4.
 - **Plates** — one black-on-transparent file per ink, with registration marks in
   Print mode (needs a bleed of at least 8 mm).
+- **Social** (Nov 25, 2026, `docs/SOCIAL-EXPORT.md` §6d) — the active step's SVG fitted whole in the four social
+  sizes (4:5 · 9:16 · 1:1 · 16:9), a PNG + an SVG each, one ZIP; always screen pixels, Print settings don't apply.
 - **Recipe** — save/load everything needed to rebuild the work as one JSON file.
 - **Starting points** live in the Figure tab (New figure… → the "Classic · …" seven:
   circle, leaf block/wave/outline/two-ink, pinwheel, kaleidoscope), where the whole

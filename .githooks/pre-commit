@@ -40,6 +40,7 @@ echo "$staged" | grep -qE '^(shared/(social-export|mp4|zip)\.js|scripts/test-soc
 echo "$staged" | grep -qE '^(pulsar/index\.html|shared/(social-export|mp4|zip|radial)\.js|scripts/test-pulsar-social)' && add pulsar-social
 echo "$staged" | grep -qE '^(shared/(hero-social|hero|hero-sheets|hero-loop|social-export|mp4)\.js|shared/hero/|scripts/test-hero-social)' && add hero-social
 echo "$staged" | grep -qE '^(hub/index\.html|shared/(hero-social|social-export)\.js|scripts/test-hub-social)' && add hub-social
+echo "$staged" | grep -qE '^(fvs/(index\.html|js/15-export-library-view\.js)|shared/social-export\.js|scripts/test-fvs-social)' && add fvs-social
 echo "$staged" | grep -qE '^(fvs/js/engine/01-geometry|shared/shapes\.js|scripts/test-fvs-segment)' && add segment
 echo "$staged" | grep -qE '^(fvs/js/engine/(03-symmetry|11-zones)|scripts/test-fvs-symmetry)' && add symmetry
 echo "$staged" | grep -qE '^(fvs/js/engine/(10-suggest|11-zones)|scripts/test-fvs-continuity)' && add continuity

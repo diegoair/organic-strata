@@ -75,7 +75,7 @@ import { hooks, provide } from './hooks.js';
 provide({
   closeLibview: () => closeLibview, deleteSaved: () => deleteSaved, libviewIsOpen: () => libviewIsOpen,
   renderLibraryRail: () => renderLibraryRail, renderLibview: () => renderLibview,
-  syncRailTier: () => syncRailTier
+  syncRailTier: () => syncRailTier, syncSocial: () => syncSocial
 });
 // ── Variants / Plates / Recipe ─────────────────────────────────────
 // One geometry, many outputs. tierSVG() is the single SVG builder for
@@ -199,6 +199,75 @@ ctrl('btn-plates-export').addEventListener('click', () => {
     },
   });
 });
+
+// ── Social (Nov 25, 2026 — docs/SOCIAL-EXPORT.md P4, design-system CONSULT; words provisional, ledger O-109) ──
+// Stills only (FVS has no clock until FVS Motion): the active step's SVG — the one the SVG button saves — fitted whole in
+// each social size with Paper around it (O-106 b), a PNG + an SVG per size, one ZIP (Organica.socialExport.bundle).
+// Always screen pixels: Print settings do not apply. The SVG is taken when Export is pressed.
+const SOCIAL_SIZES = { '4x5': 'Portrait 4:5', '9x16': 'Vertical 9:16', '1x1': 'Square 1:1', '16x9': 'Landscape 16:9' };
+const SOCIAL_KEY = 'organica.fvs.social';   // the ticks, per browser (a preference, not synced work)
+const SOCIAL_IDS = Object.keys(SOCIAL_SIZES).map(k => 'sz-' + k);
+const STEP_WORD = { element: 'Element', component: 'Component', symbol: 'Symbol', figure: 'Figure', grid: 'Grid' };
+let socialJob = null;
+// one export at a time: the sizes and the popover's other export buttons wait while Social runs
+const SOCIAL_LOCK = () => [...SOCIAL_IDS, 'btn-export-png', 'btn-export-svg', 'btn-variant-export', 'btn-plates-export'].map(ctrl).filter(Boolean);
+const socialPicked = () => Object.keys(SOCIAL_SIZES).filter(k => ctrl('sz-' + k).checked);
+const socialEmptyWhy = () => (state.activeTier === 'component' ? 'Select a component first.' : state.activeTier === 'symbol' ? 'No symbol grid loaded.' : 'Nothing to export on this step yet.');
+export function syncSocial() {
+  if (socialJob) return;
+  const n = socialPicked().length * 2, btn = ctrl('btn-social'), has = !!tierSVG();
+  btn.disabled = !n || !has;
+  btn.textContent = !n ? 'Export' : 'Export ' + n + ' files';
+  ctrl('social-hint').textContent = !has ? socialEmptyWhy() : !n ? 'Tick at least one size.'
+    : 'One ZIP: a PNG and an SVG for each size, the ' + (STEP_WORD[state.activeTier] || 'piece') + ' fitted whole with Paper around it.'
+      + (printSizePanel.getMode() === 'print' ? ' Always screen pixels — Print settings don’t apply.' : '');
+}
+export function fvsSocialSource() {
+  const piece = exportablePhotoSVG(tierSVG(), true);
+  if (!piece) return null;
+  const paper = isPaperNone(state.paperColor) ? '#ffffff' : state.paperColor;   // a post is opaque
+  let W = 0, H = 0;
+  return {
+    name: 'fvs-' + state.activeTier, paper,
+    layout: (w, h) => { W = w; H = h; },
+    svg: () => Organica.socialExport.fitSVG(piece, W, H, { paper }),
+  };
+}
+export async function runSocial() {   // Export, or Cancel while it runs
+  if (socialJob) { socialJob.abort(); return; }
+  const formats = socialPicked(), src = formats.length && fvsSocialSource();
+  if (!src) return;
+  const btn = ctrl('btn-social');
+  socialJob = new AbortController();
+  btn.textContent = 'Cancel'; SOCIAL_LOCK().forEach(el => { el.disabled = true; });
+  try {
+    const res = await Organica.socialExport.bundle(src, {
+      formats, stills: true, reels: false, signal: socialJob.signal,
+      onProgress: (done, total, label) => {
+        if (label !== 'done') setStatus('busy', 'Exporting ' + (SOCIAL_SIZES[String(label).split(' ')[0]] || label) + ' still · ' + (done + 1) + ' of ' + total + '…');
+      },
+    });
+    Organica.download(res.blob, Organica.stamp(src.name, 'zip'));
+    setStatus('active', res.files.length + ' files · ZIP saved');
+  } catch (e) {
+    if (e && e.name === 'AbortError') setStatus('active');
+    else setStatus('error', 'Social export failed — ' + (e && e.message || e));
+  } finally {
+    socialJob = null; SOCIAL_LOCK().forEach(el => { el.disabled = false; });
+    syncSocial();
+  }
+}
+(function initSocial() {
+  let saved = null; try { saved = JSON.parse(localStorage.getItem(SOCIAL_KEY) || 'null'); } catch (e) {}
+  if (saved) SOCIAL_IDS.forEach(id => { if (typeof saved[id] === 'boolean') ctrl(id).checked = saved[id]; });
+  ctrl('social-block').addEventListener('change', () => {
+    const o = {}; SOCIAL_IDS.forEach(id => { o[id] = ctrl(id).checked; });
+    try { localStorage.setItem(SOCIAL_KEY, JSON.stringify(o)); } catch (err) {}
+    syncSocial();
+  });
+  ctrl('btn-social').addEventListener('click', runSocial);
+  ctrl('btn-export').addEventListener('click', syncSocial);   // the step, its piece and Print mode are read as Export opens
+})();
 
 // Recipe: everything needed to rebuild the current work — Element (with
 // Appearance), the selected Component, the live Symbol, the Grid setup,

@@ -1,6 +1,6 @@
 # Social export — plan (backlog 1.1, Nov 25, 2026)
 
-*Status: **P1–P3 built Nov 25, 2026** (`shared/mp4.js`, `shared/social-export.js`, `scripts/test-social-export.sh` — 17 checks; Pulsar › Export › Social, `scripts/test-pulsar-social.sh` — 14; the hero loops: `shared/hero-social.js` + the hub's Social, `scripts/test-hero-social.sh` — 14, `scripts/test-hub-social.sh` — 12); P4–P5 not started. O-106 answered Nov 25 as recommended (ledger §2). Source: `explorations/home-mockups/NOTES.md`
+*Status: **P1–P3 built Nov 25, 2026** (`shared/mp4.js`, `shared/social-export.js`, `scripts/test-social-export.sh` — 17 checks; Pulsar › Export › Social, `scripts/test-pulsar-social.sh` — 14; the hero loops: `shared/hero-social.js` + the hub's Social, `scripts/test-hero-social.sh` — 14, `scripts/test-hub-social.sh` — 14; FVS › Export › Social stills, `scripts/test-fvs-social.sh` — 16); P5 not started. O-106 answered Nov 25 as recommended (ledger §2). Source: `explorations/home-mockups/NOTES.md`
 § "Backlog with cost-benefit", item 1.1 (L · ★★★).*
 
 ## 1. Goal
@@ -147,6 +147,24 @@ to the format is backlog 2.9; P4 uses the layout chosen in O-106 b.
 - **Measured** headless (Chromium, 1080×1350): stills 70–680 ms a loop (C · The score's haze filter is the slow one); a
   40 s reel of Weave at 1080×1920 in about 11 s, 2.6 MB.
 - `explorations/home-mockups/ig-export.html` stays local; the module now covers what it did.
+
+## 6d. P4 as built — FVS stills (Nov 25, 2026)
+
+- **Where**: FVS › Export popover, a **Social** block (`#social-block`) between Plates and Recipe — the design-system
+  CONSULT's brief. Four size checks (Pulsar's words) and **Export ‹n› files**, n = 2 × sizes: every size is a PNG and an
+  SVG, so there is no Stills check (FVS has no clock: no video until FVS Motion, backlog 2.4). Running → **Cancel**.
+- **The piece**: what the SVG button saves for the active step — `exportablePhotoSVG(tierSVG())` (Element · Component ·
+  Symbol · Figure) — taken when Export is pressed, fitted whole in each size with Paper around it (`fitSVG`, O-106 b).
+  Paper *none* becomes white (a post is opaque).
+- **Print mode**: the block stays; its hint adds *Always screen pixels — Print settings don’t apply.*
+- **Empty step**: the button is disabled and the hint says why with the step's own words (*Select a component first.* ·
+  *No symbol grid loaded.* · *Nothing to export on this step yet.*).
+- **Names**: `fvs-‹step›.zip` (stamped), inside `fvs-‹step›-‹size›.png / .svg`; ticks in `localStorage organica.fvs.social`.
+- **Code**: `fvs/js/15-export-library-view.js` (`syncSocial`, `fvsSocialSource`, `runSocial`); `fvs/index.html` loads
+  `zip.js` + `social-export.js` (no `mp4.js`). Test `scripts/test-fvs-social.sh` (16 checks), in `test-fvs.sh` as `fvs-social`.
+- **While it runs**: the sizes and the popover's PNG · SVG · Variants · Plates buttons are disabled (one export at a
+  time); progress is the status line only, no bar — deliberate for a few fast stills.
+- **Not checked**: the Figure step headless (lazy-loaded; it goes through the same `tierSVG()`); Safari / Firefox.
 
 ## 7. Gates
 

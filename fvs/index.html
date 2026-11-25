@@ -340,6 +340,18 @@
         <p class="org-popover__hint">Black on transparent, one file per palette colour (format and sizes above) — for screenprint / riso. Print mode adds crop marks, and registration marks once the bleed is 8 mm or more.</p>
       </div>
 
+      <!-- Social (Nov 25, 2026 — docs/SOCIAL-EXPORT.md P4): stills only, Organica.socialExport.bundle → one ZIP; Pulsar's block -->
+      <div id="social-block">
+        <div class="org-popover__divider"></div>
+        <div class="org-popover__title">Social</div>
+        <label class="check-row"><input type="checkbox" id="sz-4x5" checked><span>Portrait 4:5 · 1080×1350</span></label>
+        <label class="check-row"><input type="checkbox" id="sz-9x16" checked><span>Vertical 9:16 · 1080×1920</span></label>
+        <label class="check-row"><input type="checkbox" id="sz-1x1" checked><span>Square 1:1 · 1080×1080</span></label>
+        <label class="check-row"><input type="checkbox" id="sz-16x9" checked><span>Landscape 16:9 · 1920×1080</span></label>
+        <div class="org-formats"><button class="org-btn" id="btn-social">Export 8 files</button></div>
+        <p class="org-popover__hint" id="social-hint"></p>
+      </div>
+
       <div class="org-popover__divider"></div>
       <div class="org-popover__title">Recipe</div>
       <div class="org-formats">
@@ -2160,6 +2172,8 @@
 <script src="/shared/print-size.js"></script>
 <script src="/shared/print-size-panel.js"></script>
 <script src="/shared/plate-export.js"></script>
+<script src="/shared/zip.js"></script>
+<script src="/shared/social-export.js"></script><!-- Export › Social (stills; no mp4.js: FVS makes no video) -->
 <script src="/shared/shapes.js"></script>
 <script src="/shared/shape-appearance.js"></script>
 <script src="/shared/select-picker.js"></script>
