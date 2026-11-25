@@ -1,7 +1,7 @@
 # Organica — Design System
 
 > Studio Rann · Organica · Typography, tokens, and the Figma mapping
-> Last updated: November 21, 2026 — palettes whole in every tool: `Organica.paletteKit` (`shared/palette-kit.js`, strip + roles), the shade editor in nine tools (hosted between panel sections), `Organica.shading` overlays, `Organica.plateExport.inksOf` / `plateSVG`, `palette.library()` without built-ins, 9 colours per strip; the list reorder `Organica.reorder` (`shared/reorder.js`, `.org-reorder*` in `panel.css`) — §5h, `/design-system/#reorder`; no token changed. Earlier entries: **Revision history** at the end of this file.
+> Last updated: November 25, 2026 — the readout `.org-out` gets its reference entry (`/design-system/#readout`, O-72) and is described in §5d; `.org-cpick` and `.org-monogram-host` named in their entries; no token changed. Earlier entries: **Revision history** at the end of this file.
 >
 > **Source of truth: `shared/tokens.css`** — what the browser runs.
 > `shared/tokens.json` is its mirror for Figma (ledger §2, O-2, Oct 13, 2026);
@@ -430,6 +430,8 @@ One component, `.org-btn` in `shared/header.css`: sizes `--sm` (`--slo-h`, 20) �
 
 One component, `.org-field` in `shared/header.css` ("THE FIELD"), for text/number inputs, selects and textareas — THE BUTTON's measures: display face, `--t-control-size`, `--row-h` tall (`--lg` 32), `--panel` fill, `--border-strong`, `--radius-sm`; hover `--mid`, focus `--ink`. Modifiers `--lg`, `--block`, `--code` (mono). Aliases: `.panel-select`, `.panel-input`, `.color-hex`, `.org-select` (deltas in panel.css). The select-picker trigger has the same border and type but is 32px (`--space-8`), so its thumbnail sits in even `--space-1` air.
 
+**The readout** (`.org-out`, `shared/header.css`; live reference `/design-system/#readout`, Nov 25, 2026, O-72). The small grey figure beside a control that reports a *result*, never a setting and never editable: an export's output size (*2000 × 2000 px*) and a loop's length (*8s*) in the Export popovers of Pollen, Halide, Spore, Warping, Komorebi, Colornet, Mote, Murmur, Radial, Pulsar, Dapple, Undertow and Trellis (22 uses, `ds-audit.py --uses org-out`). Display face, `--fs-small`, `--ls-wide`, `--mid` (6.0:1 light / 6.9:1 dark on `--paper`), tabular digits; an em dash until there is a value. The row's `.org-popover__label` names it — the readout is not its label.
+
 **The thumbnail select picker** (`Organica.selectPicker`, `shared/select-picker.js` + `.presets*` in panel.css; live reference `/design-system/#select-picker`). A dropdown gets thumbnails only when all three hold: (1) the options differ *visibly*, (2) the name doesn't predict the look (any user-named saved preset qualifies), and (3) the image comes from the tool's **own renderer**, never a drawing of it. Size follows what differs:
 - **Every thumbnail is a square** — 22px in the trigger, 40px in the menu (Oct 1, 2026; was 26px icons and 3:2 60×40 / 33×22 previews). Aspect icons (`Organica.aspectIcon`) and grids (`Organica.loomGridThumb` — a Loom export or, since Oct 8, 2026, an already-resolved grid; also the node bodies' picture, §5g) keep their true ratio, letterboxed inside the square; rendered previews are drawn square or cropped with `Organica.squareThumb(canvas)`.
 - **icon** (default) is a `currentColor` pictogram for structure (shape kinds, aspect ratios, motion diagrams). It follows `--ink`.
@@ -682,6 +684,8 @@ Typefaces (Sep 29, 2026) — **two families, split by role**:
 ## Revision history
 
 The "Last updated" chain as it stood until October 13, 2026, moved here verbatim (ledger §2, 2026-10-13: the line at the top is one entry; the history lives here). Newer entries are added at the top of this list.
+
+> Last updated: November 21, 2026 — palettes whole in every tool: `Organica.paletteKit` (`shared/palette-kit.js`, strip + roles), the shade editor in nine tools (hosted between panel sections), `Organica.shading` overlays, `Organica.plateExport.inksOf` / `plateSVG`, `palette.library()` without built-ins, 9 colours per strip; the list reorder `Organica.reorder` (`shared/reorder.js`, `.org-reorder*` in `panel.css`) — §5h, `/design-system/#reorder`; no token changed.
 
 > Last updated: November 21, 2026 (evening) — the Wash's **Colour by** + **Mix**, Wash over in TuneSutra and FVS (one wash over the Component) — §5h; no token changed. Before: November 21, 2026 — the shade editor's fourth Type **Wash** (`type: 'field'`; names confirmed Nov 21, O-92) and `Organica.isoContours` / `simplifyRing` in `core.js` — §5h; no token changed. Before: November 20, 2026 — the shade editor `Organica.shadeEditor` (`shared/shade-editor.js`) and its stop bar `.org-stopbar` in a new sheet `shared/shade-editor.css` (promoted from TuneSutra's local `.ts-stopbar`; used by TuneSutra and FVS) — §5h, `/design-system/#shade-editor`; no token changed.
 > Last updated: November 19, 2026 — spacing step `--space-9` (48px, + `.mt-9` / `.mb-9`) and the shared data table `.org-table` (`shared/page.css`, promoted from Admin; `prose.css` tables now `:not(.org-table)`), both decided by Diego for the Hue × tone lab (ledger §2); `/design-system/#spacing`, `#data-table`.

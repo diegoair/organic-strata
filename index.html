@@ -65,7 +65,8 @@
     @media (hover: hover) { .hero__nav button:hover { background: rgba(0, 0, 0, .7); } }
 
     /* ── page sections ── */
-    .wrap { max-width: calc(var(--space-4) * 124); margin: 0 auto; padding: 0 var(--space-7); }
+    .wrap { --home-col-w: calc(var(--space-4) * 124);   /* 1240px: the home's column, named once (O-100, ledger §3) */
+      max-width: var(--home-col-w); margin: 0 auto; padding: 0 var(--space-7); }
     .sec { padding: var(--space-9) 0; border-top: 1px solid var(--border); }
     .sec:first-of-type { border-top: 0; }
     .eyebrow { font-size: var(--t-h6-size); font-weight: var(--t-h6-weight); letter-spacing: var(--ls-widest); text-transform: uppercase; color: var(--mid); margin-bottom: var(--space-6); }

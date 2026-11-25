@@ -4,6 +4,9 @@
 # Enable once per clone:  scripts/install-hooks.sh
 root="$(git rev-parse --show-toplevel)"
 python3 "$root/scripts/check.py" || { echo; echo "Commit blocked by pre-commit checks."; exit 1; }
+# No new raw value where a token exists (strict categories only; hex / layout offsets are reported, never blocking) — in
+# the staged lines only, so another session's work in the tree never blocks this commit (ledger O-5, Nov 25, 2026).
+python3 "$root/scripts/ds-audit.py" --diff --staged || { echo; echo "Commit blocked: a new raw value where a token exists (see above)."; exit 1; }
 staged="$(git diff --cached --name-only)"
 # The headless suites the staged paths need, run side by side in one call (scripts/test-fvs.sh — each brings its own
 # server + Chrome). Was: one after another, ~3–4 min for an FVS commit.

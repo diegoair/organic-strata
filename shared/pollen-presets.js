@@ -178,8 +178,12 @@
     };
   }
 
+  // The built-ins' labels in sentence case (UI-COPY rule 3; ledger O-95 c, Nov 25, 2026): Pollen's own menu and the shade
+  // editor's Pollen category show these; the keys stay as they are (saved presets and shadings name them).
+  const LABEL = { 'Fine Dots': 'Fine dots', 'Lines Flow': 'Lines flow', 'Hatch Flow': 'Hatch flow', 'Hatch Swirl': 'Hatch swirl' };
+
   Organica.pollenPresets = {
-    BUILTIN: BUILTIN, DEFAULTS: DEFAULTS,
+    BUILTIN: BUILTIN, DEFAULTS: DEFAULTS, LABEL: LABEL,
     list: list, byId: byId, toMarks: toMarks, shapeLoops: shapeLoops, loadSeeds: loadSeeds, remapPointType: remapPointType,
     pull: () => { const s = userStore(); return s && s.pull ? s.pull().catch(() => {}) : Promise.resolve(); },
     onSync: fn => { const s = userStore(); if (s && s.onSync) s.onSync(fn); },

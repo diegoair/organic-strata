@@ -67,14 +67,13 @@
   // ('b:<key>' built-in, 'u:<name>' saved). A copy whose preset is gone shows under the name it was copied with.
   const POLLEN = 'pollen-p:';
   // the built-ins' labels in sentence case (UI-COPY rule 3); their keys stay Pollen's (saved work names them)
-  const POLLEN_LABEL = { 'Fine Dots': 'Fine dots', 'Lines Flow': 'Lines flow', 'Hatch Flow': 'Hatch flow', 'Hatch Swirl': 'Hatch swirl' };
   const POLLEN_HINT = {
     'b:Fine Dots': 'Small dots, closely spaced', 'b:Felt-tip': 'Dots that swell into the shadow', 'b:Lines Flow': 'Short lines at random angles',
     'b:Duotone': 'Even dots, a little larger', 'b:Hatch Flow': 'Strokes that follow the shadow', 'b:Hatch Swirl': 'Strokes at every angle',
   };
   const PP = () => Organica.pollenPresets;
   const isPollen = v => typeof v === 'string' && v.indexOf(POLLEN) === 0;
-  const pollenLabel = p => (p.id.indexOf('b:') === 0 && POLLEN_LABEL[p.name]) || p.name;
+  const pollenLabel = p => (p.id.indexOf('b:') === 0 && PP() && PP().LABEL && PP().LABEL[p.name]) || p.name;   // read at call time: some pages load pollen-presets.js after this file
   // the copy a value makes: cached per preset (its outline is sampled once)
   const marksCache = new Map();
   function marksOf(value) {

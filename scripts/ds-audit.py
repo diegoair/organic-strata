@@ -107,9 +107,9 @@ def check_decl(prop, val):
     return out
 
 
-def scan(path):
-    """-> [(line, category, message)] for one page, sheet or script."""
-    text = read(path)
+def scan(path, text=None):
+    """-> [(line, category, message)] for one page, sheet or script (text: its content, when not the working file)."""
+    if text is None: text = read(path)
     is_css = path.endswith('.css')
     is_js = path.endswith('.js')
     found, in_style, in_comment = [], is_css, False
@@ -172,11 +172,13 @@ def targets():
 MOVED = {'hub/index.html': 'index.html'}   # new path -> where it was at the ref (Nov 24, 2026: the old home became the owner's hub)
 
 
-def added_lines(ref):
-    """{path: set(line numbers) | None}  — None = the whole file is new."""
+def added_lines(ref, staged=False):
+    """{path: set(line numbers) | None}  — None = the whole file is new. staged: only what is in the index (the commit
+    being made), never another session's unstaged edits or untracked files."""
     out = {}
     cur = None
-    for line in sh('git', 'diff', ref, '-U0', '--no-color', '--', '*.html', '*.css', '*.js').split('\n'):
+    diff = ['git', 'diff', '--cached'] if staged else ['git', 'diff', ref]
+    for line in sh(*diff, '-U0', '--no-color', '--', '*.html', '*.css', '*.js').split('\n'):
         if line.startswith('+++ '):
             cur = line[6:] if line.startswith('+++ b/') else None
             if cur: out.setdefault(cur, set())
@@ -184,7 +186,7 @@ def added_lines(ref):
             m = re.search(r'\+(\d+)(?:,(\d+))?', line)
             start, n = int(m.group(1)), int(m.group(2) or 1)
             out[cur] |= set(range(start, start + n))
-    for f in sh('git', 'ls-files', '--others', '--exclude-standard').split('\n'):
+    for f in ([] if staged else sh('git', 'ls-files', '--others', '--exclude-standard').split('\n')):
         if f.endswith(('.html', '.css', '.js')): out[f] = None
     # a page that moved while its old address took a new page: git sees a new file, so every legacy raw value in it
     # would count as added. Only the lines the old file did not have are new.
@@ -193,7 +195,8 @@ def added_lines(ref):
         if subprocess.run(['git', 'cat-file', '-e', f'{ref}:{new}'], capture_output=True).returncode == 0: continue   # the ref has it already: an ordinary diff (Nov 25, 2026)
         was = set(l.strip() for l in sh('git', 'show', f'{ref}:{old}').split('\n'))
         if len(was) < 2: continue                      # the ref has no such file: nothing to compare with
-        out[new] = {i for i, l in enumerate(open(new, encoding='utf-8').read().split('\n'), 1) if l.strip() not in was}
+        now = sh('git', 'show', ':' + new) if staged else open(new, encoding='utf-8').read()
+        out[new] = {i for i, l in enumerate(now.split('\n'), 1) if l.strip() not in was}
     return out
 
 
@@ -354,14 +357,15 @@ def main():
     if '--diff' in args:
         i = args.index('--diff')
         ref = args[i + 1] if len(args) > i + 1 and not args[i + 1].startswith('--') else 'HEAD'
-        added = added_lines(ref)
+        staged = '--staged' in args   # the pre-commit hook: the index only (O-5, Diego, Nov 25, 2026)
+        added = added_lines(ref, staged)
         strict, judge = [], []
         for f, lines in sorted(added.items()):
             if f.startswith(SKIP_DIRS) or not os.path.exists(f) or f == 'shared/tokens.css': continue
-            for line, cat, msg in scan(f):
+            for line, cat, msg in scan(f, sh('git', 'show', ':' + f) if staged else None):
                 if lines is None or line in lines:
                     (strict if cat in STRICT else judge).append(f'  {f}:{line}  [{cat}]  {msg}')
-        print(f'ds-audit --diff {ref}: {len(added)} changed file(s)')
+        print(f'ds-audit --diff {"--staged" if staged else ref}: {len(added)} changed file(s)')
         if strict: print(f'\nNEW RAW VALUES — a token exists ({len(strict)}):'); print('\n'.join(strict))
         if judge: print(f'\nTO JUDGE — content colour / layout geometry, or chrome? ({len(judge)}):'); print('\n'.join(judge))
         if not strict and not judge: print('  ✓ the change adds no raw values')

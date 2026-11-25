@@ -945,7 +945,7 @@ function populatePresets(sel) {
   const u = userPresets();
   const esc = n => String(n).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
   const opt = ['<option value="">— Select —</option>', '<optgroup label="Built-in">'];
-  Object.keys(BUILTIN_PRESETS).forEach(n => opt.push(`<option value="b:${esc(n)}">${esc(n)}</option>`));
+  Object.keys(BUILTIN_PRESETS).forEach(n => opt.push(`<option value="b:${esc(n)}">${esc(Organica.pollenPresets.LABEL[n] || n)}</option>`));   // sentence case, the key unchanged (O-95 c)
   opt.push('</optgroup>');
   if (Object.keys(u).length) {
     opt.push('<optgroup label="Saved">');

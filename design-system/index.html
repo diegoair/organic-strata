@@ -1626,7 +1626,7 @@ Organica.palette.swatch(<span class="attr">wrapEl</span>, {
     <section class="ds-entry" id="colour-picker">
       <h2>Colour picker &amp; value tiles</h2>
       <p class="ds-desc">Organica’s own popover colour picker (O-21, Nov 17, 2026; phase 3 of the colour migration, piloted in Organic Palette). <code>Organica.colorPicker.open(anchorEl, { value, label, onInput(hex), onChange(hex) })</code> → <code>{ close, set(hex) }</code>. Top to bottom: <strong>Recent</strong> (shared by every tool, <code>organica.color.recent</code>, 10) + <strong>Palettes</strong> (Organic Palette’s saved and starred palettes, opened in place — no built-in sets since Nov 21, 2026) · the <em>Saturation and brightness</em> square · the <em>Hue</em> strip (slider track measures, THE knob) · the value row (the mode’s fields + the sample) · a footer with the <strong>Values</strong> menu (Hex · RGB · HSB · CMYK · OKLCH · Nearest RAL — OKLCH and RAL load <code>color.js</code> and the RAL data on first use where a page has not; <code>role="listbox"</code>, built inside the picker so it does not fire <code>organica:dropdown-open</code>; the mode is remembered in <code>organica.color.picker-mode</code>), <strong>Pick from screen</strong> (<code>eyedropper</code>, hidden where the EyeDropper API is missing) and <strong>Copy ‹mode› value</strong>. It is an <code>.org-popover</code> made <code>position: fixed</code> from the anchor’s rect, in <code>&lt;body&gt;</code>; it joins the one-dropdown-open contract; Esc closes it and gives focus back to the anchor. A palette strip opts in with <code>Organica.palette.swatch(el, { picker: 'organica', nameOf(i), onOpen(i) })</code> — each chip becomes a <code>button.rmx-color__pick</code> named “‹Name›, edit colour”. The square and hue gradients are content, not chrome.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/colour-picker.css</span><span>shared/colour-picker.js</span><span>shared/vendor/ral-classic.js</span><span>shared/panel.css (.org-tiles)</span><strong>Used in</strong><span>every tool that loads palette.js (the default since Nov 17, 2026)</span><span>any remaining input[type=color] on those pages</span><strong>Opt out</strong><span>picker: 'native'</span><span>data-picker="native"</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/colour-picker.css (.org-cpick)</span><span>shared/colour-picker.js</span><span>shared/vendor/ral-classic.js</span><span>shared/panel.css (.org-tiles)</span><strong>Used in</strong><span>every tool that loads palette.js (the default since Nov 17, 2026)</span><span>any remaining input[type=color] on those pages</span><strong>Opt out</strong><span>picker: 'native'</span><span>data-picker="native"</span></div>
       <div class="ds-example" style="max-width:280px">
         <div class="color-row" style="margin-bottom:var(--space-3)">
           <button class="color-swatch" id="ds-cpick-open" type="button" aria-label="Edit colour" aria-haspopup="dialog" style="background:#6a3387"></button>
@@ -1970,7 +1970,7 @@ Organica.seedsPanel({
       </table>
       <h3 class="ds-sub" id="logo-mark">Logo mark — the 0rganic4 monogram</h3>
       <p class="ds-desc">The mark at rest is the circle it always was: <code>--ink</code>, so it follows the theme. Hover the logo link (or reach it with the keyboard) and it plays the monogram, one Element of Overprint — a round-capped stroke, a circle at length 0 and a pill when stretched: <strong>1</strong> the circle · <strong>2</strong> shrinks to a smaller red circle and, without stopping, <strong>3</strong> stretches into a teal pill · <strong>4</strong> the pill copies itself, the copies open about the centre in six riso inks, overprinted, and turn once, fast · <strong>5</strong> they close straight back into the circle. About 2.1 s; it loops while hovered and, on leave, finishes its loop and rests on the circle. Reduced motion: it never plays. The favicon is step 4, fully open.</p>
-      <div class="ds-usage"><strong>Defined in</strong><span>shared/monogram.js</span><span>shared/header.css (.org-monogram)</span><strong>API</strong><span>Organica.monogram.mount · frameSVG</span><strong>Used in</strong><span>every page with the header</span><span>shared/_template.html</span><span>favicon.svg / .ico</span></div>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/monogram.js</span><span>shared/header.css (.org-monogram, .org-monogram-host — set by mount() on the header mark)</span><strong>API</strong><span>Organica.monogram.mount · frameSVG</span><strong>Used in</strong><span>every page with the header</span><span>shared/_template.html</span><span>favicon.svg / .ico</span></div>
       <div class="ds-example ds-example--column">
         <div class="ds-mono-steps" id="ds-mono-light"></div>
         <div class="ds-mono-live"><a class="org-header__logo" href="#logo-mark"><span class="org-header__mark" aria-hidden="true"></span><b>Organica</b></a><span>hover or focus — the same mark the header uses</span></div>
@@ -2272,6 +2272,22 @@ Organica.fvsField.mount(field, {
 
 <span class="attr">/* once, at page init */</span>
 Organica.popover(document.getElementById(<span class="str">'btn-export'</span>), document.getElementById(<span class="str">'export-popover'</span>));</pre>
+
+      <h3 class="ds-sub" id="readout">Readout — <code>.org-out</code></h3>
+      <p class="ds-desc">The small grey figure beside a control that reports a <strong>result</strong>, not a setting: the output size an export will have, the length a loop runs. It is never editable and never a label — the row’s <code>.org-popover__label</code> names it, the readout answers. Display face, <code>--fs-small</code>, <code>--ls-wide</code>, <code>--mid</code>, tabular digits so it does not jitter while a slider moves. An em dash (<code>&amp;mdash;</code>) until there is a value. Decided as a reference entry Nov 25, 2026 (O-72).</p>
+      <div class="ds-usage"><strong>Defined in</strong><span>shared/header.css (.org-out)</span><strong>Used in</strong><span>Export popovers: Pollen, Halide, Spore, Warping, Komorebi, Colornet, Mote, Murmur, Radial, Pulsar, Dapple, Undertow, Trellis</span><span>loop length: Dapple, Undertow, Trellis, Pulsar, Murmur, Mote (Trellis also its speed)</span></div>
+      <div class="ds-example ds-example--column" style="max-width:300px">
+        <div class="org-popover__row"><span class="org-popover__label">Output</span><span class="org-out">2000 × 2000 px</span></div>
+        <div class="org-popover__row"><label class="org-popover__label" for="ds-out-loop">Length</label><input type="range" id="ds-out-loop" min="1" max="30" step="1" value="8" style="flex:1"><span class="org-out">8s</span></div>
+      </div>
+      <div class="ds-example ds-example--column" data-theme="dark" style="max-width:300px;background:var(--paper);color:var(--ink)">
+        <div class="org-popover__row"><span class="org-popover__label">Output</span><span class="org-out">2000 × 2000 px</span></div>
+        <div class="org-popover__row"><span class="org-popover__label">Before export</span><span class="org-out">&mdash;</span></div>
+      </div>
+      <pre class="ds-code">&lt;<span class="tag">div</span> <span class="attr">class</span>=<span class="str">"org-popover__row"</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-popover__label"</span>&gt;Output&lt;/<span class="tag">span</span>&gt;
+  &lt;<span class="tag">span</span> <span class="attr">class</span>=<span class="str">"org-out"</span> <span class="attr">id</span>=<span class="str">"out-size"</span>&gt;&amp;mdash;&lt;/<span class="tag">span</span>&gt;
+&lt;/<span class="tag">div</span>&gt;</pre>
     </section>
 
     <section class="ds-entry" id="notice">
