@@ -100,7 +100,7 @@ organic-strata/            ← GitHub diegoair/organic-strata (private)
 │   ├── core.js            ← download, presets, Figma, contour tracer, zoom/pan, colour utils — never re-implement
 │   ├── seeds.js           ← the 13 Base Seeds as DATA (window.ORGANIC_SEEDS / ORGANIC_FORMS), was genesis/forms.js
 │   ├── color.js · palette.js/.css · noise.js · shapes.js · radial.js · pathfx.js · pollen-engine.js
-│   ├── swarm.js · marks-svg.js · bandfield.js · recorder.js · canvas.js · seeds-panel.js/.css · fvs-field.js/.css
+│   ├── swarm.js · marks-svg.js · bandfield.js · recorder.js · mp4.js · social-export.js · canvas.js · seeds-panel.js/.css · fvs-field.js/.css
 │   ├── node-canvas.js/.css (FVS Figure + Rhizome) · print-size.js · print-size-panel.js · plate-export.js
 │   ├── hero.js · hero-loop.js · hero-sheets.js · hero/*.json   ← the home hero's FVS loops, loaded on demand (one per visit)
 │   ├── monogram.js        ← the logo mark: the 0rganic4 monogram, plays on hover of .org-header__logo (every page with the header, loaded before tools.js; favicon = its open rosette)

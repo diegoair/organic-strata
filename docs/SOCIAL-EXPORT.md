@@ -1,0 +1,113 @@
+# Social export — plan (backlog 1.1, Nov 25, 2026)
+
+*Status: **P1 built Nov 25, 2026** (`shared/mp4.js`, `shared/social-export.js`, `scripts/test-social-export.sh` — 17 checks); P2–P5 not started. O-106 answered Nov 25 as recommended (ledger §2). Source: `explorations/home-mockups/NOTES.md`
+§ "Backlog with cost-benefit", item 1.1 (L · ★★★).*
+
+## 1. Goal
+
+One shared module that turns a piece into posts: **stills** (PNG + SVG) and **reels** (MP4, one seamless cycle) in the
+social formats, downloaded as **one ZIP**. Every tool that has something to post calls the same module, so the formats,
+the encoder and the file names are decided once.
+
+## 2. What already exists (checked Nov 25, 2026)
+
+| Piece | Where | What it gives the module |
+|---|---|---|
+| Frame-accurate H.264 encode | `explorations/home-mockups/ig-export.html` (`clip`) | WebCodecs `VideoEncoder`, one `VideoFrame` per tick of the source's own clock, 2 s keyframes, encode-queue back-pressure |
+| A small MP4 writer | same file (`mp4`) | one video track, `moov` before `mdat`: plays and seeks everywhere and Instagram takes it. MediaRecorder's MP4 is fragmented and declares only its first fragment's length (a 41 s clip read as 3.35 s), so this is needed |
+| Seamless loop by pre-roll | same file | run one full cycle unrecorded, then record one cycle: the clip ends where it starts and never opens on an empty sheet |
+| SVG → PNG raster | same file (`raster`) | the frame's SVG drawn through an `Image` onto a canvas, Paper filled first |
+| The formats | `mote/index.html` `MOTE_SOCIAL` | 1:1 1080², 9:16 1080×1920, 4:5 1080×1350, 16:9 1920×1080, 3:2 1620×1080 |
+| A STORE-only ZIP | `shared/zip.js` (`Organica.zip`) | `add(path, data)` → `blob()`; used by Living Path |
+| Download + file names | `shared/core.js` | `Organica.download`, `Organica.stamp` |
+| Realtime recorder | `shared/recorder.js` | MediaRecorder WebM/MP4 from a live canvas: a fallback only, not frame-accurate |
+
+## 3. The module
+
+Two files, both `window.Organica.*`, no UI (each tool keeps its own controls):
+
+- **`shared/mp4.js`** — `Organica.mp4.write(samples, avcC, W, H, timescale, sampleDur) → Uint8Array`. The prototype's
+  writer, lifted as it is. Separate, because Mote's offline encoder can move onto it later.
+- **`shared/social-export.js`** — `Organica.socialExport`:
+  - `FORMATS` — `{ '4x5': [1080, 1350], '9x16': [1080, 1920], '1x1': [1080, 1080], '16x9': [1920, 1080] }` (O-106 e).
+  - `support()` → `Promise<{ stills: true, reel: boolean }>`: `VideoEncoder.isConfigSupported` for H.264 at each size.
+  - `still(source, fmt)` → `{ svg?: string, png: Blob }`.
+  - `reel(source, fmt, { fps, onProgress, signal })` → `Blob` (video/mp4), one cycle, pre-rolled.
+  - `bundle(source, { formats, stills, reel, name, onProgress, signal })` → ZIP `Blob`:
+    `‹name›-4x5.png`, `‹name›-4x5.svg`, `‹name›-4x5.mp4`, … — then the tool calls `Organica.download`.
+
+**The source contract** — what a tool hands over. One object; the module never reaches into a tool:
+
+```js
+{
+  name: 'leaf-wave',                 // file name stem
+  cycleMs: 12000,                    // one full cycle (0 or absent = a still-only source)
+  fps: 30,                           // the source's own clock (HeroLoop: 31.25)
+  layout(W, H) { … },                // lay the piece out for this format (fit, or a format-aware layout)
+  seek(ms) { … },                    // put the piece at time ms from the cycle start (deterministic)
+  svg() { return '<svg …>' },        // the current frame as standalone SVG — for SVG sources (FVS, hero loops)
+  draw(ctx, W, H) { … },             // OR draw it on a canvas — for canvas sources (Pulsar)
+}
+```
+
+`seek` makes the clip deterministic: a periodic source (Pulsar's `renderFrameAt(tNorm)`) is seamless by construction; a
+stepped one (the hero loops' `advance(ms)`) seeks by pre-rolling. A source with only `svg()` gets PNG + SVG; with only
+`draw()` it gets PNG.
+
+## 4. Phases
+
+| Phase | What | Cost | Done when |
+|---|---|---|---|
+| **P1 · Core** | `shared/mp4.js` + `shared/social-export.js` + `scripts/test-social-export.mjs` (headless) | M | a synthetic source (a moving square) gives a 4-format ZIP; each PNG is its format's size; each MP4 parses (`moov` duration = frames × sample duration), loads in a `<video>` with the right `duration` and `videoWidth`; frame 0 = frame n (seamless); no console errors |
+| **P2 · Pulsar** | an Export › **Social** block: format checks, Stills / Reel, Export → one ZIP, progress on the status pill | S–M | one loop of a preset exports in all four formats; the reel's length = Loop seconds; DS CONSULT before, REVIEW after |
+| **P3 · Home-hero loops** | the eight FVS loops exported for posting — on the owner's `/hub/` (one Social button per loop) or as a script on the module (O-106 a) | S | the reels match the prototype's (frame count, seamless); `ig-export.html` retired onto the module |
+| **P4 · FVS stills** | Symbol and Figure: Export › **Social** stills (PNG + SVG) in the four formats | S–M | a Symbol exports in four formats, laid out per O-106 b; Print mode untouched (Social is screen-only) |
+| **P5 · Mote onto the module** | Mote's batch sizes read `FORMATS`, its writer becomes `Organica.mp4` | S | optional; Mote's own encoder path (MediaStreamTrackGenerator) stays until then |
+
+FVS **reels** wait for FVS Motion (backlog 2.4): until then an FVS piece has no clock. A Symbol that re-fits its lattice
+to the format is backlog 2.9; P4 uses the layout chosen in O-106 b.
+
+## 5. Risks
+
+- **Safari / Firefox WebCodecs H.264.** Encoding may be missing or limited to some sizes. `support()` checks each size
+  before Export; what fails falls back per O-106 d. Diego checks by hand before it goes to prod (CLAUDE.md
+  cross-browser list).
+- **Memory.** Encoded samples are kept until the MP4 is written: about 12 Mbps × 12 s ≈ 18 MB per 9:16 reel, so fine.
+  Raw frames are closed as soon as they are encoded.
+- **Time.** Rasterising an SVG frame through `Image` costs about 10–30 ms at 1080×1920, so a 12 s reel at 30 fps takes
+  roughly 5–10 s per format. Progress is shown, and Cancel stops it (`signal`).
+- **Fonts in SVG frames.** An SVG drawn through `<img>` cannot load web fonts. The loops' word slides are off in the
+  prototype (`.hloop__word { display: none }`). Text frames need outlined text, or they are drawn without the word.
+
+## 6. Questions for Diego (ledger O-106 — answered Nov 25, 2026: all as recommended)
+
+- **(a) Who gets it first?** Recommended: P1 → P2 Pulsar (real motion, frame-accurate today) → P3 the hero loops → P4 FVS stills.
+- **(b) A piece whose shape is not the format's:** *fit with Paper around it* (recommended) · *fill and crop* · per-tool
+  layouts only (today only the hero loops have them).
+- **(c) Reel length:** *one cycle* (recommended, seamless) · a set length (15 / 30 s), looping the cycle.
+- **(d) No H.264 encoder in the browser:** *stills only, and say so* (recommended) · a realtime WebM through `recorder.js`.
+- **(e) Formats:** *the four* (4:5 · 9:16 · 1:1 · 16:9, recommended) · also Mote's 3:2.
+- **(f) Output:** *one ZIP* (recommended) · one download per file.
+
+## 6a. P1 as built (Nov 25, 2026)
+
+- The API is §3's, plus `fitSVG(svg, W, H, { paper, margin })`: the piece's root `<svg>` nested in a W×H frame
+  (`preserveAspectRatio="xMidYMid meet"`, a Paper `<rect>` under it) — O-106 b, *fit with Paper around it*. A source
+  usually returns `fitSVG(itsOwnSVG, W, H)` from `svg()`, with `layout(W, H)` remembering the size.
+- Codec `avc1.640028` (H.264 High 4.0 — 1080×1920 is 8160 of its 8192 macroblocks), about 0.2 bit a pixel (12.4 Mbps at
+  1080×1920 / 30 fps, clamped 6–20 Mbps), a keyframe every 2 s, the encode queue held under 8 frames.
+- Frame *i* of a reel is `seek(i · cycleMs / n)` for *i* < n: frame *n* would be frame 0 again, so a periodic source loops
+  seamlessly without a pre-roll; a stepped source (the hero loops' `advance`) pre-rolls inside its own `seek`.
+- `bundle` checks `support()` first; a format with no encoder goes into `skipped` (`why: 'no-encoder'`) and only its
+  stills are made — the calling tool says so (O-106 d). Files: `‹name›-‹format›.png / .svg / .mp4`.
+- Measured headless (Chromium, Nov 25): 30 frames of a simple SVG piece at 1080×1350 in about 0.1 s; the `<video>` reads
+  1080×1350 and 1.0 s; its first frame matches the still (mean difference under 6/255). Real pieces rasterise slower
+  (heavier SVG): to be measured in P2 and P3.
+
+## 7. Gates
+
+- Every phase: `python3 scripts/ds-audit.py --diff` (no raw values), `scripts/check.py`, the new test, plus the tool's
+  own suites (`scripts/test-fvs.sh` for P4).
+- UI phases (P2, P4, P3 if on the hub): design-system **CONSULT** before building, **REVIEW** before the commit.
+  Words go in `docs/UI-COPY.md`.
+- Local commits only; prod on "porta in prod".
