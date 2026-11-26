@@ -59,9 +59,13 @@ for (const k of HOME) {
   const r = await P.ev(`
     const st = document.getElementById('heroStage'), a = st.innerHTML;
     for (let i = 0; i < 6; i++) await new Promise(r => requestAnimationFrame(r));
-    const K = Organica.heroSheets.KINDS[Organica.hero.LOOPS['${k}'].kind];
-    return { moved: st.innerHTML !== a, cycle: K.slides.reduce((t, s) => t + s.ms, 0) };`);
-  check(k + ' moves at once on the home, a cycle ≤ 30 s', r.moved && r.cycle <= 30000, (r.moved ? 'moved' : 'still') + ', cycle ' + r.cycle + ' ms');
+    const movedNow = st.innerHTML !== a, K = Organica.heroSheets.KINDS[Organica.hero.LOOPS['${k}'].kind];
+    // then no stretch of more than 0.7 s where nothing moves, over the first 8 s (Stacks and Bands stood still 3 s after their entrance)
+    let prev = st.innerHTML, t0 = performance.now(), last = 0, gap = 0;
+    while (performance.now() - t0 < 8000) { await new Promise(r => setTimeout(r, 100)); const t = performance.now() - t0, h = st.innerHTML; if (h !== prev) { gap = Math.max(gap, t - last); last = t; prev = h; } }
+    gap = Math.max(gap, performance.now() - t0 - last);
+    return { moved: movedNow, cycle: K.slides.reduce((t, s) => t + s.ms, 0), gap: Math.round(gap) };`);
+  check(k + ' moves at once, never still > 0.7 s, a cycle ≤ 30 s', r.moved && r.gap <= 700 && r.cycle <= 30000, 'longest still ' + r.gap + ' ms, cycle ' + r.cycle + ' ms');
 }
 await P.goto('/?hero=b', READY);
 check('a loop off the home is not shown there (?hero=b starts on H)', await P.ev(`return Organica.hero.current.key;`) === 'h');

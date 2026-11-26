@@ -465,7 +465,7 @@
   var BANDS_UID = 0;
   var BANDS = {
     slides: [
-      { title: 'Bands', ms: 5000, pal: 3, brief: 'Bands four cells wide, stacked from blocks: a check of two inks, one flat and one a gradient, or a tall stripe.' },
+      { title: 'Bands', ms: 2000, pal: 3, brief: 'Bands four cells wide, stacked from blocks: a check of two inks, one flat and one a gradient, or a tall stripe.' },
       { title: 'Turn', ms: 5500, pal: 3, brief: 'A half turn by a rule: Checkerboard, rows, bands. The flat ink hides it; the gradient turns over.' },
       { title: 'Re-ink', ms: 5000, pal: 2, brief: 'One block at a time takes new inks; the layout holds.' },
       { title: 'Restack', ms: 5500, pal: 0, brief: 'A band folds away and rebuilds with a new stack of blocks.' },
@@ -577,7 +577,7 @@
           if (now >= next) {
             next = now + BEAT; beat++;
             var inks = inksOf(pal), si = BANDS.slides.indexOf(cfg);
-            if (si === 1) setRule([2, 3, 1, 0][beat % 4], true);
+            if (si === 1) { var nr = [2, 3, 1, 0][beat % 4]; setRule(nr === rule ? [2, 3, 1, 0][(beat + 1) % 4] : nr, true); }   // never the rule already there: that beat would stand still
             else if (si === 2) for (var k = 0; k < 3; k++) { var band = bands[Math.floor(rand() * NB)], b = band.blocks[Math.floor(rand() * band.blocks.length)]; reink(b, inks, k * 160); }
             else if (si === 3) restack(bands[Math.floor(rand() * NB)], 0);
             else if (si === 4) { pal = (pal + 1) % PALS.length; background(pal); inks = inksOf(pal); bands.forEach(function (band) { band.blocks.forEach(function (b) { reink(b, inks, band.i * CST * 1.5 + b.y * 12); }); }); }
@@ -810,7 +810,7 @@
   var STK_UID = 0;
   var STACKS = {
     slides: [
-      { title: 'Stacks', ms: 5000, pal: 3, brief: 'Columns of round-topped capsules, stacked like a deck: each covers the one above, leaving a crescent band.' },
+      { title: 'Stacks', ms: 2500, pal: 3, brief: 'Columns of round-topped capsules, stacked like a deck: each covers the one above, leaving a crescent band.' },
       { title: 'Squeeze', ms: 5500, pal: 3, brief: 'The spacing breathes and the squeeze travels down every column, each at its own phase.' },
       { title: 'Blend', ms: 5500, pal: 2, brief: 'On each beat a few columns melt into a smooth gradient of their own inks, and others come back.' },
       { title: 'Belts', ms: 5000, pal: 0, brief: 'Every column runs like a belt, up or down, at its own speed.' },
@@ -993,12 +993,17 @@
       }
       layers.forEach(function (L) { L.cols.forEach(function (c, i) { c.i = i; }); });
       function mutate(s) {
-        var o = { dx: s.dx, s: s.s, w: s.w, off: s.off, fade: s.fade };
-        switch (Math.floor(rand() * 4)) {
-          case 0: o.dx = [0, 1, -1, .5, -.5][Math.floor(rand() * 5)]; break;
-          case 1: o.s = o.dx ? [.45, .55, .85][Math.floor(rand() * 3)] : 1; o.w = [.2, .3, .38, .45][Math.floor(rand() * 4)]; break;
-          case 2: o.off = [0, .25, .5][Math.floor(rand() * 3)]; break;
-          default: o.fade = FADE_KEYS[Math.floor(rand() * FADE_KEYS.length)];
+        var o, same = true;
+        // a beat always changes something: a draw that lands on the value already there is drawn again (it left a beat still)
+        for (var tries = 0; same && tries < 8; tries++) {
+          o = { dx: s.dx, s: s.s, w: s.w, off: s.off, fade: s.fade };
+          switch (Math.floor(rand() * 4)) {
+            case 0: o.dx = [0, 1, -1, .5, -.5][Math.floor(rand() * 5)]; break;
+            case 1: o.s = o.dx ? [.45, .55, .85][Math.floor(rand() * 3)] : 1; o.w = [.2, .3, .38, .45][Math.floor(rand() * 4)]; break;
+            case 2: o.off = [0, .25, .5][Math.floor(rand() * 3)]; break;
+            default: o.fade = FADE_KEYS[Math.floor(rand() * FADE_KEYS.length)];
+          }
+          same = o.dx === s.dx && o.s === s.s && o.w === s.w && o.off === s.off && o.fade === s.fade;
         }
         return o;
       }
