@@ -1105,7 +1105,7 @@
     var word = document.createElement('div'); word.className = 'hloop__word';
     host.appendChild(svg); if (opts.label !== false) host.appendChild(word);
     var cur = Math.max(0, Math.min(n - 1, opts.start || 0)), tS = 0, paused = false, vis = true, dead = false, view = null, prev = 0, wordT = 0, size = '';
-    var meter = { dt: [], js: [] }, built = false, SPEED = 1.15;   // Diego, Nov 26, 2026: slightly faster
+    var meter = { dt: [], js: [] }, built = false, SPEED = 1.35;   // Diego, Nov 26, 2026: faster (1.15, then 1.35)
 
     function label() {
       var p = PALS[view ? view.palette() : 0];
