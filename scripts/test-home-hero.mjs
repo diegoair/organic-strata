@@ -1,6 +1,7 @@
-// Headless check for the home hero (Nov 24, 2026): the carousel of FVS loops on the home, by Organica.hero (shared/hero.js).
-// (1) every loop mounts with ?hero=a…h, draws, steps without an error, loads its own model and nothing from
-// explorations/; (2) the carousel: eight bars, Next moves on, a loop that ends hands the stage to the next one;
+// Headless check for the home hero (Nov 24, 2026): the carousel of FVS loops (shared/hero-carousel.js over shared/hero.js).
+// (1) every loop mounts on the work page /design-system/_hero-loops.html?hero=a…h, draws, steps without an error, loads
+// its own model and nothing from explorations/; (2) the home's carousel: Organica.hero.HOME (Nov 26, 2026: H A G E F),
+// five bars in that order, Next moves on, a loop that ends hands the stage to the next one;
 // (3) the loader's rotation (the owner's hub uses it) advances one loop per mount and stays inside ROTATION;
 // (4) a model that cannot load calls the fallback; (5) reduced motion gives one still frame; (6) a portrait stage
 // takes G's 4:5 model. The hub page itself (/hub/, owner only) cannot be opened headless: its stipple-word fallback is
@@ -15,8 +16,9 @@ const SEEN = `performance.getEntriesByType('resource').map(r => new URL(r.name).
 const MODEL = { a: null, b: 'windows-model', c: 'score-model', d: 'morph-model', e: 'dots-model', f: 'weave-tiles', g: 'print-model', h: 'stacks-model' };
 const KEYS = Object.keys(MODEL);
 
+const WORK = '/design-system/_hero-loops.html';
 for (const k of KEYS) {
-  await P.goto('/?hero=' + k, READY);
+  await P.goto(WORK + '?hero=' + k, READY);
   const r = await P.ev(`
     const c = Organica.hero.current, host = document.getElementById('heroStage'), L = c.loop();
     let err = ''; try { L.advance(2000); } catch (e) { err = String(e); }
@@ -29,23 +31,30 @@ for (const k of KEYS) {
   check(k + ' loads its model, nothing from explorations/', (!MODEL[k] || r.models.includes(MODEL[k])) && r.models.length <= 2 && !r.expl && !r.swarm, 'models [' + r.models.join(', ') + ']');
 }
 
-// the carousel
-await P.goto('/?hero=a', READY);
+// the home's carousel: H A G E F
+const HOME = ['h', 'a', 'g', 'e', 'f'];
+await P.goto('/', READY);
 const car = await P.ev(`
-  const bars = document.querySelectorAll('#heroBars button').length;
-  document.getElementById('heroNext').click();
-  for (let i = 0; i < 80 && !(Organica.hero.current.key === 'b' && Organica.hero.current.loop()); i++) await new Promise(r => setTimeout(r, 100));
+  const wait = async k => { for (let i = 0; i < 80 && !(Organica.hero.current.key === k && Organica.hero.current.loop()); i++) await new Promise(r => setTimeout(r, 100)); };
+  const bars = [...document.querySelectorAll('#heroBars button')].map(b => b.getAttribute('aria-label'));
+  const first = Organica.hero.current.key, home = Organica.hero.HOME.join('');
+  document.getElementById('heroNext').click(); await wait('a');
   const next = Organica.hero.current.key, count = document.getElementById('heroCount').textContent;
-  // play B to its end by hand: the stage must pass to C
+  // play A to its end by hand: the stage must pass to G
   const L = Organica.hero.current.loop();
-  for (let t = 0; t < 60000 && Organica.hero.current.key === 'b'; t += 50) { L.advance(50); if (t % 5000 === 0) await new Promise(r => setTimeout(r, 0)); }
-  for (let i = 0; i < 80 && !(Organica.hero.current.key === 'c' && Organica.hero.current.loop()); i++) await new Promise(r => setTimeout(r, 100));
-  const done = document.querySelectorAll('#heroBars button.is-done').length;
-  document.getElementById('heroPrev').click();
-  for (let i = 0; i < 80 && !(Organica.hero.current.key === 'b' && Organica.hero.current.loop()); i++) await new Promise(r => setTimeout(r, 100));
-  return { bars, next, count, after: Organica.hero.current.key, done, svgs: document.querySelectorAll('#heroStage svg').length, demo: document.querySelectorAll('#demoStage g.cell').length, stray: document.querySelectorAll('#demoStage svg').length };`);
-check('the carousel has a bar per loop and Next moves on', car.bars === 8 && car.next === 'b' && car.count === '02 / 08', car.bars + ' bars, ' + car.next + ', ' + car.count);
-check('a loop that ends hands the stage to the next; Previous goes back', car.done === 2 && car.after === 'b' && car.svgs === 1 && car.demo === 160 && car.stray === 1, 'bars done ' + car.done + ', then ' + car.after + '; hero svgs ' + car.svgs + ', demo cells ' + car.demo);
+  for (let t = 0; t < 60000 && Organica.hero.current.key === 'a'; t += 50) { L.advance(50); if (t % 5000 === 0) await new Promise(r => setTimeout(r, 0)); }
+  await wait('g');
+  const ended = Organica.hero.current.key, done = document.querySelectorAll('#heroBars button.is-done').length;
+  document.getElementById('heroPrev').click(); await wait('a');
+  const after = Organica.hero.current.key;
+  document.getElementById('heroPrev').click(); await wait('h');
+  document.getElementById('heroPrev').click(); await wait('f');
+  return { bars, first, home, next, count, ended, done, after, wrap: Organica.hero.current.key, svgs: document.querySelectorAll('#heroStage svg').length, demo: document.querySelectorAll('#demoStage g.cell').length, stray: document.querySelectorAll('#demoStage svg').length };`);
+check('the home shows H A G E F, in that order', car.home === HOME.join('') && car.bars.length === 5 && car.first === 'h' && /^Composition 1: Stacks$/.test(car.bars[0]) && /^Composition 5: Weave$/.test(car.bars[4]), car.home + ' · ' + car.bars.join(' | '));
+check('Next moves on', car.next === 'a' && car.count === '02 / 05', car.next + ', ' + car.count);
+check('a loop that ends hands the stage to the next; Previous goes back and wraps', car.ended === 'g' && car.done === 2 && car.after === 'a' && car.wrap === 'f' && car.svgs === 1 && car.demo === 160 && car.stray === 1, 'ended → ' + car.ended + ', done ' + car.done + ', back ' + car.after + ', wrap ' + car.wrap + '; hero svgs ' + car.svgs + ', demo cells ' + car.demo);
+await P.goto('/?hero=b', READY);
+check('a loop off the home is not shown there (?hero=b starts on H)', await P.ev(`return Organica.hero.current.key;`) === 'h');
 
 // the loader's rotation and fallback, on a stage of their own
 await P.goto('/', READY);   // no ?hero= in the address: the rotation decides
@@ -69,7 +78,7 @@ await P.cdp('Network.setBlockedURLs', { urls: [] });
 // reduced motion: one still frame
 await P.cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
 for (const k of ['d', 'c']) {
-  await P.goto('/?hero=' + k, READY);
+  await P.goto(WORK + '?hero=' + k, READY);
   const still = await P.ev(`
     const svg = document.querySelector('#heroStage svg'), a = svg.outerHTML;
     await new Promise(r => setTimeout(r, 900));

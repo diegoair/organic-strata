@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Home hero loops — work page</title>
+<link rel="stylesheet" href="/shared/tokens.css">
+<link rel="stylesheet" href="/shared/icons.css">
+<link rel="stylesheet" href="/shared/header.css">
+<style>
+/* Work page (underscore prefix, like the audits; Diego, Nov 26, 2026): every home-hero loop in the home's own
+   carousel (shared/hero-carousel.js), so the loops left off the home stay at hand to work on. Linked from
+   /design-system/#hero-loops. The home shows Organica.hero.HOME; this page shows Organica.hero.LOOPS, all of them. */
+body { margin: 0; font-family: var(--font); font-size: var(--fs-base); color: var(--ink); background: var(--paper); }
+.wl { max-width: calc(var(--space-9) * 30); margin: 0 auto; padding: var(--space-8) var(--space-7); }
+.wl h1 { font-family: var(--font-display); font-size: var(--fs-3xl); font-weight: var(--w-semibold); margin: 0 0 var(--space-3); }
+.wl p { margin: 0 0 var(--space-6); color: var(--mid); max-width: calc(var(--space-9) * 16); line-height: 1.5; }
+.wl__stage { position: relative; height: 68vh; border-radius: var(--radius-md); overflow: hidden; background: var(--paper); box-shadow: var(--stage-shadow); cursor: pointer; }
+.wl__ui { display: flex; align-items: center; gap: var(--space-6); margin: var(--space-5) 0 var(--space-7); }
+.wl__count { font-family: var(--font-display); font-size: var(--fs-medium); font-variant-numeric: tabular-nums; }
+.wl__bars { display: flex; gap: var(--space-2); flex: 1; }
+.wl__bars button { position: relative; flex: 1; height: var(--space-1); border: 0; padding: 0; cursor: pointer; border-radius: var(--radius-sm); background: var(--track-bg); overflow: visible; }
+.wl__bars button::before { content: ''; position: absolute; inset: calc(var(--space-4) * -1) 0; }
+.wl__bars button i { position: absolute; inset: 0; border-radius: inherit; background: var(--ink); transform-origin: left; transform: scaleX(0); }
+.wl__bars button.is-done i { transform: scaleX(1); }
+.wl__nav { display: flex; gap: var(--space-2); }
+.wl table { border-collapse: collapse; width: 100%; }
+.wl th, .wl td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); }
+.wl th { font-family: var(--font-display); font-weight: var(--w-semibold); color: var(--mid); }
+.wl tr.is-on td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.wl td a { color: inherit; }
+</style>
+</head>
+<body>
+<main class="wl" id="loops">
+  <h1>Home hero loops</h1>
+  <p>Every FVS loop made for the home, in the home’s own carousel, to work on. The home shows only the ones marked in the table, in that order (<code>Organica.hero.HOME</code> in <code>shared/hero.js</code>). Click the picture to reroll it; ← → move on.</p>
+  <div class="wl__stage" id="heroStage" data-theme="light" role="group" aria-roledescription="slide"></div>
+  <div class="wl__ui" id="heroUi">
+    <span class="wl__count" id="heroCount">01 / 08</span>
+    <div class="wl__bars" id="heroBars"></div>
+    <div class="wl__nav">
+      <button type="button" class="org-btn" id="heroPrev" aria-label="Previous composition"><i data-icon="chevron-left"></i></button>
+      <button type="button" class="org-btn" id="heroNext" aria-label="Next composition"><i data-icon="chevron-right"></i></button>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>#</th><th>Key</th><th>Loop</th><th>On the home</th><th>Open</th></tr></thead>
+    <tbody id="loopRows"></tbody>
+  </table>
+</main>
+<script src="/shared/core.js"></script>
+<script src="/shared/icons.js"></script>
+<script src="/shared/noise.js"></script>
+<script src="/shared/fvs-field.js"></script>
+<script src="/shared/hero.js"></script>
+<script src="/shared/hero-carousel.js"></script>
+<script>
+(function () {
+  'use strict';
+  var H = Organica.hero, keys = Object.keys(H.LOOPS), rows = document.getElementById('loopRows');
+  Organica.icons.mount(document.getElementById('loops'));
+  rows.innerHTML = keys.map(function (k, i) {
+    var at = H.HOME.indexOf(k);
+    return '<tr data-key="' + k + '"><td>' + (i + 1) + '</td><td><code>' + k + '</code></td><td>' + H.LOOPS[k].name + '</td><td>' +
+      (at < 0 ? '—' : 'Slide ' + (at + 1)) + '</td><td><a href="?hero=' + k + '">Here</a>' + (at < 0 ? '' : ' · <a href="/?hero=' + k + '">On the home</a>') + '</td></tr>';
+  }).join('');
+  Organica.heroCarousel({ root: document.getElementById('loops'), keys: keys, stage: document.getElementById('heroStage'), bars: document.getElementById('heroBars'),
+    count: document.getElementById('heroCount'), prev: document.getElementById('heroPrev'), next: document.getElementById('heroNext'), ui: document.getElementById('heroUi'),
+    onShow: function (key) { [].forEach.call(rows.children, function (r) { r.classList.toggle('is-on', r.dataset.key === key); }); } });
+})();
+</script>
+</body>
+</html>

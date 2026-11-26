@@ -47,7 +47,7 @@ One line each — the full description of every tool (what shipped when, the con
 
 | Tool | Path | What it is · what to know before touching it |
 |---|---|---|
-| **Home** | `/` | The public home (Nov 24, 2026, from the mockup's direction C): hero carousel = the eight FVS loops, one per slide (`shared/hero.js`), then the method, the live rule demo, five principles, the chain, the two launch tools (FVS, TuneSutra). Header = shared `.org-header` + `.org-header__links`, no tools menu. |
+| **Home** | `/` | The public home (Nov 24, 2026, from the mockup's direction C): hero carousel = five of the eight FVS loops, H A G E F (`Organica.hero.HOME`, Nov 26, 2026; all eight on `/design-system/_hero-loops.html`), one per slide (`shared/hero.js` + `hero-carousel.js`), then the method, the live rule demo, five principles, the chain, the two launch tools (FVS, TuneSutra). Header = shared `.org-header` + `.org-header__links`, no tools menu. |
 | **Hub** | `/hub/` | The home before Nov 24, 2026, now the owner's (owner-only gate, `noindex`, from the account menu): hero = one FVS loop per visit (rotation; the stipple word is the fallback), live sketch gallery, the what/why, the mega menu; **Social** (Nov 25, 2026): a loop exported for posting — four sizes × stills / one-loop video, one ZIP (`shared/hero-social.js`, `docs/SOCIAL-EXPORT.md` §6c). |
 | **Spore** | `/spore/` | Generative stippling from images, SVG mark library. Screen/Print export, per-ink Plates. [SPORE.md](docs/SPORE.md) |
 | **Pollen** | `/pollen/` | Advanced blue-noise stippling (core in `shared/pollen-engine.js`, shared with Mote). Screen/Print, Plates. [POLLEN.md](docs/POLLEN.md) |
@@ -102,7 +102,7 @@ organic-strata/            ← GitHub diegoair/organic-strata (private)
 │   ├── color.js · palette.js/.css · noise.js · shapes.js · radial.js · pathfx.js · pollen-engine.js
 │   ├── swarm.js · marks-svg.js · bandfield.js · recorder.js · mp4.js · social-export.js · hero-social.js · canvas.js · seeds-panel.js/.css · fvs-field.js/.css
 │   ├── node-canvas.js/.css (FVS Figure + Rhizome) · print-size.js · print-size-panel.js · plate-export.js
-│   ├── hero.js · hero-loop.js · hero-sheets.js · hero/*.json   ← the home hero's FVS loops, loaded on demand (one per visit)
+│   ├── hero.js · hero-carousel.js · hero-loop.js · hero-sheets.js · hero/*.json   ← the home hero's FVS loops, loaded on demand (one per visit)
 │   ├── monogram.js        ← the logo mark: the 0rganic4 monogram, plays on hover of .org-header__logo (every page with the header, loaded before tools.js; favicon = its open rosette)
 │   ├── vendor/            ← third-party (see THIRD-PARTY-NOTICES.md)
 │   └── _template.html     ← start a new tool from this

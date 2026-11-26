@@ -153,7 +153,7 @@
   <section class="hero" id="hero" data-theme="light" aria-roledescription="carousel" aria-label="Compositions made with the Organic Visual System">
     <div class="hero__stage" id="heroStage" role="group" aria-roledescription="slide"></div>
     <div class="hero__ui">
-      <span class="hero__count" id="heroCount">01 / 08</span>
+      <span class="hero__count" id="heroCount">01 / 05</span>
       <div class="hero__bars" id="heroBars"></div>
       <div class="hero__nav">
         <button type="button" id="heroPrev" aria-label="Previous composition"><i data-icon="chevron-left"></i></button>
@@ -228,6 +228,7 @@
   <script src="/shared/noise.js"></script>
   <script src="/shared/fvs-field.js"></script>
   <script src="/shared/hero.js"></script>
+  <script src="/shared/hero-carousel.js"></script>
   <script src="/shared/supabase.js"></script>
   <script src="/shared/auth.js"></script>
   <script src="/shared/auth-badge.js"></script>
@@ -240,50 +241,13 @@
     'use strict';
     var F = Organica.fvsField, PALS = F.palettes();
     function pal(i) { return PALS[i % PALS.length]; }
-    function pad(n) { return (n < 10 ? '0' : '') + n; }
     Organica.icons.mount(document.getElementById('hero'));
 
-    /* ── the carousel: the FVS loops, one per slide (Organica.hero loads only the loop on screen, and the next ahead).
-       A loop plays its own cycle, then the next one takes the stage. ?hero=a…h starts on that loop. ── */
-    var H = Organica.hero, KEYS = Object.keys(H.LOOPS), N = KEYS.length;
-    var hero = document.getElementById('hero'), stage = document.getElementById('heroStage'), bars = document.getElementById('heroBars'), countEl = document.getElementById('heroCount');
-    var cur = 0, handle = null, paused = false, failed = 0;
-    var barEls = KEYS.map(function (k, i) {
-      var b = document.createElement('button'); b.type = 'button';
-      b.setAttribute('aria-label', 'Composition ' + (i + 1) + ': ' + H.LOOPS[k].name); b.innerHTML = '<i></i>';
-      b.onclick = function () { show(i); }; bars.appendChild(b); return b;
-    });
-    function show(i) {
-      cur = ((i % N) + N) % N;
-      var key = KEYS[cur];
-      if (handle) handle.stop();
-      stage.textContent = '';
-      barEls.forEach(function (b, k) { b.classList.toggle('is-done', k < cur); b.firstChild.style.transform = ''; b.setAttribute('aria-current', k === cur ? 'true' : 'false'); });
-      stage.setAttribute('aria-label', (cur + 1) + ' of ' + N + ': ' + H.LOOPS[key].name);
-      countEl.textContent = pad(cur + 1) + ' / ' + pad(N);
-      var mine = handle = H.mount(stage, { key: key,
-        onProgress: function (p) { if (handle === mine) { failed = 0; barEls[cur].firstChild.style.transform = 'scaleX(' + p + ')'; } },
-        onEnd: function () { if (handle === mine) show(cur + 1); },
-        fallback: function () { if (handle === mine && ++failed < N) show(cur + 1); },   // a loop that cannot load is skipped
-      });
-      H.preload(KEYS[(cur + 1) % N], stage);
-    }
-    function loop() { return handle && handle.loop(); }
-    function pause(b) { paused = b; var l = loop(); if (l) l.pause(b); }
-    // the pointer plays with the picture, so it pauses only over the controls (and while they hold the focus)
-    var ui = hero.querySelector('.hero__ui');
-    ui.addEventListener('mouseenter', function () { pause(true); }); ui.addEventListener('mouseleave', function () { pause(false); });
-    ui.addEventListener('focusin', function () { pause(true); }); ui.addEventListener('focusout', function () { pause(false); });
-    stage.addEventListener('click', function (e) { var l = loop(), r = stage.getBoundingClientRect(); if (l) l.reroll(e.clientX - r.left, e.clientY - r.top); });
-    document.getElementById('heroPrev').onclick = function () { show(cur - 1); };
-    document.getElementById('heroNext').onclick = function () { show(cur + 1); };
-    addEventListener('keydown', function (e) {
-      if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
-      if (hero.getBoundingClientRect().bottom < innerHeight / 2) return;   // only while the carousel is what the visitor is looking at
-      if (e.key === 'ArrowRight') show(cur + 1); if (e.key === 'ArrowLeft') show(cur - 1);
-    });
-    var q = (new URLSearchParams(location.search).get('hero') || '').toLowerCase();
-    show(Math.max(0, KEYS.indexOf(q)));
+    /* ── the carousel: the home's FVS loops, one per slide (Organica.hero.HOME, in that order; shared/hero-carousel.js).
+       Every loop is on the work page /design-system/_hero-loops.html. ?hero=<key> starts on that loop. ── */
+    var hero = document.getElementById('hero');
+    Organica.heroCarousel({ root: hero, keys: Organica.hero.HOME, stage: document.getElementById('heroStage'), bars: document.getElementById('heroBars'),
+      count: document.getElementById('heroCount'), prev: document.getElementById('heroPrev'), next: document.getElementById('heroNext'), ui: hero.querySelector('.hero__ui') });
 
   /* ── the step tiles (tiny SVGs of what each step makes) ── */
   var ARC = 'M0 0H1A1 1 0 0 1 0 1Z';

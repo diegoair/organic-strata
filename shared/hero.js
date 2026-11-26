@@ -44,6 +44,9 @@
   // C · The score is out until its paint cost is fixed (Nov 24, 2026, 1359 × 778 at 2×: 16–22 fps on the haze and
   // word slides, script under 1 ms: the cost is the SVG haze filter). It still runs with ?hero=c.
   var ROTATION = ['a', 'b', 'd', 'e', 'f', 'g', 'h'];
+  // The home's carousel, in this order (Diego, Nov 26, 2026: "lascia solo 1, 5, 6, 7, 8 … nell'ordine 8, 1, 7, 5, 6").
+  // Every loop stays on the work page /design-system/_hero-loops.html.
+  var HOME = ['h', 'a', 'g', 'e', 'f'];
 
   // ── loading: a script once, in order; a model once ──
   var scriptOf = {}, modelOf = {};
@@ -137,5 +140,5 @@
     return (O.hero.current = { key: key, name: L.name, stats: function () { return loop && loop.stats ? loop.stats() : null; }, loop: function () { return loop; }, stop: stop });
   }
 
-  O.hero = { mount: mount, preload: preload, scripts: scripts, LOOPS: LOOPS, ROTATION: ROTATION };
+  O.hero = { mount: mount, preload: preload, scripts: scripts, LOOPS: LOOPS, ROTATION: ROTATION, HOME: HOME };
 })();
