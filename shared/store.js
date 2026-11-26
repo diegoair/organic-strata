@@ -314,10 +314,24 @@
   // go up. server = the rows just pulled; local = the cache now; base = the rows as last synced (what the local
   // edits started from). A row that differs between local and base was edited here and has not reached the
   // account yet; every other row comes from the server.
+  // The rule (Diego, Nov 26, 2026): a row edited only here is kept; a row the account changed too (another
+  // device, another tab) — the account wins, and the page is told once.
   function mergePending(server, local, base) {
-    // TODO(Diego): the merge policy — see the request in the session.
-    return server;
+    var out = {}, lost = 0, same = function (a, b) { return JSON.stringify(a) === JSON.stringify(b); };
+    Object.keys(server).forEach(function (k) { out[k] = server[k]; });
+    var names = Object.keys(local).concat(Object.keys(base));
+    names.forEach(function (k, i) {
+      if (names.indexOf(k) !== i) return;
+      var mine = !same(local[k], base[k]);            // edited (or added, or deleted) here, not yet sent
+      if (!mine) return;
+      var theirs = !same(server[k], base[k]);         // …and changed in the account meanwhile
+      if (theirs) { if (!same(server[k], local[k])) lost++; return; }   // the account wins
+      if (k in local) out[k] = local[k]; else delete out[k];
+    });
+    if (lost && Organica.notice) Organica.notice('Changed on another device or tab: ' + (lost === 1 ? 'one change made here was' : lost + ' changes made here were') + ' replaced by the account copy.', { kind: 'info' });
+    return out;
   }
+  makeStore.mergePending = mergePending;   // for scripts/test-store-merge.mjs
 
   Organica.store = makeStore;
 
