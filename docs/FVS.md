@@ -1921,7 +1921,7 @@ the CSS is the *step boards* block at the end of `fvs/fvs.css`.
   move the sheet, click it to select (⌘ / Shift add), Enter / Space on it selects too, then the arrow keys
   nudge it (Shift: by ten). **Linked sheets** are one group: selected and moved together, one ring
   (`.fvs-board-ring`) round all of it. A click on the bare board clears the selection.
-- The view and the sheet positions are kept per step, per browser: `localStorage['organica.fvs.board.<step>']`
+- The view and the sheet positions are kept per step, per browser, per Project since Nov 26, 2026 (§14): `localStorage['organica.fvs.<pid>.board.<step>']`, was `organica.fvs.board.<step>`
   (the prototype's `organica.fvs.proto.board.<step>` is read forward when the new key is missing, and left).
 - **The HUD** (`.fvs-board-hud`) sits fixed above the board: the Edit toolbars, the empty notes.
 - **A single view** (double-click): the step's classic page — the same markup, laid out by
@@ -2048,3 +2048,56 @@ core) and CI. `scripts/test-fvs-qa.sh` checks the three stages.
 
 **Decided (Diego, Oct 11, 2026 — O-66)**: the Component area stays **Gallery** *(amended the same day: **Generated components**, one per Element — O-67 d)*; the Element board has undo; the panel's button reads **Clear board**, as the floatbar's. Still open: the small sheets' pile (≥ 120 px pile, outline below — Diego's visual test). Ledger: `docs/DESIGN-DECISIONS.md`.
 
+
+## 14. Projects (Nov 26, 2026 — ledger O-67 a)
+
+A **Project** holds **the boards**: the Element board (each Element with its Component gallery), the Symbol board,
+the Figure being edited, and the board views. The **libraries stay shared** by every Project: saved Elements,
+Components, Symbols, Assets, the named Figure graphs, Sets, rules, photos, palettes (Diego, Nov 26, 2026). It serves
+work that is completely different and work that has grown too large: only the open Project is loaded.
+
+**Where it lives** (`fvs/js/project.js`)
+- Each board store carries the Project's id: `fvs-elements@<pid>`, `fvs-symbol-work@<pid>`, `fvs-figure-work@<pid>`
+  (`{ current: {model, name, savedAt} }`, was `fvs-figure.__current`). They use `shared/store.js`'s **IndexedDB
+  backend** (`Organica.store(tool, { backend: 'idb' })`, `shared/idb.js`): the cache is memory + IndexedDB instead
+  of localStorage (no 5 MB quota), and the account rows are as before (Supabase `presets`, one row per key).
+  `read()` / `write()` stay synchronous: `Organica.store.preload(tool)` fills the memory copy first.
+- A put cut off by the page closing is not lost: on `pagehide` the newer copies go to `localStorage['<key>.pending']`,
+  moved back into IndexedDB on the next load.
+- Board views: `organica.fvs.<pid>.board.<step>` and `organica.fvs.<pid>.figure-view` (per browser).
+- The index `Organica.store('fvs-projects')`: `{ [pid]: { name, createdAt, updatedAt, counts: {elements, symbols,
+  figureNodes}, uses: {components, elements, symbolElements}, renamesSeen } }` — the only thing the home reads.
+  The card's picture is `Organica.idb` key `fvs-project-thumb:<pid>` (local only: drawn again when the Project is open).
+- **Sync conflicts** (`mergePending` in `store.js`, Diego: *the account wins*): a pull while edits wait to go up keeps a
+  row edited only here; a row the account changed too is the account's, with one notice.
+
+**Opening** — `main.js` runs `chooseProject()` before anything else: `?home` → the home; `?project=<id>` → that one; else
+the last one on this browser (`organica.fvs.project.last`); else the home. With no Project at all, the work of before
+Projects becomes **Project 1** (the old `fvs-elements`, `fvs-symbol-work`, `fvs-figure.__current` and board views are
+**copied**, the old keys and rows left in place), else a first empty one. Then `openProject(id)` fills the board stores
+and `app.js` (every FVS file, the old `main.js`) is imported — the files that make a board store at their top level find
+it ready. Going to another Project is a reload (`goToProject`). A second tab on the same Project shows a notice
+(`BroadcastChannel('organica.fvs.project')`).
+
+**Your projects** (`fvs/js/home.js`, `#fvs-projects`) — the Library view's tiles: a New project card, then one card per
+Project, newest first (picture, name, *Editing ·* on the open one, *Edited ‹date›*, *n Elements · n Symbols*). Open
+(click; ⌘-click = a new tab), Rename, Duplicate (*‹name› copy*), Save as file (**`.fvs`**), Delete (**armed**: three
+boards, no undo). Header: search, New project, Open file…. Two ways in: the step bar's **Project button** (the open
+Project's name) shows it over the canvas — Escape / Close go back; or it is **the page itself** (`/fvs/?home`,
+`body.fvs-home-only`, the app not loaded) when no Project is open, also after deleting the open one.
+
+**The `.fvs` file** — JSON `{ tool: 'fvs-project', version: 1, name, savedAt, boards: {'fvs-elements', 'fvs-symbol-work',
+'fvs-figure-work'}, library: { component, element } }`: the boards plus the saved Components (with their underlying
+Containers / Masks) and Elements they name, so it opens in another account. **Open file always makes a new Project**
+(*‹name› copy* on a taken name); a library entry missing here is added, one whose name is taken by a different entry
+comes in as *‹name› (imported)* and the boards are pointed at it.
+
+**The shared library across Projects**
+- Delete: `componentUsage` also counts the open Project's other board Symbols and every other Project's `uses`; an
+  Element is kept hidden while another Project's Paper tile names it (`elementInLivePaper`). Hidden, not removed.
+- Rename: the open Project is repointed at once; `fvs-renames` (`{ '<kind>:<old>': {to, at} }`, chains collapsed) is
+  applied to a closed Project when it next opens (`applyRenames`, newer than its `renamesSeen`).
+
+Tests: `scripts/test-fvs-projects.sh` (39 checks: migration, switching, IndexedDB reload, the library across Projects,
+the home, the file, armed Delete, Escape), `scripts/test-store-merge.mjs` (the conflict rule). Not checked: Safari /
+Firefox IndexedDB.
