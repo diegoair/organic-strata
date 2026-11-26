@@ -56,6 +56,14 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('…choosing it writes fitMode repeat', F.state.symbolCells[0].fitMode === 'repeat', F.state.symbolCells[0].fitMode);
   F.state.symbolSelection = new Set([1]); F.renderCellPropertiesPanel(); await w(50);
   check('…not on an empty cell', !opt() || opt().hidden || opt().disabled, 'offered');
+  // the floatbar button (O-111 b): off with no Component in the target, writes Component cells only
+  empty(); F.state.symbolSelection = new Set(); F.renderCellPropertiesPanel(); F.renderSymbolCanvasOnly(); await w(80);
+  const fb = q('btn-symbol-fit-all-repeat');
+  check('the floatbar has a Repeat button, off with no Component', fb && fb.disabled && /fvs-repeat/.test(fb.innerHTML), fb ? fb.getAttribute('aria-label') : 'missing');
+  put(0, A); const seedCell = F.state.symbolCells[1]; F.patchCell(seedCell, { source: 'seed', seedType: 'circle' }); F.renderSymbolCanvasOnly(); F.renderCellPropertiesPanel(); await w(80);
+  check('…on with a Component, "Components only" when the target is mixed', !fb.disabled && /Components only/.test(fb.getAttribute('aria-label')), fb.getAttribute('aria-label'));
+  fb.click(); F.renderCellPropertiesPanel(); await w(80);
+  check('…a click writes Repeat to the Component cell only', F.state.symbolCells[0].fitMode === 'repeat' && F.state.symbolCells[1].fitMode !== 'repeat' && fb.getAttribute('aria-pressed') !== null, JSON.stringify([F.state.symbolCells[0].fitMode, F.state.symbolCells[1].fitMode]));
   // SVG and PNG agree: a Repeat cell, a turned one and a 2 × 1, drawn both ways
   empty(); put(0, A, { fitMode: 'repeat' }); put(2, A, { fitMode: 'repeat', rotation: 90 }); put(4, B, { fitMode: 'repeat' });
   F.state.symbolSelection = new Set(); const svg = F.buildSymbolSVG();

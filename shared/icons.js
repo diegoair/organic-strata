@@ -135,6 +135,7 @@
     'fvs-contain':   '<rect x="1.5" y="3.5" width="13" height="9" rx="1"/><circle cx="8" cy="8" r="2.6"/>',
     'fvs-fill':      '<rect x="1.5" y="3.5" width="13" height="9" rx="1"/><ellipse cx="8" cy="8" rx="4.4" ry="2.6"/>',
     'fvs-cover':     '<rect x="1.5" y="3.5" width="13" height="9" rx="1"/><path d="M4.67 3.5A5.6 5.6 0 0 0 4.67 12.5M11.33 3.5A5.6 5.6 0 0 1 11.33 12.5"/>',
+    'fvs-repeat':    '<rect x="1.5" y="3.5" width="13" height="9" rx="1"/><circle cx="4.6" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="11.4" cy="8" r="1.4"/>',   // Fit › Repeat: copies along the cell (Nov 26, 2026, O-111 b)
     'fvs-fixed':     '<rect x="1.5" y="3.5" width="13" height="9" rx="1" stroke-dasharray="2 2.1"/><circle cx="8" cy="8" r="2"/>',
     'fvs-grid':      '<rect x="2.5" y="2.5" width="11" height="11" rx="1"/><path d="M6.17 2.5v11M9.83 2.5v11M2.5 6.17h11M2.5 9.83h11"/>',
     'fvs-clip':      '<rect x="3" y="3" width="10" height="10" rx="1"/><path d="M6.5 13A6.5 6.5 0 0 1 13 6.5"/>',

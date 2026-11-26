@@ -1033,9 +1033,10 @@ its cells.
     content does in it; Fixed has a dashed cell). An icon is pressed only when every target
     cell holds that value (mixed = none). Cover resets Cover axis to Auto; Fixed starts from
     the median cell size.
-  - **Repeat** (Nov 26, 2026, backlog 1.4 — Diego: *Ripeti sulla cella*): a fifth Fit, in **Cell properties › Fit** only
-    (not the floatbar: its icon is open, ledger O-111), offered on a **Component** cell (hidden for an Element or an empty
-    cell, and in Component Edit). The Component is laid **n times along the cell's long side**, each copy at the size of the
+  - **Repeat** (Nov 26, 2026, backlog 1.4 — Diego: *Ripeti sulla cella*): a fifth Fit, in **Cell properties › Fit** (offered on a
+    **Component** cell; hidden and disabled for an Element or an empty cell, and in Component Edit) and in the floatbar
+    (icon `fvs-repeat`: the wide cell with three small circles, after Fixed size; O-111 b, Diego, Nov 26, 2026 — off with no
+    Component in the target, its label says *Components only* on a mixed one, and it writes Component cells only). The Component is laid **n times along the cell's long side**, each copy at the size of the
     short side — n = round(cell length ÷ copy length), at least 1 — as one strip stretched to close the cell (at most half a
     copy's slack). So one 1 × 1 Component fills a band of any length: a long bento cell, a block (Cells › In proportion /
     Its grid size — the strip runs along the block) or a cell of any proportion; a 2 × 1 Component repeats half as often.

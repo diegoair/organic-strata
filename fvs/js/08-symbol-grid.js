@@ -431,8 +431,19 @@ export function syncFitAnchorUI() {
   const shared = fn => (cells.length && cells.every(c => fn(c) === fn(cells[0])) ? fn(cells[0]) : null);
   const fit = shared(c => c.fitMode || 'contain'), ax = shared(c => c.anchorX || 0), ay = shared(c => c.anchorY || 0);
   // the Fit buttons live in the floatbar: their tooltip (aria-label) names the target
-  ['contain', 'fill', 'cover', 'fixed', 'match'].forEach(f => {
+  // Repeat (Nov 26, 2026) acts on Component cells only: off with none in the target, "Components only" when mixed
+  const comps = targets.filter(t => t.cell.source === 'component');
+  ['contain', 'fill', 'cover', 'repeat', 'fixed', 'match'].forEach(f => {
     const b = ctrl('btn-symbol-fit-all-' + f), patch = nothing ? null : fitPatch(f);
+    if (f === 'repeat') {
+      const none = !nothing && !comps.length, done = !!comps.length && comps.every(t => t.cell.fitMode === 'repeat');
+      const off = nothing || none || done, pressed = !nothing && fit === 'repeat';
+      const label = b.dataset.fitName + ' · ' + who + (nothing ? why : none ? ' — Components only' : done ? ' — same result as now' : comps.length < targets.length ? ' — Components only' : '');
+      if (b.getAttribute('aria-pressed') !== String(pressed)) b.setAttribute('aria-pressed', String(pressed));
+      if (b.getAttribute('aria-label') !== label) b.setAttribute('aria-label', label);
+      if (b.disabled !== off) b.disabled = off;
+      return;
+    }
     // Fixed is never "the same": even when it starts at the size the content already has, it changes
     // what the cell does next (its own Size, whatever the cell becomes).
     // Match cell on a Component with a Grid shape is never "the same": it puts it on the shared small-cell lattice
@@ -464,12 +475,12 @@ export function syncFitAnchorUI() {
 export function applyFitToAllCells(fitMode) {
   if (!state.symbolGrid) return;
   const patch = fitPatch(fitMode);
-  fitTargetWrite(() => ({ ...patch }));
+  fitTargetWrite(cell => (fitMode === 'repeat' && cell.source !== 'component' ? {} : { ...patch }));   // Repeat: Component cells only
   // the write only re-renders the canvas — the docked Cell properties panel has its
   // own #sel-cellprop-fit readout, and these buttons their pressed state: re-sync both.
   hooks.renderCellPropertiesPanel();
 }
-['contain', 'fill', 'cover', 'fixed', 'match'].forEach(fit =>
+['contain', 'fill', 'cover', 'repeat', 'fixed', 'match'].forEach(fit =>
   ctrl('btn-symbol-fit-all-' + fit).addEventListener('click', () => applyFitToAllCells(fit)));
 // Anchor: which part of a cropped / overflowing cell's content shows — meaningful for Cover
 // (which part is kept), Fixed (which part overflows) and Contain (where it sits), not for Fill.
