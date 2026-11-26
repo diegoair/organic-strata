@@ -97,6 +97,25 @@ export function modulesToBlockCells(items, W, H, reg, cell) {
     return { ...it, cx: mx.u * W - W / 2, cy: my.u * H - H / 2, kx: (it.kx || 1) * (nswap ? my.k : mx.k), ky: (it.ky || 1) * (nswap ? mx.k : my.k) };
   });
 }
+// Fit › Repeat (Nov 26, 2026, backlog 1.4 — one Component for a band of any length): the Component is laid n times
+// along the cell's long side, each copy at the size of the short side, n = round(length / copy length), at least 1.
+// The copies make one strip (items centred on it, as a Component's own), which the cell then stretches to close the
+// cell — at most half a copy's slack. W, H = the cell's box; a turn of 90° / 270° lays the strip along the frame's
+// other axis, so it still runs along the cell. → { items, w, h, n } (n = 1: the items come back untouched).
+export function repeatStrip(items, w, h, W, H, rotation) {
+  const q = (((rotation || 0) % 360) + 360) % 360, swap = q === 90 || q === 270;
+  const cw = swap ? H : W, ch = swap ? W : H;   // the cell in the Component's own frame
+  if (!(w > 0 && h > 0 && cw > 0 && ch > 0)) return { items, w, h, n: 1 };
+  const across = cw / ch >= w / h;   // the cell is longer than the Component across: repeat across, else down
+  const n = Math.max(1, Math.round(across ? (cw / ch) / (w / h) : (ch / cw) / (h / w)));
+  if (n === 1) return { items, w, h, n };
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const d = (k - (n - 1) / 2) * (across ? w : h);
+    items.forEach(it => out.push(across ? { ...it, cx: it.cx + d } : { ...it, cy: it.cy + d }));
+  }
+  return { items: out, w: across ? w * n : w, h: across ? h : h * n, n };
+}
 // resolveCellPlacement in a box that may be a spanning block: Fixed size scales by the block's length
 // in cells (fixedK), everything else is unchanged. Every placement on the Symbol goes through here.
 // Match cell (test): an Element drawn for a cell shape, laid exactly onto a cell of that shape — centred on
@@ -112,6 +131,13 @@ export function matchCellPlacement(shape, poly, cell) {
   if (!(R > 0) || (Math.max(...rs) - Math.min(...rs)) / R > 0.06) return null;
   const st = CELL_SHAPES[shape].step, k = (R / CELL_SHAPES[shape].R) * (cell.scale == null ? 1 : cell.scale);
   return { scaleX: k, scaleY: k, offsetX: mx, offsetY: my, rotate: mod360(polygonCellTurn(shape, poly, mx, my) + Math.round((cell.rotation || 0) / st) * st) };
+}
+// Fit › Repeat's placement: the strip stretched over the cell's box (Stretch's maths, with the cell's padding and
+// Scale), its axes swapped back for a cell turned 90° / 270° — the strip was laid along the turned frame.
+export function repeatPlacement(c, w, h, cell) {
+  const q = (((cell.rotation || 0) % 360) + 360) % 360, swap = q === 90 || q === 270;
+  const p = resolveCellPlacement(c.cellW, c.cellH, swap ? { w: h, h: w } : { w, h }, { ...cell, fitMode: 'fill' });
+  return swap ? { ...p, scaleX: p.scaleY, scaleY: p.scaleX } : p;
 }
 export function placeInBox(c, natural, cell, poly, outline) {
   if (cell.fitMode === 'match' && natural === 100 && cell.source !== 'component') {
@@ -384,7 +410,7 @@ export function buildSymbolItems() {
     // centre too — a polygon cell's centroid is off-centre when the cell is not
     // symmetric (a hexagon cut by the page margin, a triangle), which left an
     // uncovered strip. (Zero shift for symmetric cells and every Figure lattice.)
-    if (cell.fitMode === 'fill') { const off = polygonBoxOffset(grid, i); baseCx += off.x; baseCy += off.y; }
+    if (cell.fitMode === 'fill' || (cell.fitMode === 'repeat' && cell.source === 'component')) { const off = polygonBoxOffset(grid, i); baseCx += off.x; baseCy += off.y; }
     if (cell.source === 'empty') return null;   // a deliberate hole — nothing is drawn, the cell stays selectable
     if (cell.source === 'component') {
       const entry = library[cell.componentName];
@@ -412,15 +438,19 @@ export function buildSymbolItems() {
       if (!cell.colourway) registerEntryShades(own.colors, entry.inkShades);
       else registerEntryShades(own.colors, shadesFollow(entry.colors || state.colors, entry.inkShades || state.inkShades, own.colors));
       let nestedItems = buildComponentItems({ cells: entry.component.cells }, entry.grid).map(entryItemInk(own, own !== entry ? entry.colors : null));
-      if (reg) nestedItems = modulesToBlockCells(nestedItems, nestedW, nestedH, reg, cell);
+      // Fit › Repeat: the Component as a strip of copies along the cell, then stretched to close it
+      const rep = cell.fitMode === 'repeat';
+      let rW = nestedW, rH = nestedH, rSize = nestedSize;
+      if (rep) { const st = repeatStrip(nestedItems, nestedW, nestedH, c.cellW, c.cellH, cell.rotation); nestedItems = st.items; rW = st.w; rH = st.h; rSize = Math.max(rW, rH); }
+      if (reg) nestedItems = modulesToBlockCells(nestedItems, rW, rH, reg, cell);
       // A cell-shape Component set to Match cell sits on the Symbol's shared small-cell lattice (alignedPlacements).
       const al = AL.get(i);
       if (!reg && !al) nestedItems = drawOrder(nestedItems);   // its Overlap: who is on top, a Seamless repeat's copies (Oct 26, 2026)
-      const place = al || placeInBox(c, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell, reg ? null : cellPolygon(grid, i));
+      const place = al || (rep ? repeatPlacement(c, rW, rH, cell) : placeInBox(c, nestedW === nestedH ? nestedSize : { w: nestedW, h: nestedH }, cell, reg ? null : cellPolygon(grid, i)));
       return {
         type: 'component', index: i, region: reg || null, cx: baseCx + place.offsetX, cy: baseCy + place.offsetY, rotation: place.rotate != null ? place.rotate : cell.rotation,
         scaleX: place.scaleX * (!al && cell.flipH ? -1 : 1), scaleY: place.scaleY * (!al && cell.flipV ? -1 : 1), aligned: !!al,
-        nestedItems, nestedSeed: entry.seed, nestedSize, nestedW, nestedH, nestedBlend: entry.blend === 'multiply', nestedClip: !!entry.clip, nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(live.variantAppearance || {}), ...(cell.appearancePatch || {}) },
+        nestedItems, nestedSeed: entry.seed, nestedSize: rSize, nestedW: rW, nestedH: rH, repeat: rep || undefined, nestedBlend: entry.blend === 'multiply', nestedClip: !!entry.clip, nestedPaper: own.paperColor, nestedColors: own.colors, nestedAppearance: { ...entry.appearance, ...(live.variantAppearance || {}), ...(cell.appearancePatch || {}) },
       };
     }
     // a cell may carry the Element's own settings (seedParams); otherwise the plain default shape
@@ -476,7 +506,7 @@ export function cellOverflowInfo(index, resolvedCells) {
   // it can never overshoot beyond what auto itself already would. Verified:
   // there is no coverAxis value that introduces an overshoot auto doesn't
   // already have, so the exemption stays unconditional for every Cover cell.
-  if (cell.fitMode === 'cover') return false;
+  if (cell.fitMode === 'cover' || cell.fitMode === 'repeat') return false;   // Repeat stretches to the cell: it never outgrows it
   const c = (resolvedCells || resolveGridCells(grid))[index];
   if (!c) return false;
   let natural = 100;

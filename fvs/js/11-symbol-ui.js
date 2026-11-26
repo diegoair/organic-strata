@@ -615,9 +615,10 @@ export function cellPropsHTML(pre, opts = {}) {
               <option value="fill">Stretch</option>
               <option value="cover">Cover (no gaps)</option>
               <option value="fixed">Fixed size</option>
-              ${opts.component ? '' : '<option value="match">Match cell</option>'}
+              ${opts.component ? '' : '<option value="match">Match cell</option><option value="repeat">Repeat</option>'}
             </select>
           </div>
+          <p class="panel-note" id="${I('note-cellprop-repeat')}" hidden>Copies of the Component along the cell’s long side, each the size of its short side</p>
           <div class="ctrl-row" id="${I('row-cellprop-coveraxis')}" hidden>
             <div class="ctrl-label">Cover axis</div>
             <select class="panel-select" id="${I('sel-cellprop-coveraxis')}">
@@ -755,7 +756,11 @@ export function syncCellProps(pre, t) {
   if (![...rotSel.options].some(o => o.value === rotVal)) rotSel.add(Object.assign(new Option(`${rotVal}°`, rotVal), { title: 'Set by the rule' }), null), rotSel.lastElementChild.dataset.free = '1';
   rotSel.value = rotVal;
   c('sel-cellprop-flip').value = first.flipH && first.flipV ? 'hv' : first.flipH ? 'h' : first.flipV ? 'v' : 'none';
-  c('sel-cellprop-fit').value = first.fitMode || 'contain';
+  // Repeat (Nov 26, 2026): a Component's copies along the cell — offered on a Component cell only
+  const repOpt = c('sel-cellprop-fit').querySelector && c('sel-cellprop-fit').querySelector('option[value="repeat"]');
+  if (repOpt) repOpt.disabled = repOpt.hidden = !isComponent;   // disabled too: Safari shows a hidden <option>
+  c('sel-cellprop-fit').value = first.fitMode === 'repeat' && !isComponent ? 'contain' : first.fitMode || 'contain';
+  c('note-cellprop-repeat').hidden = !(isComponent && first.fitMode === 'repeat');
   c('row-cellprop-coveraxis').hidden = !(first.fitMode === 'cover');
   c('sel-cellprop-coveraxis').value = first.coverAxis || 'auto';
   c('row-cellprop-scale').hidden = !!(first.fitMode === 'fixed');

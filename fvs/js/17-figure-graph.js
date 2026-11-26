@@ -1699,7 +1699,7 @@ function whereText(w) {
   if (w.row && w.col) return `rows ${span(w.row)} × columns ${span(w.col)}`;
   return describeRule({ when: w, do: {} }).split(' → ')[0];
 }
-const FIT_WORDS = { contain: 'Contain', fill: 'Stretch', cover: 'Cover (no gaps)', fixed: 'Fixed size', match: 'Match cell' };
+const FIT_WORDS = { contain: 'Contain', fill: 'Stretch', cover: 'Cover (no gaps)', fixed: 'Fixed size', match: 'Match cell', repeat: 'Repeat' };
 function cellRuleText(d, inks) {   // a Cell properties rule, in the panel's own words: "Rotation 90° · Padding 15"
   const out = [], c = d.cell || {};
   if (d.content === 'empty') out.push('Empty'); else if (d.content && typeof d.content === 'object') out.push(d.content.name); else if (d.content === 'filled') out.push(d.seed && SEED_TYPES[d.seed] ? SEED_TYPES[d.seed].label : 'Filled');

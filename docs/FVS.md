@@ -1033,6 +1033,16 @@ its cells.
     content does in it; Fixed has a dashed cell). An icon is pressed only when every target
     cell holds that value (mixed = none). Cover resets Cover axis to Auto; Fixed starts from
     the median cell size.
+  - **Repeat** (Nov 26, 2026, backlog 1.4 — Diego: *Ripeti sulla cella*): a fifth Fit, in **Cell properties › Fit** only
+    (not the floatbar: its icon is open, ledger O-111), offered on a **Component** cell (hidden for an Element or an empty
+    cell, and in Component Edit). The Component is laid **n times along the cell's long side**, each copy at the size of the
+    short side — n = round(cell length ÷ copy length), at least 1 — as one strip stretched to close the cell (at most half a
+    copy's slack). So one 1 × 1 Component fills a band of any length: a long bento cell, a block (Cells › In proportion /
+    Its grid size — the strip runs along the block) or a cell of any proportion; a 2 × 1 Component repeats half as often.
+    A cell turned 90° / 270° still repeats along the cell. A square cell = one copy = Stretch. An Element cell set to
+    Repeat (a mixed selection) draws as Contain. The note under Fit says what it does. Code: `repeatStrip` /
+    `repeatPlacement` in `fvs/js/engine/09-symbol-render.js`, in `buildSymbolItems`, so preview, SVG, PNG and the Figure
+    agree (≤ 1 % of pixels, measured). Test: `scripts/test-fvs-symbol-repeat.mjs` (11 checks).
   - **Anchor**: one button after the Fit icons; a click raises a small flyout with the nine
     positions and nothing else, and picking one closes it. The button's icon is the
     position itself (a dot in a cell, a dash when the target cells differ). Anchor shows only
