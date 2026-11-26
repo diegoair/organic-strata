@@ -95,11 +95,11 @@
   }
   var MORPH = {
     slides: [
-      { title: 'Specimen', ms: 5000, brief: 'A sheet of marks, each made of up to four parts. They hold a pose, then every part glides to its place in the next mark.', sheet: 'specimen', timing: 'together', gap: 'open', pal: 0 },
-      { title: 'In a wave', ms: 5500, brief: 'The same sheet, but the change starts in the centre and travels out, cell by cell.', sheet: 'specimen', timing: 'wave', gap: 'open', pal: 1 },
-      { title: 'One Element', ms: 5000, brief: 'One mark in every cell. A rule turns each cell; on every beat the mark and the rule change together.', sheet: 'one', timing: 'together', gap: 'tight', pal: 2 },
-      { title: 'Four rules', ms: 5500, brief: 'One mark, four rules in turn (Radial, Checkerboard, Pinwheel, Identity), passed across the sheet as a wave.', sheet: 'one', timing: 'wave', gap: 'open', pal: 3 },
-      { title: 'Colourway', ms: 5000, brief: 'The sheet keeps morphing while the palette changes on every beat.', sheet: 'specimen', timing: 'together', gap: 'open', pal: 'cycle' },
+      { title: 'Specimen', ms: 4000, brief: 'A sheet of marks, each made of up to four parts. They hold a pose, then every part glides to its place in the next mark.', sheet: 'specimen', timing: 'together', gap: 'open', pal: 0 },
+      { title: 'In a wave', ms: 4400, brief: 'The same sheet, but the change starts in the centre and travels out, cell by cell.', sheet: 'specimen', timing: 'wave', gap: 'open', pal: 1 },
+      { title: 'One Element', ms: 4000, brief: 'One mark in every cell. A rule turns each cell; on every beat the mark and the rule change together.', sheet: 'one', timing: 'together', gap: 'tight', pal: 2 },
+      { title: 'Four rules', ms: 4400, brief: 'One mark, four rules in turn (Radial, Checkerboard, Pinwheel, Identity), passed across the sheet as a wave.', sheet: 'one', timing: 'wave', gap: 'open', pal: 3 },
+      { title: 'Colourway', ms: 4000, brief: 'The sheet keeps morphing while the palette changes on every beat.', sheet: 'specimen', timing: 'together', gap: 'open', pal: 'cycle' },
     ],
     build: function (svg, W, H, T) {
       var ROWS = 6, u = Math.ceil(H / ROWS), COLS = Math.ceil(W / u), HOLD = 1000, DUR = 950, STEP = 95;
@@ -198,11 +198,11 @@
   var RICH = ['big', 'big', 'bigdot', 'target', 'ring', 'big', 'empty'], POOR = ['empty', 'empty', 'empty', 'dot', 'tiny', 'ring', 'dot'];
   var DOTS = {
     slides: [
-      { title: 'Score', ms: 5000, brief: 'One disc, drawn up to three times in a cell. Each column carries runs of one style; on every beat the runs grow or shrink from the bottom up.', density: .5, pal: 0 },
-      { title: 'Sparse', ms: 4500, brief: 'Fewer full columns: the points and rings carry the picture.', density: .25, pal: 1 },
-      { title: 'Dense', ms: 5500, brief: 'Most columns are full, so the discs join into bars.', density: .8, pal: 2 },
-      { title: 'Runs', ms: 5000, brief: 'The same score in a fourth palette, with up to nine inks.', density: .55, pal: 3 },
-      { title: 'Colourway', ms: 5000, brief: 'The score keeps its runs while the palette changes on every beat.', density: .55, pal: 'cycle' },
+      { title: 'Score', ms: 4000, brief: 'One disc, drawn up to three times in a cell. Each column carries runs of one style; on every beat the runs grow or shrink from the bottom up.', density: .5, pal: 0 },
+      { title: 'Sparse', ms: 3600, brief: 'Fewer full columns: the points and rings carry the picture.', density: .25, pal: 1 },
+      { title: 'Dense', ms: 4400, brief: 'Most columns are full, so the discs join into bars.', density: .8, pal: 2 },
+      { title: 'Runs', ms: 4000, brief: 'The same score in a fourth palette, with up to nine inks.', density: .55, pal: 3 },
+      { title: 'Colourway', ms: 4000, brief: 'The score keeps its runs while the palette changes on every beat.', density: .55, pal: 'cycle' },
     ],
     build: function (svg, W, H, M, O) {        // O.overlap: while a disc changes it swells past its cell over its neighbours, then settles
       var OV = !!(O && O.overlap), sdefs = OV ? el('defs', {}, svg) : null, stripeOf = {}, SUID = 'hds' + Math.floor(Math.random() * 1e6);
@@ -346,11 +346,11 @@
   ];
   var WEAVE = {
     slides: [
-      { title: 'Weave', ms: 5000, brief: 'One square. The sheet is cut into bands, each with its own small motif in two inks, each drifting sideways one square at a time.', pal: 0 },
-      { title: 'Bands', ms: 4500, brief: 'On every beat a band closes like a pulled thread and opens on a new motif.', pal: 1 },
-      { title: 'Drift', ms: 5500, brief: 'The same weave in a third palette; the bands keep their own speed and direction.', pal: 2 },
-      { title: 'Cloth', ms: 5000, brief: 'Up to nine inks across the sheet, two or three in any one band.', pal: 3 },
-      { title: 'Colourway', ms: 5000, brief: 'Each band takes the next palette as it re-opens.', pal: 'cycle' },
+      { title: 'Weave', ms: 4000, brief: 'One square. The sheet is cut into bands, each with its own small motif in two inks, each drifting sideways one square at a time.', pal: 0 },
+      { title: 'Bands', ms: 3600, brief: 'On every beat a band closes like a pulled thread and opens on a new motif.', pal: 1 },
+      { title: 'Drift', ms: 4400, brief: 'The same weave in a third palette; the bands keep their own speed and direction.', pal: 2 },
+      { title: 'Cloth', ms: 4000, brief: 'Up to nine inks across the sheet, two or three in any one band.', pal: 3 },
+      { title: 'Colourway', ms: 4000, brief: 'Each band takes the next palette as it re-opens.', pal: 'cycle' },
     ],
     build: function (svg, W, H, T) {     // T: FVS tiles (capture-weave.mjs) — each band is then FVS's own Component, repeated
       var ROWS = 44, u = Math.ceil(H / ROWS), COLS = Math.ceil(W / u), BEAT = 1200, SHUT = 200, OPEN = 280;
@@ -466,10 +466,10 @@
   var BANDS = {
     slides: [
       { title: 'Bands', ms: 2000, pal: 3, brief: 'Bands four cells wide, stacked from blocks: a check of two inks, one flat and one a gradient, or a tall stripe.' },
-      { title: 'Turn', ms: 5500, pal: 3, brief: 'A half turn by a rule: Checkerboard, rows, bands. The flat ink hides it; the gradient turns over.' },
-      { title: 'Re-ink', ms: 5000, pal: 2, brief: 'One block at a time takes new inks; the layout holds.' },
-      { title: 'Restack', ms: 5500, pal: 0, brief: 'A band folds away and rebuilds with a new stack of blocks.' },
-      { title: 'Colourway', ms: 5000, pal: 'cycle', brief: 'The same sheet, re-inked: each beat, the next palette, band by band.' },
+      { title: 'Turn', ms: 4400, pal: 3, brief: 'A half turn by a rule: Checkerboard, rows, bands. The flat ink hides it; the gradient turns over.' },
+      { title: 'Re-ink', ms: 4000, pal: 2, brief: 'One block at a time takes new inks; the layout holds.' },
+      { title: 'Restack', ms: 4400, pal: 0, brief: 'A band folds away and rebuilds with a new stack of blocks.' },
+      { title: 'Colourway', ms: 4000, pal: 'cycle', brief: 'The same sheet, re-inked: each beat, the next palette, band by band.' },
     ],
     build: function (svg, W, H, FV) {         // FV: every gradient is FVS's own Shading (Organica.shading.smoothStops: OKLab, 17 stops)
       var SH = FV && window.Organica && Organica.shading && Organica.shading.smoothStops ? Organica.shading : null;
@@ -570,7 +570,7 @@
           if (i === 0) { setRule(0, false); bands.forEach(function (band, k) { fill(band, inks, !instant, k * CST * 2); }); }
           else if (i === 1) setRule(1, !instant);
           else { if (rule) setRule(0, !instant); if (pal !== p0) bands.forEach(function (band) { band.blocks.forEach(function (b) { reink(b, inks, instant ? -1e9 : band.i * CST * 1.5 + b.y * 12); if (instant) { b.t0 = -1e9; paint(b, 1); } }); }); }
-          next = now + BEAT;
+          next = now + (i === 4 ? BEAT * .6 : BEAT);   // Colourway: its first re-ink follows the entry re-ink sooner, or the sheet stands still between them
         },
         step: function (ms) {
           now += ms;
@@ -579,7 +579,7 @@
             var inks = inksOf(pal), si = BANDS.slides.indexOf(cfg);
             if (si === 1) { var nr = [2, 3, 1, 0][beat % 4]; setRule(nr === rule ? [2, 3, 1, 0][(beat + 1) % 4] : nr, true); }   // never the rule already there: that beat would stand still
             else if (si === 2) for (var k = 0; k < 3; k++) { var band = bands[Math.floor(rand() * NB)], b = band.blocks[Math.floor(rand() * band.blocks.length)]; reink(b, inks, k * 160); }
-            else if (si === 3) restack(bands[Math.floor(rand() * NB)], 0);
+            else if (si === 3) { var free = bands.filter(function (b) { return b.pend == null; }); if (free.length) restack(free[Math.floor(rand() * free.length)], 0); }   // never a band already rebuilding: that beat would stand still
             else if (si === 4) { pal = (pal + 1) % PALS.length; background(pal); inks = inksOf(pal); bands.forEach(function (band) { band.blocks.forEach(function (b) { reink(b, inks, band.i * CST * 1.5 + b.y * 12); }); }); }
           }
           bands.forEach(function (band) {
@@ -615,11 +615,11 @@
   var WIN_UID = 0;
   var WINDOWS = {
     slides: [
-      { title: 'Windows', ms: 5000, pal: 1, brief: 'Long windows on a dark ground, each cut into panels: big flat inks, checks, combs, dots, blocks.' },
-      { title: 'Drawers', ms: 5500, pal: 1, brief: 'On each beat a window slides sideways like a drawer; the barcode shows behind it.' },
-      { title: 'Flip', ms: 5500, pal: 3, brief: 'Panels flip like a split-flap board: each closes on its middle line and opens on a new texture.' },
-      { title: 'Swap', ms: 5000, pal: 2, brief: 'Two windows trade places, one passing over the other.' },
-      { title: 'Colourway', ms: 5000, pal: 'cycle', brief: 'The same windows, re-inked: each beat, the next palette, flipped panel by panel.' },
+      { title: 'Windows', ms: 4000, pal: 1, brief: 'Long windows on a dark ground, each cut into panels: big flat inks, checks, combs, dots, blocks.' },
+      { title: 'Drawers', ms: 4400, pal: 1, brief: 'On each beat a window slides sideways like a drawer; the barcode shows behind it.' },
+      { title: 'Flip', ms: 4400, pal: 3, brief: 'Panels flip like a split-flap board: each closes on its middle line and opens on a new texture.' },
+      { title: 'Swap', ms: 4000, pal: 2, brief: 'Two windows trade places, one passing over the other.' },
+      { title: 'Colourway', ms: 4000, pal: 'cycle', brief: 'The same windows, re-inked: each beat, the next palette, flipped panel by panel.' },
     ],
     build: function (svg, W, H, FV) {          // FV (capture-windows.mjs): every texture is an FVS Component, one repeat of it tiled as a pattern
       var FT = FV && FV.tiles ? FV.tiles : null;
@@ -811,10 +811,10 @@
   var STACKS = {
     slides: [
       { title: 'Stacks', ms: 2500, pal: 3, brief: 'Columns of round-topped capsules, stacked like a deck: each covers the one above, leaving a crescent band.' },
-      { title: 'Squeeze', ms: 5500, pal: 3, brief: 'The spacing breathes and the squeeze travels down every column, each at its own phase.' },
-      { title: 'Blend', ms: 5500, pal: 2, brief: 'On each beat a few columns melt into a smooth gradient of their own inks, and others come back.' },
-      { title: 'Belts', ms: 5000, pal: 0, brief: 'Every column runs like a belt, up or down, at its own speed.' },
-      { title: 'Colourway', ms: 5000, pal: 'cycle', brief: 'Each beat the next palette washes down the columns, capsule by capsule.' },
+      { title: 'Squeeze', ms: 4400, pal: 3, brief: 'The spacing breathes and the squeeze travels down every column, each at its own phase.' },
+      { title: 'Blend', ms: 4400, pal: 2, brief: 'On each beat a few columns melt into a smooth gradient of their own inks, and others come back.' },
+      { title: 'Belts', ms: 4000, pal: 0, brief: 'Every column runs like a belt, up or down, at its own speed.' },
+      { title: 'Colourway', ms: 4000, pal: 'cycle', brief: 'Each beat the next palette washes down the columns, capsule by capsule.' },
     ],
     build: function (svg, W, H, FV) {          // FV (capture-stacks.mjs): every capsule is FVS's own drawing of its Element in its ink
       var uid = 'hk' + (++STK_UID), rand = rng(57), now = 0, BEAT = 1600, DUR = 900, next = BEAT, beat = 0, cfg = STACKS.slides[0], pal = 3;
@@ -922,15 +922,15 @@
   var PRINT_UID = 0;
   var PRINT = {
     slides: [
-      { title: 'Overprint', ms: 5500, pal: 0, brief: 'Three inks, one over the other, as in a riso print. Where two cross, the colours multiply into a third.',
+      { title: 'Overprint', ms: 4400, pal: 0, brief: 'Three inks, one over the other, as in a riso print. Where two cross, the colours multiply into a third.',
         layers: [{ dx: 0, s: 1, w: .42, off: 0, fade: 'centre' }, { dx: 1, s: .85, w: .34, off: 0, fade: 'right' }, { dx: 1, s: .55, w: .3, off: .5, fade: 'flat' }] },
-      { title: 'Lean', ms: 5000, pal: 1, brief: 'Every layer leans its own way. One layer changes at a time; the others hold.',
+      { title: 'Lean', ms: 4000, pal: 1, brief: 'Every layer leans its own way. One layer changes at a time; the others hold.',
         layers: [{ dx: -1, s: 1.1, w: .4, off: .25, fade: 'left' }, { dx: 1, s: 1.1, w: .4, off: 0, fade: 'right' }, { dx: 0, s: 1, w: .3, off: .5, fade: 'centre' }] },
-      { title: 'Columns', ms: 5000, pal: 2, brief: 'All three upright, slid by half a column, fading in different directions.',
+      { title: 'Columns', ms: 4000, pal: 2, brief: 'All three upright, slid by half a column, fading in different directions.',
         layers: [{ dx: 0, s: 1, w: .55, off: 0, fade: 'left' }, { dx: 0, s: 1, w: .55, off: .5, fade: 'right' }, { dx: 0, s: .6, w: .3, off: .25, fade: 'edges' }] },
-      { title: 'Stitch', ms: 5500, pal: 3, brief: 'Short strokes, like stitches: the same three numbers per layer, smaller.',
+      { title: 'Stitch', ms: 4400, pal: 3, brief: 'Short strokes, like stitches: the same three numbers per layer, smaller.',
         layers: [{ dx: .5, s: .55, w: .3, off: 0, fade: 'flat' }, { dx: -.5, s: .55, w: .3, off: .5, fade: 'centre' }, { dx: 0, s: 1, w: .2, off: .25, fade: 'edges' }] },
-      { title: 'Colourway', ms: 5000, pal: 'cycle', brief: 'The same print, re-inked: each beat, the next palette.',
+      { title: 'Colourway', ms: 4000, pal: 'cycle', brief: 'The same print, re-inked: each beat, the next palette.',
         layers: [{ dx: 0, s: 1, w: .42, off: 0, fade: 'centre' }, { dx: 1, s: .85, w: .34, off: 0, fade: 'right' }, { dx: 1, s: .55, w: .3, off: .5, fade: 'flat' }] },
     ],
     build: function (svg, W, H, FV) {
@@ -1105,7 +1105,7 @@
     var word = document.createElement('div'); word.className = 'hloop__word';
     host.appendChild(svg); if (opts.label !== false) host.appendChild(word);
     var cur = Math.max(0, Math.min(n - 1, opts.start || 0)), tS = 0, paused = false, vis = true, dead = false, view = null, prev = 0, wordT = 0, size = '';
-    var meter = { dt: [], js: [] }, built = false;
+    var meter = { dt: [], js: [] }, built = false, SPEED = 1.15;   // Diego, Nov 26, 2026: slightly faster
 
     function label() {
       var p = PALS[view ? view.palette() : 0];
@@ -1127,7 +1127,7 @@
       if (!view) return;
       if (wordT > 0 && (wordT -= ms) <= 0 && !still) word.classList.remove('is-on');
       if (still) return;
-      tS += ms; view.step(ms);
+      ms *= SPEED; tS += ms; view.step(ms);   // the loop's own clock runs SPEED × real time: every beat, transition and drift, and the slides
       if (opts.onProgress) opts.onProgress(Math.min(1, tS / slides[cur].ms));
       if (!opts.lock && tS >= slides[cur].ms) show(cur + 1);
     }
