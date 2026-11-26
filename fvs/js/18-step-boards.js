@@ -59,6 +59,7 @@ import {
 } from './16-board.js';
 import { fhCanUndo } from './02-seed-ui.js';
 import { hooks, provide } from './hooks.js';
+import { elementUses, projectStore, symbolUses, touchProject } from './project.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   boardElementDrawn: () => elementDrawn, boardGalleryDrawn: () => galleryDrawn,
@@ -167,7 +168,8 @@ function withPalette(p, fn) {
 
 // ── The Element list: the user's work, in their account (Organica.store, signed out = this browser's cache) ────────
 // One row per Element ({name, custom, seed, app, n = its place}) + the row 'board' ({active}).
-export const ELEMENTS = Organica.store('fvs-elements');
+// Per Project since Nov 26, 2026: 'fvs-elements@<pid>', in memory + IndexedDB + the account (project.js).
+export const ELEMENTS = projectStore('fvs-elements');
 const BOARD_ROW = 'board';
 const LEGACY_ITEMS = 'organica.fvs.proto.board.element.items';   // the prototype's list (Oct 2026) — read forward once, left in place
 function readElements() {
@@ -187,6 +189,7 @@ function writeElements() {
   state.elements.forEach((e, i) => { obj[e.id] = { name: e.name, custom: !!e.custom, seed: e.seed, app: e.app, ...(e.palette ? { palette: e.palette } : {}), ...(e.gallery ? { gallery: e.gallery } : {}), ...(e.galPos ? { galPos: e.galPos } : {}), n: i }; });
   obj[BOARD_ROW] = { active: state.activeElement };
   try { ELEMENTS.write(obj); } catch (err) {}
+  const n = state.elements.length, els = elementUses(state.elements); touchProject(r => ({ counts: { ...(r.counts || {}), elements: n }, uses: { ...(r.uses || {}), elements: els } }));
 }
 
 // ── Element board ───────────────────────────────────────────────────────────────────────────────────────
@@ -1028,7 +1031,7 @@ function mountSymbolBoard() {
   // The Symbols are kept across reloads (Diego, Oct 11, 2026 — one working Symbol then): one row per Symbol
   // ({name, custom, work, n}) + 'board' ({active}), in the user's account (Organica.store, signed out = this browser's cache).
   // `current` — the single working Symbol before Oct 27, 2026 — is read forward once, and kept as the edited one's copy.
-  const WORK = Organica.store('fvs-symbol-work');
+  const WORK = projectStore('fvs-symbol-work');   // per Project since Nov 26, 2026 (project.js)
   const BOARD_ROW = 'board', LEGACY = 'current';
   const workOf = () => {
     const e = buildSymbolLibraryEntry();
@@ -1061,6 +1064,7 @@ function mountSymbolBoard() {
     obj[BOARD_ROW] = { active: kept ? kept.id : active() };
     const a = kept; if (a && a.work) obj[LEGACY] = a.work;   // the single Symbol an older page reads
     try { WORK.write(obj); } catch (err) {}
+    const real = state.symbols.filter(x => !x.draft), ns = real.length, comps = symbolUses(real), sels = elementUses(real.map(x => x.work)); touchProject(r => ({ counts: { ...(r.counts || {}), symbols: ns }, uses: { ...(r.uses || {}), components: comps, symbolElements: sels } }));
     if (state.symbols.some(x => x.from)) relabel();   // a mother changed: its children's link reads "an earlier"
     syncFigureTab();   // a Symbol added, emptied or deleted: the Figure step opens or closes
   }

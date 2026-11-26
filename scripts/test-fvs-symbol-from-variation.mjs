@@ -65,7 +65,7 @@ const rows = await P.ev(`const F = window.__fvs, NC = Organica.nodeCanvas, q = i
   const did = F.state.activeSymbol;
   F.patchCell(F.state.symbolCells[0], { source: 'empty' }); F.renderSymbol(); await w(1800);
   const born = F.state.symbols.find(s => s.id === did);
-  check('the first edit: “Symbol 1.a” is a Symbol (kept with the board)', born && !born.draft && born.name === 'Symbol 1.a' && JSON.stringify(Organica.store('fvs-symbol-work').read()).includes(did), born && JSON.stringify({ draft: born.draft }));
+  check('the first edit: “Symbol 1.a” is a Symbol (kept with the board)', born && !born.draft && born.name === 'Symbol 1.a' && JSON.stringify(window.__fvs.projectStore('fvs-symbol-work').read()).includes(did), born && JSON.stringify({ draft: born.draft }));
   // 5 · ⌘Z: the edit goes back, the Symbol stays
   document.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true })); await w(1200);
   check('⌘Z: the cell comes back, Symbol 1.a stays', F.state.symbolCells[0].source === 'component' && F.state.symbols.some(s => s.id === did), F.state.symbolCells[0].source);

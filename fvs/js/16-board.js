@@ -10,6 +10,7 @@ import {
 import {
   fvsIsTypingTarget
 } from './12-shell.js';
+import { PROJECT } from './project.js';
 
 const el = (tag, cls, attrs) => { const n = document.createElement(tag); if (cls) n.className = cls; if (attrs) Object.assign(n, attrs); return n; };
 export const rectsHit = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
@@ -27,7 +28,7 @@ export const swallowNextClick = scope => { swallowUntil = performance.now() + 10
 let spaceHeld = false;
 export const isPanKey = e => spaceHeld || e.altKey;   // a press that pans instead of acting
 export const boards = {};
-const VIEW_KEY = tier => 'organica.fvs.board.' + tier;
+const VIEW_KEY = tier => PROJECT.viewKey('organica.fvs.board.' + tier);   // per Project since Nov 26, 2026 (project.js); the old key was copied into Project 1
 const LEGACY_VIEW_KEY = tier => 'organica.fvs.proto.board.' + tier;   // the prototype's (Oct 2026) — read forward, left in place
 // the left dock (step buttons, the Library rail — its width varies) and the floatbar lie over the board: the fit keeps
 // clear of them, measured (Figure's fitInset is a constant; here the open rail is wider)

@@ -32,6 +32,15 @@
  *               (<key>.owner): another user's copy is ignored, never uploaded. Writes are debounced + diffed +
  *               retried; a failed flush stays queued.
  *
+ * BACKEND (Nov 26, 2026): Organica.store(tool, { backend: 'idb' }) keeps the cache in
+ * memory + IndexedDB (shared/idb.js) instead of localStorage — for work that can grow
+ * past the ~5 MB localStorage quota (an FVS project's boards). read()/write() stay
+ * synchronous: the memory copy is filled first by
+ *     await Organica.store.preload(tool)
+ * (call it before the store is first read), every write goes through to IndexedDB.
+ * The owner tag stays a small localStorage key. Organica.store.drop(tool) forgets a
+ * store everywhere: memory, IndexedDB and its account rows.
+ *
  * TABLE: presets (user_id uuid default auth.uid(), tool text, name text,
  *                 data jsonb, updated_at timestamptz, pk (user_id, tool, name))
  *        RLS: using / with check (user_id = auth.uid())
@@ -63,8 +72,45 @@
   var FLUSH_MS = 700;
   var instances = {};   // tool → store (one per tool per page)
 
+  // ── the idb backend's memory copy (Nov 26, 2026) ──
+  // mem[cacheKey] = the cached JSON text, filled by preload(); writes go through to IndexedDB, one in flight
+  // per key, the latest text winning (a burst of writes costs one put, not one per write).
+  var mem = {};
+  var idbBusy = {}, idbNext = {}, idbDirty = {};   // idbDirty: the memory copy is newer than what IndexedDB holds
+  function idbOn() { return !!Organica.idb; }
+  var leaving = false;
+  function journal(key) { try { localStorage.setItem(key + PENDING, mem[key]); } catch (e) {} }
+  function idbPut(key) {
+    idbDirty[key] = true;
+    if (leaving && key in mem) journal(key);   // a save made by a later pagehide listener (FVS's own last autosave)
+    if (idbBusy[key]) { idbNext[key] = true; return; }
+    if (!(key in mem)) return;   // dropped meanwhile
+    idbBusy[key] = true; idbNext[key] = false;
+    var text = mem[key];
+    Organica.idb.set(key, text).then(function (ok) {
+      idbBusy[key] = false;
+      if (ok && mem[key] === text) { idbDirty[key] = false; if (leaving === false) try { localStorage.removeItem(key + PENDING); } catch (e) {} }   // a journal from an earlier leave is now older
+      if (idbNext[key]) idbPut(key);
+    });
+  }
+  // Leaving the page: a put still in flight can be cut off with the page (the last autosave of a board runs on
+  // pagehide). The newer copies go to localStorage as '<key>.pending' — synchronous — and preload() moves them back
+  // into IndexedDB on the next load. Only what was not yet in IndexedDB, only at that moment: the quota is not
+  // held for long. A copy too large for localStorage loses only that last change (as a full localStorage did before).
+  // This listener runs before the tools' own (store.js loads first), so it also marks the page as leaving: a write
+  // after it is journalled at once, in idbPut. A pageshow from the back/forward cache clears the mark.
+  var PENDING = '.pending';
+  global.addEventListener('pagehide', function () {
+    leaving = true;
+    Object.keys(idbDirty).forEach(function (key) { if (idbDirty[key] && key in mem) journal(key); });
+  });
+  global.addEventListener('pageshow', function (ev) { if (ev.persisted) leaving = false; });
+
   function makeStore(tool, legacyKey) {
     if (instances[tool]) return instances[tool];
+    var opts = (legacyKey && typeof legacyKey === 'object') ? legacyKey : { legacyKey: legacyKey };
+    legacyKey = opts.legacyKey;
+    var useIdb = opts.backend === 'idb' && idbOn();
 
     var cacheKey = 'organica.' + tool + '.presets';
     var lastSynced = null;      // { [name]: data } snapshot of the server state
@@ -74,10 +120,20 @@
     var remote = false;         // signed in + a pull has succeeded
     var syncSubs = [];
 
+    // the raw cached text: localStorage, or the idb backend's memory copy
+    function getRaw() {
+      if (useIdb) return cacheKey in mem ? mem[cacheKey] : null;
+      return localStorage.getItem(cacheKey);
+    }
+    function setRaw(text) {
+      if (useIdb) { mem[cacheKey] = text; idbPut(cacheKey); return; }
+      localStorage.setItem(cacheKey, text);
+    }
+
     function readCache() {
       if (foreignCache(cacheKey)) return {};   // another user's copy on this browser
       try {
-        var cur = localStorage.getItem(cacheKey);
+        var cur = getRaw();
         if (cur !== null) return JSON.parse(cur || '{}');
         if (legacyKey) {
           var old = localStorage.getItem(legacyKey);
@@ -98,7 +154,7 @@
     function peekCache() {
       if (foreignCache(cacheKey)) return {};
       var cur;
-      try { cur = localStorage.getItem(cacheKey); } catch (e) { return readCache(); }
+      try { cur = getRaw(); } catch (e) { return readCache(); }
       if (cur === null) return readCache();   // nothing cached yet / the legacy-key migration path
       if (cur !== peekRaw) {
         try { peekObj = JSON.parse(cur || '{}'); } catch (e) { peekObj = {}; }
@@ -109,7 +165,7 @@
 
     // quiet: a pull refreshing the cache from the account — nothing the user just saved, so no "Not saved" notice
     function writeCache(obj, quiet) {
-      try { localStorage.setItem(cacheKey, JSON.stringify(obj)); tagCache(cacheKey); return true; }
+      try { setRaw(JSON.stringify(obj)); tagCache(cacheKey); return true; }
       catch (e) { if (!quiet && Organica.storageFull) Organica.storageFull(tool); return false; }   // storage full: the shared notice; write() returns false
     }
 
@@ -205,10 +261,13 @@
               fireSync(local);
               return local;
             }
+            // A diff may still be pending from an offline edit, or a failed flush waiting for its retry:
+            // keep those rows over the server copy, else the retry finds nothing to send and the edit is lost.
+            var merged = pending ? mergePending(server, local, lastSynced || {}) : server;
             lastSynced = server;
-            writeCache(server, true);
-            // a diff may still be pending from an offline edit — send it
+            writeCache(merged, true);
             if (pending) queueFlush();
+            server = merged;
             fireSync(server);
             return server;
           })
@@ -230,13 +289,20 @@
       },
 
       isRemote: function () { return remote; },
+      backend: useIdb ? 'idb' : 'local',
     };
 
     // Re-pull when the user signs in / out mid-session.
     if (auth && auth.onChange) {
       auth.onChange(function (session) {
         if (session) { store.pull(); }
-        else { remote = false; lastSynced = null; if (!pending) dropTaggedCache(cacheKey); }
+        else {
+          remote = false; lastSynced = null;
+          if (!pending && cacheOwner(cacheKey)) {
+            if (useIdb) { delete mem[cacheKey]; Organica.idb.del(cacheKey); }
+            dropTaggedCache(cacheKey);
+          }
+        }
       });
     }
 
@@ -244,7 +310,45 @@
     return store;
   }
 
+  // mergePending(server, local, base) → the cache to keep after a pull while local edits are still waiting to
+  // go up. server = the rows just pulled; local = the cache now; base = the rows as last synced (what the local
+  // edits started from). A row that differs between local and base was edited here and has not reached the
+  // account yet; every other row comes from the server.
+  function mergePending(server, local, base) {
+    // TODO(Diego): the merge policy — see the request in the session.
+    return server;
+  }
+
   Organica.store = makeStore;
+
+  // preload(tool) → Promise: fill an idb-backed store's memory copy from IndexedDB. Call it (and await it) before
+  // the store is first read; for a localStorage store it does nothing.
+  makeStore.preload = function (tool) {
+    var key = 'organica.' + tool + '.presets';
+    if (!idbOn() || key in mem) return Promise.resolve();
+    var left = null;
+    try { left = localStorage.getItem(key + PENDING); } catch (e) {}
+    if (left != null) {   // the last page closed before its put was done: that copy is the newest
+      mem[key] = left;
+      return Organica.idb.set(key, left).then(function (ok) { if (ok) try { localStorage.removeItem(key + PENDING); } catch (e) {} });
+    }
+    return Organica.idb.get(key).then(function (text) { if (text != null && !(key in mem)) mem[key] = text; });
+  };
+
+  // drop(tool) → Promise: forget a store everywhere — the memory copy, IndexedDB, localStorage and, signed in,
+  // its account rows. For deleting a whole FVS project; never for a library.
+  makeStore.drop = function (tool) {
+    var key = 'organica.' + tool + '.presets';
+    delete mem[key];
+    delete instances[tool];
+    delete idbDirty[key];
+    try { localStorage.removeItem(key); localStorage.removeItem(key + OWNER); localStorage.removeItem(key + PENDING); } catch (e) {}
+    var jobs = [idbOn() ? Organica.idb.del(key) : Promise.resolve()];
+    if (sb && auth && auth.userIdSync && auth.userIdSync()) {
+      jobs.push(sb.from('presets').delete().eq('tool', tool).then(function (r) { return !r.error; }));
+    }
+    return Promise.all(jobs);
+  };
   // Back-compat: every existing `Organica.presetStore('x'[, legacy])` call now
   // gets the synced store. .read()/.write() stay synchronous, so no call site
   // breaks; tools opt into cloud by calling .pull() and .onSync().

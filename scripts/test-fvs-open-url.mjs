@@ -42,7 +42,7 @@ const out = await P.ev(`const F = window.__fvs, r = [];
 // a real load with the parameter: opens after boot
 await P.goto('/fvs/?step=symbol', 'window.__fvs && window.__fvs.isReady');
 await new Promise(r => setTimeout(r, 1500));
-const all = out + '\n' + (await P.ev(`return window.__fvs.state.activeTier === 'symbol' && location.search === '' ? '✓ a real load with ?step=symbol' : '✗ a real load with ?step=symbol';`));
+const all = out + '\n' + (await P.ev(`return window.__fvs.state.activeTier === 'symbol' && !new URLSearchParams(location.search).has('step') ? '✓ a real load with ?step=symbol' : '✗ a real load with ?step=symbol';`));
 const bad = all.split('\n').filter(l => l.startsWith('✗')).length + P.errors.length;
 if (P.errors.length) console.log('page errors:', P.errors);
 console.log(bad ? 'FVS open by URL: FAIL — ' + bad : 'FVS open by URL: PASS — ' + all.split('\n').filter(l => l.startsWith('✓')).length + ' checks');

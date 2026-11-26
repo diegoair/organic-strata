@@ -56,6 +56,7 @@ import {
 } from './06-component-ui.js';
 import { COLOUR_GROUP_RULES, groupMembers, layerInksOn, pruneColourGroups } from './engine/06-component-ui.js';
 import { hooks, provide } from './hooks.js';
+import { recordRename } from './project.js';
 // C: a group's chip — its ink as the fill, its number in --ink or --paper, whichever reads better on that ink
 function groupChip(L, gid, n, name, still) {
   const g = L.groups[gid], ink = state.colors[((g.ink % state.colors.length) + state.colors.length) % state.colors.length] || '';
@@ -1070,6 +1071,9 @@ export function renameLibraryEntry(oldName, newName) {
   state.symbolPool.forEach(p => { if (p.name === oldName) p.name = newName; });   // the Symbol pool names it too
   if (state.underlyingComponentName === oldName) state.underlyingComponentName = newName;
   if (state.fvsGridComponentName === oldName) state.fvsGridComponentName = newName;
+  // the open Project's other board Symbols, and — when they next open — every other Project's (Nov 26, 2026)
+  (state.symbols || []).forEach(sy => { const w = sy.work; if (!w) return; (w.cells || []).forEach(c => { if (c && c.componentName === oldName) c.componentName = newName; }); (w.pool || []).forEach(p => { if (p && p.name === oldName) p.name = newName; }); });
+  recordRename('component', oldName, newName);
   renderLibrary(); hooks.renderSymbolLibrary();
   if (state.symbolGrid) hooks.renderSymbol();
 }

@@ -97,7 +97,7 @@ const rows = await P.ev(`const F = window.__fvs, q = id => document.getElementBy
   check('only one Save as palette… under the strip', document.querySelectorAll('[data-pal-save]').length === 1, document.querySelectorAll('[data-pal-save]').length);
   // the Element keeps its Palette's shading (the board's save)
   document.body.click(); await w(1500);
-  const els = JSON.parse(localStorage.getItem('organica.fvs-elements.presets') || '{}'), act = els[F.state.activeElement];
+  const els = F.projectStore('fvs-elements').read(), act = els[F.state.activeElement];
   check('the Element saves its Palette with the shading', act && act.palette && act.palette.shades && act.palette.shades['#1c6b3a'] && act.palette.shades['#1c6b3a'].specks === 'cells', JSON.stringify(act && act.palette));
   // the layers of an Element, one by one (Diego, Nov 20, 2026: "un test di debug sui singoli layers degli elements"):
   // each fill layer takes its own ink's shading in its own box; a flat ink, a Tonal step, a hidden layer, a Stroke or a

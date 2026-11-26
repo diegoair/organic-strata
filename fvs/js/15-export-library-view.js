@@ -71,6 +71,7 @@ import {
   exportByTier, fvsIsTypingTarget, onAppearanceChange, setPaperUI, setTier
 } from './12-shell.js';
 import { hooks, provide } from './hooks.js';
+import { recordRename } from './project.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   closeLibview: () => closeLibview, deleteSaved: () => deleteSaved, libviewIsOpen: () => libviewIsOpen,
@@ -582,6 +583,7 @@ export async function railRename(kind, name) {
       Object.keys(lib).forEach(k => { const j = JSON.stringify(lib[k]); if (j.includes(from)) { lib[k] = JSON.parse(j.split(from).join(to)); hit = true; } });
       if (hit) st.write(lib);
     });
+    recordRename('element', name, next);   // other Projects' Paper tiles, when they next open (Nov 26, 2026)
     elementLibraryChanged();
     if (livePaper) useAsPaperTile('saved:' + next);
   } else renderLibraryRail();

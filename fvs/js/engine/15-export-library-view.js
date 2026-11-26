@@ -106,7 +106,10 @@ export function componentUsage(name) {
   const cells = (state.symbolCells || []).filter(c => c && c.source === 'component' && c.componentName === name).length;
   const syms = Object.values(SYMBOL_LIBRARY.read()).filter(e => (e.cells || []).some(c => c.componentName === name)).length;
   const under = Object.entries(LIBRARY.read()).filter(([n, e]) => n !== name && e.underlyingComponentName === name).length + (state.underlyingComponentName === name ? 1 : 0);
-  return { cells, syms, under, total: cells + syms + under };
+  // the open Project's other board Symbols, and every other Project's boards (Projects, Nov 26, 2026 — fvs/js/project.js)
+  const board = hooks.projectSymbolUses && hooks.projectSymbolUses((state.symbols || []).filter(s => s.id !== state.activeSymbol)).includes(name) ? 1 : 0;
+  const projects = hooks.usedElsewhere ? hooks.usedElsewhere('component', name) : 0;   // not provided on a page without project.js (the rule atlas)
+  return { cells, syms, under, board, projects, total: cells + syms + under + board + projects };
 }
 export function dupName(all, base) {
   let n = base + ' copy';
@@ -171,7 +174,7 @@ export function railPatch(kind, name) {
   const own = entry.colors && entry.colors.length ? entry.colors.slice() : null;
   return { source: 'seed', seedType: sp.type, seedParams: sp, color: null, ownColors: own, ownShades: own && entry.inkShades ? JSON.parse(JSON.stringify(entry.inkShades)) : null, ownPaper: entry.paperColor || null, ownAppearance: entry.appearance || null, colourway: null, rotation: o.rotation || 0, flipH: !!o.flipH, flipV: !!o.flipV, fitMode: live.contentOverlayFit, scale: 1, padding: 0, pad: null, anchorX: 0, anchorY: 0 };
 }
-export function elementInLivePaper(name) { return !!(live.paperPatternOn && pv('sel-ground-tile') === 'saved:' + name); }
+export function elementInLivePaper(name) { return !!(live.paperPatternOn && pv('sel-ground-tile') === 'saved:' + name) || !!(hooks.usedElsewhere && hooks.usedElsewhere('element', name) > 0); }   // …or a Paper tile of another Project's boards (Nov 26, 2026)
 export function libviewItems(kind) {
   const newest = all => (a, b) => String((all[b] || {}).savedAt || '').localeCompare(String((all[a] || {}).savedAt || ''));
   if (kind === 'element') { const all = ELEMENT_LIB.read(); return shownElementNames(all).sort(newest(all)).map(n => ({ name: n, svg: () => savedElementThumb(all[n]) })); }

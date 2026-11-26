@@ -75,7 +75,7 @@ const rows2 = await P.ev(pre + `
   await w(300);
   check('after a reload: the same Symbols, the same one edited', F.state.symbols.map(s => s.name).join() === kept.names && F.state.activeSymbol === kept.active, JSON.stringify([F.state.symbols.map(s => s.name).join(), kept]));
   // the single working Symbol of before Oct 27, 2026 → the first Symbol (the row left in place)
-  const S = Organica.store('fvs-symbol-work'), cur = F.state.symbols.find(s => s.id === F.state.activeSymbol).work;
+  const S = F.projectStore('fvs-symbol-work'), cur = F.state.symbols.find(s => s.id === F.state.activeSymbol).work;
   sessionStorage.setItem('legacyCells', String(cur.cells.length));
   await w(900);   // the page's own last save (600 ms after a draw) first
   S.write({ current: cur });
@@ -85,7 +85,7 @@ await P.goto('/fvs/', 'window.__fvs && window.__fvs.isReady');
 const rows3 = await P.ev(pre + `
   await w(300);
   check('the old single Symbol (current) opens as Symbol 1', F.state.symbols.length === 1 && F.state.symbols[0].name === 'Symbol 1' && F.state.symbolCells.length === +sessionStorage.getItem('legacyCells'), JSON.stringify([F.state.symbols.map(s => s.name), F.state.symbolCells.length]));
-  check('…the current row is still there', !!(Organica.store('fvs-symbol-work').read() || {}).current, 'gone');
+  check('…the current row is still there', !!(F.projectStore('fvs-symbol-work').read() || {}).current, 'gone');
   return rows;`);
 const all = [...rows, ...rows2, ...rows3], fails = all.filter(x => x.startsWith('✗'));
 for (const x of all) console.log('  ' + x);

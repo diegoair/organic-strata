@@ -49,6 +49,7 @@ const JOBS = {
   'hero-social':        node('test-hero-social.mjs'),   // the eight home-hero loops as social sources, shared/hero-social.js (Nov 25, 2026)
   'hub-social':         node('test-hub-social.mjs'),   // the hub's Social: a loop exported for posting (Nov 25, 2026)
   'open-url':           node('test-fvs-open-url.mjs'),   // Open by URL + the Library view's Copy link (Nov 25, 2026)
+  'projects':           node('test-fvs-projects.mjs'),   // Projects: the boards per Project, Project 1 migration, the library across Projects (Nov 26, 2026)
   'fvs-social':         node('test-fvs-social.mjs'),   // Export › Social: stills in the four sizes, one ZIP (Nov 25, 2026)
   'layer-duplicate':    node('test-fvs-layer-duplicate.mjs'),   // Element: Duplicate a layer — the copy above it, the edited one (Oct 29, 2026)
   'figure-symbols':     node('test-fvs-figure-symbols.mjs'),   // Figure ← Symbol: one Figure per filled Symbol, synced; the Figure tab waits for a filled Symbol (Oct 29, 2026)

@@ -54,15 +54,17 @@ import {
 import {
   ctrl
 } from './00-core.js';
+import { PROJECT, projectStore, touchProject } from './project.js';
 
 provide({ renderFigureTier: () => renderFigureGraph });
 
 const NC = Organica.nodeCanvas;
 const registry = NC.createRegistry(figureNodeTypes());
-const VIEW_KEY = 'organica.fvs.figure-view';
-const GRAPHS = Organica.store('fvs-figure');
+const VIEW_KEY = PROJECT.viewKey('organica.fvs.figure-view');   // per Project since Nov 26, 2026
+const GRAPHS = Organica.store('fvs-figure');   // the saved graphs (a library, shared by every Project)
+const WORK = projectStore('fvs-figure-work');   // the graph being edited: { current: {model, name, savedAt} }, per Project (project.js)
 const SETS = Organica.store('fvs-sets');   // saved Sets: { name: { items: [{kind, name, snapshot}], savedAt } }
-const CURRENT = '__current';   // the graph being edited, autosaved (not a saved graph: never listed)
+const CURRENT = '__current';   // the graph being edited before Projects (Nov 26, 2026: copied into Project 1, now in WORK) — still never listed
 let graphName = '';             // the saved graph the autosaved one was opened from / saved as, read at boot ('' = not saved yet); then graphMenu.name()
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ICON = { Foundation: 'node-foundation', Content: 'node-content', Rules: 'node-rule', Output: 'node-output' };
@@ -1922,13 +1924,14 @@ let saveTimer = 0;
 function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    const all = GRAPHS.read(); all[CURRENT] = { model: ctl.model, name: graphMenu ? graphMenu.name() : graphName, savedAt: new Date().toISOString() }; GRAPHS.write(all);
+    WORK.write({ current: { model: ctl.model, name: graphMenu ? graphMenu.name() : graphName, savedAt: new Date().toISOString() } });
+    const nn = ctl.model.nodes.length; touchProject(r => ({ counts: { ...(r.counts || {}), figureNodes: nn } }));
     if (graphMenu) graphMenu.sync();   // the unsaved dot + Organica.dirty
     try { localStorage.setItem(VIEW_KEY, JSON.stringify({ zoom: ctl.zoomPan.zoom, ...ctl.zoomPan.pan })); } catch (e) {}
   }, 400);
 }
 function loadModel() {
-  const e = GRAPHS.read()[CURRENT];
+  const e = WORK.read().current;
   graphName = (e && e.name) || '';
   return ensureNames(e && e.model ? safeModel(e.model) : starterModel());
 }

@@ -180,7 +180,7 @@ async function elementBoard(mode) {
   const lab = await ev(() => __t.box('#board-live-views > .fvs-board-sheet__label'));
   const p0 = await ev(id => [__t.sheetAt('element', 'el-' + id), __t.sheetAt('element', 'vw-' + id)], id0);
   await gesture({ x: lab.l + 12, y: lab.y }, { x: lab.l + 112, y: lab.y + 60 });
-  const p1 = await ev(id => [__t.sheetAt('element', 'el-' + id), __t.sheetAt('element', 'vw-' + id), JSON.parse(localStorage.getItem('organica.fvs.board.element') || '{}').pos], id0);
+  const p1 = await ev(id => [__t.sheetAt('element', 'el-' + id), __t.sheetAt('element', 'vw-' + id), JSON.parse(localStorage.getItem(__t.F.PROJECT.viewKey('organica.fvs.board.element')) || '{}').pos], id0);
   const dz = await ev(() => __t.view('element').zoom);
   const moved = (a, b) => Math.round((b.x - a.x) * dz) === 100 || Math.abs((b.x - a.x) * dz - 100) < 2;
   C('dragging the name moves the group', moved(p0[0], p1[0]) && moved(p0[1], p1[1]), `Element Δx ${((p1[0].x - p0[0].x) * dz).toFixed(1)}px, Views Δx ${((p1[1].x - p0[1].x) * dz).toFixed(1)}px`);
@@ -225,7 +225,7 @@ async function elementBoard(mode) {
   await click(await ev(() => __t.box('.fvs-board-sheet.fvs-board-views:not(#board-live-views) > .fvs-board-sheet__label')));
   await press('Delete', 'Delete', 46);
   // the list is the user's: in the store
-  C('the list is kept in the store', await ev(() => { const o = Organica.store('fvs-elements').read(); return Object.keys(o).filter(k => k !== 'board').length === 1 && o.board && o.board.active === __t.F.state.activeElement; }));
+  C('the list is kept in the store', await ev(() => { const o = __t.F.projectStore('fvs-elements').read(); return Object.keys(o).filter(k => k !== 'board').length === 1 && o.board && o.board.active === __t.F.state.activeElement; }));
   // parts: Edit, divide, marquee
   await ev(() => { const s = document.getElementById('sel-seed-type'); s.value = 'roundedrect'; s.dispatchEvent(new Event('change', { bubbles: true })); });
   await settle();
@@ -442,7 +442,7 @@ async function elementPalettes(mode) {
   const cl = await live();
   C('Clear board leaves the default Palette', cl.colors.length === 1 && cl.colors[0] === '#000000' && cl.paper === '#ffffff', JSON.stringify(cl));
   // an Element saved before Phase B (no palette) loads black on white
-  const old = await ev(() => { const o = Organica.store('fvs-elements').read(); Object.values(o).forEach(v => { if (v && v.seed) delete v.palette; }); Organica.store('fvs-elements').write(o); return Object.keys(o).length; });
+  const old = await ev(() => { const o = __t.F.projectStore('fvs-elements').read(); Object.values(o).forEach(v => { if (v && v.seed) delete v.palette; }); __t.F.projectStore('fvs-elements').write(o); return Object.keys(o).length; });
   await reloadFvs();
   const ol = await ev(() => ({ colors: __t.F.state.colors.slice(), paper: __t.F.state.paperColor }));
   C('an Element saved without a Palette loads black on white', old > 0 && ol.colors[0] === '#000000' && ol.paper === '#ffffff', JSON.stringify(ol));
