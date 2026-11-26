@@ -102,7 +102,7 @@ organic-strata/            ← GitHub diegoair/organic-strata (private)
 │   ├── color.js · palette.js/.css · noise.js · shapes.js · radial.js · pathfx.js · pollen-engine.js
 │   ├── swarm.js · marks-svg.js · bandfield.js · recorder.js · mp4.js · social-export.js · hero-social.js · canvas.js · seeds-panel.js/.css · fvs-field.js/.css
 │   ├── node-canvas.js/.css (FVS Figure + Rhizome) · print-size.js · print-size-panel.js · plate-export.js
-│   ├── hero.js · hero-carousel.js · hero-loop.js · hero-sheets.js · hero/*.json   ← the home hero's FVS loops, loaded on demand (one per visit)
+│   ├── hero.js · hero-carousel.js · hero-loop.js · hero-player.js · hero-loops/*.js · hero/*.json   ← the home hero's FVS loops: one player, one file per loop, loaded on demand
 │   ├── monogram.js        ← the logo mark: the 0rganic4 monogram, plays on hover of .org-header__logo (every page with the header, loaded before tools.js; favicon = its open rosette)
 │   ├── vendor/            ← third-party (see THIRD-PARTY-NOTICES.md)
 │   └── _template.html     ← start a new tool from this

@@ -26,6 +26,7 @@ const out = await P.ev(`const r = [], ck = (n, ok, got) => r.push((ok ? '✓ ' :
   ck('a still is PNG + SVG', $('btn-social').textContent === 'Export 2 files', $('btn-social').textContent);
   ck('ticks remembered', JSON.parse(localStorage.getItem('organica.hub.social'))['sz-4x5'] === false);
   tick('soc-video', true); $('soc-loop').value = 'h'; $('soc-loop').dispatchEvent(new Event('change', { bubbles: true }));
+  for (let i = 0; i < 60 && !/\\(\\d+ s\\)/.test($('social-hint').textContent); i++) await new Promise(r => setTimeout(r, 50));   // the picked loop's file loads first (one file per loop)
   ck('hint: laid out per size, the loop’s length', /laid out for its shape; the video is one loop \\(\\d+ s\\)\\./.test($('social-hint').textContent), $('social-hint').textContent);
   // Export: watch the on-screen loop and the lock
   let got = null; const dl = Organica.download; Organica.download = (b, name) => { got = { b, name }; };
@@ -50,11 +51,11 @@ const out2 = await P.ev(`const r = [], ck = (n, ok, got) => r.push((ok ? '✓ ' 
   ['sz-4x5', 'sz-1x1', 'sz-16x9'].forEach(id => tick(id, false)); tick('sz-9x16', true); tick('soc-video', false); tick('soc-stills', true);
   $('soc-loop').value = 'g';
   const host = $('hub-hero'), aspect = host.clientWidth / host.clientHeight, want = Organica.hero.LOOPS.g.model(aspect);
-  const sets = []; const sm = Organica.heroSheets.setModel; Organica.heroSheets.setModel = (slot, j) => { sets.push(slot + ':' + (j && j.W) ); return sm(slot, j); };
+  const sets = []; const sm = Organica.heroPlayer.setModel; Organica.heroPlayer.setModel = (slot, j) => { sets.push(slot + ':' + (j && j.W) ); return sm(slot, j); };
   const urls = []; const f0 = window.fetch; window.fetch = (u, ...a) => { urls.push(String(u)); return f0(u, ...a); };
   const dl = Organica.download; Organica.download = () => {};
   await __hubSocial.run(); await new Promise(res => setTimeout(res, 600));
-  Organica.download = dl; window.fetch = f0; Organica.heroSheets.setModel = sm;
+  Organica.download = dl; window.fetch = f0; Organica.heroPlayer.setModel = sm;
   ck('G at 9:16 loads the 9:16 model', urls.some(u => u.endsWith('/shared/hero/print-model-9x16.json')), urls);
   const last = urls[urls.length - 1] || '';
   ck('close() puts back the model for the hero (' + want + ')', last.endsWith('/shared/hero/' + want + '.json') && sets.length >= 2, [urls.slice(-2), sets]);
@@ -64,5 +65,4 @@ const all = out + '\n' + out2;
 const bad = all.split('\n').filter(l => l.startsWith('✗')).length + P.errors.length;
 if (P.errors.length) console.log('page errors:', P.errors);
 console.log(bad ? 'Hub social: FAIL — ' + bad : 'Hub social: PASS — ' + all.split('\n').filter(l => l.startsWith('✓')).length + ' checks');
-await P.close();
-process.exit(bad ? 1 : 0);
+await P.close(bad ? 1 : 0);   // close() exits the process: the code must go through it

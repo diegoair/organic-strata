@@ -27,7 +27,7 @@
   const O = global.Organica || (global.Organica = {});
   const READY_MS = 8000;
 
-  const cycleOf = L => (L.kind ? O.heroSheets.KINDS[L.kind].slides.map(s => s.ms) : O.heroLoop.SLIDES.map(s => s.dur)).reduce((a, b) => a + b, 0);
+  const cycleOf = L => L.kind ? O.heroPlayer.cycleMs(L.kind) : O.heroLoop.SLIDES.reduce((a, s) => a + s.dur, 0);   // real ms (the player's SPEED applied)
 
   function source(key, opts = {}) {
     key = String(key || '').toLowerCase();
@@ -61,7 +61,7 @@
     // rebuilds from the slot on a resize that keeps its model name: on close, put back the model for the page's aspect.
     function restore() {
       if (!L.slot || typeof L.model !== 'function' || !opts.aspect || !shown || shown.key !== key) return;
-      fetch('/shared/hero/' + L.model(opts.aspect()) + '.json').then(r => r.json()).then(j => O.heroSheets.setModel(L.slot, j)).catch(() => {});
+      fetch('/shared/hero/' + L.model(opts.aspect()) + '.json').then(r => r.json()).then(j => O.heroPlayer.setModel(L.slot, j)).catch(() => {});
     }
     async function layout(w, h) {
       unmount();   // always a fresh mount: go(0) from wherever a loop was left is not the same frame (its transitions start from there)
@@ -101,7 +101,7 @@
     const src = {
       name: 'organica-' + L.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       title: L.name, paper: '#ffffff', fps: 1000 / step,
-      cycleMs: L.kind ? (O.heroSheets ? cycleOf(L) : 1) : (O.heroLoop ? cycleOf(L) : 1),   // the real length once layout() has loaded the loop
+      cycleMs: (L.kind ? O.heroPlayer && O.heroPlayer.KINDS[L.kind] && cycleOf(L) : O.heroLoop && cycleOf(L)) || 1,   // the real length once layout() has loaded the loop (its file may not be loaded yet)
       layout, seek, svg, close: () => { unmount(); restore(); },
     };
     return src;

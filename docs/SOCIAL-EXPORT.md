@@ -134,11 +134,13 @@ to the format is backlog 2.9; P4 uses the layout chosen in O-106 b.
   pre-roll runs from `go(0)` to the wrap back to slide 1 (the hero's `onProgress` falls to 0), then counts the steps of one
   full cycle — that count is the reel's frame count, so frame *n* would be frame 0. `svg()` is the loop's own SVG at the
   size (each loop lays itself out for the format, so no `fitSVG`). `hero.js` itself is untouched.
-- **Seamless — two of eight.** Bands (A) and Stacks (H) come back exactly (the next cycle's first frame = frame 0, mean
-  difference ≤ 0.1/255; a Stacks reel's last frame runs into its first at 1.0/255). The other six carry state across cycles
-  (drifting bands, morphs, the score's camera) that `go(0)` does not reset: their reel's wrap jumps (mean 38–175/255 —
-  as much as a slide change). The live hero never wraps, so it never shows. A fix belongs in the loop engines (backlog 2.2,
-  *seamless by construction*), not here.
+- **Seamless — seven of eight** (since Nov 26, 2026, backlog 2.2; was two of eight). Every sheet loop's `enter(0)` on the
+  wrap resets its own draws (`rng(seed)`), beats and drifts, so every cycle is the same cycle: Morph glides back to its
+  first pose with the beat count from 0; Overprint, Dot score and Weave re-seed; Windows glides each window back to its
+  slot and its barcode rows repeat every p px, p = what a row drifts in one cycle. Measured on 1:1 reels, last frame →
+  first: 0.2–2.3/255, as a normal frame step (was 38–175). `scripts/test-hero-social.mjs` checks all seven (every cycle
+  starts the same; the wrap is a frame like any other). C · The score (`hero-loop.js`, its own clock, not on the home)
+  still jumps (≈ 67/255).
 - **Overprint (G) and the model swap**: exporting G loads its model for each size into a slot the loop on screen shares,
   and that copy rebuilds from the slot on a resize that keeps its model name (`hero.js` reloads only when the name
   changes). So `close()` puts back the model for the page's own aspect (`source(key, { aspect })` — the hub passes its

@@ -942,9 +942,10 @@
     Object.keys(Organica.hero.LOOPS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = Organica.hero.LOOPS[k].name; sel.appendChild(o); });
     sel.value = (Organica.hero.current && Organica.hero.current.key) || 'a';
     var picked = function () { return Object.keys(SIZES).filter(function (k) { return $('sz-' + k).checked; }); };
-    function cycleSec() {   // the slides' sum: the observed cycle is a few steps longer
+    function cycleSec() {   // the slides' sum in real time (a sheet loop's clock runs at the player's SPEED); the observed cycle is a few steps longer
       var L = Organica.hero.LOOPS[sel.value], H = Organica;
-      var ms = L.kind ? (H.heroSheets && H.heroSheets.KINDS[L.kind].slides.reduce(function (a, s) { return a + s.ms; }, 0)) : (H.heroLoop && H.heroLoop.SLIDES.reduce(function (a, s) { return a + s.dur; }, 0));
+      var ms = L.kind ? (H.heroPlayer && H.heroPlayer.cycleMs(L.kind)) :   // 0 until the loop's own file is loaded (see the picker)
+        (H.heroLoop && H.heroLoop.SLIDES.reduce(function (a, s) { return a + s.dur; }, 0));
       return ms ? Math.round(ms / 1000) : 0;
     }
     function sync() {
@@ -995,6 +996,8 @@
     }
     var saved = null; try { saved = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
     if (saved) IDS.forEach(function (id) { if (typeof saved[id] === 'boolean') $(id).checked = saved[id]; });
+    // each loop is its own file (shared/hero-loops/): load the picked one, so its length is known for the hint
+    sel.addEventListener('change', function () { var L = Organica.hero.LOOPS[sel.value]; if (L) Organica.hero.scripts(L.scripts).then(sync, function () {}); });
     $('social').addEventListener('change', function (e) {
       if (e.target.closest('.check-row')) { var o = {}; IDS.forEach(function (id) { o[id] = $(id).checked; }); try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (err) {} }
       sync();

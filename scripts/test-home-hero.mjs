@@ -59,7 +59,7 @@ for (const k of HOME) {
   const r = await P.ev(`
     const st = document.getElementById('heroStage'), a = st.innerHTML;
     for (let i = 0; i < 6; i++) await new Promise(r => requestAnimationFrame(r));
-    const movedNow = st.innerHTML !== a, K = Organica.heroSheets.KINDS[Organica.hero.LOOPS['${k}'].kind];
+    const movedNow = st.innerHTML !== a, K = Organica.heroPlayer.KINDS[Organica.hero.LOOPS['${k}'].kind];
     // then no stretch of more than 0.7 s where nothing moves, over the first 8 s (Stacks and Bands stood still 3 s after their entrance)
     let prev = st.innerHTML, t0 = performance.now(), last = 0, gap = 0;
     while (performance.now() - t0 < 8000) { await new Promise(r => setTimeout(r, 100)); const t = performance.now() - t0, h = st.innerHTML; if (h !== prev) { gap = Math.max(gap, t - last); last = t; prev = h; } }

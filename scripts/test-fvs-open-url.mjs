@@ -46,5 +46,4 @@ const all = out + '\n' + (await P.ev(`return window.__fvs.state.activeTier === '
 const bad = all.split('\n').filter(l => l.startsWith('✗')).length + P.errors.length;
 if (P.errors.length) console.log('page errors:', P.errors);
 console.log(bad ? 'FVS open by URL: FAIL — ' + bad : 'FVS open by URL: PASS — ' + all.split('\n').filter(l => l.startsWith('✓')).length + ' checks');
-await P.close();
-process.exit(bad ? 1 : 0);
+await P.close(bad ? 1 : 0);   // close() exits the process: the code must go through it

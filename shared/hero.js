@@ -5,7 +5,7 @@
        → { key, name, stats(), loop(), stop() }   (also kept as Organica.hero.current)
 
    Eight loops (A–H), each drawn by FVS and animated as a model
-   (shared/hero-loop.js, shared/hero-sheets.js, models in shared/hero/).
+   (shared/hero-loop.js, shared/hero-player.js + one file of shared/hero-loops/, models in shared/hero/).
    A visit loads ONLY the scripts and the one model its loop needs.
    Which loop: ?hero=a…h (author's test), else the next in ROTATION
    after the last one shown (localStorage organica.hub.hero; the
@@ -24,21 +24,23 @@
   'use strict';
   var O = window.Organica = window.Organica || {};
   var DIR = '/shared/hero/', KEY = 'organica.hub.hero', TIMEOUT = 4000;
-  var LOOP = '/shared/hero-loop.js', SHEETS = [LOOP, '/shared/hero-sheets.js'];
+  // a sheet loop needs the palettes (hero-loop.js), the player, then its own file — and nothing of the other loops
+  var LOOP = '/shared/hero-loop.js';
+  function sheet(name) { return [LOOP, '/shared/hero-player.js', '/shared/hero-loops/' + name + '.js']; }
   var SHADING = ['/shared/color.js', '/shared/noise.js', '/shared/shade-marks.js', '/shared/shading.js'];
 
   // G's tiles hold for one stage proportion: one model per format
   function printModel(aspect) { return aspect >= 1.2 ? 'print-model' : aspect >= 0.65 ? 'print-model-4x5' : 'print-model-9x16'; }
 
   var LOOPS = {
-    a: { name: 'Bands', kind: 'bandsfvs', scripts: SHADING.concat(SHEETS) },
-    b: { name: 'Windows', kind: 'windowsfvs', scripts: SHEETS, slot: 'windows', model: 'windows-model' },
+    a: { name: 'Bands', kind: 'bandsfvs', scripts: SHADING.concat(sheet('bands')) },
+    b: { name: 'Windows', kind: 'windowsfvs', scripts: sheet('windows'), slot: 'windows', model: 'windows-model' },
     c: { name: 'The score', scripts: [LOOP], model: 'score-model' },
-    d: { name: 'Morph sheet', kind: 'morphfvs', scripts: SHEETS, slot: 'morph', model: 'morph-model' },
-    e: { name: 'Dot score', kind: 'dotsfvsov', scripts: SHEETS, slot: 'dots', model: 'dots-model' },
-    f: { name: 'Weave', kind: 'weavefvs', scripts: SHEETS, slot: 'weave', model: 'weave-tiles' },
-    g: { name: 'Overprint', kind: 'printfvs', scripts: SHEETS, slot: 'print', model: printModel },
-    h: { name: 'Stacks', kind: 'stacksfvs', scripts: SHEETS, slot: 'stacks', model: 'stacks-model' },
+    d: { name: 'Morph sheet', kind: 'morphfvs', scripts: sheet('morph'), slot: 'morph', model: 'morph-model' },
+    e: { name: 'Dot score', kind: 'dotsfvsov', scripts: sheet('dots'), slot: 'dots', model: 'dots-model' },
+    f: { name: 'Weave', kind: 'weavefvs', scripts: sheet('weave'), slot: 'weave', model: 'weave-tiles' },
+    g: { name: 'Overprint', kind: 'printfvs', scripts: sheet('print'), slot: 'print', model: printModel },
+    h: { name: 'Stacks', kind: 'stacksfvs', scripts: sheet('stacks'), slot: 'stacks', model: 'stacks-model' },
   };
   // The order a returning visitor sees the loops in. A loop left out of this list is never shown.
   // C · The score is out until its paint cost is fixed (Nov 24, 2026, 1359 × 778 at 2×: 16–22 fps on the haze and
@@ -107,11 +109,11 @@
       if (dead) return;
       if (loop) { loop.stop(); loop = null; }
       shown = name || '';
-      durs = L.kind ? O.heroSheets.KINDS[L.kind].slides.map(function (s) { return s.ms; }) : O.heroLoop.SLIDES.map(function (s) { return s.dur; });
+      durs = L.kind ? O.heroPlayer.KINDS[L.kind].slides.map(function (s) { return s.ms; }) : O.heroLoop.SLIDES.map(function (s) { return s.dur; });
       total = durs.reduce(function (a, b) { return a + b; }, 0); at = 0; slide = 0; ended = false;
       if (L.kind) {
-        if (L.slot) O.heroSheets.setModel(L.slot, json);
-        loop = O.heroSheets.mount(host, { kind: L.kind, label: false, intro: !!opts.intro, onSlide: onSlide, onProgress: onProgress });
+        if (L.slot) O.heroPlayer.setModel(L.slot, json);
+        loop = O.heroPlayer.mount(host, { kind: L.kind, label: false, intro: !!opts.intro, onSlide: onSlide, onProgress: onProgress });
       } else {
         loop = O.heroLoop.mount(host, { concept: 'C', element: 'bloom', fvs: json, label: false, onSlide: onSlide, onProgress: onProgress });
       }

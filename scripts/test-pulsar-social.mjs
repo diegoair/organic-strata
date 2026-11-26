@@ -49,5 +49,4 @@ console.log(out);
 const bad = out.split('\n').filter(l => l.startsWith('✗')).length + P.errors.length;
 if (P.errors.length) console.log('page errors:', P.errors);
 console.log(bad ? 'Pulsar social: FAIL — ' + bad : 'Pulsar social: PASS — ' + out.split('\n').filter(l => l.startsWith('✓')).length + ' checks');
-await P.close();
-process.exit(bad ? 1 : 0);
+await P.close(bad ? 1 : 0);   // close() exits the process: the code must go through it
