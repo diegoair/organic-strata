@@ -100,6 +100,59 @@ await run(`
   ck('uses read from the boards', F.symbolUses([{ work: { cells: [{ componentName: 'K' }], pool: [{ name: 'L' }] } }]).join() === 'K,L' && F.elementUses({ a: 'saved:Q', b: ['saved:R "x"'] }).join() === 'Q,R "x"');
 `);
 
+// 6 · the home: Your projects
+await run(`
+  ck('words', F.editedWords(new Date().toISOString()) === 'Edited today' && F.editedWords('2020-03-04T10:00:00Z', new Date('2026-11-26')) === 'Edited 4 Mar 2020' && F.countWords({ elements: 1, symbols: 2 }) === '1 Element · 2 Symbols', [F.editedWords('2020-03-04T10:00:00Z', new Date('2026-11-26'))]);
+  document.getElementById('btn-project').click(); await w(200);
+  const cards = [...document.querySelectorAll('#fvs-projects [data-pid]')];
+  ck('the Project button opens Your projects, a card per Project + New', !document.getElementById('fvs-projects').hidden && cards.length === Object.keys(idx()).length && !!document.querySelector('#fvs-projects [data-pj-act="new"]'), cards.length);
+  ck('…the open one marked Editing', document.querySelector('#fvs-projects [aria-current="true"]').dataset.pid === F.PROJECT.id && /^Editing · /.test(document.querySelector('#fvs-projects [aria-current="true"] .fvs-libview__meta').textContent));
+  ck('…newest first', cards.map(c => idx()[c.dataset.pid].updatedAt).every((t, i, a) => !i || a[i - 1] >= t));
+  // rename (the dialog answered by a stub)
+  const p2 = sessionStorage.getItem('p2'), p0 = Organica.prompt; let asks = 0;
+  Organica.prompt = async o => (asks++ ? 'Renamed two' : idx()[F.PROJECT.id].name);   // first a taken name: asked again
+  document.querySelector('[data-pid="' + p2 + '"] [data-pj-act="rename"]').click(); await w(300);
+  Organica.prompt = p0;
+  ck('Rename asks again on a taken name, then renames', asks === 2 && idx()[p2].name === 'Renamed two', [asks, idx()[p2].name]);
+  // duplicate
+  document.querySelector('[data-pid="' + p2 + '"] [data-pj-act="duplicate"]').click(); await w(1500);
+  const dup = Object.entries(idx()).find(([, r]) => r.name === 'Renamed two copy');
+  ck('Duplicate: “‹name› copy”, with the same boards', !!dup && JSON.stringify(Object.values(await F.readBoards(dup[0]).then(b => b['fvs-elements'])).map(e => e && e.name)) === JSON.stringify(Object.values((await F.readBoards(p2))['fvs-elements']).map(e => e && e.name)), dup && dup[0]);
+  sessionStorage.setItem('dup', dup ? dup[0] : '');
+  // file round trip: Project 1's file (it uses no Component) → a new Project with the same Elements
+  const file = await F.projectFile(F.PROJECT.id);
+  ck('the file: tool, version, boards, library', file.tool === 'fvs-project' && file.version === 1 && !!file.boards['fvs-elements'] && !!file.library);
+  const back = F.importProjectFile(JSON.parse(JSON.stringify(file)));
+  const b2 = await F.readBoards(back);
+  ck('Open file: always a new Project (“‹name› copy”), the same boards', back && back !== F.PROJECT.id && idx()[back].name === idx()[F.PROJECT.id].name + ' copy' && JSON.stringify(Object.values(b2['fvs-elements']).map(e => e && e.name).sort()) === JSON.stringify(Object.values(file.boards['fvs-elements']).map(e => e && e.name).sort()), back && idx()[back].name);
+  ck('…a file of something else is refused', F.importProjectFile({ tool: 'fvs-figure-graph' }) === null);
+  // a library name taken by a different entry comes in renamed, and the boards follow
+  const lib = F.LIBRARY.read(), any = Object.keys(lib).find(n => !lib[n].hidden);
+  const f2 = { tool: 'fvs-project', version: 1, name: 'Imported', boards: { 'fvs-elements': {}, 'fvs-symbol-work': { s1: { name: 'S', work: { cells: [{ source: 'component', componentName: any }] } } }, 'fvs-figure-work': {} }, library: { component: { [any]: { ...lib[any], savedAt: 'other' } }, element: {} } };
+  const imp = F.importProjectFile(f2), ib = await F.readBoards(imp);
+  ck('…a taken name comes in as “‹name› (imported)”', !!F.LIBRARY.read()[any + ' (imported)'] && ib['fvs-symbol-work'].s1.work.cells[0].componentName === any + ' (imported)', ib['fvs-symbol-work']);
+  // delete (armed): a closed one — its stores go from IndexedDB
+  const before = await Organica.idb.keys('organica.fvs-elements@' + imp);
+  F.renderHome(); await w(100);
+  const del = document.querySelector('[data-pid="' + imp + '"] [data-pj-act="delete"]');
+  del.click(); await w(50);
+  ck('Delete is armed: the first click deletes nothing', !!idx()[imp] && del.classList.contains('is-armed'));
+  del.click(); await w(500);
+  const after = await Organica.idb.keys('organica.fvs-elements@' + imp);
+  ck('…the second deletes the Project and its stores', !idx()[imp] && before.length === 1 && after.length === 0 && !document.querySelector('[data-pid="' + imp + '"]'), [before, after]);
+  { const d2 = document.querySelector('[data-pid] [data-pj-act="delete"]'); d2.focus(); d2.click(); d2.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    ck('the first Escape on an armed Delete only disarms it', !document.getElementById('fvs-projects').hidden && !d2.classList.contains('is-armed')); }
+  ck('Escape closes Your projects', (document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })), document.getElementById('fvs-projects').hidden));
+  sessionStorage.setItem('open', F.PROJECT.id);
+`);
+// delete the open one: the home, with no Project open
+await P.ev(`const d = document.querySelector('[data-pid="' + window.__fvs.PROJECT.id + '"] [data-pj-act="delete"]') || (document.getElementById('btn-project').click(), document.querySelector('[data-pid="' + window.__fvs.PROJECT.id + '"] [data-pj-act="delete"]')); d.click(); d.click(); return 1;`);
+await new Promise(r => setTimeout(r, 2500));
+await run(`
+  ck('deleting the open Project shows the home with none open', new URLSearchParams(location.search).has('home') && document.body.classList.contains('fvs-home-only') && !document.getElementById('fvs-projects').hidden && !idx()[sessionStorage.getItem('open')], location.search);
+  ck('…the standalone home has no Close, and the tool is not loaded', getComputedStyle(document.getElementById('projects-close')).display === 'none' && !window.__fvs, !!window.__fvs);
+`.replace("const F = window.__fvs, ", "const F = {}, "));
+
 const bad = out.filter(l => l.startsWith('✗')).length + P.errors.length;
 out.forEach(l => console.log('  ' + l));
 if (P.errors.length) console.log('page errors:', P.errors);

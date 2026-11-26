@@ -178,6 +178,7 @@
   #symbol-frame g[data-cell-index].is-drop > :first-child, #component-edit-frame [data-cell-index].is-drop, #element-svg .fvs-part.is-drop > path { stroke: var(--ink); stroke-width: 4px; vector-effect: non-scaling-stroke; fill: color-mix(in srgb, var(--ink) 8%, transparent); }
   /* Library view (Oct 6, 2026): replaces the tier views in #canvas-wrap while open; the rail and the variations dock step aside */
   #canvas-wrap.is-libview > .tier-view { display: none !important; }
+  #canvas-wrap.is-libview { padding-top: calc(var(--space-8) * 3); }   /* below the steps' bar at the top (it covered the head's search — Nov 26, 2026) */
   .fvs-libview { width: min(100%, 1040px); margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-5); }
   .fvs-libview[hidden] { display: none; }
   .fvs-libview__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
@@ -196,7 +197,18 @@
   .fvs-libview__actions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
   .fvs-libview__actions .mini-btn { flex: 0 0 auto; }
   .fvs-libview__status { margin: 0; min-height: 1lh; font-size: var(--fs-small); color: var(--mid); }   /* its line is kept even when empty: a message never moves the tiles under the pointer */
-  body.fvs-libview-open #fvs-rail-dock { visibility: hidden; }
+  body.fvs-libview-open #fvs-rail-dock, body.fvs-projects-open #fvs-rail-dock { visibility: hidden; }
+  /* Your projects (Nov 26, 2026): the Library view's tiles, a wider card, the New card, the meta line, the open one marked */
+  #fvs-projects .fvs-libview__grid { grid-template-columns: repeat(auto-fill, minmax(calc(var(--space-8) * 5), 1fr)); }
+  .fvs-libview__thumb--new { background: transparent; border-style: dashed; color: var(--mid); }
+  @media (hover: hover) { .fvs-libview__thumb--new:hover { color: var(--ink); } }
+  .fvs-libview__meta { margin: 0; font-size: var(--fs-small); color: var(--mid); }
+  .fvs-libview__tile[aria-current="true"] .fvs-libview__thumb { border-color: var(--ink); }
+  .fvs-project-btn .nc-graph-btn__label { display: inline-block; max-width: calc(var(--space-8) * 4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+  /* no Project open: the home is the page — the tool's own bars and panel have nothing to act on */
+  body.fvs-home-only #panel, body.fvs-home-only .org-floatbar, body.fvs-home-only #fvs-rail-dock, body.fvs-home-only #fg-nodebar-dock, body.fvs-home-only #zoom-hud { display: none !important; }
+  body.fvs-home-only #projects-close { display: none; }
+  body.fvs-home-only #canvas-wrap.is-libview { padding-top: var(--space-6); }   /* no steps' bar to clear */
   .fvs-rail__note { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--danger); width: min-content; min-width: 100%; }   /* wraps to the tiles' width: a long note never widens the rail */
   .fvs-rail__note.is-info { color: var(--mid); }   /* a hint (the Brush), not a warning */
   .fvs-rail__note:empty { margin: 0; }   /* always rendered (a live region), no space when empty */
@@ -488,7 +500,7 @@
   .fg-card__meta { margin: var(--space-2) 0 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--t-caption-size); color: var(--mid); }
   .fg-card__meta svg { width: var(--icon-md); height: var(--icon-md); flex: 0 0 auto; }
   .fg-nodebar__tile { width: 3rem; height: 3rem; background: var(--paper); cursor: grab; touch-action: none; }
-  body.fvs-libview-open #fg-nodebar-dock { visibility: hidden; }
+  body.fvs-libview-open #fg-nodebar-dock, body.fvs-projects-open #fg-nodebar-dock { visibility: hidden; }
   .fg-grow { flex: 1; }
   .fg-size { flex: 1; min-width: 0; }
   .fg-list { margin-bottom: var(--space-3); }   /* Cell rules, Set items, region rules: the shared .org-layer-card--flush list (as Element Layers) */

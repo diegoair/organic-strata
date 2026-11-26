@@ -908,6 +908,7 @@ export function syncLibviewButton() {
 }
 export function openLibview() {
   const v = ctrl('fvs-libview');
+  if (!ctrl('fvs-projects').hidden) ctrl('btn-project').click();   // one view at a time: Your projects closes (home.js)
   if (railIsOpen()) setRailOpen(false);
   libviewKind = 'all';
   ctrl('libview-filter').querySelectorAll('.seg-btn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === 'all')));
@@ -1024,6 +1025,6 @@ document.addEventListener('keydown', e => {
   if (document.querySelector('dialog[open]')) return;   // Organica.prompt / confirm take their own Escape
   if (e.target.closest && e.target.closest('[data-armed].is-armed')) return;
   closeLibview({ focus: true });
-});
+}, true);   // capture: before Organica.armed's Escape disarms the button (Nov 26, 2026 — one Escape did both)
 ctrl('btn-libview').innerHTML = Organica.icons.get('library', { size: 'lg' });
 ctrl('libview-close').innerHTML = Organica.icons.get('close', { size: 'sm' });

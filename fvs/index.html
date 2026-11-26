@@ -37,6 +37,11 @@
 <!-- The steps (Diego, Oct 28, 2026 — "sopra, come quella di sotto ma speculare"; ledger O-63): their own bar at the
      top, the mirror of the actions bar below (.org-floatbar--top). The left dock keeps one occupant: the rail or the nodes. -->
 <div class="org-floatbar org-floatbar--top" id="fvs-stepbar" role="toolbar" aria-label="Steps">
+  <!-- Projects (Nov 26, 2026 — O-67 a): the open Project's name; a click shows Your projects (#fvs-projects, home.js) -->
+  <span class="org-floatbar__group" id="fvs-project-group">
+    <button class="org-floatbar__btn org-floatbar__btn--wide nc-graph-btn fvs-project-btn" id="btn-project" aria-expanded="false" aria-controls="fvs-projects" aria-label="Project — your projects"><span class="nc-graph-btn__label" id="btn-project-name">Project</span></button>
+  </span>
+  <span class="org-floatbar__sep" aria-hidden="true"></span>
   <span class="org-floatbar__group" id="tier-tabs">
     <button class="org-floatbar__btn" data-tier="element" aria-pressed="true" aria-label="Element" data-icon-slot></button>
     <button class="org-floatbar__btn" data-tier="component" aria-pressed="false" aria-label="Component" data-icon-slot></button>
@@ -550,6 +555,20 @@
       </div>
       <p class="fvs-libview__status" id="libview-status" role="status" aria-live="polite"></p>
       <div id="libview-body"></div>
+    </section>
+    <!-- Your projects (Nov 26, 2026 — O-67 a): the home of the Projects, over the tier views like the Library view; the page
+         itself when no Project is open (body.fvs-home-only). Built by fvs/js/home.js. -->
+    <section id="fvs-projects" class="fvs-libview" aria-labelledby="projects-title" hidden>
+      <div class="fvs-libview__head">
+        <h2 class="fvs-libview__title" id="projects-title">Your projects</h2>
+        <input type="search" class="org-field fvs-libview__search" id="projects-q" placeholder="Search by name" aria-label="Search your projects" autocomplete="off">
+        <button type="button" class="org-btn" id="projects-new" data-icon-slot>New project</button>
+        <button type="button" class="org-btn" id="projects-open">Open file…</button>
+        <input type="file" id="projects-file" accept=".fvs,application/json" aria-label="Open a project file" class="org-file-input">
+        <button type="button" class="icon-btn" id="projects-close" aria-label="Close" data-icon-slot></button>
+      </div>
+      <p class="fvs-libview__status" id="projects-status" role="status" aria-live="polite"></p>
+      <div id="projects-body"></div>
     </section>
   </div>
 

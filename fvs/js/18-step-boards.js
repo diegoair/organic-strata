@@ -59,7 +59,7 @@ import {
 } from './16-board.js';
 import { fhCanUndo } from './02-seed-ui.js';
 import { hooks, provide } from './hooks.js';
-import { elementUses, projectStore, symbolUses, touchProject } from './project.js';
+import { elementUses, projectStore, saveThumb, symbolUses, touchProject } from './project.js';
 // Names earlier files reach at run time (hooks.*) — live getters.
 provide({
   boardElementDrawn: () => elementDrawn, boardGalleryDrawn: () => galleryDrawn,
@@ -184,12 +184,17 @@ function readElements() {
   items.forEach(e => { delete e.n; });
   return { items, active };
 }
+// the home's card (Projects, Nov 26, 2026): the edited Symbol once there is one (the Symbol board sets it), else the
+// edited Element as its board draws it
+const liveElementSvg = () => { const svg = document.querySelector('#board-live-element svg'); return svg ? svg.outerHTML : ''; };
+let projectThumb = liveElementSvg;
 function writeElements() {
   const obj = {};
   state.elements.forEach((e, i) => { obj[e.id] = { name: e.name, custom: !!e.custom, seed: e.seed, app: e.app, ...(e.palette ? { palette: e.palette } : {}), ...(e.gallery ? { gallery: e.gallery } : {}), ...(e.galPos ? { galPos: e.galPos } : {}), n: i }; });
   obj[BOARD_ROW] = { active: state.activeElement };
   try { ELEMENTS.write(obj); } catch (err) {}
   const n = state.elements.length, els = elementUses(state.elements); touchProject(r => ({ counts: { ...(r.counts || {}), elements: n }, uses: { ...(r.uses || {}), elements: els } }));
+  saveThumb(() => projectThumb());
 }
 
 // ── Element board ───────────────────────────────────────────────────────────────────────────────────────
@@ -1065,6 +1070,9 @@ function mountSymbolBoard() {
     const a = kept; if (a && a.work) obj[LEGACY] = a.work;   // the single Symbol an older page reads
     try { WORK.write(obj); } catch (err) {}
     const real = state.symbols.filter(x => !x.draft), ns = real.length, comps = symbolUses(real), sels = elementUses(real.map(x => x.work)); touchProject(r => ({ counts: { ...(r.counts || {}), symbols: ns }, uses: { ...(r.uses || {}), components: comps, symbolElements: sels } }));
+    // the home's card: the edited Symbol, else the edited Element as its board draws it (Projects, Nov 26, 2026)
+    projectThumb = () => { const s = (find(active()) && !find(active()).draft ? find(active()) : null) || state.symbols.find(x => !x.draft && x.work); return s && s.work ? drawn(s) : liveElementSvg(); };
+    saveThumb(projectThumb);
     if (state.symbols.some(x => x.from)) relabel();   // a mother changed: its children's link reads "an earlier"
     syncFigureTab();   // a Symbol added, emptied or deleted: the Figure step opens or closes
   }
