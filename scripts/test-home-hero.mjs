@@ -53,6 +53,16 @@ const car = await P.ev(`
 check('the home shows H A G E F, in that order', car.home === HOME.join('') && car.bars.length === 5 && car.first === 'h' && /^Composition 1: Stacks$/.test(car.bars[0]) && /^Composition 5: Weave$/.test(car.bars[4]), car.home + ' · ' + car.bars.join(' | '));
 check('Next moves on', car.next === 'a' && car.count === '02 / 05', car.next + ', ' + car.count);
 check('a loop that ends hands the stage to the next; Previous goes back and wraps', car.ended === 'g' && car.done === 2 && car.after === 'a' && car.wrap === 'f' && car.svgs === 1 && car.demo === 160 && car.stray === 1, 'ended → ' + car.ended + ', done ' + car.done + ', back ' + car.after + ', wrap ' + car.wrap + '; hero svgs ' + car.svgs + ', demo cells ' + car.demo);
+// Nov 26, 2026: every home loop moves at once (its first slide plays its entrance) and a cycle is short
+for (const k of HOME) {
+  await P.goto('/?hero=' + k, READY);
+  const r = await P.ev(`
+    const st = document.getElementById('heroStage'), a = st.innerHTML;
+    for (let i = 0; i < 6; i++) await new Promise(r => requestAnimationFrame(r));
+    const K = Organica.heroSheets.KINDS[Organica.hero.LOOPS['${k}'].kind];
+    return { moved: st.innerHTML !== a, cycle: K.slides.reduce((t, s) => t + s.ms, 0) };`);
+  check(k + ' moves at once on the home, a cycle ≤ 30 s', r.moved && r.cycle <= 30000, (r.moved ? 'moved' : 'still') + ', cycle ' + r.cycle + ' ms');
+}
 await P.goto('/?hero=b', READY);
 check('a loop off the home is not shown there (?hero=b starts on H)', await P.ev(`return Organica.hero.current.key;`) === 'h');
 

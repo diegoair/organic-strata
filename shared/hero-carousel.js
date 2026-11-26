@@ -24,7 +24,7 @@
       barEls.forEach(function (b, k) { b.classList.toggle('is-done', k < cur); b.firstChild.style.transform = ''; b.setAttribute('aria-current', k === cur ? 'true' : 'false'); });
       o.stage.setAttribute('aria-label', (cur + 1) + ' of ' + N + ': ' + H.LOOPS[key].name);
       o.count.textContent = pad(cur + 1) + ' / ' + pad(N);
-      var mine = handle = H.mount(o.stage, { key: key,
+      var mine = handle = H.mount(o.stage, { key: key, intro: true,   // the loop starts moving at once: its first slide plays its entrance
         onProgress: function (p) { if (handle === mine) { failed = 0; barEls[cur].firstChild.style.transform = 'scaleX(' + p + ')'; } },
         onEnd: function () { if (handle === mine) show(cur + 1); },
         fallback: function () { if (handle === mine && ++failed < N) show(cur + 1); },   // a loop that cannot load is skipped

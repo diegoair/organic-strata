@@ -111,7 +111,7 @@
       total = durs.reduce(function (a, b) { return a + b; }, 0); at = 0; slide = 0; ended = false;
       if (L.kind) {
         if (L.slot) O.heroSheets.setModel(L.slot, json);
-        loop = O.heroSheets.mount(host, { kind: L.kind, label: false, onSlide: onSlide, onProgress: onProgress });
+        loop = O.heroSheets.mount(host, { kind: L.kind, label: false, intro: !!opts.intro, onSlide: onSlide, onProgress: onProgress });
       } else {
         loop = O.heroLoop.mount(host, { concept: 'C', element: 'bloom', fvs: json, label: false, onSlide: onSlide, onProgress: onProgress });
       }
